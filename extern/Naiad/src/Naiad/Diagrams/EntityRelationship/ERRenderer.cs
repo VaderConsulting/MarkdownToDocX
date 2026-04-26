@@ -42,8 +42,8 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
         var layoutOptions = new LayoutOptions
         {
             Direction = model.Direction,
-            // Reference SVG has a wider ORDER <-> PRODUCT separation.
-            NodeSeparation = 160,
+            // Mermaid default (erRenderer.js): nodesep = 100, ranksep = 100.
+            NodeSeparation = 100,
             RankSeparation = 100
         };
         var layoutResult = layoutEngine.Layout(graphModel, layoutOptions);
