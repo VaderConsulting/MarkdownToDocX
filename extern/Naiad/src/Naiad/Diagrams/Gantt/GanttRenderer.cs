@@ -33,6 +33,7 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
     const string SECTION3_ROW_COLOR = "white";
     const string SECTION_ROW_FILL_OPACITY_STYLE = "fill-opacity: 0.2";
     const double RIGHT_LABEL_PADDING_PX = 60;
+    const double FORCE_LABEL_INSIDE_BAR_WIDTH_PX = 140;
 
     // Section header band (Mermaid live uses the same palette but not necessarily the same opacity).
     const string SECTION_HEADER_COLOR = "rgba(102, 102, 255, 0.49)";
@@ -348,10 +349,17 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
             {
 #pragma warning disable IDE0007
                 double FontSizePx = Math.Max(8, options.FontSize - 2);
-                double EstimatedTextWidthPx = task.Name.Length * FontSizePx * 0.75;
+                // Mermaid measures actual text width and keeps labels inside when they fit.
+                // We use a conservative estimate but force inside for sufficiently wide bars to match Mermaid defaults.
+                double EstimatedTextWidthPx = task.Name.Length * FontSizePx * 0.62;
                 bool IsLikelyToFitInsideBar = taskWidth >= (EstimatedTextWidthPx + 10);
+                if (taskWidth >= FORCE_LABEL_INSIDE_BAR_WIDTH_PX)
+                {
+                    IsLikelyToFitInsideBar = true;
+                }
 
-                var barLabelY = barY + taskBarHeight / 2 - GanttWordBarLabelUp(options);
+                // Vertically centre the text within the bar.
+                var barLabelY = barY + taskBarHeight / 2;
                 double textX = taskX + taskWidth / 2;
                 string textAnchor = "middle";
                 if (!IsLikelyToFitInsideBar)
