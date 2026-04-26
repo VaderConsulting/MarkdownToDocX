@@ -345,8 +345,14 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
 
         var DashArray = rel.Identifying ? null : "5,5";
 
-        // Mermaid ER uses a curve-basis path through the layout edge points.
-        // Keep our attach-point logic (ports), but reuse the routed intermediate points from Dagre.
+        // Source-of-truth: for the gold-standard ER layout, curved relationships should be cubic Beziers with explicit
+        // pull points so endpoint tangents are stable (the curve must not decide anchors).
+        //
+        // Keep Dagre’s endpoint anchors, but for simple two-endpoint relationships prefer an explicit cubic Bezier that:
+        // - leaves a bottom anchor straight down
+        // - approaches an upper-left / upper-right target shoulder with the correct final tangent
+        //
+        // For more complex multi-point routes (dummy nodes / obstacle avoidance), keep curveBasis for now.
         var Points = new List<Position>();
         if (Edge != null && Edge.Points.Count >= 2)
         {
@@ -358,20 +364,29 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
             Points.Add(EndPoint);
         }
 
-        // Only change curvature: keep existing endpoints.
-        // Draw the relationship using the exact d3.curveBasis algorithm.
-        var BasisPath = BuildErCurveBasisPath(Points);
-        builder.AddPath(BasisPath.PathData, fill: "none", stroke: RelationshipStroke, strokeWidth: RelationshipStrokeWidth, strokeDasharray: DashArray);
+        ErCurveBasisPath Path;
+        if (Points.Count == 2)
+        {
+            Path = BuildErExplicitCubicOrLinePath(StartPoint, EndPoint);
+        }
+        else
+        {
+            Path = BuildErCurveBasisPath(Points);
+        }
+
+        builder.AddPath(Path.PathData, fill: "none", stroke: RelationshipStroke, strokeWidth: RelationshipStrokeWidth, strokeDasharray: DashArray);
 
         // Pin embellishments onto the curve by sampling points ON the curve at Mermaid's offsets.
-        DrawCardinalityOnCurveBasis(builder, rel.FromCardinality, isStart: true, EndPoint: StartPoint, EndEntity: FromEntity, BasisPath: BasisPath);
-        DrawCardinalityOnCurveBasis(builder, rel.ToCardinality, isStart: false, EndPoint: EndPoint, EndEntity: ToEntity, BasisPath: BasisPath);
+        DrawCardinalityOnCurveBasis(builder, rel.FromCardinality, isStart: true, EndPoint: StartPoint, EndEntity: FromEntity, BasisPath: Path);
+        DrawCardinalityOnCurveBasis(builder, rel.ToCardinality, isStart: false, EndPoint: EndPoint, EndEntity: ToEntity, BasisPath: Path);
 
         if (!string.IsNullOrEmpty(rel.Label))
         {
-            var Mid = ComputePolylineMidpoint(Points);
-            var MidX = Mid.X;
-            var MidY = Mid.Y;
+#pragma warning disable IDE0007
+            Position LabelPoint = ComputePathLabelPoint(Path, Points);
+#pragma warning restore IDE0007
+            var MidX = LabelPoint.X;
+            var MidY = LabelPoint.Y;
             var LabelWidth = Math.Round(Math.Max(20.0, MeasureText(rel.Label, RelationshipFontSize, bold: false) + 4.96), 2);
 
             builder.AddRect(MidX - (LabelWidth / 2.0), MidY - (RelationshipLabelHeight / 2.0), LabelWidth, RelationshipLabelHeight, fill: RelationshipLabelBackground, stroke: "none");
@@ -383,6 +398,77 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
                 fontFamily: options.FontFamily,
                 fill: "#333");
         }
+    }
+
+    static Position ComputePathLabelPoint(ErCurveBasisPath Path, IReadOnlyList<Position> FallbackPolyline)
+    {
+#pragma warning disable IDE0007
+        if (Path.Segments.Count == 1)
+        {
+            CubicBezierSegment Seg = Path.Segments[0];
+            return BezierPoint(Seg, 0.5);
+        }
+
+        return ComputePolylineMidpoint(FallbackPolyline);
+#pragma warning restore IDE0007
+    }
+
+    static ErCurveBasisPath BuildErExplicitCubicOrLinePath(Position P0, Position P3)
+    {
+#pragma warning disable IDE0007
+        var Result = new ErCurveBasisPath();
+
+        double Dx = P3.X - P0.X;
+        double Dy = P3.Y - P0.Y;
+
+        // Straight line for near-vertical relationships (e.g., CUSTOMER -> ORDER).
+        if (Math.Abs(Dx) < 0.75)
+        {
+            Result.PathData = $"M{Fmt(P0.X)},{Fmt(P0.Y)} L{Fmt(P3.X)},{Fmt(P3.Y)}";
+            return Result;
+        }
+
+        double AbsDx = Math.Abs(Dx);
+        double AbsDy = Math.Abs(Dy);
+
+        double VerticalPull = Clamp(0.30 * AbsDy, 24.0, 70.0);
+        double HorizontalPull = Clamp(0.35 * AbsDx, 24.0, 80.0);
+        double SmallVerticalPull = Clamp(0.15 * AbsDy, 12.0, 40.0);
+
+        // Choose approach side based on whether the source is left or right of the target.
+        // Source left of target => approach from left => C2.X < P3.X.
+        // Source right of target => approach from right => C2.X > P3.X.
+        double SignX = P0.X < P3.X ? -1.0 : 1.0;
+
+        Position C1 = new Position(P0.X, P0.Y + VerticalPull);
+        Position C2 = new Position(P3.X + (SignX * HorizontalPull), P3.Y - SmallVerticalPull);
+
+        Result.PathData =
+            $"M{Fmt(P0.X)},{Fmt(P0.Y)} C{Fmt(C1.X)},{Fmt(C1.Y)} {Fmt(C2.X)},{Fmt(C2.Y)} {Fmt(P3.X)},{Fmt(P3.Y)}";
+
+        Result.Segments.Add(new CubicBezierSegment
+        {
+            P0 = P0,
+            P1 = C1,
+            P2 = C2,
+            P3 = P3
+        });
+
+        return Result;
+#pragma warning restore IDE0007
+    }
+
+    static double Clamp(double value, double min, double max)
+    {
+        if (value < min)
+        {
+            return min;
+        }
+        if (value > max)
+        {
+            return max;
+        }
+        return value;
     }
 
     static Position ComputePolylineMidpoint(IReadOnlyList<Position> Points)
