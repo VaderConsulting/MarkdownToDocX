@@ -18,8 +18,17 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
     const string ACTIVE_TASK_BKG_COLOR = "#bfc7ff";
     const string DONE_TASK_BKG_COLOR = "lightgrey";
     const string CRIT_TASK_BKG_COLOR = "red";
+    const string DONE_TASK_BORDER_COLOR = "grey";
+    const string CRIT_TASK_BORDER_COLOR = "#ff8888";
 
-    const string sectionColor = "rgba(102, 102, 255, 0.49)";
+    // Mermaid uses per-row section fills with opacity 0.2; we bake that into rgba for Word/DOCX.
+    const string SECTION0_ROW_COLOR = "rgba(102, 102, 255, 0.2)";
+    const string SECTION1_ROW_COLOR = "rgba(255, 255, 255, 0.2)";
+    const string SECTION2_ROW_COLOR = "rgba(255, 244, 0, 0.2)";
+    const string SECTION3_ROW_COLOR = "rgba(255, 255, 255, 0.2)";
+
+    // Section header band (Mermaid live uses the same palette but not necessarily the same opacity).
+    const string SECTION_HEADER_COLOR = "rgba(102, 102, 255, 0.49)";
     const string milestoneColor = "#FF9800";
 
     /// <summary>Word tends to paint <c>dominant-baseline: middle</c> high for row/section titles; slight positive Y.</summary>
@@ -67,6 +76,11 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
         var width = leftMargin + chartWidth + options.Padding * 2;
         var height = chartHeight + options.Padding * 2;
 
+        // Ensure the viewBox is wide enough for long section titles and task labels placed outside bars.
+        var maxLeftLabelWidthPx = EstimateMaxLeftLabelWidthPx(model, options);
+        var minWidthForLabels = options.Padding + 10 + maxLeftLabelWidthPx + options.Padding;
+        width = Math.Max(width, minWidthForLabels);
+
         var builder = new SvgBuilder().Size(width, height);
 
         var offsetX = options.Padding + leftMargin;
@@ -90,6 +104,9 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
         // Draw grid lines
         DrawGridLines(builder, minDate, totalDays, offsetX, offsetY, chartWidth, totalRows * rowHeight);
 
+        // Draw section row backgrounds (Mermaid draws full-width row bands behind tasks).
+        DrawSectionRowBackgrounds(builder, model, offsetY, options, chartWidth);
+
         // Draw sections and tasks
         var currentRow = 0;
         foreach (var section in model.Sections)
@@ -99,7 +116,7 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
             {
                 var sectionY = offsetY + currentRow * rowHeight;
                 builder.AddRect(options.Padding, sectionY, leftMargin + chartWidth, sectionHeaderHeight,
-                    fill: sectionColor, stroke: "none");
+                    fill: SECTION_HEADER_COLOR, stroke: "none");
                 builder.AddText(options.Padding + 10, sectionY + sectionHeaderHeight / 2 + GanttWordRowTitleDown(options), section.Name,
                     anchor: "start",
                     baseline: "middle",
@@ -127,8 +144,8 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
         builder.AddLine(offsetX, offsetY + axisHeight - 5, offsetX + chartWidth, offsetY + axisHeight - 5,
             stroke: "#333", strokeWidth: 1);
 
-        // Date labels (show every few days based on scale)
-        var interval = totalDays > 30 ? 7 : totalDays > 14 ? 3 : 1;
+        // Date labels — Mermaid's default tends to show daily ticks for these short fixtures.
+        var interval = 1;
         for (var i = 0; i < totalDays; i += interval)
         {
             var x = offsetX + i * dayWidth;
@@ -250,25 +267,35 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
 
         // Determine task colours (Mermaid default theme variables).
         string fillColor;
+        string strokeColor;
+        double strokeWidth;
         string textColor;
         if (task.IsCritical)
         {
             fillColor = CRIT_TASK_BKG_COLOR;
+            strokeColor = CRIT_TASK_BORDER_COLOR;
+            strokeWidth = 2;
             textColor = "white";
         }
         else if (task.Status == GanttTaskStatus.Done)
         {
             fillColor = DONE_TASK_BKG_COLOR;
+            strokeColor = DONE_TASK_BORDER_COLOR;
+            strokeWidth = 2;
             textColor = "black";
         }
         else if (task.Status == GanttTaskStatus.Active)
         {
             fillColor = ACTIVE_TASK_BKG_COLOR;
+            strokeColor = TASK_BORDER_COLOR;
+            strokeWidth = 2;
             textColor = "black";
         }
         else
         {
             fillColor = TASK_BKG_COLOR;
+            strokeColor = TASK_BORDER_COLOR;
+            strokeWidth = 2;
             textColor = "white";
         }
 
@@ -290,8 +317,8 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
             builder.AddRect(taskX, barY, taskWidth, taskBarHeight,
                 rx: 3,
                 fill: fillColor,
-                stroke: TASK_BORDER_COLOR,
-                strokeWidth: 1);
+                stroke: strokeColor,
+                strokeWidth: strokeWidth);
 
             // Task name inside bar if it likely fits (Word-first heuristic).
             if (!string.IsNullOrWhiteSpace(task.Name))
@@ -319,6 +346,82 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
 #pragma warning restore IDE0007
             }
         }
+    }
+
+    static void DrawSectionRowBackgrounds(SvgBuilder builder, GanttModel model, double offsetY, RenderOptions options, double chartWidth)
+    {
+#pragma warning disable IDE0007
+        int currentRow = 0;
+        int sectionIndex = 0;
+        foreach (var section in model.Sections)
+        {
+            // Header row
+            if (!string.IsNullOrEmpty(section.Name))
+            {
+                currentRow++;
+            }
+
+            var sectionFill = GetSectionFill(sectionIndex);
+            // Task rows in this section
+            for (int i = 0; i < section.Tasks.Count; i++)
+            {
+                var y = offsetY + (currentRow + i) * rowHeight - 2;
+                builder.AddRect(options.Padding, y, leftMargin + chartWidth, rowHeight,
+                    fill: sectionFill, stroke: "none");
+            }
+
+            currentRow += section.Tasks.Count;
+            sectionIndex++;
+        }
+#pragma warning restore IDE0007
+    }
+
+    static string GetSectionFill(int sectionIndex)
+    {
+        var slot = ((sectionIndex % 4) + 4) % 4;
+        return slot switch
+        {
+            0 => SECTION0_ROW_COLOR,
+            1 => SECTION1_ROW_COLOR,
+            2 => SECTION2_ROW_COLOR,
+            _ => SECTION3_ROW_COLOR
+        };
+    }
+
+    static double EstimateMaxLeftLabelWidthPx(GanttModel model, RenderOptions options)
+    {
+        // Very rough estimate (Word-first) to avoid clipping long section titles.
+#pragma warning disable IDE0007
+        double fontSizePx = options.FontSize;
+        double maxWidth = 0;
+
+        foreach (var section in model.Sections)
+        {
+            if (!string.IsNullOrWhiteSpace(section.Name))
+            {
+                maxWidth = Math.Max(maxWidth, EstimateTextWidthPx(section.Name, fontSizePx, isBold: true));
+            }
+
+            foreach (var task in section.Tasks)
+            {
+                if (!string.IsNullOrWhiteSpace(task.Name))
+                {
+                    maxWidth = Math.Max(maxWidth, EstimateTextWidthPx(task.Name, Math.Max(8, options.FontSize - 2), isBold: false));
+                }
+            }
+        }
+
+        return maxWidth;
+#pragma warning restore IDE0007
+    }
+
+    static double EstimateTextWidthPx(string text, double fontSizePx, bool isBold)
+    {
+        // 0.6em per character tends to slightly over-estimate in Word; bold adds a small premium.
+#pragma warning disable IDE0007
+        double weightFactor = isBold ? 1.08 : 1.0;
+        return text.Length * fontSizePx * 0.6 * weightFactor;
+#pragma warning restore IDE0007
     }
 
     static List<GanttTask> ComputeTaskDates(GanttModel model)
