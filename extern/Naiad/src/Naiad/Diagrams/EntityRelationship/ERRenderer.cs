@@ -829,31 +829,19 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
             return Result;
         }
 
-        double Distance = Math.Sqrt((Dx * Dx) + (Dy * Dy));
-        double T = Clamp(0.15 * Distance, 16.0, 40.0);
+        // Mirror Mermaid: use Dagre's 3-point edge route (vertical down, then diagonal in).
+        // Mermaid applies d3.line().curve(curveBasis) to edge.points, so the waypoint positions matter.
+        double MidY = (P0.Y + P3.Y) / 2.0;
+        Position MidPoint = new Position(P0.X, MidY);
 
-        // Source guide enforces a downward departure from a bottom anchor.
-        Position SourceGuide = new Position(P0.X, P0.Y + T);
-
-        // Target guide is positioned outside the corner to enforce an approach direction consistent with Mermaid’s
-        // ER routing (so the marker ref point lies on the visible line).
-        double SignX = P0.X < P3.X ? -1.0 : 1.0;
-        double AbsDx = Math.Abs(Dx);
-        double AbsDy = Math.Abs(Dy);
-
-        double TargetGuideXPull = Clamp(0.35 * AbsDx, 18.0, 70.0);
-        double TargetGuideYPull = Clamp(0.20 * AbsDy, 14.0, 60.0);
-        Position TargetGuide = new Position(P3.X + (SignX * TargetGuideXPull), P3.Y - TargetGuideYPull);
-
-        List<Position> GuidedPoints = new List<Position>
+        List<Position> MermaidPoints = new List<Position>
         {
             P0,
-            SourceGuide,
-            TargetGuide,
+            MidPoint,
             P3
         };
 
-        return BuildErCurveBasisPath(GuidedPoints);
+        return BuildErCurveBasisPath(MermaidPoints);
 #pragma warning restore IDE0007
     }
 
