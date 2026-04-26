@@ -369,7 +369,7 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
             // the visual line direction used by Mermaid’s ER markers.
             if (IsMatrixStyleCardinalityLabel(rel.Label))
             {
-                Path = BuildErGuidedCurveBasisPathWithMinimumStraights(StartPoint, EndPoint);
+                Path = BuildErGuidedCurveBasisPathWithMinimumStraights(StartPoint, EndPoint, FromEntity, ToEntity);
             }
             else
             {
@@ -422,7 +422,69 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
         }
     }
 
-    static ErCurveBasisPath BuildErGuidedCurveBasisPathWithMinimumStraights(Position P0, Position P3)
+    enum PortAxis
+    {
+        Horizontal,
+        Vertical
+    }
+
+    static PortAxis ClassifyPortAxis(Position Anchor, Entity Entity)
+    {
+#pragma warning disable IDE0007
+        const double EPS = 1.25;
+
+        double LeftX = Entity.Position.X - (Entity.Width / 2.0);
+        double RightX = Entity.Position.X + (Entity.Width / 2.0);
+        double TopY = Entity.Position.Y - (Entity.Height / 2.0);
+        double BottomY = Entity.Position.Y + (Entity.Height / 2.0);
+
+        double DxLeft = Math.Abs(Anchor.X - LeftX);
+        double DxRight = Math.Abs(Anchor.X - RightX);
+        double DyTop = Math.Abs(Anchor.Y - TopY);
+        double DyBottom = Math.Abs(Anchor.Y - BottomY);
+
+        if (DyTop <= EPS || DyBottom <= EPS)
+        {
+            return PortAxis.Vertical;
+        }
+
+        if (DxLeft <= EPS || DxRight <= EPS)
+        {
+            return PortAxis.Horizontal;
+        }
+
+        double MinX = Math.Min(DxLeft, DxRight);
+        double MinY = Math.Min(DyTop, DyBottom);
+        return MinY <= MinX ? PortAxis.Vertical : PortAxis.Horizontal;
+#pragma warning restore IDE0007
+    }
+
+    static bool HasRoomForMinSegmentsAlongPrimaryAxis(
+        Position ExitPoint,
+        Position EntryPoint,
+        double DirectionX,
+        double DirectionY,
+        PortAxis FromAxis,
+        PortAxis ToAxis,
+        double ClearancePx)
+    {
+#pragma warning disable IDE0007
+        PortAxis Axis = FromAxis == ToAxis ? FromAxis : PortAxis.Vertical;
+
+        if (Axis == PortAxis.Vertical)
+        {
+            return DirectionY > 0.0
+                ? ExitPoint.Y <= (EntryPoint.Y - ClearancePx)
+                : ExitPoint.Y >= (EntryPoint.Y + ClearancePx);
+        }
+
+        return DirectionX > 0.0
+            ? ExitPoint.X <= (EntryPoint.X - ClearancePx)
+            : ExitPoint.X >= (EntryPoint.X + ClearancePx);
+#pragma warning restore IDE0007
+    }
+
+    static ErCurveBasisPath BuildErGuidedCurveBasisPathWithMinimumStraights(Position P0, Position P3, Entity FromEntity, Entity ToEntity)
     {
 #pragma warning disable IDE0007
         double Dx = P3.X - P0.X;
@@ -434,18 +496,16 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
             return BuildErGuidedCurveBasisPath(P0, P3);
         }
 
-        // Matrix-style minimum straight exit/entry segments before smoothing (ported from scenario 1 tuning intent).
-        //
-        // Enforce the minimum along the axis implied by the relationship’s overall direction:
-        // - predominantly vertical -> straight vertical exit/entry
-        // - predominantly horizontal -> straight horizontal exit/entry
+        // Matrix-style minimum straight exit/entry segments before smoothing (ported from scenario 1).
+        // Enforce per endpoint based on the port axis (L/R => horizontal, T/B => vertical).
         const double MINIMUM_STRAIGHT_EXIT_VERTICAL_PX = 28.0;
-        const double MINIMUM_STRAIGHT_ENTRY_VERTICAL_PX = 28.0;
         const double MINIMUM_STRAIGHT_EXIT_HORIZONTAL_PX = 28.0;
+        const double MINIMUM_STRAIGHT_ENTRY_VERTICAL_PX = 28.0;
         const double MINIMUM_STRAIGHT_ENTRY_HORIZONTAL_PX = 28.0;
         const double MINIMUM_CLEARANCE_PX = 6.0;
 
-        bool PreferVertical = Math.Abs(Dy) >= Math.Abs(Dx);
+        PortAxis FromAxis = ClassifyPortAxis(P0, FromEntity);
+        PortAxis ToAxis = ClassifyPortAxis(P3, ToEntity);
 
         double DirectionX = Dx >= 0.0 ? 1.0 : -1.0;
         double DirectionY = Dy >= 0.0 ? 1.0 : -1.0;
@@ -453,30 +513,26 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
         Position ExitPoint;
         Position EntryPoint;
 
-        if (PreferVertical)
+        if (FromAxis == PortAxis.Vertical)
         {
             ExitPoint = new Position(P0.X, P0.Y + (DirectionY * MINIMUM_STRAIGHT_EXIT_VERTICAL_PX));
-            EntryPoint = new Position(P3.X, P3.Y - (DirectionY * MINIMUM_STRAIGHT_ENTRY_VERTICAL_PX));
         }
         else
         {
             ExitPoint = new Position(P0.X + (DirectionX * MINIMUM_STRAIGHT_EXIT_HORIZONTAL_PX), P0.Y);
-            EntryPoint = new Position(P3.X - (DirectionX * MINIMUM_STRAIGHT_ENTRY_HORIZONTAL_PX), P3.Y);
         }
 
-        bool HasRoomForMinSegments;
-        if (PreferVertical)
+        if (ToAxis == PortAxis.Vertical)
         {
-            HasRoomForMinSegments = DirectionY > 0.0
-                ? ExitPoint.Y <= (EntryPoint.Y - MINIMUM_CLEARANCE_PX)
-                : ExitPoint.Y >= (EntryPoint.Y + MINIMUM_CLEARANCE_PX);
+            EntryPoint = new Position(P3.X, P3.Y - (DirectionY * MINIMUM_STRAIGHT_ENTRY_VERTICAL_PX));
         }
         else
         {
-            HasRoomForMinSegments = DirectionX > 0.0
-                ? ExitPoint.X <= (EntryPoint.X - MINIMUM_CLEARANCE_PX)
-                : ExitPoint.X >= (EntryPoint.X + MINIMUM_CLEARANCE_PX);
+            EntryPoint = new Position(P3.X - (DirectionX * MINIMUM_STRAIGHT_ENTRY_HORIZONTAL_PX), P3.Y);
         }
+
+        bool HasRoomForMinSegments =
+            HasRoomForMinSegmentsAlongPrimaryAxis(ExitPoint, EntryPoint, DirectionX, DirectionY, FromAxis, ToAxis, MINIMUM_CLEARANCE_PX);
 
         if (HasRoomForMinSegments)
         {
