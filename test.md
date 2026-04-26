@@ -478,13 +478,27 @@ Gantt chart:
 
 ```mermaid
 gantt
-    title Converter work
+    title Gantt defaults probe (colours, sizes, grid)
     dateFormat  YYYY-MM-DD
     axisFormat  %d
-    section Build
-    Parser updates      :done,    p1, 2026-04-01, 3d
-    DOCX embedding      :active,  p2, after p1, 4d
-    Review              :         p3, after p2, 2d
+
+    %% Keep the range short so we see the default tick/grid behaviour clearly.
+    %% Include every built-in status to capture default colours and strokes.
+
+    section Section banding (look for alternating row backgrounds)
+    Done task (done)                 :done,    a1, 2026-04-01, 3d
+    Active task (active)             :active,  a2, after a1, 3d
+    Normal task (default)            :         a3, after a2, 2d
+
+    section Critical variants (crit + combinations)
+    Critical task (crit)             :crit,    c1, 2026-04-01, 2d
+    Critical + done (crit, done)     :crit, done, c2, after c1, 2d
+    Critical + active (crit, active) :crit, active, c3, after c2, 2d
+
+    section Markers (today + vert + milestone)
+    Vertical marker (vert)           :vert,    v1, 2026-04-04, 1d
+    Milestone (milestone)            :milestone, m1, 2026-04-07, 0d
+    Tail task (default)              :         t1, after m1, 2d
 ```
 
 Pie chart:
