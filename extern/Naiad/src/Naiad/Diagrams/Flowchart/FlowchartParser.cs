@@ -177,6 +177,27 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
             String("RL").ThenReturn(Direction.RightToLeft)
         );
 
+    static Direction? TryParseDirectionToken(string token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return null;
+        }
+
+#pragma warning disable IDE0007
+        string upper = token.Trim().ToUpperInvariant();
+        return upper switch
+        {
+            "TB" => Direction.TopToBottom,
+            "TD" => Direction.TopToBottom,
+            "BT" => Direction.BottomToTop,
+            "LR" => Direction.LeftToRight,
+            "RL" => Direction.RightToLeft,
+            _ => null
+        };
+#pragma warning restore IDE0007
+    }
+
     // Statement: A --> B --> C (chain of nodes with edges)
     static Parser<char, (List<Node> Nodes, List<(EdgeType Type, EdgeStyle Style, string? Label, int MinRankSpan)> Edges)> StatementParser =>
         from first in nodeParser
@@ -281,9 +302,11 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
         from _ in CommonParsers.InlineWhitespace
         from __ in String("direction")
         from ___ in CommonParsers.RequiredInlineWhitespace
-        from dir in flowchartDirection
+        from dirToken in CommonParsers.Identifier
+        let dirValue = TryParseDirectionToken(dirToken)
+        where dirValue.HasValue
         from ____ in CommonParsers.SkipRestOfLine
-        select dir;
+        select dirValue.Value;
 
     // Skip empty lines, comments, and directives
     static Parser<char, Unit> skipLine =
