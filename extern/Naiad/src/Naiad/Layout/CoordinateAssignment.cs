@@ -872,7 +872,11 @@ static class CoordinateAssignment
         // Explicit small-N canonical placements.
         //
         // The source-of-truth calls out a two-parent target hub case (e.g. LINE_ITEM with two incoming relationships
-        // from above) that should prefer corner-adjacent top anchors (T1 and T4), not an interior top slot.
+        // from above) that should prefer upper-left and upper-right facing perimeter anchors, not a shared top-centre.
+        //
+        // In practice, using the upper side anchors (L1/R1) produces the intended "shoulder" entry into the target
+        // box and matches the gold-standard expectation that the two relationships enter distinctly on the left and
+        // right shoulders.
         //
         // Apply this by selecting anchor slots directly (rather than relying on slot indices), so future slot-list
         // tweaks can't accidentally shift the chosen anchors.
@@ -881,8 +885,8 @@ static class CoordinateAssignment
             LayoutEdge LeftEdge = edges[0];
             LayoutEdge RightEdge = edges[1];
 
-            ApplyExplicitAnchorSlot(Hub, HubId, LeftEdge, ErAnchorSlot.T1, attachByEdge);
-            ApplyExplicitAnchorSlot(Hub, HubId, RightEdge, ErAnchorSlot.T4, attachByEdge);
+            ApplyExplicitAnchorSlot(Hub, HubId, LeftEdge, ErAnchorSlot.L1, attachByEdge);
+            ApplyExplicitAnchorSlot(Hub, HubId, RightEdge, ErAnchorSlot.R1, attachByEdge);
             return;
         }
 

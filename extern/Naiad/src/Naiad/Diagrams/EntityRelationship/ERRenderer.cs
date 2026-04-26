@@ -421,8 +421,6 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
         const double BAR_SPACING_PX = 5.0;
         const double BAR_HALF_LENGTH_PX = 9.0;
         const double CIRCLE_RADIUS_PX = 7.0;
-        const double CROWFOOT_LENGTH_PX = 13.0;
-        const double CROWFOOT_SPREAD_PX = 8.0;
         const double MARKER_STROKE_WIDTH_PX = 1.5;
 
         if (!TryGetEndpointUnitTangent(Path, isStart, out double Ux, out double Uy))
@@ -452,14 +450,14 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
         if (Cardinality == Cardinality.OneOrMore)
         {
             AddBarAtDistance(Builder, EndPoint, Ux, Uy, Nx, Ny, MARKER_GAP_FROM_BOX_PX, BAR_HALF_LENGTH_PX, MARKER_STROKE_WIDTH_PX);
-            AddCrowfootAtDistance(Builder, EndPoint, Ux, Uy, Nx, Ny, MARKER_GAP_FROM_BOX_PX + CROWFOOT_LENGTH_PX, CROWFOOT_LENGTH_PX, CROWFOOT_SPREAD_PX, MARKER_STROKE_WIDTH_PX);
+            AddCrowfootAtDistanceCurved(Builder, EndPoint, Ux, Uy, Nx, Ny, MARKER_GAP_FROM_BOX_PX + 16.0, 18.0, 9.0, 4.0, MARKER_STROKE_WIDTH_PX);
             return;
         }
 
         if (Cardinality == Cardinality.ZeroOrMore)
         {
             AddCircleAtDistance(Builder, EndPoint, Ux, Uy, MARKER_GAP_FROM_BOX_PX + CIRCLE_RADIUS_PX, CIRCLE_RADIUS_PX, MARKER_STROKE_WIDTH_PX);
-            AddCrowfootAtDistance(Builder, EndPoint, Ux, Uy, Nx, Ny, MARKER_GAP_FROM_BOX_PX + CROWFOOT_LENGTH_PX, CROWFOOT_LENGTH_PX, CROWFOOT_SPREAD_PX, MARKER_STROKE_WIDTH_PX);
+            AddCrowfootAtDistanceCurved(Builder, EndPoint, Ux, Uy, Nx, Ny, MARKER_GAP_FROM_BOX_PX + 16.0, 18.0, 9.0, 4.0, MARKER_STROKE_WIDTH_PX);
         }
 #pragma warning restore IDE0007
     }
@@ -547,6 +545,63 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
         Builder.AddLine(Ax, Ay, Bx, By, stroke: RelationshipStroke, strokeWidth: StrokeWidthPx);
         Builder.AddLine(Ax, Ay, Lx, Ly, stroke: RelationshipStroke, strokeWidth: StrokeWidthPx);
         Builder.AddLine(Ax, Ay, Rx, Ry, stroke: RelationshipStroke, strokeWidth: StrokeWidthPx);
+#pragma warning restore IDE0007
+    }
+
+    static void AddCrowfootAtDistanceCurved(
+        SvgBuilder Builder,
+        Position EndPoint,
+        double Ux,
+        double Uy,
+        double Nx,
+        double Ny,
+        double ApexDistancePx,
+        double CrowFootLengthPx,
+        double CrowFootSpreadPx,
+        double ToeCurvePx,
+        double StrokeWidthPx)
+    {
+#pragma warning disable IDE0007
+        // Mermaid-style crowfoot: longer toes with a slight outward curve.
+        double Ax = EndPoint.X + (Ux * ApexDistancePx);
+        double Ay = EndPoint.Y + (Uy * ApexDistancePx);
+
+        double Bx = Ax - (Ux * CrowFootLengthPx);
+        double By = Ay - (Uy * CrowFootLengthPx);
+
+        double Lx = Bx + (Nx * CrowFootSpreadPx);
+        double Ly = By + (Ny * CrowFootSpreadPx);
+
+        double Rx = Bx - (Nx * CrowFootSpreadPx);
+        double Ry = By - (Ny * CrowFootSpreadPx);
+
+        AddQuadraticToe(Builder, Ax, Ay, Bx, By, 0.0, 0.0, ToeCurvePx, StrokeWidthPx);
+        AddQuadraticToe(Builder, Ax, Ay, Lx, Ly, Nx, Ny, ToeCurvePx, StrokeWidthPx);
+        AddQuadraticToe(Builder, Ax, Ay, Rx, Ry, -Nx, -Ny, ToeCurvePx, StrokeWidthPx);
+#pragma warning restore IDE0007
+    }
+
+    static void AddQuadraticToe(
+        SvgBuilder Builder,
+        double Ax,
+        double Ay,
+        double Ex,
+        double Ey,
+        double OutNx,
+        double OutNy,
+        double ToeCurvePx,
+        double StrokeWidthPx)
+    {
+#pragma warning disable IDE0007
+        // Control point is mid-point, nudged outward to create curvature.
+        double Mx = (Ax + Ex) / 2.0;
+        double My = (Ay + Ey) / 2.0;
+
+        double Cx = Mx + (OutNx * ToeCurvePx);
+        double Cy = My + (OutNy * ToeCurvePx);
+
+        string D = $"M{Fmt(Ax)},{Fmt(Ay)} Q{Fmt(Cx)},{Fmt(Cy)} {Fmt(Ex)},{Fmt(Ey)}";
+        Builder.AddPath(D, fill: "none", stroke: RelationshipStroke, strokeWidth: StrokeWidthPx);
 #pragma warning restore IDE0007
     }
 
