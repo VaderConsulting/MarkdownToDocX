@@ -647,6 +647,64 @@ ER diagram cardinalities are implemented as SVG `<marker>` definitions and appli
 
 Mermaid source: `packages/mermaid/src/diagrams/er/erMarkers.js` and `packages/mermaid/src/diagrams/er/erRenderer.js`
 
+---
+
+## 14B. Gantt diagram: axis, grid, sections, and task bars (source-traced)
+
+This section captures **source-traced** Gantt rendering behaviour from the local Mermaid upstream checkout (`.\mermaid\`).
+
+### 14B.1 Mermaid’s renderer is D3 + CSS classes
+
+Mermaid’s Gantt renderer is implemented in:
+
+- Mermaid source: `packages/mermaid/src/diagrams/gantt/ganttRenderer.js`
+- Stylesheet generator: `packages/mermaid/src/diagrams/gantt/styles.js`
+
+Key points:
+
+- The renderer builds SVG elements and assigns **CSS classes** (e.g. `.grid`, `.section`, `.task`, `.active`, `.done`).
+- The default theme provides the effective colours via **theme variables** (see `packages/mermaid/src/themes/theme-default.js`).
+
+### 14B.2 Axis + grid
+
+Mermaid draws the Gantt time axis and grid using D3 axes:
+
+- Grid group: `<g class="grid"> ... </g>`
+- Each tick draws a vertical grid line using a negative tick size (extends through the chart height).
+- Tick labels use the axis format (`axisFormat`) and are centred under their ticks.
+
+Repository baseline for Word/DOCX parity:
+
+- Prefer a **daily** vertical grid cadence for short ranges (like the `test.md` fixture showing `01..10`), matching VS Code’s default look.
+
+### 14B.3 Section bands (row backgrounds)
+
+Mermaid draws full-width section-row background rectangles behind tasks:
+
+- CSS: `.section { opacity: 0.2; stroke: none; }`
+- Section styles alternate via `section0..section3` using `sectionBkgColor`, `altSectionBkgColor`, `sectionBkgColor2` (default theme).
+
+For the `test.md` fixture, the section header band for `Build` uses:
+
+- `sectionBkgColor = rgba(102, 102, 255, 0.49)` (default theme)
+
+### 14B.4 Task bars and labels
+
+Mermaid renders task bars as rounded rectangles:
+
+- `rx = 3`, `ry = 3`
+- Border uses `taskBorderColor` (default theme: `#534fbc`)
+- Fill colour depends on status:
+  - Default: `taskBkgColor` (default theme: `#8a90dd`)
+  - Active: `activeTaskBkgColor` (default theme: `#bfc7ff`)
+  - Done: `doneTaskBkgColor` (default theme: `lightgrey`)
+  - Critical: `critBkgColor` (default theme: `red`)
+
+Task label rule:
+
+- The **task name text** is the primary label (`d.task` in Mermaid), not the task id.
+- If the label text does not fit inside the bar, Mermaid places it just outside the bar (left or right), otherwise centred within the bar.
+
 Source-traced marker geometry (selected high-signal details):
 
 - **ONLY_ONE**:

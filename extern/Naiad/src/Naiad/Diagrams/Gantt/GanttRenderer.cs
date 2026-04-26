@@ -12,10 +12,13 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
     const double dayWidth = 20;
     const double milestoneSize = 12;
 
-    const string taskColor = "#4CAF50";
-    const string taskDoneColor = "#808080";
-    const string taskActiveColor = "#2196F3";
-    const string taskCritColor = "#F44336";
+    // Mermaid default theme (theme-default.js) values for Gantt.
+    const string TASK_BORDER_COLOR = "#534fbc";
+    const string TASK_BKG_COLOR = "#8a90dd";
+    const string ACTIVE_TASK_BKG_COLOR = "#bfc7ff";
+    const string DONE_TASK_BKG_COLOR = "lightgrey";
+    const string CRIT_TASK_BKG_COLOR = "red";
+
     const string sectionColor = "rgba(102, 102, 255, 0.49)";
     const string milestoneColor = "#FF9800";
 
@@ -138,7 +141,8 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
             // Date label — honour Mermaid axisFormat when present (subset of strftime-style tokens)
             var label = FormatAxisDateLabel(date, axisFormat);
             var axisTickDown = Math.Max(1.5, (options.FontSize - 2) * 0.1);
-            builder.AddText(x, offsetY + axisHeight - 20 + axisTickDown, label,
+            // Mermaid positions tick labels below the axis line.
+            builder.AddText(x, offsetY + axisHeight + 12 + axisTickDown, label,
                 anchor: "middle",
                 baseline: "middle",
                 fontSize: $"{options.FontSize - 2}px",
@@ -214,17 +218,11 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
     static void DrawGridLines(SvgBuilder builder, DateTime startDate, int totalDays, double offsetX, double offsetY,
         double chartWidth, double chartHeight)
     {
-        // Vertical grid lines (weekly)
+        // Vertical grid lines (daily) — match VS Code default look for short ranges.
         for (var i = 0; i < totalDays; i++)
         {
-            var date = startDate.AddDays(i);
-            if (date.DayOfWeek != DayOfWeek.Monday && i != 0)
-            {
-                continue;
-            }
-
             var x = offsetX + i * dayWidth;
-            builder.AddLine(x, offsetY, x, offsetY + chartHeight, stroke: "#ddd", strokeWidth: 1);
+            builder.AddLine(x, offsetY, x, offsetY + chartHeight, stroke: "lightgrey", strokeWidth: 1);
         }
 
         // Horizontal grid lines
@@ -247,20 +245,32 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
         var taskX = offsetX + startDays * dayWidth;
         var taskWidth = durationDays * dayWidth;
 
-        // Task name on the left
-        builder.AddText(options.Padding + 10, y + rowHeight / 2 + GanttWordRowTitleDown(options), task.Name,
-            anchor: "start",
-            baseline: "middle",
-            fontSize: $"{options.FontSize}px",
-            fontFamily: options.FontFamily);
+        // Mermaid labels tasks primarily inside the bar (outside if it does not fit).
+        // The left column is reserved for section titles rather than per-task row labels.
 
-        // Determine task color
-        var color = task.Status switch
+        // Determine task colours (Mermaid default theme variables).
+        string fillColor;
+        string textColor;
+        if (task.IsCritical)
         {
-            GanttTaskStatus.Done => taskDoneColor,
-            GanttTaskStatus.Active => taskActiveColor,
-            _ => task.IsCritical ? taskCritColor : taskColor
-        };
+            fillColor = CRIT_TASK_BKG_COLOR;
+            textColor = "white";
+        }
+        else if (task.Status == GanttTaskStatus.Done)
+        {
+            fillColor = DONE_TASK_BKG_COLOR;
+            textColor = "black";
+        }
+        else if (task.Status == GanttTaskStatus.Active)
+        {
+            fillColor = ACTIVE_TASK_BKG_COLOR;
+            textColor = "black";
+        }
+        else
+        {
+            fillColor = TASK_BKG_COLOR;
+            textColor = "white";
+        }
 
         if (task.IsMilestone)
         {
@@ -279,20 +289,34 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
             var barY = y + (rowHeight - taskBarHeight) / 2;
             builder.AddRect(taskX, barY, taskWidth, taskBarHeight,
                 rx: 3,
-                fill: color,
-                stroke: "#333",
+                fill: fillColor,
+                stroke: TASK_BORDER_COLOR,
                 strokeWidth: 1);
 
-            // Task ID or duration inside bar if fits
-            if (task.Id != null && taskWidth > 40)
+            // Task name inside bar if it likely fits (Word-first heuristic).
+            if (!string.IsNullOrWhiteSpace(task.Name))
             {
+#pragma warning disable IDE0007
+                double FontSizePx = Math.Max(8, options.FontSize - 2);
+                double EstimatedTextWidthPx = task.Name.Length * FontSizePx * 0.6;
+                bool IsLikelyToFitInsideBar = taskWidth >= (EstimatedTextWidthPx + 10);
+
                 var barLabelY = barY + taskBarHeight / 2 - GanttWordBarLabelUp(options);
-                builder.AddText(taskX + taskWidth / 2, barLabelY, task.Id,
-                    anchor: "middle",
+                double textX = taskX + taskWidth / 2;
+                string textAnchor = "middle";
+                if (!IsLikelyToFitInsideBar)
+                {
+                    textX = taskX + taskWidth + 6;
+                    textAnchor = "start";
+                }
+
+                builder.AddText(textX, barLabelY, task.Name,
+                    anchor: textAnchor,
                     baseline: "middle",
-                    fontSize: $"{options.FontSize - 2}px",
+                    fontSize: $"{FontSizePx}px",
                     fontFamily: options.FontFamily,
-                    fill: "#fff");
+                    fill: textColor);
+#pragma warning restore IDE0007
             }
         }
     }
