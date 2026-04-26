@@ -95,7 +95,8 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         };
         var layoutResult = layoutEngine.Layout(model, layoutOptions);
 
-        ApplySubgraphDirections(model);
+        // Subgraph direction is now handled by the layout engine (Mermaid-style group nodes + per-subgraph dir).
+        // Keeping the old post-layout rotation heuristic would double-apply the transform.
         UpdateGroupNodesFromSubgraphBounds(model);
 
         // Build SVG
@@ -408,9 +409,15 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         if (groupNode != null)
         {
             groupNode.IsGroup = true;
-            groupNode.Width = bounds.Width;
-            groupNode.Height = bounds.Height;
-            groupNode.Position = new Position(bounds.X + (bounds.Width / 2.0), bounds.Y + (bounds.Height / 2.0));
+            if (groupNode.Width <= 0 || groupNode.Height <= 0)
+            {
+                groupNode.Width = bounds.Width;
+                groupNode.Height = bounds.Height;
+            }
+            if (groupNode.Position == Position.Zero)
+            {
+                groupNode.Position = new Position(bounds.X + (bounds.Width / 2.0), bounds.Y + (bounds.Height / 2.0));
+            }
             if (string.IsNullOrWhiteSpace(groupNode.Label))
             {
                 groupNode.Label = subgraph.Title ?? subgraph.Id;
