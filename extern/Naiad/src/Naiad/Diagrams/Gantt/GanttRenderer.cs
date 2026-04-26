@@ -28,6 +28,7 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
     const string SECTION2_ROW_COLOR = "#fff400";
     const string SECTION3_ROW_COLOR = "white";
     const string SECTION_ROW_FILL_OPACITY_STYLE = "fill-opacity: 0.2";
+    const double RIGHT_LABEL_PADDING_PX = 60;
 
     // Section header band (Mermaid live uses the same palette but not necessarily the same opacity).
     const string SECTION_HEADER_COLOR = "rgba(102, 102, 255, 0.49)";
@@ -84,7 +85,7 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
 
         // If task labels are placed outside to the right, the SVG must be wide enough or Word will clip them.
         var maxRightLabelWidthPx = EstimateMaxRightLabelWidthPx(model, options);
-        var minWidthForRightLabels = (options.Padding + leftMargin) + chartWidth + 6 + maxRightLabelWidthPx + options.Padding;
+        var minWidthForRightLabels = (options.Padding + leftMargin) + chartWidth + 6 + maxRightLabelWidthPx + RIGHT_LABEL_PADDING_PX + options.Padding;
 
         width = Math.Max(width, Math.Max(minWidthForLeftLabels, minWidthForRightLabels));
 
@@ -424,10 +425,10 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
 
     static double EstimateTextWidthPx(string text, double fontSizePx, bool isBold)
     {
-        // 0.6em per character tends to slightly over-estimate in Word; bold adds a small premium.
+        // Word text metrics can be wider than 0.6em per character for these fonts; keep a generous estimate.
 #pragma warning disable IDE0007
         double weightFactor = isBold ? 1.08 : 1.0;
-        return text.Length * fontSizePx * 0.6 * weightFactor;
+        return text.Length * fontSizePx * 0.75 * weightFactor;
 #pragma warning restore IDE0007
     }
 
