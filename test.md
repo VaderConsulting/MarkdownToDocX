@@ -481,6 +481,20 @@ gantt
     title Gantt defaults probe (colours, sizes, grid)
     dateFormat  YYYY-MM-DD
     axisFormat  %d
+    topAxis
+    tickInterval 1day
+    weekday monday
+    inclusiveEndDates
+
+    %% Exclusions / includes (default exclude shading + date adjustment):
+    excludes weekends
+    %% Mermaid v11+: configure weekend start day (Friday+Saturday rather than Saturday+Sunday).
+    weekend friday
+    %% Override exclusions for a specific date (keeps it as a working day even if excluded).
+    includes 2026-04-04
+
+    %% Today marker: empty = default; "off" disables. Any other value is treated as a CSS style string.
+    todayMarker stroke: red, stroke-width: 2px, stroke-dasharray: 3 3
 
     %% Keep the range short so we see the default tick/grid behaviour clearly.
     %% Include every built-in status to capture default colours and strokes.
@@ -499,6 +513,9 @@ gantt
     Vertical marker (vert)           :vert,    v1, 2026-04-04, 1d
     Milestone (milestone)            :milestone, m1, 2026-04-07, 0d
     Tail task (default)              :         t1, after m1, 2d
+
+    %% Interactivity (SVG links). Mermaid uses 'click <taskId> href "<url>"'.
+    click a2 href "https://example.com"
 ```
 
 Pie chart:
