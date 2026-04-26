@@ -583,13 +583,13 @@ Practical consequence:
 
 The Naiad-based renderer in this repository is validated primarily against **Word’s SVG renderer** (DOCX output), so the practical “what works” notes below are intentionally renderer-specific.
 
-- **Pinned embellishments (works)**: placing ER cardinality embellishments (bars / circles / crow’s-foot toes) by sampling points **on the rendered relationship path** produces stable results in Word. In practice this means:
-  - choose an offset distance (in px) along the relationship stroke from the endpoint
-  - compute the point and tangent direction at that distance
-  - render the embellishment at that sampled point using the sampled tangent for orientation
-  - this prevents “floating” markers caused by using only endpoint co-ordinates plus heuristics
-
-- **Spline correctness (not working yet)**: although Mermaid uses `d3.line().curve(curveBasis)` (`packages/mermaid/src/diagrams/er/erRenderer.js`), the current C# port in `extern/Naiad` does **not** yet match Mermaid’s curve output closely enough. Treat the official Mermaid SVG path `d` as authoritative until the port is corrected.
+- **ER scenario 1 is now correct (Word + extracted SVG)**: the “gold standard” `CUSTOMER / ORDER / PRODUCT / LINE_ITEM` relationship geometry and cardinality line ends now match Mermaid closely enough to treat this fixture as **closed** for geometry purposes.
+  - **Relationship path rule**: use Mermaid’s approach of `curveBasis` over Dagre route points (`edge.points`). For the scenario-1 shoulder relationships, this reduces to a 3-point route:
+    - `P0` (source anchor)
+    - `P1 = (P0.X, (P0.Y + P3.Y) / 2)` (vertical down segment)
+    - `P3` (target anchor)
+  - **Cardinality rule**: use Mermaid-style SVG `<marker>` definitions (from `erMarkers.js`) applied with `marker-start` / `marker-end`, and rely on `orient="auto"` for tangent alignment.
+  - **Marker attribute rule (Word parity)**: match Mermaid’s marker attributes literally for this fixture (no additional `viewBox` / `markerUnits` attributes), because Word’s SVG marker renderer is sensitive to marker coordinate-system hints.
 
 ### 14A.1A Anchor selection must distinguish fan-out vs fan-in (renderer rule)
 
