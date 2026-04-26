@@ -42,7 +42,8 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
         var layoutOptions = new LayoutOptions
         {
             Direction = model.Direction,
-            NodeSeparation = 100,
+            // Reference SVG has a wider ORDER <-> PRODUCT separation.
+            NodeSeparation = 160,
             RankSeparation = 100
         };
         var layoutResult = layoutEngine.Layout(graphModel, layoutOptions);
@@ -364,7 +365,9 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
         ErCurveBasisPath Path;
         if (ShouldUseExplicitCubicOrLine(StartPoint, EndPoint, FromEntity, ToEntity))
         {
-            Path = BuildErExplicitCubicOrLinePath(StartPoint, EndPoint);
+            // Use a guided curveBasis route (Mermaid-like multi-segment smoothing) so the endpoint tangent matches
+            // the visual line direction used by Mermaid’s ER markers.
+            Path = BuildErGuidedCurveBasisPath(StartPoint, EndPoint);
         }
         else
         {
@@ -823,6 +826,50 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
         });
 
         return Result;
+#pragma warning restore IDE0007
+    }
+
+    static ErCurveBasisPath BuildErGuidedCurveBasisPath(Position P0, Position P3)
+    {
+#pragma warning disable IDE0007
+        double Dx = P3.X - P0.X;
+        double Dy = P3.Y - P0.Y;
+
+        // Preserve straight vertical relationships.
+        if (Math.Abs(Dx) < 0.75)
+        {
+            ErCurveBasisPath Result = new ErCurveBasisPath
+            {
+                PathData = $"M{Fmt(P0.X)},{Fmt(P0.Y)} L{Fmt(P3.X)},{Fmt(P3.Y)}"
+            };
+            return Result;
+        }
+
+        double Distance = Math.Sqrt((Dx * Dx) + (Dy * Dy));
+        double T = Clamp(0.15 * Distance, 16.0, 40.0);
+
+        // Source guide enforces a downward departure from a bottom anchor.
+        Position SourceGuide = new Position(P0.X, P0.Y + T);
+
+        // Target guide is positioned outside the corner to enforce an approach direction consistent with Mermaid’s
+        // ER routing (so the marker ref point lies on the visible line).
+        double SignX = P0.X < P3.X ? -1.0 : 1.0;
+        double AbsDx = Math.Abs(Dx);
+        double AbsDy = Math.Abs(Dy);
+
+        double TargetGuideXPull = Clamp(0.35 * AbsDx, 18.0, 70.0);
+        double TargetGuideYPull = Clamp(0.20 * AbsDy, 14.0, 60.0);
+        Position TargetGuide = new Position(P3.X + (SignX * TargetGuideXPull), P3.Y - TargetGuideYPull);
+
+        List<Position> GuidedPoints = new List<Position>
+        {
+            P0,
+            SourceGuide,
+            TargetGuide,
+            P3
+        };
+
+        return BuildErCurveBasisPath(GuidedPoints);
 #pragma warning restore IDE0007
     }
 
