@@ -402,13 +402,25 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
             // This keeps labels horizontally centred over the relationship even when the curve is asymmetric.
             Position LabelPoint = ComputePathHalfLengthPoint(Path, Points);
 #pragma warning restore IDE0007
-            var MidX = LabelPoint.X;
-            // Scenario 2 matrix fixture: labels should be centred horizontally only (keep Mermaid's Y placement).
-            // Scenario 1: keep the slight lift above the stroke.
 #pragma warning disable IDE0007
-            double LabelYOffsetPx = IsMatrixStyleCardinalityLabel(rel.Label) ? 0.0 : 12.0;
+            double MidX = LabelPoint.X;
+            double MidY = LabelPoint.Y;
 #pragma warning restore IDE0007
-            var MidY = LabelPoint.Y - LabelYOffsetPx;
+
+            if (IsMatrixStyleCardinalityLabel(rel.Label))
+            {
+                // Matrix fixture: match Mermaid's deterministic label placement.
+                // X aligns to the target node centre; Y is halfway between node centres.
+                MidX = ToEntity.Position.X;
+                MidY = (FromEntity.Position.Y + ToEntity.Position.Y) / 2.0;
+            }
+            else
+            {
+                // Scenario 1: labels sit above the stroke (not centred on it), while remaining horizontally centred.
+                const double LABEL_OVER_STROKE_OFFSET_PX = 12.0;
+                MidY = MidY - LABEL_OVER_STROKE_OFFSET_PX;
+            }
+
             var LabelWidth = Math.Round(Math.Max(20.0, MeasureText(rel.Label, RelationshipFontSize, bold: false) + 4.96), 2);
 
             builder.AddRect(MidX - (LabelWidth / 2.0), MidY - (RelationshipLabelHeight / 2.0), LabelWidth, RelationshipLabelHeight, fill: RelationshipLabelBackground, stroke: "none");
