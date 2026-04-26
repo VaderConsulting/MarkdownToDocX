@@ -729,6 +729,19 @@ Vertical markers (`vert`) (source: `packages/mermaid/src/diagrams/gantt/ganttRen
 - The `vert` label is placed below the chart at:
   - `y = gridLineStartPadding + taskArray.length * (barHeight + barGap) + 60`
 
+---
+
+## 14C. Pie diagram: slice colours and legend (Word/DOCX baseline)
+
+Mermaid’s pie renderer may emit slice colours as `hsl(...)` strings (depending on the theme/palette source).
+
+Repository baseline for Word/DOCX parity:
+
+- Microsoft Word’s SVG rendering is not reliable for `hsl(...)` colour values on `fill`/`stroke`.
+- When emitting SVG for DOCX, normalise pie slice and legend swatch colours to **RGB** form (`rgb(r, g, b)`) so that:
+  - slice fills render correctly in Word, and
+  - slice colours match the legend swatches.
+
 Source-traced marker geometry (selected high-signal details):
 
 - **ONLY_ONE**:

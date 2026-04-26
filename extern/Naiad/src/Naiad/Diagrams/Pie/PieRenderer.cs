@@ -2,20 +2,7 @@ namespace MermaidSharp.Diagrams.Pie;
 
 public class PieRenderer : IDiagramRenderer<PieModel>
 {
-    // Mermaid.ink default pie colors
-    static readonly string[] DefaultColors =
-    [
-        "#ECECFF",                          // lavender
-        "#ffffde",                          // light yellow
-        "hsl(80, 100%, 56.2745%)",          // lime green
-        "hsl(240, 100%, 86.2745%)",         // light blue
-        "hsl(0, 100%, 86.2745%)",           // light red
-        "hsl(160, 100%, 56.2745%)",         // teal
-        "hsl(40, 100%, 56.2745%)",          // orange
-        "hsl(280, 100%, 76.2745%)"          // purple
-    ];
-
-    // RGB equivalents for legend (mermaid converts HSL to RGB for style attribute)
+    // Mermaid default pie palette (normalised to RGB for Word SVG compatibility).
     static readonly string[] DefaultColorRgb =
     [
         "rgb(236, 236, 255)",               // #ECECFF
@@ -67,7 +54,8 @@ public class PieRenderer : IDiagramRenderer<PieModel>
         {
             var section = model.Sections[i];
             var sweepAngle = section.Value / total * 360;
-            var color = section.Color ?? DefaultColors[i % DefaultColors.Length];
+            // Word SVG rendering does not reliably support HSL colour strings, so normalise fills to RGB.
+            var color = GetRgbColor(section.Color, i);
 
             var path = CreateMermaidArcPath(startAngle, sweepAngle);
             builder.AddPath(path, fill: color, cssClass: "pieCircle");
@@ -150,6 +138,7 @@ public class PieRenderer : IDiagramRenderer<PieModel>
         return DefaultColorRgb[index % DefaultColorRgb.Length];
     }
 
+#pragma warning disable IDE0007
     static string ConvertToRgb(string color)
     {
         if (color.StartsWith('#') && color.Length == 7)
@@ -159,8 +148,113 @@ public class PieRenderer : IDiagramRenderer<PieModel>
             var b = Convert.ToInt32(color.Substring(5, 2), 16);
             return $"rgb({r}, {g}, {b})";
         }
+
+        if (color.StartsWith("hsl(", StringComparison.OrdinalIgnoreCase))
+        {
+            string Inner = color.Trim();
+            int OpenIndex = Inner.IndexOf('(');
+            int CloseIndex = Inner.LastIndexOf(')');
+            if (OpenIndex > 0 && CloseIndex > OpenIndex)
+            {
+                string[] Parts = Inner.Substring(OpenIndex + 1, CloseIndex - OpenIndex - 1)
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+                if (Parts.Length == 3
+                    && double.TryParse(Parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out double HueDegrees)
+                    && TryParsePercent(Parts[1], out double Saturation01)
+                    && TryParsePercent(Parts[2], out double Lightness01))
+                {
+                    (int R, int G, int B) = HslToRgb(HueDegrees, Saturation01, Lightness01);
+                    return $"rgb({R}, {G}, {B})";
+                }
+            }
+        }
+
         return color;
     }
+
+    static bool TryParsePercent(string value, out double result01)
+    {
+        result01 = 0;
+        string Trimmed = (value ?? string.Empty).Trim();
+        if (!Trimmed.EndsWith('%'))
+        {
+            return false;
+        }
+
+        string NumberText = Trimmed.Substring(0, Trimmed.Length - 1);
+        if (!double.TryParse(NumberText, NumberStyles.Float, CultureInfo.InvariantCulture, out double Percent))
+        {
+            return false;
+        }
+
+        result01 = Math.Clamp(Percent / 100.0, 0.0, 1.0);
+        return true;
+    }
+
+    static (int R, int G, int B) HslToRgb(double HueDegrees, double Saturation01, double Lightness01)
+    {
+        double Hue01 = HueDegrees / 360.0;
+        Hue01 = Hue01 - Math.Floor(Hue01);
+
+        double C = (1.0 - Math.Abs(2.0 * Lightness01 - 1.0)) * Saturation01;
+        double Hp = Hue01 * 6.0;
+        double X = C * (1.0 - Math.Abs(Hp % 2.0 - 1.0));
+
+        double R1 = 0;
+        double G1 = 0;
+        double B1 = 0;
+
+        if (Hp >= 0 && Hp < 1)
+        {
+            R1 = C;
+            G1 = X;
+            B1 = 0;
+        }
+        else if (Hp >= 1 && Hp < 2)
+        {
+            R1 = X;
+            G1 = C;
+            B1 = 0;
+        }
+        else if (Hp >= 2 && Hp < 3)
+        {
+            R1 = 0;
+            G1 = C;
+            B1 = X;
+        }
+        else if (Hp >= 3 && Hp < 4)
+        {
+            R1 = 0;
+            G1 = X;
+            B1 = C;
+        }
+        else if (Hp >= 4 && Hp < 5)
+        {
+            R1 = X;
+            G1 = 0;
+            B1 = C;
+        }
+        else
+        {
+            R1 = C;
+            G1 = 0;
+            B1 = X;
+        }
+
+        double M = Lightness01 - C / 2.0;
+
+        int R = (int)Math.Round((R1 + M) * 255.0);
+        int G = (int)Math.Round((G1 + M) * 255.0);
+        int B = (int)Math.Round((B1 + M) * 255.0);
+
+        R = Math.Clamp(R, 0, 255);
+        G = Math.Clamp(G, 0, 255);
+        B = Math.Clamp(B, 0, 255);
+
+        return (R, G, B);
+    }
+#pragma warning restore IDE0007
 
     static double ToRadians(double degrees) => degrees * Math.PI / 180;
     static string Fmt(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
