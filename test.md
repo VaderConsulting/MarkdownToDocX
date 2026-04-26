@@ -505,7 +505,7 @@ gantt
 
 Additional Mermaid Gantt directives (supported upstream, not yet supported by Naiad’s Gantt parser):
 
-- `topAxis`
+- `topAxis` (currently triggers `TopAxis is not a function` in `mermaid.live` — omit for now)
 - `tickInterval 1day` (or `1week`, `1month`, etc)
 - `weekday monday` (tick interval alignment)
 - `weekend friday` (weekend start day)
