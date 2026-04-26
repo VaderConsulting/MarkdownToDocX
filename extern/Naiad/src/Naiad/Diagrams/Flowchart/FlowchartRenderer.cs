@@ -96,6 +96,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         var layoutResult = layoutEngine.Layout(model, layoutOptions);
 
         ApplySubgraphDirections(model);
+        UpdateGroupNodesFromSubgraphBounds(model);
 
         // Build SVG
         var builder = new SvgBuilder()
@@ -118,12 +119,43 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         RenderSubgraphs(builder, model, options);
 
         // Render nodes
+#pragma warning disable IDE0007
+        HashSet<string> SubgraphIds = CollectSubgraphIds(model);
+#pragma warning restore IDE0007
         foreach (var node in model.Nodes)
         {
+            if (node.IsGroup || SubgraphIds.Contains(node.Id))
+            {
+                continue;
+            }
+
             RenderNode(builder, node, options);
         }
 
         return builder.Build();
+    }
+
+    static HashSet<string> CollectSubgraphIds(FlowchartModel model)
+    {
+#pragma warning disable IDE0007
+        HashSet<string> ids = new HashSet<string>(StringComparer.Ordinal);
+        foreach (MermaidSharp.Models.Subgraph subgraph in model.Subgraphs)
+        {
+            CollectSubgraphIdsRecursive(ids, subgraph);
+        }
+        return ids;
+#pragma warning restore IDE0007
+    }
+
+    static void CollectSubgraphIdsRecursive(HashSet<string> ids, MermaidSharp.Models.Subgraph subgraph)
+    {
+#pragma warning disable IDE0007
+        ids.Add(subgraph.Id);
+        foreach (MermaidSharp.Models.Subgraph nested in subgraph.NestedSubgraphs)
+        {
+            CollectSubgraphIdsRecursive(ids, nested);
+        }
+#pragma warning restore IDE0007
     }
 
     static void ApplySubgraphDirections(FlowchartModel model)
@@ -353,8 +385,52 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
 #pragma warning restore IDE0007
     }
 
+    static void UpdateGroupNodesFromSubgraphBounds(FlowchartModel model)
+    {
+#pragma warning disable IDE0007
+        if (model.Subgraphs.Count == 0)
+        {
+            return;
+        }
+
+        foreach (MermaidSharp.Models.Subgraph subgraph in model.Subgraphs)
+        {
+            UpdateGroupNodesFromSubgraphBoundsRecursive(model, subgraph);
+        }
+#pragma warning restore IDE0007
+    }
+
+    static void UpdateGroupNodesFromSubgraphBoundsRecursive(FlowchartModel model, MermaidSharp.Models.Subgraph subgraph)
+    {
+#pragma warning disable IDE0007
+        MermaidSharp.Models.Rect bounds = ComputeSubgraphBounds(model, subgraph);
+        Node? groupNode = model.GetNode(subgraph.Id);
+        if (groupNode != null)
+        {
+            groupNode.IsGroup = true;
+            groupNode.Width = bounds.Width;
+            groupNode.Height = bounds.Height;
+            groupNode.Position = new Position(bounds.X + (bounds.Width / 2.0), bounds.Y + (bounds.Height / 2.0));
+            if (string.IsNullOrWhiteSpace(groupNode.Label))
+            {
+                groupNode.Label = subgraph.Title ?? subgraph.Id;
+            }
+        }
+
+        foreach (MermaidSharp.Models.Subgraph nested in subgraph.NestedSubgraphs)
+        {
+            UpdateGroupNodesFromSubgraphBoundsRecursive(model, nested);
+        }
+#pragma warning restore IDE0007
+    }
+
     static void RenderNode(SvgBuilder builder, Node node, RenderOptions options)
     {
+        if (node.IsGroup)
+        {
+            return;
+        }
+
 #pragma warning disable IDE0007
         var x = node.Position.X - node.Width / 2;
         var y = node.Position.Y - node.Height / 2;

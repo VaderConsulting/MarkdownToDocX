@@ -410,7 +410,55 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
         }
         #pragma warning restore IDE0007
 
+        // Mermaid treats subgraphs as real "group nodes" in the layout graph. We create corresponding nodes so:
+        // - references like `Region_A --> Region_B` bind to the group rather than a normal node, and
+        // - the renderer can skip drawing the group as a normal node and instead draw it as a cluster box.
+#pragma warning disable IDE0007
+        foreach (Subgraph subgraph in model.Subgraphs)
+        {
+            EnsureSubgraphNodesRecursive(model, nodeDict, subgraph, parentId: null);
+        }
+#pragma warning restore IDE0007
+
         return model;
+    }
+
+    static void EnsureSubgraphNodesRecursive(FlowchartModel model, Dictionary<string, Node> nodeDict, Subgraph subgraph, string? parentId)
+    {
+#pragma warning disable IDE0007
+        if (!nodeDict.TryGetValue(subgraph.Id, out Node? node))
+        {
+            node = new Node
+            {
+                Id = subgraph.Id,
+                Label = subgraph.Title,
+                Shape = NodeShape.Rectangle
+            };
+            nodeDict[subgraph.Id] = node;
+            model.Nodes.Add(node);
+        }
+
+        node.IsGroup = true;
+        node.ParentId = parentId;
+        if (string.IsNullOrWhiteSpace(node.Label))
+        {
+            node.Label = subgraph.Title;
+        }
+
+        // Also tag member nodes with ParentId (not yet used by our Dagre engine, but matches Mermaid’s data model).
+        foreach (string memberId in subgraph.NodeIds)
+        {
+            if (nodeDict.TryGetValue(memberId, out Node? member))
+            {
+                member.ParentId = subgraph.Id;
+            }
+        }
+
+        foreach (Subgraph nested in subgraph.NestedSubgraphs)
+        {
+            EnsureSubgraphNodesRecursive(model, nodeDict, nested, subgraph.Id);
+        }
+#pragma warning restore IDE0007
     }
 
     static string? ParseSubgraphTitle(string tail)
