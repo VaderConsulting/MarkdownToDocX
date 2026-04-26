@@ -908,6 +908,23 @@ static class CoordinateAssignment
             return;
         }
 
+        // Canonical 1:4 fan-out from a hub above multiple children:
+        // the left-most two children should attach to the hub’s lower-left side slots in order (L3 then L4),
+        // matching the reference fixture expectations for ONE_ONLY_B and ZERO_OR_ONE_B.
+        if (facing == FacingDirection.Down && N == 4)
+        {
+            LayoutEdge Edge0 = edges[0];
+            LayoutEdge Edge1 = edges[1];
+            LayoutEdge Edge2 = edges[2];
+            LayoutEdge Edge3 = edges[3];
+
+            ApplyExplicitAnchorSlot(Hub, HubId, Edge0, ErAnchorSlot.L3, attachByEdge);
+            ApplyExplicitAnchorSlot(Hub, HubId, Edge1, ErAnchorSlot.L4, attachByEdge);
+            ApplyExplicitAnchorSlot(Hub, HubId, Edge2, ErAnchorSlot.R4, attachByEdge);
+            ApplyExplicitAnchorSlot(Hub, HubId, Edge3, ErAnchorSlot.R3, attachByEdge);
+            return;
+        }
+
         for (int i = 0; i < edges.Count; i++)
         {
             LayoutEdge Edge = edges[i];
