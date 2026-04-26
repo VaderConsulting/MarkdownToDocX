@@ -391,10 +391,14 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
         if (!string.IsNullOrEmpty(rel.Label))
         {
 #pragma warning disable IDE0007
-            Position LabelPoint = ComputePathLabelPoint(Path, Points);
+            // Mermaid places labels at the half-length point of the rendered path.
+            // This keeps labels horizontally centred over the relationship even when the curve is asymmetric.
+            Position LabelPoint = ComputePathHalfLengthPoint(Path, Points);
 #pragma warning restore IDE0007
             var MidX = LabelPoint.X;
-            var MidY = LabelPoint.Y;
+            // Fixture requirement: labels sit above the stroke (not centred on it), while remaining horizontally centred.
+            const double LABEL_OVER_STROKE_OFFSET_PX = 12.0;
+            var MidY = LabelPoint.Y - LABEL_OVER_STROKE_OFFSET_PX;
             var LabelWidth = Math.Round(Math.Max(20.0, MeasureText(rel.Label, RelationshipFontSize, bold: false) + 4.96), 2);
 
             builder.AddRect(MidX - (LabelWidth / 2.0), MidY - (RelationshipLabelHeight / 2.0), LabelWidth, RelationshipLabelHeight, fill: RelationshipLabelBackground, stroke: "none");
@@ -406,6 +410,83 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
                 fontFamily: options.FontFamily,
                 fill: "#333");
         }
+    }
+
+    static Position ComputePathHalfLengthPoint(ErCurveBasisPath Path, IReadOnlyList<Position> FallbackPolyline)
+    {
+#pragma warning disable IDE0007
+        if (Path.Segments.Count > 0)
+        {
+            double TotalLengthPx = ApproximateCurveLength(Path);
+            return PointAtDistanceOnCurve(Path, isStart: true, distancePx: TotalLengthPx * 0.5, out _, out _);
+        }
+
+        return ComputePolylineHalfLengthPoint(FallbackPolyline);
+#pragma warning restore IDE0007
+    }
+
+    static double ApproximateCurveLength(ErCurveBasisPath Path)
+    {
+#pragma warning disable IDE0007
+        const int SAMPLES = 20;
+        double Total = 0.0;
+
+        foreach (CubicBezierSegment Seg in Path.Segments)
+        {
+            Position Prev = Seg.P0;
+            for (int i = 1; i <= SAMPLES; i++)
+            {
+                double t = i / (double)SAMPLES;
+                Position Cur = BezierPoint(Seg, t);
+                double Dx = Cur.X - Prev.X;
+                double Dy = Cur.Y - Prev.Y;
+                Total += Math.Sqrt((Dx * Dx) + (Dy * Dy));
+                Prev = Cur;
+            }
+        }
+
+        return Total;
+#pragma warning restore IDE0007
+    }
+
+    static Position ComputePolylineHalfLengthPoint(IReadOnlyList<Position> Points)
+    {
+#pragma warning disable IDE0007
+        if (Points.Count == 0)
+        {
+            return Position.Zero;
+        }
+        if (Points.Count == 1)
+        {
+            return Points[0];
+        }
+
+        double Total = 0.0;
+        for (int i = 1; i < Points.Count; i++)
+        {
+            double Dx = Points[i].X - Points[i - 1].X;
+            double Dy = Points[i].Y - Points[i - 1].Y;
+            Total += Math.Sqrt((Dx * Dx) + (Dy * Dy));
+        }
+
+        double Remaining = Total * 0.5;
+        for (int i = 1; i < Points.Count; i++)
+        {
+            Position A = Points[i - 1];
+            Position B = Points[i];
+            double Dx = B.X - A.X;
+            double Dy = B.Y - A.Y;
+            double Len = Math.Sqrt((Dx * Dx) + (Dy * Dy));
+            if (Len >= Remaining)
+            {
+                double Ratio = Remaining / Math.Max(0.0001, Len);
+                return new Position(A.X + (Dx * Ratio), A.Y + (Dy * Ratio));
+            }
+            Remaining -= Len;
+        }
+
+        return Points[^1];
+#pragma warning restore IDE0007
     }
 
     static Position ComputePathLabelPoint(ErCurveBasisPath Path, IReadOnlyList<Position> FallbackPolyline)
