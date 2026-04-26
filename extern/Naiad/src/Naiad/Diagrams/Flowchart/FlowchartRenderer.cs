@@ -297,8 +297,8 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             Bounds.Y,
             Bounds.Width,
             Bounds.Height,
-            fill: "none",
-            stroke: "#999",
+            fill: "#ffffde",
+            stroke: "#aaaa33",
             strokeWidth: 1,
             rx: 0);
 
