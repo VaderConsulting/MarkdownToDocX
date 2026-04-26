@@ -417,7 +417,9 @@ static class CoordinateAssignment
 
             edge.Points.Clear();
 
-            if (source.IsDummy || target.IsDummy)
+            // When ER edges are split by dummy nodes (Ranker), we still need to honour ER attach points on the
+            // real node side of each segment. Therefore, do not use the "dummy shortcut" for ER vertical routing.
+            if ((source.IsDummy || target.IsDummy) && !(UseErPorts && !isHorizontal))
             {
                 // Part of a long edge - just add the node positions
                 edge.Points.Add(new(source.X, source.Y));
