@@ -820,6 +820,14 @@ static class CoordinateAssignment
 
     static FacingDirection ClassifyFacing(LayoutNode Hub, LayoutNode Other)
     {
+        // ER diagrams are primarily rank-driven layouts. If Dagre placed nodes in different ranks, treat the
+        // relationship as vertical (Up/Down) even when there is large horizontal separation. This matches Mermaid’s
+        // ER routing/ports, where children below a parent connect to top/bottom anchors rather than side anchors.
+        if (Hub.Rank != Other.Rank)
+        {
+            return Other.Rank < Hub.Rank ? FacingDirection.Up : FacingDirection.Down;
+        }
+
         double DeltaX = Other.X - Hub.X;
         double DeltaY = Other.Y - Hub.Y;
 
