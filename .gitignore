@@ -6,3 +6,7 @@
 
 # Vendored Naiad package output (local ProjectDefaults pack target)
 extern/Naiad/src/nugets/
+
+# Docx extraction scratch artefacts (never commit)
+_docx_extract/
+test.zip

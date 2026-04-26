@@ -376,9 +376,9 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
 
         builder.AddPath(Path.PathData, fill: "none", stroke: RelationshipStroke, strokeWidth: RelationshipStrokeWidth, strokeDasharray: DashArray);
 
-        // Pin embellishments onto the curve by sampling points ON the curve at Mermaid's offsets.
-        DrawCardinalityOnCurveBasis(builder, rel.FromCardinality, isStart: true, EndPoint: StartPoint, EndEntity: FromEntity, BasisPath: Path);
-        DrawCardinalityOnCurveBasis(builder, rel.ToCardinality, isStart: false, EndPoint: EndPoint, EndEntity: ToEntity, BasisPath: Path);
+        // Source-of-truth: ER cardinality markers are geometric primitives placed using the endpoint tangent.
+        DrawCardinalityMarker(builder, rel.FromCardinality, isStart: true, EndPoint: StartPoint, Path: Path);
+        DrawCardinalityMarker(builder, rel.ToCardinality, isStart: false, EndPoint: EndPoint, Path: Path);
 
         if (!string.IsNullOrEmpty(rel.Label))
         {
@@ -410,6 +410,143 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
         }
 
         return ComputePolylineMidpoint(FallbackPolyline);
+#pragma warning restore IDE0007
+    }
+
+    static void DrawCardinalityMarker(SvgBuilder Builder, Cardinality Cardinality, bool isStart, Position EndPoint, ErCurveBasisPath Path)
+    {
+#pragma warning disable IDE0007
+        // ER_Diagram_Rendering_Geometry_Source_Of_Truth.md marker dimensions.
+        const double MARKER_GAP_FROM_BOX_PX = 8.0;
+        const double BAR_SPACING_PX = 5.0;
+        const double BAR_HALF_LENGTH_PX = 9.0;
+        const double CIRCLE_RADIUS_PX = 7.0;
+        const double CROWFOOT_LENGTH_PX = 13.0;
+        const double CROWFOOT_SPREAD_PX = 8.0;
+        const double MARKER_STROKE_WIDTH_PX = 1.5;
+
+        if (!TryGetEndpointUnitTangent(Path, isStart, out double Ux, out double Uy))
+        {
+            return;
+        }
+
+        // Unit normal (perpendicular).
+        double Nx = -Uy;
+        double Ny = Ux;
+
+        // Always move away from the box (along the outward tangent).
+        if (Cardinality == Cardinality.ExactlyOne)
+        {
+            AddBarAtDistance(Builder, EndPoint, Ux, Uy, Nx, Ny, MARKER_GAP_FROM_BOX_PX, BAR_HALF_LENGTH_PX, MARKER_STROKE_WIDTH_PX);
+            AddBarAtDistance(Builder, EndPoint, Ux, Uy, Nx, Ny, MARKER_GAP_FROM_BOX_PX + BAR_SPACING_PX, BAR_HALF_LENGTH_PX, MARKER_STROKE_WIDTH_PX);
+            return;
+        }
+
+        if (Cardinality == Cardinality.ZeroOrOne)
+        {
+            AddCircleAtDistance(Builder, EndPoint, Ux, Uy, MARKER_GAP_FROM_BOX_PX + CIRCLE_RADIUS_PX, CIRCLE_RADIUS_PX, MARKER_STROKE_WIDTH_PX);
+            AddBarAtDistance(Builder, EndPoint, Ux, Uy, Nx, Ny, MARKER_GAP_FROM_BOX_PX, BAR_HALF_LENGTH_PX, MARKER_STROKE_WIDTH_PX);
+            return;
+        }
+
+        if (Cardinality == Cardinality.OneOrMore)
+        {
+            AddBarAtDistance(Builder, EndPoint, Ux, Uy, Nx, Ny, MARKER_GAP_FROM_BOX_PX, BAR_HALF_LENGTH_PX, MARKER_STROKE_WIDTH_PX);
+            AddCrowfootAtDistance(Builder, EndPoint, Ux, Uy, Nx, Ny, MARKER_GAP_FROM_BOX_PX + CROWFOOT_LENGTH_PX, CROWFOOT_LENGTH_PX, CROWFOOT_SPREAD_PX, MARKER_STROKE_WIDTH_PX);
+            return;
+        }
+
+        if (Cardinality == Cardinality.ZeroOrMore)
+        {
+            AddCircleAtDistance(Builder, EndPoint, Ux, Uy, MARKER_GAP_FROM_BOX_PX + CIRCLE_RADIUS_PX, CIRCLE_RADIUS_PX, MARKER_STROKE_WIDTH_PX);
+            AddCrowfootAtDistance(Builder, EndPoint, Ux, Uy, Nx, Ny, MARKER_GAP_FROM_BOX_PX + CROWFOOT_LENGTH_PX, CROWFOOT_LENGTH_PX, CROWFOOT_SPREAD_PX, MARKER_STROKE_WIDTH_PX);
+        }
+#pragma warning restore IDE0007
+    }
+
+    static bool TryGetEndpointUnitTangent(ErCurveBasisPath Path, bool isStart, out double Ux, out double Uy)
+    {
+#pragma warning disable IDE0007
+        Ux = 1.0;
+        Uy = 0.0;
+
+        if (Path.Segments.Count == 0)
+        {
+            return false;
+        }
+
+        if (isStart)
+        {
+            CubicBezierSegment First = Path.Segments[0];
+            Position Der = BezierDerivative(First, 0.0);
+            Normalise(Der.X, Der.Y, out Ux, out Uy);
+            return true;
+        }
+
+        // For the end marker, use the outward tangent (away from the box), which is the negative of the path's
+        // incoming derivative at t=1.
+        CubicBezierSegment Last = Path.Segments[^1];
+        Position EndDer = BezierDerivative(Last, 1.0);
+        Normalise(-EndDer.X, -EndDer.Y, out Ux, out Uy);
+        return true;
+#pragma warning restore IDE0007
+    }
+
+    static void AddBarAtDistance(SvgBuilder Builder, Position EndPoint, double Ux, double Uy, double Nx, double Ny, double DistancePx, double HalfLengthPx, double StrokeWidthPx)
+    {
+#pragma warning disable IDE0007
+        double Cx = EndPoint.X + (Ux * DistancePx);
+        double Cy = EndPoint.Y + (Uy * DistancePx);
+
+        double X1 = Cx - (Nx * HalfLengthPx);
+        double Y1 = Cy - (Ny * HalfLengthPx);
+        double X2 = Cx + (Nx * HalfLengthPx);
+        double Y2 = Cy + (Ny * HalfLengthPx);
+
+        Builder.AddLine(X1, Y1, X2, Y2, stroke: RelationshipStroke, strokeWidth: StrokeWidthPx);
+#pragma warning restore IDE0007
+    }
+
+    static void AddCircleAtDistance(SvgBuilder Builder, Position EndPoint, double Ux, double Uy, double DistancePx, double RadiusPx, double StrokeWidthPx)
+    {
+#pragma warning disable IDE0007
+        double Cx = EndPoint.X + (Ux * DistancePx);
+        double Cy = EndPoint.Y + (Uy * DistancePx);
+        Builder.AddCircle(Cx, Cy, RadiusPx, fill: "#fff", stroke: RelationshipStroke, strokeWidth: StrokeWidthPx);
+#pragma warning restore IDE0007
+    }
+
+    static void AddCrowfootAtDistance(
+        SvgBuilder Builder,
+        Position EndPoint,
+        double Ux,
+        double Uy,
+        double Nx,
+        double Ny,
+        double ApexDistancePx,
+        double CrowFootLengthPx,
+        double CrowFootSpreadPx,
+        double StrokeWidthPx)
+    {
+#pragma warning disable IDE0007
+        // Apex is on the tangent line.
+        double Ax = EndPoint.X + (Ux * ApexDistancePx);
+        double Ay = EndPoint.Y + (Uy * ApexDistancePx);
+
+        // The three endpoints are behind the apex along the tangent, with +/- normal spread.
+        double Bx = Ax - (Ux * CrowFootLengthPx);
+        double By = Ay - (Uy * CrowFootLengthPx);
+
+        double Lx = Bx + (Nx * CrowFootSpreadPx);
+        double Ly = By + (Ny * CrowFootSpreadPx);
+
+        double Rx = Bx - (Nx * CrowFootSpreadPx);
+        double Ry = By - (Ny * CrowFootSpreadPx);
+
+        // Three strokes meeting at the apex.
+        Builder.AddLine(Ax, Ay, Bx, By, stroke: RelationshipStroke, strokeWidth: StrokeWidthPx);
+        Builder.AddLine(Ax, Ay, Lx, Ly, stroke: RelationshipStroke, strokeWidth: StrokeWidthPx);
+        Builder.AddLine(Ax, Ay, Rx, Ry, stroke: RelationshipStroke, strokeWidth: StrokeWidthPx);
 #pragma warning restore IDE0007
     }
 
