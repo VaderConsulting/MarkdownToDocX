@@ -375,6 +375,24 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
                        $"L {Fmt(cx)} {Fmt(cy + milestoneSize)} " +
                        $"L {Fmt(cx - milestoneSize)} {Fmt(cy)} Z";
             builder.AddPath(path, fill: milestoneColor, stroke: "#333", strokeWidth: 1);
+
+            // Mermaid places the milestone label outside to the right.
+            if (!string.IsNullOrWhiteSpace(task.Name))
+            {
+#pragma warning disable IDE0007
+                double FontSizePx = Math.Max(8, options.FontSize - 2);
+                double labelX = taskX + milestoneSize + 6;
+                double labelY = cy + GanttWordBarLabelDown(FontSizePx);
+                builder.AddText(labelX, labelY, task.Name,
+                    anchor: "start",
+                    baseline: "middle",
+                    fontSize: $"{FontSizePx}px",
+                    fontFamily: options.FontFamily,
+                    fill: "#000");
+#pragma warning restore IDE0007
+            }
+
+            return;
         }
         else
         {
