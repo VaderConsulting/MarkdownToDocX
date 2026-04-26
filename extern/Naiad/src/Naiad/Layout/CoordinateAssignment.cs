@@ -854,27 +854,53 @@ static class CoordinateAssignment
             return Math.Clamp(m / 2, 0, Math.Max(0, m - 1));
         }
 
-        // The Up/Down perimeters include both side and edge anchors; for the canonical incoming examples we want:
-        // - Up:   left = 1L, centre = TC, right = 1R
-        // - Down: left = 4L, centre = BC, right = 4R
+        // Small-N canonical placements.
         //
-        // Those correspond to indices (in our slot lists) 1, 4, and 7.
-        if (n == 2 && (facing == FacingDirection.Up || facing == FacingDirection.Down))
+        // For Down-facing (children below): the source-of-truth explicitly calls out the 1:2 and 1:3 patterns using
+        // lower-left / BC / lower-right, which map well to our slot indices 1,4,7 (L4, BC, R4).
+        if (facing == FacingDirection.Down)
         {
-            return i == 0 ? 1 : 7;
+            if (n == 2)
+            {
+                return i == 0 ? 1 : 7;
+            }
+
+            if (n == 3)
+            {
+                if (i == 0)
+                {
+                    return 1;
+                }
+                if (i == 1)
+                {
+                    return 4;
+                }
+                return 7;
+            }
         }
 
-        if (n == 3 && (facing == FacingDirection.Up || facing == FacingDirection.Down))
+        // For Up-facing (parents above): the updated source-of-truth emphasises that a two-parent target (e.g. LINE_ITEM)
+        // should use corner-adjacent upper-perimeter anchors (upper-left shoulder and upper-right shoulder), rather than
+        // collapsing into TC. In our Up slot list, those correspond to T1 (index 2) and T4 (index 6).
+        if (facing == FacingDirection.Up)
         {
-            if (i == 0)
+            if (n == 2)
             {
-                return 1;
+                return i == 0 ? 2 : 6;
             }
-            if (i == 1)
+
+            if (n == 3)
             {
-                return 4;
+                if (i == 0)
+                {
+                    return 2;
+                }
+                if (i == 1)
+                {
+                    return 4;
+                }
+                return 6;
             }
-            return 7;
         }
 
         // SlotIndex(i) = round((i + 1) * (M + 1) / (N + 1)) - 1
