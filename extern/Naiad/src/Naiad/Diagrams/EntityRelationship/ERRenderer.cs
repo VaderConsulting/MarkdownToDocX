@@ -536,17 +536,66 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
 
         if (HasRoomForMinSegments)
         {
-            List<Position> MermaidPoints = new List<Position>
-            {
-                P0,
-                ExitPoint,
-                EntryPoint,
-                P3
-            };
-            return BuildErCurveBasisPath(MermaidPoints);
+            // curveBasis smoothing can round away the visible “straight” segments.
+            // For the matrix fixtures we need literal straight runs at both ends, so emit:
+            // M P0  L ExitPoint  C ... EntryPoint  L P3
+            return BuildErHybridMinStraightCubicPath(P0, ExitPoint, EntryPoint, P3, FromAxis, ToAxis);
         }
 
         return BuildErGuidedCurveBasisPath(P0, P3);
+#pragma warning restore IDE0007
+    }
+
+    static ErCurveBasisPath BuildErHybridMinStraightCubicPath(
+        Position P0,
+        Position ExitPoint,
+        Position EntryPoint,
+        Position P3,
+        PortAxis FromAxis,
+        PortAxis ToAxis)
+    {
+#pragma warning disable IDE0007
+        ErCurveBasisPath Result = new ErCurveBasisPath();
+
+        double Dx = EntryPoint.X - ExitPoint.X;
+        double Dy = EntryPoint.Y - ExitPoint.Y;
+        double AbsDx = Math.Abs(Dx);
+        double AbsDy = Math.Abs(Dy);
+
+        // Control-point pulls are tuned to keep a “shoulder” feel while allowing the fixed straight end segments.
+        double PullX = Clamp(0.45 * AbsDx, 18.0, 110.0);
+        double PullY = Clamp(0.45 * AbsDy, 18.0, 80.0);
+
+        double SignX = Dx >= 0.0 ? 1.0 : -1.0;
+        double SignY = Dy >= 0.0 ? 1.0 : -1.0;
+
+        Position C1;
+        if (FromAxis == PortAxis.Vertical)
+        {
+            C1 = new Position(ExitPoint.X, ExitPoint.Y + (SignY * PullY));
+        }
+        else
+        {
+            C1 = new Position(ExitPoint.X + (SignX * PullX), ExitPoint.Y);
+        }
+
+        Position C2;
+        if (ToAxis == PortAxis.Vertical)
+        {
+            C2 = new Position(EntryPoint.X, EntryPoint.Y - (SignY * PullY));
+        }
+        else
+        {
+            C2 = new Position(EntryPoint.X - (SignX * PullX), EntryPoint.Y);
+        }
+
+        Result.PathData =
+            $"M{Fmt(P0.X)},{Fmt(P0.Y)} L{Fmt(ExitPoint.X)},{Fmt(ExitPoint.Y)} " +
+            $"C{Fmt(C1.X)},{Fmt(C1.Y)} {Fmt(C2.X)},{Fmt(C2.Y)} {Fmt(EntryPoint.X)},{Fmt(EntryPoint.Y)} " +
+            $"L{Fmt(P3.X)},{Fmt(P3.Y)}";
+
+        // Keep segments empty so label placement uses the polyline fallback (stable and cheap).
+        return Result;
 #pragma warning restore IDE0007
     }
 
