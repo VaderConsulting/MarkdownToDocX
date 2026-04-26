@@ -483,9 +483,13 @@ static class CoordinateAssignment
                     }
                     else if (FlowchartDiagram is not null)
                     {
-                        Position toward = new Position(target.X, target.Y);
-                        Position sourceAttach = ComputeFlowchartAttachPoint(source, FlowchartDiagram.GetNode(edge.SourceId), toward);
-                        Position targetAttach = ComputeFlowchartAttachPoint(target, FlowchartDiagram.GetNode(edge.TargetId), new Position(source.X, source.Y));
+                        // For vertical flowcharts (TD/BT), Mermaid’s default look generally uses top/bottom ports
+                        // (centre of the edge) even when the nodes are laterally offset.
+                        // Use axis-aligned "toward" points to bias intersection to the vertical faces.
+                        Position towardForSource = new Position(source.X, target.Y);
+                        Position towardForTarget = new Position(target.X, source.Y);
+                        Position sourceAttach = ComputeFlowchartAttachPoint(source, FlowchartDiagram.GetNode(edge.SourceId), towardForSource);
+                        Position targetAttach = ComputeFlowchartAttachPoint(target, FlowchartDiagram.GetNode(edge.TargetId), towardForTarget);
                         sourceEdgeX = sourceAttach.X;
                         sourceEdgeY = sourceAttach.Y;
                         targetEdgeXNoShorten = targetAttach.X;
