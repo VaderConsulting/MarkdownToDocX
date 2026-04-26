@@ -4,6 +4,15 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
 {
     public DiagramType DiagramType => DiagramType.Flowchart;
 
+#pragma warning disable IDE0007
+    private sealed class FlowchartParseState
+    {
+        public List<Subgraph> RootSubgraphs { get; } = new();
+        public Stack<Subgraph> SubgraphStack { get; } = new();
+        public Dictionary<string, string> NodeIdToCurrentSubgraphId { get; } = new();
+    }
+#pragma warning restore IDE0007
+
     /// <summary>
     /// Normalises flowchart node text when bracket contents use Mermaid quoted delimiter syntax (double quotes wrapping the visible label).
     /// </summary>
@@ -229,12 +238,14 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
         select Unit.Value;
 
     // Subgraph start: subgraph name[Label] or subgraph name
-    static Parser<char, Unit> subgraphStart =
+    static Parser<char, (string SubgraphId, string? Title)> subgraphStart =
         from _ in CommonParsers.InlineWhitespace
-        from subGraph in String("subgraph")
-        from ___ in Token(_ => _ != '\r' && _ != '\n').ManyString()
+        from __ in String("subgraph")
+        from ___ in CommonParsers.RequiredWhitespace
+        from id in CommonParsers.Identifier
+        from tail in Token(_ => _ != '\r' && _ != '\n').ManyString()
         from lineEnd in CommonParsers.LineEnd
-        select Unit.Value;
+        select (id, ParseSubgraphTitle(tail));
 
     // Subgraph end: end
     static Parser<char, Unit> subgraphEnd =
@@ -247,14 +258,14 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
     // Subgraph direction line: direction LR / TB / ...
     // Mermaid allows `direction` inside subgraphs to override local layout direction.
     // Naiad currently does not apply per-subgraph direction; we accept and ignore it for parsing compatibility.
-    static Parser<char, Unit> subgraphDirectionDirective =
+    static Parser<char, Direction> subgraphDirectionDirective =
         from _ in CommonParsers.InlineWhitespace
         from __ in String("direction")
         from ___ in CommonParsers.RequiredWhitespace
-        from ____ in flowchartDirection
+        from dir in flowchartDirection
         from _____ in CommonParsers.InlineWhitespace
         from lineEnd in CommonParsers.LineEnd
-        select Unit.Value;
+        select dir;
 
     // Skip empty lines, comments, and directives
     static Parser<char, Unit> skipLine =
@@ -263,10 +274,17 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
             Try(classDefDirective),
             Try(classDirective),
             Try(clickDirective),
-            Try(subgraphStart),
-            Try(subgraphDirectionDirective),
-            Try(subgraphEnd),
             CommonParsers.InlineWhitespace.Then(Try(CommonParsers.Comment).Or(CommonParsers.Newline))
+        );
+
+    // Content item (either a subgraph directive, a statement, or a skip line)
+    static Parser<char, object?> ContentItem =>
+        OneOf(
+            Try(subgraphStart.Select(value => (object?) ("subgraphStart", value.SubgraphId, value.Title))),
+            Try(subgraphDirectionDirective.Select(value => (object?) ("subgraphDirection", value))),
+            Try(subgraphEnd.ThenReturn((object?) ("subgraphEnd"))),
+            Try(CommonParsers.InlineWhitespace.Then(StatementParser).Before(CommonParsers.InlineWhitespace.Then(CommonParsers.LineEnd)).Select(value => (object?) value)),
+            skipLine.ThenReturn((object?) null)
         );
 
     public static Parser<char, FlowchartModel> Parser =>
@@ -276,66 +294,147 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
         from direction in flowchartDirection.Optional()
         from ___ in CommonParsers.InlineWhitespace
         from lineEnd in CommonParsers.LineEnd
-        from statements in ParseStatements()
-        select BuildModel(direction.GetValueOrDefault(Direction.TopToBottom), statements);
-
-    static Parser<char, List<(List<Node> Nodes, List<(EdgeType Type, EdgeStyle Style, string? Label, int MinRankSpan)> Edges)>> ParseStatements()
-    {
-        var statement =
-            CommonParsers.InlineWhitespace
-                .Then(StatementParser)
-                .Before(CommonParsers.InlineWhitespace.Then(CommonParsers.LineEnd));
-
-        var skipLine = FlowchartParser.skipLine.ThenReturn((new List<Node>(),
-            new List<(EdgeType, EdgeStyle, string?, int)>()));
-
-        return Try(statement).Or(skipLine).Many()
-            .Select(_ => _.Where(__ => __.Nodes.Count > 0).ToList());
-    }
+        from content in ContentItem.Many()
+        select BuildModel(direction.GetValueOrDefault(Direction.TopToBottom), content.Where(value => value != null).ToList());
 
     static FlowchartModel BuildModel(
         Direction direction,
-        List<(List<Node> Nodes, List<(EdgeType Type, EdgeStyle Style, string? Label, int MinRankSpan)> Edges)> statements)
+        List<object?> content)
     {
+#pragma warning disable IDE0007
         var model = new FlowchartModel { Direction = direction };
         var nodeDict = new Dictionary<string, Node>();
+        FlowchartParseState state = new FlowchartParseState();
+#pragma warning restore IDE0007
 
-        foreach (var (nodes, edges) in statements)
+#pragma warning disable IDE0007
+        foreach (object? item in content)
         {
-            for (var i = 0; i < nodes.Count; i++)
+            if (item is ValueTuple<string, string, string?> start
+                && string.Equals(start.Item1, "subgraphStart", StringComparison.Ordinal))
             {
-                var node = nodes[i];
+                string SubgraphId = start.Item2;
+                string? Title = start.Item3;
 
-                // Add or update node
-                if (!nodeDict.TryGetValue(node.Id, out var existingNode))
+                Subgraph subgraph = new Subgraph
                 {
-                    nodeDict[node.Id] = node;
-                    model.Nodes.Add(node);
+                    Id = SubgraphId,
+                    Title = Title,
+                    Direction = Direction.TopToBottom
+                };
+
+                if (state.SubgraphStack.Count > 0)
+                {
+                    state.SubgraphStack.Peek().NestedSubgraphs.Add(subgraph);
                 }
-                else if (node.Label != null && existingNode.Label == null)
+                else
                 {
-                    existingNode.Label = node.Label;
-                    existingNode.Shape = node.Shape;
+                    state.RootSubgraphs.Add(subgraph);
                 }
 
-                // Add edge to next node
-                if (i < edges.Count)
+                state.SubgraphStack.Push(subgraph);
+                continue;
+            }
+
+            if (item is ValueTuple<string, Direction> dirItem
+                && string.Equals(dirItem.Item1, "subgraphDirection", StringComparison.Ordinal))
+            {
+                if (state.SubgraphStack.Count > 0)
                 {
-                    var edge = edges[i];
-                    model.Edges.Add(new()
+                    state.SubgraphStack.Peek().Direction = dirItem.Item2;
+                }
+                continue;
+            }
+
+            if (item is string endItem && string.Equals(endItem, "subgraphEnd", StringComparison.Ordinal))
+            {
+                if (state.SubgraphStack.Count > 0)
+                {
+                    state.SubgraphStack.Pop();
+                }
+                continue;
+            }
+
+            if (item is ValueTuple<List<Node>, List<(EdgeType Type, EdgeStyle Style, string? Label, int MinRankSpan)>> statement)
+            {
+                List<Node> nodes = statement.Item1;
+                List<(EdgeType Type, EdgeStyle Style, string? Label, int MinRankSpan)> edges = statement.Item2;
+
+                for (var i = 0; i < nodes.Count; i++)
+                {
+                    Node node = nodes[i];
+
+                    if (!nodeDict.TryGetValue(node.Id, out Node? existingNode))
                     {
-                        SourceId = nodes[i].Id,
-                        TargetId = nodes[i + 1].Id,
-                        Type = edge.Type,
-                        LineStyle = edge.Style,
-                        Label = edge.Label,
-                        MinRankSpan = Math.Max(1, edge.MinRankSpan)
-                    });
+                        nodeDict[node.Id] = node;
+                        model.Nodes.Add(node);
+                    }
+                    else if (node.Label != null && existingNode.Label == null)
+                    {
+                        existingNode.Label = node.Label;
+                        existingNode.Shape = node.Shape;
+                    }
+
+                    if (state.SubgraphStack.Count > 0)
+                    {
+                        Subgraph current = state.SubgraphStack.Peek();
+                        if (!current.NodeIds.Contains(node.Id, StringComparer.Ordinal))
+                        {
+                            current.NodeIds.Add(node.Id);
+                        }
+                        state.NodeIdToCurrentSubgraphId[node.Id] = current.Id;
+                    }
+
+                    if (i < edges.Count)
+                    {
+                        var edge = edges[i];
+                        model.Edges.Add(new Edge
+                        {
+                            SourceId = nodes[i].Id,
+                            TargetId = nodes[i + 1].Id,
+                            Type = edge.Type,
+                            LineStyle = edge.Style,
+                            Label = edge.Label,
+                            MinRankSpan = Math.Max(1, edge.MinRankSpan)
+                        });
+                    }
                 }
             }
         }
+#pragma warning restore IDE0007
+
+        #pragma warning disable IDE0007
+        foreach (Subgraph subgraph in state.RootSubgraphs)
+        {
+            model.Subgraphs.Add(subgraph);
+        }
+        #pragma warning restore IDE0007
 
         return model;
+    }
+
+    static string? ParseSubgraphTitle(string tail)
+    {
+#pragma warning disable IDE0007
+        if (string.IsNullOrWhiteSpace(tail))
+        {
+            return null;
+        }
+
+        string trimmed = tail.Trim();
+
+        // Mermaid subgraph title can be `["Title"]` or `[Title]` (we accept both).
+        int OpenIndex = trimmed.IndexOf('[');
+        int CloseIndex = trimmed.LastIndexOf(']');
+        if (OpenIndex >= 0 && CloseIndex > OpenIndex)
+        {
+            string inner = trimmed.Substring(OpenIndex + 1, CloseIndex - OpenIndex - 1).Trim();
+            inner = NormalizeFlowchartLabel(inner);
+            return inner;
+        }
+
+        return NormalizeFlowchartLabel(trimmed);
+#pragma warning restore IDE0007
     }
 
     public Result<char, FlowchartModel> Parse(string input) => Parser.Parse(input);

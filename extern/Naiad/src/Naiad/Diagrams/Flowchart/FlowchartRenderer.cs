@@ -61,6 +61,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         foreach (var node in model.Nodes)
         {
             var label = node.Label ?? node.Id;
+            label = NormaliseHtmlLineBreaks(label);
             // Strip icon syntax for measurement
             var textForMeasure = iconPattern.Replace(label, "").Trim();
             var textSize = MeasureText(textForMeasure, options.FontSize);
@@ -94,6 +95,8 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         };
         var layoutResult = layoutEngine.Layout(model, layoutOptions);
 
+        ApplySubgraphDirections(model);
+
         // Build SVG
         var builder = new SvgBuilder()
             .Size(layoutResult.Width, layoutResult.Height)
@@ -112,6 +115,8 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             RenderEdge(builder, edge, options, model.Direction, model.GetNode(edge.SourceId));
         }
 
+        RenderSubgraphs(builder, model, options);
+
         // Render nodes
         foreach (var node in model.Nodes)
         {
@@ -121,12 +126,241 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         return builder.Build();
     }
 
+    static void ApplySubgraphDirections(FlowchartModel model)
+    {
+#pragma warning disable IDE0007
+        if (model.Subgraphs.Count == 0)
+        {
+            return;
+        }
+
+        foreach (MermaidSharp.Models.Subgraph subgraph in model.Subgraphs)
+        {
+            ApplySubgraphDirectionsRecursive(model, subgraph);
+        }
+#pragma warning restore IDE0007
+    }
+
+    static void ApplySubgraphDirectionsRecursive(FlowchartModel model, MermaidSharp.Models.Subgraph subgraph)
+    {
+#pragma warning disable IDE0007
+        if (subgraph.Direction == Direction.LeftToRight || subgraph.Direction == Direction.RightToLeft)
+        {
+            RotateSubgraphLayout90Degrees(model, subgraph);
+        }
+
+        foreach (MermaidSharp.Models.Subgraph nested in subgraph.NestedSubgraphs)
+        {
+            ApplySubgraphDirectionsRecursive(model, nested);
+        }
+#pragma warning restore IDE0007
+    }
+
+    static void RotateSubgraphLayout90Degrees(FlowchartModel model, MermaidSharp.Models.Subgraph subgraph)
+    {
+#pragma warning disable IDE0007
+        // Heuristic: Naiad’s layout engine currently uses a single diagram direction.
+        // For subgraphs that request LR/RL, we rotate the already-laid-out positions (nodes + internal edge points)
+        // within the subgraph’s bounds. This is not a full Mermaid compound-layout implementation, but it produces
+        // the expected left-to-right visual flow for common fixtures.
+
+        List<Node> nodesInSubgraph = new List<Node>();
+        foreach (string nodeId in subgraph.NodeIds)
+        {
+            Node? node = model.GetNode(nodeId);
+            if (node != null)
+            {
+                nodesInSubgraph.Add(node);
+            }
+        }
+
+        if (nodesInSubgraph.Count == 0)
+        {
+            return;
+        }
+
+        double MinX = double.PositiveInfinity;
+        double MinY = double.PositiveInfinity;
+        double MaxX = double.NegativeInfinity;
+        double MaxY = double.NegativeInfinity;
+
+        foreach (Node node in nodesInSubgraph)
+        {
+            MinX = Math.Min(MinX, node.Position.X);
+            MinY = Math.Min(MinY, node.Position.Y);
+            MaxX = Math.Max(MaxX, node.Position.X);
+            MaxY = Math.Max(MaxY, node.Position.Y);
+        }
+
+        double Cx = (MinX + MaxX) / 2.0;
+        double Cy = (MinY + MaxY) / 2.0;
+
+        foreach (Node node in nodesInSubgraph)
+        {
+            double Dx = node.Position.X - Cx;
+            double Dy = node.Position.Y - Cy;
+
+            // Rotate 90 degrees: (x, y) -> (y, -x)
+            double NewDx = Dy;
+            double NewDy = -Dx;
+
+            node.Position = new Position(Cx + NewDx, Cy + NewDy);
+        }
+
+        HashSet<string> nodeIdSet = new HashSet<string>(subgraph.NodeIds, StringComparer.Ordinal);
+        foreach (Edge edge in model.Edges)
+        {
+            if (!nodeIdSet.Contains(edge.SourceId) || !nodeIdSet.Contains(edge.TargetId))
+            {
+                continue;
+            }
+
+            if (edge.Points.Count == 0)
+            {
+                continue;
+            }
+
+            for (int i = 0; i < edge.Points.Count; i++)
+            {
+                Position p = edge.Points[i];
+                double Dx = p.X - Cx;
+                double Dy = p.Y - Cy;
+                double NewDx = Dy;
+                double NewDy = -Dx;
+                edge.Points[i] = new Position(Cx + NewDx, Cy + NewDy);
+            }
+        }
+#pragma warning restore IDE0007
+    }
+
+    static void RenderSubgraphs(SvgBuilder builder, FlowchartModel model, RenderOptions options)
+    {
+        if (model.Subgraphs.Count == 0)
+        {
+            return;
+        }
+
+#pragma warning disable IDE0007
+        foreach (MermaidSharp.Models.Subgraph subgraph in model.Subgraphs)
+        {
+            RenderSubgraphRecursive(builder, model, subgraph, options);
+        }
+#pragma warning restore IDE0007
+    }
+
+    static void RenderSubgraphRecursive(SvgBuilder builder, FlowchartModel model, MermaidSharp.Models.Subgraph subgraph, RenderOptions options)
+    {
+#pragma warning disable IDE0007
+        MermaidSharp.Models.Rect Bounds = ComputeSubgraphBounds(model, subgraph);
+#pragma warning restore IDE0007
+        if (Bounds.Width <= 0 || Bounds.Height <= 0)
+        {
+            return;
+        }
+
+        // Mermaid draws subgraph boxes behind nodes.
+        builder.AddRect(
+            Bounds.X,
+            Bounds.Y,
+            Bounds.Width,
+            Bounds.Height,
+            fill: "none",
+            stroke: "#999",
+            strokeWidth: 1,
+            rx: 0);
+
+        #pragma warning disable IDE0007
+        string Title = subgraph.Title ?? subgraph.Id;
+        #pragma warning restore IDE0007
+        if (!string.IsNullOrWhiteSpace(Title))
+        {
+            // Title near top-left of the box (simple baseline; Word-friendly).
+            #pragma warning disable IDE0007
+            double TitleX = Bounds.X + 8;
+            double TitleY = Bounds.Y + Math.Max(14, options.FontSize);
+            #pragma warning restore IDE0007
+            builder.AddText(
+                TitleX,
+                TitleY,
+                Title,
+                anchor: "start",
+                baseline: "middle",
+                fontSize: $"{Math.Max(10, options.FontSize)}px",
+                fontFamily: options.FontFamily,
+                fill: "#333");
+        }
+
+        #pragma warning disable IDE0007
+        foreach (MermaidSharp.Models.Subgraph nested in subgraph.NestedSubgraphs)
+        {
+            RenderSubgraphRecursive(builder, model, nested, options);
+        }
+        #pragma warning restore IDE0007
+    }
+
+    static MermaidSharp.Models.Rect ComputeSubgraphBounds(FlowchartModel model, MermaidSharp.Models.Subgraph subgraph)
+    {
+#pragma warning disable IDE0007
+        const double PADDING_PX = 18.0;
+        const double TITLE_BAND_PX = 26.0;
+
+        bool HasAny = false;
+        double MinX = 0;
+        double MinY = 0;
+        double MaxX = 0;
+        double MaxY = 0;
+
+        foreach (string nodeId in subgraph.NodeIds)
+        {
+            Node? node = model.GetNode(nodeId);
+            if (node == null)
+            {
+                continue;
+            }
+
+            double left = node.Position.X - node.Width / 2;
+            double top = node.Position.Y - node.Height / 2;
+            double right = node.Position.X + node.Width / 2;
+            double bottom = node.Position.Y + node.Height / 2;
+
+            if (!HasAny)
+            {
+                HasAny = true;
+                MinX = left;
+                MinY = top;
+                MaxX = right;
+                MaxY = bottom;
+            }
+            else
+            {
+                MinX = Math.Min(MinX, left);
+                MinY = Math.Min(MinY, top);
+                MaxX = Math.Max(MaxX, right);
+                MaxY = Math.Max(MaxY, bottom);
+            }
+        }
+
+        if (!HasAny)
+        {
+            return new MermaidSharp.Models.Rect(0, 0, 0, 0);
+        }
+
+        double X = MinX - PADDING_PX;
+        double Y = MinY - PADDING_PX - TITLE_BAND_PX;
+        double Width = (MaxX - MinX) + (PADDING_PX * 2);
+        double Height = (MaxY - MinY) + (PADDING_PX * 2) + TITLE_BAND_PX;
+        return new MermaidSharp.Models.Rect(X, Y, Width, Height);
+#pragma warning restore IDE0007
+    }
+
     static void RenderNode(SvgBuilder builder, Node node, RenderOptions options)
     {
+#pragma warning disable IDE0007
         var x = node.Position.X - node.Width / 2;
         var y = node.Position.Y - node.Height / 2;
 
         var shapePath = ShapePathGenerator.GetPath(node.Shape, x, y, node.Width, node.Height);
+#pragma warning restore IDE0007
 
         builder.AddPath(shapePath,
             fill: nodeFill,
@@ -136,8 +370,10 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             filter: SvgBuilder.NaiadNodeShadowFilterReference);
 
         // Render label with icon support
+#pragma warning disable IDE0007
         var label = node.Label ?? node.Id;
-        var htmlLabel = ConvertIconsToHtml(label);
+        var htmlLabel = ConvertIconsToHtml(NormaliseHtmlLineBreaks(label));
+#pragma warning restore IDE0007
 
         builder.AddForeignObject(
             x, y, node.Width, node.Height,
@@ -146,6 +382,24 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             fontSizePx: options.FontSize,
             opticalVerticalBiasEm: flowchartLabelOpticalBiasEm,
             extraVerticalOffsetPx: FlowchartNodeLabelExtraVerticalOffsetPx);
+    }
+
+    static string NormaliseHtmlLineBreaks(string label)
+    {
+#pragma warning disable IDE0007
+        if (string.IsNullOrWhiteSpace(label))
+        {
+            return label ?? string.Empty;
+        }
+
+        // Mermaid flowcharts often embed HTML breaks in labels; `</br>` is common in fixtures.
+        // Normalise to `<br/>` so Word’s SVG foreignObject HTML renders consistently.
+        string Result = label;
+        Result = Result.Replace("</br>", "<br/>", StringComparison.OrdinalIgnoreCase);
+        Result = Result.Replace("<br>", "<br/>", StringComparison.OrdinalIgnoreCase);
+        Result = Result.Replace("<br/>", "<br/>", StringComparison.OrdinalIgnoreCase);
+        return Result;
+#pragma warning restore IDE0007
     }
 
     static void RenderEdge(SvgBuilder builder, Edge edge, RenderOptions options, Direction diagramDirection, Node? sourceNode)
