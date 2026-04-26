@@ -910,19 +910,45 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
             return Result;
         }
 
-        // Mirror Mermaid: use Dagre's 3-point edge route (vertical down, then diagonal in).
-        // Mermaid applies d3.line().curve(curveBasis) to edge.points, so the waypoint positions matter.
+        // Mirror Mermaid’s “vertical then diagonal” feel, but enforce minimum straight exit/entry lengths so
+        // short vertical separations in matrix fixtures still show the same characteristic straight segments
+        // as the scenario-1 shoulders.
+        const double MINIMUM_STRAIGHT_EXIT_PX = 28.0;
+        const double MINIMUM_STRAIGHT_ENTRY_PX = 28.0;
+        const double MINIMUM_CLEARANCE_PX = 6.0;
+
+        double DirectionY = Dy >= 0.0 ? 1.0 : -1.0;
+        Position ExitPoint = new Position(P0.X, P0.Y + (DirectionY * MINIMUM_STRAIGHT_EXIT_PX));
+        Position EntryPoint = new Position(P3.X, P3.Y - (DirectionY * MINIMUM_STRAIGHT_ENTRY_PX));
+
+        bool HasRoomForMinSegments = DirectionY > 0.0
+            ? ExitPoint.Y <= (EntryPoint.Y - MINIMUM_CLEARANCE_PX)
+            : ExitPoint.Y >= (EntryPoint.Y + MINIMUM_CLEARANCE_PX);
+
+        if (HasRoomForMinSegments)
+        {
+            List<Position> MermaidPoints = new List<Position>
+            {
+                P0,
+                ExitPoint,
+                EntryPoint,
+                P3
+            };
+            return BuildErCurveBasisPath(MermaidPoints);
+        }
+
+        // Fallback: preserve the original 3-point route when the edge is too short to accommodate the minimums.
         double MidY = (P0.Y + P3.Y) / 2.0;
         Position MidPoint = new Position(P0.X, MidY);
 
-        List<Position> MermaidPoints = new List<Position>
+        List<Position> FallbackPoints = new List<Position>
         {
             P0,
             MidPoint,
             P3
         };
 
-        return BuildErCurveBasisPath(MermaidPoints);
+        return BuildErCurveBasisPath(FallbackPoints);
 #pragma warning restore IDE0007
     }
 
