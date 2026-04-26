@@ -579,48 +579,48 @@ static class CoordinateAssignment
         Dictionary<LayoutEdge, (double SourceX, double SourceY, double TargetX, double TargetY)> AttachByEdge =
             new Dictionary<LayoutEdge, (double SourceX, double SourceY, double TargetX, double TargetY)>();
 
-        List<LayoutEdge> RegularEdges = graph.Edges
-            .Where(_ =>
-            {
-                LayoutNode? Source = graph.GetNode(_.SourceId);
-                LayoutNode? Target = graph.GetNode(_.TargetId);
-                if (Source is null || Target is null)
-                {
-                    return false;
-                }
-
-                if (Source.IsDummy || Target.IsDummy)
-                {
-                    return false;
-                }
-
-                return true;
-            })
-            .ToList();
-
         // Per the ER geometry source-of-truth: allocate anchors based on relationship grouping by facing direction,
         // then distribute evenly across the facing perimeter slot list.
-        Dictionary<string, List<LayoutEdge>> IncidentByNodeId = new Dictionary<string, List<LayoutEdge>>(StringComparer.Ordinal);
-        for (int i = 0; i < RegularEdges.Count; i++)
+        //
+        // Important: Dagre layout may split an original diagram edge (A -> B) into a chain of dummy nodes:
+        //
+        //   A -> d1 -> d2 -> ... -> B
+        //
+        // In that case, we must still allocate anchors for A and B, but apply them to the *segment edges adjacent
+        // to the real nodes* (A -> firstDummy and lastDummy -> B). The dummy nodes record the original edge endpoints.
+        Dictionary<string, List<LayoutEdge>> IncidentByRealNodeId = new Dictionary<string, List<LayoutEdge>>(StringComparer.Ordinal);
+        for (int i = 0; i < graph.Edges.Count; i++)
         {
-            LayoutEdge Edge = RegularEdges[i];
-
-            if (!IncidentByNodeId.TryGetValue(Edge.SourceId, out List<LayoutEdge>? SourceEdges))
+            LayoutEdge Edge = graph.Edges[i];
+            LayoutNode? Source = graph.GetNode(Edge.SourceId);
+            LayoutNode? Target = graph.GetNode(Edge.TargetId);
+            if (Source is null || Target is null)
             {
-                SourceEdges = new List<LayoutEdge>();
-                IncidentByNodeId[Edge.SourceId] = SourceEdges;
+                continue;
             }
-            SourceEdges.Add(Edge);
 
-            if (!IncidentByNodeId.TryGetValue(Edge.TargetId, out List<LayoutEdge>? TargetEdges))
+            if (!Source.IsDummy)
             {
-                TargetEdges = new List<LayoutEdge>();
-                IncidentByNodeId[Edge.TargetId] = TargetEdges;
+                if (!IncidentByRealNodeId.TryGetValue(Source.Id, out List<LayoutEdge>? List))
+                {
+                    List = new List<LayoutEdge>();
+                    IncidentByRealNodeId[Source.Id] = List;
+                }
+                List.Add(Edge);
             }
-            TargetEdges.Add(Edge);
+
+            if (!Target.IsDummy)
+            {
+                if (!IncidentByRealNodeId.TryGetValue(Target.Id, out List<LayoutEdge>? List))
+                {
+                    List = new List<LayoutEdge>();
+                    IncidentByRealNodeId[Target.Id] = List;
+                }
+                List.Add(Edge);
+            }
         }
 
-        foreach (KeyValuePair<string, List<LayoutEdge>> kvp in IncidentByNodeId)
+        foreach (KeyValuePair<string, List<LayoutEdge>> kvp in IncidentByRealNodeId)
         {
             string NodeId = kvp.Key;
             LayoutNode? Hub = graph.GetNode(NodeId);
@@ -643,8 +643,26 @@ static class CoordinateAssignment
             for (int i = 0; i < IncidentEdges.Count; i++)
             {
                 LayoutEdge Edge = IncidentEdges[i];
-                string OtherId = string.Equals(Edge.SourceId, NodeId, StringComparison.Ordinal) ? Edge.TargetId : Edge.SourceId;
-                LayoutNode? Other = graph.GetNode(OtherId);
+                if (!TryGetOriginalEdgeEndpoints(graph, Edge, out string OriginalSourceId, out string OriginalTargetId))
+                {
+                    continue;
+                }
+
+                string OtherRealId;
+                if (string.Equals(NodeId, OriginalSourceId, StringComparison.Ordinal))
+                {
+                    OtherRealId = OriginalTargetId;
+                }
+                else if (string.Equals(NodeId, OriginalTargetId, StringComparison.Ordinal))
+                {
+                    OtherRealId = OriginalSourceId;
+                }
+                else
+                {
+                    continue;
+                }
+
+                LayoutNode? Other = graph.GetNode(OtherRealId);
                 if (Other is null)
                 {
                     continue;
@@ -675,9 +693,9 @@ static class CoordinateAssignment
             AllocateAnchorsForFacingGroup(graph, Hub, NodeId, RightEdges, FacingDirection.Right, AttachByEdge);
         }
 
-        for (int i = 0; i < RegularEdges.Count; i++)
+        for (int i = 0; i < graph.Edges.Count; i++)
         {
-            LayoutEdge Edge = RegularEdges[i];
+            LayoutEdge Edge = graph.Edges[i];
             LayoutNode? Source = graph.GetNode(Edge.SourceId);
             LayoutNode? Target = graph.GetNode(Edge.TargetId);
             if (Source is null || Target is null)
@@ -723,6 +741,39 @@ static class CoordinateAssignment
         return AttachByEdge;
 #pragma warning restore IDE0007
     }
+
+    #pragma warning disable IDE0007
+
+    static bool TryGetOriginalEdgeEndpoints(LayoutGraph graph, LayoutEdge edge, out string originalSourceId, out string originalTargetId)
+    {
+        originalSourceId = edge.SourceId;
+        originalTargetId = edge.TargetId;
+
+        LayoutNode? Source = graph.GetNode(edge.SourceId);
+        LayoutNode? Target = graph.GetNode(edge.TargetId);
+
+        if (Source is null || Target is null)
+        {
+            return false;
+        }
+
+        if (!Source.IsDummy && !Target.IsDummy)
+        {
+            return true;
+        }
+
+        LayoutNode DummyNode = Source.IsDummy ? Source : Target;
+        if (string.IsNullOrWhiteSpace(DummyNode.OriginalEdgeSource) || string.IsNullOrWhiteSpace(DummyNode.OriginalEdgeTarget))
+        {
+            return false;
+        }
+
+        originalSourceId = DummyNode.OriginalEdgeSource;
+        originalTargetId = DummyNode.OriginalEdgeTarget;
+        return true;
+    }
+
+    #pragma warning restore IDE0007
 
     #pragma warning disable IDE0007
 
