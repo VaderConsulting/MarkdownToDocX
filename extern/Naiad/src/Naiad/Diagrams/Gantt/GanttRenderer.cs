@@ -35,8 +35,6 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
     const double RIGHT_LABEL_PADDING_PX = 60;
     const double FORCE_LABEL_INSIDE_BAR_WIDTH_PX = 140;
 
-    // Section header band (Mermaid live uses the same palette but not necessarily the same opacity).
-    const string SECTION_HEADER_COLOR = "rgba(102, 102, 255, 0.49)";
     const string milestoneColor = "#FF9800";
 
     /// <summary>Word tends to paint <c>dominant-baseline: middle</c> high for row/section titles; slight positive Y.</summary>
@@ -55,7 +53,7 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
     {
         // Word’s `dominant-baseline="middle"` renders slightly high for these fonts.
         // This value is empirically tuned for DOCX parity.
-        return Math.Max(2.0, fontSizePx * 0.18);
+        return Math.Max(3.0, fontSizePx * 0.25);
     }
     #pragma warning restore IDE0022
 
@@ -131,30 +129,26 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
         // Draw section row backgrounds (Mermaid draws full-width row bands behind tasks).
         DrawSectionRowBackgrounds(builder, model, offsetY, chartWidth);
 
-        // Draw sections and tasks
-        var currentRow = 0;
+        // Mermaid does not render section header rows; it renders section titles at the left.
+        var taskRowIndex = 0;
         foreach (var section in model.Sections)
         {
-            // Section header
-            if (!string.IsNullOrEmpty(section.Name))
+            if (!string.IsNullOrWhiteSpace(section.Name) && section.Tasks.Count > 0)
             {
-                var sectionY = offsetY + currentRow * rowHeight;
-                builder.AddRect(0, sectionY, width, 25,
-                    fill: SECTION_HEADER_COLOR, stroke: "none");
-                builder.AddText(10, sectionY + (25 / 2) + GanttWordRowTitleDown(options), section.Name,
+                var sectionTitleY = offsetY + (taskRowIndex * rowHeight) + (section.Tasks.Count * rowHeight / 2.0) + GanttWordRowTitleDown(options);
+                builder.AddText(10, sectionTitleY, section.Name,
                     anchor: "start",
                     baseline: "middle",
-                    fontSize: $"{options.FontSize}px",
+                    fontSize: $"{Math.Max(8, options.FontSize - 2)}px",
                     fontFamily: options.FontFamily,
-                    fontWeight: "bold");
-                currentRow++;
+                    fontWeight: "bold",
+                    fill: "#000");
             }
 
-            // Tasks
             foreach (var task in section.Tasks)
             {
-                DrawTask(builder, task, minDate, currentRow, offsetX, offsetY, dayWidthPx, totalTaskCount, height, options);
-                currentRow++;
+                DrawTask(builder, task, minDate, taskRowIndex, offsetX, offsetY, dayWidthPx, totalTaskCount, height, options);
+                taskRowIndex++;
             }
         }
 
@@ -424,26 +418,20 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
     static void DrawSectionRowBackgrounds(SvgBuilder builder, GanttModel model, double offsetY, double chartWidth)
     {
 #pragma warning disable IDE0007
-        int currentRow = 0;
+        int taskRowIndex = 0;
         int sectionIndex = 0;
         foreach (var section in model.Sections)
         {
-            // Header row
-            if (!string.IsNullOrEmpty(section.Name))
-            {
-                currentRow++;
-            }
-
             var sectionFill = GetSectionFill(sectionIndex);
             // Task rows in this section
             for (int i = 0; i < section.Tasks.Count; i++)
             {
-                var y = offsetY + (currentRow + i) * rowHeight - 2;
+                var y = offsetY + (taskRowIndex + i) * rowHeight - 2;
                 builder.AddRect(0, y, LEFT_PADDING_PX + chartWidth + RIGHT_PADDING_PX, rowHeight,
                     fill: sectionFill, stroke: "none", style: SECTION_ROW_FILL_OPACITY_STYLE);
             }
 
-            currentRow += section.Tasks.Count;
+            taskRowIndex += section.Tasks.Count;
             sectionIndex++;
         }
 #pragma warning restore IDE0007
