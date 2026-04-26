@@ -816,6 +816,33 @@ static class CoordinateAssignment
         int M = Slots.Count;
         int N = edges.Count;
 
+        // Explicit small-N canonical placements.
+        //
+        // The source-of-truth calls out a two-parent target hub case (e.g. LINE_ITEM with two incoming relationships
+        // from above) that should prefer corner-adjacent top anchors (T1 and T4), not an interior top slot.
+        //
+        // Apply this by selecting anchor slots directly (rather than relying on slot indices), so future slot-list
+        // tweaks can't accidentally shift the chosen anchors.
+        if (facing == FacingDirection.Up && N == 2)
+        {
+            LayoutEdge LeftEdge = edges[0];
+            LayoutEdge RightEdge = edges[1];
+
+            ApplyExplicitAnchorSlot(Hub, HubId, LeftEdge, ErAnchorSlot.T1, attachByEdge);
+            ApplyExplicitAnchorSlot(Hub, HubId, RightEdge, ErAnchorSlot.T4, attachByEdge);
+            return;
+        }
+
+        if (facing == FacingDirection.Down && N == 2)
+        {
+            LayoutEdge LeftEdge = edges[0];
+            LayoutEdge RightEdge = edges[1];
+
+            ApplyExplicitAnchorSlot(Hub, HubId, LeftEdge, ErAnchorSlot.L4, attachByEdge);
+            ApplyExplicitAnchorSlot(Hub, HubId, RightEdge, ErAnchorSlot.R4, attachByEdge);
+            return;
+        }
+
         for (int i = 0; i < edges.Count; i++)
         {
             LayoutEdge Edge = edges[i];
@@ -838,6 +865,30 @@ static class CoordinateAssignment
                 attachByEdge[Edge] = (Existing.SourceX, Existing.SourceY, Anchor.X, Anchor.Y);
             }
         }
+    }
+
+    static void ApplyExplicitAnchorSlot(
+        LayoutNode hub,
+        string hubId,
+        LayoutEdge edge,
+        ErAnchorSlot slot,
+        Dictionary<LayoutEdge, (double SourceX, double SourceY, double TargetX, double TargetY)> attachByEdge)
+    {
+        (double X, double Y) Anchor = GetAnchorPoint(hub, slot);
+
+        (double SourceX, double SourceY, double TargetX, double TargetY) Existing =
+            attachByEdge.TryGetValue(edge, out (double SourceX, double SourceY, double TargetX, double TargetY) ExistingValue)
+                ? ExistingValue
+                : (double.NaN, double.NaN, double.NaN, double.NaN);
+
+        bool HubIsSource = string.Equals(edge.SourceId, hubId, StringComparison.Ordinal);
+        if (HubIsSource)
+        {
+            attachByEdge[edge] = (Anchor.X, Anchor.Y, Existing.TargetX, Existing.TargetY);
+            return;
+        }
+
+        attachByEdge[edge] = (Existing.SourceX, Existing.SourceY, Anchor.X, Anchor.Y);
     }
 
     static int ComputeSlotIndex(int i, int m, int n, FacingDirection facing)
@@ -879,29 +930,7 @@ static class CoordinateAssignment
             }
         }
 
-        // For Up-facing (parents above): the updated source-of-truth emphasises that a two-parent target (e.g. LINE_ITEM)
-        // should use corner-adjacent upper-perimeter anchors (upper-left shoulder and upper-right shoulder), rather than
-        // collapsing into TC. In our Up slot list, those correspond to T1 (index 2) and T4 (index 6).
-        if (facing == FacingDirection.Up)
-        {
-            if (n == 2)
-            {
-                return i == 0 ? 2 : 6;
-            }
-
-            if (n == 3)
-            {
-                if (i == 0)
-                {
-                    return 2;
-                }
-                if (i == 1)
-                {
-                    return 4;
-                }
-                return 6;
-            }
-        }
+        // Note: Up-facing N=2 uses explicit T1/T4 selection in AllocateAnchorsForFacingGroup.
 
         // SlotIndex(i) = round((i + 1) * (M + 1) / (N + 1)) - 1
         double value = ((i + 1.0) * (m + 1.0)) / (n + 1.0);
