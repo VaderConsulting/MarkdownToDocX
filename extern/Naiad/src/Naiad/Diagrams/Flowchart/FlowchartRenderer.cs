@@ -853,16 +853,20 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         double dx = p3.X - p0.X;
         double dy = p3.Y - p0.Y;
 
-        // ERD-like: one clean cubic with a small "straight-ish" lead-out and lead-in.
-        // Control points are axis-biased to avoid the wavy curveBasis elbow on short branches.
+        // ERD-like: one clean cubic with:
+        // - a vertically biased lead-out (curves immediately away from the decision), and
+        // - a horizontally biased lead-in (straightens out as it approaches the target).
+        // This matches the typical Mermaid decision-branch appearance in the Word-rendered fixture.
         double ax = Math.Max(12.0, Math.Min(60.0, Math.Abs(dx) * 0.45));
         double ay = Math.Max(10.0, Math.Min(55.0, Math.Abs(dy) * 0.45));
 
-        double c1x = p0.X + (dx >= 0 ? ax : -ax);
-        double c1y = p0.Y + (dy >= 0 ? (ay * 0.15) : -(ay * 0.15));
+        // Start: mostly vertical tangent.
+        double c1x = p0.X + (dx >= 0 ? (ax * 0.15) : -(ax * 0.15));
+        double c1y = p0.Y + (dy >= 0 ? ay : -ay);
 
+        // End: mostly horizontal tangent.
         double c2x = p3.X - (dx >= 0 ? ax : -ax);
-        double c2y = p3.Y - (dy >= 0 ? ay : -ay);
+        double c2y = p3.Y + (dy >= 0 ? -(ay * 0.15) : (ay * 0.15));
 
         return $"M{Fmt(p0.X)},{Fmt(p0.Y)} C{Fmt(c1x)},{Fmt(c1y)} {Fmt(c2x)},{Fmt(c2y)} {Fmt(p3.X)},{Fmt(p3.Y)}";
 #pragma warning restore IDE0007
