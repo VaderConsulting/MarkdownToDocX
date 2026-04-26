@@ -8,7 +8,6 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
     const string nodeFill = "#ECECFF";
     const string nodeStroke = "#9370DB";
     const string edgeStroke = "#333333";
-    const string labelBackground = "rgba(232,232,232,0.8)";
 
     /// <summary>
     /// Flowchart nodes use Trebuchet in browser CSS; Word SVG uses Arial. Slightly lower em nudge than other diagrams for better optical vertical centre in boxes.
@@ -24,39 +23,14 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
     /// Mermaid flowchart defaults (from Mermaid source):
     /// nodeSpacing = 50, rankSpacing = 50.
     /// </summary>
-    const double FlowchartNodeSpacingPx = 50;
+    const double FlowchartNodeSpacingPx = 140;
 
-    const double FlowchartRankSpacingPx = 50;
+    const double FlowchartRankSpacingPx = 140;
 
     /// <summary>
     /// Mermaid flowchart default diagram padding (from Mermaid source): diagramPadding = 8.
     /// </summary>
     const double FlowchartDiagramPaddingPx = 8;
-
-    /// <summary>
-    /// Catmull–Rom chord divisor: larger values tighten curves toward the polyline control points.
-    /// </summary>
-    const double FlowchartCatmullChordDivisor = 6.0;
-
-    /// <summary>
-    /// Minimum length of the straight segment aligned with rank flow before the arrow marker at the target (matches Mermaid-style vertical/horizontal finish).
-    /// </summary>
-    const double MinFlowAlignedStemPx = 13.0;
-
-    /// <summary>
-    /// Stem length scales with the last span so longer edges show a visibly longer straight approach before the marker.
-    /// </summary>
-    const double FinalApproachStemFraction = 0.26;
-
-    /// <summary>
-    /// Keeps part of the last span for curved transition so the stem joint never collapses to a cusp.
-    /// </summary>
-    const double FinalApproachCurveReservePx = 10.0;
-
-    /// <summary>
-    /// Places the inward Bezier control near the final straight stem so the spline tangent matches the stem line toward the node.
-    /// </summary>
-    const double StemJointControlFactor = 0.21;
 
     // FontAwesome icon pattern: fa:fa-icon-name or fab:fa-icon-name
     static Regex iconPattern = IconPatternMyRegex();
@@ -65,6 +39,8 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
 
     public SvgDocument Render(FlowchartModel model, RenderOptions options)
     {
+        ApplyStyles(model);
+
         // Calculate node sizes based on text
         foreach (var node in model.Nodes)
         {
@@ -88,8 +64,13 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             }
             else if (node.Shape == NodeShape.Diamond)
             {
-                node.Width *= 1.4;
-                node.Height *= 1.4;
+                // Mermaid's diamond ("question") is a square polygon sized from the label bbox.
+                // See Mermaid's flowChartShapes.js question(): s = (w + h) * 0.9 and polygon is s x s.
+#pragma warning disable IDE0007
+                double s = (node.Width + node.Height) * 0.9;
+#pragma warning restore IDE0007
+                node.Width = s;
+                node.Height = s;
             }
         }
 
@@ -307,14 +288,22 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         }
 
         // Mermaid draws subgraph boxes behind nodes.
+#pragma warning disable IDE0007
+        MermaidSharp.Models.Style? subgraphStyle = null;
+        if (model.StyleByElementId.TryGetValue(subgraph.Id, out MermaidSharp.Models.Style? styleOverride) && styleOverride is not null)
+        {
+            subgraphStyle = styleOverride;
+        }
+#pragma warning restore IDE0007
+
         builder.AddRect(
             Bounds.X,
             Bounds.Y,
             Bounds.Width,
             Bounds.Height,
-            fill: "#ffffde",
-            stroke: "#aaaa33",
-            strokeWidth: 1,
+            fill: subgraphStyle?.Fill ?? "#ffffde",
+            stroke: subgraphStyle?.Stroke ?? "#aaaa33",
+            strokeWidth: subgraphStyle?.StrokeWidth ?? 1,
             rx: 0);
 
         #pragma warning disable IDE0007
@@ -460,10 +449,16 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         var shapePath = ShapePathGenerator.GetPath(node.Shape, x, y, node.Width, node.Height);
 #pragma warning restore IDE0007
 
+#pragma warning disable IDE0007
+        string fill = node.Style.Fill ?? nodeFill;
+        string stroke = node.Style.Stroke ?? nodeStroke;
+        double strokeWidth = node.Style.StrokeWidth ?? 1.0;
+#pragma warning restore IDE0007
+
         builder.AddPath(shapePath,
-            fill: nodeFill,
-            stroke: nodeStroke,
-            strokeWidth: 1,
+            fill: fill,
+            stroke: stroke,
+            strokeWidth: strokeWidth,
             cssClass: "node",
             filter: SvgBuilder.NaiadNodeShadowFilterReference);
 
@@ -479,7 +474,8 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             className: "nodeLabel",
             fontSizePx: options.FontSize,
             opticalVerticalBiasEm: flowchartLabelOpticalBiasEm,
-            extraVerticalOffsetPx: FlowchartNodeLabelExtraVerticalOffsetPx);
+            extraVerticalOffsetPx: FlowchartNodeLabelExtraVerticalOffsetPx,
+            fill: node.Style.TextColor);
     }
 
     static string NormaliseHtmlLineBreaks(string label)
@@ -613,19 +609,29 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             pointsForPath = adjustedPoints;
         }
 
-        var pathData = BuildFlowchartEdgePath(pointsForPath, diagramDirection, sourceNode);
+        var pathData = ShouldUseDecisionBranchCubic(edge, sourceNode)
+            ? BuildDecisionBranchCubic(pointsForPath)
+            : BuildFlowchartEdgePath(pointsForPath, diagramDirection, sourceNode);
 
-        var strokeDasharray = edge.LineStyle switch
+#pragma warning disable IDE0007
+        string? strokeDasharray = edge.Style.StrokeDasharray;
+        if (strokeDasharray is null)
         {
-            EdgeStyle.Dotted => "2",
-            _ => null
-        };
+            strokeDasharray = edge.LineStyle switch
+            {
+                EdgeStyle.Dotted => "2",
+                _ => null
+            };
+        }
 
-        var strokeWidth = edge.LineStyle switch
+        double strokeWidth = edge.Style.StrokeWidth ?? (edge.LineStyle switch
         {
             EdgeStyle.Thick => 3.5,
             _ => 1.0
-        };
+        });
+
+        string stroke = edge.Style.Stroke ?? edgeStroke;
+#pragma warning restore IDE0007
 
         var markerEnd = edge.Type switch
         {
@@ -655,7 +661,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             // Visible stroke: trimmed points, no markers.
             builder.AddPath(pathData,
                 fill: "none",
-                stroke: edgeStroke,
+                stroke: stroke,
                 strokeWidth: strokeWidth,
                 strokeDasharray: strokeDasharray,
                 markerEnd: null,
@@ -664,7 +670,9 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
 
             // Marker-only path: original points (untrimmed), markers attached, stroke invisible.
             // This ensures the X stays anchored at the node edge.
-            var markerPathData = BuildFlowchartEdgePath(edge.Points, diagramDirection, sourceNode);
+            var markerPathData = ShouldUseDecisionBranchCubic(edge, sourceNode)
+                ? BuildDecisionBranchCubic(edge.Points)
+                : BuildFlowchartEdgePath(edge.Points, diagramDirection, sourceNode);
             builder.AddPath(markerPathData,
                 fill: "none",
                 stroke: "none",
@@ -678,7 +686,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         {
             builder.AddPath(pathData,
                 fill: "none",
-                stroke: edgeStroke,
+                stroke: stroke,
                 strokeWidth: strokeWidth,
                 strokeDasharray: strokeDasharray,
                 markerEnd: markerEnd,
@@ -696,11 +704,11 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             double labelWidth = labelSize.Width + 16;
             double labelHeight = Math.Max(24, labelSize.Height + 8);
 #pragma warning restore IDE0007
-
+            // Word parity: keep edge labels with transparent background (no filled rect).
             builder.AddRect(
                 labelX - labelWidth / 2, labelY - labelHeight / 2,
                 labelWidth, labelHeight,
-                fill: labelBackground, stroke: "none",
+                fill: "none", stroke: "none",
                 cssClass: "edgeLabel");
 
             builder.AddForeignObject(
@@ -794,272 +802,145 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
     }
 
     /// <summary>
-    /// Smooth cubic curves through Dagre polyline points (Catmull–Rom segment conversion).
-    /// Phantom points at the chain ends follow <paramref name="diagramDirection"/> so forks arc smoothly like Mermaid preview.
-    /// The final span ends with a straight segment aligned to rank flow (vertical in TB) so arrow markers sit squarely on the target node.
-    /// Forks use <paramref name="sourceNode"/> so both outgoing edges share a Catmull control at the parent centre (Mermaid-style fan-out).
+    /// Mermaid uses <c>d3.line().curve(curveBasis)</c> for flowchart edges (dagre-d3).
+    /// We emit the same curveBasis path from the routed polyline points.
     /// </summary>
+#pragma warning disable IDE0022
     static string BuildFlowchartEdgePath(IReadOnlyList<Position> points, Direction diagramDirection, Node? sourceNode)
     {
+        return BuildFlowchartCurveBasisPath(points);
+    }
+
+    static bool ShouldUseDecisionBranchCubic(Edge edge, Node? sourceNode)
+    {
+#pragma warning disable IDE0007
+        if (string.IsNullOrWhiteSpace(edge.Label))
+        {
+            return false;
+        }
+
+        string label = edge.Label.Trim();
+        bool isYesNo = string.Equals(label, "Yes", StringComparison.OrdinalIgnoreCase)
+                       || string.Equals(label, "No", StringComparison.OrdinalIgnoreCase);
+
+        if (!isYesNo)
+        {
+            return false;
+        }
+
+        // Prefer applying only when it looks like a decision branch, but allow for layout-inserted dummy segments
+        // where the immediate source node is not the diamond.
+        if (sourceNode is not null && sourceNode.Shape == NodeShape.Diamond)
+        {
+            return true;
+        }
+
+        return edge.Points.Count >= 2;
+#pragma warning restore IDE0007
+    }
+
+    static string BuildDecisionBranchCubic(IReadOnlyList<Position> points)
+    {
+#pragma warning disable IDE0007
         if (points.Count < 2)
         {
             return string.Empty;
         }
 
-        var sb = new StringBuilder();
+        Position p0 = points[0];
+        Position p3 = points[^1];
+
+        double dx = p3.X - p0.X;
+        double dy = p3.Y - p0.Y;
+
+        // ERD-like: one clean cubic with a small "straight-ish" lead-out and lead-in.
+        // Control points are axis-biased to avoid the wavy curveBasis elbow on short branches.
+        double ax = Math.Max(12.0, Math.Min(60.0, Math.Abs(dx) * 0.45));
+        double ay = Math.Max(10.0, Math.Min(55.0, Math.Abs(dy) * 0.45));
+
+        double c1x = p0.X + (dx >= 0 ? ax : -ax);
+        double c1y = p0.Y + (dy >= 0 ? (ay * 0.15) : -(ay * 0.15));
+
+        double c2x = p3.X - (dx >= 0 ? ax : -ax);
+        double c2y = p3.Y - (dy >= 0 ? ay : -ay);
+
+        return $"M{Fmt(p0.X)},{Fmt(p0.Y)} C{Fmt(c1x)},{Fmt(c1y)} {Fmt(c2x)},{Fmt(c2y)} {Fmt(p3.X)},{Fmt(p3.Y)}";
+#pragma warning restore IDE0007
+    }
+#pragma warning restore IDE0022
+
+    // Exact d3.curveBasis conversion (see https://raw.githubusercontent.com/d3/d3-shape/main/src/curve/basis.js)
+    static string BuildFlowchartCurveBasisPath(IReadOnlyList<Position> points)
+    {
+#pragma warning disable IDE0007
+        if (points.Count < 2)
+        {
+            return string.Empty;
+        }
+
+        if (points.Count == 2)
+        {
+            return $"M{Fmt(points[0].X)},{Fmt(points[0].Y)} L{Fmt(points[1].X)},{Fmt(points[1].Y)}";
+        }
+
+        StringBuilder sb = new StringBuilder();
+
+        double x0 = points[0].X;
+        double y0 = points[0].Y;
+        double x1 = points[0].X;
+        double y1 = points[0].Y;
+
         sb.Append('M').Append(Fmt(points[0].X)).Append(',').Append(Fmt(points[0].Y));
 
-        var lastIdx = points.Count - 1;
+        // point 1 updates state
+        x1 = points[1].X;
+        y1 = points[1].Y;
 
-        for (var segmentIdx = 0; segmentIdx < lastIdx - 1; segmentIdx++)
+        // point 2: lineTo((5*x0 + x1)/6, (5*y0 + y1)/6)
+        double lx = ((5.0 * x0) + x1) / 6.0;
+        double ly = ((5.0 * y0) + y1) / 6.0;
+        sb.Append('L').Append(Fmt(lx)).Append(',').Append(Fmt(ly));
+
+        for (int i = 2; i < points.Count; i++)
         {
-            var p0 = segmentIdx == 0
-                ? ForkPhantomBeforeExit(points[0], points[1], sourceNode, diagramDirection)
-                : points[segmentIdx - 1];
+            double px = points[i].X;
+            double py = points[i].Y;
 
-            var p1 = points[segmentIdx];
-            var p2 = points[segmentIdx + 1];
-
-            var p3 = points[segmentIdx + 2];
-
-            var c1x = p1.X + (p2.X - p0.X) / FlowchartCatmullChordDivisor;
-            var c1y = p1.Y + (p2.Y - p0.Y) / FlowchartCatmullChordDivisor;
-            var c2x = p2.X - (p3.X - p1.X) / FlowchartCatmullChordDivisor;
-            var c2y = p2.Y - (p3.Y - p1.Y) / FlowchartCatmullChordDivisor;
+            double c1x = ((2.0 * x0) + x1) / 3.0;
+            double c1y = ((2.0 * y0) + y1) / 3.0;
+            double c2x = (x0 + (2.0 * x1)) / 3.0;
+            double c2y = (y0 + (2.0 * y1)) / 3.0;
+            double ex = (x0 + (4.0 * x1) + px) / 6.0;
+            double ey = (y0 + (4.0 * y1) + py) / 6.0;
 
             sb.Append('C')
                 .Append(Fmt(c1x)).Append(',').Append(Fmt(c1y)).Append(' ')
                 .Append(Fmt(c2x)).Append(',').Append(Fmt(c2y)).Append(' ')
-                .Append(Fmt(p2.X)).Append(',').Append(Fmt(p2.Y));
+                .Append(Fmt(ex)).Append(',').Append(Fmt(ey));
+
+            x0 = x1;
+            y0 = y1;
+            x1 = px;
+            y1 = py;
         }
 
-        AppendFinalStemSegment(sb, points, diagramDirection, lastIdx, sourceNode);
-
-        return sb.ToString();
-    }
-
-    /// <summary>
-    /// Finishes the edge with a cubic to a stem anchor, then a straight line in the diagram's flow direction to the connection point so the marker orientation matches Mermaid's long vertical/horizontal tail.
-    /// </summary>
-    static void AppendFinalStemSegment(StringBuilder sb, IReadOnlyList<Position> points, Direction diagramDirection, int lastIdx, Node? sourceNode)
-    {
-        var p1 = points[lastIdx - 1];
-        var p2 = points[lastIdx];
-        var p0 = lastIdx >= 2
-            ? points[lastIdx - 2]
-            : ForkPhantomBeforeExit(points[0], points[1], sourceNode, diagramDirection);
-
-        ResolveStemAnchor(p1, p2, diagramDirection, out var pStem, out var stemLength);
-
-        var c1x = p1.X + (pStem.X - p0.X) / FlowchartCatmullChordDivisor;
-        var c1y = p1.Y + (pStem.Y - p0.Y) / FlowchartCatmullChordDivisor;
-
-        var controlArm = Math.Max(6.0, stemLength * StemJointControlFactor);
-        StemJointEndControl(pStem, diagramDirection, controlArm, out var c2x, out var c2y);
+        // lineEnd emulation (same as ER curveBasis helper)
+        double c1xe = ((2.0 * x0) + x1) / 3.0;
+        double c1ye = ((2.0 * y0) + y1) / 3.0;
+        double c2xe = (x0 + (2.0 * x1)) / 3.0;
+        double c2ye = (y0 + (2.0 * y1)) / 3.0;
+        double exe = (x0 + (4.0 * x1) + x1) / 6.0;
+        double eye = (y0 + (4.0 * y1) + y1) / 6.0;
 
         sb.Append('C')
-            .Append(Fmt(c1x)).Append(',').Append(Fmt(c1y)).Append(' ')
-            .Append(Fmt(c2x)).Append(',').Append(Fmt(c2y)).Append(' ')
-            .Append(Fmt(pStem.X)).Append(',').Append(Fmt(pStem.Y));
+            .Append(Fmt(c1xe)).Append(',').Append(Fmt(c1ye)).Append(' ')
+            .Append(Fmt(c2xe)).Append(',').Append(Fmt(c2ye)).Append(' ')
+            .Append(Fmt(exe)).Append(',').Append(Fmt(eye));
 
-        if (stemLength > 0.75)
-        {
-            sb.Append('L').Append(Fmt(p2.X)).Append(',').Append(Fmt(p2.Y));
-        }
-    }
+        sb.Append('L').Append(Fmt(x1)).Append(',').Append(Fmt(y1));
 
-    /// <summary>
-    /// Computes the stem start (flow-aligned with the target) and the length of the straight run to the arrow tip.
-    /// </summary>
-    static void ResolveStemAnchor(Position p1, Position p2, Direction diagramDirection, out Position pStem, out double stemLength)
-    {
-        switch (diagramDirection)
-        {
-            case Direction.TopToBottom:
-            {
-                var dy = p2.Y - p1.Y;
-                if (Math.Abs(dy) > FinalApproachCurveReservePx)
-                {
-                    stemLength = Math.Max(MinFlowAlignedStemPx, Math.Abs(dy) * FinalApproachStemFraction);
-                    stemLength = Math.Min(stemLength, Math.Abs(dy) - FinalApproachCurveReservePx);
-                }
-                else
-                {
-                    stemLength = Math.Max(4.0, Math.Abs(dy) * 0.35);
-                }
-
-                if (dy >= 0)
-                {
-                    pStem = new Position(p2.X, p2.Y - stemLength);
-                }
-                else
-                {
-                    pStem = new Position(p2.X, p2.Y + stemLength);
-                }
-
-                break;
-            }
-
-            case Direction.BottomToTop:
-            {
-                var dy = p1.Y - p2.Y;
-                if (Math.Abs(dy) > FinalApproachCurveReservePx)
-                {
-                    stemLength = Math.Max(MinFlowAlignedStemPx, Math.Abs(dy) * FinalApproachStemFraction);
-                    stemLength = Math.Min(stemLength, Math.Abs(dy) - FinalApproachCurveReservePx);
-                }
-                else
-                {
-                    stemLength = Math.Max(4.0, Math.Abs(dy) * 0.35);
-                }
-
-                if (dy >= 0)
-                {
-                    pStem = new Position(p2.X, p2.Y + stemLength);
-                }
-                else
-                {
-                    pStem = new Position(p2.X, p2.Y - stemLength);
-                }
-
-                break;
-            }
-
-            case Direction.LeftToRight:
-            {
-                var dx = p2.X - p1.X;
-                if (Math.Abs(dx) > FinalApproachCurveReservePx)
-                {
-                    stemLength = Math.Max(MinFlowAlignedStemPx, Math.Abs(dx) * FinalApproachStemFraction);
-                    stemLength = Math.Min(stemLength, Math.Abs(dx) - FinalApproachCurveReservePx);
-                }
-                else
-                {
-                    stemLength = Math.Max(4.0, Math.Abs(dx) * 0.35);
-                }
-
-                if (dx >= 0)
-                {
-                    pStem = new Position(p2.X - stemLength, p2.Y);
-                }
-                else
-                {
-                    pStem = new Position(p2.X + stemLength, p2.Y);
-                }
-
-                break;
-            }
-
-            case Direction.RightToLeft:
-            {
-                var dx = p1.X - p2.X;
-                if (Math.Abs(dx) > FinalApproachCurveReservePx)
-                {
-                    stemLength = Math.Max(MinFlowAlignedStemPx, Math.Abs(dx) * FinalApproachStemFraction);
-                    stemLength = Math.Min(stemLength, Math.Abs(dx) - FinalApproachCurveReservePx);
-                }
-                else
-                {
-                    stemLength = Math.Max(4.0, Math.Abs(dx) * 0.35);
-                }
-
-                if (dx >= 0)
-                {
-                    pStem = new Position(p2.X + stemLength, p2.Y);
-                }
-                else
-                {
-                    pStem = new Position(p2.X - stemLength, p2.Y);
-                }
-
-                break;
-            }
-
-            default:
-            {
-                var dy = p2.Y - p1.Y;
-                stemLength = Math.Max(MinFlowAlignedStemPx, Math.Abs(dy) * FinalApproachStemFraction);
-                pStem = new Position(p2.X, p2.Y - stemLength);
-                break;
-            }
-        }
-
-        stemLength = Distance(pStem, p2);
-    }
-
-    /// <summary>
-    /// Second control point for the cubic ending at <paramref name="pStem"/> so the curve tangent matches the stem line toward the node.
-    /// </summary>
-    static void StemJointEndControl(Position pStem, Direction diagramDirection, double offset, out double c2x, out double c2y)
-    {
-        switch (diagramDirection)
-        {
-            case Direction.TopToBottom:
-                c2x = pStem.X;
-                c2y = pStem.Y - offset;
-                break;
-
-            case Direction.BottomToTop:
-                c2x = pStem.X;
-                c2y = pStem.Y + offset;
-                break;
-
-            case Direction.LeftToRight:
-                c2x = pStem.X - offset;
-                c2y = pStem.Y;
-                break;
-
-            case Direction.RightToLeft:
-                c2x = pStem.X + offset;
-                c2y = pStem.Y;
-                break;
-
-            default:
-                c2x = pStem.X;
-                c2y = pStem.Y - offset;
-                break;
-        }
-    }
-
-    /// <summary>
-    /// Catmull–Rom control before the first polyline vertex on an edge leaving a node.
-    /// When <paramref name="sourceNode"/> is set, uses the parent’s layout centre so all outgoing links at a fork
-    /// share a common radial origin, matching Mermaid’s fan-out: backward extensions meet at the node’s 2D centre, which is the
-    /// projection of a virtual apex in front of the box (positive view Z / toward the viewer), not a higher SVG Y by itself.
-    /// </summary>
-    static Position ForkPhantomBeforeExit(Position exitPoint, Position towardNext, Node? sourceNode, Direction diagramDirection)
-    {
-        if (sourceNode is not null)
-        {
-            return new Position(sourceNode.Position.X, sourceNode.Position.Y);
-        }
-
-        return StartPhantom(exitPoint, towardNext, diagramDirection);
-    }
-
-    /// <summary>
-    /// Synthetic control point before the first routed vertex so the spline exits the first bend with flow-aligned curvature.
-    /// </summary>
-    static Position StartPhantom(Position first, Position second, Direction diagramDirection)
-    {
-        var length = Distance(first, second);
-
-        return diagramDirection switch
-        {
-            Direction.TopToBottom => new Position(first.X, first.Y - length),
-            Direction.BottomToTop => new Position(first.X, first.Y + length),
-            Direction.LeftToRight => new Position(first.X - length, first.Y),
-            Direction.RightToLeft => new Position(first.X + length, first.Y),
-            _ => new Position(first.X, first.Y - length)
-        };
-    }
-
-    static double Distance(Position a, Position b)
-    {
-        var dx = b.X - a.X;
-        var dy = b.Y - a.Y;
-
-        return Math.Sqrt(dx * dx + dy * dy);
+        return sb.ToString();
+#pragma warning restore IDE0007
     }
 
     /// <summary>
@@ -1132,11 +1013,88 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             }
         }
 
-        double Width = MaxLineLength * fontSize * 0.55;
+        // Mermaid measures actual rendered glyph widths (Trebuchet MS in browser). Word uses Arial, and our earlier
+        // constant slightly under-estimated typical widths, compressing node-to-node spacing.
+        double Width = MaxLineLength * fontSize * 0.62;
         double Height = Lines.Length * fontSize * 1.5;
         return new Size(Width, Height);
 #pragma warning restore IDE0007
     }
 
     static string Fmt(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
+
+    static void ApplyStyles(FlowchartModel model)
+    {
+#pragma warning disable IDE0007
+        // Nodes: classDef + class + style directive.
+        foreach (Node node in model.Nodes)
+        {
+            MermaidSharp.Models.Style effective = new MermaidSharp.Models.Style();
+
+            if (model.ClassesByNodeId.TryGetValue(node.Id, out List<string>? classNames))
+            {
+                foreach (string className in classNames)
+                {
+                    if (model.ClassDefinitions.TryGetValue(className, out MermaidSharp.Models.Style? classStyle) && classStyle is not null)
+                    {
+                        MergeStyle(effective, classStyle);
+                    }
+                }
+            }
+
+            if (model.StyleByElementId.TryGetValue(node.Id, out MermaidSharp.Models.Style? styleOverride) && styleOverride is not null)
+            {
+                MergeStyle(effective, styleOverride);
+            }
+
+            node.Style = effective;
+        }
+
+        // Edges: linkStyle by index.
+        for (int i = 0; i < model.Edges.Count; i++)
+        {
+            Edge edge = model.Edges[i];
+            if (model.StyleByLinkIndex.TryGetValue(i, out MermaidSharp.Models.Style? edgeStyle) && edgeStyle is not null)
+            {
+                edge.Style = edgeStyle;
+            }
+        }
+#pragma warning restore IDE0007
+    }
+
+    static void MergeStyle(MermaidSharp.Models.Style target, MermaidSharp.Models.Style source)
+    {
+        if (source.Fill is not null)
+        {
+            target.Fill = source.Fill;
+        }
+        if (source.Stroke is not null)
+        {
+            target.Stroke = source.Stroke;
+        }
+        if (source.StrokeWidth.HasValue)
+        {
+            target.StrokeWidth = source.StrokeWidth;
+        }
+        if (source.StrokeDasharray is not null)
+        {
+            target.StrokeDasharray = source.StrokeDasharray;
+        }
+        if (source.FontFamily is not null)
+        {
+            target.FontFamily = source.FontFamily;
+        }
+        if (source.FontSize.HasValue)
+        {
+            target.FontSize = source.FontSize;
+        }
+        if (source.FontWeight is not null)
+        {
+            target.FontWeight = source.FontWeight;
+        }
+        if (source.TextColor is not null)
+        {
+            target.TextColor = source.TextColor;
+        }
+    }
 }

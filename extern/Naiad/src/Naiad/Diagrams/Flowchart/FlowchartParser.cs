@@ -13,6 +13,32 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
     }
 #pragma warning restore IDE0007
 
+#pragma warning disable IDE0007
+    private sealed class ClassDefDirective
+    {
+        public required string ClassName { get; init; }
+        public required MermaidSharp.Models.Style Style { get; init; }
+    }
+
+    private sealed class ClassAssignDirective
+    {
+        public required List<string> NodeIds { get; init; }
+        public required string ClassName { get; init; }
+    }
+
+    private sealed class StyleDirective
+    {
+        public required string ElementId { get; init; }
+        public required MermaidSharp.Models.Style Style { get; init; }
+    }
+
+    private sealed class LinkStyleDirective
+    {
+        public required int LinkIndex { get; init; }
+        public required MermaidSharp.Models.Style Style { get; init; }
+    }
+#pragma warning restore IDE0007
+
     /// <summary>
     /// Normalises flowchart node text when bracket contents use Mermaid quoted delimiter syntax (double quotes wrapping the visible label).
     /// </summary>
@@ -155,7 +181,7 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
                 String("-.")
                     .Then(Token(_ => _ != '.' && _ != '\r' && _ != '\n').ManyString())
                     .Before(String(".->"))
-                    .Select(text => text.Trim())
+                    .Select(text => NormalizeFlowchartLabel(text))
                     .Where(text => !string.IsNullOrWhiteSpace(text))
                     .Select(text => (EdgeType.DottedArrow, EdgeStyle.Dotted, 1, (string?) text))
             ),
@@ -166,7 +192,8 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
     static Parser<char, string> edgeLabelParser =
         Char('|')
             .Then(Token(_ => _ != '|').ManyString())
-            .Before(Char('|'));
+            .Before(Char('|'))
+            .Select(text => NormalizeFlowchartLabel(text));
 
     static Parser<char, Direction> flowchartDirection =
         OneOf(
@@ -223,31 +250,43 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
         );
 
     // Style directive: style NodeName fill:#color,stroke:#color
-    static Parser<char, Unit> styleDirective =
+    static Parser<char, StyleDirective> styleDirective =
         from _ in CommonParsers.InlineWhitespace
         from __ in String("style")
         from ___ in CommonParsers.RequiredWhitespace
-        from ____ in Token(_ => _ != '\r' && _ != '\n').ManyString() // consume rest of line
+        from elementId in CommonParsers.Identifier
+        from ____ in CommonParsers.RequiredInlineWhitespace
+        from styleText in Token(_ => _ != '\r' && _ != '\n').ManyString() // rest of line
         from lineEnd in CommonParsers.LineEnd
-        select Unit.Value;
+        select new StyleDirective
+        {
+            ElementId = elementId,
+            Style = ParseStyle(styleText)
+        };
 
     // Class definition: classDef className fill:#color
-    static Parser<char, Unit> classDefDirective =
+    static Parser<char, ClassDefDirective> classDefDirective =
         from _ in CommonParsers.InlineWhitespace
         from __ in String("classDef")
         from ___ in CommonParsers.RequiredWhitespace
-        from ____ in Token(_ => _ != '\r' && _ != '\n').ManyString()
+        from className in CommonParsers.Identifier
+        from ____ in CommonParsers.RequiredInlineWhitespace
+        from styleText in Token(_ => _ != '\r' && _ != '\n').ManyString()
         from lineEnd in CommonParsers.LineEnd
-        select Unit.Value;
+        select new ClassDefDirective
+        {
+            ClassName = className,
+            Style = ParseStyle(styleText)
+        };
 
     // Class application: class nodeId className
-    static Parser<char, Unit> classDirective =
+    static Parser<char, ClassAssignDirective> classDirective =
         from _ in CommonParsers.InlineWhitespace
         from __ in String("class")
         from ___ in CommonParsers.RequiredWhitespace
-        from ____ in Token(_ => _ != '\r' && _ != '\n').ManyString()
+        from nodeList in Token(_ => _ != '\r' && _ != '\n').ManyString()
         from lineEnd in CommonParsers.LineEnd
-        select Unit.Value;
+        select ParseClassAssign(nodeList);
 
     // Click directive: click nodeId callback
     static Parser<char, Unit> clickDirective =
@@ -269,13 +308,19 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
         select Unit.Value;
 
     // Link style directive: linkStyle <idx> <style>
-    static Parser<char, Unit> linkStyleDirective =
+    static Parser<char, LinkStyleDirective> linkStyleDirective =
         from _ in CommonParsers.InlineWhitespace
         from __ in String("linkStyle")
         from ___ in CommonParsers.RequiredWhitespace
-        from ____ in Token(_ => _ != '\r' && _ != '\n').ManyString()
+        from indexText in Token(char.IsDigit).AtLeastOnceString()
+        from ____ in CommonParsers.RequiredInlineWhitespace.Optional()
+        from styleText in Token(_ => _ != '\r' && _ != '\n').ManyString()
         from lineEnd in CommonParsers.LineEnd
-        select Unit.Value;
+        select new LinkStyleDirective
+        {
+            LinkIndex = int.Parse(indexText, CultureInfo.InvariantCulture),
+            Style = ParseStyle(styleText)
+        };
 
     // Subgraph start: subgraph name[Label] or subgraph name
     static Parser<char, (string SubgraphId, string? Title)> subgraphStart =
@@ -312,10 +357,10 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
     static Parser<char, Unit> skipLine =
         OneOf(
             Try(initDirective),
-            Try(styleDirective),
-            Try(classDefDirective),
-            Try(classDirective),
-            Try(linkStyleDirective),
+            Try(styleDirective).ThenReturn(Unit.Value),
+            Try(classDefDirective).ThenReturn(Unit.Value),
+            Try(classDirective).ThenReturn(Unit.Value),
+            Try(linkStyleDirective).ThenReturn(Unit.Value),
             Try(clickDirective),
             CommonParsers.InlineWhitespace.Then(Try(CommonParsers.Comment).Or(CommonParsers.Newline))
         );
@@ -326,6 +371,10 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
             Try(subgraphStart.Select(value => (object?) ("subgraphStart", value.SubgraphId, value.Title))),
             Try(subgraphDirectionDirective.Select(value => (object?) ("subgraphDirection", value))),
             Try(subgraphEnd.ThenReturn((object?) ("subgraphEnd"))),
+            Try(styleDirective.Select(value => (object?) value)),
+            Try(classDefDirective.Select(value => (object?) value)),
+            Try(classDirective.Select(value => (object?) value)),
+            Try(linkStyleDirective.Select(value => (object?) value)),
             Try(CommonParsers.InlineWhitespace.Then(StatementParser).Before(CommonParsers.InlineWhitespace.Then(CommonParsers.LineEnd)).Select(value => (object?) value)),
             skipLine.ThenReturn((object?) null)
         );
@@ -354,6 +403,43 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
 #pragma warning disable IDE0007
         foreach (object? item in content)
         {
+            if (item is ClassDefDirective classDef)
+            {
+                model.ClassDefinitions[classDef.ClassName] = classDef.Style;
+                continue;
+            }
+
+            if (item is ClassAssignDirective classAssign)
+            {
+                foreach (string nodeId in classAssign.NodeIds)
+                {
+                    if (!model.ClassesByNodeId.TryGetValue(nodeId, out List<string>? classes))
+                    {
+                        classes = new List<string>();
+                        model.ClassesByNodeId[nodeId] = classes;
+                    }
+
+                    if (!classes.Contains(classAssign.ClassName, StringComparer.Ordinal))
+                    {
+                        classes.Add(classAssign.ClassName);
+                    }
+                }
+
+                continue;
+            }
+
+            if (item is StyleDirective style)
+            {
+                model.StyleByElementId[style.ElementId] = style.Style;
+                continue;
+            }
+
+            if (item is LinkStyleDirective linkStyle)
+            {
+                model.StyleByLinkIndex[linkStyle.LinkIndex] = linkStyle.Style;
+                continue;
+            }
+
             if (item is ValueTuple<string, string, string?> start
                 && string.Equals(start.Item1, "subgraphStart", StringComparison.Ordinal))
             {
@@ -465,6 +551,106 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
 #pragma warning restore IDE0007
 
         return model;
+    }
+
+    static ClassAssignDirective ParseClassAssign(string raw)
+    {
+#pragma warning disable IDE0007
+        // Mermaid: class A,B ClassName;
+        // Also seen: class A,B ClassName
+        string trimmed = raw.Trim().TrimEnd(';').Trim();
+        int lastSpace = trimmed.LastIndexOf(' ');
+        if (lastSpace < 0)
+        {
+            return new ClassAssignDirective { NodeIds = new List<string>(), ClassName = trimmed };
+        }
+
+        string nodeList = trimmed.Substring(0, lastSpace).Trim();
+        string className = trimmed.Substring(lastSpace + 1).Trim();
+
+        List<string> nodeIds = nodeList
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(_ => !string.IsNullOrWhiteSpace(_))
+            .ToList();
+
+        return new ClassAssignDirective { NodeIds = nodeIds, ClassName = className };
+#pragma warning restore IDE0007
+    }
+
+    static MermaidSharp.Models.Style ParseStyle(string raw)
+    {
+#pragma warning disable IDE0007
+        MermaidSharp.Models.Style style = new MermaidSharp.Models.Style();
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return style;
+        }
+
+        string trimmed = raw.Trim().TrimEnd(';').Trim();
+        string[] parts = trimmed.Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        foreach (string part in parts)
+        {
+            int colonIndex = part.IndexOf(':');
+            if (colonIndex <= 0 || colonIndex >= part.Length - 1)
+            {
+                continue;
+            }
+
+            string key = part.Substring(0, colonIndex).Trim().ToLowerInvariant();
+            string value = part.Substring(colonIndex + 1).Trim();
+
+            if (string.Equals(key, "fill", StringComparison.Ordinal))
+            {
+                style.Fill = value;
+                continue;
+            }
+
+            if (string.Equals(key, "stroke", StringComparison.Ordinal))
+            {
+                style.Stroke = value;
+                continue;
+            }
+
+            if (string.Equals(key, "stroke-width", StringComparison.Ordinal))
+            {
+                style.StrokeWidth = ParseCssNumber(value);
+                continue;
+            }
+
+            if (string.Equals(key, "stroke-dasharray", StringComparison.Ordinal))
+            {
+                style.StrokeDasharray = value;
+                continue;
+            }
+
+            if (string.Equals(key, "color", StringComparison.Ordinal))
+            {
+                style.TextColor = value;
+                continue;
+            }
+        }
+
+        return style;
+#pragma warning restore IDE0007
+    }
+
+    static double? ParseCssNumber(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+#pragma warning disable IDE0007
+        string trimmed = value.Trim();
+        trimmed = trimmed.Replace("px", "", StringComparison.OrdinalIgnoreCase);
+        if (double.TryParse(trimmed, NumberStyles.Float, CultureInfo.InvariantCulture, out double result))
+        {
+            return result;
+        }
+
+        return null;
+#pragma warning restore IDE0007
     }
 
     static void EnsureSubgraphNodesRecursive(FlowchartModel model, Dictionary<string, Node> nodeDict, Subgraph subgraph, string? parentId)

@@ -1162,6 +1162,15 @@ builder.AddPath(pathD,
 
 The shape catalogue below is consolidated from the most recent “gaps closed” source and represents geometry-level summaries for flowchart shapes and selected extended shapes.
 
+### 15.0 Flowchart edge curves (Word-first parity note, April 2026)
+
+Mermaid flowcharts render edges using Dagre route points converted via **D3 `curveBasis`**.
+
+For this repository’s **Word-first SVG parity**, we intentionally diverge for the common decision-branch case:
+
+- **Decision “Yes/No” outgoing links** (`-->|Yes|` / `-->|No|`) are rendered as a **single cubic Bezier** between the (already boundary-intersected) start/end points.
+- This avoids the short-branch “wobble” that can occur when `curveBasis` is applied to sparse/short elbow routes in Word, and matches the reference fixture better in DOCX output.
+
 Key:
 
 - **Closed**: traced far enough to specify primitive, size formula, main points/path formula, transforms, and boundary-intersection family.

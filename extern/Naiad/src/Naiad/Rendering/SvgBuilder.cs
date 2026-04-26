@@ -594,7 +594,7 @@ public class SvgBuilder
 
     public SvgBuilder AddForeignObject(double x, double y, double width, double height,
         string htmlContent, string? className = null, double fontSizePx = 16,
-        double opticalVerticalBiasEm = 0.12, double extraVerticalOffsetPx = 0)
+        double opticalVerticalBiasEm = 0.12, double extraVerticalOffsetPx = 0, string? fill = null)
     {
         var foreignObject = new SvgForeignObject
         {
@@ -606,7 +606,8 @@ public class SvgBuilder
             Class = className,
             FontSizePx = fontSizePx,
             OpticalVerticalBiasEm = opticalVerticalBiasEm,
-            ExtraVerticalOffsetPx = extraVerticalOffsetPx
+            ExtraVerticalOffsetPx = extraVerticalOffsetPx,
+            Fill = fill
         };
         AddElement(foreignObject);
         return this;

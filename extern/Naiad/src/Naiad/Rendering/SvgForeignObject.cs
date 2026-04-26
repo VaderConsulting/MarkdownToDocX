@@ -31,6 +31,11 @@ public class SvgForeignObject : SvgElement
     /// </summary>
     public double ExtraVerticalOffsetPx { get; set; }
 
+    /// <summary>
+    /// Text fill colour override. If unset, defaults to Mermaid theme text colour.
+    /// </summary>
+    public string? Fill { get; set; }
+
     public override void ToXml(StringBuilder builder)
     {
 #pragma warning disable IDE0007
@@ -50,7 +55,7 @@ public class SvgForeignObject : SvgElement
 
         builder.Append($"<text x=\"{Fmt(centerX)}\" y=\"{Fmt(startY)}\"");
         builder.Append(" text-anchor=\"middle\"");
-        builder.Append($" font-family=\"Arial, sans-serif\" font-size=\"{Fmt(FontSizePx)}\" fill=\"#333333\"");
+        builder.Append($" font-family=\"Arial, sans-serif\" font-size=\"{Fmt(FontSizePx)}\" fill=\"{SvgText.EscapeXml(Fill ?? "#333333")}\"");
         CommonAttributes(builder);
         builder.Append('>');
 

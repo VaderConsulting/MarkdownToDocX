@@ -373,6 +373,7 @@ static class CoordinateAssignment
         var isHorizontal = direction is Direction.LeftToRight or Direction.RightToLeft;
 #pragma warning disable IDE0007
         bool UseErPorts = diagram is MermaidSharp.Diagrams.EntityRelationship.ERLayoutGraph;
+        MermaidSharp.Diagrams.Flowchart.FlowchartModel? FlowchartDiagram = diagram as MermaidSharp.Diagrams.Flowchart.FlowchartModel;
 #pragma warning restore IDE0007
 
         // Build lookup for dummy nodes by (OriginalEdgeSource, OriginalEdgeTarget)
@@ -421,8 +422,24 @@ static class CoordinateAssignment
             // real node side of each segment. Therefore, do not use the "dummy shortcut" for ER vertical routing.
             if ((source.IsDummy || target.IsDummy) && !(UseErPorts && !isHorizontal))
             {
-                // Part of a long edge - just add the node positions
+                // Part of a long edge (dummy nodes inserted by ranker).
+                //
+                // For flowcharts, Mermaid/dagre-d3 routes these segments orthogonally so curveBasis produces the expected elbows.
+                // If we keep only a straight segment between dummy centres, the smoothed curve looks wrong.
                 edge.Points.Add(new(source.X, source.Y));
+
+                if (FlowchartDiagram is not null)
+                {
+                    if (isHorizontal)
+                    {
+                        edge.Points.Add(new(target.X, source.Y));
+                    }
+                    else
+                    {
+                        edge.Points.Add(new(source.X, target.Y));
+                    }
+                }
+
                 edge.Points.Add(new(target.X, target.Y));
             }
             else
@@ -434,10 +451,25 @@ static class CoordinateAssignment
                 double targetEdgeYNoShorten;
                 if (isHorizontal)
                 {
-                    sourceEdgeX = source.X + source.Width / 2 + FlowchartEdgeNodeGap;
-                    sourceEdgeY = source.Y;
-                    targetEdgeXNoShorten = target.X - target.Width / 2 - FlowchartEdgeNodeGap;
-                    targetEdgeYNoShorten = target.Y;
+                    if (FlowchartDiagram is not null)
+                    {
+#pragma warning disable IDE0007
+                        Position toward = new Position(target.X, target.Y);
+                        Position sourceAttach = ComputeFlowchartAttachPoint(source, FlowchartDiagram.GetNode(edge.SourceId), toward);
+                        Position targetAttach = ComputeFlowchartAttachPoint(target, FlowchartDiagram.GetNode(edge.TargetId), new Position(source.X, source.Y));
+#pragma warning restore IDE0007
+                        sourceEdgeX = sourceAttach.X;
+                        sourceEdgeY = sourceAttach.Y;
+                        targetEdgeXNoShorten = targetAttach.X;
+                        targetEdgeYNoShorten = targetAttach.Y;
+                    }
+                    else
+                    {
+                        sourceEdgeX = source.X + source.Width / 2 + FlowchartEdgeNodeGap;
+                        sourceEdgeY = source.Y;
+                        targetEdgeXNoShorten = target.X - target.Width / 2 - FlowchartEdgeNodeGap;
+                        targetEdgeYNoShorten = target.Y;
+                    }
                 }
                 else
                 {
@@ -448,6 +480,16 @@ static class CoordinateAssignment
                         sourceEdgeY = ErAttach.SourceY;
                         targetEdgeXNoShorten = ErAttach.TargetX;
                         targetEdgeYNoShorten = ErAttach.TargetY;
+                    }
+                    else if (FlowchartDiagram is not null)
+                    {
+                        Position toward = new Position(target.X, target.Y);
+                        Position sourceAttach = ComputeFlowchartAttachPoint(source, FlowchartDiagram.GetNode(edge.SourceId), toward);
+                        Position targetAttach = ComputeFlowchartAttachPoint(target, FlowchartDiagram.GetNode(edge.TargetId), new Position(source.X, source.Y));
+                        sourceEdgeX = sourceAttach.X;
+                        sourceEdgeY = sourceAttach.Y;
+                        targetEdgeXNoShorten = targetAttach.X;
+                        targetEdgeYNoShorten = targetAttach.Y;
                     }
                     else
                     {
@@ -461,7 +503,10 @@ static class CoordinateAssignment
                 edge.Points.Add(new(sourceEdgeX, sourceEdgeY));
 
                 // Find dummy nodes for this edge using pre-built lookup
-                if (dummyLookup.TryGetValue((edge.SourceId, edge.TargetId), out var dummies))
+#pragma warning disable IDE0007
+                bool HasDummies = dummyLookup.TryGetValue((edge.SourceId, edge.TargetId), out List<LayoutNode>? dummies);
+#pragma warning restore IDE0007
+                if (HasDummies && dummies is not null)
                 {
                     foreach (var dummy in dummies)
                     {
@@ -507,6 +552,35 @@ static class CoordinateAssignment
 
                     edge.Points.Add(new(TargetStubX, TargetStubY));
                 }
+                else if (FlowchartDiagram is not null)
+                {
+                    // Mermaid/dagre-d3 routes diagonal links with at least one orthogonal waypoint so the curveBasis spline
+                    // produces the characteristic smooth "elbow" rather than a straight diagonal segment.
+                    //
+                    // If there are dummy nodes, the points already contain intermediate waypoints; only add this for
+                    // short direct edges.
+                    if (Math.Abs(sourceEdgeX - targetEdgeXNoShorten) > 0.001 && Math.Abs(sourceEdgeY - targetEdgeYNoShorten) > 0.001)
+                    {
+                        // Use a 2-elbow Manhattan route through a midpoint.
+                        // This matches the dagre-d3 feel better than a single corner, once curveBasis smoothing is applied.
+                        if (isHorizontal)
+                        {
+#pragma warning disable IDE0007
+                            double midX = (sourceEdgeX + targetEdgeXNoShorten) / 2.0;
+#pragma warning restore IDE0007
+                            edge.Points.Add(new(midX, sourceEdgeY));
+                            edge.Points.Add(new(midX, targetEdgeYNoShorten));
+                        }
+                        else
+                        {
+#pragma warning disable IDE0007
+                            double midY = (sourceEdgeY + targetEdgeYNoShorten) / 2.0;
+#pragma warning restore IDE0007
+                            edge.Points.Add(new(sourceEdgeX, midY));
+                            edge.Points.Add(new(targetEdgeXNoShorten, midY));
+                        }
+                    }
+                }
 
                 // Calculate the target endpoint (already inset by FlowchartEdgeNodeGap), shortened for arrow marker
                 var targetEdgeX = targetEdgeXNoShorten;
@@ -527,6 +601,146 @@ static class CoordinateAssignment
                 edge.Points.Add(new(targetEdgeX, targetEdgeY));
             }
         }
+    }
+
+    static Position ComputeFlowchartAttachPoint(LayoutNode node, MermaidSharp.Models.Node? modelNode, Position toward)
+    {
+#pragma warning disable IDE0007
+        // Mermaid uses dagre-d3 shape-specific intersect functions (e.g., intersectRect, intersectPolygon).
+        // We implement the subset needed for our fixtures so edges leave from the actual node outline
+        // (not just the bounding box), especially for diamonds.
+
+        double cx = node.X;
+        double cy = node.Y;
+        double w = node.Width;
+        double h = node.Height;
+        MermaidSharp.Models.NodeShape shape = modelNode?.Shape ?? MermaidSharp.Models.NodeShape.Rectangle;
+
+        switch (shape)
+        {
+            case MermaidSharp.Models.NodeShape.Diamond:
+                return IntersectDiamond(cx, cy, Math.Max(w, h), toward);
+
+            case MermaidSharp.Models.NodeShape.Circle:
+            case MermaidSharp.Models.NodeShape.DoubleCircle:
+                return IntersectEllipse(cx, cy, w / 2.0, h / 2.0, toward);
+
+            default:
+                return IntersectRect(cx, cy, w / 2.0, h / 2.0, toward);
+        }
+#pragma warning restore IDE0007
+    }
+
+    static Position IntersectRect(double cx, double cy, double halfWidth, double halfHeight, Position toward)
+    {
+#pragma warning disable IDE0007
+        double dx = toward.X - cx;
+        double dy = toward.Y - cy;
+
+        if (Math.Abs(dx) < 0.0001 && Math.Abs(dy) < 0.0001)
+        {
+            return new Position(cx, cy);
+        }
+
+        double sx = dx == 0 ? double.PositiveInfinity : halfWidth / Math.Abs(dx);
+        double sy = dy == 0 ? double.PositiveInfinity : halfHeight / Math.Abs(dy);
+        double s = Math.Min(sx, sy);
+        return new Position(cx + (dx * s), cy + (dy * s));
+#pragma warning restore IDE0007
+    }
+
+    static Position IntersectEllipse(double cx, double cy, double rx, double ry, Position toward)
+    {
+#pragma warning disable IDE0007
+        double dx = toward.X - cx;
+        double dy = toward.Y - cy;
+
+        if (Math.Abs(dx) < 0.0001 && Math.Abs(dy) < 0.0001)
+        {
+            return new Position(cx, cy);
+        }
+
+        // Solve (x/rx)^2 + (y/ry)^2 = 1 along ray t*(dx,dy).
+        double a = (dx * dx) / (rx * rx) + (dy * dy) / (ry * ry);
+        if (a <= 0.0)
+        {
+            return new Position(cx, cy);
+        }
+
+        double t = 1.0 / Math.Sqrt(a);
+        return new Position(cx + (dx * t), cy + (dy * t));
+#pragma warning restore IDE0007
+    }
+
+    static Position IntersectDiamond(double cx, double cy, double s, Position toward)
+    {
+#pragma warning disable IDE0007
+        // Diamond vertices: top, right, bottom, left.
+        Position v0 = new Position(cx, cy - (s / 2.0));
+        Position v1 = new Position(cx + (s / 2.0), cy);
+        Position v2 = new Position(cx, cy + (s / 2.0));
+        Position v3 = new Position(cx - (s / 2.0), cy);
+
+        Position[] verts = [v0, v1, v2, v3];
+
+        Position best = new Position(cx, cy);
+        double bestT = double.PositiveInfinity;
+
+        Position p0 = new Position(cx, cy);
+        Position p1 = toward;
+
+        for (int i = 0; i < verts.Length; i++)
+        {
+            Position a = verts[i];
+            Position b = verts[(i + 1) % verts.Length];
+            if (TryIntersectSegments(p0, p1, a, b, out Position hit, out double tRay))
+            {
+                if (tRay >= 0 && tRay < bestT)
+                {
+                    bestT = tRay;
+                    best = hit;
+                }
+            }
+        }
+
+        return bestT < double.PositiveInfinity ? best : new Position(cx, cy);
+#pragma warning restore IDE0007
+    }
+
+    static bool TryIntersectSegments(Position p0, Position p1, Position q0, Position q1, out Position hit, out double tRay)
+    {
+#pragma warning disable IDE0007
+        // p(t) = p0 + t*(p1-p0), q(u) = q0 + u*(q1-q0)
+        double rx = p1.X - p0.X;
+        double ry = p1.Y - p0.Y;
+        double sx = q1.X - q0.X;
+        double sy = q1.Y - q0.Y;
+
+        double denom = (rx * sy) - (ry * sx);
+        if (Math.Abs(denom) < 1e-9)
+        {
+            hit = Position.Zero;
+            tRay = 0;
+            return false;
+        }
+
+        double qpx = q0.X - p0.X;
+        double qpy = q0.Y - p0.Y;
+
+        double t = ((qpx * sy) - (qpy * sx)) / denom;
+        double u = ((qpx * ry) - (qpy * rx)) / denom;
+
+        if (t >= 0.0 && t <= 1.0 && u >= 0.0 && u <= 1.0)
+        {
+            hit = new Position(p0.X + (t * rx), p0.Y + (t * ry));
+            tRay = t;
+            return true;
+        }
+
+        hit = Position.Zero;
+        tRay = t;
+        return false;
+#pragma warning restore IDE0007
     }
 
     static (double StubX, double StubY) ComputeErEndpointStub(LayoutNode node, double attachX, double attachY, double stubPx)
