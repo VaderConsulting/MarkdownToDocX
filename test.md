@@ -553,6 +553,36 @@ gantt
     Task C                 :        m3, after m2, 7d
 ```
 
+Gantt chart: axisFormat probe (%m)
+
+```mermaid
+gantt
+    title Axis format probe (%m = month number)
+    dateFormat  YYYY-MM-DD
+    axisFormat  %m
+
+    section Month boundary
+    Late April task         :done,   am1, 2026-04-25, 6d
+    Early May task          :active, am2, after am1, 8d
+    Mid May milestone       :milestone, am3, 2026-05-15, 0d
+    Late May task           :        am4, after am2, 10d
+```
+
+Gantt chart: axisFormat probe (%y)
+
+```mermaid
+gantt
+    title Axis format probe (%y = 2-digit year)
+    dateFormat  YYYY-MM-DD
+    axisFormat  %y
+
+    section Year boundary
+    Finish 2025              :done,   yy1, 2025-12-15, 14d
+    Start 2026               :active, yy2, after yy1, 21d
+    New year milestone       :milestone, yy3, 2026-01-01, 0d
+    January follow-up        :        yy4, after yy2, 10d
+```
+
 Additional Mermaid Gantt directives (supported upstream, not yet supported by Naiad’s Gantt parser):
 
 - `topAxis` (currently triggers `TopAxis is not a function` in `mermaid.live` — omit for now)
