@@ -659,9 +659,12 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
         double AbsDx = Math.Abs(Dx);
         double AbsDy = Math.Abs(Dy);
 
-        double VerticalPull = Clamp(0.30 * AbsDy, 24.0, 70.0);
-        double HorizontalPull = Clamp(0.35 * AbsDx, 24.0, 80.0);
-        double SmallVerticalPull = Clamp(0.15 * AbsDy, 12.0, 40.0);
+        // Tuned to better match Mermaid’s ER "shoulder" curves into corner-adjacent targets.
+        // - stronger horizontal pull => more lateral sweep before entry
+        // - smaller vertical pull near the target => flatter approach into the corner
+        double VerticalPull = Clamp(0.35 * AbsDy, 28.0, 80.0);
+        double HorizontalPull = Clamp(0.45 * AbsDx, 28.0, 110.0);
+        double SmallVerticalPull = Clamp(0.10 * AbsDy, 6.0, 24.0);
 
         // Choose approach side based on whether the source is left or right of the target.
         // Source left of target => approach from left => C2.X < P3.X.
