@@ -138,6 +138,21 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
             String("---").Select(_ => (EdgeType.Open, EdgeStyle.Solid, 1))
         );
 
+    // Mermaid allows link text embedded in the arrow token, e.g. `A -. text .-> B`.
+    // For now we accept and treat that embedded text as the edge label.
+    static Parser<char, (EdgeType Type, EdgeStyle Style, int MinRankSpan, string? EmbeddedLabel)> arrowWithOptionalEmbeddedLabelParser =
+        OneOf(
+            Try(
+                String("-.")
+                    .Then(Token(_ => _ != '.' && _ != '\r' && _ != '\n').ManyString())
+                    .Before(String(".->"))
+                    .Select(text => text.Trim())
+                    .Where(text => !string.IsNullOrWhiteSpace(text))
+                    .Select(text => (EdgeType.DottedArrow, EdgeStyle.Dotted, 1, (string?) text))
+            ),
+            arrowTypeParser.Select(arrow => (arrow.Type, arrow.Style, arrow.MinRankSpan, (string?) null))
+        );
+
     // Edge label: |text|
     static Parser<char, string> edgeLabelParser =
         Char('|')
@@ -159,9 +174,9 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
         from rest in (
             from _1 in CommonParsers.InlineWhitespace
             from label1 in edgeLabelParser.Optional()
-            from _2 in CommonParsers.InlineWhitespace
-            from arrow in arrowTypeParser
-            from _3 in CommonParsers.InlineWhitespace
+            from _2 in CommonParsers.InlineWhitespace.Optional()
+            from arrow in arrowWithOptionalEmbeddedLabelParser
+            from _3 in CommonParsers.InlineWhitespace.Optional()
             from label2 in edgeLabelParser.Optional()
             from _4 in CommonParsers.InlineWhitespace
             from node in nodeParser
@@ -169,7 +184,7 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
                 Node: node,
                 Type: arrow.Type,
                 Style: arrow.Style,
-                Label: label1.HasValue ? label1.Value : label2.HasValue ? label2.Value : null,
+                Label: arrow.EmbeddedLabel ?? (label1.HasValue ? label1.Value : label2.HasValue ? label2.Value : null),
                 MinRankSpan: arrow.MinRankSpan)
         ).Many()
         select (
@@ -229,6 +244,18 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
         from lineEnd in CommonParsers.LineEnd
         select Unit.Value;
 
+    // Subgraph direction line: direction LR / TB / ...
+    // Mermaid allows `direction` inside subgraphs to override local layout direction.
+    // Naiad currently does not apply per-subgraph direction; we accept and ignore it for parsing compatibility.
+    static Parser<char, Unit> subgraphDirectionDirective =
+        from _ in CommonParsers.InlineWhitespace
+        from __ in String("direction")
+        from ___ in CommonParsers.RequiredWhitespace
+        from ____ in flowchartDirection
+        from _____ in CommonParsers.InlineWhitespace
+        from lineEnd in CommonParsers.LineEnd
+        select Unit.Value;
+
     // Skip empty lines, comments, and directives
     static Parser<char, Unit> skipLine =
         OneOf(
@@ -237,6 +264,7 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
             Try(classDirective),
             Try(clickDirective),
             Try(subgraphStart),
+            Try(subgraphDirectionDirective),
             Try(subgraphEnd),
             CommonParsers.InlineWhitespace.Then(Try(CommonParsers.Comment).Or(CommonParsers.Newline))
         );
