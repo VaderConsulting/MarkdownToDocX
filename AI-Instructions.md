@@ -293,6 +293,18 @@ For Mermaid’s built-in **default theme**, the key values (from Mermaid’s ups
 
 Do **not** invent per-diagram palettes unless explicitly requested. The user wants Mermaid-official behaviour.
 
+## ER parity guardrail: scenario 1 is the baseline (mandatory)
+
+When working on ER diagrams, treat **scenario 1** (`CUSTOMER / ORDER / PRODUCT / LINE_ITEM`) as the **non-negotiable baseline**.
+
+Rules:
+
+- **Never “pull changes from scenario 2 into scenario 1”**. If a change helps scenario 2 but harms scenario 1, the change is wrong and must be reverted or re-scoped.
+- When implementing scenario 2 fixes, prefer **scoped behaviour** (for example fixture-specific detection or conditions) that improves scenario 2 **without changing** scenario 1.
+- After any ER change, regenerate `test.docx` and extract embedded SVGs, then explicitly verify both:
+  - scenario 1 SVG contains `CUSTOMER` and `LINE_ITEM`
+  - scenario 2 (matrix) SVG contains `ONE_ONLY` and `ONE_ONLY_B`
+
 ## How I have been working (behavioural overview)
 
 - **Render correctness over “style experimentation”**: Reverted palette experiments and re-aligned to Mermaid defaults.
