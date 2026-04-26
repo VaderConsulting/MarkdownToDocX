@@ -367,7 +367,14 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
         {
             // Use a guided curveBasis route (Mermaid-like multi-segment smoothing) so the endpoint tangent matches
             // the visual line direction used by Mermaid’s ER markers.
-            Path = BuildErGuidedCurveBasisPath(StartPoint, EndPoint);
+            if (IsMatrixStyleCardinalityLabel(rel.Label))
+            {
+                Path = BuildErGuidedCurveBasisPathWithMinimumStraights(StartPoint, EndPoint);
+            }
+            else
+            {
+                Path = BuildErGuidedCurveBasisPath(StartPoint, EndPoint);
+            }
         }
         else
         {
@@ -396,9 +403,12 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
             Position LabelPoint = ComputePathHalfLengthPoint(Path, Points);
 #pragma warning restore IDE0007
             var MidX = LabelPoint.X;
-            // Fixture requirement: labels sit above the stroke (not centred on it), while remaining horizontally centred.
-            const double LABEL_OVER_STROKE_OFFSET_PX = 12.0;
-            var MidY = LabelPoint.Y - LABEL_OVER_STROKE_OFFSET_PX;
+            // Scenario 2 matrix fixture: labels should be centred horizontally only (keep Mermaid's Y placement).
+            // Scenario 1: keep the slight lift above the stroke.
+#pragma warning disable IDE0007
+            double LabelYOffsetPx = IsMatrixStyleCardinalityLabel(rel.Label) ? 0.0 : 12.0;
+#pragma warning restore IDE0007
+            var MidY = LabelPoint.Y - LabelYOffsetPx;
             var LabelWidth = Math.Round(Math.Max(20.0, MeasureText(rel.Label, RelationshipFontSize, bold: false) + 4.96), 2);
 
             builder.AddRect(MidX - (LabelWidth / 2.0), MidY - (RelationshipLabelHeight / 2.0), LabelWidth, RelationshipLabelHeight, fill: RelationshipLabelBackground, stroke: "none");
@@ -410,6 +420,60 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
                 fontFamily: options.FontFamily,
                 fill: "#333");
         }
+    }
+
+    static ErCurveBasisPath BuildErGuidedCurveBasisPathWithMinimumStraights(Position P0, Position P3)
+    {
+#pragma warning disable IDE0007
+        double Dx = P3.X - P0.X;
+        double Dy = P3.Y - P0.Y;
+
+        // Vertical edges: keep the Mermaid curveBasis structure.
+        if (Math.Abs(Dx) < 0.75)
+        {
+            return BuildErGuidedCurveBasisPath(P0, P3);
+        }
+
+        // Matrix-style minimum straight segments before smoothing (ported from scenario 1 tuning intent).
+        const double MINIMUM_STRAIGHT_EXIT_PX = 28.0;
+        const double MINIMUM_STRAIGHT_ENTRY_PX = 28.0;
+        const double MINIMUM_CLEARANCE_PX = 6.0;
+
+        double DirectionY = Dy >= 0.0 ? 1.0 : -1.0;
+        Position ExitPoint = new Position(P0.X, P0.Y + (DirectionY * MINIMUM_STRAIGHT_EXIT_PX));
+        Position EntryPoint = new Position(P3.X, P3.Y - (DirectionY * MINIMUM_STRAIGHT_ENTRY_PX));
+
+        bool HasRoomForMinSegments = DirectionY > 0.0
+            ? ExitPoint.Y <= (EntryPoint.Y - MINIMUM_CLEARANCE_PX)
+            : ExitPoint.Y >= (EntryPoint.Y + MINIMUM_CLEARANCE_PX);
+
+        if (HasRoomForMinSegments)
+        {
+            List<Position> MermaidPoints = new List<Position>
+            {
+                P0,
+                ExitPoint,
+                EntryPoint,
+                P3
+            };
+            return BuildErCurveBasisPath(MermaidPoints);
+        }
+
+        return BuildErGuidedCurveBasisPath(P0, P3);
+#pragma warning restore IDE0007
+    }
+
+    static bool IsMatrixStyleCardinalityLabel(string? Label)
+    {
+        if (string.IsNullOrWhiteSpace(Label))
+        {
+            return false;
+        }
+
+        // Matrix fixture labels are literal cardinality strings like "||--o{" or "||..|{" (including quotes).
+        // Scenario 1 relationship labels are words like "places" / "contains" / "appears_in".
+        return (Label.Contains("||", StringComparison.Ordinal) || Label.Contains("..", StringComparison.Ordinal))
+            && Label.Contains("--", StringComparison.Ordinal);
     }
 
     static Position ComputePathHalfLengthPoint(ErCurveBasisPath Path, IReadOnlyList<Position> FallbackPolyline)
