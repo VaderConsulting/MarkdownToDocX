@@ -282,7 +282,7 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
         from __ in String("direction")
         from ___ in CommonParsers.RequiredWhitespace
         from dir in flowchartDirection
-        from _____ in CommonParsers.InlineWhitespace
+        from _____ in CommonParsers.InlineWhitespace.Optional()
         from lineEnd in CommonParsers.LineEnd
         select dir;
 
