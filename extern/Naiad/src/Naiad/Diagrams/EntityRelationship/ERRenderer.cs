@@ -434,18 +434,49 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
             return BuildErGuidedCurveBasisPath(P0, P3);
         }
 
-        // Matrix-style minimum straight segments before smoothing (ported from scenario 1 tuning intent).
-        const double MINIMUM_STRAIGHT_EXIT_PX = 28.0;
-        const double MINIMUM_STRAIGHT_ENTRY_PX = 28.0;
+        // Matrix-style minimum straight exit/entry segments before smoothing (ported from scenario 1 tuning intent).
+        //
+        // Enforce the minimum along the axis implied by the relationship’s overall direction:
+        // - predominantly vertical -> straight vertical exit/entry
+        // - predominantly horizontal -> straight horizontal exit/entry
+        const double MINIMUM_STRAIGHT_EXIT_VERTICAL_PX = 28.0;
+        const double MINIMUM_STRAIGHT_ENTRY_VERTICAL_PX = 28.0;
+        const double MINIMUM_STRAIGHT_EXIT_HORIZONTAL_PX = 28.0;
+        const double MINIMUM_STRAIGHT_ENTRY_HORIZONTAL_PX = 28.0;
         const double MINIMUM_CLEARANCE_PX = 6.0;
 
-        double DirectionY = Dy >= 0.0 ? 1.0 : -1.0;
-        Position ExitPoint = new Position(P0.X, P0.Y + (DirectionY * MINIMUM_STRAIGHT_EXIT_PX));
-        Position EntryPoint = new Position(P3.X, P3.Y - (DirectionY * MINIMUM_STRAIGHT_ENTRY_PX));
+        bool PreferVertical = Math.Abs(Dy) >= Math.Abs(Dx);
 
-        bool HasRoomForMinSegments = DirectionY > 0.0
-            ? ExitPoint.Y <= (EntryPoint.Y - MINIMUM_CLEARANCE_PX)
-            : ExitPoint.Y >= (EntryPoint.Y + MINIMUM_CLEARANCE_PX);
+        double DirectionX = Dx >= 0.0 ? 1.0 : -1.0;
+        double DirectionY = Dy >= 0.0 ? 1.0 : -1.0;
+
+        Position ExitPoint;
+        Position EntryPoint;
+
+        if (PreferVertical)
+        {
+            ExitPoint = new Position(P0.X, P0.Y + (DirectionY * MINIMUM_STRAIGHT_EXIT_VERTICAL_PX));
+            EntryPoint = new Position(P3.X, P3.Y - (DirectionY * MINIMUM_STRAIGHT_ENTRY_VERTICAL_PX));
+        }
+        else
+        {
+            ExitPoint = new Position(P0.X + (DirectionX * MINIMUM_STRAIGHT_EXIT_HORIZONTAL_PX), P0.Y);
+            EntryPoint = new Position(P3.X - (DirectionX * MINIMUM_STRAIGHT_ENTRY_HORIZONTAL_PX), P3.Y);
+        }
+
+        bool HasRoomForMinSegments;
+        if (PreferVertical)
+        {
+            HasRoomForMinSegments = DirectionY > 0.0
+                ? ExitPoint.Y <= (EntryPoint.Y - MINIMUM_CLEARANCE_PX)
+                : ExitPoint.Y >= (EntryPoint.Y + MINIMUM_CLEARANCE_PX);
+        }
+        else
+        {
+            HasRoomForMinSegments = DirectionX > 0.0
+                ? ExitPoint.X <= (EntryPoint.X - MINIMUM_CLEARANCE_PX)
+                : ExitPoint.X >= (EntryPoint.X + MINIMUM_CLEARANCE_PX);
+        }
 
         if (HasRoomForMinSegments)
         {
