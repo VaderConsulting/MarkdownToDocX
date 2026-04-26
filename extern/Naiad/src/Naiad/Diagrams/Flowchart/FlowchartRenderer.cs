@@ -64,6 +64,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             label = NormaliseHtmlLineBreaks(label);
             // Strip icon syntax for measurement
             var textForMeasure = iconPattern.Replace(label, "").Trim();
+            textForMeasure = textForMeasure.Replace("<br/>", "\n", StringComparison.OrdinalIgnoreCase);
             var textSize = MeasureText(textForMeasure, options.FontSize);
             // Add extra width for icon if present
             var hasIcon = iconPattern.IsMatch(label);
@@ -478,6 +479,9 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         // Mermaid flowcharts often embed HTML breaks in labels; `</br>` is common in fixtures.
         // Normalise to `<br/>` so Word’s SVG foreignObject HTML renders consistently.
         string Result = label;
+        Result = Result.Replace("\\n", "<br/>", StringComparison.Ordinal);
+        Result = Result.Replace("\r\n", "<br/>", StringComparison.Ordinal);
+        Result = Result.Replace("\n", "<br/>", StringComparison.Ordinal);
         Result = Result.Replace("</br>", "<br/>", StringComparison.OrdinalIgnoreCase);
         Result = Result.Replace("<br>", "<br/>", StringComparison.OrdinalIgnoreCase);
         Result = Result.Replace("<br/>", "<br/>", StringComparison.OrdinalIgnoreCase);
@@ -1004,9 +1008,27 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
 
     static Size MeasureText(string text, double fontSize)
     {
-        var width = text.Length * fontSize * 0.55;
-        var height = fontSize * 1.5;
-        return new(width, height);
+#pragma warning disable IDE0007
+        if (string.IsNullOrEmpty(text))
+        {
+            return new Size(0, fontSize * 1.5);
+        }
+
+        string[] Lines = text.Split('\n');
+        int MaxLineLength = 0;
+        foreach (string Line in Lines)
+        {
+            int LineLength = Line.Length;
+            if (LineLength > MaxLineLength)
+            {
+                MaxLineLength = LineLength;
+            }
+        }
+
+        double Width = MaxLineLength * fontSize * 0.55;
+        double Height = Lines.Length * fontSize * 1.5;
+        return new Size(Width, Height);
+#pragma warning restore IDE0007
     }
 
     static string Fmt(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
