@@ -949,7 +949,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         const double MIN_ENDPOINT_STUB_PX = 10.0;
 
         Position startNormal = ComputeEndpointNormal(p0, sourceNode, fallbackToward: points.Count >= 2 ? points[1] : p3, outward: true);
-        Position endNormal = ComputeEndpointNormal(p3, targetNode, fallbackToward: points.Count >= 2 ? points[^2] : p0, outward: false);
+        Position endNormal = ComputeEndpointNormal(p3, targetNode, fallbackToward: points.Count >= 2 ? points[^2] : p0, outward: true);
 
         double chordDx = p3.X - p0.X;
         double chordDy = p3.Y - p0.Y;
@@ -968,7 +968,10 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         double controlLen = midLen > 0.0 ? Math.Max(12.0, Math.Min(60.0, midLen * 0.35)) : 24.0;
 
         Position c1 = new Position(s1.X + (startNormal.X * controlLen), s1.Y + (startNormal.Y * controlLen));
-        Position c2 = new Position(e2.X - (endNormal.X * controlLen), e2.Y - (endNormal.Y * controlLen));
+        // The marker at the path end uses the tangent of the last segment (e2 -> e3). Ensure that segment
+        // points *into* the target node so the arrowhead faces the node.
+        // Therefore, the cubic should arrive at e2 with tangent aligned to (e3 - e2) = -endNormal.
+        Position c2 = new Position(e2.X + (endNormal.X * controlLen), e2.Y + (endNormal.Y * controlLen));
 
         return $"M{Fmt(s0.X)},{Fmt(s0.Y)} L{Fmt(s1.X)},{Fmt(s1.Y)} C{Fmt(c1.X)},{Fmt(c1.Y)} {Fmt(c2.X)},{Fmt(c2.Y)} {Fmt(e2.X)},{Fmt(e2.Y)} L{Fmt(e3.X)},{Fmt(e3.Y)}";
 #pragma warning restore IDE0007
