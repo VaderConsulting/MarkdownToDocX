@@ -789,6 +789,9 @@ static class CoordinateAssignment
 
     enum ErAnchorSlot
     {
+        // Corners
+        TL,
+        TR,
         // Left
         L1,
         L2,
@@ -872,11 +875,8 @@ static class CoordinateAssignment
         // Explicit small-N canonical placements.
         //
         // The source-of-truth calls out a two-parent target hub case (e.g. LINE_ITEM with two incoming relationships
-        // from above) that should prefer upper-left and upper-right facing perimeter anchors, not a shared top-centre.
-        //
-        // In practice, using the upper side anchors (L1/R1) produces the intended "shoulder" entry into the target
-        // box and matches the gold-standard expectation that the two relationships enter distinctly on the left and
-        // right shoulders.
+        // from above) that should prefer the top-left and top-right corner intersection anchors (TL/TR), not a shared
+        // top-centre anchor.
         //
         // Apply this by selecting anchor slots directly (rather than relying on slot indices), so future slot-list
         // tweaks can't accidentally shift the chosen anchors.
@@ -885,8 +885,8 @@ static class CoordinateAssignment
             LayoutEdge LeftEdge = edges[0];
             LayoutEdge RightEdge = edges[1];
 
-            ApplyExplicitAnchorSlot(Hub, HubId, LeftEdge, ErAnchorSlot.L1, attachByEdge);
-            ApplyExplicitAnchorSlot(Hub, HubId, RightEdge, ErAnchorSlot.R1, attachByEdge);
+            ApplyExplicitAnchorSlot(Hub, HubId, LeftEdge, ErAnchorSlot.TL, attachByEdge);
+            ApplyExplicitAnchorSlot(Hub, HubId, RightEdge, ErAnchorSlot.TR, attachByEdge);
             return;
         }
 
@@ -1053,6 +1053,11 @@ static class CoordinateAssignment
 
         switch (slot)
         {
+            case ErAnchorSlot.TL:
+                return (Left, Top);
+            case ErAnchorSlot.TR:
+                return (Right, Top);
+
             case ErAnchorSlot.L1:
                 return (Left, Top + (Height * 1.0 / 5.0));
             case ErAnchorSlot.L2:

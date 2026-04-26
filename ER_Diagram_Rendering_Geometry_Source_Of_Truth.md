@@ -637,15 +637,15 @@ PRODUCT -> LINE_ITEM target anchor = upper-right-facing perimeter anchor
 Acceptable concrete anchors are:
 
 ```text
-ORDER   -> LINE_ITEM target anchor = upper-left corner-adjacent anchor, such as 1T or 1L/2L depending on curve approach
-PRODUCT -> LINE_ITEM target anchor = upper-right corner-adjacent anchor, such as 4T or 1R/2R depending on curve approach
+ORDER   -> LINE_ITEM target anchor = the top-left corner intersection (Left, Top)
+PRODUCT -> LINE_ITEM target anchor = the top-right corner intersection (Right, Top)
 ```
 
-The gold-standard image visually favours corner-adjacent upper perimeter anchors rather than the exact top-centre slots:
+The gold-standard image visually favours the top-left and top-right corner intersection points rather than the exact top-centre slots:
 
 ```text
-ORDER   -> LINE_ITEM approaches the upper-left shoulder of LINE_ITEM
-PRODUCT -> LINE_ITEM approaches the upper-right shoulder of LINE_ITEM
+ORDER   -> LINE_ITEM approaches the upper-left corner/shoulder of LINE_ITEM
+PRODUCT -> LINE_ITEM approaches the upper-right corner/shoulder of LINE_ITEM
 ```
 
 This means the target endpoint tangent must be consistent with the selected upper-facing anchor:
