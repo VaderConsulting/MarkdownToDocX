@@ -237,6 +237,25 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
         from lineEnd in CommonParsers.LineEnd
         select Unit.Value;
 
+    // Init directive: %%{init: {...}}%%
+    // Mermaid allows this at the top of the diagram to configure renderer options.
+    // Naiad currently ignores it, but must accept it for parse compatibility.
+    static Parser<char, Unit> initDirective =
+        from _ in CommonParsers.InlineWhitespace
+        from __ in String("%%{")
+        from ____ in Token(_ => _ != '\r' && _ != '\n').ManyString()
+        from lineEnd in CommonParsers.LineEnd
+        select Unit.Value;
+
+    // Link style directive: linkStyle <idx> <style>
+    static Parser<char, Unit> linkStyleDirective =
+        from _ in CommonParsers.InlineWhitespace
+        from __ in String("linkStyle")
+        from ___ in CommonParsers.RequiredWhitespace
+        from ____ in Token(_ => _ != '\r' && _ != '\n').ManyString()
+        from lineEnd in CommonParsers.LineEnd
+        select Unit.Value;
+
     // Subgraph start: subgraph name[Label] or subgraph name
     static Parser<char, (string SubgraphId, string? Title)> subgraphStart =
         from _ in CommonParsers.InlineWhitespace
@@ -270,9 +289,11 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
     // Skip empty lines, comments, and directives
     static Parser<char, Unit> skipLine =
         OneOf(
+            Try(initDirective),
             Try(styleDirective),
             Try(classDefDirective),
             Try(classDirective),
+            Try(linkStyleDirective),
             Try(clickDirective),
             CommonParsers.InlineWhitespace.Then(Try(CommonParsers.Comment).Or(CommonParsers.Newline))
         );
@@ -288,6 +309,7 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
         );
 
     public static Parser<char, FlowchartModel> Parser =>
+        from prelude in skipLine.Many()
         from _ in CommonParsers.InlineWhitespace
         from keyword in Try(String("flowchart")).Or(String("graph"))
         from __ in CommonParsers.InlineWhitespace
