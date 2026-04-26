@@ -673,6 +673,21 @@ Mermaid draws the Gantt time axis and grid using D3 axes:
 - Each tick draws a vertical grid line using a negative tick size (extends through the chart height).
 - Tick labels use the axis format (`axisFormat`) and are centred under their ticks.
 
+Default sizing and paddings (source: `packages/mermaid/src/diagrams/gantt/ganttRenderer.js` + `packages/mermaid/src/schemas/config.schema.yaml`):
+
+- **Default width**: `w = 1200` (unless `gantt.useWidth` is configured)
+- **leftPadding**: 75
+- **rightPadding**: 75
+- **topPadding**: 50
+- **titleTopMargin**: 25
+- **gridLineStartPadding**: 35
+- **barHeight**: 20
+- **barGap**: 4
+
+Axis placement:
+
+- The axis tick labels live at the **bottom** of the chart (D3 axis translated to approximately `y = h - 50`), and the vertical grid lines extend up to `gridLineStartPadding`.
+
 Repository baseline for Word/DOCX parity:
 
 - Prefer a **daily** vertical grid cadence for short ranges (like the `test.md` fixture showing `01..10`), matching VS Code’s default look.

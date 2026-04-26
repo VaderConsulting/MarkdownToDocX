@@ -4,12 +4,16 @@ namespace MermaidSharp.Diagrams.Gantt;
 
 public class GanttRenderer : IDiagramRenderer<GanttModel>
 {
-    const double rowHeight = 30;
-    const double taskBarHeight = 20;
-    const double sectionHeaderHeight = 25;
-    const double axisHeight = 40;
-    const double leftMargin = 150;
-    const double dayWidth = 20;
+    // Mermaid defaults (config.schema.yaml + ganttRenderer.js).
+    const double DEFAULT_WIDTH_PX = 1200;
+    const double TITLE_TOP_MARGIN_PX = 25;
+    const double TOP_PADDING_PX = 50;
+    const double LEFT_PADDING_PX = 75;
+    const double RIGHT_PADDING_PX = 75;
+    const double GRID_LINE_START_PADDING_PX = 35;
+    const double taskBarHeight = 20; // Mermaid barHeight
+    const double BAR_GAP_PX = 4;     // Mermaid barGap
+    const double rowHeight = taskBarHeight + BAR_GAP_PX;
     const double milestoneSize = 12;
 
     // Mermaid default theme (theme-default.js) values for Gantt.
@@ -59,61 +63,58 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
             return emptyBuilder.Build();
         }
 
-        // Calculate date range
+        // Calculate date range.
         var minDate = tasks.Min(_ => _.ComputedStart);
         var maxDate = tasks.Max(_ => _.ComputedEnd);
         var totalDays = (maxDate - minDate).Days + 1;
 
-        // Calculate dimensions
-        var totalRows = 0;
-        foreach (var section in model.Sections)
-        {
-            if (!string.IsNullOrEmpty(section.Name))
-                totalRows++; // Section header
-            totalRows += section.Tasks.Count;
-        }
+        // Mermaid height is based on task rows (not section header rows).
+#pragma warning disable IDE0007
+        int totalTaskCount = model.Sections.Sum(_ => _.Tasks.Count);
+#pragma warning restore IDE0007
+        var height = (2 * TOP_PADDING_PX) + (totalTaskCount * rowHeight);
 
-        var chartWidth = totalDays * dayWidth;
-        var chartHeight = totalRows * rowHeight + axisHeight;
+        // Mermaid width defaults to 1200 (unless gantt.useWidth overrides).
+        var width = DEFAULT_WIDTH_PX;
 
-        var width = leftMargin + chartWidth + options.Padding * 2;
-        var height = chartHeight + options.Padding * 2;
+        var chartWidth = width - LEFT_PADDING_PX - RIGHT_PADDING_PX;
+        var dayWidthPx = chartWidth / Math.Max(1, totalDays - 1);
 
         // Ensure the viewBox is wide enough for long section titles and task labels placed outside bars.
         var maxLeftLabelWidthPx = EstimateMaxLeftLabelWidthPx(model, options);
-        var minWidthForLeftLabels = options.Padding + 10 + maxLeftLabelWidthPx + options.Padding;
+        var minWidthForLeftLabels = 10 + maxLeftLabelWidthPx + RIGHT_LABEL_PADDING_PX;
 
         // If task labels are placed outside to the right, the SVG must be wide enough or Word will clip them.
         var maxRightLabelWidthPx = EstimateMaxRightLabelWidthPx(model, options);
-        var minWidthForRightLabels = (options.Padding + leftMargin) + chartWidth + 6 + maxRightLabelWidthPx + RIGHT_LABEL_PADDING_PX + options.Padding;
+        var minWidthForRightLabels = LEFT_PADDING_PX + chartWidth + 6 + maxRightLabelWidthPx + RIGHT_LABEL_PADDING_PX;
 
         width = Math.Max(width, Math.Max(minWidthForLeftLabels, minWidthForRightLabels));
 
+        // Recompute chart metrics after widening.
+        chartWidth = width - LEFT_PADDING_PX - RIGHT_PADDING_PX;
+        dayWidthPx = chartWidth / Math.Max(1, totalDays - 1);
+
         var builder = new SvgBuilder().Size(width, height);
 
-        var offsetX = options.Padding + leftMargin;
-        var offsetY = options.Padding;
+        var offsetX = LEFT_PADDING_PX;
+        var offsetY = TOP_PADDING_PX;
 
         // Draw title
         if (!string.IsNullOrEmpty(model.Title))
         {
-            builder.AddText(width / 2, offsetY + 15 + GanttWordRowTitleDown(options), model.Title,
+            builder.AddText(width / 2, TITLE_TOP_MARGIN_PX + GanttWordRowTitleDown(options), model.Title,
                 anchor: "middle",
                 baseline: "middle",
                 fontSize: $"{options.FontSize + 2}px",
                 fontFamily: options.FontFamily);
-            offsetY += 30;
         }
 
-        // Draw axis
-        DrawAxis(builder, minDate, totalDays, offsetX, offsetY, chartWidth, options, model.AxisFormat);
-        offsetY += axisHeight;
-
-        // Draw grid lines
-        DrawGridLines(builder, minDate, totalDays, offsetX, offsetY, chartWidth, totalRows * rowHeight);
+        // Draw axis and grid (Mermaid places axis ticks at the bottom).
+        DrawAxis(builder, minDate, totalDays, offsetX, height, chartWidth, dayWidthPx, options, model.AxisFormat);
+        DrawGridLines(builder, totalDays, offsetX, height, chartWidth, dayWidthPx);
 
         // Draw section row backgrounds (Mermaid draws full-width row bands behind tasks).
-        DrawSectionRowBackgrounds(builder, model, offsetY, options, chartWidth);
+        DrawSectionRowBackgrounds(builder, model, offsetY, chartWidth);
 
         // Draw sections and tasks
         var currentRow = 0;
@@ -123,9 +124,9 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
             if (!string.IsNullOrEmpty(section.Name))
             {
                 var sectionY = offsetY + currentRow * rowHeight;
-                builder.AddRect(options.Padding, sectionY, leftMargin + chartWidth, sectionHeaderHeight,
+                builder.AddRect(0, sectionY, width, 25,
                     fill: SECTION_HEADER_COLOR, stroke: "none");
-                builder.AddText(options.Padding + 10, sectionY + sectionHeaderHeight / 2 + GanttWordRowTitleDown(options), section.Name,
+                builder.AddText(10, sectionY + (25 / 2) + GanttWordRowTitleDown(options), section.Name,
                     anchor: "start",
                     baseline: "middle",
                     fontSize: $"{options.FontSize}px",
@@ -137,7 +138,7 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
             // Tasks
             foreach (var task in section.Tasks)
             {
-                DrawTask(builder, task, minDate, currentRow, offsetX, offsetY, options);
+                DrawTask(builder, task, minDate, currentRow, offsetX, offsetY, dayWidthPx, options);
                 currentRow++;
             }
         }
@@ -145,29 +146,26 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
         return builder.Build();
     }
 
-    static void DrawAxis(SvgBuilder builder, DateTime startDate, int totalDays, double offsetX, double offsetY,
-        double chartWidth, RenderOptions options, string? axisFormat)
+    static void DrawAxis(SvgBuilder builder, DateTime startDate, int totalDays, double offsetX, double height,
+        double chartWidth, double dayWidthPx, RenderOptions options, string? axisFormat)
     {
-        // Axis line
-        builder.AddLine(offsetX, offsetY + axisHeight - 5, offsetX + chartWidth, offsetY + axisHeight - 5,
-            stroke: "#333", strokeWidth: 1);
+        // Mermaid places the axis tick labels at the bottom (approximately y = h - topPadding).
+        #pragma warning disable IDE0007
+        double axisY = height - TOP_PADDING_PX;
+        #pragma warning restore IDE0007
+        builder.AddLine(offsetX, axisY, offsetX + chartWidth, axisY, stroke: "#333", strokeWidth: 1);
 
-        // Date labels — Mermaid's default tends to show daily ticks for these short fixtures.
-        var interval = 1;
-        for (var i = 0; i < totalDays; i += interval)
+        for (var i = 0; i < totalDays; i++)
         {
-            var x = offsetX + i * dayWidth;
+            var x = offsetX + i * dayWidthPx;
             var date = startDate.AddDays(i);
 
             // Tick mark
-            builder.AddLine(x, offsetY + axisHeight - 10, x, offsetY + axisHeight - 5,
-                stroke: "#333", strokeWidth: 1);
+            builder.AddLine(x, axisY - 5, x, axisY, stroke: "#333", strokeWidth: 1);
 
             // Date label — honour Mermaid axisFormat when present (subset of strftime-style tokens)
             var label = FormatAxisDateLabel(date, axisFormat);
-            var axisTickDown = Math.Max(1.5, (options.FontSize - 2) * 0.1);
-            // Mermaid positions tick labels below the axis line.
-            builder.AddText(x, offsetY + axisHeight + 12 + axisTickDown, label,
+            builder.AddText(x, axisY + 13, label,
                 anchor: "middle",
                 baseline: "middle",
                 fontSize: $"{options.FontSize - 2}px",
@@ -240,35 +238,38 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
         return sb.ToString();
     }
 
-    static void DrawGridLines(SvgBuilder builder, DateTime startDate, int totalDays, double offsetX, double offsetY,
-        double chartWidth, double chartHeight)
+    static void DrawGridLines(SvgBuilder builder, int totalDays, double offsetX, double height,
+        double chartWidth, double dayWidthPx)
     {
-        // Vertical grid lines (daily) — match VS Code default look for short ranges.
+        #pragma warning disable IDE0007
+        double axisY = height - TOP_PADDING_PX;
+        #pragma warning restore IDE0007
+
+        // Vertical grid lines (daily).
         for (var i = 0; i < totalDays; i++)
         {
-            var x = offsetX + i * dayWidth;
-            builder.AddLine(x, offsetY, x, offsetY + chartHeight, stroke: "lightgrey", strokeWidth: 1);
+            var x = offsetX + i * dayWidthPx;
+            builder.AddLine(x, GRID_LINE_START_PADDING_PX, x, axisY, stroke: "lightgrey", strokeWidth: 1);
         }
 
-        // Horizontal grid lines
-        var numRows = (int)(chartHeight / rowHeight);
+        // Horizontal grid lines across the chart area (Mermaid does this via D3 tickSize).
+        var numRows = (int)((axisY - GRID_LINE_START_PADDING_PX) / rowHeight);
         for (var i = 0; i <= numRows; i++)
         {
-            var y = offsetY + i * rowHeight;
-            builder.AddLine(offsetX, y, offsetX + chartWidth, y,
-                stroke: "#eee", strokeWidth: 1);
+            var y = TOP_PADDING_PX + i * rowHeight;
+            builder.AddLine(offsetX, y, offsetX + chartWidth, y, stroke: "#eee", strokeWidth: 1);
         }
     }
 
     static void DrawTask(SvgBuilder builder, GanttTask task, DateTime startDate, int row,
-        double offsetX, double offsetY, RenderOptions options)
+        double offsetX, double offsetY, double dayWidthPx, RenderOptions options)
     {
         var y = offsetY + row * rowHeight;
         var startDays = (task.ComputedStart - startDate).Days;
         var durationDays = Math.Max(1, (task.ComputedEnd - task.ComputedStart).Days);
 
-        var taskX = offsetX + startDays * dayWidth;
-        var taskWidth = durationDays * dayWidth;
+        var taskX = offsetX + startDays * dayWidthPx;
+        var taskWidth = durationDays * dayWidthPx;
 
         // Mermaid labels tasks primarily inside the bar (outside if it does not fit).
         // The left column is reserved for section titles rather than per-task row labels.
@@ -280,10 +281,24 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
         string textColor;
         if (task.IsCritical)
         {
-            fillColor = CRIT_TASK_BKG_COLOR;
             strokeColor = CRIT_TASK_BORDER_COLOR;
             strokeWidth = 2;
-            textColor = "white";
+
+            if (task.Status == GanttTaskStatus.Done)
+            {
+                fillColor = DONE_TASK_BKG_COLOR;
+                textColor = "black";
+            }
+            else if (task.Status == GanttTaskStatus.Active)
+            {
+                fillColor = ACTIVE_TASK_BKG_COLOR;
+                textColor = "black";
+            }
+            else
+            {
+                fillColor = CRIT_TASK_BKG_COLOR;
+                textColor = "white";
+            }
         }
         else if (task.Status == GanttTaskStatus.Done)
         {
@@ -333,7 +348,7 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
             {
 #pragma warning disable IDE0007
                 double FontSizePx = Math.Max(8, options.FontSize - 2);
-                double EstimatedTextWidthPx = task.Name.Length * FontSizePx * 0.6;
+                double EstimatedTextWidthPx = task.Name.Length * FontSizePx * 0.75;
                 bool IsLikelyToFitInsideBar = taskWidth >= (EstimatedTextWidthPx + 10);
 
                 var barLabelY = barY + taskBarHeight / 2 - GanttWordBarLabelUp(options);
@@ -356,7 +371,7 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
         }
     }
 
-    static void DrawSectionRowBackgrounds(SvgBuilder builder, GanttModel model, double offsetY, RenderOptions options, double chartWidth)
+    static void DrawSectionRowBackgrounds(SvgBuilder builder, GanttModel model, double offsetY, double chartWidth)
     {
 #pragma warning disable IDE0007
         int currentRow = 0;
@@ -374,7 +389,7 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
             for (int i = 0; i < section.Tasks.Count; i++)
             {
                 var y = offsetY + (currentRow + i) * rowHeight - 2;
-                builder.AddRect(options.Padding, y, leftMargin + chartWidth, rowHeight,
+                builder.AddRect(0, y, LEFT_PADDING_PX + chartWidth + RIGHT_PADDING_PX, rowHeight,
                     fill: sectionFill, stroke: "none", style: SECTION_ROW_FILL_OPACITY_STYLE);
             }
 
