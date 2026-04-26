@@ -280,10 +280,9 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
     static Parser<char, Direction> subgraphDirectionDirective =
         from _ in CommonParsers.InlineWhitespace
         from __ in String("direction")
-        from ___ in CommonParsers.RequiredWhitespace
+        from ___ in CommonParsers.RequiredInlineWhitespace
         from dir in flowchartDirection
-        from _____ in CommonParsers.InlineWhitespace.Optional()
-        from lineEnd in CommonParsers.LineEnd
+        from ____ in CommonParsers.SkipRestOfLine
         select dir;
 
     // Skip empty lines, comments, and directives
