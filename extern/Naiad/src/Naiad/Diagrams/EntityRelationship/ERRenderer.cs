@@ -907,14 +907,21 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
         double Dx = P3.X - P0.X;
         double Dy = P3.Y - P0.Y;
 
-        // Preserve straight vertical relationships.
+        // Mermaid uses curveBasis for ER relationships even when they are perfectly vertical.
+        // Keep that behaviour so the emitted SVG path structure matches the reference renderer.
         if (Math.Abs(Dx) < 0.75)
         {
-            ErCurveBasisPath Result = new ErCurveBasisPath
+            double MidYVertical = (P0.Y + P3.Y) / 2.0;
+            Position MidPointVertical = new Position(P0.X, MidYVertical);
+
+            List<Position> VerticalPoints = new List<Position>
             {
-                PathData = $"M{Fmt(P0.X)},{Fmt(P0.Y)} L{Fmt(P3.X)},{Fmt(P3.Y)}"
+                P0,
+                MidPointVertical,
+                P3
             };
-            return Result;
+
+            return BuildErCurveBasisPath(VerticalPoints);
         }
 
         // Mirror Mermaid: use Dagre's 3-point edge route (vertical down, then diagonal in).
@@ -939,14 +946,10 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
         double Dx = P3.X - P0.X;
         double Dy = P3.Y - P0.Y;
 
-        // Preserve straight vertical relationships.
+        // Vertical matrix edges should still follow the Mermaid curveBasis structure.
         if (Math.Abs(Dx) < 0.75)
         {
-            ErCurveBasisPath Result = new ErCurveBasisPath
-            {
-                PathData = $"M{Fmt(P0.X)},{Fmt(P0.Y)} L{Fmt(P3.X)},{Fmt(P3.Y)}"
-            };
-            return Result;
+            return BuildErGuidedCurveBasisPath(P0, P3);
         }
 
         // Matrix-style minimum straight segments before smoothing.
