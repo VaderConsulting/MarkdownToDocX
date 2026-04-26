@@ -362,19 +362,19 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
             Points.Add(EndPoint);
         }
 
+        // Matrix fixture requires visible minimum straight segments at both ends. Dagre may provide multi-point
+        // routes for these edges, and curveBasis smoothing can round away “straight” segments, so force the
+        // matrix-specific hybrid path builder for matrix edges.
         ErCurveBasisPath Path;
-        if (ShouldUseExplicitCubicOrLine(StartPoint, EndPoint, FromEntity, ToEntity))
+        if (IsMatrixStyleCardinalityLabel(rel.Label))
+        {
+            Path = BuildErGuidedCurveBasisPathWithMinimumStraights(StartPoint, EndPoint, FromEntity, ToEntity);
+        }
+        else if (ShouldUseExplicitCubicOrLine(StartPoint, EndPoint, FromEntity, ToEntity))
         {
             // Use a guided curveBasis route (Mermaid-like multi-segment smoothing) so the endpoint tangent matches
             // the visual line direction used by Mermaid’s ER markers.
-            if (IsMatrixStyleCardinalityLabel(rel.Label))
-            {
-                Path = BuildErGuidedCurveBasisPathWithMinimumStraights(StartPoint, EndPoint, FromEntity, ToEntity);
-            }
-            else
-            {
-                Path = BuildErGuidedCurveBasisPath(StartPoint, EndPoint);
-            }
+            Path = BuildErGuidedCurveBasisPath(StartPoint, EndPoint);
         }
         else
         {
@@ -502,7 +502,6 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
         const double MINIMUM_STRAIGHT_EXIT_HORIZONTAL_PX = 28.0;
         const double MINIMUM_STRAIGHT_ENTRY_VERTICAL_PX = 28.0;
         const double MINIMUM_STRAIGHT_ENTRY_HORIZONTAL_PX = 28.0;
-        const double MINIMUM_CLEARANCE_PX = 6.0;
 
         PortAxis FromAxis = ClassifyPortAxis(P0, FromEntity);
         PortAxis ToAxis = ClassifyPortAxis(P3, ToEntity);
@@ -531,18 +530,13 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
             EntryPoint = new Position(P3.X - (DirectionX * MINIMUM_STRAIGHT_ENTRY_HORIZONTAL_PX), P3.Y);
         }
 
-        bool HasRoomForMinSegments =
-            HasRoomForMinSegmentsAlongPrimaryAxis(ExitPoint, EntryPoint, DirectionX, DirectionY, FromAxis, ToAxis, MINIMUM_CLEARANCE_PX);
-
-        if (HasRoomForMinSegments)
-        {
-            // curveBasis smoothing can round away the visible “straight” segments.
-            // For the matrix fixtures we need literal straight runs at both ends, so emit:
-            // M P0  L ExitPoint  C ... EntryPoint  L P3
-            return BuildErHybridMinStraightCubicPath(P0, ExitPoint, EntryPoint, P3, FromAxis, ToAxis);
-        }
-
-        return BuildErGuidedCurveBasisPath(P0, P3);
+        // curveBasis smoothing can round away the visible “straight” segments.
+        // For the matrix fixtures we need literal straight runs at both ends, so emit:
+        // M P0  L ExitPoint  C ... EntryPoint  L P3
+        //
+        // Prefer this unconditionally for the matrix edges; if a future fixture produces too little clearance,
+        // adjust the constants or port selection rather than silently falling back to curveBasis.
+        return BuildErHybridMinStraightCubicPath(P0, ExitPoint, EntryPoint, P3, FromAxis, ToAxis);
 #pragma warning restore IDE0007
     }
 
