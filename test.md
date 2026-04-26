@@ -503,6 +503,56 @@ gantt
     Tail task (default)              :         t1, after m1, 2d
 ```
 
+Gantt chart: longer period + more milestones (YYYY-MM-DD)
+
+```mermaid
+gantt
+    title Long range probe (milestones + dependencies)
+    dateFormat  YYYY-MM-DD
+    axisFormat  %d
+
+    section Phase 1
+    Kick-off               :milestone, k1, 2026-01-02, 0d
+    Planning               :done,      p1, 2026-01-03, 14d
+    Design                 :done,      p2, after p1, 21d
+
+    section Phase 2
+    Implementation         :active,    i1, after p2, 45d
+    Feature freeze         :milestone, f1, after i1, 0d
+    Stabilisation          :           s1, after f1, 14d
+    Release                :milestone, r1, after s1, 0d
+```
+
+Gantt chart: alternate input date format (DD-MM-YYYY)
+
+```mermaid
+gantt
+    title Date format probe (DD-MM-YYYY)
+    dateFormat  DD-MM-YYYY
+    axisFormat  %d-%m
+
+    section DD-MM-YYYY inputs
+    Task A                 :done,   d1, 01-04-2026, 5d
+    Task B                 :active, d2, after d1, 4d
+    Milestone              :milestone, dm1, 15-04-2026, 0d
+    Task C                 :        d3, after d2, 7d
+```
+
+Gantt chart: alternate input date format (MM-DD-YYYY)
+
+```mermaid
+gantt
+    title Date format probe (MM-DD-YYYY)
+    dateFormat  MM-DD-YYYY
+    axisFormat  %m/%d
+
+    section MM-DD-YYYY inputs
+    Task A                 :done,   m1, 04-01-2026, 5d
+    Task B                 :active, m2, after m1, 4d
+    Milestone              :milestone, mm1, 04-15-2026, 0d
+    Task C                 :        m3, after m2, 7d
+```
+
 Additional Mermaid Gantt directives (supported upstream, not yet supported by Naiad’s Gantt parser):
 
 - `topAxis` (currently triggers `TopAxis is not a function` in `mermaid.live` — omit for now)

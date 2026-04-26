@@ -162,7 +162,19 @@ public class GanttParser : IDiagramParser<GanttModel>
             }
 
             // Check for date (YYYY-MM-DD)
-            if (DateTime.TryParseExact(part, "yyyy-MM-dd", CultureInfo.InvariantCulture,
+            // Mermaid supports configurable dateFormat, but we do not currently propagate it into the parser phase.
+            // For DOCX fixtures, accept common date formats used in `test.md`.
+            string[] acceptedFormats =
+            [
+                "yyyy-MM-dd",
+                "dd-MM-yyyy",
+                "MM-dd-yyyy",
+                "yyyy/MM/dd",
+                "dd/MM/yyyy",
+                "MM/dd/yyyy"
+            ];
+
+            if (DateTime.TryParseExact(part, acceptedFormats, CultureInfo.InvariantCulture,
                     DateTimeStyles.None, out var date))
             {
                 if (task.StartDate == null && task.AfterTaskId == null)
