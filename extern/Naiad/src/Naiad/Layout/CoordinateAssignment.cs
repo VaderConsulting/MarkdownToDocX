@@ -598,64 +598,68 @@ static class CoordinateAssignment
             })
             .ToList();
 
-        Dictionary<string, List<LayoutEdge>> OutgoingBySourceId = new Dictionary<string, List<LayoutEdge>>(StringComparer.Ordinal);
-        Dictionary<string, List<LayoutEdge>> IncomingByTargetId = new Dictionary<string, List<LayoutEdge>>(StringComparer.Ordinal);
-
+        // Per the ER geometry source-of-truth: allocate anchors based on relationship grouping by facing direction,
+        // then distribute evenly across the facing perimeter slot list.
+        Dictionary<string, List<LayoutEdge>> IncidentByNodeId = new Dictionary<string, List<LayoutEdge>>(StringComparer.Ordinal);
         for (int i = 0; i < RegularEdges.Count; i++)
         {
             LayoutEdge Edge = RegularEdges[i];
 
-            if (!OutgoingBySourceId.TryGetValue(Edge.SourceId, out List<LayoutEdge>? Outs))
+            if (!IncidentByNodeId.TryGetValue(Edge.SourceId, out List<LayoutEdge>? SourceEdges))
             {
-                Outs = new List<LayoutEdge>();
-                OutgoingBySourceId[Edge.SourceId] = Outs;
+                SourceEdges = new List<LayoutEdge>();
+                IncidentByNodeId[Edge.SourceId] = SourceEdges;
             }
-            Outs.Add(Edge);
+            SourceEdges.Add(Edge);
 
-            if (!IncomingByTargetId.TryGetValue(Edge.TargetId, out List<LayoutEdge>? Ins))
+            if (!IncidentByNodeId.TryGetValue(Edge.TargetId, out List<LayoutEdge>? TargetEdges))
             {
-                Ins = new List<LayoutEdge>();
-                IncomingByTargetId[Edge.TargetId] = Ins;
+                TargetEdges = new List<LayoutEdge>();
+                IncidentByNodeId[Edge.TargetId] = TargetEdges;
             }
-            Ins.Add(Edge);
+            TargetEdges.Add(Edge);
         }
 
-        foreach (KeyValuePair<string, List<LayoutEdge>> kvp in OutgoingBySourceId)
+        foreach (KeyValuePair<string, List<LayoutEdge>> kvp in IncidentByNodeId)
         {
-            LayoutNode? SourceNode = graph.GetNode(kvp.Key);
-            if (SourceNode is null)
+            string NodeId = kvp.Key;
+            LayoutNode? Hub = graph.GetNode(NodeId);
+            if (Hub is null)
             {
                 continue;
             }
 
-            List<LayoutEdge> Outs = kvp.Value;
-            if (Outs.Count <= 1)
+            List<LayoutEdge> IncidentEdges = kvp.Value;
+            if (IncidentEdges.Count == 0)
             {
                 continue;
             }
 
-            // ER fan-out hub (one source -> many targets):
-            // Use side anchors, biased toward the side segment that visually faces the target group.
-            //
-            // Key rule (important distinction vs fan-in):
-            // - If a source fans out to many targets below, use LOWER-biased side anchors (3L/4L, 4R/3R).
-            // - If a source fans out to many targets above, use UPPER-biased side anchors (1L/2L, 2R/1R).
-
+            List<LayoutEdge> UpEdges = new List<LayoutEdge>();
+            List<LayoutEdge> DownEdges = new List<LayoutEdge>();
             List<LayoutEdge> LeftEdges = new List<LayoutEdge>();
             List<LayoutEdge> RightEdges = new List<LayoutEdge>();
-            double SumTargetY = 0.0;
-            int TargetYCount = 0;
 
-            for (int i = 0; i < Outs.Count; i++)
+            for (int i = 0; i < IncidentEdges.Count; i++)
             {
-                LayoutEdge Edge = Outs[i];
-                LayoutNode? TargetNode = graph.GetNode(Edge.TargetId);
-                if (TargetNode is not null)
+                LayoutEdge Edge = IncidentEdges[i];
+                string OtherId = string.Equals(Edge.SourceId, NodeId, StringComparison.Ordinal) ? Edge.TargetId : Edge.SourceId;
+                LayoutNode? Other = graph.GetNode(OtherId);
+                if (Other is null)
                 {
-                    SumTargetY += TargetNode.Y;
-                    TargetYCount++;
+                    continue;
                 }
-                if (TargetNode is not null && TargetNode.X < SourceNode.X)
+
+                FacingDirection Facing = ClassifyFacing(Hub, Other);
+                if (Facing == FacingDirection.Up)
+                {
+                    UpEdges.Add(Edge);
+                }
+                else if (Facing == FacingDirection.Down)
+                {
+                    DownEdges.Add(Edge);
+                }
+                else if (Facing == FacingDirection.Left)
                 {
                     LeftEdges.Add(Edge);
                 }
@@ -665,100 +669,10 @@ static class CoordinateAssignment
                 }
             }
 
-            LeftEdges.Sort((a, b) =>
-            {
-                LayoutNode? Ta = graph.GetNode(a.TargetId);
-                LayoutNode? Tb = graph.GetNode(b.TargetId);
-                double Xa = Ta?.X ?? 0;
-                double Xb = Tb?.X ?? 0;
-                return Xa.CompareTo(Xb);
-            });
-            RightEdges.Sort((a, b) =>
-            {
-                LayoutNode? Ta = graph.GetNode(a.TargetId);
-                LayoutNode? Tb = graph.GetNode(b.TargetId);
-                double Xa = Ta?.X ?? 0;
-                double Xb = Tb?.X ?? 0;
-                return Xa.CompareTo(Xb);
-            });
-
-            const int MAX_SIDE_SLOTS = 4;
-            double TopY = SourceNode.Y - SourceNode.Height / 2;
-            double Height = SourceNode.Height;
-            double LeftX = SourceNode.X - SourceNode.Width / 2 - FlowchartEdgeNodeGap;
-            double RightX = SourceNode.X + SourceNode.Width / 2 + FlowchartEdgeNodeGap;
-
-            double AverageTargetY = TargetYCount > 0 ? (SumTargetY / TargetYCount) : SourceNode.Y;
-            bool TargetsAreBelow = AverageTargetY > SourceNode.Y;
-
-            ApplySideSlots(
-                AttachByEdge,
-                SourceNode,
-                LeftEdges,
-                sourceX: LeftX,
-                topY: TopY,
-                height: Height,
-                maxSlots: MAX_SIDE_SLOTS,
-                reverseSlotOrder: false,
-                preferLowerSlots: TargetsAreBelow);
-
-            ApplySideSlots(
-                AttachByEdge,
-                SourceNode,
-                RightEdges,
-                sourceX: RightX,
-                topY: TopY,
-                height: Height,
-                maxSlots: MAX_SIDE_SLOTS,
-                reverseSlotOrder: true,
-                preferLowerSlots: TargetsAreBelow);
-        }
-
-        foreach (KeyValuePair<string, List<LayoutEdge>> kvp in IncomingByTargetId)
-        {
-            LayoutNode? TargetNode = graph.GetNode(kvp.Key);
-            if (TargetNode is null)
-            {
-                continue;
-            }
-
-            List<LayoutEdge> Ins = kvp.Value;
-            if (Ins.Count <= 1)
-            {
-                continue;
-            }
-
-            // ER fan-in hub (many sources -> one target):
-            // Do NOT reuse the fan-out rule. The target should use anchors that face the incoming source group.
-            // - If sources are above the target, use UPPER-biased side anchors (1L/2L, 2R/1R) or top anchors.
-            // - If sources are below the target, use LOWER-biased side anchors (3L/4L, 4R/3R) or bottom anchors.
-
-            double SumSourceY = 0.0;
-            int SourceYCount = 0;
-            for (int i = 0; i < Ins.Count; i++)
-            {
-                LayoutNode? SourceNode = graph.GetNode(Ins[i].SourceId);
-                if (SourceNode is not null)
-                {
-                    SumSourceY += SourceNode.Y;
-                    SourceYCount++;
-                }
-            }
-
-            double AverageSourceY = SourceYCount > 0 ? (SumSourceY / SourceYCount) : TargetNode.Y;
-            bool SourcesAreAbove = AverageSourceY < TargetNode.Y;
-
-            double VerticalSeparation = Math.Abs(TargetNode.Y - AverageSourceY);
-            bool PreferTopAnchors = SourcesAreAbove && VerticalSeparation > (TargetNode.Height * 0.75);
-
-            if (PreferTopAnchors)
-            {
-                ApplyTopSlots(AttachByEdge, graph, TargetNode, Ins, attachY: TargetNode.Y - TargetNode.Height / 2 - FlowchartEdgeNodeGap);
-            }
-            else
-            {
-                ApplyIncomingSideSlots(AttachByEdge, graph, TargetNode, Ins, preferUpperSlots: SourcesAreAbove);
-            }
+            AllocateAnchorsForFacingGroup(graph, Hub, NodeId, UpEdges, FacingDirection.Up, AttachByEdge);
+            AllocateAnchorsForFacingGroup(graph, Hub, NodeId, DownEdges, FacingDirection.Down, AttachByEdge);
+            AllocateAnchorsForFacingGroup(graph, Hub, NodeId, LeftEdges, FacingDirection.Left, AttachByEdge);
+            AllocateAnchorsForFacingGroup(graph, Hub, NodeId, RightEdges, FacingDirection.Right, AttachByEdge);
         }
 
         for (int i = 0; i < RegularEdges.Count; i++)
@@ -809,6 +723,238 @@ static class CoordinateAssignment
         return AttachByEdge;
 #pragma warning restore IDE0007
     }
+
+    #pragma warning disable IDE0007
+
+    enum FacingDirection
+    {
+        Up,
+        Down,
+        Left,
+        Right
+    }
+
+    enum ErAnchorSlot
+    {
+        // Left
+        L1,
+        L2,
+        L3,
+        L4,
+        LC,
+        // Right
+        R1,
+        R2,
+        R3,
+        R4,
+        RC,
+        // Top
+        T1,
+        T2,
+        T3,
+        T4,
+        TC,
+        // Bottom
+        B1,
+        B2,
+        B3,
+        B4,
+        BC
+    }
+
+    static FacingDirection ClassifyFacing(LayoutNode Hub, LayoutNode Other)
+    {
+        double DeltaX = Other.X - Hub.X;
+        double DeltaY = Other.Y - Hub.Y;
+
+        if (Math.Abs(DeltaX) > Math.Abs(DeltaY))
+        {
+            return DeltaX < 0 ? FacingDirection.Left : FacingDirection.Right;
+        }
+
+        return DeltaY < 0 ? FacingDirection.Up : FacingDirection.Down;
+    }
+
+    static void AllocateAnchorsForFacingGroup(
+        LayoutGraph graph,
+        LayoutNode Hub,
+        string HubId,
+        List<LayoutEdge> edges,
+        FacingDirection facing,
+        Dictionary<LayoutEdge, (double SourceX, double SourceY, double TargetX, double TargetY)> attachByEdge)
+    {
+        if (edges.Count == 0)
+        {
+            return;
+        }
+
+        // Sort by opposite entity centre X for Up/Down; by opposite entity centre Y for Left/Right.
+        edges.Sort((a, b) =>
+        {
+            string AOtherId = string.Equals(a.SourceId, HubId, StringComparison.Ordinal) ? a.TargetId : a.SourceId;
+            string BOtherId = string.Equals(b.SourceId, HubId, StringComparison.Ordinal) ? b.TargetId : b.SourceId;
+
+            LayoutNode? AOther = graph.GetNode(AOtherId);
+            LayoutNode? BOther = graph.GetNode(BOtherId);
+
+            double AValue = 0.0;
+            double BValue = 0.0;
+
+            if (AOther is not null)
+            {
+                AValue = facing is FacingDirection.Up or FacingDirection.Down ? AOther.X : AOther.Y;
+            }
+            if (BOther is not null)
+            {
+                BValue = facing is FacingDirection.Up or FacingDirection.Down ? BOther.X : BOther.Y;
+            }
+
+            return AValue.CompareTo(BValue);
+        });
+
+        IReadOnlyList<ErAnchorSlot> Slots = GetFacingPerimeterSlots(facing);
+        int M = Slots.Count;
+        int N = edges.Count;
+
+        for (int i = 0; i < edges.Count; i++)
+        {
+            LayoutEdge Edge = edges[i];
+            int SlotIndex = ComputeSlotIndex(i, M, N);
+            ErAnchorSlot Slot = Slots[SlotIndex];
+            (double X, double Y) Anchor = GetAnchorPoint(Hub, Slot);
+
+            (double SourceX, double SourceY, double TargetX, double TargetY) Existing =
+                attachByEdge.TryGetValue(Edge, out (double SourceX, double SourceY, double TargetX, double TargetY) ExistingValue)
+                    ? ExistingValue
+                    : (double.NaN, double.NaN, double.NaN, double.NaN);
+
+            bool HubIsSource = string.Equals(Edge.SourceId, HubId, StringComparison.Ordinal);
+            if (HubIsSource)
+            {
+                attachByEdge[Edge] = (Anchor.X, Anchor.Y, Existing.TargetX, Existing.TargetY);
+            }
+            else
+            {
+                attachByEdge[Edge] = (Existing.SourceX, Existing.SourceY, Anchor.X, Anchor.Y);
+            }
+        }
+    }
+
+    static int ComputeSlotIndex(int i, int m, int n)
+    {
+        // SlotIndex(i) = round((i + 1) * (M + 1) / (N + 1)) - 1
+        double value = ((i + 1.0) * (m + 1.0)) / (n + 1.0);
+        int slotIndex = (int)Math.Round(value, MidpointRounding.AwayFromZero) - 1;
+        if (slotIndex < 0)
+        {
+            slotIndex = 0;
+        }
+        if (slotIndex >= m)
+        {
+            slotIndex = m - 1;
+        }
+        return slotIndex;
+    }
+
+    static IReadOnlyList<ErAnchorSlot> GetFacingPerimeterSlots(FacingDirection facing)
+    {
+        // Slot lists from ER_Diagram_Rendering_Geometry_Source_Of_Truth.md.
+        if (facing == FacingDirection.Down)
+        {
+            return new[]
+            {
+                ErAnchorSlot.L3, ErAnchorSlot.L4,
+                ErAnchorSlot.B1, ErAnchorSlot.B2, ErAnchorSlot.BC, ErAnchorSlot.B3, ErAnchorSlot.B4,
+                ErAnchorSlot.R4, ErAnchorSlot.R3
+            };
+        }
+        if (facing == FacingDirection.Up)
+        {
+            return new[]
+            {
+                ErAnchorSlot.L2, ErAnchorSlot.L1,
+                ErAnchorSlot.T1, ErAnchorSlot.T2, ErAnchorSlot.TC, ErAnchorSlot.T3, ErAnchorSlot.T4,
+                ErAnchorSlot.R1, ErAnchorSlot.R2
+            };
+        }
+        if (facing == FacingDirection.Left)
+        {
+            return new[]
+            {
+                ErAnchorSlot.T1, ErAnchorSlot.T2,
+                ErAnchorSlot.L1, ErAnchorSlot.L2, ErAnchorSlot.LC, ErAnchorSlot.L3, ErAnchorSlot.L4,
+                ErAnchorSlot.B1, ErAnchorSlot.B2
+            };
+        }
+
+        return new[]
+        {
+            ErAnchorSlot.T4, ErAnchorSlot.T3,
+            ErAnchorSlot.R1, ErAnchorSlot.R2, ErAnchorSlot.RC, ErAnchorSlot.R3, ErAnchorSlot.R4,
+            ErAnchorSlot.B4, ErAnchorSlot.B3
+        };
+    }
+
+    static (double X, double Y) GetAnchorPoint(LayoutNode node, ErAnchorSlot slot)
+    {
+        double Left = node.X - node.Width / 2.0 - FlowchartEdgeNodeGap;
+        double Right = node.X + node.Width / 2.0 + FlowchartEdgeNodeGap;
+        double Top = node.Y - node.Height / 2.0 - FlowchartEdgeNodeGap;
+        double Bottom = node.Y + node.Height / 2.0 + FlowchartEdgeNodeGap;
+        double Width = (Right - Left);
+        double Height = (Bottom - Top);
+
+        switch (slot)
+        {
+            case ErAnchorSlot.L1:
+                return (Left, Top + (Height * 1.0 / 5.0));
+            case ErAnchorSlot.L2:
+                return (Left, Top + (Height * 2.0 / 5.0));
+            case ErAnchorSlot.L3:
+                return (Left, Top + (Height * 3.0 / 5.0));
+            case ErAnchorSlot.L4:
+                return (Left, Top + (Height * 4.0 / 5.0));
+            case ErAnchorSlot.LC:
+                return (Left, Top + (Height / 2.0));
+
+            case ErAnchorSlot.R1:
+                return (Right, Top + (Height * 1.0 / 5.0));
+            case ErAnchorSlot.R2:
+                return (Right, Top + (Height * 2.0 / 5.0));
+            case ErAnchorSlot.R3:
+                return (Right, Top + (Height * 3.0 / 5.0));
+            case ErAnchorSlot.R4:
+                return (Right, Top + (Height * 4.0 / 5.0));
+            case ErAnchorSlot.RC:
+                return (Right, Top + (Height / 2.0));
+
+            case ErAnchorSlot.T1:
+                return (Left + (Width * 1.0 / 5.0), Top);
+            case ErAnchorSlot.T2:
+                return (Left + (Width * 2.0 / 5.0), Top);
+            case ErAnchorSlot.T3:
+                return (Left + (Width * 3.0 / 5.0), Top);
+            case ErAnchorSlot.T4:
+                return (Left + (Width * 4.0 / 5.0), Top);
+            case ErAnchorSlot.TC:
+                return (Left + (Width / 2.0), Top);
+
+            case ErAnchorSlot.B1:
+                return (Left + (Width * 1.0 / 5.0), Bottom);
+            case ErAnchorSlot.B2:
+                return (Left + (Width * 2.0 / 5.0), Bottom);
+            case ErAnchorSlot.B3:
+                return (Left + (Width * 3.0 / 5.0), Bottom);
+            case ErAnchorSlot.B4:
+                return (Left + (Width * 4.0 / 5.0), Bottom);
+            case ErAnchorSlot.BC:
+                return (Left + (Width / 2.0), Bottom);
+            default:
+                return (node.X, node.Y);
+        }
+    }
+
+    #pragma warning restore IDE0007
 
     static void ApplySideSlots(
         Dictionary<LayoutEdge, (double SourceX, double SourceY, double TargetX, double TargetY)> AttachByEdge,

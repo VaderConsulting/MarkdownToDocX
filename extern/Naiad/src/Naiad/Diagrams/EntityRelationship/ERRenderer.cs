@@ -320,23 +320,23 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
             return;
         }
 
-        // Relationship segment between the facing edges of the two entities.
-        var FromSide = GetAttachSide(FromEntity, Toward: ToEntity.Position);
-        var ToSide = GetAttachSide(ToEntity, Toward: FromEntity.Position);
-
-        var FromCounts = GetCounts(EdgeCountsByEntity, FromEntity.Name);
-        var ToCounts = GetCounts(EdgeCountsByEntity, ToEntity.Name);
-
         var Edge = graphModel.Edges.Find(_ => _.SourceId == rel.FromEntity && _.TargetId == rel.ToEntity);
 
         Position StartPoint;
         Position EndPoint;
 
-        // Restore previous endpoint/port behaviour: endpoints are determined by our attach-point model.
-        var AttachStart = ComputeAttachPoint(FromEntity, Toward: ToEntity.Position, FromSide, FromCounts);
-        var AttachEnd = ComputeAttachPoint(ToEntity, Toward: FromEntity.Position, ToSide, ToCounts);
-        StartPoint = new(AttachStart.X, AttachStart.Y);
-        EndPoint = new(AttachEnd.X, AttachEnd.Y);
+        // Source-of-truth rule: relationship anchors come from deterministic layout-time anchor allocation.
+        // Therefore, use the routed edge points directly rather than re-computing attach points here.
+        if (Edge != null && Edge.Points.Count >= 2)
+        {
+            StartPoint = Edge.Points[0];
+            EndPoint = Edge.Points[^1];
+        }
+        else
+        {
+            StartPoint = IntersectEntityBoundary(FromEntity, Toward: ToEntity.Position);
+            EndPoint = IntersectEntityBoundary(ToEntity, Toward: FromEntity.Position);
+        }
 
         var StartX = StartPoint.X;
         var StartY = StartPoint.Y;
@@ -351,8 +351,6 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
         if (Edge != null && Edge.Points.Count >= 2)
         {
             Points.AddRange(Edge.Points);
-            Points[0] = StartPoint;
-            Points[^1] = EndPoint;
         }
         else
         {
