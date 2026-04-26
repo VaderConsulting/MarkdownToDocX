@@ -1,0 +1,208 @@
+{
+  "SnapshotId": "20260405025024_55aa068f",
+  "CapturedUtc": "2026-04-05T02:50:24.7623282+00:00",
+  "NormalisedContentHash": "4BF26B847945CCE57EA7FD132249102CDDAE9DC1E9E6EF7771EFF1BD169C290D",
+  "AnalysisStatus": "Complete",
+  "Solution": {
+    "SolutionName": "MDConverter",
+    "SolutionPath": "C:\\Users\\windo\\OneDrive\\Documents\\Development\\MarkdownToDocX\\src\\MDConverter\\MDConverter.csproj",
+    "SolutionKey": "81805F8838A4C99E",
+    "SourceIdentity": {
+      "IdentityKey": "81805F8838A4C99E",
+      "IdentityKind": "disk-path",
+      "MachineName": "SURFACELAPTOP7",
+      "InputPath": "C:\\Users\\windo\\OneDrive\\Documents\\Development\\MarkdownToDocX\\src\\MDConverter\\MDConverter.csproj",
+      "RepositoryRootPath": "C:\\Users\\windo\\OneDrive\\Documents\\Development\\MarkdownToDocX\\src\\MDConverter",
+      "GitRemoteUrl": null,
+      "GitRemoteKey": null
+    }
+  },
+  "Projects": [
+    {
+      "ProjectId": "BF87FF063BD8FEAC",
+      "ProjectName": "MDConverter",
+      "ProjectPath": "C:\\Users\\windo\\OneDrive\\Documents\\Development\\MarkdownToDocX\\src\\MDConverter\\MDConverter.csproj",
+      "ProjectStyle": "PackageReference",
+      "LoadState": "Loaded",
+      "AnalysisStatus": "Complete",
+      "TargetFrameworks": "net8.0",
+      "AssetsFilePath": "C:\\Users\\windo\\OneDrive\\Documents\\Development\\MarkdownToDocX\\src\\MDConverter\\obj\\project.assets.json",
+      "PackagesLockFilePath": null,
+      "Packages": [
+        {
+          "PackageId": "DocumentFormat.OpenXml",
+          "RequestedVersion": "3.2.0",
+          "ResolvedVersion": "3.2.0",
+          "ReferenceKind": "Direct",
+          "IsCentralVersionManaged": false,
+          "TargetFrameworkMoniker": "net8.0",
+          "DependencyParents": [],
+          "DependencyPath": [
+            "DocumentFormat.OpenXml"
+          ],
+          "HealthInfo": {
+            "IsDeprecated": false,
+            "IsObsolete": false,
+            "IsOutdated": true,
+            "IsVulnerable": false,
+            "LatestStableVersion": "3.5.1",
+            "DeprecationMessage": null,
+            "AlternatePackageId": null,
+            "AlternatePackageRange": null,
+            "MaxVulnerabilitySeverity": "None",
+            "Vulnerabilities": [],
+            "RequiresAttention": true
+          },
+          "StablePackageInstanceKey": "C:/USERS/WINDO/ONEDRIVE/DOCUMENTS/DEVELOPMENT/MARKDOWNTODOCX/SRC/MDCONVERTER/MDCONVERTER.CSPROJ|C:/USERS/WINDO/ONEDRIVE/DOCUMENTS/DEVELOPMENT/MARKDOWNTODOCX/SRC/MDCONVERTER/MDCONVERTER.CSPROJ|NET8.0|NONE|DOCUMENTFORMAT.OPENXML"
+        },
+        {
+          "PackageId": "DocumentFormat.OpenXml.Framework",
+          "RequestedVersion": null,
+          "ResolvedVersion": "3.2.0",
+          "ReferenceKind": "Transitive",
+          "IsCentralVersionManaged": false,
+          "TargetFrameworkMoniker": "net8.0",
+          "DependencyParents": [
+            "DocumentFormat.OpenXml"
+          ],
+          "DependencyPath": [
+            "DocumentFormat.OpenXml.Framework",
+            "DocumentFormat.OpenXml"
+          ],
+          "HealthInfo": {
+            "IsDeprecated": false,
+            "IsObsolete": false,
+            "IsOutdated": true,
+            "IsVulnerable": false,
+            "LatestStableVersion": "3.5.1",
+            "DeprecationMessage": null,
+            "AlternatePackageId": null,
+            "AlternatePackageRange": null,
+            "MaxVulnerabilitySeverity": "None",
+            "Vulnerabilities": [],
+            "RequiresAttention": true
+          },
+          "StablePackageInstanceKey": "C:/USERS/WINDO/ONEDRIVE/DOCUMENTS/DEVELOPMENT/MARKDOWNTODOCX/SRC/MDCONVERTER/MDCONVERTER.CSPROJ|C:/USERS/WINDO/ONEDRIVE/DOCUMENTS/DEVELOPMENT/MARKDOWNTODOCX/SRC/MDCONVERTER/MDCONVERTER.CSPROJ|NET8.0|NONE|DOCUMENTFORMAT.OPENXML.FRAMEWORK"
+        },
+        {
+          "PackageId": "Markdig",
+          "RequestedVersion": "0.38.0",
+          "ResolvedVersion": "0.38.0",
+          "ReferenceKind": "Direct",
+          "IsCentralVersionManaged": false,
+          "TargetFrameworkMoniker": "net8.0",
+          "DependencyParents": [],
+          "DependencyPath": [
+            "Markdig"
+          ],
+          "HealthInfo": {
+            "IsDeprecated": false,
+            "IsObsolete": false,
+            "IsOutdated": true,
+            "IsVulnerable": false,
+            "LatestStableVersion": "1.1.2",
+            "DeprecationMessage": null,
+            "AlternatePackageId": null,
+            "AlternatePackageRange": null,
+            "MaxVulnerabilitySeverity": "None",
+            "Vulnerabilities": [],
+            "RequiresAttention": true
+          },
+          "StablePackageInstanceKey": "C:/USERS/WINDO/ONEDRIVE/DOCUMENTS/DEVELOPMENT/MARKDOWNTODOCX/SRC/MDCONVERTER/MDCONVERTER.CSPROJ|C:/USERS/WINDO/ONEDRIVE/DOCUMENTS/DEVELOPMENT/MARKDOWNTODOCX/SRC/MDCONVERTER/MDCONVERTER.CSPROJ|NET8.0|NONE|MARKDIG"
+        },
+        {
+          "PackageId": "System.IO.Packaging",
+          "RequestedVersion": null,
+          "ResolvedVersion": "8.0.1",
+          "ReferenceKind": "Transitive",
+          "IsCentralVersionManaged": false,
+          "TargetFrameworkMoniker": "net8.0",
+          "DependencyParents": [
+            "DocumentFormat.OpenXml.Framework"
+          ],
+          "DependencyPath": [
+            "System.IO.Packaging",
+            "DocumentFormat.OpenXml.Framework",
+            "DocumentFormat.OpenXml"
+          ],
+          "HealthInfo": {
+            "IsDeprecated": false,
+            "IsObsolete": false,
+            "IsOutdated": true,
+            "IsVulnerable": false,
+            "LatestStableVersion": "10.0.5",
+            "DeprecationMessage": null,
+            "AlternatePackageId": null,
+            "AlternatePackageRange": null,
+            "MaxVulnerabilitySeverity": "None",
+            "Vulnerabilities": [],
+            "RequiresAttention": true
+          },
+          "StablePackageInstanceKey": "C:/USERS/WINDO/ONEDRIVE/DOCUMENTS/DEVELOPMENT/MARKDOWNTODOCX/SRC/MDCONVERTER/MDCONVERTER.CSPROJ|C:/USERS/WINDO/ONEDRIVE/DOCUMENTS/DEVELOPMENT/MARKDOWNTODOCX/SRC/MDCONVERTER/MDCONVERTER.CSPROJ|NET8.0|NONE|SYSTEM.IO.PACKAGING"
+        }
+      ],
+      "DependencyEdges": [
+        {
+          "FromPackageId": "DocumentFormat.OpenXml",
+          "ToPackageId": "DocumentFormat.OpenXml.Framework",
+          "TargetFrameworkMoniker": "net8.0",
+          "FromStablePackageInstanceKey": "C:/USERS/WINDO/ONEDRIVE/DOCUMENTS/DEVELOPMENT/MARKDOWNTODOCX/SRC/MDCONVERTER/MDCONVERTER.CSPROJ|C:/USERS/WINDO/ONEDRIVE/DOCUMENTS/DEVELOPMENT/MARKDOWNTODOCX/SRC/MDCONVERTER/MDCONVERTER.CSPROJ|NET8.0|NONE|DOCUMENTFORMAT.OPENXML",
+          "ToStablePackageInstanceKey": "C:/USERS/WINDO/ONEDRIVE/DOCUMENTS/DEVELOPMENT/MARKDOWNTODOCX/SRC/MDCONVERTER/MDCONVERTER.CSPROJ|C:/USERS/WINDO/ONEDRIVE/DOCUMENTS/DEVELOPMENT/MARKDOWNTODOCX/SRC/MDCONVERTER/MDCONVERTER.CSPROJ|NET8.0|NONE|DOCUMENTFORMAT.OPENXML.FRAMEWORK"
+        },
+        {
+          "FromPackageId": "DocumentFormat.OpenXml.Framework",
+          "ToPackageId": "System.IO.Packaging",
+          "TargetFrameworkMoniker": "net8.0",
+          "FromStablePackageInstanceKey": "C:/USERS/WINDO/ONEDRIVE/DOCUMENTS/DEVELOPMENT/MARKDOWNTODOCX/SRC/MDCONVERTER/MDCONVERTER.CSPROJ|C:/USERS/WINDO/ONEDRIVE/DOCUMENTS/DEVELOPMENT/MARKDOWNTODOCX/SRC/MDCONVERTER/MDCONVERTER.CSPROJ|NET8.0|NONE|DOCUMENTFORMAT.OPENXML.FRAMEWORK",
+          "ToStablePackageInstanceKey": "C:/USERS/WINDO/ONEDRIVE/DOCUMENTS/DEVELOPMENT/MARKDOWNTODOCX/SRC/MDCONVERTER/MDCONVERTER.CSPROJ|C:/USERS/WINDO/ONEDRIVE/DOCUMENTS/DEVELOPMENT/MARKDOWNTODOCX/SRC/MDCONVERTER/MDCONVERTER.CSPROJ|NET8.0|NONE|SYSTEM.IO.PACKAGING"
+        }
+      ],
+      "Diagnostics": [
+        {
+          "Code": "NUAUDOLD",
+          "Severity": "Warning",
+          "Message": "Package \u0027DocumentFormat.OpenXml\u0027 3.2.0 is outdated. Latest compatible stable version: 3.5.1.",
+          "ProjectName": "MDConverter",
+          "ProjectPath": "C:\\Users\\windo\\OneDrive\\Documents\\Development\\MarkdownToDocX\\src\\MDConverter\\MDConverter.csproj",
+          "PackageId": "DocumentFormat.OpenXml",
+          "TargetFrameworkMoniker": "net8.0",
+          "HelpLink": null
+        },
+        {
+          "Code": "NUAUDOLD",
+          "Severity": "Warning",
+          "Message": "Package \u0027DocumentFormat.OpenXml.Framework\u0027 3.2.0 is outdated. Latest compatible stable version: 3.5.1.",
+          "ProjectName": "MDConverter",
+          "ProjectPath": "C:\\Users\\windo\\OneDrive\\Documents\\Development\\MarkdownToDocX\\src\\MDConverter\\MDConverter.csproj",
+          "PackageId": "DocumentFormat.OpenXml.Framework",
+          "TargetFrameworkMoniker": "net8.0",
+          "HelpLink": null
+        },
+        {
+          "Code": "NUAUDOLD",
+          "Severity": "Warning",
+          "Message": "Package \u0027Markdig\u0027 0.38.0 is outdated. Latest compatible stable version: 1.1.2.",
+          "ProjectName": "MDConverter",
+          "ProjectPath": "C:\\Users\\windo\\OneDrive\\Documents\\Development\\MarkdownToDocX\\src\\MDConverter\\MDConverter.csproj",
+          "PackageId": "Markdig",
+          "TargetFrameworkMoniker": "net8.0",
+          "HelpLink": null
+        },
+        {
+          "Code": "NUAUDOLD",
+          "Severity": "Warning",
+          "Message": "Package \u0027System.IO.Packaging\u0027 8.0.1 is outdated. Latest compatible stable version: 10.0.5.",
+          "ProjectName": "MDConverter",
+          "ProjectPath": "C:\\Users\\windo\\OneDrive\\Documents\\Development\\MarkdownToDocX\\src\\MDConverter\\MDConverter.csproj",
+          "PackageId": "System.IO.Packaging",
+          "TargetFrameworkMoniker": "net8.0",
+          "HelpLink": null
+        }
+      ],
+      "Warnings": []
+    }
+  ],
+  "Warnings": [
+    "Attention required: 4 package diagnostics are warnings."
+  ]
+}

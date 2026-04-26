@@ -1,0 +1,26 @@
+{
+  "reportConfigHash": "5d7720a8",
+  "createdAtUtc": "2026-04-17T16:08:48.0411416Z",
+  "entries": [
+    {
+      "packageName": "DocumentFormat.OpenXml",
+      "packageVersion": "3.2.0",
+      "insightsName": "DocumentFormat.OpenXml",
+      "insightsCurrentVersion": "3.2.0",
+      "insightsNewVersion": "",
+      "insightsDescription": "",
+      "insightsIsCompatible": true,
+      "insightsProjects": []
+    },
+    {
+      "packageName": "Markdig",
+      "packageVersion": "0.38.0",
+      "insightsName": "Markdig",
+      "insightsCurrentVersion": "0.38.0",
+      "insightsNewVersion": "",
+      "insightsDescription": "",
+      "insightsIsCompatible": true,
+      "insightsProjects": []
+    }
+  ]
+}

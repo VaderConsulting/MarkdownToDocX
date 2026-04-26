@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>MDConverter</RootNamespace>
+    <AssemblyName>MDConverter</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <Description>Markdown to DOCX conversion engine. Markdown text in, DOCX bytes/stream out.</Description>
+    <Version>0.1.0</Version>
+    <Authors>MarkdownToDocX</Authors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DocumentFormat.OpenXml" Version="3.5.1" />
+    <PackageReference Include="Markdig" Version="1.1.2" />
+    <ProjectReference Include="..\..\extern\Naiad\src\Naiad\Naiad.csproj" />
+  </ItemGroup>
+
+</Project>

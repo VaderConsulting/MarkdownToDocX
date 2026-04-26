@@ -1,0 +1,8 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+  </Configurations>
+  <Project Path="src/MDConverter/MDConverter.csproj" />
+  <Project Path="src/md2docx/md2docx.csproj" />
+  <Project Path="tests/MDConverter.Tests/MDConverter.Tests.csproj" />
+</Solution>

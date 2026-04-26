@@ -1,0 +1,381 @@
+{
+  "CurrentSnapshotId": "20260405125941_c1f31c3b",
+  "PreviousSnapshotId": "20260405025024_13707614",
+  "IsChanged": true,
+  "ComparisonNote": null,
+  "Changes": [
+    {
+      "StablePackageInstanceKey": "C:/USERS/WINDO/ONEDRIVE/DOCUMENTS/DEVELOPMENT/MARKDOWNTODOCX/MDCONVERTER.SLNX|C:/USERS/WINDO/ONEDRIVE/DOCUMENTS/DEVELOPMENT/MARKDOWNTODOCX/SRC/MDCONVERTER/MDCONVERTER.CSPROJ|NET8.0|NONE|DOCUMENTFORMAT.OPENXML",
+      "ProjectName": "MDConverter",
+      "PackageId": "DocumentFormat.OpenXml",
+      "ChangeType": "MetadataChanged",
+      "PreviousResolvedVersion": "3.2.0",
+      "CurrentResolvedVersion": "3.2.0",
+      "PreviousRequestedVersion": "3.2.0",
+      "CurrentRequestedVersion": "3.2.0",
+      "TargetFrameworkMoniker": "net8.0",
+      "PreviousReferenceKind": "Direct",
+      "CurrentReferenceKind": "Direct",
+      "PreviousDependencyParents": [],
+      "CurrentDependencyParents": [],
+      "PreviousDependencyPath": [
+        "DocumentFormat.OpenXml"
+      ],
+      "CurrentDependencyPath": [
+        "DocumentFormat.OpenXml"
+      ],
+      "PreviousHealthInfo": {
+        "IsDeprecated": false,
+        "IsObsolete": false,
+        "IsOutdated": true,
+        "IsVulnerable": false,
+        "LatestStableVersion": "3.5.1",
+        "DeprecationMessage": null,
+        "AlternatePackageId": null,
+        "AlternatePackageRange": null,
+        "MaxVulnerabilitySeverity": "None",
+        "Vulnerabilities": [],
+        "DevelopmentStatus": "Unknown",
+        "RequiresAttention": true
+      },
+      "CurrentHealthInfo": {
+        "IsDeprecated": false,
+        "IsObsolete": false,
+        "IsOutdated": true,
+        "IsVulnerable": false,
+        "LatestStableVersion": "3.5.1",
+        "DeprecationMessage": null,
+        "AlternatePackageId": null,
+        "AlternatePackageRange": null,
+        "MaxVulnerabilitySeverity": "None",
+        "Vulnerabilities": [],
+        "DevelopmentStatus": "Active",
+        "RequiresAttention": true
+      }
+    },
+    {
+      "StablePackageInstanceKey": "C:/USERS/WINDO/ONEDRIVE/DOCUMENTS/DEVELOPMENT/MARKDOWNTODOCX/MDCONVERTER.SLNX|C:/USERS/WINDO/ONEDRIVE/DOCUMENTS/DEVELOPMENT/MARKDOWNTODOCX/SRC/MDCONVERTER/MDCONVERTER.CSPROJ|NET8.0|NONE|DOCUMENTFORMAT.OPENXML.FRAMEWORK",
+      "ProjectName": "MDConverter",
+      "PackageId": "DocumentFormat.OpenXml.Framework",
+      "ChangeType": "MetadataChanged",
+      "PreviousResolvedVersion": "3.2.0",
+      "CurrentResolvedVersion": "3.2.0",
+      "PreviousRequestedVersion": null,
+      "CurrentRequestedVersion": null,
+      "TargetFrameworkMoniker": "net8.0",
+      "PreviousReferenceKind": "Transitive",
+      "CurrentReferenceKind": "Transitive",
+      "PreviousDependencyParents": [
+        "DocumentFormat.OpenXml"
+      ],
+      "CurrentDependencyParents": [
+        "DocumentFormat.OpenXml"
+      ],
+      "PreviousDependencyPath": [
+        "DocumentFormat.OpenXml.Framework",
+        "DocumentFormat.OpenXml"
+      ],
+      "CurrentDependencyPath": [
+        "DocumentFormat.OpenXml.Framework",
+        "DocumentFormat.OpenXml"
+      ],
+      "PreviousHealthInfo": {
+        "IsDeprecated": false,
+        "IsObsolete": false,
+        "IsOutdated": true,
+        "IsVulnerable": false,
+        "LatestStableVersion": "3.5.1",
+        "DeprecationMessage": null,
+        "AlternatePackageId": null,
+        "AlternatePackageRange": null,
+        "MaxVulnerabilitySeverity": "None",
+        "Vulnerabilities": [],
+        "DevelopmentStatus": "Unknown",
+        "RequiresAttention": true
+      },
+      "CurrentHealthInfo": {
+        "IsDeprecated": false,
+        "IsObsolete": false,
+        "IsOutdated": true,
+        "IsVulnerable": false,
+        "LatestStableVersion": "3.5.1",
+        "DeprecationMessage": null,
+        "AlternatePackageId": null,
+        "AlternatePackageRange": null,
+        "MaxVulnerabilitySeverity": "None",
+        "Vulnerabilities": [],
+        "DevelopmentStatus": "Active",
+        "RequiresAttention": true
+      }
+    },
+    {
+      "StablePackageInstanceKey": "C:/USERS/WINDO/ONEDRIVE/DOCUMENTS/DEVELOPMENT/MARKDOWNTODOCX/MDCONVERTER.SLNX|C:/USERS/WINDO/ONEDRIVE/DOCUMENTS/DEVELOPMENT/MARKDOWNTODOCX/SRC/MDCONVERTER/MDCONVERTER.CSPROJ|NET8.0|NONE|MARKDIG",
+      "ProjectName": "MDConverter",
+      "PackageId": "Markdig",
+      "ChangeType": "MetadataChanged",
+      "PreviousResolvedVersion": "0.38.0",
+      "CurrentResolvedVersion": "0.38.0",
+      "PreviousRequestedVersion": "0.38.0",
+      "CurrentRequestedVersion": "0.38.0",
+      "TargetFrameworkMoniker": "net8.0",
+      "PreviousReferenceKind": "Direct",
+      "CurrentReferenceKind": "Direct",
+      "PreviousDependencyParents": [],
+      "CurrentDependencyParents": [],
+      "PreviousDependencyPath": [
+        "Markdig"
+      ],
+      "CurrentDependencyPath": [
+        "Markdig"
+      ],
+      "PreviousHealthInfo": {
+        "IsDeprecated": false,
+        "IsObsolete": false,
+        "IsOutdated": true,
+        "IsVulnerable": false,
+        "LatestStableVersion": "1.1.2",
+        "DeprecationMessage": null,
+        "AlternatePackageId": null,
+        "AlternatePackageRange": null,
+        "MaxVulnerabilitySeverity": "None",
+        "Vulnerabilities": [],
+        "DevelopmentStatus": "Unknown",
+        "RequiresAttention": true
+      },
+      "CurrentHealthInfo": {
+        "IsDeprecated": false,
+        "IsObsolete": false,
+        "IsOutdated": true,
+        "IsVulnerable": false,
+        "LatestStableVersion": "1.1.2",
+        "DeprecationMessage": null,
+        "AlternatePackageId": null,
+        "AlternatePackageRange": null,
+        "MaxVulnerabilitySeverity": "None",
+        "Vulnerabilities": [],
+        "DevelopmentStatus": "Active",
+        "RequiresAttention": true
+      }
+    },
+    {
+      "StablePackageInstanceKey": "C:/USERS/WINDO/ONEDRIVE/DOCUMENTS/DEVELOPMENT/MARKDOWNTODOCX/MDCONVERTER.SLNX|C:/USERS/WINDO/ONEDRIVE/DOCUMENTS/DEVELOPMENT/MARKDOWNTODOCX/SRC/MDCONVERTER/MDCONVERTER.CSPROJ|NET8.0|NONE|SYSTEM.IO.PACKAGING",
+      "ProjectName": "MDConverter",
+      "PackageId": "System.IO.Packaging",
+      "ChangeType": "MetadataChanged",
+      "PreviousResolvedVersion": "8.0.1",
+      "CurrentResolvedVersion": "8.0.1",
+      "PreviousRequestedVersion": null,
+      "CurrentRequestedVersion": null,
+      "TargetFrameworkMoniker": "net8.0",
+      "PreviousReferenceKind": "Transitive",
+      "CurrentReferenceKind": "Transitive",
+      "PreviousDependencyParents": [
+        "DocumentFormat.OpenXml.Framework"
+      ],
+      "CurrentDependencyParents": [
+        "DocumentFormat.OpenXml.Framework"
+      ],
+      "PreviousDependencyPath": [
+        "System.IO.Packaging",
+        "DocumentFormat.OpenXml.Framework",
+        "DocumentFormat.OpenXml"
+      ],
+      "CurrentDependencyPath": [
+        "System.IO.Packaging",
+        "DocumentFormat.OpenXml.Framework",
+        "DocumentFormat.OpenXml"
+      ],
+      "PreviousHealthInfo": {
+        "IsDeprecated": false,
+        "IsObsolete": false,
+        "IsOutdated": true,
+        "IsVulnerable": false,
+        "LatestStableVersion": "10.0.5",
+        "DeprecationMessage": null,
+        "AlternatePackageId": null,
+        "AlternatePackageRange": null,
+        "MaxVulnerabilitySeverity": "None",
+        "Vulnerabilities": [],
+        "DevelopmentStatus": "Unknown",
+        "RequiresAttention": true
+      },
+      "CurrentHealthInfo": {
+        "IsDeprecated": false,
+        "IsObsolete": false,
+        "IsOutdated": true,
+        "IsVulnerable": false,
+        "LatestStableVersion": "10.0.5",
+        "DeprecationMessage": null,
+        "AlternatePackageId": null,
+        "AlternatePackageRange": null,
+        "MaxVulnerabilitySeverity": "None",
+        "Vulnerabilities": [],
+        "DevelopmentStatus": "Active",
+        "RequiresAttention": true
+      }
+    }
+  ],
+  "DependencyEdgeChanges": [],
+  "KnowledgeChanges": [
+    {
+      "PackageId": "DocumentFormat.OpenXml",
+      "ResolvedVersion": "3.2.0",
+      "DeterminedUtc": "2026-04-05T12:59:41.4429821+00:00",
+      "PreviousHealthInfo": {
+        "IsDeprecated": false,
+        "IsObsolete": false,
+        "IsOutdated": true,
+        "IsVulnerable": false,
+        "LatestStableVersion": "3.5.1",
+        "DeprecationMessage": null,
+        "AlternatePackageId": null,
+        "AlternatePackageRange": null,
+        "MaxVulnerabilitySeverity": "None",
+        "Vulnerabilities": [],
+        "DevelopmentStatus": "Unknown",
+        "RequiresAttention": true
+      },
+      "CurrentHealthInfo": {
+        "IsDeprecated": false,
+        "IsObsolete": false,
+        "IsOutdated": true,
+        "IsVulnerable": false,
+        "LatestStableVersion": "3.5.1",
+        "DeprecationMessage": null,
+        "AlternatePackageId": null,
+        "AlternatePackageRange": null,
+        "MaxVulnerabilitySeverity": "None",
+        "Vulnerabilities": [],
+        "DevelopmentStatus": "Active",
+        "RequiresAttention": true
+      },
+      "Remediation": {
+        "RecommendedVersion": "3.5.1",
+        "AlternatePackageId": null,
+        "AlternatePackageRange": null,
+        "Summary": "Upgrade to 3.5.1."
+      },
+      "Summary": "Development status is now Active."
+    },
+    {
+      "PackageId": "DocumentFormat.OpenXml.Framework",
+      "ResolvedVersion": "3.2.0",
+      "DeterminedUtc": "2026-04-05T12:59:41.4429821+00:00",
+      "PreviousHealthInfo": {
+        "IsDeprecated": false,
+        "IsObsolete": false,
+        "IsOutdated": true,
+        "IsVulnerable": false,
+        "LatestStableVersion": "3.5.1",
+        "DeprecationMessage": null,
+        "AlternatePackageId": null,
+        "AlternatePackageRange": null,
+        "MaxVulnerabilitySeverity": "None",
+        "Vulnerabilities": [],
+        "DevelopmentStatus": "Unknown",
+        "RequiresAttention": true
+      },
+      "CurrentHealthInfo": {
+        "IsDeprecated": false,
+        "IsObsolete": false,
+        "IsOutdated": true,
+        "IsVulnerable": false,
+        "LatestStableVersion": "3.5.1",
+        "DeprecationMessage": null,
+        "AlternatePackageId": null,
+        "AlternatePackageRange": null,
+        "MaxVulnerabilitySeverity": "None",
+        "Vulnerabilities": [],
+        "DevelopmentStatus": "Active",
+        "RequiresAttention": true
+      },
+      "Remediation": {
+        "RecommendedVersion": "3.5.1",
+        "AlternatePackageId": null,
+        "AlternatePackageRange": null,
+        "Summary": "Upgrade to 3.5.1."
+      },
+      "Summary": "Development status is now Active."
+    },
+    {
+      "PackageId": "Markdig",
+      "ResolvedVersion": "0.38.0",
+      "DeterminedUtc": "2026-04-05T12:59:41.4429821+00:00",
+      "PreviousHealthInfo": {
+        "IsDeprecated": false,
+        "IsObsolete": false,
+        "IsOutdated": true,
+        "IsVulnerable": false,
+        "LatestStableVersion": "1.1.2",
+        "DeprecationMessage": null,
+        "AlternatePackageId": null,
+        "AlternatePackageRange": null,
+        "MaxVulnerabilitySeverity": "None",
+        "Vulnerabilities": [],
+        "DevelopmentStatus": "Unknown",
+        "RequiresAttention": true
+      },
+      "CurrentHealthInfo": {
+        "IsDeprecated": false,
+        "IsObsolete": false,
+        "IsOutdated": true,
+        "IsVulnerable": false,
+        "LatestStableVersion": "1.1.2",
+        "DeprecationMessage": null,
+        "AlternatePackageId": null,
+        "AlternatePackageRange": null,
+        "MaxVulnerabilitySeverity": "None",
+        "Vulnerabilities": [],
+        "DevelopmentStatus": "Active",
+        "RequiresAttention": true
+      },
+      "Remediation": {
+        "RecommendedVersion": "1.1.2",
+        "AlternatePackageId": null,
+        "AlternatePackageRange": null,
+        "Summary": "Upgrade to 1.1.2."
+      },
+      "Summary": "Development status is now Active."
+    },
+    {
+      "PackageId": "System.IO.Packaging",
+      "ResolvedVersion": "8.0.1",
+      "DeterminedUtc": "2026-04-05T12:59:41.4429821+00:00",
+      "PreviousHealthInfo": {
+        "IsDeprecated": false,
+        "IsObsolete": false,
+        "IsOutdated": true,
+        "IsVulnerable": false,
+        "LatestStableVersion": "10.0.5",
+        "DeprecationMessage": null,
+        "AlternatePackageId": null,
+        "AlternatePackageRange": null,
+        "MaxVulnerabilitySeverity": "None",
+        "Vulnerabilities": [],
+        "DevelopmentStatus": "Unknown",
+        "RequiresAttention": true
+      },
+      "CurrentHealthInfo": {
+        "IsDeprecated": false,
+        "IsObsolete": false,
+        "IsOutdated": true,
+        "IsVulnerable": false,
+        "LatestStableVersion": "10.0.5",
+        "DeprecationMessage": null,
+        "AlternatePackageId": null,
+        "AlternatePackageRange": null,
+        "MaxVulnerabilitySeverity": "None",
+        "Vulnerabilities": [],
+        "DevelopmentStatus": "Active",
+        "RequiresAttention": true
+      },
+      "Remediation": {
+        "RecommendedVersion": "10.0.5",
+        "AlternatePackageId": null,
+        "AlternatePackageRange": null,
+        "Summary": "Upgrade to 10.0.5."
+      },
+      "Summary": "Development status is now Active."
+    }
+  ]
+}

@@ -1,0 +1,157 @@
+namespace MermaidSharp.Diagrams.Quadrant;
+
+public class QuadrantParser : IDiagramParser<QuadrantModel>
+{
+    public DiagramType DiagramType => DiagramType.Quadrant;
+
+    // Rest of line (for text content)
+    static Parser<char, string> RestOfLine =
+        Token(_ => _ != '\r' && _ != '\n').ManyString();
+
+    // Title: title My Chart
+    static Parser<char, string> TitleParser =
+        from _ in CommonParsers.InlineWhitespace
+        from __ in CIString("title")
+        from ___ in CommonParsers.RequiredWhitespace
+        from title in RestOfLine
+        from ____ in CommonParsers.LineEnd
+        select title.Trim();
+
+    // X-axis: x-axis Low --> High
+    static Parser<char, (string left, string right)> XAxisParser =
+        from _ in CommonParsers.InlineWhitespace
+        from __ in CIString("x-axis")
+        from ___ in CommonParsers.RequiredWhitespace
+        from left in Token(_ => _ is not '-').AtLeastOnceString()
+            .Where(s => !s.TrimEnd().EndsWith('-'))
+            .Or(Token(_ => _ != '\r' && _ != '\n' && _ != '-').ManyString())
+        from arrow in String("-->")
+        from ____ in CommonParsers.InlineWhitespace
+        from right in RestOfLine
+        from _____ in CommonParsers.LineEnd
+        select (left.Trim().TrimEnd('-').Trim(), right.Trim());
+
+    // Y-axis: y-axis Low --> High
+    static Parser<char, (string bottom, string top)> YAxisParser =
+        from _ in CommonParsers.InlineWhitespace
+        from __ in CIString("y-axis")
+        from ___ in CommonParsers.RequiredWhitespace
+        from bottom in Token(_ => _ is not '-').AtLeastOnceString()
+            .Where(s => !s.TrimEnd().EndsWith('-'))
+            .Or(Token(_ => _ != '\r' && _ != '\n' && _ != '-').ManyString())
+        from arrow in String("-->")
+        from ____ in CommonParsers.InlineWhitespace
+        from top in RestOfLine
+        from _____ in CommonParsers.LineEnd
+        select (bottom.Trim().TrimEnd('-').Trim(), top.Trim());
+
+    // Quadrant labels: quadrant-1 Label
+    static Parser<char, (int quadrant, string label)> QuadrantLabelParser =
+        from _ in CommonParsers.InlineWhitespace
+        from __ in CIString("quadrant-")
+        from num in Digit.Select(_ => _ - '0')
+        from ___ in CommonParsers.RequiredWhitespace
+        from label in RestOfLine
+        from ____ in CommonParsers.LineEnd
+        select (num, label.Trim());
+
+    // Number parser for coordinates
+    static Parser<char, double> NumberParser =
+        from sign in Char('-').Optional()
+        from integer in Digit.AtLeastOnceString()
+        from frac in Char('.').Then(Digit.AtLeastOnceString()).Optional()
+        select double.Parse(
+            (sign.HasValue ? "-" : "") + integer + (frac.HasValue ? "." + frac.Value : ""),
+            CultureInfo.InvariantCulture);
+
+    // Point: Name: [0.5, 0.7]
+    static Parser<char, QuadrantPoint> PointParser =
+        from _ in CommonParsers.InlineWhitespace
+        from name in Token(_ => _ != ':' && _ != '\r' && _ != '\n').AtLeastOnceString()
+        from __ in Char(':')
+        from ___ in CommonParsers.InlineWhitespace
+        from ____ in Char('[')
+        from _____ in CommonParsers.InlineWhitespace
+        from x in NumberParser
+        from ______ in CommonParsers.InlineWhitespace
+        from _______ in Char(',')
+        from ________ in CommonParsers.InlineWhitespace
+        from y in NumberParser
+        from _________ in CommonParsers.InlineWhitespace
+        from __________ in Char(']')
+        from ___________ in CommonParsers.InlineWhitespace
+        from ____________ in CommonParsers.LineEnd
+        select new QuadrantPoint
+        {
+            Name = name.Trim(),
+            X = Math.Clamp(x, 0, 1),
+            Y = Math.Clamp(y, 0, 1)
+        };
+
+    // Skip line (comments, empty lines)
+    static Parser<char, Unit> SkipLine =
+        Try(CommonParsers.InlineWhitespace.Then(CommonParsers.Comment))
+            .Or(Try(CommonParsers.InlineWhitespace.Then(CommonParsers.Newline)));
+
+    // Content item
+    static Parser<char, object?> ContentItem =>
+        OneOf(
+            Try(TitleParser.Select(_ => (object?)("title", _))),
+            Try(XAxisParser.Select(_ => (object?)("x-axis", _.left, _.right))),
+            Try(YAxisParser.Select(_ => (object?)("y-axis", _.bottom, _.top))),
+            Try(QuadrantLabelParser.Select(_ => (object?)("quadrant", _.quadrant, _.label))),
+            Try(PointParser.Select(_ => (object?)("point", _))),
+            SkipLine.ThenReturn((object?)null)
+        );
+
+    public static Parser<char, QuadrantModel> Parser =>
+        from _ in CommonParsers.InlineWhitespace
+        from __ in CIString("quadrantChart")
+        from ___ in CommonParsers.InlineWhitespace
+        from ____ in CommonParsers.LineEnd
+        from result in ContentItem.ManyThen(End)
+        select BuildModel(result.Item1.Where(_ => _ != null).ToList());
+
+    static QuadrantModel BuildModel(List<object?> content)
+    {
+        var model = new QuadrantModel();
+
+        foreach (var item in content)
+        {
+            switch (item)
+            {
+                case ("title", string value):
+                    model.Title = value;
+                    break;
+
+                case ("x-axis", string left, string right):
+                    model.XAxisLeft = left;
+                    model.XAxisRight = right;
+                    break;
+
+                case ("y-axis", string bottom, string top):
+                    model.YAxisBottom = bottom;
+                    model.YAxisTop = top;
+                    break;
+
+                case ("quadrant", int quadrant, string label):
+                    switch (quadrant)
+                    {
+                        case 1: model.Quadrant1Label = label; break;
+                        case 2: model.Quadrant2Label = label; break;
+                        case 3: model.Quadrant3Label = label; break;
+                        case 4: model.Quadrant4Label = label; break;
+                    }
+                    break;
+
+                case ("point", QuadrantPoint point):
+                    model.Points.Add(point);
+                    break;
+            }
+        }
+
+        return model;
+    }
+
+    public Result<char, QuadrantModel> Parse(string input) => Parser.Parse(input);
+}

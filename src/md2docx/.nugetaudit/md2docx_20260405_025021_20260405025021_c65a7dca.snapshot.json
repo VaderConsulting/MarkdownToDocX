@@ -1,0 +1,38 @@
+{
+  "SnapshotId": "20260405025021_c65a7dca",
+  "CapturedUtc": "2026-04-05T02:50:21.5464606+00:00",
+  "NormalisedContentHash": "A5C4882D98A61B02E72D39091FDC41EF87DA3A60C7F2543842C87FC9C7F9ED2E",
+  "AnalysisStatus": "Complete",
+  "Solution": {
+    "SolutionName": "md2docx",
+    "SolutionPath": "C:\\Users\\windo\\OneDrive\\Documents\\Development\\MarkdownToDocX\\src\\md2docx\\md2docx.csproj",
+    "SolutionKey": "3F7142486493FFE4",
+    "SourceIdentity": {
+      "IdentityKey": "3F7142486493FFE4",
+      "IdentityKind": "disk-path",
+      "MachineName": "SURFACELAPTOP7",
+      "InputPath": "C:\\Users\\windo\\OneDrive\\Documents\\Development\\MarkdownToDocX\\src\\md2docx\\md2docx.csproj",
+      "RepositoryRootPath": "C:\\Users\\windo\\OneDrive\\Documents\\Development\\MarkdownToDocX\\src\\md2docx",
+      "GitRemoteUrl": null,
+      "GitRemoteKey": null
+    }
+  },
+  "Projects": [
+    {
+      "ProjectId": "A7FED4A684B21D62",
+      "ProjectName": "md2docx",
+      "ProjectPath": "C:\\Users\\windo\\OneDrive\\Documents\\Development\\MarkdownToDocX\\src\\md2docx\\md2docx.csproj",
+      "ProjectStyle": "Unknown",
+      "LoadState": "Loaded",
+      "AnalysisStatus": "Complete",
+      "TargetFrameworks": "net8.0",
+      "AssetsFilePath": null,
+      "PackagesLockFilePath": null,
+      "Packages": [],
+      "DependencyEdges": [],
+      "Diagnostics": [],
+      "Warnings": []
+    }
+  ],
+  "Warnings": []
+}
