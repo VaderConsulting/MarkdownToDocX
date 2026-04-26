@@ -34,6 +34,7 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
     const string SECTION_ROW_FILL_OPACITY_STYLE = "fill-opacity: 0.2";
     const double RIGHT_LABEL_PADDING_PX = 60;
     const double FORCE_LABEL_INSIDE_BAR_WIDTH_PX = 140;
+    const double VERT_LABEL_BOTTOM_PADDING_PX = 12;
 
     const string milestoneColor = "#FF9800";
 
@@ -84,7 +85,8 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
         if (tasks.Any(_ => _.IsVert))
         {
             // Mermaid places the vert label below the grid; keep space for it.
-            height = Math.Max(height, GRID_LINE_START_PADDING_PX + (totalTaskCount * rowHeight) + 60 + TOP_PADDING_PX);
+            var labelY = GRID_LINE_START_PADDING_PX + (totalTaskCount * rowHeight) + 60;
+            height = Math.Max(height, labelY + VERT_LABEL_BOTTOM_PADDING_PX);
         }
 
         // Mermaid width defaults to 1200 (unless gantt.useWidth overrides).
@@ -337,8 +339,11 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
             // Width: 0.08 * barHeight.
 #pragma warning disable IDE0007
             double vertWidth = 0.08 * taskBarHeight;
-            double vertY = GRID_LINE_START_PADDING_PX;
-            double vertHeight = (totalTaskCount * rowHeight) + (taskBarHeight * 2);
+            // Word/DOCX baseline: start at the top of the first task row band (topPadding),
+            // but keep the Mermaid bottom alignment.
+            double mermaidBottomY = GRID_LINE_START_PADDING_PX + (totalTaskCount * rowHeight) + (taskBarHeight * 2);
+            double vertY = TOP_PADDING_PX;
+            double vertHeight = Math.Max(0, mermaidBottomY - vertY);
 
             builder.AddRect(taskX, vertY, vertWidth, vertHeight,
                 rx: 0,
