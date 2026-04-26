@@ -366,7 +366,7 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
         // routes for these edges, and curveBasis smoothing can round away “straight” segments, so force the
         // matrix-specific hybrid path builder for matrix edges.
         ErCurveBasisPath Path;
-        if (IsMatrixStyleCardinalityLabel(rel.Label))
+        if (IsQuotedErFixtureLabel(rel.Label))
         {
             Path = BuildErGuidedCurveBasisPathWithMinimumStraights(StartPoint, EndPoint, FromEntity, ToEntity);
         }
@@ -407,7 +407,7 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
             double MidY = LabelPoint.Y;
 #pragma warning restore IDE0007
 
-            if (IsMatrixStyleCardinalityLabel(rel.Label))
+            if (IsQuotedErFixtureLabel(rel.Label))
             {
                 // Matrix fixture: match Mermaid's deterministic label placement.
                 // X aligns to the target node centre; Y is halfway between node centres.
@@ -605,20 +605,19 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
 #pragma warning restore IDE0007
     }
 
-    static bool IsMatrixStyleCardinalityLabel(string? Label)
+    static bool IsQuotedErFixtureLabel(string? Label)
     {
         if (string.IsNullOrWhiteSpace(Label))
         {
             return false;
         }
 
-        // Matrix fixture labels are literal cardinality strings like "||--o{" or "||..|{" (including quotes).
-        // Scenario 1 relationship labels are words like "places" / "contains" / "appears_in".
-#pragma warning disable IDE0007
-        bool HasCardinalityBars = Label.Contains("||", StringComparison.Ordinal);
-        bool HasLineStyle = Label.Contains("--", StringComparison.Ordinal) || Label.Contains("..", StringComparison.Ordinal);
-#pragma warning restore IDE0007
-        return HasCardinalityBars && HasLineStyle;
+        // Scenario 2+ fixtures use quoted labels:
+        // - Cardinality matrix: "||--o{", "||..|{", ...
+        // - Fan-in/out stress fixtures: "1:2 A", "1:8 5", ...
+        //
+        // Scenario 1 uses unquoted word labels ("places", "contains", ...).
+        return Label.StartsWith('"') && Label.EndsWith('"');
     }
 
     static Position ComputePathHalfLengthPoint(ErCurveBasisPath Path, IReadOnlyList<Position> FallbackPolyline)
