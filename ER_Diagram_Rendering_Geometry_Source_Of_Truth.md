@@ -423,6 +423,25 @@ Right child -> 4R or a lower-right perimeter slot
 
 Do not route both relationships into `TARGET.BC`.
 
+The same pattern applies in the inverted vertical direction. If one lower target receives two relationships from two entities above it, the lower target must use balanced upper-facing anchors rather than collapsing both relationships into `TC`.
+
+For example:
+
+```text
+PARENT_A   PARENT_B
+    \       /
+      TARGET
+```
+
+Use:
+
+```text
+PARENT_A -> TARGET uses an upper-left-facing target anchor
+PARENT_B -> TARGET uses an upper-right-facing target anchor
+```
+
+Do not route both relationships into `TARGET.TC`.
+
 ### 10.3 Three incoming relationships
 
 For:
@@ -591,7 +610,75 @@ The curve leaves PRODUCT downward.
 The curve approaches LINE_ITEM from the right/upper-right.
 ```
 
-### 11.5 Bezier pull length calculation
+### 11.5 LINE_ITEM as a two-parent target hub
+
+The `LINE_ITEM` entity is a **1 -> 2 target case from the target's perspective**: two relationships approach the same target entity from above, one from `ORDER` and one from `PRODUCT`.
+
+This must be handled as a grouped target-anchor allocation problem, not as two unrelated pairwise routes.
+
+For `LINE_ITEM`, collect the two incoming relationships whose opposite entities are above it:
+
+```text
+ORDER   -> LINE_ITEM
+PRODUCT -> LINE_ITEM
+```
+
+The opposite entity cluster is above `LINE_ITEM`, therefore `LINE_ITEM` uses its **upper-facing perimeter**.
+
+For two incoming relationships from above, do not route both relationships into `LINE_ITEM.TC` and do not use the same top-centre marker location.
+
+Use balanced upper-facing perimeter anchors:
+
+```text
+ORDER   -> LINE_ITEM target anchor = upper-left-facing perimeter anchor
+PRODUCT -> LINE_ITEM target anchor = upper-right-facing perimeter anchor
+```
+
+Acceptable concrete anchors are:
+
+```text
+ORDER   -> LINE_ITEM target anchor = upper-left corner-adjacent anchor, such as 1T or 1L/2L depending on curve approach
+PRODUCT -> LINE_ITEM target anchor = upper-right corner-adjacent anchor, such as 4T or 1R/2R depending on curve approach
+```
+
+The gold-standard image visually favours corner-adjacent upper perimeter anchors rather than the exact top-centre slots:
+
+```text
+ORDER   -> LINE_ITEM approaches the upper-left shoulder of LINE_ITEM
+PRODUCT -> LINE_ITEM approaches the upper-right shoulder of LINE_ITEM
+```
+
+This means the target endpoint tangent must be consistent with the selected upper-facing anchor:
+
+```text
+ORDER -> LINE_ITEM:
+    target anchor is on the upper-left facing perimeter;
+    the final Bezier tangent approaches from upper-left / left-outside.
+
+PRODUCT -> LINE_ITEM:
+    target anchor is on the upper-right facing perimeter;
+    the final Bezier tangent approaches from upper-right / right-outside.
+```
+
+The renderer must therefore allocate `LINE_ITEM` target anchors as a group before constructing either Bezier curve.
+
+Do not do this:
+
+```text
+ORDER   -> LINE_ITEM target = LINE_ITEM.TC
+PRODUCT -> LINE_ITEM target = LINE_ITEM.TC
+```
+
+Do this instead:
+
+```text
+ORDER   -> LINE_ITEM target = upper-left-facing slot on LINE_ITEM
+PRODUCT -> LINE_ITEM target = upper-right-facing slot on LINE_ITEM
+```
+
+This is the specific 1 -> 2 case shown in the gold-standard diagram.
+
+### 11.6 Bezier pull length calculation
 
 Recommended pull lengths:
 
@@ -963,6 +1050,7 @@ The renderer must implement the following:
 - [ ] Source/facing-aware bulge direction selection.
 - [ ] Geometric cardinality markers.
 - [ ] Label placement from resolved path geometry.
+- [ ] Explicit two-parent target handling: two relationships entering the same lower target from above must use upper-left and upper-right facing target anchors, not a shared top-centre anchor.
 - [ ] Collision avoidance for labels and markers.
 - [ ] No literal Mermaid quote characters in labels.
 
@@ -1002,7 +1090,8 @@ For the gold standard `CUSTOMER`, `ORDER`, `PRODUCT`, and `LINE_ITEM` diagram:
 - `CUSTOMER -> ORDER` is straight vertical;
 - `ORDER -> LINE_ITEM` leaves from the bottom of `ORDER` and approaches the upper-left of `LINE_ITEM`;
 - `PRODUCT -> LINE_ITEM` leaves from the bottom of `PRODUCT` and approaches the upper-right of `LINE_ITEM`;
-- the two lower relationships must have distinct target-side anchors and distinct endpoint markers.
+- the two lower relationships must have distinct `LINE_ITEM` target anchors and distinct endpoint markers;
+- because `LINE_ITEM` receives two relationships from above, it must allocate balanced upper-left and upper-right facing target anchors rather than a shared top-centre anchor.
 
 For the incoming relationship examples:
 
