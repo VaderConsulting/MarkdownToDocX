@@ -1940,6 +1940,20 @@ Mermaid flowchart edges define both the visual line pattern and marker type.
 | `A o-- B` / `A --o B` | circle marker line | solid | circle marker at start/end depending syntax |
 | `A x-- B` / `A --x B` | cross marker line | solid | cross marker at start/end depending syntax |
 
+### 11.1 Default Stroke Widths (theme default)
+
+For Mermaid’s built-in `default` theme (and absent any overriding style directives), the resolved edge stroke widths are:
+
+- normal edges: `1px`
+- thick edges (`===`, `==>`): `3.5px`
+
+Evidence sources:
+
+- theme/default CSS selectors such as `.edgePath .path` (normal edges)
+- theme/default CSS selectors such as `.edge-thickness-thick` (thick edges)
+
+For non-browser renderers that do not implement a full CSS cascade, these values must be emitted as explicit drawing properties (for example, by setting the SVG `stroke-width` presentation attribute on each edge path).
+
 The official flowchart documentation states that flowcharts are composed of nodes and edges and that the Mermaid code accommodates different arrow types, multi-directional arrows and links to/from subgraphs.
 
 ---

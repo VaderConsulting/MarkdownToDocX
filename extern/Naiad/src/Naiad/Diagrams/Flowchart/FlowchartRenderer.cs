@@ -606,7 +606,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         var strokeWidth = edge.LineStyle switch
         {
             EdgeStyle.Thick => 3.5,
-            _ => 2.0
+            _ => 1.0
         };
 
         var markerEnd = edge.Type switch
