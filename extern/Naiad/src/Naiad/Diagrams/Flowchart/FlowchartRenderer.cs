@@ -21,9 +21,17 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
     const double FlowchartNodeLabelExtraVerticalOffsetPx = 4;
 
     /// <summary>
-    /// Vertical gap between ranks (layers) passed to the layout engine. Tuned for tighter packing vs the Mermaid / VS Code reference.
+    /// Mermaid flowchart defaults (from Mermaid source):
+    /// nodeSpacing = 50, rankSpacing = 50.
     /// </summary>
-    const double FlowchartRankSeparationPx = 55;
+    const double FlowchartNodeSpacingPx = 50;
+
+    const double FlowchartRankSpacingPx = 50;
+
+    /// <summary>
+    /// Mermaid flowchart default diagram padding (from Mermaid source): diagramPadding = 8.
+    /// </summary>
+    const double FlowchartDiagramPaddingPx = 8;
 
     /// <summary>
     /// Catmull–Rom chord divisor: larger values tighten curves toward the polyline control points.
@@ -89,8 +97,8 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         var layoutOptions = new LayoutOptions
         {
             Direction = model.Direction,
-            NodeSeparation = 50,
-            RankSeparation = FlowchartRankSeparationPx,
+            NodeSeparation = FlowchartNodeSpacingPx,
+            RankSeparation = FlowchartRankSpacingPx,
             // Weighted edges (longer "-->") need longest-path layering; TightTree compaction was collapsing minlen gaps.
             Ranker = RankerType.LongestPath
         };
@@ -100,10 +108,15 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         // Keeping the old post-layout rotation heuristic would double-apply the transform.
         UpdateGroupNodesFromSubgraphBounds(model);
 
-        // Build SVG
+        // Build SVG. Mermaid computes the viewport from the rendered element bounds plus diagramPadding.
+#pragma warning disable IDE0007
+        MermaidSharp.Models.Rect bounds = ComputeFlowchartContentBounds(model, options);
+        var viewBox = $"{Fmt(bounds.X - FlowchartDiagramPaddingPx)} {Fmt(bounds.Y - FlowchartDiagramPaddingPx)} {Fmt(bounds.Width + (FlowchartDiagramPaddingPx * 2.0))} {Fmt(bounds.Height + (FlowchartDiagramPaddingPx * 2.0))}";
+#pragma warning restore IDE0007
+
         var builder = new SvgBuilder()
-            .Size(layoutResult.Width, layoutResult.Height)
-            .Padding(options.Padding)
+            .Size(bounds.Width + (FlowchartDiagramPaddingPx * 2.0), bounds.Height + (FlowchartDiagramPaddingPx * 2.0))
+            .ViewBox(viewBox)
             .AddMermaidArrowMarker()
             .AddMermaidCircleMarker()
             .AddMermaidCrossMarker()
@@ -678,8 +691,11 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         {
             var labelX = edge.LabelPosition.X;
             var labelY = edge.LabelPosition.Y;
-            var labelWidth = edge.Label.Length * 8 + 16;
-            var labelHeight = 24;
+#pragma warning disable IDE0007
+            Size labelSize = MeasureText(edge.Label, options.FontSize);
+            double labelWidth = labelSize.Width + 16;
+            double labelHeight = Math.Max(24, labelSize.Height + 8);
+#pragma warning restore IDE0007
 
             builder.AddRect(
                 labelX - labelWidth / 2, labelY - labelHeight / 2,
@@ -695,6 +711,86 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
                 fontSizePx: options.FontSize,
                 opticalVerticalBiasEm: flowchartLabelOpticalBiasEm);
         }
+    }
+
+    static MermaidSharp.Models.Rect ComputeFlowchartContentBounds(FlowchartModel model, RenderOptions options)
+    {
+#pragma warning disable IDE0007
+        bool hasAny = false;
+        double minX = 0;
+        double minY = 0;
+        double maxX = 0;
+        double maxY = 0;
+
+        void AddBounds(double left, double top, double right, double bottom)
+        {
+            if (!hasAny)
+            {
+                hasAny = true;
+                minX = left;
+                minY = top;
+                maxX = right;
+                maxY = bottom;
+                return;
+            }
+
+            minX = Math.Min(minX, left);
+            minY = Math.Min(minY, top);
+            maxX = Math.Max(maxX, right);
+            maxY = Math.Max(maxY, bottom);
+        }
+
+        foreach (Node node in model.Nodes)
+        {
+            double left = node.Position.X - node.Width / 2.0;
+            double top = node.Position.Y - node.Height / 2.0;
+            double right = node.Position.X + node.Width / 2.0;
+            double bottom = node.Position.Y + node.Height / 2.0;
+            AddBounds(left, top, right, bottom);
+        }
+
+        foreach (MermaidSharp.Models.Subgraph subgraph in model.Subgraphs)
+        {
+            MermaidSharp.Models.Rect subgraphBounds = ComputeSubgraphBounds(model, subgraph);
+            if (subgraphBounds.Width > 0 && subgraphBounds.Height > 0)
+            {
+                AddBounds(subgraphBounds.X, subgraphBounds.Y, subgraphBounds.X + subgraphBounds.Width, subgraphBounds.Y + subgraphBounds.Height);
+            }
+        }
+
+        foreach (Edge edge in model.Edges)
+        {
+            if (!string.IsNullOrWhiteSpace(edge.Label))
+            {
+                Size labelSize = MeasureText(edge.Label, options.FontSize);
+                double labelWidth = labelSize.Width + 16;
+                double labelHeight = Math.Max(24, labelSize.Height + 8);
+                double left = edge.LabelPosition.X - (labelWidth / 2.0);
+                double top = edge.LabelPosition.Y - (labelHeight / 2.0);
+                double right = edge.LabelPosition.X + (labelWidth / 2.0);
+                double bottom = edge.LabelPosition.Y + (labelHeight / 2.0);
+                AddBounds(left, top, right, bottom);
+            }
+
+            foreach (Position point in edge.Points)
+            {
+                AddBounds(point.X, point.Y, point.X, point.Y);
+            }
+        }
+
+        if (!hasAny)
+        {
+            return new MermaidSharp.Models.Rect(0, 0, 0, 0);
+        }
+
+        // Allow for marker extents beyond the last edge point.
+        const double MARKER_MARGIN_PX = 12.0;
+        minX -= MARKER_MARGIN_PX;
+        minY -= MARKER_MARGIN_PX;
+        maxX += MARKER_MARGIN_PX;
+        maxY += MARKER_MARGIN_PX;
+        return new MermaidSharp.Models.Rect(minX, minY, maxX - minX, maxY - minY);
+#pragma warning restore IDE0007
     }
 
     /// <summary>
@@ -971,10 +1067,20 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
     /// </summary>
     static string ConvertIconsToHtml(string text)
     {
+        static string HtmlEncodePreservingBr(string value)
+        {
+#pragma warning disable IDE0007
+            string encoded = System.Net.WebUtility.HtmlEncode(value);
+            encoded = encoded.Replace("&lt;br/&gt;", "<br/>", StringComparison.OrdinalIgnoreCase);
+            encoded = encoded.Replace("&lt;br&gt;", "<br/>", StringComparison.OrdinalIgnoreCase);
+            return encoded;
+#pragma warning restore IDE0007
+        }
+
         // If no icons, just encode and wrap in paragraph
         if (!iconPattern.IsMatch(text))
         {
-            return $"<p>{System.Net.WebUtility.HtmlEncode(text)}</p>";
+            return $"<p>{HtmlEncodePreservingBr(text)}</p>";
         }
 
         // Build HTML by processing text segments and icons
@@ -987,7 +1093,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             if (match.Index > lastIndex)
             {
                 var textBefore = text[lastIndex..match.Index];
-                html.Append(System.Net.WebUtility.HtmlEncode(textBefore));
+                html.Append(HtmlEncodePreservingBr(textBefore));
             }
 
             // Add the icon element
@@ -1001,7 +1107,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         // Add remaining text after last icon
         if (lastIndex < text.Length)
         {
-            html.Append(System.Net.WebUtility.HtmlEncode(text[lastIndex..]));
+            html.Append(HtmlEncodePreservingBr(text[lastIndex..]));
         }
 
         return $"<p>{html.ToString().Trim()}</p>";
