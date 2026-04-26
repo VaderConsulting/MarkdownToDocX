@@ -405,12 +405,13 @@ static class CoordinateAssignment
             ErAttachByEdge = BuildErVerticalAttachPoints(graph);
         }
 
-        // For vertical flowcharts (TD/BT), use the same “slot” distribution approach as ER vertical ports:
-        // allocate anchors based on facing direction and distribute along the facing edge.
+        // For vertical flowcharts (TD/BT), allocate anchors using a slot scheme:
+        // split the facing edge into (2N-1) slots for N parallel edges, using the centres of slots 1,3,5...
+        // (e.g., for N=2, split into 3 slots and use 1st and 3rd).
         Dictionary<LayoutEdge, (double SourceX, double SourceY, double TargetX, double TargetY)>? FlowchartVerticalAttachByEdge = null;
         if (!isHorizontal && FlowchartDiagram is not null)
         {
-            FlowchartVerticalAttachByEdge = BuildErVerticalAttachPoints(graph);
+            FlowchartVerticalAttachByEdge = BuildFlowchartVerticalAttachPoints(graph);
         }
 #pragma warning restore IDE0007
 
@@ -976,6 +977,252 @@ static class CoordinateAssignment
         }
 
         return AttachByEdge;
+#pragma warning restore IDE0007
+    }
+
+    static Dictionary<LayoutEdge, (double SourceX, double SourceY, double TargetX, double TargetY)> BuildFlowchartVerticalAttachPoints(LayoutGraph graph)
+    {
+#pragma warning disable IDE0007
+        Dictionary<LayoutEdge, (double SourceX, double SourceY, double TargetX, double TargetY)> AttachByEdge =
+            new Dictionary<LayoutEdge, (double SourceX, double SourceY, double TargetX, double TargetY)>();
+
+        Dictionary<string, List<LayoutEdge>> IncidentByRealNodeId = new Dictionary<string, List<LayoutEdge>>(StringComparer.Ordinal);
+        for (int i = 0; i < graph.Edges.Count; i++)
+        {
+            LayoutEdge Edge = graph.Edges[i];
+            LayoutNode? Source = graph.GetNode(Edge.SourceId);
+            LayoutNode? Target = graph.GetNode(Edge.TargetId);
+            if (Source is null || Target is null)
+            {
+                continue;
+            }
+
+            if (!Source.IsDummy)
+            {
+                if (!IncidentByRealNodeId.TryGetValue(Source.Id, out List<LayoutEdge>? List))
+                {
+                    List = new List<LayoutEdge>();
+                    IncidentByRealNodeId[Source.Id] = List;
+                }
+                List.Add(Edge);
+            }
+
+            if (!Target.IsDummy)
+            {
+                if (!IncidentByRealNodeId.TryGetValue(Target.Id, out List<LayoutEdge>? List))
+                {
+                    List = new List<LayoutEdge>();
+                    IncidentByRealNodeId[Target.Id] = List;
+                }
+                List.Add(Edge);
+            }
+        }
+
+        foreach (KeyValuePair<string, List<LayoutEdge>> kvp in IncidentByRealNodeId)
+        {
+            string NodeId = kvp.Key;
+            LayoutNode? Hub = graph.GetNode(NodeId);
+            if (Hub is null)
+            {
+                continue;
+            }
+
+            List<LayoutEdge> IncidentEdges = kvp.Value;
+            if (IncidentEdges.Count == 0)
+            {
+                continue;
+            }
+
+            List<LayoutEdge> UpEdges = new List<LayoutEdge>();
+            List<LayoutEdge> DownEdges = new List<LayoutEdge>();
+            List<LayoutEdge> LeftEdges = new List<LayoutEdge>();
+            List<LayoutEdge> RightEdges = new List<LayoutEdge>();
+
+            for (int i = 0; i < IncidentEdges.Count; i++)
+            {
+                LayoutEdge Edge = IncidentEdges[i];
+                if (!TryGetOriginalEdgeEndpoints(graph, Edge, out string OriginalSourceId, out string OriginalTargetId))
+                {
+                    continue;
+                }
+
+                string OtherRealId;
+                if (string.Equals(NodeId, OriginalSourceId, StringComparison.Ordinal))
+                {
+                    OtherRealId = OriginalTargetId;
+                }
+                else if (string.Equals(NodeId, OriginalTargetId, StringComparison.Ordinal))
+                {
+                    OtherRealId = OriginalSourceId;
+                }
+                else
+                {
+                    continue;
+                }
+
+                LayoutNode? Other = graph.GetNode(OtherRealId);
+                if (Other is null)
+                {
+                    continue;
+                }
+
+                FacingDirection Facing = ClassifyFacing(Hub, Other);
+                if (Facing == FacingDirection.Up)
+                {
+                    UpEdges.Add(Edge);
+                }
+                else if (Facing == FacingDirection.Down)
+                {
+                    DownEdges.Add(Edge);
+                }
+                else if (Facing == FacingDirection.Left)
+                {
+                    LeftEdges.Add(Edge);
+                }
+                else
+                {
+                    RightEdges.Add(Edge);
+                }
+            }
+
+            AllocateFlowchartVerticalFacingGroup(graph, Hub, NodeId, UpEdges, FacingDirection.Up, AttachByEdge);
+            AllocateFlowchartVerticalFacingGroup(graph, Hub, NodeId, DownEdges, FacingDirection.Down, AttachByEdge);
+            AllocateFlowchartVerticalFacingGroup(graph, Hub, NodeId, LeftEdges, FacingDirection.Left, AttachByEdge);
+            AllocateFlowchartVerticalFacingGroup(graph, Hub, NodeId, RightEdges, FacingDirection.Right, AttachByEdge);
+        }
+
+        for (int i = 0; i < graph.Edges.Count; i++)
+        {
+            LayoutEdge Edge = graph.Edges[i];
+            LayoutNode? Source = graph.GetNode(Edge.SourceId);
+            LayoutNode? Target = graph.GetNode(Edge.TargetId);
+            if (Source is null || Target is null)
+            {
+                continue;
+            }
+
+            double DefaultSourceX = Source.X;
+            double DefaultTargetX = Target.X;
+            double DefaultSourceY = Source.Y + Source.Height / 2 + FlowchartEdgeNodeGap;
+            double DefaultTargetY = Target.Y - Target.Height / 2 - FlowchartEdgeNodeGap;
+
+            if (!AttachByEdge.TryGetValue(Edge, out (double SourceX, double SourceY, double TargetX, double TargetY) Existing))
+            {
+                AttachByEdge[Edge] = (DefaultSourceX, DefaultSourceY, DefaultTargetX, DefaultTargetY);
+                continue;
+            }
+
+            double SourceX = Existing.SourceX;
+            double TargetX = Existing.TargetX;
+            double SourceY = Existing.SourceY;
+            double TargetY = Existing.TargetY;
+
+            if (double.IsNaN(SourceX))
+            {
+                SourceX = DefaultSourceX;
+            }
+            if (double.IsNaN(TargetX))
+            {
+                TargetX = DefaultTargetX;
+            }
+            if (double.IsNaN(SourceY))
+            {
+                SourceY = DefaultSourceY;
+            }
+            if (double.IsNaN(TargetY))
+            {
+                TargetY = DefaultTargetY;
+            }
+
+            AttachByEdge[Edge] = (SourceX, SourceY, TargetX, TargetY);
+        }
+
+        return AttachByEdge;
+#pragma warning restore IDE0007
+    }
+
+    static void AllocateFlowchartVerticalFacingGroup(
+        LayoutGraph graph,
+        LayoutNode hub,
+        string hubId,
+        List<LayoutEdge> edges,
+        FacingDirection facing,
+        Dictionary<LayoutEdge, (double SourceX, double SourceY, double TargetX, double TargetY)> attachByEdge)
+    {
+#pragma warning disable IDE0007
+        if (edges.Count == 0)
+        {
+            return;
+        }
+
+        // Slot rule: for N edges, use (2N-1) slots and select slot indices 0,2,4...
+        int edgeCount = edges.Count;
+        int slotCount = (edgeCount * 2) - 1;
+
+        double left = hub.X - (hub.Width / 2.0) - FlowchartEdgeNodeGap;
+        double right = hub.X + (hub.Width / 2.0) + FlowchartEdgeNodeGap;
+        double top = hub.Y - (hub.Height / 2.0) - FlowchartEdgeNodeGap;
+        double bottom = hub.Y + (hub.Height / 2.0) + FlowchartEdgeNodeGap;
+
+        for (int i = 0; i < edges.Count; i++)
+        {
+            LayoutEdge Edge = edges[i];
+            if (!TryGetOriginalEdgeEndpoints(graph, Edge, out string OriginalSourceId, out string OriginalTargetId))
+            {
+                continue;
+            }
+
+            bool isSourceEndpoint = string.Equals(hubId, OriginalSourceId, StringComparison.Ordinal);
+            bool isTargetEndpoint = string.Equals(hubId, OriginalTargetId, StringComparison.Ordinal);
+            if (!isSourceEndpoint && !isTargetEndpoint)
+            {
+                continue;
+            }
+
+            int slotIndex = i * 2;
+            double t = (slotIndex + 0.5) / slotCount;
+
+            double x;
+            double y;
+            if (facing == FacingDirection.Down)
+            {
+                x = left + ((right - left) * t);
+                y = bottom;
+            }
+            else if (facing == FacingDirection.Up)
+            {
+                x = left + ((right - left) * t);
+                y = top;
+            }
+            else if (facing == FacingDirection.Left)
+            {
+                x = left;
+                y = top + ((bottom - top) * t);
+            }
+            else
+            {
+                x = right;
+                y = top + ((bottom - top) * t);
+            }
+
+            if (!attachByEdge.TryGetValue(Edge, out (double SourceX, double SourceY, double TargetX, double TargetY) Existing))
+            {
+                Existing = (double.NaN, double.NaN, double.NaN, double.NaN);
+            }
+
+            if (isSourceEndpoint)
+            {
+                Existing.SourceX = x;
+                Existing.SourceY = y;
+            }
+            else
+            {
+                Existing.TargetX = x;
+                Existing.TargetY = y;
+            }
+
+            attachByEdge[Edge] = Existing;
+        }
 #pragma warning restore IDE0007
     }
 

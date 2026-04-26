@@ -1175,6 +1175,11 @@ Additional Word-first fixture rule:
 
 - If a decision “Yes/No” branch targets a node with **exactly one incoming edge**, snap the target port to the **midpoint of the target side facing the source** (left-centre for the common left-to-right case). Marker endpoint trimming still applies after snapping.
 
+Vertical flowchart port rule (TD/BT, fixture):
+
+- For a node with \(N\) parallel edges leaving (or arriving on) the same facing edge, split that edge into **\(2N-1\)** equal-width slots and use the centres of slots **1, 3, 5, ...**.
+  - Example: \(N=2\) uses **3** slots; use the **1st** and **3rd** slot centres.
+
 Key:
 
 - **Closed**: traced far enough to specify primitive, size formula, main points/path formula, transforms, and boundary-intersection family.
