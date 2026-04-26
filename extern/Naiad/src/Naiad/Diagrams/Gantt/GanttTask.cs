@@ -11,6 +11,7 @@ public class GanttTask
     public GanttTaskStatus Status { get; set; } = GanttTaskStatus.None;
     public bool IsCritical { get; set; }
     public bool IsMilestone { get; set; }
+    public bool IsVert { get; set; }
 
     // Computed properties for rendering
     public DateTime ComputedStart { get; set; }

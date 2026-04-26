@@ -55,9 +55,9 @@ public class GanttParser : IDiagramParser<GanttModel>
         from lineEnd in CommonParsers.LineEnd
         select name.Trim();
 
-    static (bool active, bool done, bool crit, bool milestone) ParseModifiers(List<string> parts)
+    static (bool active, bool done, bool crit, bool milestone, bool vert) ParseModifiers(List<string> parts)
     {
-        bool active = false, done = false, crit = false, milestone = false;
+        bool active = false, done = false, crit = false, milestone = false, vert = false;
         foreach (var part in parts)
         {
             var lower = part.ToLowerInvariant();
@@ -65,9 +65,10 @@ public class GanttParser : IDiagramParser<GanttModel>
             else if (lower == "done") done = true;
             else if (lower == "crit") crit = true;
             else if (lower == "milestone") milestone = true;
+            else if (lower == "vert") vert = true;
         }
 
-        return (active, done, crit, milestone);
+        return (active, done, crit, milestone, vert);
     }
 
     static TimeSpan ParseDuration(int num, char unit) =>
@@ -126,6 +127,12 @@ public class GanttParser : IDiagramParser<GanttModel>
             if (lower == "milestone")
             {
                 task.IsMilestone = true;
+                continue;
+            }
+            
+            if (lower == "vert")
+            {
+                task.IsVert = true;
                 continue;
             }
 

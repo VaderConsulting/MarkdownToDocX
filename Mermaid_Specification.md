@@ -720,6 +720,15 @@ Task label rule:
 - The **task name text** is the primary label (`d.task` in Mermaid), not the task id.
 - If the label text does not fit inside the bar, Mermaid places it just outside the bar (left or right), otherwise centred within the bar.
 
+Vertical markers (`vert`) (source: `packages/mermaid/src/diagrams/gantt/ganttRenderer.js`):
+
+- Rendered as a thin task rect with:
+  - `y = gridLineStartPadding`
+  - `width = 0.08 * barHeight` (with default `barHeight=20` → `1.6px`)
+  - `height = taskArray.length * (barHeight + barGap) + barHeight * 2`
+- The `vert` label is placed below the chart at:
+  - `y = gridLineStartPadding + taskArray.length * (barHeight + barGap) + 60`
+
 Source-traced marker geometry (selected high-signal details):
 
 - **ONLY_ONE**:

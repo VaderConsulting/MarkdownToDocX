@@ -498,7 +498,7 @@ gantt
     Critical + active (crit, active) :crit, active, c3, after c2, 2d
 
     section Markers (today + vert + milestone)
-    Vertical marker (vert)           :vert,    v1, 2026-04-04, 1d
+    Vertical marker (vert)           :vert,    v1, 2026-04-05, 1d
     Milestone (milestone)            :milestone, m1, 2026-04-07, 0d
     Tail task (default)              :         t1, after m1, 2d
 ```

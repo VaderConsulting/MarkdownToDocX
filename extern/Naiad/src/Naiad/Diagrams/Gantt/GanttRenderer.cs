@@ -50,6 +50,12 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
         return Math.Max(1.5, fs * 0.11);
     }
 
+    static double GanttWordBarLabelDown(RenderOptions options)
+    {
+        var fs = Math.Max(8, options.FontSize - 2);
+        return Math.Max(1.0, fs * 0.10);
+    }
+
     public SvgDocument Render(GanttModel model, RenderOptions options)
     {
         // Compute task dates
@@ -74,6 +80,11 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
         int totalTaskCount = model.Sections.Sum(_ => _.Tasks.Count);
 #pragma warning restore IDE0007
         var height = (2 * TOP_PADDING_PX) + (totalTaskCount * rowHeight);
+        if (tasks.Any(_ => _.IsVert))
+        {
+            // Mermaid places the vert label below the grid; keep space for it.
+            height = Math.Max(height, GRID_LINE_START_PADDING_PX + (totalTaskCount * rowHeight) + 60 + TOP_PADDING_PX);
+        }
 
         // Mermaid width defaults to 1200 (unless gantt.useWidth overrides).
         var width = DEFAULT_WIDTH_PX;
@@ -139,7 +150,7 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
             // Tasks
             foreach (var task in section.Tasks)
             {
-                DrawTask(builder, task, minDate, currentRow, offsetX, offsetY, dayWidthPx, options);
+                DrawTask(builder, task, minDate, currentRow, offsetX, offsetY, dayWidthPx, totalTaskCount, height, options);
                 currentRow++;
             }
         }
@@ -263,7 +274,7 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
     }
 
     static void DrawTask(SvgBuilder builder, GanttTask task, DateTime startDate, int row,
-        double offsetX, double offsetY, double dayWidthPx, RenderOptions options)
+        double offsetX, double offsetY, double dayWidthPx, int totalTaskCount, double height, RenderOptions options)
     {
         var y = offsetY + row * rowHeight;
         var startDays = (task.ComputedStart - startDate).Days;
@@ -323,6 +334,34 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
             textColor = "white";
         }
 
+        if (task.IsVert)
+        {
+            // Mermaid: vert marker is a thin rect spanning the chart height, starting at gridLineStartPadding.
+            // Width: 0.08 * barHeight.
+#pragma warning disable IDE0007
+            double vertWidth = 0.08 * taskBarHeight;
+            double vertY = GRID_LINE_START_PADDING_PX;
+            double vertHeight = (totalTaskCount * rowHeight) + (taskBarHeight * 2);
+
+            builder.AddRect(taskX, vertY, vertWidth, vertHeight,
+                rx: 0,
+                fill: TASK_BKG_COLOR,
+                stroke: TASK_BORDER_COLOR,
+                strokeWidth: 1);
+
+            // Label at the bottom, centred on the line.
+            double labelY = GRID_LINE_START_PADDING_PX + (totalTaskCount * rowHeight) + 60;
+            builder.AddText(taskX, labelY, task.Name,
+                anchor: "middle",
+                baseline: "middle",
+                fontSize: $"{Math.Max(8, options.FontSize - 2)}px",
+                fontFamily: options.FontFamily,
+                fill: "#000");
+#pragma warning restore IDE0007
+
+            return;
+        }
+
         if (task.IsMilestone)
         {
             // Draw milestone as diamond
@@ -358,8 +397,8 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
                     IsLikelyToFitInsideBar = true;
                 }
 
-                // Vertically centre the text within the bar.
-                var barLabelY = barY + taskBarHeight / 2;
+                // Word baseline adjustment: aim for visual centre in Word.
+                var barLabelY = barY + taskBarHeight / 2 + GanttWordBarLabelDown(options);
                 double textX = taskX + taskWidth / 2;
                 string textAnchor = "middle";
                 if (!IsLikelyToFitInsideBar)
