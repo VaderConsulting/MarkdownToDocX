@@ -50,11 +50,14 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
         return Math.Max(1.5, fs * 0.11);
     }
 
-    static double GanttWordBarLabelDown(RenderOptions options)
+    #pragma warning disable IDE0022
+    static double GanttWordBarLabelDown(double fontSizePx)
     {
-        var fs = Math.Max(8, options.FontSize - 2);
-        return Math.Max(1.0, fs * 0.10);
+        // Word’s `dominant-baseline="middle"` renders slightly high for these fonts.
+        // This value is empirically tuned for DOCX parity.
+        return Math.Max(2.0, fontSizePx * 0.18);
     }
+    #pragma warning restore IDE0022
 
     public SvgDocument Render(GanttModel model, RenderOptions options)
     {
@@ -398,7 +401,7 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
                 }
 
                 // Word baseline adjustment: aim for visual centre in Word.
-                var barLabelY = barY + taskBarHeight / 2 + GanttWordBarLabelDown(options);
+                var barLabelY = barY + taskBarHeight / 2 + GanttWordBarLabelDown(FontSizePx);
                 double textX = taskX + taskWidth / 2;
                 string textAnchor = "middle";
                 if (!IsLikelyToFitInsideBar)
