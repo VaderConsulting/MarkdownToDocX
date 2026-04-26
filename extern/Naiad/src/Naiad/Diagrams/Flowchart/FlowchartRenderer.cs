@@ -940,27 +940,54 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         }
 
         Position p0 = points[0];
+        Position p1 = points.Count >= 3 ? points[1] : points[^1];
+        Position p2 = points.Count >= 3 ? points[^2] : points[0];
         Position p3 = points[^1];
 
         double dx = p3.X - p0.X;
         double dy = p3.Y - p0.Y;
 
+        // Mermaid-style links typically have short straight segments at both ends. Preserve that here too so
+        // the decision branches match other flowchart edges (and Word renders the joins consistently).
+        const double MAX_ENDPOINT_STUB_PX = 18.0;
+
+        double startSegDx = p1.X - p0.X;
+        double startSegDy = p1.Y - p0.Y;
+        double startSegLen = Math.Sqrt((startSegDx * startSegDx) + (startSegDy * startSegDy));
+
+        double endSegDx = p3.X - p2.X;
+        double endSegDy = p3.Y - p2.Y;
+        double endSegLen = Math.Sqrt((endSegDx * endSegDx) + (endSegDy * endSegDy));
+
+        double startStubLen = startSegLen > 0.0 ? Math.Min(MAX_ENDPOINT_STUB_PX, startSegLen / 3.0) : 0.0;
+        double endStubLen = endSegLen > 0.0 ? Math.Min(MAX_ENDPOINT_STUB_PX, endSegLen / 3.0) : 0.0;
+
+        Position s0 = p0;
+        Position s1 = startSegLen > 0.0
+            ? new Position(p0.X + ((startSegDx / startSegLen) * startStubLen), p0.Y + ((startSegDy / startSegLen) * startStubLen))
+            : p0;
+
+        Position e3 = p3;
+        Position e2 = endSegLen > 0.0
+            ? new Position(p3.X - ((endSegDx / endSegLen) * endStubLen), p3.Y - ((endSegDy / endSegLen) * endStubLen))
+            : p3;
+
         // ERD-like: one clean cubic with:
         // - a vertically biased lead-out (curves immediately away from the decision), and
         // - a horizontally biased lead-in (straightens out as it approaches the target).
         // This matches the typical Mermaid decision-branch appearance in the Word-rendered fixture.
-        double ax = Math.Max(12.0, Math.Min(60.0, Math.Abs(dx) * 0.45));
-        double ay = Math.Max(10.0, Math.Min(55.0, Math.Abs(dy) * 0.45));
+        double ax = Math.Max(12.0, Math.Min(60.0, Math.Abs(e2.X - s1.X) * 0.45));
+        double ay = Math.Max(10.0, Math.Min(55.0, Math.Abs(e2.Y - s1.Y) * 0.45));
 
         // Start: mostly vertical tangent.
-        double c1x = p0.X + (dx >= 0 ? (ax * 0.15) : -(ax * 0.15));
-        double c1y = p0.Y + (dy >= 0 ? ay : -ay);
+        double c1x = s1.X + (dx >= 0 ? (ax * 0.15) : -(ax * 0.15));
+        double c1y = s1.Y + (dy >= 0 ? ay : -ay);
 
         // End: mostly horizontal tangent.
-        double c2x = p3.X - (dx >= 0 ? ax : -ax);
-        double c2y = p3.Y + (dy >= 0 ? -(ay * 0.15) : (ay * 0.15));
+        double c2x = e2.X - (dx >= 0 ? ax : -ax);
+        double c2y = e2.Y + (dy >= 0 ? -(ay * 0.15) : (ay * 0.15));
 
-        return $"M{Fmt(p0.X)},{Fmt(p0.Y)} C{Fmt(c1x)},{Fmt(c1y)} {Fmt(c2x)},{Fmt(c2y)} {Fmt(p3.X)},{Fmt(p3.Y)}";
+        return $"M{Fmt(s0.X)},{Fmt(s0.Y)} L{Fmt(s1.X)},{Fmt(s1.Y)} C{Fmt(c1x)},{Fmt(c1y)} {Fmt(c2x)},{Fmt(c2y)} {Fmt(e2.X)},{Fmt(e2.Y)} L{Fmt(e3.X)},{Fmt(e3.Y)}";
 #pragma warning restore IDE0007
     }
 #pragma warning restore IDE0022
