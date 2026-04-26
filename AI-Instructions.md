@@ -492,6 +492,17 @@ Then search for the diagram by label text (for example `LINE_ITEM`, `CUSTOMER`, 
 - crow’s foot toes should be `<path ...>` (curved)
 - circle markers should be `<circle ...>` with centre on the relationship line
 
+### After every regen: extract embedded SVGs (mandatory)
+
+After every regeneration of `test.docx` (a “regen”), automatically:
+
+- copy `test.docx` to `test.zip`
+- expand to `_docx_extract`
+- locate the relevant `media/image*.svg`
+- inspect the emitted SVG (paths, markers, endpoints) as part of verification
+
+Do **not** commit `_docx_extract` or `test.zip`; they are scratch artefacts for inspection only.
+
 ## Known gotchas
 
 ### Preview vs DOCX mismatch
