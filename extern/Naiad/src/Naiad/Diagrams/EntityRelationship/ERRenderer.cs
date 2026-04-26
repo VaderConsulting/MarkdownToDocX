@@ -367,14 +367,7 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
         {
             // Use a guided curveBasis route (Mermaid-like multi-segment smoothing) so the endpoint tangent matches
             // the visual line direction used by Mermaid’s ER markers.
-            if (IsMatrixStyleCardinalityLabel(rel.Label))
-            {
-                Path = BuildErGuidedCurveBasisPathWithMinimumStraights(StartPoint, EndPoint);
-            }
-            else
-            {
-                Path = BuildErGuidedCurveBasisPath(StartPoint, EndPoint);
-            }
+            Path = BuildErGuidedCurveBasisPath(StartPoint, EndPoint);
         }
         else
         {
@@ -938,60 +931,6 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
 
         return BuildErCurveBasisPath(MermaidPoints);
 #pragma warning restore IDE0007
-    }
-
-    static ErCurveBasisPath BuildErGuidedCurveBasisPathWithMinimumStraights(Position P0, Position P3)
-    {
-#pragma warning disable IDE0007
-        double Dx = P3.X - P0.X;
-        double Dy = P3.Y - P0.Y;
-
-        // Vertical matrix edges should still follow the Mermaid curveBasis structure.
-        if (Math.Abs(Dx) < 0.75)
-        {
-            return BuildErGuidedCurveBasisPath(P0, P3);
-        }
-
-        // Matrix-style minimum straight segments before smoothing.
-        const double MINIMUM_STRAIGHT_EXIT_PX = 28.0;
-        const double MINIMUM_STRAIGHT_ENTRY_PX = 28.0;
-        const double MINIMUM_CLEARANCE_PX = 6.0;
-
-        double DirectionY = Dy >= 0.0 ? 1.0 : -1.0;
-        Position ExitPoint = new Position(P0.X, P0.Y + (DirectionY * MINIMUM_STRAIGHT_EXIT_PX));
-        Position EntryPoint = new Position(P3.X, P3.Y - (DirectionY * MINIMUM_STRAIGHT_ENTRY_PX));
-
-        bool HasRoomForMinSegments = DirectionY > 0.0
-            ? ExitPoint.Y <= (EntryPoint.Y - MINIMUM_CLEARANCE_PX)
-            : ExitPoint.Y >= (EntryPoint.Y + MINIMUM_CLEARANCE_PX);
-
-        if (HasRoomForMinSegments)
-        {
-            List<Position> MermaidPoints = new List<Position>
-            {
-                P0,
-                ExitPoint,
-                EntryPoint,
-                P3
-            };
-            return BuildErCurveBasisPath(MermaidPoints);
-        }
-
-        return BuildErGuidedCurveBasisPath(P0, P3);
-#pragma warning restore IDE0007
-    }
-
-    static bool IsMatrixStyleCardinalityLabel(string? Label)
-    {
-        if (string.IsNullOrWhiteSpace(Label))
-        {
-            return false;
-        }
-
-        // Matrix fixture labels are literal cardinality strings like "||--o{" or "||..|{" (including quotes).
-        // Scenario-1 relationship labels are words like "places" / "contains" / "appears_in".
-        return (Label.Contains("||", StringComparison.Ordinal) || Label.Contains("..", StringComparison.Ordinal))
-            && Label.Contains("--", StringComparison.Ordinal);
     }
 
     static double Clamp(double value, double min, double max)
