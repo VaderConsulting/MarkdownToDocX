@@ -196,6 +196,8 @@ public class GanttParser : IDiagramParser<GanttModel>
             Try(axisFormatParser.Select(_ => (object?) ("axisFormat", _))),
             Try(excludesParser.Select(_ => (object?) ("excludes", _))),
             Try(sectionParser.Select(_ => (object?) ("section", _))),
+            // Mermaid comments ("%% ...") can contain ':' so must be skipped before task parsing.
+            Try(CommonParsers.InlineWhitespace.Then(CommonParsers.Comment).ThenReturn((object?) null)),
             Try(taskParser.Select(_ => (object?) _)),
             skipLine.ThenReturn((object?) null)
         );
