@@ -21,11 +21,13 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
     const string DONE_TASK_BORDER_COLOR = "grey";
     const string CRIT_TASK_BORDER_COLOR = "#ff8888";
 
-    // Mermaid uses per-row section fills with opacity 0.2; we bake that into rgba for Word/DOCX.
-    const string SECTION0_ROW_COLOR = "rgba(102, 102, 255, 0.2)";
-    const string SECTION1_ROW_COLOR = "rgba(255, 255, 255, 0.2)";
-    const string SECTION2_ROW_COLOR = "rgba(255, 244, 0, 0.2)";
-    const string SECTION3_ROW_COLOR = "rgba(255, 255, 255, 0.2)";
+    // Mermaid uses per-row section fills with opacity 0.2.
+    // Word does not reliably respect `rgba(..., alpha)` in SVG fills, so emit solid fills and apply `fill-opacity`.
+    const string SECTION0_ROW_COLOR = "rgb(102, 102, 255)";
+    const string SECTION1_ROW_COLOR = "white";
+    const string SECTION2_ROW_COLOR = "#fff400";
+    const string SECTION3_ROW_COLOR = "white";
+    const string SECTION_ROW_FILL_OPACITY_STYLE = "fill-opacity: 0.2";
 
     // Section header band (Mermaid live uses the same palette but not necessarily the same opacity).
     const string SECTION_HEADER_COLOR = "rgba(102, 102, 255, 0.49)";
@@ -78,8 +80,13 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
 
         // Ensure the viewBox is wide enough for long section titles and task labels placed outside bars.
         var maxLeftLabelWidthPx = EstimateMaxLeftLabelWidthPx(model, options);
-        var minWidthForLabels = options.Padding + 10 + maxLeftLabelWidthPx + options.Padding;
-        width = Math.Max(width, minWidthForLabels);
+        var minWidthForLeftLabels = options.Padding + 10 + maxLeftLabelWidthPx + options.Padding;
+
+        // If task labels are placed outside to the right, the SVG must be wide enough or Word will clip them.
+        var maxRightLabelWidthPx = EstimateMaxRightLabelWidthPx(model, options);
+        var minWidthForRightLabels = (options.Padding + leftMargin) + chartWidth + 6 + maxRightLabelWidthPx + options.Padding;
+
+        width = Math.Max(width, Math.Max(minWidthForLeftLabels, minWidthForRightLabels));
 
         var builder = new SvgBuilder().Size(width, height);
 
@@ -367,7 +374,7 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
             {
                 var y = offsetY + (currentRow + i) * rowHeight - 2;
                 builder.AddRect(options.Padding, y, leftMargin + chartWidth, rowHeight,
-                    fill: sectionFill, stroke: "none");
+                    fill: sectionFill, stroke: "none", style: SECTION_ROW_FILL_OPACITY_STYLE);
             }
 
             currentRow += section.Tasks.Count;
@@ -421,6 +428,28 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
 #pragma warning disable IDE0007
         double weightFactor = isBold ? 1.08 : 1.0;
         return text.Length * fontSizePx * 0.6 * weightFactor;
+#pragma warning restore IDE0007
+    }
+
+    static double EstimateMaxRightLabelWidthPx(GanttModel model, RenderOptions options)
+    {
+        // Task labels placed outside use the smaller bar label font size.
+#pragma warning disable IDE0007
+        double fontSizePx = Math.Max(8, options.FontSize - 2);
+        double maxWidth = 0;
+
+        foreach (var section in model.Sections)
+        {
+            foreach (var task in section.Tasks)
+            {
+                if (!string.IsNullOrWhiteSpace(task.Name))
+                {
+                    maxWidth = Math.Max(maxWidth, EstimateTextWidthPx(task.Name, fontSizePx, isBold: false));
+                }
+            }
+        }
+
+        return maxWidth;
 #pragma warning restore IDE0007
     }
 
