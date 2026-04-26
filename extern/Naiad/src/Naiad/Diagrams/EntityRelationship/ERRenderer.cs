@@ -367,7 +367,14 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
         {
             // Use a guided curveBasis route (Mermaid-like multi-segment smoothing) so the endpoint tangent matches
             // the visual line direction used by Mermaid’s ER markers.
-            Path = BuildErGuidedCurveBasisPath(StartPoint, EndPoint);
+            if (IsMatrixStyleCardinalityLabel(rel.Label))
+            {
+                Path = BuildErGuidedCurveBasisPathWithMinimumStraights(StartPoint, EndPoint);
+            }
+            else
+            {
+                Path = BuildErGuidedCurveBasisPath(StartPoint, EndPoint);
+            }
         }
         else
         {
@@ -910,9 +917,39 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
             return Result;
         }
 
-        // Mirror Mermaid’s “vertical then diagonal” feel, but enforce minimum straight exit/entry lengths so
-        // short vertical separations in matrix fixtures still show the same characteristic straight segments
-        // as the scenario-1 shoulders.
+        // Mirror Mermaid: use Dagre's 3-point edge route (vertical down, then diagonal in).
+        // Mermaid applies d3.line().curve(curveBasis) to edge.points, so the waypoint positions matter.
+        double MidY = (P0.Y + P3.Y) / 2.0;
+        Position MidPoint = new Position(P0.X, MidY);
+
+        List<Position> MermaidPoints = new List<Position>
+        {
+            P0,
+            MidPoint,
+            P3
+        };
+
+        return BuildErCurveBasisPath(MermaidPoints);
+#pragma warning restore IDE0007
+    }
+
+    static ErCurveBasisPath BuildErGuidedCurveBasisPathWithMinimumStraights(Position P0, Position P3)
+    {
+#pragma warning disable IDE0007
+        double Dx = P3.X - P0.X;
+        double Dy = P3.Y - P0.Y;
+
+        // Preserve straight vertical relationships.
+        if (Math.Abs(Dx) < 0.75)
+        {
+            ErCurveBasisPath Result = new ErCurveBasisPath
+            {
+                PathData = $"M{Fmt(P0.X)},{Fmt(P0.Y)} L{Fmt(P3.X)},{Fmt(P3.Y)}"
+            };
+            return Result;
+        }
+
+        // Matrix-style minimum straight segments before smoothing.
         const double MINIMUM_STRAIGHT_EXIT_PX = 28.0;
         const double MINIMUM_STRAIGHT_ENTRY_PX = 28.0;
         const double MINIMUM_CLEARANCE_PX = 6.0;
@@ -937,19 +974,21 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
             return BuildErCurveBasisPath(MermaidPoints);
         }
 
-        // Fallback: preserve the original 3-point route when the edge is too short to accommodate the minimums.
-        double MidY = (P0.Y + P3.Y) / 2.0;
-        Position MidPoint = new Position(P0.X, MidY);
-
-        List<Position> FallbackPoints = new List<Position>
-        {
-            P0,
-            MidPoint,
-            P3
-        };
-
-        return BuildErCurveBasisPath(FallbackPoints);
+        return BuildErGuidedCurveBasisPath(P0, P3);
 #pragma warning restore IDE0007
+    }
+
+    static bool IsMatrixStyleCardinalityLabel(string? Label)
+    {
+        if (string.IsNullOrWhiteSpace(Label))
+        {
+            return false;
+        }
+
+        // Matrix fixture labels are literal cardinality strings like "||--o{" or "||..|{" (including quotes).
+        // Scenario-1 relationship labels are words like "places" / "contains" / "appears_in".
+        return (Label.Contains("||", StringComparison.Ordinal) || Label.Contains("..", StringComparison.Ordinal))
+            && Label.Contains("--", StringComparison.Ordinal);
     }
 
     static double Clamp(double value, double min, double max)
