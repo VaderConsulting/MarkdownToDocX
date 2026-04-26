@@ -76,7 +76,9 @@ public class SvgBuilder
         double refX,
         double refY,
         string? className = null,
-        string orient = "auto")
+        string orient = "auto",
+        string? viewBox = null,
+        string? markerUnits = null)
     {
         document.Defs.Markers.Add(new SvgMarker
         {
@@ -88,7 +90,9 @@ public class SvgBuilder
             RefX = refX,
             RefY = refY,
             ClassName = className,
-            Orient = orient
+            Orient = orient,
+            ViewBox = viewBox,
+            MarkerUnits = markerUnits
         });
         return this;
     }
