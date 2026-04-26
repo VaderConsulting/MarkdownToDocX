@@ -112,13 +112,14 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         // Add mermaid.ink CSS styles
         builder.AddStyles(MermaidStyles.FlowchartStyles);
 
-        // Render edges first (behind nodes)
+        // Render subgraphs behind edges and nodes.
+        RenderSubgraphs(builder, model, options);
+
+        // Render edges (behind nodes)
         foreach (var edge in model.Edges)
         {
             RenderEdge(builder, edge, options, model.Direction, model.GetNode(edge.SourceId));
         }
-
-        RenderSubgraphs(builder, model, options);
 
         // Render nodes
 #pragma warning disable IDE0007
