@@ -1171,6 +1171,10 @@ For this repository’s **Word-first SVG parity**, we intentionally diverge for 
 - **Decision “Yes/No” outgoing links** (`-->|Yes|` / `-->|No|`) are rendered as a **single cubic Bezier** between the (already boundary-intersected) start/end points.
 - This avoids the short-branch “wobble” that can occur when `curveBasis` is applied to sparse/short elbow routes in Word, and matches the reference fixture better in DOCX output.
 
+Additional Word-first fixture rule:
+
+- If a decision “Yes/No” branch targets a node with **exactly one incoming edge**, snap the target port to the **midpoint of the target side facing the source** (left-centre for the common left-to-right case). Marker endpoint trimming still applies after snapping.
+
 Key:
 
 - **Closed**: traced far enough to specify primitive, size formula, main points/path formula, transforms, and boundary-intersection family.

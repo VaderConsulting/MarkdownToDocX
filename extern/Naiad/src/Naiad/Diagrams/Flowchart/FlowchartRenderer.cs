@@ -110,9 +110,26 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         RenderSubgraphs(builder, model, options);
 
         // Render edges (behind nodes)
+#pragma warning disable IDE0007
+        Dictionary<string, int> IncomingCountByNodeId = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (Edge edge in model.Edges)
+        {
+            if (!IncomingCountByNodeId.TryGetValue(edge.TargetId, out int count))
+            {
+                count = 0;
+            }
+            IncomingCountByNodeId[edge.TargetId] = count + 1;
+        }
+#pragma warning restore IDE0007
+
         foreach (var edge in model.Edges)
         {
-            RenderEdge(builder, edge, options, model.Direction, model.GetNode(edge.SourceId));
+#pragma warning disable IDE0007
+            Node? sourceNode = model.GetNode(edge.SourceId);
+            Node? targetNode = model.GetNode(edge.TargetId);
+            bool targetHasSingleIncoming = IncomingCountByNodeId.TryGetValue(edge.TargetId, out int incomingCount) && incomingCount == 1;
+#pragma warning restore IDE0007
+            RenderEdge(builder, edge, options, model.Direction, sourceNode, targetNode, targetHasSingleIncoming);
         }
 
         // Render nodes
@@ -499,14 +516,19 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
 #pragma warning restore IDE0007
     }
 
-    static void RenderEdge(SvgBuilder builder, Edge edge, RenderOptions options, Direction diagramDirection, Node? sourceNode)
+    static void RenderEdge(SvgBuilder builder, Edge edge, RenderOptions options, Direction diagramDirection, Node? sourceNode, Node? targetNode, bool targetHasSingleIncoming)
     {
         if (edge.Points.Count < 2)
         {
             return;
         }
 
-        var pointsForPath = edge.Points;
+        IReadOnlyList<Position> pointsForPath = edge.Points;
+
+        if (ShouldSnapDecisionBranchTargetPort(edge, sourceNode, targetNode, targetHasSingleIncoming))
+        {
+            pointsForPath = SnapDecisionBranchTargetPort(edge.Points, sourceNode, targetNode!);
+        }
 
         // Terminal glyphs in Mermaid (arrowhead, circle, cross) are SVG markers.
         //
@@ -577,9 +599,9 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         var startGapPx = gaps.StartGapPx;
         var endGapPx = gaps.EndGapPx;
 
-        if ((startGapPx > 0 || endGapPx > 0) && edge.Points.Count >= 2)
+        if ((startGapPx > 0 || endGapPx > 0) && pointsForPath.Count >= 2)
         {
-            var adjustedPoints = new List<Position>(edge.Points);
+            var adjustedPoints = new List<Position>(pointsForPath);
 
             if (startGapPx > 0)
             {
@@ -670,9 +692,15 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
 
             // Marker-only path: original points (untrimmed), markers attached, stroke invisible.
             // This ensures the X stays anchored at the node edge.
+            IReadOnlyList<Position> markerPoints = edge.Points;
+            if (ShouldSnapDecisionBranchTargetPort(edge, sourceNode, targetNode, targetHasSingleIncoming))
+            {
+                markerPoints = SnapDecisionBranchTargetPort(edge.Points, sourceNode, targetNode!);
+            }
+
             var markerPathData = ShouldUseDecisionBranchCubic(edge, sourceNode)
-                ? BuildDecisionBranchCubic(edge.Points)
-                : BuildFlowchartEdgePath(edge.Points, diagramDirection, sourceNode);
+                ? BuildDecisionBranchCubic(markerPoints)
+                : BuildFlowchartEdgePath(markerPoints, diagramDirection, sourceNode);
             builder.AddPath(markerPathData,
                 fill: "none",
                 stroke: "none",
@@ -809,6 +837,70 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
     static string BuildFlowchartEdgePath(IReadOnlyList<Position> points, Direction diagramDirection, Node? sourceNode)
     {
         return BuildFlowchartCurveBasisPath(points);
+    }
+
+    static bool ShouldSnapDecisionBranchTargetPort(Edge edge, Node? sourceNode, Node? targetNode, bool targetHasSingleIncoming)
+    {
+#pragma warning disable IDE0007
+        if (!targetHasSingleIncoming)
+        {
+            return false;
+        }
+
+        if (targetNode is null)
+        {
+            return false;
+        }
+
+        // Only apply to the decision branches.
+        if (!ShouldUseDecisionBranchCubic(edge, sourceNode))
+        {
+            return false;
+        }
+
+        return true;
+#pragma warning restore IDE0007
+    }
+
+    static IReadOnlyList<Position> SnapDecisionBranchTargetPort(IReadOnlyList<Position> points, Node? sourceNode, Node targetNode)
+    {
+#pragma warning disable IDE0007
+        if (points.Count < 2)
+        {
+            return points;
+        }
+
+        List<Position> snapped = new List<Position>(points);
+        Position last = snapped[^1];
+        Position first = snapped[0];
+
+        MermaidSharp.Models.Rect bounds = targetNode.Bounds;
+
+        // Subgraphs can override direction; the overall diagram direction isn't sufficient here.
+        // Decide port side based on actual geometry: if the target is to the right, use left-centre; otherwise right-centre.
+        double directionDx = last.X - first.X;
+        if (sourceNode is not null)
+        {
+            directionDx = targetNode.Position.X - sourceNode.Position.X;
+        }
+
+        double x = directionDx >= 0 ? bounds.X : bounds.X + bounds.Width;
+        double y = targetNode.Position.Y;
+
+        snapped[^1] = new Position(x, y);
+
+        // If the segment into the target is extremely short, also nudge the penultimate point so the curve
+        // approaches more cleanly (prevents a tiny “kink” at the port).
+        Position penultimate = snapped[^2];
+        double segmentDx = Math.Abs(penultimate.X - last.X);
+        double segmentDy = Math.Abs(penultimate.Y - last.Y);
+        if (segmentDx < 4.0 && segmentDy < 4.0)
+        {
+            snapped[^2] = new Position(penultimate.X, y);
+        }
+
+        return snapped;
+#pragma warning restore IDE0007
     }
 
     static bool ShouldUseDecisionBranchCubic(Edge edge, Node? sourceNode)
