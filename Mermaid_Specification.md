@@ -591,6 +591,21 @@ The Naiad-based renderer in this repository is validated primarily against **Wor
   - **Cardinality rule**: use Mermaid-style SVG `<marker>` definitions (from `erMarkers.js`) applied with `marker-start` / `marker-end`, and rely on `orient="auto"` for tangent alignment.
   - **Marker attribute rule (Word parity)**: match Mermaid’s marker attributes literally for this fixture (no additional `viewBox` / `markerUnits` attributes), because Word’s SVG marker renderer is sensitive to marker coordinate-system hints.
 
+### 14A.1C Repository baseline: quoted relationship labels opt-in to “fixture” routing (intentional divergence)
+
+Mermaid.js does **not** use relationship label quoting as a semantic input to path routing. However, for this repository’s Word-first parity goals we intentionally treat **quoted** relationship labels as an opt-in signal for “fixture-style” routing and label placement.
+
+Rule (baseline):
+
+- If an ER relationship label is quoted (starts and ends with `"`), render it using the same “fixture/matrix” settings as the cardinality+line-style matrix:
+  - Use the hybrid path builder that preserves **literal minimum straight segments** at both ends (do not rely on `curveBasis` to preserve them).
+  - Use deterministic fixture label placement (aligned to the target entity centre X and the midpoint between entity centres Y), rather than the scenario-1 vertical offset.
+
+Examples from `test.md` that are treated as fixtures under this rule:
+
+- Cardinality matrix labels like `"||--o{"`, `"||..|{"`, etc.
+- Fan-in / fan-out stress labels like `"1:2 A"`, `"1:8 5"`, etc.
+
 ### 14A.1A Anchor selection must distinguish fan-out vs fan-in (renderer rule)
 
 When selecting ER relationship anchors (ports) for vertical layouts, do **not** apply a single “side slot” policy to both of these cases:
