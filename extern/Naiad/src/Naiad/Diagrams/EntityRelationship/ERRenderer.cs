@@ -432,9 +432,7 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
             height: 18,
             refX: 0,
             refY: 9,
-            className: "marker onlyOne er",
-            viewBox: "0 0 18 18",
-            markerUnits: "userSpaceOnUse");
+            className: "marker onlyOne er");
 
         builder.AddRawMarker(
             id: "mermaid-svg_er-onlyOneEnd",
@@ -443,9 +441,7 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
             height: 18,
             refX: 18,
             refY: 9,
-            className: "marker onlyOne er",
-            viewBox: "0 0 18 18",
-            markerUnits: "userSpaceOnUse");
+            className: "marker onlyOne er");
 
         builder.AddRawMarker(
             id: "mermaid-svg_er-zeroOrOneStart",
@@ -454,9 +450,7 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
             height: 18,
             refX: 0,
             refY: 9,
-            className: "marker zeroOrOne er",
-            viewBox: "0 0 30 18",
-            markerUnits: "userSpaceOnUse");
+            className: "marker zeroOrOne er");
 
         builder.AddRawMarker(
             id: "mermaid-svg_er-zeroOrOneEnd",
@@ -465,9 +459,7 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
             height: 18,
             refX: 30,
             refY: 9,
-            className: "marker zeroOrOne er",
-            viewBox: "0 0 30 18",
-            markerUnits: "userSpaceOnUse");
+            className: "marker zeroOrOne er");
 
         builder.AddRawMarker(
             id: "mermaid-svg_er-oneOrMoreStart",
@@ -476,9 +468,7 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
             height: 36,
             refX: 18,
             refY: 18,
-            className: "marker oneOrMore er",
-            viewBox: "0 0 45 36",
-            markerUnits: "userSpaceOnUse");
+            className: "marker oneOrMore er");
 
         builder.AddRawMarker(
             id: "mermaid-svg_er-oneOrMoreEnd",
@@ -487,9 +477,7 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
             height: 36,
             refX: 27,
             refY: 18,
-            className: "marker oneOrMore er",
-            viewBox: "0 0 45 36",
-            markerUnits: "userSpaceOnUse");
+            className: "marker oneOrMore er");
 
         builder.AddRawMarker(
             id: "mermaid-svg_er-zeroOrMoreStart",
@@ -498,9 +486,7 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
             height: 36,
             refX: 18,
             refY: 18,
-            className: "marker zeroOrMore er",
-            viewBox: "0 0 57 36",
-            markerUnits: "userSpaceOnUse");
+            className: "marker zeroOrMore er");
 
         builder.AddRawMarker(
             id: "mermaid-svg_er-zeroOrMoreEnd",
@@ -509,9 +495,7 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
             height: 36,
             refX: 39,
             refY: 18,
-            className: "marker zeroOrMore er",
-            viewBox: "0 0 57 36",
-            markerUnits: "userSpaceOnUse");
+            className: "marker zeroOrMore er");
 #pragma warning restore IDE0007
     }
 
