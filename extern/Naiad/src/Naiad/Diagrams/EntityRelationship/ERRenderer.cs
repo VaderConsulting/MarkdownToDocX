@@ -614,8 +614,11 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
 
         // Matrix fixture labels are literal cardinality strings like "||--o{" or "||..|{" (including quotes).
         // Scenario 1 relationship labels are words like "places" / "contains" / "appears_in".
-        return (Label.Contains("||", StringComparison.Ordinal) || Label.Contains("..", StringComparison.Ordinal))
-            && Label.Contains("--", StringComparison.Ordinal);
+#pragma warning disable IDE0007
+        bool HasCardinalityBars = Label.Contains("||", StringComparison.Ordinal);
+        bool HasLineStyle = Label.Contains("--", StringComparison.Ordinal) || Label.Contains("..", StringComparison.Ordinal);
+#pragma warning restore IDE0007
+        return HasCardinalityBars && HasLineStyle;
     }
 
     static Position ComputePathHalfLengthPoint(ErCurveBasisPath Path, IReadOnlyList<Position> FallbackPolyline)
