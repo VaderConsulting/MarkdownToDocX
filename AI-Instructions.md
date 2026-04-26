@@ -183,6 +183,14 @@ Treat what the user says in two ways:
 
 **What to do with explicit rules:** Add or update **`AI-Instructions.md`** so future runs apply the same policy. Keep entries **short and actionable**. If something was ephemeral and they later say it should be a rule, promote it into this file then.
 
+### PowerShell: never use bash-style heredocs (mandatory)
+
+This workspace uses **PowerShell**, not bash.
+
+- Do **not** attempt bash heredocs such as `cat <<'EOF' ... EOF` (they fail in PowerShell).
+- For multi-line commit messages, use a **PowerShell here-string** assigned to a variable, then pass it to `git commit -m $Message`.
+- For single-line commit messages, pass a normal quoted string to `git commit -m "..."`.
+
 ### Spec-first rule when discrepancies are discovered (mandatory)
 
 When you discover a **confirmed discrepancy** between:
