@@ -35,6 +35,7 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
     const double RIGHT_LABEL_PADDING_PX = 60;
     const double FORCE_LABEL_INSIDE_BAR_WIDTH_PX = 140;
     const double VERT_LABEL_BOTTOM_PADDING_PX = 12;
+    const double AXIS_LABEL_DOWN_PX = 22;
 
     const string milestoneColor = "#FF9800";
 
@@ -176,7 +177,7 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
 
             // Date label — honour Mermaid axisFormat when present (subset of strftime-style tokens)
             var label = FormatAxisDateLabel(date, axisFormat);
-            builder.AddText(x, axisY + 13, label,
+            builder.AddText(x, axisY + AXIS_LABEL_DOWN_PX, label,
                 anchor: "middle",
                 baseline: "middle",
                 fontSize: $"{options.FontSize - 2}px",
@@ -400,7 +401,6 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
                 }
 
                 // Word baseline adjustment: aim for visual centre in Word.
-                var barLabelY = barY + taskBarHeight / 2 + GanttWordBarLabelDown(FontSizePx);
                 double textX = taskX + taskWidth / 2;
                 string textAnchor = "middle";
                 if (!IsLikelyToFitInsideBar)
@@ -409,12 +409,25 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
                     textAnchor = "start";
                 }
 
-                builder.AddText(textX, barLabelY, task.Name,
-                    anchor: textAnchor,
-                    baseline: "middle",
-                    fontSize: $"{FontSizePx}px",
-                    fontFamily: options.FontFamily,
-                    fill: textColor);
+                if (IsLikelyToFitInsideBar)
+                {
+                    builder.AddBoxCenteredText(taskX, barY, taskWidth, taskBarHeight, task.Name,
+                        fontSize: $"{FontSizePx}px",
+                        fontFamily: options.FontFamily,
+                        fill: textColor,
+                        opticalVerticalBiasEm: 0.18,
+                        extraVerticalOffsetPx: 0);
+                }
+                else
+                {
+                    var barLabelY = barY + taskBarHeight / 2 + GanttWordBarLabelDown(FontSizePx);
+                    builder.AddText(textX, barLabelY, task.Name,
+                        anchor: textAnchor,
+                        baseline: "middle",
+                        fontSize: $"{FontSizePx}px",
+                        fontFamily: options.FontFamily,
+                        fill: textColor);
+                }
 #pragma warning restore IDE0007
             }
         }
