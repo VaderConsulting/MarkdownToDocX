@@ -7,10 +7,7 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
 {
     readonly ILayoutEngine layoutEngine = layoutEngine ?? new DagreLayoutEngine();
 
-    // ER reference fixtures in this repository treat entities like Mermaid default theme:
-    // - header band: 30px
-    // - attribute rows: 20px cadence, no per-row rectangles
-    // - relationships: straight <line> segments with explicit cardinality primitives (no SVG <marker>).
+    // ER reference (Mermaid) uses SVG <marker> definitions for cardinalities.
     const double HeaderHeight = 30;
     const double AttributeRowHeight = 20;
     const double EntityPaddingBottom = 10;
@@ -60,8 +57,8 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
             .ViewBox($"0 0 {Fmt(layoutResult.Width + options.Padding * 2)} {Fmt(layoutResult.Height + options.Padding * 2)}")
             .AddFontAwesomeImport();
 
-        // Align ERD styling with the same default Mermaid CSS used by flowcharts.
-        builder.AddStyles(MermaidStyles.FlowchartStyles);
+        builder.AddStyles(MermaidStyles.ERStyles);
+        RegisterErCardinalityMarkers(builder);
 
         var EdgeCountsByEntity = ComputeEdgeConnectionCounts(model);
 
@@ -374,11 +371,19 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
             Path = BuildErCurveBasisPath(Points);
         }
 
-        builder.AddPath(Path.PathData, fill: "none", stroke: RelationshipStroke, strokeWidth: RelationshipStrokeWidth, strokeDasharray: DashArray);
-
-        // Source-of-truth: ER cardinality markers are geometric primitives placed using the endpoint tangent.
-        DrawCardinalityMarker(builder, rel.FromCardinality, isStart: true, EndPoint: StartPoint, Path: Path);
-        DrawCardinalityMarker(builder, rel.ToCardinality, isStart: false, EndPoint: EndPoint, Path: Path);
+#pragma warning disable IDE0007
+        string? MarkerStart = GetErMarkerUrl(rel.FromCardinality, isStart: true);
+        string? MarkerEnd = GetErMarkerUrl(rel.ToCardinality, isStart: false);
+#pragma warning restore IDE0007
+        builder.AddPath(
+            Path.PathData,
+            fill: "none",
+            stroke: RelationshipStroke,
+            strokeWidth: RelationshipStrokeWidth,
+            strokeDasharray: DashArray,
+            markerStart: MarkerStart,
+            markerEnd: MarkerEnd,
+            cssClass: "relationshipLine");
 
         if (!string.IsNullOrEmpty(rel.Label))
         {
@@ -411,6 +416,122 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
 
         return ComputePolylineMidpoint(FallbackPolyline);
 #pragma warning restore IDE0007
+    }
+
+    static void RegisterErCardinalityMarkers(SvgBuilder builder)
+    {
+#pragma warning disable IDE0007
+        // Marker geometry matches Mermaid’s ER defaults (see reference SVG).
+        builder.AddRawMarker(
+            id: "mermaid-svg_er-onlyOneStart",
+            rawContent: "<path d=\"M9,0 L9,18 M15,0 L15,18\"></path>",
+            width: 18,
+            height: 18,
+            refX: 0,
+            refY: 9,
+            className: "marker onlyOne er");
+
+        builder.AddRawMarker(
+            id: "mermaid-svg_er-onlyOneEnd",
+            rawContent: "<path d=\"M3,0 L3,18 M9,0 L9,18\"></path>",
+            width: 18,
+            height: 18,
+            refX: 18,
+            refY: 9,
+            className: "marker onlyOne er");
+
+        builder.AddRawMarker(
+            id: "mermaid-svg_er-zeroOrOneStart",
+            rawContent: "<circle fill=\"white\" cx=\"21\" cy=\"9\" r=\"6\"></circle><path d=\"M9,0 L9,18\"></path>",
+            width: 30,
+            height: 18,
+            refX: 0,
+            refY: 9,
+            className: "marker zeroOrOne er");
+
+        builder.AddRawMarker(
+            id: "mermaid-svg_er-zeroOrOneEnd",
+            rawContent: "<circle fill=\"white\" cx=\"9\" cy=\"9\" r=\"6\"></circle><path d=\"M21,0 L21,18\"></path>",
+            width: 30,
+            height: 18,
+            refX: 30,
+            refY: 9,
+            className: "marker zeroOrOne er");
+
+        builder.AddRawMarker(
+            id: "mermaid-svg_er-oneOrMoreStart",
+            rawContent: "<path d=\"M0,18 Q 18,0 36,18 Q 18,36 0,18 M42,9 L42,27\"></path>",
+            width: 45,
+            height: 36,
+            refX: 18,
+            refY: 18,
+            className: "marker oneOrMore er");
+
+        builder.AddRawMarker(
+            id: "mermaid-svg_er-oneOrMoreEnd",
+            rawContent: "<path d=\"M3,9 L3,27 M9,18 Q27,0 45,18 Q27,36 9,18\"></path>",
+            width: 45,
+            height: 36,
+            refX: 27,
+            refY: 18,
+            className: "marker oneOrMore er");
+
+        builder.AddRawMarker(
+            id: "mermaid-svg_er-zeroOrMoreStart",
+            rawContent: "<circle fill=\"white\" cx=\"48\" cy=\"18\" r=\"6\"></circle><path d=\"M0,18 Q18,0 36,18 Q18,36 0,18\"></path>",
+            width: 57,
+            height: 36,
+            refX: 18,
+            refY: 18,
+            className: "marker zeroOrMore er");
+
+        builder.AddRawMarker(
+            id: "mermaid-svg_er-zeroOrMoreEnd",
+            rawContent: "<circle fill=\"white\" cx=\"9\" cy=\"18\" r=\"6\"></circle><path d=\"M21,18 Q39,0 57,18 Q39,36 21,18\"></path>",
+            width: 57,
+            height: 36,
+            refX: 39,
+            refY: 18,
+            className: "marker zeroOrMore er");
+#pragma warning restore IDE0007
+    }
+
+    static string? GetErMarkerUrl(Cardinality cardinality, bool isStart)
+    {
+#pragma warning disable IDE0007
+        string? id = GetErMarkerId(cardinality, isStart);
+#pragma warning restore IDE0007
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            return null;
+        }
+
+        return $"url(#{id})";
+    }
+
+    static string? GetErMarkerId(Cardinality cardinality, bool isStart)
+    {
+        if (cardinality == Cardinality.ExactlyOne)
+        {
+            return isStart ? "mermaid-svg_er-onlyOneStart" : "mermaid-svg_er-onlyOneEnd";
+        }
+
+        if (cardinality == Cardinality.ZeroOrOne)
+        {
+            return isStart ? "mermaid-svg_er-zeroOrOneStart" : "mermaid-svg_er-zeroOrOneEnd";
+        }
+
+        if (cardinality == Cardinality.OneOrMore)
+        {
+            return isStart ? "mermaid-svg_er-onlyOneStart" : "mermaid-svg_er-oneOrMoreEnd";
+        }
+
+        if (cardinality == Cardinality.ZeroOrMore)
+        {
+            return isStart ? "mermaid-svg_er-onlyOneStart" : "mermaid-svg_er-zeroOrMoreEnd";
+        }
+
+        return null;
     }
 
     static void DrawCardinalityMarker(SvgBuilder Builder, Cardinality Cardinality, bool isStart, Position EndPoint, ErCurveBasisPath Path)

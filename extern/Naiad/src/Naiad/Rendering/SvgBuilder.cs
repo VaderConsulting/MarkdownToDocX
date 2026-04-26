@@ -68,6 +68,31 @@ public class SvgBuilder
         return this;
     }
 
+    public SvgBuilder AddRawMarker(
+        string id,
+        string rawContent,
+        double width,
+        double height,
+        double refX,
+        double refY,
+        string? className = null,
+        string orient = "auto")
+    {
+        document.Defs.Markers.Add(new SvgMarker
+        {
+            Id = id,
+            Path = "",
+            RawContent = rawContent,
+            MarkerWidth = width,
+            MarkerHeight = height,
+            RefX = refX,
+            RefY = refY,
+            ClassName = className,
+            Orient = orient
+        });
+        return this;
+    }
+
     public SvgBuilder AddArrowMarker(string id = "arrowhead", string fill = "#333333") =>
         AddMarker(id, "M0,0 L10,3.5 L0,7 Z", 10, 7, 9, 3.5, fill);
 
