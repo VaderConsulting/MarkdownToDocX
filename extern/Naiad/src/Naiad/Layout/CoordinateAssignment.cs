@@ -404,6 +404,14 @@ static class CoordinateAssignment
         {
             ErAttachByEdge = BuildErVerticalAttachPoints(graph);
         }
+
+        // For vertical flowcharts (TD/BT), use the same “slot” distribution approach as ER vertical ports:
+        // allocate anchors based on facing direction and distribute along the facing edge.
+        Dictionary<LayoutEdge, (double SourceX, double SourceY, double TargetX, double TargetY)>? FlowchartVerticalAttachByEdge = null;
+        if (!isHorizontal && FlowchartDiagram is not null)
+        {
+            FlowchartVerticalAttachByEdge = BuildErVerticalAttachPoints(graph);
+        }
 #pragma warning restore IDE0007
 
         foreach (var edge in graph.Edges)
@@ -483,17 +491,26 @@ static class CoordinateAssignment
                     }
                     else if (FlowchartDiagram is not null)
                     {
-                        // For vertical flowcharts (TD/BT), Mermaid’s default look generally uses top/bottom ports
-                        // (centre of the edge) even when the nodes are laterally offset.
-                        // Use axis-aligned "toward" points to bias intersection to the vertical faces.
-                        Position towardForSource = new Position(source.X, target.Y);
-                        Position towardForTarget = new Position(target.X, source.Y);
-                        Position sourceAttach = ComputeFlowchartAttachPoint(source, FlowchartDiagram.GetNode(edge.SourceId), towardForSource);
-                        Position targetAttach = ComputeFlowchartAttachPoint(target, FlowchartDiagram.GetNode(edge.TargetId), towardForTarget);
-                        sourceEdgeX = sourceAttach.X;
-                        sourceEdgeY = sourceAttach.Y;
-                        targetEdgeXNoShorten = targetAttach.X;
-                        targetEdgeYNoShorten = targetAttach.Y;
+                        if (FlowchartVerticalAttachByEdge is not null
+                            && FlowchartVerticalAttachByEdge.TryGetValue(edge, out (double SourceX, double SourceY, double TargetX, double TargetY) FlowchartAttach))
+                        {
+                            sourceEdgeX = FlowchartAttach.SourceX;
+                            sourceEdgeY = FlowchartAttach.SourceY;
+                            targetEdgeXNoShorten = FlowchartAttach.TargetX;
+                            targetEdgeYNoShorten = FlowchartAttach.TargetY;
+                        }
+                        else
+                        {
+                            // Fallback: bias to top/bottom faces by using axis-aligned "toward" points.
+                            Position towardForSource = new Position(source.X, target.Y);
+                            Position towardForTarget = new Position(target.X, source.Y);
+                            Position sourceAttach = ComputeFlowchartAttachPoint(source, FlowchartDiagram.GetNode(edge.SourceId), towardForSource);
+                            Position targetAttach = ComputeFlowchartAttachPoint(target, FlowchartDiagram.GetNode(edge.TargetId), towardForTarget);
+                            sourceEdgeX = sourceAttach.X;
+                            sourceEdgeY = sourceAttach.Y;
+                            targetEdgeXNoShorten = targetAttach.X;
+                            targetEdgeYNoShorten = targetAttach.Y;
+                        }
                     }
                     else
                     {
