@@ -88,8 +88,21 @@ public class DagreLayoutEngine : ILayoutEngine
             }
         }
 
+        Dictionary<string, string> subgraphIdByMemberNodeId = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (MermaidSharp.Models.Subgraph subgraph in diagram.Subgraphs)
+        {
+            foreach (string nodeId in subgraph.NodeIds)
+            {
+                if (!subgraphIdByMemberNodeId.ContainsKey(nodeId))
+                {
+                    subgraphIdByMemberNodeId[nodeId] = subgraph.Id;
+                }
+            }
+        }
+
         const double SUBGRAPH_PADDING_PX = 18.0;
         const double SUBGRAPH_TITLE_BAND_PX = 26.0;
+        const double SUBGRAPH_VERTICAL_CONTENT_SLACK_PX = SUBGRAPH_TITLE_BAND_PX;
 
         Dictionary<string, (double InternalMinX, double InternalMinY, double InternalMaxX, double InternalMaxY)> internalBoundsBySubgraphId =
             new Dictionary<string, (double, double, double, double)>(StringComparer.Ordinal);
@@ -152,7 +165,9 @@ public class DagreLayoutEngine : ILayoutEngine
             {
                 groupNode.IsGroup = true;
                 groupNode.Width = (maxX - minX) + (SUBGRAPH_PADDING_PX * 2.0);
-                groupNode.Height = (maxY - minY) + (SUBGRAPH_PADDING_PX * 2.0) + SUBGRAPH_TITLE_BAND_PX;
+                // Mermaid clusters provide additional vertical breathing room so contents do not sit hard against the bottom.
+                // This slack also allows centring of the internal content rectangle within the cluster's available content area.
+                groupNode.Height = (maxY - minY) + (SUBGRAPH_PADDING_PX * 2.0) + SUBGRAPH_TITLE_BAND_PX + SUBGRAPH_VERTICAL_CONTENT_SLACK_PX;
             }
         }
 
@@ -172,13 +187,118 @@ public class DagreLayoutEngine : ILayoutEngine
 
         foreach (Edge edge in diagram.Edges)
         {
-            if (outer.Nodes.Any(n => n.Id == edge.SourceId) && outer.Nodes.Any(n => n.Id == edge.TargetId))
+            // Outer graph edges include:
+            // - edges between outer nodes (normal)
+            // - edges between an outer node and a subgraph member, mapped to the subgraph id so the group is ranked/ordered like Mermaid
+            // - edges between member nodes in different subgraphs, mapped to (subgraph A) -> (subgraph B) so the groups are ranked/ordered like Mermaid
+            bool sourceIsOuter = outer.Nodes.Any(n => n.Id == edge.SourceId);
+            bool targetIsOuter = outer.Nodes.Any(n => n.Id == edge.TargetId);
+
+            if (sourceIsOuter && targetIsOuter)
             {
                 outer.Edges.Add(edge);
+                continue;
+            }
+
+            if (sourceIsOuter && memberNodeIds.Contains(edge.TargetId))
+            {
+                foreach (MermaidSharp.Models.Subgraph subgraph in diagram.Subgraphs)
+                {
+                    if (subgraph.NodeIds.Contains(edge.TargetId, StringComparer.Ordinal))
+                    {
+                        outer.Edges.Add(new Edge
+                        {
+                            SourceId = edge.SourceId,
+                            TargetId = subgraph.Id,
+                            Type = edge.Type,
+                            LineStyle = edge.LineStyle,
+                            Label = edge.Label,
+                            MinRankSpan = Math.Max(1, edge.MinRankSpan)
+                        });
+                        break;
+                    }
+                }
+                continue;
+            }
+
+            if (targetIsOuter && memberNodeIds.Contains(edge.SourceId))
+            {
+                foreach (MermaidSharp.Models.Subgraph subgraph in diagram.Subgraphs)
+                {
+                    if (subgraph.NodeIds.Contains(edge.SourceId, StringComparer.Ordinal))
+                    {
+                        outer.Edges.Add(new Edge
+                        {
+                            SourceId = subgraph.Id,
+                            TargetId = edge.TargetId,
+                            Type = edge.Type,
+                            LineStyle = edge.LineStyle,
+                            Label = edge.Label,
+                            MinRankSpan = Math.Max(1, edge.MinRankSpan)
+                        });
+                        break;
+                    }
+                }
+            }
+
+            if (!sourceIsOuter && !targetIsOuter && memberNodeIds.Contains(edge.SourceId) && memberNodeIds.Contains(edge.TargetId))
+            {
+                if (subgraphIdByMemberNodeId.TryGetValue(edge.SourceId, out string? sourceSubgraphId)
+                    && subgraphIdByMemberNodeId.TryGetValue(edge.TargetId, out string? targetSubgraphId)
+                    && !string.Equals(sourceSubgraphId, targetSubgraphId, StringComparison.Ordinal))
+                {
+                    outer.Edges.Add(new Edge
+                    {
+                        SourceId = sourceSubgraphId,
+                        TargetId = targetSubgraphId,
+                        Type = edge.Type,
+                        LineStyle = edge.LineStyle,
+                        Label = edge.Label,
+                        MinRankSpan = Math.Max(1, edge.MinRankSpan)
+                    });
+                }
             }
         }
 
         LayoutPlainGraph(outer, options);
+
+        // Mermaid behaviour for multiple disconnected root subgraphs:
+        // When there are no edges between clusters, Mermaid stacks the clusters vertically in source order
+        // (small cluster above large cluster in the common Commands/Events fixture), even when the diagram
+        // direction is LR. Our outer layout has no constraints in that case and can place groups in an
+        // arbitrary order.
+        //
+        // Emulate Mermaid by applying a deterministic vertical stack when:
+        // - the outer graph contains only group nodes, and
+        // - there are no outer edges.
+        if (outer.Edges.Count == 0 && outer.Nodes.Count > 1 && outer.Nodes.All(n => n.IsGroup))
+        {
+            Dictionary<string, int> SubgraphIndexById = new Dictionary<string, int>(StringComparer.Ordinal);
+            for (var i = 0; i < diagram.Subgraphs.Count; i++)
+            {
+                MermaidSharp.Models.Subgraph subgraph = diagram.Subgraphs[i];
+                if (!SubgraphIndexById.ContainsKey(subgraph.Id))
+                {
+                    SubgraphIndexById[subgraph.Id] = i;
+                }
+            }
+
+            List<Node> orderedGroups = outer.Nodes
+                .OrderBy(n => SubgraphIndexById.TryGetValue(n.Id, out int index) ? index : int.MaxValue)
+                .ToList();
+
+            double maxWidth = orderedGroups.Max(n => n.Width);
+            double x = maxWidth / 2.0;
+            double yCursor = 0.0;
+
+            for (var i = 0; i < orderedGroups.Count; i++)
+            {
+                Node group = orderedGroups[i];
+                double y = yCursor + (group.Height / 2.0);
+                group.Position = new Position(x, y);
+                yCursor = yCursor + group.Height + options.RankSeparation;
+            }
+        }
 
         // 3) Offset inner nodes/edges into the group boxes placed by outer layout.
         foreach (MermaidSharp.Models.Subgraph subgraph in diagram.Subgraphs)
@@ -197,8 +317,19 @@ public class DagreLayoutEngine : ILayoutEngine
             double groupLeft = groupNode.Position.X - (groupNode.Width / 2.0);
             double groupTop = groupNode.Position.Y - (groupNode.Height / 2.0);
 
-            double targetMinX = groupLeft + SUBGRAPH_PADDING_PX;
-            double targetMinY = groupTop + SUBGRAPH_PADDING_PX + SUBGRAPH_TITLE_BAND_PX;
+            double internalWidth = b.InternalMaxX - b.InternalMinX;
+            double internalHeight = b.InternalMaxY - b.InternalMinY;
+
+            double availableWidth = groupNode.Width - (SUBGRAPH_PADDING_PX * 2.0);
+            // Mermaid’s cluster label sits at the top of the box but does not "consume" a fixed title band
+            // that pushes the internal nodes downward. Keep member nodes centred within the full padded box.
+            double availableHeight = groupNode.Height - (SUBGRAPH_PADDING_PX * 2.0);
+
+            double extraX = (availableWidth - internalWidth) / 2.0;
+            double extraY = (availableHeight - internalHeight) / 2.0;
+
+            double targetMinX = groupLeft + SUBGRAPH_PADDING_PX + extraX;
+            double targetMinY = groupTop + SUBGRAPH_PADDING_PX + extraY;
 
             double dx = targetMinX - b.InternalMinX;
             double dy = targetMinY - b.InternalMinY;
@@ -230,11 +361,67 @@ public class DagreLayoutEngine : ILayoutEngine
             }
         }
 
+        // 4) Route cross-boundary edges (external <-> member) after final member placement.
+        // Mermaid routes edges directly to member nodes even when the other endpoint is outside the cluster.
+        // We compute deterministic, boundary-clipped endpoints (shape intersection) once all node positions are final.
+        foreach (Edge edge in diagram.Edges)
+        {
+            bool sourceIsMember = subgraphIdByMemberNodeId.ContainsKey(edge.SourceId);
+            bool targetIsMember = subgraphIdByMemberNodeId.ContainsKey(edge.TargetId);
+
+            if (sourceIsMember && targetIsMember)
+            {
+                // Edges entirely within the same subgraph are already routed by the internal layout.
+                // If they cross subgraph boundaries (member -> member across different subgraphs), route them now.
+                if (subgraphIdByMemberNodeId.TryGetValue(edge.SourceId, out string? sourceSubgraphId)
+                    && subgraphIdByMemberNodeId.TryGetValue(edge.TargetId, out string? targetSubgraphId)
+                    && !string.Equals(sourceSubgraphId, targetSubgraphId, StringComparison.Ordinal))
+                {
+#pragma warning disable IDE0007
+                    if (CoordinateAssignment.TryComputeStraightFlowchartEdgePoints(diagram, edge, out List<MermaidSharp.Models.Position> crossSubgraphPoints))
+                    {
+                        edge.Points.Clear();
+                        for (int i = 0; i < crossSubgraphPoints.Count; i++)
+                        {
+                            edge.Points.Add(crossSubgraphPoints[i]);
+                        }
+                    }
+#pragma warning restore IDE0007
+                }
+                continue;
+            }
+
+            if (!sourceIsMember && !targetIsMember)
+            {
+                continue;
+            }
+
+            // Only handle edges where both endpoints are real nodes.
+            // (If a diagram references a subgraph id as a node, that is handled by the outer layout graph.)
+            if (subgraphById.ContainsKey(edge.SourceId) || subgraphById.ContainsKey(edge.TargetId))
+            {
+                continue;
+            }
+
+#pragma warning disable IDE0007
+            if (CoordinateAssignment.TryComputeStraightFlowchartEdgePoints(diagram, edge, out List<MermaidSharp.Models.Position> points))
+            {
+                edge.Points.Clear();
+                for (int i = 0; i < points.Count; i++)
+                {
+                    edge.Points.Add(points[i]);
+                }
+            }
+#pragma warning restore IDE0007
+        }
+
         // Flowchart parity tweak used elsewhere.
         CoordinateAssignment.ApplyVerticalForkExitGapToDiagramEdges(diagram, options.Direction);
 
+#pragma warning disable IDE0007
         double width = diagram.Nodes.Max(_ => _.Position.X + _.Width / 2);
         double height = diagram.Nodes.Max(_ => _.Position.Y + _.Height / 2);
+#pragma warning restore IDE0007
 
         return new LayoutResult
         {
@@ -326,6 +513,10 @@ public class DagreLayoutEngine : ILayoutEngine
                 // Edge was split by dummy nodes - collect points
                 CollectEdgePoints(graph, edge, options);
             }
+
+            // Do not attempt to patch up missing flowchart points here.
+            // Flowchart subgraph cross-boundary routing is handled in the flowchart-specific subgraph layout path
+            // once final member-node positions are known.
         }
     }
 

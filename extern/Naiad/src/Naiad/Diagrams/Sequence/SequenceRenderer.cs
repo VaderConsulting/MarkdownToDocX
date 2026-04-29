@@ -4,16 +4,46 @@ namespace MermaidSharp.Diagrams.Sequence;
 
 public class SequenceRenderer : IDiagramRenderer<SequenceModel>
 {
-    /// <summary>Minimum box width (reference Mermaid leaves generous space; Word also renders text wider than our estimate).</summary>
-    const double MinParticipantBoxWidth = 140;
+    /// <summary>Mermaid default sequence config: <c>actorFontSize</c>.</summary>
+    const double MermaidSequenceActorFontSizePx = 14;
 
-    /// <summary>Minimum box height for participant rectangles.</summary>
-    const double MinParticipantBoxHeight = 60;
+    /// <summary>Mermaid default sequence config: <c>messageFontSize</c>.</summary>
+    const double MermaidSequenceMessageFontSizePx = 16;
 
-    /// <summary>Padding inside participant boxes (Mermaid-style breathing room).</summary>
-    const double ParticipantPaddingX = 32;
+    /// <summary>Mermaid default sequence config: <c>noteFontSize</c>.</summary>
+    const double MermaidSequenceNoteFontSizePx = 14;
 
-    const double ParticipantPaddingY = 20;
+    const string MermaidSequenceMessageFontFamily = "trebuchet ms, verdana, arial, sans-serif";
+
+    /// <summary>Mermaid default sequence config: <c>diagramMarginX</c>.</summary>
+    const double MermaidSequenceDiagramMarginXPx = 50;
+
+    /// <summary>Mermaid default sequence config: <c>diagramMarginY</c>.</summary>
+    const double MermaidSequenceDiagramMarginYPx = 10;
+
+    /// <summary>Mermaid default sequence config: <c>actorMargin</c> (gap between actor columns).</summary>
+    const double MermaidSequenceActorMarginPx = 50;
+
+    /// <summary>Mermaid default sequence config: <c>messageMargin</c> (vertical spacing between messages).</summary>
+    const double MermaidSequenceMessageMarginPx = 35;
+
+    /// <summary>
+    /// Minimum actor/participant box width. Mermaid’s default sequence config uses <c>width = 150</c>.
+    /// </summary>
+    const double MinParticipantBoxWidth = 150;
+
+    /// <summary>
+    /// Minimum actor/participant box height. Mermaid’s default sequence config uses <c>height = 50</c>.
+    /// </summary>
+    const double MinParticipantBoxHeight = 50;
+
+    /// <summary>
+    /// Padding inside participant boxes. Mermaid’s default sequence config uses <c>wrapPadding = 10</c> (sides only),
+    /// and the rendered actor boxes are noticeably tighter than flowchart nodes.
+    /// </summary>
+    const double ParticipantPaddingX = 10;
+
+    const double ParticipantPaddingY = 10;
 
     /// <summary>Mermaid live editor uses ~16px body text; measuring at least this wide avoids undersized boxes when <see cref="RenderOptions.FontSize"/> is 14.</summary>
     const double ParticipantLayoutMeasureFontFloor = 16;
@@ -21,21 +51,22 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
     /// <summary>
     /// Count of regular space characters (U+0020) prepended and appended to participant header text so centred labels sit slightly in from the box edges (Word’s SVG text metrics can look tight otherwise).
     /// </summary>
-    const int ParticipantLabelHorizontalSpacePadCount = 3;
+    const int ParticipantLabelHorizontalSpacePadCount = 0;
 
     /// <summary>Horizontal gap between adjacent participant columns (between box edges).</summary>
-    const double ParticipantColumnGap = 52;
+    const double ParticipantColumnGap = MermaidSequenceActorMarginPx;
 
     const double ParticipantActorVisualHeight = 40;
 
-    const double MessageSpacing = 52;
+    const double MessageSpacing = MermaidSequenceMessageMarginPx;
 
     /// <summary>Distance from message arrow (y) up to the label baseline (larger matches Mermaid spacing).</summary>
     const double MessageLabelOffsetAboveArrow = 15;
 
     const double ActivationWidth = 10;
-    const double NoteWidth = 120;
-    const double NoteHeight = 40;
+    const double NoteHorizontalPaddingPx = 12;
+    const double NoteVerticalPaddingPx = 10;
+    const double NoteMaxTextWidthPx = 180;
     const double ActorHeadRadius = 15;
 
     const double SequenceLabelOpticalVerticalBiasEm = 0.09;
@@ -50,8 +81,13 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
 
     public SvgDocument Render(SequenceModel model, RenderOptions options)
     {
-        var layout = CalculateParticipantLayout(model, options);
-        var (height, elementYPositions) = CalculateHeight(model, options, layout.MaxHeaderHeight);
+#pragma warning disable IDE0007
+        RenderOptions messageOptions = CloneOptions(options, MermaidSequenceMessageFontFamily, MermaidSequenceMessageFontSizePx);
+        RenderOptions actorOptions = CloneOptions(options, MermaidSequenceMessageFontFamily, MermaidSequenceActorFontSizePx);
+#pragma warning restore IDE0007
+
+        var layout = CalculateParticipantLayout(model, actorOptions);
+        var (height, elementYPositions) = CalculateHeight(model, messageOptions, layout.MaxHeaderHeight);
         var width = layout.TotalWidth;
 
         var builder = new SvgBuilder()
@@ -72,27 +108,42 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
                 fontWeight: "bold");
         }
 
-        var startY = options.Padding + titleOffset;
+        var startY = MermaidSequenceDiagramMarginYPx + titleOffset;
 
         // Draw participants (top)
-        DrawParticipants(builder, model, layout, startY, options);
+        DrawParticipants(builder, model, layout, startY, actorOptions);
 
         // Draw lifelines
         var lifelineStartY = startY + layout.MaxHeaderHeight;
-        var lifelineEndY = height - options.Padding - layout.MaxHeaderHeight;
+        var lifelineEndY = height - MermaidSequenceDiagramMarginYPx - layout.MaxHeaderHeight;
         DrawLifelines(builder, model, layout.Centers, lifelineStartY, lifelineEndY);
 
         // Draw elements (messages, notes, activations)
         var activations = new Dictionary<string, List<(double startY, double endY)>>();
-        DrawElements(builder, model, layout, elementYPositions, options, activations);
+        DrawElements(builder, model, layout, elementYPositions, lifelineStartY, messageOptions, activations);
 
         // Draw activation boxes
         DrawActivations(builder, activations, layout.Centers);
 
         // Draw participants (bottom) - optional, mimics Mermaid behavior
-        DrawParticipants(builder, model, layout, lifelineEndY, options);
+        DrawParticipants(builder, model, layout, lifelineEndY, actorOptions);
 
         return builder.Build();
+    }
+
+    static RenderOptions CloneOptions(RenderOptions options, string fontFamily, double fontSizePx)
+    {
+#pragma warning disable IDE0007
+        RenderOptions clone = new RenderOptions
+        {
+            Padding = options.Padding,
+            Theme = options.Theme,
+            FontFamily = fontFamily,
+            ShowBoundingBox = options.ShowBoundingBox,
+            FontSize = fontSizePx
+        };
+        return clone;
+#pragma warning restore IDE0007
     }
 
     static SequenceParticipantLayout CalculateParticipantLayout(SequenceModel model, RenderOptions options)
@@ -134,7 +185,7 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
         }
 
         var centers = new Dictionary<string, double>();
-        var leftEdge = options.Padding;
+        var leftEdge = MermaidSequenceDiagramMarginXPx;
         for (var index = 0; index < model.Participants.Count; index++)
         {
             var participant = model.Participants[index];
@@ -153,7 +204,7 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
             maxHeaderHeight = Math.Max(maxHeaderHeight, heights[participant.Id]);
         }
 
-        var totalWidth = leftEdge + options.Padding;
+        var totalWidth = leftEdge + MermaidSequenceDiagramMarginXPx;
         return new SequenceParticipantLayout(centers, widths, heights, maxHeaderHeight, totalWidth);
     }
 
@@ -161,31 +212,31 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
         SequenceModel model, RenderOptions options, double maxParticipantHeaderHeight)
     {
         var elementYPositions = new Dictionary<int, double>();
-        var y = options.Padding + maxParticipantHeaderHeight + MessageSpacing;
+        var y = MermaidSequenceDiagramMarginYPx + maxParticipantHeaderHeight + MessageSpacing;
         var titleOffset = string.IsNullOrEmpty(model.Title) ? 0 : 30;
 
         for (var i = 0; i < model.Elements.Count; i++)
         {
             elementYPositions[i] = y + titleOffset;
-            y += GetElementHeight(model.Elements[i]);
+            y += GetElementHeight(model.Elements[i], options);
         }
 
-        var totalHeight = y + maxParticipantHeaderHeight + options.Padding + titleOffset;
+        var totalHeight = y + maxParticipantHeaderHeight + MermaidSequenceDiagramMarginYPx + titleOffset;
         return (totalHeight, elementYPositions);
     }
 
-    static double GetElementHeight(SequenceElement element) =>
+    static double GetElementHeight(SequenceElement element, RenderOptions options) =>
         element switch
         {
             Message => MessageSpacing,
-            Note => NoteHeight + 10,
+            Note note => MeasureNoteSize(note).Height + 10,
             Activation => 0, // Activations don't add height
             _ => MessageSpacing
         };
 
     /// <summary>Uses a slightly wide per-glyph estimate so boxes stay comfortable in Word (SVG text often renders wider than 0.55×).</summary>
     static double ParticipantMeasureFontSize(RenderOptions options) =>
-        Math.Max(options.FontSize, ParticipantLayoutMeasureFontFloor);
+        Math.Max(MermaidSequenceActorFontSizePx, ParticipantLayoutMeasureFontFloor);
 
     /// <summary>
     /// Adds symmetric ASCII spaces around participant header text so SVG renderers reserve visible separation from the rectangle stroke (layout uses the same string).
@@ -203,7 +254,9 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
 
     static Size MeasureParticipantLabel(string text, double fontSize)
     {
-        var width = text.Length * fontSize * 0.62;
+        // Mermaid’s sequence diagrams render actor labels with tighter glyph metrics than Word’s SVG text.
+        // Use a narrower estimate to keep participant boxes closer to Mermaid defaults.
+        var width = text.Length * fontSize * 0.50;
         var height = fontSize * 1.55;
         return new Size(width, height);
     }
@@ -313,6 +366,7 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
     static void DrawElements(SvgBuilder builder, SequenceModel model,
         SequenceParticipantLayout layout,
         Dictionary<int, double> yPositions,
+        double lifelineStartY,
         RenderOptions options,
         Dictionary<string, List<(double startY, double endY)>> activations)
     {
@@ -348,7 +402,7 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
                     break;
 
                 case Note note:
-                    DrawNote(builder, note, layout, y, options);
+                    DrawNote(builder, note, model, layout, yPositions, i, lifelineStartY, y, options);
                     break;
 
                 case Activation activation:
@@ -405,27 +459,33 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
 
         if (isSelfMessage)
         {
-            // Self-referencing message - draw as a loop
-            var loopWidth = 40;
-            var loopHeight = 30;
+#pragma warning disable IDE0007
+            // Mermaid default (rightAngles=false) draws a single cubic Bezier "hook" for self messages:
+            // M x,y  C x+60,y-10  x+60,y+30  x,y+20
+            double ControlDx = 60.0;
+            double ControlDyUp = -10.0;
+            double ControlDyDown = 30.0;
+            double EndDy = 20.0;
+
             var path = $"M{Fmt(fromX)},{Fmt(y)} " +
-                       $"L{Fmt(fromX + loopWidth)},{Fmt(y)} " +
-                       $"L{Fmt(fromX + loopWidth)},{Fmt(y + loopHeight)} " +
-                       $"L{Fmt(fromX)},{Fmt(y + loopHeight)}";
+                       $"C{Fmt(fromX + ControlDx)},{Fmt(y + ControlDyUp)} " +
+                       $"{Fmt(fromX + ControlDx)},{Fmt(y + ControlDyDown)} " +
+                       $"{Fmt(fromX)},{Fmt(y + EndDy)}";
             builder.AddPath(path,
                 fill: "none",
                 stroke: "#333",
                 strokeWidth: 1,
                 strokeDasharray: dashArray,
                 markerEnd: $"url(#{markerEnd})");
+#pragma warning restore IDE0007
 
-            // Text above
+            // Mermaid centres self-message labels on the lifeline, not to the right of the loop.
             if (!string.IsNullOrEmpty(msg.Text))
             {
                 var labelText = number.HasValue ? $"{number}. {msg.Text}" : msg.Text;
-                builder.AddText(fromX + loopWidth + 5, y + loopHeight / 2, labelText,
-                    anchor: "start",
-                    baseline: "middle",
+                builder.AddText(fromX, y - MessageLabelOffsetAboveArrow, labelText,
+                    anchor: "middle",
+                    baseline: "bottom",
                     fontSize: $"{options.FontSize}px",
                     fontFamily: options.FontFamily);
             }
@@ -457,9 +517,12 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
         }
     }
 
-    static void DrawNote(SvgBuilder builder, Note note,
-        SequenceParticipantLayout layout, double y, RenderOptions options)
+    static void DrawNote(SvgBuilder builder, Note note, SequenceModel model,
+        SequenceParticipantLayout layout, Dictionary<int, double> yPositions, int elementIndex,
+        double lifelineStartY, double y, RenderOptions options)
     {
+#pragma warning disable IDE0007
+        Size noteSize = MeasureNoteSize(note);
         var participantX = layout.Centers[note.ParticipantId];
         var participantHalfWidth = layout.Widths[note.ParticipantId] / 2;
         double noteX;
@@ -470,47 +533,171 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
                 noteX = participantX + participantHalfWidth + 10;
                 break;
             case NotePosition.LeftOf:
-                noteX = participantX - participantHalfWidth - NoteWidth - 10;
+                noteX = participantX - participantHalfWidth - noteSize.Width - 10;
                 break;
             case NotePosition.Over:
             default:
                 if (!string.IsNullOrEmpty(note.OverParticipantId2) &&
                     layout.Centers.TryGetValue(note.OverParticipantId2, out var participant2X))
                 {
-                    noteX = (participantX + participant2X) / 2 - NoteWidth / 2;
+                    noteX = (participantX + participant2X) / 2 - noteSize.Width / 2;
                 }
                 else
                 {
-                    noteX = participantX - NoteWidth / 2;
+                    noteX = participantX - noteSize.Width / 2;
                 }
 
                 break;
         }
 
+        if (note.Position == NotePosition.Over
+            && string.IsNullOrEmpty(note.OverParticipantId2)
+            && TryGetNextMessageY(model, yPositions, elementIndex, out double nextMessageY))
+        {
+            double mid = (lifelineStartY + nextMessageY) / 2.0;
+            y = mid - (noteSize.Height / 2.0);
+        }
+
         // Note box (folded corner style)
         var foldSize = 8;
         var path = $"M{Fmt(noteX)},{Fmt(y)} " +
-                   $"L{Fmt(noteX + NoteWidth - foldSize)},{Fmt(y)} " +
-                   $"L{Fmt(noteX + NoteWidth)},{Fmt(y + foldSize)} " +
-                   $"L{Fmt(noteX + NoteWidth)},{Fmt(y + NoteHeight)} " +
-                   $"L{Fmt(noteX)},{Fmt(y + NoteHeight)} Z";
+                   $"L{Fmt(noteX + noteSize.Width - foldSize)},{Fmt(y)} " +
+                   $"L{Fmt(noteX + noteSize.Width)},{Fmt(y + foldSize)} " +
+                   $"L{Fmt(noteX + noteSize.Width)},{Fmt(y + noteSize.Height)} " +
+                   $"L{Fmt(noteX)},{Fmt(y + noteSize.Height)} Z";
 
-        builder.AddPath(path, fill: "#FFFFCC", stroke: "#AAAA33", strokeWidth: 1);
+        builder.AddPath(path, fill: "#FFF2B3", stroke: "#999922", strokeWidth: 1);
 
         // Fold line
-        builder.AddLine(noteX + NoteWidth - foldSize, y,
-            noteX + NoteWidth - foldSize, y + foldSize,
-            stroke: "#AAAA33", strokeWidth: 1);
-        builder.AddLine(noteX + NoteWidth - foldSize, y + foldSize,
-            noteX + NoteWidth, y + foldSize,
-            stroke: "#AAAA33", strokeWidth: 1);
+        builder.AddLine(noteX + noteSize.Width - foldSize, y,
+            noteX + noteSize.Width - foldSize, y + foldSize,
+            stroke: "#999922", strokeWidth: 1);
+        builder.AddLine(noteX + noteSize.Width - foldSize, y + foldSize,
+            noteX + noteSize.Width, y + foldSize,
+            stroke: "#999922", strokeWidth: 1);
 
         // Note text
-        builder.AddText(noteX + NoteWidth / 2, y + NoteHeight / 2, note.Text,
-            anchor: "middle",
-            baseline: "middle",
-            fontSize: $"{options.FontSize}px",
-            fontFamily: options.FontFamily);
+        string wrapped = WrapPlainTextToWidth(note.Text, MermaidSequenceNoteFontSizePx, NoteMaxTextWidthPx);
+        builder.AddForeignObject(
+            noteX + NoteHorizontalPaddingPx,
+            y + NoteVerticalPaddingPx,
+            noteSize.Width - (NoteHorizontalPaddingPx * 2.0),
+            noteSize.Height - (NoteVerticalPaddingPx * 2.0),
+            "<p>" + wrapped.Replace("\n", "<br/>", StringComparison.Ordinal) + "</p>",
+            className: "noteText",
+            fontSizePx: MermaidSequenceNoteFontSizePx,
+            opticalVerticalBiasEm: SequenceLabelOpticalVerticalBiasEm,
+            extraVerticalOffsetPx: SequenceNodeLabelExtraVerticalOffsetPx);
+#pragma warning restore IDE0007
+    }
+
+    static bool TryGetNextMessageY(SequenceModel model, Dictionary<int, double> yPositions, int currentIndex, out double nextMessageY)
+    {
+#pragma warning disable IDE0007
+        for (int i = currentIndex + 1; i < model.Elements.Count; i++)
+        {
+            if (model.Elements[i] is Message)
+            {
+                if (yPositions.TryGetValue(i, out double y))
+                {
+                    nextMessageY = y;
+                    return true;
+                }
+            }
+        }
+
+        nextMessageY = 0;
+        return false;
+#pragma warning restore IDE0007
+    }
+
+    static Size MeasureNoteSize(Note note)
+    {
+#pragma warning disable IDE0007
+        string wrapped = WrapPlainTextToWidth(note.Text, MermaidSequenceNoteFontSizePx, NoteMaxTextWidthPx);
+        string[] lines = wrapped.Split('\n');
+
+        int maxLen = 0;
+        for (int i = 0; i < lines.Length; i++)
+        {
+            maxLen = Math.Max(maxLen, lines[i].Trim().Length);
+        }
+
+        double estimatedTextWidth = maxLen * MermaidSequenceNoteFontSizePx * 0.62;
+        double textWidth = Math.Min(NoteMaxTextWidthPx, Math.Max(40.0, estimatedTextWidth));
+        double lineHeight = Math.Max(MermaidSequenceNoteFontSizePx * 1.2, MermaidSequenceNoteFontSizePx + 2);
+        double textHeight = Math.Max(1, lines.Length) * lineHeight;
+
+        double width = textWidth + (NoteHorizontalPaddingPx * 2.0);
+        double height = textHeight + (NoteVerticalPaddingPx * 2.0);
+        return new Size(width, height);
+#pragma warning restore IDE0007
+    }
+
+    static string WrapPlainTextToWidth(string text, double fontSizePx, double maxWidthPx)
+    {
+#pragma warning disable IDE0007
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return text ?? string.Empty;
+        }
+
+        double maxChars = Math.Max(1.0, maxWidthPx / (fontSizePx * 0.62));
+        int maxCharsPerLine = (int)Math.Floor(maxChars);
+
+        string paragraph = text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n').Trim();
+        string[] words = paragraph.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        List<string> lines = new List<string>();
+        string current = string.Empty;
+
+        for (int w = 0; w < words.Length; w++)
+        {
+            string word = words[w];
+            if (word.Length > maxCharsPerLine)
+            {
+                if (!string.IsNullOrEmpty(current))
+                {
+                    lines.Add(current);
+                    current = string.Empty;
+                }
+
+                int index = 0;
+                while (index < word.Length)
+                {
+                    int take = Math.Min(maxCharsPerLine, word.Length - index);
+                    lines.Add(word.Substring(index, take));
+                    index += take;
+                }
+
+                continue;
+            }
+
+            if (string.IsNullOrEmpty(current))
+            {
+                current = word;
+                continue;
+            }
+
+            int proposed = current.Length + 1 + word.Length;
+            if (proposed <= maxCharsPerLine)
+            {
+                current = current + " " + word;
+            }
+            else
+            {
+                lines.Add(current);
+                current = word;
+            }
+        }
+
+        if (!string.IsNullOrEmpty(current))
+        {
+            lines.Add(current);
+        }
+
+        return string.Join("\n", lines);
+#pragma warning restore IDE0007
     }
 
     static void DrawActivations(SvgBuilder builder,

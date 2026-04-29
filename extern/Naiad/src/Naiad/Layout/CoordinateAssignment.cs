@@ -376,6 +376,17 @@ static class CoordinateAssignment
         MermaidSharp.Diagrams.Flowchart.FlowchartModel? FlowchartDiagram = diagram as MermaidSharp.Diagrams.Flowchart.FlowchartModel;
 #pragma warning restore IDE0007
 
+        // Horizontal flowchart attach-point rules (small-N):
+        // - 2 -> 1 fan-in (both sources on the left): allocate symmetric slots on target left edge.
+        // - 1 -> 2 fan-out (both targets on the right): both edges leave from the vertical middle of the source right edge.
+        //
+        // This is intentionally scoped to N=2 to avoid broad routing changes.
+        var FlowchartHorizontalAttachOverrides = (FlowchartHorizontalAttachOverrides?)null;
+        if (isHorizontal && FlowchartDiagram is not null)
+        {
+            FlowchartHorizontalAttachOverrides = BuildFlowchartHorizontalAttachOverrides(graph);
+        }
+
         // Build lookup for dummy nodes by (OriginalEdgeSource, OriginalEdgeTarget)
         var dummyLookup = new Dictionary<(string, string), List<LayoutNode>>();
         foreach (var node in graph.Nodes.Values)
@@ -409,9 +420,11 @@ static class CoordinateAssignment
         // split the facing edge into (2N-1) slots for N parallel edges, using the centres of slots 1,3,5...
         // (e.g., for N=2, split into 3 slots and use 1st and 3rd).
         Dictionary<LayoutEdge, (double SourceX, double SourceY, double TargetX, double TargetY)>? FlowchartVerticalAttachByEdge = null;
+        var FlowchartVerticalDecisionDiamondSourceAttachOverrideByEdge = (Dictionary<LayoutEdge, (double SourceX, double SourceY)>?)null;
         if (!isHorizontal && FlowchartDiagram is not null)
         {
             FlowchartVerticalAttachByEdge = BuildFlowchartVerticalAttachPoints(graph);
+            FlowchartVerticalDecisionDiamondSourceAttachOverrideByEdge = BuildFlowchartVerticalDecisionDiamondSourceAttachOverrides(graph, FlowchartDiagram);
         }
 #pragma warning restore IDE0007
 
@@ -471,6 +484,26 @@ static class CoordinateAssignment
                         sourceEdgeY = sourceAttach.Y;
                         targetEdgeXNoShorten = targetAttach.X;
                         targetEdgeYNoShorten = targetAttach.Y;
+
+                        if (FlowchartHorizontalAttachOverrides is not null
+                            && FlowchartHorizontalAttachOverrides.TargetAttachOverrideByEdge.TryGetValue(edge, out var OverrideTargetAttach))
+                        {
+                            targetEdgeXNoShorten = OverrideTargetAttach.TargetX;
+                            targetEdgeYNoShorten = OverrideTargetAttach.TargetY;
+                        }
+
+                        if (FlowchartHorizontalAttachOverrides is not null
+                            && FlowchartHorizontalAttachOverrides.SourceAttachOverrideByEdge.TryGetValue(edge, out var OverrideSourceAttach))
+                        {
+                            // Decision nodes (diamonds) must choose exit points based on the true shape intersection
+                            // toward each target. Do not collapse multiple outgoing edges onto one shared port.
+                            var sourceModel = FlowchartDiagram.GetNode(edge.SourceId);
+                            if (sourceModel is null || sourceModel.Shape != MermaidSharp.Models.NodeShape.Diamond)
+                            {
+                                sourceEdgeX = OverrideSourceAttach.SourceX;
+                                sourceEdgeY = OverrideSourceAttach.SourceY;
+                            }
+                        }
                     }
                     else
                     {
@@ -499,6 +532,67 @@ static class CoordinateAssignment
                             sourceEdgeY = FlowchartAttach.SourceY;
                             targetEdgeXNoShorten = FlowchartAttach.TargetX;
                             targetEdgeYNoShorten = FlowchartAttach.TargetY;
+
+                            if (FlowchartVerticalDecisionDiamondSourceAttachOverrideByEdge is not null
+                                && FlowchartVerticalDecisionDiamondSourceAttachOverrideByEdge.TryGetValue(edge, out (double SourceX, double SourceY) OverrideSource))
+                            {
+                                sourceEdgeX = OverrideSource.SourceX;
+                                sourceEdgeY = OverrideSource.SourceY;
+                            }
+
+                            // Decision fan-out in vertical flowcharts: regardless of which face slotting chose for the
+                            // real target node, force top-centre entry when the original source is a diamond and the
+                            // target is below it. This must work even when the immediate segment source is a dummy.
+                            if (TryGetOriginalEdgeEndpoints(graph, edge, out string OriginalSourceId, out string OriginalTargetId))
+                            {
+                                MermaidSharp.Models.Node? originalSourceModel = FlowchartDiagram.GetNode(OriginalSourceId);
+                                if (originalSourceModel is not null
+                                    && originalSourceModel.Shape == MermaidSharp.Models.NodeShape.Diamond
+                                    && string.Equals(edge.TargetId, OriginalTargetId, StringComparison.Ordinal))
+                                {
+                                    LayoutNode? originalSourceLayout = graph.GetNode(OriginalSourceId);
+                                    if (originalSourceLayout is not null && !target.IsDummy && target.Y > originalSourceLayout.Y + 0.01)
+                                    {
+                                        targetEdgeXNoShorten = target.X;
+                                        targetEdgeYNoShorten = target.Y - (target.Height / 2.0) - FlowchartEdgeNodeGap;
+                                    }
+                                }
+                            }
+
+                            // Decision nodes (diamonds) should attach based on true shape intersection toward the
+                            // opposite endpoint, not by rectangular face slotting. However, for multi-outgoing
+                            // decision diamonds we may override the exit faces to avoid reusing the same vertex.
+                            MermaidSharp.Models.Node? sourceModel = FlowchartDiagram.GetNode(edge.SourceId);
+                            if (sourceModel is not null && sourceModel.Shape == MermaidSharp.Models.NodeShape.Diamond)
+                            {
+                                var hasDecisionSourceOverride = FlowchartVerticalDecisionDiamondSourceAttachOverrideByEdge is not null
+                                    && FlowchartVerticalDecisionDiamondSourceAttachOverrideByEdge.ContainsKey(edge);
+
+                                if (!hasDecisionSourceOverride)
+                                {
+                                    Position toward = new Position(target.X, target.Y);
+                                    Position sourceAttach = ComputeFlowchartAttachPoint(source, sourceModel, toward);
+                                    sourceEdgeX = sourceAttach.X;
+                                    sourceEdgeY = sourceAttach.Y;
+                                }
+
+                                // For vertical decision fan-out, enter destinations from the top edge at top-centre.
+                                // Node-local: (x = width/2, y = 0). Absolute: (x = Target.X, y = TopEdgeY).
+                                if (!target.IsDummy && target.Y > source.Y + 0.01)
+                                {
+                                    targetEdgeXNoShorten = target.X;
+                                    targetEdgeYNoShorten = target.Y - (target.Height / 2.0) - FlowchartEdgeNodeGap;
+                                }
+                            }
+
+                            MermaidSharp.Models.Node? targetModel = FlowchartDiagram.GetNode(edge.TargetId);
+                            if (targetModel is not null && targetModel.Shape == MermaidSharp.Models.NodeShape.Diamond)
+                            {
+                                Position toward = new Position(source.X, source.Y);
+                                Position targetAttach = ComputeFlowchartAttachPoint(target, targetModel, toward);
+                                targetEdgeXNoShorten = targetAttach.X;
+                                targetEdgeYNoShorten = targetAttach.Y;
+                            }
                         }
                         else
                         {
@@ -511,6 +605,15 @@ static class CoordinateAssignment
                             sourceEdgeY = sourceAttach.Y;
                             targetEdgeXNoShorten = targetAttach.X;
                             targetEdgeYNoShorten = targetAttach.Y;
+
+                            // Same rule for fallback routing: decision fan-out downward enters from top-centre.
+                            MermaidSharp.Models.Node? sourceModel = FlowchartDiagram.GetNode(edge.SourceId);
+                            if (sourceModel is not null && sourceModel.Shape == MermaidSharp.Models.NodeShape.Diamond
+                                && !target.IsDummy && target.Y > source.Y + 0.01)
+                            {
+                                targetEdgeXNoShorten = target.X;
+                                targetEdgeYNoShorten = target.Y - (target.Height / 2.0) - FlowchartEdgeNodeGap;
+                            }
                         }
                     }
                     else
@@ -583,8 +686,9 @@ static class CoordinateAssignment
                     // short direct edges.
                     if (Math.Abs(sourceEdgeX - targetEdgeXNoShorten) > 0.001 && Math.Abs(sourceEdgeY - targetEdgeYNoShorten) > 0.001)
                     {
-                        // Use a 2-elbow Manhattan route through a midpoint.
-                        // This matches the dagre-d3 feel better than a single corner, once curveBasis smoothing is applied.
+                        // Use a single midpoint elbow (dagre-style) rather than a full 2-elbow Manhattan route.
+                        // Mermaid’s dagre-d3 output for TD/BT commonly includes a single intermediate point whose
+                        // X matches the target port and whose Y is around the mid-span.
                         if (isHorizontal)
                         {
 #pragma warning disable IDE0007
@@ -598,8 +702,78 @@ static class CoordinateAssignment
 #pragma warning disable IDE0007
                             double midY = (sourceEdgeY + targetEdgeYNoShorten) / 2.0;
 #pragma warning restore IDE0007
-                            edge.Points.Add(new(sourceEdgeX, midY));
-                            edge.Points.Add(new(targetEdgeXNoShorten, midY));
+
+                            // Vertical obstacle-aware routing.
+                            //
+                            // Dagre-d3 will introduce bendpoints to avoid passing through intermediate nodes.
+                            // Our layout graph does not compute obstacle-avoiding paths, so emulate the common
+                            // "detour column" behaviour for TD/BT when another node blocks the straight corridor.
+                            //
+                            // If no obstacle is detected, fall back to a simple 2-elbow route.
+                            var hasObstacle = false;
+                            var corridorMinX = Math.Min(sourceEdgeX, targetEdgeXNoShorten);
+                            var corridorMaxX = Math.Max(sourceEdgeX, targetEdgeXNoShorten);
+                            var corridorTopY = Math.Min(sourceEdgeY, targetEdgeYNoShorten);
+                            var corridorBottomY = Math.Max(sourceEdgeY, targetEdgeYNoShorten);
+
+                            var obstacleMinLeft = double.PositiveInfinity;
+                            var obstacleMaxRight = double.NegativeInfinity;
+
+                            foreach (var candidate in graph.Nodes.Values)
+                            {
+                                if (candidate.IsDummy)
+                                {
+                                    continue;
+                                }
+
+                                if (string.Equals(candidate.Id, source.Id, StringComparison.Ordinal)
+                                    || string.Equals(candidate.Id, target.Id, StringComparison.Ordinal))
+                                {
+                                    continue;
+                                }
+
+                                var candTop = candidate.Y - (candidate.Height / 2.0);
+                                var candBottom = candidate.Y + (candidate.Height / 2.0);
+                                if (candBottom <= corridorTopY + 0.1 || candTop >= corridorBottomY - 0.1)
+                                {
+                                    continue;
+                                }
+
+                                var candLeft = candidate.X - (candidate.Width / 2.0);
+                                var candRight = candidate.X + (candidate.Width / 2.0);
+                                if (candRight >= corridorMinX - 0.1 && candLeft <= corridorMaxX + 0.1)
+                                {
+                                    hasObstacle = true;
+                                    obstacleMinLeft = Math.Min(obstacleMinLeft, candLeft);
+                                    obstacleMaxRight = Math.Max(obstacleMaxRight, candRight);
+                                }
+                            }
+
+                            if (hasObstacle)
+                            {
+                                const double DETOUR_MARGIN_PX = 24.0;
+                                var detourLeftX = obstacleMinLeft - DETOUR_MARGIN_PX;
+                                var detourRightX = obstacleMaxRight + DETOUR_MARGIN_PX;
+
+                                var detourX = 0.0;
+                                if (Math.Abs(targetEdgeXNoShorten - detourLeftX) <= Math.Abs(targetEdgeXNoShorten - detourRightX))
+                                {
+                                    detourX = detourLeftX;
+                                }
+                                else
+                                {
+                                    detourX = detourRightX;
+                                }
+
+                                edge.Points.Add(new(detourX, midY));
+                                edge.Points.Add(new(detourX, targetEdgeYNoShorten - 1.0));
+                                edge.Points.Add(new(targetEdgeXNoShorten, targetEdgeYNoShorten - 1.0));
+                            }
+                            else
+                            {
+                                edge.Points.Add(new(sourceEdgeX, midY));
+                                edge.Points.Add(new(targetEdgeXNoShorten, midY));
+                            }
                         }
                     }
                 }
@@ -650,6 +824,377 @@ static class CoordinateAssignment
             default:
                 return IntersectRect(cx, cy, w / 2.0, h / 2.0, toward);
         }
+#pragma warning restore IDE0007
+    }
+
+    private static Dictionary<LayoutEdge, (double SourceX, double SourceY)> BuildFlowchartVerticalDecisionDiamondSourceAttachOverrides(
+        LayoutGraph graph,
+        MermaidSharp.Diagrams.Flowchart.FlowchartModel diagram)
+    {
+        var OverrideByEdge = new Dictionary<LayoutEdge, (double SourceX, double SourceY)>();
+
+        foreach (var node in graph.Nodes.Values)
+        {
+            if (node.IsDummy)
+            {
+                continue;
+            }
+
+            var model = diagram.GetNode(node.Id);
+            if (model is null || model.Shape != MermaidSharp.Models.NodeShape.Diamond)
+            {
+                continue;
+            }
+
+            // Consider only the immediate outgoing segments from the diamond.
+            var outgoing = graph.Edges
+                .Where(Edge => string.Equals(Edge.SourceId, node.Id, StringComparison.Ordinal))
+                .ToList();
+
+            if (outgoing.Count != 2 && outgoing.Count != 3)
+            {
+                continue;
+            }
+
+            var s = Math.Max(node.Width, node.Height);
+            var half = s / 2.0;
+
+            // Candidate exit points (screen-space):
+            // - Bottom-left edge midpoint
+            // - Bottom vertex
+            // - Bottom-right edge midpoint
+            //
+            // If the fan-out is predominantly upward (BT diagrams or loopbacks), mirror to the top side.
+            var bottomLeftMid = (X: node.X - (half / 2.0), Y: node.Y + (half / 2.0));
+            var bottomVertex = (X: node.X, Y: node.Y + half);
+            var bottomRightMid = (X: node.X + (half / 2.0), Y: node.Y + (half / 2.0));
+
+            var topLeftMid = (X: node.X - (half / 2.0), Y: node.Y - (half / 2.0));
+            var topVertex = (X: node.X, Y: node.Y - half);
+            var topRightMid = (X: node.X + (half / 2.0), Y: node.Y - (half / 2.0));
+
+            // Determine dominant fan-out direction by averaging target delta Y.
+            var avgDy = 0.0;
+            for (var i = 0; i < outgoing.Count; i++)
+            {
+                var t = graph.GetNode(outgoing[i].TargetId);
+                if (t is not null)
+                {
+                    avgDy += (t.Y - node.Y);
+                }
+            }
+            avgDy = avgDy / outgoing.Count;
+
+            var useBottom = avgDy >= 0.0;
+
+            var leftMid = useBottom ? bottomLeftMid : topLeftMid;
+            var midVertex = useBottom ? bottomVertex : topVertex;
+            var rightMid = useBottom ? bottomRightMid : topRightMid;
+
+            if (outgoing.Count == 2)
+            {
+                // Order by target X so left branch uses left face, with a loop-up preference.
+                outgoing.Sort((a, b) =>
+                {
+                    var at = graph.GetNode(a.TargetId);
+                    var bt = graph.GetNode(b.TargetId);
+                    var ax = at?.X ?? 0.0;
+                    var bx = bt?.X ?? 0.0;
+                    var ay = at?.Y ?? 0.0;
+                    var by = bt?.Y ?? 0.0;
+
+                    var aIsUp = useBottom ? (ay < node.Y - 0.01) : (ay > node.Y + 0.01);
+                    var bIsUp = useBottom ? (by < node.Y - 0.01) : (by > node.Y + 0.01);
+                    if (aIsUp != bIsUp)
+                    {
+                        return aIsUp ? -1 : 1;
+                    }
+
+                    return ax.CompareTo(bx);
+                });
+
+                OverrideByEdge[outgoing[0]] = (leftMid.X, leftMid.Y);
+                OverrideByEdge[outgoing[1]] = (rightMid.X, rightMid.Y);
+            }
+            else
+            {
+                // 3-way: use left face, bottom/top vertex, right face.
+                // Pick the most "downward" (or upward if mirrored) edge for the vertex; remaining two go left/right by X.
+                var vertexEdge = (LayoutEdge?)null;
+                var bestDy = useBottom ? double.NegativeInfinity : double.PositiveInfinity;
+                for (var i = 0; i < outgoing.Count; i++)
+                {
+                    var t = graph.GetNode(outgoing[i].TargetId);
+                    if (t is null)
+                    {
+                        continue;
+                    }
+
+                    var dy = t.Y - node.Y;
+                    if (useBottom)
+                    {
+                        if (dy > bestDy)
+                        {
+                            bestDy = dy;
+                            vertexEdge = outgoing[i];
+                        }
+                    }
+                    else
+                    {
+                        if (dy < bestDy)
+                        {
+                            bestDy = dy;
+                            vertexEdge = outgoing[i];
+                        }
+                    }
+                }
+
+                if (vertexEdge is null)
+                {
+                    vertexEdge = outgoing[1];
+                }
+
+                OverrideByEdge[vertexEdge] = (midVertex.X, midVertex.Y);
+
+                var remaining = outgoing.Where(e => !ReferenceEquals(e, vertexEdge)).ToList();
+                remaining.Sort((a, b) =>
+                {
+                    var at = graph.GetNode(a.TargetId);
+                    var bt = graph.GetNode(b.TargetId);
+                    var ax = at?.X ?? 0.0;
+                    var bx = bt?.X ?? 0.0;
+                    return ax.CompareTo(bx);
+                });
+
+                if (remaining.Count == 2)
+                {
+                    OverrideByEdge[remaining[0]] = (leftMid.X, leftMid.Y);
+                    OverrideByEdge[remaining[1]] = (rightMid.X, rightMid.Y);
+                }
+            }
+        }
+
+        return OverrideByEdge;
+    }
+
+    private sealed class FlowchartHorizontalAttachOverrides
+    {
+        public FlowchartHorizontalAttachOverrides(
+            Dictionary<LayoutEdge, (double SourceX, double SourceY)> sourceAttachOverrideByEdge,
+            Dictionary<LayoutEdge, (double TargetX, double TargetY)> targetAttachOverrideByEdge)
+        {
+            SourceAttachOverrideByEdge = sourceAttachOverrideByEdge;
+            TargetAttachOverrideByEdge = targetAttachOverrideByEdge;
+        }
+
+        public Dictionary<LayoutEdge, (double SourceX, double SourceY)> SourceAttachOverrideByEdge { get; }
+
+        public Dictionary<LayoutEdge, (double TargetX, double TargetY)> TargetAttachOverrideByEdge { get; }
+    }
+
+    private static FlowchartHorizontalAttachOverrides BuildFlowchartHorizontalAttachOverrides(LayoutGraph graph)
+    {
+        var SourceAttachOverrideByEdge = new Dictionary<LayoutEdge, (double SourceX, double SourceY)>();
+        var TargetAttachOverrideByEdge = new Dictionary<LayoutEdge, (double TargetX, double TargetY)>();
+
+        // Only consider real node endpoints (no dummies) for these small-N horizontal rules.
+        var RealEdges = graph.Edges
+            .Where(Edge =>
+            {
+                var Source = graph.GetNode(Edge.SourceId);
+                var Target = graph.GetNode(Edge.TargetId);
+                return Source is not null
+                       && Target is not null
+                       && !Source.IsDummy
+                       && !Target.IsDummy;
+            })
+            .ToList();
+
+        // --- 2 -> 1 fan-in to target from the left (allocate symmetric left-edge slots) ---
+        var IncomingByTargetId = RealEdges
+            .GroupBy(Edge => Edge.TargetId, StringComparer.Ordinal)
+            .ToDictionary(Group => Group.Key, Group => Group.ToList(), StringComparer.Ordinal);
+
+        foreach (var (TargetId, IncomingEdges) in IncomingByTargetId)
+        {
+            if (IncomingEdges.Count != 2)
+            {
+                continue;
+            }
+
+            var TargetNode = graph.GetNode(TargetId);
+            if (TargetNode is null)
+            {
+                continue;
+            }
+
+            // Require both sources are to the left of the target.
+            var allFromLeft = true;
+            for (var i = 0; i < IncomingEdges.Count; i++)
+            {
+                var SourceNode = graph.GetNode(IncomingEdges[i].SourceId);
+                if (SourceNode is null || SourceNode.X >= TargetNode.X)
+                {
+                    allFromLeft = false;
+                    break;
+                }
+            }
+
+            if (!allFromLeft)
+            {
+                continue;
+            }
+
+            // Slot rule: N=2 => (2N-1)=3 slots; use slot centres 1 and 3 => t = 1/6 and 5/6.
+            var leftX = TargetNode.X - (TargetNode.Width / 2.0) - FlowchartEdgeNodeGap;
+            var topY = TargetNode.Y - (TargetNode.Height / 2.0) - FlowchartEdgeNodeGap;
+            var height = TargetNode.Height + (FlowchartEdgeNodeGap * 2.0);
+
+            var upperY = topY + (height * (1.0 / 6.0));
+            var lowerY = topY + (height * (5.0 / 6.0));
+
+            IncomingEdges.Sort((a, b) =>
+            {
+                var Sa = graph.GetNode(a.SourceId);
+                var Sb = graph.GetNode(b.SourceId);
+                var ya = Sa?.Y ?? 0.0;
+                var yb = Sb?.Y ?? 0.0;
+                return ya.CompareTo(yb);
+            });
+
+            TargetAttachOverrideByEdge[IncomingEdges[0]] = (leftX, upperY);
+            TargetAttachOverrideByEdge[IncomingEdges[1]] = (leftX, lowerY);
+
+            // For this small-N fan-in, Mermaid leaves the sources from the right-centre (not the bottom-right corner).
+            for (var i = 0; i < IncomingEdges.Count; i++)
+            {
+                var Edge = IncomingEdges[i];
+                var SourceNode = graph.GetNode(Edge.SourceId);
+                if (SourceNode is null)
+                {
+                    continue;
+                }
+
+                var rightX = SourceNode.X + (SourceNode.Width / 2.0) + FlowchartEdgeNodeGap;
+                var midY = SourceNode.Y;
+                SourceAttachOverrideByEdge[Edge] = (rightX, midY);
+            }
+        }
+
+        // --- 1 -> N fan-out from source to the right ---
+        var OutgoingBySourceId = RealEdges
+            .GroupBy(Edge => Edge.SourceId, StringComparer.Ordinal)
+            .ToDictionary(Group => Group.Key, Group => Group.ToList(), StringComparer.Ordinal);
+
+        foreach (var (SourceId, OutgoingEdges) in OutgoingBySourceId)
+        {
+            if (OutgoingEdges.Count < 2)
+            {
+                continue;
+            }
+
+            var SourceNode = graph.GetNode(SourceId);
+            if (SourceNode is null)
+            {
+                continue;
+            }
+
+            // Require both targets are to the right of the source.
+            var allToRight = true;
+            for (var i = 0; i < OutgoingEdges.Count; i++)
+            {
+                var TargetNode = graph.GetNode(OutgoingEdges[i].TargetId);
+                if (TargetNode is null || TargetNode.X <= SourceNode.X)
+                {
+                    allToRight = false;
+                    break;
+                }
+            }
+
+            if (!allToRight)
+            {
+                continue;
+            }
+
+            var rightX = SourceNode.X + (SourceNode.Width / 2.0) + FlowchartEdgeNodeGap;
+            var midY = SourceNode.Y;
+
+            // Source: all fan-out edges share right-centre.
+            // Targets: attach at left-centre (Mermaid default for multiple separate targets).
+            for (var i = 0; i < OutgoingEdges.Count; i++)
+            {
+                var Edge = OutgoingEdges[i];
+                SourceAttachOverrideByEdge[Edge] = (rightX, midY);
+
+                var TargetNode = graph.GetNode(Edge.TargetId);
+                if (TargetNode is null)
+                {
+                    continue;
+                }
+
+                var leftX = TargetNode.X - (TargetNode.Width / 2.0) - FlowchartEdgeNodeGap;
+                var targetMidY = TargetNode.Y;
+                TargetAttachOverrideByEdge[Edge] = (leftX, targetMidY);
+            }
+        }
+
+        return new FlowchartHorizontalAttachOverrides(SourceAttachOverrideByEdge, TargetAttachOverrideByEdge);
+    }
+
+    internal static bool TryComputeStraightFlowchartEdgePoints(
+        MermaidSharp.Models.GraphDiagramBase diagram,
+        MermaidSharp.Models.Edge edge,
+        out List<Position> points)
+    {
+#pragma warning disable IDE0007
+        points = new List<Position>();
+
+        if (diagram == null)
+        {
+            return false;
+        }
+
+        if (edge == null)
+        {
+            return false;
+        }
+
+        MermaidSharp.Models.Node? sourceModelNode = diagram.GetNode(edge.SourceId);
+        MermaidSharp.Models.Node? targetModelNode = diagram.GetNode(edge.TargetId);
+
+        if (sourceModelNode == null || targetModelNode == null)
+        {
+            return false;
+        }
+
+        Position sourceCentre = sourceModelNode.Position;
+        Position targetCentre = targetModelNode.Position;
+
+        // Use the same shape-aware intersection logic used by routed edges.
+        LayoutNode sourceLayoutNode = new LayoutNode
+        {
+            Id = sourceModelNode.Id,
+            X = sourceCentre.X,
+            Y = sourceCentre.Y,
+            Width = sourceModelNode.Width,
+            Height = sourceModelNode.Height
+        };
+
+        LayoutNode targetLayoutNode = new LayoutNode
+        {
+            Id = targetModelNode.Id,
+            X = targetCentre.X,
+            Y = targetCentre.Y,
+            Width = targetModelNode.Width,
+            Height = targetModelNode.Height
+        };
+
+        Position sourceAttach = ComputeFlowchartAttachPoint(sourceLayoutNode, sourceModelNode, targetCentre);
+        Position targetAttach = ComputeFlowchartAttachPoint(targetLayoutNode, targetModelNode, sourceCentre);
+
+        points.Add(sourceAttach);
+        points.Add(targetAttach);
+        return true;
 #pragma warning restore IDE0007
     }
 
@@ -1152,6 +1697,147 @@ static class CoordinateAssignment
 #pragma warning disable IDE0007
         if (edges.Count == 0)
         {
+            return;
+        }
+
+        // For small-N, Mermaid tends to keep ports closer to the centre of the facing edge, rather than
+        // pushing anchors toward corners. This is especially visible for N=2 fan-in/fan-out on TD/BT
+        // flowcharts where ports sit inboard and are chosen deterministically.
+        //
+        // Keep this scoped to N=2 so larger fans still distribute across the full facing edge.
+        if (edges.Count == 2)
+        {
+            edges.Sort((a, b) =>
+            {
+                LayoutNode? AOther = graph.GetNode(string.Equals(a.SourceId, hubId, StringComparison.Ordinal) ? a.TargetId : a.SourceId);
+                LayoutNode? BOther = graph.GetNode(string.Equals(b.SourceId, hubId, StringComparison.Ordinal) ? b.TargetId : b.SourceId);
+
+                double AValue = 0.0;
+                double BValue = 0.0;
+                if (AOther is not null)
+                {
+                    AValue = facing is FacingDirection.Up or FacingDirection.Down ? AOther.X : AOther.Y;
+                }
+                if (BOther is not null)
+                {
+                    BValue = facing is FacingDirection.Up or FacingDirection.Down ? BOther.X : BOther.Y;
+                }
+
+                return AValue.CompareTo(BValue);
+            });
+
+            double inboardLeft = hub.X - (hub.Width / 2.0) - FlowchartEdgeNodeGap;
+            double inboardRight = hub.X + (hub.Width / 2.0) + FlowchartEdgeNodeGap;
+            double inboardTop = hub.Y - (hub.Height / 2.0) - FlowchartEdgeNodeGap;
+            double inboardBottom = hub.Y + (hub.Height / 2.0) + FlowchartEdgeNodeGap;
+
+            bool IsVerticalFace = facing is FacingDirection.Up or FacingDirection.Down;
+            double span = IsVerticalFace ? (inboardRight - inboardLeft) : (inboardBottom - inboardTop);
+
+            // Empirical Mermaid parity:
+            // - Fan-out (hub is the source endpoint for both edges): use a wider split (span/7).
+            // - Fan-in (hub is the target endpoint for both edges): use a slightly tighter split (span/10),
+            //   and choose left/right based on approach direction so the right-hand incoming edge lands on
+            //   the right-of-centre port (and vice-versa).
+            bool HubIsSource0 = string.Equals(edges[0].SourceId, hubId, StringComparison.Ordinal);
+            bool HubIsSource1 = string.Equals(edges[1].SourceId, hubId, StringComparison.Ordinal);
+            bool HubIsSourceForBoth = HubIsSource0 && HubIsSource1;
+            bool HubIsTargetForBoth = !HubIsSource0 && !HubIsSource1;
+
+            double offset = HubIsTargetForBoth ? (span / 10.0) : (span / 7.0);
+            double leftOfCentreCoord = IsVerticalFace ? (hub.X - offset) : (hub.Y - offset);
+            double rightOfCentreCoord = IsVerticalFace ? (hub.X + offset) : (hub.Y + offset);
+
+            for (int i = 0; i < edges.Count; i++)
+            {
+                LayoutEdge Edge = edges[i];
+                if (!TryGetOriginalEdgeEndpoints(graph, Edge, out string OriginalSourceId, out string OriginalTargetId))
+                {
+                    continue;
+                }
+
+                bool isSourceEndpoint = string.Equals(hubId, OriginalSourceId, StringComparison.Ordinal);
+                bool isTargetEndpoint = string.Equals(hubId, OriginalTargetId, StringComparison.Ordinal);
+                if (!isSourceEndpoint && !isTargetEndpoint)
+                {
+                    continue;
+                }
+
+                double chosenCoord;
+                if (HubIsTargetForBoth)
+                {
+                    // Fan-in: choose the inboard port based on approach side, if possible.
+                    LayoutNode? Other = graph.GetNode(Edge.SourceId);
+                    if (Other is null)
+                    {
+                        chosenCoord = i == 0 ? leftOfCentreCoord : rightOfCentreCoord;
+                    }
+                    else
+                    {
+                        double otherValue = IsVerticalFace ? Other.X : Other.Y;
+                        double hubValue = IsVerticalFace ? hub.X : hub.Y;
+                        if (otherValue > hubValue + 0.001)
+                        {
+                            chosenCoord = rightOfCentreCoord;
+                        }
+                        else if (otherValue < hubValue - 0.001)
+                        {
+                            chosenCoord = leftOfCentreCoord;
+                        }
+                        else
+                        {
+                            chosenCoord = i == 0 ? leftOfCentreCoord : rightOfCentreCoord;
+                        }
+                    }
+                }
+                else
+                {
+                    // Fan-out (or mixed): preserve deterministic ordering.
+                    chosenCoord = i == 0 ? leftOfCentreCoord : rightOfCentreCoord;
+                }
+
+                double x;
+                double y;
+                if (facing == FacingDirection.Down)
+                {
+                    x = chosenCoord;
+                    y = inboardBottom;
+                }
+                else if (facing == FacingDirection.Up)
+                {
+                    x = chosenCoord;
+                    y = inboardTop;
+                }
+                else if (facing == FacingDirection.Left)
+                {
+                    x = inboardLeft;
+                    y = chosenCoord;
+                }
+                else
+                {
+                    x = inboardRight;
+                    y = chosenCoord;
+                }
+
+                if (!attachByEdge.TryGetValue(Edge, out (double SourceX, double SourceY, double TargetX, double TargetY) Existing))
+                {
+                    Existing = (double.NaN, double.NaN, double.NaN, double.NaN);
+                }
+
+                if (isSourceEndpoint)
+                {
+                    Existing.SourceX = x;
+                    Existing.SourceY = y;
+                }
+                else
+                {
+                    Existing.TargetX = x;
+                    Existing.TargetY = y;
+                }
+
+                attachByEdge[Edge] = Existing;
+            }
+
             return;
         }
 

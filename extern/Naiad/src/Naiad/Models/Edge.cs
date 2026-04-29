@@ -1,5 +1,8 @@
 namespace MermaidSharp.Models;
 
+#pragma warning disable IDE0007 // Naiad prefers explicit types for clarity and debugging (repo analyser enforces var).
+#pragma warning disable IDE0022 // Naiad prefers block bodies over expression bodies for debuggability.
+
 public class Edge
 {
     public required string SourceId { get; init; }
@@ -32,17 +35,61 @@ public class Edge
                 return Points[0];
             }
 
-            // Return midpoint of the edge path
-            var midIndex = Points.Count / 2;
-            if (Points.Count % 2 == 0)
+            // Mermaid positions edge labels by traversing half the total polyline distance,
+            // not by choosing the middle point index.
+            double TotalDistance = 0.0;
+            for (int Index = 1; Index < Points.Count; Index++)
             {
-                var p1 = Points[midIndex - 1];
-                var p2 = Points[midIndex];
-                return new((p1.X + p2.X) / 2, (p1.Y + p2.Y) / 2);
+                TotalDistance += Distance(Points[Index - 1], Points[Index]);
             }
 
-            return Points[midIndex];
+            double RemainingDistance = TotalDistance / 2.0;
+            for (int Index = 1; Index < Points.Count; Index++)
+            {
+                Position PreviousPoint = Points[Index - 1];
+                Position Point = Points[Index];
+                double SegmentDistance = Distance(PreviousPoint, Point);
+
+                if (SegmentDistance <= 0.0000001)
+                {
+                    continue;
+                }
+
+                if (SegmentDistance < RemainingDistance)
+                {
+                    RemainingDistance -= SegmentDistance;
+                    continue;
+                }
+
+                double DistanceRatio = RemainingDistance / SegmentDistance;
+                if (DistanceRatio <= 0.0)
+                {
+                    return PreviousPoint;
+                }
+                if (DistanceRatio >= 1.0)
+                {
+                    return Point;
+                }
+
+                double X = RoundNumber(((1.0 - DistanceRatio) * PreviousPoint.X) + (DistanceRatio * Point.X), 5);
+                double Y = RoundNumber(((1.0 - DistanceRatio) * PreviousPoint.Y) + (DistanceRatio * Point.Y), 5);
+                return new Position(X, Y);
+            }
+
+            return Points[^1];
         }
+    }
+
+    private static double Distance(Position Point1, Position Point2)
+    {
+        double Dx = Point2.X - Point1.X;
+        double Dy = Point2.Y - Point1.Y;
+        return System.Math.Sqrt((Dx * Dx) + (Dy * Dy));
+    }
+
+    private static double RoundNumber(double Value, int Decimals)
+    {
+        return System.Math.Round(Value, Decimals);
     }
 
     public bool HasArrowHead =>
@@ -58,3 +105,6 @@ public class Edge
     public bool HasCircleEnd => Type is EdgeType.CircleEnd or EdgeType.BiDirectionalCircle;
     public bool HasCrossEnd => Type is EdgeType.CrossEnd or EdgeType.BiDirectionalCross;
 }
+
+#pragma warning restore IDE0022
+#pragma warning restore IDE0007

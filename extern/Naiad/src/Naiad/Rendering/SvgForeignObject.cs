@@ -55,7 +55,7 @@ public class SvgForeignObject : SvgElement
 
         builder.Append($"<text x=\"{Fmt(centerX)}\" y=\"{Fmt(startY)}\"");
         builder.Append(" text-anchor=\"middle\"");
-        builder.Append($" font-family=\"Arial, sans-serif\" font-size=\"{Fmt(FontSizePx)}\" fill=\"{SvgText.EscapeXml(Fill ?? "#333333")}\"");
+        builder.Append($" font-family=\"trebuchet ms, verdana, arial, sans-serif\" font-size=\"{Fmt(FontSizePx)}\" fill=\"{SvgText.EscapeXml(Fill ?? "#333333")}\"");
         CommonAttributes(builder);
         builder.Append('>');
 

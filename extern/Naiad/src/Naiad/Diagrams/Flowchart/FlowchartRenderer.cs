@@ -20,17 +20,22 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
     const double FlowchartNodeLabelExtraVerticalOffsetPx = 4;
 
     /// <summary>
-    /// Mermaid flowchart defaults (from Mermaid source):
-    /// nodeSpacing = 50, rankSpacing = 50.
+    /// Mermaid flowchart defaults (from Mermaid source).
+    /// These can be overridden via Mermaid init config (%%{init: ...}%%).
     /// </summary>
-    const double FlowchartNodeSpacingPx = 140;
-
-    const double FlowchartRankSpacingPx = 140;
+    const double FLOWCHART_DEFAULT_NODE_SPACING_PX = 50.0;
+    const double FLOWCHART_DEFAULT_RANK_SPACING_PX = 50.0;
+    const double FLOWCHART_DEFAULT_DIAGRAM_PADDING_PX = 8.0;
 
     /// <summary>
-    /// Mermaid flowchart default diagram padding (from Mermaid source): diagramPadding = 8.
+    /// Mermaid’s HTML-label flowchart nodes constrain label width and wrap text.
+    /// Word does not lay out HTML in SVG reliably, so we emit wrapped SVG text via <see cref="SvgForeignObject"/>.
     /// </summary>
-    const double FlowchartDiagramPaddingPx = 8;
+    const double FlowchartNodeLabelMaxWidthPx = 200.0;
+
+    // Mermaid-like padding around node labels (matches Mermaid output for small nodes like "In"/"Out").
+    const double FlowchartNodeLabelPaddingX2Px = 60.0;
+    const double FlowchartNodeLabelPaddingYPx = 30.0;
 
     // FontAwesome icon pattern: fa:fa-icon-name or fab:fa-icon-name
     static Regex iconPattern = IconPatternMyRegex();
@@ -49,11 +54,24 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             // Strip icon syntax for measurement
             var textForMeasure = iconPattern.Replace(label, "").Trim();
             textForMeasure = textForMeasure.Replace("<br/>", "\n", StringComparison.OrdinalIgnoreCase);
-            var textSize = MeasureText(textForMeasure, options.FontSize);
+#pragma warning disable IDE0007
+            string wrappedForMeasure = WrapPlainTextToWidth(textForMeasure, options.FontSize, FlowchartNodeLabelMaxWidthPx);
+            Size textSize = MeasureText(wrappedForMeasure, options.FontSize);
+#pragma warning restore IDE0007
             // Add extra width for icon if present
             var hasIcon = iconPattern.IsMatch(label);
-            node.Width = textSize.Width + 30 + (hasIcon ? 20 : 0);
-            node.Height = textSize.Height + 27;
+            node.Width = textSize.Width + FlowchartNodeLabelPaddingX2Px + (hasIcon ? 20 : 0);
+            node.Height = textSize.Height + FlowchartNodeLabelPaddingYPx;
+
+            // Persist wrapped text for rendering (so Word matches Mermaid's automatic wrapping).
+            // Only apply when the label does not already include explicit line breaks.
+            if (!hasIcon
+                && !label.Contains("<br/>", StringComparison.OrdinalIgnoreCase)
+                && !label.Contains("\\n", StringComparison.Ordinal)
+                && !label.Contains('\n'))
+            {
+                node.Label = wrappedForMeasure;
+            }
 
             // Adjust size for different shapes
             if (node.Shape is NodeShape.Circle or NodeShape.DoubleCircle)
@@ -75,11 +93,15 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         }
 
         // Run layout
+        var nodeSeparationPx = GetConfigDouble(model, "flowchart.nodeSpacing", FLOWCHART_DEFAULT_NODE_SPACING_PX);
+        var rankSeparationPx = GetConfigDouble(model, "flowchart.rankSpacing", FLOWCHART_DEFAULT_RANK_SPACING_PX);
+        var diagramPaddingPx = GetConfigDouble(model, "flowchart.diagramPadding", FLOWCHART_DEFAULT_DIAGRAM_PADDING_PX);
+
         var layoutOptions = new LayoutOptions
         {
             Direction = model.Direction,
-            NodeSeparation = FlowchartNodeSpacingPx,
-            RankSeparation = FlowchartRankSpacingPx,
+            NodeSeparation = nodeSeparationPx,
+            RankSeparation = rankSeparationPx,
             // Weighted edges (longer "-->") need longest-path layering; TightTree compaction was collapsing minlen gaps.
             Ranker = RankerType.LongestPath
         };
@@ -92,11 +114,11 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         // Build SVG. Mermaid computes the viewport from the rendered element bounds plus diagramPadding.
 #pragma warning disable IDE0007
         MermaidSharp.Models.Rect bounds = ComputeFlowchartContentBounds(model, options);
-        var viewBox = $"{Fmt(bounds.X - FlowchartDiagramPaddingPx)} {Fmt(bounds.Y - FlowchartDiagramPaddingPx)} {Fmt(bounds.Width + (FlowchartDiagramPaddingPx * 2.0))} {Fmt(bounds.Height + (FlowchartDiagramPaddingPx * 2.0))}";
+        var viewBox = $"{Fmt(bounds.X - diagramPaddingPx)} {Fmt(bounds.Y - diagramPaddingPx)} {Fmt(bounds.Width + (diagramPaddingPx * 2.0))} {Fmt(bounds.Height + (diagramPaddingPx * 2.0))}";
 #pragma warning restore IDE0007
 
         var builder = new SvgBuilder()
-            .Size(bounds.Width + (FlowchartDiagramPaddingPx * 2.0), bounds.Height + (FlowchartDiagramPaddingPx * 2.0))
+            .Size(bounds.Width + (diagramPaddingPx * 2.0), bounds.Height + (diagramPaddingPx * 2.0))
             .ViewBox(viewBox)
             .AddMermaidArrowMarker()
             .AddMermaidCircleMarker()
@@ -147,6 +169,98 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         }
 
         return builder.Build();
+    }
+
+    static string WrapPlainTextToWidth(string text, double fontSizePx, double maxWidthPx)
+    {
+#pragma warning disable IDE0007
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return text ?? string.Empty;
+        }
+
+        string Normalised = text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
+        string[] Paragraphs = Normalised.Split('\n');
+
+        double maxChars = Math.Max(1.0, maxWidthPx / (fontSizePx * 0.62));
+        int maxCharsPerLine = (int)Math.Floor(maxChars);
+
+        List<string> Lines = new List<string>();
+        for (int p = 0; p < Paragraphs.Length; p++)
+        {
+            string Paragraph = Paragraphs[p].Trim();
+            if (Paragraph.Length == 0)
+            {
+                Lines.Add(string.Empty);
+                continue;
+            }
+
+            string[] Words = Paragraph.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            string Current = string.Empty;
+
+            for (int w = 0; w < Words.Length; w++)
+            {
+                string Word = Words[w];
+                if (Word.Length > maxCharsPerLine)
+                {
+                    // Flush current line before hard-breaking long word.
+                    if (!string.IsNullOrEmpty(Current))
+                    {
+                        Lines.Add(Current);
+                        Current = string.Empty;
+                    }
+
+                    int Index = 0;
+                    while (Index < Word.Length)
+                    {
+                        int Take = Math.Min(maxCharsPerLine, Word.Length - Index);
+                        Lines.Add(Word.Substring(Index, Take));
+                        Index += Take;
+                    }
+                    continue;
+                }
+
+                if (string.IsNullOrEmpty(Current))
+                {
+                    Current = Word;
+                    continue;
+                }
+
+                int ProposedLength = Current.Length + 1 + Word.Length;
+                if (ProposedLength <= maxCharsPerLine)
+                {
+                    Current = Current + " " + Word;
+                }
+                else
+                {
+                    Lines.Add(Current);
+                    Current = Word;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(Current))
+            {
+                Lines.Add(Current);
+            }
+        }
+
+        return string.Join("\n", Lines);
+#pragma warning restore IDE0007
+    }
+
+    private static double GetConfigDouble(FlowchartModel model, string key, double fallback)
+    {
+        if (!model.Config.TryGetValue(key, out var value) || string.IsNullOrWhiteSpace(value))
+        {
+            return fallback;
+        }
+
+        if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
+        {
+            return parsed;
+        }
+
+        return fallback;
     }
 
     static HashSet<string> CollectSubgraphIds(FlowchartModel model)
@@ -328,16 +442,17 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         #pragma warning restore IDE0007
         if (!string.IsNullOrWhiteSpace(Title))
         {
-            // Title near top-left of the box (simple baseline; Word-friendly).
-            #pragma warning disable IDE0007
-            double TitleX = Bounds.X + 8;
-            double TitleY = Bounds.Y + Math.Max(14, options.FontSize);
-            #pragma warning restore IDE0007
+            // Mermaid centres the cluster label horizontally within the cluster.
+#pragma warning disable IDE0007
+            const double TITLE_BAND_PX = 26.0;
+            double TitleX = Bounds.X + (Bounds.Width / 2.0);
+            double TitleY = Bounds.Y + (TITLE_BAND_PX / 2.0) + 3.0;
+#pragma warning restore IDE0007
             builder.AddText(
                 TitleX,
                 TitleY,
                 Title,
-                anchor: "start",
+                anchor: "middle",
                 baseline: "middle",
                 fontSize: $"{Math.Max(10, options.FontSize)}px",
                 fontFamily: options.FontFamily,
@@ -357,6 +472,16 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
 #pragma warning disable IDE0007
         const double PADDING_PX = 18.0;
         const double TITLE_BAND_PX = 26.0;
+
+        // If the layout engine created a group node for this subgraph, prefer that explicit box size/position.
+        // This is required so any layout-provided slack (for centring member nodes) is reflected in the drawn cluster.
+        Node? groupNode = model.GetNode(subgraph.Id);
+        if (groupNode is not null && groupNode.IsGroup && groupNode.Width > 0 && groupNode.Height > 0)
+        {
+            double x = groupNode.Position.X - (groupNode.Width / 2.0);
+            double y = groupNode.Position.Y - (groupNode.Height / 2.0);
+            return new MermaidSharp.Models.Rect(x, y, groupNode.Width, groupNode.Height);
+        }
 
         bool HasAny = false;
         double MinX = 0;
@@ -633,7 +758,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
 
         var pathData = ShouldUseDecisionBranchCubic(edge, sourceNode)
             ? BuildDecisionBranchPath(pointsForPath, sourceNode, targetNode)
-            : BuildFlowchartEdgePath(pointsForPath, diagramDirection, sourceNode);
+            : BuildFlowchartEdgePath(pointsForPath, diagramDirection, sourceNode, targetNode);
 
 #pragma warning disable IDE0007
         string? strokeDasharray = edge.Style.StrokeDasharray;
@@ -700,7 +825,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
 
             var markerPathData = ShouldUseDecisionBranchCubic(edge, sourceNode)
                 ? BuildDecisionBranchPath(markerPoints, sourceNode, targetNode)
-                : BuildFlowchartEdgePath(markerPoints, diagramDirection, sourceNode);
+                : BuildFlowchartEdgePath(markerPoints, diagramDirection, sourceNode, targetNode);
             builder.AddPath(markerPathData,
                 fill: "none",
                 stroke: "none",
@@ -834,9 +959,60 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
     /// We emit the same curveBasis path from the routed polyline points.
     /// </summary>
 #pragma warning disable IDE0022
-    static string BuildFlowchartEdgePath(IReadOnlyList<Position> points, Direction diagramDirection, Node? sourceNode)
+    static string BuildFlowchartEdgePath(IReadOnlyList<Position> points, Direction diagramDirection, Node? sourceNode, Node? targetNode)
     {
+        // ER-style preference: for simple two-endpoint flowchart edges, use a single cubic Bézier with
+        // short endpoint stubs aligned to the node boundary normal. This produces a cleaner, more
+        // deterministic curve than curveBasis over just two points.
+        //
+        // For multi-point routes (dummy nodes / obstacle detours), keep curveBasis.
+        if (points.Count == 2)
+        {
+            return BuildFlowchartCubicWithEndpointStubs(points, sourceNode, targetNode);
+        }
+
         return BuildFlowchartCurveBasisPath(points);
+    }
+
+    static string BuildFlowchartCubicWithEndpointStubs(IReadOnlyList<Position> points, Node? sourceNode, Node? targetNode)
+    {
+#pragma warning disable IDE0007
+        if (points.Count < 2)
+        {
+            return string.Empty;
+        }
+
+        Position p0 = points[0];
+        Position p3 = points[^1];
+
+        // Similar to ER: short straight stubs at endpoints.
+        const double MAX_ENDPOINT_STUB_PX = 18.0;
+        const double MIN_ENDPOINT_STUB_PX = 10.0;
+
+        Position startNormal = ComputeEndpointNormal(p0, sourceNode, fallbackToward: points.Count >= 2 ? points[1] : p3, outward: true);
+        Position endNormal = ComputeEndpointNormal(p3, targetNode, fallbackToward: points.Count >= 2 ? points[^2] : p0, outward: true);
+
+        double chordDx = p3.X - p0.X;
+        double chordDy = p3.Y - p0.Y;
+        double chordLen = Math.Sqrt((chordDx * chordDx) + (chordDy * chordDy));
+        double stubLen = chordLen > 0.0 ? Math.Min(MAX_ENDPOINT_STUB_PX, Math.Max(MIN_ENDPOINT_STUB_PX, chordLen * 0.08)) : MIN_ENDPOINT_STUB_PX;
+
+        Position s0 = p0;
+        Position s1 = new Position(p0.X + (startNormal.X * stubLen), p0.Y + (startNormal.Y * stubLen));
+
+        Position e3 = p3;
+        Position e2 = new Position(p3.X + (endNormal.X * stubLen), p3.Y + (endNormal.Y * stubLen));
+
+        double midDx = e2.X - s1.X;
+        double midDy = e2.Y - s1.Y;
+        double midLen = Math.Sqrt((midDx * midDx) + (midDy * midDy));
+        double controlLen = midLen > 0.0 ? Math.Max(12.0, Math.Min(60.0, midLen * 0.35)) : 24.0;
+
+        Position c1 = new Position(s1.X + (startNormal.X * controlLen), s1.Y + (startNormal.Y * controlLen));
+        Position c2 = new Position(e2.X + (endNormal.X * controlLen), e2.Y + (endNormal.Y * controlLen));
+
+        return $"M{Fmt(s0.X)},{Fmt(s0.Y)} L{Fmt(s1.X)},{Fmt(s1.Y)} C{Fmt(c1.X)},{Fmt(c1.Y)} {Fmt(c2.X)},{Fmt(c2.Y)} {Fmt(e2.X)},{Fmt(e2.Y)} L{Fmt(e3.X)},{Fmt(e3.Y)}";
+#pragma warning restore IDE0007
     }
 
     static bool ShouldSnapDecisionBranchTargetPort(Edge edge, Node? sourceNode, Node? targetNode, bool targetHasSingleIncoming)
@@ -850,6 +1026,16 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         if (targetNode is null)
         {
             return false;
+        }
+
+        // Only snap for left/right decision branches. For vertical fan-out (targets below the decision),
+        // snapping to left/right-centre is wrong; those should enter from the top edge.
+        if (sourceNode is not null)
+        {
+            if (targetNode.Position.Y > sourceNode.Position.Y + 0.01)
+            {
+                return false;
+            }
         }
 
         // Only apply to the decision branches.
@@ -911,23 +1097,24 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             return false;
         }
 
-        string label = edge.Label.Trim();
-        bool isYesNo = string.Equals(label, "Yes", StringComparison.OrdinalIgnoreCase)
-                       || string.Equals(label, "No", StringComparison.OrdinalIgnoreCase);
-
-        if (!isYesNo)
-        {
-            return false;
-        }
-
-        // Prefer applying only when it looks like a decision branch, but allow for layout-inserted dummy segments
-        // where the immediate source node is not the diamond.
+        // If the source is a decision diamond, treat all labelled outgoing edges as decision branches.
+        // This keeps routing consistent for labels like "No after retries", "Rule A", etc.
         if (sourceNode is not null && sourceNode.Shape == NodeShape.Diamond)
         {
             return true;
         }
 
-        return edge.Points.Count >= 2;
+        // Fallback for dummy-segment edges where the immediate source isn't the diamond.
+        // Retain the conservative heuristic to avoid applying branch routing broadly.
+        string label = edge.Label.Trim();
+        bool isCommonDecisionLabel = label.StartsWith("Yes", StringComparison.OrdinalIgnoreCase)
+                                     || label.StartsWith("No", StringComparison.OrdinalIgnoreCase);
+        if (isCommonDecisionLabel)
+        {
+            return edge.Points.Count >= 2;
+        }
+
+        return false;
 #pragma warning restore IDE0007
     }
 

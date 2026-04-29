@@ -1,9 +1,15 @@
 namespace MermaidSharp;
 
 using System.Text;
+using System.Text.Json;
+using MermaidSharp.Models;
 
 public static class Mermaid
 {
+    const double MERMAID_DEFAULT_FONT_SIZE_PX = 16;
+    const double MERMAID_CLASS_DIAGRAM_FONT_SIZE_PX = 10;
+    const double MERMAID_STATE_DIAGRAM_FONT_SIZE_PX = 10;
+
     /// <summary>
     /// Renders Mermaid syntax into an SVG payload and returns it as a UTF-8 <see cref="MemoryStream"/>.
     /// </summary>
@@ -49,13 +55,20 @@ public static class Mermaid
     {
         input = input.Trim();
         options ??= RenderOptions.Default;
+        // Mermaid supports init blocks at the start of the diagram:
+        //   %%{init: {...}}%%
+        //
+        // Naiad strips these from the source, but we also need to preserve relevant values (e.g. flowchart spacing)
+        // so layout uses globally configured values.
+        var initConfig = ParseInitConfigFromLeadingInitBlocks(input);
         input = StripInitBlock(input);
         var diagramType = DetectDiagramType(input);
+        options = ApplyMermaidDiagramFontDefaults(diagramType, options);
 
         return diagramType switch
         {
             DiagramType.Pie => RenderPie(input, options),
-            DiagramType.Flowchart => RenderFlowchart(input, options),
+            DiagramType.Flowchart => RenderFlowchart(input, options, initConfig),
             DiagramType.Sequence => RenderSequence(input, options),
             DiagramType.Class => RenderClass(input, options),
             DiagramType.State => RenderState(input, options),
@@ -81,6 +94,39 @@ public static class Mermaid
             DiagramType.Treemap => RenderTreemap(input, options),
             _ => throw new MermaidException($"Unsupported diagram type: {diagramType}")
         };
+    }
+
+    static RenderOptions ApplyMermaidDiagramFontDefaults(DiagramType diagramType, RenderOptions options)
+    {
+#pragma warning disable IDE0007
+        double fontSizePx = MERMAID_DEFAULT_FONT_SIZE_PX;
+
+        switch (diagramType)
+        {
+            case DiagramType.Class:
+                fontSizePx = MERMAID_CLASS_DIAGRAM_FONT_SIZE_PX;
+                break;
+            case DiagramType.State:
+                fontSizePx = MERMAID_STATE_DIAGRAM_FONT_SIZE_PX;
+                break;
+        }
+
+        if (Math.Abs(options.FontSize - fontSizePx) < 0.001)
+        {
+            return options;
+        }
+
+#pragma warning disable IDE0007
+        RenderOptions clone = new RenderOptions
+        {
+            Padding = options.Padding,
+            Theme = options.Theme,
+            FontFamily = options.FontFamily,
+            FontSize = fontSizePx,
+            ShowBoundingBox = options.ShowBoundingBox
+        };
+        return clone;
+#pragma warning restore IDE0007
     }
 
     public static DiagramType DetectDiagramType(string input)
@@ -204,7 +250,7 @@ public static class Mermaid
         return ToXml(svg);
     }
 
-    static string RenderFlowchart(string input, RenderOptions options)
+    static string RenderFlowchart(string input, RenderOptions options, Dictionary<string, string> initConfig)
     {
         var parser = new FlowchartParser();
         var result = parser.Parse(input);
@@ -214,9 +260,126 @@ public static class Mermaid
             throw new MermaidParseException($"Failed to parse flowchart: {result.Error}");
         }
 
+        ApplyInitConfig(result.Value, initConfig);
+
         var renderer = new FlowchartRenderer();
         var svg = renderer.Render(result.Value, options);
         return ToXml(svg);
+    }
+
+    static void ApplyInitConfig(DiagramBase diagram, Dictionary<string, string> initConfig)
+    {
+        if (initConfig.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var kvp in initConfig)
+        {
+            if (!diagram.Config.ContainsKey(kvp.Key))
+            {
+                diagram.Config[kvp.Key] = kvp.Value;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Parses Mermaid <c>%%{init: {...}}%%</c> blocks found at the start of the input and flattens key values
+    /// into a string dictionary. Keys are stored using a dotted path (e.g. <c>flowchart.nodeSpacing</c>).
+    /// </summary>
+    static Dictionary<string, string> ParseInitConfigFromLeadingInitBlocks(string input)
+    {
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        var remaining = input.TrimStart();
+        while (remaining.StartsWith("%%{", StringComparison.Ordinal))
+        {
+            var endIndex = remaining.IndexOf("}%%", StringComparison.Ordinal);
+            if (endIndex < 0)
+            {
+                break;
+            }
+
+            var block = remaining.Substring(0, endIndex + 3);
+            TryParseOneInitBlock(block, result);
+            remaining = remaining[(endIndex + 3)..].TrimStart();
+        }
+
+        return result;
+    }
+
+    static void TryParseOneInitBlock(string initBlock, Dictionary<string, string> output)
+    {
+        if (string.IsNullOrWhiteSpace(initBlock))
+        {
+            return;
+        }
+
+        var initIndex = initBlock.IndexOf("init:", StringComparison.OrdinalIgnoreCase);
+        if (initIndex < 0)
+        {
+            return;
+        }
+
+        var jsonStart = initBlock.IndexOf('{', initIndex);
+        var jsonEnd = initBlock.LastIndexOf('}');
+        if (jsonStart < 0 || jsonEnd <= jsonStart)
+        {
+            return;
+        }
+
+        var json = initBlock.Substring(jsonStart, (jsonEnd - jsonStart) + 1);
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            FlattenJson(doc.RootElement, prefix: string.Empty, output);
+        }
+        catch
+        {
+            // Ignore invalid init blocks: Mermaid itself treats them as optional.
+        }
+    }
+
+    static void FlattenJson(JsonElement element, string prefix, Dictionary<string, string> output)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var property in element.EnumerateObject())
+            {
+                var key = string.IsNullOrEmpty(prefix) ? property.Name : prefix + "." + property.Name;
+                FlattenJson(property.Value, key, output);
+            }
+
+            return;
+        }
+
+        if (element.ValueKind == JsonValueKind.Array)
+        {
+            // Keep arrays as JSON text.
+            output[prefix] = element.GetRawText();
+            return;
+        }
+
+        if (element.ValueKind == JsonValueKind.String)
+        {
+            output[prefix] = element.GetString() ?? string.Empty;
+            return;
+        }
+
+        if (element.ValueKind == JsonValueKind.Number)
+        {
+            output[prefix] = element.GetRawText();
+            return;
+        }
+
+        if (element.ValueKind == JsonValueKind.True || element.ValueKind == JsonValueKind.False)
+        {
+            output[prefix] = element.GetRawText();
+            return;
+        }
+
+        // Null/Undefined.
+        output[prefix] = string.Empty;
     }
 
     static string RenderSequence(string input, RenderOptions options)

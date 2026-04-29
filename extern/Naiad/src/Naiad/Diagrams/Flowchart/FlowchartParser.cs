@@ -175,8 +175,24 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
 
     // Mermaid allows link text embedded in the arrow token, e.g. `A -. text .-> B`.
     // For now we accept and treat that embedded text as the edge label.
+    //
+    // Mermaid also allows solid links with label text between the hyphens and the arrowhead:
+    //
+    //   A -- Yes --> B
+    //
+    // This is distinct from the `A -->|Yes| B` syntax, and must be parsed as part of the arrow token.
+    static Parser<char, (EdgeType Type, EdgeStyle Style, int MinRankSpan, string? EmbeddedLabel)> solidArrowWithTextParser =
+        from _0 in String("--")
+        from _1 in CommonParsers.RequiredInlineWhitespace
+        from textChars in Token(_ => _ != '\r' && _ != '\n').Until(Lookahead(Try(String("-->"))))
+        from _2 in String("-->")
+        let text = NormalizeFlowchartLabel(new string(textChars.ToArray()).Trim())
+        where !string.IsNullOrWhiteSpace(text)
+        select (EdgeType.Arrow, EdgeStyle.Solid, 1, (string?)text);
+
     static Parser<char, (EdgeType Type, EdgeStyle Style, int MinRankSpan, string? EmbeddedLabel)> arrowWithOptionalEmbeddedLabelParser =
         OneOf(
+            Try(solidArrowWithTextParser),
             Try(
                 String("-.")
                     .Then(Token(_ => _ != '.' && _ != '\r' && _ != '\n').ManyString())
