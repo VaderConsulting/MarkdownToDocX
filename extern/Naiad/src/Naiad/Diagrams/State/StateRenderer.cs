@@ -39,6 +39,10 @@ public class StateRenderer(ILayoutEngine? layoutEngine = null) :
 
     public SvgDocument Render(StateModel model, RenderOptions options)
     {
+#pragma warning disable IDE0007
+        MermaidSharp.Rendering.MermaidThemeVariables Theme = MermaidSharp.Rendering.MermaidThemeResolver.Resolve(model, options);
+#pragma warning restore IDE0007
+
         placedLabels.Clear();
 #if DEBUG
         textBounds.Clear();
@@ -103,6 +107,8 @@ public class StateRenderer(ILayoutEngine? layoutEngine = null) :
             .Size(svgWidth, svgHeight)
             .Padding(options.Padding)
             .AddArrowMarker();
+
+        builder.AddStyles(MermaidStyles.ApplyThemeVariables(MermaidStyles.StateStyles, Theme));
 
         // Render transitions first (behind states)
         RenderTransitions(builder, model, options);

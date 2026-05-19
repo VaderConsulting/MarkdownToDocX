@@ -43,6 +43,7 @@ public class DagreLayoutEngine : ILayoutEngine
         if (diagram is FlowchartModel)
         {
             CoordinateAssignment.ApplyVerticalForkExitGapToDiagramEdges(diagram, options.Direction);
+            CoordinateAssignment.ApplyVerticalPassThroughNodeAlignment(diagram, options.Direction);
         }
 
         // Calculate bounds (don't add margin again - positions already include it)
@@ -451,15 +452,20 @@ public class DagreLayoutEngine : ILayoutEngine
     {
         var graph = new LayoutGraph();
 
-        foreach (var node in diagram.Nodes)
+#pragma warning disable IDE0007
+        int NodeOrder = 0;
+        foreach (Node node in diagram.Nodes)
         {
             graph.AddNode(new()
             {
                 Id = node.Id,
                 Width = node.Width,
-                Height = node.Height
+                Height = node.Height,
+                Order = NodeOrder
             });
+            NodeOrder++;
         }
+#pragma warning restore IDE0007
 
         foreach (var edge in diagram.Edges)
         {

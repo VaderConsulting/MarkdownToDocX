@@ -23,6 +23,10 @@ public class KanbanRenderer : IDiagramRenderer<KanbanModel>
 
     public SvgDocument Render(KanbanModel model, RenderOptions options)
     {
+#pragma warning disable IDE0007
+        MermaidSharp.Rendering.MermaidThemeVariables Theme = MermaidSharp.Rendering.MermaidThemeResolver.Resolve(model, options);
+#pragma warning restore IDE0007
+
         if (model.Columns.Count == 0)
         {
             var emptyBuilder = new SvgBuilder().Size(200, 100);
@@ -38,7 +42,9 @@ public class KanbanRenderer : IDiagramRenderer<KanbanModel>
         var width = model.Columns.Count * (ColumnWidth + ColumnPadding) + options.Padding * 2;
         var height = contentHeight + options.Padding * 2 + titleOffset;
 
-        var builder = new SvgBuilder().Size(width, height);
+        var builder = new SvgBuilder()
+            .Size(width, height)
+            .AddStyles(MermaidStyles.ApplyThemeVariables(MermaidStyles.BaseStyles, Theme));
 
         // Draw title
         if (!string.IsNullOrEmpty(model.Title))
@@ -63,7 +69,7 @@ public class KanbanRenderer : IDiagramRenderer<KanbanModel>
 
             // Column background
             builder.AddRect(x, y, ColumnWidth, contentHeight,
-                rx: 8, fill: columnColor, stroke: "#ccc", strokeWidth: 1);
+                rx: 8, fill: columnColor, stroke: Theme.LineColor, strokeWidth: 1);
 
             // Column header
             builder.AddRect(x, y, ColumnWidth, HeaderHeight,
@@ -74,7 +80,7 @@ public class KanbanRenderer : IDiagramRenderer<KanbanModel>
             builder.AddText(x + ColumnWidth / 2, y + HeaderHeight / 2, column.Name,
                 anchor: "middle", baseline: "middle",
                 fontSize: $"{options.FontSize}px", fontFamily: options.FontFamily,
-                fontWeight: "bold", fill: "#333");
+                fontWeight: "bold", fill: Theme.TextColor);
 
             // Tasks
             for (var j = 0; j < column.Tasks.Count; j++)
@@ -86,7 +92,7 @@ public class KanbanRenderer : IDiagramRenderer<KanbanModel>
 
                 // Task card
                 builder.AddRect(taskX, taskY, taskWidth, TaskHeight,
-                    rx: 4, fill: "#fff", stroke: "#ddd", strokeWidth: 1);
+                    rx: 4, fill: "#fff", stroke: Theme.LineColor, strokeWidth: 1);
 
                 // Color bar on left
                 builder.AddRect(taskX, taskY, 4, TaskHeight,
@@ -96,7 +102,7 @@ public class KanbanRenderer : IDiagramRenderer<KanbanModel>
                 builder.AddText(taskX + 12, taskY + TaskHeight / 2, task.Name,
                     anchor: "start", baseline: "middle",
                     fontSize: $"{options.FontSize - 2}px", fontFamily: options.FontFamily,
-                    fill: "#333");
+                    fill: Theme.TextColor);
             }
         }
 

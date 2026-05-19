@@ -52,12 +52,17 @@ public class SvgMarker
 
         if (UseCircle)
         {
-            builder.Append($"<circle cx=\"{Fmt(CircleCx)}\" cy=\"{Fmt(CircleCy)}\" r=\"{Fmt(CircleR)}\" class=\"arrowMarkerPath\" style=\"stroke-width: {StrokeWidth}; stroke-dasharray: 1, 0;\"/>");
+#pragma warning disable IDE0007
+            string FillColor = Fill ?? "#333333";
+            builder.Append($"<circle cx=\"{Fmt(CircleCx)}\" cy=\"{Fmt(CircleCy)}\" r=\"{Fmt(CircleR)}\" class=\"arrowMarkerPath\" style=\"stroke:{FillColor};fill:{FillColor};stroke-width: {StrokeWidth}; stroke-dasharray: 1, 0;\"/>");
+#pragma warning restore IDE0007
         }
         else
         {
-            var fillColor = Fill ?? "#333333";
-            builder.Append($"<path d=\"{Path}\" fill=\"{fillColor}\" stroke=\"{fillColor}\" stroke-width=\"{StrokeWidth}\" stroke-linejoin=\"round\"/>");
+#pragma warning disable IDE0007
+            string FillColor = Fill ?? "#333333";
+            builder.Append($"<path d=\"{Path}\" fill=\"{FillColor}\" stroke=\"{FillColor}\" stroke-width=\"{StrokeWidth}\" stroke-linejoin=\"round\"/>");
+#pragma warning restore IDE0007
         }
 
         builder.Append("</marker>");

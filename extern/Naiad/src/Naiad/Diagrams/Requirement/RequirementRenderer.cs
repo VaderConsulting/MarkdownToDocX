@@ -30,7 +30,11 @@ public class RequirementRenderer : IDiagramRenderer<RequirementModel>
         var builder = new SvgBuilder().Size(width, height);
 
         // Add arrow marker
-        builder.AddArrowMarker("reqarrow", "#666");
+#pragma warning disable IDE0007
+        MermaidSharp.Rendering.MermaidThemeVariables Theme = MermaidSharp.Rendering.MermaidThemeResolver.Resolve(model, options);
+#pragma warning restore IDE0007
+        builder.AddStyles(MermaidStyles.ApplyThemeVariables(MermaidStyles.BaseStyles, Theme));
+        builder.AddArrowMarker("reqarrow", Theme.ArrowheadColor);
 
         // Draw title
         if (!string.IsNullOrEmpty(model.Title))

@@ -432,6 +432,62 @@ erDiagram
     TARGET ||--o{ CHILD_8 : "1:8 8"
 ```
 
+1:10 (ten incoming relationships):
+
+```mermaid
+erDiagram
+    TARGET ||--o{ CHILD_1 : "1:10 1"
+    TARGET ||--o{ CHILD_2 : "1:10 2"
+    TARGET ||--o{ CHILD_3 : "1:10 3"
+    TARGET ||--o{ CHILD_4 : "1:10 4"
+    TARGET ||--o{ CHILD_5 : "1:10 5"
+    TARGET ||--o{ CHILD_6 : "1:10 6"
+    TARGET ||--o{ CHILD_7 : "1:10 7"
+    TARGET ||--o{ CHILD_8 : "1:10 8"
+    TARGET ||--o{ CHILD_9 : "1:10 9"
+    TARGET ||--o{ CHILD_10 : "1:10 10"
+```
+
+1:12 (twelve incoming relationships):
+
+```mermaid
+erDiagram
+    TARGET ||--o{ CHILD_1 : "1:12 1"
+    TARGET ||--o{ CHILD_2 : "1:12 2"
+    TARGET ||--o{ CHILD_3 : "1:12 3"
+    TARGET ||--o{ CHILD_4 : "1:12 4"
+    TARGET ||--o{ CHILD_5 : "1:12 5"
+    TARGET ||--o{ CHILD_6 : "1:12 6"
+    TARGET ||--o{ CHILD_7 : "1:12 7"
+    TARGET ||--o{ CHILD_8 : "1:12 8"
+    TARGET ||--o{ CHILD_9 : "1:12 9"
+    TARGET ||--o{ CHILD_10 : "1:12 10"
+    TARGET ||--o{ CHILD_11 : "1:12 11"
+    TARGET ||--o{ CHILD_12 : "1:12 12"
+```
+
+1:16 (sixteen incoming relationships):
+
+```mermaid
+erDiagram
+    TARGET ||--o{ CHILD_1 : "1:16 1"
+    TARGET ||--o{ CHILD_2 : "1:16 2"
+    TARGET ||--o{ CHILD_3 : "1:16 3"
+    TARGET ||--o{ CHILD_4 : "1:16 4"
+    TARGET ||--o{ CHILD_5 : "1:16 5"
+    TARGET ||--o{ CHILD_6 : "1:16 6"
+    TARGET ||--o{ CHILD_7 : "1:16 7"
+    TARGET ||--o{ CHILD_8 : "1:16 8"
+    TARGET ||--o{ CHILD_9 : "1:16 9"
+    TARGET ||--o{ CHILD_10 : "1:16 10"
+    TARGET ||--o{ CHILD_11 : "1:16 11"
+    TARGET ||--o{ CHILD_12 : "1:16 12"
+    TARGET ||--o{ CHILD_13 : "1:16 13"
+    TARGET ||--o{ CHILD_14 : "1:16 14"
+    TARGET ||--o{ CHILD_15 : "1:16 15"
+    TARGET ||--o{ CHILD_16 : "1:16 16"
+```
+
 Entity relationship diagram: stress fixtures (fan-out from one entity)
 
 These are intended to be copied 1:1 into `mermaid.live` for reference output comparison.
@@ -472,6 +528,62 @@ erDiagram
     SOURCE ||--o{ TARGET_6 : "1:8 6"
     SOURCE ||--o{ TARGET_7 : "1:8 7"
     SOURCE ||--o{ TARGET_8 : "1:8 8"
+```
+
+1:10 (ten outgoing relationships):
+
+```mermaid
+erDiagram
+    SOURCE ||--o{ TARGET_1 : "1:10 1"
+    SOURCE ||--o{ TARGET_2 : "1:10 2"
+    SOURCE ||--o{ TARGET_3 : "1:10 3"
+    SOURCE ||--o{ TARGET_4 : "1:10 4"
+    SOURCE ||--o{ TARGET_5 : "1:10 5"
+    SOURCE ||--o{ TARGET_6 : "1:10 6"
+    SOURCE ||--o{ TARGET_7 : "1:10 7"
+    SOURCE ||--o{ TARGET_8 : "1:10 8"
+    SOURCE ||--o{ TARGET_9 : "1:10 9"
+    SOURCE ||--o{ TARGET_10 : "1:10 10"
+```
+
+1:12 (twelve outgoing relationships):
+
+```mermaid
+erDiagram
+    SOURCE ||--o{ TARGET_1 : "1:12 1"
+    SOURCE ||--o{ TARGET_2 : "1:12 2"
+    SOURCE ||--o{ TARGET_3 : "1:12 3"
+    SOURCE ||--o{ TARGET_4 : "1:12 4"
+    SOURCE ||--o{ TARGET_5 : "1:12 5"
+    SOURCE ||--o{ TARGET_6 : "1:12 6"
+    SOURCE ||--o{ TARGET_7 : "1:12 7"
+    SOURCE ||--o{ TARGET_8 : "1:12 8"
+    SOURCE ||--o{ TARGET_9 : "1:12 9"
+    SOURCE ||--o{ TARGET_10 : "1:12 10"
+    SOURCE ||--o{ TARGET_11 : "1:12 11"
+    SOURCE ||--o{ TARGET_12 : "1:12 12"
+```
+
+1:16 (sixteen outgoing relationships):
+
+```mermaid
+erDiagram
+    SOURCE ||--o{ TARGET_1 : "1:16 1"
+    SOURCE ||--o{ TARGET_2 : "1:16 2"
+    SOURCE ||--o{ TARGET_3 : "1:16 3"
+    SOURCE ||--o{ TARGET_4 : "1:16 4"
+    SOURCE ||--o{ TARGET_5 : "1:16 5"
+    SOURCE ||--o{ TARGET_6 : "1:16 6"
+    SOURCE ||--o{ TARGET_7 : "1:16 7"
+    SOURCE ||--o{ TARGET_8 : "1:16 8"
+    SOURCE ||--o{ TARGET_9 : "1:16 9"
+    SOURCE ||--o{ TARGET_10 : "1:16 10"
+    SOURCE ||--o{ TARGET_11 : "1:16 11"
+    SOURCE ||--o{ TARGET_12 : "1:16 12"
+    SOURCE ||--o{ TARGET_13 : "1:16 13"
+    SOURCE ||--o{ TARGET_14 : "1:16 14"
+    SOURCE ||--o{ TARGET_15 : "1:16 15"
+    SOURCE ||--o{ TARGET_16 : "1:16 16"
 ```
 
 Gantt chart:
@@ -607,7 +719,7 @@ pie showData
 
 Git graph:
 
-```mermaid
+```text
 gitGraph
     commit id: "start"
     branch diagrams
@@ -619,7 +731,7 @@ gitGraph
 
 Mindmap:
 
-```mermaid
+```text
 mindmap
   MarkdownToDocX
     Markdown
@@ -632,7 +744,7 @@ mindmap
 
 Timeline:
 
-```mermaid
+```text
 timeline
     title Converter milestones
     Markdown parsing : CommonMark examples
@@ -642,7 +754,7 @@ timeline
 
 User journey:
 
-```mermaid
+```text
 journey
     title Document export
     section Author
@@ -655,7 +767,7 @@ journey
 
 Quadrant chart:
 
-```mermaid
+```text
 quadrantChart
     title Feature priority
     x-axis Low effort --> High effort
@@ -670,7 +782,7 @@ quadrantChart
 
 Requirement diagram:
 
-```mermaid
+```text
 requirementDiagram
 requirement render_mermaid {
 id: 1
@@ -682,7 +794,7 @@ verifymethod: test
 
 C4 diagram:
 
-```mermaid
+```text
 C4Context
     title System context
     Person(user, "User", "Writes Markdown")
@@ -692,7 +804,7 @@ C4Context
 
 Kanban:
 
-```mermaid
+```text
 kanban
 todo[To do]
 docs[Add docs]
@@ -704,7 +816,7 @@ tables[Tables]
 
 XY chart:
 
-```mermaid
+```text
 xychart
     title "Converter throughput"
     x-axis [1, 2, 3, 4, 5]
@@ -715,7 +827,7 @@ xychart
 
 C4 diagrams (all supported entry keywords):
 
-```mermaid
+```text
 C4Context
     title System context
     Person(user, "User", "Writes Markdown")
@@ -723,7 +835,7 @@ C4Context
     Rel(user, converter, "Exports")
 ```
 
-```mermaid
+```text
 C4Container
     title Containers
     Person(user, "User", "Writes Markdown")
@@ -735,7 +847,7 @@ C4Container
     Rel(cli, naiad, "Renders Mermaid with")
 ```
 
-```mermaid
+```text
 C4Component
     title Components
     Container_Boundary(md2docx, "md2docx") {
@@ -745,7 +857,7 @@ C4Component
     Rel(parser, writer, "Provides document model to")
 ```
 
-```mermaid
+```text
 C4Deployment
     title Deployment
     Deployment_Node(pc, "Developer PC", "Windows") {
@@ -809,7 +921,7 @@ sequenceDiagram
 
 Requirement diagram: multiple requirements + relationship:
 
-```mermaid
+```text
 requirementDiagram
     requirement render_mermaid {
         id: 1
@@ -909,7 +1021,7 @@ flowchart LR
 
 Block diagram (beta):
 
-```mermaid
+```text
 block-beta
     columns 3
     md["Markdown"] render["Renderer"] docx["DOCX"]
@@ -917,7 +1029,7 @@ block-beta
 
 Radar chart (beta):
 
-```mermaid
+```text
 radar-beta
     title Converter capabilities
     axis Markdown, Tables, Images, Mermaid
@@ -927,7 +1039,7 @@ radar-beta
 
 Sankey diagram (beta):
 
-```mermaid
+```text
 sankey-beta
 Markdown,Parser,10
 Parser,DOCX Writer,8
@@ -937,7 +1049,7 @@ Mermaid Renderer,DOCX Writer,2
 
 Packet diagram (beta):
 
-```mermaid
+```text
 packet-beta
     0-7: "Header"
     8-15: "Flags"
@@ -946,7 +1058,7 @@ packet-beta
 
 Architecture diagram (beta):
 
-```mermaid
+```text
 architecture-beta
     service user(internet)[User]
     service app(server)[md2docx]
@@ -957,7 +1069,7 @@ architecture-beta
 
 Treemap (beta):
 
-```mermaid
+```text
 treemap-beta
     title "MarkdownToDocX components"
     "MDConverter" : 50
@@ -967,7 +1079,7 @@ treemap-beta
 
 Wardley map (beta):
 
-```mermaid
+```text
 wardley-beta
     title Wardley sample
     anchor user [User]
@@ -979,7 +1091,7 @@ wardley-beta
 
 Venn diagram (Mermaid supported; drives Naiad parity work):
 
-```mermaid
+```text
 venn
     title Venn example
     A : 10
@@ -993,7 +1105,7 @@ venn
 
 Ishikawa (fishbone) diagram (Mermaid supported; drives Naiad parity work):
 
-```mermaid
+```text
 ishikawa
     title "DOCX parity issues"
     "Word SVG" ["Filters", "CSS partial support"]
@@ -1004,7 +1116,7 @@ ishikawa
 
 TreeView diagram (Mermaid supported; drives Naiad parity work):
 
-```mermaid
+```text
 treeView
     root((MarkdownToDocX))
         md2docx
@@ -1018,7 +1130,7 @@ treeView
 
 ZenUML (Mermaid supported; drives Naiad parity work):
 
-```mermaid
+```text
 zenuml
     title Mermaid ZenUML sample
     @startuml
@@ -1190,3 +1302,363 @@ Table near the end:
 | Images | Embedded when local file exists |
 
 End of supported examples.
+
+---
+
+## Mermaid stress suite (in-scope diagram types)
+
+This section deliberately exercises many scenarios for these diagram types:
+
+- Flowchart
+- Sequence
+- Class
+- State
+- Entity relationship
+- Gantt
+- Pie
+
+### Flowchart stress suite
+
+Flowchart: LR + subgraph (direction TB) + long wrapping node text + simple in/out.
+
+```mermaid
+flowchart LR
+subgraph R0S0["Manifests and checksums"]
+  direction TB
+  r0n0["Publish a manifest (file list, sizes, hashes) with each drop so the consumer can reject incomplete uploads and detect tampering. Include a stable batch identifier and an explicit completion marker."]
+end
+IN[In] --> r0n0
+r0n0 --> OUT[Out]
+```
+
+Flowchart: LR + two vertical subgraphs + edge between interior nodes (common failure case).
+
+```mermaid
+flowchart LR
+subgraph R2S0["Normaliser"]
+  direction TB
+  r2n0["At ingest, map partner-specific layouts into one internal shape or directly into the hub model so downstream logic stays stable as partners change over time."]
+end
+subgraph R2S1["Message Translator"]
+  direction TB
+  r2n1["Translate from the internal shape into a specific consumer contract, including versioning, optional fields, and any required value normalisation."]
+end
+IN[In] --> r2n0
+r2n0 --> r2n1
+r2n1 --> OUT[Out]
+```
+
+Flowchart: nested subgraphs + mixed directions.
+
+```mermaid
+flowchart TB
+subgraph Outer["Outer subgraph"]
+  direction TB
+  A["Top node"] --> B["Middle node"]
+  subgraph Inner["Inner subgraph"]
+    direction LR
+    C["Left"] --> D["Right"]
+  end
+  B --> C
+  D --> E["Bottom node"]
+end
+```
+
+Flowchart: decision diamonds + labelled edges + multiple outgoing edges.
+
+```mermaid
+flowchart LR
+Start([Start]) --> Validate{"Valid input?"}
+Validate -->|Yes| Transform["Transform payload"]
+Validate -->|No| Reject["Reject with an error"]
+Transform --> Persist[("Persist")]
+Persist --> Done([Done])
+Reject --> Done
+```
+
+Flowchart: all edge styles + labelled edges + short nodes.
+
+```mermaid
+flowchart LR
+A["A"] -->|solid arrow| B["B"]
+C["C"] ---|solid line| D["D"]
+E["E"] -.->|dotted arrow| F["F"]
+G["G"] -.-|dotted line| H["H"]
+I["I"] ==>|thick arrow| J["J"]
+K["K"] ===|thick line| L["L"]
+M["M"] --o|circle end| N["N"]
+O["O"] --x|cross end| P["P"]
+Q["Q"] <--> R["R"]
+```
+
+Flowchart: special characters, punctuation, and quotes in labels.
+
+```mermaid
+flowchart TB
+A["Escapes: \\* \\_ \\` \\[ \\] and a literal pipe A | B"] --> B["Quotes: \"double\" and 'single'"]
+B --> C["Math-ish: a < b && c > d"]
+```
+
+Flowchart: cycles + parallel branches + joins.
+
+```mermaid
+flowchart LR
+A["Ingress"] --> B["Enqueue"]
+B --> C["Worker 1"]
+B --> D["Worker 2"]
+C --> E["Aggregate"]
+D --> E
+E --> F{"Succeeded?"}
+F -->|Yes| G["Ack"]
+F -->|No| H["Retry later"]
+H --> B
+```
+
+Flowchart: long edge labels + close nodes (stress label placement).
+
+```mermaid
+flowchart LR
+A["Producer"] -->|"A long edge label should not collide with arrowheads or node borders (placement and wrapping are important)."| B["Consumer"]
+B -->|"Another long label with punctuation, commas, and parentheses (including dates like 2026-04-16) to force wrapping."| C["Downstream"]
+```
+
+Flowchart: init block + htmlLabels false (native SVG text path).
+
+```mermaid
+%%{init: {"flowchart": {"htmlLabels": false}} }%%
+flowchart TB
+A["Native SVG labels"] --> B["This label should wrap as needed without HTML foreignObject."]
+B --> C["Final node"]
+```
+
+### Sequence stress suite
+
+Sequence: notes, activation, self-message, and wrapping message text.
+
+```mermaid
+sequenceDiagram
+participant User as User
+participant Converter as MarkdownToDocX
+participant Naiad as Naiad Renderer
+
+User->>Converter: Convert a Markdown file that includes Mermaid diagrams
+activate Converter
+Converter->>Naiad: Render Mermaid source to SVG
+activate Naiad
+Note over Naiad: Scheduled or triggered pickup
+Naiad-->>Converter: SVG output
+deactivate Naiad
+
+Converter->>Converter: Validate, translate, load
+Converter-->>User: DOCX with embedded SVG diagrams
+deactivate Converter
+```
+
+Sequence: alt/opt/loop/par (layout + vertical spacing + labels).
+
+```mermaid
+sequenceDiagram
+participant A as Producer
+participant B as Broker
+participant C as Consumer
+
+A->>B: Publish message
+par Fan-out
+  B-->>C: Deliver
+  B-->>C: Deliver (duplicate for idempotency test)
+end
+
+alt Consumer accepts
+  C-->>B: Ack
+else Consumer rejects
+  C-->>B: Nack (reason)
+  loop Retry policy
+    B-->>C: Redeliver
+  end
+end
+
+opt Telemetry
+  C-->>A: Emit metrics and traces
+end
+```
+
+Sequence: long participant names + multi-line messages.
+
+```mermaid
+sequenceDiagram
+participant LongParticipantNameA as Long participant name A (should not break layout)
+participant LongParticipantNameB as Long participant name B (should not overlap)
+
+LongParticipantNameA->>LongParticipantNameB: First line of message\nSecond line of message\nThird line of message
+LongParticipantNameB-->>LongParticipantNameA: Response with a long label that should wrap rather than overflow the page width.
+```
+
+Sequence: notes left/right + overlapping risks.
+
+```mermaid
+sequenceDiagram
+participant Client
+participant API
+participant DB
+
+Note left of Client: Client-side note with enough text to wrap to multiple lines in the note box.
+Client->>API: Request
+Note right of API: API note (right) that should not collide with lifelines.
+API->>DB: Query
+DB-->>API: Rows
+API-->>Client: Response
+```
+
+### Class diagram stress suite
+
+Class: attributes + methods + inheritance + associations + multiplicities.
+
+```mermaid
+classDiagram
+  class Message {
+    +String Id
+    +String Type
+    +String Payload
+    +Validate() bool
+  }
+  class Queue {
+    +String Name
+    +Enqueue(Message) void
+    +Dequeue() Message
+  }
+  class DeadLetterQueue {
+    +String Name
+  }
+
+  Queue <|-- DeadLetterQueue
+  Queue "1" o-- "*" Message : holds
+```
+
+Class: long member names + generics-like text (wrapping).
+
+```mermaid
+classDiagram
+  class Normaliser {
+    +MapPartnerSpecificLayoutIntoInternalShapeOrHubModel(Input) Output
+    +NormaliseIdentifiersAndTimestamps(Input) Output
+  }
+  class Translator {
+    +TranslateInternalShapeIntoConsumerContractIncludingVersioningAndOptionalFields(Input) Output
+  }
+
+  Normaliser --> Translator : produces input for
+```
+
+### State diagram stress suite
+
+State: branching, nested states, and notes.
+
+```mermaid
+stateDiagram-v2
+  [*] --> Idle
+  Idle --> Receiving : file arrives
+  Receiving --> Validating : manifest read
+  Validating --> Translating : ok
+  Validating --> Rejected : invalid
+
+  state Translating {
+    [*] --> Map
+    Map --> Convert
+    Convert --> [*]
+  }
+
+  Translating --> Done
+  Rejected --> [*]
+  Done --> [*]
+```
+
+State: choice and guards.
+
+```mermaid
+stateDiagram-v2
+  [*] --> Ingest
+  Ingest --> Choice
+  state Choice <<choice>>
+  Choice --> Process : valid
+  Choice --> Reject : invalid
+  Process --> [*]
+  Reject --> [*]
+```
+
+### Entity relationship (ER) stress suite
+
+ER: entities with attributes + relationship labels.
+
+```mermaid
+erDiagram
+  CUSTOMER {
+    string customer_id PK
+    string name
+    string email
+  }
+  ORDER {
+    string order_id PK
+    string customer_id FK
+    date created_date
+  }
+  LINE_ITEM {
+    string line_item_id PK
+    string order_id FK
+    string product_id FK
+    int quantity
+  }
+  PRODUCT {
+    string product_id PK
+    string name
+  }
+
+  CUSTOMER ||--o{ ORDER : places
+  ORDER ||--|{ LINE_ITEM : contains
+  PRODUCT ||--o{ LINE_ITEM : appears_in
+```
+
+ER: long relationship labels + many relationships around one entity.
+
+```mermaid
+erDiagram
+  HUB ||--o{ PARTNER_A : "publishes batches with manifests and checksums"
+  HUB ||--o{ PARTNER_B : "publishes batches with manifests and checksums"
+  HUB ||--o{ PARTNER_C : "publishes batches with manifests and checksums"
+  HUB ||--o{ PARTNER_D : "publishes batches with manifests and checksums"
+```
+
+### Gantt stress suite
+
+Gantt: compact range + dependencies + milestones + excludes.
+
+```mermaid
+gantt
+  title Conversion pipeline (stress suite)
+  dateFormat  YYYY-MM-DD
+  axisFormat  %d
+  excludes weekends
+
+  section Ingest
+  Drop arrives                  :done,    a1, 2026-04-01, 1d
+  Publish manifest              :active,  a2, after a1, 2d
+
+  section Process
+  Validate + translate           :         b1, after a2, 3d
+  Load to target                 :         b2, after b1, 2d
+  Release marker                 :milestone, m1, after b2, 0d
+```
+
+### Pie stress suite
+
+Pie: many slices + long labels + small values (label layout).
+
+```mermaid
+pie showData
+  title Pattern mix (stress suite)
+  "File Transfer (drop zone) with manifest + checksums" : 28
+  "Message Translator (consumer-specific contract mapping)" : 19
+  "Normaliser (partner-specific to internal shape)" : 17
+  "Telemetry and monitoring" : 9
+  "Retries, dead-lettering, and idempotency" : 15
+  "Other" : 12
+```

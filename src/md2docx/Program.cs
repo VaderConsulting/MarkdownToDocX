@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Windows.Forms;
 using MDConverter;
 using MDConverter.Options;
 
@@ -7,23 +8,55 @@ namespace md2docx;
 
 internal static class Program
 {
+    [STAThread]
     private static int Main(string[] Args)
     {
-        if (Args.Length < 2)
+        Application.EnableVisualStyles();
+        Application.SetCompatibleTextRenderingDefault(false);
+        ApplicationConfiguration.Initialize();
+
+        if (Args.Length < 1)
         {
-            Console.Error.WriteLine("Usage: md2docx <input.md> <output.docx> [--profile <name>]");
+            WriteUsage();
             return 1;
         }
 
-        var InputPath = Args[0];
-        var OutputPath = Args[1];
-        var Profile = "default";
+        string InputPath = Args[0];
+        string OutputPath;
+        int FlagStartIndex;
 
-        for (var I = 2; I < Args.Length; I++)
+        if (Args.Length >= 2 && !Args[1].StartsWith('-'))
+        {
+            OutputPath = Args[1];
+            FlagStartIndex = 2;
+        }
+        else
+        {
+            OutputPath = Path.ChangeExtension(Path.GetFullPath(InputPath), ".docx");
+            FlagStartIndex = 1;
+        }
+
+        string Profile = "default";
+        int? LockPromptTimeoutSeconds = null;
+
+        for (int I = FlagStartIndex; I < Args.Length; I++)
         {
             if (Args[I] == "--profile" && I + 1 < Args.Length)
             {
                 Profile = Args[I + 1];
+                I++;
+                continue;
+            }
+
+            if (Args[I] == "--lock-timeout-seconds" && I + 1 < Args.Length)
+            {
+                if (!int.TryParse(Args[I + 1], out int ParsedTimeoutSeconds) || ParsedTimeoutSeconds <= 0)
+                {
+                    Console.Error.WriteLine("Invalid --lock-timeout-seconds value: " + Args[I + 1]);
+                    return 1;
+                }
+
+                LockPromptTimeoutSeconds = ParsedTimeoutSeconds;
                 I++;
             }
         }
@@ -34,22 +67,30 @@ internal static class Program
             return 1;
         }
 
-        var Options = new MarkdownToDocxOptions
+        MarkdownToDocxOptions Options = new MarkdownToDocxOptions
         {
             Profile = Profile
         };
 
         try
         {
-            var Converter = new MarkdownToDocxConverter(Options);
-            Converter.ConvertFile(InputPath, OutputPath);
+            MarkdownToDocxConverter Converter = new MarkdownToDocxConverter(Options);
+            byte[] DocxBytes = Converter.ConvertMarkdownFile(InputPath);
+            DocxOutputFileWriter.WriteAllBytes(OutputPath, DocxBytes, LockPromptTimeoutSeconds);
             Console.WriteLine("Converted: " + InputPath + " -> " + OutputPath);
             return 0;
         }
-        catch (MDConverter.MarkdownToDocxException Ex)
+        catch (MarkdownToDocxException Ex)
         {
             Console.Error.WriteLine("Error: " + Ex.Message);
             return 1;
         }
+    }
+
+    private static void WriteUsage()
+    {
+        Console.Error.WriteLine("Usage: md2docx <input.md> [output.docx] [--profile <name>] [--lock-timeout-seconds <n>]");
+        Console.Error.WriteLine("  When output.docx is omitted, writes alongside the input file with the same base name and a .docx extension.");
+        Console.Error.WriteLine("  --lock-timeout-seconds  Optional. When omitted, a normal lock prompt is shown (no auto-cancel).");
     }
 }

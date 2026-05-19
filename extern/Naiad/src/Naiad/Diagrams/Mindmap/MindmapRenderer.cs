@@ -21,6 +21,10 @@ public class MindmapRenderer : IDiagramRenderer<MindmapModel>
 
     public SvgDocument Render(MindmapModel model, RenderOptions options)
     {
+#pragma warning disable IDE0007
+        MermaidSharp.Rendering.MermaidThemeVariables Theme = MermaidSharp.Rendering.MermaidThemeResolver.Resolve(model, options);
+#pragma warning restore IDE0007
+
         if (model.Root == null)
         {
             var emptyBuilder = new SvgBuilder().Size(200, 100);
@@ -43,7 +47,9 @@ public class MindmapRenderer : IDiagramRenderer<MindmapModel>
         width += options.Padding * 2;
         height += options.Padding * 2;
 
-        var builder = new SvgBuilder().Size(width, height);
+        var builder = new SvgBuilder()
+            .Size(width, height)
+            .AddStyles(MermaidStyles.ApplyThemeVariables(MermaidStyles.BaseStyles, Theme));
 
         // Draw connections first (behind nodes)
         DrawConnections(builder, model.Root);

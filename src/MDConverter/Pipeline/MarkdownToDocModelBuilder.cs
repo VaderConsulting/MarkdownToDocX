@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Markdig;
+using Markdig.Helpers;
 using Markdig.Extensions.Tables;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
@@ -44,10 +45,10 @@ public sealed class MarkdownToDocModelBuilder
     public DocModel Build(string Markdown, string BasePath)
     {
         rootPath = string.IsNullOrWhiteSpace(BasePath) ? Environment.CurrentDirectory : BasePath;
-        var Pipeline = CreatePipeline();
-        var Document = Markdig.Markdown.Parse(NormalizeMermaidColonFences(Markdown ?? string.Empty), Pipeline);
-        var Model = new DocModel();
-        foreach (var Block in Document)
+        MarkdownPipeline Pipeline = CreatePipeline();
+        MarkdownDocument Document = Markdig.Markdown.Parse(NormalizeMermaidColonFences(Markdown ?? string.Empty), Pipeline);
+        DocModel Model = new DocModel();
+        foreach (Block Block in Document)
         {
             AppendBlock(Model, Block);
         }
@@ -56,7 +57,7 @@ public sealed class MarkdownToDocModelBuilder
 
     private MarkdownPipeline CreatePipeline()
     {
-        var Builder = new MarkdownPipelineBuilder();
+        MarkdownPipelineBuilder Builder = new MarkdownPipelineBuilder();
         if (options.EnableTables)
         {
             Builder = Builder.UseAdvancedExtensions();
@@ -84,7 +85,7 @@ public sealed class MarkdownToDocModelBuilder
     {
         if (Block is MHeading Heading)
         {
-            var OurHeading = new Model.HeadingBlock(Heading.Level);
+            Model.HeadingBlock OurHeading = new Model.HeadingBlock(Heading.Level);
             AppendInlines(OurHeading, Heading.Inline);
             Model.AddBlock(OurHeading);
             return;
@@ -92,7 +93,7 @@ public sealed class MarkdownToDocModelBuilder
 
         if (Block is MParagraph Paragraph)
         {
-            var OurParagraph = new Model.ParagraphBlock();
+            Model.ParagraphBlock OurParagraph = new Model.ParagraphBlock();
             AppendInlines(OurParagraph, Paragraph.Inline);
             Model.AddBlock(OurParagraph);
             return;
@@ -100,8 +101,8 @@ public sealed class MarkdownToDocModelBuilder
 
         if (Block is MFencedCode Fenced)
         {
-            var Content = ExtractCodeBlockContent(Fenced);
-            var Language = Fenced.Info ?? string.Empty;
+            string Content = ExtractCodeBlockContent(Fenced);
+            string Language = Fenced.Info ?? string.Empty;
             if (IsMermaidLanguage(Language))
             {
                 Model.AddBlock(new Model.MermaidBlock(Content));
@@ -113,15 +114,15 @@ public sealed class MarkdownToDocModelBuilder
 
         if (Block is Markdig.Syntax.CodeBlock IndentedCode)
         {
-            var Content = ExtractCodeBlockContent(IndentedCode);
+            string Content = ExtractCodeBlockContent(IndentedCode);
             Model.AddBlock(new Model.CodeBlock(Content, ""));
             return;
         }
 
         if (Block is MQuote Quote)
         {
-            var OurQuote = new Model.QuoteBlock();
-            foreach (var Child in Quote)
+            Model.QuoteBlock OurQuote = new Model.QuoteBlock();
+            foreach (Block Child in Quote)
             {
                 AppendBlockToQuote(OurQuote, Child);
             }
@@ -131,15 +132,15 @@ public sealed class MarkdownToDocModelBuilder
 
         if (Block is MList List)
         {
-            var OurList = new Model.ListBlock(List.IsOrdered);
-            if (List.IsOrdered && int.TryParse(List.OrderedStart, out var StartNumber) && StartNumber != 1)
+            Model.ListBlock OurList = new Model.ListBlock(List.IsOrdered);
+            if (List.IsOrdered && int.TryParse(List.OrderedStart, out int StartNumber) && StartNumber != 1)
             {
                 OurList.StartNumber = StartNumber;
             }
-            foreach (var Item in List.OfType<MListItem>())
+            foreach (MListItem Item in List.OfType<MListItem>())
             {
-                var OurItem = new Model.ListItemBlock();
-                foreach (var Child in Item)
+                Model.ListItemBlock OurItem = new Model.ListItemBlock();
+                foreach (Block Child in Item)
                 {
                     AppendBlockToListItem(OurItem, Child);
                 }
@@ -151,21 +152,21 @@ public sealed class MarkdownToDocModelBuilder
 
         if (Block is MTable Table)
         {
-            var OurTable = new TableBlock { HasHeaderRow = true };
+            TableBlock OurTable = new TableBlock { HasHeaderRow = true };
             IReadOnlyList<TableColumnDefinition> Columns = Table.ColumnDefinitions;
-            var Alignments = new List<TableAlignment>();
-            for (var I = 0; I < Columns.Count; I++)
+            List<TableAlignment> Alignments = new List<TableAlignment>();
+            for (int I = 0; I < Columns.Count; I++)
             {
                 Alignments.Add(ToTableAlignment(Columns[I].Alignment ?? Markdig.Extensions.Tables.TableColumnAlign.Left));
             }
             OurTable.ColumnAlignments = Alignments;
-            foreach (var Tr in Table.OfType<MTableRow>())
+            foreach (MTableRow Tr in Table.OfType<MTableRow>())
             {
-                var OurRow = new Model.TableRow();
-                foreach (var Tc in Tr.OfType<MTableCell>())
+                Model.TableRow OurRow = new Model.TableRow();
+                foreach (MTableCell Tc in Tr.OfType<MTableCell>())
                 {
-                    var OurCell = new Model.TableCell();
-                    foreach (var CellBlock in Tc.OfType<Block>())
+                    Model.TableCell OurCell = new Model.TableCell();
+                    foreach (Block CellBlock in Tc.OfType<Block>())
                     {
                         AppendBlockToTableCell(OurCell, CellBlock);
                     }
@@ -185,7 +186,7 @@ public sealed class MarkdownToDocModelBuilder
 
         if (Block is ContainerBlock Container)
         {
-            foreach (var Child in Container)
+            foreach (Block Child in Container)
             {
                 AppendBlock(Model, Child);
             }
@@ -194,7 +195,7 @@ public sealed class MarkdownToDocModelBuilder
 
         if (Block is LeafBlock Leaf && Leaf.Inline != null)
         {
-            var Fallback = new Model.ParagraphBlock();
+            Model.ParagraphBlock Fallback = new Model.ParagraphBlock();
             AppendInlines(Fallback, Leaf.Inline);
             Model.AddBlock(Fallback);
         }
@@ -217,14 +218,14 @@ public sealed class MarkdownToDocModelBuilder
     {
         if (Block is MParagraph Paragraph)
         {
-            var OurParagraph = new Model.ParagraphBlock();
+            Model.ParagraphBlock OurParagraph = new Model.ParagraphBlock();
             AppendInlines(OurParagraph, Paragraph.Inline);
             OurQuote.AddBlock(OurParagraph);
             return;
         }
         if (Block is MHeading Heading)
         {
-            var OurHeading = new Model.HeadingBlock(Heading.Level);
+            Model.HeadingBlock OurHeading = new Model.HeadingBlock(Heading.Level);
             AppendInlines(OurHeading, Heading.Inline);
             OurQuote.AddBlock(OurHeading);
             return;
@@ -246,7 +247,7 @@ public sealed class MarkdownToDocModelBuilder
         }
         if (Block is LeafBlock Leaf && Leaf.Inline != null)
         {
-            var OurParagraph = new Model.ParagraphBlock();
+            Model.ParagraphBlock OurParagraph = new Model.ParagraphBlock();
             AppendInlines(OurParagraph, Leaf.Inline);
             OurQuote.AddBlock(OurParagraph);
         }
@@ -256,7 +257,7 @@ public sealed class MarkdownToDocModelBuilder
     {
         if (Block is MParagraph Paragraph)
         {
-            var OurParagraph = new Model.ParagraphBlock();
+            Model.ParagraphBlock OurParagraph = new Model.ParagraphBlock();
             AppendInlines(OurParagraph, Paragraph.Inline);
             OurItem.AddBlock(OurParagraph);
             return;
@@ -283,7 +284,7 @@ public sealed class MarkdownToDocModelBuilder
         }
         if (Block is LeafBlock Leaf && Leaf.Inline != null)
         {
-            var OurParagraph = new Model.ParagraphBlock();
+            Model.ParagraphBlock OurParagraph = new Model.ParagraphBlock();
             AppendInlines(OurParagraph, Leaf.Inline);
             OurItem.AddBlock(OurParagraph);
         }
@@ -291,16 +292,16 @@ public sealed class MarkdownToDocModelBuilder
 
     private Model.ListBlock BuildListBlock(MList List)
     {
-        var OurList = new Model.ListBlock(List.IsOrdered);
-        if (List.IsOrdered && int.TryParse(List.OrderedStart, out var StartNumber) && StartNumber != 1)
+        Model.ListBlock OurList = new Model.ListBlock(List.IsOrdered);
+        if (List.IsOrdered && int.TryParse(List.OrderedStart, out int StartNumber) && StartNumber != 1)
         {
             OurList.StartNumber = StartNumber;
         }
 
-        foreach (var Item in List.OfType<MListItem>())
+        foreach (MListItem Item in List.OfType<MListItem>())
         {
-            var OurItem = new Model.ListItemBlock();
-            foreach (var Child in Item)
+            Model.ListItemBlock OurItem = new Model.ListItemBlock();
+            foreach (Block Child in Item)
             {
                 AppendBlockToListItem(OurItem, Child);
             }
@@ -314,14 +315,14 @@ public sealed class MarkdownToDocModelBuilder
     {
         if (Block is MParagraph Paragraph)
         {
-            var OurParagraph = new Model.ParagraphBlock();
+            Model.ParagraphBlock OurParagraph = new Model.ParagraphBlock();
             AppendInlines(OurParagraph, Paragraph.Inline);
             OurCell.AddBlock(OurParagraph);
             return;
         }
         if (Block is LeafBlock Leaf && Leaf.Inline != null)
         {
-            var OurParagraph = new Model.ParagraphBlock();
+            Model.ParagraphBlock OurParagraph = new Model.ParagraphBlock();
             AppendInlines(OurParagraph, Leaf.Inline);
             OurCell.AddBlock(OurParagraph);
         }
@@ -333,7 +334,7 @@ public sealed class MarkdownToDocModelBuilder
         {
             return;
         }
-        foreach (var Node in CollectInlines(Inline))
+        foreach (InlineNode Node in CollectInlines(Inline))
         {
             Paragraph.AddInline(Node);
         }
@@ -345,7 +346,7 @@ public sealed class MarkdownToDocModelBuilder
         {
             return;
         }
-        foreach (var Node in CollectInlines(Inline))
+        foreach (InlineNode Node in CollectInlines(Inline))
         {
             Heading.AddInline(Node);
         }
@@ -353,7 +354,7 @@ public sealed class MarkdownToDocModelBuilder
 
     private List<InlineNode> CollectInlines(Inline Inline)
     {
-        var Result = new List<InlineNode>();
+        List<InlineNode> Result = new List<InlineNode>();
         CollectInlines(Inline, Result);
         return Result;
     }
@@ -375,10 +376,10 @@ public sealed class MarkdownToDocModelBuilder
         {
             if (Emphasis.DelimiterChar == '~')
             {
-                var OurStrikethrough = new Model.StrikethroughInline();
-                foreach (var Child in Emphasis)
+                Model.StrikethroughInline OurStrikethrough = new Model.StrikethroughInline();
+                foreach (Inline Child in Emphasis)
                 {
-                    foreach (var Node in CollectInlines(Child))
+                    foreach (InlineNode Node in CollectInlines(Child))
                     {
                         OurStrikethrough.AddInline(Node);
                     }
@@ -389,11 +390,11 @@ public sealed class MarkdownToDocModelBuilder
 
             if (Emphasis.DelimiterCount >= 3)
             {
-                var OurStrong = new Model.StrongInline();
-                var NestedEmphasis = new Model.EmphasisInline();
-                foreach (var Child in Emphasis)
+                Model.StrongInline OurStrong = new Model.StrongInline();
+                Model.EmphasisInline NestedEmphasis = new Model.EmphasisInline();
+                foreach (Inline Child in Emphasis)
                 {
-                    foreach (var Node in CollectInlines(Child))
+                    foreach (InlineNode Node in CollectInlines(Child))
                     {
                         NestedEmphasis.AddInline(Node);
                     }
@@ -405,10 +406,10 @@ public sealed class MarkdownToDocModelBuilder
 
             if (Emphasis.DelimiterCount >= 2)
             {
-                var OurStrong = new Model.StrongInline();
-                foreach (var Child in Emphasis)
+                Model.StrongInline OurStrong = new Model.StrongInline();
+                foreach (Inline Child in Emphasis)
                 {
-                    foreach (var Node in CollectInlines(Child))
+                    foreach (InlineNode Node in CollectInlines(Child))
                     {
                         OurStrong.AddInline(Node);
                     }
@@ -417,10 +418,10 @@ public sealed class MarkdownToDocModelBuilder
                 return;
             }
 
-            var OurEmphasis = new Model.EmphasisInline();
-            foreach (var Child in Emphasis)
+            Model.EmphasisInline OurEmphasis = new Model.EmphasisInline();
+            foreach (Inline Child in Emphasis)
             {
-                foreach (var Node in CollectInlines(Child))
+                foreach (InlineNode Node in CollectInlines(Child))
                 {
                     OurEmphasis.AddInline(Node);
                 }
@@ -449,8 +450,8 @@ public sealed class MarkdownToDocModelBuilder
 
         if (Inline is MAutolink AutoLink)
         {
-            var Url = AutoLink.IsEmail ? "mailto:" + AutoLink.Url : AutoLink.Url;
-            var OurLink = new Model.LinkInline(Url);
+            string Url = AutoLink.IsEmail ? "mailto:" + AutoLink.Url : AutoLink.Url;
+            Model.LinkInline OurLink = new Model.LinkInline(Url);
             OurLink.AddInline(new TextRun(AutoLink.Url ?? string.Empty));
             Result.Add(OurLink);
             return;
@@ -460,16 +461,16 @@ public sealed class MarkdownToDocModelBuilder
         {
             if (Link.IsImage)
             {
-                var AltText = GetFirstLiteralText(Link);
+                string AltText = GetFirstLiteralText(Link);
                 Result.Add(new Model.ImageInline(ResolveImageSource(Link.Url ?? string.Empty), AltText ?? string.Empty, Link.Title ?? string.Empty));
                 return;
             }
 
-            var Url = Link.Url ?? string.Empty;
-            var OurLink = new Model.LinkInline(Url);
-            foreach (var Child in Link)
+            string Url = Link.Url ?? string.Empty;
+            Model.LinkInline OurLink = new Model.LinkInline(Url);
+            foreach (Inline Child in Link)
             {
-                foreach (var Node in CollectInlines(Child))
+                foreach (InlineNode Node in CollectInlines(Child))
                 {
                     OurLink.AddInline(Node);
                 }
@@ -480,7 +481,7 @@ public sealed class MarkdownToDocModelBuilder
 
         if (Inline is ContainerInline Container)
         {
-            foreach (var Child in Container)
+            foreach (Inline Child in Container)
             {
                 CollectInlines(Child, Result);
             }
@@ -507,14 +508,14 @@ public sealed class MarkdownToDocModelBuilder
 
         if (Container is ContainerInline Cont)
         {
-            foreach (var Child in Cont)
+            foreach (Inline Child in Cont)
             {
                 if (Child is LiteralInline Lit)
                 {
                     return Lit.Content.ToString();
                 }
 
-                var Nested = GetFirstLiteralText(Child);
+                string Nested = GetFirstLiteralText(Child);
                 if (!string.IsNullOrEmpty(Nested))
                 {
                     return Nested;
@@ -539,7 +540,7 @@ public sealed class MarkdownToDocModelBuilder
 
     private static bool IsMermaidLanguage(string Language)
     {
-        var FirstToken = (Language ?? string.Empty).Trim().Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? string.Empty;
+        string FirstToken = (Language ?? string.Empty).Trim().Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? string.Empty;
         return string.Equals(FirstToken, "mermaid", StringComparison.OrdinalIgnoreCase);
     }
 
@@ -550,8 +551,8 @@ public sealed class MarkdownToDocModelBuilder
             return string.Empty;
         }
 
-        var Builder = new StringBuilder();
-        foreach (var Line in CodeBlock.Lines.Lines)
+        StringBuilder Builder = new StringBuilder();
+        foreach (StringLine Line in CodeBlock.Lines.Lines)
         {
             if (Line.Slice.Text != null)
             {
@@ -565,15 +566,15 @@ public sealed class MarkdownToDocModelBuilder
 
     private static string NormalizeMermaidColonFences(string Markdown)
     {
-        var Normalized = (Markdown ?? string.Empty).Replace("\r\n", "\n").Replace('\r', '\n');
-        var Lines = Normalized.Split('\n');
-        var Builder = new StringBuilder(Markdown?.Length ?? 0);
-        var InMermaidColonFence = false;
+        string Normalized = (Markdown ?? string.Empty).Replace("\r\n", "\n").Replace('\r', '\n');
+        string[] Lines = Normalized.Split('\n');
+        StringBuilder Builder = new StringBuilder(Markdown?.Length ?? 0);
+        bool InMermaidColonFence = false;
 
-        for (var I = 0; I < Lines.Length; I++)
+        for (int I = 0; I < Lines.Length; I++)
         {
-            var Line = Lines[I];
-            var TrimmedStart = Line.TrimStart();
+            string Line = Lines[I];
+            string TrimmedStart = Line.TrimStart();
 
             if (!InMermaidColonFence && TrimmedStart.StartsWith(":::mermaid", StringComparison.OrdinalIgnoreCase))
             {

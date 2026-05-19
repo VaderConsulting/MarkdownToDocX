@@ -32,6 +32,10 @@ public class TimelineRenderer : IDiagramRenderer<TimelineModel>
 
     public SvgDocument Render(TimelineModel model, RenderOptions options)
     {
+#pragma warning disable IDE0007
+        MermaidSharp.Rendering.MermaidThemeVariables Theme = MermaidSharp.Rendering.MermaidThemeResolver.Resolve(model, options);
+#pragma warning restore IDE0007
+
         if (model.Sections.Count == 0 || model.Sections.All(_ => _.Periods.Count == 0))
         {
             var emptyBuilder = new SvgBuilder().Size(200, 100);
@@ -51,7 +55,9 @@ public class TimelineRenderer : IDiagramRenderer<TimelineModel>
         var width = totalPeriods * PeriodWidth + options.Padding * 2 + SectionPadding * model.Sections.Count;
         var height = titleOffset + TimelineY + eventsHeight + options.Padding * 2 + 40;
 
-        var builder = new SvgBuilder().Size(width, height);
+        var builder = new SvgBuilder()
+            .Size(width, height)
+            .AddStyles(MermaidStyles.ApplyThemeVariables(MermaidStyles.BaseStyles, Theme));
 
         // Draw title
         if (!string.IsNullOrEmpty(model.Title))
@@ -87,7 +93,7 @@ public class TimelineRenderer : IDiagramRenderer<TimelineModel>
                     fontSize: $"{options.FontSize}px",
                     fontFamily: options.FontFamily,
                     fontWeight: "bold",
-                    fill: "#333");
+                    fill: Theme.TextColor);
             }
 
             // Draw periods in this section
@@ -98,7 +104,7 @@ public class TimelineRenderer : IDiagramRenderer<TimelineModel>
 
                 // Period marker
                 builder.AddCircle(periodX, timelineYPos, PeriodMarkerRadius,
-                    fill: periodColor, stroke: "#333", strokeWidth: 2);
+                    fill: periodColor, stroke: Theme.LineColor, strokeWidth: 2);
 
                 // Period label
                 builder.AddText(periodX, timelineYPos - 25, period.Label,

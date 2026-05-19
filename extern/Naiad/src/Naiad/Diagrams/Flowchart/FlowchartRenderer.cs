@@ -20,6 +20,11 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
     const double FlowchartNodeLabelExtraVerticalOffsetPx = 4;
 
     /// <summary>
+    /// Visible connector stroke stops this many pixels before the centre of each cross (X) marker (Word parity).
+    /// </summary>
+    const double CrossStrokeGapPx = 10.2;
+
+    /// <summary>
     /// Mermaid flowchart defaults (from Mermaid source).
     /// These can be overridden via Mermaid init config (%%{init: ...}%%).
     /// </summary>
@@ -111,22 +116,29 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         // Keeping the old post-layout rotation heuristic would double-apply the transform.
         UpdateGroupNodesFromSubgraphBounds(model);
 
+        // Mermaid Dagre renderer shifts edge route points and edge labels by subGraphTitleTotalMargin / 2 in Y.
+        // This is driven by config.flowchart.subGraphTitleMargin.{top,bottom}.
+        ApplySubgraphTitleMarginShiftToEdges(model);
+
         // Build SVG. Mermaid computes the viewport from the rendered element bounds plus diagramPadding.
 #pragma warning disable IDE0007
         MermaidSharp.Models.Rect bounds = ComputeFlowchartContentBounds(model, options);
         var viewBox = $"{Fmt(bounds.X - diagramPaddingPx)} {Fmt(bounds.Y - diagramPaddingPx)} {Fmt(bounds.Width + (diagramPaddingPx * 2.0))} {Fmt(bounds.Height + (diagramPaddingPx * 2.0))}";
 #pragma warning restore IDE0007
 
+#pragma warning disable IDE0007
+        MermaidSharp.Rendering.MermaidThemeVariables Theme = MermaidSharp.Rendering.MermaidThemeResolver.Resolve(model, options);
+#pragma warning restore IDE0007
+
         var builder = new SvgBuilder()
             .Size(bounds.Width + (diagramPaddingPx * 2.0), bounds.Height + (diagramPaddingPx * 2.0))
             .ViewBox(viewBox)
-            .AddMermaidArrowMarker()
-            .AddMermaidCircleMarker()
-            .AddMermaidCrossMarker()
-            .AddNodeDropShadowFilter();
+            .AddMermaidArrowMarker(stroke: Theme.ArrowheadColor, fill: Theme.ArrowheadColor)
+            .AddMermaidCircleMarker(stroke: Theme.ArrowheadColor)
+            .AddMermaidCrossMarker(stroke: Theme.ArrowheadColor);
 
         // Add mermaid.ink CSS styles
-        builder.AddStyles(MermaidStyles.FlowchartStyles);
+        builder.AddStyles(MermaidStyles.ApplyThemeVariables(MermaidStyles.FlowchartStyles, Theme));
 
         // Render subgraphs behind edges and nodes.
         RenderSubgraphs(builder, model, options);
@@ -151,7 +163,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             Node? targetNode = model.GetNode(edge.TargetId);
             bool targetHasSingleIncoming = IncomingCountByNodeId.TryGetValue(edge.TargetId, out int incomingCount) && incomingCount == 1;
 #pragma warning restore IDE0007
-            RenderEdge(builder, edge, options, model.Direction, sourceNode, targetNode, targetHasSingleIncoming);
+            RenderEdge(builder, model, edge, options, model.Direction, sourceNode, targetNode, targetHasSingleIncoming);
         }
 
         // Render nodes
@@ -577,6 +589,34 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
 #pragma warning restore IDE0007
     }
 
+    static void ApplySubgraphTitleMarginShiftToEdges(FlowchartModel model)
+    {
+#pragma warning disable IDE0007
+        double TopMargin = GetConfigDouble(model, "flowchart.subGraphTitleMargin.top", 0.0);
+        double BottomMargin = GetConfigDouble(model, "flowchart.subGraphTitleMargin.bottom", 0.0);
+        double TotalMargin = TopMargin + BottomMargin;
+        if (TotalMargin <= 0.0)
+        {
+            return;
+        }
+
+        double ShiftY = TotalMargin / 2.0;
+        foreach (Edge edge in model.Edges)
+        {
+            if (edge.Points.Count == 0)
+            {
+                continue;
+            }
+
+            for (int i = 0; i < edge.Points.Count; i++)
+            {
+                Position p = edge.Points[i];
+                edge.Points[i] = new Position(p.X, p.Y + ShiftY);
+            }
+        }
+#pragma warning restore IDE0007
+    }
+
     static void RenderNode(SvgBuilder builder, Node node, RenderOptions options)
     {
         if (node.IsGroup)
@@ -601,8 +641,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             fill: fill,
             stroke: stroke,
             strokeWidth: strokeWidth,
-            cssClass: "node",
-            filter: SvgBuilder.NaiadNodeShadowFilterReference);
+            cssClass: "node");
 
         // Render label with icon support
 #pragma warning disable IDE0007
@@ -641,7 +680,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
 #pragma warning restore IDE0007
     }
 
-    static void RenderEdge(SvgBuilder builder, Edge edge, RenderOptions options, Direction diagramDirection, Node? sourceNode, Node? targetNode, bool targetHasSingleIncoming)
+    static void RenderEdge(SvgBuilder builder, FlowchartModel model, Edge edge, RenderOptions options, Direction diagramDirection, Node? sourceNode, Node? targetNode, bool targetHasSingleIncoming)
     {
         if (edge.Points.Count < 2)
         {
@@ -654,111 +693,12 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         {
             pointsForPath = SnapDecisionBranchTargetPort(edge.Points, sourceNode, targetNode!);
         }
+#pragma warning disable IDE0007
+        string edgeCurveType = GetConfigString(model, "flowchart.curve", "basis");
+        string pathData = BuildFlowchartEdgePath(pointsForPath, edge, edgeCurveType);
 
-        // Terminal glyphs in Mermaid (arrowhead, circle, cross) are SVG markers.
-        //
-        // Two distinct mechanisms control the final appearance:
-        //
-        // 1) Marker anchoring (SvgBuilder marker RefX/RefY):
-        //    - Determines where the glyph sits relative to the path endpoint.
-        //    - This primarily controls "does the glyph intrude into the node border?".
-        //
-        // 2) Path endpoint trimming (this code):
-        //    - Shortens the rendered connector path so the stroke does not run underneath the marker glyph.
-        //    - This primarily controls "does the line appear to run into/through the glyph?".
-        //
-        // These values are tuned against Mermaid.js preview and verified in Word, because Word's SVG renderer can differ
-        // from browsers in anti-aliasing and marker/stroke composition.
-        //
-        // Endpoint trimming policy (Mermaid parity):
-        //
-        // - Filled arrowheads: trim the path end slightly so the connector stroke does not visually run through the triangle.
-        // - Circle/cross terminals: do not trim the endpoint. Mermaid’s marker geometry (refX values larger than the
-        //   glyph max X) already creates a small, consistent gap so the connector stroke does not touch the glyph.
-        //
-        // NOTE: Mermaid’s markerOffsets2 table (arrow_circle / arrow_cross = 12.5) is used for dash pattern shaping under
-        // the "neo" look, not as a general endpoint trim distance for default flowchart rendering.
-        // Word parity tweak: ensure the connector stroke does not visibly intrude into the arrowhead fill.
-        // The reference shows the stroke stopping slightly earlier than Mermaid’s default 4px trim in some Word renders.
-        const double PointArrowMarkerTrimPx = 6.0;
-        const double BiDirectionalArrowMarkerTrimPx = 8.0;
-        const double CircleMarkerTrimPx = 2.0;
-        const double BiDirectionalCircleMarkerTrimPx = 2.0;
-        // Cross terminals:
-        // In SVG, markers are positioned at the path endpoint. If we trim the path endpoint, the X marker moves with it.
-        // To keep the X fixed at the node edge while shortening the visible connector, we render:
-        // - a visible trimmed stroke path WITHOUT markers, and
-        // - an invisible marker-only path that reaches the true endpoint (node edge).
-        // User-tuned: target visible cross stroke end at X=198 when marker endpoint is X=208.2.
-        const double CrossStrokeGapPx = 10.2;
-
-        // Returns the (startGapPx, endGapPx) trim distances in SVG user units.
-        //
-        // - startGapPx trims the first point toward the second point.
-        // - endGapPx trims the last point back toward the second-to-last point.
-        //
-        // The returned values are intentionally specific to EdgeType, because Mermaid’s terminals (and our marker
-        // definitions) have different effective "visual extents" once stroke width and Word rendering are considered.
-        static (double StartGapPx, double EndGapPx) GetTerminalGaps(EdgeType edgeType) =>
-            edgeType switch
-            {
-                // Arrow terminals
-                EdgeType.Arrow => (0.0, PointArrowMarkerTrimPx),
-                EdgeType.DottedArrow => (0.0, PointArrowMarkerTrimPx),
-                EdgeType.ThickArrow => (0.0, PointArrowMarkerTrimPx),
-                EdgeType.BiDirectional => (BiDirectionalArrowMarkerTrimPx, BiDirectionalArrowMarkerTrimPx),
-
-                // Circle terminals
-                EdgeType.CircleEnd => (0.0, CircleMarkerTrimPx),
-                // Bi-directional circles require a slightly larger trim so the centre stroke does not protrude beyond either dot.
-                EdgeType.BiDirectionalCircle => (BiDirectionalCircleMarkerTrimPx, BiDirectionalCircleMarkerTrimPx),
-
-                // Cross terminals
-                EdgeType.CrossEnd => (0.0, CrossStrokeGapPx),
-                EdgeType.BiDirectionalCross => (CrossStrokeGapPx, CrossStrokeGapPx),
-
-                _ => (0.0, 0.0)
-            };
-
-        var gaps = GetTerminalGaps(edge.Type);
-        var startGapPx = gaps.StartGapPx;
-        var endGapPx = gaps.EndGapPx;
-
-        if ((startGapPx > 0 || endGapPx > 0) && pointsForPath.Count >= 2)
-        {
-            var adjustedPoints = new List<Position>(pointsForPath);
-
-            if (startGapPx > 0)
-            {
-                var p0 = adjustedPoints[0];
-                var p1 = adjustedPoints[1];
-                var segLen = p0.DistanceTo(p1);
-                if (segLen > startGapPx)
-                {
-                    var dir = (p1 - p0) / segLen;
-                    adjustedPoints[0] = p0 + (dir * startGapPx);
-                }
-            }
-
-            if (endGapPx > 0)
-            {
-                var lastIdx = adjustedPoints.Count - 1;
-                var pN1 = adjustedPoints[lastIdx - 1];
-                var pN = adjustedPoints[lastIdx];
-                var segLen = pN1.DistanceTo(pN);
-                if (segLen > endGapPx)
-                {
-                    var dir = (pN - pN1) / segLen;
-                    adjustedPoints[lastIdx] = pN - (dir * endGapPx);
-                }
-            }
-
-            pointsForPath = adjustedPoints;
-        }
-
-        var pathData = ShouldUseDecisionBranchCubic(edge, sourceNode)
-            ? BuildDecisionBranchPath(pointsForPath, sourceNode, targetNode)
-            : BuildFlowchartEdgePath(pointsForPath, diagramDirection, sourceNode, targetNode);
+        bool useNeoLook = string.Equals(GetConfigString(model, "look", string.Empty), "neo", StringComparison.OrdinalIgnoreCase);
+#pragma warning restore IDE0007
 
 #pragma warning disable IDE0007
         string? strokeDasharray = edge.Style.StrokeDasharray;
@@ -780,57 +720,53 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         string stroke = edge.Style.Stroke ?? edgeStroke;
 #pragma warning restore IDE0007
 
+        if (useNeoLook)
+        {
+#pragma warning disable IDE0007
+            strokeDasharray = ComputeNeoStrokeDasharray(pointsForPath, edge, edgeCurveType);
+#pragma warning restore IDE0007
+        }
+
         var markerEnd = edge.Type switch
         {
-            EdgeType.CircleEnd => "url(#mermaid-svg_flowchart-v2-circleEnd)",
-            EdgeType.CrossEnd => "url(#mermaid-svg_flowchart-v2-crossEnd)",
-            EdgeType.BiDirectionalCircle => "url(#mermaid-svg_flowchart-v2-circleEnd)",
-            EdgeType.BiDirectionalCross => "url(#mermaid-svg_flowchart-v2-crossEnd)",
+            EdgeType.CircleEnd => useNeoLook ? "url(#mermaid-svg_flowchart-v2-circleEnd-margin)" : "url(#mermaid-svg_flowchart-v2-circleEnd)",
+            EdgeType.CrossEnd => useNeoLook ? "url(#mermaid-svg_flowchart-v2-crossEnd-margin)" : "url(#mermaid-svg_flowchart-v2-crossEnd)",
+            EdgeType.BiDirectionalCircle => useNeoLook ? "url(#mermaid-svg_flowchart-v2-circleEnd-margin)" : "url(#mermaid-svg_flowchart-v2-circleEnd)",
+            EdgeType.BiDirectionalCross => useNeoLook ? "url(#mermaid-svg_flowchart-v2-crossEnd-margin)" : "url(#mermaid-svg_flowchart-v2-crossEnd)",
             _ => edge.HasArrowHead
                 ? edge.LineStyle == EdgeStyle.Thick
                     ? "url(#mermaid-svg_flowchart-v2-pointEndThick)"
-                    : "url(#mermaid-svg_flowchart-v2-pointEnd)"
+                    : useNeoLook ? "url(#mermaid-svg_flowchart-v2-pointEnd-margin)" : "url(#mermaid-svg_flowchart-v2-pointEnd)"
                 : null
         };
 
         var markerStart = edge.Type switch
         {
-            EdgeType.BiDirectionalCircle => "url(#mermaid-svg_flowchart-v2-circleStart)",
-            EdgeType.BiDirectionalCross => "url(#mermaid-svg_flowchart-v2-crossStart)",
-            EdgeType.BiDirectional => "url(#mermaid-svg_flowchart-v2-pointStartBiDir)",
-            _ => edge.HasArrowTail ? "url(#mermaid-svg_flowchart-v2-pointStart)" : null
+            EdgeType.BiDirectionalCircle => useNeoLook ? "url(#mermaid-svg_flowchart-v2-circleStart-margin)" : "url(#mermaid-svg_flowchart-v2-circleStart)",
+            EdgeType.BiDirectionalCross => useNeoLook ? "url(#mermaid-svg_flowchart-v2-crossStart-margin)" : "url(#mermaid-svg_flowchart-v2-crossStart)",
+            EdgeType.BiDirectional => useNeoLook ? "url(#mermaid-svg_flowchart-v2-pointStart-margin)" : "url(#mermaid-svg_flowchart-v2-pointStartBiDir)",
+            _ => edge.HasArrowTail ? (useNeoLook ? "url(#mermaid-svg_flowchart-v2-pointStart-margin)" : "url(#mermaid-svg_flowchart-v2-pointStart)") : null
         };
 
-        // For cross terminals, keep the marker at the true endpoint while shortening the visible stroke.
-        var requiresMarkerSeparation = edge.Type is EdgeType.CrossEnd or EdgeType.BiDirectionalCross;
-        if (requiresMarkerSeparation)
+        if (edge.Type is EdgeType.CrossEnd or EdgeType.BiDirectionalCross)
         {
-            // Visible stroke: trimmed points, no markers.
-            builder.AddPath(pathData,
+            var StartGapPx = edge.Type == EdgeType.BiDirectionalCross ? CrossStrokeGapPx : 0.0;
+            var TrimmedPoints = TrimPointsForCrossVisibleStroke(pointsForPath, StartGapPx, CrossStrokeGapPx);
+            var VisiblePathData = BuildFlowchartEdgePath(TrimmedPoints, edge, edgeCurveType);
+
+            builder.AddPath(
+                VisiblePathData,
                 fill: "none",
                 stroke: stroke,
                 strokeWidth: strokeWidth,
                 strokeDasharray: strokeDasharray,
-                markerEnd: null,
-                markerStart: null,
                 cssClass: "flowchart-link");
 
-            // Marker-only path: original points (untrimmed), markers attached, stroke invisible.
-            // This ensures the X stays anchored at the node edge.
-            IReadOnlyList<Position> markerPoints = edge.Points;
-            if (ShouldSnapDecisionBranchTargetPort(edge, sourceNode, targetNode, targetHasSingleIncoming))
-            {
-                markerPoints = SnapDecisionBranchTargetPort(edge.Points, sourceNode, targetNode!);
-            }
-
-            var markerPathData = ShouldUseDecisionBranchCubic(edge, sourceNode)
-                ? BuildDecisionBranchPath(markerPoints, sourceNode, targetNode)
-                : BuildFlowchartEdgePath(markerPoints, diagramDirection, sourceNode, targetNode);
-            builder.AddPath(markerPathData,
+            builder.AddPath(
+                pathData,
                 fill: "none",
                 stroke: "none",
-                strokeWidth: 0.0,
-                strokeDasharray: null,
+                strokeWidth: 0,
                 markerEnd: markerEnd,
                 markerStart: markerStart,
                 cssClass: "flowchart-link");
@@ -959,61 +895,548 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
     /// We emit the same curveBasis path from the routed polyline points.
     /// </summary>
 #pragma warning disable IDE0022
-    static string BuildFlowchartEdgePath(IReadOnlyList<Position> points, Direction diagramDirection, Node? sourceNode, Node? targetNode)
+#pragma warning disable IDE0007
+    static string BuildFlowchartEdgePath(IReadOnlyList<Position> points, Edge edge, string edgeCurveType)
     {
-        // ER-style preference: for simple two-endpoint flowchart edges, use a single cubic Bézier with
-        // short endpoint stubs aligned to the node boundary normal. This produces a cleaner, more
-        // deterministic curve than curveBasis over just two points.
+        // Mermaid flowcharts use:
+        // - corner pre-rounding (fixCorners) for non-rounded curves
+        // - d3.line().curve(curveBasis) by default
+        // - marker-aware endpoint shortening via lineWithOffset (markerOffsets table)
         //
-        // For multi-point routes (dummy nodes / obstacle detours), keep curveBasis.
-        if (points.Count == 2)
+        // Source: packages/mermaid/src/rendering-util/rendering-elements/edges.js
+        //        packages/mermaid/src/utils/lineWithOffset.ts
+        List<Position> LineData = FilterValidPoints(points);
+
+        (string? ArrowTypeStart, string? ArrowTypeEnd) = GetMermaidArrowTypes(edge.Type);
+        string NormalisedCurveType = string.IsNullOrWhiteSpace(edgeCurveType) ? "basis" : edgeCurveType.Trim();
+
+        // Mermaid special-case: "rounded" bypasses D3 curves, applies explicit endpoint shifting,
+        // then generates a quadratic-rounded polyline path.
+        if (string.Equals(NormalisedCurveType, "rounded", StringComparison.OrdinalIgnoreCase))
         {
-            return BuildFlowchartCubicWithEndpointStubs(points, sourceNode, targetNode);
+            List<Position> Shifted = ApplyMarkerOffsetsToPoints(LineData, ArrowTypeStart, ArrowTypeEnd);
+            return GenerateRoundedPath(Shifted, radius: 5.0);
         }
 
-        return BuildFlowchartCurveBasisPath(points);
+        // Mermaid pre-rounds corners for all non-rounded curves.
+        LineData = FixCorners(LineData);
+        List<Position> OffsetPoints = ApplyLineWithOffset(LineData, ArrowTypeStart, ArrowTypeEnd);
+
+        // Naiad currently implements the default Mermaid curveBasis path.
+        // For other curve strings (linear/cardinal/step/etc.), Mermaid changes the curve factory,
+        // but our renderer intentionally falls back to basis unless/until those are ported.
+        return BuildFlowchartCurveBasisPath(OffsetPoints);
     }
 
-    static string BuildFlowchartCubicWithEndpointStubs(IReadOnlyList<Position> points, Node? sourceNode, Node? targetNode)
+    static List<Position> FilterValidPoints(IReadOnlyList<Position> points)
     {
-#pragma warning disable IDE0007
+        List<Position> Result = new List<Position>(points.Count);
+        foreach (Position point in points)
+        {
+            if (double.IsNaN(point.X) || double.IsNaN(point.Y))
+            {
+                continue;
+            }
+            Result.Add(point);
+        }
+        return Result;
+    }
+
+    static List<Position> FixCorners(IReadOnlyList<Position> lineData)
+    {
+        // Port of Mermaid fixCorners() in edges.js.
+        // See `mermaid/packages/mermaid/src/rendering-util/rendering-elements/edges.js`.
+        List<int> CornerPointPositions = ExtractCornerPointPositions(lineData);
+        if (CornerPointPositions.Count == 0)
+        {
+            return new List<Position>(lineData);
+        }
+
+        List<Position> NewLineData = new List<Position>(lineData.Count + (CornerPointPositions.Count * 2));
+        for (int Index = 0; Index < lineData.Count; Index++)
+        {
+            if (!CornerPointPositions.Contains(Index))
+            {
+                NewLineData.Add(lineData[Index]);
+                continue;
+            }
+
+            Position PrevPoint = lineData[Index - 1];
+            Position NextPoint = lineData[Index + 1];
+            Position CornerPoint = lineData[Index];
+
+            Position NewPrevPoint = FindAdjacentPoint(PrevPoint, CornerPoint, 5.0);
+            Position NewNextPoint = FindAdjacentPoint(NextPoint, CornerPoint, 5.0);
+
+            double XDiff = NewNextPoint.X - NewPrevPoint.X;
+            double YDiff = NewNextPoint.Y - NewPrevPoint.Y;
+            NewLineData.Add(NewPrevPoint);
+
+            const double R = 5.0;
+            double A = Math.Sqrt(2.0) * 2.0;
+            Position NewCornerPoint = CornerPoint;
+            if (Math.Abs(NextPoint.X - PrevPoint.X) > 10.0 && Math.Abs(NextPoint.Y - PrevPoint.Y) >= 10.0)
+            {
+                if (Math.Abs(CornerPoint.X - NewPrevPoint.X) < 0.0001)
+                {
+                    NewCornerPoint = new Position(
+                        XDiff < 0.0 ? NewPrevPoint.X - R + A : NewPrevPoint.X + R - A,
+                        YDiff < 0.0 ? NewPrevPoint.Y - A : NewPrevPoint.Y + A);
+                }
+                else
+                {
+                    NewCornerPoint = new Position(
+                        XDiff < 0.0 ? NewPrevPoint.X - A : NewPrevPoint.X + A,
+                        YDiff < 0.0 ? NewPrevPoint.Y - R + A : NewPrevPoint.Y + R - A);
+                }
+            }
+
+            NewLineData.Add(NewCornerPoint);
+            NewLineData.Add(NewNextPoint);
+        }
+
+        return NewLineData;
+    }
+
+    static List<int> ExtractCornerPointPositions(IReadOnlyList<Position> points)
+    {
+        List<int> CornerPointPositions = new List<int>();
+        for (int Index = 1; Index < points.Count - 1; Index++)
+        {
+            Position Prev = points[Index - 1];
+            Position Curr = points[Index];
+            Position Next = points[Index + 1];
+
+            if (Math.Abs(Prev.X - Curr.X) < 0.0001
+                && Math.Abs(Curr.Y - Next.Y) < 0.0001
+                && Math.Abs(Curr.X - Next.X) > 5.0
+                && Math.Abs(Curr.Y - Prev.Y) > 5.0)
+            {
+                CornerPointPositions.Add(Index);
+            }
+            else if (Math.Abs(Prev.Y - Curr.Y) < 0.0001
+                     && Math.Abs(Curr.X - Next.X) < 0.0001
+                     && Math.Abs(Curr.X - Prev.X) > 5.0
+                     && Math.Abs(Curr.Y - Next.Y) > 5.0)
+            {
+                CornerPointPositions.Add(Index);
+            }
+        }
+        return CornerPointPositions;
+    }
+
+    static Position FindAdjacentPoint(Position PointA, Position PointB, double distance)
+    {
+        double XDiff = PointB.X - PointA.X;
+        double YDiff = PointB.Y - PointA.Y;
+        double Length = Math.Sqrt((XDiff * XDiff) + (YDiff * YDiff));
+        if (Length <= 0.0000001)
+        {
+            return PointB;
+        }
+        double Ratio = distance / Length;
+        return new Position(PointB.X - (Ratio * XDiff), PointB.Y - (Ratio * YDiff));
+    }
+
+    static List<Position> TrimPointsForCrossVisibleStroke(IReadOnlyList<Position> Points, double StartGapPx, double EndGapPx)
+    {
+        if (Points.Count < 2)
+        {
+            return new List<Position>(Points);
+        }
+
+        List<Position> Trimmed = new List<Position>(Points);
+        if (StartGapPx > 0.0)
+        {
+            Trimmed[0] = FindAdjacentPoint(Points[1], Points[0], StartGapPx);
+        }
+
+        if (EndGapPx > 0.0)
+        {
+            int LastIndex = Points.Count - 1;
+            Trimmed[LastIndex] = FindAdjacentPoint(Points[LastIndex - 1], Points[LastIndex], EndGapPx);
+        }
+
+        return Trimmed;
+    }
+
+    static (string? ArrowTypeStart, string? ArrowTypeEnd) GetMermaidArrowTypes(EdgeType edgeType)
+    {
+        // Mermaid lineWithOffset offsets only for markerOffsets entries.
+        // For flowcharts, that means arrow_point (and certain class-diagram markers).
+        return edgeType switch
+        {
+            EdgeType.BiDirectional => ("arrow_point", "arrow_point"),
+            EdgeType.Arrow => (null, "arrow_point"),
+            EdgeType.DottedArrow => (null, "arrow_point"),
+            EdgeType.ThickArrow => (null, "arrow_point"),
+            _ => (null, null)
+        };
+    }
+
+    static List<Position> ApplyLineWithOffset(IReadOnlyList<Position> points, string? arrowTypeStart, string? arrowTypeEnd)
+    {
+        // Port of Mermaid getLineFunctionsWithOffset() from lineWithOffset.ts.
+        if (points.Count == 0)
+        {
+            return new List<Position>();
+        }
+
+        Dictionary<string, double> MarkerOffsets = new Dictionary<string, double>(StringComparer.Ordinal)
+        {
+            { "aggregation", 17.25 },
+            { "extension", 17.25 },
+            { "composition", 17.25 },
+            { "dependency", 6.0 },
+            { "lollipop", 13.5 },
+            { "arrow_point", 4.0 },
+            { "arrow_barb", 0.0 },
+            { "arrow_barb_neo", 5.5 }
+        };
+
+        double StartMarkerHeight = 0.0;
+        if (!string.IsNullOrWhiteSpace(arrowTypeStart) && MarkerOffsets.TryGetValue(arrowTypeStart, out double startHeight))
+        {
+            StartMarkerHeight = startHeight;
+        }
+
+        double EndMarkerHeight = 0.0;
+        if (!string.IsNullOrWhiteSpace(arrowTypeEnd) && MarkerOffsets.TryGetValue(arrowTypeEnd, out double endHeight))
+        {
+            EndMarkerHeight = endHeight;
+        }
+
+        List<Position> Output = new List<Position>(points.Count);
+        for (int Index = 0; Index < points.Count; Index++)
+        {
+            Position Point = points[Index];
+
+            double XOffset = CalculateLineWithOffsetX(points, Index, arrowTypeStart, arrowTypeEnd, StartMarkerHeight, EndMarkerHeight);
+            double YOffset = CalculateLineWithOffsetY(points, Index, arrowTypeStart, arrowTypeEnd, StartMarkerHeight, EndMarkerHeight);
+
+            Output.Add(new Position(Point.X + XOffset, Point.Y + YOffset));
+        }
+
+        return Output;
+    }
+
+    static double CalculateLineWithOffsetX(
+        IReadOnlyList<Position> data,
+        int index,
+        string? arrowTypeStart,
+        string? arrowTypeEnd,
+        double startMarkerHeight,
+        double endMarkerHeight)
+    {
+        double Offset = 0.0;
+        string Direction = data[0].X < data[data.Count - 1].X ? "left" : "right";
+
+        if (index == 0 && !string.IsNullOrWhiteSpace(arrowTypeStart) && startMarkerHeight > 0.0)
+        {
+            (double Angle, double DeltaX, double DeltaY) = CalculateDeltaAndAngle(data[0], data[1]);
+            Offset = startMarkerHeight * Math.Cos(Angle) * (DeltaX >= 0.0 ? 1.0 : -1.0);
+        }
+        else if (index == data.Count - 1 && !string.IsNullOrWhiteSpace(arrowTypeEnd) && endMarkerHeight > 0.0)
+        {
+            (double Angle, double DeltaX, double DeltaY) = CalculateDeltaAndAngle(data[data.Count - 1], data[data.Count - 2]);
+            Offset = endMarkerHeight * Math.Cos(Angle) * (DeltaX >= 0.0 ? 1.0 : -1.0);
+        }
+
+        double DifferenceToEnd = Math.Abs(data[index].X - data[data.Count - 1].X);
+        double DifferenceInYEnd = Math.Abs(data[index].Y - data[data.Count - 1].Y);
+        double DifferenceToStart = Math.Abs(data[index].X - data[0].X);
+        double DifferenceInYStart = Math.Abs(data[index].Y - data[0].Y);
+        const double ExtraRoom = 1.0;
+
+        if (DifferenceToEnd < endMarkerHeight && DifferenceToEnd > 0.0 && DifferenceInYEnd < endMarkerHeight)
+        {
+            double Adjustment = endMarkerHeight + ExtraRoom - DifferenceToEnd;
+            Adjustment *= Direction == "right" ? -1.0 : 1.0;
+            Offset -= Adjustment;
+        }
+
+        if (DifferenceToStart < startMarkerHeight && DifferenceToStart > 0.0 && DifferenceInYStart < startMarkerHeight)
+        {
+            double Adjustment = startMarkerHeight + ExtraRoom - DifferenceToStart;
+            Adjustment *= Direction == "right" ? -1.0 : 1.0;
+            Offset += Adjustment;
+        }
+
+        return Offset;
+    }
+
+    static double CalculateLineWithOffsetY(
+        IReadOnlyList<Position> data,
+        int index,
+        string? arrowTypeStart,
+        string? arrowTypeEnd,
+        double startMarkerHeight,
+        double endMarkerHeight)
+    {
+        double Offset = 0.0;
+        string Direction = data[0].Y < data[data.Count - 1].Y ? "down" : "up";
+
+        if (index == 0 && !string.IsNullOrWhiteSpace(arrowTypeStart) && startMarkerHeight > 0.0)
+        {
+            (double Angle, double DeltaX, double DeltaY) = CalculateDeltaAndAngle(data[0], data[1]);
+            Offset = startMarkerHeight * Math.Abs(Math.Sin(Angle)) * (DeltaY >= 0.0 ? 1.0 : -1.0);
+        }
+        else if (index == data.Count - 1 && !string.IsNullOrWhiteSpace(arrowTypeEnd) && endMarkerHeight > 0.0)
+        {
+            (double Angle, double DeltaX, double DeltaY) = CalculateDeltaAndAngle(data[data.Count - 1], data[data.Count - 2]);
+            Offset = endMarkerHeight * Math.Abs(Math.Sin(Angle)) * (DeltaY >= 0.0 ? 1.0 : -1.0);
+        }
+
+        double DifferenceToEnd = Math.Abs(data[index].Y - data[data.Count - 1].Y);
+        double DifferenceInXEnd = Math.Abs(data[index].X - data[data.Count - 1].X);
+        double DifferenceToStart = Math.Abs(data[index].Y - data[0].Y);
+        double DifferenceInXStart = Math.Abs(data[index].X - data[0].X);
+        const double ExtraRoom = 1.0;
+
+        if (DifferenceToEnd < endMarkerHeight && DifferenceToEnd > 0.0 && DifferenceInXEnd < endMarkerHeight)
+        {
+            double Adjustment = endMarkerHeight + ExtraRoom - DifferenceToEnd;
+            Adjustment *= Direction == "up" ? -1.0 : 1.0;
+            Offset -= Adjustment;
+        }
+
+        if (DifferenceToStart < startMarkerHeight && DifferenceToStart > 0.0 && DifferenceInXStart < startMarkerHeight)
+        {
+            double Adjustment = startMarkerHeight + ExtraRoom - DifferenceToStart;
+            Adjustment *= Direction == "up" ? -1.0 : 1.0;
+            Offset += Adjustment;
+        }
+
+        return Offset;
+    }
+
+    static (double Angle, double DeltaX, double DeltaY) CalculateDeltaAndAngle(Position point1, Position point2)
+    {
+        double DeltaX = point2.X - point1.X;
+        double DeltaY = point2.Y - point1.Y;
+
+        // Mermaid uses atan(deltaY / deltaX) (not atan2).
+        double Angle = Math.Atan(DeltaY / DeltaX);
+        return (Angle, DeltaX, DeltaY);
+    }
+
+    static List<Position> ApplyMarkerOffsetsToPoints(IReadOnlyList<Position> points, string? arrowTypeStart, string? arrowTypeEnd)
+    {
+        // Port of Mermaid applyMarkerOffsetsToPoints() (rounded curve only).
+        // Source: mermaid/packages/mermaid/src/rendering-util/rendering-elements/edges.js
+        if (points.Count < 2)
+        {
+            return new List<Position>(points);
+        }
+
+        Dictionary<string, double> MarkerOffsets = new Dictionary<string, double>(StringComparer.Ordinal)
+        {
+            { "aggregation", 17.25 },
+            { "extension", 17.25 },
+            { "composition", 17.25 },
+            { "dependency", 6.0 },
+            { "lollipop", 13.5 },
+            { "arrow_point", 4.0 },
+            { "arrow_barb", 0.0 },
+            { "arrow_barb_neo", 5.5 }
+        };
+
+        List<Position> NewPoints = new List<Position>(points.Count);
+        for (int Index = 0; Index < points.Count; Index++)
+        {
+            NewPoints.Add(points[Index]);
+        }
+
+        if (!string.IsNullOrWhiteSpace(arrowTypeStart) && MarkerOffsets.TryGetValue(arrowTypeStart, out double startOffsetValue))
+        {
+            (double Angle, double DeltaX, double DeltaY) = CalculateDeltaAndAngle(points[0], points[1]);
+            NewPoints[0] = new Position(
+                points[0].X + (startOffsetValue * Math.Cos(Angle)),
+                points[0].Y + (startOffsetValue * Math.Sin(Angle)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(arrowTypeEnd) && MarkerOffsets.TryGetValue(arrowTypeEnd, out double endOffsetValue))
+        {
+            int LastIndex = points.Count - 1;
+            (double Angle, double DeltaX, double DeltaY) = CalculateDeltaAndAngle(points[LastIndex - 1], points[LastIndex]);
+            NewPoints[LastIndex] = new Position(
+                points[LastIndex].X - (endOffsetValue * Math.Cos(Angle)),
+                points[LastIndex].Y - (endOffsetValue * Math.Sin(Angle)));
+        }
+
+        return NewPoints;
+    }
+
+    static string GenerateRoundedPath(IReadOnlyList<Position> points, double radius)
+    {
+        // Port of Mermaid generateRoundedPath(points, radius=5) in edges.js.
         if (points.Count < 2)
         {
             return string.Empty;
         }
 
-        Position p0 = points[0];
-        Position p3 = points[^1];
+        const double Epsilon = 0.00001;
+        StringBuilder Path = new StringBuilder();
 
-        // Similar to ER: short straight stubs at endpoints.
-        const double MAX_ENDPOINT_STUB_PX = 18.0;
-        const double MIN_ENDPOINT_STUB_PX = 10.0;
+        for (int Index = 0; Index < points.Count; Index++)
+        {
+            Position CurrPoint = points[Index];
+            Position PrevPoint = Index > 0 ? points[Index - 1] : points[0];
+            Position NextPoint = Index < points.Count - 1 ? points[Index + 1] : points[points.Count - 1];
 
-        Position startNormal = ComputeEndpointNormal(p0, sourceNode, fallbackToward: points.Count >= 2 ? points[1] : p3, outward: true);
-        Position endNormal = ComputeEndpointNormal(p3, targetNode, fallbackToward: points.Count >= 2 ? points[^2] : p0, outward: true);
+            if (Index == 0)
+            {
+                Path.Append('M').Append(Fmt(CurrPoint.X)).Append(',').Append(Fmt(CurrPoint.Y));
+                continue;
+            }
 
-        double chordDx = p3.X - p0.X;
-        double chordDy = p3.Y - p0.Y;
-        double chordLen = Math.Sqrt((chordDx * chordDx) + (chordDy * chordDy));
-        double stubLen = chordLen > 0.0 ? Math.Min(MAX_ENDPOINT_STUB_PX, Math.Max(MIN_ENDPOINT_STUB_PX, chordLen * 0.08)) : MIN_ENDPOINT_STUB_PX;
+            if (Index == points.Count - 1)
+            {
+                Path.Append('L').Append(Fmt(CurrPoint.X)).Append(',').Append(Fmt(CurrPoint.Y));
+                continue;
+            }
 
-        Position s0 = p0;
-        Position s1 = new Position(p0.X + (startNormal.X * stubLen), p0.Y + (startNormal.Y * stubLen));
+            double PrevDx = CurrPoint.X - PrevPoint.X;
+            double PrevDy = CurrPoint.Y - PrevPoint.Y;
+            double NextDx = NextPoint.X - CurrPoint.X;
+            double NextDy = NextPoint.Y - CurrPoint.Y;
 
-        Position e3 = p3;
-        Position e2 = new Position(p3.X + (endNormal.X * stubLen), p3.Y + (endNormal.Y * stubLen));
+            double PrevLen = Math.Sqrt((PrevDx * PrevDx) + (PrevDy * PrevDy));
+            double NextLen = Math.Sqrt((NextDx * NextDx) + (NextDy * NextDy));
 
-        double midDx = e2.X - s1.X;
-        double midDy = e2.Y - s1.Y;
-        double midLen = Math.Sqrt((midDx * midDx) + (midDy * midDy));
-        double controlLen = midLen > 0.0 ? Math.Max(12.0, Math.Min(60.0, midLen * 0.35)) : 24.0;
+            if (PrevLen < Epsilon || NextLen < Epsilon)
+            {
+                Path.Append('L').Append(Fmt(CurrPoint.X)).Append(',').Append(Fmt(CurrPoint.Y));
+                continue;
+            }
 
-        Position c1 = new Position(s1.X + (startNormal.X * controlLen), s1.Y + (startNormal.Y * controlLen));
-        Position c2 = new Position(e2.X + (endNormal.X * controlLen), e2.Y + (endNormal.Y * controlLen));
+            double CutLen = Math.Min(radius, Math.Min(PrevLen, NextLen) / 2.0);
 
-        return $"M{Fmt(s0.X)},{Fmt(s0.Y)} L{Fmt(s1.X)},{Fmt(s1.Y)} C{Fmt(c1.X)},{Fmt(c1.Y)} {Fmt(c2.X)},{Fmt(c2.Y)} {Fmt(e2.X)},{Fmt(e2.Y)} L{Fmt(e3.X)},{Fmt(e3.Y)}";
-#pragma warning restore IDE0007
+            double StartX = CurrPoint.X - ((PrevDx / PrevLen) * CutLen);
+            double StartY = CurrPoint.Y - ((PrevDy / PrevLen) * CutLen);
+            double EndX = CurrPoint.X + ((NextDx / NextLen) * CutLen);
+            double EndY = CurrPoint.Y + ((NextDy / NextLen) * CutLen);
+
+            Path.Append('L').Append(Fmt(StartX)).Append(',').Append(Fmt(StartY));
+            Path.Append('Q')
+                .Append(Fmt(CurrPoint.X)).Append(',').Append(Fmt(CurrPoint.Y)).Append(' ')
+                .Append(Fmt(EndX)).Append(',').Append(Fmt(EndY));
+        }
+
+        return Path.ToString();
     }
+
+    private static string GetConfigString(FlowchartModel model, string key, string fallback)
+    {
+        if (!model.Config.TryGetValue(key, out string? value) || string.IsNullOrWhiteSpace(value))
+        {
+            return fallback;
+        }
+
+        return value;
+    }
+
+    static string? ComputeNeoStrokeDasharray(IReadOnlyList<Position> points, Edge edge, string edgeCurveType)
+    {
+        // Mermaid neo look dash shaping uses path.getTotalLength() with markerOffsets2.
+        // Naiad approximates length using the routed polyline points after the same point transforms used for path generation.
+        // Source: mermaid/packages/mermaid/src/rendering-util/rendering-elements/edges.js
+        List<Position> LineData = FilterValidPoints(points);
+        if (string.Equals(edgeCurveType, "rounded", StringComparison.OrdinalIgnoreCase))
+        {
+            (string? ArrowTypeStart, string? ArrowTypeEnd) = GetMermaidArrowTypes(edge.Type);
+            LineData = ApplyMarkerOffsetsToPoints(LineData, ArrowTypeStart, ArrowTypeEnd);
+        }
+        else
+        {
+            LineData = FixCorners(LineData);
+            (string? ArrowTypeStart, string? ArrowTypeEnd) = GetMermaidArrowTypes(edge.Type);
+            LineData = ApplyLineWithOffset(LineData, ArrowTypeStart, ArrowTypeEnd);
+        }
+
+        double Length = 0.0;
+        for (int i = 1; i < LineData.Count; i++)
+        {
+            Length += LineData[i - 1].DistanceTo(LineData[i]);
+        }
+
+        double oValueS = GetMarkerOffset2Start(edge.Type);
+        double oValueE = GetMarkerOffset2End(edge.Type);
+
+        double middleLength = Length - oValueS - oValueE;
+        if (middleLength < 0)
+        {
+            middleLength = 0;
+        }
+
+        // Mermaid treats dotted and dashed the same for generateDashArray here (2/2 pattern).
+        if (edge.LineStyle is EdgeStyle.Dotted)
+        {
+            return GenerateNeoDashArray(Length, oValueS, oValueE);
+        }
+
+        return $"0 {Fmt(oValueS)} {Fmt(middleLength)} {Fmt(oValueE)}";
+    }
+
+    static string GenerateNeoDashArray(double len, double oValueS, double oValueE)
+    {
+        // Port of generateDashArray in edges.js (dashLength=2, gapLength=2).
+        double middleLength = len - oValueS - oValueE;
+        if (middleLength < 0)
+        {
+            middleLength = 0;
+        }
+
+        const int DASH_LENGTH = 2;
+        const int GAP_LENGTH = 2;
+        int numberOfPairs = (int)Math.Floor(middleLength / (DASH_LENGTH + GAP_LENGTH));
+
+        StringBuilder MiddlePattern = new StringBuilder();
+        for (int i = 0; i < numberOfPairs; i++)
+        {
+            if (i > 0)
+            {
+                MiddlePattern.Append(' ');
+            }
+            MiddlePattern.Append(DASH_LENGTH).Append(' ').Append(GAP_LENGTH);
+        }
+
+        if (MiddlePattern.Length > 0)
+        {
+            return $"0 {Fmt(oValueS)} {MiddlePattern} {Fmt(oValueE)}";
+        }
+
+        return $"0 {Fmt(oValueS)} {Fmt(oValueE)}";
+    }
+
+    static double GetMarkerOffset2Start(EdgeType edgeType)
+    {
+        // Mermaid markerOffsets2: arrow_point=4, arrow_cross=12.5, arrow_circle=12.5.
+        return edgeType switch
+        {
+            EdgeType.BiDirectional => 4.0,
+            EdgeType.BiDirectionalCircle => 12.5,
+            EdgeType.BiDirectionalCross => 12.5,
+            _ => 0.0
+        };
+    }
+
+    static double GetMarkerOffset2End(EdgeType edgeType)
+    {
+        return edgeType switch
+        {
+            EdgeType.Arrow => 4.0,
+            EdgeType.DottedArrow => 4.0,
+            EdgeType.ThickArrow => 4.0,
+            EdgeType.BiDirectional => 4.0,
+            EdgeType.CircleEnd => 12.5,
+            EdgeType.CrossEnd => 12.5,
+            EdgeType.BiDirectionalCircle => 12.5,
+            EdgeType.BiDirectionalCross => 12.5,
+            _ => 0.0
+        };
+    }
+#pragma warning restore IDE0007
 
     static bool ShouldSnapDecisionBranchTargetPort(Edge edge, Node? sourceNode, Node? targetNode, bool targetHasSingleIncoming)
     {
@@ -1204,11 +1627,6 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         if (points.Count < 2)
         {
             return string.Empty;
-        }
-
-        if (points.Count == 2)
-        {
-            return $"M{Fmt(points[0].X)},{Fmt(points[0].Y)} L{Fmt(points[1].X)},{Fmt(points[1].Y)}";
         }
 
         StringBuilder sb = new StringBuilder();

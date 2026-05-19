@@ -15,6 +15,10 @@ public class PacketRenderer : IDiagramRenderer<PacketModel>
 
     public SvgDocument Render(PacketModel model, RenderOptions options)
     {
+#pragma warning disable IDE0007
+        MermaidSharp.Rendering.MermaidThemeVariables Theme = MermaidSharp.Rendering.MermaidThemeResolver.Resolve(model, options);
+#pragma warning restore IDE0007
+
         if (model.Fields.Count == 0)
         {
             var emptyBuilder = new SvgBuilder().Size(200, 100);
@@ -33,7 +37,9 @@ public class PacketRenderer : IDiagramRenderer<PacketModel>
         var width = bitsPerRow * BitWidth + options.Padding * 2;
         var height = totalRows * RowHeight + BitNumberHeight + options.Padding * 2 + titleOffset;
 
-        var builder = new SvgBuilder().Size(width, height);
+        var builder = new SvgBuilder()
+            .Size(width, height)
+            .AddStyles(MermaidStyles.ApplyThemeVariables(MermaidStyles.BaseStyles, Theme));
 
         // Draw title
         if (!string.IsNullOrEmpty(model.Title))
@@ -55,7 +61,7 @@ public class PacketRenderer : IDiagramRenderer<PacketModel>
             builder.AddText(x, baseY + BitNumberHeight / 2, i.ToString(),
                 anchor: "middle", baseline: "middle",
                 fontSize: $"{options.FontSize - 4}px", fontFamily: options.FontFamily,
-                fill: "#666");
+                fill: Theme.TextColor);
         }
 
         // Draw fields
@@ -76,12 +82,12 @@ public class PacketRenderer : IDiagramRenderer<PacketModel>
                 var y = baseY + BitNumberHeight + startRow * RowHeight;
 
                 builder.AddRect(x, y, fieldWidth * BitWidth, RowHeight,
-                    fill: color, stroke: "#333", strokeWidth: 1);
+                    fill: color, stroke: Theme.LineColor, strokeWidth: 1);
 
                 builder.AddText(x + fieldWidth * BitWidth / 2, y + RowHeight / 2, field.Label,
                     anchor: "middle", baseline: "middle",
                     fontSize: $"{options.FontSize - 2}px", fontFamily: options.FontFamily,
-                    fill: "#333");
+                    fill: Theme.TextColor);
             }
             else
             {
@@ -111,7 +117,7 @@ public class PacketRenderer : IDiagramRenderer<PacketModel>
                     var y = baseY + BitNumberHeight + row * RowHeight;
 
                     builder.AddRect(x, y, fieldWidth * BitWidth, RowHeight,
-                        fill: color, stroke: "#333", strokeWidth: 1);
+                        fill: color, stroke: Theme.LineColor, strokeWidth: 1);
 
                     // Only show label in first row
                     if (row == startRow)

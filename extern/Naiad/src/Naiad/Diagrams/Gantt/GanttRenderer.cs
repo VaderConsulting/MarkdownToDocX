@@ -16,21 +16,8 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
     const double rowHeight = taskBarHeight + BAR_GAP_PX;
     const double milestoneSize = 12;
 
-    // Mermaid default theme (theme-default.js) values for Gantt.
-    const string TASK_BORDER_COLOR = "#534fbc";
-    const string TASK_BKG_COLOR = "#8a90dd";
-    const string ACTIVE_TASK_BKG_COLOR = "#bfc7ff";
-    const string DONE_TASK_BKG_COLOR = "lightgrey";
-    const string CRIT_TASK_BKG_COLOR = "red";
-    const string DONE_TASK_BORDER_COLOR = "grey";
-    const string CRIT_TASK_BORDER_COLOR = "#ff8888";
-
     // Mermaid uses per-row section fills with opacity 0.2.
     // Word does not reliably respect `rgba(..., alpha)` in SVG fills, so emit solid fills and apply `fill-opacity`.
-    const string SECTION0_ROW_COLOR = "rgb(102, 102, 255)";
-    const string SECTION1_ROW_COLOR = "white";
-    const string SECTION2_ROW_COLOR = "#fff400";
-    const string SECTION3_ROW_COLOR = "white";
     const string SECTION_ROW_FILL_OPACITY_STYLE = "fill-opacity: 0.2";
     const double RIGHT_LABEL_PADDING_PX = 60;
     const double FORCE_LABEL_INSIDE_BAR_WIDTH_PX = 140;
@@ -61,6 +48,10 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
 
     public SvgDocument Render(GanttModel model, RenderOptions options)
     {
+#pragma warning disable IDE0007
+        MermaidSharp.Rendering.MermaidThemeVariables Theme = MermaidSharp.Rendering.MermaidThemeResolver.Resolve(model, options);
+#pragma warning restore IDE0007
+
         // Compute task dates
         var tasks = ComputeTaskDates(model);
 
@@ -111,6 +102,7 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
         dayWidthPx = chartWidth / Math.Max(1, totalDays - 1);
 
         var builder = new SvgBuilder().Size(width, height);
+        builder.AddStyles(MermaidStyles.ApplyThemeVariables(MermaidStyles.GanttStyles, Theme));
 
         var offsetX = LEFT_PADDING_PX;
         var offsetY = TOP_PADDING_PX;
@@ -127,10 +119,10 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
 
         // Draw axis and grid (Mermaid places axis ticks at the bottom).
         DrawAxis(builder, minDate, totalDays, offsetX, height, chartWidth, dayWidthPx, options, model.AxisFormat);
-        DrawGridLines(builder, totalDays, offsetX, height, chartWidth, dayWidthPx);
+        DrawGridLines(builder, totalDays, offsetX, height, chartWidth, dayWidthPx, Theme);
 
         // Draw section row backgrounds (Mermaid draws full-width row bands behind tasks).
-        DrawSectionRowBackgrounds(builder, model, offsetY, chartWidth);
+        DrawSectionRowBackgrounds(builder, model, offsetY, chartWidth, Theme);
 
         // Mermaid does not render section header rows; it renders section titles at the left.
         var taskRowIndex = 0;
@@ -150,7 +142,7 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
 
             foreach (var task in section.Tasks)
             {
-                DrawTask(builder, task, minDate, taskRowIndex, offsetX, offsetY, dayWidthPx, totalTaskCount, height, options);
+                DrawTask(builder, task, minDate, taskRowIndex, offsetX, offsetY, dayWidthPx, totalTaskCount, height, options, Theme);
                 taskRowIndex++;
             }
         }
@@ -251,7 +243,7 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
     }
 
     static void DrawGridLines(SvgBuilder builder, int totalDays, double offsetX, double height,
-        double chartWidth, double dayWidthPx)
+        double chartWidth, double dayWidthPx, MermaidSharp.Rendering.MermaidThemeVariables Theme)
     {
         #pragma warning disable IDE0007
         double axisY = height - TOP_PADDING_PX;
@@ -261,7 +253,7 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
         for (var i = 0; i < totalDays; i++)
         {
             var x = offsetX + i * dayWidthPx;
-            builder.AddLine(x, GRID_LINE_START_PADDING_PX, x, axisY, stroke: "lightgrey", strokeWidth: 1);
+            builder.AddLine(x, GRID_LINE_START_PADDING_PX, x, axisY, stroke: Theme.GridColor, strokeWidth: 1);
         }
 
         // Horizontal grid lines across the chart area (Mermaid does this via D3 tickSize).
@@ -269,12 +261,12 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
         for (var i = 0; i <= numRows; i++)
         {
             var y = TOP_PADDING_PX + i * rowHeight;
-            builder.AddLine(offsetX, y, offsetX + chartWidth, y, stroke: "#eee", strokeWidth: 1);
+            builder.AddLine(offsetX, y, offsetX + chartWidth, y, stroke: Theme.GridColor, strokeWidth: 1);
         }
     }
 
     static void DrawTask(SvgBuilder builder, GanttTask task, DateTime startDate, int row,
-        double offsetX, double offsetY, double dayWidthPx, int totalTaskCount, double height, RenderOptions options)
+        double offsetX, double offsetY, double dayWidthPx, int totalTaskCount, double height, RenderOptions options, MermaidSharp.Rendering.MermaidThemeVariables Theme)
     {
         var y = offsetY + row * rowHeight;
         var startDays = (task.ComputedStart - startDate).Days;
@@ -293,45 +285,45 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
         string textColor;
         if (task.IsCritical)
         {
-            strokeColor = CRIT_TASK_BORDER_COLOR;
+            strokeColor = Theme.CritBorderColor;
             strokeWidth = 2;
 
             if (task.Status == GanttTaskStatus.Done)
             {
-                fillColor = DONE_TASK_BKG_COLOR;
-                textColor = "black";
+                fillColor = Theme.DoneTaskBkgColor;
+                textColor = Theme.TaskTextDarkColor;
             }
             else if (task.Status == GanttTaskStatus.Active)
             {
-                fillColor = ACTIVE_TASK_BKG_COLOR;
-                textColor = "black";
+                fillColor = Theme.ActiveTaskBkgColor;
+                textColor = Theme.TaskTextDarkColor;
             }
             else
             {
-                fillColor = CRIT_TASK_BKG_COLOR;
-                textColor = "white";
+                fillColor = Theme.CritBkgColor;
+                textColor = Theme.TaskTextLightColor;
             }
         }
         else if (task.Status == GanttTaskStatus.Done)
         {
-            fillColor = DONE_TASK_BKG_COLOR;
-            strokeColor = DONE_TASK_BORDER_COLOR;
+            fillColor = Theme.DoneTaskBkgColor;
+            strokeColor = Theme.DoneTaskBorderColor;
             strokeWidth = 2;
-            textColor = "black";
+            textColor = Theme.TaskTextDarkColor;
         }
         else if (task.Status == GanttTaskStatus.Active)
         {
-            fillColor = ACTIVE_TASK_BKG_COLOR;
-            strokeColor = TASK_BORDER_COLOR;
+            fillColor = Theme.ActiveTaskBkgColor;
+            strokeColor = Theme.TaskBorderColor;
             strokeWidth = 2;
-            textColor = "black";
+            textColor = Theme.TaskTextDarkColor;
         }
         else
         {
-            fillColor = TASK_BKG_COLOR;
-            strokeColor = TASK_BORDER_COLOR;
+            fillColor = Theme.TaskBkgColor;
+            strokeColor = Theme.TaskBorderColor;
             strokeWidth = 2;
-            textColor = "white";
+            textColor = Theme.TaskTextLightColor;
         }
 
         if (task.IsVert)
@@ -348,8 +340,8 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
 
             builder.AddRect(taskX, vertY, vertWidth, vertHeight,
                 rx: 0,
-                fill: TASK_BKG_COLOR,
-                stroke: TASK_BORDER_COLOR,
+                fill: Theme.TaskBkgColor,
+                stroke: Theme.TaskBorderColor,
                 strokeWidth: 1);
 
             // Label at the bottom, centred on the line.
@@ -359,7 +351,7 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
                 baseline: "middle",
                 fontSize: $"{Math.Max(8, options.FontSize - 2)}px",
                 fontFamily: options.FontFamily,
-                fill: "#000");
+                    fill: Theme.TaskTextDarkColor);
 #pragma warning restore IDE0007
 
             return;
@@ -451,14 +443,14 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
         }
     }
 
-    static void DrawSectionRowBackgrounds(SvgBuilder builder, GanttModel model, double offsetY, double chartWidth)
+    static void DrawSectionRowBackgrounds(SvgBuilder builder, GanttModel model, double offsetY, double chartWidth, MermaidSharp.Rendering.MermaidThemeVariables Theme)
     {
 #pragma warning disable IDE0007
         int taskRowIndex = 0;
         int sectionIndex = 0;
         foreach (var section in model.Sections)
         {
-            var sectionFill = GetSectionFill(sectionIndex);
+            string sectionFill = GetSectionFill(sectionIndex, Theme);
             // Task rows in this section
             for (int i = 0; i < section.Tasks.Count; i++)
             {
@@ -473,16 +465,33 @@ public class GanttRenderer : IDiagramRenderer<GanttModel>
 #pragma warning restore IDE0007
     }
 
-    static string GetSectionFill(int sectionIndex)
+    static string GetSectionFill(int sectionIndex, MermaidSharp.Rendering.MermaidThemeVariables Theme)
     {
         var slot = ((sectionIndex % 4) + 4) % 4;
         return slot switch
         {
-            0 => SECTION0_ROW_COLOR,
-            1 => SECTION1_ROW_COLOR,
-            2 => SECTION2_ROW_COLOR,
-            _ => SECTION3_ROW_COLOR
+            0 => NormaliseGanttRowFillToRgb(Theme.SectionBkgColor, rgbFallback: "rgb(102, 102, 255)"),
+            1 => NormaliseGanttRowFillToRgb(Theme.AltSectionBkgColor, rgbFallback: "white"),
+            2 => NormaliseGanttRowFillToRgb(Theme.SectionBkgColor2, rgbFallback: "#fff400"),
+            _ => NormaliseGanttRowFillToRgb(Theme.AltSectionBkgColor, rgbFallback: "white")
         };
+    }
+
+    static string NormaliseGanttRowFillToRgb(string value, string rgbFallback)
+    {
+        // Naiad emits solid fills (plus opacity) for row bands because Word does not reliably render rgba() as expected.
+        // If the theme provides rgba(...), fall back to the known Mermaid default RGB for that slot.
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return rgbFallback;
+        }
+
+        if (value.StartsWith("rgba(", StringComparison.OrdinalIgnoreCase))
+        {
+            return rgbFallback;
+        }
+
+        return value;
     }
 
     static double EstimateMaxLeftLabelWidthPx(GanttModel model, RenderOptions options)

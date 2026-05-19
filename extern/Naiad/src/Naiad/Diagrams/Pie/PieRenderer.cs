@@ -36,7 +36,7 @@ public class PieRenderer : IDiagramRenderer<PieModel>
         var builder = new SvgBuilder()
             .Size(width, height)
             .DiagramType(null!, "pie")
-            .AddStyles(MermaidStyles.PieStyles);
+            .AddStyles(MermaidStyles.ApplyThemeVariables(MermaidStyles.PieStyles, MermaidSharp.Rendering.MermaidThemeResolver.Resolve(model, options)));
 
         // Empty group (mermaid.ink artifact)
         builder.BeginGroup();

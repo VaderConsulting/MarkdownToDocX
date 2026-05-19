@@ -14,11 +14,11 @@ public static class OptionsResolver
     /// </summary>
     public static EffectiveOptions Resolve(MarkdownToDocxOptions Options)
     {
-        var Profile = string.IsNullOrWhiteSpace(Options?.Profile)
+        string Profile = string.IsNullOrWhiteSpace(Options?.Profile)
             ? DEFAULT_PROFILE
             : Options.Profile.Trim();
 
-        var Effective = ApplyProfileDefaults(Profile);
+        EffectiveOptions Effective = ApplyProfileDefaults(Profile);
 
         if (Options?.Markdown != null)
         {
@@ -50,7 +50,7 @@ public static class OptionsResolver
 
     private static EffectiveOptions ApplyProfileDefaults(string Profile)
     {
-        var Effective = new EffectiveOptions
+        EffectiveOptions Effective = new EffectiveOptions
         {
             Markdown = new MarkdownOptions(),
             Docx = new DocxOptions(),

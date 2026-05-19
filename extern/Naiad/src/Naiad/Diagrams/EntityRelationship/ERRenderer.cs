@@ -58,7 +58,7 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
             .ViewBox($"0 0 {Fmt(layoutResult.Width + options.Padding * 2)} {Fmt(layoutResult.Height + options.Padding * 2)}")
             .AddFontAwesomeImport();
 
-        builder.AddStyles(MermaidStyles.ERStyles);
+        builder.AddStyles(MermaidStyles.ApplyThemeVariables(MermaidStyles.ERStyles, MermaidSharp.Rendering.MermaidThemeResolver.Resolve(model, options)));
         RegisterErCardinalityMarkers(builder);
 
         var EdgeCountsByEntity = ComputeEdgeConnectionCounts(model);
@@ -407,19 +407,9 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
             double MidY = LabelPoint.Y;
 #pragma warning restore IDE0007
 
-            if (IsQuotedErFixtureLabel(rel.Label))
-            {
-                // Matrix fixture: match Mermaid's deterministic label placement.
-                // X aligns to the target node centre; Y is halfway between node centres.
-                MidX = ToEntity.Position.X;
-                MidY = (FromEntity.Position.Y + ToEntity.Position.Y) / 2.0;
-            }
-            else
-            {
-                // Scenario 1: labels sit above the stroke (not centred on it), while remaining horizontally centred.
-                const double LABEL_OVER_STROKE_OFFSET_PX = 12.0;
-                MidY = MidY - LABEL_OVER_STROKE_OFFSET_PX;
-            }
+            // Labels sit above the stroke (not centred on it), following the rendered path midpoint.
+            const double LABEL_OVER_STROKE_OFFSET_PX = 12.0;
+            MidY = MidY - LABEL_OVER_STROKE_OFFSET_PX;
 
             var LabelWidth = Math.Round(Math.Max(20.0, MeasureText(rel.Label, RelationshipFontSize, bold: false) + 4.96), 2);
 
@@ -600,7 +590,12 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
             $"C{Fmt(C1.X)},{Fmt(C1.Y)} {Fmt(C2.X)},{Fmt(C2.Y)} {Fmt(EntryPoint.X)},{Fmt(EntryPoint.Y)} " +
             $"L{Fmt(P3.X)},{Fmt(P3.Y)}";
 
-        // Keep segments empty so label placement uses the polyline fallback (stable and cheap).
+        Result.LabelPolyline.Add(P0);
+        Result.LabelPolyline.Add(ExitPoint);
+        Result.LabelPolyline.Add(BezierPoint(new CubicBezierSegment { P0 = ExitPoint, P1 = C1, P2 = C2, P3 = EntryPoint }, 0.5));
+        Result.LabelPolyline.Add(EntryPoint);
+        Result.LabelPolyline.Add(P3);
+
         return Result;
 #pragma warning restore IDE0007
     }
@@ -623,6 +618,11 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
     static Position ComputePathHalfLengthPoint(ErCurveBasisPath Path, IReadOnlyList<Position> FallbackPolyline)
     {
 #pragma warning disable IDE0007
+        if (Path.LabelPolyline.Count > 0)
+        {
+            return ComputePolylineHalfLengthPoint(Path.LabelPolyline);
+        }
+
         if (Path.Segments.Count > 0)
         {
             double TotalLengthPx = ApproximateCurveLength(Path);
@@ -1217,6 +1217,7 @@ public class ERRenderer(ILayoutEngine? layoutEngine = null) :
     {
         public string PathData = string.Empty;
         public List<CubicBezierSegment> Segments { get; } = new List<CubicBezierSegment>();
+        public List<Position> LabelPolyline { get; } = new List<Position>();
     }
 
     // Exact d3.curveBasis conversion (see https://raw.githubusercontent.com/d3/d3-shape/main/src/curve/basis.js)

@@ -69,10 +69,10 @@ public static class Mermaid
         {
             DiagramType.Pie => RenderPie(input, options),
             DiagramType.Flowchart => RenderFlowchart(input, options, initConfig),
-            DiagramType.Sequence => RenderSequence(input, options),
-            DiagramType.Class => RenderClass(input, options),
-            DiagramType.State => RenderState(input, options),
-            DiagramType.EntityRelationship => RenderEntityRelationship(input, options),
+            DiagramType.Sequence => RenderSequence(input, options, initConfig),
+            DiagramType.Class => RenderClass(input, options, initConfig),
+            DiagramType.State => RenderState(input, options, initConfig),
+            DiagramType.EntityRelationship => RenderEntityRelationship(input, options, initConfig),
             DiagramType.GitGraph => RenderGitGraph(input, options),
             DiagramType.Gantt => RenderGantt(input, options),
             DiagramType.Mindmap => RenderMindmap(input, options),
@@ -397,6 +397,23 @@ public static class Mermaid
         return ToXml(svg);
     }
 
+    static string RenderSequence(string input, RenderOptions options, Dictionary<string, string> initConfig)
+    {
+        var parser = new SequenceParser();
+        var result = parser.Parse(input);
+
+        if (!result.Success)
+        {
+            throw new MermaidParseException($"Failed to parse sequence diagram: {result.Error}");
+        }
+
+        ApplyInitConfig(result.Value, initConfig);
+
+        var renderer = new SequenceRenderer();
+        var svg = renderer.Render(result.Value, options);
+        return ToXml(svg);
+    }
+
     static string RenderClass(string input, RenderOptions options)
     {
         var parser = new ClassParser();
@@ -406,6 +423,23 @@ public static class Mermaid
         {
             throw new MermaidParseException($"Failed to parse class diagram: {result.Error}");
         }
+
+        var renderer = new ClassRenderer();
+        var svg = renderer.Render(result.Value, options);
+        return ToXml(svg);
+    }
+
+    static string RenderClass(string input, RenderOptions options, Dictionary<string, string> initConfig)
+    {
+        var parser = new ClassParser();
+        var result = parser.Parse(input);
+
+        if (!result.Success)
+        {
+            throw new MermaidParseException($"Failed to parse class diagram: {result.Error}");
+        }
+
+        ApplyInitConfig(result.Value, initConfig);
 
         var renderer = new ClassRenderer();
         var svg = renderer.Render(result.Value, options);
@@ -427,6 +461,23 @@ public static class Mermaid
         return ToXml(svg);
     }
 
+    static string RenderState(string input, RenderOptions options, Dictionary<string, string> initConfig)
+    {
+        var parser = new StateParser();
+        var result = parser.Parse(input);
+
+        if (!result.Success)
+        {
+            throw new MermaidParseException($"Failed to parse state diagram: {result.Error}");
+        }
+
+        ApplyInitConfig(result.Value, initConfig);
+
+        var renderer = new StateRenderer();
+        var svg = renderer.Render(result.Value, options);
+        return ToXml(svg);
+    }
+
     static string RenderEntityRelationship(string input, RenderOptions options)
     {
         var parser = new ERParser();
@@ -436,6 +487,23 @@ public static class Mermaid
         {
             throw new MermaidParseException($"Failed to parse ER diagram: {result.Error}");
         }
+
+        var renderer = new ERRenderer();
+        var svg = renderer.Render(result.Value, options);
+        return ToXml(svg);
+    }
+
+    static string RenderEntityRelationship(string input, RenderOptions options, Dictionary<string, string> initConfig)
+    {
+        var parser = new ERParser();
+        var result = parser.Parse(input);
+
+        if (!result.Success)
+        {
+            throw new MermaidParseException($"Failed to parse ER diagram: {result.Error}");
+        }
+
+        ApplyInitConfig(result.Value, initConfig);
 
         var renderer = new ERRenderer();
         var svg = renderer.Render(result.Value, options);

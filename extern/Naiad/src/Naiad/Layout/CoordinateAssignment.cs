@@ -297,11 +297,18 @@ static class CoordinateAssignment
             return;
         }
 
+#pragma warning disable IDE0007
+        bool IsUpward = direction is Direction.BottomToTop;
+#pragma warning restore IDE0007
+
         foreach (var sourceNode in diagram.Nodes)
         {
-            var outs = diagram.Edges
+#pragma warning disable IDE0007
+            IEnumerable<Edge> DiagramEdges = diagram.Edges ?? Enumerable.Empty<Edge>();
+            List<Edge> outs = DiagramEdges
                 .Where(edge => edge.SourceId == sourceNode.Id && edge.Points.Count >= 1)
                 .ToList();
+#pragma warning restore IDE0007
 
             if (outs.Count < 2)
             {
@@ -312,7 +319,31 @@ static class CoordinateAssignment
             var left = cx - sourceNode.Width / 2;
             var right = cx + sourceNode.Width / 2;
 
-            var ordered = outs.OrderBy(edge => edge.Points[0].X).ToList();
+            // Mermaid/dagre-d3 assigns fork arms based on target-side ordering (left-to-right),
+            // while keeping stability when targets share the same X.
+            // This prevents the "wrong arm" taking the long outside route.
+#pragma warning disable IDE0007
+            Dictionary<string, double> TargetXById = new Dictionary<string, double>(StringComparer.Ordinal);
+            foreach (Edge edge in outs)
+            {
+                Node? targetNode = diagram.GetNode(edge.TargetId);
+                if (targetNode is not null && !TargetXById.ContainsKey(edge.TargetId))
+                {
+                    TargetXById[edge.TargetId] = targetNode.Position.X;
+                }
+            }
+
+            Dictionary<Edge, int> OutIndex = new Dictionary<Edge, int>();
+            for (int i = 0; i < outs.Count; i++)
+            {
+                OutIndex[outs[i]] = i;
+            }
+
+            List<Edge> ordered = outs
+                .OrderBy(edge => TargetXById.TryGetValue(edge.TargetId, out double x) ? x : double.NaN)
+                .ThenBy(edge => OutIndex[edge])
+                .ToList();
+#pragma warning restore IDE0007
             var distinctY = ordered.Select(edge => edge.Points[0].Y).Distinct().ToList();
 
             if (distinctY.Count != 1)
@@ -320,37 +351,436 @@ static class CoordinateAssignment
                 continue;
             }
 
-            var exitY = distinctY[0];
-            var xs = ordered.Select(edge => edge.Points[0].X).ToArray();
+            #pragma warning disable IDE0007
+            double exitY = distinctY[0];
+            #pragma warning restore IDE0007
 
-            var minGap = MinVerticalForkExitSeparationPx;
-            var span = right - left;
-
-            if (outs.Count > 1 && span > 1e-6)
+            // Compute ideal symmetric port positions (Mermaid-style slot scheme):
+            // split the facing edge into (2N-1) slots and use centres of slots 1,3,5...
+            // For N=2, this yields 1/6 and 5/6 across the edge (pleasingly symmetric).
+#pragma warning disable IDE0007
+            double span = right - left;
+            int n = ordered.Count;
+            int slotCount = (2 * n) - 1;
+            double[] xs = new double[n];
+            for (int i = 0; i < n; i++)
             {
-                var maxFeasible = span / (outs.Count - 1);
+                // Use centres of slots 0,2,4,... (odd-numbered attachment slots in Mermaid terms).
+                // slotIndex = 2*i, centre = (slotIndex + 0.5) / slotCount
+                // For n=2 (slotCount=3) => 1/6 and 5/6 (i.e. x and width-x).
+                double t = (2.0 * i + 0.5) / slotCount;
+                xs[i] = left + (span * t);
+            }
+#pragma warning restore IDE0007
+
+            // Special-case: symmetric fork (1→N) should look like Mermaid:
+            // - symmetric exit ports on the source bottom edge
+            // - short perpendicular stems
+            // - smooth curve (via basis) between orthogonal segments
+            // - arrow enters at the *centre* of the target top edge (target centre X)
+            //
+            // Apply only when all targets are in the next rank (prevents wrecking long edges / dummy routes).
+            if (ordered.Count >= 2)
+            {
+#pragma warning disable IDE0007
+                bool isNextRankFork = sourceNode.Rank >= 0;
+                double minTargetAttachY = double.PositiveInfinity;
+                List<Node> targets = new List<Node>(ordered.Count);
+
+                for (int i = 0; i < ordered.Count; i++)
+                {
+                    Edge edge = ordered[i];
+                    Node? targetNode = diagram.GetNode(edge.TargetId);
+                    if (targetNode is null)
+                    {
+                        isNextRankFork = false;
+                        break;
+                    }
+
+                    targets.Add(targetNode);
+                    double targetAttachY = IsUpward
+                        ? targetNode.Position.Y + (targetNode.Height / 2.0)
+                        : targetNode.Position.Y - (targetNode.Height / 2.0);
+                    if (targetAttachY < minTargetAttachY)
+                    {
+                        minTargetAttachY = targetAttachY;
+                    }
+
+                    // Do not require "next rank" for all targets.
+                    // Mermaid still uses the same symmetric fork aesthetics when one branch is longer
+                    // (e.g., Q -> DL two ranks down, while Q -> C is next rank).
+                    // We only require that the source rank is known and that targets are below the source.
+                    if (targetNode.Rank >= 0 && sourceNode.Rank >= 0)
+                    {
+                        bool IsCorrectDirection = IsUpward
+                            ? targetNode.Position.Y < sourceNode.Position.Y - 1e-6
+                            : targetNode.Position.Y > sourceNode.Position.Y + 1e-6;
+                        if (!IsCorrectDirection)
+                        {
+                            isNextRankFork = false;
+                            break;
+                        }
+                    }
+                }
+
+                if (isNextRankFork && targets.Count == ordered.Count)
+                {
+                    const double FORK_STEM_PX = 16.0;
+                    double midY = IsUpward ? exitY - FORK_STEM_PX : exitY + FORK_STEM_PX;
+                    double maxMidY = IsUpward ? minTargetAttachY + FORK_STEM_PX : minTargetAttachY - FORK_STEM_PX;
+                    if (IsUpward)
+                    {
+                        if (midY < maxMidY)
+                        {
+                            midY = maxMidY;
+                        }
+                    }
+                    else
+                    {
+                        if (midY > maxMidY)
+                        {
+                            midY = maxMidY;
+                        }
+                    }
+
+                    // Ensure exit ports are deterministically spaced even for narrow nodes.
+                    double forkMinGap = MinVerticalForkExitSeparationPx;
+                    if (ordered.Count > 1 && span > 1e-6)
+                    {
+                        double maxFeasible = span / (ordered.Count - 1);
+                        if (forkMinGap > maxFeasible)
+                        {
+                            forkMinGap = maxFeasible * 0.98;
+                        }
+                    }
+
+                    for (int pass = 0; pass < 8; pass++)
+                    {
+                        bool changed = false;
+                        for (int i = 0; i < xs.Length - 1; i++)
+                        {
+                            if (xs[i + 1] - xs[i] < forkMinGap - 1e-6)
+                            {
+                                double m = (xs[i] + xs[i + 1]) / 2.0;
+                                xs[i] = m - (forkMinGap / 2.0);
+                                xs[i + 1] = m + (forkMinGap / 2.0);
+                                changed = true;
+                            }
+                        }
+
+                        for (int i = 0; i < xs.Length; i++)
+                        {
+                            xs[i] = Math.Clamp(xs[i], left, right);
+                        }
+
+                        if (!changed)
+                        {
+                            break;
+                        }
+                    }
+
+                    for (int i = 0; i < ordered.Count; i++)
+                    {
+                        Edge edge = ordered[i];
+                        Node targetNode = targets[i];
+
+                        double exitX = xs[i];
+                        double targetCenterX = targetNode.Position.X;
+                        double targetAttachY = IsUpward
+                            ? targetNode.Position.Y + (targetNode.Height / 2.0)
+                            : targetNode.Position.Y - (targetNode.Height / 2.0);
+
+                        edge.Points.Clear();
+                        if (ordered.Count == 2)
+                        {
+                            // Simple fork (1→2): keep the classic Mermaid look – short stem + single smooth bend.
+                            // Avoid the multi-control-point "wavy" curve used for denser forks.
+                            //
+                            // If one branch targets a deeper sink that is centre-aligned beneath the source,
+                            // prefer a straight vertical entry into that sink (visually reads as "drop to DLQ").
+                            int otherIndex = i == 0 ? 1 : 0;
+                            Node otherTarget = targets[otherIndex];
+                            bool isDeeperThanSibling = otherTarget.Rank >= 0 && targetNode.Rank >= 0 && targetNode.Rank > otherTarget.Rank;
+                            double sourceCenterX = sourceNode.Position.X;
+                            bool isCentreAligned = Math.Abs(targetCenterX - sourceCenterX) < 1.0;
+
+                            if (isDeeperThanSibling && isCentreAligned)
+                            {
+                                // Keep the vertical drop on the *slot column*, not the node centre:
+                                // - exitX is already a symmetric slot on the source bottom edge
+                                // - entryX uses the same fractional position across the target top edge
+                                // Additionally, pick the slot column that does not pass through other nodes.
+                                double chosenExitX = exitX;
+                                int bestHits = int.MaxValue;
+
+                                for (int c = 0; c < xs.Length; c++)
+                                {
+                                    double candidateX = xs[c];
+                                    int hits = 0;
+
+                                    foreach (Node node in diagram.Nodes)
+                                    {
+                                        if (string.Equals(node.Id, sourceNode.Id, StringComparison.Ordinal)
+                                            || string.Equals(node.Id, targetNode.Id, StringComparison.Ordinal))
+                                        {
+                                            continue;
+                                        }
+
+                                        double nLeft = node.Position.X - (node.Width / 2.0);
+                                        double nRight = node.Position.X + (node.Width / 2.0);
+                                        if (candidateX < nLeft - 0.5 || candidateX > nRight + 0.5)
+                                        {
+                                            continue;
+                                        }
+
+                                        double nTop = node.Position.Y - (node.Height / 2.0);
+                                        double nBottom = node.Position.Y + (node.Height / 2.0);
+                                        double spanMinY = Math.Min(exitY, targetAttachY);
+                                        double spanMaxY = Math.Max(exitY, targetAttachY);
+                                        if (spanMaxY < nTop || spanMinY > nBottom)
+                                        {
+                                            continue;
+                                        }
+
+                                        hits++;
+                                    }
+
+                                    if (hits < bestHits)
+                                    {
+                                        bestHits = hits;
+                                        chosenExitX = candidateX;
+                                    }
+
+                                    if (bestHits == 0)
+                                    {
+                                        break;
+                                    }
+                                }
+
+                                double sourceLeft = sourceNode.Position.X - (sourceNode.Width / 2.0);
+                                double sourceWidth = sourceNode.Width;
+                                double frac = 0.5;
+                                if (sourceWidth > 1e-6)
+                                {
+                                    frac = (chosenExitX - sourceLeft) / sourceWidth;
+                                }
+                                frac = Math.Clamp(frac, 0.0, 1.0);
+
+                                double targetLeft = targetNode.Position.X - (targetNode.Width / 2.0);
+                                double targetRight = targetNode.Position.X + (targetNode.Width / 2.0);
+
+                                // Prefer true canvas-vertical alignment when possible: entryX = exitX.
+                                // Only fall back to fractional mapping if the target is too narrow to accept that X.
+                                double entryX = chosenExitX;
+                                if (entryX < targetLeft || entryX > targetRight)
+                                {
+                                    entryX = targetLeft + (targetNode.Width * frac);
+                                }
+                                entryX = Math.Clamp(entryX, targetLeft, targetRight);
+
+                                edge.Points.Add(new Position(chosenExitX, exitY));
+                                edge.Points.Add(new Position(chosenExitX, midY));
+                                edge.Points.Add(new Position(entryX, targetAttachY));
+                                continue;
+                            }
+
+                            // General rule: prefer a pure canvas-vertical route for this branch if possible.
+                            // (Exit and entry on the same X column, with no node intersections.)
+                            double targetLeftV = targetNode.Position.X - (targetNode.Width / 2.0);
+                            double targetRightV = targetNode.Position.X + (targetNode.Width / 2.0);
+                            // For a *plain* 1→2 fork (both targets at the same level), keep the symmetric slot exit
+                            // positions (1/6 and 5/6) rather than snapping to target centres (which can push exits
+                            // too close to the ends).
+                            //
+                            // Only snap to target centre for mixed-depth forks (e.g., one branch goes deeper to DLQ),
+                            // where "vertical if possible" should prioritise a straight column into the nearer target.
+                            double sourceLeftV = sourceNode.Position.X - (sourceNode.Width / 2.0);
+                            double sourceRightV = sourceNode.Position.X + (sourceNode.Width / 2.0);
+                            bool isMixedDepthFork = targets.Count == 2
+                                && targets[0].Rank >= 0
+                                && targets[1].Rank >= 0
+                                && targets[0].Rank != targets[1].Rank;
+
+                            double preferredColumnX = isMixedDepthFork
+                                ? Math.Clamp(targetCenterX, sourceLeftV, sourceRightV)
+                                : exitX;
+
+                            bool columnWithinTarget = preferredColumnX >= targetLeftV && preferredColumnX <= targetRightV;
+                            bool columnIsClear = true;
+                            if (columnWithinTarget)
+                            {
+                                foreach (Node node in diagram.Nodes)
+                                {
+                                    if (string.Equals(node.Id, sourceNode.Id, StringComparison.Ordinal)
+                                        || string.Equals(node.Id, targetNode.Id, StringComparison.Ordinal))
+                                    {
+                                        continue;
+                                    }
+
+                                    double nLeft = node.Position.X - (node.Width / 2.0);
+                                    double nRight = node.Position.X + (node.Width / 2.0);
+                                    if (preferredColumnX < nLeft - 0.5 || preferredColumnX > nRight + 0.5)
+                                    {
+                                        continue;
+                                    }
+
+                                    double nTop = node.Position.Y - (node.Height / 2.0);
+                                    double nBottom = node.Position.Y + (node.Height / 2.0);
+                                    double spanMinY = Math.Min(exitY, targetAttachY);
+                                    double spanMaxY = Math.Max(exitY, targetAttachY);
+                                    if (spanMaxY < nTop || spanMinY > nBottom)
+                                    {
+                                        continue;
+                                    }
+
+                                    columnIsClear = false;
+                                    break;
+                                }
+                            }
+                            else
+                            {
+                                columnIsClear = false;
+                            }
+
+                            if (columnIsClear)
+                            {
+                                edge.Points.Add(new Position(preferredColumnX, exitY));
+                                edge.Points.Add(new Position(preferredColumnX, midY));
+                                edge.Points.Add(new Position(preferredColumnX, targetAttachY));
+                                continue;
+                            }
+
+                            double stemY = exitY + FORK_STEM_PX;
+                            double entryY = targetAttachY;
+                            double bendY = stemY;
+                            if (bendY > entryY - FORK_STEM_PX)
+                            {
+                                bendY = entryY - FORK_STEM_PX;
+                            }
+
+                            double midX = (exitX + targetCenterX) / 2.0;
+                            double approachY = exitY + (FORK_STEM_PX * 0.6);
+                            double leaveY = bendY + (FORK_STEM_PX * 0.4);
+                            if (leaveY > entryY - 1.0)
+                            {
+                                leaveY = entryY - 1.0;
+                            }
+
+                            edge.Points.Add(new Position(exitX, exitY));
+                            edge.Points.Add(new Position(exitX, approachY));
+                            edge.Points.Add(new Position(midX, bendY));
+                            edge.Points.Add(new Position(targetCenterX, leaveY));
+                            edge.Points.Add(new Position(targetCenterX, entryY));
+                        }
+                        else
+                        {
+                            // Denser forks:
+                            // - prefer a pure canvas-vertical route for this branch if possible
+                            // - otherwise use monotonic-Y control points for a smooth arc without a long flat run.
+                            double targetLeftV = targetNode.Position.X - (targetNode.Width / 2.0);
+                            double targetRightV = targetNode.Position.X + (targetNode.Width / 2.0);
+                            bool columnWithinTarget = exitX >= targetLeftV && exitX <= targetRightV;
+                            bool columnIsClear = true;
+                            if (columnWithinTarget)
+                            {
+                                foreach (Node node in diagram.Nodes)
+                                {
+                                    if (string.Equals(node.Id, sourceNode.Id, StringComparison.Ordinal)
+                                        || string.Equals(node.Id, targetNode.Id, StringComparison.Ordinal))
+                                    {
+                                        continue;
+                                    }
+
+                                    double nLeft = node.Position.X - (node.Width / 2.0);
+                                    double nRight = node.Position.X + (node.Width / 2.0);
+                                    if (exitX < nLeft - 0.5 || exitX > nRight + 0.5)
+                                    {
+                                        continue;
+                                    }
+
+                                    double nTop = node.Position.Y - (node.Height / 2.0);
+                                    double nBottom = node.Position.Y + (node.Height / 2.0);
+                                    double spanMinY = Math.Min(exitY, targetAttachY);
+                                    double spanMaxY = Math.Max(exitY, targetAttachY);
+                                    if (spanMaxY < nTop || spanMinY > nBottom)
+                                    {
+                                        continue;
+                                    }
+
+                                    columnIsClear = false;
+                                    break;
+                                }
+                            }
+                            else
+                            {
+                                columnIsClear = false;
+                            }
+
+                            if (columnIsClear)
+                            {
+                                edge.Points.Add(new Position(exitX, exitY));
+                                edge.Points.Add(new Position(exitX, midY));
+                                edge.Points.Add(new Position(exitX, targetAttachY));
+                            }
+                            else
+                            {
+                            double midX = (exitX + targetCenterX) / 2.0;
+                            double y0 = exitY;
+                            double y1 = exitY + (FORK_STEM_PX * 0.5);
+                            double y2 = exitY + FORK_STEM_PX;
+                            double y3 = exitY + (FORK_STEM_PX * 1.75);
+                            double y4 = midY;
+                            double y5 = IsUpward
+                                ? targetAttachY + (FORK_STEM_PX * 0.75)
+                                : targetAttachY - (FORK_STEM_PX * 0.75);
+                            if (y5 < y4 + 1.0)
+                            {
+                                y5 = y4 + 1.0;
+                            }
+
+                            edge.Points.Add(new Position(exitX, y0));
+                            edge.Points.Add(new Position(exitX, y1));
+                            edge.Points.Add(new Position(exitX, y2));
+                            edge.Points.Add(new Position(midX, y3));
+                            edge.Points.Add(new Position(targetCenterX, y4));
+                            edge.Points.Add(new Position(targetCenterX, y5));
+                            edge.Points.Add(new Position(targetCenterX, targetAttachY));
+                            }
+                        }
+                    }
+
+                    continue;
+                }
+#pragma warning restore IDE0007
+            }
+
+            // Ensure we still respect a minimum feasible separation.
+#pragma warning disable IDE0007
+            double minGap = MinVerticalForkExitSeparationPx;
+            if (n > 1 && span > 1e-6)
+            {
+                double maxFeasible = span / (n - 1);
                 if (minGap > maxFeasible)
                 {
                     minGap = maxFeasible * 0.98;
                 }
             }
 
-            for (var pass = 0; pass < 32; pass++)
+            for (int pass = 0; pass < 8; pass++)
             {
-                var changed = false;
-
-                for (var i = 0; i < xs.Length - 1; i++)
+                bool changed = false;
+                for (int i = 0; i < xs.Length - 1; i++)
                 {
                     if (xs[i + 1] - xs[i] < minGap - 1e-6)
                     {
-                        var mid = (xs[i] + xs[i + 1]) / 2;
-                        xs[i] = mid - minGap / 2;
-                        xs[i + 1] = mid + minGap / 2;
+                        double mid = (xs[i] + xs[i + 1]) / 2.0;
+                        xs[i] = mid - (minGap / 2.0);
+                        xs[i + 1] = mid + (minGap / 2.0);
                         changed = true;
                     }
                 }
 
-                for (var i = 0; i < xs.Length; i++)
+                for (int i = 0; i < xs.Length; i++)
                 {
                     xs[i] = Math.Clamp(xs[i], left, right);
                 }
@@ -360,12 +790,157 @@ static class CoordinateAssignment
                     break;
                 }
             }
+#pragma warning restore IDE0007
 
-            for (var i = 0; i < ordered.Count; i++)
+#pragma warning disable IDE0007
+            const double STEM_PX = 16.0;
+            double targetStemY2Global = exitY + (STEM_PX * 2.0);
+
+            for (int i = 0; i < ordered.Count; i++)
             {
-                ordered[i].Points[0] = new Position(xs[i], exitY);
+                Edge edge = ordered[i];
+                double exitX = xs[i];
+
+                // Always force the first point to the chosen exit port.
+                edge.Points[0] = new Position(exitX, exitY);
+
+                // Ensure we have at least a 2-segment vertical stem (3 collinear points).
+                if (edge.Points.Count == 1)
+                {
+                    edge.Points.Add(new Position(exitX, exitY + STEM_PX));
+                    edge.Points.Add(new Position(exitX, targetStemY2Global));
+                }
+                else
+                {
+                    // Point 1
+                    Position p1 = edge.Points[1];
+                    double y1 = p1.Y;
+                    if (y1 < exitY + STEM_PX)
+                    {
+                        y1 = exitY + STEM_PX;
+                    }
+                    edge.Points[1] = new Position(exitX, y1);
+
+                    // Point 2
+                    if (edge.Points.Count == 2)
+                    {
+                        edge.Points.Add(new Position(exitX, targetStemY2Global));
+                    }
+                    else
+                    {
+                        Position p2 = edge.Points[2];
+                        double y2 = p2.Y;
+                        if (y2 < targetStemY2Global)
+                        {
+                            y2 = targetStemY2Global;
+                        }
+                        edge.Points[2] = new Position(exitX, y2);
+                    }
+                }
+
+                // Keep early routed points on the exit X to preserve visual symmetry without rewriting the route.
+                // This avoids invalidating Dagre’s later bendpoints while making the initial segment(s) read vertical.
+                for (int p = 0; p < edge.Points.Count; p++)
+                {
+                    Position point = edge.Points[p];
+                    if (point.Y > targetStemY2Global + 1e-6)
+                    {
+                        break;
+                    }
+                    edge.Points[p] = new Position(exitX, point.Y);
+                }
+
+                // Mirror the same symmetry at the target: ensure the edge *enters* the target on the same column X.
+                // Keep the final segment(s) vertical by locking the last few points' X to the column.
+                Node? targetNode = diagram.GetNode(edge.TargetId);
+                if (targetNode is not null && edge.Points.Count >= 2)
+                {
+                    double targetLeft = targetNode.Position.X - (targetNode.Width / 2.0);
+                    double targetRight = targetNode.Position.X + (targetNode.Width / 2.0);
+                    double entryX = Math.Clamp(exitX, targetLeft, targetRight);
+
+                    int last = edge.Points.Count - 1;
+                    Position plast = edge.Points[last];
+                    edge.Points[last] = new Position(entryX, plast.Y);
+
+                    // Also lock the prior points that are "near" the target so curveBasis sees a vertical tangent.
+                    // Work backwards until we exit the bottom-stem window.
+                    double targetStemTopY = plast.Y - (STEM_PX * 2.0);
+                    for (int p = last - 1; p >= 0; p--)
+                    {
+                        Position point = edge.Points[p];
+                        if (point.Y < targetStemTopY - 1e-6)
+                        {
+                            break;
+                        }
+                        edge.Points[p] = new Position(entryX, point.Y);
+                    }
+                }
+            }
+#pragma warning restore IDE0007
+        }
+    }
+
+    public static void ApplyVerticalPassThroughNodeAlignment(GraphDiagramBase diagram, Direction direction)
+    {
+        if (direction is Direction.LeftToRight or Direction.RightToLeft)
+        {
+            return;
+        }
+
+        // For nodes with exactly one incoming edge and one outgoing edge, prefer a single vertical "column"
+        // through the node (entry and exit X match) when it is safe.
+#pragma warning disable IDE0007
+        foreach (Node node in diagram.Nodes)
+        {
+            if (node.IsGroup)
+            {
+                continue;
+            }
+
+            List<Edge> incoming = diagram.Edges?.Where(e => string.Equals(e.TargetId, node.Id, StringComparison.Ordinal) && e.Points.Count >= 2).ToList()
+                ?? new List<Edge>();
+            List<Edge> outgoing = diagram.Edges?.Where(e => string.Equals(e.SourceId, node.Id, StringComparison.Ordinal) && e.Points.Count >= 2).ToList()
+                ?? new List<Edge>();
+
+            if (incoming.Count != 1 || outgoing.Count != 1)
+            {
+                continue;
+            }
+
+            Edge inEdge = incoming[0];
+            Edge outEdge = outgoing[0];
+
+            double nodeLeft = node.Position.X - (node.Width / 2.0);
+            double nodeRight = node.Position.X + (node.Width / 2.0);
+            double columnX = Math.Clamp(node.Position.X, nodeLeft, nodeRight);
+
+            // Adjust incoming last point(s) to columnX.
+            int inLast = inEdge.Points.Count - 1;
+            Position inPLast = inEdge.Points[inLast];
+            inEdge.Points[inLast] = new Position(columnX, inPLast.Y);
+            if (inLast - 1 >= 0)
+            {
+                Position inPrev = inEdge.Points[inLast - 1];
+                if (Math.Abs(inPrev.Y - inPLast.Y) < 64.0)
+                {
+                    inEdge.Points[inLast - 1] = new Position(columnX, inPrev.Y);
+                }
+            }
+
+            // Adjust outgoing first point(s) to columnX.
+            Position outP0 = outEdge.Points[0];
+            outEdge.Points[0] = new Position(columnX, outP0.Y);
+            if (outEdge.Points.Count > 1)
+            {
+                Position outP1 = outEdge.Points[1];
+                if (Math.Abs(outP1.Y - outP0.Y) < 64.0)
+                {
+                    outEdge.Points[1] = new Position(columnX, outP1.Y);
+                }
             }
         }
+#pragma warning restore IDE0007
     }
 
     public static void RouteEdges(LayoutGraph graph, Direction direction, GraphDiagramBase? diagram = null)
@@ -384,7 +959,7 @@ static class CoordinateAssignment
         var FlowchartHorizontalAttachOverrides = (FlowchartHorizontalAttachOverrides?)null;
         if (isHorizontal && FlowchartDiagram is not null)
         {
-            FlowchartHorizontalAttachOverrides = BuildFlowchartHorizontalAttachOverrides(graph);
+            FlowchartHorizontalAttachOverrides = BuildFlowchartHorizontalAttachOverrides(graph, direction);
         }
 
         // Build lookup for dummy nodes by (OriginalEdgeSource, OriginalEdgeTarget)
@@ -992,8 +1567,12 @@ static class CoordinateAssignment
         public Dictionary<LayoutEdge, (double TargetX, double TargetY)> TargetAttachOverrideByEdge { get; }
     }
 
-    private static FlowchartHorizontalAttachOverrides BuildFlowchartHorizontalAttachOverrides(LayoutGraph graph)
+    private static FlowchartHorizontalAttachOverrides BuildFlowchartHorizontalAttachOverrides(LayoutGraph graph, Direction direction)
     {
+#pragma warning disable IDE0007
+        bool IsRightToLeft = direction is Direction.RightToLeft;
+#pragma warning restore IDE0007
+
         var SourceAttachOverrideByEdge = new Dictionary<LayoutEdge, (double SourceX, double SourceY)>();
         var TargetAttachOverrideByEdge = new Dictionary<LayoutEdge, (double TargetX, double TargetY)>();
 
@@ -1010,7 +1589,7 @@ static class CoordinateAssignment
             })
             .ToList();
 
-        // --- 2 -> 1 fan-in to target from the left (allocate symmetric left-edge slots) ---
+        // --- 2 -> 1 fan-in to target from the side (mirror LR/RL) ---
         var IncomingByTargetId = RealEdges
             .GroupBy(Edge => Edge.TargetId, StringComparer.Ordinal)
             .ToDictionary(Group => Group.Key, Group => Group.ToList(), StringComparer.Ordinal);
@@ -1028,25 +1607,45 @@ static class CoordinateAssignment
                 continue;
             }
 
-            // Require both sources are to the left of the target.
-            var allFromLeft = true;
+            // LR: require both sources are to the left of the target.
+            // RL: require both sources are to the right of the target.
+            var allFromSide = true;
             for (var i = 0; i < IncomingEdges.Count; i++)
             {
                 var SourceNode = graph.GetNode(IncomingEdges[i].SourceId);
-                if (SourceNode is null || SourceNode.X >= TargetNode.X)
+                if (SourceNode is null)
                 {
-                    allFromLeft = false;
+                    allFromSide = false;
                     break;
+                }
+
+                if (!IsRightToLeft)
+                {
+                    if (SourceNode.X >= TargetNode.X)
+                    {
+                        allFromSide = false;
+                        break;
+                    }
+                }
+                else
+                {
+                    if (SourceNode.X <= TargetNode.X)
+                    {
+                        allFromSide = false;
+                        break;
+                    }
                 }
             }
 
-            if (!allFromLeft)
+            if (!allFromSide)
             {
                 continue;
             }
 
             // Slot rule: N=2 => (2N-1)=3 slots; use slot centres 1 and 3 => t = 1/6 and 5/6.
-            var leftX = TargetNode.X - (TargetNode.Width / 2.0) - FlowchartEdgeNodeGap;
+            var attachX = IsRightToLeft
+                ? TargetNode.X + (TargetNode.Width / 2.0) + FlowchartEdgeNodeGap
+                : TargetNode.X - (TargetNode.Width / 2.0) - FlowchartEdgeNodeGap;
             var topY = TargetNode.Y - (TargetNode.Height / 2.0) - FlowchartEdgeNodeGap;
             var height = TargetNode.Height + (FlowchartEdgeNodeGap * 2.0);
 
@@ -1062,10 +1661,10 @@ static class CoordinateAssignment
                 return ya.CompareTo(yb);
             });
 
-            TargetAttachOverrideByEdge[IncomingEdges[0]] = (leftX, upperY);
-            TargetAttachOverrideByEdge[IncomingEdges[1]] = (leftX, lowerY);
+            TargetAttachOverrideByEdge[IncomingEdges[0]] = (attachX, upperY);
+            TargetAttachOverrideByEdge[IncomingEdges[1]] = (attachX, lowerY);
 
-            // For this small-N fan-in, Mermaid leaves the sources from the right-centre (not the bottom-right corner).
+            // For this small-N fan-in, Mermaid leaves the sources from the side-centre facing the target.
             for (var i = 0; i < IncomingEdges.Count; i++)
             {
                 var Edge = IncomingEdges[i];
@@ -1075,13 +1674,15 @@ static class CoordinateAssignment
                     continue;
                 }
 
-                var rightX = SourceNode.X + (SourceNode.Width / 2.0) + FlowchartEdgeNodeGap;
+                var sourceAttachX = IsRightToLeft
+                    ? SourceNode.X - (SourceNode.Width / 2.0) - FlowchartEdgeNodeGap
+                    : SourceNode.X + (SourceNode.Width / 2.0) + FlowchartEdgeNodeGap;
                 var midY = SourceNode.Y;
-                SourceAttachOverrideByEdge[Edge] = (rightX, midY);
+                SourceAttachOverrideByEdge[Edge] = (sourceAttachX, midY);
             }
         }
 
-        // --- 1 -> N fan-out from source to the right ---
+        // --- 1 -> N fan-out from source to the side (mirror LR/RL) ---
         var OutgoingBySourceId = RealEdges
             .GroupBy(Edge => Edge.SourceId, StringComparer.Ordinal)
             .ToDictionary(Group => Group.Key, Group => Group.ToList(), StringComparer.Ordinal);
@@ -1099,32 +1700,52 @@ static class CoordinateAssignment
                 continue;
             }
 
-            // Require both targets are to the right of the source.
-            var allToRight = true;
+            // LR: require both targets are to the right of the source.
+            // RL: require both targets are to the left of the source.
+            var allToSide = true;
             for (var i = 0; i < OutgoingEdges.Count; i++)
             {
                 var TargetNode = graph.GetNode(OutgoingEdges[i].TargetId);
-                if (TargetNode is null || TargetNode.X <= SourceNode.X)
+                if (TargetNode is null)
                 {
-                    allToRight = false;
+                    allToSide = false;
                     break;
+                }
+
+                if (!IsRightToLeft)
+                {
+                    if (TargetNode.X <= SourceNode.X)
+                    {
+                        allToSide = false;
+                        break;
+                    }
+                }
+                else
+                {
+                    if (TargetNode.X >= SourceNode.X)
+                    {
+                        allToSide = false;
+                        break;
+                    }
                 }
             }
 
-            if (!allToRight)
+            if (!allToSide)
             {
                 continue;
             }
 
-            var rightX = SourceNode.X + (SourceNode.Width / 2.0) + FlowchartEdgeNodeGap;
+            var sourceAttachX = IsRightToLeft
+                ? SourceNode.X - (SourceNode.Width / 2.0) - FlowchartEdgeNodeGap
+                : SourceNode.X + (SourceNode.Width / 2.0) + FlowchartEdgeNodeGap;
             var midY = SourceNode.Y;
 
-            // Source: all fan-out edges share right-centre.
-            // Targets: attach at left-centre (Mermaid default for multiple separate targets).
+            // Source: all fan-out edges share side-centre.
+            // Targets: attach at opposite side-centre.
             for (var i = 0; i < OutgoingEdges.Count; i++)
             {
                 var Edge = OutgoingEdges[i];
-                SourceAttachOverrideByEdge[Edge] = (rightX, midY);
+                SourceAttachOverrideByEdge[Edge] = (sourceAttachX, midY);
 
                 var TargetNode = graph.GetNode(Edge.TargetId);
                 if (TargetNode is null)
@@ -1132,9 +1753,11 @@ static class CoordinateAssignment
                     continue;
                 }
 
-                var leftX = TargetNode.X - (TargetNode.Width / 2.0) - FlowchartEdgeNodeGap;
+                var targetAttachX = IsRightToLeft
+                    ? TargetNode.X + (TargetNode.Width / 2.0) + FlowchartEdgeNodeGap
+                    : TargetNode.X - (TargetNode.Width / 2.0) - FlowchartEdgeNodeGap;
                 var targetMidY = TargetNode.Y;
-                TargetAttachOverrideByEdge[Edge] = (leftX, targetMidY);
+                TargetAttachOverrideByEdge[Edge] = (targetAttachX, targetMidY);
             }
         }
 
@@ -1451,6 +2074,8 @@ static class CoordinateAssignment
                     continue;
                 }
 
+                // Use rank-aware ER facing (parent/child rows), not raw position deltas.
+                // Wide horizontal spacing would otherwise force side ports on children below a parent.
                 FacingDirection Facing = ClassifyFacing(Hub, Other);
                 if (Facing == FacingDirection.Up)
                 {
@@ -1611,7 +2236,7 @@ static class CoordinateAssignment
                     continue;
                 }
 
-                FacingDirection Facing = ClassifyFacing(Hub, Other);
+                FacingDirection Facing = ClassifyFacingByPosition(Hub, Other);
                 if (Facing == FacingDirection.Up)
                 {
                     UpEdges.Add(Edge);
@@ -1996,6 +2621,21 @@ static class CoordinateAssignment
             return Other.Rank < Hub.Rank ? FacingDirection.Up : FacingDirection.Down;
         }
 
+        double DeltaX = Other.X - Hub.X;
+        double DeltaY = Other.Y - Hub.Y;
+
+        if (Math.Abs(DeltaX) > Math.Abs(DeltaY))
+        {
+            return DeltaX < 0 ? FacingDirection.Left : FacingDirection.Right;
+        }
+
+        return DeltaY < 0 ? FacingDirection.Up : FacingDirection.Down;
+    }
+
+    static FacingDirection ClassifyFacingByPosition(LayoutNode Hub, LayoutNode Other)
+    {
+        // Flowcharts can reverse direction (BT/RL) by flipping coordinates after ranking.
+        // For attach-point selection we must therefore classify facing from actual positions, not ranks.
         double DeltaX = Other.X - Hub.X;
         double DeltaY = Other.Y - Hub.Y;
 

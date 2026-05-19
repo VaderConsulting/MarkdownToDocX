@@ -34,7 +34,10 @@ public sealed class DocxWriter
     private int _NextAbstractNumberingId = 3;
     private uint _NextDrawingId = 1;
 
-    public DocxWriter(EffectiveOptions Options) => this._Options = Options ?? throw new ArgumentNullException(nameof(Options));
+    public DocxWriter(EffectiveOptions Options)
+    {
+        _Options = Options ?? throw new ArgumentNullException(nameof(Options));
+    }
 
     /// <summary>
     /// Writes the document model to the output stream.
@@ -50,13 +53,13 @@ public sealed class DocxWriter
             throw new ArgumentException("OutputStream must be writable.", nameof(OutputStream));
         }
 
-        using (var Document = CreateDocument(OutputStream))
+        using (WordprocessingDocument Document = CreateDocument(OutputStream))
         {
-            var MainPart = Document.MainDocumentPart ?? Document.AddMainDocumentPart();
+            MainDocumentPart MainPart = Document.MainDocumentPart ?? Document.AddMainDocumentPart();
             _MainPart = MainPart;
             _NextDrawingId = 1;
 
-            var Styles = _Options.Docx.Styles ?? new StyleMapping();
+            StyleMapping Styles = _Options.Docx.Styles ?? new StyleMapping();
             EnsureStylesPart(MainPart, Styles);
             _NumberingPart = EnsureNumberingPart(MainPart);
             _NextNumberingId = GetNextNumberingId(_NumberingPart.Numbering!);
@@ -67,10 +70,10 @@ public sealed class DocxWriter
                 MainPart.Document = new Document(new Body());
             }
 
-            var Body = MainPart.Document.Body ?? MainPart.Document.AppendChild(new Body());
+            Body Body = MainPart.Document.Body ?? MainPart.Document.AppendChild(new Body());
             Body.RemoveAllChildren();
 
-            foreach (var Block in Model.Blocks)
+            foreach (BlockNode Block in Model.Blocks)
             {
                 AppendBlock(Body, Block, Styles, 0);
             }
@@ -85,7 +88,7 @@ public sealed class DocxWriter
     {
         if (_Options.Docx.UseBuiltinTemplate == false)
         {
-            using (var TemplateStream = File.OpenRead(_Options.Docx.TemplatePath))
+            using (FileStream TemplateStream = File.OpenRead(_Options.Docx.TemplatePath))
             {
                 TemplateStream.CopyTo(OutputStream);
             }
@@ -103,7 +106,7 @@ public sealed class DocxWriter
 
     private static void EnsureStylesPart(MainDocumentPart MainPart, StyleMapping Styles)
     {
-        var StylePart = MainPart.StyleDefinitionsPart ?? MainPart.AddNewPart<StyleDefinitionsPart>();
+        StyleDefinitionsPart StylePart = MainPart.StyleDefinitionsPart ?? MainPart.AddNewPart<StyleDefinitionsPart>();
         if (MainPart.StyleDefinitionsPart?.Styles != null)
         {
             EnsureGeneratedStyles(MainPart.StyleDefinitionsPart.Styles, Styles);
@@ -111,7 +114,7 @@ public sealed class DocxWriter
             return;
         }
 
-        var Root = new DocumentFormat.OpenXml.Wordprocessing.Styles();
+        DocumentFormat.OpenXml.Wordprocessing.Styles Root = new DocumentFormat.OpenXml.Wordprocessing.Styles();
         Root.AppendChild(new DocDefaults(
             new RunPropertiesDefault(new RunProperties(new RunFonts() { Ascii = "Calibri", HighAnsi = "Calibri", EastAsia = "Calibri" }, new FontSize() { Val = "22" }, new FontSizeComplexScript() { Val = "22" }))));
 
@@ -146,7 +149,7 @@ public sealed class DocxWriter
             return;
         }
 
-        var Style = new Style()
+        Style Style = new Style()
         {
             Type = StyleValues.Paragraph,
             StyleId = StyleId,
@@ -179,8 +182,8 @@ public sealed class DocxWriter
             return;
         }
 
-        var FontSizeVal = Level switch { 1 => "32", 2 => "26", 3 => "24", 4 => "22", 5 => "20", _ => "20" };
-        var Style = new Style()
+        string FontSizeVal = Level switch { 1 => "32", 2 => "26", 3 => "24", 4 => "22", 5 => "20", _ => "20" };
+        Style Style = new Style()
         {
             Type = StyleValues.Paragraph,
             StyleId = StyleId,
@@ -207,7 +210,7 @@ public sealed class DocxWriter
             return;
         }
 
-        var Style = new Style()
+        Style Style = new Style()
         {
             Type = StyleValues.Character,
             StyleId = StyleId,
@@ -230,7 +233,7 @@ public sealed class DocxWriter
             return;
         }
 
-        var Style = new Style()
+        Style Style = new Style()
         {
             Type = StyleValues.Paragraph,
             StyleId = StyleId,
@@ -255,7 +258,7 @@ public sealed class DocxWriter
             return;
         }
 
-        var Style = new Style()
+        Style Style = new Style()
         {
             Type = StyleValues.Paragraph,
             StyleId = StyleId,
@@ -285,7 +288,7 @@ public sealed class DocxWriter
             return;
         }
 
-        var Style = new Style()
+        Style Style = new Style()
         {
             Type = StyleValues.Character,
             StyleId = "Hyperlink"
@@ -301,7 +304,7 @@ public sealed class DocxWriter
 
     private static NumberingDefinitionsPart EnsureNumberingPart(MainDocumentPart MainPart)
     {
-        var NumberingPart = MainPart.NumberingDefinitionsPart ?? MainPart.AddNewPart<NumberingDefinitionsPart>();
+        NumberingDefinitionsPart NumberingPart = MainPart.NumberingDefinitionsPart ?? MainPart.AddNewPart<NumberingDefinitionsPart>();
         if (NumberingPart.Numbering != null)
         {
             return NumberingPart;
@@ -317,7 +320,7 @@ public sealed class DocxWriter
 
     private static int GetNextNumberingId(Numbering Numbering)
     {
-        var MaxNumberingId = Numbering.Elements<NumberingInstance>()
+        int MaxNumberingId = Numbering.Elements<NumberingInstance>()
             .Select(Instance => Instance.NumberID?.Value ?? 0)
             .DefaultIfEmpty(0)
             .Max();
@@ -326,7 +329,7 @@ public sealed class DocxWriter
 
     private static int GetNextAbstractNumberingId(Numbering Numbering)
     {
-        var MaxAbstractNumberingId = Numbering.Elements<AbstractNum>()
+        int MaxAbstractNumberingId = Numbering.Elements<AbstractNum>()
             .Select(AbstractNum => AbstractNum.AbstractNumberId?.Value ?? 0)
             .DefaultIfEmpty(0)
             .Max();
@@ -335,14 +338,14 @@ public sealed class DocxWriter
 
     private static AbstractNum CreateAbstractNumber(int AbstractNumberId, NumberFormatValues Format, int StartNumber = 1, int StartLevel = 0)
     {
-        var AbstractNum = new AbstractNum() { AbstractNumberId = AbstractNumberId };
+        AbstractNum AbstractNum = new AbstractNum() { AbstractNumberId = AbstractNumberId };
         AbstractNum.Append(
             new Nsid() { Val = AbstractNumberId.ToString("X8") },
             new MultiLevelType() { Val = MultiLevelValues.Multilevel },
             new TemplateCode() { Val = (AbstractNumberId + 4096).ToString("X8") });
-        for (var LevelIndex = 0; LevelIndex < 9; LevelIndex++)
+        for (int LevelIndex = 0; LevelIndex < 9; LevelIndex++)
         {
-            var Level = new Level(
+            Level Level = new Level(
                 new StartNumberingValue() { Val = LevelIndex == StartLevel ? StartNumber : 1 },
                 new NumberingFormat() { Val = Format },
                 new LevelText() { Val = Format == NumberFormatValues.Bullet ? "\uF0B7" : "%" + (LevelIndex + 1) + "." },
@@ -362,22 +365,22 @@ public sealed class DocxWriter
     {
         if (Block is ParagraphBlock Paragraph)
         {
-            var P = CreateParagraph(Paragraph, Styles.ParagraphStyle, Styles);
+            Paragraph P = CreateParagraph(Paragraph, Styles.ParagraphStyle, Styles);
             Parent.AppendChild(P);
             return;
         }
 
         if (Block is HeadingBlock Heading)
         {
-            var StyleId = GetHeadingStyle(Heading.Level, Styles);
-            var P = CreateParagraphFromInlines(Heading.Inlines, StyleId, Styles);
+            string StyleId = GetHeadingStyle(Heading.Level, Styles);
+            Paragraph P = CreateParagraphFromInlines(Heading.Inlines, StyleId, Styles);
             Parent.AppendChild(P);
             return;
         }
 
         if (Block is CodeBlock Code)
         {
-            var P = CreateCodeBlockParagraph(Code, Styles, null);
+            Paragraph P = CreateCodeBlockParagraph(Code, Styles, null);
             Parent.AppendChild(P);
             return;
         }
@@ -390,7 +393,7 @@ public sealed class DocxWriter
 
         if (Block is QuoteBlock Quote)
         {
-            foreach (var Child in Quote.Blocks)
+            foreach (BlockNode Child in Quote.Blocks)
             {
                 AppendQuoteBlock(Parent, Child, Styles, ListLevel);
             }
@@ -399,11 +402,11 @@ public sealed class DocxWriter
 
         if (Block is ListBlock List)
         {
-            var NumberingId = GetNumberingId(List, ListLevel);
-            foreach (var Item in List.Items)
+            int NumberingId = GetNumberingId(List, ListLevel);
+            foreach (ListItemBlock Item in List.Items)
             {
-                var IsFirstListParagraph = true;
-                foreach (var Child in Item.Blocks)
+                bool IsFirstListParagraph = true;
+                foreach (BlockNode Child in Item.Blocks)
                 {
                     AppendListItemBlock(Parent, Child, Styles, NumberingId, ListLevel, ref IsFirstListParagraph, Styles.ParagraphStyle);
                 }
@@ -413,19 +416,19 @@ public sealed class DocxWriter
 
         if (Block is TableBlock TableBlock)
         {
-            var T = new DocumentFormat.OpenXml.Wordprocessing.Table();
+            DocumentFormat.OpenXml.Wordprocessing.Table T = new DocumentFormat.OpenXml.Wordprocessing.Table();
             T.AppendChild(CreateTableProperties(Styles));
-            foreach (var Row in TableBlock.Rows)
+            foreach (MDConverter.Model.TableRow Row in TableBlock.Rows)
             {
-                var Tr = new DocumentFormat.OpenXml.Wordprocessing.TableRow();
-                foreach (var Cell in Row.Cells)
+                DocumentFormat.OpenXml.Wordprocessing.TableRow Tr = new DocumentFormat.OpenXml.Wordprocessing.TableRow();
+                foreach (MDConverter.Model.TableCell Cell in Row.Cells)
                 {
-                    var Tc = new DocumentFormat.OpenXml.Wordprocessing.TableCell();
+                    DocumentFormat.OpenXml.Wordprocessing.TableCell Tc = new DocumentFormat.OpenXml.Wordprocessing.TableCell();
                     Tc.AppendChild(new TableCellProperties(new TableCellWidth() { Type = TableWidthUnitValues.Auto }));
-                    var ColumnIndex = Tr.Elements<DocumentFormat.OpenXml.Wordprocessing.TableCell>().Count();
-                    foreach (var CellBlock in Cell.Blocks)
+                    int ColumnIndex = Tr.Elements<DocumentFormat.OpenXml.Wordprocessing.TableCell>().Count();
+                    foreach (BlockNode CellBlock in Cell.Blocks)
                     {
-                        var P = new Paragraph(CreateTableCellParagraphProperties(Styles, TableBlock, ColumnIndex));
+                        Paragraph P = new Paragraph(CreateTableCellParagraphProperties(Styles, TableBlock, ColumnIndex));
                         AppendBlockContent(P, CellBlock, Styles);
                         Tc.AppendChild(P);
                     }
@@ -455,7 +458,7 @@ public sealed class DocxWriter
 
     private static TableProperties CreateTableProperties(StyleMapping Styles)
     {
-        var Properties = new TableProperties(
+        TableProperties Properties = new TableProperties(
             new TableStyle() { Val = Styles.TableStyle },
             new TableWidth() { Width = "5000", Type = TableWidthUnitValues.Pct },
             new TableBorders(
@@ -477,12 +480,12 @@ public sealed class DocxWriter
     {
         if (Block is ListBlock List)
         {
-            var QuoteListLevel = 0;
-            var NumberingId = GetNumberingId(List, QuoteListLevel);
-            foreach (var Item in List.Items)
+            int QuoteListLevel = 0;
+            int NumberingId = GetNumberingId(List, QuoteListLevel);
+            foreach (ListItemBlock Item in List.Items)
             {
-                var IsFirstListParagraph = true;
-                foreach (var Child in Item.Blocks)
+                bool IsFirstListParagraph = true;
+                foreach (BlockNode Child in Item.Blocks)
                 {
                     AppendListItemBlock(Parent, Child, Styles, NumberingId, QuoteListLevel, ref IsFirstListParagraph, Styles.QuoteStyle);
                 }
@@ -502,14 +505,14 @@ public sealed class DocxWriter
             return;
         }
 
-        var P = new Paragraph(new ParagraphProperties(new ParagraphStyleId() { Val = Styles.QuoteStyle }));
+        Paragraph P = new Paragraph(new ParagraphProperties(new ParagraphStyleId() { Val = Styles.QuoteStyle }));
         AppendBlockContent(P, Block, Styles);
         Parent.AppendChild(P);
     }
 
     private ParagraphProperties CreateTableCellParagraphProperties(StyleMapping Styles, TableBlock TableBlock, int ColumnIndex)
     {
-        var Properties = new ParagraphProperties(new ParagraphStyleId() { Val = Styles.ParagraphStyle });
+        ParagraphProperties Properties = new ParagraphProperties(new ParagraphStyleId() { Val = Styles.ParagraphStyle });
         if (_Options.Tables.EnableAlignment && ColumnIndex < TableBlock.ColumnAlignments.Count)
         {
             JustificationValues? Alignment = TableBlock.ColumnAlignments[ColumnIndex] switch
@@ -528,20 +531,20 @@ public sealed class DocxWriter
 
     private int GetNumberingId(ListBlock List, int ListLevel)
     {
-        var AbstractNumberingId = _NextAbstractNumberingId++;
-        var NumberingId = _NextNumberingId++;
+        int AbstractNumberingId = _NextAbstractNumberingId++;
+        int NumberingId = _NextNumberingId++;
 
-        var AbstractNum = CreateAbstractNumber(
+        AbstractNum AbstractNum = CreateAbstractNumber(
             AbstractNumberingId,
             List.IsOrdered ? NumberFormatValues.Decimal : NumberFormatValues.Bullet,
             List.IsOrdered && List.StartNumber.HasValue ? List.StartNumber.Value : 1,
             ListLevel);
-        var Instance = new NumberingInstance(new AbstractNumId() { Val = AbstractNumberingId })
+        NumberingInstance Instance = new NumberingInstance(new AbstractNumId() { Val = AbstractNumberingId })
         {
             NumberID = NumberingId
         };
 
-        var Numbering = _NumberingPart!.Numbering!;
+        Numbering Numbering = _NumberingPart!.Numbering!;
         OpenXmlElement? FirstNumberingInstance = Numbering.Elements<NumberingInstance>().FirstOrDefault();
         if (FirstNumberingInstance != null)
         {
@@ -575,7 +578,7 @@ public sealed class DocxWriter
             return;
         }
 
-        var Properties = new ParagraphProperties(new ParagraphStyleId() { Val = ParagraphStyleId });
+        ParagraphProperties Properties = new ParagraphProperties(new ParagraphStyleId() { Val = ParagraphStyleId });
         if (IsFirstListParagraph)
         {
             Properties.Append(new NumberingProperties(
@@ -588,37 +591,37 @@ public sealed class DocxWriter
             Properties.Append(new Indentation() { Left = (720 + (ListLevel * 360)).ToString() });
         }
 
-        var P = new Paragraph(Properties);
+        Paragraph P = new Paragraph(Properties);
         AppendBlockContent(P, Block, Styles);
         Parent.AppendChild(P);
     }
 
     private static Paragraph CreateCodeBlockParagraph(CodeBlock Code, StyleMapping Styles, int? ListLevel)
     {
-        var Properties = new ParagraphProperties(new ParagraphStyleId() { Val = Styles.CodeBlockStyle });
+        ParagraphProperties Properties = new ParagraphProperties(new ParagraphStyleId() { Val = Styles.CodeBlockStyle });
         if (ListLevel.HasValue)
         {
             Properties.Append(new Indentation() { Left = (1080 + (ListLevel.Value * 360)).ToString() });
         }
 
-        var Paragraph = new Paragraph(Properties);
+        Paragraph Paragraph = new Paragraph(Properties);
         AppendCodeText(Paragraph, Code.Content);
         return Paragraph;
     }
 
     private Paragraph CreateMermaidParagraph(MermaidBlock MermaidBlock, StyleMapping Styles, int? ListLevel)
     {
-        var Properties = new ParagraphProperties(new ParagraphStyleId() { Val = Styles.ParagraphStyle });
+        ParagraphProperties Properties = new ParagraphProperties(new ParagraphStyleId() { Val = Styles.ParagraphStyle });
         if (ListLevel.HasValue)
         {
             Properties.Append(new Indentation() { Left = (1080 + (ListLevel.Value * 360)).ToString() });
         }
         Properties.Append(new Justification() { Val = JustificationValues.Center });
 
-        var Paragraph = new Paragraph(Properties);
+        Paragraph Paragraph = new Paragraph(Properties);
         try
         {
-            var Svg = Mermaid.Render(MermaidBlock.Source, RenderOptions.Default);
+            string Svg = Mermaid.Render(MermaidBlock.Source, RenderOptions.Default);
             if (TryAppendSvg(Paragraph, Svg, "Mermaid diagram"))
             {
                 return Paragraph;
@@ -644,10 +647,10 @@ public sealed class DocxWriter
 
     private static void AppendCodeText(Paragraph Paragraph, string Content)
     {
-        var NormalizedContent = (Content ?? string.Empty).Replace("\r\n", "\n").Replace('\r', '\n').TrimEnd('\n');
-        var Lines = NormalizedContent.Split('\n');
-        var Run = new Run(new RunProperties(new RunFonts() { Ascii = "Consolas", HighAnsi = "Consolas" }, new NoProof()));
-        for (var I = 0; I < Lines.Length; I++)
+        string NormalizedContent = (Content ?? string.Empty).Replace("\r\n", "\n").Replace('\r', '\n').TrimEnd('\n');
+        string[] Lines = NormalizedContent.Split('\n');
+        Run Run = new Run(new RunProperties(new RunFonts() { Ascii = "Consolas", HighAnsi = "Consolas" }, new NoProof()));
+        for (int I = 0; I < Lines.Length; I++)
         {
             if (I > 0)
             {
@@ -662,7 +665,7 @@ public sealed class DocxWriter
     {
         if (Block is ParagraphBlock Paragraph)
         {
-            foreach (var Inline in Paragraph.Inlines)
+            foreach (InlineNode Inline in Paragraph.Inlines)
             {
                 AppendInline(Parent, Inline, Styles);
             }
@@ -671,8 +674,8 @@ public sealed class DocxWriter
 
     private Paragraph CreateParagraph(ParagraphBlock Paragraph, string StyleId, StyleMapping Styles)
     {
-        var P = new Paragraph(new ParagraphProperties(new ParagraphStyleId() { Val = StyleId }));
-        foreach (var Inline in Paragraph.Inlines)
+        Paragraph P = new Paragraph(new ParagraphProperties(new ParagraphStyleId() { Val = StyleId }));
+        foreach (InlineNode Inline in Paragraph.Inlines)
         {
             AppendInline(P, Inline, Styles);
         }
@@ -681,8 +684,8 @@ public sealed class DocxWriter
 
     private Paragraph CreateParagraphFromInlines(IReadOnlyList<InlineNode> Inlines, string StyleId, StyleMapping Styles)
     {
-        var P = new Paragraph(new ParagraphProperties(new ParagraphStyleId() { Val = StyleId }));
-        foreach (var Inline in Inlines)
+        Paragraph P = new Paragraph(new ParagraphProperties(new ParagraphStyleId() { Val = StyleId }));
+        foreach (InlineNode Inline in Inlines)
         {
             AppendInline(P, Inline, Styles);
         }
@@ -712,14 +715,14 @@ public sealed class DocxWriter
         }
         if (Inline is CodeInline Code)
         {
-            var Style = Styles != null ? Styles.InlineCodeStyle : "MdInlineCode";
+            string Style = Styles != null ? Styles.InlineCodeStyle : "MdInlineCode";
             Parent.AppendChild(new Run(new RunProperties(new RunStyle() { Val = Style }), CreateText(Code.Content)));
             return;
         }
         if (Inline is EmphasisInline Emphasis)
         {
-            var Run = new Run(new RunProperties(new Italic()));
-            foreach (var Child in Emphasis.Inlines)
+            Run Run = new Run(new RunProperties(new Italic()));
+            foreach (InlineNode Child in Emphasis.Inlines)
             {
                 AppendInlineToRun(Run, Child, Styles);
             }
@@ -728,8 +731,8 @@ public sealed class DocxWriter
         }
         if (Inline is StrongInline Strong)
         {
-            var Run = new Run(new RunProperties(new Bold()));
-            foreach (var Child in Strong.Inlines)
+            Run Run = new Run(new RunProperties(new Bold()));
+            foreach (InlineNode Child in Strong.Inlines)
             {
                 AppendInlineToRun(Run, Child, Styles);
             }
@@ -738,8 +741,8 @@ public sealed class DocxWriter
         }
         if (Inline is StrikethroughInline Strikethrough)
         {
-            var Run = new Run(new RunProperties(new Strike()));
-            foreach (var Child in Strikethrough.Inlines)
+            Run Run = new Run(new RunProperties(new Strike()));
+            foreach (InlineNode Child in Strikethrough.Inlines)
             {
                 AppendInlineToRun(Run, Child, Styles);
             }
@@ -750,9 +753,9 @@ public sealed class DocxWriter
         {
             if (ShouldWriteExternalLink(Link.Url))
             {
-                var RelationshipId = _MainPart!.AddHyperlinkRelationship(new Uri(Link.Url, UriKind.Absolute), true).Id!;
-                var H = new Hyperlink() { History = true, Id = RelationshipId };
-                foreach (var Child in Link.Inlines)
+                string RelationshipId = _MainPart!.AddHyperlinkRelationship(new Uri(Link.Url, UriKind.Absolute), true).Id!;
+                Hyperlink H = new Hyperlink() { History = true, Id = RelationshipId };
+                foreach (InlineNode Child in Link.Inlines)
                 {
                     AppendInlineToHyperlink(H, Child, Styles);
                 }
@@ -760,7 +763,7 @@ public sealed class DocxWriter
                 return;
             }
 
-            foreach (var Child in Link.Inlines)
+            foreach (InlineNode Child in Link.Inlines)
             {
                 AppendInline(Parent, Child, Styles);
             }
@@ -770,7 +773,7 @@ public sealed class DocxWriter
         {
             if (!TryAppendImage(Parent, Image))
             {
-                var Placeholder = FormatMissingImagePlaceholder(Image.AltText, Image.SourceUri ?? Image.Url, _Options.Images);
+                string Placeholder = FormatMissingImagePlaceholder(Image.AltText, Image.SourceUri ?? Image.Url, _Options.Images);
                 Parent.AppendChild(new Run(CreateText(Placeholder)));
             }
             return;
@@ -784,7 +787,7 @@ public sealed class DocxWriter
 
         if (Inline is TaskCheckboxInline TaskCheckbox)
         {
-            var CheckboxText = TaskCheckbox.Checked ? "[x]" : "[ ]";
+            string CheckboxText = TaskCheckbox.Checked ? "[x]" : "[ ]";
             Parent.AppendChild(new Run(CreateText(CheckboxText)));
             return;
         }
@@ -797,8 +800,14 @@ public sealed class DocxWriter
             return false;
         }
 
-        return Uri.TryCreate(Url, UriKind.Absolute, out var ParsedUri)
-            && (ParsedUri.Scheme == Uri.UriSchemeHttp || ParsedUri.Scheme == Uri.UriSchemeHttps || ParsedUri.Scheme == Uri.UriSchemeMailto);
+        if (!Uri.TryCreate(Url, UriKind.Absolute, out Uri? ParsedUri) || ParsedUri == null)
+        {
+            return false;
+        }
+
+        return ParsedUri.Scheme == Uri.UriSchemeHttp
+            || ParsedUri.Scheme == Uri.UriSchemeHttps
+            || ParsedUri.Scheme == Uri.UriSchemeMailto;
     }
 
     private static void AppendInlineToHyperlink(Hyperlink Parent, InlineNode Inline, StyleMapping Styles)
@@ -815,8 +824,8 @@ public sealed class DocxWriter
         }
         if (Inline is EmphasisInline Emphasis)
         {
-            var Run = new Run(CreateHyperlinkRunProperties(new Italic()));
-            foreach (var Child in Emphasis.Inlines)
+            Run Run = new Run(CreateHyperlinkRunProperties(new Italic()));
+            foreach (InlineNode Child in Emphasis.Inlines)
             {
                 AppendInlineToRun(Run, Child, Styles);
             }
@@ -825,8 +834,8 @@ public sealed class DocxWriter
         }
         if (Inline is StrongInline Strong)
         {
-            var Run = new Run(CreateHyperlinkRunProperties(new Bold()));
-            foreach (var Child in Strong.Inlines)
+            Run Run = new Run(CreateHyperlinkRunProperties(new Bold()));
+            foreach (InlineNode Child in Strong.Inlines)
             {
                 AppendInlineToRun(Run, Child, Styles);
             }
@@ -835,8 +844,8 @@ public sealed class DocxWriter
         }
         if (Inline is StrikethroughInline Strikethrough)
         {
-            var Run = new Run(CreateHyperlinkRunProperties(new Strike()));
-            foreach (var Child in Strikethrough.Inlines)
+            Run Run = new Run(CreateHyperlinkRunProperties(new Strike()));
+            foreach (InlineNode Child in Strikethrough.Inlines)
             {
                 AppendInlineToRun(Run, Child, Styles);
             }
@@ -869,12 +878,12 @@ public sealed class DocxWriter
         }
         if (Inline is EmphasisInline Emphasis)
         {
-            var RunProperties = Parent.GetFirstChild<RunProperties>();
+            RunProperties? RunProperties = Parent.GetFirstChild<RunProperties>();
             if (RunProperties != null && !RunProperties.Elements<Italic>().Any())
             {
                 RunProperties.Append(new Italic());
             }
-            foreach (var Child in Emphasis.Inlines)
+            foreach (InlineNode Child in Emphasis.Inlines)
             {
                 AppendInlineToRun(Parent, Child, Styles);
             }
@@ -882,12 +891,12 @@ public sealed class DocxWriter
         }
         if (Inline is StrongInline Strong)
         {
-            var RunProperties = Parent.GetFirstChild<RunProperties>();
+            RunProperties? RunProperties = Parent.GetFirstChild<RunProperties>();
             if (RunProperties != null && !RunProperties.Elements<Bold>().Any())
             {
                 RunProperties.Append(new Bold());
             }
-            foreach (var Child in Strong.Inlines)
+            foreach (InlineNode Child in Strong.Inlines)
             {
                 AppendInlineToRun(Parent, Child, Styles);
             }
@@ -895,12 +904,12 @@ public sealed class DocxWriter
         }
         if (Inline is StrikethroughInline Strikethrough)
         {
-            var RunProperties = Parent.GetFirstChild<RunProperties>();
+            RunProperties? RunProperties = Parent.GetFirstChild<RunProperties>();
             if (RunProperties != null && !RunProperties.Elements<Strike>().Any())
             {
                 RunProperties.Append(new Strike());
             }
-            foreach (var Child in Strikethrough.Inlines)
+            foreach (InlineNode Child in Strikethrough.Inlines)
             {
                 AppendInlineToRun(Parent, Child, Styles);
             }
@@ -910,7 +919,7 @@ public sealed class DocxWriter
 
     private static string FormatMissingImagePlaceholder(string AltText, string Uri, ImageOptions ImageOptions)
     {
-        var Format = ImageOptions?.MissingImagePlaceholderFormat ?? "[Missing image: {AltText}]";
+        string Format = ImageOptions?.MissingImagePlaceholderFormat ?? "[Missing image: {AltText}]";
         return Format
             .Replace("{AltText}", AltText ?? "unknown")
             .Replace("{Uri}", Uri ?? "unknown");
@@ -923,34 +932,34 @@ public sealed class DocxWriter
 
     private bool TryAppendImage(Paragraph Parent, ImageInline Image)
     {
-        var Source = Image.SourceUri ?? Image.Url;
-        var MainPart = _MainPart!;
+        string? Source = Image.SourceUri ?? Image.Url;
+        MainDocumentPart MainPart = _MainPart!;
         if (MainPart == null
             || string.IsNullOrWhiteSpace(Source)
-            || Uri.TryCreate(Source, UriKind.Absolute, out var ParsedUri) && !ParsedUri.IsFile
+            || (Uri.TryCreate(Source, UriKind.Absolute, out Uri? ParsedUri) && ParsedUri != null && !ParsedUri.IsFile)
             || !File.Exists(Source))
         {
             return false;
         }
 
-        var ImagePartType = GetImagePartType(Source);
+        PartTypeInfo? ImagePartType = GetImagePartType(Source);
         if (!ImagePartType.HasValue)
         {
             return false;
         }
 
-        var ImagePart = MainPart.AddImagePart(ImagePartType.Value);
-        using (var ImageStream = File.OpenRead(Source))
+        ImagePart ImagePart = MainPart.AddImagePart(ImagePartType.Value);
+        using (FileStream ImageStream = File.OpenRead(Source))
         {
             ImagePart.FeedData(ImageStream);
         }
 
-        var RelationshipId = MainPart.GetIdOfPart(ImagePart);
-        var Dimensions = GetImageDimensions(Source);
-        (var Cx, var Cy) = CalculateImageExtents(Dimensions);
-        var DrawingId = _NextDrawingId++;
+        string RelationshipId = MainPart.GetIdOfPart(ImagePart);
+        ImageDimensions Dimensions = GetImageDimensions(Source);
+        (long Cx, long Cy) = CalculateImageExtents(Dimensions);
+        uint DrawingId = _NextDrawingId++;
 
-        var Picture = new PIC.Picture(
+        PIC.Picture Picture = new PIC.Picture(
             new PIC.NonVisualPictureProperties(
                 new PIC.NonVisualDrawingProperties() { Id = 0U, Name = Path.GetFileName(Source), Description = Image.AltText ?? string.Empty },
                 new PIC.NonVisualPictureDrawingProperties()),
@@ -962,8 +971,8 @@ public sealed class DocxWriter
                     new A.Offset() { X = 0L, Y = 0L },
                     new A.Extents() { Cx = Cx, Cy = Cy }),
                 new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle }));
-        var GraphicData = new A.GraphicData(Picture) { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" };
-        var Inline = new DW.Inline(
+        A.GraphicData GraphicData = new A.GraphicData(Picture) { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" };
+        DW.Inline Inline = new DW.Inline(
             new DW.Extent() { Cx = Cx, Cy = Cy },
             new DW.EffectExtent() { LeftEdge = 0L, TopEdge = 0L, RightEdge = 0L, BottomEdge = 0L },
             new DW.DocProperties() { Id = DrawingId, Name = "Picture " + DrawingId, Description = Image.AltText ?? string.Empty },
@@ -981,25 +990,25 @@ public sealed class DocxWriter
 
     private bool TryAppendSvg(Paragraph Parent, string Svg, string AltText)
     {
-        var MainPart = _MainPart!;
+        MainDocumentPart MainPart = _MainPart!;
         if (MainPart == null || string.IsNullOrWhiteSpace(Svg))
         {
             return false;
         }
 
-        var ImagePart = MainPart.AddImagePart(ImagePartType.Svg);
-        var SvgBytes = Encoding.UTF8.GetBytes(Svg);
-        using (var Stream = new MemoryStream(SvgBytes))
+        ImagePart ImagePart = MainPart.AddImagePart(ImagePartType.Svg);
+        byte[] SvgBytes = Encoding.UTF8.GetBytes(Svg);
+        using (MemoryStream Stream = new MemoryStream(SvgBytes))
         {
             ImagePart.FeedData(Stream);
         }
 
-        var RelationshipId = MainPart.GetIdOfPart(ImagePart);
-        var Dimensions = GetSvgDimensions(Svg);
-        (var Cx, var Cy) = CalculateSvgExtents(Dimensions);
-        var DrawingId = _NextDrawingId++;
+        string RelationshipId = MainPart.GetIdOfPart(ImagePart);
+        SvgDimensions Dimensions = GetSvgDimensions(Svg);
+        (long Cx, long Cy) = CalculateSvgExtents(Dimensions);
+        uint DrawingId = _NextDrawingId++;
 
-        var Picture = new PIC.Picture(
+        PIC.Picture Picture = new PIC.Picture(
             new PIC.NonVisualPictureProperties(
                 new PIC.NonVisualDrawingProperties() { Id = 0U, Name = "Mermaid diagram.svg", Description = AltText ?? string.Empty },
                 new PIC.NonVisualPictureDrawingProperties()),
@@ -1011,8 +1020,8 @@ public sealed class DocxWriter
                     new A.Offset() { X = 0L, Y = 0L },
                     new A.Extents() { Cx = Cx, Cy = Cy }),
                 new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle }));
-        var GraphicData = new A.GraphicData(Picture) { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" };
-        var Inline = new DW.Inline(
+        A.GraphicData GraphicData = new A.GraphicData(Picture) { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" };
+        DW.Inline Inline = new DW.Inline(
             new DW.Extent() { Cx = Cx, Cy = Cy },
             new DW.EffectExtent() { LeftEdge = 0L, TopEdge = 0L, RightEdge = 0L, BottomEdge = 0L },
             new DW.DocProperties() { Id = DrawingId, Name = "Mermaid diagram " + DrawingId, Description = AltText ?? string.Empty },
@@ -1032,23 +1041,23 @@ public sealed class DocxWriter
     {
         const double EmusPerCm = 360000.0;
         const double DefaultDpi = 96.0;
-        var MaxWidthCm = _Options.Images.MaxWidthCm > 0 ? _Options.Images.MaxWidthCm : 16.0;
-        var TargetWidthCm = Math.Min(MaxWidthCm, 14.5);
+        double MaxWidthCm = _Options.Images.MaxWidthCm > 0 ? _Options.Images.MaxWidthCm : 16.0;
+        double TargetWidthCm = Math.Min(MaxWidthCm, 14.5);
         const double MaxHeightCm = 18.0;
-        var AspectRatio = Dimensions.WidthPixels > 0 && Dimensions.HeightPixels > 0
+        double AspectRatio = Dimensions.WidthPixels > 0 && Dimensions.HeightPixels > 0
             ? (double)Dimensions.HeightPixels / Dimensions.WidthPixels
             : 0.5625;
 
-        var NaturalWidthCm = Dimensions.WidthPixels > 0
+        double NaturalWidthCm = Dimensions.WidthPixels > 0
             ? Dimensions.WidthPixels / DefaultDpi * 2.54
             : TargetWidthCm;
-        var WidthCm = NaturalWidthCm;
+        double WidthCm = NaturalWidthCm;
         if (WidthCm <= 0)
         {
             WidthCm = TargetWidthCm;
         }
         WidthCm = Math.Min(WidthCm, TargetWidthCm);
-        var HeightCm = WidthCm * AspectRatio;
+        double HeightCm = WidthCm * AspectRatio;
         if (WidthCm > MaxWidthCm)
         {
             WidthCm = MaxWidthCm;
@@ -1068,16 +1077,16 @@ public sealed class DocxWriter
     {
         try
         {
-            var Document = XDocument.Parse(Svg);
-            var Root = Document.Root;
+            XDocument Document = XDocument.Parse(Svg);
+            XElement? Root = Document.Root;
             if (Root == null)
             {
                 return new SvgDimensions(800, 450);
             }
 
-            var Width = ParseSvgLength(Root.Attribute("width")?.Value);
-            var Height = ParseSvgLength(Root.Attribute("height")?.Value);
-            if ((Width <= 0 || Height <= 0) && TryParseViewBox(Root.Attribute("viewBox")?.Value, out var ViewBoxWidth, out var ViewBoxHeight))
+            double Width = ParseSvgLength(Root.Attribute("width")?.Value);
+            double Height = ParseSvgLength(Root.Attribute("height")?.Value);
+            if ((Width <= 0 || Height <= 0) && TryParseViewBox(Root.Attribute("viewBox")?.Value, out double ViewBoxWidth, out double ViewBoxHeight))
             {
                 Width = Width > 0 ? Width : ViewBoxWidth;
                 Height = Height > 0 ? Height : ViewBoxHeight;
@@ -1103,13 +1112,13 @@ public sealed class DocxWriter
             return 0;
         }
 
-        var Trimmed = Value.Trim();
+        string Trimmed = Value.Trim();
         if (Trimmed.EndsWith('%'))
         {
             return 0;
         }
 
-        var End = 0;
+        int End = 0;
         while (End < Trimmed.Length && (char.IsDigit(Trimmed[End]) || Trimmed[End] == '.' || Trimmed[End] == '-'))
         {
             End++;
@@ -1121,7 +1130,7 @@ public sealed class DocxWriter
         }
 
         ReadOnlySpan<char> TrimmedSpan = Trimmed.AsSpan(0, End);
-        return double.TryParse(TrimmedSpan, NumberStyles.Float, CultureInfo.InvariantCulture, out var Result) ? Result : 0;
+        return double.TryParse(TrimmedSpan, NumberStyles.Float, CultureInfo.InvariantCulture, out double Result) ? Result : 0;
     }
 
     private static bool TryParseViewBox(string? Value, out double Width, out double Height)
@@ -1133,7 +1142,7 @@ public sealed class DocxWriter
             return false;
         }
 
-        var Parts = Value.Split([' ', ','], StringSplitOptions.RemoveEmptyEntries);
+        string[] Parts = Value.Split([' ', ','], StringSplitOptions.RemoveEmptyEntries);
         if (Parts.Length != 4)
         {
             return false;
@@ -1163,13 +1172,13 @@ public sealed class DocxWriter
         const double EmusPerCm = 360000.0;
         const double DefaultDpi = 96.0;
 
-        var MaxWidthCm = _Options.Images.MaxWidthCm > 0 ? _Options.Images.MaxWidthCm : 16.0;
-        var WidthCm = MaxWidthCm;
+        double MaxWidthCm = _Options.Images.MaxWidthCm > 0 ? _Options.Images.MaxWidthCm : 16.0;
+        double WidthCm = MaxWidthCm;
         double HeightCm;
 
         if (Dimensions.WidthPixels > 0 && Dimensions.HeightPixels > 0)
         {
-            var NaturalWidthCm = Dimensions.WidthPixels / DefaultDpi * 2.54;
+            double NaturalWidthCm = Dimensions.WidthPixels / DefaultDpi * 2.54;
             WidthCm = _Options.Images.ScaleDownOnly ? Math.Min(NaturalWidthCm, MaxWidthCm) : MaxWidthCm;
             HeightCm = WidthCm * Dimensions.HeightPixels / Dimensions.WidthPixels;
         }
@@ -1185,10 +1194,10 @@ public sealed class DocxWriter
     {
         try
         {
-            using (var Stream = File.OpenRead(Path))
-            using (var Reader = new BinaryReader(Stream))
+            using (FileStream Stream = File.OpenRead(Path))
+            using (BinaryReader Reader = new BinaryReader(Stream))
             {
-                var Header = Reader.ReadBytes(24);
+                byte[] Header = Reader.ReadBytes(24);
                 if (Header.Length >= 24
                     && Header[0] == 0x89
                     && Header[1] == 0x50
@@ -1218,8 +1227,8 @@ public sealed class DocxWriter
                             continue;
                         }
 
-                        var Marker = Reader.ReadByte();
-                        var Length = ReadBigEndianUInt16(Reader);
+                        byte Marker = Reader.ReadByte();
+                        ushort Length = ReadBigEndianUInt16(Reader);
                         if (Marker is >= 0xC0 and <= 0xC3)
                         {
                             Reader.ReadByte();
@@ -1248,18 +1257,18 @@ public sealed class DocxWriter
 
     private static ushort ReadBigEndianUInt16(BinaryReader Reader)
     {
-        var High = Reader.ReadByte();
-        var Low = Reader.ReadByte();
+        byte High = Reader.ReadByte();
+        byte Low = Reader.ReadByte();
         return (ushort)((High << 8) | Low);
     }
 
     private static RunProperties CreateHyperlinkRunProperties(params OpenXmlElement[] ExtraProperties)
     {
-        var Properties = new RunProperties(
+        RunProperties Properties = new RunProperties(
             new RunStyle() { Val = "Hyperlink" },
             new Color() { Val = "0563C1" },
             new Underline() { Val = UnderlineValues.Single });
-        foreach (var ExtraProperty in ExtraProperties)
+        foreach (OpenXmlElement ExtraProperty in ExtraProperties)
         {
             Properties.Append(ExtraProperty);
         }

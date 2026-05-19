@@ -562,6 +562,82 @@ Exact reproduction requires computing effective style for each element in the pi
 
 ---
 
+## 14.1 Naiad themeVariables resolution (implementation notes, April 2026)
+
+This repository’s Mermaid renderer (`extern/Naiad`) does not execute Mermaid’s JavaScript runtime, so it must **resolve visual-only configuration** (fonts, font sizes, colours, label backgrounds, marker colours) from Mermaid inputs and apply them consistently across diagram types.
+
+### 14.1.1 Input sources
+
+Naiad resolves visual values from:
+
+- Mermaid init blocks at the start of a diagram, for example `%%{init: {"themeVariables": {...}}}%%`.
+- Diagram config flattened into `DiagramBase.Config` using dotted keys (for example `themeVariables.lineColor`).
+- `RenderOptions` as a local override/fallback for typography (`FontFamily`, `FontSize`).
+
+### 14.1.2 Resolved theme variables (current coverage)
+
+Naiad maintains a resolved theme object (see `MermaidThemeVariables`) seeded from Mermaid’s **default theme** (`packages/mermaid/src/themes/theme-default.js`) and then overridden by init config keys where present.
+
+Implemented high-signal keys:
+
+- **Core**:
+  - `themeVariables.background`
+  - `themeVariables.mainBkg`
+  - `themeVariables.secondBkg`
+  - `themeVariables.lineColor`
+  - `themeVariables.border1`
+  - `themeVariables.border2`
+  - `themeVariables.arrowheadColor`
+  - `themeVariables.fontFamily`
+  - `themeVariables.fontSize`
+  - `themeVariables.labelBackground`
+  - `themeVariables.textColor`
+  - `themeVariables.radius`
+  - `themeVariables.strokeWidth`
+
+- **Gantt (default theme variables)**:
+  - `themeVariables.sectionBkgColor`
+  - `themeVariables.altSectionBkgColor`
+  - `themeVariables.sectionBkgColor2`
+  - `themeVariables.taskBorderColor`
+  - `themeVariables.taskBkgColor`
+  - `themeVariables.taskTextLightColor`
+  - `themeVariables.taskTextDarkColor`
+  - `themeVariables.activeTaskBorderColor`
+  - `themeVariables.activeTaskBkgColor`
+  - `themeVariables.gridColor`
+  - `themeVariables.doneTaskBkgColor`
+  - `themeVariables.doneTaskBorderColor`
+  - `themeVariables.critBorderColor`
+  - `themeVariables.critBkgColor`
+  - `themeVariables.todayLineColor`
+  - `themeVariables.vertLineColor`
+
+### 14.1.3 Application rules (important distinctions)
+
+- **Line vs marker colour**:
+  - `lineColor` applies to connector strokes / general lines.
+  - `arrowheadColor` applies to marker glyph fill/stroke and arrowheads.
+  - These may differ; Naiad must not treat every occurrence of `#333333` as interchangeable.
+
+- **Word/DOCX constraint**:
+  - For some elements (notably Gantt section row bands), Naiad emits **solid fills + explicit opacity** rather than relying on `rgba(..., alpha)` rendering, to avoid Word SVG inconsistencies.
+
+### 14.1.4 Where theme variables are consumed in Naiad
+
+At time of writing, Naiad applies resolved theme variables to:
+
+- **Mermaid-style CSS blocks** (via themed substitution): flowchart, sequence, class, state, ER, pie, gantt.
+- **Marker definitions**:
+  - flowchart markers (point/circle/cross, including `-margin` variants) use `arrowheadColor`
+  - sequence message markers use `arrowheadColor`
+- **Non-CSS renderers** that previously used hard-coded strokes/fills:
+  - architecture, requirement, radar, c4, xy chart, timeline, kanban, packet, mindmap
+
+### 14.1.5 Intentional exceptions / test-pinned output
+
+- **Block diagram edge stroke**: `BlockRenderer` currently emits connector strokes as `stroke="#555"` for compatibility with existing package assertions in `MDConverter.Tests`. This is an intentional, test-pinned behaviour even when `themeVariables.lineColor` is overridden.
+
 ## 14A. Entity relationship (ER) diagram: relationship paths and cardinality line ends (source-traced)
 
 This section captures **source-traced** ER relationship rendering details from the local Mermaid upstream checkout (`.\mermaid\`).
@@ -1164,7 +1240,50 @@ The shape catalogue below is consolidated from the most recent “gaps closed”
 
 ### 15.0 Flowchart edge curves (Word-first parity note, April 2026)
 
-Mermaid flowcharts render edges using Dagre route points converted via **D3 `curveBasis`**.
+Mermaid flowcharts render edges from Dagre route points, with the **effective curve type** resolved from:
+
+- `edge.curve` **if** it is a string (diagram DB edge override)
+- otherwise `config.flowchart.curve`
+
+Confirmed/implemented in Naiad (April 2026):
+
+- **Default**: non-`rounded` paths apply Mermaid’s `fixCorners(...)` then marker-aware endpoint shortening (`lineWithOffset`), then render as a **curve-basis** path.
+- **Special value `rounded`**: bypasses D3 curves and uses Mermaid’s explicit rounded-corner path generator (`generateRoundedPath(...)`) with endpoint shifting via `applyMarkerOffsetsToPoints(...)`.
+- **Neo look (`look = "neo"`)**:
+  - uses `-margin` marker variants (when supported) for point/circle/cross terminals
+  - applies Mermaid’s dash shaping using `markerOffsets2` so dash/gap placement does not collide with terminals
+
+#### 15.0A Flowchart subgraphs (clusters): cross-boundary edges (confirmed)
+
+Mermaid supports compound flowcharts with `subgraph` (clusters). A common pattern is:
+
+```mermaid
+flowchart LR
+  subgraph R0S0["Title"]
+    direction TB
+    r0n0["Inner node"]
+  end
+  IN[In] --> r0n0
+  r0n0 --> OUT[Out]
+```
+
+Confirmed behaviour from Mermaid’s rendered SVG:
+
+- A cluster box (`.cluster rect`) encloses its member nodes.
+- **Edges may connect directly to member nodes** even when the other endpoint is outside the subgraph (outside → member, member → outside).
+- Edge endpoints are determined by **node boundary intersection** (not centre-to-centre), consistent with Section 8.
+
+Additional confirmed/implemented behaviour (April 2026):
+
+- Mermaid’s Dagre renderer shifts edge route points (and therefore edge label positions) by:
+  - \( (flowchart.subGraphTitleMargin.top + flowchart.subGraphTitleMargin.bottom) / 2 \)
+  - in the **Y direction**.
+  - Naiad applies the same shift after layout.
+
+Repository requirement (Naiad / DOCX):
+
+- Cross-boundary flowchart edges must be routed into concrete polyline points after final node placement, so the renderer can produce the correct `curveBasis` edge path and boundary-clipped endpoints.
+  - This is a **layout output** requirement (capture/compute the points), not a styling concern.
 
 For this repository’s **Word-first SVG parity**, we intentionally diverge for the common decision-branch case:
 

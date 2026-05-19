@@ -15,6 +15,10 @@ public class XYChartRenderer : IDiagramRenderer<XYChartModel>
 
     public SvgDocument Render(XYChartModel model, RenderOptions options)
     {
+#pragma warning disable IDE0007
+        MermaidSharp.Rendering.MermaidThemeVariables Theme = MermaidSharp.Rendering.MermaidThemeResolver.Resolve(model, options);
+#pragma warning restore IDE0007
+
         if (model.Series.Count == 0)
         {
             var emptyBuilder = new SvgBuilder().Size(200, 100);
@@ -27,7 +31,9 @@ public class XYChartRenderer : IDiagramRenderer<XYChartModel>
         var width = ChartWidth + LeftMargin + RightMargin + options.Padding * 2;
         var height = ChartHeight + TopMargin + BottomMargin + titleOffset + options.Padding * 2;
 
-        var builder = new SvgBuilder().Size(width, height);
+        var builder = new SvgBuilder()
+            .Size(width, height)
+            .AddStyles(MermaidStyles.ApplyThemeVariables(MermaidStyles.BaseStyles, Theme));
 
         var chartLeft = options.Padding + LeftMargin;
         var chartTop = options.Padding + titleOffset + TopMargin;
@@ -67,20 +73,20 @@ public class XYChartRenderer : IDiagramRenderer<XYChartModel>
 
             // Grid line
             builder.AddLine(chartLeft, y, chartRight, y,
-                stroke: "#e0e0e0", strokeWidth: 1);
+                stroke: Theme.GridColor, strokeWidth: 1);
 
             // Y-axis label
             builder.AddText(chartLeft - 10, y, Fmt(value),
                 anchor: "end", baseline: "middle",
                 fontSize: $"{options.FontSize - 2}px", fontFamily: options.FontFamily,
-                fill: "#666");
+                fill: Theme.TextColor);
         }
 
         // Draw axes
         builder.AddLine(chartLeft, chartTop, chartLeft, chartBottom,
-            stroke: "#333", strokeWidth: 2);
+            stroke: Theme.LineColor, strokeWidth: 2);
         builder.AddLine(chartLeft, chartBottom, chartRight, chartBottom,
-            stroke: "#333", strokeWidth: 2);
+            stroke: Theme.LineColor, strokeWidth: 2);
 
         // Draw X-axis categories
         for (var i = 0; i < categoryCount; i++)
@@ -91,7 +97,7 @@ public class XYChartRenderer : IDiagramRenderer<XYChartModel>
             builder.AddText(x, chartBottom + 20, label,
                 anchor: "middle", baseline: "middle",
                 fontSize: $"{options.FontSize - 2}px", fontFamily: options.FontFamily,
-                fill: "#333");
+                fill: Theme.TextColor);
         }
 
         // Draw axis labels
@@ -103,7 +109,7 @@ public class XYChartRenderer : IDiagramRenderer<XYChartModel>
             builder.AddText(labelX, labelY, model.YAxisLabel,
                 anchor: "middle", baseline: "middle",
                 fontSize: $"{options.FontSize}px", fontFamily: options.FontFamily,
-                fill: "#333");
+                fill: Theme.TextColor);
             builder.EndGroup();
         }
 
@@ -112,7 +118,7 @@ public class XYChartRenderer : IDiagramRenderer<XYChartModel>
             builder.AddText(chartLeft + ChartWidth / 2, chartBottom + 45, model.XAxisLabel,
                 anchor: "middle", baseline: "middle",
                 fontSize: $"{options.FontSize}px", fontFamily: options.FontFamily,
-                fill: "#333");
+                fill: Theme.TextColor);
         }
 
         // Draw series

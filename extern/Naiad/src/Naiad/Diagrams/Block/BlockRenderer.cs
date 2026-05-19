@@ -31,11 +31,17 @@ public class BlockRenderer : IDiagramRenderer<BlockModel>
 
         var layouts = LayoutElements(model, options, columns, titleOffset, out var width, out var height);
 
-        var builder = new SvgBuilder().Size(width, height);
+#pragma warning disable IDE0007
+        MermaidSharp.Rendering.MermaidThemeVariables Theme = MermaidSharp.Rendering.MermaidThemeResolver.Resolve(model, options);
+#pragma warning restore IDE0007
+
+        var builder = new SvgBuilder()
+            .Size(width, height)
+            .AddStyles(MermaidStyles.ApplyThemeVariables(MermaidStyles.BaseStyles, Theme));
 
         if (model.Edges.Exists(_ => _.Directed))
         {
-            builder.AddMermaidArrowMarker();
+            builder.AddMermaidArrowMarker(stroke: Theme.ArrowheadColor, fill: Theme.ArrowheadColor);
         }
 
         // Draw edges behind blocks

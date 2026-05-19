@@ -17,6 +17,10 @@ public class RadarRenderer : IDiagramRenderer<RadarModel>
 
     public SvgDocument Render(RadarModel model, RenderOptions options)
     {
+#pragma warning disable IDE0007
+        MermaidSharp.Rendering.MermaidThemeVariables Theme = MermaidSharp.Rendering.MermaidThemeResolver.Resolve(model, options);
+#pragma warning restore IDE0007
+
         if (model.Axes.Count == 0)
         {
             var emptyBuilder = new SvgBuilder().Size(200, 100);
@@ -36,7 +40,8 @@ public class RadarRenderer : IDiagramRenderer<RadarModel>
 
         var builder = new SvgBuilder()
             .Size(contentWidth, contentHeight)
-            .Padding(options.Padding);
+            .Padding(options.Padding)
+            .AddStyles(MermaidStyles.ApplyThemeVariables(MermaidStyles.BaseStyles, Theme));
 
         // Draw title
         if (!string.IsNullOrEmpty(model.Title))
@@ -52,10 +57,10 @@ public class RadarRenderer : IDiagramRenderer<RadarModel>
         var minValue = model.Min ?? 0;
 
         // Draw graticule
-        DrawGraticule(builder, centerX, centerY, model.Axes.Count, model.Ticks, model.Graticule);
+        DrawGraticule(builder, centerX, centerY, model.Axes.Count, model.Ticks, model.Graticule, Theme);
 
         // Draw axis lines and labels
-        DrawAxes(builder, centerX, centerY, model.Axes, options);
+        DrawAxes(builder, centerX, centerY, model.Axes, options, Theme);
 
         // Draw curves
         for (var i = 0; i < model.Curves.Count; i++)
@@ -79,7 +84,8 @@ public class RadarRenderer : IDiagramRenderer<RadarModel>
         double cy,
         int axisCount,
         int ticks,
-        GraticuleType graticule)
+        GraticuleType graticule,
+        MermaidSharp.Rendering.MermaidThemeVariables Theme)
     {
         for (var i = 1; i <= ticks; i++)
         {
@@ -87,7 +93,7 @@ public class RadarRenderer : IDiagramRenderer<RadarModel>
 
             if (graticule == GraticuleType.Circle)
             {
-                builder.AddCircle(cx, cy, radius, fill: "none", stroke: "#E0E0E0", strokeWidth: 1);
+                builder.AddCircle(cx, cy, radius, fill: "none", stroke: Theme.GridColor, strokeWidth: 1);
             }
             else
             {
@@ -101,12 +107,12 @@ public class RadarRenderer : IDiagramRenderer<RadarModel>
                     pathData.Add(j == 0 ? $"M {Fmt(x)} {Fmt(y)}" : $"L {Fmt(x)} {Fmt(y)}");
                 }
                 pathData.Add("Z");
-                builder.AddPath(string.Join(" ", pathData), fill: "none", stroke: "#E0E0E0", strokeWidth: 1);
+                builder.AddPath(string.Join(" ", pathData), fill: "none", stroke: Theme.GridColor, strokeWidth: 1);
             }
         }
     }
 
-    static void DrawAxes(SvgBuilder builder, double cx, double cy, List<RadarAxis> axes, RenderOptions options)
+    static void DrawAxes(SvgBuilder builder, double cx, double cy, List<RadarAxis> axes, RenderOptions options, MermaidSharp.Rendering.MermaidThemeVariables Theme)
     {
         for (var i = 0; i < axes.Count; i++)
         {
@@ -115,7 +121,7 @@ public class RadarRenderer : IDiagramRenderer<RadarModel>
             var y = cy + ChartRadius * Math.Sin(angle);
 
             // Draw axis line
-            builder.AddLine(cx, cy, x, y, stroke: "#BDBDBD", strokeWidth: 1);
+            builder.AddLine(cx, cy, x, y, stroke: Theme.GridColor, strokeWidth: 1);
 
             // Draw label
             var labelX = cx + (ChartRadius + 20) * Math.Cos(angle);

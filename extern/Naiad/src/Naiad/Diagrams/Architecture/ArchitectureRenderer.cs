@@ -36,6 +36,10 @@ public class ArchitectureRenderer : IDiagramRenderer<ArchitectureModel>
 
     public SvgDocument Render(ArchitectureModel model, RenderOptions options)
     {
+#pragma warning disable IDE0007
+        MermaidSharp.Rendering.MermaidThemeVariables Theme = MermaidSharp.Rendering.MermaidThemeResolver.Resolve(model, options);
+#pragma warning restore IDE0007
+
         if (model.Services.Count == 0 && model.Groups.Count == 0)
         {
             var emptyBuilder = new SvgBuilder().Size(200, 100);
@@ -64,8 +68,10 @@ public class ArchitectureRenderer : IDiagramRenderer<ArchitectureModel>
             .Size(contentWidth, contentHeight)
             .Padding(options.Padding);
 
+        builder.AddStyles(MermaidStyles.ApplyThemeVariables(MermaidStyles.BaseStyles, Theme));
+
         // Add arrow marker
-        builder.AddArrowMarker("arch-arrow", "#666");
+        builder.AddArrowMarker("arch-arrow", Theme.ArrowheadColor);
 
         // Position services (calculate positions first, draw later)
         var servicePositions = new Dictionary<string, (double x, double y, double width, double height)>();

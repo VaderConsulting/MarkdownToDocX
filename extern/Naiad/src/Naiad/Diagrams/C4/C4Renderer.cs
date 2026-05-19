@@ -30,6 +30,10 @@ public class C4Renderer : IDiagramRenderer<C4Model>
 
     public SvgDocument Render(C4Model model, RenderOptions options)
     {
+#pragma warning disable IDE0007
+        MermaidSharp.Rendering.MermaidThemeVariables Theme = MermaidSharp.Rendering.MermaidThemeResolver.Resolve(model, options);
+#pragma warning restore IDE0007
+
         _boundaryDimensions.Clear();
         _elementPositions.Clear();
         _boundaryPositions.Clear();
@@ -87,9 +91,10 @@ public class C4Renderer : IDiagramRenderer<C4Model>
                     options.Padding * 2 + 50;
 
         var builder = new SvgBuilder().Size(width, height);
+        builder.AddStyles(MermaidStyles.ApplyThemeVariables(MermaidStyles.BaseStyles, Theme));
 
         // Add arrow marker
-        builder.AddArrowMarker("c4arrow", "#666");
+        builder.AddArrowMarker("c4arrow", Theme.ArrowheadColor);
 
         // Draw title
         if (!string.IsNullOrEmpty(model.Title))

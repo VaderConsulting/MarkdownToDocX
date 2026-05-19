@@ -23,6 +23,10 @@ public class ClassRenderer(ILayoutEngine? layoutEngine = null) :
 
     public SvgDocument Render(ClassModel model, RenderOptions options)
     {
+#pragma warning disable IDE0007
+        MermaidSharp.Rendering.MermaidThemeVariables Theme = MermaidSharp.Rendering.MermaidThemeResolver.Resolve(model, options);
+#pragma warning restore IDE0007
+
         var scaledOptions = new RenderOptions
         {
             Padding = options.Padding,
@@ -49,7 +53,9 @@ public class ClassRenderer(ILayoutEngine? layoutEngine = null) :
             .Size(layoutResult.Width, layoutResult.Height)
             .Padding(options.Padding)
             .AddArrowMarker()
-            .AddArrowMarker("arrowhead-open", "#333");
+            .AddArrowMarker("arrowhead-open", Theme.ArrowheadColor);
+
+        builder.AddStyles(MermaidStyles.ApplyThemeVariables(MermaidStyles.ClassStyles, Theme));
 
         // Add relationship markers
         AddRelationshipMarkers(builder);

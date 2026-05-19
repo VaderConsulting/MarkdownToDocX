@@ -19,7 +19,10 @@ public sealed class MarkdownToDocxConverter
     /// <summary>
     /// Creates a converter with the given options. Options are resolved (profile + overlay) at conversion time.
     /// </summary>
-    public MarkdownToDocxConverter(MarkdownToDocxOptions Options) => this._Options = Options ?? throw new ArgumentNullException(nameof(Options));
+    public MarkdownToDocxConverter(MarkdownToDocxOptions Options)
+    {
+        _Options = Options ?? throw new ArgumentNullException(nameof(Options));
+    }
 
     /// <summary>
     /// Converts Markdown to DOCX and returns the result as a byte array.
@@ -27,7 +30,7 @@ public sealed class MarkdownToDocxConverter
     /// </summary>
     public byte[] ConvertText(string Markdown, string BasePath)
     {
-        using (var OutputStream = new MemoryStream())
+        using (MemoryStream OutputStream = new MemoryStream())
         {
             ConvertTextToStream(Markdown, BasePath, OutputStream);
             return OutputStream.ToArray();
@@ -45,7 +48,7 @@ public sealed class MarkdownToDocxConverter
             throw new MarkdownToDocxException("Output stream must be non-null and writable.");
         }
 
-        var Effective = OptionsResolver.Resolve(_Options);
+        EffectiveOptions Effective = OptionsResolver.Resolve(_Options);
 
         if (Effective.Docx.UseBuiltinTemplate == false
             && string.IsNullOrWhiteSpace(Effective.Docx.TemplatePath))
@@ -61,12 +64,12 @@ public sealed class MarkdownToDocxConverter
                 "Template file not found: " + Effective.Docx.TemplatePath);
         }
 
-        var EffectiveBasePath = string.IsNullOrWhiteSpace(BasePath) ? Environment.CurrentDirectory : BasePath;
+        string EffectiveBasePath = string.IsNullOrWhiteSpace(BasePath) ? Environment.CurrentDirectory : BasePath;
 
-        var Builder = new MarkdownToDocModelBuilder(Effective.Markdown);
-        var Model = Builder.Build(Markdown ?? string.Empty, EffectiveBasePath);
+        MarkdownToDocModelBuilder Builder = new MarkdownToDocModelBuilder(Effective.Markdown);
+        DocModel Model = Builder.Build(Markdown ?? string.Empty, EffectiveBasePath);
 
-        var Writer = new DocxWriter(Effective);
+        DocxWriter Writer = new DocxWriter(Effective);
         Writer.Write(Model, OutputStream);
     }
 
@@ -85,10 +88,48 @@ public sealed class MarkdownToDocxConverter
             throw new MarkdownToDocxException("Output path is required.");
         }
 
-        var Markdown = File.ReadAllText(MarkdownPath, UTF8_NO_BOM);
-        var BasePath = Path.GetDirectoryName(MarkdownPath) ?? Environment.CurrentDirectory;
+        byte[] DocxBytes = ConvertMarkdownFile(MarkdownPath);
+        WriteDocxBytes(OutputDocxPath, DocxBytes);
+    }
 
-        var DocxBytes = ConvertText(Markdown, BasePath);
-        File.WriteAllBytes(OutputDocxPath, DocxBytes);
+    /// <summary>
+    /// Reads a Markdown file and returns DOCX bytes. Base path is the Markdown file directory.
+    /// </summary>
+    public byte[] ConvertMarkdownFile(string MarkdownPath)
+    {
+        if (string.IsNullOrWhiteSpace(MarkdownPath))
+        {
+            throw new MarkdownToDocxException("Markdown path is required.");
+        }
+
+        string Markdown = File.ReadAllText(MarkdownPath, UTF8_NO_BOM);
+        string BasePath = Path.GetDirectoryName(MarkdownPath) ?? Environment.CurrentDirectory;
+        return ConvertText(Markdown, BasePath);
+    }
+
+    /// <summary>
+    /// Writes DOCX bytes to the output path. Throws <see cref="MarkdownToDocxException"/> when the file cannot be written.
+    /// </summary>
+    public static void WriteDocxBytes(string OutputDocxPath, byte[] DocxBytes)
+    {
+        if (string.IsNullOrWhiteSpace(OutputDocxPath))
+        {
+            throw new MarkdownToDocxException("Output path is required.");
+        }
+        if (DocxBytes == null)
+        {
+            throw new MarkdownToDocxException("DOCX bytes are required.");
+        }
+
+        try
+        {
+            File.WriteAllBytes(OutputDocxPath, DocxBytes);
+        }
+        catch (IOException Ex)
+        {
+            throw new MarkdownToDocxException(
+                "Cannot write output file (it may be open in another process such as Word): " + OutputDocxPath,
+                Ex);
+        }
     }
 }

@@ -63,6 +63,9 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
     /// <summary>Distance from message arrow (y) up to the label baseline (larger matches Mermaid spacing).</summary>
     const double MessageLabelOffsetAboveArrow = 15;
 
+    /// <summary>Extra clearance so message arrow tips stop before destination lifelines in Word.</summary>
+    const double SequenceMessageLifelineClearancePx = 3.0;
+
     const double ActivationWidth = 10;
     const double NoteHorizontalPaddingPx = 12;
     const double NoteVerticalPaddingPx = 10;
@@ -90,11 +93,14 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
         var (height, elementYPositions) = CalculateHeight(model, messageOptions, layout.MaxHeaderHeight);
         var width = layout.TotalWidth;
 
+#pragma warning disable IDE0007
+        MermaidSharp.Rendering.MermaidThemeVariables Theme = MermaidSharp.Rendering.MermaidThemeResolver.Resolve(model, options);
+#pragma warning restore IDE0007
+
         var builder = new SvgBuilder()
             .Size(width, height)
-            .AddMermaidSequenceMessageMarkers("mermaid-svg_sequence")
-            .AddNodeDropShadowFilter()
-            .AddStyles(MermaidStyles.SequenceStyles);
+            .AddMermaidSequenceMessageMarkers("mermaid-svg_sequence", strokeColor: Theme.ArrowheadColor)
+            .AddStyles(MermaidStyles.ApplyThemeVariables(MermaidStyles.SequenceStyles, Theme));
 
         // Add title if present
         var titleOffset = 0.0;
@@ -291,8 +297,7 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
             fill: "#ECECFF",
             stroke: "#9370DB",
             strokeWidth: 1,
-            cssClass: "actor",
-            filter: SvgBuilder.NaiadNodeShadowFilterReference);
+            cssClass: "actor");
 
         builder.AddBoxCenteredText(
             cx - boxWidth / 2, y,
@@ -319,8 +324,7 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
             fill: "#ECECFF",
             stroke: "#9370DB",
             strokeWidth: 1,
-            cssClass: "actor-head",
-            filter: SvgBuilder.NaiadNodeShadowFilterReference);
+            cssClass: "actor-head");
 
         // Body
         builder.AddLine(cx, bodyTop, cx, bodyBottom,
@@ -437,6 +441,18 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
         }
     }
 
+    static double GetSequenceMessageMarkerTipBeyondRefXPx(MessageType MessageType) =>
+        // How far the drawn tip extends past the path end along the arrow axis (viewBox geometry).
+        MessageType switch
+        {
+            MessageType.SolidCross or MessageType.DottedCross => 2.0,
+            MessageType.SolidArrow or MessageType.DottedArrow or MessageType.SolidAsync or MessageType.DottedAsync => 2.5,
+            _ => 2.1
+        };
+
+    static double GetSequenceMessageEndShortenPx(MessageType MessageType) =>
+        GetSequenceMessageMarkerTipBeyondRefXPx(MessageType) + SequenceMessageLifelineClearancePx;
+
     static void DrawMessage(SvgBuilder builder, Message msg,
         Dictionary<string, double> positions, double y,
         RenderOptions options, int? number)
@@ -492,7 +508,15 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
         }
         else
         {
-            builder.AddLine(fromX, y, toX, y,
+            var Direction = toX >= fromX ? 1.0 : -1.0;
+            var EndShortenPx = GetSequenceMessageEndShortenPx(msg.Type);
+            var SpanPx = Math.Abs(toX - fromX);
+            var LineEndX = SpanPx > EndShortenPx ? toX - (Direction * EndShortenPx) : toX;
+            builder.AddLine(
+                fromX,
+                y,
+                LineEndX,
+                y,
                 stroke: "#333",
                 strokeWidth: 1,
                 strokeDasharray: dashArray,

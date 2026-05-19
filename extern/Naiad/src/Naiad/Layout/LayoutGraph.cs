@@ -56,10 +56,14 @@ class LayoutGraph
         {
             Ranks[i] = [];
         }
-        foreach (var node in Nodes.Values)
+        // Deterministic ordering: iterate nodes by their assigned Order.
+        // This matches Mermaid/dagre-d3's stable insertion-order behaviour and avoids dictionary iteration variance.
+#pragma warning disable IDE0007
+        foreach (LayoutNode node in Nodes.Values.OrderBy(_ => _.Order))
         {
             Ranks[node.Rank].Add(node);
         }
+#pragma warning restore IDE0007
     }
 
     public void UpdateOrderInRanks()

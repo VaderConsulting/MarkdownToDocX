@@ -158,7 +158,7 @@ public class SvgBuilder
         return this;
     }
 
-    public SvgBuilder AddMermaidArrowMarker()
+    public SvgBuilder AddMermaidArrowMarker(string stroke = "#333333", string fill = "#333333")
     {
         /*
          * Marker positioning primer (SVG):
@@ -186,7 +186,7 @@ public class SvgBuilder
         {
             Id = "mermaid-svg_flowchart-v2-pointEnd",
             Path = "M 0 0 L 10 5 L 0 10 z",
-            Fill = "#333333",
+            Fill = fill,
             MarkerWidth = 8,
             MarkerHeight = 8,
             RefX = 5,
@@ -197,12 +197,30 @@ public class SvgBuilder
             StrokeWidth = 1
         });
 
+        // Mermaid upstream pointEnd-margin:
+        // viewBox 0 0 11.5 14, refX/refY 11.5/7, markerWidth 10.5, markerHeight 14
+        // path "M 0 0 L 11.5 7 L 0 14 z", stroke-width 0 (gap marker for neo look)
+        document.Defs.Markers.Add(new()
+        {
+            Id = "mermaid-svg_flowchart-v2-pointEnd-margin",
+            Path = "M 0 0 L 11.5 7 L 0 14 z",
+            Fill = fill,
+            MarkerWidth = 10.5,
+            MarkerHeight = 14,
+            RefX = 11.5,
+            RefY = 7,
+            ViewBox = "0 0 11.5 14",
+            MarkerUnits = "userSpaceOnUse",
+            ClassName = "marker flowchart-v2",
+            StrokeWidth = 0
+        });
+
         // Naiad-specific marker id retained for compatibility, using Mermaid upstream pointEnd geometry.
         document.Defs.Markers.Add(new()
         {
             Id = "mermaid-svg_flowchart-v2-pointEndThick",
             Path = "M 0 0 L 10 5 L 0 10 z",
-            Fill = "#333333",
+            Fill = fill,
             MarkerWidth = 8,
             MarkerHeight = 8,
             RefX = 5,
@@ -218,7 +236,7 @@ public class SvgBuilder
         {
             Id = "mermaid-svg_flowchart-v2-pointStart",
             Path = "M 0 5 L 10 10 L 10 0 z",
-            Fill = "#333333",
+            Fill = fill,
             MarkerWidth = 8,
             MarkerHeight = 8,
             RefX = 4.5,
@@ -229,12 +247,30 @@ public class SvgBuilder
             StrokeWidth = 1
         });
 
+        // Mermaid upstream pointStart-margin:
+        // viewBox 0 0 11.5 14, refX/refY 1/7, markerWidth 11.5, markerHeight 14
+        // polygon points "0,7 11.5,14 11.5,0", stroke-width 0
+        document.Defs.Markers.Add(new()
+        {
+            Id = "mermaid-svg_flowchart-v2-pointStart-margin",
+            Path = "M 0 7 L 11.5 14 L 11.5 0 Z",
+            Fill = fill,
+            MarkerWidth = 11.5,
+            MarkerHeight = 14,
+            RefX = 1,
+            RefY = 7,
+            ViewBox = "0 0 11.5 14",
+            MarkerUnits = "userSpaceOnUse",
+            ClassName = "marker flowchart-v2",
+            StrokeWidth = 0
+        });
+
         // Naiad-specific marker id retained for bi-directional start usage; align to Mermaid upstream pointStart geometry.
         document.Defs.Markers.Add(new()
         {
             Id = "mermaid-svg_flowchart-v2-pointStartBiDir",
             Path = "M 0 5 L 10 10 L 10 0 z",
-            Fill = "#333333",
+            Fill = fill,
             MarkerWidth = 8,
             MarkerHeight = 8,
             RefX = 4.5,
@@ -247,7 +283,7 @@ public class SvgBuilder
         return this;
     }
 
-    public SvgBuilder AddMermaidCircleMarker()
+    public SvgBuilder AddMermaidCircleMarker(string stroke = "#333333")
     {
         /*
          * Circle terminal markers:
@@ -287,7 +323,24 @@ public class SvgBuilder
             ViewBox = "0 0 10 10",
             MarkerUnits = "userSpaceOnUse",
             ClassName = "marker flowchart-v2",
-            StrokeWidth = 1
+            StrokeWidth = 1,
+            Fill = stroke
+        });
+
+        // Mermaid upstream circleEnd-margin:
+        // viewBox 0 0 10 10, refX/refY 12.25/5, markerWidth/Height 14/14, stroke-width 0
+        document.Defs.Markers.Add(new()
+        {
+            Id = "mermaid-svg_flowchart-v2-circleEnd-margin",
+            Path = "",
+            RawContent = $"<circle cx=\"5\" cy=\"5\" r=\"5\" class=\"arrowMarkerPath\" style=\"stroke:{stroke};fill:{stroke};stroke-width: 0; stroke-dasharray: 1, 0;\"/>",
+            MarkerWidth = 14,
+            MarkerHeight = 14,
+            RefX = 12.25,
+            RefY = 5,
+            ViewBox = "0 0 10 10",
+            MarkerUnits = "userSpaceOnUse",
+            ClassName = "marker flowchart-v2"
         });
         document.Defs.Markers.Add(new()
         {
@@ -305,12 +358,29 @@ public class SvgBuilder
             ViewBox = "0 0 10 10",
             MarkerUnits = "userSpaceOnUse",
             ClassName = "marker flowchart-v2",
-            StrokeWidth = 1
+            StrokeWidth = 1,
+            Fill = stroke
+        });
+
+        // Mermaid upstream circleStart-margin:
+        // viewBox 0 0 10 10, refX/refY -2/5, markerWidth/Height 14/14, stroke-width 0
+        document.Defs.Markers.Add(new()
+        {
+            Id = "mermaid-svg_flowchart-v2-circleStart-margin",
+            Path = "",
+            RawContent = $"<circle cx=\"5\" cy=\"5\" r=\"5\" class=\"arrowMarkerPath\" style=\"stroke:{stroke};fill:{stroke};stroke-width: 0; stroke-dasharray: 1, 0;\"/>",
+            MarkerWidth = 14,
+            MarkerHeight = 14,
+            RefX = -2,
+            RefY = 5,
+            ViewBox = "0 0 10 10",
+            MarkerUnits = "userSpaceOnUse",
+            ClassName = "marker flowchart-v2"
         });
         return this;
     }
 
-    public SvgBuilder AddMermaidCrossMarker()
+    public SvgBuilder AddMermaidCrossMarker(string stroke = "#333333")
     {
         /*
          * Cross ("X") terminal markers:
@@ -339,6 +409,7 @@ public class SvgBuilder
         {
             Id = "mermaid-svg_flowchart-v2-crossEnd",
             Path = "M 1,1 l 9,9 M 10,1 l -9,9",
+            Fill = stroke,
             MarkerWidth = 11,
             MarkerHeight = 11,
             RefX = 12,
@@ -348,10 +419,28 @@ public class SvgBuilder
             ClassName = "marker cross flowchart-v2",
             StrokeWidth = 2
         });
+
+        // Mermaid upstream crossEnd-margin:
+        // viewBox 0 0 15 15, refX/refY 17.7/7.5, markerWidth/Height 17/17
+        // path "M 1,1 l 9,9 M 10,1 l -9,9" with stroke-width 0
+        document.Defs.Markers.Add(new()
+        {
+            Id = "mermaid-svg_flowchart-v2-crossEnd-margin",
+            Path = "",
+            RawContent = $"<path d=\"M 1,1 l 9,9 M 10,1 l -9,9\" class=\"arrowMarkerPath\" style=\"stroke:{stroke};fill:{stroke};stroke-width: 0; stroke-dasharray: 1,0;\"/>",
+            MarkerWidth = 17,
+            MarkerHeight = 17,
+            RefX = 17.7,
+            RefY = 7.5,
+            ViewBox = "0 0 15 15",
+            MarkerUnits = "userSpaceOnUse",
+            ClassName = "marker cross flowchart-v2"
+        });
         document.Defs.Markers.Add(new()
         {
             Id = "mermaid-svg_flowchart-v2-crossStart",
             Path = "M 1,1 l 9,9 M 10,1 l -9,9",
+            Fill = stroke,
             MarkerWidth = 11,
             MarkerHeight = 11,
             RefX = -1,
@@ -367,8 +456,12 @@ public class SvgBuilder
     /// <summary>
     /// Adds Mermaid sequence diagram message markers matching Mermaid upstream `packages/mermaid/src/diagrams/sequence/svgDraw.js`.
     /// </summary>
-    public SvgBuilder AddMermaidSequenceMessageMarkers(string IdPrefix = "mermaid-svg_sequence")
+    public SvgBuilder AddMermaidSequenceMessageMarkers(string IdPrefix = "mermaid-svg_sequence", string strokeColor = "#333333")
     {
+#pragma warning disable IDE0007
+        string NormalisedStrokeColor = string.IsNullOrWhiteSpace(strokeColor) ? "#333333" : strokeColor;
+#pragma warning restore IDE0007
+
         // insertArrowHead: id `${IdPrefix}-arrowhead`, refX=7.9, refY=5, markerUnits=userSpaceOnUse,
         // markerWidth/Height=12/12, orient=auto-start-reverse, path `M -1 0 L 10 5 L 0 10 z`.
         document.Defs.Markers.Add(new SvgMarker
@@ -382,7 +475,7 @@ public class SvgBuilder
             MarkerUnits = "userSpaceOnUse",
             Orient = "auto-start-reverse",
             ViewBox = "0 0 12 12",
-            RawContent = "<path d=\"M -1 0 L 10 5 L 0 10 z\" fill=\"none\" stroke=\"#333333\" stroke-width=\"1\" stroke-linejoin=\"round\"/>"
+            RawContent = $"<path d=\"M -1 0 L 10 5 L 0 10 z\" fill=\"none\" stroke=\"{NormalisedStrokeColor}\" stroke-width=\"1\" stroke-linejoin=\"round\"/>"
         });
 
         // insertArrowFilledHead: id `${IdPrefix}-filled-head`, refX=15.5, refY=7, markerWidth/Height=20/28, orient=auto,
@@ -397,7 +490,7 @@ public class SvgBuilder
             MarkerHeight = 28,
             Orient = "auto",
             ViewBox = "0 0 20 28",
-            RawContent = "<path d=\"M 18,7 L9,13 L14,7 L9,1 Z\" fill=\"#333333\" stroke=\"#333333\" stroke-width=\"1\" stroke-linejoin=\"round\"/>"
+            RawContent = $"<path d=\"M 18,7 L9,13 L14,7 L9,1 Z\" fill=\"{NormalisedStrokeColor}\" stroke=\"{NormalisedStrokeColor}\" stroke-width=\"1\" stroke-linejoin=\"round\"/>"
         });
 
         // insertArrowCrossHead: id `${IdPrefix}-crosshead`, markerWidth=15, markerHeight=8, orient=auto, refX=4, refY=4.5,
@@ -412,7 +505,23 @@ public class SvgBuilder
             MarkerHeight = 8,
             Orient = "auto",
             ViewBox = "0 0 15 8",
-            RawContent = "<path fill=\"none\" stroke=\"#333333\" style=\"stroke-dasharray: 0, 0\" stroke-width=\"1pt\" d=\"M 1,2 L 6,7 M 6,2 L 1,7\"/>"
+            RawContent = $"<path fill=\"none\" stroke=\"{NormalisedStrokeColor}\" style=\"stroke-dasharray: 0, 0\" stroke-width=\"1pt\" d=\"M 1,2 L 6,7 M 6,2 L 1,7\"/>"
+        });
+
+        // Mermaid upstream crossStart-margin:
+        // viewBox 0 0 15 15, refX/refY -2.7/7.5, markerWidth/Height 17/17
+        document.Defs.Markers.Add(new()
+        {
+            Id = "mermaid-svg_flowchart-v2-crossStart-margin",
+            Path = "",
+            RawContent = "<path d=\"M 1,1 l 9,9 M 10,1 l -9,9\" class=\"arrowMarkerPath\" style=\"stroke-width: 0; stroke-dasharray: 1,0;\"/>",
+            MarkerWidth = 17,
+            MarkerHeight = 17,
+            RefX = -2.7,
+            RefY = 7.5,
+            ViewBox = "0 0 15 15",
+            MarkerUnits = "userSpaceOnUse",
+            ClassName = "marker cross flowchart-v2"
         });
 
         return this;

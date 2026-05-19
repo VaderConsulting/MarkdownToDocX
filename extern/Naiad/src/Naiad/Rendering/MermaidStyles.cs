@@ -5,6 +5,47 @@ namespace MermaidSharp.Rendering;
 /// </summary>
 public static class MermaidStyles
 {
+    public static string ApplyThemeVariables(string Css, MermaidThemeVariables Theme)
+    {
+#pragma warning disable IDE0007 // Naiad prefers explicit types for clarity and debugging.
+        if (Theme is null)
+        {
+            return Css;
+        }
+
+        string Result = Css;
+
+        // Marker/arrowhead colour must follow arrowheadColor, not lineColor, when they diverge.
+        Result = Result.Replace(".marker{fill:#333333;stroke:#333333;}", $".marker{{fill:{Theme.ArrowheadColor};stroke:{Theme.ArrowheadColor};}}", StringComparison.OrdinalIgnoreCase);
+        Result = Result.Replace(".marker.cross{stroke:#333333;}", $".marker.cross{{stroke:{Theme.ArrowheadColor};}}", StringComparison.OrdinalIgnoreCase);
+        Result = Result.Replace(".arrowheadPath{fill:#333333;}", $".arrowheadPath{{fill:{Theme.ArrowheadColor};}}", StringComparison.OrdinalIgnoreCase);
+        Result = Result.Replace(".root .anchor path{fill:#333333!important;stroke-width:0;stroke:#333333;}", $".root .anchor path{{fill:{Theme.ArrowheadColor}!important;stroke-width:0;stroke:{Theme.ArrowheadColor};}}", StringComparison.OrdinalIgnoreCase);
+
+        // Fonts
+        Result = Result.Replace("font-family:\"trebuchet ms\",verdana,arial,sans-serif", $"font-family:{Theme.FontFamily}", StringComparison.Ordinal);
+        Result = Result.Replace("font-family:\"trebuchet ms\",verdana,arial,sans-serif", $"font-family:{Theme.FontFamily}", StringComparison.Ordinal);
+        Result = Result.Replace("font-family:\"trebuchet ms\", verdana, arial, sans-serif", $"font-family:{Theme.FontFamily}", StringComparison.Ordinal);
+        Result = Result.Replace("--mermaid-font-family:\"trebuchet ms\",verdana,arial,sans-serif", $"--mermaid-font-family:{Theme.FontFamily}", StringComparison.Ordinal);
+
+        Result = Result.Replace("font-size:16px", $"font-size:{Theme.FontSize}", StringComparison.Ordinal);
+
+        // Core colours
+        Result = Result.Replace("#333333", Theme.LineColor, StringComparison.OrdinalIgnoreCase);
+        Result = Result.Replace("fill:#333;", $"fill:{Theme.TextColor};", StringComparison.OrdinalIgnoreCase);
+        Result = Result.Replace("fill:#333}", $"fill:{Theme.TextColor}}}", StringComparison.OrdinalIgnoreCase);
+        Result = Result.Replace("color:#333", $"color:{Theme.TextColor}", StringComparison.OrdinalIgnoreCase);
+        Result = Result.Replace("fill:#333", $"fill:{Theme.TextColor}", StringComparison.OrdinalIgnoreCase);
+
+        Result = Result.Replace("#ECECFF", Theme.MainBkg, StringComparison.OrdinalIgnoreCase);
+        Result = Result.Replace("#ffffde", Theme.SecondBkg, StringComparison.OrdinalIgnoreCase);
+        Result = Result.Replace("#9370DB", Theme.Border1, StringComparison.OrdinalIgnoreCase);
+        Result = Result.Replace("#aaaa33", Theme.Border2, StringComparison.OrdinalIgnoreCase);
+        Result = Result.Replace("rgba(232,232,232, 0.8)", Theme.LabelBackground, StringComparison.OrdinalIgnoreCase);
+
+        return Result;
+#pragma warning restore IDE0007
+    }
+
     /// <summary>
     /// Common base styles used by all diagram types.
     /// </summary>
