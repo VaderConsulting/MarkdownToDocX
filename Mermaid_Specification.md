@@ -1,7 +1,7 @@
 # Mermaid Specification (Consolidated)
 
 **Status:** Consolidated specification (amalgamated from the `Mermaid_*.md` documents in this repository root)  
-**Last updated:** 2026-04-25  
+**Last updated:** 2026-05-19  
 **Primary scope:** Mermaid **flowchart** geometry + edge routing + line-end markers (for exact reproduction, SVG extraction, or manual technical drawing)  
 **Secondary scope:** Rendering Mermaid **inside .NET 10 / C# 14 applications** (in-process vs browser-hosted strategies)
 
@@ -27,6 +27,21 @@ Where statements conflict, the **newest** source is considered authoritative. In
 Notes:
 
 - An incidental “Python file write” snippet appears at the end of one older document; it is **not part of the specification** and is excluded.
+
+### 1.1 Per-diagram documentation rule (repository policy)
+
+When a rule is determined from Mermaid upstream **TypeScript/JavaScript** (local checkout: `mermaid/`), it must be recorded in **this file** under the appropriate **diagram-type** section before the work is considered complete.
+
+Each entry should include:
+
+| Field | Requirement |
+|---|---|
+| **Source** | Repo-relative path(s) under `mermaid/` (for example `packages/mermaid/src/dagre-wrapper/nodes.js`). |
+| **Rule** | Formula, default, or behaviour in implementation-usable form. |
+| **Closure** | `closed` (deterministic from pinned source) or `runtime-dependent` (browser label measurement, theme, etc.). |
+| **Naiad** | Optional note if Word parity requires a deliberate extension beyond upstream (must be labelled as such). |
+
+`AI-Instructions.md` describes workflow; **`Mermaid_Specification.md` holds the per-diagram rules.**
 
 ---
 
@@ -172,6 +187,88 @@ SVG equivalent:
 Boundary intersection:
 
 - Rectangle nodes use rectangle intersection, so edges should terminate at the rectangle boundary, not the centre.
+
+### 6.1 Flowchart rectangle and diamond sizing (dagre-wrapper; TS-traced, closed)
+
+**Status:** closed (formulae from pinned `mermaid` sources; label bbox still runtime-measured in browser).
+
+**Sources:**
+
+| Item | Path |
+|---|---|
+| Node `padding` default | `packages/mermaid/src/diagrams/flowchart/flowDb.ts` (`padding: config.flowchart?.padding \|\| 8`) |
+| Rectangle (`rect`) dimensions | `packages/mermaid/src/dagre-wrapper/nodes.js` (`rect`) |
+| Decision diamond (`question`) | `packages/mermaid/src/dagre-wrapper/nodes.js` (`question`) |
+| Layout spacing defaults | `packages/mermaid/src/diagrams/flowchart/flowRenderer-v3-unified.ts` |
+| Config schema defaults | `packages/mermaid/src/schemas/config.schema.yaml` (`FlowchartDiagramConfig`) |
+
+**Config keys (flowchart):**
+
+| Key | Default | Meaning |
+|---|---:|---|
+| `flowchart.padding` | `8` (flowDb fallback; schema default `15` for experimental renderer only) | Added once to measured label width/height when building layout node size. |
+| `flowchart.nodeSpacing` | `50` | Same-rank separation (horizontal for TB/BT; vertical for LR/RL). |
+| `flowchart.rankSpacing` | `50` | Cross-rank separation (vertical for TB/BT; horizontal for LR/RL). |
+| `flowchart.diagramPadding` | `8` | Viewport padding around the finished diagram. |
+| `flowchart.wrappingWidth` | (schema) | Max label width before wrap (HTML labels). |
+
+Naiad must honour `%%{init: ...}%%` overrides for these keys when present.
+
+**Rectangle (`rect`) — layout node size:**
+
+```text
+P = node.padding   // default 8 from flowDb
+TotalWidth  = LabelBBoxWidth  + P
+TotalHeight = LabelBBoxHeight + P
+```
+
+(`labelHelper` uses `halfPadding = P/2` for visual centring; the **layout** width/height uses the sums above.)
+
+**Decision diamond (`question` / `{...}`) — layout node size:**
+
+```text
+P = node.padding
+W0 = LabelBBoxWidth  + P
+H0 = LabelBBoxHeight + P
+S  = W0 + H0          // square diamond bounding box; NOT (W0 + H0) * 0.9
+node.width  = S
+node.height = S
+```
+
+Legacy `packages/mermaid/src/diagrams/flowchart/flowChartShapes.js` still documents `(w + h) * 0.9`; the **dagre-wrapper** path above is authoritative for layout/render in the pinned tree.
+
+**Historical note:** older Naiad builds used ~60px horizontal and ~30px vertical padding and `(width + height) * 0.9` for diamonds; that diverged from dagre-wrapper and produced oversized diamonds and cramped edge-label gaps.
+
+### 6.2 Flowchart edge labels and rank gap (layout; TS-traced + Word parity)
+
+**Status:** closed for label **position**; **min rank span for long labels** is a Naiad parity extension (upstream sets `minlen` from link stroke length, not label width).
+
+**Sources:**
+
+| Item | Path |
+|---|---|
+| Edge `minlen` from link | `packages/mermaid/src/diagrams/flowchart/flowDb.ts` (`edge.length` from `destructEndLink` / stroke run length) |
+| Label at half polyline length | Mermaid `utils.calcLabelPosition` (dagre-d3); Naiad `Edge.LabelPosition` |
+| Label DOM placement | `packages/mermaid/src/dagre-wrapper/edges.js` (`positionEdgeLabel`) |
+
+**Mermaid behaviour:**
+
+- Edge labels are centred at **half the total routed polyline length** (not the middle point index).
+- Dagre `minlen` reflects **arrow/link stroke length** (for example extra `-` in `---->`), not the edge label text width.
+- Practical clearance for long labels (`\|labelled edge\|`, etc.) comes from accurate browser label measurement, node sizing (Section 6.1), and rank spacing — validated against rendered SVG.
+
+**Naiad parity requirement (Word/DOCX):**
+
+When an edge has a non-empty label, inflate `MinRankSpan` (dagre `minlen`) so the along-flow gap can fit the label:
+
+```text
+LabelWidthPx = measured width of edge.Label (same font metrics as node labels)
+MarginPx     = 12
+NeededSpan   = max(1, ceil((LabelWidthPx + MarginPx) / rankSpacing))
+MinRankSpan  = max(existing MinRankSpan, NeededSpan)
+```
+
+Implemented in `extern/Naiad/src/Naiad/Diagrams/Flowchart/FlowchartRenderer.cs` (`ApplyLabelAwareMinRankSpan`). Dummy ranks inserted by the layout engine add approximately `rankSpacing` per extra rank when dummy nodes have zero width.
 
 ---
 
@@ -1253,7 +1350,22 @@ Confirmed/implemented in Naiad (April 2026):
   - uses `-margin` marker variants (when supported) for point/circle/cross terminals
   - applies Mermaid’s dash shaping using `markerOffsets2` so dash/gap placement does not collide with terminals
 
-#### 15.0A Flowchart subgraphs (clusters): cross-boundary edges (confirmed)
+#### 15.0A Flowchart edge stroke width and dash patterns (TS-traced, closed)
+
+**Sources:** `packages/mermaid/src/styles.ts` (`.edge-thickness-normal`, `.edge-thickness-thick`, `.edge-pattern-dotted`, `.edge-pattern-dashed`).
+
+| Class / line style | Stroke width | Dash array |
+|---|---|---|
+| Normal / solid | `themeVariables.strokeWidth` default **1px** | none (`stroke-dasharray: 0`) |
+| Thick (`==>` / `thickness: thick`) | **3.5px** | none |
+| Dotted (`-.->` / `pattern: dotted`) | normal width | **`2`** |
+| Dashed | normal width | **`3`** |
+
+Naiad centralises these in `extern/Naiad/src/Naiad/Rendering/MermaidEdgeStroke.cs`. Explicit `linkStyle` / edge `style` overrides (`stroke-width`, `stroke-dasharray`) take precedence.
+
+**Two-point flowchart paths:** when the routed polyline has exactly **two** points (typical subgraph → subgraph links), emit a **straight** `M… L…` path. Do not run `curveBasis` on two points — the basis sampler bows the segment away from a vertical/horizontal chord.
+
+#### 15.0B Flowchart subgraphs (clusters): cross-boundary edges (confirmed)
 
 Mermaid supports compound flowcharts with `subgraph` (clusters). A common pattern is:
 
@@ -1282,8 +1394,13 @@ Additional confirmed/implemented behaviour (April 2026):
 
 Repository requirement (Naiad / DOCX):
 
-- Cross-boundary flowchart edges must be routed into concrete polyline points after final node placement, so the renderer can produce the correct `curveBasis` edge path and boundary-clipped endpoints.
+- Cross-boundary flowchart edges must be routed into concrete polyline points after final node placement, so the renderer can produce the correct edge path and boundary-clipped endpoints.
   - This is a **layout output** requirement (capture/compute the points), not a styling concern.
+
+**Subgraph group → subgraph group** (for example `Region_A --> Region_B` in a TB diagram):
+
+- After outer layout places cluster boxes, replace dagre’s multi-point route with a **single straight segment** between shape intersections on the group rectangles (bottom of source cluster → top of target cluster when stacked vertically).
+- Implemented in `DagreLayoutEngine.LayoutFlowchartWithSubgraphs` via `TryComputeStraightFlowchartEdgePoints`; rendered with a two-point linear path (Section 15.0A).
 
 For this repository’s **Word-first SVG parity**, we intentionally diverge for the common decision-branch case:
 
@@ -1397,10 +1514,13 @@ Intersection = circle intersection using Radius
 
 ### 16.4 Diamond (`diam`)
 
+**Source:** `packages/mermaid/src/dagre-wrapper/nodes.js` (`question`). See also Section 6.1.
+
 ```text
+P = node.padding   // default 8 (flowDb)
 W0 = BboxW + P
 H0 = BboxH + P
-S = W0 + H0
+S = W0 + H0        // not (W0 + H0) * 0.9 in dagre-wrapper
 Adjustment = 0.5
 
 Points before transform:

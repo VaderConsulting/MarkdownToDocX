@@ -38,9 +38,10 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
     /// </summary>
     const double FlowchartNodeLabelMaxWidthPx = 200.0;
 
-    // Mermaid-like padding around node labels (matches Mermaid output for small nodes like "In"/"Out").
-    const double FlowchartNodeLabelPaddingX2Px = 60.0;
-    const double FlowchartNodeLabelPaddingYPx = 30.0;
+    /// <summary>Mermaid <c>flowDb</c> default when <c>flowchart.padding</c> is unset.</summary>
+    const double FLOWCHART_DEFAULT_LABEL_PADDING_PX = 8.0;
+
+    const double FLOWCHART_EDGE_LABEL_CLEARANCE_MARGIN_PX = 12.0;
 
     // FontAwesome icon pattern: fa:fa-icon-name or fab:fa-icon-name
     static Regex iconPattern = IconPatternMyRegex();
@@ -50,6 +51,10 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
     public SvgDocument Render(FlowchartModel model, RenderOptions options)
     {
         ApplyStyles(model);
+
+#pragma warning disable IDE0007
+        double LabelPaddingPx = GetConfigDouble(model, "flowchart.padding", FLOWCHART_DEFAULT_LABEL_PADDING_PX);
+#pragma warning restore IDE0007
 
         // Calculate node sizes based on text
         foreach (var node in model.Nodes)
@@ -65,8 +70,8 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
 #pragma warning restore IDE0007
             // Add extra width for icon if present
             var hasIcon = iconPattern.IsMatch(label);
-            node.Width = textSize.Width + FlowchartNodeLabelPaddingX2Px + (hasIcon ? 20 : 0);
-            node.Height = textSize.Height + FlowchartNodeLabelPaddingYPx;
+            node.Width = textSize.Width + LabelPaddingPx + (hasIcon ? 20 : 0);
+            node.Height = textSize.Height + LabelPaddingPx;
 
             // Persist wrapped text for rendering (so Word matches Mermaid's automatic wrapping).
             // Only apply when the label does not already include explicit line breaks.
@@ -87,19 +92,21 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             }
             else if (node.Shape == NodeShape.Diamond)
             {
-                // Mermaid's diamond ("question") is a square polygon sized from the label bbox.
-                // See Mermaid's flowChartShapes.js question(): s = (w + h) * 0.9 and polygon is s x s.
+                // Mermaid dagre-wrapper question(): s = (bbox.width + padding) + (bbox.height + padding).
 #pragma warning disable IDE0007
-                double s = (node.Width + node.Height) * 0.9;
+                double W0 = textSize.Width + LabelPaddingPx;
+                double H0 = textSize.Height + LabelPaddingPx;
+                double S = W0 + H0;
 #pragma warning restore IDE0007
-                node.Width = s;
-                node.Height = s;
+                node.Width = S;
+                node.Height = S;
             }
         }
 
         // Run layout
         var nodeSeparationPx = GetConfigDouble(model, "flowchart.nodeSpacing", FLOWCHART_DEFAULT_NODE_SPACING_PX);
         var rankSeparationPx = GetConfigDouble(model, "flowchart.rankSpacing", FLOWCHART_DEFAULT_RANK_SPACING_PX);
+        ApplyLabelAwareMinRankSpan(model, options, rankSeparationPx);
         var diagramPaddingPx = GetConfigDouble(model, "flowchart.diagramPadding", FLOWCHART_DEFAULT_DIAGRAM_PADDING_PX);
 
         var layoutOptions = new LayoutOptions
@@ -163,7 +170,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             Node? targetNode = model.GetNode(edge.TargetId);
             bool targetHasSingleIncoming = IncomingCountByNodeId.TryGetValue(edge.TargetId, out int incomingCount) && incomingCount == 1;
 #pragma warning restore IDE0007
-            RenderEdge(builder, model, edge, options, model.Direction, sourceNode, targetNode, targetHasSingleIncoming);
+            RenderEdge(builder, model, edge, options, Theme, model.Direction, sourceNode, targetNode, targetHasSingleIncoming);
         }
 
         // Render nodes
@@ -273,6 +280,32 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         }
 
         return fallback;
+    }
+
+    /// <summary>
+    /// Ensures labelled edges span enough ranks for the label to sit between node boxes (dagre minlen parity).
+    /// </summary>
+    static void ApplyLabelAwareMinRankSpan(FlowchartModel model, RenderOptions options, double rankSeparationPx)
+    {
+#pragma warning disable IDE0007
+        double EffectiveRankSep = Math.Max(1.0, rankSeparationPx);
+
+        foreach (Edge edge in model.Edges)
+        {
+            if (string.IsNullOrWhiteSpace(edge.Label))
+            {
+                continue;
+            }
+
+            Size LabelSize = MeasureText(edge.Label.Trim(), options.FontSize);
+            double RequiredGapPx = LabelSize.Width + FLOWCHART_EDGE_LABEL_CLEARANCE_MARGIN_PX;
+            int NeededSpan = Math.Max(1, (int)Math.Ceiling(RequiredGapPx / EffectiveRankSep));
+            if (NeededSpan > edge.MinRankSpan)
+            {
+                edge.MinRankSpan = NeededSpan;
+            }
+        }
+#pragma warning restore IDE0007
     }
 
     static HashSet<string> CollectSubgraphIds(FlowchartModel model)
@@ -680,7 +713,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
 #pragma warning restore IDE0007
     }
 
-    static void RenderEdge(SvgBuilder builder, FlowchartModel model, Edge edge, RenderOptions options, Direction diagramDirection, Node? sourceNode, Node? targetNode, bool targetHasSingleIncoming)
+    static void RenderEdge(SvgBuilder builder, FlowchartModel model, Edge edge, RenderOptions options, MermaidSharp.Rendering.MermaidThemeVariables theme, Direction diagramDirection, Node? sourceNode, Node? targetNode, bool targetHasSingleIncoming)
     {
         if (edge.Points.Count < 2)
         {
@@ -701,22 +734,8 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
 #pragma warning restore IDE0007
 
 #pragma warning disable IDE0007
-        string? strokeDasharray = edge.Style.StrokeDasharray;
-        if (strokeDasharray is null)
-        {
-            strokeDasharray = edge.LineStyle switch
-            {
-                EdgeStyle.Dotted => "2",
-                _ => null
-            };
-        }
-
-        double strokeWidth = edge.Style.StrokeWidth ?? (edge.LineStyle switch
-        {
-            EdgeStyle.Thick => 3.5,
-            _ => 1.0
-        });
-
+        string? strokeDasharray = MermaidSharp.Rendering.MermaidEdgeStroke.ResolveStrokeDasharray(edge.Style, edge.LineStyle);
+        double strokeWidth = MermaidSharp.Rendering.MermaidEdgeStroke.ResolveStrokeWidth(edge.Style, edge.LineStyle, theme.StrokeWidth);
         string stroke = edge.Style.Stroke ?? edgeStroke;
 #pragma warning restore IDE0007
 
@@ -922,10 +941,33 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         LineData = FixCorners(LineData);
         List<Position> OffsetPoints = ApplyLineWithOffset(LineData, ArrowTypeStart, ArrowTypeEnd);
 
+        // Two-point edges (subgraph ↔ subgraph, simple links) must stay straight; curveBasis bows even with 2 points.
+        if (OffsetPoints.Count == 2)
+        {
+            return BuildFlowchartLinearPath(OffsetPoints);
+        }
+
         // Naiad currently implements the default Mermaid curveBasis path.
         // For other curve strings (linear/cardinal/step/etc.), Mermaid changes the curve factory,
         // but our renderer intentionally falls back to basis unless/until those are ported.
         return BuildFlowchartCurveBasisPath(OffsetPoints);
+    }
+
+    static string BuildFlowchartLinearPath(IReadOnlyList<Position> points)
+    {
+        if (points.Count < 2)
+        {
+            return string.Empty;
+        }
+
+        var sb = new StringBuilder();
+        sb.Append('M').Append(Fmt(points[0].X)).Append(',').Append(Fmt(points[0].Y));
+        for (var i = 1; i < points.Count; i++)
+        {
+            sb.Append('L').Append(Fmt(points[i].X)).Append(',').Append(Fmt(points[i].Y));
+        }
+
+        return sb.ToString();
     }
 
     static List<Position> FilterValidPoints(IReadOnlyList<Position> points)

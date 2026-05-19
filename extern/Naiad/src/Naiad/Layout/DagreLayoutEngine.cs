@@ -416,6 +416,27 @@ public class DagreLayoutEngine : ILayoutEngine
 #pragma warning restore IDE0007
         }
 
+        // 5) Subgraph group → subgraph group (e.g. Region_A --> Region_B): straight boundary-clipped segment.
+        // Outer dagre routing can produce multi-point polylines that curve under curveBasis; Mermaid uses a vertical link.
+        foreach (var edge in diagram.Edges)
+        {
+            if (!subgraphById.ContainsKey(edge.SourceId) || !subgraphById.ContainsKey(edge.TargetId))
+            {
+                continue;
+            }
+
+#pragma warning disable IDE0007
+            if (CoordinateAssignment.TryComputeStraightFlowchartEdgePoints(diagram, edge, out List<MermaidSharp.Models.Position> groupToGroupPoints))
+            {
+                edge.Points.Clear();
+                for (int i = 0; i < groupToGroupPoints.Count; i++)
+                {
+                    edge.Points.Add(groupToGroupPoints[i]);
+                }
+            }
+#pragma warning restore IDE0007
+        }
+
         // Flowchart parity tweak used elsewhere.
         CoordinateAssignment.ApplyVerticalForkExitGapToDiagramEdges(diagram, options.Direction);
 

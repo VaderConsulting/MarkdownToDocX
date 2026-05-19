@@ -124,7 +124,7 @@ detect -> parse -> render -> style parity (Word-safe SVG) -> validation in Word
 
 ## Mermaid_Specification.md: how to match Mermaid (repo-local baseline)
 
-`Mermaid_Specification.md` consolidates:
+`Mermaid_Specification.md` is the **repo-local, per-diagram-type rule book**. It consolidates:
 
 - pipeline (parse → measure → layout → draw → marker offset → marker attach → resolve style → final SVG)
 - flowchart node geometry and edge/marker geometry (marker defs for point/circle/cross; marker offset tables)
@@ -135,6 +135,10 @@ Rules:
 
 - Use it to decide what is deterministic geometry vs what must be captured from official rendered SVG.
 - If you confirm a corrected/changed rule, update it so the repo baseline stays accurate.
+- **When tracing rules from Mermaid upstream TypeScript/JavaScript** (under `.\mermaid\`), **document each confirmed rule in `Mermaid_Specification.md` under the correct diagram-type section** as you determine it — do not leave rules only in chat, Naiad code comments, or `AI-Instructions.md`.
+  - Include **source file path(s)** (repo-relative under `mermaid/`), the **formula or behaviour**, and whether it is **closed** (fully deterministic) or **runtime-dependent** (browser measurement, theme, etc.).
+  - Add or extend a diagram-family section if one does not exist yet (flowchart, sequence, ER, gantt, …).
+  - Naiad implementation may follow immediately after the spec entry, but the spec must be updated in the same change set whenever a new upstream rule is confirmed.
 
 Text vertical alignment (Word vs Mermaid):
 
@@ -185,9 +189,10 @@ Scripting and runtimes:
 
 When a discrepancy between Mermaid upstream output (use `.\mermaid\` where useful) and Naiad DOCX output is confirmed:
 
-1. Update `Mermaid_Specification.md` first with the confirmed rule/geometry/style/behaviour
-2. Implement the Naiad change
-3. Regen and validate in Word
+1. Trace the rule in `.\mermaid\` TypeScript/JavaScript (pinned checkout) where possible.
+2. Update `Mermaid_Specification.md` first — in the **diagram-type section** — with the confirmed rule/geometry/style/behaviour, **source paths**, and closure status.
+3. Implement the Naiad change.
+4. Regen and validate in Word.
 
 Parity priorities:
 
@@ -532,6 +537,14 @@ Get-Content -Raw ".\out\er_input.mmd" | & $SvgAuditExePath render ".\out\rendere
 If output files exist but the console appears stuck, confirm the process ended and files are updated (timestamps). Avoid printing full SVG to the terminal during iteration.
 
 ## Flowchart routing + curve learnings (Apr 2026, standing rules)
+
+TS-traced flowchart sizing and edge-label layout rules are documented in `Mermaid_Specification.md` **Section 6.1** (padding, rectangle/diamond dimensions, spacing defaults) and **Section 6.2** (edge labels and rank gap). Update those sections when confirming new rules from `.\mermaid\`.
+
+Edge stroke width / dash (all diagram types that draw Mermaid-style edges):
+
+- Source: `packages/mermaid/src/styles.ts` — normal **1px** (theme `strokeWidth`), thick **3.5px**, dotted dash **2**, dashed dash **3**.
+- Naiad: `extern/Naiad/src/Naiad/Rendering/MermaidEdgeStroke.cs` — use `ResolveStrokeWidth` / `ResolveStrokeDasharray` instead of ad-hoc literals when adding or fixing edge renderers.
+- Document new per-diagram edge rules in `Mermaid_Specification.md` when traced from TS.
 
 Mermaid init config affects spacing (flowchart):
 
