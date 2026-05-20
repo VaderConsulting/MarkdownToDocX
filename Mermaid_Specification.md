@@ -1454,10 +1454,11 @@ Repository requirement (Naiad / DOCX):
 
 **Decision branch links** (diamond source with a label, e.g. `-->|Yes|` / `-->|No|`):
 
-**Sources:** `packages/mermaid/src/rendering-util/rendering-elements/edges.js` (`fixCorners` + `curveBasis` on dagre `edge.points`); guided 3-point route matches `ERRenderer.BuildErGuidedCurveBasisPath` / dagre elbow semantics.
+**Sources:** `packages/mermaid/src/rendering-util/rendering-elements/edges.js` (`fixCorners` + `curveBasis` on dagre `edge.points`).
 
-- Layout supplies boundary attach points on the diamond and target (shape intersection).
-- Renderer replaces the multi-elbow polyline with **three waypoints**: `(P0, (P0.X, midY), P3)` where `midY = (P0.Y + P3.Y) / 2`, then applies **`d3.curveBasis`** (same family as ER relationship curves).
+- Layout supplies boundary attach points on the diamond and target (shape intersection), including **3-way fan-out** attach overrides (bottom-left / bottom vertex / bottom-right for TB).
+- When dagre routing already yields a **straight or Manhattan** polyline (three or more collinear/orthogonal points, or a single vertical column), the renderer keeps that polyline and emits **`L`** segments (F30). Do **not** replace it with the ER-style **guided `curveBasis`** shortcut (that bows and crosses on multi-target diamonds).
+- For **two-point** labelled diamond branches only (simple Yes/No under a diamond), the renderer may still use the guided `(P0, (P0.X, midY), P3)` + **`curveBasis`** path (F29).
 - Do **not** run `fixCorners` on the full dagre elbow for these branches (avoids short-branch wobble in Word).
 - Do **not** snap targets to side-centre independently of layout (that fought the dagre attach points).
 

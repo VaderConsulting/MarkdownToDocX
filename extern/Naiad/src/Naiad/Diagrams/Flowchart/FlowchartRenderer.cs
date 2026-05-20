@@ -1058,7 +1058,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         // Decision branches (diamond → labelled targets): use the same guided 3-point curveBasis route as ER /
         // Mermaid dagre (down/right from source, then smooth bend to target). Avoids fixCorners + multi-elbow
         // wobble and the old unused cubic-bezier shortcut.
-        if (ShouldUseDecisionBranchGuidedCurve(edge, sourceNode) && LineData.Count >= 2)
+        if (ShouldUseDecisionBranchGuidedCurve(edge, sourceNode, LineData) && LineData.Count >= 2)
         {
             List<Position> Endpoints = new List<Position> { LineData[0], LineData[^1] };
             List<Position> OffsetEndpoints = ApplyLineWithOffset(Endpoints, ArrowTypeStart, ArrowTypeEnd);
@@ -1696,10 +1696,16 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
     }
 #pragma warning restore IDE0007
 
-    static bool ShouldUseDecisionBranchGuidedCurve(Edge edge, Node? sourceNode)
+    static bool ShouldUseDecisionBranchGuidedCurve(Edge edge, Node? sourceNode, IReadOnlyList<Position> lineData)
     {
 #pragma warning disable IDE0007
         if (string.IsNullOrWhiteSpace(edge.Label))
+        {
+            return false;
+        }
+
+        // Dagre already produced a straight / Manhattan polyline (F30 fan-out). Do not replace with curveBasis.
+        if (lineData.Count >= 3 || ShouldUseLinearFlowchartPath(lineData))
         {
             return false;
         }
