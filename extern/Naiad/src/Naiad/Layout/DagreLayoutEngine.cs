@@ -442,7 +442,7 @@ public class DagreLayoutEngine : ILayoutEngine
             else
             {
                 // Edge was split by dummy nodes - collect points
-                CollectEdgePoints(graph, edge, options);
+                CollectEdgePoints(graph, edge, diagram, options);
             }
 
             // Do not attempt to patch up missing flowchart points here.
@@ -451,7 +451,7 @@ public class DagreLayoutEngine : ILayoutEngine
         }
     }
 
-    static void CollectEdgePoints(LayoutGraph graph, Edge edge, LayoutOptions options)
+    static void CollectEdgePoints(LayoutGraph graph, Edge edge, GraphDiagramBase? diagram, LayoutOptions options)
     {
         edge.Points.Clear();
 
@@ -512,7 +512,47 @@ public class DagreLayoutEngine : ILayoutEngine
         }
 
         SimplifyCollinearPolyline(edge.Points);
+        CollapsePredominantlyAxisAlignedMinlenPolyline(edge.Points);
+
+        // Dummy chains concatenate segment centres; for flowcharts the visible arrow must attach on the
+        // real source/target outlines (TB: exit bottom, enter top). Without this, long minlen links end
+        // inside the target box and the arrowhead is hidden (F28).
+        if (dummies.Count > 0
+            && diagram is not null
+            && CoordinateAssignment.TryComputeStraightFlowchartEdgePoints(diagram, edge, out List<MermaidSharp.Models.Position> boundaryPoints)
+            && boundaryPoints.Count >= 2
+            && edge.Points.Count >= 2)
+        {
+            edge.Points[0] = boundaryPoints[0];
+            edge.Points[^1] = boundaryPoints[^1];
+            CollapsePredominantlyAxisAlignedMinlenPolyline(edge.Points);
+        }
 #pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// Long <c>minlen</c> chains can pick up small X drift per dummy segment; collapse to endpoints for straight TB/LR links (F28).
+    /// </summary>
+    static void CollapsePredominantlyAxisAlignedMinlenPolyline(List<Position> Points)
+    {
+        if (Points.Count < 3)
+        {
+            return;
+        }
+
+#pragma warning disable IDE0007
+        Position First = Points[0];
+        Position Last = Points[^1];
+        double DeltaX = Math.Abs(Last.X - First.X);
+        double DeltaY = Math.Abs(Last.Y - First.Y);
+#pragma warning restore IDE0007
+
+        if (DeltaY > DeltaX * 2.0 || DeltaX > DeltaY * 2.0)
+        {
+            Points.Clear();
+            Points.Add(First);
+            Points.Add(Last);
+        }
     }
 
     static void SimplifyCollinearPolyline(List<Position> Points)

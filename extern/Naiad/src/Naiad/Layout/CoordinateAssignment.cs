@@ -30,7 +30,7 @@ static class CoordinateAssignment
         AdjustForDirection(graph, direction);
     }
 
-    /// <summary>Extra rank-axis gap beyond <paramref name="RankSep"/> when a labelled edge needs room (Mermaid dagre <c>edge.width</c> / <c>edge.height</c>).</summary>
+    /// <summary>Extra rank-axis gap beyond rank separation when a labelled edge needs room (Mermaid dagre <c>edge.width</c> / <c>edge.height</c>).</summary>
     const double FLOWCHART_EDGE_LABEL_RANK_MARGIN_PX = 12.0;
 
     static void AssignRankCoordinates(LayoutGraph graph, double rankSep, bool isHorizontal)

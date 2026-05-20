@@ -309,6 +309,7 @@ Added between each pair of ranks when a labelled edge crosses that boundary. TB 
 - Layout uses `RankerType.LongestPath` so longer links are not collapsed by tight-tree compaction (F28).
 - `Ranker.InsertDummyNodes` splits edges when `target.Rank - source.Rank > 1`; dummy nodes are aligned to the source column/row before routing.
 - Dummy segments and axis-aligned polylines render as **straight** SVG paths (`L`), not `curveBasis`, so multi-rank `--->` / `---->` links do not bow (F28).
+- After concatenating dummy-chain segment points, Naiad **re-snaps** the first and last polyline points to the real source/target shape attach points (TB: exit bottom, enter top). Without this, collapsed minlen links end at dummy-node centres inside the target bbox and `marker-end` arrowheads are hidden under node fill in Word (F28).
 
 **Do not** derive `minlen` from label width (see §6.2 / F25).
 

@@ -222,9 +222,10 @@ static class Ranker
                 };
                 graph.AddEdge(finalEdge);
 
-                // Remove original edge connections
+                // Remove original edge from the graph and node adjacency — routing uses the dummy chain only.
                 source.OutEdges.Remove(edge);
                 target.InEdges.Remove(edge);
+                graph.Edges.Remove(edge);
             }
         }
     }
