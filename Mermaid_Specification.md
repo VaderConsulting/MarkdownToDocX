@@ -313,6 +313,8 @@ Added between each pair of ranks when a labelled edge crosses that boundary. TB 
 
 **Do not** derive `minlen` from label width (see §6.2 / F25).
 
+**Cycles (F34):** Dagre layout runs on an acyclic copy of the graph (back edges reversed with **endpoint swap** on `LayoutEdge`). Restore original edge direction **before** `RouteEdges`, then route; if an edge still has no polyline, fall back to straight shape attach points.
+
 ---
 
 ## 7. Confirmed generic polygon insertion rule

@@ -16,19 +16,30 @@ static class Acyclic
             }
         }
 
-        // Reverse back edges to break cycles
+        // Reverse back edges to break cycles (swap endpoints and adjacency so ranker/routing see a DAG).
         foreach (var edge in edgesToReverse)
         {
-            edge.IsReversed = true;
-            // Swap source and target in the graph
             var source = graph.GetNode(edge.SourceId);
             var target = graph.GetNode(edge.TargetId);
+            if (source is null || target is null)
+            {
+                continue;
+            }
+
+            source.OutEdges.Remove(edge);
+            target.InEdges.Remove(edge);
+
+            var OldSourceId = edge.SourceId;
+            edge.SourceId = edge.TargetId;
+            edge.TargetId = OldSourceId;
+            edge.IsReversed = true;
+
+            source = graph.GetNode(edge.SourceId);
+            target = graph.GetNode(edge.TargetId);
             if (source is not null && target is not null)
             {
-                source.OutEdges.Remove(edge);
-                target.InEdges.Remove(edge);
-                target.OutEdges.Add(edge);
-                source.InEdges.Add(edge);
+                source.OutEdges.Add(edge);
+                target.InEdges.Add(edge);
             }
         }
     }
@@ -65,14 +76,23 @@ static class Acyclic
     {
         foreach (var edge in graph.Edges.Where(_ => _.IsReversed))
         {
-            edge.IsReversed = false;
-            // Swap back
             var source = graph.GetNode(edge.SourceId);
             var target = graph.GetNode(edge.TargetId);
             if (source is not null && target is not null)
             {
-                target.OutEdges.Remove(edge);
-                source.InEdges.Remove(edge);
+                source.OutEdges.Remove(edge);
+                target.InEdges.Remove(edge);
+            }
+
+            var OldSourceIdUndo = edge.SourceId;
+            edge.SourceId = edge.TargetId;
+            edge.TargetId = OldSourceIdUndo;
+            edge.IsReversed = false;
+
+            source = graph.GetNode(edge.SourceId);
+            target = graph.GetNode(edge.TargetId);
+            if (source is not null && target is not null)
+            {
                 source.OutEdges.Add(edge);
                 target.InEdges.Add(edge);
             }

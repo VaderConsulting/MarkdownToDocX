@@ -31,11 +31,11 @@ public class DagreLayoutEngine : ILayoutEngine
         // Phase 4: Assign coordinates
         CoordinateAssignment.Run(graph, options.NodeSeparation, options.RankSeparation, options.Direction);
 
+        // Undo edge reversals before routing so cycle edges (e.g. Retry→Receive) get correct geometry (F34).
+        Acyclic.Undo(graph);
+
         // Phase 5: Route edges
         CoordinateAssignment.RouteEdges(graph, options.Direction, diagram);
-
-        // Undo edge reversals
-        Acyclic.Undo(graph);
 
         // Apply positions back to diagram
         ApplyLayout(graph, diagram, options);
@@ -364,8 +364,8 @@ public class DagreLayoutEngine : ILayoutEngine
         Ranker.Run(graph, options.Ranker);
         Ordering.Run(graph);
         CoordinateAssignment.Run(graph, options.NodeSeparation, options.RankSeparation, options.Direction);
-        CoordinateAssignment.RouteEdges(graph, options.Direction, diagram);
         Acyclic.Undo(graph);
+        CoordinateAssignment.RouteEdges(graph, options.Direction, diagram);
 
         ApplyLayout(graph, diagram, options);
 #pragma warning restore IDE0007
@@ -443,6 +443,17 @@ public class DagreLayoutEngine : ILayoutEngine
             {
                 // Edge was split by dummy nodes - collect points
                 CollectEdgePoints(graph, edge, diagram, options);
+            }
+
+            if (edge.Points.Count < 2
+                && diagram is FlowchartModel
+                && CoordinateAssignment.TryComputeStraightFlowchartEdgePoints(diagram, edge, out var FallbackPoints))
+            {
+                edge.Points.Clear();
+                for (var PointIndex = 0; PointIndex < FallbackPoints.Count; PointIndex++)
+                {
+                    edge.Points.Add(FallbackPoints[PointIndex]);
+                }
             }
 
             // Do not attempt to patch up missing flowchart points here.

@@ -99,8 +99,8 @@ internal class LayoutNode
 
 internal class LayoutEdge
 {
-    public required string SourceId { get; init; }
-    public required string TargetId { get; init; }
+    public required string SourceId { get; set; }
+    public required string TargetId { get; set; }
 
     /// <summary>
     /// Minimum rank gap between source and target (dagre minlen); at least <c>1</c>.
