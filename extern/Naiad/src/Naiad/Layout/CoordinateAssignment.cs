@@ -30,6 +30,9 @@ static class CoordinateAssignment
         AdjustForDirection(graph, direction);
     }
 
+    /// <summary>Extra rank-axis gap beyond <paramref name="RankSep"/> when a labelled edge needs room (Mermaid dagre <c>edge.width</c> / <c>edge.height</c>).</summary>
+    const double FLOWCHART_EDGE_LABEL_RANK_MARGIN_PX = 12.0;
+
     static void AssignRankCoordinates(LayoutGraph graph, double rankSep, bool isHorizontal)
     {
         double currentY = 0;
@@ -53,8 +56,63 @@ static class CoordinateAssignment
                 }
             }
 
-            currentY += maxHeight + rankSep;
+            double rankGapExtraPx = 0;
+            if (r < graph.Ranks.Length - 1)
+            {
+                rankGapExtraPx = GetMaxEdgeLabelRankGapExtra(graph, r, isHorizontal, rankSep);
+            }
+
+            currentY += maxHeight + rankSep + rankGapExtraPx;
         }
+    }
+
+    static double GetMaxEdgeLabelRankGapExtra(LayoutGraph graph, int rankIndex, bool isHorizontal, double rankSep)
+    {
+#pragma warning disable IDE0007
+        double maxExtraPx = 0;
+
+        foreach (LayoutEdge edge in graph.Edges)
+        {
+            if (edge.LabelWidthPx <= 0 && edge.LabelHeightPx <= 0)
+            {
+                continue;
+            }
+
+            LayoutNode? source = graph.GetNode(edge.SourceId);
+            LayoutNode? target = graph.GetNode(edge.TargetId);
+            if (source is null || target is null)
+            {
+                continue;
+            }
+
+            if (source.Rank > rankIndex || target.Rank <= rankIndex)
+            {
+                continue;
+            }
+
+            double labelAlongRankPx = isHorizontal ? edge.LabelWidthPx : edge.LabelHeightPx;
+            if (labelAlongRankPx <= 0)
+            {
+                continue;
+            }
+
+            int rankGaps = target.Rank - source.Rank;
+            if (rankGaps <= 0)
+            {
+                continue;
+            }
+
+            double requiredAlongRankPx = labelAlongRankPx + FLOWCHART_EDGE_LABEL_RANK_MARGIN_PX;
+            double requiredPerGapPx = requiredAlongRankPx / rankGaps;
+            double shortfallPx = requiredPerGapPx - rankSep;
+            if (shortfallPx > maxExtraPx)
+            {
+                maxExtraPx = shortfallPx;
+            }
+        }
+
+        return Math.Max(0, maxExtraPx);
+#pragma warning restore IDE0007
     }
 
     static void AssignPositionCoordinates(LayoutGraph graph, double nodeSep, bool isHorizontal)
@@ -943,6 +1001,38 @@ static class CoordinateAssignment
 #pragma warning restore IDE0007
     }
 
+    /// <summary>
+    /// Dagre inserts zero-size dummy nodes on ranks between endpoints when <c>minlen &gt; 1</c>.
+    /// Keep them on the source node's rank axis so TB/LR min-length links stay straight (F28).
+    /// </summary>
+    static void AlignMinlenDummyNodesToSourceAxis(LayoutGraph graph, bool IsHorizontal)
+    {
+#pragma warning disable IDE0007
+        foreach (LayoutNode Node in graph.Nodes.Values)
+        {
+            if (!Node.IsDummy || Node.OriginalEdgeSource is null)
+            {
+                continue;
+            }
+
+            LayoutNode? Source = graph.GetNode(Node.OriginalEdgeSource);
+#pragma warning restore IDE0007
+            if (Source is null)
+            {
+                continue;
+            }
+
+            if (IsHorizontal)
+            {
+                Node.Y = Source.Y;
+            }
+            else
+            {
+                Node.X = Source.X;
+            }
+        }
+    }
+
     public static void RouteEdges(LayoutGraph graph, Direction direction, GraphDiagramBase? diagram = null)
     {
         var isHorizontal = direction is Direction.LeftToRight or Direction.RightToLeft;
@@ -950,6 +1040,11 @@ static class CoordinateAssignment
         bool UseErPorts = diagram is MermaidSharp.Diagrams.EntityRelationship.ERLayoutGraph;
         MermaidSharp.Diagrams.Flowchart.FlowchartModel? FlowchartDiagram = diagram as MermaidSharp.Diagrams.Flowchart.FlowchartModel;
 #pragma warning restore IDE0007
+
+        if (FlowchartDiagram is not null)
+        {
+            AlignMinlenDummyNodesToSourceAxis(graph, isHorizontal);
+        }
 
         // Horizontal flowchart attach-point rules (small-N):
         // - 2 -> 1 fan-in (both sources on the left): allocate symmetric slots on target left edge.
@@ -998,7 +1093,7 @@ static class CoordinateAssignment
         var FlowchartVerticalDecisionDiamondSourceAttachOverrideByEdge = (Dictionary<LayoutEdge, (double SourceX, double SourceY)>?)null;
         if (!isHorizontal && FlowchartDiagram is not null)
         {
-            FlowchartVerticalAttachByEdge = BuildFlowchartVerticalAttachPoints(graph);
+            FlowchartVerticalAttachByEdge = BuildFlowchartVerticalAttachPoints(graph, FlowchartDiagram);
             FlowchartVerticalDecisionDiamondSourceAttachOverrideByEdge = BuildFlowchartVerticalDecisionDiamondSourceAttachOverrides(graph, FlowchartDiagram);
         }
 #pragma warning restore IDE0007
@@ -1029,11 +1124,17 @@ static class CoordinateAssignment
                 {
                     if (isHorizontal)
                     {
-                        edge.Points.Add(new(target.X, source.Y));
+                        if (Math.Abs(source.Y - target.Y) > 0.75)
+                        {
+                            edge.Points.Add(new(target.X, source.Y));
+                        }
                     }
                     else
                     {
-                        edge.Points.Add(new(source.X, target.Y));
+                        if (Math.Abs(source.X - target.X) > 0.75)
+                        {
+                            edge.Points.Add(new(source.X, target.Y));
+                        }
                     }
                 }
 
@@ -1395,6 +1496,9 @@ static class CoordinateAssignment
             case MermaidSharp.Models.NodeShape.Circle:
             case MermaidSharp.Models.NodeShape.DoubleCircle:
                 return IntersectEllipse(cx, cy, w / 2.0, h / 2.0, toward);
+
+            case MermaidSharp.Models.NodeShape.Cylinder:
+                return IntersectCylinder(cx, cy, w, h, toward);
 
             default:
                 return IntersectRect(cx, cy, w / 2.0, h / 2.0, toward);
@@ -1821,6 +1925,44 @@ static class CoordinateAssignment
 #pragma warning restore IDE0007
     }
 
+    /// <summary>
+    /// dagre-wrapper <c>cylinder()</c> <c>node.intersect</c> in <c>nodes.js</c> (ellipse cap adjustment).
+    /// </summary>
+    static Position IntersectCylinder(double cx, double cy, double width, double height, Position toward)
+    {
+#pragma warning disable IDE0007
+        double HalfWidth = width / 2.0;
+        double HalfHeight = height / 2.0;
+        Position Pos = IntersectRect(cx, cy, HalfWidth, HalfHeight, toward);
+        double Rx = HalfWidth;
+        double Ry = MermaidSharp.Rendering.ShapePathGenerator.FlowchartCylinderEllipseRadiusY(width);
+        double LocalX = Pos.X - cx;
+        double LocalY = Pos.Y - cy;
+        bool AdjustEllipse =
+            Rx != 0.0
+            && (Math.Abs(LocalX) < HalfWidth
+                || (Math.Abs(LocalX) == HalfWidth && Math.Abs(LocalY) > HalfHeight - Ry));
+        if (!AdjustEllipse)
+        {
+            return Pos;
+        }
+
+        double EllipseYOffset = Ry * Ry * (1.0 - (LocalX * LocalX) / (Rx * Rx));
+        if (EllipseYOffset != 0.0)
+        {
+            EllipseYOffset = Math.Sqrt(EllipseYOffset);
+        }
+
+        EllipseYOffset = Ry - EllipseYOffset;
+        if (toward.Y - cy > 0.0)
+        {
+            EllipseYOffset = -EllipseYOffset;
+        }
+
+        return new Position(Pos.X, Pos.Y + EllipseYOffset);
+#pragma warning restore IDE0007
+    }
+
     static Position IntersectRect(double cx, double cy, double halfWidth, double halfHeight, Position toward)
     {
 #pragma warning disable IDE0007
@@ -2150,7 +2292,9 @@ static class CoordinateAssignment
 #pragma warning restore IDE0007
     }
 
-    static Dictionary<LayoutEdge, (double SourceX, double SourceY, double TargetX, double TargetY)> BuildFlowchartVerticalAttachPoints(LayoutGraph graph)
+    static Dictionary<LayoutEdge, (double SourceX, double SourceY, double TargetX, double TargetY)> BuildFlowchartVerticalAttachPoints(
+        LayoutGraph graph,
+        MermaidSharp.Diagrams.Flowchart.FlowchartModel diagram)
     {
 #pragma warning disable IDE0007
         Dictionary<LayoutEdge, (double SourceX, double SourceY, double TargetX, double TargetY)> AttachByEdge =
@@ -2307,7 +2451,50 @@ static class CoordinateAssignment
             AttachByEdge[Edge] = (SourceX, SourceY, TargetX, TargetY);
         }
 
+        RefineFlowchartCylinderAttachPoints(graph, diagram, AttachByEdge);
         return AttachByEdge;
+#pragma warning restore IDE0007
+    }
+
+    static void RefineFlowchartCylinderAttachPoints(
+        LayoutGraph graph,
+        MermaidSharp.Diagrams.Flowchart.FlowchartModel diagram,
+        Dictionary<LayoutEdge, (double SourceX, double SourceY, double TargetX, double TargetY)> attachByEdge)
+    {
+#pragma warning disable IDE0007
+        foreach (KeyValuePair<LayoutEdge, (double SourceX, double SourceY, double TargetX, double TargetY)> Entry in attachByEdge)
+        {
+            LayoutEdge Edge = Entry.Key;
+            LayoutNode? Source = graph.GetNode(Edge.SourceId);
+            LayoutNode? Target = graph.GetNode(Edge.TargetId);
+            if (Source is null || Target is null)
+            {
+                continue;
+            }
+
+            double SourceX = Entry.Value.SourceX;
+            double SourceY = Entry.Value.SourceY;
+            double TargetX = Entry.Value.TargetX;
+            double TargetY = Entry.Value.TargetY;
+
+            MermaidSharp.Models.Node? SourceModel = diagram.GetNode(Edge.SourceId);
+            if (SourceModel is not null && SourceModel.Shape == MermaidSharp.Models.NodeShape.Cylinder)
+            {
+                Position SourceAttach = ComputeFlowchartAttachPoint(Source, SourceModel, new Position(Target.X, Target.Y));
+                SourceX = SourceAttach.X;
+                SourceY = SourceAttach.Y;
+            }
+
+            MermaidSharp.Models.Node? TargetModel = diagram.GetNode(Edge.TargetId);
+            if (TargetModel is not null && TargetModel.Shape == MermaidSharp.Models.NodeShape.Cylinder)
+            {
+                Position TargetAttach = ComputeFlowchartAttachPoint(Target, TargetModel, new Position(Source.X, Source.Y));
+                TargetX = TargetAttach.X;
+                TargetY = TargetAttach.Y;
+            }
+
+            attachByEdge[Edge] = (SourceX, SourceY, TargetX, TargetY);
+        }
 #pragma warning restore IDE0007
     }
 

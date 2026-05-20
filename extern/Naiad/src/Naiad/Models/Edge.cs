@@ -18,6 +18,16 @@ public class Edge
     /// </summary>
     public int MinRankSpan { get; set; } = 1;
 
+    /// <summary>
+    /// Measured edge-label box width (px) for layout; set before layout when the label is wrapped at <c>flowchart.wrappingWidth</c>.
+    /// </summary>
+    public double LabelLayoutWidthPx { get; set; }
+
+    /// <summary>
+    /// Measured edge-label box height (px) for layout; set before layout when the label is wrapped at <c>flowchart.wrappingWidth</c>.
+    /// </summary>
+    public double LabelLayoutHeightPx { get; set; }
+
     // Layout properties (set by layout engine)
     public List<Position> Points { get; } = [];
 

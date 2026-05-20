@@ -143,6 +143,36 @@ public class FlowchartParserTests
     }
 
     [Test]
+    public void NestedSubgraph_CrossBoundaryEdgesDoNotReassignInnerMembersToParent()
+    {
+        const string input =
+            """
+            flowchart TB
+            subgraph Outer["Outer subgraph"]
+              direction TB
+              A["Top node"] --> B["Middle node"]
+              subgraph Inner["Inner subgraph"]
+                direction LR
+                C["Left"] --> D["Right"]
+              end
+              B --> C
+              D --> E["Bottom node"]
+            end
+            """;
+
+        var parser = new FlowchartParser();
+        var result = parser.Parse(input);
+
+        Assert.That(result.Success, Is.True);
+        Assert.That(result.Value.Subgraphs.Count, Is.EqualTo(1));
+
+        var outer = result.Value.Subgraphs[0];
+        Assert.That(outer.NodeIds, Is.EquivalentTo(new[] { "A", "B", "E" }));
+        Assert.That(outer.NestedSubgraphs.Count, Is.EqualTo(1));
+        Assert.That(outer.NestedSubgraphs[0].NodeIds, Is.EquivalentTo(new[] { "C", "D" }));
+    }
+
+    [Test]
     public void ThickArrow_ParsesEdgeStyle()
     {
         const string input =

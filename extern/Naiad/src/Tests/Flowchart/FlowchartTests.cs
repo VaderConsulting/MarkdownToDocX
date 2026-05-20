@@ -13,6 +13,43 @@ public class FlowchartTests : TestBase
     }
 
     [Test]
+    public Task F08_TwoNodesOneCharLabels()
+    {
+        const string input =
+            """
+            flowchart LR
+            A[A] --> B[B]
+            """;
+
+        return VerifySvg(input);
+    }
+
+    [Test]
+    public Task F13_CylinderDatabase()
+    {
+        const string input =
+            """
+            flowchart TB
+            Store[(Database / cylinder)]
+            App[Application] --> Store
+            """;
+
+        return VerifySvg(input);
+    }
+
+    [Test]
+    public Task F14_Hexagon()
+    {
+        const string input =
+            """
+            flowchart LR
+            A{{Hexagon}} --> B[Next]
+            """;
+
+        return VerifySvg(input);
+    }
+
+    [Test]
     public Task Complex()
     {
         const string input =
@@ -51,6 +88,20 @@ public class FlowchartTests : TestBase
             flowchart LR
                 A --> |Yes| B
                 A --> |No| C
+            """;
+
+        return VerifySvg(input);
+    }
+
+    [Test]
+    public Task F28_MinLengthLinks()
+    {
+        const string input =
+            """
+            flowchart TB
+            A[A] --> B[B]
+            C[C] ---> D[D]
+            E[E] ----> F[F]
             """;
 
         return VerifySvg(input);

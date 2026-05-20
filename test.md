@@ -1391,12 +1391,12 @@ O["O"] --x|cross end| P["P"]
 Q["Q"] <--> R["R"]
 ```
 
-Flowchart: special characters, punctuation, and quotes in labels.
+Flowchart: special characters, punctuation, and quotes in labels (Mermaid entity codes).
 
 ```mermaid
 flowchart TB
-A["Escapes: \\* \\_ \\` \\[ \\] and a literal pipe A | B"] --> B["Quotes: \"double\" and 'single'"]
-B --> C["Math-ish: a < b && c > d"]
+A["Symbols: star#42; underscore#95; backtick#96; brackets#91;#93; pipe A#124;B"] --> B["Quotes: double#quot; and apostrophe#39;s"]
+B --> C["Comparison: a#lt; b #38;#38; c#gt; d"]
 ```
 
 Flowchart: cycles + parallel branches + joins.

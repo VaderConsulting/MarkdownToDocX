@@ -210,7 +210,7 @@ Boundary intersection:
 | `flowchart.nodeSpacing` | `50` | Same-rank separation (horizontal for TB/BT; vertical for LR/RL). |
 | `flowchart.rankSpacing` | `50` | Cross-rank separation (vertical for TB/BT; horizontal for LR/RL). |
 | `flowchart.diagramPadding` | `8` | Viewport padding around the finished diagram. |
-| `flowchart.wrappingWidth` | (schema) | Max label width before wrap (HTML labels). |
+| `flowchart.wrappingWidth` | `200` | Max label width before wrap (HTML labels; node and edge labels). |
 
 Naiad must honour `%%{init: ...}%%` overrides for these keys when present.
 
@@ -223,6 +223,14 @@ TotalHeight = LabelBBoxHeight + P
 ```
 
 (`labelHelper` uses `halfPadding = P/2` for visual centring; the **layout** width/height uses the sums above.)
+
+**HTML label bbox (dagre-wrapper, browser-measured):**
+
+- Single-line labels use a ~`2.5em` line box (`line-height: 1.5` plus `<p>`), so at 16px font the inner height is ~40px and `TotalHeight` is typically **48px** with `P = 8`.
+- Very short labels (for example `A`, `B` in F08) are not left narrower than that line box: `LabelBBoxWidth` is at least the line-box height (square ~48×48 nodes on mermaid.live).
+- Short words (roughly 2–3 characters, for example `End`) may bump width to ~`1.125 ×` the line-box height when glyph measurement would otherwise under-shoot.
+
+**Naiad estimate (`MeasureFlowchartLabelBBox` in `FlowchartRenderer.cs`):** mirrors the above using `0.756em` char width for labels up to five characters, `0.678em` for longer single lines, `2.5em` line-box height, `MaxLineLength == 1 → width = line box`, and the `1.125` width floor for labels of length ≤ 3.
 
 **Decision diamond (`question` / `{...}`) — layout node size:**
 
@@ -239,36 +247,70 @@ Legacy `packages/mermaid/src/diagrams/flowchart/flowChartShapes.js` still docume
 
 **Historical note:** older Naiad builds used ~60px horizontal and ~30px vertical padding and `(width + height) * 0.9` for diamonds; that diverged from dagre-wrapper and produced oversized diamonds and cramped edge-label gaps.
 
-### 6.2 Flowchart edge labels and rank gap (layout; TS-traced + Word parity)
-
-**Status:** closed for label **position**; **min rank span for long labels** is a Naiad parity extension (upstream sets `minlen` from link stroke length, not label width).
+### 6.2 Flowchart edge labels (layout and render; TS-traced)
 
 **Sources:**
 
 | Item | Path |
 |---|---|
-| Edge `minlen` from link | `packages/mermaid/src/diagrams/flowchart/flowDb.ts` (`edge.length` from `destructEndLink` / stroke run length) |
-| Label at half polyline length | Mermaid `utils.calcLabelPosition` (dagre-d3); Naiad `Edge.LabelPosition` |
-| Label DOM placement | `packages/mermaid/src/dagre-wrapper/edges.js` (`positionEdgeLabel`) |
+| Edge `minlen` from link stroke | `packages/mermaid/src/diagrams/flowchart/flowDb.ts` (`edge.length` from `destructEndLink`) |
+| Edge label wrap width | `packages/mermaid/src/rendering-util/createText.ts` (default `width = 200`; `flowchart.wrappingWidth` in schema) |
+| Label measured before layout | `packages/mermaid/src/rendering-util/layout-algorithms/dagre/index.js` (`insertEdgeLabel` then `dagreLayout`) |
+| `edge.width` / `edge.height` | `packages/mermaid/src/rendering-util/rendering-elements/edges.js` (`insertEdgeLabel` — label bbox) |
+| Label at half polyline length | Mermaid `utils.calcLabelPosition`; Naiad `Edge.LabelPosition` |
+| Post-layout label move | `positionEdgeLabel` in `edges.js` |
 
-**Mermaid behaviour:**
+**Mermaid pipeline (dagre-wrapper / v3 unified):**
 
-- Edge labels are centred at **half the total routed polyline length** (not the middle point index).
-- Dagre `minlen` reflects **arrow/link stroke length** (for example extra `-` in `---->`), not the edge label text width.
-- Practical clearance for long labels (`\|labelled edge\|`, etc.) comes from accurate browser label measurement, node sizing (Section 6.1), and rank spacing — validated against rendered SVG.
+1. Render nodes; size each node (`width` / `height` on the graph node).
+2. For each edge with a label, render the label HTML/SVG and set **`edge.width`** and **`edge.height`** from the label bounding box (wrapped at **`flowchart.wrappingWidth`**, default **200**).
+3. Run **`dagreLayout`**. Dagre uses node sizes plus edge label dimensions when placing ranks (`ranksep` / `nodesep`, default **50** each in `flowRenderer-v3-unified.ts`).
+4. Route edges and position labels on the polyline midpoint (half total path length).
 
-**Naiad parity requirement (Word/DOCX):**
+**`minlen` is not derived from label text.** It comes from the link stroke run length (for example `---->` → 4). Do not inflate `minlen` from label width — that produces dummy ranks, curved edges, and excessive vertical gaps on TB diagrams (F25).
 
-When an edge has a non-empty label, inflate `MinRankSpan` (dagre `minlen`) so the along-flow gap can fit the label:
+**Naiad parity (`FlowchartRenderer.cs` + layout):**
+
+**Wrap and measure** (before layout):
 
 ```text
-LabelWidthPx = measured width of edge.Label (same font metrics as node labels)
-MarginPx     = 12
-NeededSpan   = max(1, ceil((LabelWidthPx + MarginPx) / rankSpacing))
-MinRankSpan  = max(existing MinRankSpan, NeededSpan)
+WrappingWidthPx = flowchart.wrappingWidth (default 200)
+WrappedLabel    = word-wrap edge.Label at WrappingWidthPx
+LabelLayoutWidthPx  = measured box width + 16
+LabelLayoutHeightPx = max(24, measured box height + 8)
 ```
 
-Implemented in `extern/Naiad/src/Naiad/Diagrams/Flowchart/FlowchartRenderer.cs` (`ApplyLabelAwareMinRankSpan`). Dummy ranks inserted by the layout engine add approximately `rankSpacing` per extra rank when dummy nodes have zero width.
+**Rank-axis clearance** (`CoordinateAssignment.AssignRankCoordinates` — mirrors dagre using `edge.width` / `edge.height` on LR vs TB):
+
+```text
+AlongRankPx = LR/RL ? LabelLayoutWidthPx : LabelLayoutHeightPx
+RankGaps    = target.Rank - source.Rank
+RequiredPerGapPx = (AlongRankPx + 12) / RankGaps
+ExtraGapPx  = max(0, RequiredPerGapPx - rankSpacing)   // rankSpacing default 50
+```
+
+Added between each pair of ranks when a labelled edge crosses that boundary. TB short labels (large width, small height) add little extra along the vertical axis; LR long wrapped labels (F26) widen the horizontal gap between nodes.
+
+**Render:** `PrepareFlowchartEdgeLabel` emits `<br/>` lines as SVG `<tspan>` elements (same wrap as layout measurement).
+
+### 6.3 Flowchart link length (`minlen` from stroke)
+
+**Source:** `packages/mermaid/src/diagrams/flowchart/flowDb.ts` — `destructEndLink` sets `length = line.length - 1` where `line` is the link token without the trailing arrow character (`>`, `o`, `x`, …). The value is capped at **10** when stored on the edge (`edge.length = type.length > 10 ? 10 : type.length`). Dagre receives it as **`minlen`**.
+
+| Link token | Stroke before `>` | `minlen` |
+|---|---|---|
+| `-->` | `--` (length 2) | **1** |
+| `--->` | `---` (length 3) | **2** |
+| `---->` | `----` (length 4) | **3** |
+
+**Naiad parity:**
+
+- `FlowchartParser` sets `Edge.MinRankSpan` with the same formula (`stroke length − 1`, minimum 1, maximum 10).
+- Layout uses `RankerType.LongestPath` so longer links are not collapsed by tight-tree compaction (F28).
+- `Ranker.InsertDummyNodes` splits edges when `target.Rank - source.Rank > 1`; dummy nodes are aligned to the source column/row before routing.
+- Dummy segments and axis-aligned polylines render as **straight** SVG paths (`L`), not `curveBasis`, so multi-rank `--->` / `---->` links do not bow (F28).
+
+**Do not** derive `minlen` from label width (see §6.2 / F25).
 
 ---
 
@@ -1402,14 +1444,21 @@ Repository requirement (Naiad / DOCX):
 - After outer layout places cluster boxes, replace dagre’s multi-point route with a **single straight segment** between shape intersections on the group rectangles (bottom of source cluster → top of target cluster when stacked vertically).
 - Implemented in `DagreLayoutEngine.LayoutFlowchartWithSubgraphs` via `TryComputeStraightFlowchartEdgePoints`; rendered with a two-point linear path (Section 15.0A).
 
-For this repository’s **Word-first SVG parity**, we intentionally diverge for the common decision-branch case:
+**Nested subgraphs** (for example `Outer` containing `Inner` with `B --> C` crossing the inner boundary):
 
-- **Decision “Yes/No” outgoing links** (`-->|Yes|` / `-->|No|`) are rendered as a **single cubic Bezier** between the (already boundary-intersected) start/end points.
-- This avoids the short-branch “wobble” that can occur when `curveBasis` is applied to sparse/short elbow routes in Word, and matches the reference fixture better in DOCX output.
+- Layout is **bottom-up**: each child subgraph is laid out first (with its own `direction`), sized as a group node, then the parent packs **direct members + child group nodes** (not the child’s inner members directly).
+- Edges wholly inside a child subgraph are excluded from the parent’s internal dagre graph; edges from a parent member to a child member are mapped to **member → child group id** (or **child group id → member**) for parent ranking only, then re-routed to real node boundaries after final placement.
+- Diagram-level “outer” layout runs only when there are **multiple root subgraphs** and/or **nodes outside all subgraphs** — a single root cluster with nesting must not stack child group nodes as disconnected siblings.
+- Member offsets propagate to **all descendant nodes** when centring content inside a cluster box (deepest clusters first).
 
-Additional Word-first fixture rule:
+**Decision branch links** (diamond source with a label, e.g. `-->|Yes|` / `-->|No|`):
 
-- If a decision “Yes/No” branch targets a node with **exactly one incoming edge**, snap the target port to the **midpoint of the target side facing the source** (left-centre for the common left-to-right case). Marker endpoint trimming still applies after snapping.
+**Sources:** `packages/mermaid/src/rendering-util/rendering-elements/edges.js` (`fixCorners` + `curveBasis` on dagre `edge.points`); guided 3-point route matches `ERRenderer.BuildErGuidedCurveBasisPath` / dagre elbow semantics.
+
+- Layout supplies boundary attach points on the diamond and target (shape intersection).
+- Renderer replaces the multi-elbow polyline with **three waypoints**: `(P0, (P0.X, midY), P3)` where `midY = (P0.Y + P3.Y) / 2`, then applies **`d3.curveBasis`** (same family as ER relationship curves).
+- Do **not** run `fixCorners` on the full dagre elbow for these branches (avoids short-branch wobble in Word).
+- Do **not** snap targets to side-centre independently of layout (that fought the dagre attach points).
 
 Vertical flowchart port rule (TD/BT, fixture):
 

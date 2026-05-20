@@ -12,6 +12,8 @@
     <Description>Markdown to DOCX conversion engine. Markdown text in, DOCX bytes/stream out.</Description>
     <Version>0.1.0</Version>
     <Authors>MarkdownToDocX</Authors>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <AnalysisLevel>none</AnalysisLevel>
   </PropertyGroup>
 
   <ItemGroup>

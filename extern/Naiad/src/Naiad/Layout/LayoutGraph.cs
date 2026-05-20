@@ -109,5 +109,12 @@ internal class LayoutEdge
 
     public int Weight { get; set; } = 1;
     public bool IsReversed { get; set; }
+
+    /// <summary>Wrapped edge-label box width (px), measured before layout (Mermaid <c>edge.width</c>).</summary>
+    public double LabelWidthPx { get; set; }
+
+    /// <summary>Wrapped edge-label box height (px), measured before layout (Mermaid <c>edge.height</c>).</summary>
+    public double LabelHeightPx { get; set; }
+
     public List<Position> Points { get; } = [];
 }

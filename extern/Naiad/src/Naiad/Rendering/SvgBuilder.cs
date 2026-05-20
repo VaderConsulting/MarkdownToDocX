@@ -848,7 +848,7 @@ public class SvgBuilder
     public SvgBuilder AddPath(string d, string? fill = null, string? stroke = null,
         double? strokeWidth = null, string? strokeDasharray = null,
         string? markerStart = null, string? markerEnd = null, double? opacity = null,
-        string? cssClass = null, string? filter = null)
+        string? cssClass = null, string? filter = null, string? transform = null)
     {
         var path = new SvgPath
         {
@@ -861,7 +861,8 @@ public class SvgBuilder
             MarkerEnd = markerEnd,
             Opacity = opacity,
             Class = cssClass,
-            Filter = filter
+            Filter = filter,
+            Transform = transform
         };
         AddElement(path);
         return this;

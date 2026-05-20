@@ -2,6 +2,9 @@ namespace MermaidSharp.Diagrams.Flowchart;
 
 public class FlowchartParser : IDiagramParser<FlowchartModel>
 {
+    /// <summary>Maximum <c>minlen</c> from link stroke length (Mermaid <c>flowDb.ts</c> caps at 10).</summary>
+    const int FLOWCHART_MIN_RANK_SPAN_MAX = 10;
+
     public DiagramType DiagramType => DiagramType.Flowchart;
 
 #pragma warning disable IDE0007
@@ -149,14 +152,27 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
         };
 
     /// <summary>
-    /// Solid arrow: <c>--</c> plus any number of extra <c>-</c> before <c>&gt;</c>. <see cref="MermaidSharp.Models.Edge.MinRankSpan"/> uses
-    /// <c>1 +</c> (extra hyphen count), matching Mermaid-style longer rendered links for longer arrow glyphs.
+    /// Solid arrow: <c>--</c> plus any number of extra <c>-</c> before <c>&gt;</c>.
+    /// <see cref="MermaidSharp.Models.Edge.MinRankSpan"/> is <c>line.length - 1</c> where <c>line</c> is the stroke before <c>&gt;</c>
+    /// (Mermaid <c>destructEndLink</c> in <c>flowDb.ts</c>), capped at <see cref="FLOWCHART_MIN_RANK_SPAN_MAX"/>.
     /// </summary>
     static Parser<char, (EdgeType Type, EdgeStyle Style, int MinRankSpan)> solidArrowFlexibleParser =
         String("--")
             .Then(Char('-').ManyString())
             .Before(Char('>'))
-            .Select(extra => (EdgeType.Arrow, EdgeStyle.Solid, 1 + extra.Length));
+            .Select(extra =>
+            {
+#pragma warning disable IDE0007
+                int StrokeLength = 2 + extra.Length;
+                int MinRankSpan = Math.Max(1, StrokeLength - 1);
+#pragma warning restore IDE0007
+                if (MinRankSpan > FLOWCHART_MIN_RANK_SPAN_MAX)
+                {
+                    MinRankSpan = FLOWCHART_MIN_RANK_SPAN_MAX;
+                }
+
+                return (EdgeType.Arrow, EdgeStyle.Solid, MinRankSpan);
+            });
 
     static Parser<char, (EdgeType Type, EdgeStyle Style, int MinRankSpan)> arrowTypeParser =
         OneOf(
@@ -358,7 +374,7 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
 
     // Subgraph direction line: direction LR / TB / ...
     // Mermaid allows `direction` inside subgraphs to override local layout direction.
-    // Naiad currently does not apply per-subgraph direction; we accept and ignore it for parsing compatibility.
+    // Parsed for fidelity; nested subgraph compound layout always uses TD (see DagreLayoutEngine).
     static Parser<char, Direction> subgraphDirectionDirective =
         from _ in CommonParsers.InlineWhitespace
         from __ in String("direction")
@@ -521,13 +537,15 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
                         existingNode.Shape = node.Shape;
                     }
 
-                    if (state.SubgraphStack.Count > 0)
+                    if (state.SubgraphStack.Count > 0
+                        && !state.NodeIdToCurrentSubgraphId.ContainsKey(node.Id))
                     {
                         Subgraph current = state.SubgraphStack.Peek();
                         if (!current.NodeIds.Contains(node.Id, StringComparer.Ordinal))
                         {
                             current.NodeIds.Add(node.Id);
                         }
+
                         state.NodeIdToCurrentSubgraphId[node.Id] = current.Id;
                     }
 
@@ -541,7 +559,7 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
                             Type = edge.Type,
                             LineStyle = edge.Style,
                             Label = edge.Label,
-                            MinRankSpan = Math.Max(1, edge.MinRankSpan)
+                            MinRankSpan = Math.Min(FLOWCHART_MIN_RANK_SPAN_MAX, Math.Max(1, edge.MinRankSpan))
                         });
                     }
                 }

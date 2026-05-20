@@ -41,7 +41,38 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
     /// <summary>Mermaid <c>flowDb</c> default when <c>flowchart.padding</c> is unset.</summary>
     const double FLOWCHART_DEFAULT_LABEL_PADDING_PX = 8.0;
 
-    const double FLOWCHART_EDGE_LABEL_CLEARANCE_MARGIN_PX = 12.0;
+    /// <summary>
+    /// HTML label line box height in dagre-wrapper (<c>line-height: 1.5</c> plus <c>&lt;p&gt;</c> box). At 16px this yields ~40px inner height and 48px nodes with padding 8.
+    /// </summary>
+    const double FLOWCHART_HTML_LABEL_LINE_BOX_HEIGHT_EM = 2.5;
+
+    /// <summary>Glyph-width estimate for short flowchart labels (matches mermaid.live fixtures such as Start/End).</summary>
+    const double FLOWCHART_LABEL_CHAR_WIDTH_EM_SHORT = 0.756;
+
+    /// <summary>Glyph-width estimate for longer single-line labels (Process, Go shopping, etc.).</summary>
+    const double FLOWCHART_LABEL_CHAR_WIDTH_EM_LONG = 0.678;
+
+    /// <summary>When measured width is below this fraction of the HTML line box, bump width (End-style short words).</summary>
+    const double FLOWCHART_LABEL_MIN_WIDTH_TO_LINE_BOX_RATIO = 1.125;
+
+    const int FLOWCHART_LABEL_SHORT_WORD_MAX_LENGTH = 3;
+
+    /// <summary>Mermaid dagre-wrapper <c>hexagon()</c> bevel divisor (<c>f = 4</c> for classic look).</summary>
+    const double FLOWCHART_HEXAGON_BEVEL_DIVISOR = 4.0;
+
+    /// <summary>
+    /// Single-line HTML label height for hexagon sizing. Slightly taller than the 2.5em rect line box so the label
+    /// is not clipped by the side bevels (matches mermaid.live proportions for labels such as <c>Hexagon</c>).
+    /// </summary>
+    const double FLOWCHART_HEXAGON_LINE_BOX_HEIGHT_EM = 3.0;
+
+    /// <summary>Per-glyph width for hexagon labels (browser <c>getBoundingClientRect</c> on Trebuchet 16px).</summary>
+    const double FLOWCHART_HEXAGON_LABEL_CHAR_WIDTH_EM = 0.54;
+
+    /// <summary>
+    /// Caps label width so <c>w = bbox.w + 2*(h/4) + padding</c> does not over-widen the shape when height drives bevel <c>m</c>.
+    /// </summary>
+    const double FLOWCHART_HEXAGON_MAX_LABEL_WIDTH_TO_LINE_BOX_RATIO = 1.05;
 
     // FontAwesome icon pattern: fa:fa-icon-name or fab:fa-icon-name
     static Regex iconPattern = IconPatternMyRegex();
@@ -66,11 +97,14 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             textForMeasure = textForMeasure.Replace("<br/>", "\n", StringComparison.OrdinalIgnoreCase);
 #pragma warning disable IDE0007
             string wrappedForMeasure = WrapPlainTextToWidth(textForMeasure, options.FontSize, FlowchartNodeLabelMaxWidthPx);
-            Size textSize = MeasureText(wrappedForMeasure, options.FontSize);
+            Size textSize = MeasureFlowchartLabelBBox(wrappedForMeasure, options.FontSize);
 #pragma warning restore IDE0007
             // Add extra width for icon if present
+#pragma warning disable IDE0007
             var hasIcon = iconPattern.IsMatch(label);
-            node.Width = textSize.Width + LabelPaddingPx + (hasIcon ? 20 : 0);
+            double iconExtraWidthPx = hasIcon ? 20.0 : 0.0;
+#pragma warning restore IDE0007
+            node.Width = textSize.Width + LabelPaddingPx + iconExtraWidthPx;
             node.Height = textSize.Height + LabelPaddingPx;
 
             // Persist wrapped text for rendering (so Word matches Mermaid's automatic wrapping).
@@ -101,12 +135,35 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
                 node.Width = S;
                 node.Height = S;
             }
+            else if (node.Shape == NodeShape.Hexagon)
+            {
+                // dagre-wrapper hexagon(): m = h/4, w = bbox.width + 2*m + padding.
+#pragma warning disable IDE0007
+                Size HexLabelSize = MeasureFlowchartHexagonLabelBBox(wrappedForMeasure, options.FontSize);
+                double H0 = HexLabelSize.Height + LabelPaddingPx;
+                double M = H0 / FLOWCHART_HEXAGON_BEVEL_DIVISOR;
+                node.Height = H0;
+                node.Width = HexLabelSize.Width + (2.0 * M) + LabelPaddingPx + iconExtraWidthPx;
+#pragma warning restore IDE0007
+            }
+            else if (node.Shape == NodeShape.Cylinder)
+            {
+                // dagre-wrapper cylinder(): w = bbox + P, h_side = bbox + ry + P, visual height = h_side + 2*ry.
+#pragma warning disable IDE0007
+                double W0 = textSize.Width + LabelPaddingPx + iconExtraWidthPx;
+                double Ry = ShapePathGenerator.FlowchartCylinderEllipseRadiusY(W0);
+                double HSide = textSize.Height + Ry + LabelPaddingPx;
+                node.Width = W0;
+                node.Height = HSide + (2.0 * Ry);
+#pragma warning restore IDE0007
+            }
         }
+
+        ApplyFlowchartEdgeLabelLayoutMetrics(model, options);
 
         // Run layout
         var nodeSeparationPx = GetConfigDouble(model, "flowchart.nodeSpacing", FLOWCHART_DEFAULT_NODE_SPACING_PX);
         var rankSeparationPx = GetConfigDouble(model, "flowchart.rankSpacing", FLOWCHART_DEFAULT_RANK_SPACING_PX);
-        ApplyLabelAwareMinRankSpan(model, options, rankSeparationPx);
         var diagramPaddingPx = GetConfigDouble(model, "flowchart.diagramPadding", FLOWCHART_DEFAULT_DIAGRAM_PADDING_PX);
 
         var layoutOptions = new LayoutOptions
@@ -119,8 +176,11 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         };
         var layoutResult = layoutEngine.Layout(model, layoutOptions);
 
-        // Subgraph direction is now handled by the layout engine (Mermaid-style group nodes + per-subgraph dir).
-        // Keeping the old post-layout rotation heuristic would double-apply the transform.
+        // Subgraph direction: compound layout is handled in DagreLayoutEngine.
+        // Nested subgraphs always use TD there (Mermaid renders LR/TB/BT/RL/TD the same for nested clusters).
+        //
+        // Intended (Mermaid): post-layout rotation for LR/RL subgraphs via ApplySubgraphDirections.
+        // ApplySubgraphDirections(model);
         UpdateGroupNodesFromSubgraphBounds(model);
 
         // Mermaid Dagre renderer shifts edge route points and edge labels by subGraphTitleTotalMargin / 2 in Y.
@@ -151,26 +211,13 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         RenderSubgraphs(builder, model, options);
 
         // Render edges (behind nodes)
-#pragma warning disable IDE0007
-        Dictionary<string, int> IncomingCountByNodeId = new Dictionary<string, int>(StringComparer.Ordinal);
-        foreach (Edge edge in model.Edges)
-        {
-            if (!IncomingCountByNodeId.TryGetValue(edge.TargetId, out int count))
-            {
-                count = 0;
-            }
-            IncomingCountByNodeId[edge.TargetId] = count + 1;
-        }
-#pragma warning restore IDE0007
-
         foreach (var edge in model.Edges)
         {
 #pragma warning disable IDE0007
             Node? sourceNode = model.GetNode(edge.SourceId);
             Node? targetNode = model.GetNode(edge.TargetId);
-            bool targetHasSingleIncoming = IncomingCountByNodeId.TryGetValue(edge.TargetId, out int incomingCount) && incomingCount == 1;
 #pragma warning restore IDE0007
-            RenderEdge(builder, model, edge, options, Theme, model.Direction, sourceNode, targetNode, targetHasSingleIncoming);
+            RenderEdge(builder, model, edge, options, Theme, model.Direction, sourceNode, targetNode);
         }
 
         // Render nodes
@@ -267,6 +314,43 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
 #pragma warning restore IDE0007
     }
 
+    /// <summary>
+    /// Measures wrapped edge labels before layout (Mermaid measures in <c>insertEdgeLabel</c> before <c>dagreLayout</c>).
+    /// </summary>
+    static void ApplyFlowchartEdgeLabelLayoutMetrics(FlowchartModel model, RenderOptions options)
+    {
+#pragma warning disable IDE0007
+        double WrappingWidthPx = GetConfigDouble(model, "flowchart.wrappingWidth", FlowchartNodeLabelMaxWidthPx);
+
+        foreach (Edge edge in model.Edges)
+        {
+            if (string.IsNullOrWhiteSpace(edge.Label))
+            {
+                edge.LabelLayoutWidthPx = 0;
+                edge.LabelLayoutHeightPx = 0;
+                continue;
+            }
+
+            Size LabelSize = PrepareFlowchartEdgeLabel(edge.Label, options.FontSize, WrappingWidthPx).MeasuredSize;
+            edge.LabelLayoutWidthPx = LabelSize.Width + 16;
+            edge.LabelLayoutHeightPx = Math.Max(24, LabelSize.Height + 8);
+        }
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// Wraps a flowchart edge label at <c>flowchart.wrappingWidth</c> and builds HTML for rendering (Mermaid <c>createText</c> default width 200px).
+    /// </summary>
+    static (string Html, Size MeasuredSize) PrepareFlowchartEdgeLabel(string Label, double FontSizePx, double WrappingWidthPx)
+    {
+#pragma warning disable IDE0007
+        string Wrapped = WrapPlainTextToWidth(Label.Trim(), FontSizePx, WrappingWidthPx);
+        Size Measured = MeasureText(Wrapped, FontSizePx);
+        string Html = ConvertIconsToHtml(NormaliseHtmlLineBreaks(Wrapped));
+        return (Html, Measured);
+#pragma warning restore IDE0007
+    }
+
     private static double GetConfigDouble(FlowchartModel model, string key, double fallback)
     {
         if (!model.Config.TryGetValue(key, out var value) || string.IsNullOrWhiteSpace(value))
@@ -280,32 +364,6 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         }
 
         return fallback;
-    }
-
-    /// <summary>
-    /// Ensures labelled edges span enough ranks for the label to sit between node boxes (dagre minlen parity).
-    /// </summary>
-    static void ApplyLabelAwareMinRankSpan(FlowchartModel model, RenderOptions options, double rankSeparationPx)
-    {
-#pragma warning disable IDE0007
-        double EffectiveRankSep = Math.Max(1.0, rankSeparationPx);
-
-        foreach (Edge edge in model.Edges)
-        {
-            if (string.IsNullOrWhiteSpace(edge.Label))
-            {
-                continue;
-            }
-
-            Size LabelSize = MeasureText(edge.Label.Trim(), options.FontSize);
-            double RequiredGapPx = LabelSize.Width + FLOWCHART_EDGE_LABEL_CLEARANCE_MARGIN_PX;
-            int NeededSpan = Math.Max(1, (int)Math.Ceiling(RequiredGapPx / EffectiveRankSep));
-            if (NeededSpan > edge.MinRankSpan)
-            {
-                edge.MinRankSpan = NeededSpan;
-            }
-        }
-#pragma warning restore IDE0007
     }
 
     static HashSet<string> CollectSubgraphIds(FlowchartModel model)
@@ -349,10 +407,12 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
     static void ApplySubgraphDirectionsRecursive(FlowchartModel model, MermaidSharp.Models.Subgraph subgraph)
     {
 #pragma warning disable IDE0007
-        if (subgraph.Direction == Direction.LeftToRight || subgraph.Direction == Direction.RightToLeft)
-        {
-            RotateSubgraphLayout90Degrees(model, subgraph);
-        }
+        // Intended (Mermaid): rotate LR/RL subgraph members after layout.
+        // Nested clusters are laid out as TD in DagreLayoutEngine; enabling this would double-transform.
+        // if (subgraph.Direction == Direction.LeftToRight || subgraph.Direction == Direction.RightToLeft)
+        // {
+        //     RotateSubgraphLayout90Degrees(model, subgraph);
+        // }
 
         foreach (MermaidSharp.Models.Subgraph nested in subgraph.NestedSubgraphs)
         {
@@ -518,35 +578,14 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         const double PADDING_PX = 18.0;
         const double TITLE_BAND_PX = 26.0;
 
-        // If the layout engine created a group node for this subgraph, prefer that explicit box size/position.
-        // This is required so any layout-provided slack (for centring member nodes) is reflected in the drawn cluster.
-        Node? groupNode = model.GetNode(subgraph.Id);
-        if (groupNode is not null && groupNode.IsGroup && groupNode.Width > 0 && groupNode.Height > 0)
-        {
-            double x = groupNode.Position.X - (groupNode.Width / 2.0);
-            double y = groupNode.Position.Y - (groupNode.Height / 2.0);
-            return new MermaidSharp.Models.Rect(x, y, groupNode.Width, groupNode.Height);
-        }
-
         bool HasAny = false;
         double MinX = 0;
         double MinY = 0;
         double MaxX = 0;
         double MaxY = 0;
 
-        foreach (string nodeId in subgraph.NodeIds)
+        void IncludeRect(double left, double top, double right, double bottom)
         {
-            Node? node = model.GetNode(nodeId);
-            if (node == null)
-            {
-                continue;
-            }
-
-            double left = node.Position.X - node.Width / 2;
-            double top = node.Position.Y - node.Height / 2;
-            double right = node.Position.X + node.Width / 2;
-            double bottom = node.Position.Y + node.Height / 2;
-
             if (!HasAny)
             {
                 HasAny = true;
@@ -564,6 +603,40 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             }
         }
 
+        Node? groupNode = model.GetNode(subgraph.Id);
+        if (groupNode is not null && groupNode.IsGroup && groupNode.Width > 0 && groupNode.Height > 0)
+        {
+            IncludeRect(
+                groupNode.Position.X - (groupNode.Width / 2.0),
+                groupNode.Position.Y - (groupNode.Height / 2.0),
+                groupNode.Position.X + (groupNode.Width / 2.0),
+                groupNode.Position.Y + (groupNode.Height / 2.0));
+        }
+
+        foreach (string nodeId in CollectSubgraphMemberNodeIdsRecursive(subgraph))
+        {
+            Node? node = model.GetNode(nodeId);
+            if (node == null)
+            {
+                continue;
+            }
+
+            IncludeRect(
+                node.Position.X - (node.Width / 2.0),
+                node.Position.Y - (node.Height / 2.0),
+                node.Position.X + (node.Width / 2.0),
+                node.Position.Y + (node.Height / 2.0));
+        }
+
+        foreach (MermaidSharp.Models.Subgraph nested in subgraph.NestedSubgraphs)
+        {
+            MermaidSharp.Models.Rect nestedBounds = ComputeSubgraphBounds(model, nested);
+            if (nestedBounds.Width > 0 && nestedBounds.Height > 0)
+            {
+                IncludeRect(nestedBounds.X, nestedBounds.Y, nestedBounds.X + nestedBounds.Width, nestedBounds.Y + nestedBounds.Height);
+            }
+        }
+
         if (!HasAny)
         {
             return new MermaidSharp.Models.Rect(0, 0, 0, 0);
@@ -574,6 +647,24 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         double Width = (MaxX - MinX) + (PADDING_PX * 2);
         double Height = (MaxY - MinY) + (PADDING_PX * 2) + TITLE_BAND_PX;
         return new MermaidSharp.Models.Rect(X, Y, Width, Height);
+#pragma warning restore IDE0007
+    }
+
+    static List<string> CollectSubgraphMemberNodeIdsRecursive(MermaidSharp.Models.Subgraph subgraph)
+    {
+#pragma warning disable IDE0007
+        List<string> nodeIds = new List<string>();
+        foreach (MermaidSharp.Models.Subgraph nested in subgraph.NestedSubgraphs)
+        {
+            nodeIds.AddRange(CollectSubgraphMemberNodeIdsRecursive(nested));
+        }
+
+        foreach (string nodeId in subgraph.NodeIds)
+        {
+            nodeIds.Add(nodeId);
+        }
+
+        return nodeIds;
 #pragma warning restore IDE0007
     }
 
@@ -650,6 +741,19 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
 #pragma warning restore IDE0007
     }
 
+    /// <summary>
+    /// Cylinder: Mermaid fill path, then stroke outline (top arcs 1→2, 2→1, sides, bottom).
+    /// </summary>
+    static void RenderCylinderNode(SvgBuilder builder, Node node, double x, double y, string fill, string stroke, double strokeWidth)
+    {
+#pragma warning disable IDE0007
+        string FillPath = ShapePathGenerator.FlowchartCylinderMermaidFillPath(x, y, node.Width, node.Height);
+        string OutlinePath = ShapePathGenerator.FlowchartCylinderOutlinePath(x, y, node.Width, node.Height);
+        builder.AddPath(FillPath, fill: fill, stroke: null, cssClass: "node");
+        builder.AddPath(OutlinePath, fill: "none", stroke: stroke, strokeWidth: strokeWidth, cssClass: "node");
+#pragma warning restore IDE0007
+    }
+
     static void RenderNode(SvgBuilder builder, Node node, RenderOptions options)
     {
         if (node.IsGroup)
@@ -660,26 +764,39 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
 #pragma warning disable IDE0007
         var x = node.Position.X - node.Width / 2;
         var y = node.Position.Y - node.Height / 2;
-
-        var shapePath = ShapePathGenerator.GetPath(node.Shape, x, y, node.Width, node.Height);
-#pragma warning restore IDE0007
-
-#pragma warning disable IDE0007
         string fill = node.Style.Fill ?? nodeFill;
         string stroke = node.Style.Stroke ?? nodeStroke;
         double strokeWidth = node.Style.StrokeWidth ?? 1.0;
 #pragma warning restore IDE0007
 
-        builder.AddPath(shapePath,
-            fill: fill,
-            stroke: stroke,
-            strokeWidth: strokeWidth,
-            cssClass: "node");
+        if (node.Shape == NodeShape.Cylinder)
+        {
+            RenderCylinderNode(builder, node, x, y, fill, stroke, strokeWidth);
+        }
+        else
+        {
+#pragma warning disable IDE0007
+            string ShapePath = ShapePathGenerator.GetPath(node.Shape, x, y, node.Width, node.Height);
+#pragma warning restore IDE0007
+            builder.AddPath(ShapePath,
+                fill: fill,
+                stroke: stroke,
+                strokeWidth: strokeWidth,
+                cssClass: "node");
+        }
 
         // Render label with icon support
 #pragma warning disable IDE0007
         var label = node.Label ?? node.Id;
         var htmlLabel = ConvertIconsToHtml(NormaliseHtmlLineBreaks(label));
+#pragma warning restore IDE0007
+
+#pragma warning disable IDE0007
+        double LabelExtraOffsetPx = FlowchartNodeLabelExtraVerticalOffsetPx;
+        if (node.Shape == NodeShape.Cylinder)
+        {
+            LabelExtraOffsetPx += ShapePathGenerator.FlowchartCylinderEllipseRadiusY(node.Width);
+        }
 #pragma warning restore IDE0007
 
         builder.AddForeignObject(
@@ -688,7 +805,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             className: "nodeLabel",
             fontSizePx: options.FontSize,
             opticalVerticalBiasEm: flowchartLabelOpticalBiasEm,
-            extraVerticalOffsetPx: FlowchartNodeLabelExtraVerticalOffsetPx,
+            extraVerticalOffsetPx: LabelExtraOffsetPx,
             fill: node.Style.TextColor);
     }
 
@@ -713,7 +830,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
 #pragma warning restore IDE0007
     }
 
-    static void RenderEdge(SvgBuilder builder, FlowchartModel model, Edge edge, RenderOptions options, MermaidSharp.Rendering.MermaidThemeVariables theme, Direction diagramDirection, Node? sourceNode, Node? targetNode, bool targetHasSingleIncoming)
+    static void RenderEdge(SvgBuilder builder, FlowchartModel model, Edge edge, RenderOptions options, MermaidSharp.Rendering.MermaidThemeVariables theme, Direction diagramDirection, Node? sourceNode, Node? targetNode)
     {
         if (edge.Points.Count < 2)
         {
@@ -721,14 +838,9 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         }
 
         IReadOnlyList<Position> pointsForPath = edge.Points;
-
-        if (ShouldSnapDecisionBranchTargetPort(edge, sourceNode, targetNode, targetHasSingleIncoming))
-        {
-            pointsForPath = SnapDecisionBranchTargetPort(edge.Points, sourceNode, targetNode!);
-        }
 #pragma warning disable IDE0007
         string edgeCurveType = GetConfigString(model, "flowchart.curve", "basis");
-        string pathData = BuildFlowchartEdgePath(pointsForPath, edge, edgeCurveType);
+        string pathData = BuildFlowchartEdgePath(pointsForPath, edge, edgeCurveType, sourceNode);
 
         bool useNeoLook = string.Equals(GetConfigString(model, "look", string.Empty), "neo", StringComparison.OrdinalIgnoreCase);
 #pragma warning restore IDE0007
@@ -771,7 +883,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         {
             var StartGapPx = edge.Type == EdgeType.BiDirectionalCross ? CrossStrokeGapPx : 0.0;
             var TrimmedPoints = TrimPointsForCrossVisibleStroke(pointsForPath, StartGapPx, CrossStrokeGapPx);
-            var VisiblePathData = BuildFlowchartEdgePath(TrimmedPoints, edge, edgeCurveType);
+            var VisiblePathData = BuildFlowchartEdgePath(TrimmedPoints, edge, edgeCurveType, sourceNode);
 
             builder.AddPath(
                 VisiblePathData,
@@ -808,21 +920,22 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             var labelX = edge.LabelPosition.X;
             var labelY = edge.LabelPosition.Y;
 #pragma warning disable IDE0007
-            Size labelSize = MeasureText(edge.Label, options.FontSize);
-            double labelWidth = labelSize.Width + 16;
-            double labelHeight = Math.Max(24, labelSize.Height + 8);
+            double WrappingWidthPx = GetConfigDouble(model, "flowchart.wrappingWidth", FlowchartNodeLabelMaxWidthPx);
+            (string HtmlLabel, Size LabelSize) = PrepareFlowchartEdgeLabel(edge.Label, options.FontSize, WrappingWidthPx);
+            double LabelWidth = LabelSize.Width + 16;
+            double LabelHeight = Math.Max(24, LabelSize.Height + 8);
 #pragma warning restore IDE0007
             // Word parity: keep edge labels with transparent background (no filled rect).
             builder.AddRect(
-                labelX - labelWidth / 2, labelY - labelHeight / 2,
-                labelWidth, labelHeight,
+                labelX - LabelWidth / 2, labelY - LabelHeight / 2,
+                LabelWidth, LabelHeight,
                 fill: "none", stroke: "none",
                 cssClass: "edgeLabel");
 
             builder.AddForeignObject(
-                labelX - labelWidth / 2, labelY - labelHeight / 2,
-                labelWidth, labelHeight,
-                $"<p>{System.Net.WebUtility.HtmlEncode(edge.Label)}</p>",
+                labelX - LabelWidth / 2, labelY - LabelHeight / 2,
+                LabelWidth, LabelHeight,
+                HtmlLabel,
                 className: "edgeLabel",
                 fontSizePx: options.FontSize,
                 opticalVerticalBiasEm: flowchartLabelOpticalBiasEm);
@@ -878,20 +991,25 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         {
             if (!string.IsNullOrWhiteSpace(edge.Label))
             {
-                Size labelSize = MeasureText(edge.Label, options.FontSize);
-                double labelWidth = labelSize.Width + 16;
-                double labelHeight = Math.Max(24, labelSize.Height + 8);
-                double left = edge.LabelPosition.X - (labelWidth / 2.0);
-                double top = edge.LabelPosition.Y - (labelHeight / 2.0);
-                double right = edge.LabelPosition.X + (labelWidth / 2.0);
-                double bottom = edge.LabelPosition.Y + (labelHeight / 2.0);
+#pragma warning disable IDE0007
+                double WrappingWidthPx = GetConfigDouble(model, "flowchart.wrappingWidth", FlowchartNodeLabelMaxWidthPx);
+                Size LabelSize = PrepareFlowchartEdgeLabel(edge.Label, options.FontSize, WrappingWidthPx).MeasuredSize;
+                double LabelWidth = LabelSize.Width + 16;
+                double LabelHeight = Math.Max(24, LabelSize.Height + 8);
+                double left = edge.LabelPosition.X - (LabelWidth / 2.0);
+                double top = edge.LabelPosition.Y - (LabelHeight / 2.0);
+                double right = edge.LabelPosition.X + (LabelWidth / 2.0);
+                double bottom = edge.LabelPosition.Y + (LabelHeight / 2.0);
+#pragma warning restore IDE0007
                 AddBounds(left, top, right, bottom);
             }
 
+#pragma warning disable IDE0007
             foreach (Position point in edge.Points)
             {
                 AddBounds(point.X, point.Y, point.X, point.Y);
             }
+#pragma warning restore IDE0007
         }
 
         if (!hasAny)
@@ -915,7 +1033,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
     /// </summary>
 #pragma warning disable IDE0022
 #pragma warning disable IDE0007
-    static string BuildFlowchartEdgePath(IReadOnlyList<Position> points, Edge edge, string edgeCurveType)
+    static string BuildFlowchartEdgePath(IReadOnlyList<Position> points, Edge edge, string edgeCurveType, Node? sourceNode)
     {
         // Mermaid flowcharts use:
         // - corner pre-rounding (fixCorners) for non-rounded curves
@@ -937,12 +1055,31 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             return GenerateRoundedPath(Shifted, radius: 5.0);
         }
 
+        // Decision branches (diamond → labelled targets): use the same guided 3-point curveBasis route as ER /
+        // Mermaid dagre (down/right from source, then smooth bend to target). Avoids fixCorners + multi-elbow
+        // wobble and the old unused cubic-bezier shortcut.
+        if (ShouldUseDecisionBranchGuidedCurve(edge, sourceNode) && LineData.Count >= 2)
+        {
+            List<Position> Endpoints = new List<Position> { LineData[0], LineData[^1] };
+            List<Position> OffsetEndpoints = ApplyLineWithOffset(Endpoints, ArrowTypeStart, ArrowTypeEnd);
+            if (OffsetEndpoints.Count >= 2)
+            {
+                return BuildFlowchartGuidedCurveBasisPath(OffsetEndpoints[0], OffsetEndpoints[^1]);
+            }
+        }
+
+        List<Position> OffsetBeforeCorners = ApplyLineWithOffset(LineData, ArrowTypeStart, ArrowTypeEnd);
+        if (ShouldUseLinearFlowchartPath(OffsetBeforeCorners))
+        {
+            return BuildFlowchartLinearPath(OffsetBeforeCorners);
+        }
+
         // Mermaid pre-rounds corners for all non-rounded curves.
         LineData = FixCorners(LineData);
         List<Position> OffsetPoints = ApplyLineWithOffset(LineData, ArrowTypeStart, ArrowTypeEnd);
 
         // Two-point edges (subgraph ↔ subgraph, simple links) must stay straight; curveBasis bows even with 2 points.
-        if (OffsetPoints.Count == 2)
+        if (OffsetPoints.Count == 2 || ShouldUseLinearFlowchartPath(OffsetPoints))
         {
             return BuildFlowchartLinearPath(OffsetPoints);
         }
@@ -951,6 +1088,85 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         // For other curve strings (linear/cardinal/step/etc.), Mermaid changes the curve factory,
         // but our renderer intentionally falls back to basis unless/until those are ported.
         return BuildFlowchartCurveBasisPath(OffsetPoints);
+    }
+
+    /// <summary>
+    /// Mermaid ER / dagre-style smooth link: three waypoints (start, vertical guide, end) then curveBasis.
+    /// Source: <c>ERRenderer.BuildErGuidedCurveBasisPath</c> and dagre elbow routes in Mermaid.
+    /// </summary>
+    static string BuildFlowchartGuidedCurveBasisPath(Position P0, Position P3)
+    {
+        double Dx = P3.X - P0.X;
+
+        List<Position> GuidedPoints;
+        if (Math.Abs(Dx) < 0.75)
+        {
+            double MidY = (P0.Y + P3.Y) / 2.0;
+            GuidedPoints = new List<Position> { P0, new Position(P0.X, MidY), P3 };
+        }
+        else
+        {
+            double MidY = (P0.Y + P3.Y) / 2.0;
+            GuidedPoints = new List<Position> { P0, new Position(P0.X, MidY), P3 };
+        }
+
+        return BuildFlowchartCurveBasisPath(GuidedPoints);
+    }
+
+    /// <summary>
+    /// Straight or Manhattan polylines (min-length dummy chains, aligned TB columns) must not use curveBasis.
+    /// </summary>
+    static bool ShouldUseLinearFlowchartPath(IReadOnlyList<Position> Points)
+    {
+        if (Points.Count < 2)
+        {
+            return false;
+        }
+
+        const double Epsilon = 0.75;
+        double FirstX = Points[0].X;
+        bool SameColumn = true;
+        for (int Index = 1; Index < Points.Count; Index++)
+        {
+            if (Math.Abs(Points[Index].X - FirstX) > Epsilon)
+            {
+                SameColumn = false;
+                break;
+            }
+        }
+
+        if (SameColumn)
+        {
+            return true;
+        }
+
+        double FirstY = Points[0].Y;
+        bool SameRow = true;
+        for (int Index = 1; Index < Points.Count; Index++)
+        {
+            if (Math.Abs(Points[Index].Y - FirstY) > Epsilon)
+            {
+                SameRow = false;
+                break;
+            }
+        }
+
+        if (SameRow)
+        {
+            return true;
+        }
+
+        for (int Index = 1; Index < Points.Count; Index++)
+        {
+            bool HorizontalSegment = Math.Abs(Points[Index].X - Points[Index - 1].X) < Epsilon;
+            bool VerticalSegment = Math.Abs(Points[Index].Y - Points[Index - 1].Y) < Epsilon;
+            if (!HorizontalSegment && !VerticalSegment)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     static string BuildFlowchartLinearPath(IReadOnlyList<Position> points)
@@ -1480,81 +1696,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
     }
 #pragma warning restore IDE0007
 
-    static bool ShouldSnapDecisionBranchTargetPort(Edge edge, Node? sourceNode, Node? targetNode, bool targetHasSingleIncoming)
-    {
-#pragma warning disable IDE0007
-        if (!targetHasSingleIncoming)
-        {
-            return false;
-        }
-
-        if (targetNode is null)
-        {
-            return false;
-        }
-
-        // Only snap for left/right decision branches. For vertical fan-out (targets below the decision),
-        // snapping to left/right-centre is wrong; those should enter from the top edge.
-        if (sourceNode is not null)
-        {
-            if (targetNode.Position.Y > sourceNode.Position.Y + 0.01)
-            {
-                return false;
-            }
-        }
-
-        // Only apply to the decision branches.
-        if (!ShouldUseDecisionBranchCubic(edge, sourceNode))
-        {
-            return false;
-        }
-
-        return true;
-#pragma warning restore IDE0007
-    }
-
-    static IReadOnlyList<Position> SnapDecisionBranchTargetPort(IReadOnlyList<Position> points, Node? sourceNode, Node targetNode)
-    {
-#pragma warning disable IDE0007
-        if (points.Count < 2)
-        {
-            return points;
-        }
-
-        List<Position> snapped = new List<Position>(points);
-        Position last = snapped[^1];
-        Position first = snapped[0];
-
-        MermaidSharp.Models.Rect bounds = targetNode.Bounds;
-
-        // Subgraphs can override direction; the overall diagram direction isn't sufficient here.
-        // Decide port side based on actual geometry: if the target is to the right, use left-centre; otherwise right-centre.
-        double directionDx = last.X - first.X;
-        if (sourceNode is not null)
-        {
-            directionDx = targetNode.Position.X - sourceNode.Position.X;
-        }
-
-        double x = directionDx >= 0 ? bounds.X : bounds.X + bounds.Width;
-        double y = targetNode.Position.Y;
-
-        snapped[^1] = new Position(x, y);
-
-        // If the segment into the target is extremely short, also nudge the penultimate point so the curve
-        // approaches more cleanly (prevents a tiny “kink” at the port).
-        Position penultimate = snapped[^2];
-        double segmentDx = Math.Abs(penultimate.X - last.X);
-        double segmentDy = Math.Abs(penultimate.Y - last.Y);
-        if (segmentDx < 4.0 && segmentDy < 4.0)
-        {
-            snapped[^2] = new Position(penultimate.X, y);
-        }
-
-        return snapped;
-#pragma warning restore IDE0007
-    }
-
-    static bool ShouldUseDecisionBranchCubic(Edge edge, Node? sourceNode)
+    static bool ShouldUseDecisionBranchGuidedCurve(Edge edge, Node? sourceNode)
     {
 #pragma warning disable IDE0007
         if (string.IsNullOrWhiteSpace(edge.Label))
@@ -1582,85 +1724,6 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         return false;
 #pragma warning restore IDE0007
     }
-
-    static string BuildDecisionBranchPath(IReadOnlyList<Position> points, Node? sourceNode, Node? targetNode)
-    {
-#pragma warning disable IDE0007
-        if (points.Count < 2)
-        {
-            return string.Empty;
-        }
-
-        Position p0 = points[0];
-        Position p3 = points[^1];
-
-        // Mermaid-style links have short straight stubs at endpoints. For parity, those stubs must be
-        // perpendicular to the node boundary (i.e. along the boundary normal at the attach point),
-        // not necessarily horizontal/vertical.
-        const double MAX_ENDPOINT_STUB_PX = 18.0;
-        const double MIN_ENDPOINT_STUB_PX = 10.0;
-
-        Position startNormal = ComputeEndpointNormal(p0, sourceNode, fallbackToward: points.Count >= 2 ? points[1] : p3, outward: true);
-        Position endNormal = ComputeEndpointNormal(p3, targetNode, fallbackToward: points.Count >= 2 ? points[^2] : p0, outward: true);
-
-        double chordDx = p3.X - p0.X;
-        double chordDy = p3.Y - p0.Y;
-        double chordLen = Math.Sqrt((chordDx * chordDx) + (chordDy * chordDy));
-        double stubLen = chordLen > 0.0 ? Math.Min(MAX_ENDPOINT_STUB_PX, Math.Max(MIN_ENDPOINT_STUB_PX, chordLen * 0.08)) : MIN_ENDPOINT_STUB_PX;
-
-        Position s0 = p0;
-        Position s1 = new Position(p0.X + (startNormal.X * stubLen), p0.Y + (startNormal.Y * stubLen));
-
-        Position e3 = p3;
-        Position e2 = new Position(p3.X + (endNormal.X * stubLen), p3.Y + (endNormal.Y * stubLen));
-
-        double midDx = e2.X - s1.X;
-        double midDy = e2.Y - s1.Y;
-        double midLen = Math.Sqrt((midDx * midDx) + (midDy * midDy));
-        double controlLen = midLen > 0.0 ? Math.Max(12.0, Math.Min(60.0, midLen * 0.35)) : 24.0;
-
-        Position c1 = new Position(s1.X + (startNormal.X * controlLen), s1.Y + (startNormal.Y * controlLen));
-        // The marker at the path end uses the tangent of the last segment (e2 -> e3). Ensure that segment
-        // points *into* the target node so the arrowhead faces the node.
-        // Therefore, the cubic should arrive at e2 with tangent aligned to (e3 - e2) = -endNormal.
-        Position c2 = new Position(e2.X + (endNormal.X * controlLen), e2.Y + (endNormal.Y * controlLen));
-
-        return $"M{Fmt(s0.X)},{Fmt(s0.Y)} L{Fmt(s1.X)},{Fmt(s1.Y)} C{Fmt(c1.X)},{Fmt(c1.Y)} {Fmt(c2.X)},{Fmt(c2.Y)} {Fmt(e2.X)},{Fmt(e2.Y)} L{Fmt(e3.X)},{Fmt(e3.Y)}";
-#pragma warning restore IDE0007
-    }
-
-    static Position ComputeEndpointNormal(Position attachPoint, Node? node, Position fallbackToward, bool outward)
-    {
-#pragma warning disable IDE0007
-        Position dir;
-        if (node is not null)
-        {
-            // Use centre-to-attach as boundary normal proxy (good for rect/ellipse/diamond where we already
-            // computed attach points on the outline).
-            dir = new Position(attachPoint.X - node.Position.X, attachPoint.Y - node.Position.Y);
-            if (!outward)
-            {
-                dir = new Position(-dir.X, -dir.Y);
-            }
-        }
-        else
-        {
-            // Fallback: use the adjacent polyline direction.
-            dir = outward
-                ? new Position(attachPoint.X - fallbackToward.X, attachPoint.Y - fallbackToward.Y)
-                : new Position(fallbackToward.X - attachPoint.X, fallbackToward.Y - attachPoint.Y);
-        }
-
-        double len = Math.Sqrt((dir.X * dir.X) + (dir.Y * dir.Y));
-        if (len <= 0.0001)
-        {
-            return new Position(1.0, 0.0);
-        }
-
-        return new Position(dir.X / len, dir.Y / len);
-#pragma warning restore IDE0007
-    }
-#pragma warning restore IDE0022
 
     // Exact d3.curveBasis conversion (see https://raw.githubusercontent.com/d3/d3-shape/main/src/curve/basis.js)
     static string BuildFlowchartCurveBasisPath(IReadOnlyList<Position> points)
@@ -1782,6 +1845,103 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         return $"<p>{html.ToString().Trim()}</p>";
     }
 
+    /// <summary>
+    /// Estimates the HTML label bounding box used by Mermaid dagre-wrapper before padding is applied.
+    /// </summary>
+    static Size MeasureFlowchartLabelBBox(string text, double fontSize)
+    {
+#pragma warning disable IDE0007
+        if (string.IsNullOrEmpty(text))
+        {
+            double EmptyLineBoxHeightPx = fontSize * FLOWCHART_HTML_LABEL_LINE_BOX_HEIGHT_EM;
+            return new Size(0, EmptyLineBoxHeightPx);
+        }
+
+        string[] Lines = text.Split('\n');
+        int MaxLineLength = 0;
+        foreach (string Line in Lines)
+        {
+            int LineLength = Line.Length;
+            if (LineLength > MaxLineLength)
+            {
+                MaxLineLength = LineLength;
+            }
+        }
+
+        double CharWidthEm = MaxLineLength <= 5
+            ? FLOWCHART_LABEL_CHAR_WIDTH_EM_SHORT
+            : FLOWCHART_LABEL_CHAR_WIDTH_EM_LONG;
+        double InnerWidthPx = MaxLineLength * fontSize * CharWidthEm;
+        double SingleLineBoxHeightPx = fontSize * FLOWCHART_HTML_LABEL_LINE_BOX_HEIGHT_EM;
+        double InnerHeightPx = Lines.Length == 1
+            ? SingleLineBoxHeightPx
+            : Lines.Length * fontSize * 1.5;
+
+        if (MaxLineLength == 1)
+        {
+            InnerWidthPx = SingleLineBoxHeightPx;
+        }
+        else if (MaxLineLength <= FLOWCHART_LABEL_SHORT_WORD_MAX_LENGTH
+            && InnerWidthPx < SingleLineBoxHeightPx * FLOWCHART_LABEL_MIN_WIDTH_TO_LINE_BOX_RATIO)
+        {
+            InnerWidthPx = SingleLineBoxHeightPx * FLOWCHART_LABEL_MIN_WIDTH_TO_LINE_BOX_RATIO;
+        }
+
+        return new Size(InnerWidthPx, InnerHeightPx);
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// Label bbox for hexagon layout. Uses dagre-wrapper <c>hexagon()</c> sizing; width is capped relative to height
+    /// because bevel <c>m = h/4</c> couples horizontal extent to vertical padding.
+    /// </summary>
+    static Size MeasureFlowchartHexagonLabelBBox(string Text, double FontSize)
+    {
+#pragma warning disable IDE0007
+        if (string.IsNullOrEmpty(Text))
+        {
+            double EmptyLineBoxHeightPx = FontSize * FLOWCHART_HEXAGON_LINE_BOX_HEIGHT_EM;
+            return new Size(0, EmptyLineBoxHeightPx);
+        }
+
+        string[] Lines = Text.Split('\n');
+        int MaxLineLength = 0;
+        foreach (string Line in Lines)
+        {
+            int LineLength = Line.Length;
+            if (LineLength > MaxLineLength)
+            {
+                MaxLineLength = LineLength;
+            }
+        }
+
+        double LineBoxHeightPx = FontSize * FLOWCHART_HEXAGON_LINE_BOX_HEIGHT_EM;
+        double InnerHeightPx = Lines.Length == 1
+            ? LineBoxHeightPx
+            : Lines.Length * FontSize * 1.5;
+
+        double InnerWidthPx;
+        if (MaxLineLength == 1)
+        {
+            InnerWidthPx = LineBoxHeightPx;
+        }
+        else
+        {
+            double CharWidthEm = MaxLineLength <= FLOWCHART_LABEL_SHORT_WORD_MAX_LENGTH
+                ? FLOWCHART_LABEL_CHAR_WIDTH_EM_SHORT
+                : FLOWCHART_HEXAGON_LABEL_CHAR_WIDTH_EM;
+            InnerWidthPx = MaxLineLength * FontSize * CharWidthEm;
+            double MaxInnerWidthPx = LineBoxHeightPx * FLOWCHART_HEXAGON_MAX_LABEL_WIDTH_TO_LINE_BOX_RATIO;
+            if (InnerWidthPx > MaxInnerWidthPx)
+            {
+                InnerWidthPx = MaxInnerWidthPx;
+            }
+        }
+
+        return new Size(InnerWidthPx, InnerHeightPx);
+#pragma warning restore IDE0007
+    }
+
     static Size MeasureText(string text, double fontSize)
     {
 #pragma warning disable IDE0007
@@ -1801,8 +1961,6 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             }
         }
 
-        // Mermaid measures actual rendered glyph widths (Trebuchet MS in browser). Word uses Arial, and our earlier
-        // constant slightly under-estimated typical widths, compressing node-to-node spacing.
         double Width = MaxLineLength * fontSize * 0.62;
         double Height = Lines.Length * fontSize * 1.5;
         return new Size(Width, Height);

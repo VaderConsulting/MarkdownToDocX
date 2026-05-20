@@ -576,9 +576,10 @@ Vertical flowchart (TD/BT): decision diamonds multi-outgoing:
   - three outgoing: bottom-left face, bottom vertex, bottom-right face (mirror to top side if fan-out is predominantly upward)
 - if layout/slotting also computes diamond intersections “toward target”, ensure the multi-outgoing face-allocation override wins for outgoing edges
 
-Decision branch renderer: do not snap ports that fight layout:
+Decision branch renderer (diamond → labelled edge):
 
-- do not snap targets to side-centre when decision diamond fans out downwards; branches must be allowed to enter destination nodes via top edge when layout requires it
+- use guided 3-point `curveBasis` (same pattern as ER `BuildErGuidedCurveBasisPath`), not a custom cubic-bezier shortcut or full dagre elbow + `fixCorners`
+- do not snap targets to side-centre independently of layout attach points
 - if dummy nodes split edges, apply port/attach overrides to real-node-adjacent segment (original endpoints) so destination segment honours intended port
 
 Curves: do not mutate routed points for curveBasis in multi-point edges:
