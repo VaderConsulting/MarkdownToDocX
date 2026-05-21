@@ -39,6 +39,7 @@ public class DagreLayoutEngine : ILayoutEngine
 
         // Apply positions back to diagram
         ApplyLayout(graph, diagram, options);
+        RepairMissingOrDiagonalFlowchartEdges(diagram);
 
         if (diagram is FlowchartModel)
         {
@@ -244,24 +245,7 @@ public class DagreLayoutEngine : ILayoutEngine
 
         // 4b) Compound subgraph layout routes on a temporary inner model; some same-subgraph edges can
         // still end up with no polyline (e.g. A->B, C->D). Fill those before cross-boundary routing.
-#pragma warning disable IDE0007
-        foreach (Edge edge in diagram.Edges)
-        {
-            if (edge.Points.Count >= 2)
-            {
-                continue;
-            }
-
-            if (CoordinateAssignment.TryComputeStraightFlowchartEdgePoints(diagram, edge, out List<MermaidSharp.Models.Position> fallbackPoints))
-            {
-                edge.Points.Clear();
-                for (int i = 0; i < fallbackPoints.Count; i++)
-                {
-                    edge.Points.Add(fallbackPoints[i]);
-                }
-            }
-        }
-#pragma warning restore IDE0007
+        RepairMissingOrDiagonalFlowchartEdges(diagram);
 
         // 5) Route cross-boundary edges (external <-> member) after final member placement.
         // Mermaid routes edges directly to member nodes even when the other endpoint is outside the cluster.
@@ -368,6 +352,52 @@ public class DagreLayoutEngine : ILayoutEngine
         CoordinateAssignment.RouteEdges(graph, options.Direction, diagram);
 
         ApplyLayout(graph, diagram, options);
+        RepairMissingOrDiagonalFlowchartEdges(diagram);
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// Fill empty edge polylines and replace two-point diagonals with direction-aware Manhattan attaches (F58).
+    /// </summary>
+    static void RepairMissingOrDiagonalFlowchartEdges(GraphDiagramBase diagram)
+    {
+        if (diagram is not FlowchartModel)
+        {
+            return;
+        }
+
+#pragma warning disable IDE0007
+        foreach (Edge edge in diagram.Edges)
+        {
+            bool NeedsStraightRouting = edge.Points.Count < 2;
+
+            if (!NeedsStraightRouting && edge.Points.Count == 2)
+            {
+                Position First = edge.Points[0];
+                Position Last = edge.Points[1];
+                double DeltaX = Math.Abs(Last.X - First.X);
+                double DeltaY = Math.Abs(Last.Y - First.Y);
+                NeedsStraightRouting = DeltaX > MINLEN_AXIS_COLLAPSE_MAX_PERPENDICULAR_DRIFT_PX
+                    && DeltaY > MINLEN_AXIS_COLLAPSE_MAX_PERPENDICULAR_DRIFT_PX;
+            }
+
+            if (!NeedsStraightRouting)
+            {
+                continue;
+            }
+
+            if (!CoordinateAssignment.TryComputeStraightFlowchartEdgePoints(diagram, edge, out List<MermaidSharp.Models.Position> manhattanPoints)
+                || manhattanPoints.Count < 2)
+            {
+                continue;
+            }
+
+            edge.Points.Clear();
+            for (int i = 0; i < manhattanPoints.Count; i++)
+            {
+                edge.Points.Add(manhattanPoints[i]);
+            }
+        }
 #pragma warning restore IDE0007
     }
 
@@ -543,7 +573,10 @@ public class DagreLayoutEngine : ILayoutEngine
 
     /// <summary>
     /// Long <c>minlen</c> chains can pick up small X drift per dummy segment; collapse to endpoints for straight TB/LR links (F28).
+    /// Do not collapse when both axes differ materially — that would turn intentional Manhattan elbows into diagonals (F58).
     /// </summary>
+    private const double MINLEN_AXIS_COLLAPSE_MAX_PERPENDICULAR_DRIFT_PX = 48.0;
+
     static void CollapsePredominantlyAxisAlignedMinlenPolyline(List<Position> Points)
     {
         if (Points.Count < 3)
@@ -558,7 +591,13 @@ public class DagreLayoutEngine : ILayoutEngine
         double DeltaY = Math.Abs(Last.Y - First.Y);
 #pragma warning restore IDE0007
 
-        if (DeltaY > DeltaX * 2.0 || DeltaX > DeltaY * 2.0)
+        if (DeltaY > DeltaX * 2.0 && DeltaX <= MINLEN_AXIS_COLLAPSE_MAX_PERPENDICULAR_DRIFT_PX)
+        {
+            Points.Clear();
+            Points.Add(First);
+            Points.Add(Last);
+        }
+        else if (DeltaX > DeltaY * 2.0 && DeltaY <= MINLEN_AXIS_COLLAPSE_MAX_PERPENDICULAR_DRIFT_PX)
         {
             Points.Clear();
             Points.Add(First);

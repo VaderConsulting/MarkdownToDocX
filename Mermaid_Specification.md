@@ -317,6 +317,8 @@ Added between each pair of ranks when a labelled edge crosses that boundary. TB 
 
 **Cross-boundary / compound edges (F40):** `TryComputeStraightFlowchartEdgePoints` uses diagram **direction** (LR: exit right → enter left with optional Manhattan elbow; TB/BT: bottom → top) instead of centre-to-centre shape intersection only, so sibling-subgraph links stay on the outer LR spine.
 
+**Isolated / long-offset edges (F58):** `CollapsePredominantlyAxisAlignedMinlenPolyline` only collapses dummy-chain polylines when perpendicular drift is small (≤48px). `RepairMissingOrDiagonalFlowchartEdges` replaces two-point diagonals with direction-aware Manhattan routing.
+
 ---
 
 ## 7. Confirmed generic polygon insertion rule
