@@ -315,6 +315,8 @@ Added between each pair of ranks when a labelled edge crosses that boundary. TB 
 
 **Cycles (F34):** Dagre layout runs on an acyclic copy of the graph (back edges reversed with **endpoint swap** on `LayoutEdge`). Restore original edge direction **before** `RouteEdges`, then route; if an edge still has no polyline, fall back to straight shape attach points.
 
+**Cross-boundary / compound edges (F40):** `TryComputeStraightFlowchartEdgePoints` uses diagram **direction** (LR: exit right → enter left with optional Manhattan elbow; TB/BT: bottom → top) instead of centre-to-centre shape intersection only, so sibling-subgraph links stay on the outer LR spine.
+
 ---
 
 ## 7. Confirmed generic polygon insertion rule

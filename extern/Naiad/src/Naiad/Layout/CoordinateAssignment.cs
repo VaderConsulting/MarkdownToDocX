@@ -1929,10 +1929,57 @@ static class CoordinateAssignment
             Height = targetModelNode.Height
         };
 
-        Position sourceAttach = ComputeFlowchartAttachPoint(sourceLayoutNode, sourceModelNode, targetCentre);
-        Position targetAttach = ComputeFlowchartAttachPoint(targetLayoutNode, targetModelNode, sourceCentre);
+        MermaidSharp.Models.Direction diagramDirection = MermaidSharp.Models.Direction.TopToBottom;
+        if (diagram is MermaidSharp.Diagrams.Flowchart.FlowchartModel flowchartModel)
+        {
+            diagramDirection = flowchartModel.Direction;
+        }
+
+        Position sourceAttach;
+        Position targetAttach;
+        double DeltaX = targetCentre.X - sourceCentre.X;
+        double DeltaY = targetCentre.Y - sourceCentre.Y;
+
+        if (diagramDirection is MermaidSharp.Models.Direction.LeftToRight or MermaidSharp.Models.Direction.RightToLeft
+            && Math.Abs(DeltaX) >= Math.Abs(DeltaY) * 0.5)
+        {
+            bool RightToLeft = diagramDirection == MermaidSharp.Models.Direction.RightToLeft;
+            double SourceFaceX = RightToLeft
+                ? sourceCentre.X - (sourceModelNode.Width / 2.0) - FlowchartEdgeNodeGap
+                : sourceCentre.X + (sourceModelNode.Width / 2.0) + FlowchartEdgeNodeGap;
+            double TargetFaceX = RightToLeft
+                ? targetCentre.X + (targetModelNode.Width / 2.0) + FlowchartEdgeNodeGap
+                : targetCentre.X - (targetModelNode.Width / 2.0) - FlowchartEdgeNodeGap;
+            sourceAttach = new Position(SourceFaceX, sourceCentre.Y);
+            targetAttach = new Position(TargetFaceX, targetCentre.Y);
+        }
+        else if (diagramDirection is MermaidSharp.Models.Direction.TopToBottom or MermaidSharp.Models.Direction.BottomToTop
+            && Math.Abs(DeltaY) >= Math.Abs(DeltaX) * 0.5)
+        {
+            bool BottomToTop = diagramDirection == MermaidSharp.Models.Direction.BottomToTop;
+            double SourceFaceY = BottomToTop
+                ? sourceCentre.Y - (sourceModelNode.Height / 2.0) - FlowchartEdgeNodeGap
+                : sourceCentre.Y + (sourceModelNode.Height / 2.0) + FlowchartEdgeNodeGap;
+            double TargetFaceY = BottomToTop
+                ? targetCentre.Y + (targetModelNode.Height / 2.0) + FlowchartEdgeNodeGap
+                : targetCentre.Y - (targetModelNode.Height / 2.0) - FlowchartEdgeNodeGap;
+            sourceAttach = new Position(sourceCentre.X, SourceFaceY);
+            targetAttach = new Position(targetCentre.X, TargetFaceY);
+        }
+        else
+        {
+            sourceAttach = ComputeFlowchartAttachPoint(sourceLayoutNode, sourceModelNode, targetCentre);
+            targetAttach = ComputeFlowchartAttachPoint(targetLayoutNode, targetModelNode, sourceCentre);
+        }
 
         points.Add(sourceAttach);
+        if (Math.Abs(sourceAttach.X - targetAttach.X) > 0.5 && Math.Abs(sourceAttach.Y - targetAttach.Y) > 0.5)
+        {
+            double MidX = (sourceAttach.X + targetAttach.X) / 2.0;
+            points.Add(new Position(MidX, sourceAttach.Y));
+            points.Add(new Position(MidX, targetAttach.Y));
+        }
+
         points.Add(targetAttach);
         return true;
 #pragma warning restore IDE0007
