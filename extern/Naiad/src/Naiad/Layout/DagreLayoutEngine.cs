@@ -41,8 +41,9 @@ public class DagreLayoutEngine : ILayoutEngine
         ApplyLayout(graph, diagram, options);
         RepairMissingOrDiagonalFlowchartEdges(diagram);
 
-        if (diagram is FlowchartModel)
+        if (diagram is FlowchartModel flowchartAfterLayout)
         {
+            CoordinateAssignment.ApplyFlowchartDecisionBranchEndpointSnapping(flowchartAfterLayout);
             CoordinateAssignment.ApplyVerticalForkExitGapToDiagramEdges(diagram, options.Direction);
             CoordinateAssignment.ApplyVerticalPassThroughNodeAlignment(diagram, options.Direction);
         }
@@ -323,7 +324,7 @@ public class DagreLayoutEngine : ILayoutEngine
 #pragma warning restore IDE0007
         }
 
-        // Flowchart parity tweak used elsewhere.
+        CoordinateAssignment.ApplyFlowchartDecisionBranchEndpointSnapping(diagram);
         CoordinateAssignment.ApplyVerticalForkExitGapToDiagramEdges(diagram, options.Direction);
 
 #pragma warning disable IDE0007
@@ -353,6 +354,10 @@ public class DagreLayoutEngine : ILayoutEngine
 
         ApplyLayout(graph, diagram, options);
         RepairMissingOrDiagonalFlowchartEdges(diagram);
+        if (diagram is FlowchartModel flowchartPlain)
+        {
+            CoordinateAssignment.ApplyFlowchartDecisionBranchEndpointSnapping(flowchartPlain);
+        }
 #pragma warning restore IDE0007
     }
 

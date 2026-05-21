@@ -840,7 +840,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         IReadOnlyList<Position> pointsForPath = edge.Points;
 #pragma warning disable IDE0007
         string edgeCurveType = GetConfigString(model, "flowchart.curve", "basis");
-        string pathData = BuildFlowchartEdgePath(pointsForPath, edge, edgeCurveType, sourceNode);
+        string pathData = BuildFlowchartEdgePath(pointsForPath, edge, edgeCurveType, model, sourceNode, targetNode, diagramDirection);
 
         bool useNeoLook = string.Equals(GetConfigString(model, "look", string.Empty), "neo", StringComparison.OrdinalIgnoreCase);
 #pragma warning restore IDE0007
@@ -883,7 +883,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         {
             var StartGapPx = edge.Type == EdgeType.BiDirectionalCross ? CrossStrokeGapPx : 0.0;
             var TrimmedPoints = TrimPointsForCrossVisibleStroke(pointsForPath, StartGapPx, CrossStrokeGapPx);
-            var VisiblePathData = BuildFlowchartEdgePath(TrimmedPoints, edge, edgeCurveType, sourceNode);
+            var VisiblePathData = BuildFlowchartEdgePath(TrimmedPoints, edge, edgeCurveType, model, sourceNode, targetNode, diagramDirection);
 
             builder.AddPath(
                 VisiblePathData,
@@ -1033,7 +1033,14 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
     /// </summary>
 #pragma warning disable IDE0022
 #pragma warning disable IDE0007
-    static string BuildFlowchartEdgePath(IReadOnlyList<Position> points, Edge edge, string edgeCurveType, Node? sourceNode)
+    static string BuildFlowchartEdgePath(
+        IReadOnlyList<Position> points,
+        Edge edge,
+        string edgeCurveType,
+        FlowchartModel? model,
+        Node? sourceNode,
+        Node? targetNode,
+        Direction diagramDirection)
     {
         // Mermaid flowcharts use:
         // - corner pre-rounding (fixCorners) for non-rounded curves
@@ -1058,9 +1065,17 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         // Decision branches (diamond → labelled targets): use the same guided 3-point curveBasis route as ER /
         // Mermaid dagre (down/right from source, then smooth bend to target). Avoids fixCorners + multi-elbow
         // wobble and the old unused cubic-bezier shortcut.
-        if (ShouldUseDecisionBranchGuidedCurve(edge, sourceNode, LineData) && LineData.Count >= 2)
+        if (ShouldUseDecisionBranchGuidedCurve(edge, sourceNode, model, LineData) && LineData.Count >= 2)
         {
             List<Position> Endpoints = new List<Position> { LineData[0], LineData[^1] };
+            if (model is not null
+                && targetNode is not null
+                && MermaidSharp.Layout.CoordinateAssignment.TryGetFlowchartVerticalDecisionBranchEndpoints(model, edge, out Position branchSource, out Position branchTarget))
+            {
+                Endpoints[0] = branchSource;
+                Endpoints[1] = branchTarget;
+            }
+
             List<Position> OffsetEndpoints = ApplyLineWithOffset(Endpoints, ArrowTypeStart, ArrowTypeEnd);
             if (OffsetEndpoints.Count >= 2)
             {
@@ -1696,7 +1711,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
     }
 #pragma warning restore IDE0007
 
-    static bool ShouldUseDecisionBranchGuidedCurve(Edge edge, Node? sourceNode, IReadOnlyList<Position> lineData)
+    static bool ShouldUseDecisionBranchGuidedCurve(Edge edge, Node? sourceNode, FlowchartModel? model, IReadOnlyList<Position> lineData)
     {
 #pragma warning disable IDE0007
         if (string.IsNullOrWhiteSpace(edge.Label))
@@ -1704,27 +1719,44 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             return false;
         }
 
-        // Dagre already produced a straight / Manhattan polyline (F30 fan-out). Do not replace with curveBasis.
-        if (lineData.Count >= 3 || ShouldUseLinearFlowchartPath(lineData))
-        {
-            return false;
-        }
-
-        // If the source is a decision diamond, treat all labelled outgoing edges as decision branches.
-        // This keeps routing consistent for labels like "No after retries", "Rule A", etc.
         if (sourceNode is not null && sourceNode.Shape == NodeShape.Diamond)
         {
+            int OutgoingCount = 0;
+            if (model is not null)
+            {
+                for (int i = 0; i < model.Edges.Count; i++)
+                {
+                    if (string.Equals(model.Edges[i].SourceId, sourceNode.Id, StringComparison.Ordinal))
+                    {
+                        OutgoingCount++;
+                    }
+                }
+            }
+
+            if (OutgoingCount >= 3 && lineData.Count >= 3 && ShouldUseLinearFlowchartPath(lineData))
+            {
+                return false;
+            }
+
+            if (OutgoingCount == 2)
+            {
+                return true;
+            }
+
+            if (lineData.Count >= 3 && ShouldUseLinearFlowchartPath(lineData))
+            {
+                return false;
+            }
+
             return true;
         }
 
-        // Fallback for dummy-segment edges where the immediate source isn't the diamond.
-        // Retain the conservative heuristic to avoid applying branch routing broadly.
         string label = edge.Label.Trim();
         bool isCommonDecisionLabel = label.StartsWith("Yes", StringComparison.OrdinalIgnoreCase)
                                      || label.StartsWith("No", StringComparison.OrdinalIgnoreCase);
         if (isCommonDecisionLabel)
         {
-            return edge.Points.Count >= 2;
+            return lineData.Count >= 2;
         }
 
         return false;

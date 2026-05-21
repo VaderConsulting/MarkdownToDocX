@@ -154,6 +154,53 @@ public class FlowchartTests : TestBase
     }
 
     [Test]
+    public void F29_BinaryDecision_UsesCurvedBranchesToTopCentre()
+    {
+        const string input =
+            """
+            flowchart TD
+            Start([Start]) --> Check{Valid?}
+            Check -->|Yes| OK[Accept]
+            Check -->|No| Fail[Reject]
+            """;
+
+#pragma warning disable IDE0007
+        string Svg = Mermaid.Render(input);
+        System.Text.RegularExpressions.MatchCollection Matches = System.Text.RegularExpressions.Regex.Matches(
+            Svg,
+            @"<path d=""([^""]+)""[^>]*class=""flowchart-link""",
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+#pragma warning restore IDE0007
+
+        Assert.That(Matches.Count, Is.EqualTo(3));
+
+#pragma warning disable IDE0007
+        string YesPath = Matches[1].Groups[1].Value;
+        string NoPath = Matches[2].Groups[1].Value;
+        Assert.That(YesPath, Does.Contain('C'), "Yes branch must use curveBasis, not a straight polyline");
+        Assert.That(NoPath, Does.Contain('C'), "No branch must use curveBasis, not a straight polyline");
+
+        System.Text.RegularExpressions.Match AcceptNode = System.Text.RegularExpressions.Regex.Match(
+            Svg,
+            @"<path d=""M0,(\d+(?:\.\d+)?) H(\d+(?:\.\d+)?) V(\d+(?:\.\d+)?) H0 Z""[^>]*class=""node""",
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+        Assert.That(AcceptNode.Success, Is.True);
+        double AcceptCentreX = double.Parse(AcceptNode.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture) / 2.0;
+        double AcceptTopY = double.Parse(AcceptNode.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+
+        System.Text.RegularExpressions.Match YesEnd = System.Text.RegularExpressions.Regex.Match(
+            YesPath,
+            @"L([\d.]+),([\d.]+)$",
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+        Assert.That(YesEnd.Success, Is.True);
+        double YesEndX = double.Parse(YesEnd.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+        double YesEndY = double.Parse(YesEnd.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture);
+        Assert.That(Math.Abs(YesEndX - AcceptCentreX), Is.LessThan(2.0));
+        Assert.That(YesEndY, Is.LessThan(AcceptTopY + 2.0));
+#pragma warning restore IDE0007
+    }
+
+    [Test]
     public Task GraphKeyword()
     {
         const string input =
