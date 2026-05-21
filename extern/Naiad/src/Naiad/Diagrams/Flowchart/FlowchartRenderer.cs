@@ -1079,7 +1079,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             List<Position> OffsetEndpoints = ApplyLineWithOffset(Endpoints, ArrowTypeStart, ArrowTypeEnd);
             if (OffsetEndpoints.Count >= 2)
             {
-                return BuildFlowchartGuidedCurveBasisPath(OffsetEndpoints[0], OffsetEndpoints[^1]);
+                return BuildFlowchartDecisionBranchGuidedCurveBasisPath(OffsetEndpoints[0], OffsetEndpoints[^1]);
             }
         }
 
@@ -1123,6 +1123,34 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         {
             double MidY = (P0.Y + P3.Y) / 2.0;
             GuidedPoints = new List<Position> { P0, new Position(P0.X, MidY), P3 };
+        }
+
+        return BuildFlowchartCurveBasisPath(GuidedPoints);
+    }
+
+    /// <summary>
+    /// Binary decision fan-out (F29): S-route down from the side exit, across at mid-Y, then down into top-centre.
+    /// Using only <c>(P0.X, midY) → P3</c> bows inward; the horizontal mid segment bows outward like Mermaid.
+    /// </summary>
+    static string BuildFlowchartDecisionBranchGuidedCurveBasisPath(Position P0, Position P3)
+    {
+        double Dx = P3.X - P0.X;
+        double MidY = (P0.Y + P3.Y) / 2.0;
+
+        List<Position> GuidedPoints;
+        if (Math.Abs(Dx) < 0.75)
+        {
+            GuidedPoints = new List<Position> { P0, new Position(P0.X, MidY), P3 };
+        }
+        else
+        {
+            GuidedPoints = new List<Position>
+            {
+                P0,
+                new Position(P0.X, MidY),
+                new Position(P3.X, MidY),
+                P3
+            };
         }
 
         return BuildFlowchartCurveBasisPath(GuidedPoints);

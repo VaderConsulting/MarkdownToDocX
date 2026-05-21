@@ -1464,7 +1464,7 @@ Repository requirement (Naiad / DOCX):
 
 - Layout supplies boundary attach points on the diamond and target (shape intersection), including **3-way fan-out** attach overrides (bottom-left / bottom vertex / bottom-right for TB).
 - When dagre routing already yields a **straight or Manhattan** polyline (three or more collinear/orthogonal points, or a single vertical column), the renderer keeps that polyline and emits **`L`** segments (F30). Do **not** replace it with the ER-style **guided `curveBasis`** shortcut (that bows and crosses on multi-target diamonds).
-- **Binary decision (F29):** two labelled branches from a diamond exit the **lower side-edge midpoints** (left target → left midpoint, right → right), enter rectangular targets at **top-centre**, and render as guided `(P0, (P0.X, midY), P3)` + **`curveBasis`** (not straight Manhattan).
+- **Binary decision (F29):** two labelled branches from a diamond exit the **lower side-edge midpoints** (left target → left midpoint, right → right), enter rectangular targets at **top-centre**, and render as guided `(P0, (P0.X, midY), (P3.X, midY), P3)` + **`curveBasis`** so the link bows **outward** on the horizontal mid segment (not inward via `(P0.X, midY) → P3` only).
 - Do **not** run `fixCorners` on the full dagre elbow for these branches (avoids short-branch wobble in Word).
 - Do **not** snap targets to side-centre independently of layout (that fought the dagre attach points).
 
