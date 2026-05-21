@@ -2448,6 +2448,13 @@ static class CoordinateAssignment
                 TargetY = DefaultTargetY;
             }
 
+            // TB/BT fan-out: entering a node from above uses top-centre (F31), not shape-intersection side ports.
+            if (Target.Y > Source.Y + 0.01)
+            {
+                TargetX = Target.X;
+                TargetY = DefaultTargetY;
+            }
+
             AttachByEdge[Edge] = (SourceX, SourceY, TargetX, TargetY);
         }
 
@@ -2516,8 +2523,8 @@ static class CoordinateAssignment
         // pushing anchors toward corners. This is especially visible for N=2 fan-in/fan-out on TD/BT
         // flowcharts where ports sit inboard and are chosen deterministically.
         //
-        // Keep this scoped to N=2 so larger fans still distribute across the full facing edge.
-        if (edges.Count == 2)
+        // Keep this scoped to small N so larger fans still distribute across the full facing edge.
+        if (edges.Count == 2 || edges.Count == 3)
         {
             edges.Sort((a, b) =>
             {
@@ -2551,13 +2558,23 @@ static class CoordinateAssignment
             // - Fan-in (hub is the target endpoint for both edges): use a slightly tighter split (span/10),
             //   and choose left/right based on approach direction so the right-hand incoming edge lands on
             //   the right-of-centre port (and vice-versa).
-            bool HubIsSource0 = string.Equals(edges[0].SourceId, hubId, StringComparison.Ordinal);
-            bool HubIsSource1 = string.Equals(edges[1].SourceId, hubId, StringComparison.Ordinal);
-            bool HubIsSourceForBoth = HubIsSource0 && HubIsSource1;
-            bool HubIsTargetForBoth = !HubIsSource0 && !HubIsSource1;
+            bool HubIsSourceForAll = true;
+            bool HubIsTargetForAll = true;
+            for (int EdgeIndex = 0; EdgeIndex < edges.Count; EdgeIndex++)
+            {
+                if (!string.Equals(edges[EdgeIndex].SourceId, hubId, StringComparison.Ordinal))
+                {
+                    HubIsSourceForAll = false;
+                }
+                if (!string.Equals(edges[EdgeIndex].TargetId, hubId, StringComparison.Ordinal))
+                {
+                    HubIsTargetForAll = false;
+                }
+            }
 
-            double offset = HubIsTargetForBoth ? (span / 10.0) : (span / 7.0);
+            double offset = HubIsTargetForAll ? (span / 10.0) : (span / 7.0);
             double leftOfCentreCoord = IsVerticalFace ? (hub.X - offset) : (hub.Y - offset);
+            double centreCoord = IsVerticalFace ? hub.X : hub.Y;
             double rightOfCentreCoord = IsVerticalFace ? (hub.X + offset) : (hub.Y + offset);
 
             for (int i = 0; i < edges.Count; i++)
@@ -2576,13 +2593,13 @@ static class CoordinateAssignment
                 }
 
                 double chosenCoord;
-                if (HubIsTargetForBoth)
+                if (HubIsTargetForAll)
                 {
                     // Fan-in: choose the inboard port based on approach side, if possible.
                     LayoutNode? Other = graph.GetNode(Edge.SourceId);
                     if (Other is null)
                     {
-                        chosenCoord = i == 0 ? leftOfCentreCoord : rightOfCentreCoord;
+                        chosenCoord = i == 0 ? leftOfCentreCoord : (i == edges.Count - 1 ? rightOfCentreCoord : centreCoord);
                     }
                     else
                     {
@@ -2598,9 +2615,13 @@ static class CoordinateAssignment
                         }
                         else
                         {
-                            chosenCoord = i == 0 ? leftOfCentreCoord : rightOfCentreCoord;
+                            chosenCoord = i == 0 ? leftOfCentreCoord : (i == edges.Count - 1 ? rightOfCentreCoord : centreCoord);
                         }
                     }
+                }
+                else if (edges.Count == 3 && HubIsSourceForAll && facing == FacingDirection.Down)
+                {
+                    chosenCoord = i == 0 ? leftOfCentreCoord : (i == 1 ? centreCoord : rightOfCentreCoord);
                 }
                 else
                 {

@@ -1468,6 +1468,8 @@ Vertical flowchart port rule (TD/BT, fixture):
 
 - For a node with \(N\) parallel edges leaving (or arriving on) the same facing edge, split that edge into **\(2N-1\)** equal-width slots and use the centres of slots **1, 3, 5, ...**.
   - Example: \(N=2\) uses **3** slots; use the **1st** and **3rd** slot centres.
+- **Small-N inboard ports (F31/F32):** for \(N=2\) or \(N=3\) on the same facing edge, use inboard left / centre / right (or top/centre/bottom) rather than corner slots.
+- **Targets below source (F31):** edges entering a node from above attach at **top-centre**, not shape-intersection side ports.
 
 Key:
 
