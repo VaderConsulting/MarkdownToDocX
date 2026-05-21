@@ -1268,6 +1268,19 @@ static class CoordinateAssignment
                                 Position targetAttach = ComputeFlowchartAttachPoint(target, targetModel, toward);
                                 targetEdgeXNoShorten = targetAttach.X;
                                 targetEdgeYNoShorten = targetAttach.Y;
+
+                                // Multi-incoming TB links (F35): sources above enter the diamond top outline, exit from bottom.
+                                if (!source.IsDummy && source.Y < target.Y - 0.01)
+                                {
+                                    MermaidSharp.Models.Node? sourceModelForDiamond = FlowchartDiagram.GetNode(edge.SourceId);
+                                    if (sourceModelForDiamond is not null)
+                                    {
+                                        Position sourceToward = new Position(target.X, target.Y);
+                                        Position sourceAttach = ComputeFlowchartAttachPoint(source, sourceModelForDiamond, sourceToward);
+                                        sourceEdgeX = sourceAttach.X;
+                                        sourceEdgeY = sourceAttach.Y;
+                                    }
+                                }
                             }
                         }
                         else
