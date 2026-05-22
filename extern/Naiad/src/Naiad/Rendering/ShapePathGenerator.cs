@@ -274,16 +274,26 @@ public static class ShapePathGenerator
                 """;
     }
 
+    /// <summary>
+    /// Mermaid <c>odd</c> / <c>rect_left_inv_arrow</c> (<c>A&gt;</c> syntax): left inverse-arrow notch (concave V), not an outward point.
+    /// Source: <c>mermaid/packages/mermaid/src/diagrams/flowchart/flowChartShapes.js</c> — <c>rect_left_inv_arrow</c>.
+    /// </summary>
     public static string Asymmetric(double x, double y, double width, double height)
     {
-        var notch = width * 0.15;
-        return $"""
-                M{Fmt(x + notch)},{Fmt(y)}
-                L{Fmt(x + width)},{Fmt(y)}
-                L{Fmt(x + width)},{Fmt(y + height)}
-                L{Fmt(x + notch)},{Fmt(y + height)}
-                L{Fmt(x)},{Fmt(y + height / 2)} Z
-                """;
+#pragma warning disable IDE0007
+        double HalfHeight = height / 2.0;
+        double LeftX = x - HalfHeight;
+        double RightX = x + width;
+        double TopY = y;
+        double BottomY = y + height;
+        double NotchX = x;
+        double NotchY = y + HalfHeight;
+#pragma warning restore IDE0007
+        // Put the path seam on the notch instead of an exposed outer corner.
+        // Word can leave tiny gaps when the visible corner is also the start/end join.
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"M{Fmt(NotchX)},{Fmt(NotchY)}L{Fmt(LeftX)},{Fmt(TopY)}L{Fmt(RightX)},{Fmt(TopY)}L{Fmt(RightX)},{Fmt(BottomY)}L{Fmt(LeftX)},{Fmt(BottomY)}Z");
     }
 
     public static string Subroutine(double x, double y, double width, double height)

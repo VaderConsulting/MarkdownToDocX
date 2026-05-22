@@ -7,6 +7,8 @@ public class SvgPath : SvgElement
     public string? Stroke { get; set; }
     public double? StrokeWidth { get; set; }
     public string? StrokeDasharray { get; set; }
+    public string? StrokeLinejoin { get; set; }
+    public double? StrokeMiterlimit { get; set; }
     public string? MarkerStart { get; set; }
     public string? MarkerEnd { get; set; }
     public double? Opacity { get; set; }
@@ -33,6 +35,16 @@ public class SvgPath : SvgElement
         if (StrokeDasharray is not null)
         {
             builder.Append($" stroke-dasharray=\"{StrokeDasharray}\"");
+        }
+
+        if (StrokeLinejoin is not null)
+        {
+            builder.Append($" stroke-linejoin=\"{StrokeLinejoin}\"");
+        }
+
+        if (StrokeMiterlimit.HasValue)
+        {
+            builder.Append($" stroke-miterlimit=\"{Fmt(StrokeMiterlimit.Value)}\"");
         }
 
         if (MarkerStart is not null)

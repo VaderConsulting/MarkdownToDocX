@@ -827,7 +827,7 @@ public class SvgBuilder
 
     public SvgBuilder AddLine(double x1, double y1, double x2, double y2,
         string? stroke = null, double? strokeWidth = null, string? strokeDasharray = null,
-        string? markerStart = null, string? markerEnd = null)
+        string? markerStart = null, string? markerEnd = null, string? strokeLinecap = null)
     {
         var line = new SvgLine
         {
@@ -838,6 +838,7 @@ public class SvgBuilder
             Stroke = stroke,
             StrokeWidth = strokeWidth,
             StrokeDasharray = strokeDasharray,
+            StrokeLinecap = strokeLinecap,
             MarkerStart = markerStart,
             MarkerEnd = markerEnd
         };
@@ -848,7 +849,8 @@ public class SvgBuilder
     public SvgBuilder AddPath(string d, string? fill = null, string? stroke = null,
         double? strokeWidth = null, string? strokeDasharray = null,
         string? markerStart = null, string? markerEnd = null, double? opacity = null,
-        string? cssClass = null, string? filter = null, string? transform = null)
+        string? cssClass = null, string? filter = null, string? transform = null,
+        string? strokeLinejoin = null, double? strokeMiterlimit = null)
     {
         var path = new SvgPath
         {
@@ -857,6 +859,8 @@ public class SvgBuilder
             Stroke = stroke,
             StrokeWidth = strokeWidth,
             StrokeDasharray = strokeDasharray,
+            StrokeLinejoin = strokeLinejoin,
+            StrokeMiterlimit = strokeMiterlimit,
             MarkerStart = markerStart,
             MarkerEnd = markerEnd,
             Opacity = opacity,

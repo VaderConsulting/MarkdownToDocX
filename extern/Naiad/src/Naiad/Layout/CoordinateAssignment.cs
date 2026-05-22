@@ -1,5 +1,12 @@
 namespace MermaidSharp.Layout;
 
+internal enum FlowchartDecisionBranchExitRole
+{
+    SideLeft,
+    BottomVertex,
+    SideRight
+}
+
 static class CoordinateAssignment
 {
     /// <summary>
@@ -342,6 +349,80 @@ static class CoordinateAssignment
         var maxX = cx + source.Width / 2;
         sourceEdgeX = Math.Clamp(sourceEdgeX, minX, maxX);
         sourceEdgeY = exitY;
+    }
+
+    /// <summary>
+    /// Fan-in (BT): places the target attach on the bottom outline where the ray from the hub centre toward the
+    /// source top-centre intersects (mirror of <see cref="PlaceVerticalFlowSourceOnCentreRayTowardTarget"/>).
+    /// </summary>
+    internal static void PlaceVerticalFlowTargetOnCentreRayFromSource(
+        LayoutNode target,
+        LayoutNode source,
+        out double targetEdgeX,
+        out double targetEdgeY)
+    {
+#pragma warning disable IDE0007
+        double gap = FlowchartEdgeNodeGap;
+        double cx = target.X;
+        double cy = target.Y;
+        double entryY = cy + target.Height / 2 + gap;
+        double sourceTopCentreX = source.X;
+        double sourceTopY = source.Y - source.Height / 2 - gap;
+        double denom = sourceTopY - cy;
+
+        if (Math.Abs(denom) < 1e-6)
+        {
+            targetEdgeX = cx;
+        }
+        else
+        {
+            double u = (entryY - cy) / denom;
+            targetEdgeX = cx + u * (sourceTopCentreX - cx);
+        }
+
+        double minX = cx - target.Width / 2;
+        double maxX = cx + target.Width / 2;
+        targetEdgeX = Math.Clamp(targetEdgeX, minX, maxX);
+        targetEdgeY = entryY;
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// Guide point on the ray from the node centre through the boundary exit, at mid-span on the flow axis.
+    /// Extending the connector backward from the exit through this point meets the shape centre (F29–F34).
+    /// </summary>
+    internal static MermaidSharp.Models.Position GetFlowchartCentreRayGuidePoint(
+        MermaidSharp.Models.Position centre,
+        MermaidSharp.Models.Position boundaryExit,
+        MermaidSharp.Models.Position farEnd,
+        bool useVerticalMidSpan)
+    {
+#pragma warning disable IDE0007
+        if (useVerticalMidSpan)
+        {
+            double midY = (boundaryExit.Y + farEnd.Y) / 2.0;
+            double deltaY = boundaryExit.Y - centre.Y;
+            double guideX = centre.X;
+            if (Math.Abs(deltaY) > 1e-6)
+            {
+                double u = (midY - centre.Y) / deltaY;
+                guideX = centre.X + (u * (boundaryExit.X - centre.X));
+            }
+
+            return new MermaidSharp.Models.Position(guideX, midY);
+        }
+
+        double midX = (boundaryExit.X + farEnd.X) / 2.0;
+        double deltaX = boundaryExit.X - centre.X;
+        double guideY = centre.Y;
+        if (Math.Abs(deltaX) > 1e-6)
+        {
+            double u = (midX - centre.X) / deltaX;
+            guideY = centre.Y + (u * (boundaryExit.Y - centre.Y));
+        }
+
+        return new MermaidSharp.Models.Position(midX, guideY);
+#pragma warning restore IDE0007
     }
 
     /// <summary>
@@ -1610,59 +1691,30 @@ static class CoordinateAssignment
             }
             else
             {
-                // 3-way: use left face, bottom/top vertex, right face.
-                // Pick the most "downward" (or upward if mirrored) edge for the vertex; remaining two go left/right by X.
-                var vertexEdge = (LayoutEdge?)null;
-                var bestDy = useBottom ? double.NegativeInfinity : double.PositiveInfinity;
-                for (var i = 0; i < outgoing.Count; i++)
+#pragma warning disable IDE0007
+                outgoing.Sort((LayoutEdge a, LayoutEdge b) =>
                 {
-                    var t = graph.GetNode(outgoing[i].TargetId);
-                    if (t is null)
-                    {
-                        continue;
-                    }
-
-                    var dy = t.Y - node.Y;
-                    if (useBottom)
-                    {
-                        if (dy > bestDy)
-                        {
-                            bestDy = dy;
-                            vertexEdge = outgoing[i];
-                        }
-                    }
-                    else
-                    {
-                        if (dy < bestDy)
-                        {
-                            bestDy = dy;
-                            vertexEdge = outgoing[i];
-                        }
-                    }
-                }
-
-                if (vertexEdge is null)
-                {
-                    vertexEdge = outgoing[1];
-                }
-
-                OverrideByEdge[vertexEdge] = (midVertex.X, midVertex.Y);
-
-                var remaining = outgoing.Where(e => !ReferenceEquals(e, vertexEdge)).ToList();
-                remaining.Sort((a, b) =>
-                {
-                    var at = graph.GetNode(a.TargetId);
-                    var bt = graph.GetNode(b.TargetId);
-                    var ax = at?.X ?? 0.0;
-                    var bx = bt?.X ?? 0.0;
+                    LayoutNode? at = graph.GetNode(a.TargetId);
+                    LayoutNode? bt = graph.GetNode(b.TargetId);
+                    double ax = at?.X ?? 0.0;
+                    double bx = bt?.X ?? 0.0;
                     return ax.CompareTo(bx);
                 });
 
-                if (remaining.Count == 2)
+                for (int branchIndex = 0; branchIndex < outgoing.Count; branchIndex++)
                 {
-                    OverrideByEdge[remaining[0]] = (leftMid.X, leftMid.Y);
-                    OverrideByEdge[remaining[1]] = (rightMid.X, rightMid.Y);
+                    ResolveFlowchartDecisionBranchSourceAttach(
+                        node.X,
+                        node.Y,
+                        half,
+                        useBottom,
+                        branchIndex,
+                        outgoing.Count,
+                        out MermaidSharp.Models.Position attach,
+                        out FlowchartDecisionBranchExitRole _);
+                    OverrideByEdge[outgoing[branchIndex]] = (attach.X, attach.Y);
                 }
+#pragma warning restore IDE0007
             }
         }
 
@@ -1670,20 +1722,125 @@ static class CoordinateAssignment
     }
 
     /// <summary>
-    /// TB/TD binary decision fan-out (F29): exit from lower side-edge midpoints, enter targets at top-centre.
+    /// TB/TD decision fan-out (F29/F30): side exits on lower-left/right edge midpoints; 3-way centre branch uses bottom vertex.
     /// </summary>
     internal static bool TryGetFlowchartVerticalDecisionBranchEndpoints(
         MermaidSharp.Diagrams.Flowchart.FlowchartModel diagram,
         MermaidSharp.Models.Edge edge,
         out MermaidSharp.Models.Position sourceAttach,
-        out MermaidSharp.Models.Position targetAttach)
+        out MermaidSharp.Models.Position targetAttach,
+        out FlowchartDecisionBranchExitRole exitRole)
     {
 #pragma warning disable IDE0007
         sourceAttach = default;
         targetAttach = default;
+        exitRole = FlowchartDecisionBranchExitRole.SideLeft;
 
         if (diagram.Direction is not MermaidSharp.Models.Direction.TopToBottom
             and not MermaidSharp.Models.Direction.BottomToTop)
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(edge.Label))
+        {
+            return false;
+        }
+
+        MermaidSharp.Models.Node? source = diagram.GetNode(edge.SourceId);
+        MermaidSharp.Models.Node? target = diagram.GetNode(edge.TargetId);
+        if (source is null || target is null || source.Shape != MermaidSharp.Models.NodeShape.Diamond)
+        {
+            return false;
+        }
+
+        List<MermaidSharp.Models.Edge> outgoing = new List<MermaidSharp.Models.Edge>();
+        for (int i = 0; i < diagram.Edges.Count; i++)
+        {
+            MermaidSharp.Models.Edge candidate = diagram.Edges[i];
+            if (string.Equals(candidate.SourceId, source.Id, StringComparison.Ordinal))
+            {
+                outgoing.Add(candidate);
+            }
+        }
+
+        if (outgoing.Count != 2 && outgoing.Count != 3)
+        {
+            return false;
+        }
+
+        double half = Math.Max(source.Width, source.Height) / 2.0;
+        double centreX = source.Position.X;
+        double centreY = source.Position.Y;
+
+        bool useBottom = true;
+        for (int i = 0; i < outgoing.Count; i++)
+        {
+            MermaidSharp.Models.Node? branchTarget = diagram.GetNode(outgoing[i].TargetId);
+            if (branchTarget is not null && branchTarget.Position.Y < centreY - 0.01)
+            {
+                useBottom = false;
+                break;
+            }
+        }
+
+        if (outgoing.Count == 2)
+        {
+            SortFlowchartDecisionOutgoingByTargetXWithLoopPreference(diagram, centreY, useBottom, outgoing);
+        }
+        else
+        {
+            SortFlowchartDecisionOutgoingByTargetX(diagram, outgoing);
+        }
+
+        int branchIndex = -1;
+        for (int i = 0; i < outgoing.Count; i++)
+        {
+            if (string.Equals(outgoing[i].TargetId, edge.TargetId, StringComparison.Ordinal))
+            {
+                branchIndex = i;
+                break;
+            }
+        }
+
+        if (branchIndex < 0)
+        {
+            return false;
+        }
+
+        ResolveFlowchartDecisionBranchSourceAttach(
+            centreX,
+            centreY,
+            half,
+            useBottom,
+            branchIndex,
+            outgoing.Count,
+            out sourceAttach,
+            out exitRole);
+
+        double targetTopY = target.Position.Y - (target.Height / 2.0) - FlowchartEdgeNodeGap;
+        targetAttach = new MermaidSharp.Models.Position(target.Position.X, targetTopY);
+        return true;
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// LR/RL labelled decision fan-out (F34): attach on diamond outline toward each target; centre-ray guides in renderer.
+    /// </summary>
+    internal static bool TryGetFlowchartHorizontalDecisionBranchEndpoints(
+        MermaidSharp.Diagrams.Flowchart.FlowchartModel diagram,
+        MermaidSharp.Models.Edge edge,
+        out MermaidSharp.Models.Position sourceAttach,
+        out MermaidSharp.Models.Position targetAttach,
+        out FlowchartDecisionBranchExitRole exitRole)
+    {
+#pragma warning disable IDE0007
+        sourceAttach = default;
+        targetAttach = default;
+        exitRole = FlowchartDecisionBranchExitRole.SideLeft;
+
+        if (diagram.Direction is not MermaidSharp.Models.Direction.LeftToRight
+            and not MermaidSharp.Models.Direction.RightToLeft)
         {
             return false;
         }
@@ -1715,35 +1872,73 @@ static class CoordinateAssignment
             return false;
         }
 
-        double size = Math.Max(source.Width, source.Height);
-        double half = size / 2.0;
+        double half = Math.Max(source.Width, source.Height) / 2.0;
         double centreX = source.Position.X;
         double centreY = source.Position.Y;
+        MermaidSharp.Models.Position towardTarget = new MermaidSharp.Models.Position(target.Position.X, target.Position.Y);
+        double deltaX = towardTarget.X - centreX;
+        double deltaY = towardTarget.Y - centreY;
 
-        bool useBottom = true;
-        for (int i = 0; i < outgoing.Count; i++)
+        if (Math.Abs(deltaX) >= Math.Abs(deltaY))
         {
-            MermaidSharp.Models.Node? branchTarget = diagram.GetNode(outgoing[i].TargetId);
-            if (branchTarget is not null && branchTarget.Position.Y < centreY - 0.01)
+            if (deltaX >= 0.0)
             {
-                useBottom = false;
-                break;
+                sourceAttach = new MermaidSharp.Models.Position(centreX + (half / 2.0), centreY);
+                exitRole = FlowchartDecisionBranchExitRole.SideRight;
+            }
+            else
+            {
+                sourceAttach = new MermaidSharp.Models.Position(centreX - (half / 2.0), centreY);
+                exitRole = FlowchartDecisionBranchExitRole.SideLeft;
             }
         }
-
-        MermaidSharp.Models.Position leftMid;
-        MermaidSharp.Models.Position rightMid;
-        if (useBottom)
+        else if (deltaY >= 0.0)
         {
-            leftMid = new MermaidSharp.Models.Position(centreX - (half / 2.0), centreY + (half / 2.0));
-            rightMid = new MermaidSharp.Models.Position(centreX + (half / 2.0), centreY + (half / 2.0));
+            sourceAttach = new MermaidSharp.Models.Position(centreX, centreY + half);
+            exitRole = FlowchartDecisionBranchExitRole.BottomVertex;
         }
         else
         {
-            leftMid = new MermaidSharp.Models.Position(centreX - (half / 2.0), centreY - (half / 2.0));
-            rightMid = new MermaidSharp.Models.Position(centreX + (half / 2.0), centreY - (half / 2.0));
+            sourceAttach = new MermaidSharp.Models.Position(centreX, centreY - half);
+            exitRole = FlowchartDecisionBranchExitRole.SideLeft;
         }
 
+        MermaidSharp.Models.Position towardSource = new MermaidSharp.Models.Position(source.Position.X, source.Position.Y);
+        double targetHalfW = target.Width / 2.0;
+        double targetHalfH = target.Height / 2.0;
+        double targetDeltaX = towardSource.X - target.Position.X;
+        double targetDeltaY = towardSource.Y - target.Position.Y;
+
+        if (Math.Abs(targetDeltaX) >= Math.Abs(targetDeltaY))
+        {
+            if (targetDeltaX >= 0.0)
+            {
+                targetAttach = new MermaidSharp.Models.Position(target.Position.X - targetHalfW - FlowchartEdgeNodeGap, target.Position.Y);
+            }
+            else
+            {
+                targetAttach = new MermaidSharp.Models.Position(target.Position.X + targetHalfW + FlowchartEdgeNodeGap, target.Position.Y);
+            }
+        }
+        else if (targetDeltaY >= 0.0)
+        {
+            targetAttach = new MermaidSharp.Models.Position(target.Position.X, target.Position.Y - targetHalfH - FlowchartEdgeNodeGap);
+        }
+        else
+        {
+            targetAttach = new MermaidSharp.Models.Position(target.Position.X, target.Position.Y + targetHalfH + FlowchartEdgeNodeGap);
+        }
+
+        return true;
+#pragma warning restore IDE0007
+    }
+
+#pragma warning disable IDE0007
+#pragma warning disable IDE0022
+    static void SortFlowchartDecisionOutgoingByTargetX(
+        MermaidSharp.Diagrams.Flowchart.FlowchartModel diagram,
+        List<MermaidSharp.Models.Edge> outgoing)
+    {
         outgoing.Sort((MermaidSharp.Models.Edge a, MermaidSharp.Models.Edge b) =>
         {
             MermaidSharp.Models.Node? at = diagram.GetNode(a.TargetId);
@@ -1752,14 +1947,93 @@ static class CoordinateAssignment
             double bx = bt?.Position.X ?? 0.0;
             return ax.CompareTo(bx);
         });
+    }
 
-        bool isLeftBranch = string.Equals(edge.TargetId, outgoing[0].TargetId, StringComparison.Ordinal);
-        sourceAttach = isLeftBranch ? leftMid : rightMid;
+    static void SortFlowchartDecisionOutgoingByTargetXWithLoopPreference(
+        MermaidSharp.Diagrams.Flowchart.FlowchartModel diagram,
+        double centreY,
+        bool useBottom,
+        List<MermaidSharp.Models.Edge> outgoing)
+    {
+        outgoing.Sort((MermaidSharp.Models.Edge a, MermaidSharp.Models.Edge b) =>
+        {
+            MermaidSharp.Models.Node? at = diagram.GetNode(a.TargetId);
+            MermaidSharp.Models.Node? bt = diagram.GetNode(b.TargetId);
+            double ax = at?.Position.X ?? 0.0;
+            double bx = bt?.Position.X ?? 0.0;
+            double ay = at?.Position.Y ?? 0.0;
+            double by = bt?.Position.Y ?? 0.0;
 
-        double targetTopY = target.Position.Y - (target.Height / 2.0) - FlowchartEdgeNodeGap;
-        targetAttach = new MermaidSharp.Models.Position(target.Position.X, targetTopY);
-        return true;
+            bool aIsUp = useBottom ? ay < centreY - 0.01 : ay > centreY + 0.01;
+            bool bIsUp = useBottom ? by < centreY - 0.01 : by > centreY + 0.01;
+            if (aIsUp != bIsUp)
+            {
+                return aIsUp ? -1 : 1;
+            }
+
+            return ax.CompareTo(bx);
+        });
+    }
 #pragma warning restore IDE0007
+#pragma warning restore IDE0022
+
+    static void ResolveFlowchartDecisionBranchSourceAttach(
+        double centreX,
+        double centreY,
+        double half,
+        bool useBottom,
+        int branchIndex,
+        int branchCount,
+        out MermaidSharp.Models.Position sourceAttach,
+        out FlowchartDecisionBranchExitRole exitRole)
+    {
+        MermaidSharp.Models.Position leftMid;
+        MermaidSharp.Models.Position rightMid;
+        MermaidSharp.Models.Position midVertex;
+        if (useBottom)
+        {
+            leftMid = new MermaidSharp.Models.Position(centreX - (half / 2.0), centreY + (half / 2.0));
+            midVertex = new MermaidSharp.Models.Position(centreX, centreY + half);
+            rightMid = new MermaidSharp.Models.Position(centreX + (half / 2.0), centreY + (half / 2.0));
+        }
+        else
+        {
+            leftMid = new MermaidSharp.Models.Position(centreX - (half / 2.0), centreY - (half / 2.0));
+            midVertex = new MermaidSharp.Models.Position(centreX, centreY - half);
+            rightMid = new MermaidSharp.Models.Position(centreX + (half / 2.0), centreY - (half / 2.0));
+        }
+
+        if (branchCount == 2)
+        {
+            if (branchIndex == 0)
+            {
+                sourceAttach = leftMid;
+                exitRole = FlowchartDecisionBranchExitRole.SideLeft;
+            }
+            else
+            {
+                sourceAttach = rightMid;
+                exitRole = FlowchartDecisionBranchExitRole.SideRight;
+            }
+
+            return;
+        }
+
+        if (branchIndex == 0)
+        {
+            sourceAttach = leftMid;
+            exitRole = FlowchartDecisionBranchExitRole.SideLeft;
+        }
+        else if (branchIndex == 1)
+        {
+            sourceAttach = midVertex;
+            exitRole = FlowchartDecisionBranchExitRole.BottomVertex;
+        }
+        else
+        {
+            sourceAttach = rightMid;
+            exitRole = FlowchartDecisionBranchExitRole.SideRight;
+        }
     }
 
     internal static void ApplyFlowchartDecisionBranchEndpointSnapping(MermaidSharp.Diagrams.Flowchart.FlowchartModel diagram)
@@ -1768,22 +2042,58 @@ static class CoordinateAssignment
         for (int i = 0; i < diagram.Edges.Count; i++)
         {
             MermaidSharp.Models.Edge edge = diagram.Edges[i];
-            if (!TryGetFlowchartVerticalDecisionBranchEndpoints(diagram, edge, out MermaidSharp.Models.Position sourceAttach, out MermaidSharp.Models.Position targetAttach))
+            if (!TryGetFlowchartVerticalDecisionBranchEndpoints(
+                    diagram,
+                    edge,
+                    out MermaidSharp.Models.Position sourceAttach,
+                    out MermaidSharp.Models.Position targetAttach,
+                    out FlowchartDecisionBranchExitRole exitRole))
             {
                 continue;
             }
 
+            MermaidSharp.Models.Position guidePoint = GetFlowchartDecisionBranchGuidePoint(
+                sourceAttach,
+                targetAttach,
+                exitRole);
+
             if (edge.Points.Count == 0)
             {
                 edge.Points.Add(sourceAttach);
+                edge.Points.Add(guidePoint);
                 edge.Points.Add(targetAttach);
             }
             else
             {
                 edge.Points[0] = sourceAttach;
-                edge.Points[^1] = targetAttach;
+                if (edge.Points.Count == 2)
+                {
+                    edge.Points.Insert(1, guidePoint);
+                }
+                else
+                {
+                    edge.Points[1] = guidePoint;
+                    edge.Points[^1] = targetAttach;
+                }
             }
         }
+#pragma warning restore IDE0007
+    }
+
+    static MermaidSharp.Models.Position GetFlowchartDecisionBranchGuidePoint(
+        MermaidSharp.Models.Position sourceAttach,
+        MermaidSharp.Models.Position targetAttach,
+        FlowchartDecisionBranchExitRole exitRole)
+    {
+#pragma warning disable IDE0007
+        double midY = (sourceAttach.Y + targetAttach.Y) / 2.0;
+        if (exitRole == FlowchartDecisionBranchExitRole.BottomVertex
+            || Math.Abs(targetAttach.X - sourceAttach.X) < 0.75)
+        {
+            return new MermaidSharp.Models.Position(sourceAttach.X, midY);
+        }
+
+        return new MermaidSharp.Models.Position(targetAttach.X, midY);
 #pragma warning restore IDE0007
     }
 
@@ -2633,6 +2943,13 @@ static class CoordinateAssignment
                 TargetY = DefaultTargetY;
             }
 
+            // BT fan-in (F32): edges to a hub above leave each source at top-centre.
+            if (Target.Y < Source.Y - 0.01)
+            {
+                SourceX = Source.X;
+                SourceY = Source.Y - (Source.Height / 2.0) - FlowchartEdgeNodeGap;
+            }
+
             AttachByEdge[Edge] = (SourceX, SourceY, TargetX, TargetY);
         }
 
@@ -2773,7 +3090,6 @@ static class CoordinateAssignment
                 double chosenCoord;
                 if (HubIsTargetForAll)
                 {
-                    // Fan-in: choose the inboard port based on approach side, if possible.
                     LayoutNode? Other = graph.GetNode(Edge.SourceId);
                     if (Other is null)
                     {
@@ -2801,15 +3117,54 @@ static class CoordinateAssignment
                 {
                     chosenCoord = i == 0 ? leftOfCentreCoord : (i == 1 ? centreCoord : rightOfCentreCoord);
                 }
+                else if (edges.Count == 3 && HubIsTargetForAll && facing == FacingDirection.Down)
+                {
+                    chosenCoord = i == 0 ? leftOfCentreCoord : (i == 1 ? centreCoord : rightOfCentreCoord);
+                }
                 else
                 {
-                    // Fan-out (or mixed): preserve deterministic ordering.
                     chosenCoord = i == 0 ? leftOfCentreCoord : rightOfCentreCoord;
                 }
 
                 double x;
                 double y;
-                if (facing == FacingDirection.Down)
+                if (edges.Count == 3 && HubIsSourceForAll && facing == FacingDirection.Down)
+                {
+                    if (i == 0)
+                    {
+                        x = inboardLeft;
+                        y = hub.Y;
+                    }
+                    else if (i == 1)
+                    {
+                        x = hub.X;
+                        y = inboardBottom;
+                    }
+                    else
+                    {
+                        x = inboardRight;
+                        y = hub.Y;
+                    }
+                }
+                else if (edges.Count == 3 && HubIsTargetForAll && facing == FacingDirection.Down)
+                {
+                    if (i == 0)
+                    {
+                        x = inboardLeft;
+                        y = inboardBottom;
+                    }
+                    else if (i == 1)
+                    {
+                        x = hub.X;
+                        y = inboardBottom;
+                    }
+                    else
+                    {
+                        x = inboardRight;
+                        y = inboardBottom;
+                    }
+                }
+                else if (facing == FacingDirection.Down)
                 {
                     x = chosenCoord;
                     y = inboardBottom;

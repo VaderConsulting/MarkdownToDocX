@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
@@ -11,6 +13,8 @@ using DocumentFormat.OpenXml.Wordprocessing;
 using MermaidSharp;
 using MDConverter.Model;
 using MDConverter.Options;
+using SkiaSharp;
+using Svg.Skia;
 using A = DocumentFormat.OpenXml.Drawing;
 using DW = DocumentFormat.OpenXml.Drawing.Wordprocessing;
 using PIC = DocumentFormat.OpenXml.Drawing.Pictures;
@@ -22,6 +26,16 @@ namespace MDConverter.Pipeline;
 /// </summary>
 public sealed class DocxWriter
 {
+    private const float MermaidRasterScale = 4.0f;
+    private const double FlowchartRasterArrowLengthPx = 8.0;
+    private const double FlowchartRasterArrowHalfWidthPx = 5.0;
+    private static readonly Regex AsymmetricFlowchartNodeRegex =
+        new(@"(?m)(^|[\s;])[A-Za-z0-9_][\p{L}\p{N}_.-]*>\s*[^\]\r\n]+\]", RegexOptions.CultureInvariant | RegexOptions.Compiled);
+    private static readonly Regex SvgPathEndPointRegex =
+        new(@"L\s*([-\d.]+)[,\s]+([-\d.]+)\s*$", RegexOptions.CultureInvariant | RegexOptions.Compiled);
+    private static readonly Regex SvgPathStartPointRegex =
+        new(@"M\s*([-\d.]+)[,\s]+([-\d.]+)", RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
     private const int BulletAbstractNumId = 1;
     private const int DecimalAbstractNumId = 2;
     private const int BulletNumId = 1;
@@ -622,6 +636,14 @@ public sealed class DocxWriter
         try
         {
             string Svg = Mermaid.Render(MermaidBlock.Source, RenderOptions.Default);
+            if (ShouldRasterizeMermaidAsPng(MermaidBlock.Source))
+            {
+                if (TryAppendRasterizedSvg(Paragraph, Svg, "Mermaid diagram"))
+                {
+                    return Paragraph;
+                }
+            }
+
             if (TryAppendSvg(Paragraph, Svg, "Mermaid diagram"))
             {
                 return Paragraph;
@@ -988,6 +1010,60 @@ public sealed class DocxWriter
         return true;
     }
 
+    private bool TryAppendRasterizedSvg(Paragraph Parent, string Svg, string AltText)
+    {
+        MainDocumentPart MainPart = _MainPart!;
+        if (MainPart == null || string.IsNullOrWhiteSpace(Svg))
+        {
+            return false;
+        }
+
+        byte[]? PngBytes = TryRasterizeSvgToPng(Svg);
+        if (PngBytes == null || PngBytes.Length == 0)
+        {
+            return false;
+        }
+
+        ImagePart ImagePart = MainPart.AddImagePart(ImagePartType.Png);
+        using (MemoryStream Stream = new MemoryStream(PngBytes))
+        {
+            ImagePart.FeedData(Stream);
+        }
+
+        string RelationshipId = MainPart.GetIdOfPart(ImagePart);
+        SvgDimensions Dimensions = GetSvgDimensions(Svg);
+        (long Cx, long Cy) = CalculateSvgExtents(Dimensions);
+        uint DrawingId = _NextDrawingId++;
+
+        PIC.Picture Picture = new PIC.Picture(
+            new PIC.NonVisualPictureProperties(
+                new PIC.NonVisualDrawingProperties() { Id = 0U, Name = "Mermaid diagram.png", Description = AltText ?? string.Empty },
+                new PIC.NonVisualPictureDrawingProperties()),
+            new PIC.BlipFill(
+                new A.Blip() { Embed = RelationshipId },
+                new A.Stretch(new A.FillRectangle())),
+            new PIC.ShapeProperties(
+                new A.Transform2D(
+                    new A.Offset() { X = 0L, Y = 0L },
+                    new A.Extents() { Cx = Cx, Cy = Cy }),
+                new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle }));
+        A.GraphicData GraphicData = new A.GraphicData(Picture) { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" };
+        DW.Inline Inline = new DW.Inline(
+            new DW.Extent() { Cx = Cx, Cy = Cy },
+            new DW.EffectExtent() { LeftEdge = 0L, TopEdge = 0L, RightEdge = 0L, BottomEdge = 0L },
+            new DW.DocProperties() { Id = DrawingId, Name = "Mermaid diagram " + DrawingId, Description = AltText ?? string.Empty },
+            new DW.NonVisualGraphicFrameDrawingProperties(new A.GraphicFrameLocks() { NoChangeAspect = true }),
+            new A.Graphic(GraphicData))
+        {
+            DistanceFromTop = 0U,
+            DistanceFromBottom = 0U,
+            DistanceFromLeft = 0U,
+            DistanceFromRight = 0U
+        };
+        Parent.AppendChild(new Run(new Drawing(Inline)));
+        return true;
+    }
+
     private bool TryAppendSvg(Paragraph Parent, string Svg, string AltText)
     {
         MainDocumentPart MainPart = _MainPart!;
@@ -1035,6 +1111,673 @@ public sealed class DocxWriter
         };
         Parent.AppendChild(new Run(new Drawing(Inline)));
         return true;
+    }
+
+    private static bool ShouldRasterizeMermaidAsPng(string Source) =>
+        !string.IsNullOrWhiteSpace(Source) && AsymmetricFlowchartNodeRegex.IsMatch(Source);
+
+    private static byte[]? TryRasterizeSvgToPng(string Svg)
+    {
+        try
+        {
+            string SvgForRaster = ExpandSvgFlowchartMarkersForRasterization(Svg);
+            SKSvg SvgDocument = new SKSvg();
+            SvgDocument.FromSvg(SvgForRaster);
+
+            SKPicture? Picture = SvgDocument.Picture;
+            if (Picture is null)
+            {
+                return TryRasterizeSvgToPngViaHarness(Svg);
+            }
+
+            // Use the SVG viewBox (includes diagram padding and marker margin from Naiad). Skia's CullRect
+            // is tight to path geometry and clips marker arrowheads at the bitmap edge.
+            SKRect DrawBounds = Picture.CullRect;
+            if (TryGetSvgViewBoxBounds(Svg, out SKRect ViewBoxBounds))
+            {
+                DrawBounds = ViewBoxBounds;
+            }
+            else
+            {
+                DrawBounds.Inflate(16, 16);
+            }
+
+            int Width = (int)Math.Ceiling(Math.Max(1.0, DrawBounds.Width * MermaidRasterScale));
+            int Height = (int)Math.Ceiling(Math.Max(1.0, DrawBounds.Height * MermaidRasterScale));
+
+            using SKBitmap Bitmap = new SKBitmap(Width, Height);
+            using SKCanvas Canvas = new SKCanvas(Bitmap);
+            Canvas.Clear(SKColors.White);
+            Canvas.Scale(MermaidRasterScale);
+            Canvas.Translate(-DrawBounds.Left, -DrawBounds.Top);
+            Canvas.DrawPicture(Picture);
+            Canvas.Flush();
+
+            using SKImage Image = SKImage.FromBitmap(Bitmap);
+            using SKData Data = Image.Encode(SKEncodedImageFormat.Png, 100);
+            return Data.ToArray();
+        }
+        catch
+        {
+            return TryRasterizeSvgToPngViaHarness(Svg);
+        }
+    }
+
+    private readonly struct SvgNodeBounds
+    {
+        public double MinX { get; }
+        public double MinY { get; }
+        public double MaxX { get; }
+        public double MaxY { get; }
+
+        public SvgNodeBounds(double MinX, double MinY, double MaxX, double MaxY)
+        {
+            this.MinX = MinX;
+            this.MinY = MinY;
+            this.MaxX = MaxX;
+            this.MaxY = MaxY;
+        }
+    }
+
+    /// <summary>
+    /// Skia does not render SVG <c>marker-end</c> reliably. Inline flowchart arrowheads as filled paths with the tip
+    /// on the target node boundary (Mermaid trims the stroke for SVG markers; PNG must reach the target).
+    /// </summary>
+    private static string ExpandSvgFlowchartMarkersForRasterization(string Svg)
+    {
+        try
+        {
+            XDocument Document = XDocument.Parse(Svg);
+            XElement? Root = Document.Root;
+            if (Root == null)
+            {
+                return Svg;
+            }
+
+            XNamespace SvgNamespace = Root.Name.Namespace;
+            List<XElement> MarkableElements = Root.Descendants()
+                .Where(Element => Element.Attribute("marker-end") != null)
+                .ToList();
+            List<XElement> OverlayElements = new List<XElement>();
+
+            foreach (XElement Element in MarkableElements)
+            {
+                XAttribute? MarkerEndAttribute = Element.Attribute("marker-end");
+                if (MarkerEndAttribute == null
+                    || MarkerEndAttribute.Value.IndexOf("pointEnd", StringComparison.OrdinalIgnoreCase) < 0)
+                {
+                    continue;
+                }
+
+                if (!TryGetConnectorEndPointAndDirection(Element, out double EndX, out double EndY, out double DirX, out double DirY))
+                {
+                    continue;
+                }
+
+                double Magnitude = Math.Sqrt((DirX * DirX) + (DirY * DirY));
+                if (Magnitude < 1e-6)
+                {
+                    continue;
+                }
+
+                double UnitX = DirX / Magnitude;
+                double UnitY = DirY / Magnitude;
+                double TipX = EndX;
+                double TipY = EndY;
+                if (TryFindTargetAttachPoint(Root, EndX, EndY, UnitX, UnitY, out double AttachX, out double AttachY))
+                {
+                    TipX = AttachX;
+                    TipY = AttachY;
+                    ExtendConnectorElementTo(Element, AttachX, AttachY);
+                }
+
+                double BackX = TipX - (FlowchartRasterArrowLengthPx * UnitX);
+                double BackY = TipY - (FlowchartRasterArrowLengthPx * UnitY);
+                double LeftX = BackX + (FlowchartRasterArrowHalfWidthPx * UnitY);
+                double LeftY = BackY - (FlowchartRasterArrowHalfWidthPx * UnitX);
+                double RightX = BackX - (FlowchartRasterArrowHalfWidthPx * UnitY);
+                double RightY = BackY + (FlowchartRasterArrowHalfWidthPx * UnitX);
+
+                string ArrowPathData = string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"M{TipX:0.##},{TipY:0.##}L{LeftX:0.##},{LeftY:0.##}L{RightX:0.##},{RightY:0.##}Z");
+
+                XElement ArrowPathElement = new XElement(
+                    SvgNamespace + "path",
+                    new XAttribute("d", ArrowPathData),
+                    new XAttribute("fill", "#333333"),
+                    new XAttribute("stroke", "none"));
+                Element.AddAfterSelf(ArrowPathElement);
+                MarkerEndAttribute.Remove();
+                OverlayElements.Add(Element);
+                OverlayElements.Add(ArrowPathElement);
+            }
+
+            RaiseFlowchartLinkOverlayElements(Root, OverlayElements);
+
+            return Document.ToString(SaveOptions.DisableFormatting);
+        }
+        catch
+        {
+            return Svg;
+        }
+    }
+
+    /// <summary>
+    /// Naiad emits <c>flowchart-link</c> paths before node shapes. Raise links and inlined arrowheads above all node
+    /// geometry so the connector and tip are not covered by opaque target fills when rasterised.
+    /// </summary>
+    private static void RaiseFlowchartLinkOverlayElements(XElement Root, List<XElement> OverlayElements)
+    {
+        if (OverlayElements.Count == 0)
+        {
+            return;
+        }
+
+        XElement? LastNodeGeometry = null;
+        foreach (XElement Child in Root.Elements())
+        {
+            if (IsFlowchartNodeGeometryElement(Child))
+            {
+                LastNodeGeometry = Child;
+            }
+        }
+
+        XElement Anchor = LastNodeGeometry ?? Root;
+        for (int Index = 0; Index < OverlayElements.Count; Index++)
+        {
+            XElement OverlayElement = OverlayElements[Index];
+            OverlayElement.Remove();
+            Anchor.AddAfterSelf(OverlayElement);
+            Anchor = OverlayElement;
+        }
+    }
+
+    private static bool IsFlowchartNodeGeometryElement(XElement Element)
+    {
+        string LocalName = Element.Name.LocalName;
+        if (!string.Equals(LocalName, "path", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(LocalName, "line", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(LocalName, "rect", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(LocalName, "circle", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(LocalName, "ellipse", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(LocalName, "polygon", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        string? ClassValue = Element.Attribute("class")?.Value ?? string.Empty;
+        if (ClassValue.Contains("flowchart-link", StringComparison.OrdinalIgnoreCase)
+            || ClassValue.Contains("nodeLabel", StringComparison.OrdinalIgnoreCase)
+            || ClassValue.Contains("marker", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static List<SvgNodeBounds> CollectFlowchartNodeBounds(XElement Root)
+    {
+        List<SvgNodeBounds> BoundsList = new List<SvgNodeBounds>();
+        HashSet<string> SeenKeys = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (XElement Element in Root.Descendants())
+        {
+            string LocalName = Element.Name.LocalName;
+            if (!string.Equals(LocalName, "path", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(LocalName, "line", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(LocalName, "rect", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            string? ClassValue = Element.Attribute("class")?.Value ?? string.Empty;
+            if (ClassValue.Contains("flowchart-link", StringComparison.OrdinalIgnoreCase)
+                || ClassValue.Contains("nodeLabel", StringComparison.OrdinalIgnoreCase)
+                || ClassValue.Contains("marker", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (!TryGetElementBounds(Element, out SvgNodeBounds Bounds))
+            {
+                continue;
+            }
+
+            double Width = Bounds.MaxX - Bounds.MinX;
+            double Height = Bounds.MaxY - Bounds.MinY;
+            if (Width < 8.0 && Height < 8.0)
+            {
+                continue;
+            }
+
+            string Key = string.Create(
+                CultureInfo.InvariantCulture,
+                $"{Bounds.MinX:0.##},{Bounds.MinY:0.##},{Bounds.MaxX:0.##},{Bounds.MaxY:0.##}");
+            if (!SeenKeys.Add(Key))
+            {
+                continue;
+            }
+
+            BoundsList.Add(Bounds);
+        }
+
+        return BoundsList;
+    }
+
+    private static bool TryGetElementBounds(XElement Element, out SvgNodeBounds Bounds)
+    {
+        Bounds = new SvgNodeBounds(0, 0, 0, 0);
+
+        if (string.Equals(Element.Name.LocalName, "rect", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!double.TryParse(Element.Attribute("x")?.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double X)
+                || !double.TryParse(Element.Attribute("y")?.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double Y)
+                || !double.TryParse(Element.Attribute("width")?.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double Width)
+                || !double.TryParse(Element.Attribute("height")?.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double Height))
+            {
+                return false;
+            }
+
+            Bounds = new SvgNodeBounds(X, Y, X + Width, Y + Height);
+            return Width > 0 && Height > 0;
+        }
+
+        if (string.Equals(Element.Name.LocalName, "line", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!double.TryParse(Element.Attribute("x1")?.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double X1)
+                || !double.TryParse(Element.Attribute("y1")?.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double Y1)
+                || !double.TryParse(Element.Attribute("x2")?.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double X2)
+                || !double.TryParse(Element.Attribute("y2")?.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double Y2))
+            {
+                return false;
+            }
+
+            Bounds = new SvgNodeBounds(
+                Math.Min(X1, X2),
+                Math.Min(Y1, Y2),
+                Math.Max(X1, X2),
+                Math.Max(Y1, Y2));
+            return true;
+        }
+
+        string? PathData = Element.Attribute("d")?.Value;
+        if (string.IsNullOrWhiteSpace(PathData))
+        {
+            return false;
+        }
+
+        return TryGetPathDataBounds(PathData, out Bounds);
+    }
+
+    private static bool TryGetPathDataBounds(string PathData, out SvgNodeBounds Bounds)
+    {
+        Bounds = new SvgNodeBounds(0, 0, 0, 0);
+        try
+        {
+            using SKPath? Path = SKPath.ParseSvgPathData(PathData);
+            if (Path == null || Path.IsEmpty)
+            {
+                return false;
+            }
+
+            SKRect Rect = Path.Bounds;
+            if (Rect.Width <= 0 && Rect.Height <= 0)
+            {
+                return false;
+            }
+
+            Bounds = new SvgNodeBounds(Rect.Left, Rect.Top, Rect.Right, Rect.Bottom);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool TryFindTargetAttachPoint(
+        XElement Root,
+        double OriginX,
+        double OriginY,
+        double UnitX,
+        double UnitY,
+        out double AttachX,
+        out double AttachY)
+    {
+        AttachX = OriginX;
+        AttachY = OriginY;
+        List<SvgNodeBounds> NodeBoundsList = CollectFlowchartNodeBounds(Root);
+        double BestDistance = double.PositiveInfinity;
+        bool Found = false;
+
+        for (int Index = 0; Index < NodeBoundsList.Count; Index++)
+        {
+            SvgNodeBounds NodeBounds = NodeBoundsList[Index];
+            if (!TryIntersectRayWithBounds(OriginX, OriginY, UnitX, UnitY, NodeBounds, out double HitX, out double HitY, out double Distance))
+            {
+                continue;
+            }
+
+            if (Distance < BestDistance)
+            {
+                BestDistance = Distance;
+                AttachX = HitX;
+                AttachY = HitY;
+                Found = true;
+            }
+        }
+
+        return Found;
+    }
+
+    private static bool TryIntersectRayWithBounds(
+        double OriginX,
+        double OriginY,
+        double UnitX,
+        double UnitY,
+        SvgNodeBounds Bounds,
+        out double HitX,
+        out double HitY,
+        out double Distance)
+    {
+        HitX = 0;
+        HitY = 0;
+        Distance = 0;
+
+        const double Epsilon = 1e-9;
+        double TMin = double.NegativeInfinity;
+        double TMax = double.PositiveInfinity;
+
+        if (Math.Abs(UnitX) < Epsilon)
+        {
+            if (OriginX < Bounds.MinX || OriginX > Bounds.MaxX)
+            {
+                return false;
+            }
+        }
+        else
+        {
+            double T1 = (Bounds.MinX - OriginX) / UnitX;
+            double T2 = (Bounds.MaxX - OriginX) / UnitX;
+            if (T1 > T2)
+            {
+                double Swap = T1;
+                T1 = T2;
+                T2 = Swap;
+            }
+
+            TMin = Math.Max(TMin, T1);
+            TMax = Math.Min(TMax, T2);
+        }
+
+        if (Math.Abs(UnitY) < Epsilon)
+        {
+            if (OriginY < Bounds.MinY || OriginY > Bounds.MaxY)
+            {
+                return false;
+            }
+        }
+        else
+        {
+            double T1 = (Bounds.MinY - OriginY) / UnitY;
+            double T2 = (Bounds.MaxY - OriginY) / UnitY;
+            if (T1 > T2)
+            {
+                double Swap = T1;
+                T1 = T2;
+                T2 = Swap;
+            }
+
+            TMin = Math.Max(TMin, T1);
+            TMax = Math.Min(TMax, T2);
+        }
+
+        const double MinApproach = 0.5;
+        if (TMax < MinApproach || TMin > TMax)
+        {
+            return false;
+        }
+
+        double T = TMin >= MinApproach ? TMin : TMax;
+        if (T < MinApproach)
+        {
+            return false;
+        }
+
+        HitX = OriginX + (UnitX * T);
+        HitY = OriginY + (UnitY * T);
+        Distance = T;
+        return true;
+    }
+
+    private static void ExtendConnectorElementTo(XElement Element, double TargetX, double TargetY)
+    {
+        if (string.Equals(Element.Name.LocalName, "line", StringComparison.OrdinalIgnoreCase))
+        {
+            Element.SetAttributeValue("x2", TargetX.ToString("0.##", CultureInfo.InvariantCulture));
+            Element.SetAttributeValue("y2", TargetY.ToString("0.##", CultureInfo.InvariantCulture));
+            return;
+        }
+
+        string? PathData = Element.Attribute("d")?.Value;
+        if (string.IsNullOrWhiteSpace(PathData))
+        {
+            return;
+        }
+
+        MatchCollection EndMatches = SvgPathEndPointRegex.Matches(PathData);
+        if (EndMatches.Count == 0)
+        {
+            return;
+        }
+
+        Match LastMatch = EndMatches[EndMatches.Count - 1];
+        string ExtendedPathData = PathData.Remove(LastMatch.Index, LastMatch.Length);
+        ExtendedPathData += string.Create(
+            CultureInfo.InvariantCulture,
+            $"L{TargetX:0.##},{TargetY:0.##}");
+        Element.SetAttributeValue("d", ExtendedPathData);
+    }
+
+    private static bool TryGetConnectorEndPointAndDirection(
+        XElement Element,
+        out double EndX,
+        out double EndY,
+        out double DirX,
+        out double DirY)
+    {
+        EndX = 0;
+        EndY = 0;
+        DirX = 0;
+        DirY = 0;
+
+        if (string.Equals(Element.Name.LocalName, "line", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!double.TryParse(Element.Attribute("x1")?.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double StartX)
+                || !double.TryParse(Element.Attribute("y1")?.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double StartY)
+                || !double.TryParse(Element.Attribute("x2")?.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double EndPointX)
+                || !double.TryParse(Element.Attribute("y2")?.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double EndPointY))
+            {
+                return false;
+            }
+
+            EndX = EndPointX;
+            EndY = EndPointY;
+            DirX = EndPointX - StartX;
+            DirY = EndPointY - StartY;
+            return true;
+        }
+
+        string? PathData = Element.Attribute("d")?.Value;
+        if (string.IsNullOrWhiteSpace(PathData))
+        {
+            return false;
+        }
+
+        MatchCollection EndMatches = SvgPathEndPointRegex.Matches(PathData);
+        if (EndMatches.Count == 0)
+        {
+            return false;
+        }
+
+        Match EndMatch = EndMatches[EndMatches.Count - 1];
+        if (!double.TryParse(EndMatch.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out EndX)
+            || !double.TryParse(EndMatch.Groups[2].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out EndY))
+        {
+            return false;
+        }
+
+        double PathStartX;
+        double PathStartY;
+        if (EndMatches.Count >= 2)
+        {
+            Match PreviousMatch = EndMatches[EndMatches.Count - 2];
+            if (!double.TryParse(PreviousMatch.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out PathStartX)
+                || !double.TryParse(PreviousMatch.Groups[2].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out PathStartY))
+            {
+                return false;
+            }
+        }
+        else
+        {
+            Match StartMatch = SvgPathStartPointRegex.Match(PathData);
+            if (!StartMatch.Success
+                || !double.TryParse(StartMatch.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out PathStartX)
+                || !double.TryParse(StartMatch.Groups[2].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out PathStartY))
+            {
+                return false;
+            }
+        }
+
+        DirX = EndX - PathStartX;
+        DirY = EndY - PathStartY;
+        return true;
+    }
+
+    private static bool TryGetSvgViewBoxBounds(string Svg, out SKRect Bounds)
+    {
+        Bounds = SKRect.Empty;
+        try
+        {
+            XDocument Document = XDocument.Parse(Svg);
+            XElement? Root = Document.Root;
+            if (Root == null)
+            {
+                return false;
+            }
+
+            if (!TryParseViewBox(
+                    Root.Attribute("viewBox")?.Value,
+                    out double ViewBoxX,
+                    out double ViewBoxY,
+                    out double ViewBoxWidth,
+                    out double ViewBoxHeight))
+            {
+                return false;
+            }
+
+            if (ViewBoxWidth <= 0 || ViewBoxHeight <= 0)
+            {
+                return false;
+            }
+
+            Bounds = SKRect.Create(
+                (float)ViewBoxX,
+                (float)ViewBoxY,
+                (float)ViewBoxWidth,
+                (float)ViewBoxHeight);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static byte[]? TryRasterizeSvgToPngViaHarness(string Svg)
+    {
+        string? HarnessProjectPath = FindSvgHarnessProjectPath();
+        if (string.IsNullOrWhiteSpace(HarnessProjectPath) || !File.Exists(HarnessProjectPath))
+        {
+            return null;
+        }
+
+        string TempDirectory = Path.Combine(Path.GetTempPath(), "md2docx-svg-raster");
+        Directory.CreateDirectory(TempDirectory);
+        string InputSvgPath = Path.Combine(TempDirectory, Guid.NewGuid().ToString("N") + ".svg");
+        string OutputPngPath = Path.Combine(TempDirectory, Guid.NewGuid().ToString("N") + ".png");
+
+        try
+        {
+            string SvgForRaster = ExpandSvgFlowchartMarkersForRasterization(Svg);
+            File.WriteAllText(InputSvgPath, SvgForRaster, new UTF8Encoding(false));
+
+            ProcessStartInfo StartInfo = new ProcessStartInfo
+            {
+                FileName = "dotnet",
+                Arguments = $"run --project \"{HarnessProjectPath}\" -- --rasterise-svg \"{InputSvgPath}\" \"{OutputPngPath}\"",
+                RedirectStandardError = true,
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using Process? Process = System.Diagnostics.Process.Start(StartInfo);
+            if (Process == null)
+            {
+                return null;
+            }
+
+            Process.WaitForExit(120000);
+            if (Process.ExitCode != 0 || !File.Exists(OutputPngPath))
+            {
+                return null;
+            }
+
+            return File.ReadAllBytes(OutputPngPath);
+        }
+        catch
+        {
+            return null;
+        }
+        finally
+        {
+            TryDeleteFile(InputSvgPath);
+            TryDeleteFile(OutputPngPath);
+        }
+    }
+
+    private static string? FindSvgHarnessProjectPath()
+    {
+        DirectoryInfo? Current = new DirectoryInfo(AppContext.BaseDirectory);
+        while (Current != null)
+        {
+            string Candidate = Path.Combine(Current.FullName, "src", "SvgHarness", "SvgHarness.csproj");
+            if (File.Exists(Candidate))
+            {
+                return Candidate;
+            }
+            Current = Current.Parent;
+        }
+
+        return null;
+    }
+
+    private static void TryDeleteFile(string PathValue)
+    {
+        try
+        {
+            if (File.Exists(PathValue))
+            {
+                File.Delete(PathValue);
+            }
+        }
+        catch
+        {
+            // Best effort cleanup only.
+        }
     }
 
     private (long Cx, long Cy) CalculateSvgExtents(SvgDimensions Dimensions)
@@ -1086,7 +1829,13 @@ public sealed class DocxWriter
 
             double Width = ParseSvgLength(Root.Attribute("width")?.Value);
             double Height = ParseSvgLength(Root.Attribute("height")?.Value);
-            if ((Width <= 0 || Height <= 0) && TryParseViewBox(Root.Attribute("viewBox")?.Value, out double ViewBoxWidth, out double ViewBoxHeight))
+            if ((Width <= 0 || Height <= 0)
+                && TryParseViewBox(
+                    Root.Attribute("viewBox")?.Value,
+                    out double ViewBoxOriginX,
+                    out double ViewBoxOriginY,
+                    out double ViewBoxWidth,
+                    out double ViewBoxHeight))
             {
                 Width = Width > 0 ? Width : ViewBoxWidth;
                 Height = Height > 0 ? Height : ViewBoxHeight;
@@ -1133,8 +1882,10 @@ public sealed class DocxWriter
         return double.TryParse(TrimmedSpan, NumberStyles.Float, CultureInfo.InvariantCulture, out double Result) ? Result : 0;
     }
 
-    private static bool TryParseViewBox(string? Value, out double Width, out double Height)
+    private static bool TryParseViewBox(string? Value, out double X, out double Y, out double Width, out double Height)
     {
+        X = 0;
+        Y = 0;
         Width = 0;
         Height = 0;
         if (string.IsNullOrWhiteSpace(Value))
@@ -1148,7 +1899,9 @@ public sealed class DocxWriter
             return false;
         }
 
-        return double.TryParse(Parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out Width)
+        return double.TryParse(Parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out X)
+            && double.TryParse(Parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out Y)
+            && double.TryParse(Parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out Width)
             && double.TryParse(Parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out Height);
     }
 

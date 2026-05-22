@@ -749,9 +749,45 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
 #pragma warning disable IDE0007
         string FillPath = ShapePathGenerator.FlowchartCylinderMermaidFillPath(x, y, node.Width, node.Height);
         string OutlinePath = ShapePathGenerator.FlowchartCylinderOutlinePath(x, y, node.Width, node.Height);
-        builder.AddPath(FillPath, fill: fill, stroke: null, cssClass: "node");
-        builder.AddPath(OutlinePath, fill: "none", stroke: stroke, strokeWidth: strokeWidth, cssClass: "node");
+        builder.AddPath(FillPath, fill: fill, stroke: "none");
+        builder.AddPath(OutlinePath, fill: "none", stroke: stroke, strokeWidth: strokeWidth, cssClass: "node",
+            strokeLinejoin: "miter", strokeMiterlimit: 16);
 #pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// Asymmetric flag: fill the body as one path, then draw each visible edge as an explicit stroke.
+    /// This avoids Word leaving the two left corners open when stroking the concave outline as one path.
+    /// </summary>
+    static void RenderAsymmetricNode(SvgBuilder builder, Node node, double x, double y, string fill, string stroke, double strokeWidth)
+    {
+#pragma warning disable IDE0007
+        double HalfHeight = node.Height / 2.0;
+        double LeftX = x - HalfHeight;
+        double RightX = x + node.Width;
+        double TopY = y;
+        double BottomY = y + node.Height;
+        double NotchX = x;
+        double NotchY = y + HalfHeight;
+        double CornerPatchRadius = Math.Max(0.75, strokeWidth * 0.9);
+        string FillPath = ShapePathGenerator.GetPath(node.Shape, x, y, node.Width, node.Height);
+#pragma warning restore IDE0007
+        builder.AddPath(FillPath, fill: fill, stroke: "none");
+        builder.AddLine(LeftX, TopY, RightX, TopY, stroke: stroke, strokeWidth: strokeWidth, strokeLinecap: "square");
+        builder.AddLine(RightX, TopY, RightX, BottomY, stroke: stroke, strokeWidth: strokeWidth, strokeLinecap: "square");
+        builder.AddLine(RightX, BottomY, LeftX, BottomY, stroke: stroke, strokeWidth: strokeWidth, strokeLinecap: "square");
+        builder.AddLine(LeftX, BottomY, NotchX, NotchY, stroke: stroke, strokeWidth: strokeWidth, strokeLinecap: "square");
+        builder.AddLine(NotchX, NotchY, LeftX, TopY, stroke: stroke, strokeWidth: strokeWidth, strokeLinecap: "square");
+        var TopCornerPatch =
+            string.Create(
+                CultureInfo.InvariantCulture,
+                $"M{LeftX - CornerPatchRadius:0.##},{TopY:0.##}L{LeftX:0.##},{TopY - CornerPatchRadius:0.##}L{LeftX + CornerPatchRadius:0.##},{TopY:0.##}L{LeftX:0.##},{TopY + CornerPatchRadius:0.##}Z");
+        var BottomCornerPatch =
+            string.Create(
+                CultureInfo.InvariantCulture,
+                $"M{LeftX - CornerPatchRadius:0.##},{BottomY:0.##}L{LeftX:0.##},{BottomY - CornerPatchRadius:0.##}L{LeftX + CornerPatchRadius:0.##},{BottomY:0.##}L{LeftX:0.##},{BottomY + CornerPatchRadius:0.##}Z");
+        builder.AddPath(TopCornerPatch, fill: stroke, stroke: "none");
+        builder.AddPath(BottomCornerPatch, fill: stroke, stroke: "none");
     }
 
     static void RenderNode(SvgBuilder builder, Node node, RenderOptions options)
@@ -773,6 +809,10 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         {
             RenderCylinderNode(builder, node, x, y, fill, stroke, strokeWidth);
         }
+        else if (node.Shape == NodeShape.Asymmetric)
+        {
+            RenderAsymmetricNode(builder, node, x, y, fill, stroke, strokeWidth);
+        }
         else
         {
 #pragma warning disable IDE0007
@@ -782,7 +822,9 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
                 fill: fill,
                 stroke: stroke,
                 strokeWidth: strokeWidth,
-                cssClass: "node");
+                cssClass: "node",
+                strokeLinejoin: "miter",
+                strokeMiterlimit: 16);
         }
 
         // Render label with icon support
@@ -1070,7 +1112,12 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             List<Position> Endpoints = new List<Position> { LineData[0], LineData[^1] };
             if (model is not null
                 && targetNode is not null
-                && MermaidSharp.Layout.CoordinateAssignment.TryGetFlowchartVerticalDecisionBranchEndpoints(model, edge, out Position branchSource, out Position branchTarget))
+                && MermaidSharp.Layout.CoordinateAssignment.TryGetFlowchartVerticalDecisionBranchEndpoints(
+                    model,
+                    edge,
+                    out Position branchSource,
+                    out Position branchTarget,
+                    out MermaidSharp.Layout.FlowchartDecisionBranchExitRole _))
             {
                 Endpoints[0] = branchSource;
                 Endpoints[1] = branchTarget;
@@ -1080,6 +1127,21 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             if (OffsetEndpoints.Count >= 2)
             {
                 return BuildFlowchartDecisionBranchGuidedCurveBasisPath(OffsetEndpoints[0], OffsetEndpoints[^1]);
+            }
+        }
+
+        if (ShouldUseHubFanGuidedCurve(edge, sourceNode, targetNode, model, diagramDirection, LineData)
+            && LineData.Count >= 2)
+        {
+            List<Position> FanEndpoints = new List<Position> { LineData[0], LineData[^1] };
+            List<Position> OffsetFanEndpoints = ApplyLineWithOffset(FanEndpoints, ArrowTypeStart, ArrowTypeEnd);
+            if (OffsetFanEndpoints.Count >= 2)
+            {
+                double HubCentreX = ResolveFlowchartHubFanCentreX(edge, sourceNode, targetNode, model);
+                return BuildFlowchartHubFanGuidedCurveBasisPath(
+                    OffsetFanEndpoints[0],
+                    OffsetFanEndpoints[^1],
+                    HubCentreX);
             }
         }
 
@@ -1154,6 +1216,58 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         }
 
         return BuildFlowchartCurveBasisPath(GuidedPoints);
+    }
+
+    /// <summary>
+    /// F31/F32 hub fan: mirrored outward bow (guide at hubCentre ± |targetX − hubCentre|).
+    /// </summary>
+    static string BuildFlowchartHubFanGuidedCurveBasisPath(Position P0, Position P3, double HubCentreX)
+    {
+        double MidY = (P0.Y + P3.Y) / 2.0;
+        double Spread = Math.Abs(P3.X - HubCentreX);
+        double GuideX;
+        if (Math.Abs(P0.X - HubCentreX) < 0.75)
+        {
+            GuideX = HubCentreX;
+        }
+        else if (P0.X < HubCentreX)
+        {
+            GuideX = HubCentreX - Spread;
+        }
+        else
+        {
+            GuideX = HubCentreX + Spread;
+        }
+
+        List<Position> GuidedPoints = new List<Position>
+        {
+            P0,
+            new Position(P0.X, MidY),
+            new Position(GuideX, MidY),
+            P3
+        };
+        return BuildFlowchartCurveBasisPath(GuidedPoints);
+    }
+
+    static double ResolveFlowchartHubFanCentreX(
+        Edge edge,
+        Node? sourceNode,
+        Node? targetNode,
+        FlowchartModel? model)
+    {
+        if (model is not null
+            && targetNode is not null
+            && string.Equals(edge.TargetId, targetNode.Id, StringComparison.Ordinal))
+        {
+            return targetNode.Position.X;
+        }
+
+        if (sourceNode is not null)
+        {
+            return sourceNode.Position.X;
+        }
+
+        return 0.0;
     }
 
     /// <summary>
@@ -1785,6 +1899,81 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         if (isCommonDecisionLabel)
         {
             return lineData.Count >= 2;
+        }
+
+        return false;
+#pragma warning restore IDE0007
+    }
+
+    static bool ShouldUseHubFanGuidedCurve(
+        Edge edge,
+        Node? sourceNode,
+        Node? targetNode,
+        FlowchartModel? model,
+        Direction diagramDirection,
+        IReadOnlyList<Position> lineData)
+    {
+#pragma warning disable IDE0007
+        if (model is null || sourceNode is null || targetNode is null || lineData.Count < 2)
+        {
+            return false;
+        }
+
+        if (sourceNode.Shape == NodeShape.Diamond)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(edge.Label))
+        {
+            return false;
+        }
+
+        if (diagramDirection is not Direction.TopToBottom and not Direction.BottomToTop)
+        {
+            return false;
+        }
+
+        int outgoingCount = 0;
+        bool allTargetsBelow = true;
+        for (int i = 0; i < model.Edges.Count; i++)
+        {
+            if (string.Equals(model.Edges[i].SourceId, sourceNode.Id, StringComparison.Ordinal))
+            {
+                outgoingCount++;
+                MermaidSharp.Models.Node? branchTarget = model.GetNode(model.Edges[i].TargetId);
+                if (branchTarget is not null && branchTarget.Position.Y <= sourceNode.Position.Y + 0.01)
+                {
+                    allTargetsBelow = false;
+                }
+            }
+        }
+
+        if (outgoingCount >= 2 && outgoingCount <= 3 && allTargetsBelow
+            && string.Equals(edge.SourceId, sourceNode.Id, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        int incomingCount = 0;
+        bool allSourcesBelow = true;
+        for (int i = 0; i < model.Edges.Count; i++)
+        {
+            if (string.Equals(model.Edges[i].TargetId, targetNode.Id, StringComparison.Ordinal))
+            {
+                incomingCount++;
+                MermaidSharp.Models.Node? branchSource = model.GetNode(model.Edges[i].SourceId);
+                if (branchSource is not null && branchSource.Position.Y <= targetNode.Position.Y + 0.01)
+                {
+                    allSourcesBelow = false;
+                }
+            }
+        }
+
+        if (incomingCount >= 2 && incomingCount <= 3 && allSourcesBelow
+            && string.Equals(edge.TargetId, targetNode.Id, StringComparison.Ordinal))
+        {
+            return true;
         }
 
         return false;

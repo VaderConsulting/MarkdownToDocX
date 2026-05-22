@@ -50,6 +50,36 @@ public class FlowchartTests : TestBase
     }
 
     [Test]
+    public void F15_Asymmetric_UsesMermaidVertexOrder()
+    {
+        const string input =
+            """
+            flowchart LR
+            A>Asymmetric flag] --> B[Target]
+            """;
+
+#pragma warning disable IDE0007
+        string Svg = Mermaid.Render(input);
+        System.Text.RegularExpressions.Match AsymmetricFill = System.Text.RegularExpressions.Regex.Match(
+            Svg,
+            @"<path d=""(M[^""]+Z)""[^>]*class=""node""",
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+        System.Text.RegularExpressions.MatchCollection OutlineLines = System.Text.RegularExpressions.Regex.Matches(
+            Svg,
+            @"<line x1=""([^""]+)"" y1=""([^""]+)"" x2=""([^""]+)"" y2=""([^""]+)"" stroke=""#9370DB"" stroke-width=""1""/>",
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+#pragma warning restore IDE0007
+
+        Assert.That(AsymmetricFill.Success, Is.True);
+        Assert.That(
+            AsymmetricFill.Groups[1].Value,
+            Is.EqualTo("M0,24L-24,0L170.72,0L170.72,48L-24,48Z"));
+        Assert.That(OutlineLines.Count, Is.EqualTo(5));
+        Assert.That(Svg, Does.Contain("<line x1=\"-24\" y1=\"48\" x2=\"0\" y2=\"24\" stroke=\"#9370DB\" stroke-width=\"1\"/>"));
+        Assert.That(Svg, Does.Contain("<line x1=\"0\" y1=\"24\" x2=\"-24\" y2=\"0\" stroke=\"#9370DB\" stroke-width=\"1\"/>"));
+    }
+
+    [Test]
     public Task Complex()
     {
         const string input =

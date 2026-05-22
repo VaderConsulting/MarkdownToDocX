@@ -9,6 +9,7 @@ public class SvgLine : SvgElement
     public string? Stroke { get; set; }
     public double? StrokeWidth { get; set; }
     public string? StrokeDasharray { get; set; }
+    public string? StrokeLinecap { get; set; }
     public string? MarkerStart { get; set; }
     public string? MarkerEnd { get; set; }
 
@@ -29,6 +30,11 @@ public class SvgLine : SvgElement
         if (StrokeDasharray is not null)
         {
             builder.Append($" stroke-dasharray=\"{StrokeDasharray}\"");
+        }
+
+        if (StrokeLinecap is not null)
+        {
+            builder.Append($" stroke-linecap=\"{StrokeLinecap}\"");
         }
 
         if (MarkerStart is not null)
