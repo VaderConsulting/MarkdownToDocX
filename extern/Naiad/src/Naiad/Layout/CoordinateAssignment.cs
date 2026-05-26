@@ -3300,7 +3300,19 @@ static class CoordinateAssignment
 
     const double FLOWCHART_TB_UPWARD_LOOP_MARGIN_INSET_PX = 18.0;
 
-    const double FLOWCHART_TB_UPWARD_LOOP_EXIT_STUB_PX = 14.0;
+    const double FLOWCHART_TB_UPWARD_LOOP_CLUSTER_ROUTE_INSET_PX = 12.0;
+
+    const double FLOWCHART_TB_UPWARD_LOOP_EXIT_STUB_PX = 6.0;
+
+    const double FLOWCHART_TB_UPWARD_LOOP_SOUTH_U_LEG_PX = 10.0;
+
+    const double FLOWCHART_TB_UPWARD_LOOP_SOUTH_CURVE_OUTWARD_RADIUS_PX = 36.0;
+
+
+    /// <summary>Fraction of detour→target vertical span before the east/west hook into the hub (F59). Values above 1 overshoot past the hub so the curve enters N→S.</summary>
+    const double FLOWCHART_TB_UPWARD_LOOP_SOURCE_VERTICAL_ROUTE_SPAN_RATIO = 1.10;
+
+    const double FLOWCHART_TB_HUB_CURVE_ENTRY_INSET_PX = 4.0;
 
     const double FLOWCHART_LR_RETRY_CYCLE_ABOVE_HUB_PX = 88.0;
 
@@ -3795,16 +3807,112 @@ static class CoordinateAssignment
         ApplyFlowchartTbHubFanOutEndpointSnapping(diagram);
         ApplyFlowchartLrFanOutEndpointSnapping(diagram);
         ApplyFlowchartLrFanInEndpointSnapping(diagram);
-        ApplyFlowchartTbUpwardLoopEdgeOrthogonalSnapping(diagram);
         ApplyFlowchartLrRetryLoopEdgeEndpointSnapping(diagram);
         ApplyFlowchartLrRectangleToDiamondIngressEdgeEndpointSnapping(diagram);
         ApplyFlowchartBtFanInEndpointSnapping(diagram);
+        ApplyFlowchartBtForwardStackedColumnEndpointSnapping(diagram);
         ApplyFlowchartTbMultiIncomingDiamondEndpointSnapping(diagram);
         ApplyFlowchartDecisionBranchEndpointSnapping(diagram);
     }
 
     /// <summary>
-    /// F59: unlabelled TB back-edge whose target is above the source inside the same cluster (retry loop).
+    /// BT forward edge between two nodes in a three-node vertical column (straight vertical link).
+    /// </summary>
+    internal static bool IsFlowchartBtForwardStackedColumnEdge(
+        MermaidSharp.Diagrams.Flowchart.FlowchartModel diagram,
+        MermaidSharp.Models.Edge edge,
+        MermaidSharp.Models.Node sourceNode,
+        MermaidSharp.Models.Node targetNode)
+    {
+#pragma warning disable IDE0007
+        if (diagram.Direction != MermaidSharp.Models.Direction.BottomToTop)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(edge.Label))
+        {
+            return false;
+        }
+
+        if (IsFlowchartTbUpwardLoopEdge(diagram, edge, sourceNode, targetNode))
+        {
+            return false;
+        }
+
+        if (targetNode.Position.Y >= sourceNode.Position.Y - 0.01)
+        {
+            return false;
+        }
+
+        if (Math.Abs(sourceNode.Position.X - targetNode.Position.X) > 0.75)
+        {
+            return false;
+        }
+
+        if (sourceNode.Rank < 0 || targetNode.Rank <= sourceNode.Rank)
+        {
+            return false;
+        }
+
+        int sameColumnNodeCount = 0;
+        for (int nodeIndex = 0; nodeIndex < diagram.Nodes.Count; nodeIndex++)
+        {
+            MermaidSharp.Models.Node columnNode = diagram.Nodes[nodeIndex];
+            if (columnNode.IsGroup)
+            {
+                continue;
+            }
+
+            if (Math.Abs(columnNode.Position.X - sourceNode.Position.X) > 0.75)
+            {
+                continue;
+            }
+
+            sameColumnNodeCount++;
+        }
+
+        return sameColumnNodeCount >= 3;
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// F05: snap BT forward chain edges to a single vertical segment (source top-centre to target bottom-centre).
+    /// </summary>
+    static void ApplyFlowchartBtForwardStackedColumnEndpointSnapping(MermaidSharp.Diagrams.Flowchart.FlowchartModel diagram)
+    {
+#pragma warning disable IDE0007
+        for (int edgeIndex = 0; edgeIndex < diagram.Edges.Count; edgeIndex++)
+        {
+            MermaidSharp.Models.Edge edge = diagram.Edges[edgeIndex];
+            MermaidSharp.Models.Node? sourceNode = diagram.GetNode(edge.SourceId);
+            MermaidSharp.Models.Node? targetNode = diagram.GetNode(edge.TargetId);
+            if (sourceNode is null || targetNode is null)
+            {
+                continue;
+            }
+
+            if (!IsFlowchartBtForwardStackedColumnEdge(diagram, edge, sourceNode, targetNode))
+            {
+                continue;
+            }
+
+            if (!TryComputeStraightFlowchartEdgePoints(diagram, edge, out List<MermaidSharp.Models.Position> straightPoints)
+                || straightPoints.Count < 2)
+            {
+                continue;
+            }
+
+            edge.Points.Clear();
+            edge.Points.Add(straightPoints[0]);
+            edge.Points.Add(straightPoints[straightPoints.Count - 1]);
+        }
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// Unlabelled TB/BT edge whose target is above the source inside the same cluster and that is a directed
+    /// back-edge (the source is reachable from the target along forward edges other than this link).
     /// </summary>
     internal static bool IsFlowchartTbUpwardLoopEdge(
         MermaidSharp.Diagrams.Flowchart.FlowchartModel diagram,
@@ -3834,8 +3942,89 @@ static class CoordinateAssignment
             return false;
         }
 
-        return string.Equals(sourceNode.ParentId, targetNode.ParentId, StringComparison.Ordinal);
+        if (!string.Equals(sourceNode.ParentId, targetNode.ParentId, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (sourceNode.Rank >= 0 && targetNode.Rank >= 0)
+        {
+            if (sourceNode.Rank <= targetNode.Rank)
+            {
+                return false;
+            }
+        }
+        else if (!IsFlowchartDirectedBackEdge(diagram, edge, sourceNode.Id, targetNode.Id))
+        {
+            return false;
+        }
+
+        return true;
 #pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// True when <paramref name="sourceNodeId"/> is reachable from <paramref name="targetNodeId"/> by following
+    /// forward edges, excluding the edge under test.
+    /// </summary>
+    static bool IsFlowchartDirectedBackEdge(
+        MermaidSharp.Diagrams.Flowchart.FlowchartModel diagram,
+        MermaidSharp.Models.Edge edge,
+        string sourceNodeId,
+        string targetNodeId)
+    {
+        return IsFlowchartReachableForward(
+            diagram,
+            targetNodeId,
+            sourceNodeId,
+            edge.SourceId,
+            edge.TargetId);
+    }
+
+    static bool IsFlowchartReachableForward(
+        MermaidSharp.Diagrams.Flowchart.FlowchartModel diagram,
+        string startNodeId,
+        string goalNodeId,
+        string excludedSourceId,
+        string excludedTargetId)
+    {
+        Queue<string> PendingNodeIds = new Queue<string>();
+        HashSet<string> VisitedNodeIds = new HashSet<string>(StringComparer.Ordinal);
+        PendingNodeIds.Enqueue(startNodeId);
+        VisitedNodeIds.Add(startNodeId);
+
+        while (PendingNodeIds.Count > 0)
+        {
+            string CurrentNodeId = PendingNodeIds.Dequeue();
+            if (string.Equals(CurrentNodeId, goalNodeId, StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            for (int EdgeIndex = 0; EdgeIndex < diagram.Edges.Count; EdgeIndex++)
+            {
+                MermaidSharp.Models.Edge forwardEdge = diagram.Edges[EdgeIndex];
+                if (!string.Equals(forwardEdge.SourceId, CurrentNodeId, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (string.Equals(forwardEdge.SourceId, excludedSourceId, StringComparison.Ordinal)
+                    && string.Equals(forwardEdge.TargetId, excludedTargetId, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (!VisitedNodeIds.Add(forwardEdge.TargetId))
+                {
+                    continue;
+                }
+
+                PendingNodeIds.Enqueue(forwardEdge.TargetId);
+            }
+        }
+
+        return false;
     }
 
     static bool TryGetFlowchartTbUpwardLoopEndpoints(
@@ -3850,8 +4039,7 @@ static class CoordinateAssignment
         sourceAttach = default;
         targetAttach = default;
         useLeftMargin = false;
-        ResolveFlowchartNodeHalfExtents(sourceNode.Width, sourceNode.Height, out double sourceHalfWidth, out double sourceHalfHeight);
-        ResolveFlowchartNodeHalfExtents(targetNode.Width, targetNode.Height, out double targetHalfWidth, out double _);
+        ResolveFlowchartNodeHalfExtents(sourceNode.Width, sourceNode.Height, out double _, out double sourceHalfHeight);
 
         double SourceFaceY = bottomToTop
             ? sourceNode.Position.Y - sourceHalfHeight - FlowchartEdgeNodeGap
@@ -3859,18 +4047,121 @@ static class CoordinateAssignment
         sourceAttach = new MermaidSharp.Models.Position(sourceNode.Position.X, SourceFaceY);
 
         useLeftMargin = sourceNode.Position.X < targetNode.Position.X - 0.01;
-        if (useLeftMargin)
-        {
-            double targetFaceX = targetNode.Position.X - targetHalfWidth - FlowchartEdgeNodeGap;
-            targetAttach = new MermaidSharp.Models.Position(targetFaceX, targetNode.Position.Y);
-        }
-        else
-        {
-            double targetFaceX = targetNode.Position.X + targetHalfWidth + FlowchartEdgeNodeGap;
-            targetAttach = new MermaidSharp.Models.Position(targetFaceX, targetNode.Position.Y);
-        }
+        targetAttach = ComputeTbCrossBoundaryFaceCentreTargetAttach(sourceNode, targetNode, bottomToTop);
 
         return true;
+#pragma warning restore IDE0007
+    }
+
+    static MermaidSharp.Models.Rect ComputeFlowchartSubgraphBounds(
+        MermaidSharp.Diagrams.Flowchart.FlowchartModel diagram,
+        MermaidSharp.Models.Subgraph subgraph)
+    {
+#pragma warning disable IDE0007
+        const double PADDING_PX = 18.0;
+        const double TITLE_BAND_PX = 26.0;
+
+        bool HasAny = false;
+        double MinX = 0.0;
+        double MinY = 0.0;
+        double MaxX = 0.0;
+        double MaxY = 0.0;
+
+        void IncludeRect(double Left, double Top, double Right, double Bottom)
+        {
+            if (!HasAny)
+            {
+                HasAny = true;
+                MinX = Left;
+                MinY = Top;
+                MaxX = Right;
+                MaxY = Bottom;
+            }
+            else
+            {
+                MinX = Math.Min(MinX, Left);
+                MinY = Math.Min(MinY, Top);
+                MaxX = Math.Max(MaxX, Right);
+                MaxY = Math.Max(MaxY, Bottom);
+            }
+        }
+
+        MermaidSharp.Models.Node? GroupNode = diagram.GetNode(subgraph.Id);
+        if (GroupNode is not null && GroupNode.IsGroup && GroupNode.Width > 0.0 && GroupNode.Height > 0.0)
+        {
+            IncludeRect(
+                GroupNode.Position.X - (GroupNode.Width / 2.0),
+                GroupNode.Position.Y - (GroupNode.Height / 2.0),
+                GroupNode.Position.X + (GroupNode.Width / 2.0),
+                GroupNode.Position.Y + (GroupNode.Height / 2.0));
+        }
+
+        for (int NodeIndex = 0; NodeIndex < subgraph.NodeIds.Count; NodeIndex++)
+        {
+            MermaidSharp.Models.Node? Node = diagram.GetNode(subgraph.NodeIds[NodeIndex]);
+            if (Node is null)
+            {
+                continue;
+            }
+
+            IncludeRect(
+                Node.Position.X - (Node.Width / 2.0),
+                Node.Position.Y - (Node.Height / 2.0),
+                Node.Position.X + (Node.Width / 2.0),
+                Node.Position.Y + (Node.Height / 2.0));
+        }
+
+        for (int NestedIndex = 0; NestedIndex < subgraph.NestedSubgraphs.Count; NestedIndex++)
+        {
+            MermaidSharp.Models.Rect NestedBounds = ComputeFlowchartSubgraphBounds(
+                diagram,
+                subgraph.NestedSubgraphs[NestedIndex]);
+            if (NestedBounds.Width > 0.0 && NestedBounds.Height > 0.0)
+            {
+                IncludeRect(
+                    NestedBounds.X,
+                    NestedBounds.Y,
+                    NestedBounds.X + NestedBounds.Width,
+                    NestedBounds.Y + NestedBounds.Height);
+            }
+        }
+
+        if (!HasAny)
+        {
+            return new MermaidSharp.Models.Rect(0.0, 0.0, 0.0, 0.0);
+        }
+
+        double X = MinX - PADDING_PX;
+        double Y = MinY - PADDING_PX - TITLE_BAND_PX;
+        double Width = (MaxX - MinX) + (PADDING_PX * 2.0);
+        double Height = (MaxY - MinY) + (PADDING_PX * 2.0) + TITLE_BAND_PX;
+        return new MermaidSharp.Models.Rect(X, Y, Width, Height);
+#pragma warning restore IDE0007
+    }
+
+    static bool TryGetFlowchartSubgraphForNode(
+        MermaidSharp.Diagrams.Flowchart.FlowchartModel diagram,
+        MermaidSharp.Models.Node node,
+        out MermaidSharp.Models.Subgraph subgraph)
+    {
+#pragma warning disable IDE0007
+        subgraph = null!;
+        if (string.IsNullOrEmpty(node.ParentId))
+        {
+            return false;
+        }
+
+        for (int SubgraphIndex = 0; SubgraphIndex < diagram.Subgraphs.Count; SubgraphIndex++)
+        {
+            MermaidSharp.Models.Subgraph Candidate = diagram.Subgraphs[SubgraphIndex];
+            if (string.Equals(Candidate.Id, node.ParentId, StringComparison.Ordinal))
+            {
+                subgraph = Candidate;
+                return true;
+            }
+        }
+
+        return false;
 #pragma warning restore IDE0007
     }
 
@@ -3902,6 +4193,24 @@ static class CoordinateAssignment
             }
         }
 
+        if (TryGetFlowchartSubgraphForNode(diagram, sourceNode, out MermaidSharp.Models.Subgraph ParentSubgraph))
+        {
+            MermaidSharp.Models.Rect Bounds = ComputeFlowchartSubgraphBounds(diagram, ParentSubgraph);
+            if (Bounds.Width > 0.0 && Bounds.Height > 0.0)
+            {
+                if (useLeftMargin)
+                {
+                    double InsideLeftX = Bounds.X + FLOWCHART_TB_UPWARD_LOOP_MARGIN_INSET_PX;
+                    double InsideRouteX = Math.Max(InsideLeftX, MarginX);
+                    double ClusterRightX = Bounds.X + Bounds.Width - FLOWCHART_TB_UPWARD_LOOP_CLUSTER_ROUTE_INSET_PX;
+                    return Math.Min(InsideRouteX, ClusterRightX);
+                }
+
+                double InsideRightX = Bounds.X + Bounds.Width - FLOWCHART_TB_UPWARD_LOOP_CLUSTER_ROUTE_INSET_PX;
+                return Math.Min(InsideRightX, MarginX);
+            }
+        }
+
         if (useLeftMargin)
         {
             MarginX = Math.Min(
@@ -3909,7 +4218,7 @@ static class CoordinateAssignment
                 Math.Min(
                     sourceNode.Position.X - (sourceNode.Width / 2.0),
                     targetNode.Position.X - (targetNode.Width / 2.0)) - FLOWCHART_TB_UPWARD_LOOP_MARGIN_INSET_PX);
-            return Math.Max(12.0, MarginX);
+            return MarginX;
         }
 
         MarginX = Math.Max(
@@ -3921,6 +4230,81 @@ static class CoordinateAssignment
 #pragma warning restore IDE0007
     }
 
+    static double GetFlowchartTbUpwardLoopSourceVerticalRouteY(
+        double routeStartY,
+        double targetY)
+    {
+#pragma warning disable IDE0007
+        double SpanY = targetY - routeStartY;
+        if (Math.Abs(SpanY) <= 1.0)
+        {
+            return routeStartY;
+        }
+
+        return routeStartY + (SpanY * FLOWCHART_TB_UPWARD_LOOP_SOURCE_VERTICAL_ROUTE_SPAN_RATIO);
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// Keeps the south U-turn row (and its outward curve bulge) inside the source subgraph bounds.
+    /// </summary>
+    static void ClampFlowchartTbUpwardLoopSouthRowInsideSubgraph(
+        MermaidSharp.Diagrams.Flowchart.FlowchartModel diagram,
+        MermaidSharp.Models.Node sourceNode,
+        double sourceAttachY,
+        bool bottomToTop,
+        ref double dropY,
+        ref double uRowY)
+    {
+#pragma warning disable IDE0007
+        if (!TryGetFlowchartSubgraphForNode(diagram, sourceNode, out MermaidSharp.Models.Subgraph ParentSubgraph))
+        {
+            return;
+        }
+
+        MermaidSharp.Models.Rect Bounds = ComputeFlowchartSubgraphBounds(diagram, ParentSubgraph);
+        if (Bounds.Width <= 0.0 || Bounds.Height <= 0.0)
+        {
+            return;
+        }
+
+        double InsideBottomY = Bounds.Y + Bounds.Height - FLOWCHART_TB_UPWARD_LOOP_CLUSTER_ROUTE_INSET_PX;
+        double MaxURowY = InsideBottomY - FLOWCHART_TB_UPWARD_LOOP_SOUTH_CURVE_OUTWARD_RADIUS_PX;
+        if (bottomToTop)
+        {
+            double InsideTopY = Bounds.Y + FLOWCHART_TB_UPWARD_LOOP_CLUSTER_ROUTE_INSET_PX;
+            double MinURowY = InsideTopY + FLOWCHART_TB_UPWARD_LOOP_SOUTH_CURVE_OUTWARD_RADIUS_PX;
+            if (uRowY < MinURowY)
+            {
+                uRowY = MinURowY;
+            }
+
+            if (dropY < uRowY + FLOWCHART_TB_UPWARD_LOOP_EXIT_STUB_PX)
+            {
+                dropY = uRowY + FLOWCHART_TB_UPWARD_LOOP_EXIT_STUB_PX;
+            }
+
+            if (dropY > sourceAttachY - FLOWCHART_TB_UPWARD_LOOP_EXIT_STUB_PX)
+            {
+                dropY = sourceAttachY - FLOWCHART_TB_UPWARD_LOOP_EXIT_STUB_PX;
+            }
+
+            return;
+        }
+
+        if (uRowY > MaxURowY)
+        {
+            uRowY = MaxURowY;
+        }
+
+        double MinDropY = sourceAttachY + FLOWCHART_TB_UPWARD_LOOP_EXIT_STUB_PX;
+        dropY = Math.Max(MinDropY, uRowY - FLOWCHART_TB_UPWARD_LOOP_SOUTH_U_LEG_PX);
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// TB back-edge in a cluster: exit south, detour on the margin, vertical stem, hook into the hub top-centre.
+    /// </summary>
     static void AppendFlowchartTbUpwardLoopMarginGuidedPoints(
         List<MermaidSharp.Models.Position> points,
         MermaidSharp.Models.Position sourceAttach,
@@ -3932,11 +4316,18 @@ static class CoordinateAssignment
         bool bottomToTop)
     {
 #pragma warning disable IDE0007
-        double MarginX = GetFlowchartTbUpwardLoopMarginX(diagram, sourceNode, targetNode, useLeftMargin);
         double DropSignY = bottomToTop ? -1.0 : 1.0;
         double DropY = sourceAttach.Y + (DropSignY * FLOWCHART_TB_UPWARD_LOOP_EXIT_STUB_PX);
-        double ApproachY = InterpolateFlowchartRetryLoopCornerApproachY(DropY, targetAttach.Y);
-
+        double URowY = DropY + (DropSignY * FLOWCHART_TB_UPWARD_LOOP_SOUTH_U_LEG_PX);
+        ClampFlowchartTbUpwardLoopSouthRowInsideSubgraph(
+            diagram,
+            sourceNode,
+            sourceAttach.Y,
+            bottomToTop,
+            ref DropY,
+            ref URowY);
+        double DetourX = GetFlowchartTbUpwardLoopMarginX(diagram, sourceNode, targetNode, useLeftMargin);
+        double VerticalEndY = GetFlowchartTbUpwardLoopSourceVerticalRouteY(URowY, targetAttach.Y);
         points.Clear();
         points.Add(sourceAttach);
         if (Math.Abs(DropY - sourceAttach.Y) > 0.75)
@@ -3944,19 +4335,24 @@ static class CoordinateAssignment
             points.Add(new MermaidSharp.Models.Position(sourceAttach.X, DropY));
         }
 
-        if (Math.Abs(MarginX - sourceAttach.X) > 0.75)
+        if (Math.Abs(URowY - DropY) > 0.75)
         {
-            points.Add(new MermaidSharp.Models.Position(MarginX, DropY));
+            points.Add(new MermaidSharp.Models.Position(sourceAttach.X, URowY));
         }
 
-        if (Math.Abs(ApproachY - DropY) > 0.75)
+        if (Math.Abs(DetourX - sourceAttach.X) > 0.75)
         {
-            points.Add(new MermaidSharp.Models.Position(MarginX, ApproachY));
+            points.Add(new MermaidSharp.Models.Position(DetourX, URowY));
         }
 
-        if (Math.Abs(targetAttach.X - MarginX) > 0.75)
+        if (Math.Abs(VerticalEndY - URowY) > 0.75)
         {
-            points.Add(new MermaidSharp.Models.Position(targetAttach.X, ApproachY));
+            points.Add(new MermaidSharp.Models.Position(DetourX, VerticalEndY));
+        }
+
+        if (Math.Abs(targetAttach.X - DetourX) > 0.75)
+        {
+            points.Add(new MermaidSharp.Models.Position(targetAttach.X, VerticalEndY));
         }
 
         points.Add(targetAttach);
@@ -3964,9 +4360,57 @@ static class CoordinateAssignment
     }
 
     /// <summary>
+    /// F59: reuse the cross-boundary hub landing Y (e.g. Client→Queue) so the retry loop meets the same stem.
+    /// </summary>
+    static bool TryGetFlowchartTbHubCurveMergeAttach(
+        MermaidSharp.Diagrams.Flowchart.FlowchartModel diagram,
+        MermaidSharp.Models.Node targetNode,
+        out MermaidSharp.Models.Position hubMergeAttach)
+    {
+#pragma warning disable IDE0007
+        hubMergeAttach = default;
+        for (int EdgeIndex = 0; EdgeIndex < diagram.Edges.Count; EdgeIndex++)
+        {
+            MermaidSharp.Models.Edge Edge = diagram.Edges[EdgeIndex];
+            if (!string.Equals(Edge.TargetId, targetNode.Id, StringComparison.Ordinal)
+                || Edge.Points.Count < 1)
+            {
+                continue;
+            }
+
+            MermaidSharp.Models.Node? SourceNode = diagram.GetNode(Edge.SourceId);
+            if (SourceNode is null
+                || SourceNode.Position.Y >= targetNode.Position.Y - 0.01)
+            {
+                continue;
+            }
+
+            if (!IsFlowchartCrossSubgraphBoundaryEdge(SourceNode, targetNode)
+                && string.Equals(SourceNode.ParentId, targetNode.ParentId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            MermaidSharp.Models.Position HubFaceAttach = Edge.Points[Edge.Points.Count - 1];
+            if (Math.Abs(HubFaceAttach.X - targetNode.Position.X) > (targetNode.Width * 0.6))
+            {
+                continue;
+            }
+
+            hubMergeAttach = new MermaidSharp.Models.Position(
+                HubFaceAttach.X,
+                HubFaceAttach.Y - FLOWCHART_TB_HUB_CURVE_ENTRY_INSET_PX);
+            return true;
+        }
+
+        return false;
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
     /// F59: retry/back edges that run upward detour on the cluster margin (not through interior nodes).
     /// </summary>
-    static void ApplyFlowchartTbUpwardLoopEdgeOrthogonalSnapping(MermaidSharp.Diagrams.Flowchart.FlowchartModel diagram)
+    internal static void ApplyFlowchartTbUpwardLoopEdgeOrthogonalSnapping(MermaidSharp.Diagrams.Flowchart.FlowchartModel diagram)
     {
 #pragma warning disable IDE0007
         if (diagram.Direction is not MermaidSharp.Models.Direction.TopToBottom
@@ -4002,6 +4446,15 @@ static class CoordinateAssignment
             {
                 continue;
             }
+
+            if (!TryGetFlowchartTbHubCurveMergeAttach(diagram, TargetNode, out MermaidSharp.Models.Position hubMergeAttach))
+            {
+                hubMergeAttach = new MermaidSharp.Models.Position(
+                    targetAttach.X,
+                    targetAttach.Y - FLOWCHART_TB_HUB_CURVE_ENTRY_INSET_PX);
+            }
+
+            targetAttach = hubMergeAttach;
 
             AppendFlowchartTbUpwardLoopMarginGuidedPoints(
                 Edge.Points,
@@ -5927,6 +6380,11 @@ static class CoordinateAssignment
             return true;
         }
 
+        if (IsFlowchartBtForwardStackedColumnEdge(diagram, edge, sourceNode, targetNode))
+        {
+            return true;
+        }
+
         if (IsFlowchartLrRetryLoopEdge(diagram, edge, sourceNode, targetNode))
         {
             return true;
@@ -6470,6 +6928,12 @@ static class CoordinateAssignment
             {
                 SourceX = Source.X;
                 SourceY = Source.Y - (Source.Height / 2.0) - FlowchartEdgeNodeGap;
+
+                if (diagram.Direction == MermaidSharp.Models.Direction.BottomToTop)
+                {
+                    TargetX = Target.X;
+                    TargetY = Target.Y + (Target.Height / 2.0) + FlowchartEdgeNodeGap;
+                }
             }
 
             AttachByEdge[Edge] = (SourceX, SourceY, TargetX, TargetY);

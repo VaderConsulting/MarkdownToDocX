@@ -2,6 +2,27 @@
 
 Last updated: 2026-05-19 (continued pass).
 
+## Priority fix queue (Word review → `out/flow-mermaid-ink/report.md`)
+
+Fix in this order first:
+
+1. **F24** — edge labels (short)
+2. **F29** — binary decision (Yes / No)
+3. **F30** — multi-way decision
+4. **F31** — fan-out
+5. **F32** — fan-in
+6. **F34** — retry loop
+7. **F35** — multi-incoming diamond
+8. **F37** — subgraph `direction TB`
+9. **F38** — subgraph `direction LR` inside TB
+10. **F40** — sibling subgraphs: interior nodes flow **left–right (LR)**
+11. **F43** — nested subgraphs
+12. **F48** — incorrect label text (entity codes)
+13. **F53** — `style` directive (same class as F29)
+14. **F59** — worker pool + decision + retry
+15. **F60** — LR + nested TB integration
+16. **F58** — full pipeline (defer until above)
+
 ## Code fixes (Scenario Fxx commits)
 
 | Scenario | Commit | Notes |

@@ -1253,14 +1253,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             && MermaidSharp.Layout.CoordinateAssignment.IsFlowchartTbUpwardLoopEdge(model, edge, sourceNode, targetNode)
             && LineData.Count >= 2)
         {
-            List<Position> OffsetLoopPoints = ApplyLineWithOffset(LineData, ArrowTypeStart, ArrowTypeEnd);
-            if (OffsetLoopPoints.Count >= 2)
-            {
-                return BuildFlowchartTbStadiumMergeCurveBasisPath(
-                    OffsetLoopPoints,
-                    useTerminalCollectorMarginCurve: false,
-                    useStadiumMergeHook: true);
-            }
+            return BuildFlowchartTbUpwardLoopCurveBasisPath(LineData);
         }
 
         if (ShouldUseDecisionBranchGuidedCurve(edge, sourceNode, model, LineData) && LineData.Count >= 2)
@@ -1440,6 +1433,16 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         {
             Position Start = OffsetPoints[0];
             Position End = OffsetPoints[^1];
+            if (Math.Abs(Start.X - End.X) < 0.75 && Math.Abs(Start.Y - End.Y) > 0.75)
+            {
+                return BuildFlowchartLinearPath(OffsetPoints);
+            }
+
+            if (Math.Abs(Start.Y - End.Y) < 0.75 && Math.Abs(Start.X - End.X) > 0.75)
+            {
+                return BuildFlowchartLinearPath(OffsetPoints);
+            }
+
             if (Math.Abs(Start.X - End.X) < 0.75 || Math.Abs(Start.Y - End.Y) < 0.75)
             {
                 return BuildFlowchartGuidedCurveBasisPath(Start, End);
@@ -1990,6 +1993,204 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         }
 
         return true;
+    }
+
+    const double FLOWCHART_TB_UPWARD_LOOP_CORNER_APPROACH_RATIO = 0.45;
+
+    const double FLOWCHART_TB_UPWARD_LOOP_SOUTH_U_RADIUS_PX = 36.0;
+
+    const double FLOWCHART_TB_UPWARD_LOOP_TOP_ARC_RADIUS_PX = 52.0;
+
+    static string AppendFlowchartCubicSegment(
+        string Path,
+        double Control1X,
+        double Control1Y,
+        double Control2X,
+        double Control2Y,
+        double EndX,
+        double EndY)
+    {
+        return Path + "C"
+            + Fmt(Control1X) + "," + Fmt(Control1Y) + " "
+            + Fmt(Control2X) + "," + Fmt(Control2Y) + " "
+            + Fmt(EndX) + "," + Fmt(EndY);
+    }
+
+    static string AppendFlowchartTbUpwardLoopOrthogonalCubic(
+        string Path,
+        Position From,
+        Position To)
+    {
+        if (Math.Abs(From.X - To.X) <= 0.75)
+        {
+            double SpanY = To.Y - From.Y;
+            return AppendFlowchartCubicSegment(
+                Path,
+                From.X,
+                From.Y + (SpanY * FLOWCHART_TB_UPWARD_LOOP_CORNER_APPROACH_RATIO),
+                From.X,
+                To.Y,
+                To.X,
+                To.Y);
+        }
+
+        if (Math.Abs(From.Y - To.Y) <= 0.75)
+        {
+            double SpanX = To.X - From.X;
+            return AppendFlowchartCubicSegment(
+                Path,
+                From.X + (SpanX * FLOWCHART_TB_UPWARD_LOOP_CORNER_APPROACH_RATIO),
+                From.Y,
+                From.X + (SpanX * (1.0 - FLOWCHART_TB_UPWARD_LOOP_CORNER_APPROACH_RATIO)),
+                To.Y,
+                To.X,
+                To.Y);
+        }
+
+        return Path + "L" + Fmt(To.X) + "," + Fmt(To.Y);
+    }
+
+    /// <summary>
+    /// TB back-edge in a cluster: straight south, outward cubic U onto the margin column, vertical stem, outward east then south into the hub top-centre.
+    /// </summary>
+    static string BuildFlowchartTbUpwardLoopCurveBasisPath(IReadOnlyList<Position> lineData)
+    {
+#pragma warning disable IDE0007
+        if (lineData.Count < 2)
+        {
+            return BuildFlowchartCurveBasisPath(lineData);
+        }
+
+        if (lineData.Count < 4)
+        {
+            return BuildFlowchartCurveBasisPath(lineData);
+        }
+
+        Position SourceAttach = lineData[0];
+        Position TargetAttach = lineData[lineData.Count - 1];
+
+        int DetourCornerIndex = -1;
+        double DetourColumnX = SourceAttach.X;
+        for (int PointIndex = 1; PointIndex < lineData.Count - 1; PointIndex++)
+        {
+            Position Point = lineData[PointIndex];
+            if (Math.Abs(Point.X - SourceAttach.X) > 0.75)
+            {
+                DetourColumnX = Point.X;
+                DetourCornerIndex = PointIndex;
+                break;
+            }
+        }
+
+        if (DetourCornerIndex < 1)
+        {
+            return BuildFlowchartCurveBasisPath(lineData);
+        }
+
+        int VerticalEndIndex = DetourCornerIndex;
+        for (int PointIndex = DetourCornerIndex + 1; PointIndex < lineData.Count - 1; PointIndex++)
+        {
+            Position Point = lineData[PointIndex];
+            if (Math.Abs(Point.X - DetourColumnX) <= 0.75)
+            {
+                VerticalEndIndex = PointIndex;
+            }
+        }
+
+        string Path = "M" + Fmt(SourceAttach.X) + "," + Fmt(SourceAttach.Y);
+        for (int PointIndex = 1; PointIndex < DetourCornerIndex; PointIndex++)
+        {
+            Position Point = lineData[PointIndex];
+            if (Math.Abs(Point.X - SourceAttach.X) <= 0.75)
+            {
+                Path = Path + "L" + Fmt(Point.X) + "," + Fmt(Point.Y);
+            }
+        }
+
+        Position DetourCorner = lineData[DetourCornerIndex];
+        double OutwardSouthY = DetourCorner.Y + FLOWCHART_TB_UPWARD_LOOP_SOUTH_U_RADIUS_PX;
+        Path = AppendFlowchartCubicSegment(
+            Path,
+            SourceAttach.X,
+            OutwardSouthY,
+            DetourCorner.X,
+            OutwardSouthY,
+            DetourCorner.X,
+            DetourCorner.Y);
+
+        Position VerticalEnd = lineData[VerticalEndIndex];
+        if (VerticalEndIndex > DetourCornerIndex
+            && (Math.Abs(VerticalEnd.Y - DetourCorner.Y) > 0.75
+                || Math.Abs(VerticalEnd.X - DetourCorner.X) > 0.75))
+        {
+            Path = Path + "L" + Fmt(VerticalEnd.X) + "," + Fmt(VerticalEnd.Y);
+        }
+
+        Position EastApproach = VerticalEnd;
+        for (int PointIndex = VerticalEndIndex + 1; PointIndex < lineData.Count - 1; PointIndex++)
+        {
+            Position Point = lineData[PointIndex];
+            if (Math.Abs(Point.Y - VerticalEnd.Y) <= 0.75
+                && Math.Abs(Point.X - VerticalEnd.X) > 0.75)
+            {
+                EastApproach = Point;
+                break;
+            }
+        }
+
+        if (Math.Abs(EastApproach.X - VerticalEnd.X) > 0.75)
+        {
+            if (Math.Abs(EastApproach.Y - VerticalEnd.Y) <= 0.75)
+            {
+                double CrownY = Math.Min(VerticalEnd.Y, EastApproach.Y) - FLOWCHART_TB_UPWARD_LOOP_TOP_ARC_RADIUS_PX;
+                Path = AppendFlowchartCubicSegment(
+                    Path,
+                    VerticalEnd.X,
+                    CrownY,
+                    TargetAttach.X,
+                    CrownY,
+                    TargetAttach.X,
+                    TargetAttach.Y);
+            }
+            else
+            {
+                double EastSpanX = EastApproach.X - VerticalEnd.X;
+                double OutwardNorthY = EastApproach.Y - FLOWCHART_TB_UPWARD_LOOP_SOUTH_U_RADIUS_PX;
+                Path = AppendFlowchartCubicSegment(
+                    Path,
+                    VerticalEnd.X,
+                    OutwardNorthY,
+                    VerticalEnd.X + (EastSpanX * FLOWCHART_TB_UPWARD_LOOP_CORNER_APPROACH_RATIO),
+                    OutwardNorthY,
+                    EastApproach.X,
+                    EastApproach.Y);
+
+                double SouthSpanY = TargetAttach.Y - EastApproach.Y;
+                Path = AppendFlowchartCubicSegment(
+                    Path,
+                    EastApproach.X,
+                    EastApproach.Y - FLOWCHART_TB_UPWARD_LOOP_SOUTH_U_RADIUS_PX,
+                    TargetAttach.X,
+                    EastApproach.Y + (SouthSpanY * FLOWCHART_TB_UPWARD_LOOP_CORNER_APPROACH_RATIO),
+                    TargetAttach.X,
+                    TargetAttach.Y);
+            }
+        }
+        else if (Math.Abs(TargetAttach.Y - VerticalEnd.Y) > 0.75)
+        {
+            double SouthSpanY = TargetAttach.Y - VerticalEnd.Y;
+            Path = AppendFlowchartCubicSegment(
+                Path,
+                VerticalEnd.X,
+                VerticalEnd.Y - FLOWCHART_TB_UPWARD_LOOP_SOUTH_U_RADIUS_PX,
+                TargetAttach.X,
+                VerticalEnd.Y + (SouthSpanY * FLOWCHART_TB_UPWARD_LOOP_CORNER_APPROACH_RATIO),
+                TargetAttach.X,
+                TargetAttach.Y);
+        }
+
+        return Path;
+#pragma warning restore IDE0007
     }
 
     /// <summary>

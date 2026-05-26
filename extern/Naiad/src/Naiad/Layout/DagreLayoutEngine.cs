@@ -48,6 +48,7 @@ public class DagreLayoutEngine : ILayoutEngine
             CoordinateAssignment.ApplyVerticalForkExitGapToDiagramEdges(diagram, options.Direction);
             CoordinateAssignment.ApplyFlowchartDiagramConnectorEndpointSnapping(flowchartAfterLayout);
             CoordinateAssignment.ApplyFlowchartCrossBoundaryEdgeEndpointSnapping(flowchartAfterLayout);
+            CoordinateAssignment.ApplyFlowchartTbUpwardLoopEdgeOrthogonalSnapping(flowchartAfterLayout);
             CoordinateAssignment.ApplyVerticalPassThroughNodeAlignment(diagram, options.Direction);
             CoordinateAssignment.NormalizeFlowchartEdgePointLists(flowchartAfterLayout);
             CoordinateAssignment.ApplyFlowchartLrRectangleToDiamondIngressEdgeEndpointSnapping(flowchartAfterLayout);
@@ -339,6 +340,7 @@ public class DagreLayoutEngine : ILayoutEngine
         RerouteCrossBoundaryFlowchartEdges(diagram, subgraphIdByMemberNodeId, subgraphById);
         CoordinateAssignment.ApplyFlowchartDiagramConnectorEndpointSnapping(diagram);
         CoordinateAssignment.ApplyFlowchartCrossBoundaryEdgeEndpointSnapping(diagram);
+        CoordinateAssignment.ApplyFlowchartTbUpwardLoopEdgeOrthogonalSnapping(diagram);
         CoordinateAssignment.NormalizeFlowchartEdgePointLists(diagram);
 
 #pragma warning disable IDE0007
@@ -375,6 +377,7 @@ public class DagreLayoutEngine : ILayoutEngine
             CoordinateAssignment.ApplyVerticalForkExitGapToDiagramEdges(diagram, options.Direction);
             CoordinateAssignment.ApplyFlowchartDiagramConnectorEndpointSnapping(flowchartPlain);
             CoordinateAssignment.ApplyFlowchartCrossBoundaryEdgeEndpointSnapping(flowchartPlain);
+            CoordinateAssignment.ApplyFlowchartTbUpwardLoopEdgeOrthogonalSnapping(flowchartPlain);
             CoordinateAssignment.NormalizeFlowchartEdgePointLists(flowchartPlain);
             CoordinateAssignment.ApplyFlowchartLrRectangleToDiamondIngressEdgeEndpointSnapping(flowchartPlain);
             CoordinateAssignment.ApplyFlowchartLrRetryLoopEdgeEndpointSnapping(flowchartPlain);

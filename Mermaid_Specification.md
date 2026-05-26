@@ -1464,7 +1464,10 @@ Repository requirement (Naiad / DOCX):
 
 - Layout supplies boundary attach points on the diamond and target (shape intersection), including **3-way fan-out** attach overrides (bottom-left / bottom vertex / bottom-right for TB).
 - When dagre routing already yields a **straight or Manhattan** polyline (three or more collinear/orthogonal points, or a single vertical column), the renderer keeps that polyline and emits **`L`** segments (F30). Do **not** replace it with the ER-style **guided `curveBasis`** shortcut (that bows and crosses on multi-target diamonds).
-- **Binary decision (F29):** two labelled branches from a diamond exit the **lower side-edge midpoints** (left target → left midpoint, right → right), enter rectangular targets at **top-centre**, and render as guided `(P0, (P0.X, midY), (P3.X, midY), P3)` + **`curveBasis`** so the link bows **outward** on the horizontal mid segment (not inward via `(P0.X, midY) → P3` only).
+- **Decision fan-out (F29/F30):** TB labelled branches use fixed diamond exits. Side branches use the **S-route** `(P0, (P0.X, midY), (P3.X, midY), P3)` so the bow is outward; labels use **`edge.LabelPosition`** on the three-point polyline (source, guide, target). Targets enter at **top-centre**.
+- **TB hub fan-out (F31):** hub exits **left face / bottom centre / right face**; mirrored S-curves with guide at `hubCentre ± |targetX − hubCentre|`.
+- **BT fan-in (F32):** workers exit **top-left / top-centre / top-right**; all branches meet **aggregate bottom-centre** with outward `curveBasis` bows on the source leg (no shared T through the centre worker).
+- **LR decision (F34):** dagre layout points and standard flowchart routing (no TB decision-branch override).
 - Do **not** run `fixCorners` on the full dagre elbow for these branches (avoids short-branch wobble in Word).
 - Do **not** snap targets to side-centre independently of layout (that fought the dagre attach points).
 
@@ -1528,7 +1531,7 @@ Key:
 | Tagged document | `tag-doc` | Closed | Wave-edged rectangle + tag geometry; ratios based. |
 | Tagged process | `tag-rect` | Closed | Rectangle + triangular tag; ratio based. |
 | Text block | `text` | Closed | Rectangular hit-box; visible stroke/fill depends on style; rectangle intersection. |
-| Odd | `odd` | Closed | Rectangle with left inverse arrow notch; centred via transform. |
+| Odd | `odd` | Closed | <c>rect_left_inv_arrow</c> polygon: top/bottom left at <c>x − h/2</c>, notch apex at <c>(x, y + h/2)</c> (concave V on the left; <c>A&gt;</c> syntax). |
 | Bang | `bang` | Closed | Complex arc path outline; uses rectangle intersection. |
 | Icon | `icon` | Closed with external dependency | Depends on icon pack SVG bounds + wrapper. |
 | Image | `image` | Closed with external dependency | Depends on natural image size, constraints, label placement. |

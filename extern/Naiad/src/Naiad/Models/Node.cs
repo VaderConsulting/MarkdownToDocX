@@ -10,6 +10,10 @@ public class Node
     public Position Position { get; set; }
     public Style Style { get; set; } = new();
     public string? CssClass { get; set; }
+
+      /// <summary>Classes from inline <c>A[Label]:::className</c> syntax (Mermaid flowchart).</summary>
+    public List<string> InlineClassNames { get; init; } = new List<string>();
+
     public string? Link { get; set; }
     public string? Tooltip { get; set; }
     public string? ParentId { get; set; }

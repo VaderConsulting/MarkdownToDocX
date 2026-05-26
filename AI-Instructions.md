@@ -582,6 +582,12 @@ Decision branch renderer (diamond → labelled edge):
 - do not snap targets to side-centre independently of layout attach points
 - if dummy nodes split edges, apply port/attach overrides to real-node-adjacent segment (original endpoints) so destination segment honours intended port
 
+Outward `curveBasis` bow (do not confuse fan-out vs fan-in):
+
+- hub is the **source** (diamond/rectangle fan-out, LR side fan): spread from the **target** leg — `hub ± |P3 − hub|` (`FlowchartOutwardCurveSpreadAnchor.TargetLeg`)
+- hub is the **target** (stadium/pill dual fan-in, e.g. F53 Success/Error → End): **do not** use hub ± spread guides — Mermaid drops vertically at **source X** then `curveBasis` bends to the target (`BuildFlowchartTbStadiumMergeCurveBasisPath`). Target attach is on the **near end-cap semicircle** toward each branch (`ComputeFlowchartStadiumCapShoulderAttach` / `ResolveFlowchartTbStadiumMergeTargetAttach`), not the shared flat top or inboard top slots. After layout, `ApplyFlowchartTbStadiumMergeEndpointSnapping` must run so `RepairMissingOrDiagonalFlowchartEdges` does not reset to top-centre
+- see `FlowchartOutwardCurveSpreadAnchor` in `FlowchartRenderer.cs`
+
 Curves: do not mutate routed points for curveBasis in multi-point edges:
 
 - Mermaid flowcharts use `d3.curveBasis` over routed polyline points

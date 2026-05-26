@@ -1,4 +1,9 @@
 <Solution>
+  <Folder Name="/extern/" />
+  <Folder Name="/extern/Naiad/" />
+  <Folder Name="/extern/Naiad/src/">
+    <Project Path="extern/Naiad/src/Naiad/Naiad.csproj" />
+  </Folder>
   <Project Path="Converter/Converter.csproj" Id="3b21be3a-b3be-4784-add0-bdd588cad341" />
   <Project Path="src/md2docx/md2docx.csproj" />
   <Project Path="src/MDConverter/MDConverter.csproj" />

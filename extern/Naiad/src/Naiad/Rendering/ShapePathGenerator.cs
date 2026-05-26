@@ -311,9 +311,12 @@ public static class ShapePathGenerator
                 """;
     }
 
+    /// <summary>Mermaid <c>doublecircle</c> uses a fixed 5px ring (12px for neo look).</summary>
+    const double FLOWCHART_DOUBLE_CIRCLE_GAP_PX = 5.0;
+
     public static string DoubleCircle(double cx, double cy, double r)
     {
-        var innerR = r * 0.85;
+        var innerR = Math.Max(0.0, r - FLOWCHART_DOUBLE_CIRCLE_GAP_PX);
         return $"{Circle(cx, cy, r)} {Circle(cx, cy, innerR)}";
     }
 

@@ -243,6 +243,82 @@ public class FlowchartTests : TestBase
     }
 
     [Test]
+    public void F53_StadiumMergeAttachPointsAreSeparatedOnOutline()
+    {
+        const string input =
+            """
+            flowchart TD
+            Success[Success] --> End([End])
+            Error[Error] --> End
+            """;
+
+#pragma warning disable IDE0007
+        string Svg = Mermaid.Render(input);
+        System.Text.RegularExpressions.MatchCollection LinkPaths = System.Text.RegularExpressions.Regex.Matches(
+            Svg,
+            @"path d=""(M[^""]+)""[^>]*class=""flowchart-link""",
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+        Assert.That(LinkPaths.Count, Is.EqualTo(2));
+
+        System.Text.RegularExpressions.Match LastPointA = System.Text.RegularExpressions.Regex.Match(
+            LinkPaths[0].Groups[1].Value,
+            @"([\d\.-]+),([\d\.-]+)\s*$",
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+        System.Text.RegularExpressions.Match LastPointB = System.Text.RegularExpressions.Regex.Match(
+            LinkPaths[1].Groups[1].Value,
+            @"([\d\.-]+),([\d\.-]+)\s*$",
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+        Assert.That(LastPointA.Success, Is.True);
+        Assert.That(LastPointB.Success, Is.True);
+
+        double EndX = double.Parse(LastPointA.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture)
+            + double.Parse(LastPointB.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+        EndX = EndX / 2.0;
+        double AttachAX = double.Parse(LastPointA.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+        double AttachBX = double.Parse(LastPointB.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+        double AttachAY = double.Parse(LastPointA.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture);
+        double AttachBY = double.Parse(LastPointB.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture);
+        double Separation = Math.Abs(AttachAX - AttachBX);
+
+        Assert.That(AttachAX, Is.LessThan(EndX - 5.0));
+        Assert.That(AttachBX, Is.GreaterThan(EndX + 5.0));
+        Assert.That(Separation, Is.GreaterThan(20.0));
+        Assert.That(Math.Abs(AttachAX - AttachBX), Is.GreaterThan(40.0));
+        Assert.That(Math.Abs(AttachAY - AttachBY), Is.LessThan(3.0));
+#pragma warning restore IDE0007
+    }
+
+    [Test]
+    public void F53_EndStadiumIsWidePillNotCircle()
+    {
+        const string input =
+            """
+            flowchart TD
+            Success[Success] --> End([End])
+            Error[Error] --> End
+            """;
+
+#pragma warning disable IDE0007
+        string Svg = Mermaid.Render(input);
+        System.Text.RegularExpressions.Match StadiumPath = System.Text.RegularExpressions.Regex.Match(
+            Svg,
+            @"path d=""(M([\d\.-]+),([\d\.-]+)\s+H([\d\.-]+),([\d\.-]+)\s+A([\d\.-]+),([\d\.-]+)[^""]+)""[^>]*class=""node""[^>]*>\s*<text[^>]*>\s*<tspan[^>]*>End</tspan>",
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant | System.Text.RegularExpressions.RegexOptions.Singleline);
+        Assert.That(StadiumPath.Success, Is.True, "Expected stadium path for End node.");
+
+        double FlatLeftX = double.Parse(StadiumPath.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture);
+        double FlatRightX = double.Parse(StadiumPath.Groups[4].Value, System.Globalization.CultureInfo.InvariantCulture);
+        double Radius = double.Parse(StadiumPath.Groups[6].Value, System.Globalization.CultureInfo.InvariantCulture);
+        double FlatWidth = Math.Abs(FlatRightX - FlatLeftX);
+        double Height = Radius * 2.0;
+
+        Assert.That(FlatWidth, Is.GreaterThan(Radius * 0.35), "End stadium flat section should be visible (mermaid.ts w = bbox + h/4 + padding).");
+        Assert.That(Height, Is.LessThan(40.0), "End stadium height should follow label line-height 1.5 + padding, not the 2.5em squareRect box.");
+#pragma warning restore IDE0007
+    }
+
+    [Test]
     public void LeadingAndTrailingWhitespace()
     {
         const string input =
@@ -255,5 +331,23 @@ public class FlowchartTests : TestBase
         var actual = Mermaid.Render("\r\n\r\n" + input + "\r\n\r\n");
 
         Assert.That(actual, Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void F05_BtForwardChain_UsesStraightVerticalEdgesNotMarginLoop()
+    {
+        const string input =
+            """
+            flowchart BT
+            Base[Base] --> Middle[Middle] --> Apex[Apex]
+            """;
+
+#pragma warning disable IDE0007
+        string Svg = Mermaid.Render(input);
+        Assert.That(Svg, Does.Not.Contain("L117.2,20.2"), "Margin-loop back-edge routing must not apply to forward BT chain edges.");
+        Assert.That(Svg, Does.Not.Contain("L117.2,138"), "Forward BT chain edges must not detour on the right margin.");
+        Assert.That(Svg, Does.Contain("L49.6,138"), "Base to Middle should be a vertical line in the node column.");
+        Assert.That(Svg, Does.Contain("L49.6,28"), "Middle to Apex should be a vertical line in the node column.");
+#pragma warning restore IDE0007
     }
 }

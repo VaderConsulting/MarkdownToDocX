@@ -29,8 +29,6 @@ public sealed class DocxWriter
     private const float MermaidRasterScale = 4.0f;
     private const double FlowchartRasterArrowLengthPx = 8.0;
     private const double FlowchartRasterArrowHalfWidthPx = 5.0;
-    private static readonly Regex AsymmetricFlowchartNodeRegex =
-        new(@"(?m)(^|[\s;])[A-Za-z0-9_][\p{L}\p{N}_.-]*>\s*[^\]\r\n]+\]", RegexOptions.CultureInvariant | RegexOptions.Compiled);
     private static readonly Regex SvgPathEndPointRegex =
         new(@"L\s*([-\d.]+)[,\s]+([-\d.]+)\s*$", RegexOptions.CultureInvariant | RegexOptions.Compiled);
     private static readonly Regex SvgPathStartPointRegex =
@@ -42,6 +40,7 @@ public sealed class DocxWriter
     private const int DecimalNumId = 2;
 
     private readonly EffectiveOptions _Options;
+    private readonly IConversionProgressReporter? _ProgressReporter;
     private MainDocumentPart? _MainPart;
     private NumberingDefinitionsPart? _NumberingPart;
     private int _NextNumberingId = 3;
@@ -49,8 +48,14 @@ public sealed class DocxWriter
     private uint _NextDrawingId = 1;
 
     public DocxWriter(EffectiveOptions Options)
+        : this(Options, null)
+    {
+    }
+
+    public DocxWriter(EffectiveOptions Options, IConversionProgressReporter? ProgressReporter)
     {
         _Options = Options ?? throw new ArgumentNullException(nameof(Options));
+        _ProgressReporter = ProgressReporter;
     }
 
     /// <summary>
@@ -87,8 +92,16 @@ public sealed class DocxWriter
             Body Body = MainPart.Document.Body ?? MainPart.Document.AppendChild(new Body());
             Body.RemoveAllChildren();
 
-            foreach (BlockNode Block in Model.Blocks)
+            int BlockCount = Model.Blocks.Count;
+            for (int BlockIndex = 0; BlockIndex < BlockCount; BlockIndex++)
             {
+                BlockNode Block = Model.Blocks[BlockIndex];
+                if (BlockCount > 0 && _ProgressReporter != null)
+                {
+                    int WritePercent = 15 + (int)Math.Round(80.0 * (BlockIndex + 1) / BlockCount);
+                    _ProgressReporter.Report(WritePercent, DescribeBlockProgress(Block, BlockIndex + 1, BlockCount));
+                }
+
                 AppendBlock(Body, Block, Styles, 0);
             }
 
@@ -375,6 +388,25 @@ public sealed class DocxWriter
         return AbstractNum;
     }
 
+    private static string DescribeBlockProgress(BlockNode Block, int BlockIndex, int BlockCount)
+    {
+        string Kind = Block switch
+        {
+            MermaidBlock => "Mermaid diagram",
+            HeadingBlock Heading => "Heading " + Heading.Level.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            TableBlock => "Table",
+            ListBlock => "List",
+            CodeBlock => "Code block",
+            QuoteBlock => "Quote",
+            HorizontalRuleBlock => "Horizontal rule",
+            _ => "Block"
+        };
+
+        return string.Create(
+            System.Globalization.CultureInfo.InvariantCulture,
+            $"Writing {Kind} ({BlockIndex}/{BlockCount})");
+    }
+
     private void AppendBlock(OpenXmlElement Parent, BlockNode Block, StyleMapping Styles, int ListLevel)
     {
         if (Block is ParagraphBlock Paragraph)
@@ -636,12 +668,9 @@ public sealed class DocxWriter
         try
         {
             string Svg = Mermaid.Render(MermaidBlock.Source, RenderOptions.Default);
-            if (ShouldRasterizeMermaidAsPng(MermaidBlock.Source))
+            if (TryAppendRasterizedSvg(Paragraph, Svg, "Mermaid diagram"))
             {
-                if (TryAppendRasterizedSvg(Paragraph, Svg, "Mermaid diagram"))
-                {
-                    return Paragraph;
-                }
+                return Paragraph;
             }
 
             if (TryAppendSvg(Paragraph, Svg, "Mermaid diagram"))
@@ -1010,6 +1039,10 @@ public sealed class DocxWriter
         return true;
     }
 
+    /// <summary>
+    /// Embeds a Mermaid diagram as PNG (Skia rasterisation). Flowchart arrowheads are inlined first.
+    /// Callers fall back to SVG embedding when rasterisation fails so diagrams are not dropped.
+    /// </summary>
     private bool TryAppendRasterizedSvg(Paragraph Parent, string Svg, string AltText)
     {
         MainDocumentPart MainPart = _MainPart!;
@@ -1113,8 +1146,14 @@ public sealed class DocxWriter
         return true;
     }
 
-    private static bool ShouldRasterizeMermaidAsPng(string Source) =>
-        !string.IsNullOrWhiteSpace(Source) && AsymmetricFlowchartNodeRegex.IsMatch(Source);
+    /// <summary>
+    /// Renders Mermaid source and rasterises to PNG using the DOCX diagram pipeline.
+    /// </summary>
+    internal static byte[]? TryRasterizeMermaidSourceToPng(string MermaidSource)
+    {
+        string Svg = Mermaid.Render(MermaidSource, RenderOptions.Default);
+        return TryRasterizeSvgToPng(Svg);
+    }
 
     private static byte[]? TryRasterizeSvgToPng(string Svg)
     {
@@ -1127,7 +1166,7 @@ public sealed class DocxWriter
             SKPicture? Picture = SvgDocument.Picture;
             if (Picture is null)
             {
-                return TryRasterizeSvgToPngViaHarness(Svg);
+                return TryRasterizeSvgToPngViaHarness(SvgForRaster);
             }
 
             // Use the SVG viewBox (includes diagram padding and marker margin from Naiad). Skia's CullRect
@@ -1179,6 +1218,65 @@ public sealed class DocxWriter
         }
     }
 
+    private readonly struct SvgStadiumShape
+    {
+        public double LeftCapCentreX { get; }
+        public double RightCapCentreX { get; }
+        public double CapCentreY { get; }
+        public double Radius { get; }
+        public double TopY { get; }
+        public double BottomY { get; }
+
+        public SvgStadiumShape(
+            double LeftCapCentreX,
+            double RightCapCentreX,
+            double CapCentreY,
+            double Radius,
+            double TopY,
+            double BottomY)
+        {
+            this.LeftCapCentreX = LeftCapCentreX;
+            this.RightCapCentreX = RightCapCentreX;
+            this.CapCentreY = CapCentreY;
+            this.Radius = Radius;
+            this.TopY = TopY;
+            this.BottomY = BottomY;
+        }
+    }
+
+    /// <summary>Naiad diamond node quad (top, right, bottom, left).</summary>
+    private readonly struct SvgDiamondShape
+    {
+        public double TopX { get; }
+        public double TopY { get; }
+        public double RightX { get; }
+        public double RightY { get; }
+        public double BottomX { get; }
+        public double BottomY { get; }
+        public double LeftX { get; }
+        public double LeftY { get; }
+
+        public SvgDiamondShape(
+            double TopX,
+            double TopY,
+            double RightX,
+            double RightY,
+            double BottomX,
+            double BottomY,
+            double LeftX,
+            double LeftY)
+        {
+            this.TopX = TopX;
+            this.TopY = TopY;
+            this.RightX = RightX;
+            this.RightY = RightY;
+            this.BottomX = BottomX;
+            this.BottomY = BottomY;
+            this.LeftX = LeftX;
+            this.LeftY = LeftY;
+        }
+    }
+
     /// <summary>
     /// Skia does not render SVG <c>marker-end</c> reliably. Inline flowchart arrowheads as filled paths with the tip
     /// on the target node boundary (Mermaid trims the stroke for SVG markers; PNG must reach the target).
@@ -1224,7 +1322,14 @@ public sealed class DocxWriter
                 double UnitY = DirY / Magnitude;
                 double TipX = EndX;
                 double TipY = EndY;
-                if (TryFindTargetAttachPoint(Root, EndX, EndY, UnitX, UnitY, out double AttachX, out double AttachY))
+                if (TrySnapConnectorEndpointToTargetBoundary(
+                        Root,
+                        EndX,
+                        EndY,
+                        UnitX,
+                        UnitY,
+                        out double AttachX,
+                        out double AttachY))
                 {
                     TipX = AttachX;
                     TipY = AttachY;
@@ -1340,6 +1445,19 @@ public sealed class DocxWriter
                 continue;
             }
 
+            string? PathData = Element.Attribute("d")?.Value;
+            if (!string.IsNullOrWhiteSpace(PathData)
+                && TryParseNaiadStadiumPath(PathData, out SvgStadiumShape _))
+            {
+                continue;
+            }
+
+            if (!string.IsNullOrWhiteSpace(PathData)
+                && TryParseNaiadDiamondPath(PathData, out SvgDiamondShape _))
+            {
+                continue;
+            }
+
             if (!TryGetElementBounds(Element, out SvgNodeBounds Bounds))
             {
                 continue;
@@ -1364,6 +1482,481 @@ public sealed class DocxWriter
         }
 
         return BoundsList;
+    }
+
+    private static List<SvgStadiumShape> CollectFlowchartStadiumShapes(XElement Root)
+    {
+        List<SvgStadiumShape> StadiumShapeList = new List<SvgStadiumShape>();
+        HashSet<string> SeenKeys = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (XElement Element in Root.Descendants())
+        {
+            if (!string.Equals(Element.Name.LocalName, "path", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            string? ClassValue = Element.Attribute("class")?.Value ?? string.Empty;
+            if (ClassValue.Contains("flowchart-link", StringComparison.OrdinalIgnoreCase)
+                || ClassValue.Contains("nodeLabel", StringComparison.OrdinalIgnoreCase)
+                || ClassValue.Contains("marker", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            string? PathData = Element.Attribute("d")?.Value;
+            if (string.IsNullOrWhiteSpace(PathData))
+            {
+                continue;
+            }
+
+            if (!TryParseNaiadStadiumPath(PathData, out SvgStadiumShape StadiumShape))
+            {
+                continue;
+            }
+
+            string Key = string.Create(
+                CultureInfo.InvariantCulture,
+                $"{StadiumShape.LeftCapCentreX:0.##},{StadiumShape.TopY:0.##},{StadiumShape.Radius:0.##}");
+            if (!SeenKeys.Add(Key))
+            {
+                continue;
+            }
+
+            StadiumShapeList.Add(StadiumShape);
+        }
+
+        return StadiumShapeList;
+    }
+
+    private static List<SvgDiamondShape> CollectFlowchartDiamondShapes(XElement Root)
+    {
+        List<SvgDiamondShape> DiamondShapeList = new List<SvgDiamondShape>();
+        HashSet<string> SeenKeys = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (XElement Element in Root.Descendants())
+        {
+            if (!string.Equals(Element.Name.LocalName, "path", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            string? ClassValue = Element.Attribute("class")?.Value ?? string.Empty;
+            if (ClassValue.Contains("flowchart-link", StringComparison.OrdinalIgnoreCase)
+                || ClassValue.Contains("nodeLabel", StringComparison.OrdinalIgnoreCase)
+                || ClassValue.Contains("marker", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            string? PathData = Element.Attribute("d")?.Value;
+            if (string.IsNullOrWhiteSpace(PathData))
+            {
+                continue;
+            }
+
+            if (!TryParseNaiadDiamondPath(PathData, out SvgDiamondShape DiamondShape))
+            {
+                continue;
+            }
+
+            string Key = string.Create(
+                CultureInfo.InvariantCulture,
+                $"{DiamondShape.TopX:0.##},{DiamondShape.TopY:0.##},{DiamondShape.RightX:0.##},{DiamondShape.RightY:0.##}");
+            if (!SeenKeys.Add(Key))
+            {
+                continue;
+            }
+
+            DiamondShapeList.Add(DiamondShape);
+        }
+
+        return DiamondShapeList;
+    }
+
+    private static bool TryParseNaiadStadiumPath(string PathData, out SvgStadiumShape StadiumShape)
+    {
+        StadiumShape = default;
+        Match MatchResult = Regex.Match(
+            PathData,
+            @"M\s*([\d\.-]+)\s*,\s*([\d\.-]+)\s+H\s*([\d\.-]+)\s+A\s*([\d\.-]+)\s*,\s*\4\s+0\s+0\s+1\s+[\d\.-]+\s*,\s*([\d\.-]+)\s+H\s*\1\s+A\s*\4\s*,\s*\4",
+            RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+        if (!MatchResult.Success)
+        {
+            return false;
+        }
+
+        double LeftFlatX = double.Parse(MatchResult.Groups[1].Value, CultureInfo.InvariantCulture);
+        double TopY = double.Parse(MatchResult.Groups[2].Value, CultureInfo.InvariantCulture);
+        double RightFlatX = double.Parse(MatchResult.Groups[3].Value, CultureInfo.InvariantCulture);
+        double Radius = double.Parse(MatchResult.Groups[4].Value, CultureInfo.InvariantCulture);
+        double BottomY = double.Parse(MatchResult.Groups[5].Value, CultureInfo.InvariantCulture);
+        if (Radius <= 0.0)
+        {
+            return false;
+        }
+
+        StadiumShape = new SvgStadiumShape(
+            LeftFlatX,
+            RightFlatX,
+            TopY + Radius,
+            Radius,
+            TopY,
+            BottomY);
+        return true;
+    }
+
+    private static bool TryParseNaiadDiamondPath(string PathData, out SvgDiamondShape DiamondShape)
+    {
+        DiamondShape = default;
+        Match MatchResult = Regex.Match(
+            PathData,
+            @"M\s*([\d\.-]+)\s*,\s*([\d\.-]+)\s+L\s*([\d\.-]+)\s*,\s*([\d\.-]+)\s+L\s*([\d\.-]+)\s*,\s*([\d\.-]+)\s+L\s*([\d\.-]+)\s*,\s*([\d\.-]+)\s+Z",
+            RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+        if (!MatchResult.Success)
+        {
+            return false;
+        }
+
+        double TopX = double.Parse(MatchResult.Groups[1].Value, CultureInfo.InvariantCulture);
+        double TopY = double.Parse(MatchResult.Groups[2].Value, CultureInfo.InvariantCulture);
+        double RightX = double.Parse(MatchResult.Groups[3].Value, CultureInfo.InvariantCulture);
+        double RightY = double.Parse(MatchResult.Groups[4].Value, CultureInfo.InvariantCulture);
+        double BottomX = double.Parse(MatchResult.Groups[5].Value, CultureInfo.InvariantCulture);
+        double BottomY = double.Parse(MatchResult.Groups[6].Value, CultureInfo.InvariantCulture);
+        double LeftX = double.Parse(MatchResult.Groups[7].Value, CultureInfo.InvariantCulture);
+        double LeftY = double.Parse(MatchResult.Groups[8].Value, CultureInfo.InvariantCulture);
+        DiamondShape = new SvgDiamondShape(TopX, TopY, RightX, RightY, BottomX, BottomY, LeftX, LeftY);
+        return true;
+    }
+
+    private static bool TryIntersectRayWithStadium(
+        double OriginX,
+        double OriginY,
+        double UnitX,
+        double UnitY,
+        SvgStadiumShape StadiumShape,
+        out double HitX,
+        out double HitY,
+        out double Distance)
+    {
+        HitX = 0;
+        HitY = 0;
+        Distance = double.PositiveInfinity;
+        bool Found = false;
+
+        if (TryIntersectRayWithCircle(
+                OriginX,
+                OriginY,
+                UnitX,
+                UnitY,
+                StadiumShape.LeftCapCentreX,
+                StadiumShape.CapCentreY,
+                StadiumShape.Radius,
+                out double LeftHitX,
+                out double LeftHitY,
+                out double LeftDistance))
+        {
+            HitX = LeftHitX;
+            HitY = LeftHitY;
+            Distance = LeftDistance;
+            Found = true;
+        }
+
+        if (TryIntersectRayWithCircle(
+                OriginX,
+                OriginY,
+                UnitX,
+                UnitY,
+                StadiumShape.RightCapCentreX,
+                StadiumShape.CapCentreY,
+                StadiumShape.Radius,
+                out double RightHitX,
+                out double RightHitY,
+                out double RightDistance)
+            && RightDistance < Distance)
+        {
+            HitX = RightHitX;
+            HitY = RightHitY;
+            Distance = RightDistance;
+            Found = true;
+        }
+
+        if (TryIntersectRayWithHorizontalSegment(
+                OriginX,
+                OriginY,
+                UnitX,
+                UnitY,
+                StadiumShape.LeftCapCentreX,
+                StadiumShape.RightCapCentreX,
+                StadiumShape.TopY,
+                out double TopHitX,
+                out double TopHitY,
+                out double TopDistance)
+            && TopDistance < Distance)
+        {
+            HitX = TopHitX;
+            HitY = TopHitY;
+            Distance = TopDistance;
+            Found = true;
+        }
+
+        if (TryIntersectRayWithHorizontalSegment(
+                OriginX,
+                OriginY,
+                UnitX,
+                UnitY,
+                StadiumShape.LeftCapCentreX,
+                StadiumShape.RightCapCentreX,
+                StadiumShape.BottomY,
+                out double BottomHitX,
+                out double BottomHitY,
+                out double BottomDistance)
+            && BottomDistance < Distance)
+        {
+            HitX = BottomHitX;
+            HitY = BottomHitY;
+            Distance = BottomDistance;
+            Found = true;
+        }
+
+        return Found;
+    }
+
+    private static bool TryIntersectRayWithDiamond(
+        double OriginX,
+        double OriginY,
+        double UnitX,
+        double UnitY,
+        SvgDiamondShape DiamondShape,
+        out double HitX,
+        out double HitY,
+        out double Distance)
+    {
+        HitX = 0;
+        HitY = 0;
+        Distance = double.PositiveInfinity;
+        bool Found = false;
+
+        if (TryIntersectRayWithSegment(
+                OriginX,
+                OriginY,
+                UnitX,
+                UnitY,
+                DiamondShape.TopX,
+                DiamondShape.TopY,
+                DiamondShape.RightX,
+                DiamondShape.RightY,
+                out double TopRightHitX,
+                out double TopRightHitY,
+                out double TopRightDistance)
+            && TopRightDistance < Distance)
+        {
+            HitX = TopRightHitX;
+            HitY = TopRightHitY;
+            Distance = TopRightDistance;
+            Found = true;
+        }
+
+        if (TryIntersectRayWithSegment(
+                OriginX,
+                OriginY,
+                UnitX,
+                UnitY,
+                DiamondShape.RightX,
+                DiamondShape.RightY,
+                DiamondShape.BottomX,
+                DiamondShape.BottomY,
+                out double RightBottomHitX,
+                out double RightBottomHitY,
+                out double RightBottomDistance)
+            && RightBottomDistance < Distance)
+        {
+            HitX = RightBottomHitX;
+            HitY = RightBottomHitY;
+            Distance = RightBottomDistance;
+            Found = true;
+        }
+
+        if (TryIntersectRayWithSegment(
+                OriginX,
+                OriginY,
+                UnitX,
+                UnitY,
+                DiamondShape.BottomX,
+                DiamondShape.BottomY,
+                DiamondShape.LeftX,
+                DiamondShape.LeftY,
+                out double BottomLeftHitX,
+                out double BottomLeftHitY,
+                out double BottomLeftDistance)
+            && BottomLeftDistance < Distance)
+        {
+            HitX = BottomLeftHitX;
+            HitY = BottomLeftHitY;
+            Distance = BottomLeftDistance;
+            Found = true;
+        }
+
+        if (TryIntersectRayWithSegment(
+                OriginX,
+                OriginY,
+                UnitX,
+                UnitY,
+                DiamondShape.LeftX,
+                DiamondShape.LeftY,
+                DiamondShape.TopX,
+                DiamondShape.TopY,
+                out double LeftTopHitX,
+                out double LeftTopHitY,
+                out double LeftTopDistance)
+            && LeftTopDistance < Distance)
+        {
+            HitX = LeftTopHitX;
+            HitY = LeftTopHitY;
+            Distance = LeftTopDistance;
+            Found = true;
+        }
+
+        return Found;
+    }
+
+    private static bool TryIntersectRayWithSegment(
+        double OriginX,
+        double OriginY,
+        double UnitX,
+        double UnitY,
+        double SegmentStartX,
+        double SegmentStartY,
+        double SegmentEndX,
+        double SegmentEndY,
+        out double HitX,
+        out double HitY,
+        out double Distance)
+    {
+        HitX = 0;
+        HitY = 0;
+        Distance = 0;
+
+        double SegmentDx = SegmentEndX - SegmentStartX;
+        double SegmentDy = SegmentEndY - SegmentStartY;
+        double Denominator = (UnitX * SegmentDy) - (UnitY * SegmentDx);
+        const double Epsilon = 1e-9;
+        if (Math.Abs(Denominator) < Epsilon)
+        {
+            return false;
+        }
+
+        double QueryPx = SegmentStartX - OriginX;
+        double QueryPy = SegmentStartY - OriginY;
+        double RayParameter = ((QueryPx * SegmentDy) - (QueryPy * SegmentDx)) / Denominator;
+        double SegmentParameter = ((QueryPx * UnitY) - (QueryPy * UnitX)) / Denominator;
+        const double MinApproach = 0.5;
+        if (RayParameter < MinApproach
+            || SegmentParameter < -Epsilon
+            || SegmentParameter > 1.0 + Epsilon)
+        {
+            return false;
+        }
+
+        HitX = OriginX + (UnitX * RayParameter);
+        HitY = OriginY + (UnitY * RayParameter);
+        Distance = RayParameter;
+        return true;
+    }
+
+    private static bool TryIntersectRayWithCircle(
+        double OriginX,
+        double OriginY,
+        double UnitX,
+        double UnitY,
+        double CentreX,
+        double CentreY,
+        double Radius,
+        out double HitX,
+        out double HitY,
+        out double Distance)
+    {
+        HitX = 0;
+        HitY = 0;
+        Distance = 0;
+
+        double DeltaX = OriginX - CentreX;
+        double DeltaY = OriginY - CentreY;
+        double B = (2.0 * ((UnitX * DeltaX) + (UnitY * DeltaY)));
+        double C = (DeltaX * DeltaX) + (DeltaY * DeltaY) - (Radius * Radius);
+        double Discriminant = (B * B) - (4.0 * C);
+        if (Discriminant < 0.0)
+        {
+            return false;
+        }
+
+        double SqrtDiscriminant = Math.Sqrt(Discriminant);
+        double T1 = (-B - SqrtDiscriminant) / 2.0;
+        double T2 = (-B + SqrtDiscriminant) / 2.0;
+        const double MinApproach = 0.5;
+        double BestT = double.PositiveInfinity;
+
+        if (T1 >= MinApproach)
+        {
+            BestT = T1;
+        }
+
+        if (T2 >= MinApproach && T2 < BestT)
+        {
+            BestT = T2;
+        }
+
+        if (double.IsPositiveInfinity(BestT))
+        {
+            return false;
+        }
+
+        HitX = OriginX + (UnitX * BestT);
+        HitY = OriginY + (UnitY * BestT);
+        Distance = BestT;
+        return true;
+    }
+
+    private static bool TryIntersectRayWithHorizontalSegment(
+        double OriginX,
+        double OriginY,
+        double UnitX,
+        double UnitY,
+        double SegmentMinX,
+        double SegmentMaxX,
+        double SegmentY,
+        out double HitX,
+        out double HitY,
+        out double Distance)
+    {
+        HitX = 0;
+        HitY = 0;
+        Distance = 0;
+
+        const double Epsilon = 1e-9;
+        if (Math.Abs(UnitY) < Epsilon)
+        {
+            return false;
+        }
+
+        double T = (SegmentY - OriginY) / UnitY;
+        const double MinApproach = 0.5;
+        if (T < MinApproach)
+        {
+            return false;
+        }
+
+        HitX = OriginX + (UnitX * T);
+        HitY = SegmentY;
+        if (HitX < Math.Min(SegmentMinX, SegmentMaxX) - Epsilon
+            || HitX > Math.Max(SegmentMinX, SegmentMaxX) + Epsilon)
+        {
+            return false;
+        }
+
+        Distance = T;
+        return true;
     }
 
     private static bool TryGetElementBounds(XElement Element, out SvgNodeBounds Bounds)
@@ -1437,6 +2030,100 @@ public sealed class DocxWriter
         }
     }
 
+    /// <summary>
+    /// Snap only when the stroke end is outside node fills and still short of the target outline (F53: skip re-extending
+    /// through a stadium when the path already ends on the shoulder inside the target AABB).
+    /// </summary>
+    private static bool TrySnapConnectorEndpointToTargetBoundary(
+        XElement Root,
+        double OriginX,
+        double OriginY,
+        double UnitX,
+        double UnitY,
+        out double AttachX,
+        out double AttachY)
+    {
+        AttachX = OriginX;
+        AttachY = OriginY;
+
+        if (IsPointInsideAnyFlowchartNodeBounds(Root, OriginX, OriginY))
+        {
+            double BestSnapDistance = double.PositiveInfinity;
+            if (TryFindTargetAttachPoint(
+                    Root,
+                    OriginX,
+                    OriginY,
+                    UnitX,
+                    UnitY,
+                    out double ForwardAttachX,
+                    out double ForwardAttachY))
+            {
+                double ForwardDeltaX = ForwardAttachX - OriginX;
+                double ForwardDeltaY = ForwardAttachY - OriginY;
+                double ForwardDistance = Math.Sqrt((ForwardDeltaX * ForwardDeltaX) + (ForwardDeltaY * ForwardDeltaY));
+                if (ForwardDistance < BestSnapDistance)
+                {
+                    BestSnapDistance = ForwardDistance;
+                    AttachX = ForwardAttachX;
+                    AttachY = ForwardAttachY;
+                }
+            }
+
+            if (TryFindTargetAttachPoint(
+                    Root,
+                    OriginX,
+                    OriginY,
+                    -UnitX,
+                    -UnitY,
+                    out double BackAttachX,
+                    out double BackAttachY))
+            {
+                double BackDeltaX = BackAttachX - OriginX;
+                double BackDeltaY = BackAttachY - OriginY;
+                double BackDistance = Math.Sqrt((BackDeltaX * BackDeltaX) + (BackDeltaY * BackDeltaY));
+                if (BackDistance < BestSnapDistance)
+                {
+                    BestSnapDistance = BackDistance;
+                    AttachX = BackAttachX;
+                    AttachY = BackAttachY;
+                }
+            }
+
+            const double MaxInsideSnapDistancePx = 12.0;
+            return BestSnapDistance <= MaxInsideSnapDistancePx;
+        }
+
+        if (!TryFindTargetAttachPoint(Root, OriginX, OriginY, UnitX, UnitY, out AttachX, out AttachY))
+        {
+            return false;
+        }
+
+        double DeltaX = AttachX - OriginX;
+        double DeltaY = AttachY - OriginY;
+        double SnapDistance = Math.Sqrt((DeltaX * DeltaX) + (DeltaY * DeltaY));
+        const double MaxSnapDistancePx = 24.0;
+        return SnapDistance <= MaxSnapDistancePx;
+    }
+
+    private static bool IsPointInsideAnyFlowchartNodeBounds(XElement Root, double PointX, double PointY)
+    {
+        List<SvgNodeBounds> NodeBoundsList = CollectFlowchartNodeBounds(Root);
+        const double BoundaryEpsilon = 0.5;
+        for (int Index = 0; Index < NodeBoundsList.Count; Index++)
+        {
+            SvgNodeBounds NodeBounds = NodeBoundsList[Index];
+            if (PointX >= NodeBounds.MinX - BoundaryEpsilon
+                && PointX <= NodeBounds.MaxX + BoundaryEpsilon
+                && PointY >= NodeBounds.MinY - BoundaryEpsilon
+                && PointY <= NodeBounds.MaxY + BoundaryEpsilon)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static bool TryFindTargetAttachPoint(
         XElement Root,
         double OriginX,
@@ -1449,8 +2136,57 @@ public sealed class DocxWriter
         AttachX = OriginX;
         AttachY = OriginY;
         List<SvgNodeBounds> NodeBoundsList = CollectFlowchartNodeBounds(Root);
+        List<SvgStadiumShape> StadiumShapeList = CollectFlowchartStadiumShapes(Root);
+        List<SvgDiamondShape> DiamondShapeList = CollectFlowchartDiamondShapes(Root);
         double BestDistance = double.PositiveInfinity;
         bool Found = false;
+
+        for (int StadiumIndex = 0; StadiumIndex < StadiumShapeList.Count; StadiumIndex++)
+        {
+            SvgStadiumShape StadiumShape = StadiumShapeList[StadiumIndex];
+            if (!IsStadiumCandidateForConnectorSnap(StadiumShape, OriginX, OriginY))
+            {
+                continue;
+            }
+
+            if (!TryIntersectRayWithStadium(OriginX, OriginY, UnitX, UnitY, StadiumShape, out double StadiumHitX, out double StadiumHitY, out double StadiumDistance))
+            {
+                continue;
+            }
+
+            if (StadiumDistance < BestDistance)
+            {
+                BestDistance = StadiumDistance;
+                AttachX = StadiumHitX;
+                AttachY = StadiumHitY;
+                Found = true;
+            }
+        }
+
+        for (int DiamondIndex = 0; DiamondIndex < DiamondShapeList.Count; DiamondIndex++)
+        {
+            SvgDiamondShape DiamondShape = DiamondShapeList[DiamondIndex];
+            if (!TryIntersectRayWithDiamond(
+                    OriginX,
+                    OriginY,
+                    UnitX,
+                    UnitY,
+                    DiamondShape,
+                    out double DiamondHitX,
+                    out double DiamondHitY,
+                    out double DiamondDistance))
+            {
+                continue;
+            }
+
+            if (DiamondDistance < BestDistance)
+            {
+                BestDistance = DiamondDistance;
+                AttachX = DiamondHitX;
+                AttachY = DiamondHitY;
+                Found = true;
+            }
+        }
 
         for (int Index = 0; Index < NodeBoundsList.Count; Index++)
         {
@@ -1470,6 +2206,22 @@ public sealed class DocxWriter
         }
 
         return Found;
+    }
+
+    private static bool IsStadiumCandidateForConnectorSnap(SvgStadiumShape StadiumShape, double OriginX, double OriginY)
+    {
+        const double VerticalMarginPx = 8.0;
+        if (OriginY > StadiumShape.BottomY + VerticalMarginPx)
+        {
+            return false;
+        }
+
+        if (OriginY + VerticalMarginPx < StadiumShape.TopY)
+        {
+            return false;
+        }
+
+        return true;
     }
 
     private static bool TryIntersectRayWithBounds(
@@ -1616,44 +2368,76 @@ public sealed class DocxWriter
             return false;
         }
 
-        MatchCollection EndMatches = SvgPathEndPointRegex.Matches(PathData);
-        if (EndMatches.Count == 0)
-        {
-            return false;
-        }
+        return TryGetSvgPathEndPointAndTangent(PathData, out EndX, out EndY, out DirX, out DirY);
+    }
 
-        Match EndMatch = EndMatches[EndMatches.Count - 1];
-        if (!double.TryParse(EndMatch.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out EndX)
-            || !double.TryParse(EndMatch.Groups[2].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out EndY))
-        {
-            return false;
-        }
+    /// <summary>
+    /// Uses the path tangent at the stroke end so arrowheads align with the final segment (orthogonal elbows, curves).
+    /// </summary>
+    private static bool TryGetSvgPathEndPointAndTangent(
+        string PathData,
+        out double EndX,
+        out double EndY,
+        out double DirX,
+        out double DirY)
+    {
+        EndX = 0;
+        EndY = 0;
+        DirX = 0;
+        DirY = 0;
 
-        double PathStartX;
-        double PathStartY;
-        if (EndMatches.Count >= 2)
+        try
         {
-            Match PreviousMatch = EndMatches[EndMatches.Count - 2];
-            if (!double.TryParse(PreviousMatch.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out PathStartX)
-                || !double.TryParse(PreviousMatch.Groups[2].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out PathStartY))
+            using SKPath? Path = SKPath.ParseSvgPathData(PathData);
+            if (Path == null || Path.IsEmpty)
             {
                 return false;
             }
-        }
-        else
-        {
-            Match StartMatch = SvgPathStartPointRegex.Match(PathData);
-            if (!StartMatch.Success
-                || !double.TryParse(StartMatch.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out PathStartX)
-                || !double.TryParse(StartMatch.Groups[2].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out PathStartY))
+
+            using SKPathMeasure Measure = new SKPathMeasure(Path, false, 1f);
+            float PathLength = Measure.Length;
+            if (PathLength < 1e-6f)
             {
                 return false;
             }
-        }
 
-        DirX = EndX - PathStartX;
-        DirY = EndY - PathStartY;
-        return true;
+            if (!Measure.GetPositionAndTangent(PathLength, out SKPoint Position, out SKPoint Tangent))
+            {
+                return false;
+            }
+
+            EndX = Position.X;
+            EndY = Position.Y;
+            DirX = Tangent.X;
+            DirY = Tangent.Y;
+
+            // curveBasis ends often have a degenerate tangent at the stroke tip; use the incoming chord instead.
+            const float IncomingDirectionSamplePx = 8f;
+            float SampleDistance = Math.Min(IncomingDirectionSamplePx, PathLength * 0.2f);
+            if (SampleDistance >= 1f
+                && Measure.GetPosition(PathLength - SampleDistance, out SKPoint EarlierPoint))
+            {
+                DirX = Position.X - EarlierPoint.X;
+                DirY = Position.Y - EarlierPoint.Y;
+            }
+
+            if (Math.Abs(DirX) < 1e-6 && Math.Abs(DirY) < 1e-6)
+            {
+                DirX = Tangent.X;
+                DirY = Tangent.Y;
+            }
+
+            if (Math.Abs(DirX) < 1e-6 && Math.Abs(DirY) < 1e-6)
+            {
+                return false;
+            }
+
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static bool TryGetSvgViewBoxBounds(string Svg, out SKRect Bounds)

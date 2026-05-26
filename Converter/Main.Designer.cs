@@ -33,6 +33,8 @@ namespace Converter
             Input = new TextBox();
             Output = new TextBox();
             Start = new Button();
+            ProgressLabel = new Label();
+            JobProgress = new ProgressBar();
             SuspendLayout();
             // 
             // label1
@@ -72,26 +74,48 @@ namespace Converter
             // Start
             // 
             Start.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            Start.Location = new Point(654, 86);
+            Start.Location = new Point(654, 48);
             Start.Name = "Start";
             Start.Size = new Size(112, 34);
             Start.TabIndex = 4;
             Start.Text = "Start";
             Start.UseVisualStyleBackColor = true;
             // 
+            // ProgressLabel
+            // 
+            ProgressLabel.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            ProgressLabel.AutoEllipsis = true;
+            ProgressLabel.Location = new Point(12, 86);
+            ProgressLabel.Name = "ProgressLabel";
+            ProgressLabel.Size = new Size(754, 25);
+            ProgressLabel.TabIndex = 5;
+            ProgressLabel.Text = "Ready";
+            ProgressLabel.Visible = false;
+            // 
+            // JobProgress
+            // 
+            JobProgress.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            JobProgress.Location = new Point(12, 117);
+            JobProgress.Name = "JobProgress";
+            JobProgress.Size = new Size(754, 28);
+            JobProgress.TabIndex = 6;
+            JobProgress.Visible = false;
+            // 
             // Main
             // 
             AutoScaleDimensions = new SizeF(10F, 25F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(778, 144);
+            ClientSize = new Size(778, 164);
+            Controls.Add(JobProgress);
+            Controls.Add(ProgressLabel);
             Controls.Add(Start);
             Controls.Add(Output);
             Controls.Add(Input);
             Controls.Add(label2);
             Controls.Add(label1);
             MaximizeBox = false;
-            MaximumSize = new Size(10000, 200);
-            MinimumSize = new Size(640, 200);
+            MaximumSize = new Size(10000, 220);
+            MinimumSize = new Size(640, 220);
             Name = "Main";
             StartPosition = FormStartPosition.CenterScreen;
             Text = "Markdown to DocX converter";
@@ -106,5 +130,7 @@ namespace Converter
         private TextBox Input;
         private TextBox Output;
         private Button Start;
+        internal Label ProgressLabel;
+        internal ProgressBar JobProgress;
     }
 }

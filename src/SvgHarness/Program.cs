@@ -10,6 +10,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Text.Json;
+using System.Globalization;
 using MermaidSharp;
 using SkiaSharp;
 using Svg.Skia;
@@ -20,10 +21,14 @@ internal static class Program
 {
     private static readonly HttpClient _HttpClient = new HttpClient();
     private static readonly object _ConsoleLock = new object();
+    private static readonly SemaphoreSlim _MermaidInkThrottle = new SemaphoreSlim(1, 1);
+    private static readonly char[] _ViewBoxSplitChars = new[] { ' ', ',', '\t', '\r', '\n' };
 
     private sealed class MermaidBlock
     {
         public required int Index { get; init; }
+        public required string ScenarioId { get; init; }
+        public required string ScenarioTitle { get; init; }
         public required string Source { get; init; }
         public required string SourceLabel { get; init; }
         public required string DetectedDiagramType { get; init; }
@@ -34,10 +39,20 @@ internal static class Program
         public required MermaidBlock Block { get; init; }
         public required bool NaiadSucceeded { get; init; }
         public required bool ReferenceSucceeded { get; init; }
+        public required bool StructuralMatch { get; init; }
+        public required bool VisualMatch { get; init; }
         public required bool MatchAfterNormalisation { get; init; }
+        public required double VisualDiffRatio { get; init; }
         public required string NaiadSvgPath { get; init; }
         public required string ReferenceSvgPath { get; init; }
         public required string Notes { get; init; }
+    }
+
+    private sealed class FlowchartSvgMetrics
+    {
+        public HashSet<string> NodeLabels { get; init; } = new HashSet<string>(StringComparer.Ordinal);
+        public int EdgePathCount { get; init; }
+        public int ClusterRectCount { get; init; }
     }
 
     private static int Main(string[] Args)
@@ -69,12 +84,17 @@ internal static class Program
         if (Args.Length < 2)
         {
             Console.Error.WriteLine("Usage:");
-            Console.Error.WriteLine("  dotnet run --project .\\src\\SvgHarness\\SvgHarness.csproj -- <markdownPath> <outputDirectory> [--no-reference]");
+            Console.Error.WriteLine("  dotnet run --project .\\src\\SvgHarness\\SvgHarness.csproj -- <markdownPath> <outputDirectory> [options]");
             Console.Error.WriteLine("  dotnet run --project .\\src\\SvgHarness\\SvgHarness.csproj -- --rasterise-svg <inputSvgPath> <outputPngPath>");
             Console.Error.WriteLine();
-            Console.Error.WriteLine("Notes:");
-            Console.Error.WriteLine("- Reference rendering uses Mermaid Ink (no Node required).");
-            Console.Error.WriteLine("- If Node is installed, you can still opt into mermaid-cli with --reference=npx.");
+            Console.Error.WriteLine("Options:");
+            Console.Error.WriteLine("  --no-reference          Naiad render only (no mermaid.ink gate)");
+            Console.Error.WriteLine("  --reference=mermaid-ink Reference via mermaid.ink (default)");
+            Console.Error.WriteLine("  --reference=npx         Reference via @mermaid-js/mermaid-cli");
+            Console.Error.WriteLine("  --report=<path>         Write F01-style markdown audit (default: <out>/report.md)");
+            Console.Error.WriteLine("  --parallel=<n>          Parallel cases (default: 2 for mermaid-ink, 4 otherwise)");
+            Console.Error.WriteLine("  --max-blocks=<n>        Limit blocks processed");
+            Console.Error.WriteLine("  --emit-png              Keep PNG artefacts");
             return 2;
         }
 
@@ -84,7 +104,9 @@ internal static class Program
         bool emitPng = HasFlag(Args, "--emit-png");
         string referenceMode = GetOptionValue(Args, "--reference") ?? "mermaid-ink";
         int maxBlocks = TryGetIntOptionValue(Args, "--max-blocks") ?? int.MaxValue;
-        int parallel = TryGetIntOptionValue(Args, "--parallel") ?? 4;
+        int defaultParallel = string.Equals(referenceMode, "mermaid-ink", StringComparison.OrdinalIgnoreCase) ? 2 : 4;
+        int parallel = TryGetIntOptionValue(Args, "--parallel") ?? defaultParallel;
+        string? reportPath = GetOptionValue(Args, "--report");
         if (noReference)
         {
             referenceMode = "none";
@@ -121,8 +143,16 @@ internal static class Program
         List<CompareResult> results = new List<CompareResult>();
         results.AddRange(RunCases(blocks, outputDirectory, referenceMode, parallel, emitPng));
 
-        WriteSummary(results, string.Equals(referenceMode, "none", StringComparison.OrdinalIgnoreCase));
+        bool noReferenceMode = string.Equals(referenceMode, "none", StringComparison.OrdinalIgnoreCase);
+        WriteSummary(results, noReferenceMode);
         WriteScopedTypeSummary(results);
+
+        string auditPath = string.IsNullOrWhiteSpace(reportPath)
+            ? Path.Combine(outputDirectory, "report.md")
+            : Path.GetFullPath(reportPath);
+        WriteAuditReport(results, auditPath, markdownPath, noReferenceMode);
+        Console.WriteLine();
+        Console.WriteLine("Audit report: " + auditPath);
 
         bool anyRenderFailed = results.Exists(r => !r.NaiadSucceeded || (!noReference && !r.ReferenceSucceeded));
         if (anyRenderFailed)
@@ -206,32 +236,67 @@ internal static class Program
             notes = "Reference render failed: " + referenceError;
         }
 
+        bool structuralMatch = false;
+        bool visualMatch = false;
+        double visualDiffRatio = 1.0;
         bool match = false;
         if (naiadSucceeded && (string.Equals(referenceMode, "none", StringComparison.OrdinalIgnoreCase) || referenceSucceeded))
         {
             if (string.Equals(referenceMode, "none", StringComparison.OrdinalIgnoreCase))
             {
+                structuralMatch = true;
+                visualMatch = true;
                 match = true;
             }
             else
             {
-                // Prefer semantic comparison: render to PNG and pixel-diff.
-                string? naiadPngError = null;
-                string? refPngError = null;
-                if (TryRenderSvgToPng(naiadSvgPath, naiadPngPath, out naiadPngError)
-                    && TryGetReferencePng(referenceMode, block.Source, referenceSvgPath, referencePngPath, out refPngError))
+                string naiadSvg = File.ReadAllText(naiadSvgPath, Encoding.UTF8);
+                string referenceSvg = File.ReadAllText(referenceSvgPath, Encoding.UTF8);
+                structuralMatch = CompareFlowchartSvgStructure(naiadSvg, referenceSvg, out string structuralNotes);
+                if (!structuralMatch)
                 {
-                    match = ComputePngVisualMatch(naiadPngPath, referencePngPath, out double diffRatio);
-                    if (!match)
-                    {
-                        notes = $"Visual diff ratio={diffRatio:0.0000}";
-                    }
+                    notes = structuralNotes;
+                }
+
+                bool useCoordinateGate = string.Equals(block.ScenarioId, "F53A", StringComparison.Ordinal);
+                if (useCoordinateGate)
+                {
+                    bool coordinateMatch = F53AStadiumMergeCoordinateCompare.TryCompare(
+                        naiadSvg,
+                        referenceSvg,
+                        out string coordinateNotes,
+                        out double maxCoordinateDelta);
+                    visualMatch = coordinateMatch;
+                    visualDiffRatio = maxCoordinateDelta;
+                    string coordinatePath = Path.Combine(outputDirectory, prefix + ".coordinates.txt");
+                    File.WriteAllText(coordinatePath, coordinateNotes, Encoding.UTF8);
+                    notes = string.IsNullOrEmpty(notes)
+                        ? coordinateNotes.Replace("\r\n", "; ", StringComparison.Ordinal)
+                        : notes + "; " + coordinateNotes.Replace("\r\n", "; ", StringComparison.Ordinal);
                 }
                 else
                 {
-                    notes = "PNG compare failed: " + (naiadPngError ?? refPngError ?? "unknown");
-                    match = false;
+                    string? naiadPngError = null;
+                    string? refPngError = null;
+                    if (TryRenderSvgToPng(naiadSvgPath, naiadPngPath, out naiadPngError)
+                        && TryGetReferencePng(referenceMode, block.Source, referenceSvgPath, referencePngPath, out refPngError))
+                    {
+                        visualMatch = ComputePngVisualMatch(naiadPngPath, referencePngPath, out visualDiffRatio);
+                        if (!visualMatch)
+                        {
+                            string visualNote = $"Visual diff ratio={visualDiffRatio:0.0000}";
+                            notes = string.IsNullOrEmpty(notes) ? visualNote : notes + "; " + visualNote;
+                        }
+                    }
+                    else
+                    {
+                        string pngNote = "PNG compare failed: " + (naiadPngError ?? refPngError ?? "unknown");
+                        notes = string.IsNullOrEmpty(notes) ? pngNote : notes + "; " + pngNote;
+                        visualMatch = false;
+                    }
                 }
+
+                match = structuralMatch && visualMatch;
             }
         }
 
@@ -240,7 +305,10 @@ internal static class Program
             Block = block,
             NaiadSucceeded = naiadSucceeded,
             ReferenceSucceeded = referenceSucceeded || string.Equals(referenceMode, "none", StringComparison.OrdinalIgnoreCase),
+            StructuralMatch = structuralMatch,
+            VisualMatch = visualMatch,
             MatchAfterNormalisation = match,
+            VisualDiffRatio = visualDiffRatio,
             NaiadSvgPath = naiadSvgPath,
             ReferenceSvgPath = referenceSvgPath,
             Notes = notes
@@ -401,14 +469,17 @@ internal static class Program
         string payload = MermaidInkEncode(mermaidSource);
         string url = "https://mermaid.ink/svg/" + payload;
 
-        const int MAX_ATTEMPTS = 4;
+        const int MAX_ATTEMPTS = 8;
         int attempt = 0;
         while (attempt < MAX_ATTEMPTS)
         {
             attempt++;
+            bool acquired = false;
             try
             {
-                using (CancellationTokenSource cts = new CancellationTokenSource(TimeSpan.FromSeconds(20)))
+                _MermaidInkThrottle.Wait();
+                acquired = true;
+                using (CancellationTokenSource cts = new CancellationTokenSource(TimeSpan.FromSeconds(45)))
                 using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, url))
                 {
                     HttpResponseMessage response = _HttpClient.Send(request, cts.Token);
@@ -458,6 +529,14 @@ internal static class Program
                 error = ex.ToString();
                 return false;
             }
+            finally
+            {
+                if (acquired)
+                {
+                    _MermaidInkThrottle.Release();
+                    Thread.Sleep(200);
+                }
+            }
         }
 
         error = "Mermaid Ink request failed after retries.";
@@ -487,14 +566,17 @@ internal static class Program
         string payload = MermaidInkEncode(mermaidSource);
         string url = "https://mermaid.ink/img/" + payload + "?type=png";
 
-        const int MAX_ATTEMPTS = 4;
+        const int MAX_ATTEMPTS = 8;
         int attempt = 0;
         while (attempt < MAX_ATTEMPTS)
         {
             attempt++;
+            bool acquired = false;
             try
             {
-                using (CancellationTokenSource cts = new CancellationTokenSource(TimeSpan.FromSeconds(20)))
+                _MermaidInkThrottle.Wait();
+                acquired = true;
+                using (CancellationTokenSource cts = new CancellationTokenSource(TimeSpan.FromSeconds(45)))
                 using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, url))
                 {
                     HttpResponseMessage response = _HttpClient.Send(request, cts.Token);
@@ -544,10 +626,45 @@ internal static class Program
                 error = ex.ToString();
                 return false;
             }
+            finally
+            {
+                if (acquired)
+                {
+                    _MermaidInkThrottle.Release();
+                    Thread.Sleep(200);
+                }
+            }
         }
 
         error = "Mermaid Ink PNG request failed after retries.";
         return false;
+    }
+
+    private static bool TryParseSvgViewBox(string svgXml, out SKRect viewBox)
+    {
+        viewBox = SKRect.Empty;
+        Match match = Regex.Match(svgXml, @"viewBox\s*=\s*""([^""]+)""", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        if (!match.Success)
+        {
+            return false;
+        }
+
+        string[] parts = match.Groups[1].Value.Split(_ViewBoxSplitChars, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 4)
+        {
+            return false;
+        }
+
+        if (!double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out double x)
+            || !double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double y)
+            || !double.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out double w)
+            || !double.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out double h))
+        {
+            return false;
+        }
+
+        viewBox = new SKRect((float)x, (float)y, (float)(x + w), (float)(y + h));
+        return w > 0 && h > 0;
     }
 
     private static bool TryRenderSvgToPng(string inputSvgPath, string outputPngPath, out string? error)
@@ -565,14 +682,20 @@ internal static class Program
                 return false;
             }
 
-            SKRect bounds = picture.CullRect;
-            int width = (int)Math.Ceiling(Math.Max(1.0, bounds.Width));
-            int height = (int)Math.Ceiling(Math.Max(1.0, bounds.Height));
+            SKRect renderBounds = picture.CullRect;
+            if (TryParseSvgViewBox(svgXml, out SKRect viewBox))
+            {
+                renderBounds = viewBox;
+            }
+
+            int width = (int)Math.Ceiling(Math.Max(1.0, renderBounds.Width));
+            int height = (int)Math.Ceiling(Math.Max(1.0, renderBounds.Height));
 
             using (SKBitmap bitmap = new SKBitmap(width, height))
             using (SKCanvas canvas = new SKCanvas(bitmap))
             {
                 canvas.Clear(SKColors.White);
+                canvas.Translate(-renderBounds.Left, -renderBounds.Top);
                 canvas.DrawPicture(picture);
                 canvas.Flush();
 
@@ -597,53 +720,138 @@ internal static class Program
         }
     }
 
+    private static SKBitmap CropToContentBounds(SKBitmap source, int marginPx)
+    {
+        int minX = source.Width;
+        int minY = source.Height;
+        int maxX = -1;
+        int maxY = -1;
+
+        for (int y = 0; y < source.Height; y++)
+        {
+            for (int x = 0; x < source.Width; x++)
+            {
+                if (!IsNearWhite(source.GetPixel(x, y)))
+                {
+                    if (x < minX)
+                    {
+                        minX = x;
+                    }
+
+                    if (y < minY)
+                    {
+                        minY = y;
+                    }
+
+                    if (x > maxX)
+                    {
+                        maxX = x;
+                    }
+
+                    if (y > maxY)
+                    {
+                        maxY = y;
+                    }
+                }
+            }
+        }
+
+        if (maxX < 0 || maxY < 0)
+        {
+            return source.Copy();
+        }
+
+        minX = Math.Max(0, minX - marginPx);
+        minY = Math.Max(0, minY - marginPx);
+        maxX = Math.Min(source.Width - 1, maxX + marginPx);
+        maxY = Math.Min(source.Height - 1, maxY + marginPx);
+
+        int cropWidth = Math.Max(1, maxX - minX + 1);
+        int cropHeight = Math.Max(1, maxY - minY + 1);
+        SKBitmap cropped = new SKBitmap(cropWidth, cropHeight);
+        using (SKCanvas canvas = new SKCanvas(cropped))
+        {
+            canvas.Clear(SKColors.White);
+            SKRect sourceRect = new SKRect(minX, minY, maxX + 1, maxY + 1);
+            SKRect destRect = new SKRect(0, 0, cropWidth, cropHeight);
+            canvas.DrawBitmap(source, sourceRect, destRect);
+        }
+
+        return cropped;
+    }
+
+    private static SKBitmap ScaleBitmapToSize(SKBitmap source, int width, int height)
+    {
+        SKBitmap scaled = new SKBitmap(width, height);
+        using (SKCanvas canvas = new SKCanvas(scaled))
+        {
+            canvas.Clear(SKColors.White);
+            SKRect dest = new SKRect(0, 0, width, height);
+            SKRect sourceRect = new SKRect(0, 0, source.Width, source.Height);
+            canvas.DrawBitmap(source, sourceRect, dest);
+        }
+
+        return scaled;
+    }
+
     private static bool ComputePngVisualMatch(string naiadPngPath, string referencePngPath, out double diffRatio)
     {
-        // Simple per-pixel RGB diff. Resizes to a common bounding box by padding with white.
-        // Threshold is intentionally forgiving to allow minor anti-aliasing diffs.
-        const double CHANNEL_DIFF_THRESHOLD = 0.18; // per-channel difference (0..1)
-        const double PIXEL_MISMATCH_RATIO_THRESHOLD = 0.0025; // 0.25% mismatched pixels
+        // Crop to diagram ink, scale both to the same canvas, then compare non-white pixels only.
+        const double CHANNEL_DIFF_THRESHOLD = 0.18;
+        const double PIXEL_MISMATCH_RATIO_THRESHOLD = 0.0025;
+        const int CONTENT_MARGIN_PX = 4;
 
-        using (SKBitmap a = SKBitmap.Decode(naiadPngPath))
-        using (SKBitmap b = SKBitmap.Decode(referencePngPath))
+        using (SKBitmap aRaw = SKBitmap.Decode(naiadPngPath))
+        using (SKBitmap bRaw = SKBitmap.Decode(referencePngPath))
+        using (SKBitmap aCrop = CropToContentBounds(aRaw, CONTENT_MARGIN_PX))
+        using (SKBitmap bCrop = CropToContentBounds(bRaw, CONTENT_MARGIN_PX))
         {
-            int width = Math.Max(a.Width, b.Width);
-            int height = Math.Max(a.Height, b.Height);
+            int width = Math.Max(aCrop.Width, bCrop.Width);
+            int height = Math.Max(aCrop.Height, bCrop.Height);
             if (width <= 0 || height <= 0)
             {
                 diffRatio = 1.0;
                 return false;
             }
 
-            long mismatched = 0;
-            long total = (long)width * height;
-
-            for (int y = 0; y < height; y++)
+            using (SKBitmap a = ScaleBitmapToSize(aCrop, width, height))
+            using (SKBitmap b = ScaleBitmapToSize(bCrop, width, height))
             {
-                for (int x = 0; x < width; x++)
+                long mismatched = 0;
+                long compared = 0;
+
+                for (int y = 0; y < height; y++)
                 {
-                    SKColor ca = (x < a.Width && y < a.Height) ? a.GetPixel(x, y) : SKColors.White;
-                    SKColor cb = (x < b.Width && y < b.Height) ? b.GetPixel(x, y) : SKColors.White;
-
-                    // Ignore nearly-white pixels in both images to reduce sensitivity to different page sizes/margins.
-                    if (IsNearWhite(ca) && IsNearWhite(cb))
+                    for (int x = 0; x < width; x++)
                     {
-                        continue;
-                    }
+                        SKColor ca = a.GetPixel(x, y);
+                        SKColor cb = b.GetPixel(x, y);
+                        if (IsNearWhite(ca) && IsNearWhite(cb))
+                        {
+                            continue;
+                        }
 
-                    double dr = Math.Abs(ca.Red - cb.Red) / 255.0;
-                    double dg = Math.Abs(ca.Green - cb.Green) / 255.0;
-                    double db = Math.Abs(ca.Blue - cb.Blue) / 255.0;
+                        compared++;
+                        double dr = Math.Abs(ca.Red - cb.Red) / 255.0;
+                        double dg = Math.Abs(ca.Green - cb.Green) / 255.0;
+                        double db = Math.Abs(ca.Blue - cb.Blue) / 255.0;
 
-                    if (dr > CHANNEL_DIFF_THRESHOLD || dg > CHANNEL_DIFF_THRESHOLD || db > CHANNEL_DIFF_THRESHOLD)
-                    {
-                        mismatched++;
+                        if (dr > CHANNEL_DIFF_THRESHOLD || dg > CHANNEL_DIFF_THRESHOLD || db > CHANNEL_DIFF_THRESHOLD)
+                        {
+                            mismatched++;
+                        }
                     }
                 }
-            }
 
-            diffRatio = total == 0 ? 1.0 : (double)mismatched / total;
-            return diffRatio <= PIXEL_MISMATCH_RATIO_THRESHOLD;
+                if (compared == 0)
+                {
+                    diffRatio = 1.0;
+                    return false;
+                }
+
+                diffRatio = (double)mismatched / compared;
+                return diffRatio <= PIXEL_MISMATCH_RATIO_THRESHOLD;
+            }
         }
     }
 
@@ -720,14 +928,15 @@ internal static class Program
         // Supports:
         // - fenced code blocks: ```mermaid ... ```
         // - ":::mermaid" blocks: :::mermaid ... :::
+        List<(int Position, string ScenarioId, string ScenarioTitle)> headers = ParseScenarioHeaders(markdown);
         List<MermaidBlock> blocks = new List<MermaidBlock>();
 
-        foreach (MermaidBlock block in ExtractFencedBlocks(markdown))
+        foreach (MermaidBlock block in ExtractFencedBlocks(markdown, headers))
         {
             blocks.Add(block);
         }
 
-        foreach (MermaidBlock block in ExtractColonBlocks(markdown, startToken: ":::mermaid", endToken: ":::"))
+        foreach (MermaidBlock block in ExtractColonBlocks(markdown, startToken: ":::mermaid", endToken: ":::", headers))
         {
             blocks.Add(block);
         }
@@ -736,7 +945,45 @@ internal static class Program
         return blocks;
     }
 
-    private static IEnumerable<MermaidBlock> ExtractFencedBlocks(string markdown)
+    private static List<(int Position, string ScenarioId, string ScenarioTitle)> ParseScenarioHeaders(string markdown)
+    {
+        List<(int Position, string ScenarioId, string ScenarioTitle)> headers =
+            new List<(int, string, string)>();
+        Regex headerRegex = new Regex(
+            @"^###\s+(?<Id>F\d{2}[A-Z]?)\s+(?<Title>.+)$",
+            RegexOptions.Compiled | RegexOptions.Multiline);
+        MatchCollection matches = headerRegex.Matches(markdown);
+        for (int i = 0; i < matches.Count; i++)
+        {
+            Match match = matches[i];
+            headers.Add((match.Index, match.Groups["Id"].Value, match.Groups["Title"].Value.Trim()));
+        }
+
+        return headers;
+    }
+
+    private static (string ScenarioId, string ScenarioTitle) ResolveScenarioForBlockIndex(
+        int blockIndex,
+        List<(int Position, string ScenarioId, string ScenarioTitle)> headers)
+    {
+        string scenarioId = $"BLOCK-{blockIndex + 1:D2}";
+        string scenarioTitle = string.Empty;
+        if (headers.Count == 0)
+        {
+            return (scenarioId, scenarioTitle);
+        }
+
+        if (blockIndex < headers.Count)
+        {
+            return (headers[blockIndex].ScenarioId, headers[blockIndex].ScenarioTitle);
+        }
+
+        return (headers[headers.Count - 1].ScenarioId, headers[headers.Count - 1].ScenarioTitle);
+    }
+
+    private static IEnumerable<MermaidBlock> ExtractFencedBlocks(
+        string markdown,
+        List<(int Position, string ScenarioId, string ScenarioTitle)> headers)
     {
         Regex regex = new Regex(@"(?s)```mermaid\s*\r?\n(?<Body>.*?)(\r?\n```)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         MatchCollection matches = regex.Matches(markdown);
@@ -744,22 +991,30 @@ internal static class Program
         {
             string body = matches[i].Groups["Body"].Value.Trim();
             string detectedType = DetectDiagramTypeSafe(body);
+            (string scenarioId, string scenarioTitle) = ResolveScenarioForBlockIndex(i, headers);
             yield return new MermaidBlock
             {
                 Index = i,
+                ScenarioId = scenarioId,
+                ScenarioTitle = scenarioTitle,
                 Source = body,
-                SourceLabel = "```mermaid",
+                SourceLabel = scenarioId + " " + scenarioTitle,
                 DetectedDiagramType = detectedType
             };
         }
     }
 
-    private static IEnumerable<MermaidBlock> ExtractColonBlocks(string markdown, string startToken, string endToken)
+    private static IEnumerable<MermaidBlock> ExtractColonBlocks(
+        string markdown,
+        string startToken,
+        string endToken,
+        List<(int Position, string ScenarioId, string ScenarioTitle)> headers)
     {
         string[] lines = markdown.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
         bool inBlock = false;
         StringBuilder current = new StringBuilder();
         int index = 100000; // offset to avoid collisions with fenced blocks; final sort uses Index
+        int colonBlockOrdinal = 0;
 
         for (int i = 0; i < lines.Length; i++)
         {
@@ -778,14 +1033,18 @@ internal static class Program
                 {
                     string body = current.ToString().Trim();
                     string detectedType = DetectDiagramTypeSafe(body);
+                    (string scenarioId, string scenarioTitle) = ResolveScenarioForBlockIndex(colonBlockOrdinal, headers);
                     yield return new MermaidBlock
                     {
                         Index = index,
+                        ScenarioId = scenarioId,
+                        ScenarioTitle = scenarioTitle,
                         Source = body,
-                        SourceLabel = startToken,
+                        SourceLabel = scenarioId + " " + scenarioTitle,
                         DetectedDiagramType = detectedType
                     };
                     index++;
+                    colonBlockOrdinal++;
                     inBlock = false;
                     current.Clear();
                 }
@@ -844,7 +1103,7 @@ internal static class Program
                 status = result.MatchAfterNormalisation ? "OK" : "DIFF";
             }
 
-            Console.WriteLine($"{result.Block.Index:D3} {status} {result.Block.SourceLabel} {result.Notes}");
+            Console.WriteLine($"{result.Block.Index:D3} {status} {result.Block.ScenarioId} {result.Block.ScenarioTitle} {result.Notes}");
             if (!result.MatchAfterNormalisation && result.NaiadSucceeded && (noReference || result.ReferenceSucceeded))
             {
                 Console.WriteLine("  Naiad: " + result.NaiadSvgPath);
@@ -854,6 +1113,377 @@ internal static class Program
                 }
             }
         }
+    }
+
+    /// <summary>Word-review fix order (F58 last within this queue).</summary>
+    private static readonly string[] _WordReviewPriorityScenarioIds =
+    {
+        "F24", "F29", "F30", "F31", "F32", "F34", "F35", "F37", "F38", "F40",
+        "F43", "F48", "F53", "F59", "F60", "F58"
+    };
+
+    private static readonly Dictionary<string, string> _WordReviewPriorityNotes = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        ["F24"] = "Edge labels (short).",
+        ["F29"] = "Binary decision (Yes / No).",
+        ["F30"] = "Multi-way decision.",
+        ["F31"] = "Fan-out (one to many).",
+        ["F32"] = "Fan-in (many to one).",
+        ["F34"] = "Retry loop.",
+        ["F35"] = "Diamond with multiple incoming edges.",
+        ["F37"] = "Subgraph with explicit `direction TB`.",
+        ["F38"] = "Subgraph with `direction LR` inside TB diagram.",
+        ["F40"] = "Two sibling subgraphs — allow interior nodes to flow left–right (LR).",
+        ["F43"] = "Nested subgraphs; cross-boundary edges.",
+        ["F48"] = "Incorrect label text (entity codes / display).",
+        ["F53"] = "`style` directive — same issue class as F29 (decisions / labels).",
+        ["F53A"] = "Isolated Success/Error → End merge; gate on SVG coordinates vs mermaid.live (not PNG).",
+        ["F59"] = "Subgraph + decision + retry loop.",
+        ["F60"] = "LR diagram with nested TB and cross-links (integration).",
+        ["F58"] = "Full pipeline — defer until decision/subgraph fixes above land."
+    };
+
+    private static void WriteAuditReport(List<CompareResult> results, string reportPath, string markdownPath, bool noReference)
+    {
+        StringBuilder report = new StringBuilder();
+        report.AppendLine("# Flowchart mermaid.ink audit");
+        report.AppendLine();
+        report.AppendLine("Generated by SvgHarness. **Gate:** every scenario must pass structural + visual comparison against [mermaid.ink](https://mermaid.ink) (same engine as Mermaid Live).");
+        report.AppendLine();
+        report.AppendLine("- Source: `" + markdownPath + "`");
+        report.AppendLine("- Scenarios: **" + results.Count + "** (one isolated diagram per capability; no single diagram can cover all axes)");
+        report.AppendLine();
+
+        int pass = 0;
+        int fail = 0;
+        int diff = 0;
+        for (int i = 0; i < results.Count; i++)
+        {
+            CompareResult result = results[i];
+            if (!result.NaiadSucceeded || (!noReference && !result.ReferenceSucceeded))
+            {
+                fail++;
+            }
+            else if (result.MatchAfterNormalisation)
+            {
+                pass++;
+            }
+            else
+            {
+                diff++;
+            }
+        }
+
+        report.AppendLine("## Summary");
+        report.AppendLine();
+        report.AppendLine("| Result | Count |");
+        report.AppendLine("| --- | ---: |");
+        report.AppendLine("| PASS (structural + visual) | " + pass + " |");
+        report.AppendLine("| DIFF | " + diff + " |");
+        report.AppendLine("| FAIL (render) | " + fail + " |");
+        report.AppendLine();
+
+        Dictionary<string, CompareResult> resultsByScenarioId = new Dictionary<string, CompareResult>(StringComparer.Ordinal);
+        for (int i = 0; i < results.Count; i++)
+        {
+            resultsByScenarioId[results[i].Block.ScenarioId] = results[i];
+        }
+
+        report.AppendLine("## Priority fix queue (Word review)");
+        report.AppendLine();
+        report.AppendLine("Fix in this order first (from `flow.docx` review). Remaining scenarios follow below, sorted by visual diff ratio.");
+        report.AppendLine();
+        report.AppendLine("| Order | ID | Fix focus | Structural | Visual | Diff ratio | Harness notes |");
+        report.AppendLine("| ---: | --- | --- | --- | --- | ---: | --- |");
+
+        HashSet<string> priorityIds = new HashSet<string>(_WordReviewPriorityScenarioIds, StringComparer.Ordinal);
+        for (int order = 0; order < _WordReviewPriorityScenarioIds.Length; order++)
+        {
+            string scenarioId = _WordReviewPriorityScenarioIds[order];
+            if (!resultsByScenarioId.TryGetValue(scenarioId, out CompareResult? result) || result is null)
+            {
+                continue;
+            }
+
+            string fixFocus = _WordReviewPriorityNotes.TryGetValue(scenarioId, out string? focus)
+                ? focus
+                : string.Empty;
+            AppendPriorityQueueRow(report, order + 1, result, fixFocus, noReference);
+        }
+
+        report.AppendLine();
+        report.AppendLine("## Per scenario");
+        report.AppendLine();
+        report.AppendLine("### Priority queue (same order as above)");
+        report.AppendLine();
+        report.AppendLine("| ID | Index | Structural | Visual | Diff ratio | Status | Notes |");
+        report.AppendLine("| --- | ---: | --- | --- | ---: | --- | --- |");
+
+        List<CompareResult> priorityResults = new List<CompareResult>();
+        for (int i = 0; i < _WordReviewPriorityScenarioIds.Length; i++)
+        {
+            string scenarioId = _WordReviewPriorityScenarioIds[i];
+            if (resultsByScenarioId.TryGetValue(scenarioId, out CompareResult? result) && result is not null)
+            {
+                priorityResults.Add(result);
+            }
+        }
+
+        AppendAuditResultRows(report, priorityResults, noReference);
+
+        report.AppendLine();
+        report.AppendLine("### All other scenarios (visual diff ratio, largest first)");
+        report.AppendLine();
+        report.AppendLine("| ID | Index | Structural | Visual | Diff ratio | Status | Notes |");
+        report.AppendLine("| --- | ---: | --- | --- | ---: | --- | --- |");
+
+        List<CompareResult> remainingResults = new List<CompareResult>();
+        for (int i = 0; i < results.Count; i++)
+        {
+            CompareResult result = results[i];
+            if (!priorityIds.Contains(result.Block.ScenarioId))
+            {
+                remainingResults.Add(result);
+            }
+        }
+
+        if (!noReference)
+        {
+            remainingResults.Sort((a, b) => b.VisualDiffRatio.CompareTo(a.VisualDiffRatio));
+        }
+
+        AppendAuditResultRows(report, remainingResults, noReference);
+
+        report.AppendLine();
+        report.AppendLine("## Coverage rule");
+        report.AppendLine();
+        report.AppendLine("Do not treat F58/F60 or a shape row as sufficient. **All 60 rows above must PASS** before flowchart work is merge-ready.");
+        report.AppendLine();
+
+        Directory.CreateDirectory(Path.GetDirectoryName(reportPath) ?? ".");
+        File.WriteAllText(reportPath, report.ToString(), Encoding.UTF8);
+    }
+
+    private static void AppendPriorityQueueRow(
+        StringBuilder report,
+        int order,
+        CompareResult result,
+        string fixFocus,
+        bool noReference)
+    {
+        string structural = noReference ? "n/a" : (result.StructuralMatch ? "yes" : "no");
+        string visual = noReference ? "n/a" : (result.VisualMatch ? "yes" : "no");
+        string diffRatio = noReference
+            ? ""
+            : result.VisualDiffRatio.ToString("0.0000", System.Globalization.CultureInfo.InvariantCulture);
+        string harnessNotes = result.Notes.Replace("|", "\\|", StringComparison.Ordinal);
+        string fixFocusEscaped = fixFocus.Replace("|", "\\|", StringComparison.Ordinal);
+        report.AppendLine("| "
+            + order + " | "
+            + result.Block.ScenarioId + " | "
+            + fixFocusEscaped + " | "
+            + structural + " | "
+            + visual + " | "
+            + diffRatio + " | "
+            + harnessNotes + " |");
+    }
+
+    private static void AppendAuditResultRows(StringBuilder report, List<CompareResult> orderedResults, bool noReference)
+    {
+        for (int i = 0; i < orderedResults.Count; i++)
+        {
+            CompareResult result = orderedResults[i];
+            string status;
+            if (!result.NaiadSucceeded)
+            {
+                status = "FAIL naiad";
+            }
+            else if (!noReference && !result.ReferenceSucceeded)
+            {
+                status = "FAIL reference";
+            }
+            else if (result.MatchAfterNormalisation)
+            {
+                status = "PASS";
+            }
+            else
+            {
+                status = "DIFF";
+            }
+
+            string structural = noReference ? "n/a" : (result.StructuralMatch ? "yes" : "no");
+            string visual = noReference ? "n/a" : (result.VisualMatch ? "yes" : "no");
+            string diffRatio = noReference
+                ? ""
+                : result.VisualDiffRatio.ToString("0.0000", System.Globalization.CultureInfo.InvariantCulture);
+            string notes = result.Notes.Replace("|", "\\|", StringComparison.Ordinal);
+            report.AppendLine("| "
+                + result.Block.ScenarioId + " | "
+                + result.Block.Index + " | "
+                + structural + " | "
+                + visual + " | "
+                + diffRatio + " | "
+                + status + " | "
+                + notes + " |");
+        }
+    }
+
+    private static string StripSvgStyleBlocks(string svg)
+    {
+        return Regex.Replace(
+            svg,
+            @"<style[^>]*>[\s\S]*?</style>",
+            string.Empty,
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    }
+
+    private static FlowchartSvgMetrics ExtractFlowchartSvgMetrics(string svg)
+    {
+        HashSet<string> labels = new HashSet<string>(StringComparer.Ordinal);
+        string svgBody = StripSvgStyleBlocks(svg);
+
+        void AddLabel(string? raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return;
+            }
+
+            string label = System.Net.WebUtility.HtmlDecode(raw.Trim());
+            if (!string.IsNullOrEmpty(label))
+            {
+                labels.Add(label);
+            }
+        }
+
+        Regex nodeLabelBlockRegex = new Regex(
+            @"class=""nodeLabel""[^>]*>([\s\S]*?)</text>",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        MatchCollection nodeLabelBlocks = nodeLabelBlockRegex.Matches(svgBody);
+        for (int i = 0; i < nodeLabelBlocks.Count; i++)
+        {
+            string block = nodeLabelBlocks[i].Groups[1].Value;
+            string joined = Regex.Replace(
+                block,
+                @"<tspan[^>]*>([^<]*)</tspan>",
+                "$1 ",
+                RegexOptions.Compiled | RegexOptions.IgnoreCase).Trim();
+            AddLabel(joined);
+        }
+
+        // mermaid.ink uses HTML labels inside foreignObject (no tspan).
+        Regex foreignObjectParagraphRegex = new Regex(
+            @"<foreignObject[^>]*>[\s\S]*?<p[^>]*>([\s\S]*?)</p>",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        MatchCollection foreignObjectMatches = foreignObjectParagraphRegex.Matches(svgBody);
+        for (int i = 0; i < foreignObjectMatches.Count; i++)
+        {
+            string paragraph = Regex.Replace(
+                foreignObjectMatches[i].Groups[1].Value,
+                @"<br\s*/?>",
+                " ",
+                RegexOptions.Compiled | RegexOptions.IgnoreCase);
+            paragraph = Regex.Replace(paragraph, @"<[^>]+>", string.Empty);
+            AddLabel(paragraph);
+        }
+
+        Regex edgeLabelBlockRegex = new Regex(
+            @"<text\b[^>]*\bclass=""edgeLabel""[^>]*>([\s\S]*?)</text>",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        MatchCollection edgeLabelBlocks = edgeLabelBlockRegex.Matches(svgBody);
+        for (int i = 0; i < edgeLabelBlocks.Count; i++)
+        {
+            string block = edgeLabelBlocks[i].Groups[1].Value;
+            string joined = Regex.Replace(
+                block,
+                @"<tspan[^>]*>([^<]*)</tspan>",
+                "$1 ",
+                RegexOptions.Compiled | RegexOptions.IgnoreCase).Trim();
+            if (string.IsNullOrWhiteSpace(joined))
+            {
+                joined = Regex.Replace(block, "<[^>]+>", string.Empty, RegexOptions.Compiled).Trim();
+            }
+
+            AddLabel(joined);
+        }
+
+        Regex edgeLabelForeignObjectRegex = new Regex(
+            @"class=""edgeLabel""[\s\S]*?<p[^>]*>([^<]+)</p>",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        MatchCollection edgeLabelForeignObjectMatches = edgeLabelForeignObjectRegex.Matches(svgBody);
+        for (int i = 0; i < edgeLabelForeignObjectMatches.Count; i++)
+        {
+            AddLabel(edgeLabelForeignObjectMatches[i].Groups[1].Value);
+        }
+
+        Regex edgeLabelSpanRegex = new Regex(
+            @"<span[^>]*class=""[^""]*edgeLabel[^""]*""[^>]*>([^<]*)</span>",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        MatchCollection edgeLabelSpanMatches = edgeLabelSpanRegex.Matches(svgBody);
+        for (int i = 0; i < edgeLabelSpanMatches.Count; i++)
+        {
+            AddLabel(edgeLabelSpanMatches[i].Groups[1].Value);
+        }
+
+        int edgeCount = Regex.Matches(svgBody, @"marker-end=""url\(#", RegexOptions.Compiled | RegexOptions.IgnoreCase).Count;
+        if (edgeCount == 0)
+        {
+            edgeCount = Regex.Matches(svgBody, @"class=""[^""]*flowchart-link""", RegexOptions.Compiled).Count;
+        }
+
+        int clusterCount = Regex.Matches(
+            svgBody,
+            @"fill=""#ffffde""[^>]*stroke=""#aaaa33""|stroke=""#aaaa33""[^>]*fill=""#ffffde""",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase).Count;
+
+        return new FlowchartSvgMetrics
+        {
+            NodeLabels = labels,
+            EdgePathCount = edgeCount,
+            ClusterRectCount = clusterCount
+        };
+    }
+
+    private static bool CompareFlowchartSvgStructure(string naiadSvg, string referenceSvg, out string notes)
+    {
+        notes = string.Empty;
+        FlowchartSvgMetrics naiad = ExtractFlowchartSvgMetrics(naiadSvg);
+        FlowchartSvgMetrics reference = ExtractFlowchartSvgMetrics(referenceSvg);
+
+        List<string> problems = new List<string>();
+        if (naiad.EdgePathCount != reference.EdgePathCount)
+        {
+            problems.Add($"edge count naiad={naiad.EdgePathCount} ref={reference.EdgePathCount}");
+        }
+
+        if (naiad.ClusterRectCount != reference.ClusterRectCount)
+        {
+            problems.Add($"cluster count naiad={naiad.ClusterRectCount} ref={reference.ClusterRectCount}");
+        }
+
+        foreach (string label in reference.NodeLabels)
+        {
+            if (!naiad.NodeLabels.Contains(label))
+            {
+                problems.Add("missing label: " + label);
+            }
+        }
+
+        foreach (string label in naiad.NodeLabels)
+        {
+            if (!reference.NodeLabels.Contains(label))
+            {
+                problems.Add("extra label: " + label);
+            }
+        }
+
+        if (problems.Count == 0)
+        {
+            return true;
+        }
+
+        notes = string.Join("; ", problems);
+        return false;
     }
 
     private static string DetectDiagramTypeSafe(string mermaidSource)

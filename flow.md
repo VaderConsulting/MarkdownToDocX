@@ -4,7 +4,7 @@ Progressive Mermaid **flowchart** scenarios for Markdown → DOCX conversion. Ea
 
 ## How to use
 
-This file is the **complete** flowchart regression catalogue: **60 isolated diagrams (F01–F60)**, one capability per scenario. A single combined diagram cannot exercise every axis (conflicting directions, init blocks, nested layout pairs, and isolated baselines).
+This file is the **complete** flowchart regression catalogue: **isolated diagrams (F01–F88, plus F53A)**, mostly one recognition axis per scenario. Levels 1–9 are visual regression; **Level 10** adds axes from `spec.md` (§3–§10) that Naiad must parse into a compositional contract, not scenario-shaped layout hacks. A single combined diagram cannot exercise every axis (conflicting directions, init blocks, nested layout pairs, and isolated baselines).
 
 ### Mandatory gate (mermaid.ink / Mermaid Live)
 
@@ -15,7 +15,7 @@ dotnet build extern/Naiad/src/Naiad/Naiad.csproj -c Release
 dotnet run --project src/SvgHarness/SvgHarness.csproj -c Release -- flow.md out/flow-mermaid-ink --reference=mermaid-ink --parallel 2 --report=out/flow-mermaid-ink/report.md
 ```
 
-Exit code **0** only when all 60 scenarios PASS. Review `out/flow-mermaid-ink/report.md` and side-by-side artefacts (`NNN.naiad.svg` vs `NNN.reference.svg`).
+Exit code **0** only when all scenarios PASS. Review `out/flow-mermaid-ink/report.md` and side-by-side artefacts (`NNN.naiad.svg` vs `NNN.reference.svg`).
 
 Structural-only check (no reference download):
 
@@ -717,12 +717,269 @@ I2 -.->|audit copy| P2
 
 ---
 
+## Level 10 — Recognition axes (Naiad contract)
+
+Axes called out in `spec.md` §3–§10 and §5.3 (coverage gaps). Each block should parse into explicit nodes, edges, groups, styles, and diagnostics—not be recognised only by visual similarity to an older scenario id.
+
+### F61 — Grouped vertex expansion (`&`)
+
+```mermaid
+flowchart TB
+A & B --> C & D
+```
+
+### F62 — Chained links plus ampersand grouping
+
+```mermaid
+flowchart LR
+a[a] --> b[b] & c[c] --> d[d]
+```
+
+### F63 — User-defined edge id (`e1@-->`)
+
+```mermaid
+flowchart LR
+A[A] --> B[B]
+B e1@--> C[C]
+```
+
+### F64 — Edge id with metadata (`e1@{ ... }`)
+
+```mermaid
+flowchart LR
+A e1@==> B
+e1@{ curve: linear }
+```
+
+### F65 — Metadata shape catalogue (smoke)
+
+```mermaid
+flowchart LR
+Doc@{ shape: doc }[Document]
+Hex@{ shape: hex }[Hexagon]
+Lean@{ shape: lean-r }[Lean right]
+```
+
+### F66 — Metadata label override on vertex
+
+```mermaid
+flowchart TD
+Node@{ label: "Rendered label", shape: rounded }
+Node --> Down[Downstream]
+```
+
+### F67 — Invisible edge (`~~~`)
+
+```mermaid
+flowchart LR
+A[A] --> B[B]
+B ~~~ C[C]
+```
+
+### F68 — `linkStyle default` (all edges)
+
+```mermaid
+flowchart LR
+A[A] --> B[B] --> C[C]
+linkStyle default stroke:#c60,stroke-width:3px
+```
+
+### F69 — `linkStyle default interpolate` (curve axis)
+
+```mermaid
+flowchart LR
+A[A] --> B[B] --> C[C]
+linkStyle default interpolate basis stroke:#336,stroke-width:2px
+```
+
+### F70 — Comments and semicolon statement boundaries
+
+```mermaid
+flowchart TD
+%% ingress lane
+A[Receive]; --> B[Validate] %% hand-off
+B --> C[Store]
+```
+
+### F71 — Interactions (`click` / `href` / `call`)
+
+```mermaid
+flowchart LR
+Docs[Documentation] --> API[API]
+click Docs href "https://example.com/docs" "Open docs" _blank
+click API call callback() "Tooltip for callback"
+```
+
+### F72 — Accessibility (`accTitle` / `accDescr`)
+
+```mermaid
+flowchart LR
+accTitle: Batch ingest overview
+accDescr: Three-step ingest pipeline for recognition regression.
+A[Drop] --> B[Verify] --> C[Publish]
+```
+
+### F73 — Subgraph bare title (`subgraph one`)
+
+```mermaid
+flowchart TB
+subgraph one
+  a1[Alpha] --> a2[Beta]
+end
+subgraph two
+  b1[Gamma] --> b2[Delta]
+end
+Ingress[Ingress] --> a1
+b2 --> Egress[Egress]
+```
+
+### F74 — Subgraph explicit id and quoted title
+
+```mermaid
+flowchart LR
+subgraph auditId["Audit / compliance"]
+  direction TB
+  r1[Record] --> r2[Review]
+end
+IN[In] --> r1
+r2 --> OUT[Out]
+```
+
+### F75 — Symbolic diagram direction (`<` → RL)
+
+```mermaid
+flowchart <
+West[West] --> Centre[Centre] --> East[East]
+```
+
+### F76 — Repeated vertex declaration (merge by id)
+
+```mermaid
+flowchart TD
+A[First label]
+A[Second label wins]
+A --> B[Downstream]
+```
+
+### F77 — `class` with comma-separated node ids
+
+```mermaid
+flowchart LR
+A[Alpha] --> B[Beta] --> C[Gamma]
+classDef lane fill:#eef,stroke:#369
+class A,C lane
+```
+
+### F78 — `classDef` applied to subgraph id
+
+```mermaid
+flowchart TB
+subgraph Processing["Processing"]
+  direction TB
+  P1[Parse] --> P2[Emit]
+end
+IN[In] --> P1
+P2 --> OUT[Out]
+classDef cluster fill:#fef3c7,stroke:#d97706
+class Processing cluster
+```
+
+### F79 — Inline class (`:::`) plus `style` mutation order
+
+```mermaid
+flowchart LR
+Hot[Hot]:::hot --> Cold[Cold]
+classDef hot fill:#fecaca,stroke:#b91c1c
+style Hot stroke-width:3px
+```
+
+### F80 — `flowchart-elk` header alias
+
+```mermaid
+flowchart-elk LR
+A[Source] --> B[Sink]
+```
+
+### F81 — Legacy trapezoid bracket shapes
+
+```mermaid
+flowchart TD
+Top[/Wide top/] --> Bottom[\Wide bottom/]
+```
+
+### F82 — Markdown node label (`htmlLabels: false`)
+
+```mermaid
+%%{init: {"flowchart": {"htmlLabels": false}} }%%
+flowchart LR
+md["`Bold **markdown** text`"] --> plain[Plain text]
+```
+
+### F83 — Edge id on ampersand expansion (id applies to one edge)
+
+```mermaid
+flowchart LR
+A & B e1@--> C
+```
+
+### F84 — Subgraph membership uniqueness (inner vs outer)
+
+```mermaid
+flowchart TB
+subgraph Outer["Outer"]
+  direction TB
+  subgraph Inner["Inner"]
+    N[Shared node]
+  end
+  N --> O[Outer only]
+end
+External[External] --> N
+```
+
+### F85 — Alternate edge label syntax (`-- text -->`)
+
+```mermaid
+flowchart LR
+A[Start] -- authorize --> B[End]
+```
+
+### F86 — Diagram-level curve via front-matter `config`
+
+```mermaid
+---
+config:
+  flowchart:
+    curve: linear
+---
+flowchart LR
+A[A] --> B[B] --> C[C]
+```
+
+### F87 — Edge animation metadata by id
+
+```mermaid
+flowchart LR
+A e1@==> B
+e1@{ animate: true }
+```
+
+### F88 — `classDef` animation styling on edge id
+
+```mermaid
+flowchart LR
+A e1@--> B
+classDef animate stroke-dasharray:9,5,stroke-dashoffset:900,animation:dash 25s linear infinite;
+class e1 animate
+```
+
+---
+
 ## Scenario index
 
 | ID | Level | Topic |
 | --- | --- | --- |
 | F01–F10 | 1 | Syntax, direction, basics |
-| F11–F17 | 2 | Node shapes |
+| F11–F17 | 2 | Node shapes (legacy brackets) |
 | F18–F28 | 3 | Edge types and labels |
 | F29–F35 | 4 | Branching and control flow |
 | F36–F42 | 5 | Single-level subgraphs |
@@ -731,6 +988,19 @@ I2 -.->|audit copy| P2
 | F53–F57 | 8 | Style, class, init |
 | F53A | 8 | Isolated stadium merge (coordinate gate vs mermaid.live) |
 | F58–F60 | 9 | Combined integration |
+| F61–F62 | 10 | Edge/group expansion (`&`, chains) |
+| F63–F64, F83, F87–F88 | 10 | Edge identity and metadata |
+| F65–F66, F81–F82 | 10 | Shapes and label types |
+| F67 | 10 | Invisible edge |
+| F68–F69, F86 | 10 | `linkStyle` and curve config |
+| F70 | 10 | Comments and statement boundaries |
+| F71–F72 | 10 | Interactions and accessibility |
+| F73–F74, F84 | 10 | Subgraph forms and membership |
+| F75 | 10 | Symbolic direction |
+| F76 | 10 | Vertex declaration merge |
+| F77–F79 | 10 | Class/style mutations |
+| F80 | 10 | `flowchart-elk` header |
+| F85 | 10 | Edge label syntax variant |
 
 ---
 

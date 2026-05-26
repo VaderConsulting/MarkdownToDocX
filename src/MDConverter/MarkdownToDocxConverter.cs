@@ -15,13 +15,23 @@ public sealed class MarkdownToDocxConverter
     private static readonly Encoding UTF8_NO_BOM = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 
     private readonly MarkdownToDocxOptions _Options;
+    private readonly IConversionProgressReporter? _ProgressReporter;
 
     /// <summary>
     /// Creates a converter with the given options. Options are resolved (profile + overlay) at conversion time.
     /// </summary>
     public MarkdownToDocxConverter(MarkdownToDocxOptions Options)
+        : this(Options, null)
+    {
+    }
+
+    /// <summary>
+    /// Creates a converter with optional progress reporting.
+    /// </summary>
+    public MarkdownToDocxConverter(MarkdownToDocxOptions Options, IConversionProgressReporter? ProgressReporter)
     {
         _Options = Options ?? throw new ArgumentNullException(nameof(Options));
+        _ProgressReporter = ProgressReporter;
     }
 
     /// <summary>
@@ -66,11 +76,14 @@ public sealed class MarkdownToDocxConverter
 
         string EffectiveBasePath = string.IsNullOrWhiteSpace(BasePath) ? Environment.CurrentDirectory : BasePath;
 
+        _ProgressReporter?.Report(5, "Parsing Markdown");
         MarkdownToDocModelBuilder Builder = new MarkdownToDocModelBuilder(Effective.Markdown);
         DocModel Model = Builder.Build(Markdown ?? string.Empty, EffectiveBasePath);
 
-        DocxWriter Writer = new DocxWriter(Effective);
+        _ProgressReporter?.Report(15, "Writing DOCX");
+        DocxWriter Writer = new DocxWriter(Effective, _ProgressReporter);
         Writer.Write(Model, OutputStream);
+        _ProgressReporter?.Report(95, "Finalising document");
     }
 
     /// <summary>
@@ -88,8 +101,26 @@ public sealed class MarkdownToDocxConverter
             throw new MarkdownToDocxException("Output path is required.");
         }
 
-        byte[] DocxBytes = ConvertMarkdownFile(MarkdownPath);
-        WriteDocxBytes(OutputDocxPath, DocxBytes);
+        _ProgressReporter?.Report(0, "Starting conversion");
+        string Markdown = File.ReadAllText(MarkdownPath, UTF8_NO_BOM);
+        string BasePath = Path.GetDirectoryName(MarkdownPath) ?? Environment.CurrentDirectory;
+        using (FileStream OutputStream = OpenWriteStream(OutputDocxPath))
+        {
+            ConvertTextToStream(Markdown, BasePath, OutputStream);
+        }
+
+        _ProgressReporter?.Report(100, "Complete");
+    }
+
+    private static FileStream OpenWriteStream(string OutputDocxPath)
+    {
+        string? DirectoryPath = Path.GetDirectoryName(OutputDocxPath);
+        if (!string.IsNullOrWhiteSpace(DirectoryPath))
+        {
+            Directory.CreateDirectory(DirectoryPath);
+        }
+
+        return new FileStream(OutputDocxPath, FileMode.Create, FileAccess.ReadWrite, FileShare.Read);
     }
 
     /// <summary>
