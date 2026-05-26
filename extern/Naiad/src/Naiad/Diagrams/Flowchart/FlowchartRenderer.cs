@@ -1181,7 +1181,10 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
                 sourceNode,
                 targetNode,
                 MermaidSharp.Layout.CoordinateAssignment.FLOWCHART_ORTHOGONAL_ATTACH_STUB_PX);
-            return BuildFlowchartTbStadiumMergeCurveBasisPath(OffsetLineData, skipTerminalCollectorMarginComposite: false);
+            return BuildFlowchartTbStadiumMergeCurveBasisPath(
+                OffsetLineData,
+                useTerminalCollectorMarginCurve: false,
+                useStadiumMergeHook: true);
         }
 
         // Decision branches (diamond → labelled targets): use the same guided 3-point curveBasis route as ER /
@@ -1253,7 +1256,10 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             List<Position> OffsetLoopPoints = ApplyLineWithOffset(LineData, ArrowTypeStart, ArrowTypeEnd);
             if (OffsetLoopPoints.Count >= 2)
             {
-                return BuildFlowchartTbStadiumMergeCurveBasisPath(OffsetLoopPoints, skipTerminalCollectorMarginComposite: false);
+                return BuildFlowchartTbStadiumMergeCurveBasisPath(
+                    OffsetLoopPoints,
+                    useTerminalCollectorMarginCurve: false,
+                    useStadiumMergeHook: true);
             }
         }
 
@@ -1345,7 +1351,10 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
                 sourceNode,
                 targetNode,
                 MermaidSharp.Layout.CoordinateAssignment.FLOWCHART_ORTHOGONAL_ATTACH_STUB_PX);
-            return BuildFlowchartTbStadiumMergeCurveBasisPath(OffsetLineData, skipTerminalCollectorMarginComposite: false);
+            return BuildFlowchartTbStadiumMergeCurveBasisPath(
+                OffsetLineData,
+                useTerminalCollectorMarginCurve: false,
+                useStadiumMergeHook: true);
         }
 
         if (ShouldUseTbTerminalCollectorGuidedCurve(edge, targetNode, model, diagramDirection, LineData)
@@ -1354,9 +1363,9 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             && LineData.Count >= 2)
         {
             List<Position> OffsetLineData = ApplyLineWithOffset(LineData, ArrowTypeStart, ArrowTypeEnd);
-            bool SkipMarginComposite = model is not null
+            bool UseMarginCurve = model is not null
                 && MermaidSharp.Layout.CoordinateAssignment.IsFlowchartTbTerminalCollectorMarginEdge(model, edge);
-            return BuildFlowchartTbStadiumMergeCurveBasisPath(OffsetLineData, SkipMarginComposite);
+            return BuildFlowchartTbStadiumMergeCurveBasisPath(OffsetLineData, UseMarginCurve);
         }
 
         if (ShouldUseHubFanGuidedCurve(edge, sourceNode, targetNode, model, diagramDirection, LineData)
@@ -1870,7 +1879,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
     }
 
     /// <summary>
-    /// F37/F38/F40/F43 cross-boundary: F53-style guided polyline (orthogonal legs + curveBasis), same as stadium merge.
+    /// F37/F38/F40/F43 cross-boundary: smooth curveBasis through every guided waypoint (no composite L legs on corridor rows).
     /// </summary>
     static string BuildFlowchartCrossBoundaryGuidedCurveBasisPath(IReadOnlyList<Position> lineData)
     {
@@ -1880,19 +1889,15 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             return string.Empty;
         }
 
-        if (lineData.Count >= 4)
+        if (lineData.Count >= 3)
         {
-            return BuildFlowchartTbStadiumMergeCurveBasisPath(lineData, skipTerminalCollectorMarginComposite: false);
-        }
-
-        if (lineData.Count == 3)
-        {
-            return BuildFlowchartCurveBasisPath(new List<Position>
+            List<Position> GuidedPoints = new List<Position>();
+            for (int PointIndex = 0; PointIndex < lineData.Count; PointIndex++)
             {
-                lineData[0],
-                lineData[1],
-                lineData[2]
-            });
+                GuidedPoints.Add(lineData[PointIndex]);
+            }
+
+            return BuildFlowchartCurveBasisPath(GuidedPoints);
         }
 
         return BuildFlowchartCurveBasisPath(new List<Position> { lineData[0], lineData[^1] });
@@ -1988,21 +1993,178 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
     }
 
     /// <summary>
-    /// F53 TB dual fan-in: vertical stem at source X, then curveBasis toward the stadium shoulder attach (mermaid.live data-points).
+    /// F58 margin: straight vertical stem, then one cubic with vertical tangent at the turn (cp1 on source column at Done row).
+    /// </summary>
+    static string BuildFlowchartTerminalCollectorMarginCurveBasisPath(IReadOnlyList<Position> lineData)
+    {
+#pragma warning disable IDE0007
+        if (lineData.Count < 2)
+        {
+            return BuildFlowchartCurveBasisPath(lineData);
+        }
+
+        Position SourceAttach = lineData[0];
+        Position TargetAttach = lineData[lineData.Count - 1];
+        string Path = "M" + Fmt(SourceAttach.X) + "," + Fmt(SourceAttach.Y);
+
+        for (int PointIndex = 1; PointIndex < lineData.Count - 1; PointIndex++)
+        {
+            Position Point = lineData[PointIndex];
+            if (Math.Abs(Point.X - SourceAttach.X) > 0.75)
+            {
+                continue;
+            }
+
+            Position PreviousPoint = lineData[PointIndex - 1];
+            if (Math.Abs(Point.Y - PreviousPoint.Y) > 0.75
+                || Math.Abs(Point.X - PreviousPoint.X) > 0.75)
+            {
+                Path = Path + "L" + Fmt(Point.X) + "," + Fmt(Point.Y);
+            }
+        }
+
+        Position SideApproach = TargetAttach;
+        if (lineData.Count >= 3)
+        {
+            Position BeforeTarget = lineData[lineData.Count - 2];
+            if (Math.Abs(BeforeTarget.Y - TargetAttach.Y) <= 0.75
+                && Math.Abs(BeforeTarget.X - TargetAttach.X) > 0.75)
+            {
+                SideApproach = BeforeTarget;
+            }
+        }
+
+        double Control1X = SourceAttach.X;
+        double Control1Y = TargetAttach.Y;
+        double Control2X = SideApproach.X;
+        double Control2Y = TargetAttach.Y;
+
+        Path = Path + "C"
+            + Fmt(Control1X) + "," + Fmt(Control1Y) + " "
+            + Fmt(Control2X) + "," + Fmt(Control2Y) + " "
+            + Fmt(TargetAttach.X) + "," + Fmt(TargetAttach.Y);
+
+        return Path;
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// F53/F53A: vertical stem at source X, then one cubic into the stadium shoulder (avoids curveBasis kink at the approach knot).
+    /// </summary>
+    static bool TryBuildFlowchartTbStadiumMergeHookPath(
+        IReadOnlyList<Position> lineData,
+        out string Path)
+    {
+#pragma warning disable IDE0007
+        Path = string.Empty;
+        if (lineData.Count < 4)
+        {
+            return false;
+        }
+
+        Position SourceAttach = lineData[0];
+        Position TargetAttach = lineData[lineData.Count - 1];
+
+        Path = "M" + Fmt(SourceAttach.X) + "," + Fmt(SourceAttach.Y);
+        int LastVerticalIndex = 0;
+        for (int PointIndex = 1; PointIndex < lineData.Count - 1; PointIndex++)
+        {
+            Position Point = lineData[PointIndex];
+            if (Math.Abs(Point.X - SourceAttach.X) <= 0.75)
+            {
+                LastVerticalIndex = PointIndex;
+            }
+        }
+
+        Position MergeApproach = lineData[lineData.Count - 2];
+        for (int PointIndex = lineData.Count - 2; PointIndex >= 1; PointIndex--)
+        {
+            Position Candidate = lineData[PointIndex];
+            if (PointIndex <= LastVerticalIndex)
+            {
+                continue;
+            }
+
+            if (Math.Abs(Candidate.X - SourceAttach.X) <= 0.75)
+            {
+                continue;
+            }
+
+            MergeApproach = Candidate;
+            break;
+        }
+
+        if (Math.Abs(MergeApproach.X - SourceAttach.X) <= 0.75)
+        {
+            double BlendedApproachX = SourceAttach.X
+                + ((TargetAttach.X - SourceAttach.X) * 0.45);
+            MergeApproach = new Position(BlendedApproachX, MergeApproach.Y);
+        }
+
+        for (int PointIndex = 1; PointIndex <= LastVerticalIndex; PointIndex++)
+        {
+            Position Point = lineData[PointIndex];
+            if (Math.Abs(Point.X - SourceAttach.X) > 0.75)
+            {
+                continue;
+            }
+
+            Position PreviousPoint = lineData[PointIndex - 1];
+            if (Math.Abs(Point.Y - PreviousPoint.Y) > 0.75
+                || Math.Abs(Point.X - PreviousPoint.X) > 0.75)
+            {
+                Path = Path + "L" + Fmt(Point.X) + "," + Fmt(Point.Y);
+            }
+        }
+
+        Position VerticalEnd = lineData[LastVerticalIndex];
+        double Control1X = SourceAttach.X;
+        double Control1Y = MergeApproach.Y;
+        if (Math.Abs(Control1Y - TargetAttach.Y) <= 0.75)
+        {
+            Control1Y = VerticalEnd.Y + ((TargetAttach.Y - VerticalEnd.Y) * 0.55);
+        }
+
+        double Control2X = MergeApproach.X;
+        double Control2Y = MergeApproach.Y;
+        const double SHOULDER_APPROACH_LIFT_PX = 14.0;
+        if (Math.Abs(Control2Y - TargetAttach.Y) <= 0.75)
+        {
+            Control2Y = TargetAttach.Y - SHOULDER_APPROACH_LIFT_PX;
+        }
+
+        Path = Path + "C"
+            + Fmt(Control1X) + "," + Fmt(Control1Y) + " "
+            + Fmt(Control2X) + "," + Fmt(Control2Y) + " "
+            + Fmt(TargetAttach.X) + "," + Fmt(TargetAttach.Y);
+
+        return true;
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// F53 TB dual fan-in: vertical stem at source X, then smooth hook into the stadium shoulder attach.
     /// </summary>
     static string BuildFlowchartTbStadiumMergeCurveBasisPath(
         IReadOnlyList<Position> lineData,
-        bool skipTerminalCollectorMarginComposite)
+        bool useTerminalCollectorMarginCurve,
+        bool useStadiumMergeHook = false)
     {
 #pragma warning disable IDE0007
+        if (useTerminalCollectorMarginCurve)
+        {
+            return BuildFlowchartTerminalCollectorMarginCurveBasisPath(lineData);
+        }
+
+        if (useStadiumMergeHook
+            && lineData.Count >= 4
+            && TryBuildFlowchartTbStadiumMergeHookPath(lineData, out string MergeHookPath))
+        {
+            return MergeHookPath;
+        }
+
         if (lineData.Count > 4)
         {
-            if (!skipTerminalCollectorMarginComposite
-                && TryBuildFlowchartTerminalCollectorMarginCompositePath(lineData, out string CompositePath))
-            {
-                return CompositePath;
-            }
-
             List<Position> AllGuidedPoints = new List<Position>();
             for (int PointIndex = 0; PointIndex < lineData.Count; PointIndex++)
             {

@@ -51,21 +51,16 @@ static class CoordinateAssignment
 
     const double FLOWCHART_TERMINAL_COLLECTOR_RIGHT_MARGIN_OUTSET_PX = 48.0;
 
-    const double FLOWCHART_TERMINAL_COLLECTOR_STUB_Y_PX = 18.0;
-
     const double FLOWCHART_TERMINAL_COLLECTOR_APPROACH_ABOVE_TARGET_PX = 28.0;
+
+    /// <summary>Fraction of source→Done vertical span before the final vertical leg to Done row (F58).</summary>
+    const double FLOWCHART_TERMINAL_COLLECTOR_SOURCE_VERTICAL_ROUTE_SPAN_RATIO = 0.90;
 
     const double FLOWCHART_TERMINAL_COLLECTOR_FAR_LEFT_MIN_OFFSET_PX = 80.0;
 
     const double FLOWCHART_TERMINAL_COLLECTOR_CORRIDOR_CLEARANCE_PX = 28.0;
 
     const double FLOWCHART_TERMINAL_COLLECTOR_SIDE_LEAD_PX = 28.0;
-
-    const int FLOWCHART_TERMINAL_COLLECTOR_MARGIN_BLEND_PIN_COUNT = 2;
-
-    const int FLOWCHART_TERMINAL_COLLECTOR_MARGIN_VERTICAL_PIN_COUNT = 5;
-
-    const int FLOWCHART_TERMINAL_COLLECTOR_MARGIN_SIDE_PIN_COUNT = 2;
 
     /// <summary>
     /// Short axis-aligned leg so curveBasis meets a cardinal face at ~90° (generic flowchart edges).
@@ -6894,8 +6889,23 @@ static class CoordinateAssignment
 #pragma warning restore IDE0007
     }
 
+    static double GetFlowchartTerminalCollectorSourceVerticalRouteY(
+        MermaidSharp.Models.Position sourceAttach,
+        double approachY)
+    {
+#pragma warning disable IDE0007
+        double SpanY = approachY - sourceAttach.Y;
+        if (Math.Abs(SpanY) <= 1.0)
+        {
+            return sourceAttach.Y;
+        }
+
+        return sourceAttach.Y + (SpanY * FLOWCHART_TERMINAL_COLLECTOR_SOURCE_VERTICAL_ROUTE_SPAN_RATIO);
+#pragma warning restore IDE0007
+    }
+
     /// <summary>
-    /// F58 margin detour: collinear pins for one curveBasis path — vertical exit, margin column, smooth side entry (no orthogonal L segments).
+    /// F58: vertical stem to 90% span, then cubic hook into 9/3 o'clock (no margin detour, no elbow at the turn).
     /// </summary>
     static void AppendFlowchartTbTerminalCollectorMarginGuidedPoints(
         MermaidSharp.Diagrams.Flowchart.FlowchartModel diagram,
@@ -6907,57 +6917,18 @@ static class CoordinateAssignment
         bool useLeftMargin)
     {
 #pragma warning disable IDE0007
-        double DropY = sourceAttach.Y + FLOWCHART_TERMINAL_COLLECTOR_STUB_Y_PX;
-        double ApproachY = targetAttach.Y;
-        double MarginX = ComputeFlowchartTerminalCollectorMarginColumnX(
-            diagram,
-            sourceNode,
-            targetNode,
-            useLeftMargin,
-            DropY,
-            ApproachY);
+        double DoneRowY = targetAttach.Y;
+        double VerticalTurnY = GetFlowchartTerminalCollectorSourceVerticalRouteY(sourceAttach, DoneRowY);
 
         points.Add(sourceAttach);
-        if (Math.Abs(DropY - sourceAttach.Y) > 0.75)
-        {
-            points.Add(new MermaidSharp.Models.Position(sourceAttach.X, DropY));
-        }
-
-        if (Math.Abs(MarginX - sourceAttach.X) > 0.75)
-        {
-            for (int PinIndex = 1; PinIndex <= FLOWCHART_TERMINAL_COLLECTOR_MARGIN_BLEND_PIN_COUNT; PinIndex++)
-            {
-                double Ratio = PinIndex / (double)(FLOWCHART_TERMINAL_COLLECTOR_MARGIN_BLEND_PIN_COUNT + 1);
-                double PinX = sourceAttach.X + ((MarginX - sourceAttach.X) * Ratio);
-                points.Add(new MermaidSharp.Models.Position(PinX, DropY));
-            }
-
-            points.Add(new MermaidSharp.Models.Position(MarginX, DropY));
-        }
-
-        if (Math.Abs(ApproachY - DropY) > 0.75)
-        {
-            for (int PinIndex = 1; PinIndex <= FLOWCHART_TERMINAL_COLLECTOR_MARGIN_VERTICAL_PIN_COUNT; PinIndex++)
-            {
-                double Ratio = PinIndex / (double)(FLOWCHART_TERMINAL_COLLECTOR_MARGIN_VERTICAL_PIN_COUNT + 1);
-                double PinY = DropY + ((ApproachY - DropY) * Ratio);
-                points.Add(new MermaidSharp.Models.Position(MarginX, PinY));
-            }
-
-            points.Add(new MermaidSharp.Models.Position(MarginX, ApproachY));
-        }
+        points.Add(new MermaidSharp.Models.Position(sourceAttach.X, VerticalTurnY));
 
         double SideLeadX = useLeftMargin
             ? targetAttach.X - FLOWCHART_TERMINAL_COLLECTOR_SIDE_LEAD_PX
             : targetAttach.X + FLOWCHART_TERMINAL_COLLECTOR_SIDE_LEAD_PX;
-        if (Math.Abs(SideLeadX - MarginX) > 0.75)
+        if (Math.Abs(SideLeadX - sourceAttach.X) > 0.75)
         {
-            for (int PinIndex = 1; PinIndex <= FLOWCHART_TERMINAL_COLLECTOR_MARGIN_SIDE_PIN_COUNT; PinIndex++)
-            {
-                double Ratio = PinIndex / (double)(FLOWCHART_TERMINAL_COLLECTOR_MARGIN_SIDE_PIN_COUNT + 1);
-                double PinX = MarginX + ((SideLeadX - MarginX) * Ratio);
-                points.Add(new MermaidSharp.Models.Position(PinX, ApproachY));
-            }
+            points.Add(new MermaidSharp.Models.Position(SideLeadX, DoneRowY));
         }
 
         points.Add(targetAttach);
