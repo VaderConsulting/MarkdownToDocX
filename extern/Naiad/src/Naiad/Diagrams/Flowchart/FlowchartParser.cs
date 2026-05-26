@@ -140,15 +140,25 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
             rectangleShape
         );
 
-    // Node parser: identifier optionally followed by shape
+    /// <summary>Mermaid inline class suffix: <c>:::good</c> (repeatable).</summary>
+    static Parser<char, IEnumerable<string>> inlineClassListParser =
+        (
+            from _ in String(":::")
+            from className in CommonParsers.Identifier
+            select className
+        ).Many();
+
+    // Node parser: identifier optionally followed by shape and inline classes
     static Parser<char, Node> nodeParser =
         from id in CommonParsers.Identifier
         from shape in nodeShapeParser.Optional()
+        from inlineClasses in inlineClassListParser
         select new Node
         {
             Id = id,
             Label = shape.HasValue ? shape.Value.Label : null,
-            Shape = shape.HasValue ? shape.Value.Shape : NodeShape.Rectangle
+            Shape = shape.HasValue ? shape.Value.Shape : NodeShape.Rectangle,
+            InlineClassNames = inlineClasses.ToList()
         };
 
     /// <summary>
@@ -374,7 +384,7 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
 
     // Subgraph direction line: direction LR / TB / ...
     // Mermaid allows `direction` inside subgraphs to override local layout direction.
-    // Parsed for fidelity; nested subgraph compound layout always uses TD (see DagreLayoutEngine).
+    // Parsed for fidelity; compound layout honours this direction (see DagreLayoutEngine).
     static Parser<char, Direction> subgraphDirectionDirective =
         from _ in CommonParsers.InlineWhitespace
         from __ in String("direction")
@@ -547,6 +557,20 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
                         }
 
                         state.NodeIdToCurrentSubgraphId[node.Id] = current.Id;
+                    }
+
+                    foreach (string inlineClassName in node.InlineClassNames)
+                    {
+                        if (!model.ClassesByNodeId.TryGetValue(node.Id, out List<string>? classes))
+                        {
+                            classes = new List<string>();
+                            model.ClassesByNodeId[node.Id] = classes;
+                        }
+
+                        if (!classes.Contains(inlineClassName, StringComparer.Ordinal))
+                        {
+                            classes.Add(inlineClassName);
+                        }
                     }
 
                     if (i < edges.Count)

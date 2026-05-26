@@ -46,14 +46,22 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
     /// </summary>
     const double FLOWCHART_HTML_LABEL_LINE_BOX_HEIGHT_EM = 2.5;
 
-    /// <summary>Glyph-width estimate for short flowchart labels (matches mermaid.live fixtures such as Start/End).</summary>
-    const double FLOWCHART_LABEL_CHAR_WIDTH_EM_SHORT = 0.756;
+    /// <summary>Glyph-width estimate for short flowchart labels (Trebuchet 16px; matches mermaid.ink foreignObject widths).</summary>
+    const double FLOWCHART_LABEL_CHAR_WIDTH_EM_SHORT = 0.512;
 
     /// <summary>Glyph-width estimate for longer single-line labels (Process, Go shopping, etc.).</summary>
-    const double FLOWCHART_LABEL_CHAR_WIDTH_EM_LONG = 0.678;
+    const double FLOWCHART_LABEL_CHAR_WIDTH_EM_LONG = 0.512;
 
     /// <summary>When measured width is below this fraction of the HTML line box, bump width (End-style short words).</summary>
     const double FLOWCHART_LABEL_MIN_WIDTH_TO_LINE_BOX_RATIO = 1.125;
+
+    /// <summary>Browser HTML label <c>getBoundingClientRect</c> width vs glyph estimate for Trebuchet 16px (mermaid.ink squareRect).</summary>
+    const double FLOWCHART_HTML_LABEL_BBOX_WIDTH_TO_LINE_BOX_RATIO = 1.68;
+
+    /// <summary>
+    /// Stadium label width vs 1.5em line-height box (mermaid.ink End foreignObject 28.47 / 24).
+    /// </summary>
+    const double FLOWCHART_STADIUM_LABEL_BBOX_WIDTH_TO_LINE_HEIGHT_RATIO = 1.186;
 
     const int FLOWCHART_LABEL_SHORT_WORD_MAX_LENGTH = 3;
 
@@ -104,8 +112,11 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             var hasIcon = iconPattern.IsMatch(label);
             double iconExtraWidthPx = hasIcon ? 20.0 : 0.0;
 #pragma warning restore IDE0007
-            node.Width = textSize.Width + LabelPaddingPx + iconExtraWidthPx;
-            node.Height = textSize.Height + LabelPaddingPx;
+            // Mermaid squareRect: labelPaddingX = padding*2, drawRect totalWidth = bbox.width + labelPaddingX*2.
+            var LabelPaddingX = LabelPaddingPx * 2.0;
+            var LabelPaddingY = LabelPaddingPx;
+            node.Width = textSize.Width + (2.0 * LabelPaddingX) + iconExtraWidthPx;
+            node.Height = textSize.Height + (2.0 * LabelPaddingY);
 
             // Persist wrapped text for rendering (so Word matches Mermaid's automatic wrapping).
             // Only apply when the label does not already include explicit line breaks.
@@ -155,6 +166,17 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
                 double HSide = textSize.Height + Ry + LabelPaddingPx;
                 node.Width = W0;
                 node.Height = HSide + (2.0 * Ry);
+#pragma warning restore IDE0007
+            }
+            else if (node.Shape == NodeShape.Stadium)
+            {
+                // stadium.ts / dagre-wrapper stadium(): h = bbox.height + padding, w = bbox.width + h/4 + padding.
+                // Do not use squareRect 2.5em line-box height — it inflates h, shrinks the flat middle to ~0, and renders End as a circle.
+#pragma warning disable IDE0007
+                double LabelInnerWidthPx = MeasureFlowchartStadiumInnerLabelWidth(wrappedForMeasure, options.FontSize);
+                double LabelInnerHeightPx = MeasureFlowchartStadiumInnerLabelHeight(wrappedForMeasure, options.FontSize);
+                node.Height = LabelInnerHeightPx + LabelPaddingPx;
+                node.Width = LabelInnerWidthPx + (node.Height / 4.0) + LabelPaddingPx + iconExtraWidthPx;
 #pragma warning restore IDE0007
             }
         }
@@ -959,8 +981,12 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         // Render edge label if present
         if (!string.IsNullOrEmpty(edge.Label))
         {
-            var labelX = edge.LabelPosition.X;
-            var labelY = edge.LabelPosition.Y;
+#pragma warning disable IDE0007
+            Node? TargetNode = model.GetNode(edge.TargetId);
+            Position LabelAnchor = ResolveFlowchartEdgeLabelPosition(edge, sourceNode, TargetNode, model, diagramDirection);
+#pragma warning restore IDE0007
+            var labelX = LabelAnchor.X;
+            var labelY = LabelAnchor.Y;
 #pragma warning disable IDE0007
             double WrappingWidthPx = GetConfigDouble(model, "flowchart.wrappingWidth", FlowchartNodeLabelMaxWidthPx);
             (string HtmlLabel, Size LabelSize) = PrepareFlowchartEdgeLabel(edge.Label, options.FontSize, WrappingWidthPx);
@@ -1034,14 +1060,17 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             if (!string.IsNullOrWhiteSpace(edge.Label))
             {
 #pragma warning disable IDE0007
+                Node? SourceNode = model.GetNode(edge.SourceId);
+                Node? TargetNode = model.GetNode(edge.TargetId);
+                Position LabelAnchor = ResolveFlowchartEdgeLabelPosition(edge, SourceNode, TargetNode, model, model.Direction);
                 double WrappingWidthPx = GetConfigDouble(model, "flowchart.wrappingWidth", FlowchartNodeLabelMaxWidthPx);
                 Size LabelSize = PrepareFlowchartEdgeLabel(edge.Label, options.FontSize, WrappingWidthPx).MeasuredSize;
                 double LabelWidth = LabelSize.Width + 16;
                 double LabelHeight = Math.Max(24, LabelSize.Height + 8);
-                double left = edge.LabelPosition.X - (LabelWidth / 2.0);
-                double top = edge.LabelPosition.Y - (LabelHeight / 2.0);
-                double right = edge.LabelPosition.X + (LabelWidth / 2.0);
-                double bottom = edge.LabelPosition.Y + (LabelHeight / 2.0);
+                double left = LabelAnchor.X - (LabelWidth / 2.0);
+                double top = LabelAnchor.Y - (LabelHeight / 2.0);
+                double right = LabelAnchor.X + (LabelWidth / 2.0);
+                double bottom = LabelAnchor.Y + (LabelHeight / 2.0);
 #pragma warning restore IDE0007
                 AddBounds(left, top, right, bottom);
             }
@@ -1066,6 +1095,40 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         maxX += MARKER_MARGIN_PX;
         maxY += MARKER_MARGIN_PX;
         return new MermaidSharp.Models.Rect(minX, minY, maxX - minX, maxY - minY);
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// Uses layout-snapped polyline points (orthogonal or curveBasis) instead of rebuilding from endpoints only.
+    /// </summary>
+    static string? TryBuildFlowchartPathFromSnapLineData(
+        IReadOnlyList<Position> lineData,
+        string? arrowTypeStart,
+        string? arrowTypeEnd)
+    {
+#pragma warning disable IDE0007
+        if (lineData.Count < 2)
+        {
+            return null;
+        }
+
+        List<Position> OffsetPoints = ApplyLineWithOffset(lineData, arrowTypeStart, arrowTypeEnd);
+        if (OffsetPoints.Count >= 3 && ShouldUseLinearFlowchartPath(OffsetPoints))
+        {
+            return BuildFlowchartLinearPath(OffsetPoints);
+        }
+
+        if (OffsetPoints.Count >= 3)
+        {
+            return BuildFlowchartCurveBasisPath(OffsetPoints);
+        }
+
+        if (OffsetPoints.Count == 2)
+        {
+            return BuildFlowchartGuidedCurveBasisPath(OffsetPoints[0], OffsetPoints[1]);
+        }
+
+        return null;
 #pragma warning restore IDE0007
     }
 
@@ -1104,13 +1167,121 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             return GenerateRoundedPath(Shifted, radius: 5.0);
         }
 
+        if (model is not null
+            && sourceNode is not null
+            && targetNode is not null
+            && (diagramDirection == Direction.TopToBottom || diagramDirection == Direction.BottomToTop)
+            && string.IsNullOrWhiteSpace(edge.Label)
+            && MermaidSharp.Layout.CoordinateAssignment.IsFlowchartTbStadiumDualFanInMergeTarget(model, targetNode.Id)
+            && LineData.Count >= 2)
+        {
+            List<Position> OffsetLineData = ApplyLineWithOffset(LineData, ArrowTypeStart, ArrowTypeEnd);
+            OffsetLineData = MermaidSharp.Layout.CoordinateAssignment.ApplyFlowchartOrthogonalAttachStubs(
+                OffsetLineData,
+                sourceNode,
+                targetNode,
+                MermaidSharp.Layout.CoordinateAssignment.FLOWCHART_ORTHOGONAL_ATTACH_STUB_PX);
+            return BuildFlowchartTbStadiumMergeCurveBasisPath(OffsetLineData, skipTerminalCollectorMarginComposite: false);
+        }
+
         // Decision branches (diamond → labelled targets): use the same guided 3-point curveBasis route as ER /
         // Mermaid dagre (down/right from source, then smooth bend to target). Avoids fixCorners + multi-elbow
         // wobble and the old unused cubic-bezier shortcut.
+        if (ShouldUseTbMultiIncomingDiamondGuidedCurve(edge, targetNode, model, diagramDirection, LineData)
+            && LineData.Count >= 2
+            && targetNode is not null
+            && model is not null
+            && MermaidSharp.Layout.CoordinateAssignment.TryGetFlowchartVerticalDecisionMultiIncomingEndpoints(
+                model,
+                edge,
+                out Position MultiIncomingSource,
+                out Position MultiIncomingOutline,
+                out Position MultiIncomingGuide,
+                out MermaidSharp.Layout.FlowchartDecisionBranchExitRole _))
+        {
+            List<Position> GuidedPoints = BuildFlowchartTbMultiIncomingDiamondGuidedPoints(
+                MultiIncomingSource,
+                MultiIncomingGuide,
+                MultiIncomingOutline,
+                ArrowTypeStart,
+                ArrowTypeEnd);
+            return BuildFlowchartCurveBasisPath(GuidedPoints);
+        }
+
+        if (model is not null
+            && sourceNode is not null
+            && targetNode is not null
+            && MermaidSharp.Layout.CoordinateAssignment.IsFlowchartLrRectangleToDiamondIngressEdge(model, sourceNode, targetNode)
+            && MermaidSharp.Layout.CoordinateAssignment.TryGetFlowchartLrRectangleToDiamondIngressEndpoints(
+                model,
+                sourceNode,
+                targetNode,
+                out Position IngressSource,
+                out Position IngressTarget))
+        {
+            List<Position> OffsetIngressEndpoints = ApplyLineWithOffset(
+                new List<Position> { IngressSource, IngressTarget },
+                ArrowTypeStart,
+                ArrowTypeEnd);
+            if (OffsetIngressEndpoints.Count >= 2)
+            {
+                return BuildFlowchartLrRectangleToDiamondIngressCurveBasisPath(
+                    OffsetIngressEndpoints[0],
+                    OffsetIngressEndpoints[^1]);
+            }
+        }
+
+        if (model is not null
+            && sourceNode is not null
+            && targetNode is not null
+            && MermaidSharp.Layout.CoordinateAssignment.IsFlowchartLrRetryLoopEdge(model, edge, sourceNode, targetNode)
+            && LineData.Count >= 2)
+        {
+            List<Position> OffsetLoopPoints = ApplyLineWithOffset(LineData, ArrowTypeStart, ArrowTypeEnd);
+            if (OffsetLoopPoints.Count >= 2)
+            {
+                return BuildFlowchartCurveBasisPath(OffsetLoopPoints);
+            }
+        }
+
+        if (model is not null
+            && sourceNode is not null
+            && targetNode is not null
+            && MermaidSharp.Layout.CoordinateAssignment.IsFlowchartTbUpwardLoopEdge(model, edge, sourceNode, targetNode)
+            && LineData.Count >= 2)
+        {
+            List<Position> OffsetLoopPoints = ApplyLineWithOffset(LineData, ArrowTypeStart, ArrowTypeEnd);
+            if (OffsetLoopPoints.Count >= 2)
+            {
+                return BuildFlowchartTbStadiumMergeCurveBasisPath(OffsetLoopPoints, skipTerminalCollectorMarginComposite: false);
+            }
+        }
+
         if (ShouldUseDecisionBranchGuidedCurve(edge, sourceNode, model, LineData) && LineData.Count >= 2)
         {
             List<Position> Endpoints = new List<Position> { LineData[0], LineData[^1] };
             if (model is not null
+                && sourceNode is not null
+                && MermaidSharp.Layout.CoordinateAssignment.TryGetFlowchartHorizontalDecisionBranchEndpoints(
+                    model,
+                    edge,
+                    out Position horizontalSource,
+                    out Position horizontalTarget,
+                    out MermaidSharp.Layout.FlowchartDecisionBranchExitRole _))
+            {
+                Endpoints[0] = horizontalSource;
+                Endpoints[1] = horizontalTarget;
+
+                List<Position> OffsetHorizontalEndpoints = ApplyLineWithOffset(Endpoints, ArrowTypeStart, ArrowTypeEnd);
+                if (OffsetHorizontalEndpoints.Count >= 2)
+                {
+                    return BuildFlowchartHorizontalDecisionBranchOutwardCurveBasisPath(
+                        OffsetHorizontalEndpoints[0],
+                        OffsetHorizontalEndpoints[^1],
+                        sourceNode.Position.Y);
+                }
+            }
+            else if (model is not null
                 && targetNode is not null
                 && MermaidSharp.Layout.CoordinateAssignment.TryGetFlowchartVerticalDecisionBranchEndpoints(
                     model,
@@ -1124,39 +1295,151 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             }
 
             List<Position> OffsetEndpoints = ApplyLineWithOffset(Endpoints, ArrowTypeStart, ArrowTypeEnd);
-            if (OffsetEndpoints.Count >= 2)
+            if (OffsetEndpoints.Count >= 2 && sourceNode is not null)
             {
-                return BuildFlowchartDecisionBranchGuidedCurveBasisPath(OffsetEndpoints[0], OffsetEndpoints[^1]);
+                return BuildFlowchartVerticalDecisionBranchOutwardCurveBasisPath(
+                    OffsetEndpoints[0],
+                    OffsetEndpoints[^1],
+                    sourceNode.Position.X);
             }
+        }
+
+        if (ShouldUseLrSideFanoutGuidedCurve(edge, sourceNode, model, diagramDirection, LineData)
+            && LineData.Count >= 2)
+        {
+            List<Position> OffsetFanEndpoints = ApplyLineWithOffset(
+                new List<Position> { LineData[0], LineData[^1] },
+                ArrowTypeStart,
+                ArrowTypeEnd);
+            if (OffsetFanEndpoints.Count >= 2)
+            {
+                return BuildFlowchartLrSideFanSRouteCurveBasisPath(
+                    OffsetFanEndpoints[0],
+                    OffsetFanEndpoints[^1]);
+            }
+        }
+
+        if (ShouldUseLrSideFanInGuidedCurve(edge, targetNode, model, diagramDirection, LineData)
+            && LineData.Count >= 2)
+        {
+            List<Position> OffsetFanEndpoints = ApplyLineWithOffset(
+                new List<Position> { LineData[0], LineData[^1] },
+                ArrowTypeStart,
+                ArrowTypeEnd);
+            if (OffsetFanEndpoints.Count >= 2)
+            {
+                return BuildFlowchartLrSideFanSRouteCurveBasisPath(
+                    OffsetFanEndpoints[0],
+                    OffsetFanEndpoints[^1]);
+            }
+        }
+
+        if (ShouldUseTbStadiumMergeFanInGuidedCurve(edge, targetNode, model, diagramDirection, LineData)
+            && sourceNode is not null
+            && targetNode is not null
+            && LineData.Count >= 2)
+        {
+            List<Position> OffsetLineData = ApplyLineWithOffset(LineData, ArrowTypeStart, ArrowTypeEnd);
+            OffsetLineData = MermaidSharp.Layout.CoordinateAssignment.ApplyFlowchartOrthogonalAttachStubs(
+                OffsetLineData,
+                sourceNode,
+                targetNode,
+                MermaidSharp.Layout.CoordinateAssignment.FLOWCHART_ORTHOGONAL_ATTACH_STUB_PX);
+            return BuildFlowchartTbStadiumMergeCurveBasisPath(OffsetLineData, skipTerminalCollectorMarginComposite: false);
+        }
+
+        if (ShouldUseTbTerminalCollectorGuidedCurve(edge, targetNode, model, diagramDirection, LineData)
+            && targetNode is not null
+            && sourceNode is not null
+            && LineData.Count >= 2)
+        {
+            List<Position> OffsetLineData = ApplyLineWithOffset(LineData, ArrowTypeStart, ArrowTypeEnd);
+            bool SkipMarginComposite = model is not null
+                && MermaidSharp.Layout.CoordinateAssignment.IsFlowchartTbTerminalCollectorMarginEdge(model, edge);
+            return BuildFlowchartTbStadiumMergeCurveBasisPath(OffsetLineData, SkipMarginComposite);
         }
 
         if (ShouldUseHubFanGuidedCurve(edge, sourceNode, targetNode, model, diagramDirection, LineData)
             && LineData.Count >= 2)
         {
-            List<Position> FanEndpoints = new List<Position> { LineData[0], LineData[^1] };
-            List<Position> OffsetFanEndpoints = ApplyLineWithOffset(FanEndpoints, ArrowTypeStart, ArrowTypeEnd);
+            List<Position> OffsetFanEndpoints = ApplyLineWithOffset(
+                new List<Position> { LineData[0], LineData[^1] },
+                ArrowTypeStart,
+                ArrowTypeEnd);
             if (OffsetFanEndpoints.Count >= 2)
             {
                 double HubCentreX = ResolveFlowchartHubFanCentreX(edge, sourceNode, targetNode, model);
-                return BuildFlowchartHubFanGuidedCurveBasisPath(
+                bool IsFanIn = targetNode is not null
+                    && string.Equals(edge.TargetId, targetNode.Id, StringComparison.Ordinal);
+                if (IsFanIn)
+                {
+                    return BuildFlowchartVerticalFanSRouteCurveBasisPath(
+                        OffsetFanEndpoints[0],
+                        OffsetFanEndpoints[^1]);
+                }
+
+                return BuildFlowchartVerticalDecisionBranchOutwardCurveBasisPath(
                     OffsetFanEndpoints[0],
                     OffsetFanEndpoints[^1],
                     HubCentreX);
             }
         }
 
-        List<Position> OffsetBeforeCorners = ApplyLineWithOffset(LineData, ArrowTypeStart, ArrowTypeEnd);
-        if (ShouldUseLinearFlowchartPath(OffsetBeforeCorners))
+        if (ShouldUseFlowchartCrossBoundarySCurve(edge, sourceNode, targetNode, model, LineData)
+            && LineData.Count >= 2)
+        {
+            List<Position> OffsetBoundaryPoints = ApplyLineWithOffset(LineData, ArrowTypeStart, ArrowTypeEnd);
+            if (OffsetBoundaryPoints.Count >= 3)
+            {
+                return BuildFlowchartCrossBoundaryGuidedCurveBasisPath(OffsetBoundaryPoints);
+            }
+
+            if (OffsetBoundaryPoints.Count >= 2)
+            {
+                return BuildFlowchartGuidedCurveBasisPath(OffsetBoundaryPoints[0], OffsetBoundaryPoints[^1]);
+            }
+        }
+
+        List<Position> LineDataForRender = LineData;
+        if (model is not null
+            && sourceNode is not null
+            && targetNode is not null
+            && !MermaidSharp.Layout.CoordinateAssignment.ShouldSkipFlowchartOrthogonalAttachStubs(
+                model,
+                edge,
+                sourceNode,
+                targetNode))
+        {
+            LineDataForRender = MermaidSharp.Layout.CoordinateAssignment.ApplyFlowchartOrthogonalAttachStubs(
+                LineData,
+                sourceNode,
+                targetNode,
+                MermaidSharp.Layout.CoordinateAssignment.FLOWCHART_ORTHOGONAL_ATTACH_STUB_PX);
+        }
+
+        List<Position> OffsetBeforeCorners = ApplyLineWithOffset(LineDataForRender, ArrowTypeStart, ArrowTypeEnd);
+        if (OffsetBeforeCorners.Count > 2 && ShouldUseLinearFlowchartPath(OffsetBeforeCorners))
         {
             return BuildFlowchartLinearPath(OffsetBeforeCorners);
         }
 
         // Mermaid pre-rounds corners for all non-rounded curves.
-        LineData = FixCorners(LineData);
-        List<Position> OffsetPoints = ApplyLineWithOffset(LineData, ArrowTypeStart, ArrowTypeEnd);
+        LineDataForRender = FixCorners(LineDataForRender);
+        List<Position> OffsetPoints = ApplyLineWithOffset(LineDataForRender, ArrowTypeStart, ArrowTypeEnd);
 
-        // Two-point edges (subgraph ↔ subgraph, simple links) must stay straight; curveBasis bows even with 2 points.
-        if (OffsetPoints.Count == 2 || ShouldUseLinearFlowchartPath(OffsetPoints))
+        if (OffsetPoints.Count == 2)
+        {
+            Position Start = OffsetPoints[0];
+            Position End = OffsetPoints[^1];
+            if (Math.Abs(Start.X - End.X) < 0.75 || Math.Abs(Start.Y - End.Y) < 0.75)
+            {
+                return BuildFlowchartGuidedCurveBasisPath(Start, End);
+            }
+
+            return BuildFlowchartLinearPath(OffsetPoints);
+        }
+
+        if (ShouldUseLinearFlowchartPath(OffsetPoints))
         {
             return BuildFlowchartLinearPath(OffsetPoints);
         }
@@ -1174,6 +1457,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
     static string BuildFlowchartGuidedCurveBasisPath(Position P0, Position P3)
     {
         double Dx = P3.X - P0.X;
+        double Dy = P3.Y - P0.Y;
 
         List<Position> GuidedPoints;
         if (Math.Abs(Dx) < 0.75)
@@ -1191,62 +1475,667 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
     }
 
     /// <summary>
-    /// Binary decision fan-out (F29): S-route down from the side exit, across at mid-Y, then down into top-centre.
-    /// Using only <c>(P0.X, midY) → P3</c> bows inward; the horizontal mid segment bows outward like Mermaid.
+    /// F34 Receive → diamond: travel horizontally away from Receive, then curve toward the left facet (not vertical-first).
     /// </summary>
-    static string BuildFlowchartDecisionBranchGuidedCurveBasisPath(Position P0, Position P3)
+    static string BuildFlowchartLrRectangleToDiamondIngressCurveBasisPath(Position P0, Position P3)
     {
-        double Dx = P3.X - P0.X;
-        double MidY = (P0.Y + P3.Y) / 2.0;
-
-        List<Position> GuidedPoints;
-        if (Math.Abs(Dx) < 0.75)
+#pragma warning disable IDE0007
+        double DeltaX = P3.X - P0.X;
+        double DeltaY = P3.Y - P0.Y;
+        if (Math.Abs(DeltaX) < 0.75)
         {
-            GuidedPoints = new List<Position> { P0, new Position(P0.X, MidY), P3 };
-        }
-        else
-        {
-            GuidedPoints = new List<Position>
+            double MidY = (P0.Y + P3.Y) / 2.0;
+            return BuildFlowchartCurveBasisPath(new List<Position>
             {
                 P0,
                 new Position(P0.X, MidY),
-                new Position(P3.X, MidY),
+                P3
+            });
+        }
+
+        double MidX = (P0.X + P3.X) / 2.0;
+        if (Math.Abs(DeltaY) < 0.75)
+        {
+            return BuildFlowchartCurveBasisPath(new List<Position>
+            {
+                P0,
+                new Position(MidX, P0.Y),
+                P3
+            });
+        }
+
+        return BuildFlowchartCurveBasisPath(new List<Position>
+        {
+            P0,
+            new Position(MidX, P0.Y),
+            P3
+        });
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>Short axis-aligned stub so curveBasis tangents meet faces at ~90° (F37/F38 cross-boundary).</summary>
+    const double FLOWCHART_CROSS_BOUNDARY_ORTHOGONAL_STUB_PX = 14.0;
+
+    /// <summary>F35: short approach stub before diamond perimeter so curveBasis + arrow meet the outline.</summary>
+    const double FLOWCHART_DIAMOND_INCOMING_ENTRY_STUB_PX = 14.0;
+
+    const double FLOWCHART_ARROW_POINT_MARKER_PX = 4.0;
+
+    /// <summary>F20 thick arrow (<c>==&gt;</c>): stroke stops 3px further before <c>pointEndThick</c> than normal arrows.</summary>
+    const double FLOWCHART_THICK_ARROW_POINT_MARKER_PX = 7.0;
+
+    static List<Position> BuildFlowchartVerticalFanSRouteGuidedPoints(Position P0, Position P3)
+    {
+#pragma warning disable IDE0007
+        double MidY = (P0.Y + P3.Y) / 2.0;
+        if (Math.Abs(P3.X - P0.X) < 0.75)
+        {
+            return new List<Position>
+            {
+                P0,
+                new Position(P0.X, MidY),
                 P3
             };
         }
 
-        return BuildFlowchartCurveBasisPath(GuidedPoints);
-    }
-
-    /// <summary>
-    /// F31/F32 hub fan: mirrored outward bow (guide at hubCentre ± |targetX − hubCentre|).
-    /// </summary>
-    static string BuildFlowchartHubFanGuidedCurveBasisPath(Position P0, Position P3, double HubCentreX)
-    {
-        double MidY = (P0.Y + P3.Y) / 2.0;
-        double Spread = Math.Abs(P3.X - HubCentreX);
-        double GuideX;
-        if (Math.Abs(P0.X - HubCentreX) < 0.75)
-        {
-            GuideX = HubCentreX;
-        }
-        else if (P0.X < HubCentreX)
-        {
-            GuideX = HubCentreX - Spread;
-        }
-        else
-        {
-            GuideX = HubCentreX + Spread;
-        }
-
-        List<Position> GuidedPoints = new List<Position>
+        return new List<Position>
         {
             P0,
             new Position(P0.X, MidY),
+            new Position(P3.X, MidY),
+            P3
+        };
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// F31/F32 TB/BT fan (same curved S-route as F33): <c>(P0, (P0.X, midY), (P3.X, midY), P3)</c> then curveBasis.
+    /// </summary>
+    static string BuildFlowchartVerticalFanSRouteCurveBasisPath(Position P0, Position P3)
+    {
+        return BuildFlowchartCurveBasisPath(BuildFlowchartVerticalFanSRouteGuidedPoints(P0, P3));
+    }
+
+    /// <summary>
+    /// F38/F43 TB cross-boundary: orthogonal exit/entry (vertical legs at source/target X) plus outward bow at <paramref name="GuideX"/>.
+    /// </summary>
+    static string BuildFlowchartVerticalCrossBoundaryOrthogonalCurveBasisPath(Position P0, Position P3, double GuideX)
+    {
+        return BuildFlowchartCurveBasisPath(BuildFlowchartVerticalCrossBoundaryOrthogonalGuidedPoints(P0, P3, GuideX));
+    }
+
+    static List<Position> BuildFlowchartVerticalCrossBoundaryOrthogonalGuidedPoints(Position P0, Position P3, double GuideX)
+    {
+#pragma warning disable IDE0007
+        double MidY = (P0.Y + P3.Y) / 2.0;
+        double FlowSignY = Math.Sign(P3.Y - P0.Y);
+        if (Math.Abs(FlowSignY) < 0.01)
+        {
+            FlowSignY = 1.0;
+        }
+
+        if (Math.Abs(P3.X - P0.X) < 0.75)
+        {
+            double ExitStubY = P0.Y + (FlowSignY * FLOWCHART_CROSS_BOUNDARY_ORTHOGONAL_STUB_PX);
+            double EntryStubY = P3.Y - (FlowSignY * FLOWCHART_CROSS_BOUNDARY_ORTHOGONAL_STUB_PX);
+            return new List<Position>
+            {
+                P0,
+                new Position(P0.X, ExitStubY),
+                new Position(P0.X, MidY),
+                new Position(P3.X, MidY),
+                new Position(P3.X, EntryStubY),
+                P3
+            };
+        }
+
+        double CorridorExitY = P0.Y + (FlowSignY * FLOWCHART_CROSS_BOUNDARY_ORTHOGONAL_STUB_PX);
+        double CorridorEntryY = P3.Y - (FlowSignY * FLOWCHART_CROSS_BOUNDARY_ORTHOGONAL_STUB_PX);
+        return new List<Position>
+        {
+            P0,
+            new Position(P0.X, CorridorExitY),
+            new Position(P0.X, MidY),
+            new Position(GuideX, MidY),
+            new Position(P3.X, MidY),
+            new Position(P3.X, CorridorEntryY),
+            P3
+        };
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// F37/F40 LR cross-boundary: horizontal exit/entry with outward vertical leg at <paramref name="GuideX"/>.
+    /// </summary>
+    static string BuildFlowchartLrCrossBoundaryOrthogonalCurveBasisPath(Position P0, Position P3, double GuideX)
+    {
+        return BuildFlowchartCurveBasisPath(BuildFlowchartLrCrossBoundaryOrthogonalGuidedPoints(P0, P3, GuideX));
+    }
+
+    static List<Position> BuildFlowchartLrCrossBoundaryOrthogonalGuidedPoints(Position P0, Position P3, double GuideX)
+    {
+#pragma warning disable IDE0007
+        double FlowSignX = Math.Sign(P3.X - P0.X);
+        if (Math.Abs(FlowSignX) < 0.01)
+        {
+            FlowSignX = 1.0;
+        }
+
+        double ExitStubX = P0.X + (FlowSignX * FLOWCHART_CROSS_BOUNDARY_ORTHOGONAL_STUB_PX);
+        double EntryStubX = P3.X - (FlowSignX * FLOWCHART_CROSS_BOUNDARY_ORTHOGONAL_STUB_PX);
+
+        if (Math.Abs(P3.Y - P0.Y) < 0.75)
+        {
+            double MidX = (P0.X + P3.X) / 2.0;
+            return new List<Position>
+            {
+                P0,
+                new Position(ExitStubX, P0.Y),
+                new Position(MidX, P0.Y),
+                P3
+            };
+        }
+
+        return new List<Position>
+        {
+            P0,
+            new Position(ExitStubX, P0.Y),
+            new Position(GuideX, P0.Y),
+            new Position(GuideX, P3.Y),
+            new Position(EntryStubX, P3.Y),
+            P3
+        };
+#pragma warning restore IDE0007
+    }
+
+    static double ResolveFlowchartLrCrossBoundaryGuideX(Position P0, Position P3, Node sourceNode, Direction diagramDirection)
+    {
+#pragma warning disable IDE0007
+        double MidX = (P0.X + P3.X) / 2.0;
+        bool RightToLeft = diagramDirection == Direction.RightToLeft;
+        bool ExternalSource = string.IsNullOrEmpty(sourceNode.ParentId);
+        double Span = Math.Abs(MidX - P0.X);
+        double OutwardShift = Math.Min(FLOWCHART_CROSS_BOUNDARY_ORTHOGONAL_STUB_PX, Span * 0.45);
+        if (ExternalSource)
+        {
+            if (RightToLeft)
+            {
+                return P0.X - OutwardShift;
+            }
+
+            return P0.X + OutwardShift;
+        }
+
+        if (RightToLeft)
+        {
+            return P0.X - Math.Min(FLOWCHART_CROSS_BOUNDARY_ORTHOGONAL_STUB_PX, Span * 0.25);
+        }
+
+        return P0.X + Math.Min(FLOWCHART_CROSS_BOUNDARY_ORTHOGONAL_STUB_PX, Span * 0.25);
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// F33/F24-style LR side fan: S-route <c>(P0, (midX, P0.Y), (midX, P3.Y), P3)</c> then curveBasis.
+    /// </summary>
+    static string BuildFlowchartLrSideFanSRouteCurveBasisPath(Position P0, Position P3)
+    {
+        return BuildFlowchartCurveBasisPath(BuildFlowchartLrSideFanSRouteGuidedPoints(P0, P3));
+    }
+
+    static List<Position> BuildFlowchartLrSideFanSRouteGuidedPoints(Position P0, Position P3)
+    {
+#pragma warning disable IDE0007
+        double MidX = (P0.X + P3.X) / 2.0;
+        if (Math.Abs(P3.Y - P0.Y) < 0.75)
+        {
+            return new List<Position>
+            {
+                P0,
+                new Position(MidX, P0.Y),
+                P3
+            };
+        }
+
+        return new List<Position>
+        {
+            P0,
+            new Position(MidX, P0.Y),
+            new Position(MidX, P3.Y),
+            P3
+        };
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// F24/F33 LR side fan (legacy spread guide): prefer <see cref="BuildFlowchartLrSideFanSRouteCurveBasisPath"/>.
+    /// </summary>
+    static string BuildFlowchartLrSideOutwardCurveBasisPath(
+        Position P0,
+        Position P3,
+        double HubCentreY,
+        FlowchartOutwardCurveSpreadAnchor spreadAnchor)
+    {
+        return BuildFlowchartCurveBasisPath(
+            BuildFlowchartLrSideOutwardCurveGuidedPoints(P0, P3, HubCentreY, spreadAnchor));
+    }
+
+    static List<Position> BuildFlowchartLrSideOutwardCurveGuidedPoints(
+        Position P0,
+        Position P3,
+        double HubCentreY,
+        FlowchartOutwardCurveSpreadAnchor spreadAnchor)
+    {
+#pragma warning disable IDE0007
+        double MidX = (P0.X + P3.X) / 2.0;
+        if (Math.Abs(P3.Y - P0.Y) < 0.75)
+        {
+            return new List<Position>
+            {
+                P0,
+                new Position(MidX, P0.Y),
+                P3
+            };
+        }
+
+        double Spread;
+        double GuideY;
+        if (spreadAnchor == FlowchartOutwardCurveSpreadAnchor.SourceLeg)
+        {
+            Spread = Math.Abs(P0.Y - HubCentreY);
+            if (Math.Abs(P0.Y - HubCentreY) < 0.75)
+            {
+                GuideY = HubCentreY;
+            }
+            else if (P0.Y < HubCentreY)
+            {
+                GuideY = P0.Y - Spread;
+            }
+            else
+            {
+                GuideY = P0.Y + Spread;
+            }
+        }
+        else
+        {
+            Spread = Math.Abs(P3.Y - HubCentreY);
+            if (Math.Abs(P0.Y - HubCentreY) < 0.75)
+            {
+                GuideY = HubCentreY;
+            }
+            else if (P0.Y < HubCentreY)
+            {
+                GuideY = HubCentreY - Spread;
+            }
+            else
+            {
+                GuideY = HubCentreY + Spread;
+            }
+        }
+
+        return new List<Position>
+        {
+            P0,
+            new Position(MidX, GuideY),
+            P3
+        };
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// F29/F30 TB decision fan-out from a diamond hub: bow outward using the target leg (|P3.X − hub|).
+    /// </summary>
+    static string BuildFlowchartVerticalDecisionBranchOutwardCurveBasisPath(Position P0, Position P3, double HubCentreX)
+    {
+        return BuildFlowchartVerticalOutwardCurveBasisPath(
+            P0,
+            P3,
+            HubCentreX,
+            FlowchartOutwardCurveSpreadAnchor.TargetLeg);
+    }
+
+    /// <summary>
+    /// F34 LR decision fan-out: bow outward using the target leg (|P3.Y − hub|).
+    /// </summary>
+    static string BuildFlowchartHorizontalDecisionBranchOutwardCurveBasisPath(Position P0, Position P3, double HubCentreY)
+    {
+        return BuildFlowchartCurveBasisPath(
+            BuildFlowchartHorizontalOutwardCurveGuidedPoints(
+                P0,
+                P3,
+                HubCentreY,
+                FlowchartOutwardCurveSpreadAnchor.TargetLeg));
+    }
+
+    static List<Position> BuildFlowchartHorizontalOutwardCurveGuidedPoints(
+        Position P0,
+        Position P3,
+        double HubCentreY,
+        FlowchartOutwardCurveSpreadAnchor spreadAnchor)
+    {
+#pragma warning disable IDE0007
+        double MidX = (P0.X + P3.X) / 2.0;
+        if (Math.Abs(P3.Y - P0.Y) < 0.75)
+        {
+            return new List<Position>
+            {
+                P0,
+                new Position(MidX, P0.Y),
+                P3
+            };
+        }
+
+        double Spread;
+        double GuideY;
+        if (spreadAnchor == FlowchartOutwardCurveSpreadAnchor.SourceLeg)
+        {
+            Spread = Math.Abs(P0.Y - HubCentreY);
+            if (Math.Abs(P0.Y - HubCentreY) < 0.75)
+            {
+                GuideY = HubCentreY;
+            }
+            else if (P0.Y < HubCentreY)
+            {
+                GuideY = P0.Y - Spread;
+            }
+            else
+            {
+                GuideY = P0.Y + Spread;
+            }
+        }
+        else
+        {
+            Spread = Math.Abs(P3.Y - HubCentreY);
+            if (Math.Abs(P0.Y - HubCentreY) < 0.75)
+            {
+                GuideY = HubCentreY;
+            }
+            else if (P0.Y < HubCentreY)
+            {
+                GuideY = HubCentreY - Spread;
+            }
+            else
+            {
+                GuideY = HubCentreY + Spread;
+            }
+        }
+
+        return new List<Position>
+        {
+            P0,
+            new Position(MidX, GuideY),
+            P3
+        };
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// F37/F38/F40/F43 cross-boundary: F53-style guided polyline (orthogonal legs + curveBasis), same as stadium merge.
+    /// </summary>
+    static string BuildFlowchartCrossBoundaryGuidedCurveBasisPath(IReadOnlyList<Position> lineData)
+    {
+#pragma warning disable IDE0007
+        if (lineData.Count < 2)
+        {
+            return string.Empty;
+        }
+
+        if (lineData.Count >= 4)
+        {
+            return BuildFlowchartTbStadiumMergeCurveBasisPath(lineData, skipTerminalCollectorMarginComposite: false);
+        }
+
+        if (lineData.Count == 3)
+        {
+            return BuildFlowchartCurveBasisPath(new List<Position>
+            {
+                lineData[0],
+                lineData[1],
+                lineData[2]
+            });
+        }
+
+        return BuildFlowchartCurveBasisPath(new List<Position> { lineData[0], lineData[^1] });
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// F58 margin collector: find the first waypoint on a horizontal corridor row (wide same-Y run).
+    /// </summary>
+    static int FindFlowchartHorizontalCorridorRowStartIndex(IReadOnlyList<Position> Points)
+    {
+        const double Epsilon = 0.75;
+        int BestStartIndex = -1;
+        int BestRunLength = 0;
+
+        for (int StartIndex = 0; StartIndex < Points.Count - 1; StartIndex++)
+        {
+            double RowY = Points[StartIndex].Y;
+            int RunLength = 1;
+            double MinX = Points[StartIndex].X;
+            double MaxX = MinX;
+            for (int NextIndex = StartIndex + 1; NextIndex < Points.Count; NextIndex++)
+            {
+                if (Math.Abs(Points[NextIndex].Y - RowY) > Epsilon)
+                {
+                    break;
+                }
+
+                RunLength++;
+                MinX = Math.Min(MinX, Points[NextIndex].X);
+                MaxX = Math.Max(MaxX, Points[NextIndex].X);
+            }
+
+            if (RunLength < 2)
+            {
+                continue;
+            }
+
+            if ((MaxX - MinX) < 24.0)
+            {
+                continue;
+            }
+
+            if (StartIndex < 2)
+            {
+                continue;
+            }
+
+            if (RunLength > BestRunLength)
+            {
+                BestRunLength = RunLength;
+                BestStartIndex = StartIndex;
+            }
+        }
+
+        return BestStartIndex;
+    }
+
+    /// <summary>
+    /// F58: curveBasis on the margin leg only; straight segments along the corridor row and into the target.
+    /// A single global curveBasis through all waypoints bows through interior nodes.
+    /// </summary>
+    static bool TryBuildFlowchartTerminalCollectorMarginCompositePath(
+        IReadOnlyList<Position> LineData,
+        out string Path)
+    {
+        Path = string.Empty;
+        int HorizontalRowStartIndex = FindFlowchartHorizontalCorridorRowStartIndex(LineData);
+        if (HorizontalRowStartIndex < 2 || HorizontalRowStartIndex >= LineData.Count - 1)
+        {
+            return false;
+        }
+
+        List<Position> MarginLegPoints = new List<Position>();
+        for (int PointIndex = 0; PointIndex <= HorizontalRowStartIndex; PointIndex++)
+        {
+            MarginLegPoints.Add(LineData[PointIndex]);
+        }
+
+        if (MarginLegPoints.Count < 2)
+        {
+            return false;
+        }
+
+        Path = BuildFlowchartCurveBasisPath(MarginLegPoints);
+        for (int PointIndex = HorizontalRowStartIndex + 1; PointIndex < LineData.Count; PointIndex++)
+        {
+            Position Point = LineData[PointIndex];
+            Path = Path + "L" + Fmt(Point.X) + "," + Fmt(Point.Y);
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// F53 TB dual fan-in: vertical stem at source X, then curveBasis toward the stadium shoulder attach (mermaid.live data-points).
+    /// </summary>
+    static string BuildFlowchartTbStadiumMergeCurveBasisPath(
+        IReadOnlyList<Position> lineData,
+        bool skipTerminalCollectorMarginComposite)
+    {
+#pragma warning disable IDE0007
+        if (lineData.Count > 4)
+        {
+            if (!skipTerminalCollectorMarginComposite
+                && TryBuildFlowchartTerminalCollectorMarginCompositePath(lineData, out string CompositePath))
+            {
+                return CompositePath;
+            }
+
+            List<Position> AllGuidedPoints = new List<Position>();
+            for (int PointIndex = 0; PointIndex < lineData.Count; PointIndex++)
+            {
+                AllGuidedPoints.Add(lineData[PointIndex]);
+            }
+
+            return BuildFlowchartCurveBasisPath(AllGuidedPoints);
+        }
+
+        if (lineData.Count >= 4)
+        {
+            List<Position> GuidedPoints = new List<Position>
+            {
+                lineData[0],
+                lineData[1],
+                lineData[2],
+                lineData[^1]
+            };
+            return BuildFlowchartCurveBasisPath(GuidedPoints);
+        }
+
+        if (lineData.Count == 3)
+        {
+            return BuildFlowchartCurveBasisPath(new List<Position>
+            {
+                lineData[0],
+                lineData[1],
+                lineData[2]
+            });
+        }
+
+        Position P0 = lineData[0];
+        Position P3 = lineData[^1];
+        double SpanY = P3.Y - P0.Y;
+        double StubY = P0.Y + Math.Clamp(SpanY * 0.06, 4.0, 20.0);
+        Position StubEnd = new Position(P0.X, StubY);
+        double RouteY = P0.Y + Math.Clamp(SpanY * 0.45, 20.0, 40.0);
+        Position RoutePoint = new Position(P0.X, RouteY);
+        double MidY = (RoutePoint.Y + P3.Y) / 2.0;
+        Position ApproachPoint = new Position(P3.X, MidY);
+
+        List<Position> FallbackPoints = new List<Position>
+        {
+            P0,
+            StubEnd,
+            RoutePoint,
+            ApproachPoint,
+            P3
+        };
+        return BuildFlowchartCurveBasisPath(FallbackPoints);
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// Which endpoint supplies spread distance from the hub on the branch X axis.
+    /// Fan-out (hub = source): target leg. Fan-in (hub = target): source leg.
+    /// </summary>
+    enum FlowchartOutwardCurveSpreadAnchor
+    {
+        TargetLeg,
+        SourceLeg
+    }
+
+    static string BuildFlowchartVerticalOutwardCurveBasisPath(
+        Position P0,
+        Position P3,
+        double HubCentreX,
+        FlowchartOutwardCurveSpreadAnchor spreadAnchor)
+    {
+        return BuildFlowchartCurveBasisPath(
+            BuildFlowchartVerticalOutwardCurveGuidedPoints(P0, P3, HubCentreX, spreadAnchor));
+    }
+
+    static List<Position> BuildFlowchartVerticalOutwardCurveGuidedPoints(
+        Position P0,
+        Position P3,
+        double HubCentreX,
+        FlowchartOutwardCurveSpreadAnchor spreadAnchor)
+    {
+#pragma warning disable IDE0007
+        double MidY = (P0.Y + P3.Y) / 2.0;
+        if (Math.Abs(P3.X - P0.X) < 0.75)
+        {
+            return new List<Position>
+            {
+                P0,
+                new Position(P0.X, MidY),
+                P3
+            };
+        }
+
+        double Spread;
+        double GuideX;
+        if (spreadAnchor == FlowchartOutwardCurveSpreadAnchor.SourceLeg)
+        {
+            Spread = Math.Abs(P0.X - HubCentreX);
+            if (Math.Abs(P0.X - HubCentreX) < 0.75)
+            {
+                GuideX = HubCentreX;
+            }
+            else if (P0.X < HubCentreX)
+            {
+                GuideX = P0.X - Spread;
+            }
+            else
+            {
+                GuideX = P0.X + Spread;
+            }
+        }
+        else
+        {
+            Spread = Math.Abs(P3.X - HubCentreX);
+            if (Math.Abs(P0.X - HubCentreX) < 0.75)
+            {
+                GuideX = HubCentreX;
+            }
+            else if (P0.X < HubCentreX)
+            {
+                GuideX = HubCentreX - Spread;
+            }
+            else
+            {
+                GuideX = HubCentreX + Spread;
+            }
+        }
+
+        return new List<Position>
+        {
+            P0,
             new Position(GuideX, MidY),
             P3
         };
-        return BuildFlowchartCurveBasisPath(GuidedPoints);
+#pragma warning restore IDE0007
     }
 
     static double ResolveFlowchartHubFanCentreX(
@@ -1484,7 +2373,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             EdgeType.BiDirectional => ("arrow_point", "arrow_point"),
             EdgeType.Arrow => (null, "arrow_point"),
             EdgeType.DottedArrow => (null, "arrow_point"),
-            EdgeType.ThickArrow => (null, "arrow_point"),
+            EdgeType.ThickArrow => (null, "arrow_point_thick"),
             _ => (null, null)
         };
     }
@@ -1505,6 +2394,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             { "dependency", 6.0 },
             { "lollipop", 13.5 },
             { "arrow_point", 4.0 },
+            { "arrow_point_thick", FLOWCHART_THICK_ARROW_POINT_MARKER_PX },
             { "arrow_barb", 0.0 },
             { "arrow_barb_neo", 5.5 }
         };
@@ -1652,6 +2542,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             { "dependency", 6.0 },
             { "lollipop", 13.5 },
             { "arrow_point", 4.0 },
+            { "arrow_point_thick", FLOWCHART_THICK_ARROW_POINT_MARKER_PX },
             { "arrow_barb", 0.0 },
             { "arrow_barb_neo", 5.5 }
         };
@@ -1842,7 +2733,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         {
             EdgeType.Arrow => 4.0,
             EdgeType.DottedArrow => 4.0,
-            EdgeType.ThickArrow => 4.0,
+            EdgeType.ThickArrow => FLOWCHART_THICK_ARROW_POINT_MARKER_PX,
             EdgeType.BiDirectional => 4.0,
             EdgeType.CircleEnd => 12.5,
             EdgeType.CrossEnd => 12.5,
@@ -1852,6 +2743,158 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         };
     }
 #pragma warning restore IDE0007
+
+    /// <summary>
+    /// F35: guided polyline with an approach stub and perimeter endpoint so arrowheads meet the diamond edge.
+    /// </summary>
+    static List<Position> BuildFlowchartTbMultiIncomingDiamondGuidedPoints(
+        Position SourceAttach,
+        Position GuidePoint,
+        Position OutlineAttach,
+        string? ArrowTypeStart,
+        string? ArrowTypeEnd)
+    {
+#pragma warning disable IDE0007
+        double ApproachDx;
+        double ApproachDy;
+        if (!TryGetFlowchartApproachUnitVector(GuidePoint, OutlineAttach, out ApproachDx, out ApproachDy))
+        {
+            if (!TryGetFlowchartApproachUnitVector(SourceAttach, OutlineAttach, out ApproachDx, out ApproachDy))
+            {
+                ApproachDx = 0.0;
+                ApproachDy = 1.0;
+            }
+        }
+
+        Position PathStart = SourceAttach;
+        if (!string.IsNullOrWhiteSpace(ArrowTypeStart)
+            && ResolveFlowchartArrowMarkerOffsetPx(ArrowTypeStart) > 0.0
+            && TryGetFlowchartApproachUnitVector(SourceAttach, GuidePoint, out double StartDx, out double StartDy))
+        {
+            double StartOffset = ResolveFlowchartArrowMarkerOffsetPx(ArrowTypeStart);
+            PathStart = new Position(
+                SourceAttach.X + (StartDx * StartOffset),
+                SourceAttach.Y + (StartDy * StartOffset));
+        }
+
+        Position EntryStub = new Position(
+            OutlineAttach.X - (ApproachDx * FLOWCHART_DIAMOND_INCOMING_ENTRY_STUB_PX),
+            OutlineAttach.Y - (ApproachDy * FLOWCHART_DIAMOND_INCOMING_ENTRY_STUB_PX));
+
+        // Stroke ends on the diamond outline; Word rasterisation snaps inlined arrow tips to the same boundary.
+        Position PathEnd = OutlineAttach;
+
+        return new List<Position>
+        {
+            PathStart,
+            GuidePoint,
+            EntryStub,
+            PathEnd
+        };
+#pragma warning restore IDE0007
+    }
+
+    static bool TryGetFlowchartApproachUnitVector(Position From, Position To, out double UnitX, out double UnitY)
+    {
+#pragma warning disable IDE0007
+        UnitX = 0.0;
+        UnitY = 0.0;
+        double DeltaX = To.X - From.X;
+        double DeltaY = To.Y - From.Y;
+        double Length = Math.Sqrt((DeltaX * DeltaX) + (DeltaY * DeltaY));
+        if (Length < 0.01)
+        {
+            return false;
+        }
+
+        UnitX = DeltaX / Length;
+        UnitY = DeltaY / Length;
+        return true;
+#pragma warning restore IDE0007
+    }
+
+    static double ResolveFlowchartArrowMarkerOffsetPx(string ArrowType)
+    {
+#pragma warning disable IDE0007
+        if (string.Equals(ArrowType, "arrow_point", StringComparison.Ordinal))
+        {
+            return FLOWCHART_ARROW_POINT_MARKER_PX;
+        }
+
+        if (string.Equals(ArrowType, "arrow_point_thick", StringComparison.Ordinal))
+        {
+            return FLOWCHART_THICK_ARROW_POINT_MARKER_PX;
+        }
+
+        if (string.Equals(ArrowType, "arrow_barb_neo", StringComparison.Ordinal))
+        {
+            return 5.5;
+        }
+
+        if (string.Equals(ArrowType, "arrow_barb", StringComparison.Ordinal))
+        {
+            return 0.0;
+        }
+
+        return 0.0;
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// F35: three paths into a diamond from above — curve from source bottom to distinct top perimeter ports.
+    /// </summary>
+    static bool ShouldUseTbMultiIncomingDiamondGuidedCurve(
+        Edge edge,
+        Node? targetNode,
+        FlowchartModel? model,
+        Direction diagramDirection,
+        IReadOnlyList<Position> lineData)
+    {
+#pragma warning disable IDE0007
+        if (model is null || targetNode is null || lineData.Count < 2)
+        {
+            return false;
+        }
+
+        if (diagramDirection is not Direction.TopToBottom and not Direction.BottomToTop)
+        {
+            return false;
+        }
+
+        if (targetNode.Shape != NodeShape.Diamond)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(edge.Label))
+        {
+            return false;
+        }
+
+        int IncomingCount = 0;
+        for (int i = 0; i < model.Edges.Count; i++)
+        {
+            if (!string.Equals(model.Edges[i].TargetId, targetNode.Id, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (!string.IsNullOrWhiteSpace(model.Edges[i].Label))
+            {
+                continue;
+            }
+
+            IncomingCount++;
+            Node? SourceNode = model.GetNode(model.Edges[i].SourceId);
+            if (SourceNode is null || SourceNode.Position.Y >= targetNode.Position.Y - 0.01)
+            {
+                return false;
+            }
+        }
+
+        return IncomingCount >= 3;
+#pragma warning restore IDE0007
+    }
 
     static bool ShouldUseDecisionBranchGuidedCurve(Edge edge, Node? sourceNode, FlowchartModel? model, IReadOnlyList<Position> lineData)
     {
@@ -1905,6 +2948,482 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
 #pragma warning restore IDE0007
     }
 
+    /// <summary>
+    /// Resolves edge label anchor; LR side fan-out uses mid-span X and target-port Y (Mermaid Live / F24).
+    /// TB decision branches use the same guided waypoints as the rendered curveBasis path (F29/F53).
+    /// </summary>
+    static Position ResolveFlowchartEdgeLabelPosition(
+        Edge edge,
+        Node? sourceNode,
+        Node? targetNode,
+        FlowchartModel? model,
+        Direction diagramDirection)
+    {
+#pragma warning disable IDE0007
+        if (TryResolveFlowchartLrSideFanoutEdgeLabelPosition(edge, sourceNode, targetNode, model, diagramDirection, out double LabelX, out double LabelY))
+        {
+            return new Position(LabelX, LabelY);
+        }
+
+        if (TryResolveFlowchartDecisionBranchEdgeLabelPosition(edge, sourceNode, targetNode, model, out Position DecisionLabelPosition))
+        {
+            return DecisionLabelPosition;
+        }
+#pragma warning restore IDE0007
+
+        return edge.LabelPosition;
+    }
+
+    /// <summary>
+    /// F29/F53: label at half polyline distance along the same 3 guided points as <see cref="BuildFlowchartVerticalDecisionBranchOutwardCurveBasisPath"/>.
+    /// </summary>
+    static bool TryResolveFlowchartDecisionBranchEdgeLabelPosition(
+        Edge edge,
+        Node? sourceNode,
+        Node? targetNode,
+        FlowchartModel? model,
+        out Position labelPosition)
+    {
+#pragma warning disable IDE0007
+        labelPosition = default;
+
+        List<Position> LineData = FilterValidPoints(edge.Points);
+        if (!ShouldUseDecisionBranchGuidedCurve(edge, sourceNode, model, LineData) || LineData.Count < 2)
+        {
+            return false;
+        }
+
+        List<Position> Endpoints = new List<Position> { LineData[0], LineData[^1] };
+        (string? ArrowTypeStart, string? ArrowTypeEnd) = GetMermaidArrowTypes(edge.Type);
+        if (model is not null
+            && sourceNode is not null
+            && MermaidSharp.Layout.CoordinateAssignment.TryGetFlowchartHorizontalDecisionBranchEndpoints(
+                model,
+                edge,
+                out Position HorizontalSource,
+                out Position HorizontalTarget,
+                out MermaidSharp.Layout.FlowchartDecisionBranchExitRole _))
+        {
+            Endpoints[0] = HorizontalSource;
+            Endpoints[1] = HorizontalTarget;
+            List<Position> OffsetHorizontalEndpoints = ApplyLineWithOffset(Endpoints, ArrowTypeStart, ArrowTypeEnd);
+            if (OffsetHorizontalEndpoints.Count >= 2)
+            {
+                List<Position> HorizontalGuidedPoints = BuildFlowchartHorizontalOutwardCurveGuidedPoints(
+                    OffsetHorizontalEndpoints[0],
+                    OffsetHorizontalEndpoints[^1],
+                    sourceNode.Position.Y,
+                    FlowchartOutwardCurveSpreadAnchor.TargetLeg);
+                labelPosition = ComputeFlowchartPolylineHalfDistancePosition(HorizontalGuidedPoints);
+                return true;
+            }
+        }
+
+        if (model is not null
+            && targetNode is not null
+            && MermaidSharp.Layout.CoordinateAssignment.TryGetFlowchartVerticalDecisionBranchEndpoints(
+                model,
+                edge,
+                out Position BranchSource,
+                out Position BranchTarget,
+                out MermaidSharp.Layout.FlowchartDecisionBranchExitRole _))
+        {
+            Endpoints[0] = BranchSource;
+            Endpoints[1] = BranchTarget;
+        }
+
+        List<Position> OffsetEndpoints = ApplyLineWithOffset(Endpoints, ArrowTypeStart, ArrowTypeEnd);
+        if (OffsetEndpoints.Count < 2 || sourceNode is null)
+        {
+            return false;
+        }
+
+        List<Position> GuidedPoints = BuildFlowchartVerticalOutwardCurveGuidedPoints(
+            OffsetEndpoints[0],
+            OffsetEndpoints[^1],
+            sourceNode.Position.X,
+            FlowchartOutwardCurveSpreadAnchor.TargetLeg);
+
+        labelPosition = ComputeFlowchartPolylineHalfDistancePosition(GuidedPoints);
+        return true;
+#pragma warning restore IDE0007
+    }
+
+    static Position ComputeFlowchartPolylineHalfDistancePosition(IReadOnlyList<Position> Points)
+    {
+#pragma warning disable IDE0007
+        if (Points.Count == 0)
+        {
+            return Position.Zero;
+        }
+
+        if (Points.Count == 1)
+        {
+            return Points[0];
+        }
+
+        double TotalDistance = 0.0;
+        for (int Index = 1; Index < Points.Count; Index++)
+        {
+            Position PreviousPoint = Points[Index - 1];
+            Position Point = Points[Index];
+            double Dx = Point.X - PreviousPoint.X;
+            double Dy = Point.Y - PreviousPoint.Y;
+            TotalDistance += Math.Sqrt((Dx * Dx) + (Dy * Dy));
+        }
+
+        double RemainingDistance = TotalDistance / 2.0;
+        for (int Index = 1; Index < Points.Count; Index++)
+        {
+            Position PreviousPoint = Points[Index - 1];
+            Position Point = Points[Index];
+            double Dx = Point.X - PreviousPoint.X;
+            double Dy = Point.Y - PreviousPoint.Y;
+            double SegmentDistance = Math.Sqrt((Dx * Dx) + (Dy * Dy));
+            if (SegmentDistance <= 0.0000001)
+            {
+                continue;
+            }
+
+            if (SegmentDistance < RemainingDistance)
+            {
+                RemainingDistance -= SegmentDistance;
+                continue;
+            }
+
+            double DistanceRatio = RemainingDistance / SegmentDistance;
+            if (DistanceRatio <= 0.0)
+            {
+                return PreviousPoint;
+            }
+
+            if (DistanceRatio >= 1.0)
+            {
+                return Point;
+            }
+
+            double X = Math.Round(((1.0 - DistanceRatio) * PreviousPoint.X) + (DistanceRatio * Point.X), 5);
+            double Y = Math.Round(((1.0 - DistanceRatio) * PreviousPoint.Y) + (DistanceRatio * Point.Y), 5);
+            return new Position(X, Y);
+        }
+
+        return Points[^1];
+#pragma warning restore IDE0007
+    }
+
+    static bool TryResolveFlowchartLrSideFanoutEdgeLabelPosition(
+        Edge edge,
+        Node? sourceNode,
+        Node? targetNode,
+        FlowchartModel? model,
+        Direction diagramDirection,
+        out double LabelX,
+        out double LabelY)
+    {
+#pragma warning disable IDE0007
+        LabelX = 0.0;
+        LabelY = 0.0;
+
+        if (model is null
+            || sourceNode is null
+            || targetNode is null
+            || !ShouldUseLrLabelledRectFanoutGuidedCurve(edge, sourceNode, model, diagramDirection, edge.Points))
+        {
+            return false;
+        }
+
+        // Mermaid Live: label at horizontal mid-span between node centres, vertically aligned with target row.
+        LabelX = Math.Round((sourceNode.Position.X + targetNode.Position.X) / 2.0, 2);
+        LabelY = Math.Round(targetNode.Position.Y, 2);
+        return true;
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// LR labelled rectangle fan-out (F24): Mermaid uses a single smooth curveBasis segment per branch.
+    /// </summary>
+    static bool ShouldUseLrLabelledRectFanoutGuidedCurve(
+        Edge edge,
+        Node? sourceNode,
+        FlowchartModel? model,
+        Direction diagramDirection,
+        IReadOnlyList<Position> lineData)
+    {
+#pragma warning disable IDE0007
+        return !string.IsNullOrWhiteSpace(edge.Label)
+            && ShouldUseLrSideFanoutGuidedCurve(edge, sourceNode, model, diagramDirection, lineData);
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// LR rectangle side fan-out (F33): upper/centre/lower ports on the source right face (perimeter anchors) + curveBasis S-route.
+    /// </summary>
+    static bool ShouldUseLrSideFanoutGuidedCurve(
+        Edge edge,
+        Node? sourceNode,
+        FlowchartModel? model,
+        Direction diagramDirection,
+        IReadOnlyList<Position> lineData)
+    {
+#pragma warning disable IDE0007
+        if (model is null || sourceNode is null || lineData.Count < 2)
+        {
+            return false;
+        }
+
+        if (diagramDirection is not Direction.LeftToRight and not Direction.RightToLeft)
+        {
+            return false;
+        }
+
+        if (sourceNode.Shape == NodeShape.Diamond)
+        {
+            return false;
+        }
+
+        if (!string.Equals(edge.SourceId, sourceNode.Id, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        int OutgoingCount = 0;
+        bool AllTargetsToSide = true;
+        for (int i = 0; i < model.Edges.Count; i++)
+        {
+            if (!string.Equals(model.Edges[i].SourceId, sourceNode.Id, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            OutgoingCount++;
+            MermaidSharp.Models.Node? BranchTarget = model.GetNode(model.Edges[i].TargetId);
+            if (BranchTarget is null)
+            {
+                AllTargetsToSide = false;
+                break;
+            }
+
+            if (diagramDirection == Direction.LeftToRight)
+            {
+                if (BranchTarget.Position.X <= sourceNode.Position.X + 0.01)
+                {
+                    AllTargetsToSide = false;
+                    break;
+                }
+            }
+            else
+            {
+                if (BranchTarget.Position.X >= sourceNode.Position.X - 0.01)
+                {
+                    AllTargetsToSide = false;
+                    break;
+                }
+            }
+        }
+
+        return OutgoingCount >= 2 && OutgoingCount <= 3 && AllTargetsToSide;
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// LR rectangle side fan-in (F33): upper/lower entries on the target face, outward curveBasis per branch.
+    /// </summary>
+    static bool ShouldUseLrSideFanInGuidedCurve(
+        Edge edge,
+        Node? targetNode,
+        FlowchartModel? model,
+        Direction diagramDirection,
+        IReadOnlyList<Position> lineData)
+    {
+#pragma warning disable IDE0007
+        if (model is null || targetNode is null || lineData.Count < 2)
+        {
+            return false;
+        }
+
+        if (diagramDirection is not Direction.LeftToRight and not Direction.RightToLeft)
+        {
+            return false;
+        }
+
+        if (targetNode.Shape == NodeShape.Diamond)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(edge.Label))
+        {
+            return false;
+        }
+
+        if (!string.Equals(edge.TargetId, targetNode.Id, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        int IncomingCount = 0;
+        bool AllSourcesFromSide = true;
+        for (int i = 0; i < model.Edges.Count; i++)
+        {
+            if (!string.Equals(model.Edges[i].TargetId, targetNode.Id, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            IncomingCount++;
+            MermaidSharp.Models.Node? BranchSource = model.GetNode(model.Edges[i].SourceId);
+            if (BranchSource is null)
+            {
+                AllSourcesFromSide = false;
+                break;
+            }
+
+            if (diagramDirection == Direction.LeftToRight)
+            {
+                if (BranchSource.Position.X >= targetNode.Position.X - 0.01)
+                {
+                    AllSourcesFromSide = false;
+                    break;
+                }
+            }
+            else
+            {
+                if (BranchSource.Position.X <= targetNode.Position.X + 0.01)
+                {
+                    AllSourcesFromSide = false;
+                    break;
+                }
+            }
+        }
+
+        return IncomingCount >= 2 && IncomingCount <= 3 && AllSourcesFromSide;
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// F37/F38/F40/F43 cross-subgraph links: orthogonal stubs + curved S-route (90° to joined face).
+    /// </summary>
+    static bool ShouldUseFlowchartCrossBoundarySCurve(
+        Edge edge,
+        Node? sourceNode,
+        Node? targetNode,
+        FlowchartModel? model,
+        IReadOnlyList<Position> lineData)
+    {
+#pragma warning disable IDE0007
+        if (model is null || sourceNode is null || targetNode is null || lineData.Count < 2)
+        {
+            return false;
+        }
+
+        if (model.Subgraphs.Count == 0)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(edge.Label))
+        {
+            return false;
+        }
+
+        if (sourceNode.Shape == NodeShape.Diamond || targetNode.Shape == NodeShape.Diamond)
+        {
+            return false;
+        }
+
+        if (!MermaidSharp.Layout.CoordinateAssignment.IsFlowchartCrossSubgraphBoundaryEdge(sourceNode, targetNode))
+        {
+            return false;
+        }
+
+        Position P0 = lineData[0];
+        Position P3 = lineData[lineData.Count - 1];
+        return Math.Abs(P3.X - P0.X) > 0.75 && Math.Abs(P3.Y - P0.Y) > 0.75;
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// F53: two branches into a stadium/pill — vertical stem then curveBasis into left/right shoulders (not outward fan-out bow).
+    /// </summary>
+    static bool ShouldUseTbStadiumMergeFanInGuidedCurve(
+        Edge edge,
+        Node? targetNode,
+        FlowchartModel? model,
+        Direction diagramDirection,
+        IReadOnlyList<Position> lineData)
+    {
+#pragma warning disable IDE0007
+        if (model is null || targetNode is null || lineData.Count < 2)
+        {
+            return false;
+        }
+
+        if (diagramDirection is not Direction.TopToBottom and not Direction.BottomToTop)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(edge.Label))
+        {
+            return false;
+        }
+
+        if (!MermaidSharp.Layout.CoordinateAssignment.IsFlowchartTbStadiumDualFanInMergeTarget(model, targetNode.Id))
+        {
+            return false;
+        }
+
+        Node? SourceNode = model.GetNode(edge.SourceId);
+        if (SourceNode is null || SourceNode.Position.Y > targetNode.Position.Y - 0.01)
+        {
+            return false;
+        }
+
+        return true;
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// F58: multi-branch terminal collector into a stadium — curveBasis on margin or shoulder guided polylines.
+    /// </summary>
+    static bool ShouldUseTbTerminalCollectorGuidedCurve(
+        Edge edge,
+        Node? targetNode,
+        FlowchartModel? model,
+        Direction diagramDirection,
+        IReadOnlyList<Position> lineData)
+    {
+#pragma warning disable IDE0007
+        if (model is null || targetNode is null || lineData.Count < 2)
+        {
+            return false;
+        }
+
+        if (diagramDirection is not Direction.TopToBottom and not Direction.BottomToTop)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(edge.Label))
+        {
+            return false;
+        }
+
+        if (!MermaidSharp.Layout.CoordinateAssignment.IsFlowchartTbStadiumTerminalCollectorTarget(model, targetNode.Id))
+        {
+            return false;
+        }
+
+        Node? SourceNode = model.GetNode(edge.SourceId);
+        if (SourceNode is null || SourceNode.Position.Y > targetNode.Position.Y - 0.01)
+        {
+            return false;
+        }
+
+        return true;
+#pragma warning restore IDE0007
+    }
+
     static bool ShouldUseHubFanGuidedCurve(
         Edge edge,
         Node? sourceNode,
@@ -1934,45 +3453,75 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             return false;
         }
 
+        bool BottomToTop = diagramDirection == Direction.BottomToTop;
         int outgoingCount = 0;
-        bool allTargetsBelow = true;
+        bool allTargetsOnFanOutSide = true;
         for (int i = 0; i < model.Edges.Count; i++)
         {
             if (string.Equals(model.Edges[i].SourceId, sourceNode.Id, StringComparison.Ordinal))
             {
                 outgoingCount++;
                 MermaidSharp.Models.Node? branchTarget = model.GetNode(model.Edges[i].TargetId);
-                if (branchTarget is not null && branchTarget.Position.Y <= sourceNode.Position.Y + 0.01)
+                if (branchTarget is null)
                 {
-                    allTargetsBelow = false;
+                    continue;
+                }
+
+                if (BottomToTop)
+                {
+                    if (branchTarget.Position.Y >= sourceNode.Position.Y - 0.01)
+                    {
+                        allTargetsOnFanOutSide = false;
+                    }
+                }
+                else if (branchTarget.Position.Y <= sourceNode.Position.Y + 0.01)
+                {
+                    allTargetsOnFanOutSide = false;
                 }
             }
         }
 
-        if (outgoingCount >= 2 && outgoingCount <= 3 && allTargetsBelow
+        if (outgoingCount >= 2 && outgoingCount <= 3 && allTargetsOnFanOutSide
             && string.Equals(edge.SourceId, sourceNode.Id, StringComparison.Ordinal))
         {
             return true;
         }
 
         int incomingCount = 0;
-        bool allSourcesBelow = true;
+        bool allSourcesOnFanInSide = true;
         for (int i = 0; i < model.Edges.Count; i++)
         {
             if (string.Equals(model.Edges[i].TargetId, targetNode.Id, StringComparison.Ordinal))
             {
                 incomingCount++;
                 MermaidSharp.Models.Node? branchSource = model.GetNode(model.Edges[i].SourceId);
-                if (branchSource is not null && branchSource.Position.Y <= targetNode.Position.Y + 0.01)
+                if (branchSource is null)
                 {
-                    allSourcesBelow = false;
+                    continue;
+                }
+
+                if (BottomToTop)
+                {
+                    if (branchSource.Position.Y <= targetNode.Position.Y + 0.01)
+                    {
+                        allSourcesOnFanInSide = false;
+                    }
+                }
+                else if (branchSource.Position.Y >= targetNode.Position.Y - 0.01)
+                {
+                    allSourcesOnFanInSide = false;
                 }
             }
         }
 
-        if (incomingCount >= 2 && incomingCount <= 3 && allSourcesBelow
+        if (incomingCount >= 2 && incomingCount <= 3 && allSourcesOnFanInSide
             && string.Equals(edge.TargetId, targetNode.Id, StringComparison.Ordinal))
         {
+            if (MermaidSharp.Layout.CoordinateAssignment.IsFlowchartTbStadiumDualFanInMergeTarget(model, targetNode.Id))
+            {
+                return false;
+            }
+
             return true;
         }
 
@@ -2142,7 +3691,81 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             InnerWidthPx = SingleLineBoxHeightPx * FLOWCHART_LABEL_MIN_WIDTH_TO_LINE_BOX_RATIO;
         }
 
+        if (Lines.Length == 1)
+        {
+            double BrowserStyleMinWidthPx = SingleLineBoxHeightPx * FLOWCHART_HTML_LABEL_BBOX_WIDTH_TO_LINE_BOX_RATIO;
+            if (InnerWidthPx < BrowserStyleMinWidthPx)
+            {
+                InnerWidthPx = BrowserStyleMinWidthPx;
+            }
+        }
+
         return new Size(InnerWidthPx, InnerHeightPx);
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// Stadium label width without squareRect line-box min-width inflation (mermaid <c>stadium.ts</c> bbox.width).
+    /// </summary>
+    static double MeasureFlowchartStadiumInnerLabelWidth(string Text, double FontSize)
+    {
+#pragma warning disable IDE0007
+        if (string.IsNullOrEmpty(Text))
+        {
+            return FontSize * 1.5 * FLOWCHART_STADIUM_LABEL_BBOX_WIDTH_TO_LINE_HEIGHT_RATIO;
+        }
+
+        string[] Lines = Text.Split('\n');
+        int MaxLineLength = 0;
+        foreach (string Line in Lines)
+        {
+            int LineLength = Line.Length;
+            if (LineLength > MaxLineLength)
+            {
+                MaxLineLength = LineLength;
+            }
+        }
+
+        double CharWidthEm = MaxLineLength <= 5
+            ? FLOWCHART_LABEL_CHAR_WIDTH_EM_SHORT
+            : FLOWCHART_LABEL_CHAR_WIDTH_EM_LONG;
+        double LineHeightPx = FontSize * 1.5;
+        double InnerWidthPx = MaxLineLength * FontSize * CharWidthEm;
+
+        if (MaxLineLength <= FLOWCHART_LABEL_SHORT_WORD_MAX_LENGTH
+            && InnerWidthPx < LineHeightPx * FLOWCHART_LABEL_MIN_WIDTH_TO_LINE_BOX_RATIO)
+        {
+            InnerWidthPx = LineHeightPx * FLOWCHART_LABEL_MIN_WIDTH_TO_LINE_BOX_RATIO;
+        }
+
+        double BrowserStyleMinWidthPx = LineHeightPx * FLOWCHART_STADIUM_LABEL_BBOX_WIDTH_TO_LINE_HEIGHT_RATIO;
+        if (InnerWidthPx < BrowserStyleMinWidthPx)
+        {
+            InnerWidthPx = BrowserStyleMinWidthPx;
+        }
+
+        return InnerWidthPx;
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// Stadium label height: mermaid HTML label uses line-height 1.5 (not the 2.5em squareRect line box).
+    /// </summary>
+    static double MeasureFlowchartStadiumInnerLabelHeight(string Text, double FontSize)
+    {
+#pragma warning disable IDE0007
+        if (string.IsNullOrEmpty(Text))
+        {
+            return FontSize * 1.5;
+        }
+
+        string[] Lines = Text.Split('\n');
+        if (Lines.Length == 1)
+        {
+            return FontSize * 1.5;
+        }
+
+        return Lines.Length * FontSize * 1.5;
 #pragma warning restore IDE0007
     }
 

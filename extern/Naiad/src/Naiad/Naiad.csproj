@@ -11,6 +11,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="F53Probe" />
+    <InternalsVisibleTo Include="F32Probe" />
+    <InternalsVisibleTo Include="FixtureProbe" />
     <PackageReference Include="Pidgin" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
   </ItemGroup>
