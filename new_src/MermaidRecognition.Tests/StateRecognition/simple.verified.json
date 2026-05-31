@@ -1,0 +1,92 @@
+{
+  "Kind": "stateDiagram",
+  "Nodes": [
+    {
+      "Id": "Moving",
+      "Label": "Moving",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Still",
+      "Label": "Still",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "start1",
+      "Label": "start1",
+      "LabelType": "Text",
+      "Shape": "start",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-start1-Still-0",
+      "IsUserDefinedId": false,
+      "SourceId": "start1",
+      "TargetId": "Still",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 1,
+      "Id": "L-Still-Moving-1",
+      "IsUserDefinedId": false,
+      "SourceId": "Still",
+      "TargetId": "Moving",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 2,
+      "Id": "L-Moving-Still-2",
+      "IsUserDefinedId": false,
+      "SourceId": "Moving",
+      "TargetId": "Still",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "stateDiagram.header",
+      "RawLine": "stateDiagram-v2"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    [*] --> Still"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    Still --> Moving"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    Moving --> Still"
+    }
+  ]
+}

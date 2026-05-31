@@ -1,0 +1,47 @@
+{
+  "Kind": "requirement",
+  "Nodes": [],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "requirement.header",
+      "RawLine": "requirementDiagram"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "requirement.blockOpen",
+      "RawLine": "requirement test_req {"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "requirement.attribute",
+      "RawLine": "    id: 1"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "requirement.attribute",
+      "RawLine": "    text: The system shall do something"
+    },
+    {
+      "LineNumber": 6,
+      "LineTypeId": "requirement.attribute",
+      "RawLine": "    risk: high"
+    },
+    {
+      "LineNumber": 7,
+      "LineTypeId": "requirement.attribute",
+      "RawLine": "    verifymethod: test"
+    },
+    {
+      "LineNumber": 8,
+      "LineTypeId": "requirement.blockClose",
+      "RawLine": "}"
+    }
+  ]
+}

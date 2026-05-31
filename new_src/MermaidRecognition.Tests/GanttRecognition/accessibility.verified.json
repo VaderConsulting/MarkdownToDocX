@@ -1,0 +1,69 @@
+{
+  "Kind": "gantt",
+  "Nodes": [
+    {
+      "Id": "a1",
+      "Label": "A task",
+      "LabelType": "Text",
+      "Shape": "ganttTask",
+      "ParentGroupId": "section-0",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [],
+  "Groups": [
+    {
+      "Id": "section-0",
+      "Title": "Section",
+      "ChildNodeIds": [],
+      "ChildGroupIds": []
+    }
+  ],
+  "LinkStyles": [],
+  "Config": {
+    "Raw": {
+      "gantt.dateFormat": "YYYY-MM-DD"
+    }
+  },
+  "ClassDefs": [],
+  "Accessibility": {
+    "Title": "Gantt Diagram",
+    "Description": "Tasks for Q4"
+  },
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "gantt.header",
+      "RawLine": "gantt"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "gantt.accTitle",
+      "RawLine": "    accTitle: Gantt Diagram"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "gantt.accDescr",
+      "RawLine": "    accDescr: Tasks for Q4"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "gantt.dateFormat",
+      "RawLine": "    dateFormat YYYY-MM-DD"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "gantt.section",
+      "RawLine": "    section Section"
+    },
+    {
+      "LineNumber": 6,
+      "LineTypeId": "gantt.task",
+      "RawLine": "    A task :a1, 2014-01-01, 30d"
+    }
+  ]
+}

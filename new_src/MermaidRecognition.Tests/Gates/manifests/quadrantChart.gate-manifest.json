@@ -1,0 +1,6 @@
+{
+  "DiagramKind": "quadrantChart",
+  "GateLevel": "L1",
+  "FixtureDirectory": "QuadrantRecognition",
+  "Fixtures": ["simple"]
+}

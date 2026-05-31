@@ -1,0 +1,6 @@
+{
+  "DiagramKind": "radar",
+  "GateLevel": "L1",
+  "FixtureDirectory": "RadarRecognition",
+  "Fixtures": ["simple"]
+}

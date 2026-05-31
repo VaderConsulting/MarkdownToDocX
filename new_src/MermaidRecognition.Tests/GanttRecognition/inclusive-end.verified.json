@@ -1,0 +1,54 @@
+{
+  "Kind": "gantt",
+  "Nodes": [
+    {
+      "Id": "a1",
+      "Label": "Task A",
+      "LabelType": "Text",
+      "Shape": "ganttTask",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "Config": {
+    "Raw": {
+      "gantt.dateFormat": "YYYY-MM-DD",
+      "gantt.inclusiveEndDates": "true",
+      "gantt.title": "Inclusive end"
+    }
+  },
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "gantt.header",
+      "RawLine": "gantt"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "gantt.dateFormat",
+      "RawLine": "    dateFormat YYYY-MM-DD"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "gantt.inclusiveEndDates",
+      "RawLine": "    inclusiveEndDates"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "gantt.title",
+      "RawLine": "    title Inclusive end"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "gantt.task",
+      "RawLine": "    Task A :a1, 2024-01-01, 5d"
+    }
+  ]
+}

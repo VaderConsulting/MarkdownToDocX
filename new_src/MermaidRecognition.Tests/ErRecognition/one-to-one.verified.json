@@ -1,0 +1,56 @@
+{
+  "Kind": "erDiagram",
+  "Nodes": [
+    {
+      "Id": "PASSPORT",
+      "Label": "PASSPORT",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "PERSON",
+      "Label": "PERSON",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-PERSON-PASSPORT-0",
+      "IsUserDefinedId": false,
+      "SourceId": "PERSON",
+      "TargetId": "PASSPORT",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "has",
+      "ErLeftMarker": "||",
+      "ErLink": "--",
+      "ErRightMarker": "||",
+      "ErRoleLabel": "has",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "erDiagram.header",
+      "RawLine": "erDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "erDiagram.relationship",
+      "RawLine": "    PERSON ||--|| PASSPORT : has"
+    }
+  ]
+}

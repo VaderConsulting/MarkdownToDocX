@@ -1,0 +1,167 @@
+{
+  "Kind": "sequence",
+  "Nodes": [
+    {
+      "Id": "A",
+      "Label": "A",
+      "LabelType": "Text",
+      "Shape": "participant",
+      "ShapeSource": "sequence",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "B",
+      "Label": "B",
+      "LabelType": "Text",
+      "Shape": "participant",
+      "ShapeSource": "sequence",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "C",
+      "Label": "C",
+      "LabelType": "Text",
+      "Shape": "participant",
+      "ShapeSource": "sequence",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "D",
+      "Label": "D",
+      "LabelType": "Text",
+      "Shape": "participant",
+      "ShapeSource": "sequence",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-A-B-0",
+      "IsUserDefinedId": false,
+      "SourceId": "A",
+      "TargetId": "B",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "Solid",
+      "SequenceArrow": "->>",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 1,
+      "Id": "L-A-B-1",
+      "IsUserDefinedId": false,
+      "SourceId": "A",
+      "TargetId": "B",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "Dotted",
+      "SequenceArrow": "-->>",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 2,
+      "Id": "L-A-C-2",
+      "IsUserDefinedId": false,
+      "SourceId": "A",
+      "TargetId": "C",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "Solid open",
+      "SequenceArrow": "->",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 3,
+      "Id": "L-A-C-3",
+      "IsUserDefinedId": false,
+      "SourceId": "A",
+      "TargetId": "C",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "Dotted open",
+      "SequenceArrow": "-->",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 4,
+      "Id": "L-A-D-4",
+      "IsUserDefinedId": false,
+      "SourceId": "A",
+      "TargetId": "D",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "Solid cross",
+      "SequenceArrow": "-x",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 5,
+      "Id": "L-A-D-5",
+      "IsUserDefinedId": false,
+      "SourceId": "A",
+      "TargetId": "D",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "Dotted cross",
+      "SequenceArrow": "--x",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "sequence.header",
+      "RawLine": "sequenceDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "sequence.message",
+      "RawLine": "    A->>B: Solid"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "sequence.message",
+      "RawLine": "    A-->>B: Dotted"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "sequence.message",
+      "RawLine": "    A->C: Solid open"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "sequence.message",
+      "RawLine": "    A-->C: Dotted open"
+    },
+    {
+      "LineNumber": 6,
+      "LineTypeId": "sequence.message",
+      "RawLine": "    A-xD: Solid cross"
+    },
+    {
+      "LineNumber": 7,
+      "LineTypeId": "sequence.message",
+      "RawLine": "    A--xD: Dotted cross"
+    }
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "Kind": "classDiagram",
+  "Nodes": [
+    {
+      "Id": "Animal",
+      "Label": "Animal",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Cat",
+      "Label": "Cat",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Dog",
+      "Label": "Dog",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-Animal-Dog-0",
+      "IsUserDefinedId": false,
+      "SourceId": "Animal",
+      "TargetId": "Dog",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "ClassRelation": "<|--",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 1,
+      "Id": "L-Animal-Cat-1",
+      "IsUserDefinedId": false,
+      "SourceId": "Animal",
+      "TargetId": "Cat",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "ClassRelation": "<|--",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "classDiagram.header",
+      "RawLine": "classDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "classDiagram.relation",
+      "RawLine": "    Animal <|-- Dog"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "classDiagram.relation",
+      "RawLine": "    Animal <|-- Cat"
+    }
+  ]
+}

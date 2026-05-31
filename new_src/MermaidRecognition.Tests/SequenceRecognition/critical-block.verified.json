@@ -1,0 +1,106 @@
+{
+  "Kind": "sequence",
+  "Nodes": [
+    {
+      "Id": "Alice",
+      "Label": "Alice",
+      "LabelType": "Text",
+      "Shape": "participant",
+      "ShapeSource": "sequence",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Bob",
+      "Label": "Bob",
+      "LabelType": "Text",
+      "Shape": "participant",
+      "ShapeSource": "sequence",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-Alice-Bob-0",
+      "IsUserDefinedId": false,
+      "SourceId": "Alice",
+      "TargetId": "Bob",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "Connect",
+      "SequenceArrow": "->>",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 1,
+      "Id": "L-Bob-Alice-1",
+      "IsUserDefinedId": false,
+      "SourceId": "Bob",
+      "TargetId": "Alice",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "Retry",
+      "SequenceArrow": "-->>",
+      "Classes": []
+    }
+  ],
+  "Groups": [
+    {
+      "Id": "critical-0",
+      "Title": "Establish connection",
+      "ChildNodeIds": [],
+      "ChildGroupIds": [
+        "option-1"
+      ]
+    },
+    {
+      "Id": "option-1",
+      "Title": "Timeout",
+      "ParentGroupId": "critical-0",
+      "ChildNodeIds": [],
+      "ChildGroupIds": []
+    }
+  ],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "sequence.header",
+      "RawLine": "sequenceDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "sequence.block",
+      "RawLine": "    critical Establish connection"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "sequence.message",
+      "RawLine": "        Alice->>Bob: Connect"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "sequence.block",
+      "RawLine": "    option Timeout"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "sequence.message",
+      "RawLine": "        Bob-->>Alice: Retry"
+    },
+    {
+      "LineNumber": 6,
+      "LineTypeId": "sequence.end",
+      "RawLine": "    end"
+    }
+  ]
+}

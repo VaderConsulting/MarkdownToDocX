@@ -1,0 +1,6 @@
+stateDiagram-v2
+    state choice_state <<choice>>
+    [*] --> IsPositive
+    IsPositive --> choice_state
+    choice_state --> Positive : if n > 0
+    choice_state --> Negative : if n < 0

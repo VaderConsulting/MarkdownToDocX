@@ -1,0 +1,48 @@
+{
+  "Kind": "erDiagram",
+  "Nodes": [
+    {
+      "Id": "NODE",
+      "Label": "NODE",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-NODE-NODE-0",
+      "IsUserDefinedId": false,
+      "SourceId": "NODE",
+      "TargetId": "NODE",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "leads to",
+      "ErLeftMarker": "||",
+      "ErLink": "--",
+      "ErRightMarker": "o{",
+      "ErRoleLabel": "leads to",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "erDiagram.header",
+      "RawLine": "erDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "erDiagram.relationship",
+      "RawLine": "    NODE ||--o{ NODE : \"leads to\""
+    }
+  ]
+}

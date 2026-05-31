@@ -1,0 +1,65 @@
+{
+  "Kind": "mindmap",
+  "Nodes": [
+    {
+      "Id": "node-0",
+      "Label": "Root",
+      "LabelType": "Text",
+      "Shape": "mindmap",
+      "ShapeSource": "mindmap",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "node-1",
+      "Label": "Branch A",
+      "LabelType": "Text",
+      "Shape": "mindmap",
+      "ShapeSource": "mindmap",
+      "ParentGroupId": "node-0",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "node-2",
+      "Label": "Branch B",
+      "LabelType": "Text",
+      "Shape": "mindmap",
+      "ShapeSource": "mindmap",
+      "ParentGroupId": "node-0",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "mindmap.header",
+      "RawLine": "mindmap"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "mindmap.node",
+      "RawLine": "  Root"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "mindmap.node",
+      "RawLine": "    Branch A"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "mindmap.node",
+      "RawLine": "    Branch B"
+    }
+  ]
+}

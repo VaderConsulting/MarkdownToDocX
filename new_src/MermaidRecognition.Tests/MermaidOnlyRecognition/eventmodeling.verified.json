@@ -1,0 +1,37 @@
+{
+  "Kind": "eventmodeling",
+  "Nodes": [],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [
+    {
+      "Severity": "Warning",
+      "Code": "recognition.unsupported-native"
+    }
+  ],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "eventmodeling.header",
+      "RawLine": "eventmodeling"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "eventmodeling.title",
+      "RawLine": "    title Order flow"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "eventmodeling.frame",
+      "RawLine": "    cmd PlaceOrder"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "eventmodeling.frame",
+      "RawLine": "    evt OrderPlaced"
+    }
+  ]
+}

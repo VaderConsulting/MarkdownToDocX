@@ -1,0 +1,58 @@
+{
+  "Kind": "gitGraph",
+  "Nodes": [
+    {
+      "Id": "c1",
+      "Label": "c1",
+      "LabelType": "Text",
+      "Shape": "commit",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "commit-1",
+      "Label": "commit-1",
+      "LabelType": "Text",
+      "Shape": "commit",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-c1-commit-1-0",
+      "IsUserDefinedId": false,
+      "SourceId": "c1",
+      "TargetId": "commit-1",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "gitGraph.header",
+      "RawLine": "gitGraph"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "gitGraph.commit",
+      "RawLine": "    commit id: \"c1\" tag: \"v1.0\" type: HIGHLIGHT"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "gitGraph.commit",
+      "RawLine": "    commit \"message only\""
+    }
+  ]
+}

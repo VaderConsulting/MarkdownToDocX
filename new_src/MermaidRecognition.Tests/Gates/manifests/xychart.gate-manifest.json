@@ -1,0 +1,6 @@
+{
+  "DiagramKind": "xychart",
+  "GateLevel": "L1",
+  "FixtureDirectory": "XychartRecognition",
+  "Fixtures": ["simple"]
+}

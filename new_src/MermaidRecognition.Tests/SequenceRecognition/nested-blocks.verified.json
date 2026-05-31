@@ -1,0 +1,143 @@
+{
+  "Kind": "sequence",
+  "Nodes": [
+    {
+      "Id": "A",
+      "Label": "A",
+      "LabelType": "Text",
+      "Shape": "participant",
+      "ShapeSource": "sequence",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "B",
+      "Label": "B",
+      "LabelType": "Text",
+      "Shape": "participant",
+      "ShapeSource": "sequence",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-A-B-0",
+      "IsUserDefinedId": false,
+      "SourceId": "A",
+      "TargetId": "B",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "Attempt",
+      "SequenceArrow": "->>",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 1,
+      "Id": "L-B-A-1",
+      "IsUserDefinedId": false,
+      "SourceId": "B",
+      "TargetId": "A",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "OK",
+      "SequenceArrow": "-->>",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 2,
+      "Id": "L-B-A-2",
+      "IsUserDefinedId": false,
+      "SourceId": "B",
+      "TargetId": "A",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "Retry",
+      "SequenceArrow": "-->>",
+      "Classes": []
+    }
+  ],
+  "Groups": [
+    {
+      "Id": "alt-1",
+      "Title": "Success",
+      "ParentGroupId": "loop-0",
+      "ChildNodeIds": [],
+      "ChildGroupIds": [
+        "else-2"
+      ]
+    },
+    {
+      "Id": "else-2",
+      "Title": "Failure",
+      "ParentGroupId": "alt-1",
+      "ChildNodeIds": [],
+      "ChildGroupIds": []
+    },
+    {
+      "Id": "loop-0",
+      "Title": "Retry up to 3",
+      "ChildNodeIds": [],
+      "ChildGroupIds": [
+        "alt-1"
+      ]
+    }
+  ],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "sequence.header",
+      "RawLine": "sequenceDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "sequence.block",
+      "RawLine": "    loop Retry up to 3"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "sequence.message",
+      "RawLine": "        A->>B: Attempt"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "sequence.block",
+      "RawLine": "        alt Success"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "sequence.message",
+      "RawLine": "            B-->>A: OK"
+    },
+    {
+      "LineNumber": 6,
+      "LineTypeId": "sequence.block",
+      "RawLine": "        else Failure"
+    },
+    {
+      "LineNumber": 7,
+      "LineTypeId": "sequence.message",
+      "RawLine": "            B-->>A: Retry"
+    },
+    {
+      "LineNumber": 8,
+      "LineTypeId": "sequence.end",
+      "RawLine": "        end"
+    },
+    {
+      "LineNumber": 9,
+      "LineTypeId": "sequence.end",
+      "RawLine": "    end"
+    }
+  ]
+}

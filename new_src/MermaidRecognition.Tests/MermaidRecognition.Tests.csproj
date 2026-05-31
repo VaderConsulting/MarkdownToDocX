@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>MermaidRecognition.Tests</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <AnalysisLevel>none</AnalysisLevel>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="NUnit" Version="4.3.2" />
+    <PackageReference Include="NUnit3TestAdapter" Version="5.0.0" />
+    <ProjectReference Include="..\MermaidRecognition\MermaidRecognition.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="FlowchartRecognition\*.*" Link="Fixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="SequenceRecognition\*.*" Link="SequenceFixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="ClassRecognition\*.*" Link="ClassFixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="StateRecognition\*.*" Link="StateFixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="ErRecognition\*.*" Link="ErFixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="PieRecognition\*.*" Link="PieFixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="GanttRecognition\*.*" Link="GanttFixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="MindmapRecognition\*.*" Link="MindmapFixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="GitGraphRecognition\*.*" Link="GitGraphFixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="TimelineRecognition\*.*" Link="TimelineFixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="JourneyRecognition\*.*" Link="JourneyFixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="QuadrantRecognition\*.*" Link="QuadrantFixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="XychartRecognition\*.*" Link="XychartFixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="RequirementRecognition\*.*" Link="RequirementFixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="ArchitectureRecognition\*.*" Link="ArchitectureFixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="KanbanRecognition\*.*" Link="KanbanFixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="SankeyRecognition\*.*" Link="SankeyFixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="BlockRecognition\*.*" Link="BlockFixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="PacketRecognition\*.*" Link="PacketFixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="RadarRecognition\*.*" Link="RadarFixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="TreemapRecognition\*.*" Link="TreemapFixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="C4Recognition\*.*" Link="C4Fixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="MermaidOnlyRecognition\*.*" Link="MermaidOnlyFixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Gates\manifests\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,6 @@
+{
+  "DiagramKind": "c4",
+  "GateLevel": "L1",
+  "FixtureDirectory": "C4Recognition",
+  "Fixtures": ["simple"]
+}

@@ -1,0 +1,73 @@
+{
+  "Kind": "erDiagram",
+  "Nodes": [
+    {
+      "Id": "CAR",
+      "Label": "CAR",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": [
+        "string model"
+      ]
+    },
+    {
+      "Id": "DRIVER",
+      "Label": "DRIVER",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-CAR-DRIVER-0",
+      "IsUserDefinedId": false,
+      "SourceId": "CAR",
+      "TargetId": "DRIVER",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "insured for",
+      "ErLeftMarker": "||",
+      "ErLink": "--",
+      "ErRightMarker": "o{",
+      "ErRoleLabel": "insured for",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "erDiagram.header",
+      "RawLine": "erDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "erDiagram.relationship",
+      "RawLine": "    CAR ||--o{ DRIVER : \"insured for\""
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "erDiagram.entityBlockOpen",
+      "RawLine": "    CAR {"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        string model"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "erDiagram.entityBlockClose",
+      "RawLine": "    }"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "DiagramKind": "gitGraph",
+  "GateLevel": "L4",
+  "FixtureDirectory": "GitGraphRecognition",
+  "Fixtures": [
+    "simple",
+    "init-leading",
+    "branch-history",
+    "merge",
+    "commit-args",
+    "accessibility"
+  ]
+}

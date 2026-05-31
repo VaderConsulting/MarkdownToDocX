@@ -26,4 +26,7 @@ public sealed class MarkdownToDocxOptions
 
     /// <summary>Table rendering options.</summary>
     public TableOptions? Tables { get; set; }
+
+    /// <summary>Mermaid diagram rendering options.</summary>
+    public MermaidOptions? Mermaid { get; set; }
 }

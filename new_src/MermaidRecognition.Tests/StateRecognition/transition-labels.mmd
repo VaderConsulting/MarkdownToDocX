@@ -1,0 +1,5 @@
+stateDiagram-v2
+    [*] --> Active
+    Active --> Inactive : timeout
+    Inactive --> Active : reset
+    Active --> [*] : shutdown

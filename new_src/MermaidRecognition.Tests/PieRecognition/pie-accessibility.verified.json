@@ -1,0 +1,74 @@
+{
+  "Kind": "pie",
+  "Nodes": [
+    {
+      "Id": "slice-0",
+      "Label": "ash",
+      "LabelType": "Text",
+      "Shape": "slice",
+      "ShapeSource": "pie",
+      "PieValue": "60",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "slice-1",
+      "Label": "bat",
+      "LabelType": "Text",
+      "Shape": "slice",
+      "ShapeSource": "pie",
+      "PieValue": "40",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "Config": {
+    "Raw": {
+      "pie.title": "a neat chart"
+    }
+  },
+  "ClassDefs": [],
+  "Accessibility": {
+    "Title": "a neat acc title",
+    "Description": "a neat description"
+  },
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "pie.header",
+      "RawLine": "pie title a neat chart"
+    },
+    {
+      "LineNumber": 1,
+      "LineTypeId": "pie.title",
+      "RawLine": "title a neat chart"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "pie.accTitle",
+      "RawLine": "    accTitle: a neat acc title"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "pie.accDescr",
+      "RawLine": "    accDescr: a neat description"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "pie.section",
+      "RawLine": "    \"ash\" : 60"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "pie.section",
+      "RawLine": "    \"bat\" : 40"
+    }
+  ]
+}

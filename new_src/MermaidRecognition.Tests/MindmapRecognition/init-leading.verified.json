@@ -1,0 +1,54 @@
+{
+  "Kind": "mindmap",
+  "Nodes": [
+    {
+      "Id": "node-0",
+      "Label": "Root",
+      "LabelType": "Text",
+      "Shape": "mindmap",
+      "ShapeSource": "mindmap",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "node-1",
+      "Label": "Child",
+      "LabelType": "Text",
+      "Shape": "mindmap",
+      "ShapeSource": "mindmap",
+      "ParentGroupId": "node-0",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "Config": {
+    "Raw": {
+      "theme": "default"
+    }
+  },
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "mindmap.header",
+      "RawLine": "mindmap"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "mindmap.node",
+      "RawLine": "  Root"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "mindmap.node",
+      "RawLine": "    Child"
+    }
+  ]
+}

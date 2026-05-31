@@ -1,0 +1,61 @@
+{
+  "Kind": "erDiagram",
+  "Nodes": [
+    {
+      "Id": "A",
+      "Label": "A",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "B",
+      "Label": "B",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-A-B-0",
+      "IsUserDefinedId": false,
+      "SourceId": "A",
+      "TargetId": "B",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "relates",
+      "ErLeftMarker": "||",
+      "ErLink": "--",
+      "ErRightMarker": "||",
+      "ErRoleLabel": "relates",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "Config": {
+    "Raw": {
+      "theme": "base"
+    }
+  },
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "erDiagram.header",
+      "RawLine": "erDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "erDiagram.relationship",
+      "RawLine": "    A ||--|| B : relates"
+    }
+  ]
+}

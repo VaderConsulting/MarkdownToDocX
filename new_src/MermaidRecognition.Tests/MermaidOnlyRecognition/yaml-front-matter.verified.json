@@ -1,0 +1,32 @@
+{
+  "Kind": "yaml-front-matter",
+  "Nodes": [],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [
+    {
+      "Severity": "Warning",
+      "Code": "recognition.yaml-front-matter"
+    }
+  ],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "yaml-front-matter.line",
+      "RawLine": "---"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "yaml-front-matter.line",
+      "RawLine": "title: Orphan front matter"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "yaml-front-matter.line",
+      "RawLine": "---"
+    }
+  ]
+}

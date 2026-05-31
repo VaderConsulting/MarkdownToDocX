@@ -1,0 +1,541 @@
+{
+  "Kind": "erDiagram",
+  "Nodes": [
+    {
+      "Id": "ADDRESS",
+      "Label": "ADDRESS",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": [
+        "int address_id PK",
+        "int customer_id FK",
+        "string street",
+        "string city",
+        "string state",
+        "string postal_code",
+        "string country",
+        "string address_type \"billing or shipping\""
+      ]
+    },
+    {
+      "Id": "CATEGORY",
+      "Label": "CATEGORY",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": [
+        "int category_id PK",
+        "int parent_id FK \"Self-referencing\"",
+        "string name",
+        "string description"
+      ]
+    },
+    {
+      "Id": "CUSTOMER",
+      "Label": "CUSTOMER",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": [
+        "int customer_id PK \"Primary key\"",
+        "string first_name \"Customer first name\"",
+        "string last_name \"Customer last name\"",
+        "string email UK \"Unique email address\"",
+        "date date_of_birth",
+        "string phone",
+        "boolean is_active"
+      ]
+    },
+    {
+      "Id": "ORDER",
+      "Label": "ORDER",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": [
+        "int order_id PK",
+        "int customer_id FK",
+        "int shipping_address_id FK",
+        "int billing_address_id FK",
+        "datetime order_date",
+        "datetime shipped_date",
+        "string status",
+        "decimal total_amount"
+      ]
+    },
+    {
+      "Id": "ORDER_ITEM",
+      "Label": "ORDER_ITEM",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": [
+        "int item_id PK",
+        "int order_id FK",
+        "int product_id FK",
+        "int quantity",
+        "decimal unit_price",
+        "decimal discount"
+      ]
+    },
+    {
+      "Id": "PRODUCT",
+      "Label": "PRODUCT",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": [
+        "int product_id PK",
+        "int category_id FK",
+        "string name",
+        "string description",
+        "decimal price",
+        "int stock_quantity",
+        "string sku UK"
+      ]
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-CUSTOMER-ORDER-0",
+      "IsUserDefinedId": false,
+      "SourceId": "CUSTOMER",
+      "TargetId": "ORDER",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "places",
+      "ErLeftMarker": "||",
+      "ErLink": "--",
+      "ErRightMarker": "o{",
+      "ErRoleLabel": "places",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 1,
+      "Id": "L-CUSTOMER-ADDRESS-1",
+      "IsUserDefinedId": false,
+      "SourceId": "CUSTOMER",
+      "TargetId": "ADDRESS",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "has",
+      "ErLeftMarker": "||",
+      "ErLink": "--",
+      "ErRightMarker": "o{",
+      "ErRoleLabel": "has",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 2,
+      "Id": "L-ORDER-ORDER_ITEM-2",
+      "IsUserDefinedId": false,
+      "SourceId": "ORDER",
+      "TargetId": "ORDER_ITEM",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "contains",
+      "ErLeftMarker": "||",
+      "ErLink": "--",
+      "ErRightMarker": "|{",
+      "ErRoleLabel": "contains",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 3,
+      "Id": "L-ORDER-ADDRESS-3",
+      "IsUserDefinedId": false,
+      "SourceId": "ORDER",
+      "TargetId": "ADDRESS",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "ships to",
+      "ErLeftMarker": "}o",
+      "ErLink": "--",
+      "ErRightMarker": "||",
+      "ErRoleLabel": "ships to",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 4,
+      "Id": "L-ORDER-ADDRESS-4",
+      "IsUserDefinedId": false,
+      "SourceId": "ORDER",
+      "TargetId": "ADDRESS",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "bills to",
+      "ErLeftMarker": "}o",
+      "ErLink": "--",
+      "ErRightMarker": "||",
+      "ErRoleLabel": "bills to",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 5,
+      "Id": "L-PRODUCT-ORDER_ITEM-5",
+      "IsUserDefinedId": false,
+      "SourceId": "PRODUCT",
+      "TargetId": "ORDER_ITEM",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "included in",
+      "ErLeftMarker": "||",
+      "ErLink": "--",
+      "ErRightMarker": "o{",
+      "ErRoleLabel": "included in",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 6,
+      "Id": "L-CATEGORY-PRODUCT-6",
+      "IsUserDefinedId": false,
+      "SourceId": "CATEGORY",
+      "TargetId": "PRODUCT",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "categorizes",
+      "ErLeftMarker": "||",
+      "ErLink": "--",
+      "ErRightMarker": "o{",
+      "ErRoleLabel": "categorizes",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 7,
+      "Id": "L-CATEGORY-CATEGORY-7",
+      "IsUserDefinedId": false,
+      "SourceId": "CATEGORY",
+      "TargetId": "CATEGORY",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "parent of",
+      "ErLeftMarker": "|o",
+      "ErLink": "--",
+      "ErRightMarker": "o|",
+      "ErRoleLabel": "parent of",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "erDiagram.header",
+      "RawLine": "erDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "erDiagram.entityBlockOpen",
+      "RawLine": "    CUSTOMER {"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        int customer_id PK \"Primary key\""
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        string first_name \"Customer first name\""
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        string last_name \"Customer last name\""
+    },
+    {
+      "LineNumber": 6,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        string email UK \"Unique email address\""
+    },
+    {
+      "LineNumber": 7,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        date date_of_birth"
+    },
+    {
+      "LineNumber": 8,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        string phone"
+    },
+    {
+      "LineNumber": 9,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        boolean is_active"
+    },
+    {
+      "LineNumber": 10,
+      "LineTypeId": "erDiagram.entityBlockClose",
+      "RawLine": "    }"
+    },
+    {
+      "LineNumber": 11,
+      "LineTypeId": "erDiagram.entityBlockOpen",
+      "RawLine": "    ADDRESS {"
+    },
+    {
+      "LineNumber": 12,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        int address_id PK"
+    },
+    {
+      "LineNumber": 13,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        int customer_id FK"
+    },
+    {
+      "LineNumber": 14,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        string street"
+    },
+    {
+      "LineNumber": 15,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        string city"
+    },
+    {
+      "LineNumber": 16,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        string state"
+    },
+    {
+      "LineNumber": 17,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        string postal_code"
+    },
+    {
+      "LineNumber": 18,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        string country"
+    },
+    {
+      "LineNumber": 19,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        string address_type \"billing or shipping\""
+    },
+    {
+      "LineNumber": 20,
+      "LineTypeId": "erDiagram.entityBlockClose",
+      "RawLine": "    }"
+    },
+    {
+      "LineNumber": 21,
+      "LineTypeId": "erDiagram.entityBlockOpen",
+      "RawLine": "    ORDER {"
+    },
+    {
+      "LineNumber": 22,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        int order_id PK"
+    },
+    {
+      "LineNumber": 23,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        int customer_id FK"
+    },
+    {
+      "LineNumber": 24,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        int shipping_address_id FK"
+    },
+    {
+      "LineNumber": 25,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        int billing_address_id FK"
+    },
+    {
+      "LineNumber": 26,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        datetime order_date"
+    },
+    {
+      "LineNumber": 27,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        datetime shipped_date"
+    },
+    {
+      "LineNumber": 28,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        string status"
+    },
+    {
+      "LineNumber": 29,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        decimal total_amount"
+    },
+    {
+      "LineNumber": 30,
+      "LineTypeId": "erDiagram.entityBlockClose",
+      "RawLine": "    }"
+    },
+    {
+      "LineNumber": 31,
+      "LineTypeId": "erDiagram.entityBlockOpen",
+      "RawLine": "    ORDER_ITEM {"
+    },
+    {
+      "LineNumber": 32,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        int item_id PK"
+    },
+    {
+      "LineNumber": 33,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        int order_id FK"
+    },
+    {
+      "LineNumber": 34,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        int product_id FK"
+    },
+    {
+      "LineNumber": 35,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        int quantity"
+    },
+    {
+      "LineNumber": 36,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        decimal unit_price"
+    },
+    {
+      "LineNumber": 37,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        decimal discount"
+    },
+    {
+      "LineNumber": 38,
+      "LineTypeId": "erDiagram.entityBlockClose",
+      "RawLine": "    }"
+    },
+    {
+      "LineNumber": 39,
+      "LineTypeId": "erDiagram.entityBlockOpen",
+      "RawLine": "    PRODUCT {"
+    },
+    {
+      "LineNumber": 40,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        int product_id PK"
+    },
+    {
+      "LineNumber": 41,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        int category_id FK"
+    },
+    {
+      "LineNumber": 42,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        string name"
+    },
+    {
+      "LineNumber": 43,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        string description"
+    },
+    {
+      "LineNumber": 44,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        decimal price"
+    },
+    {
+      "LineNumber": 45,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        int stock_quantity"
+    },
+    {
+      "LineNumber": 46,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        string sku UK"
+    },
+    {
+      "LineNumber": 47,
+      "LineTypeId": "erDiagram.entityBlockClose",
+      "RawLine": "    }"
+    },
+    {
+      "LineNumber": 48,
+      "LineTypeId": "erDiagram.entityBlockOpen",
+      "RawLine": "    CATEGORY {"
+    },
+    {
+      "LineNumber": 49,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        int category_id PK"
+    },
+    {
+      "LineNumber": 50,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        int parent_id FK \"Self-referencing\""
+    },
+    {
+      "LineNumber": 51,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        string name"
+    },
+    {
+      "LineNumber": 52,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        string description"
+    },
+    {
+      "LineNumber": 53,
+      "LineTypeId": "erDiagram.entityBlockClose",
+      "RawLine": "    }"
+    },
+    {
+      "LineNumber": 54,
+      "LineTypeId": "erDiagram.relationship",
+      "RawLine": "    CUSTOMER ||--o{ ORDER : places"
+    },
+    {
+      "LineNumber": 55,
+      "LineTypeId": "erDiagram.relationship",
+      "RawLine": "    CUSTOMER ||--o{ ADDRESS : has"
+    },
+    {
+      "LineNumber": 56,
+      "LineTypeId": "erDiagram.relationship",
+      "RawLine": "    ORDER ||--|{ ORDER_ITEM : contains"
+    },
+    {
+      "LineNumber": 57,
+      "LineTypeId": "erDiagram.relationship",
+      "RawLine": "    ORDER }o--|| ADDRESS : \"ships to\""
+    },
+    {
+      "LineNumber": 58,
+      "LineTypeId": "erDiagram.relationship",
+      "RawLine": "    ORDER }o--|| ADDRESS : \"bills to\""
+    },
+    {
+      "LineNumber": 59,
+      "LineTypeId": "erDiagram.relationship",
+      "RawLine": "    PRODUCT ||--o{ ORDER_ITEM : \"included in\""
+    },
+    {
+      "LineNumber": 60,
+      "LineTypeId": "erDiagram.relationship",
+      "RawLine": "    CATEGORY ||--o{ PRODUCT : categorizes"
+    },
+    {
+      "LineNumber": 61,
+      "LineTypeId": "erDiagram.relationship",
+      "RawLine": "    CATEGORY |o--o| CATEGORY : \"parent of\""
+    }
+  ]
+}

@@ -1,0 +1,67 @@
+{
+  "Kind": "sequence",
+  "Nodes": [
+    {
+      "Id": "API",
+      "Label": "API",
+      "LabelType": "Text",
+      "Shape": "participant",
+      "ShapeSource": "sequence",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "User",
+      "Label": "User",
+      "LabelType": "Text",
+      "Shape": "actor",
+      "ShapeSource": "sequence",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-User-API-0",
+      "IsUserDefinedId": false,
+      "SourceId": "User",
+      "TargetId": "API",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "Call",
+      "SequenceArrow": "->>",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "sequence.header",
+      "RawLine": "sequenceDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "sequence.participant",
+      "RawLine": "    participant API"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "sequence.participant",
+      "RawLine": "    actor User"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "sequence.message",
+      "RawLine": "    User->>API: Call"
+    }
+  ]
+}

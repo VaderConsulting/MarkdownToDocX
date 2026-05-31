@@ -1,0 +1,37 @@
+{
+  "Kind": "classDiagram",
+  "Nodes": [
+    {
+      "Id": "Animal",
+      "Label": "Animal",
+      "LabelType": "Text",
+      "Classes": [],
+      "InlineStroke": "#333",
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "classDiagram.header",
+      "RawLine": "classDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "classDiagram.class",
+      "RawLine": "    class Animal"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "classDiagram.style",
+      "RawLine": "    style Animal fill:#bbf,stroke:#333"
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "Kind": "c4",
+  "Nodes": [],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "c4.header",
+      "RawLine": "C4Context"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "c4.title",
+      "RawLine": "    title System Context"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "c4.element",
+      "RawLine": "    Person(user, \"User\", \"A user\")"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "c4.element",
+      "RawLine": "    System(system, \"System\", \"Main system\")"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "c4.element",
+      "RawLine": "    Rel(user, system, \"Uses\")"
+    }
+  ]
+}

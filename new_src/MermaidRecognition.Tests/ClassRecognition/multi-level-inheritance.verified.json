@@ -1,0 +1,77 @@
+{
+  "Kind": "classDiagram",
+  "Nodes": [
+    {
+      "Id": "Animal",
+      "Label": "Animal",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Duck",
+      "Label": "Duck",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Mallard",
+      "Label": "Mallard",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-Animal-Duck-0",
+      "IsUserDefinedId": false,
+      "SourceId": "Animal",
+      "TargetId": "Duck",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "ClassRelation": "<|--",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 1,
+      "Id": "L-Duck-Mallard-1",
+      "IsUserDefinedId": false,
+      "SourceId": "Duck",
+      "TargetId": "Mallard",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "ClassRelation": "<|--",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "classDiagram.header",
+      "RawLine": "classDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "classDiagram.relation",
+      "RawLine": "    Animal <|-- Duck"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "classDiagram.relation",
+      "RawLine": "    Duck <|-- Mallard"
+    }
+  ]
+}

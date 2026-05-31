@@ -1,0 +1,110 @@
+{
+  "Kind": "sequence",
+  "Nodes": [
+    {
+      "Id": "A",
+      "Label": "A",
+      "LabelType": "Text",
+      "Shape": "participant",
+      "ShapeSource": "sequence",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "B",
+      "Label": "B",
+      "LabelType": "Text",
+      "Shape": "participant",
+      "ShapeSource": "sequence",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-A-B-0",
+      "IsUserDefinedId": false,
+      "SourceId": "A",
+      "TargetId": "B",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "Start",
+      "SequenceArrow": "->>",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 1,
+      "Id": "L-B-A-1",
+      "IsUserDefinedId": false,
+      "SourceId": "B",
+      "TargetId": "A",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "Abort",
+      "SequenceArrow": "-->>",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 2,
+      "Id": "L-A-B-2",
+      "IsUserDefinedId": false,
+      "SourceId": "A",
+      "TargetId": "B",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "Continue",
+      "SequenceArrow": "->>",
+      "Classes": []
+    }
+  ],
+  "Groups": [
+    {
+      "Id": "break-0",
+      "Title": "On error",
+      "ChildNodeIds": [],
+      "ChildGroupIds": []
+    }
+  ],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "sequence.header",
+      "RawLine": "sequenceDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "sequence.message",
+      "RawLine": "    A->>B: Start"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "sequence.block",
+      "RawLine": "    break On error"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "sequence.message",
+      "RawLine": "        B-->>A: Abort"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "sequence.end",
+      "RawLine": "    end"
+    },
+    {
+      "LineNumber": 6,
+      "LineTypeId": "sequence.message",
+      "RawLine": "    A->>B: Continue"
+    }
+  ]
+}

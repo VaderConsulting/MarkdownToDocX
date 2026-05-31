@@ -1,0 +1,85 @@
+{
+  "Kind": "sequence",
+  "Nodes": [
+    {
+      "Id": "Server",
+      "Label": "Server",
+      "LabelType": "Text",
+      "Shape": "participant",
+      "ShapeSource": "sequence",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "User",
+      "Label": "User",
+      "LabelType": "Text",
+      "Shape": "actor",
+      "ShapeSource": "sequence",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-User-Server-0",
+      "IsUserDefinedId": false,
+      "SourceId": "User",
+      "TargetId": "Server",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "Request",
+      "SequenceArrow": "->>",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 1,
+      "Id": "L-Server-User-1",
+      "IsUserDefinedId": false,
+      "SourceId": "Server",
+      "TargetId": "User",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "Response",
+      "SequenceArrow": "-->>",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "sequence.header",
+      "RawLine": "sequenceDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "sequence.participant",
+      "RawLine": "    actor User"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "sequence.participant",
+      "RawLine": "    participant Server"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "sequence.message",
+      "RawLine": "    User->>Server: Request"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "sequence.message",
+      "RawLine": "    Server-->>User: Response"
+    }
+  ]
+}

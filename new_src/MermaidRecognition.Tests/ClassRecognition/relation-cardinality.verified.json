@@ -1,0 +1,111 @@
+{
+  "Kind": "classDiagram",
+  "Nodes": [
+    {
+      "Id": "Address",
+      "Label": "Address",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Item",
+      "Label": "Item",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Order",
+      "Label": "Order",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "User",
+      "Label": "User",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-User-Address-0",
+      "IsUserDefinedId": false,
+      "SourceId": "User",
+      "TargetId": "Address",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "has",
+      "ClassRelation": "-->",
+      "ClassSourceCardinality": "1",
+      "ClassTargetCardinality": "1..*",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 1,
+      "Id": "L-User-Order-1",
+      "IsUserDefinedId": false,
+      "SourceId": "User",
+      "TargetId": "Order",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "places",
+      "ClassRelation": "o--",
+      "ClassSourceCardinality": "1",
+      "ClassTargetCardinality": "*",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 2,
+      "Id": "L-Order-Item-2",
+      "IsUserDefinedId": false,
+      "SourceId": "Order",
+      "TargetId": "Item",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "contains",
+      "ClassRelation": "*--",
+      "ClassSourceCardinality": "1",
+      "ClassTargetCardinality": "1..*",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "classDiagram.header",
+      "RawLine": "classDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "classDiagram.relation",
+      "RawLine": "    User \"1\" --> \"1..*\" Address : has"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "classDiagram.relation",
+      "RawLine": "    User \"1\" o-- \"*\" Order : places"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "classDiagram.relation",
+      "RawLine": "    Order \"1\" *-- \"1..*\" Item : contains"
+    }
+  ]
+}

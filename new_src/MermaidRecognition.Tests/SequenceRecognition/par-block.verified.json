@@ -1,0 +1,106 @@
+{
+  "Kind": "sequence",
+  "Nodes": [
+    {
+      "Id": "Alice",
+      "Label": "Alice",
+      "LabelType": "Text",
+      "Shape": "participant",
+      "ShapeSource": "sequence",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Bob",
+      "Label": "Bob",
+      "LabelType": "Text",
+      "Shape": "participant",
+      "ShapeSource": "sequence",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-Alice-Bob-0",
+      "IsUserDefinedId": false,
+      "SourceId": "Alice",
+      "TargetId": "Bob",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "A1",
+      "SequenceArrow": "->>",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 1,
+      "Id": "L-Bob-Alice-1",
+      "IsUserDefinedId": false,
+      "SourceId": "Bob",
+      "TargetId": "Alice",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "B1",
+      "SequenceArrow": "->>",
+      "Classes": []
+    }
+  ],
+  "Groups": [
+    {
+      "Id": "and-1",
+      "Title": "Action B",
+      "ParentGroupId": "par-0",
+      "ChildNodeIds": [],
+      "ChildGroupIds": []
+    },
+    {
+      "Id": "par-0",
+      "Title": "Action A",
+      "ChildNodeIds": [],
+      "ChildGroupIds": [
+        "and-1"
+      ]
+    }
+  ],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "sequence.header",
+      "RawLine": "sequenceDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "sequence.block",
+      "RawLine": "    par Action A"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "sequence.message",
+      "RawLine": "        Alice->>Bob: A1"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "sequence.block",
+      "RawLine": "    and Action B"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "sequence.message",
+      "RawLine": "        Bob->>Alice: B1"
+    },
+    {
+      "LineNumber": 6,
+      "LineTypeId": "sequence.end",
+      "RawLine": "    end"
+    }
+  ]
+}

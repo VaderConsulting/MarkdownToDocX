@@ -1,0 +1,6 @@
+{
+  "DiagramKind": "sankey",
+  "GateLevel": "L1",
+  "FixtureDirectory": "SankeyRecognition",
+  "Fixtures": ["simple"]
+}

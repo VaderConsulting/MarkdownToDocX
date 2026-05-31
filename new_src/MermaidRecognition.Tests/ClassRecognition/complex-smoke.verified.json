@@ -1,0 +1,414 @@
+{
+  "Kind": "classDiagram",
+  "Nodes": [
+    {
+      "Id": "AbstractEntity",
+      "Label": "AbstractEntity",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [
+        "#int id",
+        "+getId() int"
+      ],
+      "Attributes": []
+    },
+    {
+      "Id": "Address",
+      "Label": "Address",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [
+        "+String city"
+      ],
+      "Attributes": []
+    },
+    {
+      "Id": "IRepository~T~",
+      "Label": "IRepository~T~",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [
+        "+get(id: int) T",
+        "+save(entity: T) void",
+        "+delete(id: int) void"
+      ],
+      "Attributes": []
+    },
+    {
+      "Id": "Item",
+      "Label": "Item",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [
+        "+String name"
+      ],
+      "Attributes": []
+    },
+    {
+      "Id": "Order",
+      "Label": "Order",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [
+        "+int orderId"
+      ],
+      "Attributes": []
+    },
+    {
+      "Id": "Status",
+      "Label": "Status",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [
+        "ACTIVE",
+        "INACTIVE"
+      ],
+      "Attributes": []
+    },
+    {
+      "Id": "User",
+      "Label": "User",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [
+        "+String name",
+        "+validate()$ bool"
+      ],
+      "Attributes": []
+    },
+    {
+      "Id": "UserRepository",
+      "Label": "UserRepository",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [
+        "+get(id: int) User"
+      ],
+      "Attributes": []
+    },
+    {
+      "Id": "UserService",
+      "Label": "UserService",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [
+        "-UserRepository repository",
+        "+createUser(name: String) User"
+      ],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-IRepository~T~-UserRepository-0",
+      "IsUserDefinedId": false,
+      "SourceId": "IRepository~T~",
+      "TargetId": "UserRepository",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "implements",
+      "ClassRelation": "<|..",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 1,
+      "Id": "L-AbstractEntity-User-1",
+      "IsUserDefinedId": false,
+      "SourceId": "AbstractEntity",
+      "TargetId": "User",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "extends",
+      "ClassRelation": "<|--",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 2,
+      "Id": "L-UserService-UserRepository-2",
+      "IsUserDefinedId": false,
+      "SourceId": "UserService",
+      "TargetId": "UserRepository",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "uses",
+      "ClassRelation": "..>",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 3,
+      "Id": "L-User-Address-3",
+      "IsUserDefinedId": false,
+      "SourceId": "User",
+      "TargetId": "Address",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "has",
+      "ClassRelation": "-->",
+      "ClassSourceCardinality": "1",
+      "ClassTargetCardinality": "1..*",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 4,
+      "Id": "L-User-Order-4",
+      "IsUserDefinedId": false,
+      "SourceId": "User",
+      "TargetId": "Order",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "places",
+      "ClassRelation": "o--",
+      "ClassSourceCardinality": "1",
+      "ClassTargetCardinality": "*",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 5,
+      "Id": "L-Order-Item-5",
+      "IsUserDefinedId": false,
+      "SourceId": "Order",
+      "TargetId": "Item",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "contains",
+      "ClassRelation": "*--",
+      "ClassSourceCardinality": "1",
+      "ClassTargetCardinality": "1..*",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "classDiagram.header",
+      "RawLine": "classDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "classDiagram.class",
+      "RawLine": "    class IRepository~T~ {"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "classDiagram.annotation",
+      "RawLine": "        <<interface>>"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "classDiagram.member",
+      "RawLine": "        +get(id: int) T"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "classDiagram.member",
+      "RawLine": "        +save(entity: T) void"
+    },
+    {
+      "LineNumber": 6,
+      "LineTypeId": "classDiagram.member",
+      "RawLine": "        +delete(id: int) void"
+    },
+    {
+      "LineNumber": 7,
+      "LineTypeId": "classDiagram.structClose",
+      "RawLine": "    }"
+    },
+    {
+      "LineNumber": 8,
+      "LineTypeId": "classDiagram.class",
+      "RawLine": "    class UserRepository {"
+    },
+    {
+      "LineNumber": 9,
+      "LineTypeId": "classDiagram.member",
+      "RawLine": "        +get(id: int) User"
+    },
+    {
+      "LineNumber": 10,
+      "LineTypeId": "classDiagram.structClose",
+      "RawLine": "    }"
+    },
+    {
+      "LineNumber": 11,
+      "LineTypeId": "classDiagram.class",
+      "RawLine": "    class AbstractEntity {"
+    },
+    {
+      "LineNumber": 12,
+      "LineTypeId": "classDiagram.annotation",
+      "RawLine": "        <<abstract>>"
+    },
+    {
+      "LineNumber": 13,
+      "LineTypeId": "classDiagram.member",
+      "RawLine": "        #int id"
+    },
+    {
+      "LineNumber": 14,
+      "LineTypeId": "classDiagram.member",
+      "RawLine": "        +getId() int"
+    },
+    {
+      "LineNumber": 15,
+      "LineTypeId": "classDiagram.structClose",
+      "RawLine": "    }"
+    },
+    {
+      "LineNumber": 16,
+      "LineTypeId": "classDiagram.class",
+      "RawLine": "    class UserService {"
+    },
+    {
+      "LineNumber": 17,
+      "LineTypeId": "classDiagram.annotation",
+      "RawLine": "        <<service>>"
+    },
+    {
+      "LineNumber": 18,
+      "LineTypeId": "classDiagram.member",
+      "RawLine": "        -UserRepository repository"
+    },
+    {
+      "LineNumber": 19,
+      "LineTypeId": "classDiagram.member",
+      "RawLine": "        +createUser(name: String) User"
+    },
+    {
+      "LineNumber": 20,
+      "LineTypeId": "classDiagram.structClose",
+      "RawLine": "    }"
+    },
+    {
+      "LineNumber": 21,
+      "LineTypeId": "classDiagram.class",
+      "RawLine": "    class Status {"
+    },
+    {
+      "LineNumber": 22,
+      "LineTypeId": "classDiagram.annotation",
+      "RawLine": "        <<enumeration>>"
+    },
+    {
+      "LineNumber": 23,
+      "LineTypeId": "classDiagram.member",
+      "RawLine": "        ACTIVE"
+    },
+    {
+      "LineNumber": 24,
+      "LineTypeId": "classDiagram.member",
+      "RawLine": "        INACTIVE"
+    },
+    {
+      "LineNumber": 25,
+      "LineTypeId": "classDiagram.structClose",
+      "RawLine": "    }"
+    },
+    {
+      "LineNumber": 26,
+      "LineTypeId": "classDiagram.class",
+      "RawLine": "    class User {"
+    },
+    {
+      "LineNumber": 27,
+      "LineTypeId": "classDiagram.member",
+      "RawLine": "        +String name"
+    },
+    {
+      "LineNumber": 28,
+      "LineTypeId": "classDiagram.member",
+      "RawLine": "        +validate()$ bool"
+    },
+    {
+      "LineNumber": 29,
+      "LineTypeId": "classDiagram.structClose",
+      "RawLine": "    }"
+    },
+    {
+      "LineNumber": 30,
+      "LineTypeId": "classDiagram.class",
+      "RawLine": "    class Address {"
+    },
+    {
+      "LineNumber": 31,
+      "LineTypeId": "classDiagram.member",
+      "RawLine": "        +String city"
+    },
+    {
+      "LineNumber": 32,
+      "LineTypeId": "classDiagram.structClose",
+      "RawLine": "    }"
+    },
+    {
+      "LineNumber": 33,
+      "LineTypeId": "classDiagram.class",
+      "RawLine": "    class Order {"
+    },
+    {
+      "LineNumber": 34,
+      "LineTypeId": "classDiagram.member",
+      "RawLine": "        +int orderId"
+    },
+    {
+      "LineNumber": 35,
+      "LineTypeId": "classDiagram.structClose",
+      "RawLine": "    }"
+    },
+    {
+      "LineNumber": 36,
+      "LineTypeId": "classDiagram.class",
+      "RawLine": "    class Item {"
+    },
+    {
+      "LineNumber": 37,
+      "LineTypeId": "classDiagram.member",
+      "RawLine": "        +String name"
+    },
+    {
+      "LineNumber": 38,
+      "LineTypeId": "classDiagram.structClose",
+      "RawLine": "    }"
+    },
+    {
+      "LineNumber": 39,
+      "LineTypeId": "classDiagram.relation",
+      "RawLine": "    IRepository~T~ <|.. UserRepository : implements"
+    },
+    {
+      "LineNumber": 40,
+      "LineTypeId": "classDiagram.relation",
+      "RawLine": "    AbstractEntity <|-- User : extends"
+    },
+    {
+      "LineNumber": 41,
+      "LineTypeId": "classDiagram.relation",
+      "RawLine": "    UserService ..> UserRepository : uses"
+    },
+    {
+      "LineNumber": 42,
+      "LineTypeId": "classDiagram.relation",
+      "RawLine": "    User \"1\" --> \"1..*\" Address : has"
+    },
+    {
+      "LineNumber": 43,
+      "LineTypeId": "classDiagram.relation",
+      "RawLine": "    User \"1\" o-- \"*\" Order : places"
+    },
+    {
+      "LineNumber": 44,
+      "LineTypeId": "classDiagram.relation",
+      "RawLine": "    Order \"1\" *-- \"1..*\" Item : contains"
+    }
+  ]
+}

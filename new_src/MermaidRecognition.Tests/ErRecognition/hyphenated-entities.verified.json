@@ -1,0 +1,56 @@
+{
+  "Kind": "erDiagram",
+  "Nodes": [
+    {
+      "Id": "LINE-ITEM",
+      "Label": "LINE-ITEM",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "WAREHOUSE-STOCK",
+      "Label": "WAREHOUSE-STOCK",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-LINE-ITEM-WAREHOUSE-STOCK-0",
+      "IsUserDefinedId": false,
+      "SourceId": "LINE-ITEM",
+      "TargetId": "WAREHOUSE-STOCK",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "stores",
+      "ErLeftMarker": "||",
+      "ErLink": "--",
+      "ErRightMarker": "o{",
+      "ErRoleLabel": "stores",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "erDiagram.header",
+      "RawLine": "erDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "erDiagram.relationship",
+      "RawLine": "    LINE-ITEM ||--o{ WAREHOUSE-STOCK : stores"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "DiagramKind": "timeline",
+  "GateLevel": "L1",
+  "FixtureDirectory": "TimelineRecognition",
+  "Fixtures": ["simple"]
+}

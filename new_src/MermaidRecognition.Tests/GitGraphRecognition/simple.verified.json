@@ -1,0 +1,83 @@
+{
+  "Kind": "gitGraph",
+  "Nodes": [
+    {
+      "Id": "1",
+      "Label": "1",
+      "LabelType": "Text",
+      "Shape": "commit",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "2",
+      "Label": "2",
+      "LabelType": "Text",
+      "Shape": "commit",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "main",
+      "Label": "main",
+      "LabelType": "Text",
+      "Shape": "branch",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-1-main-0",
+      "IsUserDefinedId": false,
+      "SourceId": "1",
+      "TargetId": "main",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 1,
+      "Id": "L-main-2-1",
+      "IsUserDefinedId": false,
+      "SourceId": "main",
+      "TargetId": "2",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "gitGraph.header",
+      "RawLine": "gitGraph"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "gitGraph.commit",
+      "RawLine": "    commit id: \"1\""
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "gitGraph.branch",
+      "RawLine": "    branch main"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "gitGraph.commit",
+      "RawLine": "    commit id: \"2\""
+    }
+  ]
+}

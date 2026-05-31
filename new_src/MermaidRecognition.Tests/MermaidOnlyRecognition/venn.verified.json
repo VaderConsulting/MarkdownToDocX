@@ -1,0 +1,32 @@
+{
+  "Kind": "venn",
+  "Nodes": [],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [
+    {
+      "Severity": "Warning",
+      "Code": "recognition.unsupported-native"
+    }
+  ],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "venn.header",
+      "RawLine": "venn-beta"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "venn.title",
+      "RawLine": "    title Sets"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "venn.set",
+      "RawLine": "    A [Label A]"
+    }
+  ]
+}

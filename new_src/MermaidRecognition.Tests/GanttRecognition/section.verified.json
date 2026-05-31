@@ -1,0 +1,55 @@
+{
+  "Kind": "gantt",
+  "Nodes": [
+    {
+      "Id": "a1",
+      "Label": "Task A",
+      "LabelType": "Text",
+      "Shape": "ganttTask",
+      "ParentGroupId": "section-0",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [],
+  "Groups": [
+    {
+      "Id": "section-0",
+      "Title": "Phase 1",
+      "ChildNodeIds": [],
+      "ChildGroupIds": []
+    }
+  ],
+  "LinkStyles": [],
+  "Config": {
+    "Raw": {
+      "gantt.title": "Sections"
+    }
+  },
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "gantt.header",
+      "RawLine": "gantt"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "gantt.title",
+      "RawLine": "    title Sections"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "gantt.section",
+      "RawLine": "    section Phase 1"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "gantt.task",
+      "RawLine": "    Task A :a1, 2024-01-01, 10d"
+    }
+  ]
+}

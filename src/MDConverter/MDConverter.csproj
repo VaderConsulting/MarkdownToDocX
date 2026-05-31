@@ -22,6 +22,8 @@
     <PackageReference Include="SkiaSharp" Version="3.119.2" />
     <PackageReference Include="Svg.Skia" Version="4.5.0" />
     <ProjectReference Include="..\..\extern\Naiad\src\Naiad\Naiad.csproj" />
+    <ProjectReference Include="..\..\new_src\MermaidRecognition\MermaidRecognition.csproj" />
+    <ProjectReference Include="..\..\new_src\MermaidRecognition.NaiadAdapter\MermaidRecognition.NaiadAdapter.csproj" />
   </ItemGroup>
 
 </Project>

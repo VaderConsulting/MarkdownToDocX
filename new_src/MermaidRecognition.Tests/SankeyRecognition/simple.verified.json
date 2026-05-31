@@ -1,0 +1,27 @@
+{
+  "Kind": "sankey",
+  "Nodes": [],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "sankey.header",
+      "RawLine": "sankey-beta"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "sankey.link",
+      "RawLine": "A,B,10"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "sankey.link",
+      "RawLine": "A,C,20"
+    }
+  ]
+}

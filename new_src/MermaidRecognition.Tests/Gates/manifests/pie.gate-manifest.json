@@ -1,0 +1,13 @@
+{
+  "DiagramKind": "pie",
+  "GateLevel": "L4",
+  "FixtureDirectory": "PieRecognition",
+  "Fixtures": [
+    "simple",
+    "title-showData",
+    "init-leading",
+    "comment",
+    "pie-accessibility",
+    "edge-values"
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "Kind": "sequence",
+  "Nodes": [
+    {
+      "Id": "A",
+      "Label": "A",
+      "LabelType": "Text",
+      "Shape": "participant",
+      "ShapeSource": "sequence",
+      "ParentGroupId": "box-0",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "B",
+      "Label": "B",
+      "LabelType": "Text",
+      "Shape": "participant",
+      "ShapeSource": "sequence",
+      "ParentGroupId": "box-0",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-A-B-0",
+      "IsUserDefinedId": false,
+      "SourceId": "A",
+      "TargetId": "B",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "Hi",
+      "SequenceArrow": "->>",
+      "Classes": []
+    }
+  ],
+  "Groups": [
+    {
+      "Id": "box-0",
+      "Title": "Internal",
+      "ChildNodeIds": [
+        "A",
+        "B"
+      ],
+      "ChildGroupIds": []
+    }
+  ],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "sequence.header",
+      "RawLine": "sequenceDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "sequence.box",
+      "RawLine": "    box rgb(200,200,200) Internal"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "sequence.participant",
+      "RawLine": "        participant A"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "sequence.participant",
+      "RawLine": "        participant B"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "sequence.end",
+      "RawLine": "    end"
+    },
+    {
+      "LineNumber": 6,
+      "LineTypeId": "sequence.message",
+      "RawLine": "    A->>B: Hi"
+    }
+  ]
+}

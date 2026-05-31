@@ -1,0 +1,141 @@
+{
+  "Kind": "stateDiagram",
+  "Nodes": [
+    {
+      "Id": "Crash",
+      "Label": "Crash",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Moving",
+      "Label": "Moving",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Still",
+      "Label": "Still",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "end2",
+      "Label": "end2",
+      "LabelType": "Text",
+      "Shape": "end",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "start1",
+      "Label": "start1",
+      "LabelType": "Text",
+      "Shape": "start",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-start1-Still-0",
+      "IsUserDefinedId": false,
+      "SourceId": "start1",
+      "TargetId": "Still",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 1,
+      "Id": "L-Still-Moving-1",
+      "IsUserDefinedId": false,
+      "SourceId": "Still",
+      "TargetId": "Moving",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 2,
+      "Id": "L-Moving-Still-2",
+      "IsUserDefinedId": false,
+      "SourceId": "Moving",
+      "TargetId": "Still",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 3,
+      "Id": "L-Moving-Crash-3",
+      "IsUserDefinedId": false,
+      "SourceId": "Moving",
+      "TargetId": "Crash",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 4,
+      "Id": "L-Crash-end2-4",
+      "IsUserDefinedId": false,
+      "SourceId": "Crash",
+      "TargetId": "end2",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "stateDiagram.header",
+      "RawLine": "stateDiagram-v2"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    [*] --> Still"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    Still --> Moving"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    Moving --> Still"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    Moving --> Crash"
+    },
+    {
+      "LineNumber": 6,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    Crash --> [*]"
+    }
+  ]
+}

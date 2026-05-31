@@ -1,0 +1,21 @@
+{
+  "Kind": "flowchart",
+  "Direction": "TopToBottom",
+  "Nodes": [
+    {
+      "Id": "N",
+      "Label": "**bold**",
+      "LabelType": "Markdown",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": []
+}

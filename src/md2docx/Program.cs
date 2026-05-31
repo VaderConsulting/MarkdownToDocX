@@ -38,6 +38,8 @@ internal static class Program
 
         string Profile = "default";
         int? LockPromptTimeoutSeconds = null;
+        bool ForceRecognitionFlowchartParser = false;
+        bool ForceLegacyFlowchartParser = false;
 
         for (int I = FlagStartIndex; I < Args.Length; I++)
         {
@@ -45,6 +47,20 @@ internal static class Program
             {
                 Profile = Args[I + 1];
                 I++;
+                continue;
+            }
+
+            if (Args[I] == "--use-flowchart-recognition")
+            {
+                ForceRecognitionFlowchartParser = true;
+                ForceLegacyFlowchartParser = false;
+                continue;
+            }
+
+            if (Args[I] == "--use-legacy-flowchart-parser")
+            {
+                ForceLegacyFlowchartParser = true;
+                ForceRecognitionFlowchartParser = false;
                 continue;
             }
 
@@ -69,7 +85,8 @@ internal static class Program
 
         MarkdownToDocxOptions Options = new MarkdownToDocxOptions
         {
-            Profile = Profile
+            Profile = Profile,
+            Mermaid = CreateMermaidOptions(ForceRecognitionFlowchartParser, ForceLegacyFlowchartParser)
         };
 
         try
@@ -89,8 +106,26 @@ internal static class Program
 
     private static void WriteUsage()
     {
-        Console.Error.WriteLine("Usage: md2docx <input.md> [output.docx] [--profile <name>] [--lock-timeout-seconds <n>]");
+        Console.Error.WriteLine("Usage: md2docx <input.md> [output.docx] [--profile <name>] [--use-legacy-flowchart-parser] [--use-flowchart-recognition] [--lock-timeout-seconds <n>]");
         Console.Error.WriteLine("  When output.docx is omitted, writes alongside the input file with the same base name and a .docx extension.");
+        Console.Error.WriteLine("  Default behaviour: flowcharts are rendered via MermaidRecognition (recommended).");
+        Console.Error.WriteLine("  --use-legacy-flowchart-parser  Forces the legacy Naiad flowchart parser (for comparison/regression only).");
+        Console.Error.WriteLine("  --use-flowchart-recognition    Forces MermaidRecognition for flowcharts (kept for backwards compatibility).");
         Console.Error.WriteLine("  --lock-timeout-seconds  Optional. When omitted, a normal lock prompt is shown (no auto-cancel).");
+    }
+
+    private static MermaidOptions? CreateMermaidOptions(bool ForceRecognitionFlowchartParser, bool ForceLegacyFlowchartParser)
+    {
+        if (ForceRecognitionFlowchartParser)
+        {
+            return new MermaidOptions { UseFlowchartRecognitionParser = true };
+        }
+
+        if (ForceLegacyFlowchartParser)
+        {
+            return new MermaidOptions { UseFlowchartRecognitionParser = false };
+        }
+
+        return null;
     }
 }

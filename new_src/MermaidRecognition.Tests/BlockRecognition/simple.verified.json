@@ -1,0 +1,27 @@
+{
+  "Kind": "block",
+  "Nodes": [],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "block.header",
+      "RawLine": "block-beta"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "block.columns",
+      "RawLine": "    columns 3"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "block.blocks",
+      "RawLine": "    a[\"Block A\"] b[\"Block B\"] c[\"Block C\"]"
+    }
+  ]
+}

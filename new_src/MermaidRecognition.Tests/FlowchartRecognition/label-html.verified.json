@@ -1,0 +1,21 @@
+{
+  "Kind": "flowchart",
+  "Direction": "TopToBottom",
+  "Nodes": [
+    {
+      "Id": "H",
+      "Label": "<b>Hi</b>",
+      "LabelType": "Html",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": []
+}

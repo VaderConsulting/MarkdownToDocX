@@ -1,0 +1,65 @@
+{
+  "Kind": "classDiagram",
+  "Nodes": [
+    {
+      "Id": "Animal",
+      "Label": "Animal",
+      "LabelType": "Text",
+      "ParentGroupId": "animals",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Dog",
+      "Label": "Dog",
+      "LabelType": "Text",
+      "ParentGroupId": "animals",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [],
+  "Groups": [
+    {
+      "Id": "animals",
+      "ChildNodeIds": [
+        "Animal",
+        "Dog"
+      ],
+      "ChildGroupIds": []
+    }
+  ],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "classDiagram.header",
+      "RawLine": "classDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "classDiagram.namespace",
+      "RawLine": "    namespace animals {"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "classDiagram.class",
+      "RawLine": "        class Animal"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "classDiagram.class",
+      "RawLine": "        class Dog"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "classDiagram.structClose",
+      "RawLine": "    }"
+    }
+  ]
+}

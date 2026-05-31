@@ -1,0 +1,37 @@
+{
+  "Kind": "quadrantChart",
+  "Nodes": [],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "quadrantChart.header",
+      "RawLine": "quadrantChart"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "quadrantChart.title",
+      "RawLine": "    title Campaign Analysis"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "quadrantChart.axis",
+      "RawLine": "    x-axis Low Reach --> High Reach"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "quadrantChart.axis",
+      "RawLine": "    y-axis Low Engagement --> High Engagement"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "quadrantChart.point",
+      "RawLine": "    Campaign A: [0.3, 0.6]"
+    }
+  ]
+}

@@ -1,0 +1,81 @@
+{
+  "Kind": "mindmap",
+  "Nodes": [
+    {
+      "Id": "node-0",
+      "Label": "root",
+      "LabelType": "Text",
+      "Shape": "mindmap",
+      "ShapeSource": "mindmap",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "node-1",
+      "Label": "child1",
+      "LabelType": "Text",
+      "Shape": "mindmap",
+      "ShapeSource": "mindmap",
+      "ParentGroupId": "node-0",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "node-2",
+      "Label": "leaf1",
+      "LabelType": "Text",
+      "Shape": "mindmap",
+      "ShapeSource": "mindmap",
+      "ParentGroupId": "node-1",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "node-3",
+      "Label": "child2",
+      "LabelType": "Text",
+      "Shape": "mindmap",
+      "ShapeSource": "mindmap",
+      "ParentGroupId": "node-0",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "mindmap.header",
+      "RawLine": "mindmap"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "mindmap.node",
+      "RawLine": "  root"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "mindmap.node",
+      "RawLine": "    child1"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "mindmap.node",
+      "RawLine": "      leaf1"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "mindmap.node",
+      "RawLine": "    child2"
+    }
+  ]
+}

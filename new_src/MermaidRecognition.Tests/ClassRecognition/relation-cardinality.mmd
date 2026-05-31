@@ -1,0 +1,4 @@
+classDiagram
+    User "1" --> "1..*" Address : has
+    User "1" o-- "*" Order : places
+    Order "1" *-- "1..*" Item : contains

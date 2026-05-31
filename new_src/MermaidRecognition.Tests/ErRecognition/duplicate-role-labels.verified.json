@@ -1,0 +1,77 @@
+{
+  "Kind": "erDiagram",
+  "Nodes": [
+    {
+      "Id": "CAR",
+      "Label": "CAR",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "PERSON",
+      "Label": "PERSON",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-CAR-PERSON-0",
+      "IsUserDefinedId": false,
+      "SourceId": "CAR",
+      "TargetId": "PERSON",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "insured for",
+      "ErLeftMarker": "||",
+      "ErLink": "--",
+      "ErRightMarker": "o{",
+      "ErRoleLabel": "insured for",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 1,
+      "Id": "L-CAR-PERSON-1",
+      "IsUserDefinedId": false,
+      "SourceId": "CAR",
+      "TargetId": "PERSON",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "owns",
+      "ErLeftMarker": "||",
+      "ErLink": "--",
+      "ErRightMarker": "o{",
+      "ErRoleLabel": "owns",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "erDiagram.header",
+      "RawLine": "erDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "erDiagram.relationship",
+      "RawLine": "    CAR ||--o{ PERSON : \"insured for\""
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "erDiagram.relationship",
+      "RawLine": "    CAR ||--o{ PERSON : \"owns\""
+    }
+  ]
+}

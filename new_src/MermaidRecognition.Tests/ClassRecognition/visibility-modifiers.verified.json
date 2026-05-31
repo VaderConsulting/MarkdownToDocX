@@ -1,0 +1,61 @@
+{
+  "Kind": "classDiagram",
+  "Nodes": [
+    {
+      "Id": "Example",
+      "Label": "Example",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [
+        "+publicField",
+        "-privateField",
+        "#protectedField",
+        "~packageField"
+      ],
+      "Attributes": []
+    }
+  ],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "classDiagram.header",
+      "RawLine": "classDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "classDiagram.class",
+      "RawLine": "    class Example {"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "classDiagram.member",
+      "RawLine": "        +publicField"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "classDiagram.member",
+      "RawLine": "        -privateField"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "classDiagram.member",
+      "RawLine": "        #protectedField"
+    },
+    {
+      "LineNumber": 6,
+      "LineTypeId": "classDiagram.member",
+      "RawLine": "        ~packageField"
+    },
+    {
+      "LineNumber": 7,
+      "LineTypeId": "classDiagram.structClose",
+      "RawLine": "    }"
+    }
+  ]
+}

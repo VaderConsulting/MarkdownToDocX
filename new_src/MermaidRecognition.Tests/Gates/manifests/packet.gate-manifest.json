@@ -1,0 +1,6 @@
+{
+  "DiagramKind": "packet",
+  "GateLevel": "L1",
+  "FixtureDirectory": "PacketRecognition",
+  "Fixtures": ["simple"]
+}

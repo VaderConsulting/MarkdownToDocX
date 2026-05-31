@@ -1,0 +1,6 @@
+{
+  "DiagramKind": "block",
+  "GateLevel": "L1",
+  "FixtureDirectory": "BlockRecognition",
+  "Fixtures": ["simple"]
+}

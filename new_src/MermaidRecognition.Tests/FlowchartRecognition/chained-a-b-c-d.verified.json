@@ -1,0 +1,64 @@
+{
+  "Kind": "flowchart",
+  "Direction": "TopToBottom",
+  "Nodes": [
+    {
+      "Id": "A",
+      "Label": "A",
+      "LabelType": "Text"
+    },
+    {
+      "Id": "B",
+      "Label": "B",
+      "LabelType": "Text"
+    },
+    {
+      "Id": "C",
+      "Label": "C",
+      "LabelType": "Text"
+    },
+    {
+      "Id": "D",
+      "Label": "D",
+      "LabelType": "Text"
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-A-B-0",
+      "IsUserDefinedId": false,
+      "SourceId": "A",
+      "TargetId": "B",
+      "MinLength": 1,
+      "Stroke": "normal"
+    },
+    {
+      "CreationIndex": 1,
+      "Id": "L-A-C-1",
+      "IsUserDefinedId": false,
+      "SourceId": "A",
+      "TargetId": "C",
+      "MinLength": 1,
+      "Stroke": "normal"
+    },
+    {
+      "CreationIndex": 2,
+      "Id": "L-B-D-2",
+      "IsUserDefinedId": false,
+      "SourceId": "B",
+      "TargetId": "D",
+      "MinLength": 1,
+      "Stroke": "normal"
+    },
+    {
+      "CreationIndex": 3,
+      "Id": "L-C-D-3",
+      "IsUserDefinedId": false,
+      "SourceId": "C",
+      "TargetId": "D",
+      "MinLength": 1,
+      "Stroke": "normal"
+    }
+  ]
+}

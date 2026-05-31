@@ -1,0 +1,37 @@
+{
+  "Kind": "kanban",
+  "Nodes": [],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "kanban.header",
+      "RawLine": "kanban"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "kanban.column",
+      "RawLine": "todo[Todo]"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "kanban.task",
+      "RawLine": "    task1[First Task]"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "kanban.column",
+      "RawLine": "done[Done]"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "kanban.task",
+      "RawLine": "    task2[Completed Task]"
+    }
+  ]
+}

@@ -1,0 +1,139 @@
+{
+  "Kind": "stateDiagram",
+  "Nodes": [
+    {
+      "Id": "Inner",
+      "Label": "Inner",
+      "LabelType": "Text",
+      "ParentGroupId": "Outer",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Outer",
+      "Label": "Outer",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Outer_end",
+      "Label": "Outer_end",
+      "LabelType": "Text",
+      "Shape": "end",
+      "ParentGroupId": "Outer",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Outer_start",
+      "Label": "Outer_start",
+      "LabelType": "Text",
+      "Shape": "start",
+      "ParentGroupId": "Outer",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "start1",
+      "Label": "start1",
+      "LabelType": "Text",
+      "Shape": "start",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-start1-Outer-0",
+      "IsUserDefinedId": false,
+      "SourceId": "start1",
+      "TargetId": "Outer",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 1,
+      "Id": "L-Outer_start-Inner-1",
+      "IsUserDefinedId": false,
+      "SourceId": "Outer_start",
+      "TargetId": "Inner",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 2,
+      "Id": "L-Inner-Outer_end-2",
+      "IsUserDefinedId": false,
+      "SourceId": "Inner",
+      "TargetId": "Outer_end",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    }
+  ],
+  "Groups": [
+    {
+      "Id": "Outer",
+      "Title": "Outer",
+      "ChildNodeIds": [
+        "Inner",
+        "Outer_end",
+        "Outer_start"
+      ],
+      "ChildGroupIds": []
+    }
+  ],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "stateDiagram.header",
+      "RawLine": "stateDiagram-v2"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    [*] --> Outer"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "stateDiagram.state",
+      "RawLine": "    state Outer"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "stateDiagram.structOpen",
+      "RawLine": "    {"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "        [*] --> Inner"
+    },
+    {
+      "LineNumber": 6,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "        Inner --> [*]"
+    },
+    {
+      "LineNumber": 7,
+      "LineTypeId": "stateDiagram.structClose",
+      "RawLine": "    }"
+    }
+  ]
+}

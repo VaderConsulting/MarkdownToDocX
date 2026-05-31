@@ -1,0 +1,62 @@
+{
+  "Kind": "erDiagram",
+  "Direction": "LeftToRight",
+  "Nodes": [
+    {
+      "Id": "A",
+      "Label": "A",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "B",
+      "Label": "B",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-A-B-0",
+      "IsUserDefinedId": false,
+      "SourceId": "A",
+      "TargetId": "B",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "links",
+      "ErLeftMarker": "||",
+      "ErLink": "--",
+      "ErRightMarker": "||",
+      "ErRoleLabel": "links",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "erDiagram.header",
+      "RawLine": "erDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "erDiagram.direction",
+      "RawLine": "    direction LR"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "erDiagram.relationship",
+      "RawLine": "    A ||--|| B : links"
+    }
+  ]
+}

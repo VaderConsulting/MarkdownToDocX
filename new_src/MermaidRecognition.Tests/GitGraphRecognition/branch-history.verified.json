@@ -1,0 +1,143 @@
+{
+  "Kind": "gitGraph",
+  "Nodes": [
+    {
+      "Id": "1",
+      "Label": "1",
+      "LabelType": "Text",
+      "Shape": "commit",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "2",
+      "Label": "2",
+      "LabelType": "Text",
+      "Shape": "commit",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "3",
+      "Label": "3",
+      "LabelType": "Text",
+      "Shape": "commit",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "develop",
+      "Label": "develop",
+      "LabelType": "Text",
+      "Shape": "branch",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "main",
+      "Label": "main",
+      "LabelType": "Text",
+      "Shape": "branch",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-1-develop-0",
+      "IsUserDefinedId": false,
+      "SourceId": "1",
+      "TargetId": "develop",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 1,
+      "Id": "L-develop-2-1",
+      "IsUserDefinedId": false,
+      "SourceId": "develop",
+      "TargetId": "2",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 2,
+      "Id": "L-2-main-2",
+      "IsUserDefinedId": false,
+      "SourceId": "2",
+      "TargetId": "main",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 3,
+      "Id": "L-main-3-3",
+      "IsUserDefinedId": false,
+      "SourceId": "main",
+      "TargetId": "3",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "gitGraph.header",
+      "RawLine": "gitGraph"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "gitGraph.commit",
+      "RawLine": "    commit id: \"1\""
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "gitGraph.branch",
+      "RawLine": "    branch develop"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "gitGraph.branch",
+      "RawLine": "    checkout develop"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "gitGraph.commit",
+      "RawLine": "    commit id: \"2\""
+    },
+    {
+      "LineNumber": 6,
+      "LineTypeId": "gitGraph.branch",
+      "RawLine": "    branch main"
+    },
+    {
+      "LineNumber": 7,
+      "LineTypeId": "gitGraph.branch",
+      "RawLine": "    checkout main"
+    },
+    {
+      "LineNumber": 8,
+      "LineTypeId": "gitGraph.commit",
+      "RawLine": "    commit id: \"3\""
+    }
+  ]
+}

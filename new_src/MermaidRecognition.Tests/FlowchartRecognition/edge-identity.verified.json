@@ -1,0 +1,94 @@
+{
+  "Kind": "flowchart",
+  "Direction": "TopToBottom",
+  "Nodes": [
+    {
+      "Id": "A",
+      "Label": "A",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "B",
+      "Label": "B",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "C",
+      "Label": "C",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "D",
+      "Label": "D",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-A-C-0",
+      "IsUserDefinedId": false,
+      "SourceId": "A",
+      "TargetId": "C",
+      "MinLength": 1,
+      "Stroke": "normal",
+      "MarkerStart": "None",
+      "MarkerEnd": "Point",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 1,
+      "Id": "L-A-D-1",
+      "IsUserDefinedId": false,
+      "SourceId": "A",
+      "TargetId": "D",
+      "MinLength": 1,
+      "Stroke": "normal",
+      "MarkerStart": "None",
+      "MarkerEnd": "Point",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 2,
+      "Id": "e1",
+      "IsUserDefinedId": true,
+      "SourceId": "B",
+      "TargetId": "C",
+      "MinLength": 1,
+      "Stroke": "normal",
+      "MarkerStart": "None",
+      "MarkerEnd": "Point",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 3,
+      "Id": "L-B-D-3",
+      "IsUserDefinedId": false,
+      "SourceId": "B",
+      "TargetId": "D",
+      "MinLength": 1,
+      "Stroke": "normal",
+      "MarkerStart": "None",
+      "MarkerEnd": "Point",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": []
+}

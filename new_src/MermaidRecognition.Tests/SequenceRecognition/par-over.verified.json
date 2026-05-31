@@ -1,0 +1,108 @@
+{
+  "Kind": "sequence",
+  "Nodes": [
+    {
+      "Id": "Alice",
+      "Label": "Alice",
+      "LabelType": "Text",
+      "Shape": "participant",
+      "ShapeSource": "sequence",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Bob",
+      "Label": "Bob",
+      "LabelType": "Text",
+      "Shape": "participant",
+      "ShapeSource": "sequence",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "note-0",
+      "Label": "Alice note",
+      "LabelType": "Text",
+      "Shape": "note",
+      "ShapeSource": "sequence",
+      "SequenceNotePlacement": "left",
+      "SequenceNoteAnchor": "Alice",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "note-1",
+      "Label": "Bob note",
+      "LabelType": "Text",
+      "Shape": "note",
+      "ShapeSource": "sequence",
+      "SequenceNotePlacement": "right",
+      "SequenceNoteAnchor": "Bob",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-Alice-Bob-0",
+      "IsUserDefinedId": false,
+      "SourceId": "Alice",
+      "TargetId": "Bob",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "Message",
+      "SequenceArrow": "->>",
+      "Classes": []
+    }
+  ],
+  "Groups": [
+    {
+      "Id": "par_over-0",
+      "Title": "Parallel overlap",
+      "ChildNodeIds": [],
+      "ChildGroupIds": []
+    }
+  ],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "sequence.header",
+      "RawLine": "sequenceDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "sequence.block",
+      "RawLine": "par_over Parallel overlap"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "sequence.message",
+      "RawLine": "Alice ->> Bob: Message"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "sequence.note",
+      "RawLine": "Note left of Alice: Alice note"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "sequence.note",
+      "RawLine": "Note right of Bob: Bob note"
+    },
+    {
+      "LineNumber": 6,
+      "LineTypeId": "sequence.end",
+      "RawLine": "end"
+    }
+  ]
+}

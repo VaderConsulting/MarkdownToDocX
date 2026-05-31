@@ -1,0 +1,58 @@
+{
+  "Kind": "classDiagram",
+  "Direction": "LeftToRight",
+  "Nodes": [
+    {
+      "Id": "Animal",
+      "Label": "Animal",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Dog",
+      "Label": "Dog",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-Animal-Dog-0",
+      "IsUserDefinedId": false,
+      "SourceId": "Animal",
+      "TargetId": "Dog",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "ClassRelation": "<|--",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "classDiagram.header",
+      "RawLine": "classDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "classDiagram.direction",
+      "RawLine": "    direction LR"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "classDiagram.relation",
+      "RawLine": "    Animal <|-- Dog"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+erDiagram
+    STUDENT }o--o{ ENROLLMENT : has
+    COURSE ||--o{ ENROLLMENT : includes
+    STUDENT {
+        int id PK
+        string name
+    }
+    COURSE {
+        int id PK
+        string title
+    }
+    ENROLLMENT {
+        int student_id FK
+        int course_id FK
+    }

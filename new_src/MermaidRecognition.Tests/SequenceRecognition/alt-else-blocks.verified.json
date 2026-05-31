@@ -1,0 +1,134 @@
+{
+  "Kind": "sequence",
+  "Nodes": [
+    {
+      "Id": "API",
+      "Label": "API",
+      "LabelType": "Text",
+      "Shape": "participant",
+      "ShapeSource": "sequence",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "User",
+      "Label": "User",
+      "LabelType": "Text",
+      "Shape": "actor",
+      "ShapeSource": "sequence",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-User-API-0",
+      "IsUserDefinedId": false,
+      "SourceId": "User",
+      "TargetId": "API",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "Request",
+      "SequenceArrow": "->>",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 1,
+      "Id": "L-API-User-1",
+      "IsUserDefinedId": false,
+      "SourceId": "API",
+      "TargetId": "User",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "OK",
+      "SequenceArrow": "-->>",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 2,
+      "Id": "L-API-User-2",
+      "IsUserDefinedId": false,
+      "SourceId": "API",
+      "TargetId": "User",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "404",
+      "SequenceArrow": "-->>",
+      "Classes": []
+    }
+  ],
+  "Groups": [
+    {
+      "Id": "alt-0",
+      "Title": "Data found",
+      "ChildNodeIds": [],
+      "ChildGroupIds": [
+        "else-1"
+      ]
+    },
+    {
+      "Id": "else-1",
+      "Title": "Not found",
+      "ParentGroupId": "alt-0",
+      "ChildNodeIds": [],
+      "ChildGroupIds": []
+    }
+  ],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "sequence.header",
+      "RawLine": "sequenceDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "sequence.participant",
+      "RawLine": "    actor User"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "sequence.participant",
+      "RawLine": "    participant API"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "sequence.message",
+      "RawLine": "    User->>API: Request"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "sequence.block",
+      "RawLine": "    alt Data found"
+    },
+    {
+      "LineNumber": 6,
+      "LineTypeId": "sequence.message",
+      "RawLine": "        API-->>User: OK"
+    },
+    {
+      "LineNumber": 7,
+      "LineTypeId": "sequence.block",
+      "RawLine": "    else Not found"
+    },
+    {
+      "LineNumber": 8,
+      "LineTypeId": "sequence.message",
+      "RawLine": "        API-->>User: 404"
+    },
+    {
+      "LineNumber": 9,
+      "LineTypeId": "sequence.end",
+      "RawLine": "    end"
+    }
+  ]
+}

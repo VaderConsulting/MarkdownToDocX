@@ -45,7 +45,20 @@ public static class OptionsResolver
             OverlayTables(Effective.Tables, Options.Tables);
         }
 
+        if (Options?.Mermaid != null)
+        {
+            OverlayMermaid(Effective.Mermaid, Options.Mermaid);
+        }
+
         return Effective;
+    }
+
+    private static void OverlayMermaid(MermaidOptions Target, MermaidOptions Source)
+    {
+        if (Source.HasUseFlowchartRecognitionParser)
+        {
+            Target.UseFlowchartRecognitionParser = Source.UseFlowchartRecognitionParser;
+        }
     }
 
     private static EffectiveOptions ApplyProfileDefaults(string Profile)
@@ -56,7 +69,8 @@ public static class OptionsResolver
             Docx = new DocxOptions(),
             Images = new ImageOptions(),
             Links = new LinkOptions(),
-            Tables = new TableOptions()
+            Tables = new TableOptions(),
+            Mermaid = new MermaidOptions()
         };
 
         switch (Profile.ToLowerInvariant())
@@ -84,6 +98,10 @@ public static class OptionsResolver
         Effective.Links.SetResolvedValues(true, true);
 
         Effective.Tables.SetResolvedValues(true);
+
+        // Default to the recognition parser for flowcharts so newer Mermaid flowchart
+        // syntax (metadata, accessibility, etc.) renders correctly.
+        Effective.Mermaid.SetResolvedValue(true);
 
         return Effective;
     }

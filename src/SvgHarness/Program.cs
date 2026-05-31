@@ -11,6 +11,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Text.Json;
 using System.Globalization;
+using MermaidRecognition;
 using MermaidSharp;
 using SkiaSharp;
 using Svg.Skia;
@@ -37,6 +38,7 @@ internal static class Program
     private sealed class CompareResult
     {
         public required MermaidBlock Block { get; init; }
+        public required bool Skipped { get; init; }
         public required bool NaiadSucceeded { get; init; }
         public required bool ReferenceSucceeded { get; init; }
         public required bool StructuralMatch { get; init; }
@@ -154,13 +156,14 @@ internal static class Program
         Console.WriteLine();
         Console.WriteLine("Audit report: " + auditPath);
 
-        bool anyRenderFailed = results.Exists(r => !r.NaiadSucceeded || (!noReference && !r.ReferenceSucceeded));
+        bool anyRenderFailed = results.Exists(
+            Result => !Result.Skipped && (!Result.NaiadSucceeded || (!noReference && !Result.ReferenceSucceeded)));
         if (anyRenderFailed)
         {
             return 3;
         }
 
-        bool anyMismatch = results.Exists(r => !r.MatchAfterNormalisation);
+        bool anyMismatch = results.Exists(Result => !Result.Skipped && !Result.MatchAfterNormalisation);
         return anyMismatch ? 1 : 0;
     }
 
@@ -206,6 +209,26 @@ internal static class Program
     private static CompareResult RunCase(MermaidBlock block, string outputDirectory, string referenceMode, bool emitPng)
     {
         string prefix = $"{block.Index:D3}";
+
+        MermaidRemarkAnalyzer.MermaidRemarkAnalysis RemarkAnalysis = MermaidRemarkAnalyzer.Analyze(block.Source);
+        if (RemarkAnalysis.Status == MermaidDiagramRemarkStatus.CatalogueRemarked)
+        {
+            return new CompareResult
+            {
+                Block = block,
+                Skipped = true,
+                NaiadSucceeded = false,
+                ReferenceSucceeded = false,
+                StructuralMatch = true,
+                VisualMatch = true,
+                MatchAfterNormalisation = true,
+                VisualDiffRatio = 0.0,
+                NaiadSvgPath = string.Empty,
+                ReferenceSvgPath = string.Empty,
+                Notes = "SKIP (catalogue-remarked): every line is a %% remark per §9.1"
+            };
+        }
+
         string naiadSvgPath = Path.Combine(outputDirectory, prefix + ".naiad.svg");
         string referenceSvgPath = Path.Combine(outputDirectory, prefix + ".reference.svg");
         string naiadPngPath = Path.Combine(outputDirectory, prefix + ".naiad.png");
@@ -303,6 +326,7 @@ internal static class Program
         return new CompareResult
         {
             Block = block,
+            Skipped = false,
             NaiadSucceeded = naiadSucceeded,
             ReferenceSucceeded = referenceSucceeded || string.Equals(referenceMode, "none", StringComparison.OrdinalIgnoreCase),
             StructuralMatch = structuralMatch,
@@ -950,7 +974,7 @@ internal static class Program
         List<(int Position, string ScenarioId, string ScenarioTitle)> headers =
             new List<(int, string, string)>();
         Regex headerRegex = new Regex(
-            @"^###\s+(?<Id>F\d{2}[A-Z]?)\s+(?<Title>.+)$",
+            @"^###\s+(?<Id>(?:ST|F|S|C|E)\d{2}[A-Z]?)\s+(?<Title>.+)$",
             RegexOptions.Compiled | RegexOptions.Multiline);
         MatchCollection matches = headerRegex.Matches(markdown);
         for (int i = 0; i < matches.Count; i++)
@@ -1061,11 +1085,16 @@ internal static class Program
         int matchCount = 0;
         int mismatchCount = 0;
         int failCount = 0;
+        int skipCount = 0;
 
         for (int i = 0; i < results.Count; i++)
         {
             CompareResult result = results[i];
-            if (!result.NaiadSucceeded || (!noReference && !result.ReferenceSucceeded))
+            if (result.Skipped)
+            {
+                skipCount++;
+            }
+            else if (!result.NaiadSucceeded || (!noReference && !result.ReferenceSucceeded))
             {
                 failCount++;
             }
@@ -1084,13 +1113,18 @@ internal static class Program
         Console.WriteLine("- Match: " + matchCount);
         Console.WriteLine("- Mismatch: " + mismatchCount);
         Console.WriteLine("- Failed: " + failCount);
+        Console.WriteLine("- Skipped (catalogue-remarked): " + skipCount);
         Console.WriteLine();
 
         for (int i = 0; i < results.Count; i++)
         {
             CompareResult result = results[i];
             string status;
-            if (!result.NaiadSucceeded)
+            if (result.Skipped)
+            {
+                status = "SKIP (remarked)";
+            }
+            else if (!result.NaiadSucceeded)
             {
                 status = "FAIL (naiad)";
             }
@@ -1157,10 +1191,15 @@ internal static class Program
         int pass = 0;
         int fail = 0;
         int diff = 0;
+        int skip = 0;
         for (int i = 0; i < results.Count; i++)
         {
             CompareResult result = results[i];
-            if (!result.NaiadSucceeded || (!noReference && !result.ReferenceSucceeded))
+            if (result.Skipped)
+            {
+                skip++;
+            }
+            else if (!result.NaiadSucceeded || (!noReference && !result.ReferenceSucceeded))
             {
                 fail++;
             }
@@ -1181,6 +1220,7 @@ internal static class Program
         report.AppendLine("| PASS (structural + visual) | " + pass + " |");
         report.AppendLine("| DIFF | " + diff + " |");
         report.AppendLine("| FAIL (render) | " + fail + " |");
+        report.AppendLine("| SKIP (catalogue-remarked `%%`) | " + skip + " |");
         report.AppendLine();
 
         Dictionary<string, CompareResult> resultsByScenarioId = new Dictionary<string, CompareResult>(StringComparer.Ordinal);

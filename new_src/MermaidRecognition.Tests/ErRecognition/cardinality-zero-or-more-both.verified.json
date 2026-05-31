@@ -1,7 +1,41 @@
 {
   "Kind": "erDiagram",
-  "Nodes": [],
-  "Edges": [],
+  "Nodes": [
+    {
+      "Id": "STUDENT",
+      "Label": "STUDENT",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "TEACHER",
+      "Label": "TEACHER",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-TEACHER-STUDENT-0",
+      "IsUserDefinedId": false,
+      "SourceId": "TEACHER",
+      "TargetId": "STUDENT",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "teaches",
+      "ErLeftMarker": "}o",
+      "ErLink": "--",
+      "ErRightMarker": "o{",
+      "ErRoleLabel": "teaches",
+      "Classes": []
+    }
+  ],
   "Groups": [],
   "LinkStyles": [],
   "ClassDefs": [],

@@ -1,0 +1,66 @@
+{
+  "Kind": "pie",
+  "Nodes": [
+    {
+      "Id": "slice-0",
+      "Label": "ash",
+      "LabelType": "Text",
+      "Shape": "slice",
+      "ShapeSource": "pie",
+      "PieValue": "60.67",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "slice-1",
+      "Label": "zero",
+      "LabelType": "Text",
+      "Shape": "slice",
+      "ShapeSource": "pie",
+      "PieValue": "0",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "slice-2",
+      "Label": "bat",
+      "LabelType": "Text",
+      "Shape": "slice",
+      "ShapeSource": "pie",
+      "PieValue": "40",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "pie.header",
+      "RawLine": "pie"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "pie.section",
+      "RawLine": "    \"ash\" : 60.67"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "pie.section",
+      "RawLine": "    \"zero\" : 0"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "pie.section",
+      "RawLine": "    \"bat\" : 40"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "DiagramKind": "requirement",
+  "GateLevel": "L1",
+  "FixtureDirectory": "RequirementRecognition",
+  "Fixtures": ["simple"]
+}

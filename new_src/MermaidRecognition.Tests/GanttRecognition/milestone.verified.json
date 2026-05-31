@@ -1,0 +1,61 @@
+{
+  "Kind": "gantt",
+  "Nodes": [
+    {
+      "Id": "milestone",
+      "Label": "Milestone task",
+      "LabelType": "Text",
+      "Shape": "ganttMilestone",
+      "ParentGroupId": "section-0",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [],
+  "Groups": [
+    {
+      "Id": "section-0",
+      "Title": "Documentation",
+      "ChildNodeIds": [],
+      "ChildGroupIds": []
+    }
+  ],
+  "LinkStyles": [],
+  "Config": {
+    "Raw": {
+      "gantt.dateFormat": "YYYY-MM-DD",
+      "gantt.title": "Milestones"
+    }
+  },
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "gantt.header",
+      "RawLine": "gantt"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "gantt.dateFormat",
+      "RawLine": "    dateFormat YYYY-MM-DD"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "gantt.title",
+      "RawLine": "    title Milestones"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "gantt.section",
+      "RawLine": "    section Documentation"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "gantt.task",
+      "RawLine": "    Milestone task :milestone, 2014-01-01, 2014-01-04"
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "Kind": "sequence",
+  "Nodes": [
+    {
+      "Id": "Client",
+      "Label": "Client",
+      "LabelType": "Text",
+      "Shape": "participant",
+      "ShapeSource": "sequence",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Server",
+      "Label": "Server",
+      "LabelType": "Text",
+      "Shape": "participant",
+      "ShapeSource": "sequence",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-Client-Server-0",
+      "IsUserDefinedId": false,
+      "SourceId": "Client",
+      "TargetId": "Server",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "Login",
+      "SequenceArrow": "->>",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Accessibility": {
+    "Title": "Auth",
+    "Description": "Describes login\r\nand session flow"
+  },
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "sequence.header",
+      "RawLine": "sequenceDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "sequence.accTitle",
+      "RawLine": "    accTitle: Auth"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "sequence.accDescr",
+      "RawLine": "    accDescr {"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "sequence.body",
+      "RawLine": "        Describes login"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "sequence.body",
+      "RawLine": "        and session flow"
+    },
+    {
+      "LineNumber": 6,
+      "LineTypeId": "sequence.structClose",
+      "RawLine": "    }"
+    },
+    {
+      "LineNumber": 7,
+      "LineTypeId": "sequence.message",
+      "RawLine": "    Client->>Server: Login"
+    }
+  ]
+}

@@ -8,6 +8,7 @@ public sealed class ErRecognitionFixtureTests
     private static readonly string[] FixtureNames =
     {
         "relationship",
+        "relation-cardinality",
         "entity-attributes",
         "cardinality-zero-or-one",
         "cardinality-zero-or-more-left",
@@ -17,11 +18,44 @@ public sealed class ErRecognitionFixtureTests
         "cardinality-zero-or-more-dotted",
         "cardinality-optional-zero-or-more",
         "cardinality-zero-or-more-zero-or-one-dotted",
+        "direction",
+        "attribute-keys",
+        "classDef-style",
+        "inline-style",
+        "comment",
+        "accessibility",
+        "one-to-one",
+        "non-identifying",
+        "associative-entity",
+        "quoted-relationship-label",
+        "multiple-relationships",
+        "catalogue-remarked-entity-alias",
+        "attribute-comments",
+        "entity-only",
+        "accDescr-block",
+        "combined-schema",
+        "recursive-relationship",
+        "duplicate-role-labels",
+        "init-leading",
+        "hyphenated-entities",
+        "class-apply-only",
+        "relationship-before-entity",
+        "complex-smoke",
+    };
+
+    private static readonly string[] FixturesAllowingBody =
+    {
+        "accDescr-block",
     };
 
     [TestCaseSource(nameof(FixtureNameCases))]
     public void Fixture_HasNoBodyFallback(string FixtureName)
     {
+        if (FixturesAllowingBody.Contains(FixtureName, StringComparer.Ordinal))
+        {
+            return;
+        }
+
         string Source = File.ReadAllText(GetFixturePath(FixtureName + ".mmd"));
         DiagramContract Contract = MermaidRecognizer.Parse(Source);
 

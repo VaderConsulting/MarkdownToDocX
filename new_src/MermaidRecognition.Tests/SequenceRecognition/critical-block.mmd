@@ -1,0 +1,6 @@
+sequenceDiagram
+    critical Establish connection
+        Alice->>Bob: Connect
+    option Timeout
+        Bob-->>Alice: Retry
+    end

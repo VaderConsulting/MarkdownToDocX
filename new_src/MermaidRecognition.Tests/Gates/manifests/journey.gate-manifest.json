@@ -1,0 +1,6 @@
+{
+  "DiagramKind": "journey",
+  "GateLevel": "L1",
+  "FixtureDirectory": "JourneyRecognition",
+  "Fixtures": ["simple"]
+}

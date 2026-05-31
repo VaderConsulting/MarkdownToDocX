@@ -1,0 +1,67 @@
+{
+  "Kind": "sequence",
+  "Nodes": [
+    {
+      "Id": "Client",
+      "Label": "Client",
+      "LabelType": "Text",
+      "Shape": "participant",
+      "ShapeSource": "sequence",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Server",
+      "Label": "Server",
+      "LabelType": "Text",
+      "Shape": "participant",
+      "ShapeSource": "sequence",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-Client-Server-0",
+      "IsUserDefinedId": false,
+      "SourceId": "Client",
+      "TargetId": "Server",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "Login",
+      "SequenceArrow": "->>",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "Config": {
+    "Raw": {
+      "sequence.title": "Authentication Flow"
+    }
+  },
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "sequence.header",
+      "RawLine": "sequenceDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "sequence.title",
+      "RawLine": "    title Authentication Flow"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "sequence.message",
+      "RawLine": "    Client->>Server: Login"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "Kind": "treemap",
+  "Nodes": [],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "treemap.header",
+      "RawLine": "treemap-beta"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "treemap.section",
+      "RawLine": "\"Section A\""
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "treemap.section",
+      "RawLine": "    \"Item 1\": 30"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "treemap.section",
+      "RawLine": "    \"Item 2\": 20"
+    }
+  ]
+}

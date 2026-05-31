@@ -1,0 +1,34 @@
+{
+  "Kind": "flowchart",
+  "Direction": "TopToBottom",
+  "Nodes": [
+    {
+      "Id": "Doc",
+      "Label": "Doc",
+      "LabelType": "Text",
+      "Shape": "doc",
+      "ShapeSource": "metadata",
+      "MetadataShape": "doc",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Store",
+      "Label": "Data Store",
+      "LabelType": "Text",
+      "Shape": "cylinder",
+      "ShapeSource": "bracket",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": []
+}

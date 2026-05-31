@@ -1,0 +1,48 @@
+{
+  "Kind": "erDiagram",
+  "Nodes": [
+    {
+      "Id": "CUSTOMER",
+      "Label": "CUSTOMER",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": [
+        "string name"
+      ]
+    }
+  ],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "erDiagram.header",
+      "RawLine": "erDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "erDiagram.entityBlockOpen",
+      "RawLine": "    CUSTOMER {"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        string name"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "erDiagram.entityBlockClose",
+      "RawLine": "    }"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "erDiagram.style",
+      "RawLine": "    style CUSTOMER fill:#bbf"
+    }
+  ]
+}

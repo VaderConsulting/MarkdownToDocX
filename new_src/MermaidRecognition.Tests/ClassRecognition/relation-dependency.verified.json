@@ -1,0 +1,52 @@
+{
+  "Kind": "classDiagram",
+  "Nodes": [
+    {
+      "Id": "Client",
+      "Label": "Client",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Service",
+      "Label": "Service",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-Client-Service-0",
+      "IsUserDefinedId": false,
+      "SourceId": "Client",
+      "TargetId": "Service",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "ClassRelation": "..>",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "classDiagram.header",
+      "RawLine": "classDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "classDiagram.relation",
+      "RawLine": "    Client ..> Service"
+    }
+  ]
+}

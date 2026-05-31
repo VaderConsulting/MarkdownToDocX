@@ -1,0 +1,38 @@
+{
+  "Kind": "erDiagram",
+  "RemarkStatus": "CatalogueRemarked",
+  "Nodes": [],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [
+    {
+      "Severity": "Info",
+      "Code": "recognition.catalogue-remarked"
+    }
+  ],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "erDiagram.header",
+      "RawLine": "erDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "erDiagram.entityAlias",
+      "RawLine": "CUSTOMER [Customer Account] {"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "string name"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "erDiagram.entityBlockClose",
+      "RawLine": "}"
+    }
+  ]
+}

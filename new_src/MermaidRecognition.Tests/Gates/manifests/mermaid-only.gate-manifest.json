@@ -1,0 +1,14 @@
+{
+  "DiagramKind": "mermaid-only",
+  "GateLevel": "L1",
+  "FixtureDirectory": "MermaidOnlyRecognition",
+  "Fixtures": [
+    "eventmodeling",
+    "treeview",
+    "ishikawa",
+    "venn",
+    "wardley",
+    "info",
+    "yaml-front-matter"
+  ]
+}

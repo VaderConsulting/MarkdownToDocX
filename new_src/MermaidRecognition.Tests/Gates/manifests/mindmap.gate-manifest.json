@@ -1,0 +1,12 @@
+{
+
+  "DiagramKind": "mindmap",
+
+  "GateLevel": "L4",
+
+  "FixtureDirectory": "MindmapRecognition",
+
+  "Fixtures": ["simple", "init-leading", "comment", "hierarchy", "shapes"]
+
+}
+

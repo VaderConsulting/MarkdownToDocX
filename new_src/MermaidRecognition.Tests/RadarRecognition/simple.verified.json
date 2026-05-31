@@ -1,0 +1,27 @@
+{
+  "Kind": "radar",
+  "Nodes": [],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "radar.header",
+      "RawLine": "radar-beta"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "radar.axis",
+      "RawLine": "axis A, B, C"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "radar.curve",
+      "RawLine": "curve data1[\"Series1\"]{20, 40, 60}"
+    }
+  ]
+}

@@ -1,0 +1,204 @@
+{
+  "Kind": "erDiagram",
+  "Nodes": [
+    {
+      "Id": "A",
+      "Label": "A",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "B",
+      "Label": "B",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "C",
+      "Label": "C",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "D",
+      "Label": "D",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "E",
+      "Label": "E",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "F",
+      "Label": "F",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "G",
+      "Label": "G",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "H",
+      "Label": "H",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "I",
+      "Label": "I",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "J",
+      "Label": "J",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-A-B-0",
+      "IsUserDefinedId": false,
+      "SourceId": "A",
+      "TargetId": "B",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "one to one",
+      "ErLeftMarker": "||",
+      "ErLink": "--",
+      "ErRightMarker": "||",
+      "ErRoleLabel": "one to one",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 1,
+      "Id": "L-C-D-1",
+      "IsUserDefinedId": false,
+      "SourceId": "C",
+      "TargetId": "D",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "zero or one",
+      "ErLeftMarker": "|o",
+      "ErLink": "--",
+      "ErRightMarker": "o|",
+      "ErRoleLabel": "zero or one",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 2,
+      "Id": "L-E-F-2",
+      "IsUserDefinedId": false,
+      "SourceId": "E",
+      "TargetId": "F",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "non identifying",
+      "ErLeftMarker": "||",
+      "ErLink": "..",
+      "ErRightMarker": "o{",
+      "ErRoleLabel": "non identifying",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 3,
+      "Id": "L-G-H-3",
+      "IsUserDefinedId": false,
+      "SourceId": "G",
+      "TargetId": "H",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "one or more",
+      "ErLeftMarker": "||",
+      "ErLink": "--",
+      "ErRightMarker": "|{",
+      "ErRoleLabel": "one or more",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 4,
+      "Id": "L-I-J-4",
+      "IsUserDefinedId": false,
+      "SourceId": "I",
+      "TargetId": "J",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "zero or more left",
+      "ErLeftMarker": "}o",
+      "ErLink": "--",
+      "ErRightMarker": "||",
+      "ErRoleLabel": "zero or more left",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "erDiagram.header",
+      "RawLine": "erDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "erDiagram.relationship",
+      "RawLine": "    A ||--|| B : \"one to one\""
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "erDiagram.relationship",
+      "RawLine": "    C |o--o| D : \"zero or one\""
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "erDiagram.relationship",
+      "RawLine": "    E ||..o{ F : \"non identifying\""
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "erDiagram.relationship",
+      "RawLine": "    G ||--|{ H : \"one or more\""
+    },
+    {
+      "LineNumber": 6,
+      "LineTypeId": "erDiagram.relationship",
+      "RawLine": "    I }o--|| J : \"zero or more left\""
+    }
+  ]
+}

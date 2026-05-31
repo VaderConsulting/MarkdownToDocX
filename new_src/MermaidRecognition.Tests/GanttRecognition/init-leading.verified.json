@@ -1,0 +1,43 @@
+{
+  "Kind": "gantt",
+  "Nodes": [
+    {
+      "Id": "a1",
+      "Label": "Task A",
+      "LabelType": "Text",
+      "Shape": "ganttTask",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "Config": {
+    "Raw": {
+      "gantt.title": "Init leading",
+      "theme": "forest"
+    }
+  },
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "gantt.header",
+      "RawLine": "gantt"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "gantt.title",
+      "RawLine": "    title Init leading"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "gantt.task",
+      "RawLine": "    Task A :a1, 2024-01-01, 3d"
+    }
+  ]
+}

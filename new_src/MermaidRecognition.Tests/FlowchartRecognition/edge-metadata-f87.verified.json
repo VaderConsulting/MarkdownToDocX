@@ -1,0 +1,43 @@
+{
+  "Kind": "flowchart",
+  "Direction": "LeftToRight",
+  "Nodes": [
+    {
+      "Id": "A",
+      "Label": "A",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "B",
+      "Label": "B",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "e1",
+      "IsUserDefinedId": true,
+      "SourceId": "A",
+      "TargetId": "B",
+      "MinLength": 1,
+      "Stroke": "thick",
+      "MarkerStart": "None",
+      "MarkerEnd": "Point",
+      "MetadataAnimate": true,
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": []
+}

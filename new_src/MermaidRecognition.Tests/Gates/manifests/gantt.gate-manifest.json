@@ -1,0 +1,32 @@
+{
+
+  "DiagramKind": "gantt",
+
+  "GateLevel": "L4",
+
+  "FixtureDirectory": "GanttRecognition",
+
+  "Fixtures": [
+
+    "simple",
+
+    "section",
+
+    "dateFormat",
+
+    "excludes",
+
+    "init-leading",
+
+    "relative",
+
+    "milestone",
+
+    "accessibility",
+
+    "inclusive-end"
+
+  ]
+
+}
+

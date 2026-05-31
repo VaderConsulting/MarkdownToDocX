@@ -1,0 +1,30 @@
+{
+  "DiagramKind": "stateDiagram",
+  "GateLevel": "L4",
+  "FixtureDirectory": "StateRecognition",
+  "Fixtures": [
+    "simple",
+    "composite",
+    "note",
+    "fork-join",
+    "choice",
+    "direction",
+    "transition-labels",
+    "transition-colons",
+    "classDef-style",
+    "accessibility",
+    "click-href",
+    "init-leading",
+    "state-description",
+    "inline-style",
+    "struct-open",
+    "note-left",
+    "accDescr-block",
+    "comment",
+    "multiple-states",
+    "header-v1",
+    "multiple-terminators",
+    "hide-empty-description",
+    "complex-smoke"
+  ]
+}

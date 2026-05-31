@@ -1,0 +1,39 @@
+{
+  "Kind": "pie",
+  "Nodes": [
+    {
+      "Id": "slice-0",
+      "Label": "Beta",
+      "LabelType": "Text",
+      "Shape": "slice",
+      "ShapeSource": "pie",
+      "PieValue": "20",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "pie.header",
+      "RawLine": "pie"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "pie.comment",
+      "RawLine": "%% slice note"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "pie.section",
+      "RawLine": "    \"Beta\" : 20"
+    }
+  ]
+}

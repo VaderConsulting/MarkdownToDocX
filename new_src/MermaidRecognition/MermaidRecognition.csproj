@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>MermaidRecognition</RootNamespace>
+    <AssemblyName>MermaidRecognition</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <Description>Mermaid diagram recognition and native render pilot: parse source into a normalised contract; flowchart structural routing and grid SVG pilot.</Description>
+    <Version>0.1.0</Version>
+    <Authors>MarkdownToDocX</Authors>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <AnalysisLevel>none</AnalysisLevel>
+  </PropertyGroup>
+
+</Project>

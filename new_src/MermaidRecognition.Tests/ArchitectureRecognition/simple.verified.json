@@ -1,0 +1,27 @@
+{
+  "Kind": "architecture",
+  "Nodes": [],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "architecture.header",
+      "RawLine": "architecture-beta"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "architecture.service",
+      "RawLine": "service db(database)[Database]"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "architecture.service",
+      "RawLine": "service api(server)[API]"
+    }
+  ]
+}

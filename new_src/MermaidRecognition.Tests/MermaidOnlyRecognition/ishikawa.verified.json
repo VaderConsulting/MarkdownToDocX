@@ -1,0 +1,37 @@
+{
+  "Kind": "ishikawa",
+  "Nodes": [],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [
+    {
+      "Severity": "Warning",
+      "Code": "recognition.unsupported-native"
+    }
+  ],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "ishikawa.header",
+      "RawLine": "ishikawa-beta"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "ishikawa.title",
+      "RawLine": "    title Defect analysis"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "ishikawa.branch",
+      "RawLine": "    category People"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "ishikawa.branch",
+      "RawLine": "        cause Training gap"
+    }
+  ]
+}

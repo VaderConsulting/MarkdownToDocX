@@ -1,0 +1,49 @@
+{
+  "Kind": "classDiagram",
+  "Nodes": [
+    {
+      "Id": "Repository~T~",
+      "Label": "Repository~T~",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [
+        "+get(id: int) T",
+        "+save(entity: T) void"
+      ],
+      "Attributes": []
+    }
+  ],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "classDiagram.header",
+      "RawLine": "classDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "classDiagram.class",
+      "RawLine": "    class Repository~T~ {"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "classDiagram.member",
+      "RawLine": "        +get(id: int) T"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "classDiagram.member",
+      "RawLine": "        +save(entity: T) void"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "classDiagram.structClose",
+      "RawLine": "    }"
+    }
+  ]
+}

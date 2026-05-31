@@ -1,0 +1,37 @@
+{
+  "Kind": "xychart",
+  "Nodes": [],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "xychart.header",
+      "RawLine": "xychart-beta"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "xychart.title",
+      "RawLine": "    title \"Monthly Sales\""
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "xychart.axis",
+      "RawLine": "    x-axis [Jan, Feb, Mar]"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "xychart.axis",
+      "RawLine": "    y-axis \"Revenue\" 0 --> 100"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "xychart.series",
+      "RawLine": "    bar [50, 60, 75]"
+    }
+  ]
+}

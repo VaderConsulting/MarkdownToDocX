@@ -1,0 +1,9 @@
+sequenceDiagram
+    actor User
+    participant API
+    User->>API: Request
+    alt Data found
+        API-->>User: OK
+    else Not found
+        API-->>User: 404
+    end

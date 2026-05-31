@@ -8,6 +8,174 @@ public class SvgBuilder
     double contentWidth;
     double contentHeight;
 
+    public bool HasMarkerId(string id)
+    {
+        for (int i = 0; i < document.Defs.Markers.Count; i++)
+        {
+            if (string.Equals(document.Defs.Markers[i].Id, id, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public void EnsureMermaidFlowchartV2PointMarkers(string colour)
+    {
+        if (string.IsNullOrWhiteSpace(colour))
+        {
+            return;
+        }
+
+        string suffix = SanitiseMarkerSuffix(colour);
+        if (suffix.Length == 0)
+        {
+            return;
+        }
+
+        EnsureMermaidFlowchartV2PointMarkersInternal(colour.Trim(), suffix);
+    }
+
+    private void EnsureMermaidFlowchartV2PointMarkersInternal(string colour, string suffix)
+    {
+        // Keep parity with AddMermaidArrowMarker marker geometry; only the marker id and fill/stroke colour differ.
+        EnsureMarker(
+            "mermaid-svg_flowchart-v2-pointEnd--" + suffix,
+            "M 0 0 L 10 5 L 0 10 z",
+            8,
+            8,
+            5,
+            5,
+            "0 0 10 10",
+            1,
+            "flowchart-v2",
+            colour);
+
+        EnsureMarker(
+            "mermaid-svg_flowchart-v2-pointEnd-margin--" + suffix,
+            "M 0 0 L 11.5 7 L 0 14 z",
+            10.5,
+            14,
+            11.5,
+            7,
+            "0 0 11.5 14",
+            0,
+            "flowchart-v2",
+            colour);
+
+        EnsureMarker(
+            "mermaid-svg_flowchart-v2-pointEndThick--" + suffix,
+            "M 0 0 L 10 5 L 0 10 z",
+            8,
+            8,
+            5,
+            5,
+            "0 0 10 10",
+            1,
+            "flowchart-v2",
+            colour);
+
+        EnsureMarker(
+            "mermaid-svg_flowchart-v2-pointStart--" + suffix,
+            "M 0 5 L 10 10 L 10 0 z",
+            8,
+            8,
+            4.5,
+            5,
+            "0 0 10 10",
+            1,
+            "flowchart-v2",
+            colour);
+
+        EnsureMarker(
+            "mermaid-svg_flowchart-v2-pointStart-margin--" + suffix,
+            "M 0 7 L 11.5 14 L 11.5 0 Z",
+            11.5,
+            14,
+            1,
+            7,
+            "0 0 11.5 14",
+            0,
+            "flowchart-v2",
+            colour);
+
+        EnsureMarker(
+            "mermaid-svg_flowchart-v2-pointStartBiDir--" + suffix,
+            "M 0 5 L 10 10 L 10 0 z",
+            8,
+            8,
+            4.5,
+            5,
+            "0 0 10 10",
+            1,
+            "flowchart-v2",
+            colour);
+    }
+
+    private void EnsureMarker(
+        string id,
+        string path,
+        double markerWidth,
+        double markerHeight,
+        double refX,
+        double refY,
+        string viewBox,
+        int strokeWidth,
+        string className,
+        string fill)
+    {
+        if (HasMarkerId(id))
+        {
+            return;
+        }
+
+        document.Defs.Markers.Add(new SvgMarker
+        {
+            Id = id,
+            Path = path,
+            Fill = fill,
+            MarkerWidth = markerWidth,
+            MarkerHeight = markerHeight,
+            RefX = refX,
+            RefY = refY,
+            ViewBox = viewBox,
+            MarkerUnits = "userSpaceOnUse",
+            ClassName = className,
+            StrokeWidth = strokeWidth
+        });
+    }
+
+    private static string SanitiseMarkerSuffix(string colour)
+    {
+        string trimmed = colour.Trim();
+        if (trimmed.StartsWith('#'))
+        {
+            trimmed = trimmed[1..];
+        }
+
+        // Only allow hex digits to keep ids predictable.
+        Span<char> buffer = stackalloc char[trimmed.Length];
+        int count = 0;
+        for (int i = 0; i < trimmed.Length; i++)
+        {
+            char c = trimmed[i];
+            bool isHex =
+                (c >= '0' && c <= '9')
+                || (c >= 'a' && c <= 'f')
+                || (c >= 'A' && c <= 'F');
+            if (!isHex)
+            {
+                continue;
+            }
+
+            buffer[count] = char.ToLowerInvariant(c);
+            count++;
+        }
+
+        return count == 0 ? string.Empty : new string(buffer[..count]);
+    }
+
     public SvgBuilder Size(double width, double height)
     {
         contentWidth = width;
@@ -850,7 +1018,7 @@ public class SvgBuilder
         double? strokeWidth = null, string? strokeDasharray = null,
         string? markerStart = null, string? markerEnd = null, double? opacity = null,
         string? cssClass = null, string? filter = null, string? transform = null,
-        string? strokeLinejoin = null, double? strokeMiterlimit = null)
+        string? strokeLinejoin = null, double? strokeMiterlimit = null, string? style = null)
     {
         var path = new SvgPath
         {
@@ -866,7 +1034,8 @@ public class SvgBuilder
             Opacity = opacity,
             Class = cssClass,
             Filter = filter,
-            Transform = transform
+            Transform = transform,
+            Style = style
         };
         AddElement(path);
         return this;

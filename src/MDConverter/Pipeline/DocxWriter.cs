@@ -13,6 +13,7 @@ using DocumentFormat.OpenXml.Wordprocessing;
 using MermaidSharp;
 using MDConverter.Model;
 using MDConverter.Options;
+using MermaidRecognition.NaiadAdapter;
 using SkiaSharp;
 using Svg.Skia;
 using A = DocumentFormat.OpenXml.Drawing;
@@ -29,6 +30,11 @@ public sealed class DocxWriter
     private const float MermaidRasterScale = 4.0f;
     private const double FlowchartRasterArrowLengthPx = 8.0;
     private const double FlowchartRasterArrowHalfWidthPx = 5.0;
+    private const string FLOWCHART_RASTER_DEFAULT_ARROW_FILL = "#333333";
+    private static readonly Regex SvgInlineStrokeColourRegex =
+        new(@"stroke\s*:\s*([^;""]+)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex SvgTintedPointMarkerColourSuffixRegex =
+        new(@"flowchart-v2-point(?:End|Start)(?:Thick|-margin)?--([0-9a-fA-F]{3,8})\)", RegexOptions.CultureInvariant | RegexOptions.Compiled);
     private static readonly Regex SvgPathEndPointRegex =
         new(@"L\s*([-\d.]+)[,\s]+([-\d.]+)\s*$", RegexOptions.CultureInvariant | RegexOptions.Compiled);
     private static readonly Regex SvgPathStartPointRegex =
@@ -667,13 +673,16 @@ public sealed class DocxWriter
         Paragraph Paragraph = new Paragraph(Properties);
         try
         {
-            string Svg = Mermaid.Render(MermaidBlock.Source, RenderOptions.Default);
-            if (TryAppendRasterizedSvg(Paragraph, Svg, "Mermaid diagram"))
+            string Svg = RenderMermaidSvg(MermaidBlock.Source);
+            MermaidImageAccessibility Accessibility = MermaidAccessibilityResolver.Resolve(
+                MermaidBlock.Source,
+                _Options.Mermaid.UseFlowchartRecognitionParser);
+            if (TryAppendRasterizedSvg(Paragraph, Svg, Accessibility))
             {
                 return Paragraph;
             }
 
-            if (TryAppendSvg(Paragraph, Svg, "Mermaid diagram"))
+            if (TryAppendSvg(Paragraph, Svg, Accessibility))
             {
                 return Paragraph;
             }
@@ -686,6 +695,18 @@ public sealed class DocxWriter
         }
 
         return Paragraph;
+    }
+
+    private string RenderMermaidSvg(string MermaidSource)
+    {
+        RenderOptions RenderOptions = RenderOptions.Default;
+        if (_Options.Mermaid.UseFlowchartRecognitionParser
+            && FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(MermaidSource, RenderOptions, out string RecognitionSvg))
+        {
+            return RecognitionSvg;
+        }
+
+        return Mermaid.Render(MermaidSource, RenderOptions);
     }
 
     private static void AppendMermaidFallback(Paragraph Paragraph, string Message, string Source)
@@ -1043,7 +1064,7 @@ public sealed class DocxWriter
     /// Embeds a Mermaid diagram as PNG (Skia rasterisation). Flowchart arrowheads are inlined first.
     /// Callers fall back to SVG embedding when rasterisation fails so diagrams are not dropped.
     /// </summary>
-    private bool TryAppendRasterizedSvg(Paragraph Parent, string Svg, string AltText)
+    private bool TryAppendRasterizedSvg(Paragraph Parent, string Svg, MermaidImageAccessibility Accessibility)
     {
         MainDocumentPart MainPart = _MainPart!;
         if (MainPart == null || string.IsNullOrWhiteSpace(Svg))
@@ -1068,9 +1089,14 @@ public sealed class DocxWriter
         (long Cx, long Cy) = CalculateSvgExtents(Dimensions);
         uint DrawingId = _NextDrawingId++;
 
+        PIC.NonVisualDrawingProperties NonVisualDrawingProperties = CreateMermaidNonVisualDrawingProperties(
+            "Mermaid diagram.png",
+            Accessibility);
+        DW.DocProperties DocProperties = CreateMermaidDocProperties(DrawingId, Accessibility);
+
         PIC.Picture Picture = new PIC.Picture(
             new PIC.NonVisualPictureProperties(
-                new PIC.NonVisualDrawingProperties() { Id = 0U, Name = "Mermaid diagram.png", Description = AltText ?? string.Empty },
+                NonVisualDrawingProperties,
                 new PIC.NonVisualPictureDrawingProperties()),
             new PIC.BlipFill(
                 new A.Blip() { Embed = RelationshipId },
@@ -1084,7 +1110,7 @@ public sealed class DocxWriter
         DW.Inline Inline = new DW.Inline(
             new DW.Extent() { Cx = Cx, Cy = Cy },
             new DW.EffectExtent() { LeftEdge = 0L, TopEdge = 0L, RightEdge = 0L, BottomEdge = 0L },
-            new DW.DocProperties() { Id = DrawingId, Name = "Mermaid diagram " + DrawingId, Description = AltText ?? string.Empty },
+            DocProperties,
             new DW.NonVisualGraphicFrameDrawingProperties(new A.GraphicFrameLocks() { NoChangeAspect = true }),
             new A.Graphic(GraphicData))
         {
@@ -1097,13 +1123,15 @@ public sealed class DocxWriter
         return true;
     }
 
-    private bool TryAppendSvg(Paragraph Parent, string Svg, string AltText)
+    private bool TryAppendSvg(Paragraph Parent, string Svg, MermaidImageAccessibility Accessibility)
     {
         MainDocumentPart MainPart = _MainPart!;
         if (MainPart == null || string.IsNullOrWhiteSpace(Svg))
         {
             return false;
         }
+
+        Svg = ExpandSvgFlowchartMarkersForRasterization(Svg);
 
         ImagePart ImagePart = MainPart.AddImagePart(ImagePartType.Svg);
         byte[] SvgBytes = Encoding.UTF8.GetBytes(Svg);
@@ -1117,9 +1145,14 @@ public sealed class DocxWriter
         (long Cx, long Cy) = CalculateSvgExtents(Dimensions);
         uint DrawingId = _NextDrawingId++;
 
+        PIC.NonVisualDrawingProperties NonVisualDrawingProperties = CreateMermaidNonVisualDrawingProperties(
+            "Mermaid diagram.svg",
+            Accessibility);
+        DW.DocProperties DocProperties = CreateMermaidDocProperties(DrawingId, Accessibility);
+
         PIC.Picture Picture = new PIC.Picture(
             new PIC.NonVisualPictureProperties(
-                new PIC.NonVisualDrawingProperties() { Id = 0U, Name = "Mermaid diagram.svg", Description = AltText ?? string.Empty },
+                NonVisualDrawingProperties,
                 new PIC.NonVisualPictureDrawingProperties()),
             new PIC.BlipFill(
                 new A.Blip() { Embed = RelationshipId },
@@ -1133,7 +1166,7 @@ public sealed class DocxWriter
         DW.Inline Inline = new DW.Inline(
             new DW.Extent() { Cx = Cx, Cy = Cy },
             new DW.EffectExtent() { LeftEdge = 0L, TopEdge = 0L, RightEdge = 0L, BottomEdge = 0L },
-            new DW.DocProperties() { Id = DrawingId, Name = "Mermaid diagram " + DrawingId, Description = AltText ?? string.Empty },
+            DocProperties,
             new DW.NonVisualGraphicFrameDrawingProperties(new A.GraphicFrameLocks() { NoChangeAspect = true }),
             new A.Graphic(GraphicData))
         {
@@ -1146,12 +1179,61 @@ public sealed class DocxWriter
         return true;
     }
 
+    private static PIC.NonVisualDrawingProperties CreateMermaidNonVisualDrawingProperties(
+        string PictureName,
+        MermaidImageAccessibility Accessibility)
+    {
+        PIC.NonVisualDrawingProperties Properties = new PIC.NonVisualDrawingProperties()
+        {
+            Id = 0U,
+            Name = PictureName,
+            Description = Accessibility.ResolveEmbeddedDescription()
+        };
+
+        string? Title = Accessibility.ResolveEmbeddedTitle();
+        if (!string.IsNullOrWhiteSpace(Title))
+        {
+            Properties.Title = Title;
+        }
+
+        return Properties;
+    }
+
+    private static DW.DocProperties CreateMermaidDocProperties(uint DrawingId, MermaidImageAccessibility Accessibility)
+    {
+        DW.DocProperties Properties = new DW.DocProperties()
+        {
+            Id = DrawingId,
+            Name = "Mermaid diagram " + DrawingId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            Description = Accessibility.ResolveEmbeddedDescription()
+        };
+
+        string? Title = Accessibility.ResolveEmbeddedTitle();
+        if (!string.IsNullOrWhiteSpace(Title))
+        {
+            Properties.Title = Title;
+        }
+
+        return Properties;
+    }
+
     /// <summary>
     /// Renders Mermaid source and rasterises to PNG using the DOCX diagram pipeline.
     /// </summary>
     internal static byte[]? TryRasterizeMermaidSourceToPng(string MermaidSource)
     {
-        string Svg = Mermaid.Render(MermaidSource, RenderOptions.Default);
+        RenderOptions RenderOptions = RenderOptions.Default;
+
+        string Svg;
+        if (FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(MermaidSource, RenderOptions, out string RecognitionSvg))
+        {
+            Svg = RecognitionSvg;
+        }
+        else
+        {
+            Svg = Mermaid.Render(MermaidSource, RenderOptions);
+        }
+
         return TryRasterizeSvgToPng(Svg);
     }
 
@@ -1347,10 +1429,12 @@ public sealed class DocxWriter
                     CultureInfo.InvariantCulture,
                     $"M{TipX:0.##},{TipY:0.##}L{LeftX:0.##},{LeftY:0.##}L{RightX:0.##},{RightY:0.##}Z");
 
+                string ArrowFillColour = ResolveFlowchartRasterArrowFillColour(Element);
+
                 XElement ArrowPathElement = new XElement(
                     SvgNamespace + "path",
                     new XAttribute("d", ArrowPathData),
-                    new XAttribute("fill", "#333333"),
+                    new XAttribute("fill", ArrowFillColour),
                     new XAttribute("stroke", "none"));
                 Element.AddAfterSelf(ArrowPathElement);
                 MarkerEndAttribute.Remove();
@@ -1366,6 +1450,109 @@ public sealed class DocxWriter
         {
             return Svg;
         }
+    }
+
+    /// <summary>
+    /// Resolves the fill colour for an inlined raster arrowhead so it matches the connector stroke (for example
+    /// <c>linkStyle default stroke:#c60</c>). Skia does not honour SVG marker styling reliably.
+    /// </summary>
+    private static string ResolveFlowchartRasterArrowFillColour(XElement ConnectorElement)
+    {
+        if (TryGetFlowchartConnectorStrokeColour(ConnectorElement, out string StrokeColour))
+        {
+            return NormalizeRasterArrowFillColour(StrokeColour);
+        }
+
+        XElement? PreviousLinkPath = ConnectorElement.ElementsBeforeSelf()
+            .LastOrDefault(IsFlowchartLinkConnectorPath);
+        if (PreviousLinkPath != null
+            && TryGetFlowchartConnectorStrokeColour(PreviousLinkPath, out string PreviousStrokeColour))
+        {
+            return NormalizeRasterArrowFillColour(PreviousStrokeColour);
+        }
+
+        return FLOWCHART_RASTER_DEFAULT_ARROW_FILL;
+    }
+
+    private static bool IsFlowchartLinkConnectorPath(XElement Element)
+    {
+        if (!string.Equals(Element.Name.LocalName, "path", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        string ClassValue = Element.Attribute("class")?.Value ?? string.Empty;
+        return ClassValue.Contains("flowchart-link", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool TryGetFlowchartConnectorStrokeColour(XElement ConnectorElement, out string StrokeColour)
+    {
+        StrokeColour = string.Empty;
+
+        string? StyleAttribute = ConnectorElement.Attribute("style")?.Value;
+        if (!string.IsNullOrWhiteSpace(StyleAttribute))
+        {
+            Match StyleMatch = SvgInlineStrokeColourRegex.Match(StyleAttribute);
+            if (StyleMatch.Success)
+            {
+                StrokeColour = StyleMatch.Groups[1].Value.Trim();
+                return true;
+            }
+        }
+
+        string? StrokeAttribute = ConnectorElement.Attribute("stroke")?.Value;
+        if (!string.IsNullOrWhiteSpace(StrokeAttribute)
+            && !string.Equals(StrokeAttribute, "none", StringComparison.OrdinalIgnoreCase))
+        {
+            StrokeColour = StrokeAttribute.Trim();
+            return true;
+        }
+
+        string? MarkerEndAttribute = ConnectorElement.Attribute("marker-end")?.Value;
+        if (!string.IsNullOrWhiteSpace(MarkerEndAttribute)
+            && TryGetTintedFlowchartMarkerStrokeColour(MarkerEndAttribute, out string MarkerStrokeColour))
+        {
+            StrokeColour = MarkerStrokeColour;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryGetTintedFlowchartMarkerStrokeColour(string MarkerEndAttribute, out string StrokeColour)
+    {
+        StrokeColour = string.Empty;
+        Match Match = SvgTintedPointMarkerColourSuffixRegex.Match(MarkerEndAttribute);
+        if (!Match.Success)
+        {
+            return false;
+        }
+
+        StrokeColour = "#" + Match.Groups[1].Value;
+        return true;
+    }
+
+    private static string NormalizeRasterArrowFillColour(string Colour)
+    {
+        string Trimmed = Colour.Trim();
+        if (Trimmed.Length == 0)
+        {
+            return FLOWCHART_RASTER_DEFAULT_ARROW_FILL;
+        }
+
+        if (!Trimmed.StartsWith('#'))
+        {
+            Trimmed = "#" + Trimmed;
+        }
+
+        if (Trimmed.Length == 4)
+        {
+            return string.Create(
+                CultureInfo.InvariantCulture,
+                $"#{Trimmed[1]}{Trimmed[1]}{Trimmed[2]}{Trimmed[2]}{Trimmed[3]}{Trimmed[3]}");
+        }
+
+        return Trimmed;
     }
 
     /// <summary>
@@ -2095,7 +2282,9 @@ public sealed class DocxWriter
 
         if (!TryFindTargetAttachPoint(Root, OriginX, OriginY, UnitX, UnitY, out AttachX, out AttachY))
         {
-            return false;
+            // For curveBasis paths the tangent direction at the end can be misleading (it is derived from the last
+            // control point, not the visual final segment). Fall back to the nearest rectangle boundary point.
+            return TryFindNearestFlowchartNodeBoundaryPoint(Root, OriginX, OriginY, out AttachX, out AttachY);
         }
 
         double DeltaX = AttachX - OriginX;
@@ -2103,6 +2292,78 @@ public sealed class DocxWriter
         double SnapDistance = Math.Sqrt((DeltaX * DeltaX) + (DeltaY * DeltaY));
         const double MaxSnapDistancePx = 24.0;
         return SnapDistance <= MaxSnapDistancePx;
+    }
+
+    private static bool TryFindNearestFlowchartNodeBoundaryPoint(
+        XElement Root,
+        double PointX,
+        double PointY,
+        out double AttachX,
+        out double AttachY)
+    {
+        AttachX = PointX;
+        AttachY = PointY;
+
+        List<SvgNodeBounds> NodeBoundsList = CollectFlowchartNodeBounds(Root);
+        double BestDistance = double.PositiveInfinity;
+
+        for (int Index = 0; Index < NodeBoundsList.Count; Index++)
+        {
+            SvgNodeBounds Bounds = NodeBoundsList[Index];
+
+            bool IsInside =
+                PointX >= Bounds.MinX
+                && PointX <= Bounds.MaxX
+                && PointY >= Bounds.MinY
+                && PointY <= Bounds.MaxY;
+
+            if (IsInside)
+            {
+                continue;
+            }
+
+            double CandidateX;
+            double CandidateY;
+
+            // Closest point on the rectangle boundary (not a ray intersection).
+            if (PointY < Bounds.MinY)
+            {
+                CandidateY = Bounds.MinY;
+                CandidateX = Math.Clamp(PointX, Bounds.MinX, Bounds.MaxX);
+            }
+            else if (PointY > Bounds.MaxY)
+            {
+                CandidateY = Bounds.MaxY;
+                CandidateX = Math.Clamp(PointX, Bounds.MinX, Bounds.MaxX);
+            }
+            else if (PointX < Bounds.MinX)
+            {
+                CandidateX = Bounds.MinX;
+                CandidateY = Math.Clamp(PointY, Bounds.MinY, Bounds.MaxY);
+            }
+            else if (PointX > Bounds.MaxX)
+            {
+                CandidateX = Bounds.MaxX;
+                CandidateY = Math.Clamp(PointY, Bounds.MinY, Bounds.MaxY);
+            }
+            else
+            {
+                continue;
+            }
+
+            double Dx = CandidateX - PointX;
+            double Dy = CandidateY - PointY;
+            double Distance = Math.Sqrt((Dx * Dx) + (Dy * Dy));
+            if (Distance < BestDistance)
+            {
+                BestDistance = Distance;
+                AttachX = CandidateX;
+                AttachY = CandidateY;
+            }
+        }
+
+        const double MaxSnapDistancePx = 24.0;
+        return BestDistance <= MaxSnapDistancePx;
     }
 
     private static bool IsPointInsideAnyFlowchartNodeBounds(XElement Root, double PointX, double PointY)

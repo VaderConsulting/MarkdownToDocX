@@ -40,6 +40,12 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
         public required int LinkIndex { get; init; }
         public required MermaidSharp.Models.Style Style { get; init; }
     }
+
+    private sealed class FlowchartStatement
+    {
+        public List<Node> Nodes { get; } = new List<Node>();
+        public List<Edge> Edges { get; } = new List<Edge>();
+    }
 #pragma warning restore IDE0007
 
     /// <summary>
@@ -54,15 +60,28 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
             return text;
         }
 
-        var trimmed = text.Trim();
-        if (trimmed.Length >= 2 && trimmed[0] == '"' && trimmed[trimmed.Length - 1] == '"')
+        string Trimmed = text.Trim();
+        string Working = Trimmed;
+        while (Working.Length >= 2)
         {
-            var inner = trimmed.Substring(1, trimmed.Length - 2);
-            var unescaped = inner.Replace("\\\"", "\"").Replace("\\\\", "\\");
-            return unescaped.Trim();
+            char Open = Working[0];
+            char Close = Working[Working.Length - 1];
+            bool IsAsciiDouble = Open == '"' && Close == '"';
+            bool IsAsciiSingle = Open == '\'' && Close == '\'';
+            bool IsCurlyDouble = Open == '\u201c' && Close == '\u201d';
+            bool IsCurlySingle = Open == '\u2018' && Close == '\u2019';
+            if (IsAsciiDouble || IsAsciiSingle || IsCurlyDouble || IsCurlySingle)
+            {
+                Working = Working.Substring(1, Working.Length - 2).Trim();
+                continue;
+            }
+
+            break;
         }
 
-        return trimmed;
+        string Unescaped = Working.Replace("\\\"", "\"").Replace("\\\\", "\\");
+        string Decoded = MermaidFlowchartEntityCodeDecoder.Decode(Unescaped);
+        return Decoded.Trim();
     }
 
     // Node shape parsers - returns (label, shape)
@@ -126,6 +145,30 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
             .Before(Char(']'))
             .Select(text => (NormalizeFlowchartLabel(text), NodeShape.Asymmetric));
 
+    static Parser<char, (string Label, NodeShape Shape)> trapezoidLeanRightShape =
+        String("[/")
+            .Then(Token(_ => _ != ']').ManyString())
+            .Before(String("/]"))
+            .Select(text => (NormalizeFlowchartLabel(text), NodeShape.ParallelogramAlt));
+
+    static Parser<char, (string Label, NodeShape Shape)> trapezoidShape =
+        String("[/")
+            .Then(Token(_ => _ != ']').ManyString())
+            .Before(String("\\]"))
+            .Select(text => (NormalizeFlowchartLabel(text), NodeShape.Trapezoid));
+
+    static Parser<char, (string Label, NodeShape Shape)> invTrapezoidShape =
+        String(@"[\")
+            .Then(Token(_ => _ != ']').ManyString())
+            .Before(String("/]"))
+            .Select(text => (NormalizeFlowchartLabel(text), NodeShape.TrapezoidAlt));
+
+    static Parser<char, (string Label, NodeShape Shape)> trapezoidLeanLeftShape =
+        String(@"[\")
+            .Then(Token(_ => _ != ']').ManyString())
+            .Before(String("\\]"))
+            .Select(text => (NormalizeFlowchartLabel(text), NodeShape.Parallelogram));
+
     static Parser<char, (string Label, NodeShape Shape)> nodeShapeParser =
         OneOf(
             Try(doubleCircleShape),
@@ -137,6 +180,10 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
             Try(diamondShape),
             Try(roundedShape),
             Try(asymmetricShape),
+            Try(trapezoidLeanRightShape),
+            Try(trapezoidShape),
+            Try(invTrapezoidShape),
+            Try(trapezoidLeanLeftShape),
             rectangleShape
         );
 
@@ -267,9 +314,22 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
 #pragma warning restore IDE0007
     }
 
-    // Statement: A --> B --> C (chain of nodes with edges)
-    static Parser<char, (List<Node> Nodes, List<(EdgeType Type, EdgeStyle Style, string? Label, int MinRankSpan)> Edges)> StatementParser =>
+    static Parser<char, List<Node>> nodeSetParser =>
         from first in nodeParser
+        from rest in (
+            Try(
+                from _1 in CommonParsers.InlineWhitespace.Optional()
+                from _2 in Char('&')
+                from _3 in CommonParsers.InlineWhitespace.Optional()
+                from node in nodeParser
+                select node
+            )
+        ).Many()
+        select new List<Node>([first, .. rest]);
+
+    // Statement: A --> B --> C (chain of node sets with edges, including A & B --> C & D).
+    static Parser<char, FlowchartStatement> StatementParser =>
+        from firstSet in nodeSetParser
         from rest in (
             from _1 in CommonParsers.InlineWhitespace
             from label1 in edgeLabelParser.Optional()
@@ -278,18 +338,49 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
             from _3 in CommonParsers.InlineWhitespace.Optional()
             from label2 in edgeLabelParser.Optional()
             from _4 in CommonParsers.InlineWhitespace
-            from node in nodeParser
+            from nextSet in nodeSetParser
             select (
-                Node: node,
+                NextSet: nextSet,
                 Type: arrow.Type,
                 Style: arrow.Style,
                 Label: arrow.EmbeddedLabel ?? (label1.HasValue ? label1.Value : label2.HasValue ? label2.Value : null),
                 MinRankSpan: arrow.MinRankSpan)
         ).Many()
-        select (
-            new List<Node>([first, .. rest.Select(t => t.Node)]),
-            rest.Select(t => (t.Type, t.Style, t.Label, t.MinRankSpan)).ToList()
-        );
+        select BuildStatementFromNodeSets(firstSet, rest);
+
+    static FlowchartStatement BuildStatementFromNodeSets(
+        List<Node> FirstSet,
+        IEnumerable<(List<Node> NextSet, EdgeType Type, EdgeStyle Style, string? Label, int MinRankSpan)> Rest)
+    {
+        FlowchartStatement Statement = new FlowchartStatement();
+        List<Node> PreviousSet = FirstSet;
+        Statement.Nodes.AddRange(FirstSet);
+
+        foreach ((List<Node> NextSet, EdgeType Type, EdgeStyle Style, string? Label, int MinRankSpan) Segment in Rest)
+        {
+            Statement.Nodes.AddRange(Segment.NextSet);
+
+            for (int SourceIndex = 0; SourceIndex < PreviousSet.Count; SourceIndex++)
+            {
+                for (int TargetIndex = 0; TargetIndex < Segment.NextSet.Count; TargetIndex++)
+                {
+                    Statement.Edges.Add(new Edge
+                    {
+                        SourceId = PreviousSet[SourceIndex].Id,
+                        TargetId = Segment.NextSet[TargetIndex].Id,
+                        Type = Segment.Type,
+                        LineStyle = Segment.Style,
+                        Label = Segment.Label,
+                        MinRankSpan = Math.Min(FLOWCHART_MIN_RANK_SPAN_MAX, Math.Max(1, Segment.MinRankSpan))
+                    });
+                }
+            }
+
+            PreviousSet = Segment.NextSet;
+        }
+
+        return Statement;
+    }
 
     // Style directive: style NodeName fill:#color,stroke:#color
     static Parser<char, StyleDirective> styleDirective =
@@ -527,10 +618,9 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
                 continue;
             }
 
-            if (item is ValueTuple<List<Node>, List<(EdgeType Type, EdgeStyle Style, string? Label, int MinRankSpan)>> statement)
+            if (item is FlowchartStatement statement)
             {
-                List<Node> nodes = statement.Item1;
-                List<(EdgeType Type, EdgeStyle Style, string? Label, int MinRankSpan)> edges = statement.Item2;
+                List<Node> nodes = statement.Nodes;
 
                 for (var i = 0; i < nodes.Count; i++)
                 {
@@ -572,20 +662,11 @@ public class FlowchartParser : IDiagramParser<FlowchartModel>
                             classes.Add(inlineClassName);
                         }
                     }
+                }
 
-                    if (i < edges.Count)
-                    {
-                        var edge = edges[i];
-                        model.Edges.Add(new Edge
-                        {
-                            SourceId = nodes[i].Id,
-                            TargetId = nodes[i + 1].Id,
-                            Type = edge.Type,
-                            LineStyle = edge.Style,
-                            Label = edge.Label,
-                            MinRankSpan = Math.Min(FLOWCHART_MIN_RANK_SPAN_MAX, Math.Max(1, edge.MinRankSpan))
-                        });
-                    }
+                for (int EdgeIndex = 0; EdgeIndex < statement.Edges.Count; EdgeIndex++)
+                {
+                    model.Edges.Add(statement.Edges[EdgeIndex]);
                 }
             }
         }

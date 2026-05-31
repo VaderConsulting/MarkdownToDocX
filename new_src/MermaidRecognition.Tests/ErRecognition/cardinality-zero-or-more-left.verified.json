@@ -1,7 +1,41 @@
 {
   "Kind": "erDiagram",
-  "Nodes": [],
-  "Edges": [],
+  "Nodes": [
+    {
+      "Id": "ADDRESS",
+      "Label": "ADDRESS",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "ORDER",
+      "Label": "ORDER",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-ORDER-ADDRESS-0",
+      "IsUserDefinedId": false,
+      "SourceId": "ORDER",
+      "TargetId": "ADDRESS",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "ships to",
+      "ErLeftMarker": "}o",
+      "ErLink": "--",
+      "ErRightMarker": "||",
+      "ErRoleLabel": "ships to",
+      "Classes": []
+    }
+  ],
   "Groups": [],
   "LinkStyles": [],
   "ClassDefs": [],

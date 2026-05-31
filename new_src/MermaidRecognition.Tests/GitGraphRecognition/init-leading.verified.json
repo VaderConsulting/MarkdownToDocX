@@ -1,0 +1,37 @@
+{
+  "Kind": "gitGraph",
+  "Nodes": [
+    {
+      "Id": "a",
+      "Label": "a",
+      "LabelType": "Text",
+      "Shape": "commit",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "Config": {
+    "Raw": {
+      "theme": "base"
+    }
+  },
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "gitGraph.header",
+      "RawLine": "gitGraph"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "gitGraph.commit",
+      "RawLine": "    commit id: \"a\""
+    }
+  ]
+}

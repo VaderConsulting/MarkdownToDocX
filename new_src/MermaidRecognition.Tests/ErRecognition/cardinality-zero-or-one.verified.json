@@ -1,7 +1,41 @@
 {
   "Kind": "erDiagram",
-  "Nodes": [],
-  "Edges": [],
+  "Nodes": [
+    {
+      "Id": "EMPLOYEE",
+      "Label": "EMPLOYEE",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "PARKING-SPACE",
+      "Label": "PARKING-SPACE",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-EMPLOYEE-PARKING-SPACE-0",
+      "IsUserDefinedId": false,
+      "SourceId": "EMPLOYEE",
+      "TargetId": "PARKING-SPACE",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "uses",
+      "ErLeftMarker": "|o",
+      "ErLink": "--",
+      "ErRightMarker": "o|",
+      "ErRoleLabel": "uses",
+      "Classes": []
+    }
+  ],
   "Groups": [],
   "LinkStyles": [],
   "ClassDefs": [],

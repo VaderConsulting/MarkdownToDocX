@@ -766,14 +766,22 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
     /// <summary>
     /// Cylinder: Mermaid fill path, then stroke outline (top arcs 1→2, 2→1, sides, bottom).
     /// </summary>
-    static void RenderCylinderNode(SvgBuilder builder, Node node, double x, double y, string fill, string stroke, double strokeWidth)
+    static void RenderCylinderNode(
+        SvgBuilder builder,
+        Node node,
+        double x,
+        double y,
+        string fill,
+        string stroke,
+        double strokeWidth,
+        string? ShapeInlineStyle)
     {
 #pragma warning disable IDE0007
         string FillPath = ShapePathGenerator.FlowchartCylinderMermaidFillPath(x, y, node.Width, node.Height);
         string OutlinePath = ShapePathGenerator.FlowchartCylinderOutlinePath(x, y, node.Width, node.Height);
-        builder.AddPath(FillPath, fill: fill, stroke: "none");
+        builder.AddPath(FillPath, fill: fill, stroke: "none", style: ShapeInlineStyle);
         builder.AddPath(OutlinePath, fill: "none", stroke: stroke, strokeWidth: strokeWidth, cssClass: "node",
-            strokeLinejoin: "miter", strokeMiterlimit: 16);
+            strokeLinejoin: "miter", strokeMiterlimit: 16, style: ShapeInlineStyle);
 #pragma warning restore IDE0007
     }
 
@@ -781,7 +789,15 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
     /// Asymmetric flag: fill the body as one path, then draw each visible edge as an explicit stroke.
     /// This avoids Word leaving the two left corners open when stroking the concave outline as one path.
     /// </summary>
-    static void RenderAsymmetricNode(SvgBuilder builder, Node node, double x, double y, string fill, string stroke, double strokeWidth)
+    static void RenderAsymmetricNode(
+        SvgBuilder builder,
+        Node node,
+        double x,
+        double y,
+        string fill,
+        string stroke,
+        double strokeWidth,
+        string? ShapeInlineStyle)
     {
 #pragma warning disable IDE0007
         double HalfHeight = node.Height / 2.0;
@@ -794,7 +810,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         double CornerPatchRadius = Math.Max(0.75, strokeWidth * 0.9);
         string FillPath = ShapePathGenerator.GetPath(node.Shape, x, y, node.Width, node.Height);
 #pragma warning restore IDE0007
-        builder.AddPath(FillPath, fill: fill, stroke: "none");
+        builder.AddPath(FillPath, fill: fill, stroke: "none", style: ShapeInlineStyle);
         builder.AddLine(LeftX, TopY, RightX, TopY, stroke: stroke, strokeWidth: strokeWidth, strokeLinecap: "square");
         builder.AddLine(RightX, TopY, RightX, BottomY, stroke: stroke, strokeWidth: strokeWidth, strokeLinecap: "square");
         builder.AddLine(RightX, BottomY, LeftX, BottomY, stroke: stroke, strokeWidth: strokeWidth, strokeLinecap: "square");
@@ -825,15 +841,16 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         string fill = node.Style.Fill ?? nodeFill;
         string stroke = node.Style.Stroke ?? nodeStroke;
         double strokeWidth = node.Style.StrokeWidth ?? 1.0;
+        string? ShapeInlineStyle = TryGetNodeShapeInlineStyle(node);
 #pragma warning restore IDE0007
 
         if (node.Shape == NodeShape.Cylinder)
         {
-            RenderCylinderNode(builder, node, x, y, fill, stroke, strokeWidth);
+            RenderCylinderNode(builder, node, x, y, fill, stroke, strokeWidth, ShapeInlineStyle);
         }
         else if (node.Shape == NodeShape.Asymmetric)
         {
-            RenderAsymmetricNode(builder, node, x, y, fill, stroke, strokeWidth);
+            RenderAsymmetricNode(builder, node, x, y, fill, stroke, strokeWidth, ShapeInlineStyle);
         }
         else
         {
@@ -846,7 +863,8 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
                 strokeWidth: strokeWidth,
                 cssClass: "node",
                 strokeLinejoin: "miter",
-                strokeMiterlimit: 16);
+                strokeMiterlimit: 16,
+                style: ShapeInlineStyle);
         }
 
         // Render label with icon support
@@ -943,11 +961,25 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             _ => edge.HasArrowTail ? (useNeoLook ? "url(#mermaid-svg_flowchart-v2-pointStart-margin)" : "url(#mermaid-svg_flowchart-v2-pointStart)") : null
         };
 
+        // If the edge stroke colour is overridden (for example via `linkStyle`), arrowhead markers must follow suit.
+        // Mermaid renders arrowheads with the same stroke/fill colour as the connector.
+        if (!string.IsNullOrWhiteSpace(edge.Style.Stroke))
+        {
+            string markerColour = edge.Style.Stroke!;
+            builder.EnsureMermaidFlowchartV2PointMarkers(markerColour);
+            markerEnd = TintFlowchartV2PointMarkerUrl(markerEnd, markerColour);
+            markerStart = TintFlowchartV2PointMarkerUrl(markerStart, markerColour);
+        }
+
         if (edge.Type is EdgeType.CrossEnd or EdgeType.BiDirectionalCross)
         {
             var StartGapPx = edge.Type == EdgeType.BiDirectionalCross ? CrossStrokeGapPx : 0.0;
             var TrimmedPoints = TrimPointsForCrossVisibleStroke(pointsForPath, StartGapPx, CrossStrokeGapPx);
             var VisiblePathData = BuildFlowchartEdgePath(TrimmedPoints, edge, edgeCurveType, model, sourceNode, targetNode, diagramDirection);
+
+            // Edge-specific styles (for example `linkStyle`) must be applied as inline `style` so they override
+            // the diagram CSS class rules (for example `.flowchart-link{stroke:#333}`).
+            string? InlineStyle = string.IsNullOrWhiteSpace(edge.Style.ToCss()) ? null : edge.Style.ToCss();
 
             builder.AddPath(
                 VisiblePathData,
@@ -955,7 +987,8 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
                 stroke: stroke,
                 strokeWidth: strokeWidth,
                 strokeDasharray: strokeDasharray,
-                cssClass: "flowchart-link");
+                cssClass: "flowchart-link",
+                style: InlineStyle);
 
             builder.AddPath(
                 pathData,
@@ -968,6 +1001,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         }
         else
         {
+            string? InlineStyle = string.IsNullOrWhiteSpace(edge.Style.ToCss()) ? null : edge.Style.ToCss();
             builder.AddPath(pathData,
                 fill: "none",
                 stroke: stroke,
@@ -975,7 +1009,8 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
                 strokeDasharray: strokeDasharray,
                 markerEnd: markerEnd,
                 markerStart: markerStart,
-                cssClass: "flowchart-link");
+                cssClass: "flowchart-link",
+                style: InlineStyle);
         }
 
         // Render edge label if present
@@ -1008,6 +1043,61 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
                 fontSizePx: options.FontSize,
                 opticalVerticalBiasEm: flowchartLabelOpticalBiasEm);
         }
+    }
+
+    static string? TintFlowchartV2PointMarkerUrl(string? markerUrl, string colour)
+    {
+        if (string.IsNullOrWhiteSpace(markerUrl))
+        {
+            return markerUrl;
+        }
+
+        // Only tint point markers (arrowheads). Circle/cross markers are handled separately.
+        if (!markerUrl.Contains("mermaid-svg_flowchart-v2-point", StringComparison.Ordinal))
+        {
+            return markerUrl;
+        }
+
+        int hashIndex = markerUrl.IndexOf('#');
+        int closeIndex = markerUrl.IndexOf(')', hashIndex + 1);
+        if (hashIndex < 0 || closeIndex < 0)
+        {
+            return markerUrl;
+        }
+
+        string id = markerUrl.Substring(hashIndex + 1, closeIndex - hashIndex - 1);
+        string suffix = colour.Trim();
+        if (suffix.StartsWith('#'))
+        {
+            suffix = suffix[1..];
+        }
+
+        // Keep only hex digits to match SvgBuilder.SanitiseMarkerSuffix.
+        Span<char> buffer = stackalloc char[suffix.Length];
+        int count = 0;
+        for (int i = 0; i < suffix.Length; i++)
+        {
+            char c = suffix[i];
+            bool isHex =
+                (c >= '0' && c <= '9')
+                || (c >= 'a' && c <= 'f')
+                || (c >= 'A' && c <= 'F');
+            if (!isHex)
+            {
+                continue;
+            }
+
+            buffer[count] = char.ToLowerInvariant(c);
+            count++;
+        }
+
+        if (count == 0)
+        {
+            return markerUrl;
+        }
+
+        string tintedId = id + "--" + new string(buffer[..count]);
+        return "url(#" + tintedId + ")";
     }
 
     static MermaidSharp.Models.Rect ComputeFlowchartContentBounds(FlowchartModel model, RenderOptions options)
@@ -1043,6 +1133,9 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             double top = node.Position.Y - node.Height / 2.0;
             double right = node.Position.X + node.Width / 2.0;
             double bottom = node.Position.Y + node.Height / 2.0;
+            double HorizontalOutsetPx = ShapePathGenerator.GetHorizontalShapeOutsetPx(node.Shape, node.Height);
+            left -= HorizontalOutsetPx;
+            right += HorizontalOutsetPx;
             AddBounds(left, top, right, bottom);
         }
 
@@ -1125,7 +1218,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
 
         if (OffsetPoints.Count == 2)
         {
-            return BuildFlowchartGuidedCurveBasisPath(OffsetPoints[0], OffsetPoints[1]);
+            return BuildFlowchartLinearPath(OffsetPoints);
         }
 
         return null;
@@ -1359,6 +1452,20 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             bool UseMarginCurve = model is not null
                 && MermaidSharp.Layout.CoordinateAssignment.IsFlowchartTbTerminalCollectorMarginEdge(model, edge);
             return BuildFlowchartTbStadiumMergeCurveBasisPath(OffsetLineData, UseMarginCurve);
+        }
+
+        if (model is not null
+            && MermaidSharp.Layout.CoordinateAssignment.IsFlowchartTbTwoByTwoCompleteBipartiteDiagram(model)
+            && LineData.Count >= 2)
+        {
+            List<Position> OffsetTwoByTwoEndpoints = ApplyLineWithOffset(
+                new List<Position> { LineData[0], LineData[^1] },
+                ArrowTypeStart,
+                ArrowTypeEnd);
+            if (OffsetTwoByTwoEndpoints.Count >= 2)
+            {
+                return BuildFlowchartLinearPath(OffsetTwoByTwoEndpoints);
+            }
         }
 
         if (ShouldUseHubFanGuidedCurve(edge, sourceNode, targetNode, model, diagramDirection, LineData)
@@ -3816,6 +3923,11 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
             return false;
         }
 
+        if (MermaidSharp.Layout.CoordinateAssignment.IsFlowchartTbTwoByTwoCompleteBipartiteDiagram(model))
+        {
+            return false;
+        }
+
         bool BottomToTop = diagramDirection == Direction.BottomToTop;
         int outgoingCount = 0;
         bool allTargetsOnFanOutSide = true;
@@ -4217,6 +4329,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         foreach (Node node in model.Nodes)
         {
             MermaidSharp.Models.Style effective = new MermaidSharp.Models.Style();
+            MergeStyle(effective, node.Style);
 
             if (model.ClassesByNodeId.TryGetValue(node.Id, out List<string>? classNames))
             {
@@ -4249,15 +4362,45 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
 #pragma warning restore IDE0007
     }
 
+    static string? TryGetNodeShapeInlineStyle(Node node)
+    {
+        string Css = node.Style.ToCss();
+        if (string.IsNullOrWhiteSpace(Css))
+        {
+            return null;
+        }
+
+        return Css;
+    }
+
+    static string? NormalizeCssColor(string? Value)
+    {
+        if (string.IsNullOrWhiteSpace(Value))
+        {
+            return Value;
+        }
+
+        string Trimmed = Value.Trim();
+        if (Trimmed.Length == 4 && Trimmed[0] == '#')
+        {
+            char Red = Trimmed[1];
+            char Green = Trimmed[2];
+            char Blue = Trimmed[3];
+            return "#" + Red + Red + Green + Green + Blue + Blue;
+        }
+
+        return Trimmed;
+    }
+
     static void MergeStyle(MermaidSharp.Models.Style target, MermaidSharp.Models.Style source)
     {
         if (source.Fill is not null)
         {
-            target.Fill = source.Fill;
+            target.Fill = NormalizeCssColor(source.Fill);
         }
         if (source.Stroke is not null)
         {
-            target.Stroke = source.Stroke;
+            target.Stroke = NormalizeCssColor(source.Stroke);
         }
         if (source.StrokeWidth.HasValue)
         {
@@ -4281,7 +4424,7 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
         }
         if (source.TextColor is not null)
         {
-            target.TextColor = source.TextColor;
+            target.TextColor = NormalizeCssColor(source.TextColor);
         }
     }
 }

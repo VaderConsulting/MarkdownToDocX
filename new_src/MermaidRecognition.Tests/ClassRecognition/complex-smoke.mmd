@@ -1,0 +1,44 @@
+classDiagram
+    class IRepository~T~ {
+        <<interface>>
+        +get(id: int) T
+        +save(entity: T) void
+        +delete(id: int) void
+    }
+    class UserRepository {
+        +get(id: int) User
+    }
+    class AbstractEntity {
+        <<abstract>>
+        #int id
+        +getId() int
+    }
+    class UserService {
+        <<service>>
+        -UserRepository repository
+        +createUser(name: String) User
+    }
+    class Status {
+        <<enumeration>>
+        ACTIVE
+        INACTIVE
+    }
+    class User {
+        +String name
+        +validate()$ bool
+    }
+    class Address {
+        +String city
+    }
+    class Order {
+        +int orderId
+    }
+    class Item {
+        +String name
+    }
+    IRepository~T~ <|.. UserRepository : implements
+    AbstractEntity <|-- User : extends
+    UserService ..> UserRepository : uses
+    User "1" --> "1..*" Address : has
+    User "1" o-- "*" Order : places
+    Order "1" *-- "1..*" Item : contains

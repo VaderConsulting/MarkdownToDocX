@@ -1,11 +1,54 @@
 <Solution>
+
   <Folder Name="/extern/" />
+
   <Folder Name="/extern/Naiad/" />
+
   <Folder Name="/extern/Naiad/src/">
+
     <Project Path="extern/Naiad/src/Naiad/Naiad.csproj" />
+
   </Folder>
+
+  <Folder Name="/legacy/" />
+
+  <Folder Name="/legacy/src/">
+
+    <Project Path="src/md2docx/md2docx.csproj" />
+
+    <Project Path="src/MDConverter/MDConverter.csproj" />
+
+  </Folder>
+
+  <Folder Name="/legacy/tests/">
+
+    <Project Path="tests/MDConverter.Tests/MDConverter.Tests.csproj" />
+
+  </Folder>
+
+  <Folder Name="/new_src/" />
+
+  <Folder Name="/new_src/MermaidRecognition/">
+
+    <Project Path="new_src/MermaidRecognition/MermaidRecognition.csproj" />
+
+  </Folder>
+
+  <Folder Name="/new_src/MermaidRecognition.NaiadAdapter/">
+
+    <Project Path="new_src/MermaidRecognition.NaiadAdapter/MermaidRecognition.NaiadAdapter.csproj" />
+
+  </Folder>
+
+  <Folder Name="/new_src/tests/">
+
+    <Project Path="new_src/MermaidRecognition.Tests/MermaidRecognition.Tests.csproj" />
+
+    <Project Path="new_src/MermaidRecognition.NaiadAdapter.Tests/MermaidRecognition.NaiadAdapter.Tests.csproj" />
+
+  </Folder>
+
   <Project Path="Converter/Converter.csproj" Id="3b21be3a-b3be-4784-add0-bdd588cad341" />
-  <Project Path="src/md2docx/md2docx.csproj" />
-  <Project Path="src/MDConverter/MDConverter.csproj" />
-  <Project Path="tests/MDConverter.Tests/MDConverter.Tests.csproj" />
+
 </Solution>
+

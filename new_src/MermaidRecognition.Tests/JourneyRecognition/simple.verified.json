@@ -1,0 +1,37 @@
+{
+  "Kind": "journey",
+  "Nodes": [],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "journey.header",
+      "RawLine": "journey"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "journey.title",
+      "RawLine": "    title My Working Day"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "journey.section",
+      "RawLine": "    section Morning"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "journey.task",
+      "RawLine": "        Make coffee: 5: Me"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "journey.task",
+      "RawLine": "        Check emails: 3: Me"
+    }
+  ]
+}

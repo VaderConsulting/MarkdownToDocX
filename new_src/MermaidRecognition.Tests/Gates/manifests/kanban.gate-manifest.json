@@ -1,0 +1,6 @@
+{
+  "DiagramKind": "kanban",
+  "GateLevel": "L1",
+  "FixtureDirectory": "KanbanRecognition",
+  "Fixtures": ["simple"]
+}

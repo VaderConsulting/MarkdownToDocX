@@ -1,0 +1,154 @@
+{
+  "Kind": "erDiagram",
+  "Nodes": [
+    {
+      "Id": "COURSE",
+      "Label": "COURSE",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": [
+        "int id PK",
+        "string title"
+      ]
+    },
+    {
+      "Id": "ENROLLMENT",
+      "Label": "ENROLLMENT",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": [
+        "int student_id FK",
+        "int course_id FK"
+      ]
+    },
+    {
+      "Id": "STUDENT",
+      "Label": "STUDENT",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": [
+        "int id PK",
+        "string name"
+      ]
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-STUDENT-ENROLLMENT-0",
+      "IsUserDefinedId": false,
+      "SourceId": "STUDENT",
+      "TargetId": "ENROLLMENT",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "has",
+      "ErLeftMarker": "}o",
+      "ErLink": "--",
+      "ErRightMarker": "o{",
+      "ErRoleLabel": "has",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 1,
+      "Id": "L-COURSE-ENROLLMENT-1",
+      "IsUserDefinedId": false,
+      "SourceId": "COURSE",
+      "TargetId": "ENROLLMENT",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "includes",
+      "ErLeftMarker": "||",
+      "ErLink": "--",
+      "ErRightMarker": "o{",
+      "ErRoleLabel": "includes",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "erDiagram.header",
+      "RawLine": "erDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "erDiagram.relationship",
+      "RawLine": "    STUDENT }o--o{ ENROLLMENT : has"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "erDiagram.relationship",
+      "RawLine": "    COURSE ||--o{ ENROLLMENT : includes"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "erDiagram.entityBlockOpen",
+      "RawLine": "    STUDENT {"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        int id PK"
+    },
+    {
+      "LineNumber": 6,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        string name"
+    },
+    {
+      "LineNumber": 7,
+      "LineTypeId": "erDiagram.entityBlockClose",
+      "RawLine": "    }"
+    },
+    {
+      "LineNumber": 8,
+      "LineTypeId": "erDiagram.entityBlockOpen",
+      "RawLine": "    COURSE {"
+    },
+    {
+      "LineNumber": 9,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        int id PK"
+    },
+    {
+      "LineNumber": 10,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        string title"
+    },
+    {
+      "LineNumber": 11,
+      "LineTypeId": "erDiagram.entityBlockClose",
+      "RawLine": "    }"
+    },
+    {
+      "LineNumber": 12,
+      "LineTypeId": "erDiagram.entityBlockOpen",
+      "RawLine": "    ENROLLMENT {"
+    },
+    {
+      "LineNumber": 13,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        int student_id FK"
+    },
+    {
+      "LineNumber": 14,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        int course_id FK"
+    },
+    {
+      "LineNumber": 15,
+      "LineTypeId": "erDiagram.entityBlockClose",
+      "RawLine": "    }"
+    }
+  ]
+}

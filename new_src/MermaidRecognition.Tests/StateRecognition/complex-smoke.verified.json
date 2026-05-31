@@ -1,0 +1,378 @@
+{
+  "Kind": "stateDiagram",
+  "Nodes": [
+    {
+      "Id": "Error",
+      "Label": "Error",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Idle",
+      "Label": "Idle",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Processing",
+      "Label": "Processing State",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Success",
+      "Label": "Success",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "TaskA",
+      "Label": "TaskA",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "TaskB",
+      "Label": "TaskB",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "choice_state",
+      "Label": "choice_state",
+      "LabelType": "Text",
+      "Shape": "choice",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "end2",
+      "Label": "end2",
+      "LabelType": "Text",
+      "Shape": "end",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "fork_state",
+      "Label": "fork_state",
+      "LabelType": "Text",
+      "Shape": "fork",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "join_state",
+      "Label": "join_state",
+      "LabelType": "Text",
+      "Shape": "join",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "note-0",
+      "Label": "This is a processing note",
+      "LabelType": "Text",
+      "Shape": "note",
+      "StateNotePlacement": "right",
+      "StateNoteAnchor": "Processing",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "note-1",
+      "Label": "Error handling",
+      "LabelType": "Text",
+      "Shape": "note",
+      "StateNotePlacement": "left",
+      "StateNoteAnchor": "Error",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "start1",
+      "Label": "start1",
+      "LabelType": "Text",
+      "Shape": "start",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-start1-Idle-0",
+      "IsUserDefinedId": false,
+      "SourceId": "start1",
+      "TargetId": "Idle",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 1,
+      "Id": "L-Idle-Processing-1",
+      "IsUserDefinedId": false,
+      "SourceId": "Idle",
+      "TargetId": "Processing",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "start",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 2,
+      "Id": "L-Processing-fork_state-2",
+      "IsUserDefinedId": false,
+      "SourceId": "Processing",
+      "TargetId": "fork_state",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 3,
+      "Id": "L-fork_state-TaskA-3",
+      "IsUserDefinedId": false,
+      "SourceId": "fork_state",
+      "TargetId": "TaskA",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 4,
+      "Id": "L-fork_state-TaskB-4",
+      "IsUserDefinedId": false,
+      "SourceId": "fork_state",
+      "TargetId": "TaskB",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 5,
+      "Id": "L-TaskA-join_state-5",
+      "IsUserDefinedId": false,
+      "SourceId": "TaskA",
+      "TargetId": "join_state",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 6,
+      "Id": "L-TaskB-join_state-6",
+      "IsUserDefinedId": false,
+      "SourceId": "TaskB",
+      "TargetId": "join_state",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 7,
+      "Id": "L-join_state-choice_state-7",
+      "IsUserDefinedId": false,
+      "SourceId": "join_state",
+      "TargetId": "choice_state",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 8,
+      "Id": "L-choice_state-Success-8",
+      "IsUserDefinedId": false,
+      "SourceId": "choice_state",
+      "TargetId": "Success",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "if valid",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 9,
+      "Id": "L-choice_state-Error-9",
+      "IsUserDefinedId": false,
+      "SourceId": "choice_state",
+      "TargetId": "Error",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "if invalid",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 10,
+      "Id": "L-Success-Idle-10",
+      "IsUserDefinedId": false,
+      "SourceId": "Success",
+      "TargetId": "Idle",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "reset",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 11,
+      "Id": "L-Error-Idle-11",
+      "IsUserDefinedId": false,
+      "SourceId": "Error",
+      "TargetId": "Idle",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "retry",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 12,
+      "Id": "L-Success-end2-12",
+      "IsUserDefinedId": false,
+      "SourceId": "Success",
+      "TargetId": "end2",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "complete",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "stateDiagram.header",
+      "RawLine": "stateDiagram-v2"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    [*] --> Idle"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "stateDiagram.state",
+      "RawLine": "    state \"Processing State\" as Processing"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "stateDiagram.state",
+      "RawLine": "    state fork_state <<fork>>"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "stateDiagram.state",
+      "RawLine": "    state join_state <<join>>"
+    },
+    {
+      "LineNumber": 6,
+      "LineTypeId": "stateDiagram.state",
+      "RawLine": "    state choice_state <<choice>>"
+    },
+    {
+      "LineNumber": 7,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    Idle --> Processing : start"
+    },
+    {
+      "LineNumber": 8,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    Processing --> fork_state"
+    },
+    {
+      "LineNumber": 9,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    fork_state --> TaskA"
+    },
+    {
+      "LineNumber": 10,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    fork_state --> TaskB"
+    },
+    {
+      "LineNumber": 11,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    TaskA --> join_state"
+    },
+    {
+      "LineNumber": 12,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    TaskB --> join_state"
+    },
+    {
+      "LineNumber": 13,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    join_state --> choice_state"
+    },
+    {
+      "LineNumber": 14,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    choice_state --> Success : if valid"
+    },
+    {
+      "LineNumber": 15,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    choice_state --> Error : if invalid"
+    },
+    {
+      "LineNumber": 16,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    Success --> Idle : reset"
+    },
+    {
+      "LineNumber": 17,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    Error --> Idle : retry"
+    },
+    {
+      "LineNumber": 18,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    Success --> [*] : complete"
+    },
+    {
+      "LineNumber": 19,
+      "LineTypeId": "stateDiagram.note",
+      "RawLine": "    note right of Processing : This is a processing note"
+    },
+    {
+      "LineNumber": 20,
+      "LineTypeId": "stateDiagram.note",
+      "RawLine": "    note left of Error : Error handling"
+    }
+  ]
+}

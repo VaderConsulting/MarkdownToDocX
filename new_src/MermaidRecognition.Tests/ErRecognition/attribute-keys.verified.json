@@ -1,0 +1,80 @@
+{
+  "Kind": "erDiagram",
+  "Nodes": [
+    {
+      "Id": "CUSTOMER",
+      "Label": "CUSTOMER",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": [
+        "int id PK",
+        "string email UK"
+      ]
+    },
+    {
+      "Id": "ORDER",
+      "Label": "ORDER",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": [
+        "int id PK",
+        "int customer_id FK"
+      ]
+    }
+  ],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "erDiagram.header",
+      "RawLine": "erDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "erDiagram.entityBlockOpen",
+      "RawLine": "    CUSTOMER {"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        int id PK"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        string email UK"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "erDiagram.entityBlockClose",
+      "RawLine": "    }"
+    },
+    {
+      "LineNumber": 6,
+      "LineTypeId": "erDiagram.entityBlockOpen",
+      "RawLine": "    ORDER {"
+    },
+    {
+      "LineNumber": 7,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        int id PK"
+    },
+    {
+      "LineNumber": 8,
+      "LineTypeId": "erDiagram.attribute",
+      "RawLine": "        int customer_id FK"
+    },
+    {
+      "LineNumber": 9,
+      "LineTypeId": "erDiagram.entityBlockClose",
+      "RawLine": "    }"
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "Kind": "pie",
+  "Nodes": [
+    {
+      "Id": "slice-0",
+      "Label": "Cats",
+      "LabelType": "Text",
+      "Shape": "slice",
+      "ShapeSource": "pie",
+      "PieValue": "45",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "Config": {
+    "Raw": {
+      "pie.showData": "true",
+      "pie.title": "Pets"
+    }
+  },
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "pie.header",
+      "RawLine": "pie showData"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "pie.title",
+      "RawLine": "    title Pets"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "pie.section",
+      "RawLine": "    \"Cats\" : 45"
+    }
+  ]
+}

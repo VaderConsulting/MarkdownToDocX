@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\extern\Naiad\src\Naiad\Naiad.csproj" />
+    <ProjectReference Include="..\..\new_src\MermaidRecognition\MermaidRecognition.csproj" />
   </ItemGroup>
 
   <ItemGroup>

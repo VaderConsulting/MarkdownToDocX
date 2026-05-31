@@ -1,0 +1,6 @@
+{
+  "DiagramKind": "architecture",
+  "GateLevel": "L1",
+  "FixtureDirectory": "ArchitectureRecognition",
+  "Fixtures": ["simple"]
+}

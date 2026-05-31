@@ -1,7 +1,41 @@
 {
   "Kind": "erDiagram",
-  "Nodes": [],
-  "Edges": [],
+  "Nodes": [
+    {
+      "Id": "A",
+      "Label": "A",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "B",
+      "Label": "B",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-A-B-0",
+      "IsUserDefinedId": false,
+      "SourceId": "A",
+      "TargetId": "B",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "optional",
+      "ErLeftMarker": "}o",
+      "ErLink": "..",
+      "ErRightMarker": "||",
+      "ErRoleLabel": "optional",
+      "Classes": []
+    }
+  ],
   "Groups": [],
   "LinkStyles": [],
   "ClassDefs": [],

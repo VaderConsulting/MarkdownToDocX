@@ -1,0 +1,66 @@
+{
+  "Kind": "flowchart",
+  "Direction": "TopToBottom",
+  "Nodes": [
+    {
+      "Id": "A",
+      "Label": "A",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "B",
+      "Label": "B",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "C",
+      "Label": "C",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "e1",
+      "IsUserDefinedId": true,
+      "SourceId": "A",
+      "TargetId": "B",
+      "MinLength": 1,
+      "Stroke": "normal",
+      "MarkerStart": "None",
+      "MarkerEnd": "Point",
+      "Curve": "basis",
+      "MetadataCurve": "basis",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 1,
+      "Id": "uniqueName",
+      "IsUserDefinedId": true,
+      "SourceId": "A",
+      "TargetId": "C",
+      "MinLength": 1,
+      "Stroke": "normal",
+      "MarkerStart": "None",
+      "MarkerEnd": "Point",
+      "Curve": "cardinal",
+      "MetadataCurve": "cardinal",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": []
+}

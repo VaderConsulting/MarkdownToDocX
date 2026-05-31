@@ -3725,9 +3725,11 @@ static class CoordinateAssignment
 
             if (IsFlowchartVerticalHubFanInEdge(diagram, Edge)
                 || IsFlowchartVerticalHubFanOutEdge(diagram, Edge)
+                || IsFlowchartTbTwoByTwoCompleteBipartiteEdge(diagram, Edge)
                 || IsFlowchartLrSideFanInEdge(diagram, Edge)
                 || IsFlowchartLrSideFanOutEdge(diagram, Edge)
                 || IsFlowchartTbMultiIncomingDiamondEdge(diagram, Edge)
+                || IsFlowchartLabelledDecisionBranchEdge(diagram, Edge)
                 || TryGetFlowchartTbStadiumMergeEndpoints(diagram, Edge, out _, out _)
                 || TryGetFlowchartTbTerminalCollectorEndpoints(diagram, Edge, out _))
             {
@@ -3813,6 +3815,300 @@ static class CoordinateAssignment
         ApplyFlowchartBtForwardStackedColumnEndpointSnapping(diagram);
         ApplyFlowchartTbMultiIncomingDiamondEndpointSnapping(diagram);
         ApplyFlowchartDecisionBranchEndpointSnapping(diagram);
+        ApplyFlowchartTbTwoByTwoCompleteBipartiteEndpointSnapping(diagram);
+    }
+
+    /// <summary>
+    /// TB/BT topology: two source ranks above two target ranks with a full 2×2 edge set (grouped <c>&amp;</c> expansion).
+    /// </summary>
+    internal static bool IsFlowchartTbTwoByTwoCompleteBipartiteDiagram(MermaidSharp.Diagrams.Flowchart.FlowchartModel diagram)
+    {
+#pragma warning disable IDE0007
+        return TryGetFlowchartTbTwoByTwoCompleteBipartite(
+            diagram,
+            out _,
+            out _,
+            out _,
+            out _);
+#pragma warning restore IDE0007
+    }
+
+    static bool TryGetFlowchartTbTwoByTwoCompleteBipartite(
+        MermaidSharp.Diagrams.Flowchart.FlowchartModel diagram,
+        out MermaidSharp.Models.Node leftSource,
+        out MermaidSharp.Models.Node rightSource,
+        out MermaidSharp.Models.Node leftTarget,
+        out MermaidSharp.Models.Node rightTarget)
+    {
+#pragma warning disable IDE0007
+        leftSource = null!;
+        rightSource = null!;
+        leftTarget = null!;
+        rightTarget = null!;
+
+        if (diagram.Direction is not MermaidSharp.Models.Direction.TopToBottom
+            and not MermaidSharp.Models.Direction.BottomToTop)
+        {
+            return false;
+        }
+
+        if (diagram.Edges.Count != 4 || diagram.Nodes.Count != 4)
+        {
+            return false;
+        }
+
+        Dictionary<string, int> incomingById = new Dictionary<string, int>(StringComparer.Ordinal);
+        Dictionary<string, int> outgoingById = new Dictionary<string, int>(StringComparer.Ordinal);
+        HashSet<(string SourceId, string TargetId)> edgePairs = new HashSet<(string, string)>();
+
+        for (int EdgeIndex = 0; EdgeIndex < diagram.Edges.Count; EdgeIndex++)
+        {
+            MermaidSharp.Models.Edge Edge = diagram.Edges[EdgeIndex];
+            if (!string.IsNullOrWhiteSpace(Edge.Label))
+            {
+                return false;
+            }
+
+            edgePairs.Add((Edge.SourceId, Edge.TargetId));
+
+            if (!outgoingById.TryGetValue(Edge.SourceId, out int OutCount))
+            {
+                OutCount = 0;
+            }
+            outgoingById[Edge.SourceId] = OutCount + 1;
+
+            if (!incomingById.TryGetValue(Edge.TargetId, out int InCount))
+            {
+                InCount = 0;
+            }
+            incomingById[Edge.TargetId] = InCount + 1;
+        }
+
+        List<MermaidSharp.Models.Node> sources = new List<MermaidSharp.Models.Node>();
+        List<MermaidSharp.Models.Node> targets = new List<MermaidSharp.Models.Node>();
+        for (int NodeIndex = 0; NodeIndex < diagram.Nodes.Count; NodeIndex++)
+        {
+            MermaidSharp.Models.Node Node = diagram.Nodes[NodeIndex];
+            incomingById.TryGetValue(Node.Id, out int In);
+            outgoingById.TryGetValue(Node.Id, out int Out);
+
+            if (In == 0 && Out == 2)
+            {
+                sources.Add(Node);
+            }
+            else if (Out == 0 && In == 2)
+            {
+                targets.Add(Node);
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        if (sources.Count != 2 || targets.Count != 2)
+        {
+            return false;
+        }
+
+        sources.Sort((L, R) => L.Position.X.CompareTo(R.Position.X));
+        targets.Sort((L, R) => L.Position.X.CompareTo(R.Position.X));
+
+        leftSource = sources[0];
+        rightSource = sources[1];
+        leftTarget = targets[0];
+        rightTarget = targets[1];
+
+        for (int SourceIndex = 0; SourceIndex < sources.Count; SourceIndex++)
+        {
+            for (int TargetIndex = 0; TargetIndex < targets.Count; TargetIndex++)
+            {
+                if (!edgePairs.Contains((sources[SourceIndex].Id, targets[TargetIndex].Id)))
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// Routes 2×2 complete bipartite TB graphs (grouped vertex Cartesian expansion, F61): vertical same-column
+    /// drops from bottom-centre to top-centre, and straight cross-column diagonals from source corner to target corner
+    /// (SE→NW and SW→NE in TB).
+    /// </summary>
+    static void ApplyFlowchartTbTwoByTwoCompleteBipartiteEndpointSnapping(MermaidSharp.Diagrams.Flowchart.FlowchartModel diagram)
+    {
+#pragma warning disable IDE0007
+        if (!TryGetFlowchartTbTwoByTwoCompleteBipartite(
+                diagram,
+                out MermaidSharp.Models.Node leftSource,
+                out MermaidSharp.Models.Node rightSource,
+                out MermaidSharp.Models.Node leftTarget,
+                out MermaidSharp.Models.Node rightTarget))
+        {
+            return;
+        }
+
+        bool bottomToTop = diagram.Direction == MermaidSharp.Models.Direction.BottomToTop;
+        ApplyFlowchartTbTwoByTwoCompleteBipartiteRoutesForSource(
+            diagram,
+            leftSource,
+            leftTarget,
+            rightTarget,
+            bottomToTop);
+        ApplyFlowchartTbTwoByTwoCompleteBipartiteRoutesForSource(
+            diagram,
+            rightSource,
+            leftTarget,
+            rightTarget,
+            bottomToTop);
+#pragma warning restore IDE0007
+    }
+
+    static void ApplyFlowchartTbTwoByTwoCompleteBipartiteRoutesForSource(
+        MermaidSharp.Diagrams.Flowchart.FlowchartModel diagram,
+        MermaidSharp.Models.Node sourceNode,
+        MermaidSharp.Models.Node leftTarget,
+        MermaidSharp.Models.Node rightTarget,
+        bool bottomToTop)
+    {
+#pragma warning disable IDE0007
+        MermaidSharp.Models.Edge? toLeft = null;
+        MermaidSharp.Models.Edge? toRight = null;
+        for (int EdgeIndex = 0; EdgeIndex < diagram.Edges.Count; EdgeIndex++)
+        {
+            MermaidSharp.Models.Edge Edge = diagram.Edges[EdgeIndex];
+            if (!string.Equals(Edge.SourceId, sourceNode.Id, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (string.Equals(Edge.TargetId, leftTarget.Id, StringComparison.Ordinal))
+            {
+                toLeft = Edge;
+            }
+            else if (string.Equals(Edge.TargetId, rightTarget.Id, StringComparison.Ordinal))
+            {
+                toRight = Edge;
+            }
+        }
+
+        if (toLeft is null || toRight is null)
+        {
+            return;
+        }
+
+        bool sourceIsLeftColumn = sourceNode.Position.X <= leftTarget.Position.X + 0.01;
+        MermaidSharp.Models.Edge parallelEdge = sourceIsLeftColumn ? toLeft : toRight;
+        MermaidSharp.Models.Node parallelTarget = sourceIsLeftColumn ? leftTarget : rightTarget;
+        MermaidSharp.Models.Edge crossEdge = sourceIsLeftColumn ? toRight : toLeft;
+        MermaidSharp.Models.Node crossTarget = sourceIsLeftColumn ? rightTarget : leftTarget;
+
+        BuildFlowchartTbTwoByTwoVerticalColumnPoints(
+            sourceNode,
+            parallelTarget,
+            bottomToTop,
+            parallelEdge.Points);
+        BuildFlowchartTbTwoByTwoCrossDiagonalPoints(
+            sourceNode,
+            crossTarget,
+            bottomToTop,
+            crossEdge.Points);
+#pragma warning restore IDE0007
+    }
+
+    static void BuildFlowchartTbTwoByTwoVerticalColumnPoints(
+        MermaidSharp.Models.Node sourceNode,
+        MermaidSharp.Models.Node targetNode,
+        bool bottomToTop,
+        List<MermaidSharp.Models.Position> points)
+    {
+#pragma warning disable IDE0007
+        double exitY = bottomToTop
+            ? sourceNode.Position.Y - (sourceNode.Height / 2.0) - FlowchartEdgeNodeGap
+            : sourceNode.Position.Y + (sourceNode.Height / 2.0) + FlowchartEdgeNodeGap;
+        double targetAttachY = bottomToTop
+            ? targetNode.Position.Y + (targetNode.Height / 2.0) + FlowchartEdgeNodeGap
+            : targetNode.Position.Y - (targetNode.Height / 2.0) - FlowchartEdgeNodeGap;
+
+        points.Clear();
+        points.Add(new MermaidSharp.Models.Position(sourceNode.Position.X, exitY));
+        points.Add(new MermaidSharp.Models.Position(targetNode.Position.X, targetAttachY));
+#pragma warning restore IDE0007
+    }
+
+    static void GetFlowchartTbTwoByTwoCrossCornerAttachPoints(
+        MermaidSharp.Models.Node sourceNode,
+        MermaidSharp.Models.Node targetNode,
+        bool bottomToTop,
+        out double exitX,
+        out double exitY,
+        out double entryX,
+        out double entryY)
+    {
+#pragma warning disable IDE0007
+        double sourceLeft = sourceNode.Position.X - (sourceNode.Width / 2.0);
+        double sourceRight = sourceNode.Position.X + (sourceNode.Width / 2.0);
+        double targetLeft = targetNode.Position.X - (targetNode.Width / 2.0);
+        double targetRight = targetNode.Position.X + (targetNode.Width / 2.0);
+        bool targetIsRight = targetNode.Position.X > sourceNode.Position.X + 0.01;
+
+        if (!bottomToTop)
+        {
+            exitY = sourceNode.Position.Y + (sourceNode.Height / 2.0) + FlowchartEdgeNodeGap;
+            entryY = targetNode.Position.Y - (targetNode.Height / 2.0) - FlowchartEdgeNodeGap;
+            if (targetIsRight)
+            {
+                exitX = sourceRight;
+                entryX = targetLeft;
+            }
+            else
+            {
+                exitX = sourceLeft;
+                entryX = targetRight;
+            }
+
+            return;
+        }
+
+        exitY = sourceNode.Position.Y - (sourceNode.Height / 2.0) - FlowchartEdgeNodeGap;
+        entryY = targetNode.Position.Y + (targetNode.Height / 2.0) + FlowchartEdgeNodeGap;
+        if (targetIsRight)
+        {
+            exitX = sourceRight;
+            entryX = targetLeft;
+        }
+        else
+        {
+            exitX = sourceLeft;
+            entryX = targetRight;
+        }
+#pragma warning restore IDE0007
+    }
+
+    static void BuildFlowchartTbTwoByTwoCrossDiagonalPoints(
+        MermaidSharp.Models.Node sourceNode,
+        MermaidSharp.Models.Node targetNode,
+        bool bottomToTop,
+        List<MermaidSharp.Models.Position> points)
+    {
+#pragma warning disable IDE0007
+        GetFlowchartTbTwoByTwoCrossCornerAttachPoints(
+            sourceNode,
+            targetNode,
+            bottomToTop,
+            out double exitX,
+            out double exitY,
+            out double entryX,
+            out double entryY);
+
+        points.Clear();
+        points.Add(new MermaidSharp.Models.Position(exitX, exitY));
+        points.Add(new MermaidSharp.Models.Position(entryX, entryY));
+#pragma warning restore IDE0007
     }
 
     /// <summary>
@@ -4587,7 +4883,40 @@ static class CoordinateAssignment
             }
         }
 
+        if (TryGetFlowchartTbTwoByTwoCompleteBipartite(
+                diagram,
+                out _,
+                out _,
+                out _,
+                out _))
+        {
+            return false;
+        }
+
         return outgoingCount >= 2 && outgoingCount <= 3;
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>Do not Manhattan-reroute 2×2 complete bipartite connectors in <see cref="NormalizeFlowchartEdgePointLists"/>.</summary>
+    static bool IsFlowchartTbTwoByTwoCompleteBipartiteEdge(
+        MermaidSharp.Diagrams.Flowchart.FlowchartModel diagram,
+        MermaidSharp.Models.Edge edge)
+    {
+#pragma warning disable IDE0007
+        if (!TryGetFlowchartTbTwoByTwoCompleteBipartite(
+                diagram,
+                out MermaidSharp.Models.Node leftSource,
+                out MermaidSharp.Models.Node rightSource,
+                out MermaidSharp.Models.Node leftTarget,
+                out MermaidSharp.Models.Node rightTarget))
+        {
+            return false;
+        }
+
+        return string.Equals(edge.SourceId, leftSource.Id, StringComparison.Ordinal)
+            || string.Equals(edge.SourceId, rightSource.Id, StringComparison.Ordinal)
+            || string.Equals(edge.TargetId, leftTarget.Id, StringComparison.Ordinal)
+            || string.Equals(edge.TargetId, rightTarget.Id, StringComparison.Ordinal);
 #pragma warning restore IDE0007
     }
 
@@ -4712,6 +5041,16 @@ static class CoordinateAssignment
 #pragma warning disable IDE0007
         if (diagram.Direction is not MermaidSharp.Models.Direction.TopToBottom
             and not MermaidSharp.Models.Direction.BottomToTop)
+        {
+            return;
+        }
+
+        if (TryGetFlowchartTbTwoByTwoCompleteBipartite(
+                diagram,
+                out _,
+                out _,
+                out _,
+                out _))
         {
             return;
         }
@@ -5313,6 +5652,105 @@ static class CoordinateAssignment
     }
 
     /// <summary>
+    /// F59: align external fan-in sources above a subgraph member hub (e.g. Client above Queue).
+    /// </summary>
+    internal static void ApplyFlowchartTbExternalFanInColumnAlignment(
+        MermaidSharp.Diagrams.Flowchart.FlowchartModel diagram,
+        Dictionary<string, string> subgraphIdByMemberNodeId)
+    {
+#pragma warning disable IDE0007
+        if (diagram.Subgraphs.Count == 0)
+        {
+            return;
+        }
+
+        if (diagram.Direction is not MermaidSharp.Models.Direction.TopToBottom
+            and not MermaidSharp.Models.Direction.BottomToTop)
+        {
+            return;
+        }
+
+        bool BottomToTop = diagram.Direction == MermaidSharp.Models.Direction.BottomToTop;
+
+        for (int EdgeIndex = 0; EdgeIndex < diagram.Edges.Count; EdgeIndex++)
+        {
+            MermaidSharp.Models.Edge Edge = diagram.Edges[EdgeIndex];
+            if (!string.IsNullOrWhiteSpace(Edge.Label))
+            {
+                continue;
+            }
+
+            MermaidSharp.Models.Node? SourceNode = diagram.GetNode(Edge.SourceId);
+            MermaidSharp.Models.Node? TargetNode = diagram.GetNode(Edge.TargetId);
+            if (SourceNode is null || TargetNode is null)
+            {
+                continue;
+            }
+
+            if (!IsFlowchartCrossSubgraphBoundaryEdge(SourceNode, TargetNode))
+            {
+                continue;
+            }
+
+            if (!subgraphIdByMemberNodeId.ContainsKey(TargetNode.Id))
+            {
+                continue;
+            }
+
+            if (subgraphIdByMemberNodeId.ContainsKey(SourceNode.Id))
+            {
+                continue;
+            }
+
+            bool SourceAboveTarget = BottomToTop
+                ? SourceNode.Position.Y > TargetNode.Position.Y + 0.01
+                : SourceNode.Position.Y < TargetNode.Position.Y - 0.01;
+            if (!SourceAboveTarget)
+            {
+                continue;
+            }
+
+            if (Math.Abs(SourceNode.Position.X - TargetNode.Position.X) < 0.75)
+            {
+                continue;
+            }
+
+            SourceNode.Position = new MermaidSharp.Models.Position(TargetNode.Position.X, SourceNode.Position.Y);
+        }
+#pragma warning restore IDE0007
+    }
+
+    static bool IsFlowchartLabelledDecisionBranchEdge(
+        MermaidSharp.Diagrams.Flowchart.FlowchartModel diagram,
+        MermaidSharp.Models.Edge edge)
+    {
+        if (string.IsNullOrWhiteSpace(edge.Label))
+        {
+            return false;
+        }
+
+        MermaidSharp.Models.Position SourceAttach;
+        MermaidSharp.Models.Position TargetAttach;
+        FlowchartDecisionBranchExitRole ExitRole;
+        if (TryGetFlowchartVerticalDecisionBranchEndpoints(
+                diagram,
+                edge,
+                out SourceAttach,
+                out TargetAttach,
+                out ExitRole))
+        {
+            return true;
+        }
+
+        return TryGetFlowchartHorizontalDecisionBranchEndpoints(
+            diagram,
+            edge,
+            out SourceAttach,
+            out TargetAttach,
+            out ExitRole);
+    }
+
+    /// <summary>
     /// True when endpoints belong to different subgraph memberships (including external ↔ member).
     /// </summary>
     internal static bool IsFlowchartCrossSubgraphBoundaryEdge(
@@ -5483,27 +5921,28 @@ static class CoordinateAssignment
         MermaidSharp.Models.Node sourceNode)
     {
 #pragma warning disable IDE0007
-        double HubCentreX = sourceNode.Position.X;
-        MermaidSharp.Models.Position verticalRoute = GetFlowchartTbStadiumMergeVerticalRoutePoint(sourceAttach, targetAttach);
+        // F38: force centre ports and a clear corridor:
+        // bottom-centre -> vertical down at source X -> horizontal to target X -> vertical into target top-centre.
         double MidY = (sourceAttach.Y + targetAttach.Y) / 2.0;
-        MermaidSharp.Models.Position guidePoint = GetFlowchartDecisionBranchGuidePoint(
-            HubCentreX,
-            sourceAttach,
-            targetAttach,
-            FlowchartDecisionBranchExitRole.SideLeft);
-        MermaidSharp.Models.Position corridorPoint = new MermaidSharp.Models.Position(targetAttach.X, MidY);
+        double ExitStubY = sourceAttach.Y + FLOWCHART_ORTHOGONAL_ATTACH_STUB_PX;
+        double EntryStubY = targetAttach.Y - FLOWCHART_ORTHOGONAL_ATTACH_STUB_PX;
 
         points.Add(sourceAttach);
-        points.Add(verticalRoute);
-        if (Math.Abs(guidePoint.X - corridorPoint.X) > 0.75)
+        points.Add(new MermaidSharp.Models.Position(sourceAttach.X, ExitStubY));
+
+        if (Math.Abs(MidY - ExitStubY) > 0.75)
         {
-            points.Add(guidePoint);
+            points.Add(new MermaidSharp.Models.Position(sourceAttach.X, MidY));
         }
 
-        if (Math.Abs(corridorPoint.X - verticalRoute.X) > 0.75
-            || Math.Abs(corridorPoint.Y - verticalRoute.Y) > 0.75)
+        if (Math.Abs(sourceAttach.X - targetAttach.X) > 0.75)
         {
-            points.Add(corridorPoint);
+            points.Add(new MermaidSharp.Models.Position(targetAttach.X, MidY));
+        }
+
+        if (Math.Abs(EntryStubY - MidY) > 0.75)
+        {
+            points.Add(new MermaidSharp.Models.Position(targetAttach.X, EntryStubY));
         }
 
         points.Add(targetAttach);
@@ -6865,6 +7304,30 @@ static class CoordinateAssignment
             AllocateFlowchartVerticalFacingGroup(graph, Hub, NodeId, RightEdges, FacingDirection.Right, AttachByEdge, diagram);
         }
 
+        Dictionary<string, int> IncomingFromAboveCountByTargetId = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (int i = 0; i < diagram.Edges.Count; i++)
+        {
+            MermaidSharp.Models.Edge Edge = diagram.Edges[i];
+            LayoutNode? Source = graph.GetNode(Edge.SourceId);
+            LayoutNode? Target = graph.GetNode(Edge.TargetId);
+            if (Source is null || Target is null)
+            {
+                continue;
+            }
+
+            if (Target.Y <= Source.Y + 0.01)
+            {
+                continue;
+            }
+
+            if (!IncomingFromAboveCountByTargetId.TryGetValue(Target.Id, out int Count))
+            {
+                Count = 0;
+            }
+
+            IncomingFromAboveCountByTargetId[Target.Id] = Count + 1;
+        }
+
         for (int i = 0; i < graph.Edges.Count; i++)
         {
             LayoutEdge Edge = graph.Edges[i];
@@ -6919,8 +7382,15 @@ static class CoordinateAssignment
             if (Target.Y > Source.Y + 0.01
                 && !IsFlowchartTbStadiumDualFanInMergeTarget(diagram, MergeTargetNodeId))
             {
-                TargetX = Target.X;
-                TargetY = DefaultTargetY;
+                // When a target has multiple incoming edges from above, forcing all arrows to enter at
+                // top-centre collapses distinct edges onto the same path.
+                // Keep the earlier slot allocation so each incoming edge gets its own top-face port.
+                if (!IncomingFromAboveCountByTargetId.TryGetValue(MergeTargetNodeId, out int IncomingFromAboveCount)
+                    || IncomingFromAboveCount <= 1)
+                {
+                    TargetX = Target.X;
+                    TargetY = DefaultTargetY;
+                }
             }
 
             // BT fan-in (F32): side branches exit top-left / top-centre / top-right (mirror F33 LR corner fan-out).
@@ -7772,49 +8242,7 @@ static class CoordinateAssignment
         MermaidSharp.Models.Node source)
     {
 #pragma warning disable IDE0007
-        List<MermaidSharp.Models.Edge> Incoming = new List<MermaidSharp.Models.Edge>();
-        for (int EdgeIndex = 0; EdgeIndex < diagram.Edges.Count; EdgeIndex++)
-        {
-            MermaidSharp.Models.Edge DiagramEdge = diagram.Edges[EdgeIndex];
-            if (string.Equals(DiagramEdge.TargetId, edge.TargetId, StringComparison.Ordinal))
-            {
-                Incoming.Add(DiagramEdge);
-            }
-        }
-
-        Incoming.Sort((Left, Right) =>
-        {
-            MermaidSharp.Models.Node? LeftSource = diagram.GetNode(Left.SourceId);
-            MermaidSharp.Models.Node? RightSource = diagram.GetNode(Right.SourceId);
-            double LeftX = LeftSource?.Position.X ?? 0.0;
-            double RightX = RightSource?.Position.X ?? 0.0;
-            return LeftX.CompareTo(RightX);
-        });
-
-        int BranchIndex = 0;
-        for (int IncomingIndex = 0; IncomingIndex < Incoming.Count; IncomingIndex++)
-        {
-            if (string.Equals(Incoming[IncomingIndex].SourceId, edge.SourceId, StringComparison.Ordinal))
-            {
-                BranchIndex = IncomingIndex;
-                break;
-            }
-        }
-
-        double Half = source.Width / 2.0;
         double SourceAttachX = source.Position.X;
-        if (Incoming.Count == 2)
-        {
-            SourceAttachX = BranchIndex == 0
-                ? source.Position.X - (Half / 2.0)
-                : source.Position.X + (Half / 2.0);
-        }
-        else if (Incoming.Count > 2)
-        {
-            double SlotWidth = source.Width / (double)Incoming.Count;
-            SourceAttachX = source.Position.X - Half + (SlotWidth * (BranchIndex + 0.5));
-        }
-
         double SourceAttachY = source.Position.Y + (source.Height / 2.0) + FlowchartEdgeNodeGap;
         return new MermaidSharp.Models.Position(SourceAttachX, SourceAttachY);
 #pragma warning restore IDE0007
@@ -8128,6 +8556,12 @@ static class CoordinateAssignment
             }
 
             double offset = HubIsTargetForAll ? (span / 10.0) : (span / 7.0);
+            if (edges.Count == 2 && IsVerticalFace)
+            {
+                // Mermaid-style two-way port allocation is noticeably wider than "slightly inboard".
+                // Slot scheme for N=2 uses ~1/6 and ~5/6 across the face, which corresponds to centre ± span/3.
+                offset = span / 3.0;
+            }
             double leftOfCentreCoord = IsVerticalFace ? (hub.X - offset) : (hub.Y - offset);
             double centreCoord = IsVerticalFace ? hub.X : hub.Y;
             double rightOfCentreCoord = IsVerticalFace ? (hub.X + offset) : (hub.Y + offset);

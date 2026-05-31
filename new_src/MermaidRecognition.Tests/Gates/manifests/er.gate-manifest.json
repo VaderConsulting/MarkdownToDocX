@@ -1,9 +1,10 @@
 {
   "DiagramKind": "erDiagram",
-  "GateLevel": "L2",
+  "GateLevel": "L4",
   "FixtureDirectory": "ErRecognition",
   "Fixtures": [
     "relationship",
+    "relation-cardinality",
     "entity-attributes",
     "cardinality-zero-or-one",
     "cardinality-zero-or-more-left",
@@ -12,6 +13,29 @@
     "cardinality-one-or-more-dotted",
     "cardinality-zero-or-more-dotted",
     "cardinality-optional-zero-or-more",
-    "cardinality-zero-or-more-zero-or-one-dotted"
+    "cardinality-zero-or-more-zero-or-one-dotted",
+    "direction",
+    "attribute-keys",
+    "classDef-style",
+    "inline-style",
+    "comment",
+    "accessibility",
+    "one-to-one",
+    "non-identifying",
+    "associative-entity",
+    "catalogue-remarked-entity-alias",
+    "quoted-relationship-label",
+    "multiple-relationships",
+    "attribute-comments",
+    "entity-only",
+    "accDescr-block",
+    "combined-schema",
+    "recursive-relationship",
+    "duplicate-role-labels",
+    "init-leading",
+    "hyphenated-entities",
+    "class-apply-only",
+    "relationship-before-entity",
+    "complex-smoke"
   ]
 }

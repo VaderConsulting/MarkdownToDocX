@@ -1,0 +1,114 @@
+{
+  "Kind": "erDiagram",
+  "Nodes": [
+    {
+      "Id": "CUSTOMER",
+      "Label": "CUSTOMER",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "LINE-ITEM",
+      "Label": "LINE-ITEM",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "ORDER",
+      "Label": "ORDER",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "PRODUCT",
+      "Label": "PRODUCT",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-CUSTOMER-ORDER-0",
+      "IsUserDefinedId": false,
+      "SourceId": "CUSTOMER",
+      "TargetId": "ORDER",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "places",
+      "ErLeftMarker": "||",
+      "ErLink": "--",
+      "ErRightMarker": "o{",
+      "ErRoleLabel": "places",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 1,
+      "Id": "L-ORDER-LINE-ITEM-1",
+      "IsUserDefinedId": false,
+      "SourceId": "ORDER",
+      "TargetId": "LINE-ITEM",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "contains",
+      "ErLeftMarker": "||",
+      "ErLink": "--",
+      "ErRightMarker": "|{",
+      "ErRoleLabel": "contains",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 2,
+      "Id": "L-PRODUCT-LINE-ITEM-2",
+      "IsUserDefinedId": false,
+      "SourceId": "PRODUCT",
+      "TargetId": "LINE-ITEM",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "includes",
+      "ErLeftMarker": "||",
+      "ErLink": "--",
+      "ErRightMarker": "o{",
+      "ErRoleLabel": "includes",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "erDiagram.header",
+      "RawLine": "erDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "erDiagram.relationship",
+      "RawLine": "    CUSTOMER ||--o{ ORDER : places"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "erDiagram.relationship",
+      "RawLine": "    ORDER ||--|{ LINE-ITEM : contains"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "erDiagram.relationship",
+      "RawLine": "    PRODUCT ||--o{ LINE-ITEM : includes"
+    }
+  ]
+}

@@ -1,0 +1,81 @@
+{
+  "Kind": "mindmap",
+  "Nodes": [
+    {
+      "Id": "node-0",
+      "Label": "the root",
+      "LabelType": "Text",
+      "Shape": "circle",
+      "ShapeSource": "mindmap",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "node-1",
+      "Label": "cloud label",
+      "LabelType": "Text",
+      "Shape": "cloud",
+      "ShapeSource": "mindmap",
+      "ParentGroupId": "node-0",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "node-2",
+      "Label": "bang label",
+      "LabelType": "Text",
+      "Shape": "bang",
+      "ShapeSource": "mindmap",
+      "ParentGroupId": "node-0",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "node-3",
+      "Label": "hex label",
+      "LabelType": "Text",
+      "Shape": "hexagon",
+      "ShapeSource": "mindmap",
+      "ParentGroupId": "node-0",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "mindmap.header",
+      "RawLine": "mindmap"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "mindmap.node",
+      "RawLine": "  root((the root))"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "mindmap.node",
+      "RawLine": "    child)cloud label("
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "mindmap.node",
+      "RawLine": "    branch))bang label(("
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "mindmap.node",
+      "RawLine": "    leaf{{hex label}}"
+    }
+  ]
+}

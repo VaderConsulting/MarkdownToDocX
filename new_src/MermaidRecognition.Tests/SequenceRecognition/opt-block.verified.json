@@ -1,0 +1,74 @@
+{
+  "Kind": "sequence",
+  "Nodes": [
+    {
+      "Id": "Alice",
+      "Label": "Alice",
+      "LabelType": "Text",
+      "Shape": "participant",
+      "ShapeSource": "sequence",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Bob",
+      "Label": "Bob",
+      "LabelType": "Text",
+      "Shape": "participant",
+      "ShapeSource": "sequence",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-Alice-Bob-0",
+      "IsUserDefinedId": false,
+      "SourceId": "Alice",
+      "TargetId": "Bob",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "Maybe",
+      "SequenceArrow": "->>",
+      "Classes": []
+    }
+  ],
+  "Groups": [
+    {
+      "Id": "opt-0",
+      "Title": "Optional step",
+      "ChildNodeIds": [],
+      "ChildGroupIds": []
+    }
+  ],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "sequence.header",
+      "RawLine": "sequenceDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "sequence.block",
+      "RawLine": "    opt Optional step"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "sequence.message",
+      "RawLine": "        Alice->>Bob: Maybe"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "sequence.end",
+      "RawLine": "    end"
+    }
+  ]
+}

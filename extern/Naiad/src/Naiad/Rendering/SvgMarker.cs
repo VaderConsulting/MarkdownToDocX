@@ -61,7 +61,12 @@ public class SvgMarker
         {
 #pragma warning disable IDE0007
             string FillColor = Fill ?? "#333333";
-            builder.Append($"<path d=\"{Path}\" fill=\"{FillColor}\" stroke=\"{FillColor}\" stroke-width=\"{StrokeWidth}\" stroke-linejoin=\"round\"/>");
+            // Inline style (not just fill/stroke attributes) so Word/DOCX SVG renderers honour
+            // linkStyle colours instead of inheriting `.marker{fill:#333;stroke:#333}` from the stylesheet.
+            builder.Append(
+                "<path d=\"" + Path + "\" class=\"arrowMarkerPath\" style=\"fill:" + FillColor
+                + ";stroke:" + FillColor + ";stroke-width:" + StrokeWidth
+                + ";stroke-linejoin:round\"/>");
 #pragma warning restore IDE0007
         }
 

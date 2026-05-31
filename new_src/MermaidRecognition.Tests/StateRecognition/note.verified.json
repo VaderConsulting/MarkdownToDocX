@@ -1,0 +1,67 @@
+{
+  "Kind": "stateDiagram",
+  "Nodes": [
+    {
+      "Id": "State1",
+      "Label": "State1",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "State2",
+      "Label": "State2",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "note-0",
+      "Label": "Important",
+      "LabelType": "Text",
+      "Shape": "note",
+      "StateNotePlacement": "right",
+      "StateNoteAnchor": "State2",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-State1-State2-0",
+      "IsUserDefinedId": false,
+      "SourceId": "State1",
+      "TargetId": "State2",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "stateDiagram.header",
+      "RawLine": "stateDiagram-v2"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    State1 --> State2"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "stateDiagram.note",
+      "RawLine": "    note right of State2 : Important"
+    }
+  ]
+}

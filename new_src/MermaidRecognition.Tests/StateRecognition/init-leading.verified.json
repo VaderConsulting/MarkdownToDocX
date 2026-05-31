@@ -1,0 +1,82 @@
+{
+  "Kind": "stateDiagram",
+  "Nodes": [
+    {
+      "Id": "Active",
+      "Label": "Active",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "end2",
+      "Label": "end2",
+      "LabelType": "Text",
+      "Shape": "end",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "start1",
+      "Label": "start1",
+      "LabelType": "Text",
+      "Shape": "start",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-start1-Active-0",
+      "IsUserDefinedId": false,
+      "SourceId": "start1",
+      "TargetId": "Active",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 1,
+      "Id": "L-Active-end2-1",
+      "IsUserDefinedId": false,
+      "SourceId": "Active",
+      "TargetId": "end2",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "Config": {
+    "Raw": {
+      "theme": "base"
+    }
+  },
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "stateDiagram.header",
+      "RawLine": "stateDiagram-v2"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    [*] --> Active"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    Active --> [*]"
+    }
+  ]
+}

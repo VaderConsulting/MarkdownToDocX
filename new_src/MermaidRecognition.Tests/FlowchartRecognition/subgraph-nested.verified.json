@@ -1,0 +1,63 @@
+{
+  "Kind": "flowchart",
+  "Direction": "TopToBottom",
+  "Nodes": [
+    {
+      "Id": "A",
+      "Label": "A",
+      "LabelType": "Text",
+      "ParentGroupId": "Inner",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "B",
+      "Label": "B",
+      "LabelType": "Text",
+      "ParentGroupId": "Inner",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-A-B-0",
+      "IsUserDefinedId": false,
+      "SourceId": "A",
+      "TargetId": "B",
+      "MinLength": 1,
+      "Stroke": "normal",
+      "MarkerStart": "None",
+      "MarkerEnd": "Point",
+      "Classes": []
+    }
+  ],
+  "Groups": [
+    {
+      "Id": "Inner",
+      "Title": "Inner",
+      "ParentGroupId": "Outer",
+      "ChildNodeIds": [
+        "A",
+        "B"
+      ],
+      "ChildGroupIds": []
+    },
+    {
+      "Id": "Outer",
+      "Title": "Outer",
+      "ChildNodeIds": [],
+      "ChildGroupIds": [
+        "Inner"
+      ]
+    }
+  ],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": []
+}

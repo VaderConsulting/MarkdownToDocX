@@ -82,12 +82,21 @@ public class DagreLayoutEngine : ILayoutEngine
         // 3) Offsetting member positions and edge routes into each cluster box (deepest first).
 
         Dictionary<string, MermaidSharp.Models.Subgraph> subgraphById = new Dictionary<string, MermaidSharp.Models.Subgraph>(StringComparer.Ordinal);
+        Dictionary<string, string?> parentSubgraphIdBySubgraphId = new Dictionary<string, string?>(StringComparer.Ordinal);
         Dictionary<string, string> subgraphIdByMemberNodeId = new Dictionary<string, string>(StringComparer.Ordinal);
         HashSet<string> memberNodeIds = new HashSet<string>(StringComparer.Ordinal);
+        HashSet<string> rootSubgraphIds = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (MermaidSharp.Models.Subgraph rootSubgraph in diagram.Subgraphs)
         {
-            RegisterSubgraphTree(rootSubgraph, subgraphById, subgraphIdByMemberNodeId, memberNodeIds);
+            rootSubgraphIds.Add(rootSubgraph.Id);
+            RegisterSubgraphTree(
+                rootSubgraph,
+                subgraphById,
+                parentSubgraphIdBySubgraphId,
+                subgraphIdByMemberNodeId,
+                memberNodeIds,
+                parentSubgraphId: null);
         }
 
         const double SUBGRAPH_PADDING_PX = 18.0;
@@ -104,6 +113,10 @@ public class DagreLayoutEngine : ILayoutEngine
             CollectSubgraphsPostOrder(rootSubgraph, subgraphsPostOrder, isNested: false);
         }
 
+        Dictionary<string, MermaidSharp.Models.Direction> effectiveDirectionBySubgraphId =
+            new Dictionary<string, MermaidSharp.Models.Direction>(StringComparer.Ordinal);
+        AssignSubgraphEffectiveDirections(diagram, effectiveDirectionBySubgraphId);
+
         // 1) Internal layout for each subgraph (nested children before parents).
         foreach ((MermaidSharp.Models.Subgraph subgraph, bool isNested) in subgraphsPostOrder)
         {
@@ -115,7 +128,8 @@ public class DagreLayoutEngine : ILayoutEngine
                 SUBGRAPH_PADDING_PX,
                 SUBGRAPH_TITLE_BAND_PX,
                 SUBGRAPH_VERTICAL_CONTENT_SLACK_PX,
-                isNested);
+                isNested,
+                effectiveDirectionBySubgraphId);
         }
 
         // 2) Diagram-level layout only when multiple root clusters and/or nodes outside subgraphs exist.
@@ -131,9 +145,27 @@ public class DagreLayoutEngine : ILayoutEngine
 
             foreach (Node node in diagram.Nodes)
             {
-                if (node.IsGroup || !memberNodeIds.Contains(node.Id))
+                if (memberNodeIds.Contains(node.Id))
                 {
-                    outer.Nodes.Add(node);
+                    continue;
+                }
+
+                if (node.IsGroup && !rootSubgraphIds.Contains(node.Id))
+                {
+                    continue;
+                }
+
+                outer.Nodes.Add(node);
+            }
+
+            Dictionary<string, Position> rootGroupPositionBeforeDiagramLayout =
+                new Dictionary<string, Position>(StringComparer.Ordinal);
+            for (int nodeIndex = 0; nodeIndex < outer.Nodes.Count; nodeIndex++)
+            {
+                Node outerNode = outer.Nodes[nodeIndex];
+                if (outerNode.IsGroup && rootSubgraphIds.Contains(outerNode.Id))
+                {
+                    rootGroupPositionBeforeDiagramLayout[outerNode.Id] = outerNode.Position;
                 }
             }
 
@@ -151,10 +183,13 @@ public class DagreLayoutEngine : ILayoutEngine
                 if (sourceIsOuter
                     && subgraphIdByMemberNodeId.TryGetValue(edge.TargetId, out string? targetMemberSubgraphId))
                 {
+                    string diagramLayoutTargetSubgraphId = ResolveDiagramLayoutSubgraphId(
+                        targetMemberSubgraphId,
+                        parentSubgraphIdBySubgraphId);
                     outer.Edges.Add(new Edge
                     {
                         SourceId = edge.SourceId,
-                        TargetId = targetMemberSubgraphId,
+                        TargetId = diagramLayoutTargetSubgraphId,
                         Type = edge.Type,
                         LineStyle = edge.LineStyle,
                         Label = edge.Label,
@@ -166,9 +201,12 @@ public class DagreLayoutEngine : ILayoutEngine
                 if (targetIsOuter
                     && subgraphIdByMemberNodeId.TryGetValue(edge.SourceId, out string? sourceMemberSubgraphId))
                 {
+                    string diagramLayoutSourceSubgraphId = ResolveDiagramLayoutSubgraphId(
+                        sourceMemberSubgraphId,
+                        parentSubgraphIdBySubgraphId);
                     outer.Edges.Add(new Edge
                     {
-                        SourceId = sourceMemberSubgraphId,
+                        SourceId = diagramLayoutSourceSubgraphId,
                         TargetId = edge.TargetId,
                         Type = edge.Type,
                         LineStyle = edge.LineStyle,
@@ -184,10 +222,16 @@ public class DagreLayoutEngine : ILayoutEngine
                     && subgraphIdByMemberNodeId.TryGetValue(edge.TargetId, out string? targetSubgraphId)
                     && !string.Equals(sourceSubgraphId, targetSubgraphId, StringComparison.Ordinal))
                 {
+                    string diagramLayoutSourceSubgraphId = ResolveDiagramLayoutSubgraphId(
+                        sourceSubgraphId,
+                        parentSubgraphIdBySubgraphId);
+                    string diagramLayoutTargetSubgraphId = ResolveDiagramLayoutSubgraphId(
+                        targetSubgraphId,
+                        parentSubgraphIdBySubgraphId);
                     outer.Edges.Add(new Edge
                     {
-                        SourceId = sourceSubgraphId,
-                        TargetId = targetSubgraphId,
+                        SourceId = diagramLayoutSourceSubgraphId,
+                        TargetId = diagramLayoutTargetSubgraphId,
                         Type = edge.Type,
                         LineStyle = edge.LineStyle,
                         Label = edge.Label,
@@ -197,6 +241,29 @@ public class DagreLayoutEngine : ILayoutEngine
             }
 
             LayoutPlainGraph(outer, options);
+
+            foreach (MermaidSharp.Models.Subgraph rootSubgraph in diagram.Subgraphs)
+            {
+                if (!rootGroupPositionBeforeDiagramLayout.TryGetValue(rootSubgraph.Id, out Position positionBefore))
+                {
+                    continue;
+                }
+
+                Node? rootGroupNode = diagram.GetNode(rootSubgraph.Id);
+                if (rootGroupNode == null)
+                {
+                    continue;
+                }
+
+                double deltaX = rootGroupNode.Position.X - positionBefore.X;
+                double deltaY = rootGroupNode.Position.Y - positionBefore.Y;
+                if (Math.Abs(deltaX) < 0.001 && Math.Abs(deltaY) < 0.001)
+                {
+                    continue;
+                }
+
+                TranslateSubgraphContents(rootSubgraph, diagram, deltaX, deltaY);
+            }
 
             // Mermaid stacks disconnected root clusters vertically in source order when there are no outer edges.
             if (outer.Edges.Count == 0 && outer.Nodes.Count > 1 && outer.Nodes.All(n => n.IsGroup))
@@ -339,6 +406,7 @@ public class DagreLayoutEngine : ILayoutEngine
 
         RerouteCrossBoundaryFlowchartEdges(diagram, subgraphIdByMemberNodeId, subgraphById);
         CoordinateAssignment.ApplyFlowchartDiagramConnectorEndpointSnapping(diagram);
+        CoordinateAssignment.ApplyFlowchartTbExternalFanInColumnAlignment(diagram, subgraphIdByMemberNodeId);
         CoordinateAssignment.ApplyFlowchartCrossBoundaryEdgeEndpointSnapping(diagram);
         CoordinateAssignment.ApplyFlowchartTbUpwardLoopEdgeOrthogonalSnapping(diagram);
         CoordinateAssignment.NormalizeFlowchartEdgePointLists(diagram);
@@ -723,18 +791,94 @@ public class DagreLayoutEngine : ILayoutEngine
         Points.AddRange(Simplified);
     }
 
+    static string ResolveDiagramLayoutSubgraphId(
+        string innermostSubgraphId,
+        Dictionary<string, string?> parentSubgraphIdBySubgraphId)
+    {
+#pragma warning disable IDE0007
+        string current = innermostSubgraphId;
+        while (parentSubgraphIdBySubgraphId.TryGetValue(current, out string? parentId)
+            && parentId != null)
+        {
+            current = parentId;
+        }
+
+        return current;
+#pragma warning restore IDE0007
+    }
+
+    static void TranslateSubgraphContents(
+        MermaidSharp.Models.Subgraph subgraph,
+        FlowchartModel diagram,
+        double deltaX,
+        double deltaY)
+    {
+#pragma warning disable IDE0007
+        if (Math.Abs(deltaX) < 0.001 && Math.Abs(deltaY) < 0.001)
+        {
+            return;
+        }
+
+        HashSet<string> memberNodeIds = CollectMemberNodeIdsRecursive(subgraph);
+        foreach (string nodeId in memberNodeIds)
+        {
+            if (diagram.GetNode(nodeId) is not Node memberNode)
+            {
+                continue;
+            }
+
+            memberNode.Position = new Position(memberNode.Position.X + deltaX, memberNode.Position.Y + deltaY);
+        }
+
+        for (int nestedIndex = 0; nestedIndex < subgraph.NestedSubgraphs.Count; nestedIndex++)
+        {
+            MermaidSharp.Models.Subgraph nested = subgraph.NestedSubgraphs[nestedIndex];
+            if (diagram.GetNode(nested.Id) is Node nestedGroupNode)
+            {
+                nestedGroupNode.Position = new Position(
+                    nestedGroupNode.Position.X + deltaX,
+                    nestedGroupNode.Position.Y + deltaY);
+            }
+        }
+
+        foreach (Edge edge in diagram.Edges)
+        {
+            bool touchesMember = memberNodeIds.Contains(edge.SourceId) || memberNodeIds.Contains(edge.TargetId);
+            if (!touchesMember)
+            {
+                continue;
+            }
+
+            for (int pointIndex = 0; pointIndex < edge.Points.Count; pointIndex++)
+            {
+                Position point = edge.Points[pointIndex];
+                edge.Points[pointIndex] = new Position(point.X + deltaX, point.Y + deltaY);
+            }
+        }
+#pragma warning restore IDE0007
+    }
+
     static void RegisterSubgraphTree(
         MermaidSharp.Models.Subgraph subgraph,
         Dictionary<string, MermaidSharp.Models.Subgraph> subgraphById,
+        Dictionary<string, string?> parentSubgraphIdBySubgraphId,
         Dictionary<string, string> subgraphIdByMemberNodeId,
-        HashSet<string> memberNodeIds)
+        HashSet<string> memberNodeIds,
+        string? parentSubgraphId)
     {
 #pragma warning disable IDE0007
         subgraphById[subgraph.Id] = subgraph;
+        parentSubgraphIdBySubgraphId[subgraph.Id] = parentSubgraphId;
 
         foreach (MermaidSharp.Models.Subgraph nested in subgraph.NestedSubgraphs)
         {
-            RegisterSubgraphTree(nested, subgraphById, subgraphIdByMemberNodeId, memberNodeIds);
+            RegisterSubgraphTree(
+                nested,
+                subgraphById,
+                parentSubgraphIdBySubgraphId,
+                subgraphIdByMemberNodeId,
+                memberNodeIds,
+                parentSubgraphId: subgraph.Id);
         }
 
         foreach (string nodeId in subgraph.NodeIds)
@@ -828,13 +972,96 @@ public class DagreLayoutEngine : ILayoutEngine
 #pragma warning restore IDE0007
     }
 
-    static MermaidSharp.Models.Direction ResolveSubgraphCompoundLayoutDirection(
-        MermaidSharp.Models.Subgraph subgraph,
-        bool isNestedSubgraph)
+    static void AssignSubgraphEffectiveDirections(
+        FlowchartModel diagram,
+        Dictionary<string, MermaidSharp.Models.Direction> effectiveDirectionBySubgraphId)
     {
 #pragma warning disable IDE0007
-        _ = isNestedSubgraph;
+        foreach (MermaidSharp.Models.Subgraph rootSubgraph in diagram.Subgraphs)
+        {
+            AssignSubgraphEffectiveDirectionsRecursive(
+                rootSubgraph,
+                diagram,
+                diagram.Direction,
+                effectiveDirectionBySubgraphId);
+        }
+#pragma warning restore IDE0007
+    }
+
+    static void AssignSubgraphEffectiveDirectionsRecursive(
+        MermaidSharp.Models.Subgraph subgraph,
+        FlowchartModel diagram,
+        MermaidSharp.Models.Direction parentDirection,
+        Dictionary<string, MermaidSharp.Models.Direction> effectiveDirectionBySubgraphId)
+    {
+#pragma warning disable IDE0007
+        MermaidSharp.Models.Direction effectiveDirection = ResolveSubgraphEffectiveLayoutDirection(
+            subgraph,
+            diagram,
+            parentDirection);
+        effectiveDirectionBySubgraphId[subgraph.Id] = effectiveDirection;
+
+        foreach (MermaidSharp.Models.Subgraph nested in subgraph.NestedSubgraphs)
+        {
+            AssignSubgraphEffectiveDirectionsRecursive(
+                nested,
+                diagram,
+                effectiveDirection,
+                effectiveDirectionBySubgraphId);
+        }
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// Mermaid ignores a subgraph's declared <c>direction</c> when member nodes are linked across the subgraph boundary;
+    /// the parent graph direction is used instead (see flowchart.md “Limitation”).
+    /// </summary>
+    static MermaidSharp.Models.Direction ResolveSubgraphEffectiveLayoutDirection(
+        MermaidSharp.Models.Subgraph subgraph,
+        FlowchartModel diagram,
+        MermaidSharp.Models.Direction parentDirection)
+    {
+#pragma warning disable IDE0007
+        if (SubgraphHasMemberExternalEdge(subgraph, diagram))
+        {
+            return parentDirection;
+        }
+
         return subgraph.Direction;
+#pragma warning restore IDE0007
+    }
+
+    static bool SubgraphHasMemberExternalEdge(
+        MermaidSharp.Models.Subgraph subgraph,
+        FlowchartModel diagram)
+    {
+#pragma warning disable IDE0007
+        HashSet<string> memberNodeIds = CollectMemberNodeIdsRecursive(subgraph);
+
+        foreach (Edge edge in diagram.Edges)
+        {
+            bool sourceIsMember = memberNodeIds.Contains(edge.SourceId);
+            bool targetIsMember = memberNodeIds.Contains(edge.TargetId);
+
+            if (string.Equals(edge.TargetId, subgraph.Id, StringComparison.Ordinal)
+                && !memberNodeIds.Contains(edge.SourceId))
+            {
+                continue;
+            }
+
+            if (string.Equals(edge.SourceId, subgraph.Id, StringComparison.Ordinal)
+                && !memberNodeIds.Contains(edge.TargetId))
+            {
+                continue;
+            }
+
+            if (sourceIsMember != targetIsMember)
+            {
+                return true;
+            }
+        }
+
+        return false;
 #pragma warning restore IDE0007
     }
 
@@ -861,10 +1088,12 @@ public class DagreLayoutEngine : ILayoutEngine
         double subgraphPaddingPx,
         double subgraphTitleBandPx,
         double subgraphVerticalContentSlackPx,
-        bool isNestedSubgraph)
+        bool isNestedSubgraph,
+        Dictionary<string, MermaidSharp.Models.Direction> effectiveDirectionBySubgraphId)
     {
 #pragma warning disable IDE0007
-        MermaidSharp.Models.Direction layoutDirection = ResolveSubgraphCompoundLayoutDirection(subgraph, isNestedSubgraph);
+        _ = isNestedSubgraph;
+        MermaidSharp.Models.Direction layoutDirection = effectiveDirectionBySubgraphId[subgraph.Id];
 
         FlowchartModel inner = new FlowchartModel
         {
@@ -967,6 +1196,7 @@ public class DagreLayoutEngine : ILayoutEngine
         }
 
         EnforceCompoundFlowAxisSeparation(subgraph, diagram, inner.Nodes, innerOptions);
+        EnforceNestedSubgraphGroupsBeforeDirectMembers(subgraph, diagram, inner.Nodes, innerOptions);
 
         AlignCompoundNodesOnFlowAxis(subgraph, diagram, inner.Nodes, layoutDirection);
 
@@ -1062,6 +1292,204 @@ public class DagreLayoutEngine : ILayoutEngine
             .OrderBy(group => group.Min(node => node.Position.Y))
             .Select(group => group.ToList())
             .ToList();
+#pragma warning restore IDE0007
+    }
+
+    /// <summary>
+    /// Ensures downstream direct members sit below nested cluster boxes on the flow axis.
+    /// Dagre rank separation is centre-to-centre, so a tall nested group node can overlap a downstream sibling (F84).
+    /// Upstream direct members (e.g. F43 nodes above an inner subgraph) must not be pushed down.
+    /// </summary>
+    static void EnforceNestedSubgraphGroupsBeforeDirectMembers(
+        MermaidSharp.Models.Subgraph subgraph,
+        FlowchartModel diagram,
+        List<Node> compoundNodes,
+        LayoutOptions options)
+    {
+#pragma warning disable IDE0007
+        if (subgraph.NestedSubgraphs.Count == 0 || subgraph.NodeIds.Count == 0)
+        {
+            return;
+        }
+
+        bool flowIsVertical = options.Direction is MermaidSharp.Models.Direction.TopToBottom
+            or MermaidSharp.Models.Direction.BottomToTop;
+        if (!flowIsVertical)
+        {
+            return;
+        }
+
+        HashSet<string> nestedGroupIds = new HashSet<string>(StringComparer.Ordinal);
+        for (int nestedIndex = 0; nestedIndex < subgraph.NestedSubgraphs.Count; nestedIndex++)
+        {
+            nestedGroupIds.Add(subgraph.NestedSubgraphs[nestedIndex].Id);
+        }
+
+        HashSet<string> nestedMemberNodeIds = new HashSet<string>(StringComparer.Ordinal);
+        for (int nestedIndex = 0; nestedIndex < subgraph.NestedSubgraphs.Count; nestedIndex++)
+        {
+            foreach (string memberId in CollectMemberNodeIdsRecursive(subgraph.NestedSubgraphs[nestedIndex]))
+            {
+                nestedMemberNodeIds.Add(memberId);
+            }
+        }
+
+        List<Node> nestedGroupNodes = new List<Node>();
+        List<Node> directMemberNodes = new List<Node>();
+        for (int nodeIndex = 0; nodeIndex < compoundNodes.Count; nodeIndex++)
+        {
+            Node node = compoundNodes[nodeIndex];
+            if (nestedGroupIds.Contains(node.Id))
+            {
+                nestedGroupNodes.Add(node);
+                continue;
+            }
+
+            if (subgraph.NodeIds.Contains(node.Id, StringComparer.Ordinal)
+                && !nestedMemberNodeIds.Contains(node.Id))
+            {
+                directMemberNodes.Add(node);
+            }
+        }
+
+        if (nestedGroupNodes.Count == 0 || directMemberNodes.Count == 0)
+        {
+            return;
+        }
+
+        const double SUBGRAPH_TITLE_BAND_PX = 26.0;
+        double minGap = options.RankSeparation;
+
+        if (options.Direction is MermaidSharp.Models.Direction.TopToBottom)
+        {
+            List<Node> downstreamDirectMembers = new List<Node>();
+            for (int memberIndex = 0; memberIndex < directMemberNodes.Count; memberIndex++)
+            {
+                Node directMember = directMemberNodes[memberIndex];
+                for (int nestedIndex = 0; nestedIndex < nestedGroupNodes.Count; nestedIndex++)
+                {
+                    if (DirectMemberShouldSitBelowNestedGroupOnFlowAxis(
+                        directMember,
+                        nestedGroupNodes[nestedIndex],
+                        options))
+                    {
+                        downstreamDirectMembers.Add(directMember);
+                        break;
+                    }
+                }
+            }
+
+            if (downstreamDirectMembers.Count == 0)
+            {
+                return;
+            }
+
+            double nestedBottom = nestedGroupNodes.Max(node => node.Position.Y + (node.Height / 2.0));
+            double directTop = downstreamDirectMembers.Min(node => node.Position.Y - (node.Height / 2.0));
+            double requiredDirectTop = nestedBottom + minGap;
+            if (directTop >= requiredDirectTop)
+            {
+                return;
+            }
+
+            double dy = requiredDirectTop - directTop;
+            OffsetCompoundRankGroup(subgraph, diagram, downstreamDirectMembers, 0.0, dy);
+            return;
+        }
+
+        List<Node> upstreamDirectMembers = new List<Node>();
+        for (int memberIndex = 0; memberIndex < directMemberNodes.Count; memberIndex++)
+        {
+            Node directMember = directMemberNodes[memberIndex];
+            for (int nestedIndex = 0; nestedIndex < nestedGroupNodes.Count; nestedIndex++)
+            {
+                if (DirectMemberShouldSitAboveNestedGroupOnFlowAxis(
+                    directMember,
+                    nestedGroupNodes[nestedIndex],
+                    options))
+                {
+                    upstreamDirectMembers.Add(directMember);
+                    break;
+                }
+            }
+        }
+
+        if (upstreamDirectMembers.Count == 0)
+        {
+            return;
+        }
+
+        double nestedTop = nestedGroupNodes.Min(node =>
+            node.Position.Y - (node.Height / 2.0) - (SUBGRAPH_TITLE_BAND_PX / 2.0));
+        double directBottom = upstreamDirectMembers.Max(node => node.Position.Y + (node.Height / 2.0));
+        double requiredDirectBottom = nestedTop - minGap;
+        if (directBottom <= requiredDirectBottom)
+        {
+            return;
+        }
+
+        double bottomToTopDy = requiredDirectBottom - directBottom;
+        OffsetCompoundRankGroup(subgraph, diagram, upstreamDirectMembers, 0.0, bottomToTopDy);
+#pragma warning restore IDE0007
+    }
+
+    static bool DirectMemberShouldSitBelowNestedGroupOnFlowAxis(
+        Node directMember,
+        Node nestedGroupNode,
+        LayoutOptions options)
+    {
+#pragma warning disable IDE0007
+        if (options.Direction is MermaidSharp.Models.Direction.TopToBottom)
+        {
+            if (directMember.Rank >= 0 && nestedGroupNode.Rank >= 0)
+            {
+                return directMember.Rank > nestedGroupNode.Rank;
+            }
+
+            return directMember.Position.Y > nestedGroupNode.Position.Y + 1.0;
+        }
+
+        if (options.Direction is MermaidSharp.Models.Direction.BottomToTop)
+        {
+            if (directMember.Rank >= 0 && nestedGroupNode.Rank >= 0)
+            {
+                return directMember.Rank < nestedGroupNode.Rank;
+            }
+
+            return directMember.Position.Y < nestedGroupNode.Position.Y - 1.0;
+        }
+
+        return false;
+#pragma warning restore IDE0007
+    }
+
+    static bool DirectMemberShouldSitAboveNestedGroupOnFlowAxis(
+        Node directMember,
+        Node nestedGroupNode,
+        LayoutOptions options)
+    {
+#pragma warning disable IDE0007
+        if (options.Direction is MermaidSharp.Models.Direction.BottomToTop)
+        {
+            if (directMember.Rank >= 0 && nestedGroupNode.Rank >= 0)
+            {
+                return directMember.Rank > nestedGroupNode.Rank;
+            }
+
+            return directMember.Position.Y > nestedGroupNode.Position.Y + 1.0;
+        }
+
+        if (options.Direction is MermaidSharp.Models.Direction.TopToBottom)
+        {
+            if (directMember.Rank >= 0 && nestedGroupNode.Rank >= 0)
+            {
+                return directMember.Rank < nestedGroupNode.Rank;
+            }
+
+            return directMember.Position.Y < nestedGroupNode.Position.Y - 1.0;
+        }
+
+        return false;
 #pragma warning restore IDE0007
     }
 

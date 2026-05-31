@@ -1,0 +1,56 @@
+{
+  "Kind": "gantt",
+  "Nodes": [
+    {
+      "Id": "a1",
+      "Label": "Task A",
+      "LabelType": "Text",
+      "Shape": "ganttTask",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "b1",
+      "Label": "Task B",
+      "LabelType": "Text",
+      "Shape": "ganttTask",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "Config": {
+    "Raw": {
+      "gantt.title": "Simple Gantt"
+    }
+  },
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "gantt.header",
+      "RawLine": "gantt"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "gantt.title",
+      "RawLine": "    title Simple Gantt"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "gantt.task",
+      "RawLine": "    Task A :a1, 2024-01-01, 30d"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "gantt.task",
+      "RawLine": "    Task B :b1, 2024-01-15, 20d"
+    }
+  ]
+}

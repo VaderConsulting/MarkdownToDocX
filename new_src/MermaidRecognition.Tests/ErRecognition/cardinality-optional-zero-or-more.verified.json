@@ -1,7 +1,41 @@
 {
   "Kind": "erDiagram",
-  "Nodes": [],
-  "Edges": [],
+  "Nodes": [
+    {
+      "Id": "CHILD",
+      "Label": "CHILD",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "PARENT",
+      "Label": "PARENT",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-PARENT-CHILD-0",
+      "IsUserDefinedId": false,
+      "SourceId": "PARENT",
+      "TargetId": "CHILD",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "has",
+      "ErLeftMarker": "o|",
+      "ErLink": "--",
+      "ErRightMarker": "o{",
+      "ErRoleLabel": "has",
+      "Classes": []
+    }
+  ],
   "Groups": [],
   "LinkStyles": [],
   "ClassDefs": [],

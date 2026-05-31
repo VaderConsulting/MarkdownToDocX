@@ -1,0 +1,83 @@
+{
+  "Kind": "flowchart",
+  "Direction": "TopToBottom",
+  "Nodes": [
+    {
+      "Id": "Circle",
+      "Label": "Terminal",
+      "LabelType": "Text",
+      "Shape": "circle",
+      "ShapeSource": "bracket",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Cyl",
+      "Label": "Cylinder",
+      "LabelType": "Text",
+      "Shape": "cylinder",
+      "ShapeSource": "bracket",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Diamond",
+      "Label": "Decision",
+      "LabelType": "Text",
+      "Shape": "diamond",
+      "ShapeSource": "bracket",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Rect",
+      "Label": "Rectangle",
+      "LabelType": "Text",
+      "Shape": "rect",
+      "ShapeSource": "bracket",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Round",
+      "Label": "Rounded",
+      "LabelType": "Text",
+      "Shape": "rounded",
+      "ShapeSource": "bracket",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Stadium",
+      "Label": "Stadium",
+      "LabelType": "Text",
+      "Shape": "stadium",
+      "ShapeSource": "bracket",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Sub",
+      "Label": "Subroutine",
+      "LabelType": "Text",
+      "Shape": "subroutine",
+      "ShapeSource": "bracket",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": []
+}

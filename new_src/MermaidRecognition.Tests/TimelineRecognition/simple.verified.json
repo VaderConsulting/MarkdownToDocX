@@ -1,0 +1,32 @@
+{
+  "Kind": "timeline",
+  "Nodes": [],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "timeline.header",
+      "RawLine": "timeline"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "timeline.title",
+      "RawLine": "    title History"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "timeline.event",
+      "RawLine": "    2020 : Event One"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "timeline.event",
+      "RawLine": "    2021 : Event Two"
+    }
+  ]
+}

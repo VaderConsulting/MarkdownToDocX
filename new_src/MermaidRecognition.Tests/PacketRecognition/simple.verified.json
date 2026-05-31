@@ -1,0 +1,27 @@
+{
+  "Kind": "packet",
+  "Nodes": [],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "packet.header",
+      "RawLine": "packet-beta"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "packet.field",
+      "RawLine": "0-15: \"Source Port\""
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "packet.field",
+      "RawLine": "16-31: \"Destination Port\""
+    }
+  ]
+}

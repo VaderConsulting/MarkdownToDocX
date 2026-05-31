@@ -14,4 +14,6 @@ public sealed class EffectiveOptions
     public LinkOptions Links { get; set; } = new LinkOptions();
 
     public TableOptions Tables { get; set; } = new TableOptions();
+
+    public MermaidOptions Mermaid { get; set; } = new MermaidOptions();
 }

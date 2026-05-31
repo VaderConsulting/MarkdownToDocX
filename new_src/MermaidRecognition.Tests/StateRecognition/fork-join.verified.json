@@ -1,0 +1,152 @@
+{
+  "Kind": "stateDiagram",
+  "Nodes": [
+    {
+      "Id": "State2",
+      "Label": "State2",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "State3",
+      "Label": "State3",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "fork_state",
+      "Label": "fork_state",
+      "LabelType": "Text",
+      "Shape": "fork",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "join_state",
+      "Label": "join_state",
+      "LabelType": "Text",
+      "Shape": "join",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "start1",
+      "Label": "start1",
+      "LabelType": "Text",
+      "Shape": "start",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-start1-fork_state-0",
+      "IsUserDefinedId": false,
+      "SourceId": "start1",
+      "TargetId": "fork_state",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 1,
+      "Id": "L-fork_state-State2-1",
+      "IsUserDefinedId": false,
+      "SourceId": "fork_state",
+      "TargetId": "State2",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 2,
+      "Id": "L-fork_state-State3-2",
+      "IsUserDefinedId": false,
+      "SourceId": "fork_state",
+      "TargetId": "State3",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 3,
+      "Id": "L-State2-join_state-3",
+      "IsUserDefinedId": false,
+      "SourceId": "State2",
+      "TargetId": "join_state",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 4,
+      "Id": "L-State3-join_state-4",
+      "IsUserDefinedId": false,
+      "SourceId": "State3",
+      "TargetId": "join_state",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "stateDiagram.header",
+      "RawLine": "stateDiagram-v2"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "stateDiagram.state",
+      "RawLine": "    state fork_state <<fork>>"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "stateDiagram.state",
+      "RawLine": "    state join_state <<join>>"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    [*] --> fork_state"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    fork_state --> State2"
+    },
+    {
+      "LineNumber": 6,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    fork_state --> State3"
+    },
+    {
+      "LineNumber": 7,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    State2 --> join_state"
+    },
+    {
+      "LineNumber": 8,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    State3 --> join_state"
+    }
+  ]
+}

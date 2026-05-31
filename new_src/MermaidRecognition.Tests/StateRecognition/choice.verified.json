@@ -1,0 +1,132 @@
+{
+  "Kind": "stateDiagram",
+  "Nodes": [
+    {
+      "Id": "IsPositive",
+      "Label": "IsPositive",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Negative",
+      "Label": "Negative",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Positive",
+      "Label": "Positive",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "choice_state",
+      "Label": "choice_state",
+      "LabelType": "Text",
+      "Shape": "choice",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "start1",
+      "Label": "start1",
+      "LabelType": "Text",
+      "Shape": "start",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-start1-IsPositive-0",
+      "IsUserDefinedId": false,
+      "SourceId": "start1",
+      "TargetId": "IsPositive",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 1,
+      "Id": "L-IsPositive-choice_state-1",
+      "IsUserDefinedId": false,
+      "SourceId": "IsPositive",
+      "TargetId": "choice_state",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 2,
+      "Id": "L-choice_state-Positive-2",
+      "IsUserDefinedId": false,
+      "SourceId": "choice_state",
+      "TargetId": "Positive",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "if n > 0",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 3,
+      "Id": "L-choice_state-Negative-3",
+      "IsUserDefinedId": false,
+      "SourceId": "choice_state",
+      "TargetId": "Negative",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "if n < 0",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "stateDiagram.header",
+      "RawLine": "stateDiagram-v2"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "stateDiagram.state",
+      "RawLine": "    state choice_state <<choice>>"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    [*] --> IsPositive"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    IsPositive --> choice_state"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    choice_state --> Positive : if n > 0"
+    },
+    {
+      "LineNumber": 6,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    choice_state --> Negative : if n < 0"
+    }
+  ]
+}

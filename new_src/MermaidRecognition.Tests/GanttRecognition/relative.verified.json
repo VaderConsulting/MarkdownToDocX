@@ -1,0 +1,106 @@
+{
+  "Kind": "gantt",
+  "Nodes": [
+    {
+      "Id": "a",
+      "Label": "task A",
+      "LabelType": "Text",
+      "Shape": "ganttTask",
+      "ParentGroupId": "section-0",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "b",
+      "Label": "task B",
+      "LabelType": "Text",
+      "Shape": "ganttTask",
+      "ParentGroupId": "section-0",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "c",
+      "Label": "task C",
+      "LabelType": "Text",
+      "Shape": "ganttTask",
+      "ParentGroupId": "section-0",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "d",
+      "Label": "task D",
+      "LabelType": "Text",
+      "Shape": "ganttTask",
+      "ParentGroupId": "section-0",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [],
+  "Groups": [
+    {
+      "Id": "section-0",
+      "Title": "Documentation",
+      "ChildNodeIds": [],
+      "ChildGroupIds": []
+    }
+  ],
+  "LinkStyles": [],
+  "Config": {
+    "Raw": {
+      "gantt.dateFormat": "YYYY-MM-DD",
+      "gantt.title": "Relative scheduling"
+    }
+  },
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "gantt.header",
+      "RawLine": "gantt"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "gantt.dateFormat",
+      "RawLine": "    dateFormat YYYY-MM-DD"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "gantt.title",
+      "RawLine": "    title Relative scheduling"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "gantt.section",
+      "RawLine": "    section Documentation"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "gantt.task",
+      "RawLine": "    task A :a, 2024-01-27, 2024-01-28"
+    },
+    {
+      "LineNumber": 6,
+      "LineTypeId": "gantt.task",
+      "RawLine": "    task B :b, after a, 2024-01-30"
+    },
+    {
+      "LineNumber": 7,
+      "LineTypeId": "gantt.task",
+      "RawLine": "    task C :c, 2024-01-20, until a"
+    },
+    {
+      "LineNumber": 8,
+      "LineTypeId": "gantt.task",
+      "RawLine": "    task D :d, after c, until b"
+    }
+  ]
+}

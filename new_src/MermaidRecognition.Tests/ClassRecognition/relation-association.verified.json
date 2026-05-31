@@ -1,0 +1,53 @@
+{
+  "Kind": "classDiagram",
+  "Nodes": [
+    {
+      "Id": "Course",
+      "Label": "Course",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Student",
+      "Label": "Student",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-Student-Course-0",
+      "IsUserDefinedId": false,
+      "SourceId": "Student",
+      "TargetId": "Course",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "enrolls",
+      "ClassRelation": "-->",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "classDiagram.header",
+      "RawLine": "classDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "classDiagram.relation",
+      "RawLine": "    Student --> Course : enrolls"
+    }
+  ]
+}

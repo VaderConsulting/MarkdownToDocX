@@ -1,9 +1,9 @@
-﻿# Diagram Recognition Specification
+# Diagram Recognition Specification
 
-Status: critical draft  
-Scope: recognising the individual aspects involved in turning text into diagrams without naming every scenario as a separate case  
-Primary input studied: `flow.md`  
-Primary implementation inspiration: Mermaid flowchart parser/database/render pipeline under `mermaid/packages/mermaid/src/diagrams/flowchart/`
+- **Programme status:** [`status.md`](status.md) (implementation progress, gate registry, fixture counts — not normative).
+- **Scope:** recognising the individual aspects involved in turning text into diagrams without naming every scenario as a separate case.
+- **Primary reference catalogue:** `flow.md` (visual regression; not the recognition specification).
+- **Primary implementation reference:** vendored Mermaid flowchart parser/database under `mermaid/packages/mermaid/src/diagrams/flowchart/`, implemented in `new_src/MermaidRecognition/`.
 
 ---
 
@@ -49,7 +49,7 @@ Diagram
   effectiveConfig
   direction
   declarations[]
-  vertices[]
+  vertices[]   → NodeContract[] (implementation name: Nodes)
   edges[]
   groups[]
   styles[]
@@ -371,9 +371,9 @@ Critical point: config is not merely rendering polish. It changes text measureme
 
 ### 3.17 Mermaid Default Styling and Text Rendering Constants (pinned)
 
-This specification is pinned to the vendored Mermaid version declared in Â§11.0. All recognition and rendering behaviour must be compatible with the defaults and override rules in that version.
+This specification is pinned to the vendored Mermaid version declared in §11.1. All recognition and rendering behaviour must be compatible with the defaults and override rules in that version.
 
-This section exists because â€œdiagram correctnessâ€ for DOCX export includes the **textual representation inside shapes and on edges**, which depends on default typography, padding, colours, spacing, and wrapping behaviour. These values must be **specified**, not guessed.
+This section exists because “diagram correctness” for DOCX export includes the **textual representation inside shapes and on edges**, which depends on default typography, padding, colours, spacing, and wrapping behaviour. These values must be **specified**, not guessed.
 
 #### 3.17.1 Source of truth (vendored files in this repo)
 
@@ -397,7 +397,7 @@ From `mermaid/packages/mermaid/src/schemas/config.schema.yaml`:
 ```text
 fontFamily default: '"trebuchet ms", verdana, arial, sans-serif;'  (config.schema.yaml:171-177)
 fontSize default: 16  (config.schema.yaml:345-347)
-htmlLabels: configured globally (see Â§3.17.4); precedence is root-level htmlLabels over diagram-specific htmlLabels
+htmlLabels: configured globally (see §3.17.4); precedence is root-level htmlLabels over diagram-specific htmlLabels
 ```
 
 From `mermaid/packages/mermaid/src/themes/theme-default.js` (theme variables baseline):
@@ -410,7 +410,7 @@ themeVariables.fontWeight default: 'normal' (when present; theme sets normal if 
 
 Contract requirement:
 
-- The recogniser must record the **effective** values for `fontFamily`, `fontSize`, and `htmlLabels` that apply to the diagram after directive merging (Â§3.17.4), even if they are defaults.
+- The recogniser must record the **effective** values for `fontFamily`, `fontSize`, and `htmlLabels` that apply to the diagram after directive merging (§3.17.4), even if they are defaults.
 - The contract must also preserve **user-specified overrides** separately (source-level facts), so diagnostics can explain why effective values differ from defaults.
 
 #### 3.17.3 Flowchart layout and text-box related defaults (when not overridden)
@@ -429,7 +429,7 @@ flowchart.defaultRenderer default: 'dagre-wrapper'  (config.schema.yaml:2205-220
 flowchart.inheritDir default: false  (config.schema.yaml:2217-2219)
 
 flowchart.padding default: 15
-  note: â€œOnly used in new experimental rendering.â€ Still must be recognised as a config fact.  (config.schema.yaml:2198-2204)
+  note: “Only used in new experimental rendering.” Still must be recognised as a config fact.  (config.schema.yaml:2198-2204)
 ```
 
 Contract requirement:
@@ -451,7 +451,7 @@ effectiveHtmlLabels = evaluate(config.htmlLabels ?? config.flowchart?.htmlLabels
 
 Contract requirement:
 
-- The recogniser must implement the same precedence rules so that `effectiveConfig` matches Mermaidâ€™s effective configuration.
+- The recogniser must implement the same precedence rules so that `effectiveConfig` matches Mermaid’s effective configuration.
 - The contract must preserve both:
   - **raw directive payload(s)** (source-level)
   - **effective merged config** (normalised)
@@ -496,6 +496,8 @@ Regenerate the machine-readable tables when the Mermaid pin changes:
 
 ```text
 powershell -File tools/Generate-MermaidDefaultsMarkdown.ps1
+powershell -File tools/Generate-EntityTypesMarkdown.ps1
+powershell -File tools/Merge-EntityTypesIntoSpec.ps1
 ```
 
 Contract requirements (all diagram kinds):
@@ -1177,6 +1179,253 @@ Where a diagram family does not use flowchart edge tokens, spacing and stroke be
 
 ---
 
+Regenerate entity-type tables when the Mermaid pin changes:
+
+```text
+powershell -File tools/Generate-EntityTypesMarkdown.ps1
+powershell -File tools/Merge-EntityTypesIntoSpec.ps1
+```
+
+### 3.18 Entity type catalogue (normative)
+
+This section documents **all entity types** the recogniser and renderer must be able to represent, classify, or diagnose. Every row includes a vendored Mermaid source reference. Diagram registration order is defined in `mermaid/packages/mermaid/src/diagram-api/diagram-orchestration.ts:84-115`.
+
+##### 3.18.1 Recognition contract model entities
+
+| Contract entity | Role | Required fields (summary) | Spec reference |
+| --- | --- | --- | --- |
+| `DiagramContract` | Root per Mermaid block | Kind, Header, Direction, Config, collections, Diagnostics | spec.md section 4 |
+| `NodeContract` | Vertex / node | Id, Declarations[], Label, LabelType, Shape, ParentGroupId?, Classes, Styles, Metadata | spec.md section 4.1 |
+| `EdgeContract` | Directed link | Id, endpoints, markers, stroke, minlen, label, CreationIndex, ExpansionTrace | spec.md sections 4.2, 3.8, 7.1.1 |
+| `GroupContract` | Subgraph / cluster | Id, Title, parent/children, Direction?, Classes | spec.md section 4.3 |
+| `ClassContract` | classDef | Class id, style list | spec.md section 3.12 |
+| `StyleMutation` | style / linkStyle / class | Target ids, merged styles | spec.md section 3.12 |
+| `InteractionContract` | click / href / tooltip | Target id, callback or url, target | spec.md section 3.14 |
+| `AccessibilityContract` | accTitle / accDescr | Title and description text | spec.md section 3.15 |
+| `Diagnostic` | unknown vs unsupported | Severity, Code, Message, SourceSpan | spec.md section 4.4 |
+
+##### 3.18.2 Mermaid diagram kinds (detector registration)
+
+| Diagram kind | Detector `id` | Typical source header | `%%{init}%%` key | Notes | Reference |
+| --- | --- | --- | --- | --- | --- |
+| Flowchart (legacy `graph`) | flowchart | `graph` | flowchart | No | `mermaid/packages/mermaid/src/diagrams/flowchart/flowDetector.ts:7-18` |
+| Flowchart (`flowchart`) | flowchart-v2 | `flowchart` | flowchart | No | `mermaid/packages/mermaid/src/diagrams/flowchart/flowDetector-v2.ts:7-22` |
+| Flowchart ELK | flowchart-elk | `flowchart-elk` | flowchart | Lazy-load feature | `mermaid/packages/mermaid/src/diagrams/flowchart/elk/detector.ts:7` |
+| Sequence | sequence | `sequenceDiagram` | sequence | No | `mermaid/packages/mermaid/src/diagrams/sequence/sequenceDetector.ts:7` |
+| Class (legacy) | class | `classDiagram` (v1) | class | No | `mermaid/packages/mermaid/src/diagrams/class/classDetector.ts:7` |
+| Class (v2) | classDiagram | `classDiagram` | class | No | `mermaid/packages/mermaid/src/diagrams/class/classDetector-V2.ts:7` |
+| State (legacy) | state | `stateDiagram` (v1) | state | No | `mermaid/packages/mermaid/src/diagrams/state/stateDetector.ts:7` |
+| State (v2) | stateDiagram | `stateDiagram` | state | No | `mermaid/packages/mermaid/src/diagrams/state/stateDetector-V2.ts:7` |
+| Entity Relationship | er | `erDiagram` | er | No | `mermaid/packages/mermaid/src/diagrams/er/erDetector.ts:7` |
+| Gantt | gantt | `gantt` | gantt | No | `mermaid/packages/mermaid/src/diagrams/gantt/ganttDetector.ts:7` |
+| User Journey | journey | `journey` | journey | No | `mermaid/packages/mermaid/src/diagrams/user-journey/journeyDetector.ts:7` |
+| Timeline | timeline | `timeline` | timeline | No | `mermaid/packages/mermaid/src/diagrams/timeline/detector.ts:7` |
+| Git Graph | gitGraph | `gitGraph` | gitGraph | No | `mermaid/packages/mermaid/src/diagrams/git/gitGraphDetector.ts:4` |
+| Pie | pie | `pie` | pie | No | `mermaid/packages/mermaid/src/diagrams/pie/pieDetector.ts:7` |
+| Quadrant Chart | quadrantChart | `quadrantChart` | quadrantChart | No | `mermaid/packages/mermaid/src/diagrams/quadrant-chart/quadrantDetector.ts:7` |
+| XY Chart | xychart | `xychart-beta` / xychart | xyChart | No | `mermaid/packages/mermaid/src/diagrams/xychart/xychartDetector.ts:7` |
+| Requirement | requirement | `requirementDiagram` | requirement | No | `mermaid/packages/mermaid/src/diagrams/requirement/requirementDetector.ts:7` |
+| Architecture | architecture | `architecture-beta` | architecture | Lazy-load feature | `mermaid/packages/mermaid/src/diagrams/architecture/architectureDetector.ts:7` |
+| Mindmap | mindmap | `mindmap` | mindmap | Lazy-load feature | `mermaid/packages/mermaid/src/diagrams/mindmap/detector.ts:6-9` |
+| Kanban | kanban | `kanban` | kanban | No | `mermaid/packages/mermaid/src/diagrams/kanban/detector.ts:6` |
+| Sankey | sankey | `sankey-beta` / sankey | sankey | No | `mermaid/packages/mermaid/src/diagrams/sankey/sankeyDetector.ts:3` |
+| Packet | packet | `packet-beta` / packet | packet | No | `mermaid/packages/mermaid/src/diagrams/packet/detector.ts:7` |
+| Block | block | `block-beta` / block | block | No | `mermaid/packages/mermaid/src/diagrams/block/blockDetector.ts:3` |
+| Event Modeling | eventmodeling | `eventmodeling` | eventmodeling | No | `mermaid/packages/mermaid/src/diagrams/eventmodeling/detector.ts:4` |
+| Tree View | treeView | `treeview` / treeView | treeView | No | `mermaid/packages/mermaid/src/diagrams/treeView/detector.ts:4` |
+| Radar | radar | `radar-beta` / radar | radar | No | `mermaid/packages/mermaid/src/diagrams/radar/detector.ts:7` |
+| Ishikawa | ishikawa | `ishikawa` | ishikawa | No | `mermaid/packages/mermaid/src/diagrams/ishikawa/ishikawaDetector.ts:7` |
+| Treemap | treemap | `treemap` | (treemap in defaultConfig.ts only) | No | `mermaid/packages/mermaid/src/diagrams/treemap/detector.ts:7` |
+| Venn | venn | `venn` | venn | No | `mermaid/packages/mermaid/src/diagrams/venn/vennDetector.ts:7` |
+| Wardley | wardley-beta | `wardley-beta` | wardley-beta | Yes (beta id) | `mermaid/packages/mermaid/src/diagrams/wardley/wardleyDetector.ts:7` |
+| C4 | c4 | `C4Context` / `C4Container` / etc. | c4 | No | `mermaid/packages/mermaid/src/diagrams/c4/c4Detector.ts:7` |
+| Info | info | `info` | (none) | No | `mermaid/packages/mermaid/src/diagrams/info/infoDetector.ts:7` |
+| YAML front-matter trap | `---` | starts with `---` | (none) | No | `mermaid/packages/mermaid/src/diagram-api/diagram-orchestration.ts:49-77` |
+
+##### 3.18.3 Flowchart vertex shape entities (`@{ shape: ... }` and legacy brackets)
+
+Canonical shape ids are defined in `shapesDefs` and exposed through `shapes` / `isValidShape` (`shapes.ts:92-542`).
+
+| Semantic name | Canonical `shortName` | Legacy bracket (if any) | Public aliases (subset) | Reference |
+| --- | --- | --- | --- | --- |
+| Process | `rect` | A[text] | `'proc', 'process', 'rectangle'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:94` |
+| Event | `rounded` | A(text) | `'event'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:103` |
+| Terminal Point | `stadium` | A([text]) | `'terminal', 'pill'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:112` |
+| Subprocess | `fr-rect` | A[[text]] | `'subprocess', 'subproc', 'framed-rectangle', 'subroutine'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:120` |
+| Database | `cyl` | A[(text)] | `'db', 'database', 'cylinder'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:128` |
+| Data Store | `datastore` | (metadata only; or A@{ shape: ... }) | `'data-store'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:136` |
+| Start | `circle` | A((text)) | `'circ'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:144` |
+| Bang | `bang` | (metadata only; or A@{ shape: ... }) | `'bang'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:152` |
+| Cloud | `cloud` | (metadata only; or A@{ shape: ... }) | `'cloud'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:160` |
+| Decision | `diam` | A{text} | `'decision', 'diamond', 'question'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:168` |
+| Prepare Conditional | `hex` | A{{text}} | `'hexagon', 'prepare'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:176` |
+| Data Input/Output | `lean-r` | (metadata only; or A@{ shape: ... }) | `'lean-right', 'in-out'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:184` |
+| Data Input/Output | `lean-l` | (metadata only; or A@{ shape: ... }) | `'lean-left', 'out-in'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:193` |
+| Priority Action | `trap-b` | (metadata only; or A@{ shape: ... }) | `'priority', 'trapezoid-bottom', 'trapezoid'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:202` |
+| Manual Operation | `trap-t` | (metadata only; or A@{ shape: ... }) | `'manual', 'trapezoid-top', 'inv-trapezoid'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:210` |
+| Stop | `dbl-circ` | A(((text))) | `'double-circle'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:219` |
+| Text Block | `text` | (metadata only; or A@{ shape: ... }) | `(none listed)` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:228` |
+| Card | `notch-rect` | (metadata only; or A@{ shape: ... }) | `'card', 'notched-rectangle'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:235` |
+| Lined/Shaded Process | `lin-rect` | (metadata only; or A@{ shape: ... }) | `'lined-rectangle', 'lined-process', 'lin-proc', 'shaded-process'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:243` |
+| Start | `sm-circ` | (metadata only; or A@{ shape: ... }) | `'start', 'small-circle'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:251` |
+| Stop | `fr-circ` | (metadata only; or A@{ shape: ... }) | `'stop', 'framed-circle'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:260` |
+| Fork/Join | `fork` | (metadata only; or A@{ shape: ... }) | `'join'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:269` |
+| Collate | `hourglass` | (metadata only; or A@{ shape: ... }) | `'hourglass', 'collate'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:278` |
+| Comment | `brace` | (metadata only; or A@{ shape: ... }) | `'comment', 'brace-l'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:286` |
+| Comment Right | `brace-r` | (metadata only; or A@{ shape: ... }) | `(none listed)` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:294` |
+| Comment with braces on both sides | `braces` | (metadata only; or A@{ shape: ... }) | `(none listed)` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:301` |
+| Com Link | `bolt` | (metadata only; or A@{ shape: ... }) | `'com-link', 'lightning-bolt'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:308` |
+| Document | `doc` | (metadata only; or A@{ shape: ... }) | `'doc', 'document'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:316` |
+| Delay | `delay` | (metadata only; or A@{ shape: ... }) | `'half-rounded-rectangle'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:324` |
+| Direct Access Storage | `h-cyl` | (metadata only; or A@{ shape: ... }) | `'das', 'horizontal-cylinder'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:332` |
+| Disk Storage | `lin-cyl` | (metadata only; or A@{ shape: ... }) | `'disk', 'lined-cylinder'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:340` |
+| Display | `curv-trap` | (metadata only; or A@{ shape: ... }) | `'curved-trapezoid', 'display'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:348` |
+| Divided Process | `div-rect` | (metadata only; or A@{ shape: ... }) | `'div-proc', 'divided-rectangle', 'divided-process'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:356` |
+| Extract | `tri` | (metadata only; or A@{ shape: ... }) | `'extract', 'triangle'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:364` |
+| Internal Storage | `win-pane` | (metadata only; or A@{ shape: ... }) | `'internal-storage', 'window-pane'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:372` |
+| Junction | `f-circ` | (metadata only; or A@{ shape: ... }) | `'junction', 'filled-circle'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:380` |
+| Loop Limit | `notch-pent` | (metadata only; or A@{ shape: ... }) | `'loop-limit', 'notched-pentagon'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:388` |
+| Manual File | `flip-tri` | (metadata only; or A@{ shape: ... }) | `'manual-file', 'flipped-triangle'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:396` |
+| Manual Input | `sl-rect` | (metadata only; or A@{ shape: ... }) | `'manual-input', 'sloped-rectangle'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:404` |
+| Multi-Document | `docs` | (metadata only; or A@{ shape: ... }) | `'documents', 'st-doc', 'stacked-document'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:412` |
+| Multi-Process | `st-rect` | (metadata only; or A@{ shape: ... }) | `'procs', 'processes', 'stacked-rectangle'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:420` |
+| Stored Data | `bow-rect` | (metadata only; or A@{ shape: ... }) | `'stored-data', 'bow-tie-rectangle'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:428` |
+| Summary | `cross-circ` | (metadata only; or A@{ shape: ... }) | `'summary', 'crossed-circle'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:436` |
+| Tagged Document | `tag-doc` | (metadata only; or A@{ shape: ... }) | `'tag-doc', 'tagged-document'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:444` |
+| Tagged Process | `tag-rect` | (metadata only; or A@{ shape: ... }) | `'tagged-rectangle', 'tag-proc', 'tagged-process'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:452` |
+| Paper Tape | `flag` | (metadata only; or A@{ shape: ... }) | `'paper-tape'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:460` |
+| Odd | `odd` | A>text] | `(none listed)` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:468` |
+| Lined Document | `lin-doc` | (metadata only; or A@{ shape: ... }) | `'lined-document'` | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:476` |
+
+Additional renderer-only shape handlers (not in `shapesDefs` but registered in `undocumentedShapes`):
+
+| Shape id | Used by diagram | Reference |
+| --- | --- | --- |
+| state, choice, note | state diagram | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:487-491` |
+| icon, iconSquare, iconCircle, iconRounded, imageSquare, anchor | flowchart metadata | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:497-503` |
+| kanbanItem | kanban | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:505-506` |
+| mindmapCircle, defaultMindmapNode | mindmap | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:508-510` |
+| classBox | class | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:511-512` |
+| erBox | er | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:514-515` |
+| requirementBox | requirement | `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:517-518` |
+
+##### 3.18.4 Flowchart edge / line entity types
+
+See sections 3.8, 3.17.38, and 7.1.1. Normalised edge fields:
+
+| Field | Allowed values | Reference |
+| --- | --- | --- |
+| `startArrow` / `endArrow` | none, point, circle, cross | spec.md 3.8; `mermaid/packages/mermaid/src/diagrams/flowchart/flowDb.ts:998-1011` |
+| `stroke` | normal, dotted, thick, invisible | spec.md 3.8; `mermaid/packages/mermaid/src/diagrams/flowchart/flowDb.ts:832-901` |
+| `minlen` | integer 1..10 (from token length) | `mermaid/packages/mermaid/src/diagrams/flowchart/flowDb.ts:304` |
+| `labelType` | text, string, markdown | spec.md 3.4 |
+
+##### 3.18.5 Per-diagram domain entity types
+
+**C4** (`mermaid/packages/mermaid/src/diagrams/c4/parser/c4Diagram.jison:277-309`, `mermaid/packages/mermaid/src/diagrams/c4/c4Db.js`)
+
+| Category | `typeC4Shape` / rel tokens (complete set) | Reference |
+| --- | --- | --- |
+| C4 element shapes | person, external_person, system, system_db, system_queue, external_system, external_system_db, external_system_queue, container, container_db, container_queue, external_container, external_container_db, external_container_queue, component, component_db, component_queue, external_component, external_component_db, external_component_queue | `mermaid/packages/mermaid/src/diagrams/c4/parser/c4Diagram.jison:277-309` |
+| C4 boundaries | ENTERPRISE boundary, SYSTEM boundary, BOUNDARY, CONTAINER boundary | `mermaid/packages/mermaid/src/diagrams/c4/parser/c4Diagram.jison:277-309` |
+| C4 relationships | rel, birel, rel_u, rel_d, rel_l, rel_r, rel_b | `mermaid/packages/mermaid/src/diagrams/c4/parser/c4Diagram.jison:277-309` |
+
+**Block** (`mermaid/packages/mermaid/src/diagrams/block/blockTypes.ts:3-30`)
+
+| `BlockType` union members | Reference |
+| --- | --- |
+| na, column-setting, edge, round, block_arrow, space, square, diamond, hexagon, odd, lean_right, lean_left, trapezoid, inv_trapezoid, rect_left_inv_arrow, odd_right, circle, ellipse, stadium, subroutine, cylinder, group, doublecircle, classDef, applyClass, applyStyles, composite | `mermaid/packages/mermaid/src/diagrams/block/blockTypes.ts:3-30` |
+
+**Architecture** (`mermaid/packages/mermaid/src/diagrams/architecture/architectureTypes.ts`)
+
+| Entity | `type` field | Reference |
+| --- | --- | --- |
+| Service node | `service` | `mermaid/packages/mermaid/src/diagrams/architecture/architectureTypes.ts:193-203` |
+| Junction node | `junction` | `mermaid/packages/mermaid/src/diagrams/architecture/architectureTypes.ts:205-212` |
+| Group | (group record, no type enum) | `mermaid/packages/mermaid/src/diagrams/architecture/architectureTypes.ts:226-231` |
+| Edge | direction pair L/R/T/B | `mermaid/packages/mermaid/src/diagrams/architecture/architectureTypes.ts:233-243` |
+
+**Requirement** (`mermaid/packages/mermaid/src/diagrams/requirement/types.ts:1-45`)
+
+| Entity | Values | Reference |
+| --- | --- | --- |
+| `Requirement` | RequirementType: Requirement, Functional Requirement, Interface Requirement, Performance Requirement, Physical Requirement, Design Constraint | `mermaid/packages/mermaid/src/diagrams/requirement/types.ts:1-22` |
+| `Element` | name, type (free text), docRef | `mermaid/packages/mermaid/src/diagrams/requirement/types.ts:39-45` |
+| `Relation` | contains, copies, derives, satisfies, verifies, refines, traces | `mermaid/packages/mermaid/src/diagrams/requirement/types.ts:24-37` |
+| `RiskLevel` | Low, Medium, High | `mermaid/packages/mermaid/src/diagrams/requirement/types.ts:9` |
+| `VerifyType` | Analysis, Demonstration, Inspection, Test | `mermaid/packages/mermaid/src/diagrams/requirement/types.ts:11` |
+
+**Sequence** (`mermaid/packages/mermaid/src/diagrams/sequence/sequenceDb.ts`)
+
+| Entity | Reference |
+| --- | --- |
+| Actor / participant | `mermaid/packages/mermaid/src/diagrams/sequence/sequenceDb.ts` (`addActor`) |
+| Message | `mermaid/packages/mermaid/src/diagrams/sequence/sequenceDb.ts` message list |
+| Note, loop, alt, opt, par, rect, activate/deactivate | `mermaid/packages/mermaid/src/diagrams/sequence/parser/sequenceDiagram.jison` |
+
+**Other diagram kinds (compact index):**
+
+| Diagram | Domain entities (recogniser must classify) | Reference |
+| --- | --- | --- |
+| Sequence | Actor / participant, Message, Note, loop, alt, opt, par, rect, activate/deactivate | `mermaid/packages/mermaid/src/diagrams/sequence/sequenceDb.ts`; `mermaid/packages/mermaid/src/diagrams/sequence/parser/sequenceDiagram.jison` |
+| ER | Entity, Attribute, Relationship | `mermaid/packages/mermaid/src/diagrams/er/erDb.ts`; `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:514-515` |
+| State | State, composite, choice, fork, join, note | `mermaid/packages/mermaid/src/diagrams/state/stateDb.ts`; `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:487-491` |
+| Class | Class, Interface, Namespace, relationship | `mermaid/packages/mermaid/src/diagrams/class/classDb.ts`; `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:511-512` |
+| Gantt | Section, Task, Milestone, excludes | `mermaid/packages/mermaid/src/diagrams/gantt/ganttDb.js` |
+| Venn | Set region, intersection item (id, sets[], label) | `mermaid/packages/mermaid/src/diagrams/venn/parser`; `mermaid/packages/mermaid/src/diagrams/venn/venn.spec.ts` |
+| Sankey | Node, Link (gradient/source/target colour) | `mermaid/packages/mermaid/src/diagrams/sankey/sankeyDb.ts` |
+| GitGraph | Commit, Branch, Tag, CherryPick, Merge | `mermaid/packages/mermaid/src/diagrams/git/gitGraphAst.ts` |
+| Event modeling | Frame kinds: cmd/command, evt/event, pcr/processor, rmo/readmodel; swimlanes Command/Read Model and Events | `mermaid/packages/mermaid/src/diagrams/eventmodeling/db.ts:96-120`; `mermaid/packages/mermaid/src/themes/theme-default.js:418-425` |
+| Kanban | Section, Ticket | `mermaid/packages/mermaid/src/diagrams/kanban/kanbanDb.ts`; `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:505-506` |
+| Mindmap | Node (hierarchy, mindmapCircle shape) | `mermaid/packages/mermaid/src/diagrams/mindmap/mindmapDb.ts:239-269`; `mermaid/packages/mermaid/src/rendering-util/rendering-elements/shapes.ts:508-510` |
+| Pie | Slice (label, value) | `mermaid/packages/mermaid/src/diagrams/pie/pieDb.ts` |
+| Packet | Row, Bit field | `mermaid/packages/mermaid/src/diagrams/packet/packetDb.ts` |
+| Radar | Axis, Curve, Legend entry | `mermaid/packages/mermaid/src/diagrams/radar/radarDb.ts` |
+| TreeView | Tree node | `mermaid/packages/mermaid/src/diagrams/treeView/treeViewDb.ts` |
+| QuadrantChart | Quadrant, Point, Axis labels | `mermaid/packages/mermaid/src/diagrams/quadrant-chart/quadrantDb.ts` |
+| XYChart | Series, Axis, Bar/Line plot | `mermaid/packages/mermaid/src/diagrams/xychart/chartBuilder/` |
+| Timeline | Section, Event | `mermaid/packages/mermaid/src/diagrams/timeline/timelineDb.ts` |
+| Journey | Section, Task | `mermaid/packages/mermaid/src/diagrams/user-journey/journeyDb.ts` |
+| Ishikawa | Category, Cause | `mermaid/packages/mermaid/src/diagrams/ishikawa/ishikawaDb.ts` |
+| Wardley (beta) | Node, Axis, Anchor | `mermaid/packages/mermaid/src/diagrams/wardley/wardleyDb.ts` |
+| Treemap | Hierarchy node (width/height/value) | `mermaid/packages/mermaid/src/diagrams/treemap/`; `mermaid/packages/mermaid/src/defaultConfig.ts:283-294` |
+| Info | Info / showInfo box | `mermaid/packages/mermaid/src/diagrams/info/` |
+
+##### 3.18.6 Naiad `DiagramType` enum (native renderer subset)
+
+Naiad currently exposes a smaller native enum than full Mermaid (`extern/Naiad/src/Naiad/DiagramType.cs`). Unlisted Mermaid kinds must be recognised in the contract and handled via diagnostics or official fallback until native support exists.
+
+| `DiagramType` | Mermaid detector id | Reference |
+| --- | --- | --- |
+| Flowchart | flowchart / flowchart-v2 | `extern/Naiad/src/Naiad/DiagramType.cs` |
+| Sequence | sequence | `extern/Naiad/src/Naiad/DiagramType.cs` |
+| Class | class / classDiagram | `extern/Naiad/src/Naiad/DiagramType.cs` |
+| State | state / stateDiagram | `extern/Naiad/src/Naiad/DiagramType.cs` |
+| EntityRelationship | er | `extern/Naiad/src/Naiad/DiagramType.cs` |
+| Gantt | gantt | `extern/Naiad/src/Naiad/DiagramType.cs` |
+| Pie | pie | `extern/Naiad/src/Naiad/DiagramType.cs` |
+| GitGraph | gitGraph | `extern/Naiad/src/Naiad/DiagramType.cs` |
+| Mindmap | mindmap | `extern/Naiad/src/Naiad/DiagramType.cs` |
+| Timeline | timeline | `extern/Naiad/src/Naiad/DiagramType.cs` |
+| C4Context | C4Context | `extern/Naiad/src/Naiad/DiagramType.cs` |
+| C4Container | C4Container | `extern/Naiad/src/Naiad/DiagramType.cs` |
+| C4Component | C4Component | `extern/Naiad/src/Naiad/DiagramType.cs` |
+| C4Deployment | C4Deployment | `extern/Naiad/src/Naiad/DiagramType.cs` |
+| Block | block | `extern/Naiad/src/Naiad/DiagramType.cs` |
+| Kanban | kanban | `extern/Naiad/src/Naiad/DiagramType.cs` |
+| Quadrant | quadrantChart | `extern/Naiad/src/Naiad/DiagramType.cs` |
+| Requirement | requirement | `extern/Naiad/src/Naiad/DiagramType.cs` |
+| Sankey | sankey | `extern/Naiad/src/Naiad/DiagramType.cs` |
+| UserJourney | journey | `extern/Naiad/src/Naiad/DiagramType.cs` |
+| XYChart | xychart | `extern/Naiad/src/Naiad/DiagramType.cs` |
+| Architecture | architecture | `extern/Naiad/src/Naiad/DiagramType.cs` |
+| Packet | packet | `extern/Naiad/src/Naiad/DiagramType.cs` |
+| Radar | radar | `extern/Naiad/src/Naiad/DiagramType.cs` |
+| Treemap | treemap | `extern/Naiad/src/Naiad/DiagramType.cs` |
+| ZenUML | (not in diagram-orchestration.ts 11.14) | `extern/Naiad/src/Naiad/DiagramType.cs` |
+
+---
+
 ## 4. Recognition Contract
 
 The parser should emit a typed contract similar to this:
@@ -1187,7 +1436,7 @@ DiagramContract
   Kind
   Header
   Direction
-  Config
+  Configuration: DiagramConfigContract
   Nodes: NodeContract[]
   Edges: EdgeContract[]
   Groups: GroupContract[]
@@ -1198,7 +1447,73 @@ DiagramContract
   Diagnostics: Diagnostic[]
 ```
 
-### 4.1 NodeContract
+### 4.1 DiagramConfigContract (effective configuration)
+
+Mermaid init/config is a nested JSON object (global keys, per-diagram-family sections such as `flowchart` and `sequence`, and `themeVariables`). For each parsed diagram block the recogniser must emit **one** configuration contract, not a dictionary keyed by `DiagramType`.
+
+Use a **flat dictionary of string key/value pairs per diagram instance**, with **dotted path keys** that preserve the Mermaid nesting (for example `flowchart.nodeSpacing`, `themeVariables.fontFamily`, `htmlLabels`).
+
+```text
+DiagramConfigContract
+  RawDirectiveValues: IReadOnlyDictionary<string, string>   // from %%{init}%% only (source fact)
+  EffectiveValues: IReadOnlyDictionary<string, string>     // defaults + directives + resolved themeVariables (normalised)
+  ValueSources: IReadOnlyDictionary<string, ConfigValueSource>?  // optional; Default | DirectiveOverride | ThemeResolved | Computed
+```
+
+Rules:
+
+- **RawDirectiveValues** — flattened init JSON exactly as authored (after JSON parse, before default merge). Empty when no init blocks are present.
+- **EffectiveValues** — must match Mermaid's merged effective configuration for the diagram kind (§3.16–§3.17.4), including global defaults, diagram-family defaults, directive overrides, and resolved `themeVariables`.
+- Diagram-family scope is expressed **inside** `EffectiveValues` via key prefixes (`flowchart.*`, `sequence.*`, …), not via an outer `Dictionary<DiagramKind, …>`.
+- A typed view (for example reading `flowchart.rankSpacing` as `double`) may be built **on top of** `EffectiveValues` for renderers; the portable cross-diagram contract remains key/value.
+
+C# reference: `new_src/MermaidRecognition/Config/DiagramConfigContract.cs`, `Config/MermaidJsonConfigFlattener.cs`.
+
+### 4.2 Multi-kind entry point (Stage 11.A)
+
+Every fenced Mermaid block must be recognised at the **diagram-kind** level before kind-specific facts are parsed. Recognition is **not** complete if only `flowchart` / `graph` headers are handled.
+
+**Public API (target):**
+
+```text
+MermaidRecognizer.Parse(source) → DiagramContract
+```
+
+**Required behaviour:**
+
+1. **Detect** diagram kind using the same header families as §3.18.2, aligned with vendored Mermaid `diagram-orchestration.ts` / `detectType.ts` detector order and regexes. **Mermaid source is authoritative** for detection and parse behaviour; Naiad `Mermaid.DetectDiagramType` is legacy render reference only (§11.1.3, §12 planned).
+2. Set `DiagramContract.Kind` to the normalised kind id (for example `flowchart`, `sequence`, `classDiagram`, `er`, `gantt`, `pie`, `gitGraph`, `mindmap`, `timeline`, `journey`, `quadrantChart`, `xychart`, `requirement`, `architecture`, `kanban`, `sankey`, `packet`, `block`, `radar`, `treemap`, `c4`, …).
+3. **Parse** kind-specific source into the contract:
+   - Graph-like kinds (flowchart, class, state, ER, …): use `NodeContract`, `EdgeContract`, `GroupContract` where applicable.
+   - Other kinds: use kind-appropriate facts in `DiagramContract` (collections and diagnostics are mandatory; extend with per-kind DTOs under `new_src/MermaidRecognition/` as needed — do not overload flowchart node/edge shapes for sequence messages or gantt tasks).
+4. If the kind is **known but not yet implemented**, emit `Diagnostic` with code `recognition.kind-not-implemented` (severity at least Warning) and still record `Kind`, `Header`, and `Configuration` from init blocks.
+5. If the source is **not a valid Mermaid diagram**, emit `recognition.unknown-diagram` (Error).
+
+**Layout under `new_src/` (implemented):**
+
+```text
+new_src/MermaidRecognition/
+  Core/                             # MermaidRecognizer, KindRecognizerRegistry, IKindRecognizer
+  Contract/                         # DiagramContract, NodeContract, EdgeContract, …
+  Config/                           # DiagramConfigContract, init flattening, effective config
+  Detection/                        # DiagramKindDetector (vendored detector order)
+  Diagnostics/                      # MermaidDiagnostic, spans
+  Kinds/
+    Flowchart/                      # Deepest recognition path (L3+ target)
+    Sequence/, Class/, State/, Er/ # Wave kinds (L3 target)
+    Pie/, LinePattern/             # Secondary kinds (L2+ / L1 line patterns)
+new_src/MermaidRecognition.Tests/
+  FlowchartRecognition/             # flowchart verified JSON (§11.12)
+  SequenceRecognition/              # sequence verified JSON
+  Flowchart/, Sequence/, Class/, …  # unit tests per kind
+  Gates/                            # L1 smoke, detector tests
+```
+
+**Stage 11.A exit gate:** §7.4.2 + §11.1.13 — every kind at **L1**; flowchart at **L3** with complete line-type catalogue (§11.1.14.1).
+
+Rendering (Naiad or fallback) remains **out of scope** for Stage 11.A except where existing tests already render; recognition and render are separate (§11.13).
+
+### 4.3 NodeContract
 
 ```text
 Id
@@ -1214,7 +1529,7 @@ Metadata
 DomIdPolicy
 ```
 
-### 4.2 EdgeContract
+### 4.4 EdgeContract
 
 ```text
 Id
@@ -1236,7 +1551,7 @@ Animation?
 SourceExpansionTrace
 ```
 
-### 4.3 GroupContract
+### 4.5 GroupContract
 
 ```text
 Id
@@ -1250,7 +1565,7 @@ Classes[]
 Styles[]
 ```
 
-### 4.4 Diagnostic
+### 4.6 Diagnostic
 
 ```text
 Severity
@@ -1398,17 +1713,17 @@ For every Mermaid block, tests must compare the emitted contract against expecte
 
 This must run independently of SVG/DOCX rendering.
 
-### 7.1.1 Implementation-Critical Invariants (must be locked first)
+### 7.1.1 Implementation-Critical Invariants (flowchart — must be locked first)
 
-The following invariants are **implementation-critical** because they are observable in the contract and directly affect later mutations (especially `linkStyle`), metadata targeting, and auditability. These must be locked down in verified contract fixtures before any routing or visual parity work claims correctness.
+The following invariants apply to **flowchart / graph** kinds only. They are **implementation-critical** because they are observable in the contract and directly affect later mutations (especially `linkStyle`), metadata targeting, and auditability. Other diagram kinds have their own minimum fixtures (§11.1.13); Stage 11.A is not complete with flowchart alone.
+
+These flowchart rules must be locked in verified contract fixtures before any **flowchart** routing or visual parity work claims correctness.
 
 - **Edge expansion produces concrete edges**
   - Grouped and chained syntax must expand into the full set of edges. The recogniser must not store a grouped/chained link as a single edge-like object.
-
 - **Edge creation order is stable and Mermaid-aligned**
   - Edge creation order is observable and must be recorded as a first-class fact (for example `EdgeContract.CreationIndex`).
   - `linkStyle <index>` targets edges by this order. If expansion order differs, style attaches to the wrong edge even when pictures look plausible.
-
 - **Required expansion order fixtures**
 
 ```text
@@ -1432,23 +1747,24 @@ A --> B & C --> D
   - User-defined edge id is independent from endpoints.
   - When a grouped expansion has a user edge id, Mermaid applies that id to **only one** of the generated edges (the grammar-selected edge; documented in vendored Mermaid source). The remaining edges must receive auto-generated ids.
   - Duplicate user ids must not silently overwrite or collapse edges. If a user id is already used, later edges must still exist with generated ids and should be diagnosable.
-
 - **`linkStyle default` versus indexed `linkStyle N` is modelled explicitly**
   - Default link style must be captured separately from indexed mutations.
   - Indexed link style must target edges by creation order (`CreationIndex`), not by incidental list position after later filtering, sorting, routing, or dummy-edge insertion.
-
 - **Node identity merge rules are enforced**
   - Repeated node declarations must merge into one node with a preserved `Declarations[]` history, not duplicate nodes.
-
 - **Subgraph membership uniqueness is enforced**
-  - A node should have one effective parent group. Nested subgraphs must establish containment with ownership rules, not â€œappend all descendantsâ€.
-
+  - A node should have one effective parent group. Nested subgraphs must establish containment with ownership rules, not “append all descendants”.
 - **Label types are preserved as contract facts**
   - `text` versus `string` versus `markdown` must be preserved because it affects sanitisation/escaping, measurement/wrapping, and downstream rendering behaviour.
-
 - **Diagnostics and downgrade policy are non-optional**
   - Recognised-but-unsupported constructs must emit diagnostics (unknown and unsupported are different).
   - Silent loss (especially in DOCX export) is not acceptable.
+
+### 7.1.2 Per-diagram recognition gates (authoritative)
+
+Stage 11.A and all later work must be judged **per diagram kind**, not by a single global “recognition works” flag. Flowchart may be the **current phase target-state** (deepest gates first); every other kind in §3.18.2 still needs its own gate row before the programme is complete.
+
+See **§7.4** (gate dimensions and levels) and **§11.1.14** (line-type catalogues). Implementation gate registry: [`status.md`](status.md).
 
 ### 7.2 Rendering Acceptance
 
@@ -1479,6 +1795,92 @@ Examples:
 | unsupported curve | fallback curve with diagnostic, or hard failure if fidelity mode is strict |
 
 Silent loss is not acceptable.
+
+### 7.4 Per-diagram gate dimensions and levels
+
+Recognition quality is tracked on a **per diagram kind** grid. Each kind (§3.18.2) has its own gate record. Gates are independent of native render (Naiad); render gates are separate columns (§7.2, §7.4.2).
+
+#### 7.4.1 Universal gate dimensions (every diagram kind)
+
+These dimensions apply to **all** kinds. Kind-specific detail lives in the **line-type catalogue** (§7.4.3) and in §11.1.14.
+
+| Gate | Code | What must be understood | Spec axes (§3) | Exit evidence |
+| --- | --- | --- | --- | --- |
+| **Detection** | G0 | Correct `Kind`, `Header`, detector id | §3.1 (kind-specific header rules) | Detector unit test + header fixture |
+| **Configuration** | G1 | Leading `%%{init}%%` → `DiagramConfigContract` | §3.16, §4.1 | `config-init` or per-kind config fixture |
+| **Line-type catalogue** | G2 | **Every** source line form named, classified, and mapped | §3.2, §7.4.3 | Markdown table in spec or `spec-gates/{kind}-line-types.md` |
+| **Statement parse** | G3 | Each line type either produces contract facts or a diagnostic | §3.2 | Per-line-type fixture or grouped fixture |
+| **Entity model** | G4 | Kind entities in contract (nodes, edges, messages, tasks, sections, …) | §3.3–§3.11, §4 | Verified JSON fields populated |
+| **Containment** | G5 | Groups, nested scopes, participants, boundaries, … | §3.10–§3.11 | Membership / parentage fixtures |
+| **Styles & mutations** | G6 | `style`, `classDef`, `class`, `:::`, kind-specific style directives | §3.12 | Style mutation fixtures |
+| **Metadata extensions** | G7 | `@{ ... }`, kind-specific shape/data blocks | §3.13 | Metadata fixtures |
+| **Interactions** | G8 | `click`, href, tooltips, kind-specific links | §3.14 | Interaction fixtures + downgrade diagnostics |
+| **Accessibility** | G9 | `accTitle`, `accDescr`, diagram title | §3.15 | Accessibility fixtures |
+| **Diagnostics discipline** | G10 | No silent drop; `unknown` vs `unsupported` vs `kind-not-implemented` | §4.6, §7.3 | Negative fixtures |
+| **Contract fixtures** | G11 | Machine-readable expected output | §7.1, §9 | `*.verified.json` per gate cluster |
+| **Mermaid parity** | G12 | Subset of vendored parser tests transcribed | §3.18, upstream `*.spec.js` / `*.spec.ts` | [`spec-gates/{kind}-g12.md`](spec-gates/g12-backlog-template.md) — minimum L4 slice rows **transcribed** |
+| **Native render smoke** | R0 | Legacy Naiad can render minimal sample (comparison only) | §11.1.3, §12 | Existing `*Tests.cs` or documented N/A |
+| **Native render fidelity** | R1 | Visual/coordinate gates for native path | §7.2, `flow.md` | SvgHarness / coordinate tests |
+
+**Rule:** A kind cannot advance to level **L3** unless **G2 (line-type catalogue)** is written and **G3** covers every listed line type (parse or explicit diagnostic).
+
+#### 7.4.2 Gate levels (per kind)
+
+| Level | Name | Recognition requirements | Typical use |
+| --- | --- | --- | --- |
+| **L0** | Detect | G0 only | Kind appears in detector tests |
+| **L1** | Smoke | G0, G1, G10, G11 (one minimal fixture) | Stage 11.A **minimum** row in §11.1.13 |
+| **L2** | Catalogue | L1 + **G2 complete** + G3 for all line types | “We understand every line form” |
+| **L3** | Axis-complete | L2 + G4–G9 per §8 matrix for that kind | Kind ready for render adapter work |
+| **L4** | Parser parity | L3 + G12 | Matches agreed Mermaid 11.14 facts |
+| **R1** | Native render | L3 + native adapter (+ R0 legacy compare where useful) | Product embedding; separate from L4 |
+
+**Target depth by kind (normative programme phasing):**
+
+```text
+Flowchart:  L3 (G2–G11) minimum for Stage 11.A exit; L4 (G12) for parser parity with pinned Mermaid
+Wave kinds (sequence, class, state, ER):  L3 (G4–G9) before render adapter work; L4 when G12 required
+Secondary kinds (pie, gantt, mindmap, gitGraph, …):  L1 minimum (Stage 11.A); L2 catalogue before L3
+```
+
+Stage 11.A **recognition exit:** every kind in §3.18.2 at gate **L1** minimum; flowchart at **L3** on G2–G11 (§7.4.2, §11.1.14.1). Deeper levels (L4, wave L3+) are programme targets tracked in [`status.md`](status.md).
+
+#### 7.4.3 Line-type catalogue (required per kind)
+
+A **line type** is one recognisable grammatical form in source text (after init stripping), not a visual scenario. Examples:
+
+- Flowchart: `link_statement`, `subgraph_start`, `classDef_line`, `accDescr_block`, …
+- Sequence: `participant_line`, `message_arrow`, `activate_line`, `alt_block_start`, …
+- Gantt: `section_line`, `task_line`, `dateFormat_directive`, …
+
+Each kind’s catalogue must list:
+
+| Column | Meaning |
+| --- | --- |
+| **Line type id** | Stable snake_case id (e.g. `flowchart.link.chained`) |
+| **Example source** | Minimal line or block |
+| **Produces** | Contract path(s) affected |
+| **Mermaid reference** | Vendored file:line or parser rule name |
+| **Gate status** | `parsed`, `diagnostic`, `not-implemented` |
+| **Diagnostic code** | If not fully parsed |
+| **Fixture** | Path to `.mmd` / `.verified.json` |
+
+Catalogues may live in this spec (for flowchart exemplar) or in `spec-gates/{kind}-line-types.md` merged by tooling later. They are **normative**: if a line appears in user diagrams but not in the catalogue, that is a spec bug.
+
+#### 7.4.4 Cross-cutting aspects (styles, config, comments)
+
+These cut across line types and must appear in **every** kind’s gate record where Mermaid supports them:
+
+| Aspect | Recognition requirement | Gate |
+| --- | --- | --- |
+| **Comments** | `%%` lines are never model facts | G3 |
+| **Init blocks** | Leading and inline policy documented per kind | G1 |
+| **Theme / look** | Flattened keys in `EffectiveValues` when applicable | G1 |
+| **classDef / class / style** | Where grammar exists for that kind | G6 |
+| **Indexed styles** | e.g. `linkStyle N`, gantt task classes — creation order rules documented | G6 |
+| **HTML / markdown labels** | `labelType` preserved | G4 |
+| **Unicode & quoting** | No scenario-specific handling | G4 |
+| **Semicolon / newline** | Statement boundaries (§3.2) | G3 |
 
 ---
 
@@ -1563,6 +1965,84 @@ Each fixture should have expected contract output in a machine-readable form.
 
 Markdown examples alone are not enough. They are input, not expected truth.
 
+### 9.1 Per-kind regression catalogues (visual + recognition smoke)
+
+Parallel to **`flow.md`** (flowchart F01–F88), each major diagram kind needs a progressive Markdown catalogue for **SvgHarness** visual gates, **DOCX** review, and cross-reference to **`*.verified.json`** recognition fixtures. These files sample axes from §11.1.14.x; they are **not** the recognition specification.
+
+| Catalogue file | Diagram kind | Scenario ids | Spec line types | Recognition fixtures |
+| --- | --- | --- | --- | --- |
+| [`flow.md`](flow.md) | Flowchart / graph | F01–F88 (+ F53A) | §11.1.14.1 | `FlowchartRecognition/` |
+| [`sequence.md`](sequence.md) | Sequence | S01–S32 | §11.1.14.2 | `SequenceRecognition/` |
+| [`class.md`](class.md) | Class | C01–C35 | §11.1.14.3 | `ClassRecognition/` |
+| [`entityrelationship.md`](entityrelationship.md) | ER | E01–E35 | §11.1.14.5 | `ErRecognition/` |
+| [`state.md`](state.md) | State | ST01–ST27 | §11.1.14.4 | `StateRecognition/` |
+| *(pending — `pie.md`)* | Pie | — | §11.1.14.6 | `PieRecognition/` |
+| *(pending — `gantt.md`)* | Gantt | — | §11.1.14.7 | `GanttRecognition/` |
+| *(pending — `mindmap.md`)* | Mindmap | — | §11.1.14.8 | `MindmapRecognition/` |
+| *(pending — `gitgraph.md`)* | Git graph | — | §11.1.14.9 | `GitGraphRecognition/` |
+
+Fixture counts and gate levels: [`status.md`](status.md).
+
+**SvgHarness pattern (substitute catalogue path):**
+
+```powershell
+dotnet run --project src/SvgHarness/SvgHarness.csproj -c Release -- sequence.md out/sequence-mermaid-ink --reference=mermaid-ink --report=out/sequence-mermaid-ink/report.md
+```
+
+**Rules:**
+
+- Every new scenario id must map to a line-type row in the kind’s §11.1.14 catalogue (add the row first if missing).
+- Prefer adding a matching `*Recognition/*.mmd` + `.verified.json` when the axis is recognition-critical.
+- Naiad (`extern/Naiad`) is a **legacy comparison baseline** only (§12); catalogues must remain valid for **native render** without Naiad parser changes.
+
+#### Scenario vs recognition fixture (terminology)
+
+These terms are **not interchangeable** in this programme:
+
+| Term | Where it lives | Id / naming | Purpose |
+| --- | --- | --- | --- |
+| **Scenario** | Catalogue Markdown (`sequence.md`, `class.md`, `flow.md`, …) | Numbered ids: S01, C35, F86, E19, … | Progressive regression catalogue for **visual** gates (SvgHarness, DOCX review) and human-readable coverage index. **Not** the recognition specification. |
+| **Recognition fixture** | `new_src/MermaidRecognition.Tests/*Recognition/` | Capability names: `simple`, `relation-cardinality`, `config-front-matter`, … | **Machine-testable** recognition truth: `name.mmd` input + `name.verified.json` expected `DiagramContract`. Used by `dotnet test` and gate manifests. |
+
+**Relationship:**
+
+- Catalogue **scenario index** tables include a **Recognition fixture** column mapping each active scenario id to zero or one fixture name.
+- **Catalogue back-fill 100%** means every **non-remarked** scenario id has that column filled (remarked ids such as C24, ST19, E10, F88 intentionally show `—` for render exclusion but may still have a recognition fixture elsewhere).
+- Fixture count may **exceed** scenario count when extra axis-combination fixtures exist (e.g. sequence `arrow-variants` alongside S07/S08).
+- **L3 complete** for a kind means fixtures pass contract tests and G4–G9 axis gates — not that SvgHarness or DOCX render parity is done.
+
+**Authority:** line-type catalogues in §11.1.14.x define what recognition must parse; `.verified.json` files hold expected output; catalogue scenarios are **samples** that should align with those axes.
+
+#### Remarked scenarios (`%%`)
+
+When a diagram **does not render** on [mermaid.live](https://mermaid.live) or is otherwise **rejected for the render gate**, keep the scenario **heading and section** in the catalogue file but prefix **every line** of the diagram source inside the ` ```mermaid ` fence with **`%%`**.
+
+Implementation: `MermaidRemarkAnalyzer` in `MermaidRecognition` classifies remark semantics; `DiagramContract.RemarkStatus` is `CatalogueRemarked` when every non-empty line is a full-line remark. SvgHarness skips such blocks (reported as **SKIP**). Catalogue-remarked source is still parsed via unremarked shadow text for recognition-only axes (§9.1).
+
+| Intent | Meaning |
+| --- | --- |
+| **Considered but rejected** | The axis was evaluated and deliberately excluded from official Mermaid render. **Do not re-add** the same scenario because the catalogue looks incomplete or because SvgHarness skipped an empty block. |
+| **Excluded from render gates** | SvgHarness, mermaid.ink comparison, and DOCX visual review apply only to **active** (non-remarked) diagrams. |
+| **Recognition may still apply** | Spec line types and `*Recognition/` fixtures may track the axis separately; remarking is **not** a signal that recognition was abandoned. |
+
+**Do not confuse with:**
+
+- `%%{init: ...}%%` on its own line — an **active** Mermaid init directive (e.g. F53, S24, C35, E35), not a remark of the whole diagram.
+- A single `%%` comment line inside an otherwise **active** diagram — valid Mermaid inline comment syntax.
+
+**Catalogue status column:** index tables should mark remarked ids (e.g. **remarked** in the topic/line-type column). Maintain a **Currently remarked** list in each catalogue’s *How to use* section.
+
+**Known remarked ids (render gate excluded):**
+
+| Catalogue | Scenario ids | Reason (summary) |
+| --- | --- | --- |
+| [`flow.md`](flow.md) | F65, F70, F87, F88 | Invalid or rejected on mermaid.live (metadata shape smoke, semicolon boundaries, edge animation) |
+| [`sequence.md`](sequence.md) | *(none yet)* | — |
+| [`class.md`](class.md) | C24 | `cssClass` directive does not render on mermaid.live |
+| [`entityrelationship.md`](entityrelationship.md) | E10 | Entity alias syntax does not render on mermaid.live |
+
+**L2 line-type catalogues (spec only — no visual catalogue Markdown yet):** pie §11.1.14.6, gantt §11.1.14.7, mindmap §11.1.14.8, git graph §11.1.14.9. Add `pie.md`, `gantt.md`, `mindmap.md`, `gitgraph.md` when render-gate priority arrives. **`state.md`** and the four wave catalogues above are published.
+
 ---
 
 ## 10. Bottom Line
@@ -1577,11 +2057,13 @@ The specification for recognition must be the compositional contract above, test
 
 ---
 
-## 11. Proposed Future-State Migration Plan
+## 11. Migration architecture and implementation plan
 
-Section 11 is not yet an authoritative implementation specification. It is the proposed future-state migration plan. It becomes authoritative only after the compatibility pin, evidence baseline, and Stage 11.A contract fixtures are in place.
+Section 11 specifies **target architecture**, **stage exit criteria**, and **file-level work** for Mermaid-aligned **recognition** (`new_src/MermaidRecognition`) and **native render** from `DiagramContract`. Implementation progress is tracked in [`status.md`](status.md), not in this section.
 
-This migration plan is derived from:
+**Legacy Naiad policy (normative):** `extern/Naiad` is **frozen**. It is **not** a product render option and must **not** receive new parsers, layout features, or programme-driven fixes. Use legacy Naiad output **only** when comparing against native render (SvgHarness, DOCX review, §12 baseline). The product path is **recognition → native render in `new_src/`** (or §11.E official Mermaid fallback).
+
+This plan is derived from:
 
 - Mermaid 11.14.0 source behaviour, especially the flowchart parser/database tests.
 - The current modified Naiad source tree, which already renders `flow.md` with acceptable visual parity.
@@ -1589,7 +2071,7 @@ This migration plan is derived from:
 
 It is not a speculative design document. Claims in this section should be traceable to those sources or marked `provisional`, `unknown`, or `not-native`.
 
-### 11.0 Compatibility Pin, Evidence, and Phasing
+### 11.1 Compatibility Pin, Evidence, and Phasing
 
 Target Mermaid compatibility:
 
@@ -1600,9 +2082,7 @@ Vendored source state: dirty at time of this spec update
 Minimum feature context: edge-level curve styling via edge ids exists in Mermaid v11.10.0+
 ```
 
-All parser-contract expectations must be derived from this vendored Mermaid version unless explicitly marked `future`, `unknown`, or `not-native`. If the vendored Mermaid source changes, the recognition fixtures and this pin must be updated together.
-
-The dirty source state is acceptable only for draft migration analysis. Before verified fixtures become authoritative, the source baseline must be captured by commit, branch, patch file, or archive hash.
+All parser-contract expectations must be derived from this vendored Mermaid version unless explicitly marked `future`, `unknown`, or `not-native`. If the vendored Mermaid source changes, the recognition fixtures and this pin must be updated together. Operational pin state (clean vs dirty baseline) is recorded in [`status.md`](status.md).
 
 Baseline evidence table:
 
@@ -1613,13 +2093,14 @@ Baseline evidence table:
 | Routing contains fixture-shaped helpers | `IsFlowchartTbStadiumDualFanInMergeTarget`, `IsFlowchartTbStadiumTerminalCollectorTarget` | `CoordinateAssignment.cs`, `FlowchartRenderer.cs` | stadium/terminal collector routing | Route-kind migration table |
 | Code comments encode fixture identities | comments reference `F53`, `F58`, etc. | `CoordinateAssignment.cs` | constants and helper comments | Allowed in comments; not allowed as active selector names long term |
 | Current parser is thinner than Mermaid parser facts | no edge id, label type, metadata DTO, grouped edge expansion contract | `FlowchartParser.cs`, `Node.cs`, `Edge.cs`, `FlowchartModel.cs` | parser/model | Stage 11.A recognition JSON |
+| Config is init-only on render path | Naiad `DiagramBase.Config` holds init overrides only | `DiagramBase.cs`, `Mermaid.cs` | `MermaidRecognition.DiagramConfigContract` | Stage 11.A in MermaidRecognition |
 
 Migration risk register:
 
 | Risk | Mitigation |
 | --- | --- |
 | Parser drift from Mermaid | Pin Mermaid version; derive fixtures from upstream parser tests or parser dump. |
-| Visual parity regression | Keep legacy routing fallback until each route kind passes SvgHarness/coordinate gates. |
+| Visual parity regression | Compare native render against legacy baseline (§12) until SvgHarness/coordinate gates pass; do not extend Naiad for parity fixes. |
 | Fallback security | Use local pinned official Mermaid only; no default network rendering; sandbox callbacks. |
 | Performance regression | Add parser/render timing budgets before enabling the new path by default. |
 | Public API breakage | Add recognition fields without removing existing render fields; use feature flags. |
@@ -1634,68 +2115,79 @@ Fallback rendering: must record timing and renderer version; fallback must be op
 
 Phasing:
 
-This section describes the future state, but it must be implemented as a strangler migration. The current Naiad code contains a lot of hard-won visual parity. Deleting the existing repair chain before the replacement router proves equivalence would trade a recognition problem for a regression problem.
+This section describes the future state as a **native render** build in `new_src/`, not a Naiad migration. Legacy Naiad may supply comparison baselines only (§12).
 
 Use these stages:
 
 | Stage | Goal | Exit criterion |
 | --- | --- | --- |
-| 11.A | Contract and parser facts | New recognition fixtures pass without rendering; existing SVG output unchanged. |
-| 11.B | Remove label semantics | Static gate proves routing no longer branches on `"Yes"`, `"No"`, `"Done"`, `"End"`, etc.; label-invariance tests produce the same port roles. |
-| 11.C | Router strangler | `FlowchartRouter` handles one route kind at a time; old route/repair path remains fallback until each topology class passes SvgHarness and coordinate gates. |
-| 11.D | Shrink `CoordinateAssignment` | `IsFlowchart*` scenario predicates trend down; remaining code is generic layout, route, or shape geometry. |
-| 11.E | Fallback and diagnostics | `CanRender` is wired into MDConverter/Converter behaviour with strict/pragmatic modes and user-visible diagnostics. |
+| 11.A | **Multi-kind** recognition contract and parser facts | Every diagram kind in §3.18.2 is **detected** and parsed to `DiagramContract` (or emits structured diagnostics); per-kind verified fixtures pass. **Complete.** |
+| 11.B | Native flowchart routing — no label semantics | Static gate proves routing does not read edge label text; label-invariance tests produce the same port roles for empty, English, numeric, unicode, and long labels. Implemented in **`new_src/`**, not `extern/Naiad`. |
+| 11.C | Native `FlowchartRouter` strangler | Router handles one route kind at a time; legacy Naiad output used **only** for comparison until each topology class passes SvgHarness gates. |
+| 11.D | Shrink scenario-specific layout code | Native layout/router code is structural; no English-label or scenario-name predicates. |
+| 11.E | Fallback and diagnostics | `CanRender` wired into MDConverter with strict/pragmatic modes; official Mermaid fallback where native render unavailable. |
 
 Stage 11.A is the immediate priority and the only stage that should start now:
 
 ```text
-Build the recognition contract and verified JSON fixtures without changing the default visual render path.
+Build multi-kind recognition: detect every Mermaid diagram family (§3.18.2), parse to DiagramContract
+(or diagnostics), and lock behaviour with verified JSON per kind — without changing the default render path.
 ```
+
+**Scope (normative):** Stage 11.A is **multi-kind**, not flowchart-only. Flowchart recognition in `new_src/MermaidRecognition/Kinds/Flowchart/` is **slice 1** (deepest path). Every diagram kind in §3.18.2 must reach at least **L1** before Stage 11.A recognition exit. See §11.1.13.
+
+Stage 11.A config deliverable (§4.1): `DiagramConfigContract` with `RawDirectiveValues` and `EffectiveValues` (flat dotted keys per diagram instance). Full default merge from vendored Mermaid schema is required before recognition JSON is authoritative; implemented in **`new_src/MermaidRecognition`**, not Naiad.
 
 The parser contract can be made much stronger without disturbing the current renderer. Stage 11.C is deliberately incremental: every old helper must either be mapped to a structural route kind, retained temporarily as `Legacy*`, or deleted only after parity is proven.
 
-### 11.0.1 Executive summary (for reviewers and project managers)
+### 11.1.1 Executive summary (for reviewers and project managers)
 
 This subsection explains **what we are changing**, **why**, and **how we will not break what already works**.
 
 | Question | Short answer |
 | --- | --- |
-| What works today? | The modified Naiad tree already converts most of `flow.md` (F01â€“F60) to DOCX/SVG with acceptable visual parity using Dagre layout plus many hand-tuned edge repairs. |
-| What is weak today? | The parser does not record everything Mermaid records (grouped nodes `&`, edge ids `e1@-->`, metadata `@{ ... }`, accessibility, and more). Some routing still looks at English words on edges (`Yes` / `No`). |
-| What are we building? | A **recognition contract** (structured facts from source text) first, then safer routing driven by graph structureâ€”not by scenario names or label wording. |
-| What are we **not** doing now? | A big-bang rewrite of layout, native **ELK** layout for `flowchart-elk`, or claiming â€œany Mermaid diagramâ€ without diagnostics or fallback. |
-| What starts first? | **Stage 11.A only:** parser contract + machine-readable tests. **Default pictures in Word stay on the current render path.** |
+| What works today? | Legacy Naiad (`extern/Naiad`) still produces DOCX/SVG for many `flow.md` scenarios — usable as a **comparison baseline**, not the target architecture. |
+| What is weak today? | Legacy parse/render does not match Mermaid’s contract model (grouped nodes `&`, edge ids, metadata, accessibility, …). Legacy routing still branches on English words (`Yes` / `No`). |
+| What are we building? | **Recognition** (`DiagramContract`) — **done** for started kinds at L4 minimum — then **native render** from that contract in `new_src/`, with structural routing. |
+| What are we **not** doing? | Extending Naiad, big-bang ELK for `flowchart-elk`, or claiming “any Mermaid diagram” without diagnostics or §11.E fallback. |
+| What starts next? | **Native render pilot** (flowchart): `FlowchartRouter` + layout in `new_src/`. Legacy Naiad for comparison only. |
 
-**Product path (unchanged during Stage 11.A):**
+**Product path (today vs target):**
 
 ```mermaid
 flowchart LR
-  MD["flow.md / user Markdown"]
-  CVT["Converter / MDConverter"]
-  NAI["Naiad: parse + layout + SVG"]
-  DOC["flow.docx"]
+  MD["User Markdown"]
+  CVT["MDConverter"]
+  LEG["Legacy Naiad\n(comparison / interim DOCX)"]
+  REC["MermaidRecognizer\n(DiagramContract)"]
+  NAT["Native render\n(new_src — target)"]
+  DOC["DOCX / SVG"]
 
-  MD --> CVT --> NAI --> DOC
+  MD --> CVT
+  CVT --> LEG --> DOC
+  MD --> REC --> NAT --> DOC
 ```
 
-**Delivery path (migration stages):**
+Legacy Naiad remains wired in MDConverter until native render passes acceptance gates. Recognition is authoritative for parse facts; legacy Naiad is not extended.
+
+**Delivery path (stages 11.B–E — native render):**
 
 ```mermaid
 flowchart TB
-  A["11.A Contract parser + JSON tests\n(default render unchanged)"]
-  B["11.B Remove label-semantic routing"]
-  C["11.C Router strangler\n(one route kind at a time)"]
-  D["11.D Shrink scenario-specific code"]
-  E["11.E CanRender + DOCX diagnostics / fallback"]
+  A["11.A Recognition\n(complete for started kinds)"]
+  B["11.B Native routing\n(no label semantics)"]
+  C["11.C FlowchartRouter\n(new_src)"]
+  D["11.D Structural layout"]
+  E["11.E CanRender + fallback"]
 
   A --> B --> C --> D --> E
 ```
 
-Stages **Bâ€“E** must not all start at once. Each stage has exit criteria in the table in Â§11.0.
+Stages **B–E** must not all start at once. Each stage has exit criteria in the table in §11.1.
 
-### 11.0.2 Reference model: how official Mermaid handles flowcharts
+### 11.1.2 Reference model: how official Mermaid handles flowcharts
 
-Mermaid does **not** draw from the text in one step. It builds an in-memory **diagram database** (`flowDb`), then lays out, then renders. That separation is the reference for Naiad.
+Mermaid does **not** draw from the text in one step. It builds an in-memory **diagram database** (`flowDb`), then lays out, then renders. That separation is the reference for **native render** in this programme — not for extending legacy Naiad.
 
 Official documentation: [Flowcharts syntax](https://mermaid.js.org/syntax/flowchart.html) (Mermaid 11.x).
 
@@ -1716,11 +2208,11 @@ flowchart LR
 | Diagram database (`addVertex`, `addLink`, `setDirection`, styles) | `mermaid/packages/mermaid/src/diagrams/flowchart/flowDb.ts` |
 | Parser grammar (JISON) | `mermaid/packages/mermaid/src/diagrams/flowchart/parser/flow.jison` |
 | Behaviour tests (edge expansion, chaining) | `mermaid/packages/mermaid/src/diagrams/flowchart/parser/flow-vertice-chaining.spec.js` |
-| Grouped links + edge ids (`A & B e1@--> C & D`) | `mermaid/packages/mermaid/src/diagrams/flowchart/parser/flow-node-data.spec.js` (lines 347â€“362) |
-| Edge id on grouped links (implementation rule) | `flowDb.ts` â€” `addLink` (see comment at lines 349â€“360) |
-| Symbolic directions `<` `>` `^` `v` | `flowDb.ts` â€” `setDirection` (lines 436â€“449) |
+| Grouped links + edge ids (`A & B e1@--> C & D`) | `mermaid/packages/mermaid/src/diagrams/flowchart/parser/flow-node-data.spec.js` (lines 347–362) |
+| Edge id on grouped links (implementation rule) | `flowDb.ts` — `addLink` (see comment at lines 349–360) |
+| Symbolic directions `<` `>` `^` `v` | `flowDb.ts` — `setDirection` (lines 436–449) |
 
-**Grouped node expansion (Cartesian product)** â€” when the user writes `A & B --> C & D`, Mermaid creates **four** edges, not one â€œfanâ€ object:
+**Grouped node expansion (Cartesian product)** — when the user writes `A & B --> C & D`, Mermaid creates **four** edges, not one “fan” object:
 
 ```mermaid
 flowchart TB
@@ -1739,9 +2231,9 @@ flowchart TB
   B --> D
 ```
 
-Verified by upstream test `A & B --> C` (two edges) in `flow-vertice-chaining.spec.js` (lines 38â€“58). The full `A & B --> C & D` expansion (four edges) and `A & B e1@--> C & D` (six edges; user id `e1` on **Bâ†’C** only) are exercised in `flow-node-data.spec.js` and `flow-vertice-chaining.spec.js`. Naiad must lock the same facts in verified JSON (Â§11.11) **before** they are treated as authoritative.
+Verified by upstream test `A & B --> C` (two edges) in `flow-vertice-chaining.spec.js` (lines 38–58). The full `A & B --> C & D` expansion (four edges) and `A & B e1@--> C & D` (six edges; user id `e1` on **B→C** only) are exercised in `flow-node-data.spec.js` and `flow-vertice-chaining.spec.js`. Naiad must lock the same facts in verified JSON (§11.12) **before** they are treated as authoritative.
 
-**User-defined edge id on a group** â€” Mermaid applies the user id only to **one** generated edge in a group (last source Ã— first target in the cross product). This is **confirmed in source**, not guessed (`mermaid/packages/mermaid/src/diagrams/flowchart/flowDb.ts`, `addLink`, lines 349â€“360):
+**User-defined edge id on a group** — Mermaid applies the user id only to **one** generated edge in a group (last source × first target in the cross product). This is **confirmed in source**, not guessed (`mermaid/packages/mermaid/src/diagrams/flowchart/flowDb.ts`, `addLink`, lines 349–360):
 
 ```typescript
 // for a group syntax like A e1@--> B & C, only the first edge should have a userDefined id
@@ -1759,13 +2251,13 @@ for (const start of _start) {
 }
 ```
 
-Naiad must reproduce this rule in Stage 11.A and tag the result in verified JSON. Until Naiad tests pass, treat the table row for `A & B e1@--> C & D` as `implementation-critical-unverified` in Â§11.4.
+Naiad must reproduce this rule in Stage 11.A and tag the result in verified JSON. Until Naiad tests pass, treat the table row for `A & B e1@--> C & D` as `implementation-critical-unverified` in §11.5.
 
-**Why edge order matters:** `linkStyle 0` and `linkStyle default` refer to edges by **creation order** in the database. If Naiad expands `&` differently from Mermaid, styles attach to the wrong arrows even when the picture â€œlooks fineâ€.
+**Why edge order matters:** `linkStyle 0` and `linkStyle default` refer to edges by **creation order** in the database. If Naiad expands `&` differently from Mermaid, styles attach to the wrong arrows even when the picture “looks fine”.
 
-### 11.0.3 Current Naiad behaviour (modified tree, today)
+### 11.1.3 Current Naiad behaviour (modified tree, today)
 
-Naiadâ€™s flowchart path **already produces good pictures** for the regression catalogue, but it uses a **simpler parser** and a **long repair chain** after Dagre layout.
+Naiad’s flowchart path **already produces good pictures** for the regression catalogue, but it uses a **simpler parser** and a **long repair chain** after Dagre layout.
 
 ```mermaid
 flowchart TB
@@ -1775,35 +2267,35 @@ flowchart TB
   DAG["DagreLayoutEngine.cs\nrank + coordinates"]
   CA["CoordinateAssignment.cs\nmany ApplyFlowchart* repairs"]
   FR["FlowchartRenderer.cs\ncurves, markers, labels"]
-  SVG["SVG â†’ embedded in DOCX"]
+  SVG["SVG → embedded in DOCX"]
 
   IN --> FP --> FM --> DAG --> CA --> FR --> SVG
 ```
 
-**Entry point:** `extern/Naiad/src/Naiad/Mermaid.cs` dispatches `DiagramType.Flowchart` to `RenderFlowchart` (see switch around lines 70â€“72).
+**Entry point:** `extern/Naiad/src/Naiad/Mermaid.cs` dispatches `DiagramType.Flowchart` to `RenderFlowchart` (see switch around lines 70–72).
 
 **Parser today** (`extern/Naiad/src/Naiad/Diagrams/Flowchart/FlowchartParser.cs`):
 
 | Capability | Mermaid 11.14 | Naiad today (verified in tree) |
 | --- | --- | --- |
-| Chained edges `A --> B --> C` on one line | Yes | Yes â€” `StatementParser` (from line 271) builds a node list and edge list |
-| Grouped nodes `A & B --> C` | Yes | **No** â€” `&` is not part of the statement grammar |
-| Edge id `e1@-->` | Yes | **No** â€” no edge id field on `Edge` model |
+| Chained edges `A --> B --> C` on one line | Yes | Yes — `StatementParser` (from line 271) builds a node list and edge list |
+| Grouped nodes `A & B --> C` | Yes | **No** — `&` is not part of the statement grammar |
+| Edge id `e1@-->` | Yes | **No** — no edge id field on `Edge` model |
 | Metadata `@{ shape: doc }` | Yes | **No** |
-| `linkStyle default` | Yes | Partial â€” indexed `linkStyle` exists; â€œdefaultâ€ semantics must match Mermaid |
-| `click` / `accTitle` | Stored in flowDb | **Accepted but discarded** â€” `clickDirective` and `initDirective` parse and ignore content (lines 333â€“349) |
-| `flowchart-elk` header | Uses ELK in Mermaid.js | **Not implemented in Naiad** â€” no ELK references under `extern/Naiad` (see Â§11.0.10) |
+| `linkStyle default` | Yes | Partial — indexed `linkStyle` exists; “default” semantics must match Mermaid |
+| `click` / `accTitle` | Stored in flowDb | **Accepted but discarded** — `clickDirective` and `initDirective` parse and ignore content (lines 333–349) |
+| `flowchart-elk` header | Uses ELK in Mermaid.js | **Not implemented in Naiad** — no ELK references under `extern/Naiad` (see §11.1.10, [`status.md`](status.md)) |
 
-**Edge model today** (`extern/Naiad/src/Naiad/Models/Edge.cs`): has `SourceId`, `TargetId`, `Label`, arrow style, `MinRankSpan`, layout `Points` â€” but **no** `Id`, `CreationIndex`, `IsUserDefinedId`, or metadata fields. That gap is what Stage 11.A fills.
+**Edge model today** (`extern/Naiad/src/Naiad/Models/Edge.cs`): has `SourceId`, `TargetId`, `Label`, arrow style, `MinRankSpan`, layout `Points` — but **no** `Id`, `CreationIndex`, `IsUserDefinedId`, or metadata fields. That gap is what Stage 11.A fills.
 
 **Post-layout repairs today** (`extern/Naiad/src/Naiad/Layout/DagreLayoutEngine.cs`): after layout, Naiad calls helpers such as:
 
 - `ApplyFlowchartDiagramConnectorEndpointSnapping` (e.g. lines 49, 341, 378, 1193)
 - `ApplyFlowchartTbUpwardLoopEdgeOrthogonalSnapping` (e.g. lines 51, 343, 380)
 
-Those live in `CoordinateAssignment.cs` and are selected with many `IsFlowchart*` predicates (dozens of occurrences â€” see baseline table in Â§11.0). Comments often name regression scenarios (`F53`, `F58`). That approach saved visual parity but is what Â§11.C will replace gradually.
+Those live in `CoordinateAssignment.cs` and are selected with many `IsFlowchart*` predicates (dozens of occurrences — see baseline table in §11.1). Comments often name regression scenarios (`F53`, `F58`). That approach saved visual parity but is what §11.C will replace gradually.
 
-**Label-semantic routing (problem to remove in 11.B)** â€” still present in layout code (`extern/Naiad/src/Naiad/Layout/CoordinateAssignment.cs`, `TryGetFlowchartHorizontalDecisionBranchEndpoints`, lines 2825â€“2835):
+**Label-semantic routing (problem to remove in 11.B)** — still present in layout code (`extern/Naiad/src/Naiad/Layout/CoordinateAssignment.cs`, `TryGetFlowchartHorizontalDecisionBranchEndpoints`, lines 2825–2835):
 
 ```csharp
 if (label.StartsWith("Yes", StringComparison.OrdinalIgnoreCase))
@@ -1820,19 +2312,19 @@ else if (label.StartsWith("No", StringComparison.OrdinalIgnoreCase))
 
 Similar checks exist in `FlowchartRenderer.cs` (grep `StartsWith("Yes"`). A diagram labelled `True` / `False` should use the **same ports** as `Yes` / `No` when topology is identical.
 
-### 11.0.4 Target behaviour after migration
+### 11.1.4 Target behaviour after migration
 
-The target is **not** â€œrewrite SVG from scratch.â€ It is:
+The target is **not** “rewrite SVG from scratch.” It is:
 
 1. **Parse** into a contract as complete as practical (Mermaid-aligned facts + diagnostics).
 2. **Layout** with Dagre (unchanged engine family for this migration).
-3. **Route** edges using **structure** (topology, shape, direction, ports)â€”Â§11.6â€“11.8 are **Naiad-native routing strategies**, not copies of `flowDb` fields.
+3. **Route** edges using **structure** (topology, shape, direction, ports)—§11.7–11.9 are **Naiad-native routing strategies**, not copies of `flowDb` fields.
 4. **Render** with existing curve/marker/label code where possible.
 
 ```mermaid
 flowchart TB
   IN["Mermaid source"]
-  DB["FlowchartDb â†’ FlowchartModel\n(recognition fields + diagnostics)"]
+  DB["FlowchartDb → FlowchartModel\n(recognition fields + diagnostics)"]
   MUT["ApplyFlowchartMutations\n(styles, classes, linkStyle, config)"]
   DAG["Dagre layout"]
   RTR["FlowchartRouter\n(topology + ports + route kind)"]
@@ -1841,19 +2333,21 @@ flowchart TB
   IN --> DB --> MUT --> DAG --> RTR --> REN
 ```
 
-**Planned types and files (not all implemented yet):**
+**Target components (architecture):**
 
-| Piece | Status | Where specified |
+| Piece | Role | Where specified |
 | --- | --- | --- |
-| `FlowchartDb` parse database | **Planned** | Â§11.4, Â§11.10 |
-| Recognition fields on `Node` / `Edge` / `FlowchartModel` | **Planned** | Â§11.3, Â§11.10 |
-| `FlowchartRouter.cs` | **Planned** | Â§11.7, Â§11.10 |
-| `FlowchartRecognition/*.verified.json` tests | **Planned** | Â§11.11 |
-| `UseFlowchartRecognitionParser` feature flag | **Planned** | Â§11.10 |
+| `FlowchartDb` parse database | Mermaid-aligned statement accumulation (edge expansion, subgraph stack, linkStyle list) | §11.5, §11.11 |
+| `DiagramContract` / `NodeContract` / `EdgeContract` | Recognition output DTOs | §4, §11.1.8, `new_src/MermaidRecognition` |
+| Naiad render models (`Node`, `Edge`) | Legacy render path only | Unchanged unless adapter maps from contract |
+| `FlowchartRouter.cs` | Structural route classification (Stage 11.C) | §11.8, §11.11 |
+| `*Recognition/*.verified.json` | Machine-readable contract expectations | §11.12 |
+| `UseFlowchartRecognitionParser` | Feature flag; default **off** until gates pass | `MarkdownToDocxOptions.Mermaid` |
+| `ContractToFlowchartModel` adapter | Maps `DiagramContract` → Naiad `FlowchartModel` (flowchart) | `new_src/MermaidRecognition.NaiadAdapter/` |
 
-Until Stage 11.A lands, treat this diagram as the **target architecture**, not a description of the running binary.
+Implementation status of each component: [`status.md`](status.md).
 
-### 11.0.5 Strangler migration: parallel paths during transition
+### 11.1.5 Strangler migration: parallel paths during transition
 
 A **strangler** keeps the old path alive while the new path proves itself. That avoids breaking `flow.docx` while parser work proceeds.
 
@@ -1869,7 +2363,7 @@ flowchart TB
   subgraph stageA["Stage 11.A (build now)"]
     NEW_PARSE["New FlowchartDb parser"]
     CONTRACT["Export / test contract JSON"]
-    ADAPTER["Optional adapter â†’ existing FlowchartModel"]
+    ADAPTER["Optional adapter → existing FlowchartModel"]
   end
 
   SRC --> OLD_PARSE --> OLD_RENDER
@@ -1879,11 +2373,11 @@ flowchart TB
 
 **Rules during transition:**
 
-- **Default for MDConverter / Converter:** old parse â†’ old render (no change to embedded images in Stage 11.A).
+- **Default for MDConverter / Converter:** old parse → old render (no change to embedded images in Stage 11.A).
 - **CI for recognition:** new parser only; compare JSON to Mermaid-derived expectations; **no PNG comparison required** for those tests.
-- **CI for visual regression:** existing SvgHarness on `flow.md` F01â€“F60 (and F53A coordinate gate); do not delete scenarios because the contract parser exists.
+- **CI for visual regression:** existing SvgHarness on `flow.md` F01–F60 (and F53A coordinate gate); do not delete scenarios because the contract parser exists.
 
-### 11.0.6 What each stage changes (detail)
+### 11.1.6 What each stage changes (detail)
 
 ```mermaid
 sequenceDiagram
@@ -1895,7 +2389,7 @@ sequenceDiagram
 
   Note over Dev,Harness: Stage 11.A
   Dev->>Parser: Add FlowchartDb behind flag
-  Dev->>Tests: Add verified JSON (F61â€“F88, expansion tables)
+  Dev->>Tests: Add verified JSON (F61–F88, expansion tables)
   Tests-->>Dev: Pass without rendering
   Note over Harness: flow.md SVG unchanged
 
@@ -1924,19 +2418,19 @@ sequenceDiagram
 | **11.D** | Same | Delete `IsFlowchart*` as parity proven | Stable | Unchanged |
 | **11.E** | `CanRender` | Same | Native or fallback | Warnings / policy |
 
-### 11.0.7 Recognition vs rendering vs routing (three layers)
+### 11.1.7 Recognition vs rendering vs routing (three layers)
 
-Project managers often conflate â€œparseâ€, â€œlayoutâ€, and â€œdrawâ€. This project treats them separately:
+Project managers often conflate “parse”, “layout”, and “draw”. This project treats them separately:
 
 ```mermaid
 flowchart LR
   subgraph R["Recognition (Stage 11.A)"]
     R1["What did the text mean?"]
   end
-  subgraph L["Layout (Dagre)"]
+  subgraph L["Layout (Dagre; optional future Sugiyama §11.1.11)"]
     L1["Where do nodes sit?"]
   end
-  subgraph RT["Routing (11.Bâ€“11.C)"]
+  subgraph RT["Routing (11.B–11.C)"]
     RT1["Which ports and path shape?"]
   end
   subgraph D["Drawing (Renderer)"]
@@ -1953,73 +2447,643 @@ flowchart LR
 | Routing | Which side of the diamond, loop outside cluster | Reading `"Yes"` on the label |
 | Drawing | curveBasis vs straight line | Changing parser because a curve looks wrong |
 
-### 11.0.8 Code reference map (quick navigation)
+### 11.1.8 Assembly boundaries (recognition vs legacy render)
 
-| Topic | Naiad (modified tree) | Mermaid 11.14 (vendored) |
+Stage 11.A and all new Mermaid recognition work live in a **separate project**, not in Naiad.
+
+| Project | Path | Responsibility | References |
+| --- | --- | --- | --- |
+| **MermaidRecognition** | `new_src/MermaidRecognition/MermaidRecognition.csproj` | Parse Mermaid source → `DiagramContract` (+ config, diagnostics). No Dagre, no SVG, no OpenXML. | BCL only |
+| **MermaidRecognition.Tests** | `new_src/MermaidRecognition.Tests/` (fixtures in `FlowchartRecognition/`) | Verified JSON / contract fixtures (§7.1, §11.12) | MermaidRecognition |
+| **Naiad** (legacy) | `extern/Naiad/src/Naiad/Naiad.csproj` | Existing parse → layout → SVG for default DOCX path. **Frozen** except bugfixes and adapter glue. | Must not be required to build recognition tests |
+| **MDConverter** (legacy) | `src/MDConverter/` | Markdown → DOCX; orchestrates recognition + render + fallback (§11.10) | MermaidRecognition + Naiad (adapter TBD) |
+
+Dependency rule: **MermaidRecognition must not reference Naiad.** Naiad may reference MermaidRecognition only for an explicit adapter (`ContractToFlowchartModel`) behind a feature flag; that adapter is Stage 11.A exit glue, not new recognition logic inside Naiad.
+
+### 11.1.8.1 Open decision: full replacement of Naiad
+
+The programme assumes Naiad remains the **legacy native renderer** (Dagre layout, SVG curves, DOCX embedding via adapter) while **MermaidRecognition** owns parse → contract. That split may be permanent or transitional; the decision is deferred until Stage 11.A–11.E discovery completes. Tracking: [`status.md`](status.md).
+
+| Discovery question | If yes → implication |
+| --- | --- |
+| Can recognition + a new layout/router layer match Mermaid parity without Naiad repairs? | Consider **deprecating Naiad** for flowcharts and eventually all diagram kinds |
+| Is Naiad’s value only historical SVG tuning (`CoordinateAssignment`, scenario predicates)? | Reimplement routing in MermaidRecognition.Rendering (or sibling project) with structural rules (§11.7–11.9) |
+| Do non-flowchart Naiad diagrams already meet DOCX needs? | Phased replacement: flowchart first, other kinds later |
+| Is maintaining two render stacks unacceptable? | Prioritise **MermaidRecognition.Render** (name TBD) and freeze Naiad |
+
+**Decision gate:** Do not remove Naiad from the solution or MDConverter until recognition fixtures are authoritative **and** a render path fed only from `DiagramContract` meets SvgHarness / DOCX acceptance for the agreed diagram subset (or explicit fallback policy is documented).
+
+Until the gate is met:
+
+- Keep Naiad on the default product path.
+- Build MermaidRecognition so it does **not** depend on Naiad types.
+- Optional adapter stays thin and removable.
+
+If full replacement is chosen later, expected end state:
+
+```text
+Markdown → MermaidRecognition (parse + contract + layout + SVG/DOCX)
+         ↘ (optional) official Mermaid.js fallback for unsupported kinds
+```
+
+Record outcomes of this investigation in spec revision history when the decision is resolved.
+
+### 11.1.8.2 Repository layout (`new_src` vs legacy)
+
+Recognition library and tests live under **`new_src/`** (`MermaidRecognition`, `MermaidRecognition.Tests`, `MermaidRecognition.NaiadAdapter`), separated from legacy `src/` MDConverter and `extern/Naiad`. See [`status.md`](status.md) for layout notes.
+
+| Tree | Role | Do not add here |
 | --- | --- | --- |
-| Parse flowchart | `extern/Naiad/src/Naiad/Diagrams/Flowchart/FlowchartParser.cs` | `mermaid/.../flowchart/parser/` + `flowDb.ts` |
-| Flowchart model | `extern/Naiad/src/Naiad/Diagrams/Flowchart/FlowchartModel.cs`, `Models/Node.cs`, `Models/Edge.cs` | `flowDb.ts` vertices/edges |
-| Layout | `extern/Naiad/src/Naiad/Layout/DagreLayoutEngine.cs` | `mermaid/.../flowRenderer-v3-unified.ts` (and related) |
-| Endpoint repairs / routing | `extern/Naiad/src/Naiad/Layout/CoordinateAssignment.cs` | Renderer + layout adapters in Mermaid.js |
-| SVG / curves | `extern/Naiad/src/Naiad/Diagrams/Flowchart/FlowchartRenderer.cs` | `packages/mermaid/src/diagrams/flowchart/` |
-| Public API | `extern/Naiad/src/Naiad/Mermaid.cs` | N/A (library is consumer) |
-| Regression catalogue | `flow.md` (F01â€“F88, F53A) | Upstream tests under `mermaid/.../parser/*.spec.js` |
-| Visual gate tool | `src/SvgHarness/Program.cs` | [Mermaid Live Editor](https://mermaid.live) / mermaid.ink (project policy) |
-| DOCX pipeline | `src/MDConverter/`, `Converter/` | N/A |
+| `new_src/MermaidRecognition/` | Recognition library by **aspect** (`Core/`, `Contract/`, `Config/`, `Detection/`, `Diagnostics/`, `Kinds/*`) | Legacy DOCX, Naiad types, SVG layout, fixture `.mmd` files |
+| `new_src/MermaidRecognition.Tests/` | Recognition-only tests + `FlowchartRecognition/*.verified.json` | MDConverter integration tests |
+| `src/MDConverter/`, `src/md2docx/`, `Converter/` | **Legacy** product pipeline | New recognition parsers or contract DTOs |
+| `tests/MDConverter.Tests/` | **Legacy** tests | New §7.1 / §11.12 contract fixtures |
+| `extern/Naiad/` | **Legacy** render stack | New recognition logic (adapter glue only) |
+
+Solution file `MDConverter.slnx` groups projects under `/legacy/` and `/new_src/` folders. Build recognition in isolation:
+
+```powershell
+dotnet build new_src/MermaidRecognition/MermaidRecognition.csproj
+dotnet test new_src/MermaidRecognition.Tests/MermaidRecognition.Tests.csproj
+```
+
+See also `new_src/README.md`.
+
+### 11.1.9 Code reference map (quick navigation)
+
+| Topic | MermaidRecognition (new) | Naiad (legacy render) | Mermaid 11.14 (vendored) |
+| --- | --- | --- | --- |
+| Recognition contract | `new_src/MermaidRecognition/Contract/DiagramContract.cs`, `NodeContract.cs`, `EdgeContract.cs` | N/A | `flowDb.ts` facts |
+| Config (§4.1) | `DiagramConfigContract.cs`, `MermaidJsonConfigFlattener.cs` | `DiagramBase.Config` (init overrides only, render path) | `config.ts`, `config.schema.yaml` |
+| Parse flowchart (target) | `new_src/MermaidRecognition/Kinds/Flowchart/` (FlowchartDb, parser — §11.11) | `FlowchartParser.cs` (legacy, default render) | `flowchart/parser/` + `flowDb.ts` |
+| Layout | N/A (recognition); Naiad `DagreLayoutEngine.cs`; optional future MSAGL Sugiyama (§11.1.11) | `Layout/DagreLayoutEngine.cs` | `flowRenderer-v3-unified.ts` |
+| SVG / curves | N/A | `Diagrams/Flowchart/FlowchartRenderer.cs` | `diagrams/flowchart/` |
+| Public render API | N/A | `Mermaid.cs` | N/A |
+| Regression catalogue | `new_src/MermaidRecognition.Tests/FlowchartRecognition/*.verified.json` | `flow.md` visual gate | `mermaid/.../parser/*.spec.js` |
+| DOCX pipeline | `src/MDConverter/` (orchestration) | via adapter when enabled | N/A |
+| Visual gate tool | N/A | `src/SvgHarness/Program.cs` | [Mermaid Live Editor](https://mermaid.live) |
 
 **Online references (external):**
 
 - [Mermaid flowchart syntax](https://mermaid.js.org/syntax/flowchart.html)
 - [Mermaid configuration / `%%{init}%%`](https://mermaid.js.org/config/configuration.html)
-- [Edge IDs and curve (v11.10+)](https://mermaid.js.org/syntax/flowchart.html) â€” see â€œAttaching an ID to Edgesâ€
-- [Dagre layout](https://github.com/dagrejs/dagre) â€” same family Naiad already uses
-- [ELK layout](https://eclipse.dev/elk/) â€” used by Mermaid for `flowchart-elk` only; **not** Naiadâ€™s current engine (Â§11.0.10)
+- [Edge IDs and curve (v11.10+)](https://mermaid.js.org/syntax/flowchart.html) — see “Attaching an ID to Edges”
+- [Dagre layout](https://github.com/dagrejs/dagre) — same family Naiad already uses; Mermaid default for `flowchart` / `graph`
+- [MSAGL layered (Sugiyama)](https://github.com/microsoft/automatic-graph-layout) — potential native C# Dagre replacement (§11.1.11; local MIT sources under `3rd Party/Microsoft.AGL/.../Layout/Layered/`)
+- [ELK layout](https://eclipse.dev/elk/) — used by Mermaid for `flowchart-elk` only; vendored adapter `mermaid/packages/mermaid-layout-elk/` (MIT, §11.1.11.2); **not** Naiad’s current engine (§11.1.10)
 
-### 11.0.9 ELK and `flowchart-elk` (explicitly deferred)
+### 11.1.10 ELK and `flowchart-elk` (explicitly deferred)
 
 Mermaid supports a separate header form, `flowchart-elk`, that uses the **Eclipse Layout Kernel (ELK)** instead of Dagre for layout. That is a different layout engine with different routing behaviour.
 
 | Topic | Mermaid.js | Naiad (this repo, verified) |
 | --- | --- | --- |
 | Default `flowchart` / `graph` | Dagre-based layout in practice | Dagre via `DagreLayoutEngine.cs` |
-| `flowchart-elk` | ELK-based layout | **Not supported** â€” no ELK integration under `extern/Naiad` |
+| `flowchart-elk` | ELK-based layout | **Not supported** — no ELK integration under `extern/Naiad` |
 | Naiad ER / other diagrams | N/A | Separate parsers; no ELK dependency found in flowchart path |
 
 **Migration decision (locked for this plan):**
 
-1. **Stage 11.Aâ€“11.E** target **Dagre-based** flowcharts only (the common `flowchart` / `graph` headers).
-2. If the parser sees `flowchart-elk`, it should still **recognise** the header and emit diagnostic `flowchart.elk-not-native` (see Â§11.14).
-3. **Do not** schedule ELK porting, ELK routing, or ELK parity work in this migration. ELK remains a **future** programme after Dagre-path recognition and structural routing are stable.
-4. Product behaviour for `flowchart-elk` in DOCX: official Mermaid fallback (when Â§11.E is implemented) or a clear â€œunsupportedâ€ messageâ€”not silent wrong layout.
+1. **Stage 11.A** targets **recognition for all diagram kinds** (§3.18.2, §11.1.13) — **complete** for started kinds at L4 minimum. **Stages 11.B–E** target **native flowchart render** from `DiagramContract` in `new_src/` (ordinary `flowchart` / `graph` headers). Optional **MSAGL Sugiyama** layout may be adopted on the native path after routing gates (§11.1.11.1). **Do not** extend legacy Naiad for these stages.
+2. If the parser sees `flowchart-elk`, it should still **recognise** the header and emit diagnostic `flowchart.elk-not-native` (see §11.15).
+3. **Do not** schedule ELK porting, ELK routing, or ELK parity work during Stages **11.A–11.E** baseline migration. ELK remains a **future** programme after Dagre-path recognition and structural routing are stable. When ELK native render is pursued, the vendored MIT sources and port options are defined in **§11.1.11.2** (distinct from the MSAGL Sugiyama Dagre-replacement track in §11.1.11.1).
+4. Product behaviour for `flowchart-elk` in DOCX: official Mermaid fallback (when §11.E is implemented) or a clear “unsupported” message—not silent wrong layout.
 
 ```mermaid
 flowchart LR
   HDR["Diagram header"]
-  DAG["flowchart / graph\nâ†’ Naiad Dagre path\n(in scope)"]
-  ELK["flowchart-elk\nâ†’ diagnostic + fallback\n(out of scope for 11.Aâ€“11.E)"]
+  DAG["flowchart / graph\n→ native render (new_src)\n(in scope)"]
+  ELK["flowchart-elk\n→ diagnostic + fallback\n(out of scope for 11.A–11.E)"]
 
   HDR --> DAG
   HDR --> ELK
 ```
 
-### 11.0.10 Truthfulness checklist (for reviewers)
+### 11.1.11 Sugiyama layered layout (potential native Dagre replacement)
 
-Use this when judging whether Â§11 matches the repository:
+Mermaid 11.14 uses **Dagre** ([dagrejs/dagre](https://github.com/dagrejs/dagre)) for default `flowchart` / `graph` layout via `layout: dagre` and `flowchart.defaultRenderer: dagre-wrapper` (§3.17.7, §3.17.28). Naiad today uses a Dagre-family engine (`extern/Naiad/.../DagreLayoutEngine.cs`) plus extensive post-layout repairs. Dagre and Naiad are both **layered directed-graph** layouters, but they are different implementations with different tuning and routing integration.
 
-| Statement | True today? | Notes |
+The programme **may** adopt a **native C# Sugiyama layered layout** as a Dagre **replacement** on the product render path (for ordinary `flowchart` / `graph` headers — not `flowchart-elk`). A candidate implementation is available locally under the **MIT licence**:
+
+```text
+C:\Users\windo\OneDrive\Documents\Development\3rd Party\Microsoft.AGL\Microsoft.AGL\Layout\Layered\
+```
+
+This is the **Microsoft Automatic Graph Layout (MSAGL)** layered engine: `LayeredLayoutEngine`, `SugiyamaLayoutSettings`, and supporting types (`Layering/`, `Ordering/`, `Routing.cs`, `FlatEdgeRouter`, `SmoothedPolylineCalculator`, …). It implements the classic Sugiyama pipeline (layer assignment, vertex ordering, coordinate assignment, edge routing) — the same **algorithm family** Mermaid targets through Dagre for layered flowcharts.
+
+| Topic | Dagre (Mermaid / Naiad today) | MSAGL Sugiyama (candidate) |
 | --- | --- | --- |
-| `flow.md` visual catalogue is valuable | Yes | F01â€“F60 visual; F61â€“F88 recognition-oriented per `flow.md` |
-| Naiad renders most F01â€“F60 acceptably | Largely yes | Project claim; gated by SvgHarness policy |
-| Parser matches Mermaid `flowDb` | No | No `&`, no edge ids, many directives swallowed |
-| `FlowchartDb` / `FlowchartRouter` exist | **No** | Planned in Â§11.4â€“Â§11.10 |
-| Mermaid `addLink` grouped id rule documented | Yes | `flowDb.ts` lines 349â€“360 |
-| Label `Yes`/`No` affects routing | Yes | `CoordinateAssignment.cs` ~2825+ |
-| ELK in scope for this migration | **No** | Explicitly deferred Â§11.0.9, Â§11.14 |
-| Stage 11.A changes default DOCX images | **No** | Explicit requirement Â§11.0, Â§11.10 |
+| Origin | JavaScript library; Naiad C# integration | Native C# sources (MIT-licensed MSAGL) |
+| Mermaid config | `layout: dagre`, `flowchart.defaultRenderer: dagre-wrapper` | **Not** in pinned Mermaid 11.14 — programme-defined if adopted |
+| Layout input | Mermaid `flowDb`; Naiad `FlowchartModel` | MSAGL `GeometryGraph` + `SugiyamaLayoutSettings` |
+| Edge paths | Mermaid renderer; Naiad `CoordinateAssignment` repairs | MSAGL layered routers under `Layout/Layered/` |
+| Relation to ELK | Separate from `flowchart-elk` | Also separate — Sugiyama replaces **Dagre**, not ELK (§11.1.10) |
+| Stages 11.A–11.E | **Default** interim path | **Deferred** — evaluate only after contract-driven routing gates |
 
-If implementation diverges from this table, update Â§11.0.10 and the pin in Â§11.0â€”not only the code.
+**Programme rules (normative):**
 
-### 11.1 Current Problem in Naiad
+1. **Do not** adopt MSAGL during recognition work. Evaluate on the **native render** path only after Stage **11.C** routing reads `DiagramContract` and SvgHarness gates pass.
+2. **May evaluate** MSAGL Sugiyama **after** Stage **11.C** on the native path — legacy Naiad output for **comparison only** (§12).
+3. A future adapter must map **`DiagramContract` → MSAGL graph**: measured node bounds, edge endpoints, `MinLength` / creation order, subgraph containment, and direction — **not** semantic label text (§11.3, §11.7).
+4. Effective config from §3.17 (`flowchart.nodeSpacing`, `flowchart.rankSpacing`, `flowchart.diagramPadding`, `flowchart.curve`, direction TB/LR/…, `themeVariables.*`) must map to `SugiyamaLayoutSettings` (for example `LayerSeparation`, margins, constraints) where equivalents exist; unmapped keys require diagnostics, not silent defaults.
+5. Parity acceptance: same `DiagramContract` fed to Dagre (baseline) and Sugiyama (candidate); compare node bounds and route **classification** on active `flow.md` scenarios. Document intentional differences. Adopting Sugiyama does **not** satisfy `flowchart-elk` recognition or render claims.
+6. If adopted, vendor MSAGL under `extern/` or `new_src/MermaidRecognition.Layout/` with MIT licence preserved; native router must not use label-semantic rules (§11.7).
+
+#### 11.1.11.1 MSAGL is not ELK-compatible (Brandes–Köpf overlap only)
+
+Repository verification (local sources under `3rd Party\Microsoft.AGL\` and the wider `Development\` tree) found **no ELK implementation**, no `elkjs` checkout, and no native C# binding to the Eclipse Layout Kernel. MSAGL’s layered engine is **Sugiyama-only** for the Dagre-family path; it must **not** be treated as a substitute for `flowchart-elk` render or parity claims (§11.1.10, §11.15).
+
+MSAGL **does** share one algorithmic building block with ELK Layered: horizontal coordinate assignment following Brandes and Köpf (“Fast and Simple Horizontal Coordinate Assignment”), implemented in `Layout/Layered/XCoordsWithAlignment.cs` and selected via `SugiyamaLayoutSettings.BrandesThreshold` / the internal `Brandes` flag in `LayeredLayoutEngine`. Mermaid’s pinned defaults include `elk.nodePlacementStrategy: BRANDES_KOEPF` (§3.17), which ELK’s layered algorithm exposes under a different option surface. That overlap explains similar *layered* results on some graphs; it does **not** imply:
+
+| Concern | MSAGL Sugiyama | ELK (`flowchart-elk`) |
+| --- | --- | --- |
+| Graph model | `GeometryGraph`, MSAGL ports and clusters | ELK JSON (`elkjs` / Java ELK) with `elk.hierarchyHandling`, explicit layout options |
+| Config keys | `SugiyamaLayoutSettings` (layer separation, constraints, …) | `elk.*`, `elk.layered.*`, `nodePlacement.strategy`, … (§3.17 `elk` object) |
+| Mermaid header | `flowchart` / `graph` only | `flowchart-elk` (separate detector and renderer) |
+| Parity gate | Dagre baseline on ordinary flowcharts | ELK baseline on `flowchart-elk` fixtures — **not** satisfied by MSAGL |
+| Licence on PC | MSAGL layered sources (MIT, local path above) | `elkjs` + `@mermaid-js/layout-elk` (MIT, vendored under `mermaid/` — §11.1.11.2) |
+
+**Normative rule:** adopting MSAGL Sugiyama for the Dagre path (§11.1.11 programme rules) leaves `flowchart.elk-not-native` and ELK render work **unchanged** and **out of scope** for that adoption.
+
+#### 11.1.11.2 Potential ELK path — port Mermaid layout adapter (MIT)
+
+Native `flowchart-elk` render is **not** available in Naiad today. The programme **may** later port or host ELK layout using the **MIT-licensed** Mermaid integration already vendored in this repository, rather than re-deriving ELK graph construction from scratch.
+
+**Authoritative vendored sources (pinned Mermaid 11.14 tree):**
+
+| Component | Path | Licence | Role |
+| --- | --- | --- | --- |
+| `@mermaid-js/layout-elk` | `mermaid/packages/mermaid-layout-elk/` | MIT | Maps Mermaid `LayoutData` → ELK JSON, applies `config.elk.*`, post-processes ELK routes for SVG |
+| `elkjs` (dependency) | declared in `mermaid-layout-elk/package.json` as `^0.9.3` | MIT | JavaScript transpilation of ELK; `elk.layout(graph)` entry point |
+| ELK render entry | `mermaid-layout-elk/src/render.ts` | MIT | Sets `elk.algorithm`, `nodePlacement.strategy`, `elk.layered.mergeEdges`, `elk.layered.cycleBreaking.strategy`, `elk.layered.considerModelOrder.strategy`, direction, hierarchy handling |
+| Core fallback | `mermaid/packages/mermaid/src/diagrams/flowchart/flowRenderer-v3-unified.ts` | MIT | Without the external layout package registered, `flowchart-elk` **warns** and falls back to **Dagre** — native product must not silently rely on this |
+
+There is **no** maintained native C# ELK library in the programme’s source trees. Realistic native strategies (evaluate after Dagre-path and §11.E fallback policy are stable):
+
+1. **Official Mermaid.js host (§11.E)** — load vendored `@mermaid-js/layout-elk` + `elkjs` in a headless/browser render path for `flowchart-elk` only; lowest port risk, not pure C#.
+2. **Adapter port** — reimplement the **Mermaid-side** adapter (`LayoutData` / `DiagramContract` → ELK JSON, config mapping, route → contract geometry) in C# while still calling **elkjs** via an embedded JS host (Node, Jint, or similar); preserve MIT notices for both Mermaid adapter code and `elkjs`.
+3. **Full native ELK** — invoke Eclipse ELK Java (EPL-2.0) or await a future C# binding; **not** present on this PC; licence and deployment differ from MSAGL MIT and from the vendored MIT stack above.
+
+**Programme rules (normative) for ELK port work:**
+
+1. **Separate track** from MSAGL Sugiyama (§11.1.11.1). ELK satisfies `flowchart-elk`; MSAGL targets ordinary `flowchart` / `graph` Dagre replacement — do not conflate parity gates.
+2. **Source of truth for graph shape and options:** vendored `mermaid-layout-elk/src/render.ts` and pinned `config.elk.*` defaults (§3.17), not MSAGL `SugiyamaLayoutSettings`.
+3. **Config mapping:** `elk.mergeEdges`, `elk.nodePlacementStrategy`, `elk.cycleBreakingStrategy`, `elk.forceNodeModelOrder`, `elk.considerModelOrder` (and any keys added by the adapter in `render.ts`) must round-trip from `DiagramConfigContract`; unmapped keys emit diagnostics.
+4. **Vendoring:** if code is copied or translated from `mermaid-layout-elk`, place it under `extern/` or `new_src/` with MIT licence files preserved; record upstream path and pinned Mermaid version in revision history.
+5. **Acceptance:** parity against Mermaid ELK output on an agreed `flowchart-elk` fixture slice (SvgHarness or coordinate classification), not against Dagre or MSAGL baselines.
+6. **Until ELK native path exists:** keep recognition diagnostic `flowchart.elk-not-native` (§11.15) and product fallback policy from §11.1.10 rule 4.
+
+Implementation progress: [`status.md`](status.md).
+
+```mermaid
+flowchart LR
+  CONTRACT["DiagramContract"]
+  DAGRE["Dagre path\n(Naiad today;\nMermaid reference)"]
+  SUG["MSAGL Sugiyama\n(future native C# option)"]
+  ELK["ELK\n(flowchart-elk;\n§11.1.10)"]
+
+  CONTRACT --> DAGRE
+  CONTRACT -.->|"optional future"| SUG
+  CONTRACT -.->|"fallback / other header"| ELK
+```
+
+Implementation progress and adoption decision: [`status.md`](status.md).
+
+### 11.1.12 Review checklist
+
+When reviewing whether implementation matches this specification, use the checklist in [`status.md`](status.md) (truthfulness table). Update that file when repository facts change.
+
+### 11.1.13 Stage 11.A — all Mermaid diagram kinds (recognition coverage)
+
+**Exit criterion (recognition):** every diagram kind listed in §3.18.2 can be fed through `MermaidRecognizer.Parse` and produces an auditable `DiagramContract` (or explicit diagnostics). Implementing flowchart alone does **not** satisfy Stage 11.A.
+
+**Minimum per kind:** gate level **L1** (§7.4.2) — detect (G0), init/config where applicable (G1), diagnostics discipline (G10), at least one smoke fixture (G11).
+
+**Depth targets (beyond L1):**
+
+| Kind group | Target gate level | Requirements |
+| --- | --- | --- |
+| Flowchart / graph | **L3** (Stage 11.A exit); **L4** (G12 parity) | Complete §11.1.14.1 line-type catalogue; G4–G11 axis coverage; then G12 vs pinned Mermaid |
+| Sequence, class, state, ER | **L3** | Complete kind catalogue (§11.1.14.2–§11.1.14.5); G4–G9 per kind matrix |
+| Pie, gantt, mindmap, gitGraph | **L2** | Published line-type catalogue (§11.1.14.6–§11.1.14.9); G3 for every listed line type |
+| All other §3.18.2 kinds | **L1** | Detect + smoke + structured diagnostics |
+
+**Coverage matrix (required recognition — not native render):**
+
+| Diagram kind (§3.18.2) | Typical header | Naiad native render? | Minimum gate | Notes |
+| --- | --- | --- | --- | --- |
+| Flowchart / graph | `flowchart`, `graph` | Yes | **L3** (+ L4 target) | §7.1.1, §11.1.14.1 |
+| Flowchart ELK | `flowchart-elk` | No | **L1** | Detect + `flowchart.elk-not-native` diagnostic |
+| Sequence | `sequenceDiagram` | Yes | **L1** (L3 target) | §11.1.14.2 |
+| Class | `classDiagram` | Yes | **L1** (L3 target) | §11.1.14.3 |
+| State | `stateDiagram` | Yes | **L1** (L3 target) | §11.1.14.4 |
+| ER | `erDiagram` | Yes | **L1** (L3 target) | §11.1.14.5 |
+| Gantt | `gantt` | Yes | **L4** | §11.1.14.7 |
+| Pie | `pie` | Yes | **L1** (L2 target) | §11.1.14.6 |
+| Git graph | `gitGraph` | Yes | **L1** (L2 target) | §11.1.14.9 |
+| Mindmap | `mindmap` | Yes | **L1** (L2 target) | §11.1.14.8 |
+| Timeline, journey, quadrant, xychart, requirement, architecture, kanban, sankey, block, packet, radar, treemap, C4 | per §3.18.2 | Yes | **L1** | Line-pattern recognisers |
+| Event modelling, tree view, ishikawa, venn, wardley, info | per §3.18.2 | No | **L1** | Recognise + unsupported-native diagnostic |
+| YAML front-matter trap | `---` | N/A | **L1** | `recognition.yaml-front-matter` or clear reject |
+
+Use Naiad `extern/Naiad/src/test-renders/*.md` as **evidence sources** when authoring fixtures (recognition need not match Naiad parse depth on day one, but must not contradict detectable headers).
+
+**Programme rules:**
+
+- Do not enable native render as MDConverter default until SvgHarness / contract gates pass.
+- Do not start Stage **11.B** on recognition fixtures alone — render evidence required.
+- Per-kind implementation progress: [`status.md`](status.md) gate registry.
+
+**§12:** Legacy Naiad comparison baseline — [`spec-gates/naiad-render-baseline.md`](spec-gates/naiad-render-baseline.md) (not parse authority; not product target).
+
+### 11.1.14 Per-diagram line-type catalogues
+
+Normative **line-type catalogues** for each diagram kind (§7.4.3). Each table lists grammatical forms, expected contract effects, gate status (`parsed`, `partial`, `diagnostic`, `not-implemented`), and reference fixtures.
+
+**Gate tooling (manifests and tests):**
+
+- JSON manifests under `new_src/MermaidRecognition.Tests/Gates/manifests/` list required fixture base names per kind and `GateLevel`.
+- `DiagramGateManifestTests` fails if a manifest references a missing `.mmd` / `.verified.json`.
+- Per-kind axis gate tests (e.g. `FlowchartL3AxisGateTests`, `SequenceL3AxisGateTests`) assert G4–G9 coverage samples.
+- `tools/Generate-DiagramGateRegistry.ps1` merges manifests into [`spec-gates/registry.generated.md`](spec-gates/registry.generated.md).
+- `CatalogueScenarioCoverageTests` asserts wave catalogue index rows map to recognition fixtures (S/C/ST/E).
+
+Implementation gate levels and fixture counts: [`status.md`](status.md).
+
+**Programme direction:** **Native render from `DiagramContract` in `new_src/`** is the product path. **`extern/Naiad` is frozen** — comparison baseline only (§12). All recognition work lives in `new_src/MermaidRecognition`. Do not extend Naiad parsers or renderers for programme gaps. Advance **recognition → native render adapter** (or §11.E fallback).
+
+#### 11.1.14.1 Flowchart line-type catalogue (exemplar for other kinds)
+
+Other kinds must publish an equivalent table before **L2**. Status values: **parsed**, **partial**, **diagnostic**, **not-implemented**.
+
+| Line type id | Example | Produces (contract) | Gate status | Fixture / notes |
+| --- | --- | --- | --- | --- |
+| `flowchart.header` | `flowchart TD` | `Kind`, `Header`, `Direction` | parsed | all fixtures |
+| `flowchart.header.elk` | `flowchart-elk TD` | + diagnostic `flowchart.elk-not-native` | diagnostic | `unsupported-diagnostics` |
+| `flowchart.comment` | `%% note` | (none) | parsed | — |
+| `flowchart.init.leading` | `%%{init:...}%%` | `Configuration.RawDirectiveValues` | parsed | `config-init` |
+| `flowchart.init.frontMatter` | `---` YAML `config:` block (F86) | `Configuration.RawDirectiveValues` | **parsed** | `config-front-matter`, `config-front-matter-spacing` |
+| `flowchart.node.id_only` | `A` | `NodeContract` | parsed | expansion fixtures |
+| `flowchart.node.bracket` | `A[Label]`, `A(L)`, `A{D}`, … | label, shape, shapeSource | **parsed** | `node-bracket-shapes`, `metadata-shape-data` |
+| `flowchart.node.metadata` | `A@{ shape: doc }` | metadata, shape | parsed | `metadata-shape-data` |
+| `flowchart.node.class_suffix` | `A:::className` | `Classes` | parsed | `class-def-style` |
+| `flowchart.link.simple` | `A --> B` | `EdgeContract` | parsed | chain fixtures |
+| `flowchart.link.chained` | `A --> B --> C` | multiple edges, `CreationIndex` | parsed | §7.1.1 |
+| `flowchart.link.grouped` | `A & B --> C & D` | Cartesian expansion | parsed | §7.1.1 |
+| `flowchart.link.label` | `A -->\|Yes\| B` | `EdgeContract.Label` | parsed | `edge-label-pipe` fixture |
+| `flowchart.link.label.inline` | `A -- authorize --> B` | `EdgeContract.Label` | parsed | `edge-label-inline` fixture |
+| `flowchart.link.edge_id` | `A e1@--> B` | `Id`, `IsUserDefinedId` | parsed | `edge-identity` |
+| `flowchart.link.minlen` | `A ----> B` | `MinLength` | **parsed** | `link-minlen` fixture |
+| `flowchart.link.arrow_variants` | `A -.-> B`, `A ==> B`, … | markers, stroke | **parsed** | `arrow-variants` fixture |
+| `flowchart.subgraph.start` | `subgraph id [Title]` | `GroupContract` | parsed | `subgraph-membership` |
+| `flowchart.subgraph.end` | `end` | pop group | parsed | `subgraph-membership` |
+| `flowchart.subgraph.nested` | `subgraph` inside `subgraph` | `Group.ParentGroupId`, `ChildGroupIds` | **parsed** | `subgraph-nested` fixture |
+| `flowchart.subgraph.direction` | `direction LR` inside subgraph | `Group.Direction` | **parsed** | `subgraph-direction` fixture |
+| `flowchart.style.node` | `style A stroke:#f00` | `InlineStyle` | parsed | `class-def-style` |
+| `flowchart.classDef` | `classDef c stroke:...` | `ClassDefs` | parsed | `class-def-style` |
+| `flowchart.class.apply` | `class A,B c` | `Classes` | parsed | `class-def-style` |
+| `flowchart.linkStyle` | `linkStyle 0 stroke:...` | `LinkStyles` | parsed | linkStyle tests |
+| `flowchart.linkStyle.default` | `linkStyle default ...` | default link style | parsed | linkStyle tests |
+| `flowchart.linkStyle.interpolate` | `linkStyle 0 interpolate basis` | `Edge.Curve` | **parsed** | `linkStyle-interpolate` fixture |
+| `flowchart.click.href` | `click A href "url"` | `Interactions` | parsed | `interactions` |
+| `flowchart.click.callback` | `click A fn` | + diagnostic | diagnostic | `unsupported-diagnostics` |
+| `flowchart.accTitle` | `accTitle: T` | `Accessibility.Title` | parsed | `accessibility` |
+| `flowchart.accDescr.inline` | `accDescr: text` | `Accessibility.Description` | parsed | `accessibility` |
+| `flowchart.accDescr.block` | `accDescr { ... }` | multiline description | **parsed** | `accDescr-block` fixture |
+| `flowchart.edge.metadata` | `e1@{ curve: basis }` / `e1@{ animate: true }` on edge id | `EdgeContract.Metadata` | **parsed** | `edge-metadata`, `edge-animate`, `edge-metadata-f87` (F87 thick link); node `@{ }` unchanged |
+| `flowchart.invisible_link` | `A ~~~ B` | `Stroke=invisible` | **parsed** | `invisible-link` fixture |
+
+**Flowchart L2 exit criteria:** every row above is **parsed** or **diagnostic** (no **not-implemented**).
+
+**Flowchart L3 exit criteria:** L2 + G4–G9 axis coverage per flowchart matrix; verified JSON fixtures; no silent `flowchart.body` on official fixtures.
+
+**Flowchart L4 exit criteria (G12):** L3 + parser parity with pinned Mermaid 11.14 for agreed axes, including at minimum: YAML front-matter `config` (F86), edge `classDef` animation on edge id (F88), edge metadata animate/curve, grouped edge id semantics (§11.1.2). Inventory and status: [`spec-gates/flowchart-g12.md`](spec-gates/flowchart-g12.md). F87/F88 may be catalogue-remarked for render while recognition fixtures cover the axis (§9.1).
+
+#### 11.1.14.2 Sequence line-type catalogue (L2)
+
+Dedicated recogniser: `new_src/MermaidRecognition/Kinds/Sequence/SequenceKindRecognizer.cs`. Source: `mermaid/packages/mermaid/src/diagrams/sequence/parser/sequenceDiagram.jison` (detector: `sequenceDetector.ts`).
+
+**Render policy (Naiad replacement programme):** L2 classifies every source line into `SourceStatementContract.LineTypeId` only. Populating sequence entities (participants, messages, activations, notes, control blocks, boxes) in `DiagramContract` is **L3 (G4)** work in `MermaidRecognition`, then a **new render adapter** (or official Mermaid fallback per §11.E). **Do not** extend Naiad sequence parsers / renderers for recognition gaps — Naiad is a temporary render baseline only (§12). Evidence scenarios: `extern/Naiad/src/test-renders/Sequence.md` (Simple, Participants, Actors, Activation, DifferentArrows, Notes, Title, AutoNumber, AltElseBlocks, Complex); regression catalogue [`sequence.md`](sequence.md) (S01–S32).
+
+Status values match §11.1.14.1: **parsed**, **partial**, **diagnostic**, **not-implemented**.
+
+| Line type id | Example | Produces (contract) | Gate status | Fixture / notes |
+| --- | --- | --- | --- | --- |
+| `sequence.header` | `sequenceDiagram` | `Kind`, `Header` | **parsed** | all fixtures; S01; Naiad Simple |
+| `sequence.init.leading` | `%%{init: {'theme': 'base'}}%%` before header | `Configuration.RawDirectiveValues`, `EffectiveValues` | **parsed** | init strip in recogniser (`StripLeadingInitBlocks`); S24; fixture `init-leading` |
+| `sequence.comment` | `%% This is a comment` | (none) | **parsed** | S22; not `%%{init}%%` |
+| `sequence.participant` | `participant A as Alice`, `actor User` | `SourceStatements[]` (`LineTypeId`, `RawLine`) | **parsed** | `participants`; S04–S06; Naiad Participants, Actors |
+| `sequence.message` | `A->>B: Hi`, `A-->>B: Reply`, `A->>+B: Start`, `A->>A: Self` | `SourceStatements[]` | **parsed** | `simple`, `activation`; S01–S03, S07–S09, S29–S31; Naiad Simple, DifferentArrows, Activation; inline `+`/`-` activation markers on arrow |
+| `sequence.activate` | `activate A`, `deactivate B` | `SourceStatements[]` | **parsed** | `activate-deactivate`; S10 |
+| `sequence.note` | `note right of A: text`, `Note over A,B: span` | `SourceStatements[]` | **parsed** | `notes`; S11; Naiad Notes |
+| `sequence.title` | `title Authentication Flow` | `SourceStatements[]` (title fact; L3 → diagram title DTO) | **parsed** | `title`; S12; Naiad Title |
+| `sequence.autonumber` | `autonumber` | `SourceStatements[]` (autonumber fact) | **parsed** | `autonumber`; S13; Naiad AutoNumber |
+| `sequence.block` | `loop`, `alt`, `else`, `opt`, `par`, `and`, `critical`, `option`, `break`, `rect`, `par_over` | `SourceStatements[]` | **parsed** | `alt-else-blocks`, `loop-control`, `opt-block`, `par-block`, `critical-block`; S14–S18, S25–S27, S32; Naiad AltElseBlocks; `else`/`and`/`option` are branch keywords, not standalone blocks |
+| `sequence.end` | `end` | `SourceStatements[]` | **parsed** | all block/box fixtures; closes `alt`/`loop`/`par`/`opt`/`critical`/`break`/`rect` and participant `box` |
+| `sequence.box` | `box rgb(200,200,200) Internal` | `SourceStatements[]` | **parsed** | `box-rgb`; S19; closed by `sequence.end` |
+| `sequence.lifecycle` | `create participant B`, `destroy B` | `SourceStatements[]` | **parsed** | `lifecycle-create`; S20 |
+| `sequence.accTitle` | `accTitle: Auth` | `Accessibility.Title` (when wired) | **parsed** | `sequence-accessibility`; S21; L3 G9 populates `AccessibilityContract` |
+| `sequence.accDescr` | `accDescr: text` / `accDescr { ... }` | `Accessibility.Description` (when wired) | **parsed** | `sequence-accessibility`; S21, S28; L3 G9; inline and multiline block forms |
+| `sequence.body` | (fallback) | `SourceStatements[]` + optional info diagnostic | **partial** | must not appear in official fixtures or [`sequence.md`](sequence.md) active scenarios; `SequenceRecognitionFixtureTests` |
+
+**Message arrow token coverage (G3 sub-rule):** recogniser `MessageRegex` matches any line containing an arrow token before `:`. Solid closed `->>`, dotted closed `-->>`, solid open `->`, dotted open `-->`, cross endings `-x` / `--x`, bidirectional `<<->>` / `<<-->>`, and additional jison-aligned tokens (`-x>>`, `x->`, `-)`, `--)`, `-\|`, `--\\`, `--\/`, `\/\/-`, `\\\\-`). Catalogue scenarios exercising primary variants:
+
+| Arrow style | Example | Scenario | Naiad sample |
+| --- | --- | --- | --- |
+| Solid closed | `A->>B: msg` | S01, S07 | Simple |
+| Dotted closed | `A-->>B: msg` | S01, S07 | Simple |
+| Solid open | `A->B: msg` | S08 | DifferentArrows |
+| Dotted open | `A-->B: msg` | S08 | DifferentArrows |
+| Solid cross | `A-xB: msg` | S08 | DifferentArrows |
+| Dotted cross | `A--xB: msg` | S08 | DifferentArrows |
+| Inline activate | `A->>+B: Start`, `B-->>-A: Done` | S09 | Activation |
+| Self-message | `A->>A: Reflect` | S29 | — |
+
+Implicit participants (first appearance in a message, no prior `participant`/`actor` line) are a sub-axis of `sequence.message` and `sequence.participant` at L3 (S02, S03). Long and quoted message labels (S30, S31) remain `sequence.message`.
+
+**Control-block keyword coverage:** `loop` (S15), `alt`/`else` (S14, S32), `opt` (S16), `par`/`and` (S17), `critical`/`option` (S18), `break` (S25), `rect rgb(...)` (S26), nested blocks (S27). `par_over` is recognised at L2 but has no catalogue scenario yet.
+
+**Sequence L2 exit criteria:** table published (this section); tests in `SequenceRecognition/`; no silent `sequence.body` on fixture samples or [`sequence.md`](sequence.md) active scenarios; every row **parsed**, **partial**, or **diagnostic** (no **not-implemented**); catalogue scenario index maps each active S-id to a fixture (§9.1).
+
+**Sequence L3 exit criteria:** L2 + `SequenceContractMapper` populates G4–G9 entities; axis gate tests cover each applicable G4–G9 dimension; render remains a separate adapter concern (§11.E).
+
+**Sequence L4 exit criteria (G12):** L3 + parser parity with pinned Mermaid 11.14 for the minimum slice in [`spec-gates/sequence-g12.md`](spec-gates/sequence-g12.md), including at minimum: leading init theme (`sequence.init.leading`), `par_over` block, autonumber, participant box, create/destroy lifecycle, and accessibility (`accTitle` / `accDescr`) aligned with upstream `sequenceDiagram.spec.js`. Each minimum-slice cluster has a recognition fixture, verified JSON, and a `SequenceL4AxisGateTests` assertion (or documented **partial** gap). Manifest `GateLevel: L4`.
+
+**Sequence L2 → L3 sequencing (no Naiad changes):**
+
+```text
+L2 (now)     SequenceKindRecognizer → SourceStatements + line-type ids
+L3 (next)    SequenceContractMapper → DiagramContract entities + verified JSON
+L3 render    MermaidRecognition.SequenceRenderAdapter OR §11.E fallback (not Naiad)
+```
+
+#### 11.1.14.3 Class diagram line-type catalogue (L2)
+
+Dedicated recogniser: `new_src/MermaidRecognition/Kinds/Class/ClassKindRecognizer.cs`. Source: `mermaid/packages/mermaid/src/diagrams/class/parser/classDiagram.jison`.
+
+**Render policy (Naiad replacement programme):** L2 classifies every source line into `SourceStatementContract.LineTypeId` only. Populating class entities (`NodeContract`, `EdgeContract`, members, namespaces) in `DiagramContract` is **L3 (G4)** work in `MermaidRecognition`, then a **new render adapter** (or official Mermaid fallback per §11.E). **Do not** extend Naiad `ClassParser` / `ClassRenderer` for recognition gaps — Naiad is a temporary render baseline only (§12).
+
+Status values match §11.1.14.1: **parsed**, **partial**, **diagnostic**, **not-implemented**.
+
+| Line type id | Example | Produces (contract) | Gate status | Fixture / notes |
+| --- | --- | --- | --- | --- |
+| `classDiagram.header` | `classDiagram` / `classDiagram-v2` | `Kind`, `Header` | **parsed** | all fixtures; `classDetector-V2.ts` |
+| `classDiagram.header.legacy` | (v1 detector only) | same as header | **parsed** | normalised to `classDiagram` kind |
+| `classDiagram.init.leading` | `%%{init:...}%%` before header | `Configuration.RawDirectiveValues`, `EffectiveValues` | **parsed** | init strip in recogniser; no dedicated fixture yet |
+| `classDiagram.comment` | `%% note` | (none) | **parsed** | — |
+| `classDiagram.class` | `class Animal` | `SourceStatements[]` (`LineTypeId`, `RawLine`) | **parsed** | `simple`; also `class Animal highlight` (apply form classified here until `.classApply` split) |
+| `classDiagram.structOpen` | `{` opening class body | `SourceStatements[]` | **parsed** | `members` |
+| `classDiagram.structClose` | `}` closing class body | `SourceStatements[]` | **parsed** | `members` |
+| `classDiagram.member` | `+String name`, `-id`, `#secret`, `~method()` | `SourceStatements[]` | **parsed** | `members` |
+| `classDiagram.annotation` | `<<interface>>`, `<<abstract>>` | `SourceStatements[]` | **parsed** | — |
+| `classDiagram.relation` | `Animal <|-- Duck`, `A --> B`, `A ..> B`, `A *-- B`, `A o-- B` | `SourceStatements[]` | **parsed** | `inheritance`, `relation-*`; jison `relationStatement` |
+| `classDiagram.namespace` | `namespace pkg.name {` | `SourceStatements[]` | **parsed** | — |
+| `classDiagram.classDef` | `classDef highlight fill:#f9f,stroke:#333` | `SourceStatements[]` | **parsed** | `classDef-style` |
+| `classDiagram.style` | `style Animal fill:#f9f` | `SourceStatements[]` | **parsed** | — |
+| `classDiagram.cssClass` | `cssClass Animal highlight` | `SourceStatements[]` | **parsed** | — |
+| `classDiagram.classApply` | `class Animal highlight` | (target) `Classes` on entity | **partial** | Must split from `.class` when L3 entity mapping requires distinct apply semantics |
+| `classDiagram.note` | `note for Animal "text"`, `note "text"` | `SourceStatements[]` | **parsed** | — |
+| `classDiagram.click` | `click Animal href "url"`, `link`, `callback` | `SourceStatements[]` | **parsed** | callback → diagnostic at L3 render policy |
+| `classDiagram.direction` | `direction TB` / `LR` / `RL` / `BT` | `SourceStatements[]` (direction fact) | **parsed** | — |
+| `classDiagram.accTitle` | `accTitle: Title` | `Accessibility.Title` (when wired) | **parsed** | L3 G9 populates `AccessibilityContract` |
+| `classDiagram.accDescr` | `accDescr: text` / `accDescr { ... }` | `Accessibility.Description` (when wired) | **parsed** | L3 G9 |
+| `classDiagram.body` | (fallback) | `SourceStatements[]` + optional info diagnostic | **partial** | must not appear in official fixtures; `ClassRecognitionFixtureTests` |
+
+**Relation token coverage (G3 sub-rule):** `<|--`, `<|..`, `..>`, `*--`, `o--`, `-->`, `<--`, `--`, `..` (extension / composition / aggregation / link variants per jison `relation` rules).
+
+**Class L2 exit criteria:** table published (this section); tests in `ClassRecognition/`; no silent `classDiagram.body` on fixture samples; every row **parsed**, **partial**, or **diagnostic** (no **not-implemented**); [`class.md`](class.md) active scenarios map to fixtures (§9.1).
+
+**Class L3 exit criteria:** L2 + contract mapper populates classes, relations, members, namespaces, notes, styles, and accessibility (G4–G9); `classDiagram.classApply` split from `.class` when entity model requires it.
+
+**Class L4 exit criteria (G12):** L3 + minimum slice in [`spec-gates/class-g12.md`](spec-gates/class-g12.md) transcribed, including at minimum: leading init theme, `classDiagram.classApply` semantics, relation token matrix, namespace nesting, and `direction` — aligned with `classDiagram.spec.ts`. Manifest `GateLevel: L4`.
+
+**Class L2 → L3 sequencing (no Naiad changes):**
+
+```text
+L2 (now)     ClassKindRecognizer → SourceStatements + line-type ids
+L3 (next)    ClassContractMapper → DiagramContract entities + verified JSON
+L3 render    MermaidRecognition.ClassRenderAdapter OR §11.E fallback (not Naiad)
+```
+
+#### 11.1.14.4 State diagram line-type catalogue (L2)
+
+Dedicated recogniser: `new_src/MermaidRecognition/Kinds/State/StateKindRecognizer.cs`. Source: `mermaid/packages/mermaid/src/diagrams/state/parser/stateDiagram.jison` (shared by `stateDiagram` and `stateDiagram-v2` detectors).
+
+**Render policy (Naiad replacement programme):** L2 classifies every source line into `SourceStatementContract.LineTypeId` only. Populating state entities (`NodeContract`, `EdgeContract`, composite regions, fork/join/choice pseudo-states, notes) in `DiagramContract` is **L3 (G4)** work in `MermaidRecognition`, then a **new render adapter** (or official Mermaid fallback per §11.E). **Do not** extend Naiad `StateParser` / `StateRenderer` for recognition gaps — Naiad is a temporary render baseline only (§12). Evidence scenarios: `extern/Naiad/src/test-renders/State.md` (Simple, MultipleStates, TransitionLabels, Description, ForkJoinState, ChoiceState, StateWithNote, StateDiagramV1, Complex).
+
+Status values match §11.1.14.1: **parsed**, **partial**, **diagnostic**, **not-implemented**.
+
+| Line type id | Example | Produces (contract) | Gate status | Fixture / notes |
+| --- | --- | --- | --- | --- |
+| `stateDiagram.header` | `stateDiagram` / `stateDiagram-v2` | `Kind`, `Header` | **parsed** | `simple`, `composite`, `note`; Naiad `StateDiagramV1` |
+| `stateDiagram.init.leading` | `%%{init:...}%%` before header | `Configuration.RawDirectiveValues`, `EffectiveValues` | **parsed** | init strip in recogniser (`ApplyInit` / `StripLeadingInitBlocks`); no dedicated fixture yet |
+| `stateDiagram.comment` | `%% note`, `# comment` | (none) | **parsed** | jison `#` and `%%` (not `%%{init}%%`) |
+| `stateDiagram.transition` | `[*] --> Still`, `Still --> Moving`, `Active --> Inactive : timeout` | `SourceStatements[]` (`LineTypeId`, `RawLine`) | **parsed** | `simple`, `composite`, `note`; Naiad TransitionLabels, MultipleStates |
+| `stateDiagram.state` | `state "Description" as s1`, `state fork_state <<fork>>`, `state join_state <<join>>`, `state choice_state <<choice>>`, `state First {` | `SourceStatements[]` | **parsed** | fork/join/choice via `ForkJoinRegex` on same id; Naiad Description, ForkJoinState, ChoiceState, Complex; composite opening brace on same line |
+| `stateDiagram.structOpen` | `{` on its own line (nested body) | `SourceStatements[]` | **parsed** | jison `STRUCT_START`; rare vs inline `state Id {` |
+| `stateDiagram.structClose` | `}` closing composite body | `SourceStatements[]` | **parsed** | `composite` |
+| `stateDiagram.hideEmpty` | `hide empty description` | `SourceStatements[]` | **parsed** | jison `HIDE_EMPTY`; no fixture yet |
+| `stateDiagram.note` | `note right of Active : text`, `note left of Error : handling` | `SourceStatements[]` | **parsed** | `note`; Naiad StateWithNote, Complex |
+| `stateDiagram.classDef` | `classDef highlight fill:#f9f,stroke:#333` | `SourceStatements[]` | **parsed** | jison `classDefStatement`; no L2 fixture yet |
+| `stateDiagram.style` | `style State2 fill:#f9f` | `SourceStatements[]` | **parsed** | — |
+| `stateDiagram.cssClass` | `class State1 highlight` | `SourceStatements[]` | **parsed** | jison `cssClassStatement` (`applyClass`); distinct from `.classDef` |
+| `stateDiagram.click` | `click State1 href "url" "tooltip"` | `SourceStatements[]` | **parsed** | callback forms → diagnostic at L3 render policy (mirror class) |
+| `stateDiagram.direction` | `direction TB` / `LR` / `RL` / `BT` | `SourceStatements[]` (direction fact) | **parsed** | jison `direction_*` tokens |
+| `stateDiagram.accTitle` | `accTitle: Title` | `Accessibility.Title` (when wired) | **parsed** | L3 G9 populates `AccessibilityContract` |
+| `stateDiagram.accDescr` | `accDescr: text` / `accDescr { ... }` | `Accessibility.Description` (when wired) | **parsed** | L3 G9; inline and multiline lexer states |
+| `stateDiagram.body` | (fallback) | `SourceStatements[]` + optional info diagnostic | **partial** | must not appear in official fixtures; `StateRecognitionFixtureTests` |
+
+**Transition token coverage (G3 sub-rule):** `-->` only (jison `relation` / `idStatement '-->' idStatement`). Endpoints include implicit state ids, `[*]` (`EDGE_STATE`), and optional transition label after `:` (`DESCR` on relation). No dotted/open arrow variants (contrast class `classDiagram.relation`). Concurrent region divider `--` inside `struct` is **not** a separate L2 line type today (see gaps).
+
+**State L2 exit criteria:** table published (this section); tests in `StateRecognition/`; manifest aligned with §11.1.14.4; no silent `stateDiagram.body` on fixture samples; every row **parsed**, **partial**, or **diagnostic** (no **not-implemented**); [`state.md`](state.md) active scenarios map to fixtures (§9.1).
+
+**State L3 exit criteria:** L2 + contract mapper populates states, transitions, composite groups, notes, styles, interactions, and accessibility (G4–G9).
+
+**State L4 exit criteria (G12):** L3 + minimum slice in [`spec-gates/state-g12.md`](spec-gates/state-g12.md) transcribed, including at minimum: leading init theme, composite groups, choice/fork (where grammar supports), transition labels with embedded colons, notes, and `classDef` / `style` / `:::` application — aligned with `state-parser.spec.js` and `state-style.spec.js`. Manifest `GateLevel: L4`.
+
+**State L2 → L3 sequencing (no Naiad changes):**
+
+```text
+L2 (now)     StateKindRecognizer → SourceStatements + line-type ids
+L3 (next)    StateContractMapper → DiagramContract entities + verified JSON
+L3 render    MermaidRecognition.StateRenderAdapter OR §11.E fallback (not Naiad)
+```
+
+#### 11.1.14.5 ER diagram line-type catalogue (L2)
+
+Dedicated recogniser: `new_src/MermaidRecognition/Kinds/Er/ErKindRecognizer.cs`. Source: `mermaid/packages/mermaid/src/diagrams/er/parser/erDiagram.jison`.
+
+**Render policy (Naiad replacement programme):** L2 classifies every source line into `SourceStatementContract.LineTypeId` only. Populating ER entities (`NodeContract` for entities and attributes, `EdgeContract` for relationships and cardinality) in `DiagramContract` is **L3 (G4)** work in `MermaidRecognition`, then a **new render adapter** (or official Mermaid fallback per §11.E). **Do not** extend Naiad `ErParser` / `ErRenderer` for recognition gaps — Naiad is a temporary render baseline only (§12). Naiad interim samples: `extern/Naiad/src/test-renders/EntityRelationship.md` (Simple, OneToOne, ZeroOrOne, NonIdentifying, MultipleRelationships, Attributes, KeyTypes, Comments, Complex).
+
+Status values match §11.1.14.1: **parsed**, **partial**, **diagnostic**, **not-implemented**.
+
+| Line type id | Example | Produces (contract) | Gate status | Fixture / notes |
+| --- | --- | --- | --- | --- |
+| `erDiagram.header` | `erDiagram` | `Kind`, `Header` | **parsed** | all fixtures; E01–E35; jison `ER_DIAGRAM` |
+| `erDiagram.init.leading` | `%%{init: {'theme': 'base'}}%%` before header | `Configuration.RawDirectiveValues`, `EffectiveValues` | **parsed** | init strip in recogniser; E17; fixture `init-leading` |
+| `erDiagram.comment` | `%% Domain: sales` | (none) | **parsed** | E15 |
+| `erDiagram.accTitle` | `accTitle: Sales schema` | `Accessibility.Title` (when wired) | **parsed** | E16, E31; L3 G9 populates `AccessibilityContract` |
+| `erDiagram.accDescr` | `accDescr: text` / `accDescr { ... }` | `Accessibility.Description` (when wired) | **parsed** | E16 (inline), E31 (block); L3 G9 |
+| `erDiagram.direction` | `direction TB` / `LR` / `RL` / `BT` | `SourceStatements[]` (direction fact) | **parsed** | E11 |
+| `erDiagram.classDef` | `classDef highlight fill:#f9f,stroke:#333` | `SourceStatements[]` | **parsed** | E13; jison `classDefStatement` |
+| `erDiagram.class` | `class CUSTOMER highlight` | `SourceStatements[]` | **parsed** | E13 (with `classDef`), E33 (apply without prior `classDef`); jison `classStatement` |
+| `erDiagram.style` | `style CUSTOMER fill:#bbf` | `SourceStatements[]` | **parsed** | E14; jison `styleStatement` |
+| `erDiagram.relationship` | `CUSTOMER \|\|--o{ ORDER : places` | `SourceStatements[]` | **parsed** | E01, E02, E03, E05, E06, E18, E28, E29, E34, E35; fixture `relationship`; Naiad: Simple, NonIdentifying, MultipleRelationships, Complex |
+| `erDiagram.entityBlockOpen` | `CUSTOMER {` | `SourceStatements[]` | **parsed** | E07, E08, E09, E12, E18, E19, E30, E32; fixture `entity-attributes`; Naiad: Attributes, KeyTypes, Comments |
+| `erDiagram.entityBlockClose` | `}` closing entity block | `SourceStatements[]` | **parsed** | E32 (explicit multi-entity); fixture `entity-attributes` |
+| `erDiagram.attribute` | `string name`, `int id PK`, `string email UK`, `int customer_id FK` | `SourceStatements[]` | **parsed** | E07, E08, E09, E12, E18, E19; fixture `entity-attributes`; PK / FK / UK per jison `ATTRIBUTE_KEY` |
+| `erDiagram.entityAlias` | `CUSTOMER [Customer Account] {` | `SourceStatements[]` | **parsed** | E10 (**remarked** — §9.1; does not render on mermaid.live; recognition axis tracked separately); jison `entityName SQS entityName SQE BLOCK_START` |
+| `erDiagram.body` | (fallback) | `SourceStatements[]` + optional info diagnostic | **partial** | must not appear in official fixtures or [`entityrelationship.md`](entityrelationship.md) active scenarios; `ErRecognitionFixtureTests` |
+
+**Relationship cardinality token coverage (G3 sub-rule):** left marker + link type + right marker compose Mermaid ER cardinality (identifying `--` vs non-identifying `..`). Lexer tokens from `erDiagram.jison`: `ONLY_ONE` (`||`, `one`, `only one`, `1` before link), `ZERO_OR_ONE` (`|o`, `o|`, `one or zero`, `zero or one`), `ZERO_OR_MORE` (`}o`, `o{`, `zero or more`, `0+`, `many`), `ONE_OR_MORE` (`}|`, `|{`, `one or more`, `1+`, `many(1)`). Catalogue scenarios exercising each active combination:
+
+| Left | Link | Right | Example scenario | Naiad sample |
+| --- | --- | --- | --- | --- |
+| `\|\|` | `--` | `o{` | E01 | Simple |
+| `\|\|` | `--` | `\|\|` | E03 | OneToOne |
+| `\|o` | `--` | `o\|` | E04 | ZeroOrOne |
+| `\|\|` | `..` | `o{` | E05 | NonIdentifying |
+| `\|\|` | `--` | `\|{` | E06, E21 | MultipleRelationships |
+| `}o` | `--` | `\|\|` | E20 | — |
+| `}o` | `--` | `o{` | E23 | — |
+| `\|o` | `..` | `o{` | E22 | — |
+| `}\|` | `..` | `o{` | E24 | — |
+| `}o` | `..` | `o{` | E25 | — |
+| `o\|` | `--` | `o{` | E26 | — |
+| `}o` | `..` | `\|\|` | E27 | — |
+
+Quoted relationship labels (`: "logs in"`) and hyphenated entity names (`LINE-ITEM`, `PARKING-SPACE`) are sub-axes of `erDiagram.relationship` and entity naming (E02, E34). Recursive and duplicate-role edges (E28, E29) remain `erDiagram.relationship`. Stand-alone entity blocks without relationships (E30) use `entityBlockOpen` / `attribute` / `entityBlockClose` only.
+
+**Remarked catalogue axes (§9.1):** E10 (`erDiagram.entityAlias`) is **considered but rejected** for the render gate — every source line in the catalogue fence is prefixed with `%%`. SvgHarness and DOCX visual review skip remarked blocks. Recognition may still classify the axis via `ErKindRecognizer` and future fixtures; remarking is not a signal that L2 tracking was abandoned.
+
+**ER L2 exit criteria:** table published (this section); tests in `ErRecognition/`; no silent `erDiagram.body` on fixture samples or [`entityrelationship.md`](entityrelationship.md) active scenarios; every row **parsed**, **partial**, or **diagnostic** (no **not-implemented**); active E-ids map to fixtures (§9.1).
+
+**ER L3 exit criteria:** L2 + contract mapper populates entities, attributes, relationships, styles, and accessibility (G4–G9).
+
+**ER L4 exit criteria (G12):** L3 + minimum slice in [`spec-gates/er-g12.md`](spec-gates/er-g12.md) transcribed, including at minimum: leading init theme, relationship cardinality matrix, entity attributes (PK/FK/UK), direction, style/classDef, entity alias (recognition axis; E10 may remain render-remarked §9.1) — aligned with `erDiagram.spec.js`. Manifest `GateLevel: L4`.
+
+**ER L2 → L3 sequencing (no Naiad changes):**
+
+```text
+L2 (now)     ErKindRecognizer → SourceStatements + line-type ids
+L3 (next)    ErContractMapper → DiagramContract entities + verified JSON
+L3 render    MermaidRecognition.ErRenderAdapter OR §11.E fallback (not Naiad)
+```
+
+#### 11.1.14.6 Pie chart line-type catalogue (L2)
+
+Dedicated recogniser: `new_src/MermaidRecognition/Kinds/Pie/PieKindRecognizer.cs`. Source: `mermaid/packages/mermaid/src/diagrams/pie/pieDetector.ts`; parser: `mermaid/packages/parser/src/language/pie/pie.langium`.
+
+**Render policy (Naiad replacement programme):** L2 classifies every source line into `SourceStatementContract.LineTypeId` only. Populating pie slices (label, value, optional `showData`) in `DiagramContract` is **L3 (G4)** work in `MermaidRecognition`, then a **new render adapter** (or official Mermaid fallback per §11.E). **Do not** extend Naiad pie parsers / renderers for recognition gaps — Naiad is a temporary render baseline only (§12).
+
+Status values match §11.1.14.1: **parsed**, **partial**, **diagnostic**, **not-implemented**.
+
+| Line type id | Example | Produces (contract) | Gate status | Fixture / notes |
+| --- | --- | --- | --- | --- |
+| `pie.header` | `pie` / `pie showData` | `Kind`, `Header` | **parsed** | `simple`, `title-showData`; detector `pieDetector.ts` |
+| `pie.init.leading` | `%%{init: {"theme": "base"}}%%` before header | `Configuration.RawDirectiveValues`, `EffectiveValues` | **parsed** | `init-leading` |
+| `pie.comment` | `%% slice note` (full-line remark) | (none) | **parsed** | `comment` |
+| `pie.title` | `title Pets` | `SourceStatements[]` (title fact) | **parsed** | `title-showData` |
+| `pie.section` | `"Cats" : 45`, `'Dogs' : 55` | `SourceStatements[]` | **parsed** | `simple`, `title-showData`; quoted label + numeric value (`SectionRegex`) |
+| `pie.body` | (fallback) | `SourceStatements[]` + info diagnostic `recognition.pie.unclassified-line` | **partial** | must not appear in `PieRecognition/` fixtures; `PieRecognitionFixtureTests` |
+
+**Pie L2 exit criteria:** table published (this section); tests in `PieRecognition/`; manifest at **L2**; no silent `pie.body` on fixture samples; every row **parsed**, **partial**, or **diagnostic** (no **not-implemented**).
+
+**Pie L3 exit criteria:** L2 + `PieContractMapper` populates slice nodes with label/value metadata (`pieValue` where applicable); `PieL3AxisGateTests` covers G4 entity model and G9 when grammar supports accessibility; manifest **L3**.
+
+**Pie L4 exit criteria (G12):** L3 + minimum slice in [`spec-gates/pie-g12.md`](spec-gates/pie-g12.md) transcribed, including at minimum: simple pie slices, `showData`, init leading, and accessibility — aligned with `pie.spec.ts`. Manifest **L4**.
+
+**Pie L2 → L3 sequencing (no Naiad changes):**
+
+```text
+L2 (now)     PieKindRecognizer → SourceStatements + line-type ids
+L3 (next)    PieContractMapper → DiagramContract slices + verified JSON
+L3 render    MermaidRecognition.PieRenderAdapter OR §11.E fallback (not Naiad)
+```
+
+#### 11.1.14.7 Gantt chart line-type catalogue (L2)
+
+Dedicated recogniser: `LinePatternKindRecognizer` registered for `gantt` in `KindRecognizerRegistry.cs` (patterns: `KindLinePatternProfiles.TitlePattern`, `GanttDateFormatPattern`, `GanttExcludesPattern`, `GanttSectionPattern`, `GanttTaskPattern`). Source: `mermaid/packages/mermaid/src/diagrams/gantt/ganttDetector.ts`; DB: `ganttDb.js`.
+
+**Render policy (Naiad replacement programme):** L2 classifies every source line into `SourceStatementContract.LineTypeId` only. Populating sections, tasks, milestones, and date axes in `DiagramContract` is **L3 (G4)** work, then a **new render adapter** (or §11.E fallback). **Do not** extend Naiad gantt parsers / renderers for recognition gaps.
+
+Status values match §11.1.14.1: **parsed**, **partial**, **diagnostic**, **not-implemented**.
+
+| Line type id | Example | Produces (contract) | Gate status | Fixture / notes |
+| --- | --- | --- | --- | --- |
+| `gantt.header` | `gantt` | `Kind`, `Header` | **parsed** | all fixtures; header regex `^\s*gantt` |
+| `gantt.init.leading` | `%%{init: ...}%%` before header | `Configuration.RawDirectiveValues`, `EffectiveValues` | **parsed** | `init-leading` |
+| `gantt.comment` | `%% phase note` (full-line remark) | (none) | **parsed** | full-line `%%` remarks |
+| `gantt.title` | `title Simple Gantt` | `SourceStatements[]` (title fact) | **parsed** | `simple`, `section`, `dateFormat`, `excludes`; `TitlePattern("gantt")` |
+| `gantt.accTitle` | `accTitle: Gantt Diagram` | `Accessibility.Title` | **parsed** | `accessibility`; `AccTitlePattern("gantt")` |
+| `gantt.accDescr` | `accDescr: Tasks for Q4` | `Accessibility.Description` | **parsed** | `accessibility`; `AccDescrPattern("gantt")` |
+| `gantt.dateFormat` | `dateFormat YYYY-MM-DD` | `Configuration.RawDirectiveValues["gantt.dateFormat"]` | **parsed** | `dateFormat`; pattern `^\s*dateFormat\s+` |
+| `gantt.inclusiveEndDates` | `inclusiveEndDates` | `Configuration.RawDirectiveValues["gantt.inclusiveEndDates"]` | **parsed** | `inclusive-end`; pattern `^\s*inclusiveEndDates\s*$` |
+| `gantt.excludes` | `excludes weekends` | `Configuration.RawDirectiveValues["gantt.excludes"]` | **parsed** | `excludes` |
+| `gantt.section` | `section Phase 1` | `SourceStatements[]` | **parsed** | `section`; pattern `^\s*section\s+` |
+| `gantt.task` | `Task A :a1, 2024-01-01, 30d` | `Nodes[]` (`ganttTask` / `ganttMilestone`) | **parsed** | all fixtures; `relative`, `milestone`; pattern `^\s*\w.+\s*:\s*\w` |
+| `gantt.body` | (fallback) | `SourceStatements[]` | **partial** | must not appear in `GanttRecognition/` fixtures; `GanttRecognitionFixtureTests` |
+
+**Gantt L2 exit criteria:** table published (this section); tests in `GanttRecognition/`; manifest at **L2**; no silent `gantt.body` on fixture samples; every row **parsed**, **partial**, or **diagnostic** (no **not-implemented**).
+
+**Gantt L3 exit criteria:** L2 + `GanttContractMapper` populates sections and tasks in `DiagramContract`; `GanttL3AxisGateTests` covers G4; manifest **L3**.
+
+**Gantt L4 exit criteria (G12):** L3 + minimum slice in [`spec-gates/gantt-g12.md`](spec-gates/gantt-g12.md) transcribed, including at minimum: section/task definitions, `dateFormat`, `excludes`, init leading, and inclusive end-date task form — aligned with `gantt.spec.js`. Manifest **L4**.
+
+**Gantt L2 → L3 sequencing (no Naiad changes):**
+
+```text
+L2 (now)     LinePatternKindRecognizer (gantt) → SourceStatements + line-type ids
+L3 (next)    GanttContractMapper → DiagramContract tasks/sections + verified JSON
+L3 render    MermaidRecognition.GanttRenderAdapter OR §11.E fallback (not Naiad)
+```
+
+#### 11.1.14.8 Mindmap line-type catalogue (L2)
+
+Dedicated recogniser: `LinePatternKindRecognizer` for `mindmap` in `KindRecognizerRegistry.cs` (`MindmapNodePattern`). Source: `mermaid/packages/mermaid/src/diagrams/mindmap/detector.ts`; DB: `mindmapDb.ts`.
+
+**Render policy:** L2 line classification only; hierarchical node model and layout are **L3+**. Naiad remains interim render baseline (§12).
+
+Status values match §11.1.14.1.
+
+| Line type id | Example | Produces (contract) | Gate status | Fixture / notes |
+| --- | --- | --- | --- | --- |
+| `mindmap.header` | `mindmap` | `Kind`, `Header` | **parsed** | `simple` |
+| `mindmap.init.leading` | `%%{init: ...}%%` before header | `Configuration` directives | **parsed** | `init-leading` |
+| `mindmap.comment` | `%% node note` (full-line remark) | (none) | **parsed** | `comment` |
+| `mindmap.node` | indented node lines (`  Root`, `    Branch A`) | `SourceStatements[]` | **parsed** | `simple`, `comment`; pattern `^\s{2,}\S` |
+| `mindmap.body` | (fallback) | `SourceStatements[]` | **partial** | must not appear in `MindmapRecognition/` fixtures |
+
+**Mindmap L2 exit criteria:** table published (this section); tests in `MindmapRecognition/`; manifest at **L2**; no silent `mindmap.body` on fixture samples; every row **parsed** or **partial**.
+
+**Mindmap L3 exit criteria:** L2 + `MindmapContractMapper` populates hierarchical tree nodes with parentage; `MindmapL3AxisGateTests` covers G4/G5; manifest **L3**.
+
+**Mindmap L4 exit criteria (G12):** L3 + minimum slice in [`spec-gates/mindmap-g12.md`](spec-gates/mindmap-g12.md) transcribed, including at minimum: hierarchical nodes, init leading, node shape suffixes, and illegal multi-root diagnostic — aligned with `mindmap.spec.ts` (MMP-* ids). Manifest **L4**.
+
+#### 11.1.14.9 Git graph line-type catalogue (L2)
+
+Dedicated recogniser: `LinePatternKindRecognizer` for `gitGraph` in `KindRecognizerRegistry.cs` (`GitGraphCommitPattern`, `GitGraphBranchPattern`). Source: `mermaid/packages/mermaid/src/diagrams/git/gitGraphDetector.ts`; AST: `gitGraphAst.ts`.
+
+**Render policy:** L2 line classification only; commit graph topology is **L3+**. Naiad remains interim render baseline (§12).
+
+Status values match §11.1.14.1.
+
+| Line type id | Example | Produces (contract) | Gate status | Fixture / notes |
+| --- | --- | --- | --- | --- |
+| `gitGraph.header` | `gitGraph` | `Kind`, `Header` | **parsed** | `simple` |
+| `gitGraph.init.leading` | `%%{init: ...}%%` before header | `Configuration` directives | **parsed** | `init-leading` |
+| `gitGraph.comment` | `%% release note` (full-line remark) | (none) | **parsed** | full-line remarks |
+| `gitGraph.commit` | `commit id: "1"` | `SourceStatements[]` | **parsed** | `simple`, `branch-history`; pattern `^\s*commit\b` |
+| `gitGraph.branch` | `branch main` | `SourceStatements[]` | **parsed** | `simple`, `branch-history`; pattern `^\s*branch\b` |
+| `gitGraph.body` | (fallback) | `SourceStatements[]` | **partial** | must not appear in `GitGraphRecognition/` fixtures |
+
+**Git graph L2 exit criteria:** table published (this section); tests in `GitGraphRecognition/`; manifest at **L2**; no silent `gitGraph.body` on fixture samples; every row **parsed** or **partial**.
+
+**Git graph L3 exit criteria:** L2 + `GitGraphContractMapper` populates commit and branch entities; `GitGraphL3AxisGateTests` covers G4; manifest **L3**.
+
+**Git graph L4 exit criteria (G12):** L3 + minimum slice in [`spec-gates/gitGraph-g12.md`](spec-gates/gitGraph-g12.md) transcribed, including at minimum: commits, branch/checkout history, merge, init leading, and accessibility — aligned with `gitGraph.spec.ts`. Manifest **L4**.
+
+### 11.2 Current Problem in Naiad
 
 Naiad already renders many flowcharts well. The weak point is not SVG drawing quality; it is the determination model.
 
@@ -2066,7 +3130,7 @@ TryGetFlowchartHorizontalDecisionBranchEndpoints(...)
 
 That is exactly the failure mode described earlier. The words on an edge are not semantics. They are labels. A diagram using `"True"`, `"OK"`, `"Pass"`, `"1"`, `"Approved"`, or translated text can have the same topology and should receive the same structural treatment.
 
-### 11.2 Non-Negotiable Target
+### 11.3 Non-Negotiable Target
 
 Naiad should parse Mermaid into a complete recognition contract, then layout and render from that contract.
 
@@ -2095,7 +3159,7 @@ Disallowed decision inputs:
 - scenario names
 - English words in node labels
 
-### 11.3 Data Model Changes
+### 11.4 Data Model Changes
 
 Add recognition-level model types instead of overloading the render model.
 
@@ -2211,7 +3275,7 @@ sealed class FlowchartModel : GraphDiagramBase
     Dictionary<string, Style> ClassDefinitions;
     List<LinkStyleDirective> LinkStyles; // index list OR default
     List<InteractionDirective> Interactions;
-    FlowchartConfig EffectiveConfig;
+    DiagramConfigContract Configuration;  // RawDirectiveValues + EffectiveValues (§4.1)
 }
 ```
 
@@ -2281,7 +3345,7 @@ AddNestedSubgraph(parent, child)
 }
 ```
 
-### 11.4 Parser Replacement
+### 11.5 Parser Replacement
 
 Replace the current simplified `StatementParser` in `FlowchartParser.cs` with a Mermaid-style parse database.
 
@@ -2527,7 +3591,7 @@ flowchart.frontmatter-recognised-but-not-applied
 
 Do not silently discard front matter once the recogniser claims Mermaid compatibility.
 
-### 11.5 Style and Config Application
+### 11.6 Style and Config Application
 
 Change style application from "nodes plus linkStyle index" to a Mermaid-style mutation pass.
 
@@ -2563,24 +3627,13 @@ ApplyFlowchartMutations(model)
 }
 ```
 
-`RenderOptions` should not be the only home for effective config. `FlowchartModel.EffectiveConfig` should be populated before rendering:
+`RenderOptions` should not be the only home for effective config. `FlowchartModel.Configuration.EffectiveValues` must be populated before rendering (§4.1). Typed accessors read dotted keys, for example:
 
 ```csharp
-FlowchartConfig BuildEffectiveConfig(initBlocks, defaults)
-{
-    return new FlowchartConfig
-    {
-        NodeSpacing = init.flowchart.nodeSpacing ?? 50,
-        RankSpacing = init.flowchart.rankSpacing ?? 50,
-        DiagramPadding = init.flowchart.diagramPadding ?? 8,
-        WrappingWidth = init.flowchart.wrappingWidth ?? 200,
-        HtmlLabels = init.flowchart.htmlLabels ?? global.htmlLabels ?? true,
-        Curve = init.flowchart.curve ?? "basis",
-        Padding = init.flowchart.padding ?? 8,
-        Look = init.look ?? "classic",
-        Theme = init.theme ?? options.Theme
-    };
-}
+DiagramConfigContract Configuration = BuildEffectiveConfig(initBlocks, mermaidDefaults, themeResolver);
+// EffectiveValues["flowchart.nodeSpacing"] == "50" (default) or override
+// EffectiveValues["flowchart.htmlLabels"] from evaluate(htmlLabels ?? flowchart.htmlLabels ?? true)
+// EffectiveValues["themeVariables.fontFamily"] after theme merge
 ```
 
 Edge-indexed style depends on exact Mermaid creation order. Therefore style application must use `Edge.CreationIndex`, not list position after any later filtering, dummy-edge insertion, sorting, or routing transformation.
@@ -2605,9 +3658,9 @@ ApplyIndexedLinkStyle(model, directive)
 
 Verified contract JSON must include `CreationIndex` for every edge so failures in expansion order are obvious before rendering.
 
-### 11.6 Replace Label-Based Routing
+### 11.7 Replace Label-Based Routing
 
-The routing algorithms in Sections 11.6â€“11.8 are **Naiad-native structural routing strategies**. They are intended to replace fixture-specific repair logic while preserving existing `flow.md` visual parity. They are **not** parser facts and must not be confused with Mermaid `flowDb` recognition output.
+The routing algorithms in Sections 11.6–11.8 are **Naiad-native structural routing strategies**. They are intended to replace fixture-specific repair logic while preserving existing `flow.md` visual parity. They are **not** parser facts and must not be confused with Mermaid `flowDb` recognition output.
 
 Remove all direct semantic label tests from routing.
 
@@ -2686,7 +3739,7 @@ edge.Label text -> measure -> reserve clearance -> render label
 edge.Label text -> route semantic choice    // forbidden
 ```
 
-### 11.7 Replace Fixture-Specific Endpoint Repairs with Generic Port Allocation
+### 11.8 Replace Fixture-Specific Endpoint Repairs with Generic Port Allocation
 
 Keep the good geometry functions, but change how they are selected.
 
@@ -2857,7 +3910,7 @@ Polyline ownership must be explicit:
 
 When `RouteKind.DefaultDagreSpline` is selected, the router should preserve the layout polyline and only clip/normalise endpoints. When a structural route kind is selected, the router may replace guide points, but it must record the route kind in diagnostics/debug output for parity review.
 
-### 11.8 Generic Route Classification
+### 11.9 Generic Route Classification
 
 Route classification should be structural:
 
@@ -2941,7 +3994,7 @@ BuildRoute(kind, sourceAttach, targetAttach, source, target, model)
 
 Naiad can still match Mermaid closely by using `curveBasis` or the existing curve builders after points are selected. The point is to derive those points from a general topology/port model.
 
-### 11.9 Parser Coverage for "Any Mermaid Diagram"
+### 11.10 Parser Coverage for "Any Mermaid Diagram"
 
 No native C# renderer will handle "any Mermaid diagram successfully" unless it either:
 
@@ -3060,29 +4113,25 @@ if either cannot be preserved -> diagnostic flowchart.accessibility-not-preserve
 SVG fallback/native render should also include <title>, <desc>, aria-labelledby, and aria-describedby where possible
 ```
 
-### 11.10 Concrete File-Level Work Plan
+### 11.11 Concrete File-Level Work Plan
 
 Implement this by stage, not as one patch.
 
-Stage 11.A: contract and parser facts.
+Stage 11.A: **multi-kind** recognition contract and parser facts (§4.2, §11.1.13).
 
-1. In `extern/Naiad/src/Naiad/Models`, add:
+0. Add **`MermaidRecognizer.Parse`** and **`DiagramKindDetector`** — dispatch to per-kind parsers; unimplemented kinds must not throw silently.
+1. In **`new_src/MermaidRecognition/`** (see §11.1.8–§11.1.8.2), add contract and support types:
 
 ```text
-MermaidLabelType
-MermaidSourceSpan
-MermaidDiagnostic
-MermaidDeclaration
-EdgeEndpointMarker
-EdgeExpansionTrace
-FlowchartConfig
-InteractionDirective
-LinkStyleDirective with Default/Indexes/Curve
+DiagramContract, NodeContract, EdgeContract, GroupContract
+MermaidLabelType, MermaidSourceSpan, MermaidDiagnostic, MermaidDeclaration
+EdgeEndpointMarker, EdgeExpansionTrace
+DiagramConfigContract, ConfigValueSource, MermaidJsonConfigFlattener
+RecognitionStyle, InteractionDirective, LinkStyleDirective
 ```
 
-2. Extend `Node`, `Edge`, `Subgraph`, and `FlowchartModel` with the recognition fields described above.
-
-3. In `FlowchartParser.cs`, introduce the new `FlowchartDb`-backed parser behind a feature flag or parallel parse path. Do not make it the default renderer input until the recognition contract is verified and existing visual output remains unchanged.
+2. Do **not** add recognition fields to Naiad `Node`, `Edge`, or `FlowchartModel`. Map `DiagramContract` → Naiad render model only in an explicit adapter (optional project `MermaidRecognition.NaiadAdapter` or `MDConverter` internal), behind `UseFlowchartRecognitionParser`.
+3. In `new_src/MermaidRecognition/Kinds/Flowchart/`, implement `FlowchartDb`, `FlowchartRecognizer.Parse` (via `MermaidRecognizer` in `Core/`), and the Mermaid-style statement parser. Add recognisers under `Kinds/` for **each** §3.18.2 kind to meet Stage 11.A L1 exit. Naiad `FlowchartParser.cs` remains the **default render input** until adapters are enabled.
 
 The parallel path should contain:
 
@@ -3132,15 +4181,20 @@ If the id is already used, generate ids for later edges.
 
 7. In `FlowchartRenderer.cs`, keep measurement and SVG generation, but consume `model.EffectiveConfig` and `LabelType` only after the parallel parser output has been verified.
 
-Exit criterion: recognition tests pass for edge expansion, edge identity, metadata, subgraphs, styles, config, interactions, accessibility, and unsupported diagnostics; visual rendering remains on the old path.
+Exit criterion (Stage 11.A recognition):
+
+- **Every** §3.18.2 kind at gate level **L1** minimum (§7.4.2, §11.1.13).
+- **Flowchart** at gate level **L3** (line-type catalogue complete per §11.1.14.1, G4–G11 axis coverage). **L4** (G12) is the parser-parity target beyond 11.A minimum.
+- Visual rendering remains on the legacy path unless `UseFlowchartRecognitionParser` is explicitly enabled.
+
+Implementation progress: [`status.md`](status.md).
 
 Stage 11.B: label-semantic removal.
 
 8. Add static and behavioural tests that fail if routing chooses ports by semantic label text.
-
 9. Replace known label branches one by one with structural ordering. The first target should be decision fan-out because it currently contains direct `"Yes"` / `"No"` logic.
 
-Exit criterion: changing branch labels from `"Yes"`/`"No"` to `"True"`/`"False"`/`"1"`/`"0"`/unicode changes only label dimensions and rendered label text, not route classification or port roles.
+Exit criterion: changing any branch label text (including `"Yes"`/`"No"`, `"True"`/`"False"`, `"1"`/`"0"`, unicode, empty, or long text) changes only label dimensions and rendered label text, not route classification or port roles.
 
 Stage 11.C: router strangler.
 
@@ -3230,12 +4284,15 @@ Also track scenario-shaped routing selectors. Comments can mention `F53` or `F58
 Stage 11.E: fallback and diagnostics.
 
 14. Wire `CanRender` and `MermaidRenderFidelityMode` into `Mermaid.Render`, MDConverter, and Converter.
-
 15. Ensure DOCX output records warnings when official fallback or placeholder rendering occurs.
 
-### 11.11 Required Tests
+### 11.12 Required Tests
 
-Add parser contract tests before visual tests:
+**Stage 11.A (all kinds):** For each row in §11.1.13, reach gate **L1** (G0, G1, G10, G11 smoke fixture). `DiagramKindDetectorTests` must assert correct `Kind` for minimal header samples.
+
+**Per-diagram gates (ongoing):** For each kind, tests and fixtures must map to **line type ids** in that kind’s catalogue (§7.4.3, §11.1.14.1). A fixture without a catalogue row is invalid.
+
+**Flowchart (depth — subset of 11.A, §7.1.1):** Add parser contract tests before visual tests:
 
 ```text
 FlowchartRecognitionTests.EdgeExpansion
@@ -3253,11 +4310,11 @@ FlowchartRecognitionTests.UnsupportedButRecognisedDiagnostics
 Each recognition test should have a machine-readable expected contract:
 
 ```text
-extern/Naiad/src/Tests/FlowchartRecognition/edge-expansion.verified.json
-extern/Naiad/src/Tests/FlowchartRecognition/edge-identity.verified.json
-extern/Naiad/src/Tests/FlowchartRecognition/metadata-shape-data.verified.json
-extern/Naiad/src/Tests/FlowchartRecognition/subgraph-membership.verified.json
-extern/Naiad/src/Tests/FlowchartRecognition/config-init.verified.json
+new_src/MermaidRecognition.Tests/FlowchartRecognition/edge-expansion.verified.json
+new_src/MermaidRecognition.Tests/FlowchartRecognition/edge-identity.verified.json
+new_src/MermaidRecognition.Tests/FlowchartRecognition/metadata-shape-data.verified.json
+new_src/MermaidRecognition.Tests/FlowchartRecognition/subgraph-membership.verified.json
+new_src/MermaidRecognition.Tests/FlowchartRecognition/config-init.verified.json
 ```
 
 The JSON must include node ids, labels, label types, shapes, subgraph parentage, edge creation indexes, edge ids, endpoints, marker facts, minlen, styles, metadata, and diagnostics. Rendering is not part of these tests.
@@ -3282,7 +4339,7 @@ For each finite topology fixture from the capability matrix:
     assert only label dimensions and label positions may change
 ```
 
-Do not promise literal coverage of every possible graph topology. Use a finite set from the Â§8 matrix and optionally add a bounded property-based generator:
+Do not promise literal coverage of every possible graph topology. Use a finite set from the §8 matrix and optionally add a bounded property-based generator:
 
 ```text
 nodes: 1..8
@@ -3307,17 +4364,18 @@ visual-gated once native support is implemented
 fallback-gated when official Mermaid is intentionally used
 ```
 
-### 11.12 Definition of Done
+### 11.13 Definition of Done
 
 This work is done only when:
 
+- **every diagram kind in §3.18.2** meets gate **L1** (§7.4, §11.1.13); flowchart meets **L3** (§11.1.14), including a complete **line-type catalogue** and G4–G11 where applicable; **L4** (G12) is the flowchart parser-parity target beyond 11.A minimum
 - flowchart parsing emits a contract rich enough to compare against Mermaid parser facts, exported as verified JSON
 - routing does not branch on semantic label text
 - every route decision can be explained by topology, shape, direction, style, config, containment, or source order
 - unsupported Mermaid constructs produce diagnostics or official-renderer fallback
 - `flow.md` still passes as a visual regression catalogue
 - the new recognition fixtures pass without rendering
-- label-invariance tests prove that changing `"Yes"`/`"No"` to other labels does not change branch semantics
+- label-invariance tests prove that changing edge label text does not change branch semantics or route classification
 
 The comparison mechanism should be one of:
 
@@ -3332,27 +4390,27 @@ Do not claim parser parity from PNG or SVG output alone.
 Done for native rendering and done for recognition are separate:
 
 ```text
-Recognition done: contract fixtures pass, including unsupported diagnostics.
-Native render done: matching route kind passes SvgHarness/coordinate gates.
+Recognition done: §11.1.13 matrix complete; per-kind contract fixtures pass, including unsupported diagnostics.
+Native render done (flowchart-first): matching route kind passes SvgHarness/coordinate gates.
 Product done: MDConverter either embeds native output or deterministic official fallback with warnings.
 ```
 
 The key shift is simple: Naiad should keep its geometry work, but the trigger for that geometry must be a Mermaid-like diagram contract, not a catalogue of visual scenarios.
 
-### 11.13 Review Acceptance (Working Specification)
+### 11.14 Review acceptance criteria
 
-With the source basis, dirty-tree controls, tagged edge-id rule, and Naiad-native routing label above, treat Section 11 as a **strong working specification** for the next migration phase. It does not need to be perfect before work starts. It needs to prevent the wrong work from happening, and it largely does that:
+Section 11 is acceptable for implementation when it prevents these failure modes:
 
-- no big-bang rewrite of the existing repair chain
-- no label-semantic routing
-- no scenario-led parser
-- no silent DOCX feature loss
-- no unsupported Mermaid claims without diagnostics or fallback
-- no visual regression without parity gates
+- big-bang rewrite of the existing layout repair chain before parity gates exist
+- label-semantic routing (`"Yes"` / `"No"` / `"Done"` as port selectors)
+- scenario-led parser or router (`if F53 then …`)
+- silent DOCX feature loss when recognition cannot represent a construct
+- unsupported Mermaid claims without diagnostics or documented fallback
+- visual regression without SvgHarness or coordinate gates
 
-**Best practical next step:** proceed with **Stage 11.A** first, exactly as phrased in Â§11.0 and Â§11.10: build the recognition contract and verified JSON fixtures **without changing the default visual render path**. That is the safest high-value move because it yields an auditable contract before touching the fragile geometry that already renders `flow.md` reasonably well.
+Implementation progress against §11.1.13 exit criteria: [`status.md`](status.md). Render migration (§11.B–§11.E) must not start until Stage 11.A recognition exit is met for the agreed kind slice.
 
-### 11.14 Explicit Non-Goals for the First Migration
+### 11.15 Explicit Non-Goals for the First Migration
 
 These are not first-migration requirements:
 

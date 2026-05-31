@@ -1,0 +1,82 @@
+{
+  "Kind": "stateDiagram",
+  "Nodes": [
+    {
+      "Id": "State1",
+      "Label": "State1",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "State2",
+      "Label": "State2",
+      "LabelType": "Text",
+      "Classes": [],
+      "InlineStroke": "#333",
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "start1",
+      "Label": "start1",
+      "LabelType": "Text",
+      "Shape": "start",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-start1-State1-0",
+      "IsUserDefinedId": false,
+      "SourceId": "start1",
+      "TargetId": "State1",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 1,
+      "Id": "L-State1-State2-1",
+      "IsUserDefinedId": false,
+      "SourceId": "State1",
+      "TargetId": "State2",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "stateDiagram.header",
+      "RawLine": "stateDiagram-v2"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    [*] --> State1"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "stateDiagram.transition",
+      "RawLine": "    State1 --> State2"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "stateDiagram.style",
+      "RawLine": "    style State2 fill:#bbf,stroke:#333"
+    }
+  ]
+}

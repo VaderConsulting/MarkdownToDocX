@@ -1,0 +1,168 @@
+{
+  "Kind": "gitGraph",
+  "Nodes": [
+    {
+      "Id": "commit-0",
+      "Label": "commit-0",
+      "LabelType": "Text",
+      "Shape": "commit",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "commit-1",
+      "Label": "commit-1",
+      "LabelType": "Text",
+      "Shape": "commit",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "commit-2",
+      "Label": "commit-2",
+      "LabelType": "Text",
+      "Shape": "commit",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "commit-3",
+      "Label": "commit-3",
+      "LabelType": "Text",
+      "Shape": "commit",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "merge-newbranch",
+      "Label": "merge-newbranch",
+      "LabelType": "Text",
+      "Shape": "commit",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "newbranch",
+      "Label": "newbranch",
+      "LabelType": "Text",
+      "Shape": "branch",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-commit-0-newbranch-0",
+      "IsUserDefinedId": false,
+      "SourceId": "commit-0",
+      "TargetId": "newbranch",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 1,
+      "Id": "L-newbranch-commit-1-1",
+      "IsUserDefinedId": false,
+      "SourceId": "newbranch",
+      "TargetId": "commit-1",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 2,
+      "Id": "L-commit-1-commit-2-2",
+      "IsUserDefinedId": false,
+      "SourceId": "commit-1",
+      "TargetId": "commit-2",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 3,
+      "Id": "L-main-commit-3-3",
+      "IsUserDefinedId": false,
+      "SourceId": "main",
+      "TargetId": "commit-3",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 4,
+      "Id": "L-commit-3-merge-newbranch-4",
+      "IsUserDefinedId": false,
+      "SourceId": "commit-3",
+      "TargetId": "merge-newbranch",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "gitGraph.header",
+      "RawLine": "gitGraph"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "gitGraph.commit",
+      "RawLine": "    commit"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "gitGraph.branch",
+      "RawLine": "    branch newbranch"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "gitGraph.branch",
+      "RawLine": "    checkout newbranch"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "gitGraph.commit",
+      "RawLine": "    commit"
+    },
+    {
+      "LineNumber": 6,
+      "LineTypeId": "gitGraph.commit",
+      "RawLine": "    commit"
+    },
+    {
+      "LineNumber": 7,
+      "LineTypeId": "gitGraph.branch",
+      "RawLine": "    checkout main"
+    },
+    {
+      "LineNumber": 8,
+      "LineTypeId": "gitGraph.commit",
+      "RawLine": "    commit"
+    },
+    {
+      "LineNumber": 9,
+      "LineTypeId": "gitGraph.commit",
+      "RawLine": "    merge newbranch"
+    }
+  ]
+}

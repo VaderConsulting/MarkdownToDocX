@@ -1,0 +1,84 @@
+{
+  "Kind": "classDiagram",
+  "Nodes": [
+    {
+      "Id": "Status",
+      "Label": "Status",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [
+        "ACTIVE",
+        "INACTIVE"
+      ],
+      "Attributes": []
+    },
+    {
+      "Id": "UserService",
+      "Label": "UserService",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [
+        "+findUser(id: int) User"
+      ],
+      "Attributes": []
+    }
+  ],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "classDiagram.header",
+      "RawLine": "classDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "classDiagram.class",
+      "RawLine": "    class Status {"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "classDiagram.annotation",
+      "RawLine": "        <<enumeration>>"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "classDiagram.member",
+      "RawLine": "        ACTIVE"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "classDiagram.member",
+      "RawLine": "        INACTIVE"
+    },
+    {
+      "LineNumber": 6,
+      "LineTypeId": "classDiagram.structClose",
+      "RawLine": "    }"
+    },
+    {
+      "LineNumber": 7,
+      "LineTypeId": "classDiagram.class",
+      "RawLine": "    class UserService {"
+    },
+    {
+      "LineNumber": 8,
+      "LineTypeId": "classDiagram.annotation",
+      "RawLine": "        <<service>>"
+    },
+    {
+      "LineNumber": 9,
+      "LineTypeId": "classDiagram.member",
+      "RawLine": "        +findUser(id: int) User"
+    },
+    {
+      "LineNumber": 10,
+      "LineTypeId": "classDiagram.structClose",
+      "RawLine": "    }"
+    }
+  ]
+}

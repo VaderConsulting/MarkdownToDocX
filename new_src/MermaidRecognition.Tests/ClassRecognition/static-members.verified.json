@@ -1,0 +1,49 @@
+{
+  "Kind": "classDiagram",
+  "Nodes": [
+    {
+      "Id": "Util",
+      "Label": "Util",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [
+        "+hash(input: String)$ String",
+        "+validate()$ bool"
+      ],
+      "Attributes": []
+    }
+  ],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "classDiagram.header",
+      "RawLine": "classDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "classDiagram.class",
+      "RawLine": "    class Util {"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "classDiagram.member",
+      "RawLine": "        +hash(input: String)$ String"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "classDiagram.member",
+      "RawLine": "        +validate()$ bool"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "classDiagram.structClose",
+      "RawLine": "    }"
+    }
+  ]
+}

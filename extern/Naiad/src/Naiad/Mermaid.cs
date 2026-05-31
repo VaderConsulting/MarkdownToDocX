@@ -292,20 +292,95 @@ public static class Mermaid
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         var remaining = input.TrimStart();
-        while (remaining.StartsWith("%%{", StringComparison.Ordinal))
+        while (TryExtractNextInitBlock(remaining, out string block, out int consumedLength))
         {
-            var endIndex = remaining.IndexOf("}%%", StringComparison.Ordinal);
-            if (endIndex < 0)
-            {
-                break;
-            }
-
-            var block = remaining.Substring(0, endIndex + 3);
             TryParseOneInitBlock(block, result);
-            remaining = remaining[(endIndex + 3)..].TrimStart();
+            remaining = remaining[consumedLength..].TrimStart();
         }
 
         return result;
+    }
+
+    static bool TryExtractNextInitBlock(string remaining, out string block, out int consumedLength)
+    {
+        block = string.Empty;
+        consumedLength = 0;
+        if (!remaining.StartsWith("%%{", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var initIndex = remaining.IndexOf("init:", StringComparison.OrdinalIgnoreCase);
+        if (initIndex < 0)
+        {
+            return false;
+        }
+
+        var jsonStart = remaining.IndexOf('{', initIndex);
+        if (jsonStart < 0)
+        {
+            return false;
+        }
+
+        var depth = 0;
+        for (var index = jsonStart; index < remaining.Length; index++)
+        {
+            var character = remaining[index];
+            if (character == '{')
+            {
+                depth++;
+            }
+            else if (character == '}')
+            {
+                depth--;
+                if (depth == 0)
+                {
+                    var wrapperCloseIndex = index + 1;
+                    if (wrapperCloseIndex + 2 >= remaining.Length)
+                    {
+                        return false;
+                    }
+
+                    if (remaining[wrapperCloseIndex] != '}' ||
+                        remaining[wrapperCloseIndex + 1] != '%' ||
+                        remaining[wrapperCloseIndex + 2] != '%')
+                    {
+                        return false;
+                    }
+
+                    consumedLength = wrapperCloseIndex + 3;
+                    block = remaining.Substring(0, consumedLength);
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    static bool TryGetInitJsonEndIndex(string text, int jsonStartIndex, out int jsonEndIndex)
+    {
+        jsonEndIndex = -1;
+        var depth = 0;
+        for (var index = jsonStartIndex; index < text.Length; index++)
+        {
+            var character = text[index];
+            if (character == '{')
+            {
+                depth++;
+            }
+            else if (character == '}')
+            {
+                depth--;
+                if (depth == 0)
+                {
+                    jsonEndIndex = index;
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     static void TryParseOneInitBlock(string initBlock, Dictionary<string, string> output)
@@ -322,13 +397,17 @@ public static class Mermaid
         }
 
         var jsonStart = initBlock.IndexOf('{', initIndex);
-        var jsonEnd = initBlock.LastIndexOf('}');
-        if (jsonStart < 0 || jsonEnd <= jsonStart)
+        if (jsonStart < 0)
         {
             return;
         }
 
-        var json = initBlock.Substring(jsonStart, (jsonEnd - jsonStart) + 1);
+        if (!TryGetInitJsonEndIndex(initBlock, jsonStart, out var jsonEndIndex))
+        {
+            return;
+        }
+
+        var json = initBlock.Substring(jsonStart, (jsonEndIndex - jsonStart) + 1);
         try
         {
             using var doc = JsonDocument.Parse(json);
@@ -355,7 +434,6 @@ public static class Mermaid
 
         if (element.ValueKind == JsonValueKind.Array)
         {
-            // Keep arrays as JSON text.
             output[prefix] = element.GetRawText();
             return;
         }
@@ -378,7 +456,6 @@ public static class Mermaid
             return;
         }
 
-        // Null/Undefined.
         output[prefix] = string.Empty;
     }
 

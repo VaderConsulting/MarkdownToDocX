@@ -1,0 +1,10 @@
+classDiagram
+    class Status {
+        <<enumeration>>
+        ACTIVE
+        INACTIVE
+    }
+    class UserService {
+        <<service>>
+        +findUser(id: int) User
+    }

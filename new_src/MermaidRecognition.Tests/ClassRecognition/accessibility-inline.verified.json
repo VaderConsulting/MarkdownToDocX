@@ -1,0 +1,45 @@
+{
+  "Kind": "classDiagram",
+  "Nodes": [
+    {
+      "Id": "Animal",
+      "Label": "Animal",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Accessibility": {
+    "Title": "Domain model",
+    "Description": "Core entities"
+  },
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "classDiagram.header",
+      "RawLine": "classDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "classDiagram.accTitle",
+      "RawLine": "    accTitle: Domain model"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "classDiagram.accDescr",
+      "RawLine": "    accDescr: Core entities"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "classDiagram.class",
+      "RawLine": "    class Animal"
+    }
+  ]
+}

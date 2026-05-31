@@ -1,0 +1,9 @@
+sequenceDiagram
+    loop Retry up to 3
+        A->>B: Attempt
+        alt Success
+            B-->>A: OK
+        else Failure
+            B-->>A: Retry
+        end
+    end

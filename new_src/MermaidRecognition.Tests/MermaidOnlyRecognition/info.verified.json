@@ -1,0 +1,27 @@
+{
+  "Kind": "info",
+  "Nodes": [],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [
+    {
+      "Severity": "Warning",
+      "Code": "recognition.unsupported-native"
+    }
+  ],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "info.header",
+      "RawLine": "info"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "info.body",
+      "RawLine": "    showInfo"
+    }
+  ]
+}

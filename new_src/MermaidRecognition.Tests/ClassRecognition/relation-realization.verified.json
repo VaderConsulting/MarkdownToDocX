@@ -1,0 +1,52 @@
+{
+  "Kind": "classDiagram",
+  "Nodes": [
+    {
+      "Id": "Implementation",
+      "Label": "Implementation",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Interface",
+      "Label": "Interface",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-Interface-Implementation-0",
+      "IsUserDefinedId": false,
+      "SourceId": "Interface",
+      "TargetId": "Implementation",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "ClassRelation": "<|..",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "classDiagram.header",
+      "RawLine": "classDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "classDiagram.relation",
+      "RawLine": "    Interface <|.. Implementation"
+    }
+  ]
+}

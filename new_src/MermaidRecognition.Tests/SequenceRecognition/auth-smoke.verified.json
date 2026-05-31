@@ -1,0 +1,335 @@
+{
+  "Kind": "sequence",
+  "Nodes": [
+    {
+      "Id": "Auth",
+      "Label": "Auth Service",
+      "LabelType": "Text",
+      "Shape": "participant",
+      "ShapeSource": "sequence",
+      "SequenceActive": "false",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Client",
+      "Label": "Web Client",
+      "LabelType": "Text",
+      "Shape": "participant",
+      "ShapeSource": "sequence",
+      "SequenceActive": "false",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "DB",
+      "Label": "Database",
+      "LabelType": "Text",
+      "Shape": "participant",
+      "ShapeSource": "sequence",
+      "SequenceActive": "false",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "Email",
+      "Label": "Email Service",
+      "LabelType": "Text",
+      "Shape": "participant",
+      "ShapeSource": "sequence",
+      "SequenceActive": "false",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "User",
+      "Label": "User",
+      "LabelType": "Text",
+      "Shape": "actor",
+      "ShapeSource": "sequence",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "note-0",
+      "Label": "Validate credentials",
+      "LabelType": "Text",
+      "Shape": "note",
+      "ShapeSource": "sequence",
+      "SequenceNotePlacement": "right",
+      "SequenceNoteAnchor": "Auth",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "note-1",
+      "Label": "Token expires in 24h",
+      "LabelType": "Text",
+      "Shape": "note",
+      "ShapeSource": "sequence",
+      "SequenceNotePlacement": "right",
+      "SequenceNoteAnchor": "Auth",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "note-2",
+      "Label": "Session established",
+      "LabelType": "Text",
+      "Shape": "note",
+      "ShapeSource": "sequence",
+      "SequenceNotePlacement": "over",
+      "SequenceNoteAnchor": "User,DB",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-User-Client-0",
+      "IsUserDefinedId": false,
+      "SourceId": "User",
+      "TargetId": "Client",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "Enter credentials",
+      "SequenceArrow": "->>",
+      "SequenceActivateTarget": "Client",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 1,
+      "Id": "L-Client-Auth-1",
+      "IsUserDefinedId": false,
+      "SourceId": "Client",
+      "TargetId": "Auth",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "POST /login",
+      "SequenceArrow": "->>",
+      "SequenceActivateTarget": "Auth",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 2,
+      "Id": "L-Auth-DB-2",
+      "IsUserDefinedId": false,
+      "SourceId": "Auth",
+      "TargetId": "DB",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "Query user",
+      "SequenceArrow": "->>",
+      "SequenceActivateTarget": "DB",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 3,
+      "Id": "L-DB-Auth-3",
+      "IsUserDefinedId": false,
+      "SourceId": "DB",
+      "TargetId": "Auth",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "User data",
+      "SequenceArrow": "-->>",
+      "SequenceDeactivateSource": "DB",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 4,
+      "Id": "L-Auth-Auth-4",
+      "IsUserDefinedId": false,
+      "SourceId": "Auth",
+      "TargetId": "Auth",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "Generate JWT",
+      "SequenceArrow": "->>",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 5,
+      "Id": "L-Auth-Client-5",
+      "IsUserDefinedId": false,
+      "SourceId": "Auth",
+      "TargetId": "Client",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "200 OK + Token",
+      "SequenceArrow": "-->>",
+      "SequenceDeactivateSource": "Auth",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 6,
+      "Id": "L-Client-Email-6",
+      "IsUserDefinedId": false,
+      "SourceId": "Client",
+      "TargetId": "Email",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "Send welcome email",
+      "SequenceArrow": "->>",
+      "SequenceActivateTarget": "Email",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 7,
+      "Id": "L-Email-Client-7",
+      "IsUserDefinedId": false,
+      "SourceId": "Email",
+      "TargetId": "Client",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "Email sent",
+      "SequenceArrow": "-->>",
+      "SequenceDeactivateSource": "Email",
+      "Classes": []
+    },
+    {
+      "CreationIndex": 8,
+      "Id": "L-Client-User-8",
+      "IsUserDefinedId": false,
+      "SourceId": "Client",
+      "TargetId": "User",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "Show dashboard",
+      "SequenceArrow": "-->>",
+      "SequenceDeactivateSource": "Client",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "Config": {
+    "Raw": {
+      "sequence.autonumber": "true",
+      "sequence.title": "Complete Authentication Flow"
+    }
+  },
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "sequence.header",
+      "RawLine": "sequenceDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "sequence.title",
+      "RawLine": "    title Complete Authentication Flow"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "sequence.autonumber",
+      "RawLine": "    autonumber"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "sequence.participant",
+      "RawLine": "    actor User"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "sequence.participant",
+      "RawLine": "    participant Client as Web Client"
+    },
+    {
+      "LineNumber": 6,
+      "LineTypeId": "sequence.participant",
+      "RawLine": "    participant Auth as Auth Service"
+    },
+    {
+      "LineNumber": 7,
+      "LineTypeId": "sequence.participant",
+      "RawLine": "    participant DB as Database"
+    },
+    {
+      "LineNumber": 8,
+      "LineTypeId": "sequence.participant",
+      "RawLine": "    participant Email as Email Service"
+    },
+    {
+      "LineNumber": 9,
+      "LineTypeId": "sequence.message",
+      "RawLine": "    User->>+Client: Enter credentials"
+    },
+    {
+      "LineNumber": 10,
+      "LineTypeId": "sequence.message",
+      "RawLine": "    Client->>+Auth: POST /login"
+    },
+    {
+      "LineNumber": 11,
+      "LineTypeId": "sequence.message",
+      "RawLine": "    Auth->>+DB: Query user"
+    },
+    {
+      "LineNumber": 12,
+      "LineTypeId": "sequence.message",
+      "RawLine": "    DB-->>-Auth: User data"
+    },
+    {
+      "LineNumber": 13,
+      "LineTypeId": "sequence.note",
+      "RawLine": "    Note right of Auth: Validate credentials"
+    },
+    {
+      "LineNumber": 14,
+      "LineTypeId": "sequence.message",
+      "RawLine": "    Auth->>Auth: Generate JWT"
+    },
+    {
+      "LineNumber": 15,
+      "LineTypeId": "sequence.note",
+      "RawLine": "    Note right of Auth: Token expires in 24h"
+    },
+    {
+      "LineNumber": 16,
+      "LineTypeId": "sequence.message",
+      "RawLine": "    Auth-->>-Client: 200 OK + Token"
+    },
+    {
+      "LineNumber": 17,
+      "LineTypeId": "sequence.message",
+      "RawLine": "    Client->>+Email: Send welcome email"
+    },
+    {
+      "LineNumber": 18,
+      "LineTypeId": "sequence.message",
+      "RawLine": "    Email-->>-Client: Email sent"
+    },
+    {
+      "LineNumber": 19,
+      "LineTypeId": "sequence.message",
+      "RawLine": "    Client-->>-User: Show dashboard"
+    },
+    {
+      "LineNumber": 20,
+      "LineTypeId": "sequence.note",
+      "RawLine": "    Note over User,DB: Session established"
+    }
+  ]
+}

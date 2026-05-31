@@ -1,0 +1,85 @@
+{
+  "Kind": "erDiagram",
+  "Nodes": [
+    {
+      "Id": "CUSTOMER",
+      "Label": "CUSTOMER",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    },
+    {
+      "Id": "ORDER",
+      "Label": "ORDER",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [
+    {
+      "CreationIndex": 0,
+      "Id": "L-CUSTOMER-ORDER-0",
+      "IsUserDefinedId": false,
+      "SourceId": "CUSTOMER",
+      "TargetId": "ORDER",
+      "MinLength": 1,
+      "MarkerStart": "None",
+      "MarkerEnd": "None",
+      "Label": "places",
+      "ErLeftMarker": "||",
+      "ErLink": "--",
+      "ErRightMarker": "o{",
+      "ErRoleLabel": "places",
+      "Classes": []
+    }
+  ],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Accessibility": {
+    "Title": "Sales schema",
+    "Description": "Entity relationship model\r\nfor the sales domain"
+  },
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "erDiagram.header",
+      "RawLine": "erDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "erDiagram.accTitle",
+      "RawLine": "    accTitle: Sales schema"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "erDiagram.accDescr",
+      "RawLine": "    accDescr {"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "erDiagram.body",
+      "RawLine": "        Entity relationship model"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "erDiagram.body",
+      "RawLine": "        for the sales domain"
+    },
+    {
+      "LineNumber": 6,
+      "LineTypeId": "erDiagram.structClose",
+      "RawLine": "    }"
+    },
+    {
+      "LineNumber": 7,
+      "LineTypeId": "erDiagram.relationship",
+      "RawLine": "    CUSTOMER ||--o{ ORDER : places"
+    }
+  ]
+}

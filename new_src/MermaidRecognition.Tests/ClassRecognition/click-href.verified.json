@@ -1,0 +1,41 @@
+{
+  "Kind": "classDiagram",
+  "Nodes": [
+    {
+      "Id": "Animal",
+      "Label": "Animal",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [],
+      "Attributes": []
+    }
+  ],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [
+    {
+      "TargetId": "Animal",
+      "Url": "https://example.com"
+    }
+  ],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "classDiagram.header",
+      "RawLine": "classDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "classDiagram.class",
+      "RawLine": "    class Animal"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "classDiagram.click",
+      "RawLine": "    click Animal href \"https://example.com\" \"Docs\""
+    }
+  ]
+}

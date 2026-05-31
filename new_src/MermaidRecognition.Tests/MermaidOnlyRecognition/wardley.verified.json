@@ -1,0 +1,32 @@
+{
+  "Kind": "wardley",
+  "Nodes": [],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [
+    {
+      "Severity": "Warning",
+      "Code": "recognition.unsupported-native"
+    }
+  ],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "wardley.header",
+      "RawLine": "wardley-beta"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "wardley.title",
+      "RawLine": "    title Map"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "wardley.element",
+      "RawLine": "    componentA[Component A]"
+    }
+  ]
+}

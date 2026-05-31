@@ -1,0 +1,6 @@
+{
+  "DiagramKind": "treemap",
+  "GateLevel": "L1",
+  "FixtureDirectory": "TreemapRecognition",
+  "Fixtures": ["simple"]
+}

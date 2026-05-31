@@ -231,46 +231,51 @@ public static class ShapePathGenerator
 #pragma warning restore IDE0007
     }
 
-    public static string Parallelogram(double x, double y, double width, double height, double skew = 0.2)
+    /// <summary>Mermaid <c>lean_left</c> (<c>[\text\]</c>).</summary>
+    public static string Parallelogram(double x, double y, double width, double height)
     {
-        var offset = width * skew;
+        double H6 = height / 6.0;
         return $"""
-                M{Fmt(x + offset)},{Fmt(y)}
-                L{Fmt(x + width)},{Fmt(y)}
-                L{Fmt(x + width - offset)},{Fmt(y + height)}
-                L{Fmt(x)},{Fmt(y + height)} Z
+                M{Fmt(x + (2.0 * H6))},{Fmt(y)}
+                L{Fmt(x + width + H6)},{Fmt(y)}
+                L{Fmt(x + width - (2.0 * H6))},{Fmt(y + height)}
+                L{Fmt(x - H6)},{Fmt(y + height)} Z
                 """;
     }
 
-    public static string ParallelogramAlt(double x, double y, double width, double height, double skew = 0.2)
+    /// <summary>Mermaid <c>lean_right</c> (<c>[/text/]</c>).</summary>
+    public static string ParallelogramAlt(double x, double y, double width, double height)
     {
-        var offset = width * skew;
+        double H6 = height / 6.0;
         return $"""
-                M{Fmt(x)},{Fmt(y)}
-                L{Fmt(x + width - offset)},{Fmt(y)}
-                L{Fmt(x + width)},{Fmt(y + height)}
-                L{Fmt(x + offset)},{Fmt(y + height)} Z
+                M{Fmt(x - (2.0 * H6))},{Fmt(y)}
+                L{Fmt(x + width - H6)},{Fmt(y)}
+                L{Fmt(x + width + (2.0 * H6))},{Fmt(y + height)}
+                L{Fmt(x + H6)},{Fmt(y + height)} Z
                 """;
     }
 
-    public static string Trapezoid(double x, double y, double width, double height, double skew = 0.2)
+    /// <summary>Mermaid <c>inv_trapezoid</c> (<c>[\text/]</c>), wide at the bottom.</summary>
+    public static string Trapezoid(double x, double y, double width, double height)
     {
-        var offset = width * skew;
+        double H6 = height / 6.0;
         return $"""
-                M{Fmt(x + offset)},{Fmt(y)}
-                L{Fmt(x + width - offset)},{Fmt(y)}
-                L{Fmt(x + width)},{Fmt(y + height)}
-                L{Fmt(x)},{Fmt(y + height)} Z
+                M{Fmt(x + H6)},{Fmt(y)}
+                L{Fmt(x + width - H6)},{Fmt(y)}
+                L{Fmt(x + width + (2.0 * H6))},{Fmt(y + height)}
+                L{Fmt(x - (2.0 * H6))},{Fmt(y + height)} Z
                 """;
     }
 
-    public static string TrapezoidAlt(double x, double y, double width, double height, double skew = 0.2)
+    /// <summary>Mermaid <c>trapezoid</c> (<c>[/text\]</c>), wide at the top.</summary>
+    public static string TrapezoidAlt(double x, double y, double width, double height)
     {
-        var offset = width * skew;
+        double H6 = height / 6.0;
         return $"""
-                M{Fmt(x)},{Fmt(y)}
-                L{Fmt(x + width)},{Fmt(y)}
-                L{Fmt(x + width - offset)},{Fmt(y + height)} {Fmt(x + offset)},{Fmt(y + height)} Z
+                M{Fmt(x - (2.0 * H6))},{Fmt(y)}
+                L{Fmt(x + width + (2.0 * H6))},{Fmt(y)}
+                L{Fmt(x + width - H6)},{Fmt(y + height)}
+                L{Fmt(x + H6)},{Fmt(y + height)} Z
                 """;
     }
 
@@ -334,6 +339,22 @@ public static class ShapePathGenerator
                 """;
     }
 
+    /// <summary>
+    /// Horizontal extent beyond the dagre node box for slanted bracket shapes (Mermaid uses <c>h/6</c> bevels).
+    /// </summary>
+    public static double GetHorizontalShapeOutsetPx(NodeShape shape, double height)
+    {
+        double H6 = height / 6.0;
+        return shape switch
+        {
+            NodeShape.Parallelogram => H6,
+            NodeShape.ParallelogramAlt => 2.0 * H6,
+            NodeShape.Trapezoid => 2.0 * H6,
+            NodeShape.TrapezoidAlt => 2.0 * H6,
+            _ => 0.0
+        };
+    }
+
     public static string GetPath(NodeShape shape, double x, double y, double width, double height)
     {
         var cx = x + width / 2;
@@ -350,8 +371,9 @@ public static class ShapePathGenerator
             NodeShape.Hexagon => Hexagon(x, y, width, height),
             NodeShape.Stadium => Stadium(x, y, width, height),
             NodeShape.Cylinder => Cylinder(x, y, width, height),
-            NodeShape.Parallelogram => Parallelogram(x, y, width, height),
-            NodeShape.ParallelogramAlt => ParallelogramAlt(x, y, width, height),
+            // Mermaid lean shapes are authored in y-up space; swap lean paths for y-down SVG.
+            NodeShape.Parallelogram => ParallelogramAlt(x, y, width, height),
+            NodeShape.ParallelogramAlt => Parallelogram(x, y, width, height),
             NodeShape.Trapezoid => Trapezoid(x, y, width, height),
             NodeShape.TrapezoidAlt => TrapezoidAlt(x, y, width, height),
             NodeShape.Asymmetric => Asymmetric(x, y, width, height),

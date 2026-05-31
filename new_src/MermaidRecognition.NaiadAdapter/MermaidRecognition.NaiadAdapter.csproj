@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>MermaidRecognition.NaiadAdapter</RootNamespace>
+    <AssemblyName>MermaidRecognition.NaiadAdapter</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <AnalysisLevel>none</AnalysisLevel>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MermaidRecognition\MermaidRecognition.csproj" />
+    <ProjectReference Include="..\..\extern\Naiad\src\Naiad\Naiad.csproj" />
+  </ItemGroup>
+
+</Project>

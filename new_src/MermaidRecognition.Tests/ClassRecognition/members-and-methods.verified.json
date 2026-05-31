@@ -1,0 +1,61 @@
+{
+  "Kind": "classDiagram",
+  "Nodes": [
+    {
+      "Id": "Animal",
+      "Label": "Animal",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [
+        "+String name",
+        "+int age",
+        "+makeSound() void",
+        "+move(int distance) void"
+      ],
+      "Attributes": []
+    }
+  ],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "classDiagram.header",
+      "RawLine": "classDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "classDiagram.class",
+      "RawLine": "    class Animal {"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "classDiagram.member",
+      "RawLine": "        +String name"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "classDiagram.member",
+      "RawLine": "        +int age"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "classDiagram.member",
+      "RawLine": "        +makeSound() void"
+    },
+    {
+      "LineNumber": 6,
+      "LineTypeId": "classDiagram.member",
+      "RawLine": "        +move(int distance) void"
+    },
+    {
+      "LineNumber": 7,
+      "LineTypeId": "classDiagram.structClose",
+      "RawLine": "    }"
+    }
+  ]
+}

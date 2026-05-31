@@ -1,0 +1,48 @@
+{
+  "Kind": "classDiagram",
+  "Nodes": [
+    {
+      "Id": "IFlyable",
+      "Label": "IFlyable",
+      "LabelType": "Text",
+      "Classes": [],
+      "Members": [
+        "+fly() void"
+      ],
+      "Attributes": []
+    }
+  ],
+  "Edges": [],
+  "Groups": [],
+  "LinkStyles": [],
+  "ClassDefs": [],
+  "Interactions": [],
+  "Diagnostics": [],
+  "SourceStatements": [
+    {
+      "LineNumber": 1,
+      "LineTypeId": "classDiagram.header",
+      "RawLine": "classDiagram"
+    },
+    {
+      "LineNumber": 2,
+      "LineTypeId": "classDiagram.class",
+      "RawLine": "    class IFlyable {"
+    },
+    {
+      "LineNumber": 3,
+      "LineTypeId": "classDiagram.annotation",
+      "RawLine": "        <<interface>>"
+    },
+    {
+      "LineNumber": 4,
+      "LineTypeId": "classDiagram.member",
+      "RawLine": "        +fly() void"
+    },
+    {
+      "LineNumber": 5,
+      "LineTypeId": "classDiagram.structClose",
+      "RawLine": "    }"
+    }
+  ]
+}
