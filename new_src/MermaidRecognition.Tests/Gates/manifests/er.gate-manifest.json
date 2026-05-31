@@ -1,0 +1,17 @@
+{
+  "DiagramKind": "erDiagram",
+  "GateLevel": "L2",
+  "FixtureDirectory": "ErRecognition",
+  "Fixtures": [
+    "relationship",
+    "entity-attributes",
+    "cardinality-zero-or-one",
+    "cardinality-zero-or-more-left",
+    "cardinality-zero-or-one-dotted",
+    "cardinality-zero-or-more-both",
+    "cardinality-one-or-more-dotted",
+    "cardinality-zero-or-more-dotted",
+    "cardinality-optional-zero-or-more",
+    "cardinality-zero-or-more-zero-or-one-dotted"
+  ]
+}
