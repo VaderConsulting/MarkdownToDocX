@@ -140,6 +140,58 @@ public static class FlowchartPerpendicularAttachValidator
         return true;
     }
 
+    /// <summary>
+    /// Returns a unit direction along the rendered stroke within the terminal stub length at the given end.
+    /// </summary>
+    public static bool TryGetRenderedTerminalTangentDirection(
+        IReadOnlyList<(double X, double Y)> Samples,
+        FlowchartLayoutNodeBounds TerminalBounds,
+        bool NearStart,
+        out double DirX,
+        out double DirY)
+    {
+        DirX = 0.0;
+        DirY = 0.0;
+
+        if (!TryResolveOuterSamplePoint(Samples, TerminalBounds, NearStart, out double OuterX, out double OuterY))
+        {
+            return false;
+        }
+
+        if (NearStart)
+        {
+            if (!TryNormalize(Samples[0].X - OuterX, Samples[0].Y - OuterY, out DirX, out DirY))
+            {
+                return false;
+            }
+        }
+        else
+        {
+            int LastIndex = Samples.Count - 1;
+            if (!TryNormalize(Samples[LastIndex].X - OuterX, Samples[LastIndex].Y - OuterY, out DirX, out DirY))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool TryNormalize(double DeltaX, double DeltaY, out double UnitX, out double UnitY)
+    {
+        double Length = Math.Sqrt((DeltaX * DeltaX) + (DeltaY * DeltaY));
+        if (Length <= AXIS_TOLERANCE_PX)
+        {
+            UnitX = 0.0;
+            UnitY = 0.0;
+            return false;
+        }
+
+        UnitX = DeltaX / Length;
+        UnitY = DeltaY / Length;
+        return true;
+    }
+
     private static bool TryResolveOuterSamplePoint(
         IReadOnlyList<(double X, double Y)> Samples,
         FlowchartLayoutNodeBounds TerminalBounds,

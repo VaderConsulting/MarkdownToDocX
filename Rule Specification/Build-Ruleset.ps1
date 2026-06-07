@@ -497,11 +497,9 @@ $Rules += New-Rule `
     -RuleGroup 'PortSelection' `
     -AppliesTo 'Edge' `
     -Severity 'Error' `
-    -Description 'Rendered connector tangents enter and exit node faces at right angles with visible terminal stubs on curved corridor, bypass, fan-in/out, and decision routes.' `
+    -Description 'Every visible connector leaves and enters node faces at right angles through perpendicular terminal stubs on both layout guides and rendered strokes.' `
     -When (New-All @(
-        (New-Condition -Field 'Edge.IsVisible' -Operator 'Equals' -Value $true),
-        (New-Condition -Field 'Edge.RouteClass' -Operator 'In' -Value @('LocalDecisionBranch', 'CycleOrReturn', 'LongBypass', 'FanIn', 'FanOut', 'MergeBack')),
-        (New-Condition -Field 'Path.RenderedAsSvgPath' -Operator 'Equals' -Value $true)
+        (New-Condition -Field 'Edge.IsVisible' -Operator 'Equals' -Value $true)
     )) `
     -Require @{ 'Ports.PerpendicularAttach' = $true } `
     -FailWhen @('NonPerpendicularAttach', 'RenderedAttachFailure') `
@@ -528,6 +526,35 @@ $TrapezoidBracketShapeWhen = New-All @(
     (New-Condition -Field 'Node.Shape' -Operator 'In' -Value @('lean_right', 'lean_left', 'trapezoid', 'inv_trapezoid')),
     (New-Condition -Field 'Node.IsRendered' -Operator 'Equals' -Value $true)
 )
+
+$NodeLabelAlignmentWhen = New-All @(
+    (New-Condition -Field 'Node.IsRendered' -Operator 'Equals' -Value $true),
+    (New-Condition -Field 'Node.Label' -Operator 'Exists')
+)
+
+$Rules += New-Rule `
+    -RuleId 'Render.Label.NodeCentredHorizontally' `
+    -RuleGroup 'Labels' `
+    -AppliesTo 'Node' `
+    -Severity 'Error' `
+    -Description 'Rendered node labels are centred horizontally within the node body.' `
+    -When $NodeLabelAlignmentWhen `
+    -Require @{ 'Label.CentredHorizontally' = $true } `
+    -FailWhen @('NodeLabelOffCentreHorizontally') `
+    -DiagnosticTemplate 'Node label on {NodeId} failed Render.Label.NodeCentredHorizontally.' `
+    -SuggestedCorrectionTemplate 'Centre the node label horizontally within the node bounds in FlowchartSugiyamaSvgRenderer.'
+
+$Rules += New-Rule `
+    -RuleId 'Render.Label.NodeCentredVertically' `
+    -RuleGroup 'Labels' `
+    -AppliesTo 'Node' `
+    -Severity 'Error' `
+    -Description 'Rendered node labels are centred vertically within the node body.' `
+    -When $NodeLabelAlignmentWhen `
+    -Require @{ 'Label.CentredVertically' = $true } `
+    -FailWhen @('NodeLabelOffCentreVertically') `
+    -DiagnosticTemplate 'Node label on {NodeId} failed Render.Label.NodeCentredVertically.' `
+    -SuggestedCorrectionTemplate 'Centre the node label vertically within the node bounds in FlowchartSugiyamaSvgRenderer.'
 
 $Rules += New-Rule `
     -RuleId 'Render.Shape.TrapezoidBracketGeometry' `
@@ -674,7 +701,15 @@ $LabelRules = @(
     @{ Id = 'Routing.Label.LongLabelWrapped'; Legacy = 'Routing.LongLabelClearance'; RequireKey = 'Label.LongLabelWrapped'; Fail = 'LongLabelCausesDetour'; When = (New-All @((New-Condition -Field 'Edge.Label.IsLong' -Operator 'Equals' -Value $true))) },
     @{ Id = 'Routing.Label.CentredOnConnectorSpine'; RequireKey = 'Label.CentredOnConnectorSpine'; Fail = 'LabelOffConnectorSpine'; When = (New-All @(
         (New-Condition -Field 'Edge.Label' -Operator 'Exists'),
-        (New-Condition -Field 'Edge.RouteClass' -Operator 'In' -Value @('CentreSpine', 'ShortAdjacent', 'LocalDecisionBranch'))
+        (New-Condition -Field 'Edge.IsVisible' -Operator 'Equals' -Value $true)
+    )) },
+    @{ Id = 'Routing.Label.CentredOnConnectorHorizontally'; RequireKey = 'Label.CentredOnConnectorHorizontally'; Fail = 'LabelOffConnectorHorizontally'; When = (New-All @(
+        (New-Condition -Field 'Edge.Label' -Operator 'Exists'),
+        (New-Condition -Field 'Edge.IsVisible' -Operator 'Equals' -Value $true)
+    )) },
+    @{ Id = 'Routing.Label.CentredOnConnectorVertically'; RequireKey = 'Label.CentredOnConnectorVertically'; Fail = 'LabelOffConnectorVertically'; When = (New-All @(
+        (New-Condition -Field 'Edge.Label' -Operator 'Exists'),
+        (New-Condition -Field 'Edge.IsVisible' -Operator 'Equals' -Value $true)
     )) },
     @{ Id = 'Routing.Label.NotOnConnectorLine'; RequireKey = 'Label.NotOnConnectorLine'; Fail = 'LabelOnConnectorStroke'; When = (New-All @(
         (New-Condition -Field 'Edge.Label' -Operator 'Exists'),
@@ -713,7 +748,9 @@ $MarkerRules = @(
     @{ Id = 'Render.Marker.EndMatchesToken'; RequireKey = 'Marker.EndMatchesToken'; Fail = 'EndMarkerMismatch' },
     @{ Id = 'Render.Marker.BidirectionalPreserved'; RequireKey = 'Marker.BidirectionalPreserved'; Fail = 'BidirectionalMarkerLost'; When = (New-All @((New-Condition -Field 'Edge.IsBidirectional' -Operator 'Equals' -Value $true))) },
     @{ Id = 'Render.Marker.NotLost'; RequireKey = 'Marker.NotLost'; Fail = 'LostMarker' },
-    @{ Id = 'Render.Marker.NotInvented'; RequireKey = 'Marker.NotInvented'; Fail = 'InventedMarker' }
+    @{ Id = 'Render.Marker.NotInvented'; RequireKey = 'Marker.NotInvented'; Fail = 'InventedMarker' },
+    @{ Id = 'Render.Marker.EndAlignedWithPathTangent'; RequireKey = 'Marker.EndAlignedWithPathTangent'; Fail = 'EndMarkerTangentDivergence'; When = (New-All @((New-Condition -Field 'Edge.IsVisible' -Operator 'Equals' -Value $true), (New-Condition -Field 'Edge.ArrowEnd' -Operator 'Equals' -Value 'Point'))) },
+    @{ Id = 'Render.Marker.StartAlignedWithPathTangent'; RequireKey = 'Marker.StartAlignedWithPathTangent'; Fail = 'StartMarkerTangentDivergence'; When = (New-All @((New-Condition -Field 'Edge.IsVisible' -Operator 'Equals' -Value $true), (New-Condition -Field 'Edge.ArrowStart' -Operator 'Equals' -Value 'Point'))) }
 )
 
 foreach ($MarkerRule in $MarkerRules)

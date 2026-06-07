@@ -593,6 +593,7 @@ public static class FlowchartEdgeValidationFactsBuilder
         {
             (double ExpectedLabelX, double ExpectedLabelY) =
                 FlowchartEdgeLabelPlacementHelper.ComputeLrLabelledRectFanOutEdgeLabelPosition(
+                    LayoutPoints,
                     SourceBounds,
                     TargetBounds);
             Facts.LabelCentredOnConnectorSpine =

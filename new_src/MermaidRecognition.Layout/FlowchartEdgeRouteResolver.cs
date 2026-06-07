@@ -231,7 +231,8 @@ public static class FlowchartEdgeRouteResolver
                 out List<(double X, double Y)> FanInPoints))
         {
             LayoutPoints = FanInPoints;
-            RouteKind = FanInPoints.Count == 2
+            RouteKind = FlowchartEdgeConnectionGeometry.IsCollinearStubStraightRoute(FanInPoints)
+                || FanInPoints.Count == 2
                 ? FlowchartEdgeRouteKind.Straight
                 : FlowchartEdgeRouteKind.CrossGroup;
             return true;
@@ -247,7 +248,8 @@ public static class FlowchartEdgeRouteResolver
                 out List<(double X, double Y)> FanOutPoints))
         {
             LayoutPoints = FanOutPoints;
-            RouteKind = FanOutPoints.Count == 2
+            RouteKind = FlowchartEdgeConnectionGeometry.IsCollinearStubStraightRoute(FanOutPoints)
+                || FanOutPoints.Count == 2
                 ? FlowchartEdgeRouteKind.Straight
                 : FlowchartEdgeRouteKind.Curved;
             return true;

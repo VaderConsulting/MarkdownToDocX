@@ -181,9 +181,17 @@ public static class FlowchartFanOutPortAllocator
                 TargetX,
                 TargetY))
         {
-            LayoutPoints.Add((SourceX, SourceY));
-            LayoutPoints.Add((TargetX, TargetY));
-            return true;
+            FlowchartPerpendicularRouteBuilder.AppendPerpendicularRoute(
+                LayoutPoints,
+                SourceX,
+                SourceY,
+                SourceBounds,
+                SourceShape,
+                TargetX,
+                TargetY,
+                TargetBounds,
+                TargetShape);
+            return LayoutPoints.Count >= 2;
         }
 
         if (Direction == FlowchartDirection.TopToBottom

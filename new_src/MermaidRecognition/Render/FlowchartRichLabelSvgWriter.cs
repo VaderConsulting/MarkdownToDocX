@@ -30,6 +30,34 @@ public static class FlowchartRichLabelSvgWriter
     private static readonly Regex TableCellPattern = new(@"<t[dh][^>]*>(.*?)</t[dh]>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
 
     /// <summary>
+    /// Builds the plain text that appears in rendered SVG for label matching in validation.
+    /// </summary>
+    public static string BuildRenderedPlainText(string RawLabel)
+    {
+        if (string.IsNullOrEmpty(RawLabel))
+        {
+            return string.Empty;
+        }
+
+        string Normalised = NormaliseLabelForRender(RawLabel);
+        List<string> Lines = SplitLines(Normalised);
+        StringBuilder Builder = new StringBuilder();
+        foreach (string Line in Lines)
+        {
+            List<StyledRun> Runs = TokeniseInlineContent(Line);
+            foreach (StyledRun Run in Runs)
+            {
+                if (!Run.IsLineBreak)
+                {
+                    Builder.Append(Run.Text);
+                }
+            }
+        }
+
+        return Builder.ToString();
+    }
+
+    /// <summary>
     /// Returns true when the label contains intentional HTML or Markdown styling (not bare decoded symbols).
     /// </summary>
     public static bool ContainsIntentionalRichMarkup(string Label)

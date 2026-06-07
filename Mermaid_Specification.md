@@ -313,11 +313,11 @@ Added between each pair of ranks when a labelled edge crosses that boundary. TB 
 
 **Do not** derive `minlen` from label width (see §6.2 / F25).
 
-**Cycles (F34):** Dagre layout runs on an acyclic copy of the graph (back edges reversed with **endpoint swap** on `LayoutEdge`). Restore original edge direction **before** `RouteEdges`, then route; if an edge still has no polyline, fall back to straight shape attach points.
+**Cycles (LR retry loop, `A→B→D→A`):** Dagre layout runs on an acyclic copy of the graph (back edges reversed with **endpoint swap** on `LayoutEdge`). Restore original edge direction **before** `RouteEdges`, then route; if an edge still has no polyline, fall back to straight shape attach points.
 
-**Cross-boundary / compound edges (F40):** `TryComputeStraightFlowchartEdgePoints` uses diagram **direction** (LR: exit right → enter left with optional Manhattan elbow; TB/BT: bottom → top) instead of centre-to-centre shape intersection only, so sibling-subgraph links stay on the outer LR spine.
+**Cross-boundary / compound edges (LR sibling subgraphs):** `TryComputeStraightFlowchartEdgePoints` uses diagram **direction** (LR: exit right → enter left with optional Manhattan elbow; TB/BT: bottom → top) instead of centre-to-centre shape intersection only, so sibling-subgraph links stay on the outer LR spine.
 
-**Isolated / long-offset edges (F58):** `CollapsePredominantlyAxisAlignedMinlenPolyline` only collapses dummy-chain polylines when perpendicular drift is small (≤48px). `RepairMissingOrDiagonalFlowchartEdges` replaces two-point diagonals with direction-aware Manhattan routing.
+**Isolated / long-offset edges (exterior exception routes):** `CollapsePredominantlyAxisAlignedMinlenPolyline` only collapses dummy-chain polylines when perpendicular drift is small (≤48px). `RepairMissingOrDiagonalFlowchartEdges` replaces two-point diagonals with direction-aware Manhattan routing.
 
 ---
 
@@ -1786,21 +1786,80 @@ Implementation: `FlowchartEdgeRoutingIntentAnalyzer`, `FlowchartRoutingIntentVal
 
 #### 17.5.2 Render-stage structural diagnostics
 
-Each finding reports the edge key, semantic route class, resolved route kind, source and target ports, and a plain-language reason. Checks are generic and do not depend on node names or a specific diagram. The **F58** fixture in `flow.md` is the primary integration harness because it exposes centre spine, long exception corridor, local decision branches, merge-back, skip-bypass around a cylinder, and terminal collector fan-in in one TB diagram.
+Each finding reports the edge key, semantic route class, resolved route kind, source and target ports, and a plain-language reason. Checks are generic and do not depend on node names, catalogue ids, or scenario titles.
 
-**F58 semantic route classes** (after `FlowchartEdgeRouteClassifier`; see `spec.md` §5.5 and `flow.md` F58 routing table):
+**Normative citation rule:** routing and layout requirements in this document use **Mermaid source** or **graph topology** — not regression-catalogue scenario numbers.
 
-| Edge | Class | Render notes |
+The **multi-route TB integration** pattern below is the primary reference for combined route kinds (see `spec.md` §5.5):
+
+```mermaid
+flowchart TD
+Start([Start]) --> Ingest[Ingest file]
+Ingest --> Validate{Valid markdown?}
+Validate -->|No| Reject[Reject with error]
+Validate -->|Yes| Parse[Parse blocks]
+Parse --> HasMermaid{Mermaid fence?}
+HasMermaid -->|Yes| Render[Render SVG]
+HasMermaid -->|No| Word[Build DOCX]
+Render --> Word
+DoArchive{Archive?}
+Word --> DoArchive
+DoArchive -->|Yes| Persist
+DoArchive -->|No| Done
+Reject --> Done
+Persist[(Optional archive)] --> Done
+```
+
+**Semantic route classes** (`FlowchartEdgeRouteClassifier`):
+
+| Edge (by node id) | Class | Render notes |
 | --- | --- | --- |
-| Start→Ingest, Ingest→Validate, Validate→Parse, Parse→HasMermaid, Word→DoArchive, DoArchive→Persist, Persist→Done | `CentreSpine` | Straight two-point attach |
-| Validate→Reject | `LongExceptionRoute` | Five-point exterior corridor; curveBasis corridor SVG |
-| HasMermaid→Render / Word | `LocalDecisionBranch` | Left / bottom diamond ports |
-| Render→Word, Reject→Done | `MergeBack` | Smooth corridor; Done fan-in uses spread top ports |
-| DoArchive→Done (`No`) | `SkipBypass` | Right port when Persist intervenes; six-point bypass outside spine; must clear cylinder body |
+| Spine chain through `Start`, `Ingest`, `Validate`, `Parse`, `HasMermaid`, `Word`, `DoArchive`, `Persist`, `Done` | `CentreSpine` | Straight two-point attach |
+| `Validate→Reject` | `LongExceptionRoute` | Five-point exterior corridor; curveBasis corridor SVG |
+| `HasMermaid→Render`, `HasMermaid→Word` | `LocalDecisionBranch` | Left / bottom diamond ports |
+| `Render→Word`, `Reject→Done` | `MergeBack` | Smooth corridor; fan-in uses spread top ports |
+| `DoArchive→Done` (with `Persist` on spine between) | `SkipBypass` | Right port when obstacle intervenes; six-point bypass outside spine; must clear cylinder body |
 
-**Corridor render policy:** `FlowchartCurvePathBuilder.ShouldUseOrthogonalPolylinePathData` is true only for `RetryLoop` (F34). Corridor, skip-bypass, and merge-back use `BuildCorridorCurveBasisPathData` — straight source stub, smooth body, straight target stub — so `FlowchartRenderedPathValidator` can assert `Ports.PerpendicularAttach`.
+**Corridor render policy:** `FlowchartCurvePathBuilder.ShouldUseOrthogonalPolylinePathData` is true only for `RetryLoop` topologies such as:
 
-**Collinear TB `No` on two-branch diamonds:** `SideLeft` when the `No` target is on the spine with no intervening spine-column node (F59). `SideRight` when `HasInterveningSpineColumnNode` requires routing around a spine obstacle (F58 `DoArchive→Done`).
+```mermaid
+flowchart LR
+A[Receive] --> B{OK?}
+B -->|Yes| C[Done]
+B -->|No| D[Retry]
+D --> A
+```
+
+Corridor, skip-bypass, and merge-back use `BuildCorridorCurveBasisPathData` — straight source stub, smooth body, straight target stub — so `FlowchartRenderedPathValidator` can assert `Ports.PerpendicularAttach`.
+
+**Collinear TB negative branch on two-way diamonds:** `SideLeft` when the target is on the spine with no intervening spine-column node:
+
+```mermaid
+flowchart TB
+subgraph Worker["Worker pool"]
+  direction TB
+  Q[Queue] --> W{Worker free?}
+  W -->|Yes| P[Process job]
+  W -->|No| Wait[Wait]
+end
+```
+
+`SideRight` when `HasInterveningSpineColumnNode` requires routing around a spine obstacle (`DoArchive→Done` bypassing `Persist` in the integration diagram above).
+
+#### 17.5.3 Reference layout contracts (structural patterns)
+
+Routers must not branch on catalogue scenario ids. Patterns are identified by Mermaid source topology. See `spec.md` §5.5–§5.6.
+
+| Pattern (Mermaid source summary) | Primary structural contract | Key types |
+| --- | --- | --- |
+| `Success --> End([End])` and `Error --> End` (TD, stadium target) | Terminal-collector merge: centre-bottom source exit; shoulder attach on upper cap | `FlowchartTerminalCollectorPortAllocator` |
+| Multi-route TB integration (§5.5 diagram) | Centre spine, long exception, local branches, merge-back, skip-bypass, fan-in | `FlowchartEdgeRouteClassifier`, `FlowchartSkipBypassRouteBuilder`, `FlowchartCurvePathBuilder` |
+| `W -->|No| Wait` on unobstructed subgraph spine | Collinear negative branch uses left port | `FlowchartDecisionPortAllocator` |
+| LR parent with three sibling `direction TB` subgraphs and `I2 -.-> P2` | Spine-aligned cross-boundary rows; exterior corridor for dotted cross-links | `FlowchartSubgraphLayoutPostProcessor`, `FlowchartCrossSubgraphRouteHelper` |
+| Two parallel `subgraph` columns with `Ingress --> a1` and `b2 --> Egress` | Aligned row centres with column separation | `AlignParallelSubgraphColumns` |
+| `A & B e1@--> C` (LR) | First-declared ampersand source above second in fan-in stack | Creation-order vertical stacking post-processor |
+
+**Rule-validation gate:** `RuleValidationHarness` must report `OverallResult: Pass` on the flowchart regression catalogue. Fully remarked diagrams (every fence line `%%`) are **Skipped**, not failures. Regenerate `ruleset.json` from `ruleset-org.json` via `Rule Specification/Build-Ruleset.ps1` after changing per-diagram rule bindings.
 
 | Check | Detects |
 | --- | --- |

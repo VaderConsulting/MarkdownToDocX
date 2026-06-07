@@ -221,10 +221,15 @@ public sealed class FlowchartR1RenderGateTests
             Assert.That(Points.Count, Is.GreaterThanOrEqualTo(2), SourceId);
 
             double SourceCentreX = BoundsById[SourceId].CenterX;
+            double ExpectedSourceAttachY = BoundsById[SourceId].CenterY - (BoundsById[SourceId].Height / 2.0);
             Assert.That(
                 Math.Abs(Points[0].X - SourceCentreX),
                 Is.LessThan(1.0),
                 $"{SourceId} should exit from the centre bottom slot.");
+            Assert.That(
+                Math.Abs(Points[0].Y - ExpectedSourceAttachY),
+                Is.LessThan(2.0),
+                $"{SourceId} should leave from the source bottom face toward End.");
             Assert.That(
                 Math.Abs(Points[0].X - Points[1].X),
                 Is.LessThan(1.0),
@@ -310,6 +315,80 @@ public sealed class FlowchartR1RenderGateTests
 
         AssertSvgEdgeStartsAtNodeCentre(Svg, EdgePathData[0], "#d1ecf1", "Success");
         AssertSvgEdgeStartsAtNodeCentre(Svg, EdgePathData[1], "#f8d7da", "Error");
+    }
+
+    [Test]
+    public void TryResolveLayoutGuidePoints_F53Full_StadiumMerge_EndBelowSources()
+    {
+        DiagramContract Contract = MermaidRecognizer.Parse("""
+            flowchart TD
+            Start([Start]) --> Process[Process]
+            Process --> Decision{Valid?}
+            Decision -->|Yes| Success[Success]
+            Decision -->|No| Error[Error]
+            Success --> End([End])
+            Error --> End
+
+            style Start fill:#e1f5e1
+            style End fill:#e1f5e1
+            style Error fill:#f8d7da
+            style Success fill:#d1ecf1
+            """);
+
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+
+        FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
+        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds
+            .ToDictionary(Bounds => Bounds.NodeId, Bounds => Bounds);
+        Dictionary<string, NodeContract> NodeById = Contract.Nodes
+            .ToDictionary(Node => Node.Id, Node => Node);
+        FlowchartLayoutNodeBounds EndBounds = BoundsById["End"];
+
+        foreach (string SourceId in new[] { "Success", "Error" })
+        {
+            FlowchartLayoutNodeBounds SourceBounds = BoundsById[SourceId];
+            Assert.That(
+                SourceBounds.CenterY,
+                Is.GreaterThan(EndBounds.CenterY),
+                $"{SourceId} should sit below End in TB flow.");
+
+            EdgeContract Edge = Contract.Edges.Single(
+                Candidate => Candidate.SourceId == SourceId && Candidate.TargetId == "End");
+            bool Resolved = FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
+                Edge,
+                Contract,
+                BoundsById,
+                NodeById,
+                Direction,
+                out List<(double X, double Y)> Points,
+                out _);
+
+            Assert.That(Resolved, Is.True, SourceId);
+            Assert.That(
+                FlowchartCurvePathBuilder.IsStadiumMergeGuideRoute(Points),
+                Is.True,
+                $"{SourceId} should use stadium merge routing.");
+
+            double ExpectedSourceAttachY = SourceBounds.CenterY - (SourceBounds.Height / 2.0);
+            Assert.That(
+                Math.Abs(Points[0].X - SourceBounds.CenterX),
+                Is.LessThan(1.0),
+                $"{SourceId} should exit from the centre bottom slot.");
+            Assert.That(
+                Math.Abs(Points[0].Y - ExpectedSourceAttachY),
+                Is.LessThan(2.0),
+                $"{SourceId} should leave from the source bottom face toward End.");
+
+            (double TargetX, double TargetY) = Points[Points.Count - 1];
+            Assert.That(
+                Math.Abs(TargetX - EndBounds.CenterX),
+                Is.GreaterThan(4.0),
+                $"{SourceId} should land on the stadium shoulder, not the top-centre slot.");
+            Assert.That(
+                TargetY,
+                Is.LessThan(EndBounds.CenterY),
+                $"{SourceId} should attach on the upper stadium cap.");
+        }
     }
 
     [Test]

@@ -13,10 +13,14 @@ public sealed class FlowCatalogueRuleValidationTests
 {
     private string _SpecDirectory = string.Empty;
 
+    private string _FlowMarkdownPath = string.Empty;
+
     [SetUp]
     public void SetUp()
     {
-        _SpecDirectory = Path.Combine(AppContext.BaseDirectory, "Rule Specification");
+        string BaseDirectory = AppContext.BaseDirectory;
+        _SpecDirectory = Path.Combine(BaseDirectory, "Rule Specification");
+        _FlowMarkdownPath = Path.Combine(BaseDirectory, "flow.md");
     }
 
     [Test]
@@ -691,7 +695,7 @@ public sealed class FlowCatalogueRuleValidationTests
     }
 
     [Test]
-    public void Pipeline_F24_LabelsCentredOnTargetRowMidspan()
+    public void Pipeline_LrFanOutEdgeLabels_CentredOnHorizontalConnector()
     {
         MermaidRuleValidationPipelineResult Result = RunDiagram("""
             ### F24 — Edge labels (short)
@@ -707,10 +711,169 @@ public sealed class FlowCatalogueRuleValidationTests
         foreach (EdgeActualResult Edge in Diagram.Edges.Where(Candidate => !string.IsNullOrWhiteSpace(Candidate.Label)))
         {
             Assert.That(Edge.LabelFacts["CentredOnConnectorSpine"], Is.EqualTo(true));
+            Assert.That(Edge.LabelFacts["CentredOnConnectorHorizontally"], Is.EqualTo(true));
+            Assert.That(Edge.LabelFacts["CentredOnConnectorVertically"], Is.EqualTo(true));
         }
 
         List<string> FailureRules = FailureRuleIds(Result, "F24");
         Assert.That(FailureRules, Does.Not.Contain("Routing.Label.CentredOnConnectorSpine"));
+        Assert.That(FailureRules, Does.Not.Contain("Routing.Label.CentredOnConnectorHorizontally"));
+        Assert.That(FailureRules, Does.Not.Contain("Routing.Label.CentredOnConnectorVertically"));
+    }
+
+    [Test]
+    public void Pipeline_ShapeCatalogueRow_NodeLabelsCentredInNodeBodies()
+    {
+        MermaidRuleValidationPipelineResult Result = RunDiagram("""
+            ### Shape catalogue row
+
+            ```mermaid
+            flowchart LR
+            R[Rect] --> RN(Rounded) --> D{Diamond} --> C((Circle))
+            ```
+            """);
+
+        DiagramActualResult Diagram = Result.ActualResults.Diagrams.Single();
+        foreach (NodeActualResult Node in Diagram.Nodes.Where(Candidate => Candidate.IsRendered))
+        {
+            Assert.That(Node.Facts["Label.CentredHorizontally"], Is.EqualTo(true));
+            Assert.That(Node.Facts["Label.CentredVertically"], Is.EqualTo(true));
+        }
+
+        List<string> FailureRules = FailureRuleIds(Result, "F17");
+        Assert.That(FailureRules, Does.Not.Contain("Render.Label.NodeCentredHorizontally"));
+        Assert.That(FailureRules, Does.Not.Contain("Render.Label.NodeCentredVertically"));
+    }
+
+    [Test]
+    public void FlowMarkdown_AllActiveDiagrams_PassTerminalStubRules()
+    {
+        string OutputDirectory = Path.Combine(Path.GetTempPath(), "flow-terminal-stub-" + Guid.NewGuid().ToString("N"));
+        MermaidRuleValidationPipeline Pipeline = new MermaidRuleValidationPipeline(_SpecDirectory);
+        MermaidRuleValidationPipelineResult Result = Pipeline.ProcessMarkdownFile(_FlowMarkdownPath, OutputDirectory);
+
+        string[] TerminalStubRules =
+        {
+            "Render.Ports.PerpendicularAttach"
+        };
+
+        List<ValidationFailureRecord> StubFailures = Result.ValidationReport.Failures
+            .Where(Failure => TerminalStubRules.Contains(Failure.RuleId, StringComparer.Ordinal))
+            .ToList();
+
+        Assert.That(
+            StubFailures,
+            Is.Empty,
+            () => string.Join(
+                Environment.NewLine,
+                StubFailures.Select(
+                    Failure => Failure.DiagramId + " " + Failure.RuleId + ": " + Failure.Message)));
+    }
+
+    [Test]
+    public void FlowMarkdown_AllActiveDiagrams_PassMarkerTangentRules()
+    {
+        string OutputDirectory = Path.Combine(Path.GetTempPath(), "flow-marker-tangent-" + Guid.NewGuid().ToString("N"));
+        MermaidRuleValidationPipeline Pipeline = new MermaidRuleValidationPipeline(_SpecDirectory);
+        MermaidRuleValidationPipelineResult Result = Pipeline.ProcessMarkdownFile(_FlowMarkdownPath, OutputDirectory);
+
+        string[] MarkerTangentRules =
+        {
+            "Render.Marker.EndAlignedWithPathTangent",
+            "Render.Marker.StartAlignedWithPathTangent"
+        };
+
+        List<ValidationFailureRecord> TangentFailures = Result.ValidationReport.Failures
+            .Where(Failure => MarkerTangentRules.Contains(Failure.RuleId, StringComparer.Ordinal))
+            .ToList();
+
+        Assert.That(
+            TangentFailures,
+            Is.Empty,
+            () => string.Join(
+                Environment.NewLine,
+                TangentFailures.Select(
+                    Failure => Failure.DiagramId + " " + Failure.RuleId + ": " + Failure.Message)));
+    }
+
+    [Test]
+    public void Pipeline_F31_HubFanOut_ArrowheadsAlignWithConnectorPath()
+    {
+        MermaidRuleValidationPipelineResult Result = RunDiagram("""
+            ### F31 — Fan-out (one to many)
+
+            ```mermaid
+            flowchart TB
+            Hub[Hub] --> W1[Worker 1]
+            Hub --> W2[Worker 2]
+            Hub --> W3[Worker 3]
+            ```
+            """);
+
+        DiagramActualResult Diagram = Result.ActualResults.Diagrams.Single();
+        foreach (EdgeActualResult Edge in Diagram.Edges.Where(Candidate => Candidate.IsVisible))
+        {
+            if (string.Equals(Edge.ArrowEnd, "Point", StringComparison.Ordinal))
+            {
+                Assert.That(Edge.MarkerFacts["EndAlignedWithPathTangent"], Is.EqualTo(true), Edge.EdgeId);
+            }
+        }
+
+        List<string> FailureRules = FailureRuleIds(Result, "F31");
+        Assert.That(FailureRules, Does.Not.Contain("Render.Marker.EndAlignedWithPathTangent"));
+    }
+
+    [Test]
+    public void Pipeline_F31_HubFanOut_PerpendicularTerminalStubs()
+    {
+        MermaidRuleValidationPipelineResult Result = RunDiagram("""
+            ### F31 — Fan-out (one to many)
+
+            ```mermaid
+            flowchart TB
+            Hub[Hub] --> W1[Worker 1]
+            Hub --> W2[Worker 2]
+            Hub --> W3[Worker 3]
+            ```
+            """);
+
+        DiagramActualResult Diagram = Result.ActualResults.Diagrams.Single();
+        foreach (EdgeActualResult Edge in Diagram.Edges.Where(Candidate => Candidate.IsVisible))
+        {
+            Assert.That(Edge.Facts["Ports.PerpendicularAttach"], Is.EqualTo(true), Edge.EdgeId);
+        }
+
+        List<string> FailureRules = FailureRuleIds(Result, "F31");
+        Assert.That(FailureRules, Does.Not.Contain("Render.Ports.PerpendicularAttach"));
+    }
+
+    [Test]
+    public void FlowMarkdown_AllActiveDiagrams_PassLabelAlignmentRules()
+    {
+        string OutputDirectory = Path.Combine(Path.GetTempPath(), "flow-label-align-" + Guid.NewGuid().ToString("N"));
+        MermaidRuleValidationPipeline Pipeline = new MermaidRuleValidationPipeline(_SpecDirectory);
+        MermaidRuleValidationPipelineResult Result = Pipeline.ProcessMarkdownFile(_FlowMarkdownPath, OutputDirectory);
+
+        string[] LabelAlignmentRules =
+        {
+            "Render.Label.NodeCentredHorizontally",
+            "Render.Label.NodeCentredVertically",
+            "Routing.Label.CentredOnConnectorSpine",
+            "Routing.Label.CentredOnConnectorHorizontally",
+            "Routing.Label.CentredOnConnectorVertically"
+        };
+
+        List<ValidationFailureRecord> LabelFailures = Result.ValidationReport.Failures
+            .Where(Failure => LabelAlignmentRules.Contains(Failure.RuleId, StringComparer.Ordinal))
+            .ToList();
+
+        Assert.That(
+            LabelFailures,
+            Is.Empty,
+            () => string.Join(
+                Environment.NewLine,
+                LabelFailures.Select(
+                    Failure => Failure.DiagramId + " " + Failure.RuleId + ": " + Failure.Message)));
     }
 
     [Test]
@@ -959,6 +1122,60 @@ public sealed class FlowCatalogueRuleValidationTests
     }
 
     [Test]
+    public void Pipeline_F53_StadiumMerge_EndEdgesUseShoulderAttachAndVisibleArrows()
+    {
+        MermaidRuleValidationPipelineResult Result = RunDiagram("""
+            ### F53 — `style` directive (fill / stroke)
+
+            ```mermaid
+            flowchart TD
+            Start([Start]) --> Process[Process]
+            Process --> Decision{Valid?}
+            Decision -->|Yes| Success[Success]
+            Decision -->|No| Error[Error]
+            Success --> End([End])
+            Error --> End
+
+            style Start fill:#e1f5e1
+            style End fill:#e1f5e1
+            style Error fill:#f8d7da
+            style Success fill:#d1ecf1
+            ```
+            """);
+
+        DiagramActualResult Diagram = Result.ActualResults.Diagrams.Single();
+        NodeActualResult EndNode = Diagram.Nodes.Single(Node => Node.NodeId == "End");
+
+        foreach (string SourceId in new[] { "Success", "Error" })
+        {
+            EdgeActualResult Edge = Diagram.Edges.Single(
+                Candidate => Candidate.SourceNodeId == SourceId && Candidate.TargetNodeId == "End");
+            NodeActualResult SourceNode = Diagram.Nodes.Single(Node => Node.NodeId == SourceId);
+
+            double ExpectedSourceAttachY = SourceNode.Bounds.CentreY - (SourceNode.Bounds.Height / 2.0);
+            Assert.That(
+                Math.Abs(Edge.Path.Points[0].X - SourceNode.Bounds.CentreX),
+                Is.LessThan(1.0),
+                $"{SourceId} should use the centre outbound slot.");
+            Assert.That(
+                Math.Abs(Edge.Path.Points[0].Y - ExpectedSourceAttachY),
+                Is.LessThan(2.0),
+                $"{SourceId} should leave from the source bottom face.");
+            Assert.That(
+                Math.Abs(Edge.Path.Points[Edge.Path.Points.Count - 1].X - EndNode.Bounds.CentreX),
+                Is.GreaterThan(4.0),
+                $"{SourceId} should attach on the stadium shoulder, not the top-centre slot.");
+            Assert.That(Edge.MarkerFacts["NotLost"], Is.EqualTo(true), $"{SourceId} arrowhead should be visible.");
+            Assert.That(Edge.MarkerFacts["EndAlignedWithPathTangent"], Is.EqualTo(true));
+        }
+
+        List<string> FailureRules = FailureRuleIds(Result, "F53");
+        Assert.That(FailureRules, Does.Not.Contain("Render.Marker.NotLost"));
+        Assert.That(FailureRules, Does.Not.Contain("Render.Marker.EndAlignedWithPathTangent"));
+        Assert.That(FailureRules, Does.Not.Contain("Render.Ports.PerpendicularAttach"));
+    }
+
+    [Test]
     public void Pipeline_F125_NodesFirstDiamondFanIn_PassesRoutingRules()
     {
         MermaidRuleValidationPipelineResult Result = RunDiagram("""
@@ -1005,6 +1222,46 @@ public sealed class FlowCatalogueRuleValidationTests
         Assert.That(FailureRules, Does.Not.Contain("Routing.Label.HalfPolylineMidspan"));
         Assert.That(FailureRules, Does.Not.Contain("Routing.Label.BranchLabelNearBranch"));
         Assert.That(FailureRules, Does.Not.Contain("Routing.Label.CentredOnConnectorSpine"));
+    }
+
+    [Test]
+    public void Pipeline_F95_HtmlEdgeLabel_CentredOnConnector()
+    {
+        MermaidRuleValidationPipelineResult Result = RunDiagram("""
+            ### F95 — HTML in edge label
+
+            ```mermaid
+            flowchart LR
+            A -->|"<b>Approve</b> or <i>Reject</i>"| B
+            ```
+            """);
+
+        EdgeActualResult Edge = Result.ActualResults.Diagrams.Single().Edges
+            .Single(Candidate => !string.IsNullOrWhiteSpace(Candidate.Label));
+
+        Assert.That(Edge.LabelFacts["CentredOnConnectorHorizontally"], Is.EqualTo(true));
+        Assert.That(Edge.LabelFacts["CentredOnConnectorVertically"], Is.EqualTo(true));
+        Assert.That(Edge.LabelFacts["CentredOnConnectorSpine"], Is.EqualTo(true));
+    }
+
+    [Test]
+    public void Pipeline_F96_MarkdownEdgeLabel_CentredOnConnector()
+    {
+        MermaidRuleValidationPipelineResult Result = RunDiagram("""
+            ### F96 — Markdown in edge label
+
+            ```mermaid
+            flowchart LR
+            A -->|"**Strong** / *emphasis* / `code`"| B
+            ```
+            """);
+
+        EdgeActualResult Edge = Result.ActualResults.Diagrams.Single().Edges
+            .Single(Candidate => !string.IsNullOrWhiteSpace(Candidate.Label));
+
+        Assert.That(Edge.LabelFacts["CentredOnConnectorHorizontally"], Is.EqualTo(true));
+        Assert.That(Edge.LabelFacts["CentredOnConnectorVertically"], Is.EqualTo(true));
+        Assert.That(Edge.LabelFacts["CentredOnConnectorSpine"], Is.EqualTo(true));
     }
 
     private MermaidRuleValidationPipelineResult RunDiagram(string Markdown)

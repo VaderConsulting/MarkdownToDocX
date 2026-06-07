@@ -559,6 +559,36 @@
                                   "FailureCode":  "RENDER_PATH_NOVISIBLEKINKINSMOOTHBODY"
                               },
                               {
+                                  "RuleId":  "Render.Label.NodeCentredHorizontally",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Node",
+                                  "RequiredFields":  [
+                                                         "Nodes[].NodeId",
+                                                         "Nodes[].Bounds",
+                                                         "Nodes[].Rank",
+                                                         "Nodes[].Lane"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RENDER_LABEL_NODECENTREDHORIZONTALLY"
+                              },
+                              {
+                                  "RuleId":  "Render.Label.NodeCentredVertically",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Node",
+                                  "RequiredFields":  [
+                                                         "Nodes[].NodeId",
+                                                         "Nodes[].Bounds",
+                                                         "Nodes[].Rank",
+                                                         "Nodes[].Lane"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RENDER_LABEL_NODECENTREDVERTICALLY"
+                              },
+                              {
                                   "RuleId":  "Render.Shape.TrapezoidBracketGeometry",
                                   "EvaluatorId":  "RequireFactEvaluator",
                                   "EvaluatorType":  "Recognition",
@@ -844,6 +874,38 @@
                                   "FailureCode":  "ROUTING_LABEL_CENTREDONCONNECTORSPINE"
                               },
                               {
+                                  "RuleId":  "Routing.Label.CentredOnConnectorHorizontally",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "LabelAttachment",
+                                  "FailureCode":  "ROUTING_LABEL_CENTREDONCONNECTORHORIZONTALLY"
+                              },
+                              {
+                                  "RuleId":  "Routing.Label.CentredOnConnectorVertically",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "LabelAttachment",
+                                  "FailureCode":  "ROUTING_LABEL_CENTREDONCONNECTORVERTICALLY"
+                              },
+                              {
                                   "RuleId":  "Routing.Label.NotOnConnectorLine",
                                   "EvaluatorId":  "RequireFactEvaluator",
                                   "EvaluatorType":  "Geometry",
@@ -970,6 +1032,38 @@
                                                      ],
                                   "ToleranceProfileId":  "MarkerPlacement",
                                   "FailureCode":  "RENDER_MARKER_NOTINVENTED"
+                              },
+                              {
+                                  "RuleId":  "Render.Marker.EndAlignedWithPathTangent",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "MarkerPlacement",
+                                  "FailureCode":  "RENDER_MARKER_ENDALIGNEDWITHPATHTANGENT"
+                              },
+                              {
+                                  "RuleId":  "Render.Marker.StartAlignedWithPathTangent",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "MarkerPlacement",
+                                  "FailureCode":  "RENDER_MARKER_STARTALIGNEDWITHPATHTANGENT"
                               },
                               {
                                   "RuleId":  "Subgraph.MemberMinimumInset",

@@ -5,6 +5,8 @@
 - **Primary reference catalogue:** `flow.md` (visual regression; not the recognition specification).
 - **Primary implementation reference:** vendored Mermaid flowchart parser/database under `mermaid/packages/mermaid/src/diagrams/flowchart/`, implemented in `new_src/MermaidRecognition/`.
 
+**Normative citation rule:** routing, layout, and recognition requirements in this document describe diagrams by **Mermaid source** or **graph topology** (node ids, edge structure, subgraph nesting). They must **not** cite regression-catalogue scenario numbers (`F01`, `F58`, etc.). Catalogue ids belong in regression Markdown files and [`status.md`](status.md) only.
+
 ---
 
 ## 1. Finding
@@ -259,9 +261,9 @@ Direction inside a subgraph is a group-local fact. It must be attached to the gr
 
 Critical point: nested subgraphs are not a special diagram kind. They are ordinary groups whose child list contains other group ids and node ids. Cross-boundary edges are ordinary edges whose endpoints happen to live in different containment contexts. Layout/routing must handle that later.
 
-**Cluster interior insets and centreing:** each subgraph cluster box reserves a **26px title band** at the top, **18px padding** on left/right/bottom around member node bodies, and **26px vertical content slack** below the bottom padding. Member content is centred horizontally and vertically in the remaining interior region (`FlowchartSubgraphLayoutPostProcessor.CenterSubgraphMembersInClusterBoxes`, deepest subgraphs first). Mermaid declares `padding: 8` on dagre cluster nodes and `flowchart.padding` default **15** on ordinary nodes; rendered parity uses the **18 / 26 / 26** constants from Naiad measurement. Catalogue: `F111`.
+**Cluster interior insets and centreing:** each subgraph cluster box reserves a **26px title band** at the top, **18px padding** on left/right/bottom around member node bodies, and **26px vertical content slack** below the bottom padding. Member content is centred horizontally and vertically in the remaining interior region (`FlowchartSubgraphLayoutPostProcessor.CenterSubgraphMembersInClusterBoxes`, deepest subgraphs first). Mermaid declares `padding: 8` on dagre cluster nodes and `flowchart.padding` default **15** on ordinary nodes; rendered parity uses the **18 / 26 / 26** constants from Naiad measurement.
 
-**Sibling subgraph spacing:** root-level or same-parent subgraph siblings must keep a minimum **24px exterior gap** on the diagram primary flow axis (LR: between right border of the left cluster and left border of the right cluster; TB: between bottom border of the upper cluster and top border of the lower cluster). Gap is measured on cluster rectangles (member bounds + 18px padding + 26px title band). `F40` and `F111` are catalogue regressions for LR and TB sibling spacing respectively.
+**Sibling subgraph spacing:** root-level or same-parent subgraph siblings must keep a minimum **24px exterior gap** on the diagram primary flow axis (LR: between right border of the left cluster and left border of the right cluster; TB: between bottom border of the upper cluster and top border of the lower cluster). Gap is measured on cluster rectangles (member bounds + 18px padding + 26px title band). Regression patterns include LR side-by-side stage subgraphs (`subgraph A` … `subgraph B` under `flowchart LR`) and TB stacked sibling subgraphs with cross-boundary edges between member nodes.
 
 ### 3.11 Membership and Uniqueness
 
@@ -1612,10 +1614,10 @@ It is scenario-led instead of grammar-led.
 
 The file says "one capability per scenario", but many scenarios are not one capability:
 
-- `F30` combines decision shape, multiple edge labels, fan-out, and mixed node shapes.
-- `F43` combines nested containment, group directions, chained edges, and cross-boundary membership.
-- `F58` combines shape variation, decision branches, persistence edge, and multiple terminal paths.
-- `F60` combines sibling subgraphs, internal direction, cross-links, dotted labelled edge, and integration layout.
+- One scenario combines decision shape, multiple edge labels, fan-out, and mixed node shapes.
+- Another combines nested containment, group directions, chained edges, and cross-boundary membership.
+- The multi-route TB integration pattern (§5.5) combines shape variation, decision branches, persistence edge, and multiple terminal paths.
+- The LR sibling-subgraph pattern (§5.6) combines internal TB direction, cross-links, and dotted labelled edges.
 
 That is fine for regression. It is dangerous for recognition because it hides the actual independent variables.
 
@@ -1662,36 +1664,169 @@ PNG comparison can miss:
 
 Structural comparison must include the recognised contract, not only extracted SVG shapes.
 
-### 5.5 Reference routing contract — F58 (Level 9 integration)
+### 5.5 Reference routing contract — multi-route TB integration
 
-`F58` is a **regression harness**, not a routing selector. It combines shapes (stadium, rect, diamond, cylinder), labelled decision branches, a persistence cylinder on the spine, margin-column merge-back, exterior exception routing, skip-bypass, and terminal collector fan-in. Use it to validate that structural route kinds work together.
+**Normative rule:** routing and layout specifications describe diagrams by **Mermaid source topology**, not by catalogue scenario ids. The reference diagram below is a **structural pattern**, not a routing selector.
 
-**Authoritative edge classification** (from `FlowchartEdgeRouteClassifierTests.ClassifyWithContext_F58_AssignsExpectedSemanticRouteClasses`):
+This pattern combines stadium, rect, diamond, and cylinder shapes; labelled decision branches; a persistence cylinder on the spine; margin-column merge-back; exterior exception routing; skip-bypass; and terminal collector fan-in. Any diagram with equivalent topology must receive the same route classification.
 
-| Source → target | `FlowchartEdgeSemanticRouteClass` |
+```mermaid
+flowchart TD
+Start([Start]) --> Ingest[Ingest file]
+Ingest --> Validate{Valid markdown?}
+Validate -->|No| Reject[Reject with error]
+Validate -->|Yes| Parse[Parse blocks]
+Parse --> HasMermaid{Mermaid fence?}
+HasMermaid -->|Yes| Render[Render SVG]
+HasMermaid -->|No| Word[Build DOCX]
+Render --> Word
+DoArchive{Archive?}
+Word --> DoArchive
+DoArchive -->|Yes| Persist
+DoArchive -->|No| Done
+Reject --> Done
+Persist[(Optional archive)] --> Done
+```
+
+**Edge classification** (`FlowchartEdgeRouteClassifier` — by graph topology, not node display text):
+
+| Edge (by node id) | `FlowchartEdgeSemanticRouteClass` |
 | --- | --- |
-| Start → Ingest, Ingest → Validate, Validate → Parse, Parse → HasMermaid, Word → DoArchive, DoArchive → Persist, Persist → Done | `CentreSpine` |
-| Validate → Reject | `LongExceptionRoute` |
-| HasMermaid → Render, HasMermaid → Word | `LocalDecisionBranch` |
-| Render → Word, Reject → Done | `MergeBack` |
-| DoArchive → Done (`No`) | `SkipBypass` |
+| `Start→Ingest`, `Ingest→Validate`, `Validate→Parse`, `Parse→HasMermaid`, `Word→DoArchive`, `DoArchive→Persist`, `Persist→Done` | `CentreSpine` |
+| `Validate→Reject` (labelled negative branch) | `LongExceptionRoute` |
+| `HasMermaid→Render`, `HasMermaid→Word` | `LocalDecisionBranch` |
+| `Render→Word`, `Reject→Done` | `MergeBack` |
+| `DoArchive→Done` (labelled negative branch with `Persist` on spine between) | `SkipBypass` |
 
-**Guide-point and render expectations** (from `FlowchartCatalogueRenderTests` / `FlowchartEdgeRouteClassifierTests`):
+**Guide-point and render expectations:**
 
-- **Validate → Reject:** five-point exterior corridor; corridor lane X left of `FlowchartSpineCorridorBounds.Left`; rendered as smooth corridor (`BuildCorridorCurveBasisPathData`), not a multi-segment orthogonal polyline.
-- **HasMermaid → Render:** left diamond source port; **HasMermaid → Word:** bottom port.
-- **DoArchive → Persist:** bottom port; **DoArchive → Done:** right port when Persist intervenes on the spine between DoArchive and Done.
-- **DoArchive → Done:** six-point skip bypass; bypass chord outside spine column (`DoArchiveDonePoints[2].X > Corridor.Right`); rendered path clears unrelated node bodies (including Persist).
-- **Render → Word:** six-point merge-back corridor; `Ports.PerpendicularAttach` on rendered SVG.
+- **`Validate→Reject`:** five-point exterior corridor; corridor lane X left of `FlowchartSpineCorridorBounds.Left`; rendered as smooth corridor (`BuildCorridorCurveBasisPathData`), not a multi-segment orthogonal polyline.
+- **`HasMermaid→Render`:** left diamond source port; **`HasMermaid→Word`:** bottom port.
+- **`DoArchive→Persist`:** bottom port; **`DoArchive→Done`:** right port when `Persist` intervenes on the spine between `DoArchive` and `Done`.
+- **`DoArchive→Done`:** six-point skip bypass; bypass chord outside spine column; rendered path clears unrelated node bodies (including the cylinder).
+- **`Render→Word`:** six-point merge-back corridor; `Ports.PerpendicularAttach` on rendered SVG.
 
-**TB two-way decision collinear `No` port rule** (`FlowchartDecisionPortAllocator.ResolveVerticalTwoWayDecisionPort`):
+**TB two-way decision collinear negative-branch port rule** (`FlowchartDecisionPortAllocator.ResolveVerticalTwoWayDecisionPort`):
 
-- Default collinear `No` → `SideLeft` (F59 `W → Wait`).
-- When `HasInterveningSpineColumnNode` between source and `No` target → `SideRight` so skip-bypass routes around the obstacle (F58 `DoArchive → Done`).
+When a two-branch diamond has a collinear negative-branch target on the spine column:
 
-**Corridor SVG policy** (`FlowchartCurvePathBuilder`): `ShouldUseOrthogonalPolylinePathData` applies only to `FlowchartEdgeRouteKind.RetryLoop` (F34 LR retry). Corridor, skip-bypass, and merge-back routes use curveBasis with straight perpendicular terminal stubs; `ResolveCorridorCurveEndIndex` distinguishes horizontal-return-then-vertical-stub (skip bypass) from collinear vertical target approach (merge-back).
+- **No intervening spine-column node** → `SideLeft`. Reference pattern:
 
-**Rule-validation axes** (`ruleset-org.json` scenario F58): `Header.Flowchart`, `Direction.TB`, diamond and cylinder shape recognition, `Recognition.Edge.LabelPipeSyntax`, `Routing.LocalDecisionBranch`, `Routing.MergeBack`, plus render rules for obstacle clearance, perpendicular attach, and no orthogonal polylines under default curveBasis.
+```mermaid
+flowchart TB
+subgraph Worker["Worker pool"]
+  direction TB
+  Q[Queue] --> W{Worker free?}
+  W -->|Yes| P[Process job]
+  W -->|No| Wait[Wait]
+end
+```
+
+(`W→Wait` on the subgraph spine — left port.)
+
+- **`HasInterveningSpineColumnNode` between source and negative target** → `SideRight` so skip-bypass routes around the obstacle (`DoArchive→Done` bypassing `Persist` in the integration diagram above).
+
+**Corridor SVG policy** (`FlowchartCurvePathBuilder`): `ShouldUseOrthogonalPolylinePathData` applies only to `FlowchartEdgeRouteKind.RetryLoop`. Reference retry-loop topology:
+
+```mermaid
+flowchart LR
+A[Receive] --> B{OK?}
+B -->|Yes| C[Done]
+B -->|No| D[Retry]
+D --> A
+```
+
+Corridor, skip-bypass, and merge-back routes use curveBasis with straight perpendicular terminal stubs; `ResolveCorridorCurveEndIndex` distinguishes horizontal-return-then-vertical-stub (skip bypass) from collinear vertical target approach (merge-back).
+
+**Applicable rule axes** (when this topology is present): `Header.Flowchart`, `Direction.TB`, diamond and cylinder shape recognition, `Recognition.Edge.LabelPipeSyntax`, `Routing.LocalDecisionBranch`, `Routing.MergeBack`, `Routing.Class.LongBypass`, `Routing.Class.SkipBypass`, plus render rules for obstacle clearance, perpendicular attach, and no orthogonal polylines under default curveBasis.
+
+### 5.6 Reference layout and routing contracts (structural patterns)
+
+These are **structural patterns** verified by layout tests and the rule-validation harness. Implementation must use topology and route classification — not catalogue ids, scenario titles, or English branch labels.
+
+#### Stadium terminal-collector merge
+
+Two rect sources fan into one stadium (`End`) target. Used to gate coordinate parity against [mermaid.live](https://mermaid.live).
+
+```mermaid
+flowchart TD
+Success --> End([End])
+Error --> End
+```
+
+| Expectation | Implementation |
+| --- | --- |
+| Terminal-collector routing applies to stadium targets | `FlowchartTerminalCollectorPortAllocator.ShouldApplyTerminalCollectorRouting` |
+| Each source exits from **centre-bottom** slot (vertical stub at source centre X) | `FlowchartEdgeRouteResolver` + port allocator |
+| Each edge lands on the stadium **shoulder** (upper cap), not the top-centre slot | Target attach X offset from stadium centre; target Y above stadium centre |
+| Rendered SVG path starts at centre source slot | `FlowchartSugiyamaSvgRenderer` + `FlowchartRenderedPathValidator` |
+
+#### LR sibling subgraphs with cross-links
+
+Three sibling TB subgraphs in an LR parent, spine cross-boundary edges, and a dotted labelled cross-link.
+
+```mermaid
+flowchart LR
+subgraph Ingest["Ingest"]
+  direction TB
+  I1[Receive drop] --> I2[Verify manifest]
+end
+subgraph Transform["Transform"]
+  direction TB
+  T1[Normalise] --> T2[Translate]
+end
+subgraph Publish["Publish"]
+  direction TB
+  P1[Package] --> P2[Release]
+end
+Source[Source] --> I1
+I2 --> T1
+T2 --> P1
+P2 --> Sink[Sink]
+I2 -.->|audit copy| P2
+```
+
+| Expectation | Implementation |
+| --- | --- |
+| Inner subgraph chains are vertically aligned (`I1`/`I2`, `T1`/`T2`, `P1`/`P2`) | Subgraph internal TB layout |
+| Cross-boundary member rows share a **spine-aligned** centre Y across sibling subgraphs | `FlowchartSubgraphLayoutPostProcessor.AlignSiblingSubgraphCrossBoundaryRows` |
+| Primary cross-group flow uses horizontal routing at aligned row centres | Layout post-processor + straight cross-boundary edges |
+| Dotted cross-link routes via an **exterior corridor** that clears unrelated subgraph bodies | `FlowchartCrossSubgraphRouteHelper.ResolveCrossGroupGuideCenterX` |
+
+#### Parallel subgraph columns
+
+Two bare-titled parallel subgraph columns with external ingress and egress.
+
+```mermaid
+flowchart TB
+subgraph one
+  a1[Alpha] --> a2[Beta]
+end
+subgraph two
+  b1[Gamma] --> b2[Delta]
+end
+Ingress[Ingress] --> a1
+b2 --> Egress[Egress]
+```
+
+| Expectation | Implementation |
+| --- | --- |
+| Parallel columns align row centres across subgraphs | `FlowchartSubgraphLayoutPostProcessor.AlignParallelSubgraphColumns` |
+| Horizontal gap between parallel columns preserved (minimum column separation) | Post-layout column alignment |
+
+#### LR ampersand fan-in creation order
+
+```mermaid
+flowchart LR
+A & B e1@--> C
+```
+
+Expands to two edges; edge id `e1` applies to `A→C` only.
+
+| Expectation | Implementation |
+| --- | --- |
+| First-declared source (`A`) stacks **above** second source (`B`) in LR fan-in | Creation-order vertical stacking in layout post-processor |
+| Both sources sit left of target `C` on the LR primary axis | Standard LR rank assignment |
 
 ---
 
@@ -2054,7 +2189,35 @@ When a diagram **does not render** on [mermaid.live](https://mermaid.live) or is
 
 Implementation: `MermaidRemarkAnalyzer` in `MermaidRecognition` classifies remark semantics; `DiagramContract.RemarkStatus` is `CatalogueRemarked` when every non-empty line is a full-line remark. SvgHarness skips such blocks (reported as **SKIP**). Catalogue-remarked source is still parsed via unremarked shadow text for recognition-only axes (§9.1).
 
-**Rule validation harness (`RuleValidationHarness`):** `ActualResultsGenerator` sets `IsFullyRemarked: true`, `ParserSucceeded: true`, `LayoutSucceeded: false`, and diagnostic `RemarkedScenario` when every fence line is `%%`. `RulesEngine` (`MermaidRecognition.RuleValidation`) assigns **`Result: Skipped`** and does **not** evaluate `ruleset.json` rules for that diagram. Skipped diagrams do **not** increment `ErrorCount` and do **not** fail `OverallResult: Pass`. As of the current `flow.md` catalogue: **132** extracted scenarios, **4** skipped (F65, F70, F87, F88), **128** fully evaluated. Command: `dotnet run --project src/RuleValidationHarness/RuleValidationHarness.csproj -c Release -- flow.md out/flow-rule-validation "Rule Specification"`.
+**Rule validation harness (`RuleValidationHarness`):** `ActualResultsGenerator` sets `IsFullyRemarked: true`, `ParserSucceeded: true`, `LayoutSucceeded: false`, and diagnostic `RemarkedScenario` when every fence line is `%%`. `RulesEngine` (`MermaidRecognition.RuleValidation`) assigns **`Result: Skipped`** and does **not** evaluate `ruleset.json` rules for that diagram. Skipped diagrams do **not** increment `ErrorCount` and do **not** fail `OverallResult: Pass`. Fully remarked source (every line prefixed `%%`) is skipped regardless of which Markdown catalogue file contains it. Command:
+
+```powershell
+dotnet run --project src/RuleValidationHarness/RuleValidationHarness.csproj -c Release -- flow.md out/flow-rule-validation "Rule Specification"
+```
+
+**Native layout and routing pipeline** (feeds `actual-results.json`):
+
+```text
+flow.md fenced blocks
+  → MermaidMarkdownFenceExtractor (remark detection)
+  → MermaidRecognizer.Parse → DiagramContract
+  → FlowchartSugiyamaLayoutEngine.TryLayout → FlowchartLayoutResult
+  → FlowchartEdgeRoutingIntentAnalyzer + FlowchartEdgeRouteDiagnosticAnalyzer
+  → FlowchartSugiyamaSvgRenderer (rendered-path facts for SVG rules)
+  → actual-results.json
+  → RulesEngine (ruleset.json + evaluator-map.json + expected-contract.json)
+  → validation-report.json
+```
+
+Implementation packages: `new_src/MermaidRecognition.RuleValidation/` (engine + evaluators), `new_src/MermaidRecognition.Layout/` (Sugiyama layout, structural routing, SVG render), `src/RuleValidationHarness/` (CLI). Specification inputs live under `Rule Specification/`. Full rule-validation build specification: [`Rule Specification/Mermaid_Flowchart_Rule_Validation_Specification.md`](Rule%20Specification/Mermaid_Flowchart_Rule_Validation_Specification.md).
+
+**Regenerating `ruleset.json`:** edit the human-maintained catalogue overlay [`Rule Specification/ruleset-org.json`](Rule%20Specification/ruleset-org.json) (per-scenario `RequiredGenericRuleIds`, `RenderGate`, recognition axes). Then run:
+
+```powershell
+powershell -File "Rule Specification/Build-Ruleset.ps1"
+```
+
+`Build-Ruleset.ps1` merges `ruleset-org.json` generic-rule descriptions with the universal rule templates in the build script and writes [`Rule Specification/ruleset.json`](Rule%20Specification/ruleset.json) (schema v2.0.0). Commit `ruleset-org.json` and regenerated `ruleset.json` together when scenario rule bindings change. `evaluator-map.json` and `expected-contract.json` are maintained separately by the implementation team.
 
 | Intent | Meaning |
 | --- | --- |
@@ -2073,7 +2236,32 @@ Implementation: `MermaidRemarkAnalyzer` in `MermaidRecognition` classifies remar
 
 | Catalogue | Scenario ids | Reason (summary) |
 | --- | --- | --- |
-| [`flow.md`](flow.md) | F65, F70, F87, F88 | `RenderGate: ExcludedRemarkedScenario` in `ruleset-org.json`. F65: metadata shape smoke. F70: `;` statement boundaries and `%%` comments. F87: `e1@{ animate: true }`. F88: `classDef` + `class e1` animation on edge id. All rejected or non-renderable on mermaid.live; rule harness **Skipped**, not Fail. |
+| [`flow.md`](flow.md) | Fully remarked blocks (see examples below) | `RenderGate: ExcludedRemarkedScenario` in `ruleset-org.json`. Axes include metadata shapes (`Doc@{ shape: doc }`), semicolon/comment statement boundaries, edge `e1@{ animate: true }`, and `classDef` animation on edge id. All rejected or non-renderable on mermaid.live; rule harness **Skipped**, not Fail. |
+
+**Remarked source examples (recognition axes only — not layout/routing evaluated):**
+
+```mermaid
+%% flowchart LR
+%% Doc@{ shape: doc }[Document]
+```
+
+```mermaid
+%% flowchart TD
+%% A[Receive]; --> B[Validate] %% hand-off
+```
+
+```mermaid
+%% flowchart LR
+%% A e1@==> B
+%% e1@{ animate: true }
+```
+
+```mermaid
+%% flowchart LR
+%% A e1@--> B
+%% classDef animate stroke-dasharray:9,5,...;
+%% class e1 animate
+```
 | [`sequence.md`](sequence.md) | *(none yet)* | — |
 | [`class.md`](class.md) | C24 | `cssClass` directive does not render on mermaid.live |
 | [`entityrelationship.md`](entityrelationship.md) | E10 | Entity alias syntax does not render on mermaid.live |
@@ -2412,7 +2600,8 @@ flowchart TB
 
 - **Default for MDConverter / Converter:** old parse → old render (no change to embedded images in Stage 11.A).
 - **CI for recognition:** new parser only; compare JSON to Mermaid-derived expectations; **no PNG comparison required** for those tests.
-- **CI for visual regression:** existing SvgHarness on `flow.md` F01–F60 (and F53A coordinate gate); do not delete scenarios because the contract parser exists.
+- **CI for structural routing:** `RuleValidationHarness` on the flowchart regression catalogue must report `OverallResult: Pass` (fully remarked diagrams skipped) before SVG comparison.
+- **CI for visual regression:** existing SvgHarness on the flowchart catalogue (including stadium-merge coordinate gate per §5.6); do not delete scenarios because the contract parser exists.
 
 ### 11.1.6 What each stage changes (detail)
 
@@ -2596,11 +2785,11 @@ flowchart LR
   HDR --> ELK
 ```
 
-### 11.1.11 Sugiyama layered layout (potential native Dagre replacement)
+### 11.1.11 Sugiyama layered layout (adopted native Dagre replacement — pilot)
 
 Mermaid 11.14 uses **Dagre** ([dagrejs/dagre](https://github.com/dagrejs/dagre)) for default `flowchart` / `graph` layout via `layout: dagre` and `flowchart.defaultRenderer: dagre-wrapper` (§3.17.7, §3.17.28). Naiad today uses a Dagre-family engine (`extern/Naiad/.../DagreLayoutEngine.cs`) plus extensive post-layout repairs. Dagre and Naiad are both **layered directed-graph** layouters, but they are different implementations with different tuning and routing integration.
 
-The programme **may** adopt a **native C# Sugiyama layered layout** as a Dagre **replacement** on the product render path (for ordinary `flowchart` / `graph` headers — not `flowchart-elk`). A candidate implementation is available locally under the **MIT licence**:
+The programme **has adopted** a **native C# Sugiyama layered layout** as the **default Dagre-family replacement** on the product render path for ordinary `flowchart` / `graph` headers (not `flowchart-elk`). MSAGL layered sources were copied under the **MIT licence** into `new_src/MermaidRecognition.Layout/Sugiyama/`; structural edge routing is implemented separately in `FlowchartEdgeRouteResolver` and related builders (§5.5–§5.6, §11.8–11.9). Original reference sources remain under:
 
 ```text
 C:\Users\windo\OneDrive\Documents\Development\3rd Party\Microsoft.AGL\Microsoft.AGL\Layout\Layered\
@@ -2608,24 +2797,24 @@ C:\Users\windo\OneDrive\Documents\Development\3rd Party\Microsoft.AGL\Microsoft.
 
 This is the **Microsoft Automatic Graph Layout (MSAGL)** layered engine: `LayeredLayoutEngine`, `SugiyamaLayoutSettings`, and supporting types (`Layering/`, `Ordering/`, `Routing.cs`, `FlatEdgeRouter`, `SmoothedPolylineCalculator`, …). It implements the classic Sugiyama pipeline (layer assignment, vertex ordering, coordinate assignment, edge routing) — the same **algorithm family** Mermaid targets through Dagre for layered flowcharts.
 
-| Topic | Dagre (Mermaid / Naiad today) | MSAGL Sugiyama (candidate) |
+| Topic | Dagre (Mermaid / Naiad today) | MSAGL Sugiyama (adopted pilot) |
 | --- | --- | --- |
-| Origin | JavaScript library; Naiad C# integration | Native C# sources (MIT-licensed MSAGL) |
-| Mermaid config | `layout: dagre`, `flowchart.defaultRenderer: dagre-wrapper` | **Not** in pinned Mermaid 11.14 — programme-defined if adopted |
-| Layout input | Mermaid `flowDb`; Naiad `FlowchartModel` | MSAGL `GeometryGraph` + `SugiyamaLayoutSettings` |
-| Edge paths | Mermaid renderer; Naiad `CoordinateAssignment` repairs | MSAGL layered routers under `Layout/Layered/` — **see §11.9.1** for how MSAGL routing relates to structural `FlowchartRouter` |
+| Origin | JavaScript library; Naiad C# integration | Native C# sources (MIT-licensed MSAGL) in `MermaidRecognition.Layout/Sugiyama/` |
+| Mermaid config | `layout: dagre`, `flowchart.defaultRenderer: dagre-wrapper` | Programme-defined via `FlowchartSugiyamaLayoutEngine` + `FlowchartRenderOptions` |
+| Layout input | Mermaid `flowDb`; Naiad `FlowchartModel` | `DiagramContract` → `FlowchartGeometryGraphBuilder` → MSAGL `GeometryGraph` |
+| Edge paths | Mermaid renderer; Naiad `CoordinateAssignment` repairs | **Structural router primary** (`FlowchartEdgeRouteResolver`, corridor/bypass builders); MSAGL layered routers retained for compile closure — **see §11.9.1** |
 | Relation to ELK | Separate from `flowchart-elk` | Also separate — Sugiyama replaces **Dagre**, not ELK (§11.1.10) |
-| Stages 11.A–11.E | **Default** interim path | **Deferred** — evaluate only after contract-driven routing gates |
+| Product path | Legacy Naiad comparison only | **Default** md2docx flowchart render (Sugiyama SVG); Naiad fallback on failure |
 
 **Programme rules (normative):**
 
-1. **Do not** adopt MSAGL during recognition work. Evaluate on the **native render** path only after Stage **11.C** routing reads `DiagramContract` and SvgHarness gates pass.
-2. **May evaluate** MSAGL Sugiyama **after** Stage **11.C** on the native path — legacy Naiad output for **comparison only** (§12).
-3. A future adapter must map **`DiagramContract` → MSAGL graph**: measured node bounds, edge endpoints, `MinLength` / creation order, subgraph containment, and direction — **not** semantic label text (§11.3, §11.7).
+1. **Recognition** must not depend on Sugiyama layout output — parse into `DiagramContract` first (Stage 11.A complete).
+2. **Native render** uses Sugiyama for node placement; legacy Naiad output is **comparison only** (§12).
+3. The adapter **`DiagramContract` → MSAGL graph** (`FlowchartGeometryGraphBuilder`) maps measured node bounds, edge endpoints, `MinLength` / creation order, subgraph containment, and direction — **not** semantic label text (§11.3, §11.7).
 4. Effective config from §3.17 (`flowchart.nodeSpacing`, `flowchart.rankSpacing`, `flowchart.diagramPadding`, `flowchart.curve`, direction TB/LR/…, `themeVariables.*`) must map to `SugiyamaLayoutSettings` (for example `LayerSeparation`, margins, constraints) where equivalents exist; unmapped keys require diagnostics, not silent defaults.
-5. Parity acceptance: same `DiagramContract` fed to Dagre (baseline) and Sugiyama (candidate); compare node bounds and route **classification** on active `flow.md` scenarios. Document intentional differences. Adopting Sugiyama does **not** satisfy `flowchart-elk` recognition or render claims.
-6. If adopted, **copy** the required MSAGL classes into `new_src/MermaidRecognition.Layout/Sugiyama/` (or equivalent first-party path), rename namespaces, modernise for current .NET, and preserve the MIT licence — **not** a permanent verbatim copy under `extern/`. Native router must not use label-semantic rules (§11.7). See [`new_src/MermaidRecognition.Layout/SUGIYAMA_ADOPTION.md`](new_src/MermaidRecognition.Layout/SUGIYAMA_ADOPTION.md).
-7. **Edge routing integration** — consuming MSAGL polylines in SVG is a separate decision from adopting Sugiyama for **node placement**. Candidate strategies and the recommended hybrid (structural router primary, MSAGL polylines secondary) are defined in **§11.9.1**.
+5. Parity acceptance: compare native Sugiyama output against legacy Naiad (baseline) on node bounds and route **classification** for active `flow.md` scenarios. Document intentional differences. Sugiyama adoption does **not** satisfy `flowchart-elk` recognition or render claims. Structural rule-validation harness must pass (§9.1) before claiming routing complete.
+6. Required MSAGL classes live in `new_src/MermaidRecognition.Layout/Sugiyama/` (first-party, MIT preserved). `extern/Microsoft.AGL/` is transitional re-copy reference only. Native router must not use label-semantic rules (§11.7). See [`new_src/MermaidRecognition.Layout/SUGIYAMA_ADOPTION.md`](new_src/MermaidRecognition.Layout/SUGIYAMA_ADOPTION.md).
+7. **Edge routing integration (current):** structural router is **primary** for product SVG (`FlowchartEdgeRouteResolver`, corridor/bypass builders); MSAGL layered edge polylines are retained for compile closure but not consumed as the main render path. Hybrid strategy detail: **§11.9.1**.
 
 #### 11.1.11.1 MSAGL is not ELK-compatible (Brandes–Köpf overlap only)
 
@@ -2760,7 +2949,7 @@ Other kinds must publish an equivalent table before **L2**. Status values: **par
 | `flowchart.header.elk` | `flowchart-elk TD` | + diagnostic `flowchart.elk-not-native` | diagnostic | `unsupported-diagnostics` |
 | `flowchart.comment` | `%% note` | (none) | parsed | — |
 | `flowchart.init.leading` | `%%{init:...}%%` | `Configuration.RawDirectiveValues` | parsed | `config-init` |
-| `flowchart.init.frontMatter` | `---` YAML `config:` block (F86) | `Configuration.RawDirectiveValues` | **parsed** | `config-front-matter`, `config-front-matter-spacing` |
+| `flowchart.init.frontMatter` | `---` YAML `config:` block before diagram | `Configuration.RawDirectiveValues` | **parsed** | `config-front-matter`, `config-front-matter-spacing` |
 | `flowchart.node.id_only` | `A` | `NodeContract` | parsed | expansion fixtures |
 | `flowchart.node.bracket` | `A[Label]`, `A(L)`, `A{D}`, … | label, shape, shapeSource | **parsed** | `node-bracket-shapes`, `metadata-shape-data` |
 | `flowchart.node.metadata` | `A@{ shape: doc }` | metadata, shape | parsed | `metadata-shape-data` |
@@ -2788,14 +2977,14 @@ Other kinds must publish an equivalent table before **L2**. Status values: **par
 | `flowchart.accTitle` | `accTitle: T` | `Accessibility.Title` | parsed | `accessibility` |
 | `flowchart.accDescr.inline` | `accDescr: text` | `Accessibility.Description` | parsed | `accessibility` |
 | `flowchart.accDescr.block` | `accDescr { ... }` | multiline description | **parsed** | `accDescr-block` fixture |
-| `flowchart.edge.metadata` | `e1@{ curve: basis }` / `e1@{ animate: true }` on edge id | `EdgeContract.Metadata` | **parsed** | `edge-metadata`, `edge-animate`, `edge-metadata-f87` (F87 thick link); node `@{ }` unchanged |
+| `flowchart.edge.metadata` | `e1@{ curve: basis }` / `e1@{ animate: true }` on edge id | `EdgeContract.Metadata` | **parsed** | `edge-metadata`, `edge-animate`, `edge-metadata-thick-link`; node `@{ }` unchanged |
 | `flowchart.invisible_link` | `A ~~~ B` | `Stroke=invisible` | **parsed** | `invisible-link` fixture |
 
 **Flowchart L2 exit criteria:** every row above is **parsed** or **diagnostic** (no **not-implemented**).
 
 **Flowchart L3 exit criteria:** L2 + G4–G9 axis coverage per flowchart matrix; verified JSON fixtures; no silent `flowchart.body` on official fixtures.
 
-**Flowchart L4 exit criteria (G12):** L3 + parser parity with pinned Mermaid 11.14 for agreed axes, including at minimum: YAML front-matter `config` (F86), edge `classDef` animation on edge id (F88), edge metadata animate/curve, grouped edge id semantics (§11.1.2). Inventory and status: [`spec-gates/flowchart-g12.md`](spec-gates/flowchart-g12.md). F87/F88 may be catalogue-remarked for render while recognition fixtures cover the axis (§9.1).
+**Flowchart L4 exit criteria (G12):** L3 + parser parity with pinned Mermaid 11.14 for agreed axes, including at minimum: YAML front-matter `config`, edge `classDef` animation on edge id (`class e1 animate`), edge metadata animate/curve (`e1@{ animate: true }`), grouped edge id semantics (§11.1.2). Inventory and status: [`spec-gates/flowchart-g12.md`](spec-gates/flowchart-g12.md). Sources that are fully remarked in a catalogue may still be covered by recognition fixtures (§9.1).
 
 #### 11.1.14.2 Sequence line-type catalogue (L2)
 
@@ -4067,7 +4256,7 @@ DiagramContract
 
 1. **Mermaid parity gate** — acceptance compares route **classification** and geometry against Dagre/Mermaid baselines on `flow.md`, not against MSAGL viewer aesthetics.
 2. **Post-processor ordering** — edge routing that depends on node bounds must run **after** the post-processor, or polylines must be recomputed when bounds change.
-3. **Back-edge loops** — `RouteKind.BackEdgeLoop` (graph-theoretic reachability, not screen-space delta alone) uses structural `BuildLoopOutsideOccupiedBounds`, not generic `SplineRouter`. Example: F34 LR retry loop.
+3. **Back-edge loops** — `RouteKind.BackEdgeLoop` (graph-theoretic reachability, not screen-space delta alone) uses structural `BuildLoopOutsideOccupiedBounds`, not generic `SplineRouter`. Example topology: `A→B→D→A` LR retry cycle (`B` decision, `D` retry, back-edge to `A`).
 4. **MSAGL role** — MSAGL supplies **layered candidate polylines** for `DefaultDagreSpline` and optional **intersection fallback**; it does not replace §11.9 classification or port allocation.
 5. **Bespoke per-fixture paths** — temporary helpers (e.g. hand-built retry polylines) are allowed only behind the same route-kind gates until the structural builder lands; they must not become the long-term routing model.
 
@@ -4432,7 +4621,7 @@ Visual migration rules:
 
 - no SvgHarness scenario is deleted because the contract parser exists
 - no legacy route helper is disabled until the corresponding route kind has a visual or coordinate parity gate
-- the F53A coordinate gate remains mandatory for stadium/pill merge geometry
+- the stadium terminal-collector merge coordinate gate (§5.6) remains mandatory for pill/stadium fan-in geometry
 - `flow.md` remains the visual catalogue; recognition-only additions should live in separate fixtures until native rendering catches up
 
 If future `flow.md` blocks such as F61-F88 are added for recognition gaps, classify them explicitly:

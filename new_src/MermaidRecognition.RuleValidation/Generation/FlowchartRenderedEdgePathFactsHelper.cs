@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 using MermaidRecognition.Contract;
@@ -36,39 +37,15 @@ public static class FlowchartRenderedEdgePathFactsHelper
         Dictionary<string, NodeContract> NodeById = Contract.Nodes
             .ToDictionary(Node => Node.Id, Node => Node, StringComparer.Ordinal);
         List<string> EdgePathData = ExtractRenderedEdgePathData(Svg);
+        List<(double X1, double Y1, double X2, double Y2)> EdgeLineSegments = ExtractRenderedEdgeLineSegments(Svg);
         List<EdgeContract> VisibleEdges = Contract.Edges
             .Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
         int PathIndex = 0;
+        int LineIndex = 0;
         foreach (EdgeContract Edge in VisibleEdges)
         {
-            bool RendersAsPath = FlowchartSvgEdgeStrokeClassifier.RendersAsSvgPath(
-                Edge,
-                Contract,
-                BoundsById,
-                NodeById,
-                Direction);
-
-            if (!RendersAsPath)
-            {
-                continue;
-            }
-
-            while (PathIndex < EdgePathData.Count
-                && !EdgePathData[PathIndex].StartsWith("M", StringComparison.OrdinalIgnoreCase))
-            {
-                PathIndex++;
-            }
-
-            if (PathIndex >= EdgePathData.Count)
-            {
-                break;
-            }
-
-            string PathData = EdgePathData[PathIndex];
-            PathIndex++;
-
             EdgeActualResult? EdgeResult = Diagram.Edges.FirstOrDefault(
                 Candidate => string.Equals(Candidate.SourceNodeId, Edge.SourceId, StringComparison.Ordinal)
                     && string.Equals(Candidate.TargetNodeId, Edge.TargetId, StringComparison.Ordinal)
@@ -76,12 +53,6 @@ public static class FlowchartRenderedEdgePathFactsHelper
 
             if (EdgeResult is null || !EdgeResult.IsVisible)
             {
-                continue;
-            }
-
-            if (string.Equals(EdgeResult.RouteClass, "LocalDecisionBranch", StringComparison.Ordinal))
-            {
-                EdgeResult.Facts["Path.RenderedAsSvgPath"] = true;
                 continue;
             }
 
@@ -97,8 +68,32 @@ public static class FlowchartRenderedEdgePathFactsHelper
                 continue;
             }
 
-            FlowchartRenderedPathValidator.FlowchartRenderedPathValidationResult ValidationResult =
-                FlowchartRenderedPathValidator.Validate(
+            bool RendersAsPath = FlowchartSvgEdgeStrokeClassifier.RendersAsSvgPath(
+                Edge,
+                Contract,
+                BoundsById,
+                NodeById,
+                Direction);
+
+            FlowchartRenderedPathValidator.FlowchartRenderedPathValidationResult ValidationResult;
+
+            if (RendersAsPath)
+            {
+                while (PathIndex < EdgePathData.Count
+                    && !EdgePathData[PathIndex].StartsWith("M", StringComparison.OrdinalIgnoreCase))
+                {
+                    PathIndex++;
+                }
+
+                if (PathIndex >= EdgePathData.Count)
+                {
+                    break;
+                }
+
+                string PathData = EdgePathData[PathIndex];
+                PathIndex++;
+
+                ValidationResult = FlowchartRenderedPathValidator.Validate(
                     PathData,
                     Edge,
                     Contract,
@@ -107,34 +102,60 @@ public static class FlowchartRenderedEdgePathFactsHelper
                     RouteKind,
                     Direction);
 
-            EdgeResult.Facts["Path.RenderedAsSvgPath"] = true;
-            EdgeResult.Facts["Ports.PerpendicularAttach"] = ValidationResult.PerpendicularAttach;
-            EdgeResult.Facts["Path.RenderedPathClearsUnrelatedNodeBodies"] = ValidationResult.ClearsUnrelatedNodeBodies;
-            EdgeResult.Facts["Path.NoVisibleKinkInSmoothBody"] = ValidationResult.NoVisibleKink;
+                EdgeResult.Facts["Path.RenderedAsSvgPath"] = true;
+                EdgeResult.Facts["Path.RenderedPathClearsUnrelatedNodeBodies"] = ValidationResult.ClearsUnrelatedNodeBodies;
+                EdgeResult.Facts["Path.NoVisibleKinkInSmoothBody"] = ValidationResult.NoVisibleKink;
 
-            if (!ValidationResult.ClearsUnrelatedNodeBodies)
-            {
-                EdgeResult.Facts["Path.DoesNotIntersectUnrelatedNodeBodies"] = false;
-                if (!string.IsNullOrWhiteSpace(ValidationResult.IntersectedNodeId))
+                if (!ValidationResult.ClearsUnrelatedNodeBodies)
                 {
-                    EdgeResult.CollisionFacts.Add(new Dictionary<string, object>
+                    EdgeResult.Facts["Path.DoesNotIntersectUnrelatedNodeBodies"] = false;
+                    if (!string.IsNullOrWhiteSpace(ValidationResult.IntersectedNodeId))
                     {
-                        ["Kind"] = "RenderedNodeBodyIntersection",
-                        ["IntersectedNodeId"] = ValidationResult.IntersectedNodeId,
-                        ["Reason"] = ValidationResult.FailureMessage ?? string.Empty
-                    });
+                        EdgeResult.CollisionFacts.Add(new Dictionary<string, object>
+                        {
+                            ["Kind"] = "RenderedNodeBodyIntersection",
+                            ["IntersectedNodeId"] = ValidationResult.IntersectedNodeId,
+                            ["Reason"] = ValidationResult.FailureMessage ?? string.Empty
+                        });
+                    }
+                }
+
+                if (!ValidationResult.NoVisibleKink
+                    && !string.Equals(EdgeResult.RouteClass, "LongBypass", StringComparison.OrdinalIgnoreCase))
+                {
+                    EdgeResult.Facts["Path.NoHardElbowWhenSmoothRequired"] = false;
                 }
             }
-
-            if (!ValidationResult.NoVisibleKink
-                && !string.Equals(EdgeResult.RouteClass, "LongBypass", StringComparison.OrdinalIgnoreCase))
+            else
             {
-                EdgeResult.Facts["Path.NoHardElbowWhenSmoothRequired"] = false;
+                if (LineIndex >= EdgeLineSegments.Count)
+                {
+                    break;
+                }
+
+                (double LineX1, double LineY1, double LineX2, double LineY2) = EdgeLineSegments[LineIndex];
+                LineIndex++;
+
+                ValidationResult = FlowchartRenderedPathValidator.ValidateStraightLine(
+                    LineX1,
+                    LineY1,
+                    LineX2,
+                    LineY2,
+                    Edge,
+                    Contract,
+                    Layout,
+                    LayoutGuidePoints,
+                    RouteKind,
+                    Direction);
             }
 
-            if (!ValidationResult.PerpendicularAttach && !string.IsNullOrWhiteSpace(ValidationResult.FailureMessage))
+            if (!ValidationResult.PerpendicularAttach)
             {
-                EdgeResult.Facts["Path.RenderedAttachFailure"] = ValidationResult.FailureMessage;
+                EdgeResult.Facts["Ports.PerpendicularAttach"] = false;
+                if (!string.IsNullOrWhiteSpace(ValidationResult.FailureMessage))
+                {
+                    EdgeResult.Facts["Path.RenderedAttachFailure"] = ValidationResult.FailureMessage;
+                }
             }
         }
     }
@@ -156,5 +177,35 @@ public static class FlowchartRenderedEdgePathFactsHelper
         }
 
         return PathData;
+    }
+
+    private static List<(double X1, double Y1, double X2, double Y2)> ExtractRenderedEdgeLineSegments(string Svg)
+    {
+        List<(double X1, double Y1, double X2, double Y2)> LineSegments =
+            new List<(double X1, double Y1, double X2, double Y2)>();
+        MatchCollection Matches = Regex.Matches(
+            Svg,
+            @"<line x1=""([^""]+)"" y1=""([^""]+)"" x2=""([^""]+)"" y2=""([^""]+)""[^>]*stroke-linecap=""butt""",
+            RegexOptions.CultureInvariant);
+
+        foreach (Match Match in Matches)
+        {
+            if (Match.Groups.Count < 5)
+            {
+                continue;
+            }
+
+            if (!double.TryParse(Match.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double X1)
+                || !double.TryParse(Match.Groups[2].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double Y1)
+                || !double.TryParse(Match.Groups[3].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double X2)
+                || !double.TryParse(Match.Groups[4].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double Y2))
+            {
+                continue;
+            }
+
+            LineSegments.Add((X1, Y1, X2, Y2));
+        }
+
+        return LineSegments;
     }
 }

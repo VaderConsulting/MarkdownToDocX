@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace MermaidRecognition.Layout;
 
@@ -40,5 +41,22 @@ public static class FlowchartEdgeConnectionGeometry
             SourceAttachY,
             TargetAttachX,
             TargetAttachY);
+    }
+
+    /// <summary>
+    /// Returns true when a four-point stub-expanded guide is a single straight connector between boundaries.
+    /// </summary>
+    public static bool IsCollinearStubStraightRoute(IReadOnlyList<(double X, double Y)> Points)
+    {
+        if (Points.Count != 4)
+        {
+            return false;
+        }
+
+        return AreAttachPointsAxisAligned(
+            Points[0].X,
+            Points[0].Y,
+            Points[Points.Count - 1].X,
+            Points[Points.Count - 1].Y);
     }
 }

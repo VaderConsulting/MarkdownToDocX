@@ -250,8 +250,16 @@ public static class FlowchartPerpendicularRouteBuilder
                 SourceNodeId,
                 TargetNodeId))
         {
-            Points.Add((SourceX, SourceY));
-            Points.Add((TargetX, TargetY));
+            AppendPerpendicularRoute(
+                Points,
+                SourceX,
+                SourceY,
+                SourceBounds,
+                SourceShape,
+                TargetX,
+                TargetY,
+                TargetBounds,
+                TargetShape);
             return true;
         }
 

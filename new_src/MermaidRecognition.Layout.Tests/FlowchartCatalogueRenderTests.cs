@@ -402,7 +402,7 @@ public sealed class FlowchartCatalogueRenderTests
 
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
         Assert.That(Regex.Matches(Svg, "<circle").Count, Is.GreaterThanOrEqualTo(1));
-        Assert.That(Regex.Matches(Svg, @"<line[^>]+stroke-linecap=""round""").Count, Is.GreaterThanOrEqualTo(3));
+        Assert.That(Regex.Matches(Svg, @"<line[^>]+stroke-linecap=""round""").Count, Is.GreaterThanOrEqualTo(2));
     }
 
     [Test]
@@ -997,10 +997,12 @@ public sealed class FlowchartCatalogueRenderTests
             """);
 
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
-        int StraightLineCount = System.Text.RegularExpressions.Regex.Matches(Svg, "<line ").Count;
+        int StraightLineCount = System.Text.RegularExpressions.Regex.Matches(
+            Svg,
+            @"<line[^>]+stroke-linecap=""butt""").Count;
         int CurvedPathCount = System.Text.RegularExpressions.Regex.Matches(
             Svg,
-            @"<path d=""[^""]*C[^""]*C[^""]*"" fill=""none""").Count;
+            @"<path d=""[^""]*C[^""]*"" fill=""none""").Count;
 
         Assert.That(StraightLineCount, Is.EqualTo(1), "Hub→Worker 2 should be a straight vertical connector");
         Assert.That(CurvedPathCount, Is.GreaterThanOrEqualTo(2),
@@ -1033,10 +1035,12 @@ public sealed class FlowchartCatalogueRenderTests
 
             SideBranchPathCount++;
             int CubicCount = System.Text.RegularExpressions.Regex.Matches(PathData, @"C").Count;
-            Assert.That(CubicCount, Is.EqualTo(3),
-                "Side fan-out branches use a 4-point boundary S-route → three curveBasis cubics");
-            Assert.That(PathData, Does.Match(@"M[^""]+L[^""]+C[^""]+L[^""]+$"),
-                "Pure curveBasis fan routes must end with a straight line to the target boundary");
+            Assert.That(CubicCount, Is.GreaterThanOrEqualTo(1),
+                "Side fan-out branches use stub-expanded guides with a curved body between terminal stubs");
+            Assert.That(PathData, Does.Match(@"^M[^""]+L[^""]+"),
+                "Stub-expanded fan routes must begin with a perpendicular source stub");
+            Assert.That(PathData, Does.Contain("C"),
+                "Side fan-out branches must use a smooth curved body between terminal stubs");
         }
 
         Assert.That(SideBranchPathCount, Is.EqualTo(2), "Hub→Worker 1 and Hub→Worker 3 should be curved side branches");
@@ -1436,15 +1440,13 @@ public sealed class FlowchartCatalogueRenderTests
 
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
         Match CircleMatch = Regex.Match(Svg, @"<circle cx=""([^""]+)""");
-        Match LineMatch = Regex.Match(Svg, @"<line x1=""[^""]+"" y1=""[^""]+"" x2=""([^""]+)""");
         Assert.That(CircleMatch.Success, Is.True);
-        Assert.That(LineMatch.Success, Is.True);
+        Assert.That(TryReadConnectorEndX(Svg, out double LineEndX), Is.True);
 
         double CircleCentreX = double.Parse(CircleMatch.Groups[1].Value, CultureInfo.InvariantCulture);
-        double LineEndX = double.Parse(LineMatch.Groups[1].Value, CultureInfo.InvariantCulture);
         double CircleLeadingEdgeX = CircleCentreX + 5.0;
 
-        Assert.That(CircleLeadingEdgeX, Is.EqualTo(LineEndX + 10.0).Within(1.0));
+        Assert.That(CircleLeadingEdgeX, Is.EqualTo(LineEndX).Within(1.0));
     }
 
     [Test]
@@ -1456,12 +1458,9 @@ public sealed class FlowchartCatalogueRenderTests
             """);
 
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
-        Match LineMatch = Regex.Match(Svg, @"<line x1=""[^""]+"" y1=""[^""]+"" x2=""([^""]+)""");
         MatchCollection CrossLines = Regex.Matches(Svg, @"<line[^>]+stroke-linecap=""round""");
-        Assert.That(LineMatch.Success, Is.True);
+        Assert.That(TryReadConnectorEndX(Svg, out double LineEndX), Is.True);
         Assert.That(CrossLines.Count, Is.GreaterThanOrEqualTo(2));
-
-        double LineEndX = double.Parse(LineMatch.Groups[1].Value, CultureInfo.InvariantCulture);
         double CrossMaxX = CrossLines
             .Cast<Match>()
             .SelectMany(Match => new[]
@@ -1471,7 +1470,7 @@ public sealed class FlowchartCatalogueRenderTests
             })
             .Max();
 
-        Assert.That(CrossMaxX, Is.EqualTo(LineEndX + 10.0).Within(1.5));
+        Assert.That(CrossMaxX, Is.EqualTo(LineEndX).Within(1.5));
     }
 
     [Test]
@@ -1613,6 +1612,7 @@ public sealed class FlowchartCatalogueRenderTests
             FlowchartLayoutNodeBounds TargetBounds = BoundsById[Edge.TargetId];
             (double ExpectedX, double ExpectedY) =
                 FlowchartEdgeLabelPlacementHelper.ComputeLrLabelledRectFanOutEdgeLabelPosition(
+                    GuidePoints,
                     SourceBounds,
                     TargetBounds);
             (double ActualX, double ActualY) = FlowchartEdgeLabelPlacementHelper.ResolveEdgeLabelPosition(
@@ -1629,7 +1629,24 @@ public sealed class FlowchartCatalogueRenderTests
 
             Assert.That(ActualX, Is.EqualTo(ExpectedX).Within(0.5));
             Assert.That(ActualY, Is.EqualTo(ExpectedY).Within(0.5));
+            Assert.That(
+                Math.Abs(ExpectedY - TargetBounds.CenterY),
+                Is.GreaterThan(8.0),
+                "Fan-out labels sit on the horizontal elbow segment, not the target row.");
         }
+    }
+
+    [Test]
+    public void RenderToSvg_ShapeCatalogueRow_NodeLabelsUseMiddleAnchor()
+    {
+        DiagramContract Contract = MermaidRecognizer.Parse("""
+            flowchart LR
+            R[Rect] --> RN(Rounded) --> D{Diamond} --> C((Circle))
+            """);
+
+        string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
+        Assert.That(Svg, Does.Contain(">Rect</text>"));
+        Assert.That(Svg, Does.Contain("text-anchor=\"middle\" dominant-baseline=\"middle\""));
     }
 
     [Test]
@@ -3351,5 +3368,42 @@ public sealed class FlowchartCatalogueRenderTests
         }
 
         return FillPaths;
+    }
+
+    private static bool TryReadConnectorEndX(string Svg, out double EndX)
+    {
+        EndX = 0.0;
+        Match ButtLineMatch = Regex.Match(
+            Svg,
+            @"<line x1=""[^""]+"" y1=""[^""]+"" x2=""([^""]+)""[^>]*stroke-linecap=""butt""",
+            RegexOptions.CultureInvariant);
+        if (ButtLineMatch.Success)
+        {
+            return double.TryParse(ButtLineMatch.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out EndX);
+        }
+
+        Match EdgePathMatch = Regex.Match(
+            Svg,
+            @"<path d=""([^""]+)"" fill=""none"" stroke=""",
+            RegexOptions.CultureInvariant);
+        if (!EdgePathMatch.Success)
+        {
+            return false;
+        }
+
+        MatchCollection SegmentMatches = Regex.Matches(
+            EdgePathMatch.Groups[1].Value,
+            @"L([\d.]+),",
+            RegexOptions.CultureInvariant);
+        if (SegmentMatches.Count == 0)
+        {
+            return false;
+        }
+
+        return double.TryParse(
+            SegmentMatches[SegmentMatches.Count - 1].Groups[1].Value,
+            NumberStyles.Float,
+            CultureInfo.InvariantCulture,
+            out EndX);
     }
 }

@@ -56,8 +56,12 @@ public static class FlowchartEdgeLabelPlacementHelper
         return (AnchorX, AnchorY);
     }
 
+    private const double AXIS_ALIGNED_SEGMENT_EPSILON_PX = 0.5;
+
+    private const double MIN_LABELLED_SEGMENT_LENGTH_PX = 12.0;
+
     /// <summary>
-    /// Positions an LR labelled rectangle fan-out label at mid-span X and target-row Y (Mermaid F24 parity).
+    /// Positions an LR labelled rectangle fan-out label on the primary horizontal connector segment.
     /// </summary>
     public static (double X, double Y) ComputeLrLabelledRectFanOutEdgeLabelPosition(
         FlowchartLayoutNodeBounds SourceBounds,
@@ -66,6 +70,86 @@ public static class FlowchartEdgeLabelPlacementHelper
         double LabelX = (SourceBounds.CenterX + TargetBounds.CenterX) / 2.0;
         double LabelY = TargetBounds.CenterY;
         return (LabelX, LabelY);
+    }
+
+    /// <summary>
+    /// Positions an LR labelled rectangle fan-out label on the longest horizontal guide segment when present.
+    /// </summary>
+    public static (double X, double Y) ComputeLrLabelledRectFanOutEdgeLabelPosition(
+        IReadOnlyList<(double X, double Y)> LayoutPoints,
+        FlowchartLayoutNodeBounds SourceBounds,
+        FlowchartLayoutNodeBounds TargetBounds)
+    {
+        if (TryGetLongestAxisAlignedSegmentMidpoint(
+                LayoutPoints,
+                HorizontalSegment: true,
+                out double MidX,
+                out double MidY))
+        {
+            return (MidX, MidY);
+        }
+
+        return ComputeLrLabelledRectFanOutEdgeLabelPosition(SourceBounds, TargetBounds);
+    }
+
+    /// <summary>
+    /// Returns the midpoint of the longest axis-aligned segment on a guide polyline.
+    /// </summary>
+    public static bool TryGetLongestAxisAlignedSegmentMidpoint(
+        IReadOnlyList<(double X, double Y)> LayoutPoints,
+        bool HorizontalSegment,
+        out double MidX,
+        out double MidY)
+    {
+        MidX = 0.0;
+        MidY = 0.0;
+        if (LayoutPoints.Count < 2)
+        {
+            return false;
+        }
+
+        double BestLength = 0.0;
+        for (int Index = 0; Index < LayoutPoints.Count - 1; Index++)
+        {
+            (double StartX, double StartY) = LayoutPoints[Index];
+            (double EndX, double EndY) = LayoutPoints[Index + 1];
+            if (HorizontalSegment)
+            {
+                if (Math.Abs(StartY - EndY) > AXIS_ALIGNED_SEGMENT_EPSILON_PX)
+                {
+                    continue;
+                }
+
+                double SegmentLength = Math.Abs(EndX - StartX);
+                if (SegmentLength < MIN_LABELLED_SEGMENT_LENGTH_PX || SegmentLength <= BestLength)
+                {
+                    continue;
+                }
+
+                BestLength = SegmentLength;
+                MidX = (StartX + EndX) / 2.0;
+                MidY = (StartY + EndY) / 2.0;
+            }
+            else
+            {
+                if (Math.Abs(StartX - EndX) > AXIS_ALIGNED_SEGMENT_EPSILON_PX)
+                {
+                    continue;
+                }
+
+                double SegmentLength = Math.Abs(EndY - StartY);
+                if (SegmentLength < MIN_LABELLED_SEGMENT_LENGTH_PX || SegmentLength <= BestLength)
+                {
+                    continue;
+                }
+
+                BestLength = SegmentLength;
+                MidX = (StartX + EndX) / 2.0;
+                MidY = (StartY + EndY) / 2.0;
+            }
+        }
+
+        return BestLength > 0.0;
     }
 
     /// <summary>
@@ -125,7 +209,10 @@ public static class FlowchartEdgeLabelPlacementHelper
                 SourceShape,
                 Direction))
         {
-            return ComputeLrLabelledRectFanOutEdgeLabelPosition(SourceBounds, TargetBounds);
+            return ComputeLrLabelledRectFanOutEdgeLabelPosition(
+                LayoutPoints,
+                SourceBounds,
+                TargetBounds);
         }
 
         double LabelX;

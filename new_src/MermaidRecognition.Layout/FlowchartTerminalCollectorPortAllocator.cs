@@ -395,18 +395,18 @@ public static class FlowchartTerminalCollectorPortAllocator
         {
             if (SourceBounds.CenterY < TargetBounds.CenterY - COLLINEAR_EPSILON_PX)
             {
-                return (CentreX, CentreY - HalfHeight - GapPx);
+                return (CentreX, CentreY + HalfHeight + GapPx);
             }
 
-            return (CentreX, CentreY + HalfHeight + GapPx);
+            return (CentreX, CentreY - HalfHeight - GapPx);
         }
 
-        if (SourceBounds.CenterY > TargetBounds.CenterY + COLLINEAR_EPSILON_PX)
+        if (FlowchartShapeBoundaryAttachHelper.IsSourceAboveTarget(SourceBounds, TargetBounds))
         {
-            return (CentreX, CentreY + HalfHeight + GapPx);
+            return (CentreX, CentreY - HalfHeight - GapPx);
         }
 
-        return (CentreX, CentreY - HalfHeight - GapPx);
+        return (CentreX, CentreY + HalfHeight + GapPx);
     }
 
     private static void ResolveTargetAttachAndApproach(

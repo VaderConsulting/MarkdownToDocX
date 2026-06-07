@@ -86,7 +86,8 @@ public static class FlowchartRenderedPathValidator
             Result.FailureMessage = PerpendicularFailure;
         }
         else if (RouteKind != FlowchartEdgeRouteKind.Decision
-            && !UsesPureFanRouteRenderedPath(LayoutGuidePoints, RouteKind, Direction))
+            && !UsesPureFanRouteRenderedPath(LayoutGuidePoints, RouteKind, Direction)
+            && !FlowchartPerpendicularRouteBuilder.IsOrthogonalPolyline(LayoutGuidePoints))
         {
             (double SourceBoundarySvgX, double SourceBoundarySvgY) = Mapper.LayoutToSvg(
                 LayoutGuidePoints[0].X,
@@ -149,6 +150,102 @@ public static class FlowchartRenderedPathValidator
             {
                 Result.FailureMessage = "Rendered path passes through node " + IntersectedNodeId + ".";
             }
+        }
+
+        return Result;
+    }
+
+    /// <summary>
+    /// Validates a rendered straight SVG line against the resolved layout guide terminals.
+    /// </summary>
+    public static FlowchartRenderedPathValidationResult ValidateStraightLine(
+        double SvgX1,
+        double SvgY1,
+        double SvgX2,
+        double SvgY2,
+        EdgeContract Edge,
+        DiagramContract Contract,
+        FlowchartLayoutResult Layout,
+        IReadOnlyList<(double X, double Y)> LayoutGuidePoints,
+        FlowchartEdgeRouteKind RouteKind,
+        FlowchartDirection Direction)
+    {
+        FlowchartRenderedPathValidationResult Result = new FlowchartRenderedPathValidationResult();
+
+        if (!FlowchartSvgLayoutCoordinateMapper.TryCreate(Contract, Layout, out FlowchartSvgLayoutCoordinateMapper? Mapper)
+            || Mapper is null)
+        {
+            Result.PerpendicularAttach = false;
+            Result.FailureMessage = "Rendered line could not be mapped into layout coordinates.";
+            return Result;
+        }
+
+        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds
+            .ToDictionary(Bounds => Bounds.NodeId, Bounds => Bounds, StringComparer.Ordinal);
+        Dictionary<string, NodeContract> NodeById = Contract.Nodes
+            .ToDictionary(Node => Node.Id, Node => Node, StringComparer.Ordinal);
+
+        if (!BoundsById.TryGetValue(Edge.SourceId, out FlowchartLayoutNodeBounds SourceBounds)
+            || !BoundsById.TryGetValue(Edge.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
+        {
+            Result.PerpendicularAttach = false;
+            Result.FailureMessage = "Edge endpoints are missing layout bounds.";
+            return Result;
+        }
+
+        string? SourceShape = NodeById.TryGetValue(Edge.SourceId, out NodeContract? SourceNode) ? SourceNode.Shape : null;
+        string? TargetShape = NodeById.TryGetValue(Edge.TargetId, out NodeContract? TargetNode) ? TargetNode.Shape : null;
+        bool AllowDiagonalCrossEdge = RouteKind == FlowchartEdgeRouteKind.GroupedTwoByTwo;
+
+        if (!FlowchartPerpendicularAttachValidator.TryValidateGuidePoints(
+                LayoutGuidePoints,
+                SourceBounds,
+                SourceShape,
+                TargetBounds,
+                TargetShape,
+                AllowDiagonalCrossEdge,
+                out string GuideFailure))
+        {
+            Result.PerpendicularAttach = false;
+            Result.FailureMessage = "Layout guide attach: " + GuideFailure;
+            return Result;
+        }
+
+        (double LayoutX1, double LayoutY1) = Mapper.SvgToLayout(SvgX1, SvgY1);
+        (double LayoutX2, double LayoutY2) = Mapper.SvgToLayout(SvgX2, SvgY2);
+
+        double GuideStartX = LayoutGuidePoints[0].X;
+        double GuideStartY = LayoutGuidePoints[0].Y;
+        double GuideEndX = LayoutGuidePoints[LayoutGuidePoints.Count - 1].X;
+        double GuideEndY = LayoutGuidePoints[LayoutGuidePoints.Count - 1].Y;
+        if (LayoutGuidePoints.Count >= 4)
+        {
+            GuideStartX = LayoutGuidePoints[1].X;
+            GuideStartY = LayoutGuidePoints[1].Y;
+            GuideEndX = LayoutGuidePoints[LayoutGuidePoints.Count - 2].X;
+            GuideEndY = LayoutGuidePoints[LayoutGuidePoints.Count - 2].Y;
+        }
+
+        double GuideDeltaX = GuideEndX - GuideStartX;
+        double GuideDeltaY = GuideEndY - GuideStartY;
+        double LineDeltaX = LayoutX2 - LayoutX1;
+        double LineDeltaY = LayoutY2 - LayoutY1;
+
+        double GuideLength = Math.Sqrt((GuideDeltaX * GuideDeltaX) + (GuideDeltaY * GuideDeltaY));
+        double LineLength = Math.Sqrt((LineDeltaX * LineDeltaX) + (LineDeltaY * LineDeltaY));
+        if (GuideLength <= 1e-6 || LineLength <= 1e-6)
+        {
+            Result.PerpendicularAttach = false;
+            Result.FailureMessage = "Rendered straight line segment is degenerate.";
+            return Result;
+        }
+
+        double AlignmentDot = ((GuideDeltaX / GuideLength) * (LineDeltaX / LineLength))
+            + ((GuideDeltaY / GuideLength) * (LineDeltaY / LineLength));
+        if (AlignmentDot < 0.98)
+        {
+            Result.PerpendicularAttach = false;
+            Result.FailureMessage = "Rendered straight line direction does not match the layout guide.";
         }
 
         return Result;

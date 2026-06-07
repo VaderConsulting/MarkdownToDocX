@@ -566,6 +566,12 @@ public static class FlowchartCurvePathBuilder
                 EndX,
                 EndY);
 
+        if (Points.Count >= 5)
+        {
+            int ApproachIndex = AtTargetEnd ? Points.Count - 2 : 1;
+            return Points[ApproachIndex];
+        }
+
         if (AtTargetEnd)
         {
             if (BoundaryPoints.Count >= 2)
@@ -583,8 +589,7 @@ public static class FlowchartCurvePathBuilder
     }
 
     /// <summary>
-    /// F31/F32 vertical fan routes: pure d3 curveBasis on boundary S-route (Naiad / spec §15).
-    /// Layout may retain stub waypoints for validation; SVG uses boundary points only.
+    /// F31/F32 vertical fan routes: curveBasis on stub-expanded guides when present, otherwise boundary S-route.
     /// </summary>
     /// <summary>
     /// F53/F53A stadium merge: vertical stem at source X, then one cubic into the shoulder attach.
@@ -727,6 +732,11 @@ public static class FlowchartCurvePathBuilder
     {
         if (Points.Count >= 5)
         {
+            return BuildCurveBasisPathData(Points);
+        }
+
+        if (Points.Count == 4)
+        {
             (double StartX, double StartY) = Points[0];
             (double EndX, double EndY) = Points[Points.Count - 1];
             List<(double X, double Y)> BoundaryCurvePoints =
@@ -747,6 +757,11 @@ public static class FlowchartCurvePathBuilder
     public static string BuildHorizontalFanRoutePathData(IReadOnlyList<(double X, double Y)> Points)
     {
         if (Points.Count >= 5)
+        {
+            return BuildCurveBasisPathData(Points);
+        }
+
+        if (Points.Count == 4)
         {
             (double StartX, double StartY) = Points[0];
             (double EndX, double EndY) = Points[Points.Count - 1];

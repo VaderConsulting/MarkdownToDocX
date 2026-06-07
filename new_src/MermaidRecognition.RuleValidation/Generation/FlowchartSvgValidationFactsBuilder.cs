@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using MermaidRecognition.Contract;
+using MermaidRecognition.Flowchart;
 using MermaidRecognition.Layout;
+using MermaidRecognition.Render;
 using MermaidRecognition.RuleValidation.Models;
 
 namespace MermaidRecognition.RuleValidation.Generation;
@@ -24,10 +26,18 @@ public static class FlowchartSvgValidationFactsBuilder
         }
 
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
-        FlowchartSvgEdgeLabelSpineHelper.ApplyStraightSpineLabelCentreFacts(Diagram, Contract, Svg);
+
+        if (FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout))
+        {
+            FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
+            FlowchartLayoutTerminalStubFactsHelper.Apply(Diagram, Contract, Layout, Direction);
+        }
+
+        FlowchartSvgLabelAlignmentHelper.Apply(Diagram, Contract, Svg);
         FlowchartOrthogonalPathFactsHelper.ApplyRenderedSvgOrthogonalPathFacts(Diagram, Contract, Svg);
         FlowchartTrapezoidBracketShapeFactsHelper.ApplyRenderedSvgFacts(Diagram, Contract, Svg);
         FlowchartRenderedEdgePathFactsHelper.Apply(Diagram, Contract, Svg);
+        FlowchartSvgMarkerTangentFactsHelper.Apply(Diagram, Contract, Svg);
         int CircleCount = Regex.Matches(Svg, "<circle", RegexOptions.IgnoreCase).Count;
         int PolygonCount = Regex.Matches(Svg, "<polygon", RegexOptions.IgnoreCase).Count;
         int CrossLineCount = Regex.Matches(Svg, @"<line[^>]+stroke-linecap=""round""", RegexOptions.IgnoreCase).Count;
@@ -77,7 +87,7 @@ public static class FlowchartSvgValidationFactsBuilder
         {
             "Circle" => CirclesSatisfied,
             "Cross" => CrossesSatisfied,
-            "Point" => true,
+            "Point" => ReadRenderedMarkerFact(Edge, "StartAlignedWithPathTangent"),
             "None" => true,
             _ => true
         };
@@ -93,9 +103,20 @@ public static class FlowchartSvgValidationFactsBuilder
         {
             "Circle" => CirclesSatisfied,
             "Cross" => CrossesSatisfied,
-            "Point" => true,
+            "Point" => ReadRenderedMarkerFact(Edge, "EndAlignedWithPathTangent"),
             "None" => true,
             _ => ArrowsSatisfied
         };
+    }
+
+    private static bool ReadRenderedMarkerFact(EdgeActualResult Edge, string FactKey)
+    {
+        if (Edge.MarkerFacts.TryGetValue(FactKey, out object? Value)
+            && Value is bool FactValue)
+        {
+            return FactValue;
+        }
+
+        return true;
     }
 }

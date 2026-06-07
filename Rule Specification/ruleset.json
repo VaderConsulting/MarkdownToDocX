@@ -963,28 +963,11 @@
                       "RuleGroup":  "PortSelection",
                       "AppliesTo":  "Edge",
                       "Severity":  "Error",
-                      "Description":  "Rendered connector tangents enter and exit node faces at right angles with visible terminal stubs on curved corridor, bypass, fan-in/out, and decision routes.",
+                      "Description":  "Every visible connector leaves and enters node faces at right angles through perpendicular terminal stubs on both layout guides and rendered strokes.",
                       "When":  {
                                    "All":  [
                                                {
                                                    "Field":  "Edge.IsVisible",
-                                                   "Operator":  "Equals",
-                                                   "Value":  true
-                                               },
-                                               {
-                                                   "Field":  "Edge.RouteClass",
-                                                   "Operator":  "In",
-                                                   "Value":  [
-                                                                 "LocalDecisionBranch",
-                                                                 "CycleOrReturn",
-                                                                 "LongBypass",
-                                                                 "FanIn",
-                                                                 "FanOut",
-                                                                 "MergeBack"
-                                                             ]
-                                               },
-                                               {
-                                                   "Field":  "Path.RenderedAsSvgPath",
                                                    "Operator":  "Equals",
                                                    "Value":  true
                                                }
@@ -1039,6 +1022,62 @@
                                    ],
                       "DiagnosticTemplate":  "Edge {EdgeId} contains a visible kink in the rendered smooth path.",
                       "SuggestedCorrectionTemplate":  "Simplify guide points or corridor curves so the rendered stroke eases smoothly into terminal stubs."
+                  },
+                  {
+                      "RuleId":  "Render.Label.NodeCentredHorizontally",
+                      "RuleGroup":  "Labels",
+                      "AppliesTo":  "Node",
+                      "Severity":  "Error",
+                      "Description":  "Rendered node labels are centred horizontally within the node body.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Node.IsRendered",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               },
+                                               {
+                                                   "Field":  "Node.Label",
+                                                   "Operator":  "Exists"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Label.CentredHorizontally":  true
+                                  },
+                      "FailWhen":  [
+                                       "NodeLabelOffCentreHorizontally"
+                                   ],
+                      "DiagnosticTemplate":  "Node label on {NodeId} failed Render.Label.NodeCentredHorizontally.",
+                      "SuggestedCorrectionTemplate":  "Centre the node label horizontally within the node bounds in FlowchartSugiyamaSvgRenderer."
+                  },
+                  {
+                      "RuleId":  "Render.Label.NodeCentredVertically",
+                      "RuleGroup":  "Labels",
+                      "AppliesTo":  "Node",
+                      "Severity":  "Error",
+                      "Description":  "Rendered node labels are centred vertically within the node body.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Node.IsRendered",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               },
+                                               {
+                                                   "Field":  "Node.Label",
+                                                   "Operator":  "Exists"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Label.CentredVertically":  true
+                                  },
+                      "FailWhen":  [
+                                       "NodeLabelOffCentreVertically"
+                                   ],
+                      "DiagnosticTemplate":  "Node label on {NodeId} failed Render.Label.NodeCentredVertically.",
+                      "SuggestedCorrectionTemplate":  "Centre the node label vertically within the node bounds in FlowchartSugiyamaSvgRenderer."
                   },
                   {
                       "RuleId":  "Render.Shape.TrapezoidBracketGeometry",
@@ -1505,13 +1544,9 @@
                                                    "Operator":  "Exists"
                                                },
                                                {
-                                                   "Field":  "Edge.RouteClass",
-                                                   "Operator":  "In",
-                                                   "Value":  [
-                                                                 "CentreSpine",
-                                                                 "ShortAdjacent",
-                                                                 "LocalDecisionBranch"
-                                                             ]
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
                                                }
                                            ]
                                },
@@ -1522,6 +1557,62 @@
                                        "LabelOffConnectorSpine"
                                    ],
                       "DiagnosticTemplate":  "Edge label on {EdgeId} failed Routing.Label.CentredOnConnectorSpine.",
+                      "SuggestedCorrectionTemplate":  "Adjust label placement to satisfy label routing constraints."
+                  },
+                  {
+                      "RuleId":  "Routing.Label.CentredOnConnectorHorizontally",
+                      "RuleGroup":  "Labels",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Validate Routing.Label.CentredOnConnectorHorizontally for labelled edges.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.Label",
+                                                   "Operator":  "Exists"
+                                               },
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Label.CentredOnConnectorHorizontally":  true
+                                  },
+                      "FailWhen":  [
+                                       "LabelOffConnectorHorizontally"
+                                   ],
+                      "DiagnosticTemplate":  "Edge label on {EdgeId} failed Routing.Label.CentredOnConnectorHorizontally.",
+                      "SuggestedCorrectionTemplate":  "Adjust label placement to satisfy label routing constraints."
+                  },
+                  {
+                      "RuleId":  "Routing.Label.CentredOnConnectorVertically",
+                      "RuleGroup":  "Labels",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Validate Routing.Label.CentredOnConnectorVertically for labelled edges.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.Label",
+                                                   "Operator":  "Exists"
+                                               },
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Label.CentredOnConnectorVertically":  true
+                                  },
+                      "FailWhen":  [
+                                       "LabelOffConnectorVertically"
+                                   ],
+                      "DiagnosticTemplate":  "Edge label on {EdgeId} failed Routing.Label.CentredOnConnectorVertically.",
                       "SuggestedCorrectionTemplate":  "Adjust label placement to satisfy label routing constraints."
                   },
                   {
@@ -1738,6 +1829,64 @@
                                        "InventedMarker"
                                    ],
                       "DiagnosticTemplate":  "Edge {EdgeId} failed Render.Marker.NotInvented.",
+                      "SuggestedCorrectionTemplate":  "Preserve marker intent from edge token decomposition without loss or invention."
+                  },
+                  {
+                      "RuleId":  "Render.Marker.EndAlignedWithPathTangent",
+                      "RuleGroup":  "Markers",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Markers are attached according to token decomposition and resolved style.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               },
+                                               {
+                                                   "Field":  "Edge.ArrowEnd",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "Point"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Marker.EndAlignedWithPathTangent":  true
+                                  },
+                      "FailWhen":  [
+                                       "EndMarkerTangentDivergence"
+                                   ],
+                      "DiagnosticTemplate":  "Edge {EdgeId} failed Render.Marker.EndAlignedWithPathTangent.",
+                      "SuggestedCorrectionTemplate":  "Preserve marker intent from edge token decomposition without loss or invention."
+                  },
+                  {
+                      "RuleId":  "Render.Marker.StartAlignedWithPathTangent",
+                      "RuleGroup":  "Markers",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Markers are attached according to token decomposition and resolved style.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               },
+                                               {
+                                                   "Field":  "Edge.ArrowStart",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "Point"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Marker.StartAlignedWithPathTangent":  true
+                                  },
+                      "FailWhen":  [
+                                       "StartMarkerTangentDivergence"
+                                   ],
+                      "DiagnosticTemplate":  "Edge {EdgeId} failed Render.Marker.StartAlignedWithPathTangent.",
                       "SuggestedCorrectionTemplate":  "Preserve marker intent from edge token decomposition without loss or invention."
                   },
                   {

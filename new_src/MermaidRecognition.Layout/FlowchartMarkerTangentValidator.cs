@@ -54,39 +54,32 @@ public static class FlowchartMarkerTangentValidator
             return false;
         }
 
-        if (!TryGetUnitDirectionFromSamples(Samples, AtTargetEnd, out double PathDirX, out double PathDirY))
-        {
-            FailureMessage = "Rendered path terminal segment is too short for tangent validation.";
-            return false;
-        }
-
-        (double ApproachX, double ApproachY) = FlowchartCurvePathBuilder.ResolveMarkerApproachPoint(
-            GuidePoints,
-            PathKind,
-            AtTargetEnd);
         (double EndpointX, double EndpointY) = AtTargetEnd
             ? GuidePoints[GuidePoints.Count - 1]
             : GuidePoints[0];
 
-        if (!TryNormalize(EndpointX - ApproachX, EndpointY - ApproachY, out double MarkerDirX, out double MarkerDirY))
+        double ApproachX;
+        double ApproachY;
+        if (!FlowchartRenderedPathMarkerHelper.TryResolveEndpointApproachPoint(
+                Samples,
+                AtTargetEnd,
+                out ApproachX,
+                out ApproachY))
         {
-            FailureMessage = "Marker approach segment is too short for tangent validation.";
-            return false;
+            (ApproachX, ApproachY) = FlowchartCurvePathBuilder.ResolveMarkerApproachPoint(
+                GuidePoints,
+                PathKind,
+                AtTargetEnd);
         }
 
-        double AlignmentDot = (PathDirX * MarkerDirX) + (PathDirY * MarkerDirY);
-        if (AlignmentDot < MIN_TANGENT_ALIGNMENT_DOT)
-        {
-            string EndpointLabel = AtTargetEnd ? "target" : "source";
-            FailureMessage = "Marker tangent at "
-                + EndpointLabel
-                + " endpoint diverges from rendered path (dot="
-                + AlignmentDot.ToString("F3")
-                + ").";
-            return false;
-        }
-
-        return true;
+        return FlowchartRenderedPathMarkerHelper.TryValidateMarkerAxisAlignsWithPath(
+            PathData,
+            EndpointX,
+            EndpointY,
+            ApproachX,
+            ApproachY,
+            AtTargetEnd,
+            out FailureMessage);
     }
 
     private static bool TryValidateStraightEndpointTangent(
@@ -113,31 +106,16 @@ public static class FlowchartMarkerTangentValidator
         double MarkerDirX = AtTargetEnd ? PathDirX : -PathDirX;
         double MarkerDirY = AtTargetEnd ? PathDirY : -PathDirY;
         double AlignmentDot = (PathDirX * MarkerDirX) + (PathDirY * MarkerDirY);
-        if (AlignmentDot < MIN_TANGENT_ALIGNMENT_DOT)
+        bool Aligned = AtTargetEnd
+            ? AlignmentDot >= MIN_TANGENT_ALIGNMENT_DOT
+            : AlignmentDot <= -MIN_TANGENT_ALIGNMENT_DOT;
+        if (!Aligned)
         {
             FailureMessage = "Straight connector marker tangent diverges from guide segment.";
             return false;
         }
 
         return true;
-    }
-
-    private static bool TryGetUnitDirectionFromSamples(
-        IReadOnlyList<(double X, double Y)> Samples,
-        bool AtTargetEnd,
-        out double DirX,
-        out double DirY)
-    {
-        if (AtTargetEnd)
-        {
-            (double StartX, double StartY) = Samples[Samples.Count - 2];
-            (double EndX, double EndY) = Samples[Samples.Count - 1];
-            return TryNormalize(EndX - StartX, EndY - StartY, out DirX, out DirY);
-        }
-
-        (double StartPointX, double StartPointY) = Samples[0];
-        (double NextPointX, double NextPointY) = Samples[1];
-        return TryNormalize(NextPointX - StartPointX, NextPointY - StartPointY, out DirX, out DirY);
     }
 
     private static bool TryNormalize(

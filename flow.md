@@ -47,6 +47,8 @@ Exit code **0** when `validation-report.json` reports `OverallResult: Pass` (no 
 
 **Skipped diagrams (not failures):** F65, F70, F87, F88 — fully remarked; `RulesEngine` skips rule evaluation (`ActualResultsGenerator` diagnostic `RemarkedScenario`).
 
+**Regenerating rules after catalogue changes:** edit `Rule Specification/ruleset-org.json`, then `powershell -File "Rule Specification/Build-Ruleset.ps1"`. See `spec.md` §9.1 and `Rule Specification/Mermaid_Flowchart_Rule_Validation_Specification.md` §3.1.
+
 ### Mandatory gate (mermaid.ink / Mermaid Live)
 
 Every **active** (non-remarked) scenario must pass **structural** (labels, edge count, clusters) **and** **visual** (PNG) comparison against mermaid.ink:
@@ -643,6 +645,8 @@ style Error fill:#f8d7da
 style Success fill:#d1ecf1
 ```
 
+**Layout contract (native — structural, not scenario-named).** Terminal-collector routing applies to the stadium `End` node. Each source (`Success`, `Error`) exits from the **centre-bottom** slot with a vertical stub at source centre X. Each edge lands on the stadium **shoulder** (upper cap), not the top-centre slot. See `spec.md` §5.6 stadium terminal-collector merge, `FlowchartTerminalCollectorPortAllocator`, `FlowchartR1RenderGateTests`.
+
 **Evaluate:** Compare SVG **coordinates** against [mermaid.live](https://mermaid.live) (mermaid.ink reference SVG), **not** PNG pixel diff. SvgHarness extracts node positions and merge-edge path start/end points, normalises shoulder attach offsets relative to the End pill (`endDx` / `endDy`), and gates on coordinate deltas plus geometry invariants (separated shoulders, vertical stub at source X). See `{index}.coordinates.txt` in the harness output folder.
 
 ```powershell
@@ -735,7 +739,7 @@ Persist[(Optional archive)] --> Done
 | Reject → Done | `MergeBack` | Curved | Terminal collector fan-in to Done |
 | Persist → Done | `CentreSpine` | Straight | Centre spine into Done |
 
-**Decision port rule (TB two-branch, collinear `No` target on spine):** use **left** port when no intervening spine-column node sits between source and target (catalogue: F59 `W → Wait`). Use **right** port when a spine-column obstacle lies between source and collinear `No` target (F58 `DoArchive → Done` bypasses Persist). Implemented in `FlowchartDecisionPortAllocator.ResolveVerticalTwoWayDecisionPort` via `HasInterveningSpineColumnNode`.
+**Decision port rule (TB two-branch, collinear `No` target on spine):** use **left** port when no intervening spine-column node sits between source and target (see worker-pool pattern in `spec.md` §5.5). Use **right** port when a spine-column obstacle lies between source and collinear `No` target (`DoArchive → Done` bypasses `Persist` above). Implemented in `FlowchartDecisionPortAllocator.ResolveVerticalTwoWayDecisionPort` via `HasInterveningSpineColumnNode`.
 
 **Render rules exercised:** `Routing.Path.NoOrthogonalPolylineWhenCurveBasisDefault`, `Render.Ports.PerpendicularAttach`, `Routing.Obstacle.NoNodeBodyIntersection` (see `Rule Specification/ruleset.json`).
 
@@ -754,7 +758,7 @@ Client[Client] --> Q
 P --> Out[Output]
 ```
 
-**Routing note:** `W →|No| Wait` is collinear on the worker subgraph spine with no intervening spine-column node between `W` and `Wait`; the `No` branch uses the **left** diamond port (contrast F58 `DoArchive →|No| Done`, which uses the **right** port to bypass Persist). See `spec.md` §5.5.
+**Routing note:** `W →|No| Wait` is collinear on the worker subgraph spine with no intervening spine-column node between `W` and `Wait`; the `No` branch uses the **left** diamond port (contrast `DoArchive →|No| Done` in the multi-route TB integration pattern, which uses the **right** port to bypass `Persist`). See `spec.md` §5.5.
 
 ### F60 — LR diagram with nested TB and cross-links (integration)
 
@@ -778,6 +782,8 @@ T2 --> P1
 P2 --> Sink[Sink]
 I2 -.->|audit copy| P2
 ```
+
+**Layout contract (native).** Sibling TB subgraphs align cross-boundary member rows to a shared spine so primary cross-group edges (`I2→T1`, `T2→P1`, `Source→I1`, `P2→Sink`) can run horizontally at aligned row centres. The dotted audit cross-link (`I2 -.-> P2`) routes via an exterior corridor (`FlowchartCrossSubgraphRouteHelper`) and must not wander through unrelated subgraph bodies when a horizontal span at the aligned row is available. See `spec.md` §5.6 LR sibling subgraphs with cross-links.
 
 ---
 
@@ -899,6 +905,8 @@ Ingress[Ingress] --> a1
 b2 --> Egress[Egress]
 ```
 
+**Layout contract (native).** Parallel subgraph columns align row centres across `one` and `two` (`Ingress` with `b1`, `a1` with `b2`, `a2` with `Egress`) while preserving horizontal column separation. See `spec.md` §5.6 parallel subgraph columns.
+
 ### F74 — Subgraph explicit id and quoted title
 
 ```mermaid
@@ -998,6 +1006,8 @@ LeanLeft[\lean_left \]
 flowchart LR
 A & B e1@--> C
 ```
+
+**Layout contract (native).** Ampersand expansion yields two edges; edge id `e1` applies to `A→C` only. In LR fan-in, **first-declared source `A` stacks above `B`** (creation-order vertical stacking). See `spec.md` §5.6 LR ampersand fan-in creation order.
 
 ### F84 — Nested subgraph membership (inner vs outer)
 

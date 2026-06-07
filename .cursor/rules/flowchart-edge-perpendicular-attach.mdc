@@ -123,10 +123,17 @@ Use the simplest valid route that satisfies the intended style:
 - Fan-out edges should visually spread from the side of the source node that faces their targets.
 - Fan-in edges should visually converge into the side of the target node that faces their sources.
 
+## Corridor and bypass routes (multi-route TB integration pattern)
+
+* Exterior corridor, skip-bypass, and merge-back routes use `BuildCorridorCurveBasisPathData` — straight perpendicular terminal stubs plus smooth curveBasis body.
+* `ShouldUseOrthogonalPolylinePathData` applies only to `RetryLoop` topologies (`A→B→D→A` LR cycle), not corridor/bypass/fan routes.
+* TB collinear negative branch on two-way diamonds: `SideLeft` when unobstructed (`W→Wait` on subgraph spine); `SideRight` when `HasInterveningSpineColumnNode` (`DoArchive→Done` bypassing intervening cylinder).
+* Authoritative Mermaid source patterns: `spec.md` §5.5–§5.6, `Mermaid_Specification.md` §17.5.
+
 ## Primary code
 
 * `FlowchartCurveBulgeHelper.cs` — bulge guides that do not overshoot past source/target stubs on the same hub side
-* `FlowchartCurvePathBuilder.cs` — five-point stub routes use direct cubics; longer routes use curveBasis with smooth terminal approach
+* `FlowchartCurvePathBuilder.cs` — five-point stub routes use direct cubics; longer routes use curveBasis with smooth terminal approach; corridor/bypass via `BuildCorridorCurveBasisPathData`
 * `FlowchartEdgeLabelPlacementHelper.cs` — offset label anchors
 * `FlowchartFanOutPortAllocator.cs` — position-based source ports for non-decision fan-out (side/bottom/right, not all from bottom)
 * `FlowchartFanInPortAllocator.cs` — position-based target ports for non-decision fan-in (mirror of fan-out)

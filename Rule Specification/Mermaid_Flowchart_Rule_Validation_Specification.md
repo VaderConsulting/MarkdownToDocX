@@ -3,7 +3,9 @@
 **Document status:** Build specification  
 **Schema version:** 2.0.0  
 **Primary purpose:** Define the file contracts and rule execution model for validating Mermaid flowchart recognition, node placement, edge routing, labels, markers, geometry diagnostics, and feedback before visual inspection.  
-**Primary inputs:** Mermaid source text extracted from Markdown, including `flow.md` torture-test scenarios and any future Mermaid flowchart.  
+**Primary inputs:** Mermaid source text extracted from Markdown (from any file, including regression catalogues) and any valid Mermaid flowchart.
+
+**Normative citation rule:** this specification describes diagrams by **Mermaid source topology**, not by regression-catalogue scenario numbers. `DiagramId` in generated reports is traceability metadata only.  
 **Primary outputs:** Machine-readable pass/fail diagnostics that can be fed back to an agent or developer until the rendered diagram is ready for SVG comparison and visual inspection.
 
 ---
@@ -12,7 +14,7 @@
 
 The validation system must not be fixture-specific.
 
-The goal is not to encode that `F29` or any other named scenario must look a certain way. The goal is to provide a universal set of rules that can be applied to any Mermaid flowchart after it has been parsed, laid out, routed, and analysed.
+The goal is not to encode that any named catalogue scenario must look a certain way. The goal is to provide a universal set of rules that can be applied to any Mermaid flowchart after it has been parsed, laid out, routed, and analysed. Specifications describe diagrams by **Mermaid source topology**, not by regression-catalogue scenario numbers.
 
 Every Mermaid diagram is treated as input data. The rules decide what applies by evaluating the generated model.
 
@@ -48,20 +50,20 @@ SVG comparison and visual inspection remain separate downstream gates.
 
 ### 2.1 Catalogue remarked diagrams (`Skipped`, not `Fail`)
 
-Some `flow.md` scenarios are **fully remarked**: every non-empty line inside the ` ```mermaid ` fence is prefixed with `%%`. These are documented in `spec.md` §9.1 and `flow.md` *How to use*.
+Some Markdown catalogues contain **fully remarked** diagrams: every non-empty line inside the ` ```mermaid ` fence is prefixed with `%%`. These are documented in `spec.md` §9.1. The harness skips them regardless of which catalogue file contains the source.
 
-| Scenario | `RenderGate` (`ruleset-org.json`) | Recognition axes tracked |
+| Remark pattern (Mermaid source) | `RenderGate` | Recognition axes tracked |
 | --- | --- | --- |
-| F65 | `ExcludedRemarkedScenario` | Metadata shape smoke (`Recognition.Node.MetadataShape`) |
-| F70 | `ExcludedRemarkedScenario` | Semicolon boundaries, comments (`Recognition.Statement.*`) |
-| F87 | `ExcludedRemarkedScenario` | Edge id + `animate: true` metadata |
-| F88 | `ExcludedRemarkedScenario` | Edge id + `classDef` animation on edge id |
+| Metadata shapes: `%% Doc@{ shape: doc }[Document]` | `ExcludedRemarkedScenario` | `Recognition.Node.MetadataShape` |
+| Semicolons and comments: `%% A[Receive]; --> B[Validate] %% hand-off` | `ExcludedRemarkedScenario` | `Recognition.Statement.*` |
+| Edge animate metadata: `%% A e1@==> B` / `%% e1@{ animate: true }` | `ExcludedRemarkedScenario` | Edge id + animation metadata |
+| Edge class animation: `%% classDef animate ...` / `%% class e1 animate` | `ExcludedRemarkedScenario` | `Recognition.Style.ClassDef` on edge id |
 
 **Generation (`ActualResultsGenerator`):** when `ExtractedDiagram.IsFullyRemarked`, the harness sets `ParserSucceeded: true`, `LayoutSucceeded: false`, empty nodes/edges, and diagnostic `RemarkedScenario` (*"Diagram is fully remarked and excluded from layout and routing validation."*).
 
 **Evaluation (`RulesEngine`):** when `Diagram.IsFullyRemarked` or parse failed, `DiagramValidationResult.Result` is **`Skipped`**; no rules from `ruleset.json` run for that diagram.
 
-**Overall pass semantics:** `OverallResult: Pass` means **zero `Error` severity failures** among evaluated diagrams. Skipped diagrams do not contribute errors. A catalogue with 132 scenarios may report `SkippedDiagramCount: 4` and still pass with 128 evaluated diagrams.
+**Overall pass semantics:** `OverallResult: Pass` means **zero `Error` severity failures** among evaluated diagrams. Skipped diagrams do not contribute errors.
 
 ---
 
@@ -78,6 +80,31 @@ The validation system is built from five logical artefacts.
 | `validation-report.json` | Rules engine | Tests, agents, developers | Reports pass/fail results and actionable diagnostics. |
 
 The first three files are specification inputs. The last two files are generated outputs.
+
+### 3.1 Maintaining `ruleset.json` (catalogue overlay)
+
+`ruleset.json` is **generated**, not hand-edited. Maintain per-diagram bindings in [`ruleset-org.json`](ruleset-org.json) keyed by source hash and structural summary — not by catalogue scenario numbers in normative rule text. Fields include:
+
+- `RenderGate`: `Active` or `ExcludedRemarkedScenario`
+- `RequiredGenericRuleIds`: which universal rules must pass when that source topology is evaluated
+- `ExpectedIntentAxes`: recognition, routing, and render axis tags for documentation
+
+Regenerate the production ruleset:
+
+```powershell
+powershell -File "Rule Specification/Build-Ruleset.ps1"
+```
+
+`Build-Ruleset.ps1` reads `ruleset-org.json` generic-rule descriptions, merges them with universal rule templates defined in the script, and writes `ruleset.json` (schema **v2.0.0**).
+
+### 3.2 Implementation packages (repository)
+
+| Package / project | Role |
+| --- | --- |
+| `new_src/MermaidRecognition.RuleValidation/` | `RulesEngine`, evaluators, `ActualResultsGenerator`, models |
+| `new_src/MermaidRecognition.RuleValidation.Tests/` | Rule/evaluator integrity and integration tests |
+| `new_src/MermaidRecognition.Layout/` | `FlowchartSugiyamaLayoutEngine`, structural routing, SVG render, diagnostic analysers |
+| `src/RuleValidationHarness/` | CLI: Markdown → `actual-results.json` → `validation-report.json` |
 
 ---
 
@@ -259,13 +286,13 @@ Good:
 }
 ```
 
-Bad:
+Bad (must not select rules by catalogue scenario id):
 
 ```json
 {
   "Field": "DiagramId",
   "Operator": "Equals",
-  "Value": "F29"
+  "Value": "catalogue-scenario-29"
 }
 ```
 
@@ -632,7 +659,7 @@ The initial `ruleset.json` must contain at least the rules below.
 | `Subgraph.InternalEdgesRemainInside` | Edge | Internal group edges route within the group when possible. |
 | `Subgraph.CrossBoundaryEdgesAreClear` | Edge | Cross-boundary edges clip and route without confusing group membership. |
 | `Subgraph.NestedOwnershipDeterministic` | Group | Nested group ownership is deterministic and not duplicated. |
-| `Layout.Subgraph.SiblingMinimumGap` | Group | Sibling subgraph cluster boxes maintain at least **24px** exterior gap on the primary flow axis (cluster bounds including padding and title band). Catalogue: `F40` (LR), `F111` (TB). |
+| `Layout.Subgraph.SiblingMinimumGap` | Group | Sibling subgraph cluster boxes maintain at least **24px** exterior gap on the primary flow axis (cluster bounds including padding and title band). Applies to LR side-by-side subgraph siblings and TB stacked subgraph siblings with cross-boundary edges. |
 
 ### 11.10 Anti-pattern rules
 
@@ -692,7 +719,7 @@ A failure message must be specific enough to guide correction.
 Bad failure:
 
 ```text
-F29 failed.
+Diagram failed.
 ```
 
 Good failure:
@@ -701,33 +728,6 @@ Good failure:
 Edge Check_to_Fail failed Routing.Obstacle.NoNodeBodyIntersection.
 The path segment from (120, 220) to (310, 220) intersects node OK bounds.
 Route the branch outside the sibling branch corridor before entering Fail.
-
----
-
-## 12. Catalogue reference diagram — F58 (implementation harness)
-
-`F58` in `flow.md` is the primary **integration harness** for routing rule validation. Rules remain generic (no `if DiagramId == "F58"` selectors); the scenario is useful because one diagram exercises many route kinds together.
-
-**Semantic route classes** (`FlowchartEdgeRouteClassifier`, TB layout):
-
-| Edge | Class |
-| --- | --- |
-| Spine chain (Start–Ingest–Validate–Parse–HasMermaid–Word–DoArchive–Persist–Done segments) | `CentreSpine` |
-| Validate → Reject | `LongExceptionRoute` → rule `Routing.Class.LongBypass` |
-| HasMermaid → Render / Word | `LocalDecisionBranch` |
-| Render → Word, Reject → Done | `MergeBack` |
-| DoArchive → Done (`No`, Persist on spine between) | `SkipBypass` |
-
-**Structural checks encoded in tests and render rules:**
-
-- Exterior exception (Validate → Reject): five guide points; corridor outside spine column.
-- Skip bypass (DoArchive → Done): right decision port; bypass outside `FlowchartSpineCorridorBounds`; no intersection with Persist cylinder in rendered or guide sampling.
-- Merge-back (Render → Word): six guide points; `Render.Ports.PerpendicularAttach` on rendered SVG.
-- Default curveBasis: no multi-segment orthogonal polylines on corridor/bypass/fan routes (`Routing.Path.NoOrthogonalPolylineWhenCurveBasisDefault`).
-
-**Collinear decision `No` port (TB, two branches, target on spine column):** `SideLeft` when unobstructed (contrast F59); `SideRight` when `HasInterveningSpineColumnNode` (F58 bypass around cylinder).
-
-Implementation types: `FlowchartSkipBypassRouteBuilder`, `FlowchartLongExceptionRouteBuilder`, `FlowchartMergeBackRouteBuilder`, `FlowchartCurvePathBuilder.BuildCorridorCurveBasisPathData`, `FlowchartRenderedPathValidator`.
 ```
 
 Every failure must include:
@@ -858,3 +858,115 @@ The tests must be built against this specification, not against fixture-specific
 | Expected contract | Required structure and completeness of generated actual results and validation report. |
 | Fixture | Input diagram used to exercise rules; not the rule source. |
 | Visual inspection | Human review after diagnostic and SVG comparison gates. |
+
+---
+
+## 20. Appendix — reference diagrams (Mermaid source)
+
+Appendix diagrams are **structural patterns** for tests and documentation. Rules must not branch on `DiagramId`, catalogue scenario numbers, or node display text. Authoritative prose: `spec.md` §5.5–§5.6, `Mermaid_Specification.md` §17.5.
+
+### 20.1 Multi-route TB integration
+
+```mermaid
+flowchart TD
+Start([Start]) --> Ingest[Ingest file]
+Ingest --> Validate{Valid markdown?}
+Validate -->|No| Reject[Reject with error]
+Validate -->|Yes| Parse[Parse blocks]
+Parse --> HasMermaid{Mermaid fence?}
+HasMermaid -->|Yes| Render[Render SVG]
+HasMermaid -->|No| Word[Build DOCX]
+Render --> Word
+DoArchive{Archive?}
+Word --> DoArchive
+DoArchive -->|Yes| Persist
+DoArchive -->|No| Done
+Reject --> Done
+Persist[(Optional archive)] --> Done
+```
+
+| Edge (by node id) | Class | Rule axis (typical) |
+| --- | --- | --- |
+| Spine chain through `Start`…`Done` (excluding labelled branches below) | `CentreSpine` | straight spine attach |
+| `Validate→Reject` | `LongExceptionRoute` | `Routing.Class.LongBypass` |
+| `HasMermaid→Render`, `HasMermaid→Word` | `LocalDecisionBranch` | `Routing.LocalDecisionBranch` |
+| `Render→Word`, `Reject→Done` | `MergeBack` | `Routing.MergeBack` |
+| `DoArchive→Done` with `Persist` on spine between | `SkipBypass` | `Routing.Class.SkipBypass` |
+
+Implementation: `FlowchartSkipBypassRouteBuilder`, `FlowchartLongExceptionRouteBuilder`, `FlowchartMergeBackRouteBuilder`, `FlowchartCurvePathBuilder`, `FlowchartRenderedPathValidator`, `FlowchartDecisionPortAllocator`.
+
+### 20.2 Additional structural patterns
+
+**Stadium terminal-collector merge:**
+
+```mermaid
+flowchart TD
+Success --> End([End])
+Error --> End
+```
+
+**LR sibling subgraphs with dotted cross-link:**
+
+```mermaid
+flowchart LR
+subgraph Ingest["Ingest"]
+  direction TB
+  I1[Receive drop] --> I2[Verify manifest]
+end
+subgraph Transform["Transform"]
+  direction TB
+  T1[Normalise] --> T2[Translate]
+end
+subgraph Publish["Publish"]
+  direction TB
+  P1[Package] --> P2[Release]
+end
+Source[Source] --> I1
+I2 --> T1
+T2 --> P1
+P2 --> Sink[Sink]
+I2 -.->|audit copy| P2
+```
+
+**Parallel subgraph columns:**
+
+```mermaid
+flowchart TB
+subgraph one
+  a1[Alpha] --> a2[Beta]
+end
+subgraph two
+  b1[Gamma] --> b2[Delta]
+end
+Ingress[Ingress] --> a1
+b2 --> Egress[Egress]
+```
+
+**LR ampersand fan-in:**
+
+```mermaid
+flowchart LR
+A & B e1@--> C
+```
+
+**Collinear negative branch (left port when unobstructed):**
+
+```mermaid
+flowchart TB
+subgraph Worker["Worker pool"]
+  direction TB
+  Q[Queue] --> W{Worker free?}
+  W -->|Yes| P[Process job]
+  W -->|No| Wait[Wait]
+end
+```
+
+**LR retry loop (orthogonal polyline route kind):**
+
+```mermaid
+flowchart LR
+A[Receive] --> B{OK?}
+B -->|Yes| C[Done]
+B -->|No| D[Retry]
+D --> A
+```

@@ -1,6 +1,6 @@
 # MarkdownToDocX — programme status
 
-**Last updated:** 2026-05-31 (pass 41 — F29 branch order, F33 spine, F34 retry route)
+**Last updated:** 2026-06-07 (pass 42 — rule validation harness, F58 routing, layout contracts)
 
 **Specification:** [`spec.md`](spec.md) (normative — what the solution must do)
 
@@ -37,11 +37,13 @@ dotnet test new_src/MermaidRecognition.Tests/MermaidRecognition.Tests.csproj
 | **Default DOCX render path (flowcharts)** | **Native pilot** — `md2docx` default: MermaidRecognition → **Sugiyama SVG**; legacy Naiad fallback when native fails |
 | **Default DOCX render path (other kinds)** | **Legacy** — direct Naiad until per-kind native adapters exist |
 | **Native render (product path)** | **Pilot** — Sugiyama SVG uses `FlowchartRenderOptions` (theme + style + §3.17 layout/typography); comparison DOCX |
-| **Tests (`MermaidRecognition.Tests`)** | **930** passing |
-| **Tests (`MermaidRecognition.Layout.Tests`)** | **47** passing |
+| **Tests (`MermaidRecognition.Tests`)** | **943** passing |
+| **Tests (`MermaidRecognition.Layout.Tests`)** | **208** total (**194** passing; 14 failing — see pass 42) |
+| **Tests (`MermaidRecognition.RuleValidation.Tests`)** | **48** passing |
 | **Tests (`MermaidRecognition.NaiadAdapter.Tests`)** | **47** passing |
+| **Rule validation harness (`flow.md`)** | **Pass** — 132 scenarios, 128 evaluated, 4 skipped (F65/F70/F87/F88), **0** errors |
 
-**Progress shorthand:** `L1: 22/22` · `started kinds L4: 9/9` · `tests: 1024` · pass 41 (uncommitted) · [`parity-roadmap.md`](parity-roadmap.md)
+**Progress shorthand:** `L1: 22/22` · `started kinds L4: 9/9` · `rule harness: 0 errors` · pass 42 · [`parity-roadmap.md`](parity-roadmap.md)
 
 ---
 
@@ -261,6 +263,33 @@ dotnet run --project src/md2docx/md2docx.csproj -- flow.md flow.docx --use-legac
 | Tests | `FlowchartCatalogueRenderTests.cs` | F29, F33, F34 |
 
 **Suite after pass 41:** **930** recognition + **47** layout + **47** NaiadAdapter = **1024** total.
+
+### Pass 42 — Rule validation harness, F58 corridor routing, layout contracts (2026-06-07)
+
+**Commit:** `de1a0e8` — structural rule-validation pipeline, Sugiyama routing depth, specification back-fill.
+
+| Deliverable | Location | Notes |
+| --- | --- | --- |
+| Rule validation library | `new_src/MermaidRecognition.RuleValidation/` | `RulesEngine`, evaluators, `ActualResultsGenerator` |
+| Rule validation tests | `new_src/MermaidRecognition.RuleValidation.Tests/` | 48 passing |
+| CLI harness | `src/RuleValidationHarness/` | `flow.md` → `actual-results.json` + `validation-report.json` |
+| Rule artefacts | `Rule Specification/` | `ruleset.json` (generated), `ruleset-org.json` (catalogue overlay), `Build-Ruleset.ps1` |
+| F58 skip-bypass | `FlowchartDecisionPortAllocator`, `FlowchartSkipBypassRouteBuilder` | Right `No` port when `HasInterveningSpineColumnNode`; obstacle-aware return chord |
+| F58 corridor SVG | `FlowchartCurvePathBuilder` | `BuildCorridorCurveBasisPathData`; orthogonal polylines only for `RetryLoop` (F34) |
+| F53A stadium merge | `FlowchartTerminalCollectorPortAllocator` | Centre-bottom exit; shoulder attach on upper cap |
+| F60 cross-subgraph | `FlowchartCrossSubgraphRouteHelper`, `FlowchartSubgraphLayoutPostProcessor` | Spine-aligned sibling rows; exterior dotted cross-link corridor |
+| F73 parallel columns | `FlowchartSubgraphLayoutPostProcessor` | `AlignParallelSubgraphColumns` |
+| F83 LR fan-in order | Layout post-processor | First-declared ampersand source above second |
+| Specifications | `spec.md` §5.5–§5.6, §9.1; `flow.md`; `Mermaid_Specification.md` §17.5; rule-validation spec §3.1, §20 | Catalogue harness contracts + `Build-Ruleset` workflow |
+
+**`flow.md` rule-validation gate:** **132** scenarios · **128** evaluated · **4** skipped (fully remarked F65, F70, F87, F88) · **0** errors · `OverallResult: Pass`.
+
+```powershell
+dotnet run --project src/RuleValidationHarness/RuleValidationHarness.csproj -c Release -- flow.md out/flow-rule-validation "Rule Specification"
+powershell -File "Rule Specification/Build-Ruleset.ps1"
+```
+
+**Suite after pass 42:** **943** recognition + **194**/208 layout + **48** rule validation + **47** NaiadAdapter. Layout: **14** tests failing (investigate before claiming full layout green).
 
 ### Pass 40 — F21 cross marker, F28 minlen, F32 fan-in (2026-05-31)
 
@@ -578,7 +607,7 @@ Stage 11.A recognition exit is **met and exceeded**. Stage **11.B** routing pilo
 
 Automated: `new_src/MermaidRecognition.Tests/Truthfulness/TruthfulnessChecklistTests.cs` (+ `LegacyNaiadLabelSemanticsTests`, `FlowchartRouterLabelInvarianceTests`).
 
-| Statement | As of pass 27 |
+| Statement | As of pass 42 |
 | --- | --- |
 | `flow.md` visual catalogue is valuable | Yes |
 | Legacy Naiad renders most F01–F60 (comparison baseline) | Largely yes — not a product target |
@@ -589,7 +618,9 @@ Automated: `new_src/MermaidRecognition.Tests/Truthfulness/TruthfulnessChecklistT
 | `FlowchartRouter` exists | **Yes** — `Render/FlowchartRouter.cs`; structural routing on `DiagramContract` |
 | Label `Yes`/`No` affects legacy Naiad routing | **Yes** — documented by `LegacyNaiadLabelSemanticsTests` (`CoordinateAssignment.cs`) |
 | Native router ignores all edge label text | **Yes** — `FlowchartRouterLabelInvarianceTests` (variants, mutation, static gate) |
-| Native render from `DiagramContract` | **Partial (pilot)** — Sugiyama SVG with shapes, theme + style/classDef/linkStyle strokes, §3.17 layout defaults |
+| Native render from `DiagramContract` | **Partial (pilot)** — Sugiyama SVG with shapes, structural routing (corridor/bypass/fan), theme + style/classDef/linkStyle strokes, §3.17 layout defaults |
+| `flow.md` rule-validation harness passes | **Yes** — 0 errors on 128 active diagrams (4 remarked skipped) |
+| Rules generated from `ruleset-org.json` | **Yes** — `Build-Ruleset.ps1` → `ruleset.json` v2.0.0 |
 | md2docx default flowchart renderer is Sugiyama | **Yes** — `FlowchartRecognitionRenderBridge` → `NativeFlowchartRenderBridge`; Naiad fallback |
 | Native SVG uses Mermaid theme defaults | **Yes (default theme)** — `FlowchartRenderOptions` reads `effectiveConfig` / `themeVariables.*` |
 | Native layout uses flowchart spacing defaults | **Yes (pilot)** — measured nodes + `nodeSpacing` / `rankSpacing` / `diagramPadding` from `effectiveConfig` |
