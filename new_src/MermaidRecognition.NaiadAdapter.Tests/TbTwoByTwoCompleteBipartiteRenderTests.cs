@@ -22,7 +22,7 @@ public sealed class TbTwoByTwoCompleteBipartiteRenderTests
     [Test]
     public void TryRenderFlowchartSvg_GroupedTwoByTwo_ProducesFourDistinctConnectors()
     {
-        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderLegacyNaiadFlowchartSvg(
             GROUPED_TWO_BY_TWO_SOURCE,
             RenderOptions.Default,
             out string Svg);

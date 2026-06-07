@@ -16,7 +16,7 @@ public sealed class LinkStyleDefaultRenderTests
             linkStyle default stroke:#c60,stroke-width:3px
             """;
 
-        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderLegacyNaiadFlowchartSvg(
             Source,
             RenderOptions.Default,
             out string Svg);

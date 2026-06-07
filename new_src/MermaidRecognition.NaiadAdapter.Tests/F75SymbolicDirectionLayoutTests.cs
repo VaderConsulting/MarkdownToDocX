@@ -42,7 +42,7 @@ public sealed class F75SymbolicDirectionLayoutTests
     [Test]
     public void TryRenderFlowchartSvg_F75_Succeeds()
     {
-        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderLegacyNaiadFlowchartSvg(
             F75_SOURCE,
             RenderOptions.Default,
             out string Svg);

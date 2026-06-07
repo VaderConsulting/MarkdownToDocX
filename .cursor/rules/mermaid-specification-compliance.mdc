@@ -1,0 +1,62 @@
+---
+description: Follow Mermaid_Specification.md as authoritative; document deviations with good reason
+alwaysApply: true
+---
+
+# Mermaid specification compliance
+
+**Authoritative document:** `MarkdownToDocX/Mermaid_Specification.md`
+
+All Mermaid flowchart geometry, edge routing, port selection, curve rendering, line-end markers, shape catalogue, and layout/render behaviour in this project must follow that file unless there is a documented, justified deviation.
+
+## Precedence
+
+1. **`Mermaid_Specification.md`** — consolidated flowchart geometry and rendering rules (TS-traced where marked `closed`).
+2. **`spec.md`** — recognition contract, parser behaviour, and broader MarkdownToDocX scope. Where it conflicts with `Mermaid_Specification.md` on **drawing geometry**, prefer `Mermaid_Specification.md`.
+3. **Fixture catalogue (`flow.md`)** — visual regression only; not a substitute for the specification.
+
+Where amalgamated sources conflict inside `Mermaid_Specification.md`, the **newest** cited source wins (see §1).
+
+## Before changing behaviour
+
+1. Read the relevant section in `Mermaid_Specification.md` (search by fixture id, diagram type, or topic).
+2. Trace upstream `mermaid/` sources when the spec cites them and the rule is marked `closed`.
+3. Implement to match the spec rule, not an ad hoc visual preference.
+4. Validate against the cited fixture in `flow.md` / `flow.docx` when the spec references one (F29, F30, F31, F32, etc.).
+
+## Deviations
+
+Do **not** deviate silently. A deviation is acceptable only when:
+
+- the spec marks the rule `runtime-dependent` and native code cannot reproduce browser measurement exactly; or
+- the project deliberately uses a different layout engine (e.g. native Sugiyama vs Dagre) and the spec documents the parity target; or
+- upstream Mermaid behaviour is incorrect for Word/DOCX output and the spec already records a **Naiad** or **Word-first parity** note.
+
+When deviating:
+
+- state **what** diverges and **why** (one or two sentences);
+- prefer updating `Mermaid_Specification.md` with a **Naiad** / parity note per §1.1 if the deviation is intentional and permanent;
+- do not replace spec-compliant routing with a simpler heuristic that breaks closed rules (e.g. all fan-out from bottom edge, `curveBasis` on two-point chords, `minlen` from label width).
+
+## Flowchart rules to honour (non-exhaustive)
+
+| Topic | Spec section | Requirement |
+|---|---|---|
+| Node sizing (rect/diamond) | §6.1 | dagre-wrapper formulae; padding 8; diamond `S = W0 + H0` |
+| Edge labels / `minlen` | §6.2–6.3 | Label bbox before layout; `minlen` from stroke length only |
+| Boundary intersection | §8 | Edges terminate on shape boundary, not centre |
+| Two-point paths | §15.0A | Straight `M… L…`; no `curveBasis` bow on aligned chords |
+| Decision fan-out (F29/F30) | §15 (Decision branch links) | Diamond side exits; S-route; top-centre target entry; straight spine when aligned |
+| Hub fan-out (F31) | §15 | Left / bottom-centre / right source ports; mirrored S-curves |
+| Fan-in (F32) | §15 | Top-left / top-centre / top-right exits; aggregate bottom-centre entry |
+| Port slots | §15 (Vertical port rule) | `2N−1` slots; small-N inboard ports, not corners |
+| `curveBasis` default | §15.0 | Basis smoothing on multi-point routes; `fixCorners` / neo / rounded exceptions as specified |
+| Subgraph cross-boundary | §15.0B | Straight group→group segments; bottom→top when stacked TB |
+
+## Native layout note
+
+`new_src/MermaidRecognition.Layout` implements native Sugiyama flowchart layout and SVG render. It must still satisfy the **geometry and routing outcomes** in `Mermaid_Specification.md` even when the internal pipeline differs from Dagre (guide points, `FlowchartFanOutPortAllocator`, `FlowchartDecisionPortAllocator`, `FlowchartCurvePathBuilder`, etc.).
+
+## Recording new rules
+
+Per §1.1: rules traced from Mermaid TypeScript must be added to `Mermaid_Specification.md` under the correct diagram-type section (with Source, Rule, Closure, optional Naiad note) before the work is considered complete.

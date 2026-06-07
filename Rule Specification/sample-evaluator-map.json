@@ -1,0 +1,35 @@
+{
+  "SchemaVersion": "2.0.0",
+  "Name": "MermaidFlowchartEvaluatorMap",
+  "EvaluatorBindings": [
+    {
+      "RuleId": "Routing.Obstacle.NoNodeBodyIntersection",
+      "EvaluatorId": "NoNodeBodyIntersectionEvaluator",
+      "EvaluatorType": "Geometry",
+      "InputModel": "ActualResults",
+      "AppliesTo": "Edge",
+      "RequiredFields": [
+        "Edges[].EdgeId",
+        "Edges[].Path.Points",
+        "Edges[].SourceNodeId",
+        "Edges[].TargetNodeId",
+        "Nodes[].NodeId",
+        "Nodes[].Bounds"
+      ],
+      "ToleranceProfileId": "StrictIntersection",
+      "FailureCode": "ROUTE_NODE_BODY_INTERSECTION"
+    },
+    {
+      "RuleId": "Diagnostics.NoScenarioNameDrivenRouting",
+      "EvaluatorId": "NoScenarioNameDrivenRoutingEvaluator",
+      "EvaluatorType": "StaticAnalysis",
+      "InputModel": "ActualResults",
+      "AppliesTo": "Implementation",
+      "RequiredFields": [
+        "Implementation.StaticAnalysis.Selectors"
+      ],
+      "ToleranceProfileId": "None",
+      "FailureCode": "SCENARIO_NAME_ROUTING_SELECTOR"
+    }
+  ]
+}

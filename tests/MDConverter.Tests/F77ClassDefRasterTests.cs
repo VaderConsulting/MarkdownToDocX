@@ -20,7 +20,7 @@ public sealed class F77ClassDefRasterTests
     [TestMethod]
     public void TryRasterizeSvgToPng_F77Recognition_PreservesLaneClassColours()
     {
-        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderLegacyNaiadFlowchartSvg(
             F77_SOURCE,
             RenderOptions.Default,
             out string Svg);

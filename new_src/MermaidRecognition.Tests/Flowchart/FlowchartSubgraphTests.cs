@@ -49,6 +49,60 @@ public class FlowchartSubgraphTests
     }
 
     [Test]
+    public void F44_ForwardReferenceIntoNestedSubgraph_MovesNodeToInnerOnExplicitDeclaration()
+    {
+        DiagramContract Contract = FlowchartRecognizer.Parse("""
+            flowchart TB
+            subgraph Outer["Outer"]
+              direction TB
+              Start[Start] --> InnerTop
+              subgraph Inner["Inner TB"]
+                direction TB
+                InnerTop[Inner top] --> InnerBottom[Inner bottom]
+              end
+              InnerBottom --> End[End]
+            end
+            """);
+
+        NodeContract InnerTop = Contract.Nodes.Single(Node => Node.Id == "InnerTop");
+        GroupContract Inner = Contract.Groups.Single(Group => Group.Id == "Inner");
+        GroupContract Outer = Contract.Groups.Single(Group => Group.Id == "Outer");
+
+        Assert.That(InnerTop.ParentGroupId, Is.EqualTo("Inner"));
+        Assert.That(Inner.ChildNodeIds, Is.EquivalentTo(new[] { "InnerTop", "InnerBottom" }));
+        Assert.That(Outer.ChildNodeIds, Is.EquivalentTo(new[] { "Start", "End" }));
+    }
+
+    [Test]
+    public void F45_TwoLevelNesting_AssignsNodesToCorrectSubgraphs()
+    {
+        DiagramContract Contract = FlowchartRecognizer.Parse("""
+            flowchart TB
+            subgraph L0["Level 0"]
+              direction TB
+              A[A] --> B[B]
+              subgraph L1["Level 1"]
+                direction TB
+                subgraph L2["Level 2"]
+                  direction TB
+                  C[C] --> D[D]
+                end
+              end
+              B --> C
+              D --> E[E]
+            end
+            """);
+
+        Assert.That(Contract.Nodes.Single(Node => Node.Id == "A").ParentGroupId, Is.EqualTo("L0"));
+        Assert.That(Contract.Nodes.Single(Node => Node.Id == "B").ParentGroupId, Is.EqualTo("L0"));
+        Assert.That(Contract.Nodes.Single(Node => Node.Id == "C").ParentGroupId, Is.EqualTo("L2"));
+        Assert.That(Contract.Nodes.Single(Node => Node.Id == "D").ParentGroupId, Is.EqualTo("L2"));
+        Assert.That(Contract.Nodes.Single(Node => Node.Id == "E").ParentGroupId, Is.EqualTo("L0"));
+        Assert.That(Contract.Groups.Single(Group => Group.Id == "L0").ChildNodeIds, Is.EquivalentTo(new[] { "A", "B", "E" }));
+        Assert.That(Contract.Groups.Single(Group => Group.Id == "L2").ChildNodeIds, Is.EquivalentTo(new[] { "C", "D" }));
+    }
+
+    [Test]
     public void F43_NestedSubgraphWithoutSpaceBeforeBracket_PreservesHierarchy()
     {
         DiagramContract Contract = FlowchartRecognizer.Parse(

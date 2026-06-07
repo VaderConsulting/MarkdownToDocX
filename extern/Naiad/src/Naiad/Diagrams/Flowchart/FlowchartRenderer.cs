@@ -3808,7 +3808,8 @@ public partial class FlowchartRenderer(ILayoutEngine? layoutEngine = null) :
 
         Position P0 = lineData[0];
         Position P3 = lineData[lineData.Count - 1];
-        return Math.Abs(P3.X - P0.X) > 0.75 && Math.Abs(P3.Y - P0.Y) > 0.75;
+        // F40 LR face-to-face links are often horizontally aligned; still require curveBasis (not a straight L segment).
+        return Math.Abs(P3.X - P0.X) > 0.75 || Math.Abs(P3.Y - P0.Y) > 0.75;
 #pragma warning restore IDE0007
     }
 

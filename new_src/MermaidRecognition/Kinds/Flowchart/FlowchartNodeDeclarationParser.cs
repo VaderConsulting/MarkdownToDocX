@@ -113,7 +113,7 @@ public static class FlowchartNodeDeclarationParser
         }
 
         FlowchartNodeRecord Node = Database.GetOrCreateNode(NodeId);
-        Database.AddNodeToCurrentSubgraphOnce(NodeId);
+        Database.AssignExplicitNodeToCurrentSubgraph(NodeId);
 
         MermaidSourceSpan Span = new MermaidSourceSpan(0, 0, LineIndex, 0, LineIndex, Trimmed.Length);
         Node.DeclarationsMutable.Add(new MermaidDeclaration("vertex", Trimmed, Span));

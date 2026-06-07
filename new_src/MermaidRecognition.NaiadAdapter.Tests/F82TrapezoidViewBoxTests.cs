@@ -14,7 +14,7 @@ public sealed class F82TrapezoidViewBoxTests
     [Test]
     public void TryRenderFlowchartSvg_F82Pair_ViewBoxIncludesSlantedShapeOutset()
     {
-        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderLegacyNaiadFlowchartSvg(
             F82_PAIR_SOURCE,
             RenderOptions.Default,
             out string Svg);

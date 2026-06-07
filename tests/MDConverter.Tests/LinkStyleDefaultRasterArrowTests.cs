@@ -20,7 +20,7 @@ public sealed class LinkStyleDefaultRasterArrowTests
     [TestMethod]
     public void ExpandSvgFlowchartMarkers_LinkStyleDefault_InlinesOrangeArrowheads()
     {
-        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderLegacyNaiadFlowchartSvg(
             F68_SOURCE,
             RenderOptions.Default,
             out string Svg);
@@ -44,7 +44,7 @@ public sealed class LinkStyleDefaultRasterArrowTests
     [TestMethod]
     public void TryRasterizeSvgToPng_LinkStyleDefault_ArrowPixelsMatchEdgeStroke()
     {
-        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderLegacyNaiadFlowchartSvg(
             F68_SOURCE,
             RenderOptions.Default,
             out string Svg);

@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/mermaid/expected-contract.schema.json",
+  "title": "Mermaid Flowchart Expected Contract",
+  "type": "object",
+  "required": [
+    "SchemaVersion",
+    "Name",
+    "ActualResultsContract",
+    "ValidationReportContract",
+    "ToleranceProfiles",
+    "DiagnosticRequirements"
+  ],
+  "properties": {
+    "SchemaVersion": {
+      "type": "string"
+    },
+    "Name": {
+      "type": "string"
+    },
+    "ActualResultsContract": {
+      "type": "object"
+    },
+    "ValidationReportContract": {
+      "type": "object"
+    },
+    "ToleranceProfiles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "ToleranceProfileId"
+        ],
+        "properties": {
+          "ToleranceProfileId": {
+            "type": "string"
+          },
+          "DistanceTolerancePx": {
+            "type": "number"
+          },
+          "AngleToleranceDegrees": {
+            "type": "number"
+          },
+          "AlignmentTolerancePx": {
+            "type": "number"
+          },
+          "IntersectionTolerancePx": {
+            "type": "number"
+          },
+          "LabelAttachmentTolerancePx": {
+            "type": "number"
+          },
+          "PortSnapTolerancePx": {
+            "type": "number"
+          },
+          "MinimumMergePortSeparationPx": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "DiagnosticRequirements": {
+      "type": "object"
+    }
+  }
+}

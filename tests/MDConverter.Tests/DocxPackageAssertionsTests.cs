@@ -170,8 +170,8 @@ public sealed class DocxPackageAssertionsTests
             :::
             """);
 
-        Assert.IsGreaterThanOrEqualTo(2, Package.EntryNames.Count(Name => Name.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)),
-            "Expected both Mermaid diagrams to be embedded as SVG media parts.");
+        Assert.IsGreaterThanOrEqualTo(2, CountEmbeddedMermaidImages(Package),
+            "Expected both Mermaid diagrams to be embedded as PNG or SVG media parts.");
 
         Assert.IsGreaterThanOrEqualTo(Package.Document.Descendants(W + "drawing").Count(), 2,
             "Expected both Mermaid fences to become Word drawing elements.");
@@ -182,16 +182,29 @@ public sealed class DocxPackageAssertionsTests
         Assert.IsFalse(Text.Contains("sequenceDiagram", StringComparison.Ordinal),
             "Colon-fenced Mermaid source should not be emitted as visible code text when SVG rendering succeeds.");
 
-        Assert.IsFalse(Package.ReadEntries(".svg").Any(Svg => Svg.Contains("<foreignObject", StringComparison.OrdinalIgnoreCase)),
-            "Embedded Mermaid SVG should not use foreignObject labels because Word does not reliably render them.");
+        string FlowchartSvg = Mermaid.Render(
+            """
+            flowchart TD
+                A[Start] --> B[Done]
+            """,
+            RenderOptions.Default);
+        string SequenceSvg = Mermaid.Render(
+            """
+            sequenceDiagram
+                Alice->>Bob: Hello
+                Bob-->>Alice: Hi
+            """,
+            RenderOptions.Default);
+        Assert.IsFalse(FlowchartSvg.Contains("<foreignObject", StringComparison.OrdinalIgnoreCase),
+            "Flowchart SVG should not use foreignObject labels because Word does not reliably render them.");
+        Assert.IsFalse(SequenceSvg.Contains("<foreignObject", StringComparison.OrdinalIgnoreCase),
+            "Sequence SVG should not use foreignObject labels because Word does not reliably render them.");
     }
 
     [TestMethod]
     public void GeneratedDocx_RendersSupportedMermaidExampleSyntax()
     {
-        using var Package = CreatePackage(
-            """
-            ```mermaid
+        const string ClassDiagramSource = """
             classDiagram
             class Animal {
             +String name
@@ -201,16 +214,16 @@ public sealed class DocxPackageAssertionsTests
             +bark()
             }
             Animal <|-- Dog
-            ```
+            """;
 
-            ```mermaid
+        const string MindmapSource = """
             mindmap
               MarkdownToDocX
                 Markdown
                 Mermaid
-            ```
+            """;
 
-            ```mermaid
+        const string KanbanSource = """
             kanban
             todo[To do]
             docs[Add docs]
@@ -218,9 +231,9 @@ public sealed class DocxPackageAssertionsTests
             mermaid[Render Mermaid]
             done[Done]
             tables[Tables]
-            ```
+            """;
 
-            ```mermaid
+        const string GitGraphSource = """
             gitGraph
                 commit id: "start"
                 branch diagrams
@@ -228,20 +241,44 @@ public sealed class DocxPackageAssertionsTests
                 commit id: "svg"
                 checkout main
                 merge diagrams id: "merge"
+            """;
+
+        using var Package = CreatePackage(
+            $"""
+            ```mermaid
+            {ClassDiagramSource}
+            ```
+
+            ```mermaid
+            {MindmapSource}
+            ```
+
+            ```mermaid
+            {KanbanSource}
+            ```
+
+            ```mermaid
+            {GitGraphSource}
             ```
             """);
 
-        var SvgTexts = Package.ReadEntries(".svg")
-            .Select(Svg => Regex.Replace(string.Concat(XDocument.Parse(Svg).Descendants().Select(Element => Element.Value)), @"\s+", " "))
-            .ToList();
+        Assert.IsGreaterThanOrEqualTo(4, CountEmbeddedMermaidImages(Package),
+            "Expected four Mermaid diagrams to be embedded as PNG or SVG media parts.");
 
-        Assert.IsTrue(SvgTexts.Any(Text => Text.Contains("Animal", StringComparison.Ordinal) && Text.Contains("Dog", StringComparison.Ordinal)),
+        string ClassText = RenderFlattenedMermaidText(ClassDiagramSource);
+        Assert.IsTrue(ClassText.Contains("Animal", StringComparison.Ordinal) && ClassText.Contains("Dog", StringComparison.Ordinal),
             "Expected class diagram SVG to include both classes.");
-        Assert.IsTrue(SvgTexts.Any(Text => Text.Contains("MarkdownToDocX", StringComparison.Ordinal) && !Text.Contains("root((", StringComparison.Ordinal)),
+
+        string MindmapText = RenderFlattenedMermaidText(MindmapSource);
+        Assert.IsTrue(MindmapText.Contains("MarkdownToDocX", StringComparison.Ordinal) && !MindmapText.Contains("root((", StringComparison.Ordinal),
             "Expected mindmap SVG to render the root label, not literal shape syntax.");
-        Assert.IsTrue(SvgTexts.Any(Text => Text.Contains("To do", StringComparison.Ordinal) && Text.Contains("Render Mermaid", StringComparison.Ordinal) && !Text.Contains("Empty board", StringComparison.Ordinal)),
+
+        string KanbanText = RenderFlattenedMermaidText(KanbanSource);
+        Assert.IsTrue(KanbanText.Contains("To do", StringComparison.Ordinal) && KanbanText.Contains("Render Mermaid", StringComparison.Ordinal) && !KanbanText.Contains("Empty board", StringComparison.Ordinal),
             "Expected kanban SVG to render board columns/items.");
-        Assert.IsTrue(SvgTexts.Any(Text => Text.Contains("diagrams", StringComparison.Ordinal) && Text.Contains("svg", StringComparison.Ordinal) && Text.Contains("merge", StringComparison.Ordinal)),
+
+        string GitGraphText = RenderFlattenedMermaidText(GitGraphSource);
+        Assert.IsTrue(GitGraphText.Contains("diagrams", StringComparison.Ordinal) && GitGraphText.Contains("svg", StringComparison.Ordinal) && GitGraphText.Contains("merge", StringComparison.Ordinal),
             "Expected git graph SVG to render the intended branch and commit labels.");
     }
 
@@ -296,6 +333,24 @@ public sealed class DocxPackageAssertionsTests
     }
 
     [TestMethod]
+    public void Mermaid_Render_MindmapRootCircleSyntax_ExposesInnerLabel()
+    {
+        string MindmapText = RenderFlattenedMermaidText(
+            """
+            mindmap
+              root((RingRoot))
+                LeafA
+            """);
+
+        Assert.IsTrue(MindmapText.Contains("RingRoot", StringComparison.Ordinal),
+            "Mindmap root((...)) should render the inner label text.");
+        Assert.IsFalse(MindmapText.Contains("root((", StringComparison.Ordinal),
+            "Mindmap SVG should not retain the raw root(( token sequence.");
+        Assert.IsTrue(MindmapText.Contains("LeafA", StringComparison.Ordinal),
+            "Mindmap child labels should render.");
+    }
+
+    [TestMethod]
     public void GeneratedDocx_RendersMindmapRootKwIndentedKanbanAndBlockEdges()
     {
         using var Package = CreatePackage(
@@ -321,21 +376,64 @@ public sealed class DocxPackageAssertionsTests
             ```
             """);
 
-        var SvgTexts = Package.ReadEntries(".svg")
-            .Select(Svg => Regex.Replace(string.Concat(XDocument.Parse(Svg).Descendants().Select(Element => Element.Value)), @"\s+", " "))
-            .ToList();
+        Assert.IsGreaterThanOrEqualTo(3, CountEmbeddedMermaidImages(Package),
+            "Expected three Mermaid diagrams to be embedded as PNG or SVG media parts.");
 
-        Assert.IsTrue(SvgTexts.Any(Text => Text.Contains("RingRoot", StringComparison.Ordinal) && !Text.Contains("root((", StringComparison.Ordinal)),
+        const string MindmapSource = """
+            mindmap
+              root((RingRoot))
+                LeafA
+            """;
+
+        const string KanbanSource = """
+            kanban
+                todo[Column one]
+                    ta[Task Alpha]
+                doing[Column two]
+            """;
+
+        const string BlockSource = """
+            block-beta
+            columns 3
+            a["Source"] b["Sink"]
+            a --> b
+            """;
+
+        string MindmapText = RenderFlattenedMermaidText(MindmapSource);
+        Assert.IsTrue(MindmapText.Contains("RingRoot", StringComparison.Ordinal) && !MindmapText.Contains("root((", StringComparison.Ordinal),
             "Mindmap root((...)) syntax should expose the inner label text, not the raw root(( token sequence.");
-        Assert.IsTrue(SvgTexts.Any(Text => Text.Contains("Task Alpha", StringComparison.Ordinal) && !Text.Contains("Empty board", StringComparison.Ordinal)),
+
+        string KanbanText = RenderFlattenedMermaidText(KanbanSource);
+        Assert.IsTrue(KanbanText.Contains("Task Alpha", StringComparison.Ordinal) && !KanbanText.Contains("Empty board", StringComparison.Ordinal),
             "Indented Kanban tasks should nest under indented columns.");
-        Assert.IsTrue(SvgTexts.Any(Text => Text.Contains("Source", StringComparison.Ordinal) && Text.Contains("Sink", StringComparison.Ordinal)),
+
+        string BlockSvg = Mermaid.Render(BlockSource, RenderOptions.Default);
+        Assert.IsTrue(BlockSvg.Contains("Source", StringComparison.Ordinal) && BlockSvg.Contains("Sink", StringComparison.Ordinal),
             "Block diagram elements should render.");
-        Assert.IsTrue(Package.ReadEntries(".svg").Any(Svg =>
-                Svg.Contains("Source", StringComparison.Ordinal)
-                && Svg.Contains("Sink", StringComparison.Ordinal)
-                && Svg.Contains("stroke=\"#555\"", StringComparison.Ordinal)),
+        Assert.IsTrue(BlockSvg.Contains("stroke=\"#555\"", StringComparison.Ordinal),
             "Block diagram edges (-->) should emit connector path markup.");
+    }
+
+    private static int CountEmbeddedMermaidImages(TestPackage Package)
+    {
+        return Package.EntryNames.Count(Name =>
+            Name.Contains("media/", StringComparison.OrdinalIgnoreCase)
+            && (Name.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
+                || Name.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private static string RenderFlattenedMermaidText(string MermaidSource)
+    {
+        string Svg = Mermaid.Render(MermaidSource.Trim(), RenderOptions.Default);
+        return FlattenSvgText(Svg);
+    }
+
+    private static string FlattenSvgText(string Svg)
+    {
+        return Regex.Replace(
+            string.Concat(XDocument.Parse(Svg).Descendants().Select(Element => Element.Value)),
+            @"\s+",
+            " ");
     }
 
     private static TestPackage CreatePackage(string Markdown, string? BasePath = null)

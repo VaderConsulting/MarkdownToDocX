@@ -40,6 +40,7 @@ internal static class Program
         int? LockPromptTimeoutSeconds = null;
         bool ForceRecognitionFlowchartParser = false;
         bool ForceLegacyFlowchartParser = false;
+        bool ForceLegacyFlowchartRenderer = false;
 
         for (int I = FlagStartIndex; I < Args.Length; I++)
         {
@@ -61,6 +62,12 @@ internal static class Program
             {
                 ForceLegacyFlowchartParser = true;
                 ForceRecognitionFlowchartParser = false;
+                continue;
+            }
+
+            if (Args[I] == "--use-legacy-flowchart-renderer")
+            {
+                ForceLegacyFlowchartRenderer = true;
                 continue;
             }
 
@@ -86,7 +93,7 @@ internal static class Program
         MarkdownToDocxOptions Options = new MarkdownToDocxOptions
         {
             Profile = Profile,
-            Mermaid = CreateMermaidOptions(ForceRecognitionFlowchartParser, ForceLegacyFlowchartParser)
+            Mermaid = CreateMermaidOptions(ForceRecognitionFlowchartParser, ForceLegacyFlowchartParser, ForceLegacyFlowchartRenderer)
         };
 
         try
@@ -106,16 +113,29 @@ internal static class Program
 
     private static void WriteUsage()
     {
-        Console.Error.WriteLine("Usage: md2docx <input.md> [output.docx] [--profile <name>] [--use-legacy-flowchart-parser] [--use-flowchart-recognition] [--lock-timeout-seconds <n>]");
+        Console.Error.WriteLine("Usage: md2docx <input.md> [output.docx] [--profile <name>] [--use-legacy-flowchart-parser] [--use-legacy-flowchart-renderer] [--use-flowchart-recognition] [--lock-timeout-seconds <n>]");
         Console.Error.WriteLine("  When output.docx is omitted, writes alongside the input file with the same base name and a .docx extension.");
-        Console.Error.WriteLine("  Default behaviour: flowcharts are rendered via MermaidRecognition (recommended).");
-        Console.Error.WriteLine("  --use-legacy-flowchart-parser  Forces the legacy Naiad flowchart parser (for comparison/regression only).");
-        Console.Error.WriteLine("  --use-flowchart-recognition    Forces MermaidRecognition for flowcharts (kept for backwards compatibility).");
+        Console.Error.WriteLine("  Default behaviour: flowcharts use MermaidRecognition + native Sugiyama layout (legacy Naiad fallback).");
+        Console.Error.WriteLine("  --use-legacy-flowchart-parser   Forces the legacy Naiad flowchart parser (for comparison/regression only).");
+        Console.Error.WriteLine("  --use-legacy-flowchart-renderer Forces legacy Naiad SVG render (skips Sugiyama).");
+        Console.Error.WriteLine("  --use-flowchart-recognition     Forces MermaidRecognition for flowcharts (kept for backwards compatibility).");
         Console.Error.WriteLine("  --lock-timeout-seconds  Optional. When omitted, a normal lock prompt is shown (no auto-cancel).");
     }
 
-    private static MermaidOptions? CreateMermaidOptions(bool ForceRecognitionFlowchartParser, bool ForceLegacyFlowchartParser)
+    private static MermaidOptions? CreateMermaidOptions(
+        bool ForceRecognitionFlowchartParser,
+        bool ForceLegacyFlowchartParser,
+        bool ForceLegacyFlowchartRenderer)
     {
+        if (ForceRecognitionFlowchartParser && ForceLegacyFlowchartRenderer)
+        {
+            return new MermaidOptions
+            {
+                UseFlowchartRecognitionParser = true,
+                UseNativeSugiyamaRenderer = false
+            };
+        }
+
         if (ForceRecognitionFlowchartParser)
         {
             return new MermaidOptions { UseFlowchartRecognitionParser = true };
@@ -124,6 +144,11 @@ internal static class Program
         if (ForceLegacyFlowchartParser)
         {
             return new MermaidOptions { UseFlowchartRecognitionParser = false };
+        }
+
+        if (ForceLegacyFlowchartRenderer)
+        {
+            return new MermaidOptions { UseNativeSugiyamaRenderer = false };
         }
 
         return null;

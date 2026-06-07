@@ -26,7 +26,7 @@ public sealed class F59SubgraphRetryLoopRenderTests
     [Test]
     public void TryRenderFlowchartSvg_F59_RendersWorkerPoolRegion()
     {
-        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderLegacyNaiadFlowchartSvg(
             F59_SOURCE,
             RenderOptions.Default,
             out string Svg);

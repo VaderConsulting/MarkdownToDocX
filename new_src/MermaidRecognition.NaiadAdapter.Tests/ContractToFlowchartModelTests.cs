@@ -52,7 +52,7 @@ public sealed class FlowchartRecognitionRenderBridgeTests
     [Test]
     public void TryRenderFlowchartSvg_SimpleFlowchart_ReturnsSvg()
     {
-        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderLegacyNaiadFlowchartSvg(
             "flowchart TD\n    A --> B",
             RenderOptions.Default,
             out string Svg);
@@ -65,7 +65,7 @@ public sealed class FlowchartRecognitionRenderBridgeTests
     [Test]
     public void TryRenderFlowchartSvg_Sequence_ReturnsFalse()
     {
-        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderLegacyNaiadFlowchartSvg(
             "sequenceDiagram\n    A->>B: Hi",
             RenderOptions.Default,
             out string _);
@@ -81,7 +81,7 @@ public sealed class FlowchartRecognitionRenderBridgeTests
             A["Label with spaces"] --> B["Second label"]
             """;
 
-        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderLegacyNaiadFlowchartSvg(
             Source,
             RenderOptions.Default,
             out string Svg);
@@ -101,7 +101,7 @@ public sealed class FlowchartRecognitionRenderBridgeTests
             A{{Hexagon}} --> B[Next]
             """;
 
-        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderLegacyNaiadFlowchartSvg(
             Source,
             RenderOptions.Default,
             out string Svg);
@@ -119,7 +119,7 @@ public sealed class FlowchartRecognitionRenderBridgeTests
             A>Asymmetric flag] --> B[Target]
             """;
 
-        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderLegacyNaiadFlowchartSvg(
             Source,
             RenderOptions.Default,
             out string Svg);
@@ -146,7 +146,7 @@ public sealed class FlowchartRecognitionRenderBridgeTests
         Assert.That(Model.GetNode("Start")!.Shape, Is.EqualTo(NodeShape.DoubleCircle));
         Assert.That(Model.GetNode("Stop")!.Shape, Is.EqualTo(NodeShape.DoubleCircle));
 
-        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderLegacyNaiadFlowchartSvg(
             Source,
             RenderOptions.Default,
             out string Svg);
@@ -164,7 +164,7 @@ public sealed class FlowchartRecognitionRenderBridgeTests
             C[C] --- D[D]
             """;
 
-        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderLegacyNaiadFlowchartSvg(
             Source,
             RenderOptions.Default,
             out string Svg);
@@ -189,7 +189,7 @@ public sealed class FlowchartRecognitionRenderBridgeTests
             C[C] -.- D[D]
             """;
 
-        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderLegacyNaiadFlowchartSvg(
             Source,
             RenderOptions.Default,
             out string Svg);
@@ -228,7 +228,7 @@ public sealed class FlowchartRecognitionRenderBridgeTests
         Assert.That(Model.Edges.Single(Edge => Edge.SourceId == "I1").Type, Is.EqualTo(EdgeType.ThickArrow));
         Assert.That(Model.Edges.Single(Edge => Edge.SourceId == "K1").Type, Is.EqualTo(EdgeType.Thick));
 
-        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderLegacyNaiadFlowchartSvg(
             Source,
             RenderOptions.Default,
             out string Svg);
@@ -262,7 +262,7 @@ public sealed class FlowchartRecognitionRenderBridgeTests
             E[E] x--x F[F]
             """;
 
-        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderLegacyNaiadFlowchartSvg(
             Source,
             RenderOptions.Default,
             out string Svg);
@@ -287,7 +287,7 @@ public sealed class FlowchartRecognitionRenderBridgeTests
             A[Producer] -->|"This edge label is intentionally long so wrapping, clearance from arrowheads, and node borders can be verified in Word."| B[Consumer]
             """;
 
-        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderLegacyNaiadFlowchartSvg(
             Source,
             RenderOptions.Default,
             out string Svg);
@@ -314,7 +314,7 @@ public sealed class FlowchartRecognitionRenderBridgeTests
             C --> OUT[Out]
             """;
 
-        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderLegacyNaiadFlowchartSvg(
             Source,
             RenderOptions.Default,
             out string Svg);
@@ -339,7 +339,7 @@ public sealed class FlowchartRecognitionRenderBridgeTests
             B --> C["Comparison: a#lt; b #38;#38; c#gt; d"]
             """;
 
-        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderLegacyNaiadFlowchartSvg(
             Source,
             RenderOptions.Default,
             out string Svg);
@@ -363,7 +363,7 @@ public sealed class FlowchartRecognitionRenderBridgeTests
             C[C] === D[D]
             """;
 
-        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderLegacyNaiadFlowchartSvg(
             Source,
             RenderOptions.Default,
             out string Svg);
@@ -430,7 +430,7 @@ public sealed class FlowchartRecognitionRenderBridgeTests
             style Success fill:#d1ecf1
             """;
 
-        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderLegacyNaiadFlowchartSvg(
             Source,
             RenderOptions.Default,
             out string Svg);
@@ -451,7 +451,7 @@ public sealed class FlowchartRecognitionRenderBridgeTests
             B --> C["Final"]
             """;
 
-        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderLegacyNaiadFlowchartSvg(
             Source,
             RenderOptions.Default,
             out string Svg);
@@ -479,7 +479,7 @@ public sealed class FlowchartRecognitionRenderBridgeTests
             style Success fill:#d1ecf1
             """;
 
-        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderLegacyNaiadFlowchartSvg(
             Source,
             RenderOptions.Default,
             out string Svg);

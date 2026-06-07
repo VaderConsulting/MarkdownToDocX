@@ -29,7 +29,7 @@ public sealed class F81TrapezoidBracketRenderTests
     [Test]
     public void TryRenderFlowchartSvg_F81_RendersTrapezoidPathsWithoutDelimiterSlashesInLabels()
     {
-        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderLegacyNaiadFlowchartSvg(
             F81_SOURCE,
             RenderOptions.Default,
             out string Svg);

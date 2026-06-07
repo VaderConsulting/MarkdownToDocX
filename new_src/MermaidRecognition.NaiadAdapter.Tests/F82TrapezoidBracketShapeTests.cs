@@ -7,7 +7,7 @@ namespace MermaidRecognition.NaiadAdapter.Tests;
 public sealed class F82TrapezoidBracketShapeTests
 {
     const string F82_FOUR_SOURCE = """
-        flowchart LR
+        flowchart TD
         LeanRight[/lean_right/]
         Trapezoid[/trapezoid \]
         InvTrap[\inv_trapezoid /]
@@ -17,7 +17,7 @@ public sealed class F82TrapezoidBracketShapeTests
     [Test]
     public void TryRenderFlowchartSvg_TrapezoidBracket_IsWideAtBottom()
     {
-        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderLegacyNaiadFlowchartSvg(
             F82_FOUR_SOURCE,
             RenderOptions.Default,
             out string Svg);
@@ -28,13 +28,13 @@ public sealed class F82TrapezoidBracketShapeTests
         Assert.That(PathsByLabel["inv_trapezoid"], Is.Not.Null);
 
         Assert.That(
-            GetHorizontalSpanAtBottomEdge(PathsByLabel["trapezoid"]),
-            Is.GreaterThan(GetHorizontalSpanAtTopEdge(PathsByLabel["trapezoid"])),
-            "[/trapezoid \\] must be wider at the bottom");
+            GetHorizontalSpanAtTopEdge(PathsByLabel["trapezoid"]),
+            Is.GreaterThan(GetHorizontalSpanAtBottomEdge(PathsByLabel["trapezoid"])),
+            "[/trapezoid \\] must be wider at the top");
         Assert.That(
-            GetHorizontalSpanAtTopEdge(PathsByLabel["inv_trapezoid"]),
-            Is.GreaterThan(GetHorizontalSpanAtBottomEdge(PathsByLabel["inv_trapezoid"])),
-            "[\\inv_trapezoid /] must be wider at the top");
+            GetHorizontalSpanAtBottomEdge(PathsByLabel["inv_trapezoid"]),
+            Is.GreaterThan(GetHorizontalSpanAtTopEdge(PathsByLabel["inv_trapezoid"])),
+            "[\\inv_trapezoid /] must be wider at the bottom");
     }
 
     static Dictionary<string, string> ExtractNodePathsByLabel(string Svg)

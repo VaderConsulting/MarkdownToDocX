@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/mermaid/evaluator-map.schema.json",
+  "title": "Mermaid Flowchart Evaluator Map",
+  "type": "object",
+  "required": [
+    "SchemaVersion",
+    "Name",
+    "EvaluatorBindings"
+  ],
+  "properties": {
+    "SchemaVersion": {
+      "type": "string"
+    },
+    "Name": {
+      "type": "string"
+    },
+    "EvaluatorBindings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "RuleId",
+          "EvaluatorId",
+          "EvaluatorType",
+          "InputModel",
+          "AppliesTo",
+          "RequiredFields"
+        ],
+        "properties": {
+          "RuleId": {
+            "type": "string"
+          },
+          "EvaluatorId": {
+            "type": "string"
+          },
+          "EvaluatorType": {
+            "type": "string"
+          },
+          "InputModel": {
+            "type": "string"
+          },
+          "AppliesTo": {
+            "type": "string"
+          },
+          "RequiredFields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "ToleranceProfileId": {
+            "type": "string"
+          },
+          "FailureCode": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

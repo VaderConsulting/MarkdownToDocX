@@ -74,7 +74,7 @@ namespace Converter
             // Start
             // 
             Start.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            Start.Location = new Point(654, 48);
+            Start.Location = new Point(654, 124);
             Start.Name = "Start";
             Start.Size = new Size(112, 34);
             Start.TabIndex = 4;
@@ -95,9 +95,9 @@ namespace Converter
             // JobProgress
             // 
             JobProgress.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            JobProgress.Location = new Point(12, 117);
+            JobProgress.Location = new Point(12, 124);
             JobProgress.Name = "JobProgress";
-            JobProgress.Size = new Size(754, 28);
+            JobProgress.Size = new Size(636, 28);
             JobProgress.TabIndex = 6;
             JobProgress.Visible = false;
             // 

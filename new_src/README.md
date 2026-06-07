@@ -7,6 +7,7 @@ All **new** Markdown→diagram recognition work lives here, separate from:
 | `src/MDConverter/`, `src/md2docx/`, `Converter/` | **Legacy** product pipeline (DOCX conversion today) |
 | `tests/MDConverter.Tests/` | **Legacy** tests |
 | `extern/Naiad/` | **Legacy** renderer — **frozen**; use only for output comparison vs native render (§12) |
+| `extern/Microsoft.AGL/` | **Transitional** MSAGL spike — copy required classes into `MermaidRecognition.Layout/Sugiyama/` then remove (see `SUGIYAMA_ADOPTION.md`) |
 | `mermaid/packages/mermaid/` | **Authoritative** vendored Mermaid 11.14.0 — detectors, grammar, config (investigate here, not Naiad) |
 
 ## Stage 11.A scope (authoritative)
@@ -38,9 +39,13 @@ new_src/MermaidRecognition/
     Sequence/     L2 catalogue + recogniser
     Class/, State/, Er/, Pie/
     LinePattern/   L1 stubs for gantt, mindmap, C4, …; MermaidOnlyKindRecognizer; YamlFrontMatterKindRecognizer
+
+new_src/MermaidRecognition.Layout/
+  FlowchartGeometryGraphBuilder, FlowchartSugiyamaLayoutEngine  →  adopted Sugiyama (`Sugiyama/`, namespace `MermaidRecognition.Layout.Sugiyama.*`)
+  Sugiyama/                       # copied MSAGL sources (503 files); see SUGIYAMA_ADOPTION.md
 ```
 
-**Tests** (`MermaidRecognition.Tests/`): fixture folders per kind (`FlowchartRecognition/`, `SequenceRecognition/`, …, `MermaidOnlyRecognition/`), `Gates/manifests/*.json` (23 manifests), `FlowchartL3AxisGateTests`, `Render/` (router + SVG pilot), `Truthfulness/` (checklist automation), and unit tests.
+**Tests:** `MermaidRecognition.Tests/` (840+; includes `Gates/DiagramKindEdgeCaseTests`), `MermaidRecognition.Layout.Tests/` (Sugiyama spike), `MermaidRecognition.NaiadAdapter.Tests/`.
 
 **Gate registry:** run `.\tools\Generate-DiagramGateRegistry.ps1` → `spec-gates/registry.generated.md`.
 

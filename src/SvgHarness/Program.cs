@@ -12,6 +12,9 @@ using System.Text.RegularExpressions;
 using System.Text.Json;
 using System.Globalization;
 using MermaidRecognition;
+using MermaidRecognition.Contract;
+using MermaidRecognition.Layout;
+using MermaidRecognition.Render;
 using MermaidSharp;
 using SkiaSharp;
 using Svg.Skia;
@@ -47,6 +50,7 @@ internal static class Program
         public required double VisualDiffRatio { get; init; }
         public required string NaiadSvgPath { get; init; }
         public required string ReferenceSvgPath { get; init; }
+        public required string NativeSvgPath { get; init; }
         public required string Notes { get; init; }
     }
 
@@ -97,6 +101,7 @@ internal static class Program
             Console.Error.WriteLine("  --parallel=<n>          Parallel cases (default: 2 for mermaid-ink, 4 otherwise)");
             Console.Error.WriteLine("  --max-blocks=<n>        Limit blocks processed");
             Console.Error.WriteLine("  --emit-png              Keep PNG artefacts");
+            Console.Error.WriteLine("  --emit-native           Write *.native.svg via Sugiyama layout (flowchart pilot)");
             return 2;
         }
 
@@ -104,6 +109,7 @@ internal static class Program
         string outputDirectory = Path.GetFullPath(Args[1]);
         bool noReference = HasFlag(Args, "--no-reference");
         bool emitPng = HasFlag(Args, "--emit-png");
+        bool emitNative = HasFlag(Args, "--emit-native");
         string referenceMode = GetOptionValue(Args, "--reference") ?? "mermaid-ink";
         int maxBlocks = TryGetIntOptionValue(Args, "--max-blocks") ?? int.MaxValue;
         int defaultParallel = string.Equals(referenceMode, "mermaid-ink", StringComparison.OrdinalIgnoreCase) ? 2 : 4;
@@ -143,7 +149,7 @@ internal static class Program
         }
 
         List<CompareResult> results = new List<CompareResult>();
-        results.AddRange(RunCases(blocks, outputDirectory, referenceMode, parallel, emitPng));
+        results.AddRange(RunCases(blocks, outputDirectory, referenceMode, parallel, emitPng, emitNative));
 
         bool noReferenceMode = string.Equals(referenceMode, "none", StringComparison.OrdinalIgnoreCase);
         WriteSummary(results, noReferenceMode);
@@ -167,7 +173,7 @@ internal static class Program
         return anyMismatch ? 1 : 0;
     }
 
-    private static List<CompareResult> RunCases(List<MermaidBlock> blocks, string outputDirectory, string referenceMode, int parallel, bool emitPng)
+    private static List<CompareResult> RunCases(List<MermaidBlock> blocks, string outputDirectory, string referenceMode, int parallel, bool emitPng, bool emitNative)
     {
         int degree = Math.Max(1, Math.Min(16, parallel));
         CompareResult?[] resultsByIndex = new CompareResult?[blocks.Count];
@@ -181,7 +187,7 @@ internal static class Program
         Parallel.For(0, blocks.Count, options, i =>
         {
             MermaidBlock block = blocks[i];
-            CompareResult result = RunCase(block, outputDirectory, referenceMode, emitPng);
+            CompareResult result = RunCase(block, outputDirectory, referenceMode, emitPng, emitNative);
             resultsByIndex[i] = result;
 
             int done = Interlocked.Increment(ref completed);
@@ -206,7 +212,7 @@ internal static class Program
         return results;
     }
 
-    private static CompareResult RunCase(MermaidBlock block, string outputDirectory, string referenceMode, bool emitPng)
+    private static CompareResult RunCase(MermaidBlock block, string outputDirectory, string referenceMode, bool emitPng, bool emitNative)
     {
         string prefix = $"{block.Index:D3}";
 
@@ -225,12 +231,14 @@ internal static class Program
                 VisualDiffRatio = 0.0,
                 NaiadSvgPath = string.Empty,
                 ReferenceSvgPath = string.Empty,
+                NativeSvgPath = string.Empty,
                 Notes = "SKIP (catalogue-remarked): every line is a %% remark per §9.1"
             };
         }
 
         string naiadSvgPath = Path.Combine(outputDirectory, prefix + ".naiad.svg");
         string referenceSvgPath = Path.Combine(outputDirectory, prefix + ".reference.svg");
+        string nativeSvgPath = Path.Combine(outputDirectory, prefix + ".native.svg");
         string naiadPngPath = Path.Combine(outputDirectory, prefix + ".naiad.png");
         string referencePngPath = Path.Combine(outputDirectory, prefix + ".reference.png");
         string inputPath = Path.Combine(outputDirectory, prefix + ".mmd");
@@ -243,20 +251,36 @@ internal static class Program
             ? false
             : TryWriteReferenceSvg(block.Source, inputPath, referenceSvgPath, referenceMode, out referenceError);
 
+        string notes = string.Empty;
+        if (emitNative)
+        {
+            bool nativeSucceeded = TryWriteNativeSvg(block.Source, nativeSvgPath, out string? nativeError);
+            if (!nativeSucceeded && !string.IsNullOrEmpty(nativeError))
+            {
+                notes = "Native render: " + nativeError;
+            }
+        }
+        else
+        {
+            nativeSvgPath = string.Empty;
+        }
+
+        if (!naiadSucceeded)
+        {
+            notes = string.IsNullOrEmpty(notes)
+                ? "Naiad render failed: " + naiadError
+                : notes + "; Naiad render failed: " + naiadError;
+        }
+        else if (!string.Equals(referenceMode, "none", StringComparison.OrdinalIgnoreCase) && !referenceSucceeded)
+        {
+            string referenceNote = "Reference render failed: " + referenceError;
+            notes = string.IsNullOrEmpty(notes) ? referenceNote : notes + "; " + referenceNote;
+        }
+
         if (emitPng && naiadSucceeded)
         {
             string? naiadPngError = null;
             TryRenderSvgToPng(naiadSvgPath, naiadPngPath, out naiadPngError);
-        }
-
-        string notes = string.Empty;
-        if (!naiadSucceeded)
-        {
-            notes = "Naiad render failed: " + naiadError;
-        }
-        else if (!string.Equals(referenceMode, "none", StringComparison.OrdinalIgnoreCase) && !referenceSucceeded)
-        {
-            notes = "Reference render failed: " + referenceError;
         }
 
         bool structuralMatch = false;
@@ -335,8 +359,36 @@ internal static class Program
             VisualDiffRatio = visualDiffRatio,
             NaiadSvgPath = naiadSvgPath,
             ReferenceSvgPath = referenceSvgPath,
+            NativeSvgPath = nativeSvgPath,
             Notes = notes
         };
+    }
+
+    private static bool TryWriteNativeSvg(string input, string outputSvgPath, out string? error)
+    {
+        try
+        {
+            if (!NativeFlowchartRenderBridge.TryRenderFlowchartSvg(input, out string Svg))
+            {
+                error = "Native Sugiyama render failed or source is not a flowchart.";
+                return false;
+            }
+
+            if (string.IsNullOrEmpty(Svg))
+            {
+                error = "Sugiyama layout produced empty SVG.";
+                return false;
+            }
+
+            File.WriteAllText(outputSvgPath, Svg, Encoding.UTF8);
+            error = null;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            error = ex.ToString();
+            return false;
+        }
     }
 
     private static bool TryWriteNaiadSvg(string input, string outputSvgPath, out string? error)

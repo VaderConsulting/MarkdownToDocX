@@ -1,0 +1,2812 @@
+﻿{
+    "SchemaVersion":  "2.0.0",
+    "Name":  "MermaidFlowchartUniversalRuleset",
+    "Scope":  {
+                  "DiagramKinds":  [
+                                       "flowchart",
+                                       "graph",
+                                       "flowchart-elk"
+                                   ],
+                  "PrimaryKind":  "flowchart"
+              },
+    "DefaultToleranceProfileId":  "DefaultGeometry",
+    "RuleGroups":  [
+                       "Recognition",
+                       "Layout",
+                       "NeighbourRelationships",
+                       "RoutingClassification",
+                       "PortSelection",
+                       "PathShape",
+                       "Markers",
+                       "Labels",
+                       "ObstacleAvoidance",
+                       "Subgraphs",
+                       "Diagnostics",
+                       "AntiPatterns"
+                   ],
+    "Rules":  [
+                  {
+                      "RuleId":  "Recognition.Header.FlowchartFamily",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Diagram",
+                      "Severity":  "Error",
+                      "Description":  "Recognise flowchart as the flowchart diagram family.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Diagram.Kind",
+                                                   "Operator":  "In",
+                                                   "Value":  [
+                                                                 "flowchart",
+                                                                 "graph",
+                                                                 "flowchart-elk"
+                                                             ]
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Recognition.FlowchartFamilyRecognised":  true
+                                  },
+                      "FailWhen":  [
+                                       "UnrecognisedDiagramKind"
+                                   ],
+                      "DiagnosticTemplate":  "Diagram {DiagramId} uses unsupported header kind {Kind}.",
+                      "SuggestedCorrectionTemplate":  "Recognise graph, flowchart, and flowchart-elk as flowchart-compatible diagram kinds."
+                  },
+                  {
+                      "RuleId":  "Recognition.Direction.Canonical",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Diagram",
+                      "Severity":  "Error",
+                      "Description":  "Map symbolic direction tokens to canonical direction values.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Diagram.Direction",
+                                                   "Operator":  "Exists"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Direction.IsCanonical":  true
+                                  },
+                      "FailWhen":  [
+                                       "NonCanonicalDirection"
+                                   ],
+                      "DiagnosticTemplate":  "Diagram {DiagramId} direction {RawDirection} did not normalise to {ExpectedDirection}.",
+                      "SuggestedCorrectionTemplate":  "Map TD to TB and symbolic direction tokens to canonical TB, BT, LR, or RL."
+                  },
+                  {
+                      "RuleId":  "Recognition.Node.IdentityMerge",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Node",
+                      "Severity":  "Error",
+                      "Description":  "Repeated vertex declarations merge into one node contract with deterministic effective properties.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Node.DeclarationCount",
+                                                   "Operator":  "GreaterThan",
+                                                   "Value":  1
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Node.IdentityMerged":  true
+                                  },
+                      "FailWhen":  [
+                                       "DuplicateNodeFromRepeatedDeclaration"
+                                   ],
+                      "DiagnosticTemplate":  "Node {NodeId} was declared {DeclarationCount} times without merging into one contract.",
+                      "SuggestedCorrectionTemplate":  "Merge repeated node declarations into a single node contract."
+                  },
+                  {
+                      "RuleId":  "Recognition.Node.ShapeCanonicalisation",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Node",
+                      "Severity":  "Error",
+                      "Description":  "Mermaid node syntax and metadata shapes map to canonical shape intent.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Node.ShapeSource",
+                                                   "Operator":  "Exists"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Node.ShapeCanonicalised":  true
+                                  },
+                      "FailWhen":  [
+                                       "UnmappedNodeShape"
+                                   ],
+                      "DiagnosticTemplate":  "Node {NodeId} shape source {ShapeSource} did not map to canonical shape {ExpectedShape}.",
+                      "SuggestedCorrectionTemplate":  "Map Mermaid node syntax and metadata shapes to canonical shape intent."
+                  },
+                  {
+                      "RuleId":  "Recognition.Edge.TokenDecomposition",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Edge token decomposes into stroke, marker start, marker end, directionality, and minlen.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.LinkToken",
+                                                   "Operator":  "Exists"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Edge.TokenDecomposed":  true
+                                  },
+                      "FailWhen":  [
+                                       "IncompleteEdgeTokenDecomposition"
+                                   ],
+                      "DiagnosticTemplate":  "Edge {EdgeId} link token {LinkToken} did not decompose into stroke and marker facts.",
+                      "SuggestedCorrectionTemplate":  "Decompose the edge token into stroke, arrow start, arrow end, directionality, and min length."
+                  },
+                  {
+                      "RuleId":  "Recognition.Edge.Expansion",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Chained edge statements expand to separate logical edges.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.RequiresExpansion",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Edge.ExpandedToLogicalEdges":  true
+                                  },
+                      "FailWhen":  [
+                                       "UnexpandedEdgeExpression"
+                                   ],
+                      "DiagnosticTemplate":  "Edge expression for {EdgeId} was not expanded into individual logical edges.",
+                      "SuggestedCorrectionTemplate":  "Expand chained and grouped edge expressions into separate logical edges."
+                  },
+                  {
+                      "RuleId":  "Recognition.Edge.MinLengthFromToken",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Minlen is derived from link stroke length, not edge label width.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.LinkToken",
+                                                   "Operator":  "Exists"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Edge.MinLengthFromTokenOnly":  true
+                                  },
+                      "FailWhen":  [
+                                       "MinLengthDerivedFromLabelWidth"
+                                   ],
+                      "DiagnosticTemplate":  "Edge {EdgeId} min length was influenced by label width instead of the link token.",
+                      "SuggestedCorrectionTemplate":  "Derive MinLength only from the link token hyphen count."
+                  },
+                  {
+                      "RuleId":  "Recognition.Subgraph.Membership",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Group",
+                      "Severity":  "Error",
+                      "Description":  "Subgraph creates a group contract and membership list.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Group.IsSubgraph",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Group.MembershipDeterministic":  true
+                                  },
+                      "FailWhen":  [
+                                       "AmbiguousSubgraphMembership"
+                                   ],
+                      "DiagnosticTemplate":  "Group {GroupId} has ambiguous or duplicated subgraph membership.",
+                      "SuggestedCorrectionTemplate":  "Assign each node to one effective parent group with deterministic nested ownership."
+                  },
+                  {
+                      "RuleId":  "Recognition.Style.Mutations",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Diagram",
+                      "Severity":  "Warning",
+                      "Description":  "style directive mutates the target element style contract.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Diagram.HasStyleMutations",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Recognition.StyleMutationsPreserved":  true
+                                  },
+                      "FailWhen":  [
+                                       "LostStyleMutation"
+                                   ],
+                      "DiagnosticTemplate":  "Diagram {DiagramId} lost style mutation {MutationKind} for target {TargetId}.",
+                      "SuggestedCorrectionTemplate":  "Preserve style, classDef, class, linkStyle, and inline class mutations in the recognition contract."
+                  },
+                  {
+                      "RuleId":  "Recognition.Unsupported.MustDiagnose",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Diagram",
+                      "Severity":  "Error",
+                      "Description":  "Recognised but unsupported constructs must emit diagnostics.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Recognition.HasUnsupportedConstruct",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Diagnostics.UnsupportedConstructReported":  true
+                                  },
+                      "FailWhen":  [
+                                       "UnsupportedConstructSilenced"
+                                   ],
+                      "DiagnosticTemplate":  "Diagram {DiagramId} contains unsupported construct {ConstructKind} without a diagnostic.",
+                      "SuggestedCorrectionTemplate":  "Emit a structured diagnostic for every recognised but unsupported construct."
+                  },
+                  {
+                      "RuleId":  "Layout.Node.BoundsPresent",
+                      "RuleGroup":  "Layout",
+                      "AppliesTo":  "Node",
+                      "Severity":  "Error",
+                      "Description":  "Every rendered node has non-empty bounds and centre co-ordinates.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Node.IsRendered",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Node.BoundsPresent":  true,
+                                      "Node.CentrePresent":  true
+                                  },
+                      "FailWhen":  [
+                                       "MissingNodeBounds",
+                                       "MissingNodeCentre"
+                                   ],
+                      "DiagnosticTemplate":  "Node {NodeId} is rendered without complete bounds or centre co-ordinates.",
+                      "SuggestedCorrectionTemplate":  "Assign non-empty bounds and centre co-ordinates to every rendered node."
+                  },
+                  {
+                      "RuleId":  "Layout.Node.RankLanePresent",
+                      "RuleGroup":  "Layout",
+                      "AppliesTo":  "Node",
+                      "Severity":  "Error",
+                      "Description":  "Every connected node has rank and lane assignment.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Node.IsRendered",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               },
+                                               {
+                                                   "Field":  "Node.IsConnected",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Node.LanePresent":  true,
+                                      "Node.RankPresent":  true
+                                  },
+                      "FailWhen":  [
+                                       "MissingNodeRank",
+                                       "MissingNodeLane"
+                                   ],
+                      "DiagnosticTemplate":  "Connected node {NodeId} is missing rank or lane assignment.",
+                      "SuggestedCorrectionTemplate":  "Assign rank and lane values to every connected node in the layout model."
+                  },
+                  {
+                      "RuleId":  "Layout.Node.PrimaryDirectionOrdering",
+                      "RuleGroup":  "Layout",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "For primary-flow edges, source and target ordering matches diagram direction.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.IsPrimaryFlow",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               },
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Layout.PrimaryDirectionOrderingValid":  true
+                                  },
+                      "FailWhen":  [
+                                       "PrimaryFlowOrderingViolation"
+                                   ],
+                      "DiagnosticTemplate":  "Primary-flow edge {EdgeId} ordering conflicts with diagram direction {Direction}.",
+                      "SuggestedCorrectionTemplate":  "Ensure primary-flow source and target ordering follows the diagram direction."
+                  },
+                  {
+                      "RuleId":  "Layout.DisconnectedComponentsFollowFlowAxis",
+                      "RuleGroup":  "Layout",
+                      "AppliesTo":  "Diagram",
+                      "Severity":  "Error",
+                      "Description":  "Disconnected single-node components stack on the flow axis in declaration order (F12 LR, F82 TD).",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Layout.HasDisconnectedSingleNodeComponents",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Layout.DisconnectedComponentsFollowFlowAxis":  true
+                                  },
+                      "FailWhen":  [
+                                       "DisconnectedComponentOrderingViolation"
+                                   ],
+                      "DiagnosticTemplate":  "Diagram {DiagramId} disconnected nodes are not stacked on the flow axis in declaration order.",
+                      "SuggestedCorrectionTemplate":  "Pack disconnected single-node components along the diagram flow axis in source declaration order."
+                  },
+                  {
+                      "RuleId":  "Layout.Node.NeighbourRelativePosition",
+                      "RuleGroup":  "NeighbourRelationships",
+                      "AppliesTo":  "Node",
+                      "Severity":  "Error",
+                      "Description":  "Above/below/left/right/aligned neighbour facts match node centres and direction.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Node.IsRendered",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               },
+                                               {
+                                                   "Field":  "Node.IsConnected",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Node.NeighbourFactsConsistent":  true
+                                  },
+                      "FailWhen":  [
+                                       "NeighbourFactMismatch"
+                                   ],
+                      "DiagnosticTemplate":  "Node {NodeId} neighbour fact {NeighbourFact} conflicts with centre positions.",
+                      "SuggestedCorrectionTemplate":  "Reconcile neighbour facts with node centre positions and diagram direction."
+                  },
+                  {
+                      "RuleId":  "Layout.Node.NoOverlap",
+                      "RuleGroup":  "Layout",
+                      "AppliesTo":  "Node",
+                      "Severity":  "Error",
+                      "Description":  "Unrelated node bodies must not overlap beyond tolerance.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Node.IsRendered",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               },
+                                               {
+                                                   "Field":  "NodePair.IsUnrelated",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Layout.NodeBodiesDoNotOverlap":  true
+                                  },
+                      "FailWhen":  [
+                                       "NodeBodyOverlap"
+                                   ],
+                      "DiagnosticTemplate":  "Node {NodeId} overlaps unrelated node {OtherNodeId} beyond tolerance.",
+                      "SuggestedCorrectionTemplate":  "Adjust layout so unrelated node bodies do not overlap beyond tolerance."
+                  },
+                  {
+                      "RuleId":  "Layout.Node.GroupContainment",
+                      "RuleGroup":  "Layout",
+                      "AppliesTo":  "Node",
+                      "Severity":  "Error",
+                      "Description":  "A group member must lie within its group bounds, allowing configured padding.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Node.ParentGroupId",
+                                                   "Operator":  "Exists"
+                                               },
+                                               {
+                                                   "Field":  "Node.IsRendered",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Layout.GroupContainmentValid":  true
+                                  },
+                      "FailWhen":  [
+                                       "NodeOutsideGroupBounds"
+                                   ],
+                      "DiagnosticTemplate":  "Node {NodeId} lies outside parent group {GroupId} bounds.",
+                      "SuggestedCorrectionTemplate":  "Contain group members within group bounds using configured padding."
+                  },
+                  {
+                      "RuleId":  "Layout.Subgraph.SiblingMinimumGap",
+                      "RuleGroup":  "Layout",
+                      "AppliesTo":  "Group",
+                      "Severity":  "Error",
+                      "Description":  "Sibling subgraph cluster boxes must maintain a minimum exterior gap on the primary flow axis (24px, including padding and title band clearance).",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Group.IsSubgraph",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               },
+                                               {
+                                                   "Field":  "Group.HasSiblingSubgraph",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Layout.SiblingSubgraphGapValid":  true
+                                  },
+                      "FailWhen":  [
+                                       "SiblingSubgraphGapViolation"
+                                   ],
+                      "DiagnosticTemplate":  "Subgraph {GroupId} is too close to a sibling subgraph on the primary flow axis.",
+                      "SuggestedCorrectionTemplate":  "Increase spacing between sibling subgraph cluster boxes so the exterior gap is at least 24px on the flow axis."
+                  },
+                  {
+                      "RuleId":  "Layout.Subgraph.ExternalMinimumGap",
+                      "RuleGroup":  "Layout",
+                      "AppliesTo":  "Group",
+                      "Severity":  "Error",
+                      "Description":  "External nodes linked across a subgraph boundary must maintain a minimum gap from the cluster box on the primary flow axis (24px, including padding and title band clearance).",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Group.IsSubgraph",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               },
+                                               {
+                                                   "Field":  "Group.HasExternalBoundaryNode",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Layout.ExternalSubgraphGapValid":  true
+                                  },
+                      "FailWhen":  [
+                                       "ExternalSubgraphGapViolation"
+                                   ],
+                      "DiagnosticTemplate":  "Subgraph {GroupId} is too close to an external node on the primary flow axis.",
+                      "SuggestedCorrectionTemplate":  "Increase spacing between external nodes and the subgraph cluster box so the exterior gap is at least 24px on the flow axis."
+                  },
+                  {
+                      "RuleId":  "Layout.Subgraph.NestedClusterContainment",
+                      "RuleGroup":  "Layout",
+                      "AppliesTo":  "Group",
+                      "Severity":  "Error",
+                      "Description":  "A nested child subgraph cluster must sit inside its parent cluster box with at least 24px exterior gap on the cross-flow axis and at least rankSpacing (default 50px) on the primary flow axis.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Group.IsSubgraph",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               },
+                                               {
+                                                   "Field":  "Group.HasNestedChildSubgraph",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Layout.NestedSubgraphContainmentValid":  true
+                                  },
+                      "FailWhen":  [
+                                       "NestedSubgraphContainmentViolation"
+                                   ],
+                      "DiagnosticTemplate":  "Parent subgraph {GroupId} does not fully contain a nested child cluster with the required exterior gap.",
+                      "SuggestedCorrectionTemplate":  "Expand the parent cluster box so each nested child subgraph border respects the configured cross-flow (24px) and flow-axis (rankSpacing) exterior gaps."
+                  },
+                  {
+                      "RuleId":  "Layout.Subgraph.DirectMemberNestedSeparation",
+                      "RuleGroup":  "Layout",
+                      "AppliesTo":  "Group",
+                      "Severity":  "Error",
+                      "Description":  "Direct member nodes in a parent subgraph must maintain at least rankSpacing (default 50px) clearance from nested child subgraph cluster boxes on the primary flow axis.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Group.IsSubgraph",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               },
+                                               {
+                                                   "Field":  "Group.HasDirectMemberWithNestedChildSubgraph",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Layout.DirectMemberNestedGapValid":  true
+                                  },
+                      "FailWhen":  [
+                                       "DirectMemberNestedSubgraphGapViolation"
+                                   ],
+                      "DiagnosticTemplate":  "Parent subgraph {GroupId} places direct member nodes too close to a nested child cluster on the primary flow axis.",
+                      "SuggestedCorrectionTemplate":  "Shift direct member nodes outside nested child cluster boxes so the flow-axis exterior gap is at least rankSpacing."
+                  },
+                  {
+                      "RuleId":  "Routing.Class.CentreSpine",
+                      "RuleGroup":  "RoutingClassification",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Adjacent-rank primary-flow edges should use primary centre exit/entry and avoid unnecessary detours.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.RouteClass",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "CentreSpine"
+                                               },
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "RouteClass.BehaviourSatisfied":  true
+                                  },
+                      "FailWhen":  [
+                                       "RouteClassBehaviourViolation",
+                                       "LocalBranchMisclassification",
+                                       "LongBypassMisclassification"
+                                   ],
+                      "DiagnosticTemplate":  "Route class CentreSpine failed for {ElementId}.",
+                      "SuggestedCorrectionTemplate":  "Satisfy the structural behaviour expected for the inferred route class without fixture-specific special cases."
+                  },
+                  {
+                      "RuleId":  "Routing.Class.ShortAdjacent",
+                      "RuleGroup":  "RoutingClassification",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Simple adjacent-node edges should be direct or softly curved according to configured curve.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.RouteClass",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "ShortAdjacent"
+                                               },
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "RouteClass.BehaviourSatisfied":  true
+                                  },
+                      "FailWhen":  [
+                                       "RouteClassBehaviourViolation",
+                                       "LocalBranchMisclassification",
+                                       "LongBypassMisclassification"
+                                   ],
+                      "DiagnosticTemplate":  "Route class ShortAdjacent failed for {ElementId}.",
+                      "SuggestedCorrectionTemplate":  "Satisfy the structural behaviour expected for the inferred route class without fixture-specific special cases."
+                  },
+                  {
+                      "RuleId":  "Routing.Class.LocalDecisionBranch",
+                      "RuleGroup":  "RoutingClassification",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Decision branches should leave from distinct appropriate boundary regions and keep labels attached to branches.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.RouteClass",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "LocalDecisionBranch"
+                                               },
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "RouteClass.BehaviourSatisfied":  true
+                                  },
+                      "FailWhen":  [
+                                       "RouteClassBehaviourViolation",
+                                       "LocalBranchMisclassification",
+                                       "LongBypassMisclassification"
+                                   ],
+                      "DiagnosticTemplate":  "Route class LocalDecisionBranch failed for {ElementId}.",
+                      "SuggestedCorrectionTemplate":  "Satisfy the structural behaviour expected for the inferred route class without fixture-specific special cases."
+                  },
+                  {
+                      "RuleId":  "Routing.Class.FanOut",
+                      "RuleGroup":  "RoutingClassification",
+                      "AppliesTo":  "EdgeSet",
+                      "Severity":  "Error",
+                      "Description":  "One-to-many routing should distribute branches without collapsing unrelated paths.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "EdgeSet.RouteClass",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "FanOut"
+                                               },
+                                               {
+                                                   "Field":  "EdgeSet.HasVisibleEdges",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "RouteClass.BehaviourSatisfied":  true
+                                  },
+                      "FailWhen":  [
+                                       "RouteClassBehaviourViolation",
+                                       "LocalBranchMisclassification",
+                                       "LongBypassMisclassification"
+                                   ],
+                      "DiagnosticTemplate":  "Route class FanOut failed for {ElementId}.",
+                      "SuggestedCorrectionTemplate":  "Satisfy the structural behaviour expected for the inferred route class without fixture-specific special cases."
+                  },
+                  {
+                      "RuleId":  "Routing.Class.FanIn",
+                      "RuleGroup":  "RoutingClassification",
+                      "AppliesTo":  "EdgeSet",
+                      "Severity":  "Error",
+                      "Description":  "Many-to-one routing should merge cleanly at a target without ambiguous visual collapse.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "EdgeSet.RouteClass",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "FanIn"
+                                               },
+                                               {
+                                                   "Field":  "EdgeSet.HasVisibleEdges",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "RouteClass.BehaviourSatisfied":  true
+                                  },
+                      "FailWhen":  [
+                                       "RouteClassBehaviourViolation",
+                                       "LocalBranchMisclassification",
+                                       "LongBypassMisclassification"
+                                   ],
+                      "DiagnosticTemplate":  "Route class FanIn failed for {ElementId}.",
+                      "SuggestedCorrectionTemplate":  "Satisfy the structural behaviour expected for the inferred route class without fixture-specific special cases."
+                  },
+                  {
+                      "RuleId":  "Routing.Class.MergeBack",
+                      "RuleGroup":  "RoutingClassification",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Parallel or branch paths merging back to a downstream node should form clear merge-back routes.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.RouteClass",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "MergeBack"
+                                               },
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "RouteClass.BehaviourSatisfied":  true
+                                  },
+                      "FailWhen":  [
+                                       "RouteClassBehaviourViolation",
+                                       "LocalBranchMisclassification",
+                                       "LongBypassMisclassification"
+                                   ],
+                      "DiagnosticTemplate":  "Route class MergeBack failed for {ElementId}.",
+                      "SuggestedCorrectionTemplate":  "Satisfy the structural behaviour expected for the inferred route class without fixture-specific special cases."
+                  },
+                  {
+                      "RuleId":  "Routing.Class.LongBypass",
+                      "RuleGroup":  "RoutingClassification",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Rank-spanning or exception edges use an exterior or obstacle-aware corridor.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.RouteClass",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "LongBypass"
+                                               },
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "RouteClass.BehaviourSatisfied":  true
+                                  },
+                      "FailWhen":  [
+                                       "RouteClassBehaviourViolation",
+                                       "LocalBranchMisclassification",
+                                       "LongBypassMisclassification"
+                                   ],
+                      "DiagnosticTemplate":  "Route class LongBypass failed for {ElementId}.",
+                      "SuggestedCorrectionTemplate":  "Satisfy the structural behaviour expected for the inferred route class without fixture-specific special cases."
+                  },
+                  {
+                      "RuleId":  "Routing.Class.CycleOrReturn",
+                      "RuleGroup":  "RoutingClassification",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Back/return edges should route around the primary flow without crossing node bodies.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.RouteClass",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "CycleOrReturn"
+                                               },
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "RouteClass.BehaviourSatisfied":  true
+                                  },
+                      "FailWhen":  [
+                                       "RouteClassBehaviourViolation",
+                                       "LocalBranchMisclassification",
+                                       "LongBypassMisclassification"
+                                   ],
+                      "DiagnosticTemplate":  "Route class CycleOrReturn failed for {ElementId}.",
+                      "SuggestedCorrectionTemplate":  "Satisfy the structural behaviour expected for the inferred route class without fixture-specific special cases."
+                  },
+                  {
+                      "RuleId":  "Routing.Port.PrimaryDirection",
+                      "RuleGroup":  "PortSelection",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Primary-flow edges leave and enter via direction-appropriate ports.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.IsPrimaryFlow",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               },
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Ports.MatchPrimaryDirection":  true
+                                  },
+                      "FailWhen":  [
+                                       "PrimaryDirectionPortMismatch"
+                                   ],
+                      "DiagnosticTemplate":  "Edge {EdgeId} uses ports {SourcePort}-\u003e{TargetPort} that conflict with direction {Direction}.",
+                      "SuggestedCorrectionTemplate":  "Select source and target ports appropriate to the diagram primary direction."
+                  },
+                  {
+                      "RuleId":  "Routing.Port.DecisionBranchDistinct",
+                      "RuleGroup":  "PortSelection",
+                      "AppliesTo":  "EdgeSet",
+                      "Severity":  "Error",
+                      "Description":  "Multiple decision branches should fan out without branch/label ambiguity.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "SourceNode.Shape",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "Diamond"
+                                               },
+                                               {
+                                                   "Field":  "SourceNode.OutDegree",
+                                                   "Operator":  "GreaterThanOrEqual",
+                                                   "Value":  2
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Ports.DecisionBranchesDistinct":  true
+                                  },
+                      "FailWhen":  [
+                                       "DecisionBranchPortCollapse",
+                                       "UnintendedEdgeCollapse"
+                                   ],
+                      "DiagnosticTemplate":  "Decision node {SourceNodeId} branches use conflicting source ports.",
+                      "SuggestedCorrectionTemplate":  "Assign distinct or non-conflicting source boundary regions to decision branches."
+                  },
+                  {
+                      "RuleId":  "Routing.Port.MergeSeparation",
+                      "RuleGroup":  "PortSelection",
+                      "AppliesTo":  "EdgeSet",
+                      "Severity":  "Error",
+                      "Description":  "Nodes with multiple incoming edges require distinct entry handling and collision avoidance.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "TargetNode.InDegree",
+                                                   "Operator":  "GreaterThanOrEqual",
+                                                   "Value":  2
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Ports.MergeEntrySeparable":  true
+                                  },
+                      "FailWhen":  [
+                                       "AmbiguousMerge",
+                                       "HookAtTarget"
+                                   ],
+                      "DiagnosticTemplate":  "Merge target {TargetNodeId} incoming edges do not have separable entry regions.",
+                      "SuggestedCorrectionTemplate":  "Separate merge entry regions or merge points for multiple incoming edges."
+                  },
+                  {
+                      "RuleId":  "Routing.Port.ShapeBoundary",
+                      "RuleGroup":  "PortSelection",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Edges terminate at rendered shape boundaries rather than node centres.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Ports.TerminateAtShapeBoundary":  true
+                                  },
+                      "FailWhen":  [
+                                       "EdgeTerminatesAtNodeCentre"
+                                   ],
+                      "DiagnosticTemplate":  "Edge {EdgeId} terminates at node centre instead of shape boundary.",
+                      "SuggestedCorrectionTemplate":  "Terminate edges at rendered shape boundary intersections."
+                  },
+                  {
+                      "RuleId":  "Render.Ports.TerminateAtVisibleBoundary",
+                      "RuleGroup":  "PortSelection",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Visible edge endpoints meet the rendered shape boundary (shape-specific ray exit), not a padded bbox centre.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Ports.TerminateAtVisibleBoundary":  true
+                                  },
+                      "FailWhen":  [
+                                       "EdgeTerminatesBeforeVisibleBoundary",
+                                       "EdgeOvershootsVisibleBoundary"
+                                   ],
+                      "DiagnosticTemplate":  "Edge {EdgeId} does not terminate on the visible shape boundary.",
+                      "SuggestedCorrectionTemplate":  "Terminate the connector at the shape-specific boundary intersection used by the renderer."
+                  },
+                  {
+                      "RuleId":  "Render.Ports.PerpendicularAttach",
+                      "RuleGroup":  "PortSelection",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Rendered connector tangents enter and exit node faces at right angles with visible terminal stubs on curved corridor, bypass, fan-in/out, and decision routes.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               },
+                                               {
+                                                   "Field":  "Edge.RouteClass",
+                                                   "Operator":  "In",
+                                                   "Value":  [
+                                                                 "LocalDecisionBranch",
+                                                                 "CycleOrReturn",
+                                                                 "LongBypass",
+                                                                 "FanIn",
+                                                                 "FanOut",
+                                                                 "MergeBack"
+                                                             ]
+                                               },
+                                               {
+                                                   "Field":  "Path.RenderedAsSvgPath",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Ports.PerpendicularAttach":  true
+                                  },
+                      "FailWhen":  [
+                                       "NonPerpendicularAttach",
+                                       "RenderedAttachFailure"
+                                   ],
+                      "DiagnosticTemplate":  "Edge {EdgeId} does not attach perpendicular to the rendered node boundary.",
+                      "SuggestedCorrectionTemplate":  "Adjust the rendered route so terminal stubs are perpendicular to the joined node face."
+                  },
+                  {
+                      "RuleId":  "Render.Path.NoVisibleKinkInSmoothBody",
+                      "RuleGroup":  "PathShape",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Rendered corridor, bypass, fan-in/out, and decision connectors must not contain visible kinks, hooks, or hard elbows in the curved body.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               },
+                                               {
+                                                   "Field":  "Edge.PathFamily",
+                                                   "Operator":  "In",
+                                                   "Value":  [
+                                                                 "Smooth",
+                                                                 "Spline",
+                                                                 "Polyline",
+                                                                 "Orthogonal"
+                                                             ]
+                                               },
+                                               {
+                                                   "Field":  "Path.RenderedAsSvgPath",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Path.NoVisibleKinkInSmoothBody":  true
+                                  },
+                      "FailWhen":  [
+                                       "VisiblePathKink",
+                                       "HardElbowWhenSmoothRequired"
+                                   ],
+                      "DiagnosticTemplate":  "Edge {EdgeId} contains a visible kink in the rendered smooth path.",
+                      "SuggestedCorrectionTemplate":  "Simplify guide points or corridor curves so the rendered stroke eases smoothly into terminal stubs."
+                  },
+                  {
+                      "RuleId":  "Render.Shape.TrapezoidBracketGeometry",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Node",
+                      "Severity":  "Error",
+                      "Description":  "Legacy trapezoid bracket delimiters render as slanted bracket paths with correct width asymmetry (F81/F82), not axis-aligned rectangles.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Node.Shape",
+                                                   "Operator":  "In",
+                                                   "Value":  [
+                                                                 "lean_right",
+                                                                 "lean_left",
+                                                                 "trapezoid",
+                                                                 "inv_trapezoid"
+                                                             ]
+                                               },
+                                               {
+                                                   "Field":  "Node.IsRendered",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Node.RenderedAsTrapezoidBracket":  true
+                                  },
+                      "FailWhen":  [
+                                       "TrapezoidBracketRenderedAsRectangle",
+                                       "TrapezoidBracketWidthAsymmetryWrong"
+                                   ],
+                      "DiagnosticTemplate":  "Node {NodeId} legacy bracket shape {Shape} did not render with correct trapezoid bracket geometry.",
+                      "SuggestedCorrectionTemplate":  "Render [/label/], [/label \\], [\\label/], and [\\label \\] using the matching slanted bracket path builder, not a rectangle."
+                  },
+                  {
+                      "RuleId":  "Render.Marker.CrossEndpointStandoff",
+                      "RuleGroup":  "Markers",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Cross endpoint markers keep a small exterior stand-off from the shape boundary; all other markers terminate on the boundary.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Ports.CrossEndpointStandoffValid":  true
+                                  },
+                      "FailWhen":  [
+                                       "CrossMarkerMissingStandoff",
+                                       "NonCrossMarkerHasStandoff"
+                                   ],
+                      "DiagnosticTemplate":  "Edge {EdgeId} failed Render.Marker.CrossEndpointStandoff.",
+                      "SuggestedCorrectionTemplate":  "Apply the cross-marker exterior gap only to cross endpoints; other markers must meet the boundary."
+                  },
+                  {
+                      "RuleId":  "Routing.Path.Straightness",
+                      "RuleGroup":  "PathShape",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Adjacent-rank primary-flow edges should use primary centre exit/entry and avoid unnecessary detours.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Path.StraightWithinTolerance":  true
+                                  },
+                      "FailWhen":  [
+                                       "StraightPathDrift"
+                                   ],
+                      "DiagnosticTemplate":  "Edge {EdgeId} failed Routing.Path.Straightness.",
+                      "SuggestedCorrectionTemplate":  "Adjust the route path to satisfy the required path-shape constraint."
+                  },
+                  {
+                      "RuleId":  "Routing.Path.OrthogonalSegments",
+                      "RuleGroup":  "PathShape",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Orthogonal routing expects axis-aligned segments with legal rounded/clean corners.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.PathFamily",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "Orthogonal"
+                                               },
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Path.OrthogonalSegmentsLegal":  true
+                                  },
+                      "FailWhen":  [
+                                       "IllegalOrthogonalSegment"
+                                   ],
+                      "DiagnosticTemplate":  "Edge {EdgeId} failed Routing.Path.OrthogonalSegments.",
+                      "SuggestedCorrectionTemplate":  "Adjust the route path to satisfy the required path-shape constraint."
+                  },
+                  {
+                      "RuleId":  "Routing.Path.NoHardElbowWhenSmoothRequired",
+                      "RuleGroup":  "PathShape",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Polyline routing expects segmented non-spline edge paths without illegal node intersections.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.PathFamily",
+                                                   "Operator":  "In",
+                                                   "Value":  [
+                                                                 "Smooth",
+                                                                 "Spline",
+                                                                 "Polyline",
+                                                                 "Orthogonal"
+                                                             ]
+                                               },
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               },
+                                               {
+                                                   "Field":  "Path.RenderedAsSvgPath",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Path.NoHardElbowWhenSmoothRequired":  true
+                                  },
+                      "FailWhen":  [
+                                       "HardElbowWhenSmoothRequired"
+                                   ],
+                      "DiagnosticTemplate":  "Edge {EdgeId} failed Routing.Path.NoHardElbowWhenSmoothRequired.",
+                      "SuggestedCorrectionTemplate":  "Adjust the route path to satisfy the required path-shape constraint."
+                  },
+                  {
+                      "RuleId":  "Routing.Path.NoOrthogonalPolylineWhenCurveBasisDefault",
+                      "RuleGroup":  "PathShape",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Default curveBasis diagrams must not render multi-segment orthogonal edge polylines (F58 terminal collector, bypass, and fan-in routes use smooth corridor curves).",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Config.RequiresCurveBasisPaths",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               },
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Path.NoOrthogonalPolylineWhenCurveBasisDefault":  true
+                                  },
+                      "FailWhen":  [
+                                       "OrthogonalPolylineWhenCurveBasisDefault"
+                                   ],
+                      "DiagnosticTemplate":  "Edge {EdgeId} failed Routing.Path.NoOrthogonalPolylineWhenCurveBasisDefault.",
+                      "SuggestedCorrectionTemplate":  "Adjust the route path to satisfy the required path-shape constraint."
+                  },
+                  {
+                      "RuleId":  "Routing.Path.NoHookAtSource",
+                      "RuleGroup":  "PathShape",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Route does not reverse direction immediately after leaving source.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Path.NoHookAtSource":  true
+                                  },
+                      "FailWhen":  [
+                                       "HookAtSource"
+                                   ],
+                      "DiagnosticTemplate":  "Edge {EdgeId} failed Routing.Path.NoHookAtSource.",
+                      "SuggestedCorrectionTemplate":  "Adjust the route path to satisfy the required path-shape constraint."
+                  },
+                  {
+                      "RuleId":  "Routing.Path.NoHookAtTarget",
+                      "RuleGroup":  "PathShape",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Route does not overshoot and hook into target.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Path.NoHookAtTarget":  true
+                                  },
+                      "FailWhen":  [
+                                       "HookAtTarget"
+                                   ],
+                      "DiagnosticTemplate":  "Edge {EdgeId} failed Routing.Path.NoHookAtTarget.",
+                      "SuggestedCorrectionTemplate":  "Adjust the route path to satisfy the required path-shape constraint."
+                  },
+                  {
+                      "RuleId":  "Routing.Path.NoUnnecessaryDetour",
+                      "RuleGroup":  "PathShape",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Edges must avoid unrelated node bodies and cluster bodies.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Path.NoUnnecessaryDetour":  true
+                                  },
+                      "FailWhen":  [
+                                       "UnnecessaryDetour"
+                                   ],
+                      "DiagnosticTemplate":  "Edge {EdgeId} failed Routing.Path.NoUnnecessaryDetour.",
+                      "SuggestedCorrectionTemplate":  "Adjust the route path to satisfy the required path-shape constraint."
+                  },
+                  {
+                      "RuleId":  "Routing.Obstacle.NoNodeBodyIntersection",
+                      "RuleGroup":  "ObstacleAvoidance",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Edges must avoid unrelated node bodies and cluster bodies.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Path.DoesNotIntersectUnrelatedNodeBodies":  true
+                                  },
+                      "FailWhen":  [
+                                       "NodeBodyIntersection",
+                                       "PathIntersectsUnrelatedNodeBody"
+                                   ],
+                      "DiagnosticTemplate":  "Edge {EdgeId} crosses node {IntersectedNodeId}. Route the edge around the node body.",
+                      "SuggestedCorrectionTemplate":  "Move the route into an available corridor and preserve the source/target ports and marker intent."
+                  },
+                  {
+                      "RuleId":  "Routing.Obstacle.NoClusterBodyIntersection",
+                      "RuleGroup":  "ObstacleAvoidance",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Edge does not pass through unrelated cluster bodies or confusing group interiors.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Path.DoesNotIntersectUnrelatedClusterBodies":  true
+                                  },
+                      "FailWhen":  [
+                                       "ClusterBodyIntersection"
+                                   ],
+                      "DiagnosticTemplate":  "Edge {EdgeId} crosses unrelated cluster {IntersectedGroupId}.",
+                      "SuggestedCorrectionTemplate":  "Route around unrelated cluster bodies and avoid confusing group interiors."
+                  },
+                  {
+                      "RuleId":  "Routing.Obstacle.NoSiblingBranchCrossing",
+                      "RuleGroup":  "ObstacleAvoidance",
+                      "AppliesTo":  "EdgeSet",
+                      "Severity":  "Error",
+                      "Description":  "Decision branches should leave from distinct appropriate boundary regions and keep labels attached to branches.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "EdgeSet.IsSiblingDecisionBranchSet",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Path.SiblingBranchesDoNotCross":  true
+                                  },
+                      "FailWhen":  [
+                                       "CrossesSiblingBranch"
+                                   ],
+                      "DiagnosticTemplate":  "Sibling branches from {SourceNodeId} cross each other unnecessarily.",
+                      "SuggestedCorrectionTemplate":  "Separate sibling decision branch corridors to avoid unnecessary crossings."
+                  },
+                  {
+                      "RuleId":  "Routing.Obstacle.NoSpineCrossingForException",
+                      "RuleGroup":  "ObstacleAvoidance",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Long exception routes avoid cutting through the centre spine corridor unless structurally required.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.RouteClass",
+                                                   "Operator":  "In",
+                                                   "Value":  [
+                                                                 "LongBypass",
+                                                                 "CycleOrReturn"
+                                                             ]
+                                               },
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Path.DoesNotCrossCentreSpineCorridor":  true
+                                  },
+                      "FailWhen":  [
+                                       "RouteThroughCentreSpine",
+                                       "DiagonalSpineCrossing"
+                                   ],
+                      "DiagnosticTemplate":  "Exception edge {EdgeId} cuts through the centre spine corridor.",
+                      "SuggestedCorrectionTemplate":  "Route long exception paths in an exterior corridor and avoid the centre spine unless structurally required."
+                  },
+                  {
+                      "RuleId":  "Routing.Label.AttachedToOwningEdge",
+                      "RuleGroup":  "Labels",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Edge labels require clearance and must remain visually attached to the owning edge.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.Label",
+                                                   "Operator":  "Exists"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Label.AttachedToOwningEdge":  true
+                                  },
+                      "FailWhen":  [
+                                       "DetachedLabel"
+                                   ],
+                      "DiagnosticTemplate":  "Edge label on {EdgeId} failed Routing.Label.AttachedToOwningEdge.",
+                      "SuggestedCorrectionTemplate":  "Adjust label placement to satisfy label routing constraints."
+                  },
+                  {
+                      "RuleId":  "Routing.Label.ClearOfNodeBodies",
+                      "RuleGroup":  "Labels",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Edge labels require clearance and must remain visually attached to the owning edge.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.Label",
+                                                   "Operator":  "Exists"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Label.ClearOfNodeBodies":  true
+                                  },
+                      "FailWhen":  [
+                                       "LabelOverlapsNodeBody"
+                                   ],
+                      "DiagnosticTemplate":  "Edge label on {EdgeId} failed Routing.Label.ClearOfNodeBodies.",
+                      "SuggestedCorrectionTemplate":  "Adjust label placement to satisfy label routing constraints."
+                  },
+                  {
+                      "RuleId":  "Routing.Label.ClearOfMarkers",
+                      "RuleGroup":  "Labels",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Validate Routing.Label.ClearOfMarkers for labelled edges.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.Label",
+                                                   "Operator":  "Exists"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Label.ClearOfMarkers":  true
+                                  },
+                      "FailWhen":  [
+                                       "LabelOverlapsMarker"
+                                   ],
+                      "DiagnosticTemplate":  "Edge label on {EdgeId} failed Routing.Label.ClearOfMarkers.",
+                      "SuggestedCorrectionTemplate":  "Adjust label placement to satisfy label routing constraints."
+                  },
+                  {
+                      "RuleId":  "Routing.Label.LongLabelWrapped",
+                      "RuleGroup":  "Labels",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Long labels require wrapping/clearance without causing excessive detours or minlen changes.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.Label.IsLong",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Label.LongLabelWrapped":  true
+                                  },
+                      "FailWhen":  [
+                                       "LongLabelCausesDetour"
+                                   ],
+                      "DiagnosticTemplate":  "Edge label on {EdgeId} failed Routing.Label.LongLabelWrapped.",
+                      "SuggestedCorrectionTemplate":  "Adjust label placement to satisfy label routing constraints."
+                  },
+                  {
+                      "RuleId":  "Routing.Label.CentredOnConnectorSpine",
+                      "RuleGroup":  "Labels",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Validate Routing.Label.CentredOnConnectorSpine for labelled edges.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.Label",
+                                                   "Operator":  "Exists"
+                                               },
+                                               {
+                                                   "Field":  "Edge.RouteClass",
+                                                   "Operator":  "In",
+                                                   "Value":  [
+                                                                 "CentreSpine",
+                                                                 "ShortAdjacent",
+                                                                 "LocalDecisionBranch"
+                                                             ]
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Label.CentredOnConnectorSpine":  true
+                                  },
+                      "FailWhen":  [
+                                       "LabelOffConnectorSpine"
+                                   ],
+                      "DiagnosticTemplate":  "Edge label on {EdgeId} failed Routing.Label.CentredOnConnectorSpine.",
+                      "SuggestedCorrectionTemplate":  "Adjust label placement to satisfy label routing constraints."
+                  },
+                  {
+                      "RuleId":  "Routing.Label.NotOnConnectorLine",
+                      "RuleGroup":  "Labels",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Validate Routing.Label.NotOnConnectorLine for labelled edges.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.Label",
+                                                   "Operator":  "Exists"
+                                               },
+                                               {
+                                                   "Field":  "Edge.PathFamily",
+                                                   "Operator":  "In",
+                                                   "Value":  [
+                                                                 "Smooth",
+                                                                 "Spline"
+                                                             ]
+                                               },
+                                               {
+                                                   "Field":  "Edge.RouteClass",
+                                                   "Operator":  "NotEquals",
+                                                   "Value":  "LocalDecisionBranch"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Label.NotOnConnectorLine":  true
+                                  },
+                      "FailWhen":  [
+                                       "LabelOnConnectorStroke"
+                                   ],
+                      "DiagnosticTemplate":  "Edge label on {EdgeId} failed Routing.Label.NotOnConnectorLine.",
+                      "SuggestedCorrectionTemplate":  "Adjust label placement to satisfy label routing constraints."
+                  },
+                  {
+                      "RuleId":  "Routing.Label.HalfPolylineMidspan",
+                      "RuleGroup":  "Labels",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Validate Routing.Label.HalfPolylineMidspan for labelled edges.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.Label",
+                                                   "Operator":  "Exists"
+                                               },
+                                               {
+                                                   "Field":  "Edge.PathFamily",
+                                                   "Operator":  "In",
+                                                   "Value":  [
+                                                                 "Smooth",
+                                                                 "Spline",
+                                                                 "Polyline"
+                                                             ]
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Label.HalfPolylineMidspan":  true
+                                  },
+                      "FailWhen":  [
+                                       "LabelNotAtHalfPolylineDistance"
+                                   ],
+                      "DiagnosticTemplate":  "Edge label on {EdgeId} failed Routing.Label.HalfPolylineMidspan.",
+                      "SuggestedCorrectionTemplate":  "Adjust label placement to satisfy label routing constraints."
+                  },
+                  {
+                      "RuleId":  "Routing.Label.BranchLabelNearBranch",
+                      "RuleGroup":  "Labels",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Decision branches should leave from distinct appropriate boundary regions and keep labels attached to branches.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.Label",
+                                                   "Operator":  "Exists"
+                                               },
+                                               {
+                                                   "Field":  "Edge.RouteClass",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "LocalDecisionBranch"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Label.NearBranchSegment":  true
+                                  },
+                      "FailWhen":  [
+                                       "LabelCloserToWrongEdge"
+                                   ],
+                      "DiagnosticTemplate":  "Edge label on {EdgeId} failed Routing.Label.BranchLabelNearBranch.",
+                      "SuggestedCorrectionTemplate":  "Adjust label placement to satisfy label routing constraints."
+                  },
+                  {
+                      "RuleId":  "Render.Marker.StartMatchesToken",
+                      "RuleGroup":  "Markers",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Markers are attached according to token decomposition and resolved style.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Marker.StartMatchesToken":  true
+                                  },
+                      "FailWhen":  [
+                                       "StartMarkerMismatch"
+                                   ],
+                      "DiagnosticTemplate":  "Edge {EdgeId} failed Render.Marker.StartMatchesToken.",
+                      "SuggestedCorrectionTemplate":  "Preserve marker intent from edge token decomposition without loss or invention."
+                  },
+                  {
+                      "RuleId":  "Render.Marker.EndMatchesToken",
+                      "RuleGroup":  "Markers",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Markers are attached according to token decomposition and resolved style.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Marker.EndMatchesToken":  true
+                                  },
+                      "FailWhen":  [
+                                       "EndMarkerMismatch"
+                                   ],
+                      "DiagnosticTemplate":  "Edge {EdgeId} failed Render.Marker.EndMatchesToken.",
+                      "SuggestedCorrectionTemplate":  "Preserve marker intent from edge token decomposition without loss or invention."
+                  },
+                  {
+                      "RuleId":  "Render.Marker.BidirectionalPreserved",
+                      "RuleGroup":  "Markers",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Markers are attached according to token decomposition and resolved style.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.IsBidirectional",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Marker.BidirectionalPreserved":  true
+                                  },
+                      "FailWhen":  [
+                                       "BidirectionalMarkerLost"
+                                   ],
+                      "DiagnosticTemplate":  "Edge {EdgeId} failed Render.Marker.BidirectionalPreserved.",
+                      "SuggestedCorrectionTemplate":  "Preserve marker intent from edge token decomposition without loss or invention."
+                  },
+                  {
+                      "RuleId":  "Render.Marker.NotLost",
+                      "RuleGroup":  "Markers",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Markers are attached according to token decomposition and resolved style.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Marker.NotLost":  true
+                                  },
+                      "FailWhen":  [
+                                       "LostMarker"
+                                   ],
+                      "DiagnosticTemplate":  "Edge {EdgeId} failed Render.Marker.NotLost.",
+                      "SuggestedCorrectionTemplate":  "Preserve marker intent from edge token decomposition without loss or invention."
+                  },
+                  {
+                      "RuleId":  "Render.Marker.NotInvented",
+                      "RuleGroup":  "Markers",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Markers are attached according to token decomposition and resolved style.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Marker.NotInvented":  true
+                                  },
+                      "FailWhen":  [
+                                       "InventedMarker"
+                                   ],
+                      "DiagnosticTemplate":  "Edge {EdgeId} failed Render.Marker.NotInvented.",
+                      "SuggestedCorrectionTemplate":  "Preserve marker intent from edge token decomposition without loss or invention."
+                  },
+                  {
+                      "RuleId":  "Subgraph.MemberMinimumInset",
+                      "RuleGroup":  "Subgraphs",
+                      "AppliesTo":  "Group",
+                      "Severity":  "Error",
+                      "Description":  "Member node bodies maintain minimum insets from the cluster border (18px sides/bottom, 18px below title band at top).",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Group.IsSubgraph",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               },
+                                               {
+                                                   "Field":  "Group.HasMemberNodes",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Layout.MemberClusterInsetValid":  true
+                                  },
+                      "FailWhen":  [
+                                       "SubgraphConstraintViolation"
+                                   ],
+                      "DiagnosticTemplate":  "Subgraph {GroupId} failed Subgraph.MemberMinimumInset.",
+                      "SuggestedCorrectionTemplate":  "Satisfy subgraph containment and routing constraints."
+                  },
+                  {
+                      "RuleId":  "Subgraph.MembersVerticallyCentered",
+                      "RuleGroup":  "Subgraphs",
+                      "AppliesTo":  "Group",
+                      "Severity":  "Error",
+                      "Description":  "Member content is vertically centred in the cluster content region below the title band.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Group.IsSubgraph",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               },
+                                               {
+                                                   "Field":  "Group.HasMemberNodes",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Layout.MembersVerticallyCenteredInCluster":  true
+                                  },
+                      "FailWhen":  [
+                                       "SubgraphConstraintViolation"
+                                   ],
+                      "DiagnosticTemplate":  "Subgraph {GroupId} failed Subgraph.MembersVerticallyCentered.",
+                      "SuggestedCorrectionTemplate":  "Satisfy subgraph containment and routing constraints."
+                  },
+                  {
+                      "RuleId":  "Subgraph.MembersHorizontallyCentered",
+                      "RuleGroup":  "Subgraphs",
+                      "AppliesTo":  "Group",
+                      "Severity":  "Error",
+                      "Description":  "The primary internal member column (for example Queue/Decision in F59) is horizontally centred in the cluster content region; otherwise the member bounding box is centred with side padding.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Group.IsSubgraph",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               },
+                                               {
+                                                   "Field":  "Group.HasMemberNodes",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Layout.MembersHorizontallyCenteredInCluster":  true
+                                  },
+                      "FailWhen":  [
+                                       "SubgraphConstraintViolation"
+                                   ],
+                      "DiagnosticTemplate":  "Subgraph {GroupId} failed Subgraph.MembersHorizontallyCentered.",
+                      "SuggestedCorrectionTemplate":  "Satisfy subgraph containment and routing constraints."
+                  },
+                  {
+                      "RuleId":  "Subgraph.SiblingCrossBoundarySpineAligned",
+                      "RuleGroup":  "Subgraphs",
+                      "AppliesTo":  "Group",
+                      "Severity":  "Error",
+                      "Description":  "Sibling subgraphs with cross-boundary member rows share a common spine coordinate so primary cross-stage connectors can run horizontally (F60).",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Group.IsSubgraph",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               },
+                                               {
+                                                   "Field":  "Group.HasCrossBoundarySiblingSubgraph",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Layout.SiblingSubgraphSpineAligned":  true
+                                  },
+                      "FailWhen":  [
+                                       "SubgraphConstraintViolation"
+                                   ],
+                      "DiagnosticTemplate":  "Subgraph {GroupId} failed Subgraph.SiblingCrossBoundarySpineAligned.",
+                      "SuggestedCorrectionTemplate":  "Satisfy subgraph containment and routing constraints."
+                  },
+                  {
+                      "RuleId":  "Layout.ParallelColumnRowsAligned",
+                      "RuleGroup":  "Subgraphs",
+                      "AppliesTo":  "Diagram",
+                      "Severity":  "Error",
+                      "Description":  "Parallel vertical columns align corresponding rows to the same cross-flow coordinate (F73).",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Layout.HasParallelColumnLayout",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Layout.ParallelColumnRowsAligned":  true
+                                  },
+                      "FailWhen":  [
+                                       "SubgraphConstraintViolation"
+                                   ],
+                      "DiagnosticTemplate":  "Subgraph {GroupId} failed Layout.ParallelColumnRowsAligned.",
+                      "SuggestedCorrectionTemplate":  "Satisfy subgraph containment and routing constraints."
+                  },
+                  {
+                      "RuleId":  "Subgraph.BoundsContainMembers",
+                      "RuleGroup":  "Subgraphs",
+                      "AppliesTo":  "Group",
+                      "Severity":  "Error",
+                      "Description":  "Nested subgraph routing must respect inner and outer group boundaries and directions.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Group.IsSubgraph",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Group.BoundsContainMembers":  true
+                                  },
+                      "FailWhen":  [
+                                       "SubgraphConstraintViolation"
+                                   ],
+                      "DiagnosticTemplate":  "Subgraph {GroupId} failed Subgraph.BoundsContainMembers.",
+                      "SuggestedCorrectionTemplate":  "Satisfy subgraph containment and routing constraints."
+                  },
+                  {
+                      "RuleId":  "Subgraph.InternalEdgesRemainInside",
+                      "RuleGroup":  "Subgraphs",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Internal subgraph edges should route within the group while respecting member node bounds.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.IsSubgraphInternal",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               },
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Path.RemainsInsideGroupWhenPossible":  true
+                                  },
+                      "FailWhen":  [
+                                       "SubgraphConstraintViolation"
+                                   ],
+                      "DiagnosticTemplate":  "Subgraph {GroupId} failed Subgraph.InternalEdgesRemainInside.",
+                      "SuggestedCorrectionTemplate":  "Satisfy subgraph containment and routing constraints."
+                  },
+                  {
+                      "RuleId":  "Subgraph.CrossBoundaryEdgesAreClear",
+                      "RuleGroup":  "Subgraphs",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Cross-boundary edges should clip to group/member boundaries as applicable and avoid cluster border confusion.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.IsSubgraphCrossBoundary",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               },
+                                               {
+                                                   "Field":  "Edge.IsVisible",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Path.CrossBoundaryClear":  true
+                                  },
+                      "FailWhen":  [
+                                       "SubgraphConstraintViolation"
+                                   ],
+                      "DiagnosticTemplate":  "Subgraph {GroupId} failed Subgraph.CrossBoundaryEdgesAreClear.",
+                      "SuggestedCorrectionTemplate":  "Satisfy subgraph containment and routing constraints."
+                  },
+                  {
+                      "RuleId":  "Subgraph.NestedOwnershipDeterministic",
+                      "RuleGroup":  "Subgraphs",
+                      "AppliesTo":  "Group",
+                      "Severity":  "Error",
+                      "Description":  "Node has one effective parent group and nested ownership remains deterministic.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Group.IsSubgraph",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Group.NestedOwnershipDeterministic":  true
+                                  },
+                      "FailWhen":  [
+                                       "SubgraphConstraintViolation"
+                                   ],
+                      "DiagnosticTemplate":  "Subgraph {GroupId} failed Subgraph.NestedOwnershipDeterministic.",
+                      "SuggestedCorrectionTemplate":  "Satisfy subgraph containment and routing constraints."
+                  },
+                  {
+                      "RuleId":  "Diagnostics.NoScenarioNameDrivenRouting",
+                      "RuleGroup":  "AntiPatterns",
+                      "AppliesTo":  "Implementation",
+                      "Severity":  "Error",
+                      "Description":  "Routing must not branch on scenario ID or fixture name.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Implementation.StaticAnalysis.Available",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Implementation.NoScenarioNameSelectors":  true
+                                  },
+                      "FailWhen":  [
+                                       "ScenarioNameDrivenSpecialCase",
+                                       "ScenarioNameDrivenSelectorFound"
+                                   ],
+                      "DiagnosticTemplate":  "Implementation contains scenario-driven routing selector {SelectorName}.",
+                      "SuggestedCorrectionTemplate":  "Replace the selector with structural graph, layout, or routing conditions."
+                  },
+                  {
+                      "RuleId":  "Diagnostics.NoNodeLabelDrivenRouting",
+                      "RuleGroup":  "AntiPatterns",
+                      "AppliesTo":  "Implementation",
+                      "Severity":  "Error",
+                      "Description":  "Routing must not branch on visible node label text.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Implementation.StaticAnalysis.Available",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Implementation.NoNodeLabelSelectors":  true
+                                  },
+                      "FailWhen":  [
+                                       "NodeLabelDrivenSelectorFound"
+                                   ],
+                      "DiagnosticTemplate":  "Implementation contains node-label-driven routing selector {SelectorName}.",
+                      "SuggestedCorrectionTemplate":  "Use structural node facts such as shape, degree, rank, and lane instead of label text."
+                  },
+                  {
+                      "RuleId":  "Diagnostics.NoEnglishLabelDrivenBranching",
+                      "RuleGroup":  "AntiPatterns",
+                      "AppliesTo":  "Implementation",
+                      "Severity":  "Error",
+                      "Description":  "Routing must not use English edge labels such as Yes or No to determine geometry.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Implementation.StaticAnalysis.Available",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Implementation.NoEnglishLabelSelectors":  true
+                                  },
+                      "FailWhen":  [
+                                       "EnglishLabelDrivenSelectorFound"
+                                   ],
+                      "DiagnosticTemplate":  "Implementation contains English-label-driven routing selector {SelectorName}.",
+                      "SuggestedCorrectionTemplate":  "Use graph topology and route class inference instead of edge label language."
+                  },
+                  {
+                      "RuleId":  "Diagnostics.UnsupportedFeaturesReported",
+                      "RuleGroup":  "Diagnostics",
+                      "AppliesTo":  "Diagram",
+                      "Severity":  "Error",
+                      "Description":  "Unsupported recognised features produce diagnostics.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Diagram.HasUnsupportedFeature",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Diagnostics.UnsupportedFeatureReported":  true
+                                  },
+                      "FailWhen":  [
+                                       "UnsupportedFeatureSilenced"
+                                   ],
+                      "DiagnosticTemplate":  "Diagram {DiagramId} has unsupported feature {FeatureKind} without a diagnostic.",
+                      "SuggestedCorrectionTemplate":  "Report unsupported recognised features as structured diagnostics."
+                  },
+                  {
+                      "RuleId":  "Header.GraphAlias",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Diagram",
+                      "Severity":  "Error",
+                      "Description":  "Recognise graph as flowchart-compatible input.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Recognition.HeaderToken",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "graph"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "LegacyCatalogueRuleSatisfied":  true
+                                  },
+                      "FailWhen":  [
+                                       "LegacyCatalogueRuleViolation"
+                                   ],
+                      "DiagnosticTemplate":  "{ElementId} failed legacy catalogue rule Header.GraphAlias.",
+                      "SuggestedCorrectionTemplate":  "Satisfy the recognition or routing intent described by the legacy catalogue rule using structural model facts."
+                  },
+                  {
+                      "RuleId":  "Header.FlowchartElkAlias",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Diagram",
+                      "Severity":  "Error",
+                      "Description":  "Recognise flowchart-elk as flowchart with ELK renderer intent.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Recognition.HeaderToken",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "flowchart-elk"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "LegacyCatalogueRuleSatisfied":  true
+                                  },
+                      "FailWhen":  [
+                                       "LegacyCatalogueRuleViolation"
+                                   ],
+                      "DiagnosticTemplate":  "{ElementId} failed legacy catalogue rule Header.FlowchartElkAlias.",
+                      "SuggestedCorrectionTemplate":  "Satisfy the recognition or routing intent described by the legacy catalogue rule using structural model facts."
+                  },
+                  {
+                      "RuleId":  "Recognition.Edge.Bidirectional",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Bidirectional markers are recognised without duplicating the logical edge.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.IsBidirectional",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "LegacyCatalogueRuleSatisfied":  true
+                                  },
+                      "FailWhen":  [
+                                       "LegacyCatalogueRuleViolation"
+                                   ],
+                      "DiagnosticTemplate":  "{ElementId} failed legacy catalogue rule Recognition.Edge.Bidirectional.",
+                      "SuggestedCorrectionTemplate":  "Satisfy the recognition or routing intent described by the legacy catalogue rule using structural model facts."
+                  },
+                  {
+                      "RuleId":  "Recognition.Edge.Dotted",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Dotted edge stroke is recognised independently from marker style.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.Stroke",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "Dotted"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "LegacyCatalogueRuleSatisfied":  true
+                                  },
+                      "FailWhen":  [
+                                       "LegacyCatalogueRuleViolation"
+                                   ],
+                      "DiagnosticTemplate":  "{ElementId} failed legacy catalogue rule Recognition.Edge.Dotted.",
+                      "SuggestedCorrectionTemplate":  "Satisfy the recognition or routing intent described by the legacy catalogue rule using structural model facts."
+                  },
+                  {
+                      "RuleId":  "Recognition.Edge.Thick",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Thick edge stroke is recognised independently from marker style.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.Stroke",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "Thick"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "LegacyCatalogueRuleSatisfied":  true
+                                  },
+                      "FailWhen":  [
+                                       "LegacyCatalogueRuleViolation"
+                                   ],
+                      "DiagnosticTemplate":  "{ElementId} failed legacy catalogue rule Recognition.Edge.Thick.",
+                      "SuggestedCorrectionTemplate":  "Satisfy the recognition or routing intent described by the legacy catalogue rule using structural model facts."
+                  },
+                  {
+                      "RuleId":  "Recognition.Edge.Invisible",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Invisible edge is recognised as a layout-affecting edge with hidden visual stroke.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.Stroke",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "Invisible"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "LegacyCatalogueRuleSatisfied":  true
+                                  },
+                      "FailWhen":  [
+                                       "LegacyCatalogueRuleViolation"
+                                   ],
+                      "DiagnosticTemplate":  "{ElementId} failed legacy catalogue rule Recognition.Edge.Invisible.",
+                      "SuggestedCorrectionTemplate":  "Satisfy the recognition or routing intent described by the legacy catalogue rule using structural model facts."
+                  },
+                  {
+                      "RuleId":  "Recognition.Edge.CircleMarker",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Circle marker is recognised at the indicated edge end.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.ArrowStart",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "Circle"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "LegacyCatalogueRuleSatisfied":  true
+                                  },
+                      "FailWhen":  [
+                                       "LegacyCatalogueRuleViolation"
+                                   ],
+                      "DiagnosticTemplate":  "{ElementId} failed legacy catalogue rule Recognition.Edge.CircleMarker.",
+                      "SuggestedCorrectionTemplate":  "Satisfy the recognition or routing intent described by the legacy catalogue rule using structural model facts."
+                  },
+                  {
+                      "RuleId":  "Recognition.Edge.CrossMarker",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Cross marker is recognised at the indicated edge end.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.ArrowEnd",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "Cross"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "LegacyCatalogueRuleSatisfied":  true
+                                  },
+                      "FailWhen":  [
+                                       "LegacyCatalogueRuleViolation"
+                                   ],
+                      "DiagnosticTemplate":  "{ElementId} failed legacy catalogue rule Recognition.Edge.CrossMarker.",
+                      "SuggestedCorrectionTemplate":  "Satisfy the recognition or routing intent described by the legacy catalogue rule using structural model facts."
+                  },
+                  {
+                      "RuleId":  "Recognition.Edge.GroupExpansion",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Ampersand grouped vertices expand to all required logical edges.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.RequiresGroupExpansion",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "LegacyCatalogueRuleSatisfied":  true
+                                  },
+                      "FailWhen":  [
+                                       "LegacyCatalogueRuleViolation"
+                                   ],
+                      "DiagnosticTemplate":  "{ElementId} failed legacy catalogue rule Recognition.Edge.GroupExpansion.",
+                      "SuggestedCorrectionTemplate":  "Satisfy the recognition or routing intent described by the legacy catalogue rule using structural model facts."
+                  },
+                  {
+                      "RuleId":  "Recognition.Edge.LabelPipeSyntax",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Pipe-delimited edge labels are preserved as edge labels.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.LabelSyntax",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "Pipe"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "LegacyCatalogueRuleSatisfied":  true
+                                  },
+                      "FailWhen":  [
+                                       "LegacyCatalogueRuleViolation"
+                                   ],
+                      "DiagnosticTemplate":  "{ElementId} failed legacy catalogue rule Recognition.Edge.LabelPipeSyntax.",
+                      "SuggestedCorrectionTemplate":  "Satisfy the recognition or routing intent described by the legacy catalogue rule using structural model facts."
+                  },
+                  {
+                      "RuleId":  "Recognition.Edge.LongLabel",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Long edge label is measured/wrapped without deriving minlen from label text.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.Label.IsLong",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "LegacyCatalogueRuleSatisfied":  true
+                                  },
+                      "FailWhen":  [
+                                       "LegacyCatalogueRuleViolation"
+                                   ],
+                      "DiagnosticTemplate":  "{ElementId} failed legacy catalogue rule Recognition.Edge.LongLabel.",
+                      "SuggestedCorrectionTemplate":  "Satisfy the recognition or routing intent described by the legacy catalogue rule using structural model facts."
+                  },
+                  {
+                      "RuleId":  "Recognition.Subgraph.Nested",
+                      "RuleGroup":  "Subgraphs",
+                      "AppliesTo":  "Group",
+                      "Severity":  "Error",
+                      "Description":  "Nested groups preserve parent/child group ownership.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Group.NestingDepth",
+                                                   "Operator":  "GreaterThan",
+                                                   "Value":  1
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "LegacyCatalogueRuleSatisfied":  true
+                                  },
+                      "FailWhen":  [
+                                       "LegacyCatalogueRuleViolation"
+                                   ],
+                      "DiagnosticTemplate":  "{ElementId} failed legacy catalogue rule Recognition.Subgraph.Nested.",
+                      "SuggestedCorrectionTemplate":  "Satisfy the recognition or routing intent described by the legacy catalogue rule using structural model facts."
+                  },
+                  {
+                      "RuleId":  "Recognition.Subgraph.Direction",
+                      "RuleGroup":  "Subgraphs",
+                      "AppliesTo":  "Group",
+                      "Severity":  "Error",
+                      "Description":  "Subgraph-local direction is captured on the group contract.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Group.LocalDirection",
+                                                   "Operator":  "Exists"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "LegacyCatalogueRuleSatisfied":  true
+                                  },
+                      "FailWhen":  [
+                                       "LegacyCatalogueRuleViolation"
+                                   ],
+                      "DiagnosticTemplate":  "{ElementId} failed legacy catalogue rule Recognition.Subgraph.Direction.",
+                      "SuggestedCorrectionTemplate":  "Satisfy the recognition or routing intent described by the legacy catalogue rule using structural model facts."
+                  },
+                  {
+                      "RuleId":  "Recognition.Config.Init",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Diagram",
+                      "Severity":  "Error",
+                      "Description":  "init directive is parsed before diagram recognition and affects effective config.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Config.HasInitDirective",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "LegacyCatalogueRuleSatisfied":  true
+                                  },
+                      "FailWhen":  [
+                                       "LegacyCatalogueRuleViolation"
+                                   ],
+                      "DiagnosticTemplate":  "{ElementId} failed legacy catalogue rule Recognition.Config.Init.",
+                      "SuggestedCorrectionTemplate":  "Satisfy the recognition or routing intent described by the legacy catalogue rule using structural model facts."
+                  },
+                  {
+                      "RuleId":  "Recognition.Config.FrontMatter",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Diagram",
+                      "Severity":  "Error",
+                      "Description":  "front-matter config is parsed and merged into effective config.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Config.HasFrontMatter",
+                                                   "Operator":  "Equals",
+                                                   "Value":  true
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "LegacyCatalogueRuleSatisfied":  true
+                                  },
+                      "FailWhen":  [
+                                       "LegacyCatalogueRuleViolation"
+                                   ],
+                      "DiagnosticTemplate":  "{ElementId} failed legacy catalogue rule Recognition.Config.FrontMatter.",
+                      "SuggestedCorrectionTemplate":  "Satisfy the recognition or routing intent described by the legacy catalogue rule using structural model facts."
+                  },
+                  {
+                      "RuleId":  "Routing.ELK",
+                      "RuleGroup":  "RoutingClassification",
+                      "AppliesTo":  "Diagram",
+                      "Severity":  "Error",
+                      "Description":  "ELK scenarios use ELK layout/routing intent rather than Dagre-only assumptions.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Diagram.LayoutEngine",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "ELK"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "LegacyCatalogueRuleSatisfied":  true
+                                  },
+                      "FailWhen":  [
+                                       "LegacyCatalogueRuleViolation"
+                                   ],
+                      "DiagnosticTemplate":  "{ElementId} failed legacy catalogue rule Routing.ELK.",
+                      "SuggestedCorrectionTemplate":  "Satisfy the recognition or routing intent described by the legacy catalogue rule using structural model facts."
+                  },
+                  {
+                      "RuleId":  "Routing.InvisibleLayoutConstraint",
+                      "RuleGroup":  "PathShape",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Invisible edges affect layout but do not render visible stroke or marker.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.Stroke",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "Invisible"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "LegacyCatalogueRuleSatisfied":  true
+                                  },
+                      "FailWhen":  [
+                                       "LegacyCatalogueRuleViolation"
+                                   ],
+                      "DiagnosticTemplate":  "{ElementId} failed legacy catalogue rule Routing.InvisibleLayoutConstraint.",
+                      "SuggestedCorrectionTemplate":  "Satisfy the recognition or routing intent described by the legacy catalogue rule using structural model facts."
+                  },
+                  {
+                      "RuleId":  "Routing.MinLenDummySegments",
+                      "RuleGroup":  "PathShape",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Extra-hyphen minlen edges may span ranks using dummy segments while snapping endpoints to real nodes.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Edge.MinLength",
+                                                   "Operator":  "GreaterThan",
+                                                   "Value":  1
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "LegacyCatalogueRuleSatisfied":  true
+                                  },
+                      "FailWhen":  [
+                                       "LegacyCatalogueRuleViolation"
+                                   ],
+                      "DiagnosticTemplate":  "{ElementId} failed legacy catalogue rule Routing.MinLenDummySegments.",
+                      "SuggestedCorrectionTemplate":  "Satisfy the recognition or routing intent described by the legacy catalogue rule using structural model facts."
+                  },
+                  {
+                      "RuleId":  "Routing.ScalingStability",
+                      "RuleGroup":  "PathShape",
+                      "AppliesTo":  "Edge",
+                      "Severity":  "Error",
+                      "Description":  "Large or dense graphs should remain structurally complete and avoid pathological overlaps.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Diagram.NodeCount",
+                                                   "Operator":  "GreaterThanOrEqual",
+                                                   "Value":  20
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "LegacyCatalogueRuleSatisfied":  true
+                                  },
+                      "FailWhen":  [
+                                       "LegacyCatalogueRuleViolation"
+                                   ],
+                      "DiagnosticTemplate":  "{ElementId} failed legacy catalogue rule Routing.ScalingStability.",
+                      "SuggestedCorrectionTemplate":  "Satisfy the recognition or routing intent described by the legacy catalogue rule using structural model facts."
+                  },
+                  {
+                      "RuleId":  "Recognition.Node.Shape.Asymmetric",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Node",
+                      "Severity":  "Error",
+                      "Description":  "Asymmetric flag syntax maps to asymmetric/flag shape intent.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Node.Shape",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "Asymmetric"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Node.ShapeCanonicalised":  true
+                                  },
+                      "FailWhen":  [
+                                       "UnmappedNodeShape"
+                                   ],
+                      "DiagnosticTemplate":  "Node {NodeId} shape Asymmetric was not canonicalised correctly.",
+                      "SuggestedCorrectionTemplate":  "Map the Mermaid node syntax to the canonical shape intent."
+                  },
+                  {
+                      "RuleId":  "Recognition.Node.Shape.Circle",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Node",
+                      "Severity":  "Error",
+                      "Description":  "Double-parentheses syntax maps to circle intent.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Node.Shape",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "Circle"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Node.ShapeCanonicalised":  true
+                                  },
+                      "FailWhen":  [
+                                       "UnmappedNodeShape"
+                                   ],
+                      "DiagnosticTemplate":  "Node {NodeId} shape Circle was not canonicalised correctly.",
+                      "SuggestedCorrectionTemplate":  "Map the Mermaid node syntax to the canonical shape intent."
+                  },
+                  {
+                      "RuleId":  "Recognition.Node.Shape.Cylinder",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Node",
+                      "Severity":  "Error",
+                      "Description":  "Cylinder syntax maps to database/cylinder intent.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Node.Shape",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "Cylinder"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Node.ShapeCanonicalised":  true
+                                  },
+                      "FailWhen":  [
+                                       "UnmappedNodeShape"
+                                   ],
+                      "DiagnosticTemplate":  "Node {NodeId} shape Cylinder was not canonicalised correctly.",
+                      "SuggestedCorrectionTemplate":  "Map the Mermaid node syntax to the canonical shape intent."
+                  },
+                  {
+                      "RuleId":  "Recognition.Node.Shape.Diamond",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Node",
+                      "Severity":  "Error",
+                      "Description":  "Brace syntax maps to decision diamond intent.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Node.Shape",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "Diamond"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Node.ShapeCanonicalised":  true
+                                  },
+                      "FailWhen":  [
+                                       "UnmappedNodeShape"
+                                   ],
+                      "DiagnosticTemplate":  "Node {NodeId} shape Diamond was not canonicalised correctly.",
+                      "SuggestedCorrectionTemplate":  "Map the Mermaid node syntax to the canonical shape intent."
+                  },
+                  {
+                      "RuleId":  "Recognition.Node.Shape.DoubleCircle",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Node",
+                      "Severity":  "Error",
+                      "Description":  "Triple-parentheses syntax maps to double-circle intent.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Node.Shape",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "DoubleCircle"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Node.ShapeCanonicalised":  true
+                                  },
+                      "FailWhen":  [
+                                       "UnmappedNodeShape"
+                                   ],
+                      "DiagnosticTemplate":  "Node {NodeId} shape DoubleCircle was not canonicalised correctly.",
+                      "SuggestedCorrectionTemplate":  "Map the Mermaid node syntax to the canonical shape intent."
+                  },
+                  {
+                      "RuleId":  "Recognition.Node.Shape.Hexagon",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Node",
+                      "Severity":  "Error",
+                      "Description":  "Double-brace syntax maps to hexagon intent.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Node.Shape",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "Hexagon"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Node.ShapeCanonicalised":  true
+                                  },
+                      "FailWhen":  [
+                                       "UnmappedNodeShape"
+                                   ],
+                      "DiagnosticTemplate":  "Node {NodeId} shape Hexagon was not canonicalised correctly.",
+                      "SuggestedCorrectionTemplate":  "Map the Mermaid node syntax to the canonical shape intent."
+                  },
+                  {
+                      "RuleId":  "Recognition.Node.Shape.Rect",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Node",
+                      "Severity":  "Error",
+                      "Description":  "Bracket rectangle syntax maps to canonical rectangle intent.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Node.Shape",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "Rect"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Node.ShapeCanonicalised":  true
+                                  },
+                      "FailWhen":  [
+                                       "UnmappedNodeShape"
+                                   ],
+                      "DiagnosticTemplate":  "Node {NodeId} shape Rect was not canonicalised correctly.",
+                      "SuggestedCorrectionTemplate":  "Map the Mermaid node syntax to the canonical shape intent."
+                  },
+                  {
+                      "RuleId":  "Recognition.Node.Shape.Rounded",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Node",
+                      "Severity":  "Error",
+                      "Description":  "Parenthesised node syntax maps to rounded rectangle intent.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Node.Shape",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "Rounded"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Node.ShapeCanonicalised":  true
+                                  },
+                      "FailWhen":  [
+                                       "UnmappedNodeShape"
+                                   ],
+                      "DiagnosticTemplate":  "Node {NodeId} shape Rounded was not canonicalised correctly.",
+                      "SuggestedCorrectionTemplate":  "Map the Mermaid node syntax to the canonical shape intent."
+                  },
+                  {
+                      "RuleId":  "Recognition.Node.Shape.Stadium",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Node",
+                      "Severity":  "Error",
+                      "Description":  "Stadium/pill syntax maps to stadium shape intent.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Node.Shape",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "Stadium"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Node.ShapeCanonicalised":  true
+                                  },
+                      "FailWhen":  [
+                                       "UnmappedNodeShape"
+                                   ],
+                      "DiagnosticTemplate":  "Node {NodeId} shape Stadium was not canonicalised correctly.",
+                      "SuggestedCorrectionTemplate":  "Map the Mermaid node syntax to the canonical shape intent."
+                  },
+                  {
+                      "RuleId":  "Recognition.Node.Shape.Subroutine",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Node",
+                      "Severity":  "Error",
+                      "Description":  "Double-bracket syntax maps to subroutine/framed rectangle intent.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Node.Shape",
+                                                   "Operator":  "Equals",
+                                                   "Value":  "Subroutine"
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Node.ShapeCanonicalised":  true
+                                  },
+                      "FailWhen":  [
+                                       "UnmappedNodeShape"
+                                   ],
+                      "DiagnosticTemplate":  "Node {NodeId} shape Subroutine was not canonicalised correctly.",
+                      "SuggestedCorrectionTemplate":  "Map the Mermaid node syntax to the canonical shape intent."
+                  },
+                  {
+                      "RuleId":  "Recognition.Node.Shape.Trapezoid",
+                      "RuleGroup":  "Recognition",
+                      "AppliesTo":  "Node",
+                      "Severity":  "Error",
+                      "Description":  "Legacy trapezoid/lean bracket syntax maps to canonical trapezoid or lean shape intent.",
+                      "When":  {
+                                   "All":  [
+                                               {
+                                                   "Field":  "Node.Shape",
+                                                   "Operator":  "In",
+                                                   "Value":  [
+                                                                 "lean_right",
+                                                                 "lean_left",
+                                                                 "trapezoid",
+                                                                 "inv_trapezoid"
+                                                             ]
+                                               }
+                                           ]
+                               },
+                      "Require":  {
+                                      "Node.TrapezoidBracketShapeRecognised":  true,
+                                      "Node.ShapeCanonicalised":  true
+                                  },
+                      "FailWhen":  [
+                                       "UnmappedNodeShape"
+                                   ],
+                      "DiagnosticTemplate":  "Node {NodeId} shape Trapezoid was not canonicalised correctly.",
+                      "SuggestedCorrectionTemplate":  "Map the Mermaid node syntax to the canonical shape intent."
+                  }
+              ]
+}

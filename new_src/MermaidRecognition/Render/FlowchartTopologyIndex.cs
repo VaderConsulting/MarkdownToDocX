@@ -65,6 +65,94 @@ internal sealed class FlowchartTopologyIndex
         return Array.Empty<EdgeContract>();
     }
 
+    /// <summary>
+    /// Detects whether an edge closes a cycle (target already on the DFS stack or visited).
+    /// </summary>
+    public bool IsCycleBackEdge(EdgeContract CandidateEdge)
+    {
+        if (string.Equals(CandidateEdge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        Dictionary<string, int> VisitStateByNodeId = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (KeyValuePair<string, NodeContract> Entry in _NodesById)
+        {
+            VisitStateByNodeId[Entry.Key] = 0;
+        }
+
+        List<string> RootNodeIds = new List<string>();
+        foreach (KeyValuePair<string, NodeContract> Entry in _NodesById)
+        {
+            if (!_IncomingByTarget.TryGetValue(Entry.Key, out List<EdgeContract>? IncomingEdges)
+                || IncomingEdges.Count == 0)
+            {
+                RootNodeIds.Add(Entry.Key);
+            }
+        }
+
+        if (RootNodeIds.Count == 0)
+        {
+            RootNodeIds.AddRange(_NodesById.Keys);
+        }
+
+        foreach (string RootNodeId in RootNodeIds)
+        {
+            if (VisitStateByNodeId[RootNodeId] == 0
+                && DepthFirstSearchForBackEdge(RootNodeId, CandidateEdge, VisitStateByNodeId))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool DepthFirstSearchForBackEdge(
+        string NodeId,
+        EdgeContract CandidateEdge,
+        Dictionary<string, int> VisitStateByNodeId)
+    {
+        VisitStateByNodeId[NodeId] = 1;
+
+        if (_OutgoingBySource.TryGetValue(NodeId, out List<EdgeContract>? OutgoingEdges))
+        {
+            foreach (EdgeContract Edge in OutgoingEdges)
+            {
+                if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (EdgesMatch(Edge, CandidateEdge))
+                {
+                    int TargetState = VisitStateByNodeId.TryGetValue(Edge.TargetId, out int State) ? State : 0;
+                    if (TargetState != 0)
+                    {
+                        return true;
+                    }
+                }
+
+                int NextState = VisitStateByNodeId.TryGetValue(Edge.TargetId, out int ExistingState) ? ExistingState : 0;
+                if (NextState == 0
+                    && DepthFirstSearchForBackEdge(Edge.TargetId, CandidateEdge, VisitStateByNodeId))
+                {
+                    return true;
+                }
+            }
+        }
+
+        VisitStateByNodeId[NodeId] = 2;
+        return false;
+    }
+
+    private static bool EdgesMatch(EdgeContract Left, EdgeContract Right)
+    {
+        return Left.SourceId == Right.SourceId
+            && Left.TargetId == Right.TargetId
+            && Left.CreationIndex == Right.CreationIndex;
+    }
+
     private void AddOutgoing(string NodeId, EdgeContract Edge)
     {
         if (!_OutgoingBySource.TryGetValue(NodeId, out List<EdgeContract>? Edges))

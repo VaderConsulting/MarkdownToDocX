@@ -16,7 +16,7 @@ public sealed class FlowchartF71InteractionRenderTests
     [Test]
     public void TryRenderFlowchartSvg_F71_DoesNotEmbedInteractionText()
     {
-        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderLegacyNaiadFlowchartSvg(
             F71_SOURCE,
             RenderOptions.Default,
             out string Svg);

@@ -38,7 +38,7 @@ public sealed class F77ClassDefCommaTargetsTests
     [Test]
     public void RenderSvg_F77_AppliesLaneFillAndStrokeOnAAndC()
     {
-        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderLegacyNaiadFlowchartSvg(
             F77_SOURCE,
             RenderOptions.Default,
             out string Svg);

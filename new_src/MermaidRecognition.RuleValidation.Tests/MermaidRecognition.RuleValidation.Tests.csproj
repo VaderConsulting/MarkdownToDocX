@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>MermaidRecognition.RuleValidation.Tests</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <AnalysisLevel>none</AnalysisLevel>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\Rule Specification\**\*" CopyToOutputDirectory="PreserveNewest" Link="Rule Specification\%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="..\..\flow.md" CopyToOutputDirectory="PreserveNewest" Link="flow.md" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.6.0" />
+    <PackageReference Include="NUnit" Version="4.6.1" />
+    <PackageReference Include="NUnit3TestAdapter" Version="6.2.0" />
+    <ProjectReference Include="..\MermaidRecognition.RuleValidation\MermaidRecognition.RuleValidation.csproj" />
+  </ItemGroup>
+
+</Project>

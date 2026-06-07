@@ -1,4 +1,5 @@
 using MermaidRecognition.Contract;
+using MermaidRecognition.Flowchart;
 
 namespace MermaidRecognition.Render;
 
@@ -152,11 +153,22 @@ public static class FlowchartRouter
             return false;
         }
 
-        string Direction = Contract.Direction ?? "TB";
-        if (Direction.Equals("BT", StringComparison.OrdinalIgnoreCase))
+        FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
+        if (Direction == FlowchartDirection.BottomToTop)
         {
             return Edge.TargetId.Equals(Source.Id, StringComparison.Ordinal)
                 && Edge.SourceId.Equals(Target.Id, StringComparison.Ordinal);
+        }
+
+        if (Direction == FlowchartDirection.LeftToRight
+            || Direction == FlowchartDirection.RightToLeft)
+        {
+            if (IsDecisionShape(Source) || IsDecisionShape(Target))
+            {
+                return false;
+            }
+
+            return Topology.IsCycleBackEdge(Edge);
         }
 
         return false;

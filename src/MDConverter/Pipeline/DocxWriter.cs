@@ -668,7 +668,8 @@ public sealed class DocxWriter
         {
             Properties.Append(new Indentation() { Left = (1080 + (ListLevel.Value * 360)).ToString() });
         }
-        Properties.Append(new Justification() { Val = JustificationValues.Center });
+
+        ApplyCenterAlignmentProperties(Properties);
 
         Paragraph Paragraph = new Paragraph(Properties);
         try
@@ -701,7 +702,11 @@ public sealed class DocxWriter
     {
         RenderOptions RenderOptions = RenderOptions.Default;
         if (_Options.Mermaid.UseFlowchartRecognitionParser
-            && FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(MermaidSource, RenderOptions, out string RecognitionSvg))
+            && FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+                MermaidSource,
+                RenderOptions,
+                _Options.Mermaid.UseNativeSugiyamaRenderer,
+                out string RecognitionSvg))
         {
             return RecognitionSvg;
         }
@@ -1057,7 +1062,33 @@ public sealed class DocxWriter
             DistanceFromRight = 0U
         };
         Parent.AppendChild(new Run(new Drawing(Inline)));
+        ApplyCenterAlignment(Parent);
         return true;
+    }
+
+    private static void ApplyCenterAlignment(Paragraph Paragraph)
+    {
+        ParagraphProperties? Properties = Paragraph.GetFirstChild<ParagraphProperties>();
+        if (Properties == null)
+        {
+            Properties = new ParagraphProperties();
+            Paragraph.PrependChild(Properties);
+        }
+
+        ApplyCenterAlignmentProperties(Properties);
+    }
+
+    private static void ApplyCenterAlignmentProperties(ParagraphProperties Properties)
+    {
+        Justification? Existing = Properties.GetFirstChild<Justification>();
+        if (Existing == null)
+        {
+            Properties.Append(new Justification() { Val = JustificationValues.Center });
+        }
+        else
+        {
+            Existing.Val = JustificationValues.Center;
+        }
     }
 
     /// <summary>
@@ -1225,7 +1256,11 @@ public sealed class DocxWriter
         RenderOptions RenderOptions = RenderOptions.Default;
 
         string Svg;
-        if (FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(MermaidSource, RenderOptions, out string RecognitionSvg))
+        if (FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+                MermaidSource,
+                RenderOptions,
+                UseNativeSugiyamaRenderer: true,
+                out string RecognitionSvg))
         {
             Svg = RecognitionSvg;
         }
@@ -1237,7 +1272,7 @@ public sealed class DocxWriter
         return TryRasterizeSvgToPng(Svg);
     }
 
-    private static byte[]? TryRasterizeSvgToPng(string Svg)
+    internal static byte[]? TryRasterizeSvgToPng(string Svg)
     {
         try
         {
@@ -1257,6 +1292,10 @@ public sealed class DocxWriter
             if (TryGetSvgViewBoxBounds(Svg, out SKRect ViewBoxBounds))
             {
                 DrawBounds = ViewBoxBounds;
+            }
+            else if (TryGetSvgRootSizeBounds(Svg, out SKRect RootSizeBounds))
+            {
+                DrawBounds = RootSizeBounds;
             }
             else
             {
@@ -2701,6 +2740,34 @@ public sealed class DocxWriter
         }
     }
 
+    private static bool TryGetSvgRootSizeBounds(string Svg, out SKRect Bounds)
+    {
+        Bounds = SKRect.Empty;
+        try
+        {
+            XDocument Document = XDocument.Parse(Svg);
+            XElement? Root = Document.Root;
+            if (Root == null)
+            {
+                return false;
+            }
+
+            double Width = ParseSvgLength(Root.Attribute("width")?.Value);
+            double Height = ParseSvgLength(Root.Attribute("height")?.Value);
+            if (Width <= 0 || Height <= 0)
+            {
+                return false;
+            }
+
+            Bounds = SKRect.Create(0, 0, (float)Width, (float)Height);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private static bool TryGetSvgViewBoxBounds(string Svg, out SKRect Bounds)
     {
         Bounds = SKRect.Empty;
@@ -2827,25 +2894,46 @@ public sealed class DocxWriter
 
     private (long Cx, long Cy) CalculateSvgExtents(SvgDimensions Dimensions)
     {
+        return CalculateEmbeddedExtentsFromPixels(Dimensions.WidthPixels, Dimensions.HeightPixels);
+    }
+
+    private (long Cx, long Cy) CalculateEmbeddedExtentsFromPixels(int WidthPixels, int HeightPixels)
+    {
         const double EmusPerCm = 360000.0;
         const double DefaultDpi = 96.0;
+        const double MaxHeightCm = 18.0;
+
         double MaxWidthCm = _Options.Images.MaxWidthCm > 0 ? _Options.Images.MaxWidthCm : 16.0;
         double TargetWidthCm = Math.Min(MaxWidthCm, 14.5);
-        const double MaxHeightCm = 18.0;
-        double AspectRatio = Dimensions.WidthPixels > 0 && Dimensions.HeightPixels > 0
-            ? (double)Dimensions.HeightPixels / Dimensions.WidthPixels
-            : 0.5625;
 
-        double NaturalWidthCm = Dimensions.WidthPixels > 0
-            ? Dimensions.WidthPixels / DefaultDpi * 2.54
-            : TargetWidthCm;
+        if (WidthPixels <= 0 || HeightPixels <= 0)
+        {
+            double FallbackWidthCm = TargetWidthCm;
+            double FallbackHeightCm = FallbackWidthCm * 0.5625;
+            return (
+                (long)Math.Round(FallbackWidthCm * EmusPerCm),
+                (long)Math.Round(FallbackHeightCm * EmusPerCm));
+        }
+
+        double NaturalWidthCm = WidthPixels / DefaultDpi * 2.54;
+        double AspectRatio = (double)HeightPixels / WidthPixels;
+
         double WidthCm = NaturalWidthCm;
         if (WidthCm <= 0)
         {
             WidthCm = TargetWidthCm;
         }
-        WidthCm = Math.Min(WidthCm, TargetWidthCm);
+        else if (_Options.Images.ScaleDownOnly)
+        {
+            WidthCm = Math.Min(NaturalWidthCm, TargetWidthCm);
+        }
+        else
+        {
+            WidthCm = TargetWidthCm;
+        }
+
         double HeightCm = WidthCm * AspectRatio;
+
         if (WidthCm > MaxWidthCm)
         {
             WidthCm = MaxWidthCm;
@@ -2967,25 +3055,7 @@ public sealed class DocxWriter
 
     private (long Cx, long Cy) CalculateImageExtents(ImageDimensions Dimensions)
     {
-        const double EmusPerCm = 360000.0;
-        const double DefaultDpi = 96.0;
-
-        double MaxWidthCm = _Options.Images.MaxWidthCm > 0 ? _Options.Images.MaxWidthCm : 16.0;
-        double WidthCm = MaxWidthCm;
-        double HeightCm;
-
-        if (Dimensions.WidthPixels > 0 && Dimensions.HeightPixels > 0)
-        {
-            double NaturalWidthCm = Dimensions.WidthPixels / DefaultDpi * 2.54;
-            WidthCm = _Options.Images.ScaleDownOnly ? Math.Min(NaturalWidthCm, MaxWidthCm) : MaxWidthCm;
-            HeightCm = WidthCm * Dimensions.HeightPixels / Dimensions.WidthPixels;
-        }
-        else
-        {
-            HeightCm = WidthCm * 0.5625;
-        }
-
-        return ((long)Math.Round(WidthCm * EmusPerCm), (long)Math.Round(HeightCm * EmusPerCm));
+        return CalculateEmbeddedExtentsFromPixels(Dimensions.WidthPixels, Dimensions.HeightPixels);
     }
 
     private static ImageDimensions GetImageDimensions(string Path)

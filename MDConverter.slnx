@@ -4,6 +4,14 @@
 
   <Folder Name="/extern/Naiad/" />
 
+  <Folder Name="/extern/Microsoft.AGL/">
+
+    <!-- Transitional reference snapshot only; product build uses adopted code in MermaidRecognition.Layout/Sugiyama/ -->
+
+    <Project Path="extern/Microsoft.AGL/src/Microsoft.AGL/Microsoft.AGL.csproj" />
+
+  </Folder>
+
   <Folder Name="/extern/Naiad/src/">
 
     <Project Path="extern/Naiad/src/Naiad/Naiad.csproj" />
@@ -17,6 +25,8 @@
     <Project Path="src/md2docx/md2docx.csproj" />
 
     <Project Path="src/MDConverter/MDConverter.csproj" />
+
+    <Project Path="src/NativeCompareDocx/NativeCompareDocx.csproj" />
 
   </Folder>
 
@@ -40,11 +50,33 @@
 
   </Folder>
 
+  <Folder Name="/new_src/MermaidRecognition.Layout/">
+
+    <Project Path="new_src/MermaidRecognition.Layout/MermaidRecognition.Layout.csproj" />
+
+  </Folder>
+
+  <Folder Name="/new_src/MermaidRecognition.RuleValidation/">
+
+    <Project Path="new_src/MermaidRecognition.RuleValidation/MermaidRecognition.RuleValidation.csproj" />
+
+  </Folder>
+
   <Folder Name="/new_src/tests/">
 
     <Project Path="new_src/MermaidRecognition.Tests/MermaidRecognition.Tests.csproj" />
 
     <Project Path="new_src/MermaidRecognition.NaiadAdapter.Tests/MermaidRecognition.NaiadAdapter.Tests.csproj" />
+
+    <Project Path="new_src/MermaidRecognition.Layout.Tests/MermaidRecognition.Layout.Tests.csproj" />
+
+    <Project Path="new_src/MermaidRecognition.RuleValidation.Tests/MermaidRecognition.RuleValidation.Tests.csproj" />
+
+  </Folder>
+
+  <Folder Name="/legacy/src/tools/">
+
+    <Project Path="src/RuleValidationHarness/RuleValidationHarness.csproj" />
 
   </Folder>
 

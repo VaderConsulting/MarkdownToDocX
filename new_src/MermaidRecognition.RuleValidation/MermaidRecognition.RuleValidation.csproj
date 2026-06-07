@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>MermaidRecognition.RuleValidation</RootNamespace>
+    <AssemblyName>MermaidRecognition.RuleValidation</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <Description>Mermaid flowchart rule validation engine (spec v2.0.0).</Description>
+    <Version>0.1.0</Version>
+    <Authors>MarkdownToDocX</Authors>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <AnalysisLevel>none</AnalysisLevel>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MermaidRecognition.Layout\MermaidRecognition.Layout.csproj" />
+    <ProjectReference Include="..\MermaidRecognition\MermaidRecognition.csproj" />
+  </ItemGroup>
+
+</Project>

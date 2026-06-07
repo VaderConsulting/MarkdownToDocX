@@ -1,0 +1,119 @@
+{
+  "SchemaVersion": "2.0.0",
+  "Name": "MermaidFlowchartExpectedContract",
+  "ActualResultsContract": {
+    "RequiredTopLevelFields": [
+      "SchemaVersion",
+      "RunId",
+      "Source",
+      "Diagrams"
+    ],
+    "RequiredDiagramFields": [
+      "DiagramId",
+      "Kind",
+      "Direction",
+      "Recognition",
+      "Config",
+      "Nodes",
+      "Edges",
+      "Groups",
+      "Layout",
+      "Routing",
+      "Labels",
+      "Markers",
+      "Diagnostics"
+    ],
+    "RequiredNodeFields": [
+      "NodeId",
+      "Label",
+      "LabelType",
+      "Shape",
+      "Bounds",
+      "Rank",
+      "Lane",
+      "IncomingEdgeIds",
+      "OutgoingEdgeIds",
+      "NeighbourFacts"
+    ],
+    "RequiredEdgeFields": [
+      "EdgeId",
+      "SourceNodeId",
+      "TargetNodeId",
+      "CreationIndex",
+      "IsVisible",
+      "Stroke",
+      "ArrowStart",
+      "ArrowEnd",
+      "MinLength",
+      "RouteClass",
+      "SourcePort",
+      "TargetPort",
+      "PathFamily",
+      "Path",
+      "CollisionFacts",
+      "LabelFacts",
+      "MarkerFacts"
+    ]
+  },
+  "ValidationReportContract": {
+    "RequiredTopLevelFields": [
+      "SchemaVersion",
+      "RunId",
+      "OverallResult",
+      "Summary",
+      "DiagramResults",
+      "Failures"
+    ],
+    "RequiredFailureFields": [
+      "RuleId",
+      "EvaluatorId",
+      "Severity",
+      "DiagramId",
+      "ElementType",
+      "ElementId",
+      "Message",
+      "Expected",
+      "Actual",
+      "SuggestedCorrection"
+    ]
+  },
+  "ToleranceProfiles": [
+    {
+      "ToleranceProfileId": "DefaultGeometry",
+      "DistanceTolerancePx": 4.0,
+      "AngleToleranceDegrees": 3.0,
+      "AlignmentTolerancePx": 4.0,
+      "IntersectionTolerancePx": 0.5,
+      "LabelAttachmentTolerancePx": 12.0,
+      "PortSnapTolerancePx": 6.0,
+      "MinimumMergePortSeparationPx": 8.0
+    },
+    {
+      "ToleranceProfileId": "StrictIntersection",
+      "IntersectionTolerancePx": 0.5
+    },
+    {
+      "ToleranceProfileId": "LabelAttachment",
+      "LabelAttachmentTolerancePx": 12.0
+    },
+    {
+      "ToleranceProfileId": "OrthogonalPath",
+      "AngleToleranceDegrees": 3.0,
+      "AlignmentTolerancePx": 4.0
+    },
+    {
+      "ToleranceProfileId": "StraightPath",
+      "DistanceTolerancePx": 4.0,
+      "AlignmentTolerancePx": 4.0
+    },
+    {
+      "ToleranceProfileId": "MarkerPlacement",
+      "DistanceTolerancePx": 4.0
+    }
+  ],
+  "DiagnosticRequirements": {
+    "EveryFailureMustIncludeSuggestedCorrection": true,
+    "UnknownAndUnsupportedMustBeDifferent": true,
+    "SilentDowngradeIsForbidden": true
+  }
+}

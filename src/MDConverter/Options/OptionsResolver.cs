@@ -59,6 +59,11 @@ public static class OptionsResolver
         {
             Target.UseFlowchartRecognitionParser = Source.UseFlowchartRecognitionParser;
         }
+
+        if (Source.HasUseNativeSugiyamaRenderer)
+        {
+            Target.UseNativeSugiyamaRenderer = Source.UseNativeSugiyamaRenderer;
+        }
     }
 
     private static EffectiveOptions ApplyProfileDefaults(string Profile)
@@ -102,6 +107,7 @@ public static class OptionsResolver
         // Default to the recognition parser for flowcharts so newer Mermaid flowchart
         // syntax (metadata, accessibility, etc.) renders correctly.
         Effective.Mermaid.SetResolvedValue(true);
+        Effective.Mermaid.SetResolvedNativeSugiyamaValue(true);
 
         return Effective;
     }

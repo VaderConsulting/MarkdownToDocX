@@ -1,0 +1,135 @@
+---
+description: Flowchart edges — preserve the intended routing style; refine curve smoothness, direction, and label placement
+alwaysApply: true
+---
+
+# Flowchart edge routing
+
+**Specification:** `Mermaid_Specification.md` §8, §10, §15.0, §15 (Decision branch links), and fixture rules F29–F32. See also `.cursor/rules/mermaid-specification-compliance.mdc`.
+
+The intended routing style must be preserved and must match the consolidated specification unless a documented deviation applies.
+Do **not** revert to earlier over-curved or hooked routing.
+Do **not** switch to orthogonal elbow routing as the default.
+
+However, do **not** preserve flawed curve geometry. Curves that hook, curl, reverse direction, overshoot the target, wobble near node boundaries, or place labels on top of edges must be corrected.
+
+## Intended style
+
+1. Use a **straight** vertical or horizontal connector when source and target ports are clearly aligned and unobstructed.
+2. Use **smooth curved** connectors for non-aligned paths.
+3. Curves must enter and exit nodes cleanly with a natural tangent at the node boundary.
+4. Curves must not hook, curl, wobble, scrape, or slide into node boundaries.
+5. Curves must not overshoot the target and then curve back into it.
+6. Curves must not reverse direction unless required for obstacle avoidance.
+7. Do not use hard elbows unless Mermaid syntax explicitly requires step-style or orthogonal routing.
+8. A short terminal segment at the node boundary is acceptable, but the transition into the curve must be smooth, not angular.
+9. Diamond side branches must leave the relevant sloped side cleanly, then curve smoothly toward the target.
+10. Vertically aligned decision paths, such as a centre spine, must use a straight vertical connector.
+
+## Routing priority
+
+Use the simplest valid route that satisfies the intended style:
+
+1. Use a straight connector where source and target ports are clearly aligned vertically or horizontally and there is no obstacle.
+2. Use a gentle smooth curve for non-aligned ports.
+3. Use stronger curvature only where required to avoid overlaps, separate nearby edges, or route around nodes.
+4. Do not force a fixed number of curve segments, bends, or control points.
+5. Do not exaggerate the path for decorative effect.
+
+## Curve smoothness
+
+* Avoid visible straight-to-curve kinks where a connector leaves or approaches a node.
+* Terminal stubs should blend into the curved body; they must not read as hard elbows.
+* Curves should be gentle and direct.
+* Curves must make consistent visual progress from the source node toward the target node.
+* Curves must not form loops, reverse hooks, S-shapes, or backtracking paths unless required for obstacle avoidance.
+* If a curve forms an S-shape, loop, reverse hook, or overshoot, reduce the curve strength or use a simpler curve.
+
+## Curve direction and backtracking
+
+* A connector must not overshoot the target and then curve back into it.
+* A connector must not curl backwards, reverse direction, or form a hook near the source or target node.
+* For a left-to-right flow, the edge should not move backwards horizontally unless required for obstacle avoidance.
+* For a top-to-bottom flow, the edge should not move backwards vertically unless required for obstacle avoidance.
+* Side branches from a decision node should curve smoothly toward their target nodes without looping, curling, or reversing direction near the target arrowhead.
+
+## Curve strength
+
+* Curve control points must be bounded so that the edge does not overshoot, loop, or curl back toward the target.
+* The curve should not extend beyond the target port and then return to it.
+* The curve should not exaggerate the path beyond what is needed to separate the edge from other edges or nodes.
+* If a clean smooth curve cannot be produced, prefer a simpler curve rather than adding extra curvature.
+
+### Branch shape
+
+- Branch edges should leave the source node from the boundary region that faces the target.
+- Branch edges should enter the target node from the boundary region that faces the source.
+- Side branches should use smooth outward curves, not forced bottom-edge exits followed by inward correction.
+- Centre branches that are vertically or horizontally aligned and unobstructed should remain straight.
+
+## Edge labels
+
+* Labels must not sit directly on the connector, arrowhead, node boundary, or tightest curve section.
+* Labels must not overlap the edge they describe.
+* Labels must not be rendered more than once for the same edge.
+* Place labels near the relevant edge with enough offset for readability.
+* Decision branch labels should be placed near the middle of the branch path, outside node boundaries and away from target arrowheads.
+* For straight vertical edges, place the label to one side of the edge, not centred directly on top of the line.
+* For straight horizontal edges, place the label above or below the edge, not directly on top of the line.
+* If the preferred label position collides with an edge, node, arrowhead, or another label, choose the nearest readable offset position.
+
+### Avoid angular polyline regression
+
+- Fixing hooks must not be achieved by replacing curved branches with angular polyline routes.
+- Non-aligned branches should retain a smooth curved body.
+- A short straight terminal approach is acceptable, but it must not create a visible hard corner.
+- The transition from the curved body into the terminal approach should be smooth.
+- Avoid long straight diagonal segments followed by abrupt vertical or horizontal terminal drops.
+- If the route visually reads as a broken line, kinked line, or elbow-like connector, it is not acceptable for default curved routing.
+
+### Curve geometry
+
+- `curveBasis` or equivalent smoothing should apply to the main body of the edge.
+- The final terminal segment may be straight, but the path should not visibly snap from a straight diagonal segment into a vertical/horizontal drop.
+- The curve should finish with a tangent that naturally leads into the terminal approach.
+- Where necessary, use an additional guide/control point before the terminal segment so the curve eases into the final approach rather than forming a hard kink.
+
+### Source and target port selection
+
+- Do not force all outgoing edges from a node to use the same side.
+- Select the source and target ports based on the relative position of the connected nodes.
+- If the target is directly below and aligned, use bottom-centre to top-centre and render a straight vertical connector.
+- If the target is below-left, prefer a left-side or lower-left source port and a top-side target port.
+- If the target is below-right, prefer a right-side or lower-right source port and a top-side target port.
+- Fan-out edges should spread naturally from the source node rather than all exiting from the same bottom edge.
+- Fan-in edges should converge naturally into the target node rather than all entering through the same edge unless alignment requires it.
+
+### Line termination at shape boundaries
+
+* Visible connector lines and arrowheads must terminate on the rendered shape boundary at each end.
+* Apply this rule to **all** edges and endpoint markers (arrow, circle, open line, and so on).
+* The **only** exception is an endpoint that carries a **cross** marker (`--x`, `x--`, `x--x`): that end keeps a small exterior gap so the stroke stops before the rendered cross.
+* Shape-aware attach (`FlowchartShapeBoundaryAttachHelper`, centre-spine routes, cylinder rim attach) must use `FlowchartEdgeAttachConstants.GetExteriorGapPx` — zero for non-cross markers, `EDGE_NODE_GAP_PX` for cross.
+
+### Port selection for fan-out and fan-in
+
+- Select source and target ports from the relative geometry of the connected nodes.
+- Do not force all outgoing edges from a node to leave from the same side when the targets are distributed around the source.
+- Do not force all incoming edges to enter the same side when the sources are distributed around the target.
+- For a vertically aligned and unobstructed edge, use the facing centre ports and render a straight connector.
+- For a target below-left of the source, prefer a source port on the lower-left or left-facing side of the source and a target port on the top-facing side of the target.
+- For a target below-right of the source, prefer a source port on the lower-right or right-facing side of the source and a target port on the top-facing side of the target.
+- For a target above-left or above-right of the source, apply the same rule symmetrically using upper-facing source ports and bottom-facing target ports.
+- Fan-out edges should visually spread from the side of the source node that faces their targets.
+- Fan-in edges should visually converge into the side of the target node that faces their sources.
+
+## Primary code
+
+* `FlowchartCurveBulgeHelper.cs` — bulge guides that do not overshoot past source/target stubs on the same hub side
+* `FlowchartCurvePathBuilder.cs` — five-point stub routes use direct cubics; longer routes use curveBasis with smooth terminal approach
+* `FlowchartEdgeLabelPlacementHelper.cs` — offset label anchors
+* `FlowchartFanOutPortAllocator.cs` — position-based source ports for non-decision fan-out (side/bottom/right, not all from bottom)
+* `FlowchartFanInPortAllocator.cs` — position-based target ports for non-decision fan-in (mirror of fan-out)
+* `FlowchartPerpendicularRouteBuilder.cs` — curved route guides
+* `FlowchartEdgeConnectionGeometry.cs` — straight-line detection
+* `FlowchartSugiyamaSvgRenderer.cs` — path and label emission

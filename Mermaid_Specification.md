@@ -1458,6 +1458,33 @@ Repository requirement (Naiad / DOCX):
 - Diagram-level “outer” layout runs only when there are **multiple root subgraphs** and/or **nodes outside all subgraphs** — a single root cluster with nesting must not stack child group nodes as disconnected siblings.
 - Member offsets propagate to **all descendant nodes** when centring content inside a cluster box (deepest clusters first).
 
+**Cluster interior layout** (member nodes inside each subgraph box):
+
+Mermaid sources (`flowDb.ts`, `rendering-util/layout-algorithms/dagre/index.js`, `dagre-wrapper/clusters.js`):
+
+- Dagre compound clusters are declared with `padding: 8` on the group node (`flowDb.ts`); default flowchart node `padding` is **15** (`config.schema.yaml`). After recursive layout, title placement, and `subGraphTitleMargin` shifts, rendered cluster insets match the Naiad parity constants below.
+- Inner subgraph layout increases `ranksep` by **25** for child graphs (`dagre/index.js`).
+- Cluster labels sit in a **title band** at the top of the box (`clusters.js`: label at `node.y - node.height/2 + subGraphTitleTopMargin`).
+- Member nodes inside a parent cluster receive `node.y += subGraphTitleTotalMargin / 2` after layout to clear the title band (`dagre/index.js`).
+
+Repository requirement (Naiad / native Sugiyama — measured parity constants in `DagreLayoutEngine.cs` / `FlowchartSubgraphBoundsBuilder`):
+
+| Region | Size | Notes |
+| --- | ---: | --- |
+| Side / bottom padding | **18px** | Minimum inset from member node body to cluster border (left, right, bottom). |
+| Title band | **26px** | Reserved at top for subgraph label; top inset = **18px below title band** (44px from cluster top to node top). |
+| Bottom content slack | **26px** | Extra space below bottom padding (balances title band). |
+| Member centreing | — | `CenterSubgraphMembersInClusterBoxes` centres the member content bounding box in the interior region (between title band + padding and bottom padding + slack). Deepest subgraphs first. |
+
+Catalogue regression: `F111` (single-row members in stacked subgraphs).
+
+**Sibling subgraph spacing** (for example `F40` LR side-by-side stages, `F111` TB stacked `Left` / `Right`):
+
+- Sibling subgraphs that share the same parent (including root-level siblings) must not share a coincident cluster border on the diagram’s primary flow axis.
+- After layout, enforce a minimum **exterior gap of 24px** between the trailing edge of the upstream cluster box and the leading edge of the downstream sibling (`Right − Left` for LR; `Bottom_upstream − Top_downstream` in Y-up layout space for TB).
+- The gap is measured on the **cluster rectangle** (member bounds plus **18px** padding and **26px** title band), not on node bodies alone.
+- `FlowchartSubgraphLayoutPostProcessor.EnforceSiblingSubgraphGaps` shifts downstream sibling members when the gap is below the minimum so cross-boundary edges (for example the dense bipartite mesh in `F111`) have a visible gutter between cluster boxes.
+
 **Decision branch links** (diamond source with a label, e.g. `-->|Yes|` / `-->|No|`):
 
 **Sources:** `packages/mermaid/src/rendering-util/rendering-elements/edges.js` (`fixCorners` + `curveBasis` on dagre `edge.points`).
@@ -1723,9 +1750,71 @@ all text/foreignObject dimensions and transforms
 all resolved style properties
 ```
 
----
+### 17.5 Additional routing diagnostics
 
-## 18. .NET 10 / C# 14 in-app Mermaid rendering specification (April 2026)
+The existing SVG comparison and manual visual inspection remain the final visual validation. Layout-space routing diagnostics do not replace SVG comparison; they identify which routing rule was violated when visual comparison fails.
+
+The renderer test strategy separates three questions:
+
+1. Did the parser understand the Mermaid graph correctly?
+2. Did the routing-intent layer classify the edges correctly?
+3. Did the SVG renderer draw the classified routes correctly?
+
+#### 17.5.1 Routing-intent diagnostic layer
+
+`FlowchartEdgeRoutingIntentAnalyzer` produces renderer-independent routing-intent JSON for every visible edge before SVG path generation. The JSON records:
+
+- edge identifier and source / target node references
+- inferred route class (centre spine, local decision branch, merge-back, skip bypass, long exception bypass, multi-input merge, short adjacent, cross-lane, return backward, obstacle avoidance)
+- intended source and target boundary regions
+- intended path shape and label-placement strategy
+- obstacle-avoidance requirement
+- expected behaviours and explicitly invalid behaviours
+
+Torture-test Markdown fixtures (`routing-torture-test.md`) contain multiple Mermaid flowcharts. The test runner:
+
+1. extracts each fenced Mermaid block
+2. parses and lays out the diagram
+3. produces routing-intent JSON
+4. validates intent against `ruleset.json`
+5. generates SVG (existing render path)
+6. runs structural render diagnostics and SVG comparison separately
+
+When intent validation fails, the renderer misunderstood the diagram before drawing. When intent validation passes but SVG comparison or structural diagnostics fail, the problem is likely in path generation, label placement, obstacle avoidance, or SVG output.
+
+Implementation: `FlowchartEdgeRoutingIntentAnalyzer`, `FlowchartRoutingIntentValidator`, `FlowchartRoutingIntentPipeline`, `MermaidMarkdownFenceExtractor` in `MermaidRecognition.Layout`. Fixtures and comparison rules: `new_src/MermaidRecognition.Layout.Tests/RoutingIntent/ruleset.json`, `routing-torture-test.md`. Tests: `FlowchartRoutingIntentTests`.
+
+#### 17.5.2 Render-stage structural diagnostics
+
+Each finding reports the edge key, semantic route class, resolved route kind, source and target ports, and a plain-language reason. Checks are generic and do not depend on node names or a specific diagram. The **F58** fixture in `flow.md` is the primary integration harness because it exposes centre spine, long exception corridor, local decision branches, merge-back, skip-bypass around a cylinder, and terminal collector fan-in in one TB diagram.
+
+**F58 semantic route classes** (after `FlowchartEdgeRouteClassifier`; see `spec.md` §5.5 and `flow.md` F58 routing table):
+
+| Edge | Class | Render notes |
+| --- | --- | --- |
+| Start→Ingest, Ingest→Validate, Validate→Parse, Parse→HasMermaid, Word→DoArchive, DoArchive→Persist, Persist→Done | `CentreSpine` | Straight two-point attach |
+| Validate→Reject | `LongExceptionRoute` | Five-point exterior corridor; curveBasis corridor SVG |
+| HasMermaid→Render / Word | `LocalDecisionBranch` | Left / bottom diamond ports |
+| Render→Word, Reject→Done | `MergeBack` | Smooth corridor; Done fan-in uses spread top ports |
+| DoArchive→Done (`No`) | `SkipBypass` | Right port when Persist intervenes; six-point bypass outside spine; must clear cylinder body |
+
+**Corridor render policy:** `FlowchartCurvePathBuilder.ShouldUseOrthogonalPolylinePathData` is true only for `RetryLoop` (F34). Corridor, skip-bypass, and merge-back use `BuildCorridorCurveBasisPathData` — straight source stub, smooth body, straight target stub — so `FlowchartRenderedPathValidator` can assert `Ports.PerpendicularAttach`.
+
+**Collinear TB `No` on two-branch diamonds:** `SideLeft` when the `No` target is on the spine with no intervening spine-column node (F59). `SideRight` when `HasInterveningSpineColumnNode` requires routing around a spine obstacle (F58 `DoArchive→Done`).
+
+| Check | Detects |
+| --- | --- |
+| Long diagonal crossing | Long rank-spanning segments that cut through padded bounds of unrelated nodes or through the spine corridor on exception routes |
+| Unnecessary hard elbow | Hard orthogonal bends on routes that should be straight centre-spine or smooth local branches |
+| Centre-spine regression | Unobstructed axis-aligned pairs rendered with curves, kinks, or detours |
+| Hook / overshoot | Local direction reversals near source or target attach points |
+| Node pass-through | Segments crossing node interiors rather than stopping at boundaries (including cylinders) |
+| Merge ambiguity | Multiple incoming edges collapsing to target ports closer than the minimum separation |
+| Label association failure | Labels on the wrong edge, on the stroke, or overlapping endpoint node boundaries |
+
+Implementation: `FlowchartEdgeRouteDiagnosticAnalyzer` in `MermaidRecognition.Layout`. Tests: `FlowchartEdgeRouteDiagnosticTests`.
+
+---
 
 This section consolidates the in-app rendering guidance for a .NET application that needs to render Mermaid diagrams (not only on a website), while avoiding Node.js in the shipped runtime.
 

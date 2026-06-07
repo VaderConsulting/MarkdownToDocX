@@ -285,11 +285,92 @@ public sealed class FlowchartDb
             return;
         }
 
+        AssignNodeToSubgraph(NodeId, _SubgraphStack.Peek());
+    }
+
+    /// <summary>
+    /// Assigns a node to the innermost open subgraph when it is explicitly declared there.
+    /// Forward references from links may have placed the node on an ancestor; nested ownership wins (F44).
+    /// </summary>
+    public void AssignExplicitNodeToCurrentSubgraph(string NodeId)
+    {
+        if (_SubgraphStack.Count == 0)
+        {
+            return;
+        }
+
         FlowchartSubgraphRecord Current = _SubgraphStack.Peek();
-        Current.NodeIdsMutable.Add(NodeId);
-        _ParentSubgraphByNodeId[NodeId] = Current.Id;
+        if (_ParentSubgraphByNodeId.TryGetValue(NodeId, out string? ExistingParentId))
+        {
+            if (string.Equals(ExistingParentId, Current.Id, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            if (!IsStrictAncestorSubgraph(ExistingParentId, Current.Id))
+            {
+                return;
+            }
+
+            RemoveNodeFromSubgraph(ExistingParentId, NodeId);
+        }
+
+        AssignNodeToSubgraph(NodeId, Current);
+    }
+
+    private void AssignNodeToSubgraph(string NodeId, FlowchartSubgraphRecord Subgraph)
+    {
+        if (!Subgraph.NodeIdsMutable.Contains(NodeId, StringComparer.Ordinal))
+        {
+            Subgraph.NodeIdsMutable.Add(NodeId);
+        }
+
+        _ParentSubgraphByNodeId[NodeId] = Subgraph.Id;
         FlowchartNodeRecord Node = GetOrCreateNode(NodeId);
-        Node.ParentSubgraphId = Current.Id;
+        Node.ParentSubgraphId = Subgraph.Id;
+    }
+
+    private void RemoveNodeFromSubgraph(string SubgraphId, string NodeId)
+    {
+        if (!_SubgraphById.TryGetValue(SubgraphId, out FlowchartSubgraphRecord? Subgraph))
+        {
+            return;
+        }
+
+        Subgraph.NodeIdsMutable.RemoveAll(
+            CandidateId => string.Equals(CandidateId, NodeId, StringComparison.Ordinal));
+        _ParentSubgraphByNodeId.Remove(NodeId);
+        if (_NodesById.TryGetValue(NodeId, out FlowchartNodeRecord? Node)
+            && string.Equals(Node.ParentSubgraphId, SubgraphId, StringComparison.Ordinal))
+        {
+            Node.ParentSubgraphId = null;
+        }
+    }
+
+    private bool IsStrictAncestorSubgraph(string AncestorSubgraphId, string DescendantSubgraphId)
+    {
+        if (!_SubgraphById.TryGetValue(DescendantSubgraphId, out FlowchartSubgraphRecord? Descendant))
+        {
+            return false;
+        }
+
+        string? ParentId = Descendant.ParentSubgraphId;
+        while (ParentId is not null)
+        {
+            if (string.Equals(ParentId, AncestorSubgraphId, StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            if (!_SubgraphById.TryGetValue(ParentId, out FlowchartSubgraphRecord? Subgraph))
+            {
+                return false;
+            }
+
+            ParentId = Subgraph.ParentSubgraphId;
+        }
+
+        return false;
     }
 
     public void RegisterClassDef(string ClassId, RecognitionStyle Style)

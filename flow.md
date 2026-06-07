@@ -23,6 +23,30 @@ Some diagrams **do not render** on [mermaid.live](https://mermaid.live) or are o
 
 **Currently remarked (render gate excluded):** F65, F70, F87, F88. See also §9.1 in `spec.md`.
 
+| Scenario | Recognition axes (from `ruleset-org.json`) | `RenderGate` |
+| --- | --- | --- |
+| **F65** | `Header.Flowchart`, `Direction.LR`, `Recognition.Node.MetadataShape` | `ExcludedRemarkedScenario` |
+| **F70** | `Header.Flowchart`, `Direction.TB`, `Recognition.Statement.SemicolonBoundary`, `Recognition.Statement.CommentIgnored`, `Recognition.Edge.TokenDecomposition` | `ExcludedRemarkedScenario` |
+| **F87** | `Header.Flowchart`, `Direction.LR`, `Recognition.Edge.UserId`, `Recognition.Edge.AnimationMetadata`, `Recognition.Edge.Metadata`, `Recognition.Edge.TokenDecomposition` | `ExcludedRemarkedScenario` |
+| **F88** | `Header.Flowchart`, `Direction.LR`, `Recognition.Edge.UserId`, `Recognition.Edge.AnimationMetadata`, `Recognition.Style.ClassDef`, `Recognition.Style.ClassApplication`, `Recognition.Edge.TokenDecomposition` | `ExcludedRemarkedScenario` |
+
+Remarked fences contain **no active source** (every line is `%%`). `RuleValidationHarness` records `IsFullyRemarked: true`, `LayoutSucceeded: false`, and **`Result: Skipped`** — they do not count as failures. Overall **Pass** means zero rule errors on the **128 active** diagrams.
+
+### Rule validation harness (structural routing gate)
+
+Runs before SVG comparison. Validates parse → layout → routing facts against `Rule Specification/ruleset.json`.
+
+```powershell
+dotnet run --project src/RuleValidationHarness/RuleValidationHarness.csproj -c Release -- flow.md out/flow-rule-validation "Rule Specification"
+```
+
+Exit code **0** when `validation-report.json` reports `OverallResult: Pass` (no `Error` severity failures). Outputs:
+
+- `out/flow-rule-validation/validation-report.json`
+- `out/flow-rule-validation/actual-results.json`
+
+**Skipped diagrams (not failures):** F65, F70, F87, F88 — fully remarked; `RulesEngine` skips rule evaluation (`ActualResultsGenerator` diagnostic `RemarkedScenario`).
+
 ### Mandatory gate (mermaid.ink / Mermaid Live)
 
 Every **active** (non-remarked) scenario must pass **structural** (labels, edge count, clusters) **and** **visual** (PNG) comparison against mermaid.ink:
@@ -136,11 +160,8 @@ A["Label with spaces"] --> B["Second label"]
 ### F11 — Basic shapes (rectangle, rounded, diamond, circle)
 
 ```mermaid
-flowchart TD
-A[Rectangle]
-B(Rounded rectangle)
-C{Diamond decision}
-D((Circle))
+flowchart LR
+A[Rectangle] --> B(Rounded rectangle) --> C{Diamond decision} --> D((Circle))
 ```
 
 ### F12 — Stadium and subroutine
@@ -377,7 +398,7 @@ IN[In] --> A
 C --> OUT[Out]
 ```
 
-### F37 — Subgraph with explicit `direction TB`
+### F37 — Subgraph with explicit `direction TB` (overridden by LR diagram via cross-boundary links)
 
 ```mermaid
 flowchart LR
@@ -389,7 +410,9 @@ Start[Start] --> S1
 S3 --> End[End]
 ```
 
-### F38 — Subgraph with `direction LR` inside TB diagram
+Members follow the diagram LR direction because `Start --> S1` and `S3 --> End` cross the subgraph boundary.
+
+### F38 — Subgraph with `direction LR` inside TB diagram (overridden by TB via cross-boundary links)
 
 ```mermaid
 flowchart TB
@@ -400,6 +423,8 @@ end
 Ingress[Ingress] --> P1
 P3 --> Egress[Egress]
 ```
+
+Members follow the diagram TB direction because `Ingress --> P1` and `P3 --> Egress` cross the subgraph boundary.
 
 ### F39 — Subgraph with titled label in brackets
 
@@ -681,14 +706,38 @@ Ingest --> Validate{Valid markdown?}
 Validate -->|No| Reject[Reject with error]
 Validate -->|Yes| Parse[Parse blocks]
 Parse --> HasMermaid{Mermaid fence?}
-HasMermaid -->|Yes| Render[Render SVG via Naiad]
-HasMermaid -->|No| Word[Build DOCX only]
-Render --> Embed[Embed in DOCX]
-Embed --> Done([Done])
-Word --> Done
+HasMermaid -->|Yes| Render[Render SVG]
+HasMermaid -->|No| Word[Build DOCX]
+Render --> Word
+DoArchive{Archive?}
+Word --> DoArchive
+DoArchive -->|Yes| Persist
+DoArchive -->|No| Done
 Reject --> Done
 Persist[(Optional archive)] --> Done
 ```
+
+**Routing contract (structural — not scenario-named selectors).** After layout, `FlowchartEdgeRouteClassifier` assigns semantic route classes; `FlowchartEdgeRouteResolver` builds guide points and `FlowchartSugiyamaSvgRenderer` renders corridor/bypass/fan routes as **curveBasis** with perpendicular terminal stubs (see `Mermaid_Specification.md` §17.5, `spec.md` §5.5).
+
+| Edge | Semantic class | Route kind (typical) | Structural requirement |
+| --- | --- | --- | --- |
+| Start → Ingest | `CentreSpine` | Straight | Two-point spine attach |
+| Ingest → Validate | `CentreSpine` | Straight | Centre spine |
+| Validate → \|No\| Reject | `LongExceptionRoute` | Corridor | Five-point exterior corridor; far-margin lane left of spine |
+| Validate → \|Yes\| Parse | `CentreSpine` | Straight | Centre spine |
+| Parse → HasMermaid | `CentreSpine` | Straight | Centre spine |
+| HasMermaid → \|Yes\| Render | `LocalDecisionBranch` | Decision | Left diamond port |
+| HasMermaid → \|No\| Word | `LocalDecisionBranch` | Decision | Bottom diamond port |
+| Render → Word | `MergeBack` | Corridor | Six-point merge-back from margin column; smooth curve, perpendicular stubs |
+| Word → DoArchive | `CentreSpine` | Straight | Centre spine |
+| DoArchive → \|Yes\| Persist | `CentreSpine` | Straight | Bottom diamond port |
+| DoArchive → \|No\| Done | `SkipBypass` | Corridor | Right diamond port; six-point bypass **outside** spine column around Persist cylinder; must not intersect Persist body |
+| Reject → Done | `MergeBack` | Curved | Terminal collector fan-in to Done |
+| Persist → Done | `CentreSpine` | Straight | Centre spine into Done |
+
+**Decision port rule (TB two-branch, collinear `No` target on spine):** use **left** port when no intervening spine-column node sits between source and target (catalogue: F59 `W → Wait`). Use **right** port when a spine-column obstacle lies between source and collinear `No` target (F58 `DoArchive → Done` bypasses Persist). Implemented in `FlowchartDecisionPortAllocator.ResolveVerticalTwoWayDecisionPort` via `HasInterveningSpineColumnNode`.
+
+**Render rules exercised:** `Routing.Path.NoOrthogonalPolylineWhenCurveBasisDefault`, `Render.Ports.PerpendicularAttach`, `Routing.Obstacle.NoNodeBodyIntersection` (see `Rule Specification/ruleset.json`).
 
 ### F59 — Subgraph + decision + retry loop
 
@@ -704,6 +753,8 @@ end
 Client[Client] --> Q
 P --> Out[Output]
 ```
+
+**Routing note:** `W →|No| Wait` is collinear on the worker subgraph spine with no intervening spine-column node between `W` and `Wait`; the `No` branch uses the **left** diamond port (contrast F58 `DoArchive →|No| Done`, which uses the **right** port to bypass Persist). See `spec.md` §5.5.
 
 ### F60 — LR diagram with nested TB and cross-links (integration)
 
@@ -934,7 +985,7 @@ Top[/Wide top/] --> Bottom[\Wide bottom/]
 **All four** legacy delimiters (`lean_right`, `trapezoid`, `inv_trapezoid`, `lean_left`):
 
 ```mermaid
-flowchart LR
+flowchart TD
 LeanRight[/lean_right/]
 Trapezoid[/trapezoid \]
 InvTrap[\inv_trapezoid /]
@@ -1041,6 +1092,7 @@ A[A] --> B[B] --> C[C]
 | F77–F79 | 10 | Class/style mutations |
 | F80 | 10 | `flowchart-elk` header |
 | F85 | 10 | Edge label syntax variant |
+| F114–F133 | 16 | Nodes-first declaration (parse/layout equivalence) |
 
 ---
 
@@ -1270,4 +1322,357 @@ Start --> B17 --> End
 Start --> B18 --> End
 Start --> B19 --> End
 Start --> B20 --> End
+```
+
+---
+
+# **Level 16 — Nodes-first declaration (parse/layout equivalence)**
+
+These scenarios exercise Mermaid’s **two-phase** flowchart form: **declare every node (and subgraph member) first**, then declare **edges separately**. They complement Levels 1–6 inline declarations and confirm that parsing, layout order, labels, subgraph membership, fan-out/fan-in routing, and **perpendicular edge attach** (right-angle stubs at both node ends) behave the same as equivalent inline diagrams.
+
+**Pattern under test**
+
+```mermaid
+flowchart LR
+    A["Source"]
+    B["Target"]
+    C["Next"]
+
+    A --> B
+    B --> C
+```
+
+**Checklist**
+
+- Node labels, shapes, and subgraph boxes match the inline equivalent
+- Edge count, edge labels, and arrow styles are preserved
+- Layout follows **graph topology**, not source declaration order
+- Edge guide points meet node boundaries at right angles on the joined face (first and last segment)
+
+---
+
+### F114 — Nodes first: simple LR chain (equiv. F08)
+
+```mermaid
+flowchart LR
+A["Source"]
+B["Target"]
+C["Next"]
+
+A --> B
+B --> C
+```
+
+### F115 — Nodes first: TB chain (equiv. F03)
+
+```mermaid
+flowchart TB
+Top[Top]
+Middle[Middle]
+Bottom[Bottom]
+
+Top --> Middle
+Middle --> Bottom
+```
+
+### F116 — Nodes first: plain IDs, labels from id (equiv. F09)
+
+```mermaid
+flowchart TD
+ingress
+process
+egress
+
+ingress --> process
+process --> egress
+```
+
+### F117 — Nodes first: quoted node labels (equiv. F10)
+
+```mermaid
+flowchart LR
+A["Label with spaces"]
+B["Second label"]
+
+A --> B
+```
+
+### F118 — Nodes first: shape catalogue (equiv. F11)
+
+```mermaid
+flowchart LR
+A[Rectangle]
+B(Rounded rectangle)
+C{Diamond decision}
+D((Circle))
+
+A --> B
+B --> C
+C --> D
+```
+
+### F119 — Nodes first: edge labels on later connections (equiv. F24 / F29)
+
+```mermaid
+flowchart TD
+Start([Start])
+Check{Valid?}
+OK[Accept]
+Fail[Reject]
+
+Start --> Check
+Check -->|Yes| OK
+Check -->|No| Fail
+```
+
+### F120 — Nodes first: multi-way decision with edge labels (equiv. F30)
+
+Perpendicular attach stress: three labelled branches from one diamond.
+
+```mermaid
+flowchart TD
+A[Christmas]
+B(Go shopping)
+C{Let me think}
+D[Laptop]
+E[iPhone]
+F[Other gift]
+
+A -->|Get money| B
+B --> C
+C -->|One| D
+C -->|Two| E
+C -->|Three| F
+```
+
+### F121 — Nodes first: fan-out, one to many (equiv. F31)
+
+Perpendicular attach stress: multiple outgoing stubs from one hub.
+
+```mermaid
+flowchart TB
+Hub[Hub]
+W1[Worker 1]
+W2[Worker 2]
+W3[Worker 3]
+
+Hub --> W1
+Hub --> W2
+Hub --> W3
+```
+
+### F122 — Nodes first: fan-in, many to one (equiv. F32)
+
+Perpendicular attach stress: multiple incoming paths merging at one target.
+
+```mermaid
+flowchart TB
+W1[Worker 1]
+W2[Worker 2]
+W3[Worker 3]
+Agg[Aggregate]
+
+W1 --> Agg
+W2 --> Agg
+W3 --> Agg
+```
+
+### F123 — Nodes first: parallel workers then join (equiv. F33)
+
+Perpendicular attach stress: spine edges plus offset worker fan-out/fan-in.
+
+```mermaid
+flowchart LR
+A[Ingress]
+B[Enqueue]
+C[Worker 1]
+D[Worker 2]
+E[Aggregate]
+F[Out]
+
+A --> B
+B --> C
+B --> D
+C --> E
+D --> E
+E --> F
+```
+
+### F124 — Nodes first: retry loop (equiv. F34)
+
+Perpendicular attach stress: labelled decision branches plus unlabelled back-edge corridor.
+
+```mermaid
+flowchart LR
+A[Receive]
+B{OK?}
+C[Done]
+D[Retry]
+
+A --> B
+B -->|Yes| C
+B -->|No| D
+D --> A
+```
+
+### F125 — Nodes first: diamond with multiple incoming edges
+
+```mermaid
+flowchart TB
+PA[Path A]
+PB[Path B]
+PC[Path C]
+D{Merge?}
+E[Continue]
+F[Stop]
+
+PA --> D
+PB --> D
+PC --> D
+D -->|yes| E
+D -->|no| F
+```
+
+### F126 — Nodes first: single subgraph, edges after (equiv. F36)
+
+```mermaid
+flowchart TB
+subgraph SG["Processing"]
+  A[Parse]
+  B[Transform]
+  C[Emit]
+end
+IN[In]
+OUT[Out]
+
+IN --> A
+A --> B
+B --> C
+C --> OUT
+```
+
+### F127 — Nodes first: subgraph `direction TB`, cross-boundary links (equiv. F37)
+
+Perpendicular attach stress: outer LR diagram with inner vertical stack and cross-subgraph edges.
+
+```mermaid
+flowchart LR
+subgraph Box["Vertical stack inside horizontal diagram"]
+  direction TB
+  S1[Step 1]
+  S2[Step 2]
+  S3[Step 3]
+end
+Start[Start]
+End[End]
+
+S1 --> S2
+S2 --> S3
+Start --> S1
+S3 --> End
+```
+
+### F128 — Nodes first: subgraph `direction LR` inside TB diagram (equiv. F38)
+
+```mermaid
+flowchart TB
+subgraph Pipeline["Pipeline"]
+  direction LR
+  P1[Read]
+  P2[Map]
+  P3[Write]
+end
+Ingress[Ingress]
+Egress[Egress]
+
+P1 --> P2
+P2 --> P3
+Ingress --> P1
+P3 --> Egress
+```
+
+### F129 — Nodes first: two sibling subgraphs and cross-member edge (equiv. F40 / F41)
+
+Perpendicular attach stress: edges crossing subgraph boundaries.
+
+```mermaid
+flowchart LR
+subgraph Normaliser["Normaliser"]
+  direction TB
+  n0[Normalise layout]
+end
+subgraph Translator["Translator"]
+  direction TB
+  t0[Translate contract]
+end
+IN[In]
+OUT[Out]
+
+IN --> n0
+n0 --> t0
+t0 --> OUT
+```
+
+### F130 — Nodes first: declaration order differs from flow order
+
+Nodes are declared **C, A, B** but edges define flow **A → B → C**. Layout must follow topology, not declaration sequence.
+
+```mermaid
+flowchart LR
+C["Third"]
+A["First"]
+B["Second"]
+
+A --> B
+B --> C
+```
+
+### F131 — Nodes first: mixed edge styles declared after nodes (equiv. F18)
+
+```mermaid
+flowchart LR
+A[A]
+B[B]
+C[C]
+D[D]
+
+A --> B
+C --- D
+```
+
+### F132 — Nodes first: nested subgraphs, cross-boundary edges after (equiv. F43)
+
+Perpendicular attach stress: mixed directions and edges crossing inner/outer cluster bounds.
+
+```mermaid
+flowchart TB
+subgraph Outer["Outer subgraph"]
+  direction TB
+  A["Top node"]
+  B["Middle node"]
+  subgraph Inner["Inner subgraph"]
+    direction LR
+    C["Left"]
+    D["Right"]
+  end
+  E["Bottom node"]
+end
+
+A --> B
+B --> C
+C --> D
+D --> E
+```
+
+### F133 — Nodes first: stadium, subroutine, cylinder shapes then chain (equiv. F12 / F13)
+
+```mermaid
+flowchart TB
+A([Stadium / pill])
+B[[Subroutine]]
+Store[(Database / cylinder)]
+App[Application]
+
+A --> B
+App --> Store
 ```

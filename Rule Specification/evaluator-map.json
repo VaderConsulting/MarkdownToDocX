@@ -1,0 +1,1631 @@
+﻿{
+    "SchemaVersion":  "2.0.0",
+    "Name":  "MermaidFlowchartEvaluatorMap",
+    "EvaluatorBindings":  [
+                              {
+                                  "RuleId":  "Recognition.Header.FlowchartFamily",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Diagram",
+                                  "RequiredFields":  [
+                                                         "DiagramId",
+                                                         "Kind",
+                                                         "Direction",
+                                                         "Recognition",
+                                                         "Nodes",
+                                                         "Edges"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_HEADER_FLOWCHARTFAMILY"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Direction.Canonical",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Diagram",
+                                  "RequiredFields":  [
+                                                         "DiagramId",
+                                                         "Kind",
+                                                         "Direction",
+                                                         "Recognition",
+                                                         "Nodes",
+                                                         "Edges"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_DIRECTION_CANONICAL"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Node.IdentityMerge",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Node",
+                                  "RequiredFields":  [
+                                                         "Nodes[].NodeId",
+                                                         "Nodes[].Bounds",
+                                                         "Nodes[].Rank",
+                                                         "Nodes[].Lane"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_NODE_IDENTITYMERGE"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Node.ShapeCanonicalisation",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Node",
+                                  "RequiredFields":  [
+                                                         "Nodes[].NodeId",
+                                                         "Nodes[].Bounds",
+                                                         "Nodes[].Rank",
+                                                         "Nodes[].Lane"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_NODE_SHAPECANONICALISATION"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Edge.TokenDecomposition",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_EDGE_TOKENDECOMPOSITION"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Edge.Expansion",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_EDGE_EXPANSION"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Edge.MinLengthFromToken",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_EDGE_MINLENGTHFROMTOKEN"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Subgraph.Membership",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Group",
+                                  "RequiredFields":  [
+                                                         "Groups[].GroupId",
+                                                         "Groups[].Bounds",
+                                                         "Nodes[].NodeId"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_SUBGRAPH_MEMBERSHIP"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Style.Mutations",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Diagram",
+                                  "RequiredFields":  [
+                                                         "DiagramId",
+                                                         "Kind",
+                                                         "Direction",
+                                                         "Recognition",
+                                                         "Nodes",
+                                                         "Edges"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_STYLE_MUTATIONS"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Unsupported.MustDiagnose",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Diagram",
+                                  "RequiredFields":  [
+                                                         "DiagramId",
+                                                         "Kind",
+                                                         "Direction",
+                                                         "Recognition",
+                                                         "Nodes",
+                                                         "Edges"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_UNSUPPORTED_MUSTDIAGNOSE"
+                              },
+                              {
+                                  "RuleId":  "Layout.Node.BoundsPresent",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Layout",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Node",
+                                  "RequiredFields":  [
+                                                         "Nodes[].NodeId",
+                                                         "Nodes[].Bounds",
+                                                         "Nodes[].Rank",
+                                                         "Nodes[].Lane"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "LAYOUT_NODE_BOUNDSPRESENT"
+                              },
+                              {
+                                  "RuleId":  "Layout.Node.RankLanePresent",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Layout",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Node",
+                                  "RequiredFields":  [
+                                                         "Nodes[].NodeId",
+                                                         "Nodes[].Bounds",
+                                                         "Nodes[].Rank",
+                                                         "Nodes[].Lane"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "LAYOUT_NODE_RANKLANEPRESENT"
+                              },
+                              {
+                                  "RuleId":  "Layout.Node.PrimaryDirectionOrdering",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Layout",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "LAYOUT_NODE_PRIMARYDIRECTIONORDERING"
+                              },
+                              {
+                                  "RuleId":  "Layout.DisconnectedComponentsFollowFlowAxis",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Layout",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Diagram",
+                                  "RequiredFields":  [
+                                                         "DiagramId",
+                                                         "Kind",
+                                                         "Direction",
+                                                         "Recognition",
+                                                         "Nodes",
+                                                         "Edges"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "LAYOUT_DISCONNECTEDCOMPONENTSFOLLOWFLOWAXIS"
+                              },
+                              {
+                                  "RuleId":  "Layout.Node.NeighbourRelativePosition",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Layout",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Node",
+                                  "RequiredFields":  [
+                                                         "Nodes[].NodeId",
+                                                         "Nodes[].Bounds",
+                                                         "Nodes[].Rank",
+                                                         "Nodes[].Lane"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "LAYOUT_NODE_NEIGHBOURRELATIVEPOSITION"
+                              },
+                              {
+                                  "RuleId":  "Layout.Node.NoOverlap",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Layout",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Node",
+                                  "RequiredFields":  [
+                                                         "Nodes[].NodeId",
+                                                         "Nodes[].Bounds",
+                                                         "Nodes[].Rank",
+                                                         "Nodes[].Lane"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "LAYOUT_NODE_NOOVERLAP"
+                              },
+                              {
+                                  "RuleId":  "Layout.Node.GroupContainment",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Layout",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Node",
+                                  "RequiredFields":  [
+                                                         "Nodes[].NodeId",
+                                                         "Nodes[].Bounds",
+                                                         "Nodes[].Rank",
+                                                         "Nodes[].Lane"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "LAYOUT_NODE_GROUPCONTAINMENT"
+                              },
+                              {
+                                  "RuleId":  "Layout.Subgraph.SiblingMinimumGap",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Layout",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Group",
+                                  "RequiredFields":  [
+                                                         "Groups[].GroupId",
+                                                         "Groups[].Bounds",
+                                                         "Nodes[].NodeId"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "LAYOUT_SUBGRAPH_SIBLINGMINIMUMGAP"
+                              },
+                              {
+                                  "RuleId":  "Layout.Subgraph.ExternalMinimumGap",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Layout",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Group",
+                                  "RequiredFields":  [
+                                                         "Groups[].GroupId",
+                                                         "Groups[].Bounds",
+                                                         "Nodes[].NodeId"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "LAYOUT_SUBGRAPH_EXTERNALMINIMUMGAP"
+                              },
+                              {
+                                  "RuleId":  "Layout.Subgraph.NestedClusterContainment",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Layout",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Group",
+                                  "RequiredFields":  [
+                                                         "Groups[].GroupId",
+                                                         "Groups[].Bounds",
+                                                         "Nodes[].NodeId"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "LAYOUT_SUBGRAPH_NESTEDCLUSTERCONTAINMENT"
+                              },
+                              {
+                                  "RuleId":  "Layout.Subgraph.DirectMemberNestedSeparation",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Layout",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Group",
+                                  "RequiredFields":  [
+                                                         "Groups[].GroupId",
+                                                         "Groups[].Bounds",
+                                                         "Nodes[].NodeId"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "LAYOUT_SUBGRAPH_DIRECTMEMBERNESTEDSEPARATION"
+                              },
+                              {
+                                  "RuleId":  "Routing.Class.CentreSpine",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "ROUTING_CLASS_CENTRESPINE"
+                              },
+                              {
+                                  "RuleId":  "Routing.Class.ShortAdjacent",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "ROUTING_CLASS_SHORTADJACENT"
+                              },
+                              {
+                                  "RuleId":  "Routing.Class.LocalDecisionBranch",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "ROUTING_CLASS_LOCALDECISIONBRANCH"
+                              },
+                              {
+                                  "RuleId":  "Routing.Class.FanOut",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "EdgeSet",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].RouteClass",
+                                                         "Nodes[].NodeId"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "ROUTING_CLASS_FANOUT"
+                              },
+                              {
+                                  "RuleId":  "Routing.Class.FanIn",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "EdgeSet",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].RouteClass",
+                                                         "Nodes[].NodeId"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "ROUTING_CLASS_FANIN"
+                              },
+                              {
+                                  "RuleId":  "Routing.Class.MergeBack",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "ROUTING_CLASS_MERGEBACK"
+                              },
+                              {
+                                  "RuleId":  "Routing.Class.LongBypass",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "ROUTING_CLASS_LONGBYPASS"
+                              },
+                              {
+                                  "RuleId":  "Routing.Class.CycleOrReturn",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "ROUTING_CLASS_CYCLEORRETURN"
+                              },
+                              {
+                                  "RuleId":  "Routing.Port.PrimaryDirection",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "ROUTING_PORT_PRIMARYDIRECTION"
+                              },
+                              {
+                                  "RuleId":  "Routing.Port.DecisionBranchDistinct",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "EdgeSet",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].RouteClass",
+                                                         "Nodes[].NodeId"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "ROUTING_PORT_DECISIONBRANCHDISTINCT"
+                              },
+                              {
+                                  "RuleId":  "Routing.Port.MergeSeparation",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "EdgeSet",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].RouteClass",
+                                                         "Nodes[].NodeId"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "ROUTING_PORT_MERGESEPARATION"
+                              },
+                              {
+                                  "RuleId":  "Routing.Port.ShapeBoundary",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "ROUTING_PORT_SHAPEBOUNDARY"
+                              },
+                              {
+                                  "RuleId":  "Render.Ports.TerminateAtVisibleBoundary",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RENDER_PORTS_TERMINATEATVISIBLEBOUNDARY"
+                              },
+                              {
+                                  "RuleId":  "Render.Ports.PerpendicularAttach",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RENDER_PORTS_PERPENDICULARATTACH"
+                              },
+                              {
+                                  "RuleId":  "Render.Path.NoVisibleKinkInSmoothBody",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RENDER_PATH_NOVISIBLEKINKINSMOOTHBODY"
+                              },
+                              {
+                                  "RuleId":  "Render.Shape.TrapezoidBracketGeometry",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Node",
+                                  "RequiredFields":  [
+                                                         "Nodes[].NodeId",
+                                                         "Nodes[].Bounds",
+                                                         "Nodes[].Rank",
+                                                         "Nodes[].Lane"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RENDER_SHAPE_TRAPEZOIDBRACKETGEOMETRY"
+                              },
+                              {
+                                  "RuleId":  "Render.Marker.CrossEndpointStandoff",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "MarkerPlacement",
+                                  "FailureCode":  "RENDER_MARKER_CROSSENDPOINTSTANDOFF"
+                              },
+                              {
+                                  "RuleId":  "Routing.Path.Straightness",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "StraightPath",
+                                  "FailureCode":  "ROUTING_PATH_STRAIGHTNESS"
+                              },
+                              {
+                                  "RuleId":  "Routing.Path.OrthogonalSegments",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "OrthogonalPath",
+                                  "FailureCode":  "ROUTING_PATH_ORTHOGONALSEGMENTS"
+                              },
+                              {
+                                  "RuleId":  "Routing.Path.NoHardElbowWhenSmoothRequired",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "ROUTING_PATH_NOHARDELBOWWHENSMOOTHREQUIRED"
+                              },
+                              {
+                                  "RuleId":  "Routing.Path.NoOrthogonalPolylineWhenCurveBasisDefault",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "ROUTING_PATH_NOORTHOGONALPOLYLINEWHENCURVEBASISDEFAULT"
+                              },
+                              {
+                                  "RuleId":  "Routing.Path.NoHookAtSource",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "ROUTING_PATH_NOHOOKATSOURCE"
+                              },
+                              {
+                                  "RuleId":  "Routing.Path.NoHookAtTarget",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "ROUTING_PATH_NOHOOKATTARGET"
+                              },
+                              {
+                                  "RuleId":  "Routing.Path.NoUnnecessaryDetour",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "ROUTING_PATH_NOUNNECESSARYDETOUR"
+                              },
+                              {
+                                  "RuleId":  "Routing.Obstacle.NoNodeBodyIntersection",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "StrictIntersection",
+                                  "FailureCode":  "ROUTING_OBSTACLE_NONODEBODYINTERSECTION"
+                              },
+                              {
+                                  "RuleId":  "Routing.Obstacle.NoClusterBodyIntersection",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "ROUTING_OBSTACLE_NOCLUSTERBODYINTERSECTION"
+                              },
+                              {
+                                  "RuleId":  "Routing.Obstacle.NoSiblingBranchCrossing",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "EdgeSet",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].RouteClass",
+                                                         "Nodes[].NodeId"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "ROUTING_OBSTACLE_NOSIBLINGBRANCHCROSSING"
+                              },
+                              {
+                                  "RuleId":  "Routing.Obstacle.NoSpineCrossingForException",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "ROUTING_OBSTACLE_NOSPINECROSSINGFOREXCEPTION"
+                              },
+                              {
+                                  "RuleId":  "Routing.Label.AttachedToOwningEdge",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "LabelAttachment",
+                                  "FailureCode":  "ROUTING_LABEL_ATTACHEDTOOWNINGEDGE"
+                              },
+                              {
+                                  "RuleId":  "Routing.Label.ClearOfNodeBodies",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "LabelAttachment",
+                                  "FailureCode":  "ROUTING_LABEL_CLEAROFNODEBODIES"
+                              },
+                              {
+                                  "RuleId":  "Routing.Label.ClearOfMarkers",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "LabelAttachment",
+                                  "FailureCode":  "ROUTING_LABEL_CLEAROFMARKERS"
+                              },
+                              {
+                                  "RuleId":  "Routing.Label.LongLabelWrapped",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "LabelAttachment",
+                                  "FailureCode":  "ROUTING_LABEL_LONGLABELWRAPPED"
+                              },
+                              {
+                                  "RuleId":  "Routing.Label.CentredOnConnectorSpine",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "LabelAttachment",
+                                  "FailureCode":  "ROUTING_LABEL_CENTREDONCONNECTORSPINE"
+                              },
+                              {
+                                  "RuleId":  "Routing.Label.NotOnConnectorLine",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "LabelAttachment",
+                                  "FailureCode":  "ROUTING_LABEL_NOTONCONNECTORLINE"
+                              },
+                              {
+                                  "RuleId":  "Routing.Label.HalfPolylineMidspan",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "LabelAttachment",
+                                  "FailureCode":  "ROUTING_LABEL_HALFPOLYLINEMIDSPAN"
+                              },
+                              {
+                                  "RuleId":  "Routing.Label.BranchLabelNearBranch",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "LabelAttachment",
+                                  "FailureCode":  "ROUTING_LABEL_BRANCHLABELNEARBRANCH"
+                              },
+                              {
+                                  "RuleId":  "Render.Marker.StartMatchesToken",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "MarkerPlacement",
+                                  "FailureCode":  "RENDER_MARKER_STARTMATCHESTOKEN"
+                              },
+                              {
+                                  "RuleId":  "Render.Marker.EndMatchesToken",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "MarkerPlacement",
+                                  "FailureCode":  "RENDER_MARKER_ENDMATCHESTOKEN"
+                              },
+                              {
+                                  "RuleId":  "Render.Marker.BidirectionalPreserved",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "MarkerPlacement",
+                                  "FailureCode":  "RENDER_MARKER_BIDIRECTIONALPRESERVED"
+                              },
+                              {
+                                  "RuleId":  "Render.Marker.NotLost",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "MarkerPlacement",
+                                  "FailureCode":  "RENDER_MARKER_NOTLOST"
+                              },
+                              {
+                                  "RuleId":  "Render.Marker.NotInvented",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "MarkerPlacement",
+                                  "FailureCode":  "RENDER_MARKER_NOTINVENTED"
+                              },
+                              {
+                                  "RuleId":  "Subgraph.MemberMinimumInset",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Group",
+                                  "RequiredFields":  [
+                                                         "Groups[].GroupId",
+                                                         "Groups[].Bounds",
+                                                         "Nodes[].NodeId"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "SUBGRAPH_MEMBERMINIMUMINSET"
+                              },
+                              {
+                                  "RuleId":  "Subgraph.MembersVerticallyCentered",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Group",
+                                  "RequiredFields":  [
+                                                         "Groups[].GroupId",
+                                                         "Groups[].Bounds",
+                                                         "Nodes[].NodeId"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "SUBGRAPH_MEMBERSVERTICALLYCENTERED"
+                              },
+                              {
+                                  "RuleId":  "Subgraph.MembersHorizontallyCentered",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Group",
+                                  "RequiredFields":  [
+                                                         "Groups[].GroupId",
+                                                         "Groups[].Bounds",
+                                                         "Nodes[].NodeId"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "SUBGRAPH_MEMBERSHORIZONTALLYCENTERED"
+                              },
+                              {
+                                  "RuleId":  "Subgraph.SiblingCrossBoundarySpineAligned",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Group",
+                                  "RequiredFields":  [
+                                                         "Groups[].GroupId",
+                                                         "Groups[].Bounds",
+                                                         "Nodes[].NodeId"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "SUBGRAPH_SIBLINGCROSSBOUNDARYSPINEALIGNED"
+                              },
+                              {
+                                  "RuleId":  "Layout.ParallelColumnRowsAligned",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Diagram",
+                                  "RequiredFields":  [
+                                                         "DiagramId",
+                                                         "Kind",
+                                                         "Direction",
+                                                         "Recognition",
+                                                         "Nodes",
+                                                         "Edges"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "LAYOUT_PARALLELCOLUMNROWSALIGNED"
+                              },
+                              {
+                                  "RuleId":  "Subgraph.BoundsContainMembers",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Group",
+                                  "RequiredFields":  [
+                                                         "Groups[].GroupId",
+                                                         "Groups[].Bounds",
+                                                         "Nodes[].NodeId"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "SUBGRAPH_BOUNDSCONTAINMEMBERS"
+                              },
+                              {
+                                  "RuleId":  "Subgraph.InternalEdgesRemainInside",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "SUBGRAPH_INTERNALEDGESREMAININSIDE"
+                              },
+                              {
+                                  "RuleId":  "Subgraph.CrossBoundaryEdgesAreClear",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "SUBGRAPH_CROSSBOUNDARYEDGESARECLEAR"
+                              },
+                              {
+                                  "RuleId":  "Subgraph.NestedOwnershipDeterministic",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Group",
+                                  "RequiredFields":  [
+                                                         "Groups[].GroupId",
+                                                         "Groups[].Bounds",
+                                                         "Nodes[].NodeId"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "SUBGRAPH_NESTEDOWNERSHIPDETERMINISTIC"
+                              },
+                              {
+                                  "RuleId":  "Diagnostics.NoScenarioNameDrivenRouting",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "StaticAnalysis",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Implementation",
+                                  "RequiredFields":  [
+                                                         "Implementation.StaticAnalysis.Selectors"
+                                                     ],
+                                  "ToleranceProfileId":  "None",
+                                  "FailureCode":  "DIAGNOSTICS_NOSCENARIONAMEDRIVENROUTING"
+                              },
+                              {
+                                  "RuleId":  "Diagnostics.NoNodeLabelDrivenRouting",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "StaticAnalysis",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Implementation",
+                                  "RequiredFields":  [
+                                                         "Implementation.StaticAnalysis.Selectors"
+                                                     ],
+                                  "ToleranceProfileId":  "None",
+                                  "FailureCode":  "DIAGNOSTICS_NONODELABELDRIVENROUTING"
+                              },
+                              {
+                                  "RuleId":  "Diagnostics.NoEnglishLabelDrivenBranching",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "StaticAnalysis",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Implementation",
+                                  "RequiredFields":  [
+                                                         "Implementation.StaticAnalysis.Selectors"
+                                                     ],
+                                  "ToleranceProfileId":  "None",
+                                  "FailureCode":  "DIAGNOSTICS_NOENGLISHLABELDRIVENBRANCHING"
+                              },
+                              {
+                                  "RuleId":  "Diagnostics.UnsupportedFeaturesReported",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Diagram",
+                                  "RequiredFields":  [
+                                                         "DiagramId",
+                                                         "Kind",
+                                                         "Direction",
+                                                         "Recognition",
+                                                         "Nodes",
+                                                         "Edges"
+                                                     ],
+                                  "ToleranceProfileId":  "None",
+                                  "FailureCode":  "DIAGNOSTICS_UNSUPPORTEDFEATURESREPORTED"
+                              },
+                              {
+                                  "RuleId":  "Header.GraphAlias",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Diagram",
+                                  "RequiredFields":  [
+                                                         "DiagramId",
+                                                         "Kind",
+                                                         "Direction",
+                                                         "Recognition",
+                                                         "Nodes",
+                                                         "Edges"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "HEADER_GRAPHALIAS"
+                              },
+                              {
+                                  "RuleId":  "Header.FlowchartElkAlias",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Diagram",
+                                  "RequiredFields":  [
+                                                         "DiagramId",
+                                                         "Kind",
+                                                         "Direction",
+                                                         "Recognition",
+                                                         "Nodes",
+                                                         "Edges"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "HEADER_FLOWCHARTELKALIAS"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Edge.Bidirectional",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_EDGE_BIDIRECTIONAL"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Edge.Dotted",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_EDGE_DOTTED"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Edge.Thick",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_EDGE_THICK"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Edge.Invisible",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_EDGE_INVISIBLE"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Edge.CircleMarker",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_EDGE_CIRCLEMARKER"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Edge.CrossMarker",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_EDGE_CROSSMARKER"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Edge.GroupExpansion",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_EDGE_GROUPEXPANSION"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Edge.LabelPipeSyntax",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_EDGE_LABELPIPESYNTAX"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Edge.LongLabel",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_EDGE_LONGLABEL"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Subgraph.Nested",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Group",
+                                  "RequiredFields":  [
+                                                         "Groups[].GroupId",
+                                                         "Groups[].Bounds",
+                                                         "Nodes[].NodeId"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_SUBGRAPH_NESTED"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Subgraph.Direction",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Group",
+                                  "RequiredFields":  [
+                                                         "Groups[].GroupId",
+                                                         "Groups[].Bounds",
+                                                         "Nodes[].NodeId"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_SUBGRAPH_DIRECTION"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Config.Init",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Diagram",
+                                  "RequiredFields":  [
+                                                         "DiagramId",
+                                                         "Kind",
+                                                         "Direction",
+                                                         "Recognition",
+                                                         "Nodes",
+                                                         "Edges"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_CONFIG_INIT"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Config.FrontMatter",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Diagram",
+                                  "RequiredFields":  [
+                                                         "DiagramId",
+                                                         "Kind",
+                                                         "Direction",
+                                                         "Recognition",
+                                                         "Nodes",
+                                                         "Edges"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_CONFIG_FRONTMATTER"
+                              },
+                              {
+                                  "RuleId":  "Routing.ELK",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Diagram",
+                                  "RequiredFields":  [
+                                                         "DiagramId",
+                                                         "Kind",
+                                                         "Direction",
+                                                         "Recognition",
+                                                         "Nodes",
+                                                         "Edges"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "ROUTING_ELK"
+                              },
+                              {
+                                  "RuleId":  "Routing.InvisibleLayoutConstraint",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "ROUTING_INVISIBLELAYOUTCONSTRAINT"
+                              },
+                              {
+                                  "RuleId":  "Routing.MinLenDummySegments",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "ROUTING_MINLENDUMMYSEGMENTS"
+                              },
+                              {
+                                  "RuleId":  "Routing.ScalingStability",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Geometry",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Edge",
+                                  "RequiredFields":  [
+                                                         "Edges[].EdgeId",
+                                                         "Edges[].Path.Points",
+                                                         "Edges[].SourceNodeId",
+                                                         "Edges[].TargetNodeId",
+                                                         "Edges[].RouteClass"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "ROUTING_SCALINGSTABILITY"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Node.Shape.Asymmetric",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Node",
+                                  "RequiredFields":  [
+                                                         "Nodes[].NodeId",
+                                                         "Nodes[].Bounds",
+                                                         "Nodes[].Rank",
+                                                         "Nodes[].Lane"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_NODE_SHAPE_ASYMMETRIC"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Node.Shape.Circle",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Node",
+                                  "RequiredFields":  [
+                                                         "Nodes[].NodeId",
+                                                         "Nodes[].Bounds",
+                                                         "Nodes[].Rank",
+                                                         "Nodes[].Lane"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_NODE_SHAPE_CIRCLE"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Node.Shape.Cylinder",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Node",
+                                  "RequiredFields":  [
+                                                         "Nodes[].NodeId",
+                                                         "Nodes[].Bounds",
+                                                         "Nodes[].Rank",
+                                                         "Nodes[].Lane"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_NODE_SHAPE_CYLINDER"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Node.Shape.Diamond",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Node",
+                                  "RequiredFields":  [
+                                                         "Nodes[].NodeId",
+                                                         "Nodes[].Bounds",
+                                                         "Nodes[].Rank",
+                                                         "Nodes[].Lane"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_NODE_SHAPE_DIAMOND"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Node.Shape.DoubleCircle",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Node",
+                                  "RequiredFields":  [
+                                                         "Nodes[].NodeId",
+                                                         "Nodes[].Bounds",
+                                                         "Nodes[].Rank",
+                                                         "Nodes[].Lane"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_NODE_SHAPE_DOUBLECIRCLE"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Node.Shape.Hexagon",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Node",
+                                  "RequiredFields":  [
+                                                         "Nodes[].NodeId",
+                                                         "Nodes[].Bounds",
+                                                         "Nodes[].Rank",
+                                                         "Nodes[].Lane"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_NODE_SHAPE_HEXAGON"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Node.Shape.Rect",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Node",
+                                  "RequiredFields":  [
+                                                         "Nodes[].NodeId",
+                                                         "Nodes[].Bounds",
+                                                         "Nodes[].Rank",
+                                                         "Nodes[].Lane"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_NODE_SHAPE_RECT"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Node.Shape.Rounded",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Node",
+                                  "RequiredFields":  [
+                                                         "Nodes[].NodeId",
+                                                         "Nodes[].Bounds",
+                                                         "Nodes[].Rank",
+                                                         "Nodes[].Lane"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_NODE_SHAPE_ROUNDED"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Node.Shape.Stadium",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Node",
+                                  "RequiredFields":  [
+                                                         "Nodes[].NodeId",
+                                                         "Nodes[].Bounds",
+                                                         "Nodes[].Rank",
+                                                         "Nodes[].Lane"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_NODE_SHAPE_STADIUM"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Node.Shape.Subroutine",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Node",
+                                  "RequiredFields":  [
+                                                         "Nodes[].NodeId",
+                                                         "Nodes[].Bounds",
+                                                         "Nodes[].Rank",
+                                                         "Nodes[].Lane"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_NODE_SHAPE_SUBROUTINE"
+                              },
+                              {
+                                  "RuleId":  "Recognition.Node.Shape.Trapezoid",
+                                  "EvaluatorId":  "RequireFactEvaluator",
+                                  "EvaluatorType":  "Recognition",
+                                  "InputModel":  "ActualResults",
+                                  "AppliesTo":  "Node",
+                                  "RequiredFields":  [
+                                                         "Nodes[].NodeId",
+                                                         "Nodes[].Bounds",
+                                                         "Nodes[].Rank",
+                                                         "Nodes[].Lane"
+                                                     ],
+                                  "ToleranceProfileId":  "DefaultGeometry",
+                                  "FailureCode":  "RECOGNITION_NODE_SHAPE_TRAPEZOID"
+                              }
+                          ]
+}

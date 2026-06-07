@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/mermaid/ruleset.schema.json",
+  "title": "Mermaid Flowchart Universal Ruleset",
+  "type": "object",
+  "required": [
+    "SchemaVersion",
+    "Name",
+    "Scope",
+    "Rules"
+  ],
+  "properties": {
+    "SchemaVersion": {
+      "type": "string"
+    },
+    "Name": {
+      "type": "string"
+    },
+    "Scope": {
+      "type": "object",
+      "required": [
+        "DiagramKinds",
+        "PrimaryKind"
+      ],
+      "properties": {
+        "DiagramKinds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "PrimaryKind": {
+          "type": "string"
+        }
+      }
+    },
+    "DefaultToleranceProfileId": {
+      "type": "string"
+    },
+    "RuleGroups": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "Rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "RuleId",
+          "RuleGroup",
+          "AppliesTo",
+          "Severity",
+          "Description"
+        ],
+        "properties": {
+          "RuleId": {
+            "type": "string"
+          },
+          "RuleGroup": {
+            "type": "string"
+          },
+          "AppliesTo": {
+            "type": "string"
+          },
+          "Severity": {
+            "enum": [
+              "Info",
+              "Warning",
+              "Error"
+            ]
+          },
+          "Description": {
+            "type": "string"
+          },
+          "When": {
+            "type": "object"
+          },
+          "Require": {
+            "type": "object"
+          },
+          "FailWhen": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "DiagnosticTemplate": {
+            "type": "string"
+          },
+          "SuggestedCorrectionTemplate": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

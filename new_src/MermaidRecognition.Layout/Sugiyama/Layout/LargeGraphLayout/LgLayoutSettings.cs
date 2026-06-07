@@ -1,0 +1,201 @@
+using System;
+using System.Collections.Generic;
+using MermaidRecognition.Layout.Sugiyama.Core.DataStructures;
+using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
+using MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves;
+using MermaidRecognition.Layout.Sugiyama.Core.Layout;
+using MermaidRecognition.Layout.Sugiyama.Core.Routing;
+
+namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
+    /// <summary>
+    /// layout settings to handle a large graph
+    /// </summary>
+    public class  LgLayoutSettings : LayoutAlgorithmSettings {
+        internal readonly Func<PlaneTransformation> TransformFromGraphToScreen;
+        internal readonly double DpiX;
+        internal readonly double DpiY;
+
+        /// <summary>
+        /// size of drawn node
+        /// </summary>
+        public double NodeDotWidthInInches = 0.1;
+        public double NodeDotWidthInInchesMinInImage = 0.06;
+        public double NodeLabelHeightInInches = 0.22;
+
+        /// <summary>
+        /// Func giving the maximal arrowhead length for the current viewport
+        /// </summary>
+        public readonly Func<double> MaximalArrowheadLength;
+
+
+
+        /// <summary>
+        /// delegate to be called by LgInteractor on a graph change
+        /// </summary>
+        public delegate void LgLayoutEvent();
+
+        /// <summary>
+        /// event handler to be raised when the graph and its transform change
+        /// </summary>
+        public event LgLayoutEvent ViewerChangeTransformAndInvalidateGraph;
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public void OnViewerChangeTransformAndInvalidateGraph() {
+            if (ViewerChangeTransformAndInvalidateGraph != null)
+                ViewerChangeTransformAndInvalidateGraph();
+        }
+
+        /// <summary>
+        /// this graph is shown in the viewer
+        /// </summary>
+        public RailGraph RailGraph {
+            get { return Interactor != null ? Interactor.RailGraph : null; }
+        }
+
+        /// <summary>
+        /// clones the object
+        /// </summary>
+        /// <returns></returns>
+        public override LayoutAlgorithmSettings Clone() {
+            return (LayoutAlgorithmSettings) MemberwiseClone();
+        }
+
+        /// <summary>
+        /// the algorithm object
+        /// </summary>
+        public LgInteractor Interactor { get; set; }
+
+
+        /// <summary>
+        /// a delegate returning the current viewport of the viewer
+        /// </summary>
+        internal Func<Rectangle> ClientViewportFunc { get; set; }
+
+        /// <summary>
+        /// constructor
+        /// </summary>
+        /// <param name="clientViewportFunc"></param>
+        /// <param name="transformFromGraphToScreen"> </param>
+        /// <param name="dpiX"> </param>
+        /// <param name="dpiY"> </param>
+        /// <param name="maximalArrowheadLength">the dynamic length of the arrowhead</param>
+        public LgLayoutSettings(Func<Rectangle> clientViewportFunc,
+                                Func<PlaneTransformation> transformFromGraphToScreen,
+                                double dpiX, double dpiY,
+                                Func<double> maximalArrowheadLength
+            ) {
+            ClientViewportFunc = clientViewportFunc;
+            TransformFromGraphToScreen = transformFromGraphToScreen;
+            DpiX = dpiX;
+            DpiY = dpiY;
+            MaximalArrowheadLength = maximalArrowheadLength;
+            EdgeRoutingSettings.Padding = NodeSeparation/4;
+            EdgeRoutingSettings.PolylinePadding = NodeSeparation/6;
+        }
+
+        public Func<Rectangle> ClientViewportMappedToGraph { get; set; }            
+
+
+        Dictionary<Node, LgNodeInfo> geometryNodesToLgNodeInfos = new Dictionary<Node, LgNodeInfo>();
+
+        /// <summary>
+        /// the mapping from Geometry nodes to LgNodes
+        /// </summary>
+        public Dictionary<Node, LgNodeInfo> GeometryNodesToLgNodeInfos {
+            get { return geometryNodesToLgNodeInfos; }
+            set { geometryNodesToLgNodeInfos = value; }
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public IDictionary<Edge, LgEdgeInfo> GeometryEdgesToLgEdgeInfos {
+            get { return Interactor.GeometryEdgesToLgEdgeInfos; }
+        }
+
+
+
+        /// <summary>
+        /// 
+        /// </summary>
+        Interval _scaleInterval = new Interval(0.00001, 100000000.0);
+        bool needToLayout = true;
+        int maxNumberOfNodesPerTile = 20;
+        
+        
+        /// <summary>
+        /// used for debugging mostly
+        /// </summary>
+        public bool ExitAfterInit;
+
+        /// <summary>
+        /// the range of scale 
+        /// </summary>
+        public Interval ScaleInterval {
+            get { return _scaleInterval; }
+            set { _scaleInterval = value; }
+        }
+        /// <summary>
+        /// set this property to true if the graph comes with a given layout
+        /// </summary>
+        public bool NeedToLayout {
+            get { return needToLayout; }
+            set { needToLayout = value; }
+        }
+
+        /// <summary>
+        /// the node quota per tile
+        /// </summary>
+        public int MaxNumberOfNodesPerTile {
+            get { return maxNumberOfNodesPerTile; }
+            set { maxNumberOfNodesPerTile = value; }
+        }
+
+        private int increaseNodeQuota;
+
+        public int IncreaseNodeQuota
+        {
+            get { return increaseNodeQuota; }
+            set { increaseNodeQuota = value; }
+        }
+        
+        int maxNumberOfRailsPerTile = 300;
+        
+        public int MaxNumberOfRailsPerTile
+        {
+            get { return maxNumberOfRailsPerTile; }
+            set { maxNumberOfRailsPerTile = value; }
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
+        public double GetMaximalZoomLevel() {
+            return Interactor.GetMaximalZoomLevel();
+        }
+
+        bool _simplifyRoutes = true;
+        int _numberOfNodeShapeSegs = 16;
+
+        public bool SimplifyRoutes {
+            get { return _simplifyRoutes; }
+            set { _simplifyRoutes = value; }
+        }
+
+        public int NumberOfNodeShapeSegs {
+            get { return _numberOfNodeShapeSegs; }
+            set { _numberOfNodeShapeSegs = value; }
+        }
+
+        public bool GenerateTiles {
+            get { return _generateTiles; }
+            set { _generateTiles = value; }
+        }
+
+        bool _generateTiles = true;
+
+    }
+}

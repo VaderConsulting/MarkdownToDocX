@@ -1,0 +1,283 @@
+{
+  "SchemaVersion": "1.0",
+  "GlobalInvalidBehaviours": [],
+  "Diagrams": [
+    {
+      "DiagramId": "RegressionFlow001",
+      "Direction": "TD",
+      "Edges": [
+        {
+          "SourceNodeId": "Start",
+          "TargetNodeId": "Ingest",
+          "RouteClass": "CentreSpine",
+          "ExpectedBehaviour": [
+            "RemainOnMainSpine",
+            "UseDirectVerticalConnection",
+            "DoNotRouteAroundUnrelatedNodes"
+          ],
+          "InvalidBehaviours": [
+            "HardElbow",
+            "HookAtSource",
+            "HookAtTarget",
+            "NodeBodyIntersection",
+            "UnnecessaryDetour"
+          ]
+        },
+        {
+          "SourceNodeId": "Ingest",
+          "TargetNodeId": "Validate",
+          "RouteClass": "CentreSpine",
+          "ExpectedBehaviour": [
+            "RemainOnMainSpine",
+            "RespectSpineColumnAlignment"
+          ]
+        },
+        {
+          "SourceNodeId": "Validate",
+          "TargetNodeId": "Reject",
+          "RouteClass": "LongExceptionBypass",
+          "LabelPlacementIntent": "NearCorridorSegment",
+          "ObstacleAvoidanceIntent": "AvoidSpineCorridor",
+          "ExpectedBehaviour": [
+            "RouteInExteriorCorridorLane",
+            "AvoidSpineCorridorInterior",
+            "KeepLabelAttachedToEdge",
+            "TreatAsSeparateLocalBranch"
+          ],
+          "InvalidBehaviours": [
+            "DiagonalSpineCrossing",
+            "RouteThroughCentreSpine",
+            "LocalBranchMisclassification"
+          ]
+        },
+        {
+          "SourceNodeId": "Validate",
+          "TargetNodeId": "Parse",
+          "RouteClass": "CentreSpine",
+          "LabelPlacementIntent": "OffsetAlongEdgeMidpoint",
+          "ExpectedBehaviour": [
+            "RemainOnMainSpine",
+            "KeepLabelAttachedToEdge"
+          ]
+        },
+        {
+          "SourceNodeId": "Parse",
+          "TargetNodeId": "HasMermaid",
+          "RouteClass": "CentreSpine"
+        },
+        {
+          "SourceNodeId": "HasMermaid",
+          "TargetNodeId": "Render",
+          "RouteClass": "LocalDecisionBranch",
+          "LabelPlacementIntent": "NearSourceBranchSegment",
+          "ObstacleAvoidanceIntent": "AvoidDecisionNodeAndSiblingBranch",
+          "ExpectedBehaviour": [
+            "LeaveDecisionClearly",
+            "KeepLabelAttachedToBranch",
+            "DoNotCrossSiblingBranch",
+            "TreatAsSeparateLocalBranch"
+          ],
+          "InvalidBehaviours": [
+            "LongBypassMisclassification",
+            "CrossesSiblingBranch"
+          ]
+        },
+        {
+          "SourceNodeId": "HasMermaid",
+          "TargetNodeId": "Word",
+          "RouteClass": "LocalDecisionBranch",
+          "LabelPlacementIntent": "NearSourceBranchSegment",
+          "ExpectedBehaviour": [
+            "LeaveDecisionClearly",
+            "TreatAsSeparateLocalBranch"
+          ]
+        },
+        {
+          "SourceNodeId": "Render",
+          "TargetNodeId": "Word",
+          "RouteClass": "MultiInputMerge",
+          "ExpectedBehaviour": [
+            "UseDistinctMergePort",
+            "AvoidAmbiguousMergeCollapse",
+            "MergeBackIntoMainPath"
+          ],
+          "InvalidBehaviours": [
+            "AmbiguousMerge",
+            "HookAtTarget"
+          ]
+        },
+        {
+          "SourceNodeId": "Word",
+          "TargetNodeId": "DoArchive",
+          "RouteClass": "CentreSpine"
+        },
+        {
+          "SourceNodeId": "DoArchive",
+          "TargetNodeId": "Persist",
+          "RouteClass": "CentreSpine",
+          "LabelPlacementIntent": "OffsetAlongEdgeMidpoint",
+          "ExpectedBehaviour": [
+            "KeepLabelAttachedToEdge",
+            "TreatAsSeparateLocalBranch"
+          ]
+        },
+        {
+          "SourceNodeId": "DoArchive",
+          "TargetNodeId": "Done",
+          "RouteClass": "SkipBypass",
+          "LabelPlacementIntent": "NearCorridorSegment",
+          "ObstacleAvoidanceIntent": "AvoidNodeBodiesAndDecisionDiamonds",
+          "ExpectedBehaviour": [
+            "BypassInterveningSpineNodesLocally",
+            "DoNotTreatAsArbitraryLongDetour",
+            "TreatAsSeparateLocalBranch"
+          ],
+          "InvalidBehaviours": [
+            "RouteThroughCentreSpine",
+            "ArbitraryLongDetour"
+          ]
+        },
+        {
+          "SourceNodeId": "Reject",
+          "TargetNodeId": "Done",
+          "RouteClass": "MultiInputMerge",
+          "ExpectedBehaviour": [
+            "UseDistinctMergePort",
+            "MergeBackIntoMainPath"
+          ]
+        },
+        {
+          "SourceNodeId": "Persist",
+          "TargetNodeId": "Done",
+          "RouteClass": "CentreSpine",
+          "ExpectedBehaviour": [
+            "RemainOnMainSpine",
+            "RespectSpineColumnAlignment"
+          ]
+        }
+      ]
+    },
+    {
+      "DiagramId": "CentreSpineLinear",
+      "Direction": "TD",
+      "Edges": [
+        { "SourceNodeId": "A", "TargetNodeId": "B", "RouteClass": "ShortAdjacent" },
+        { "SourceNodeId": "B", "TargetNodeId": "C", "RouteClass": "ShortAdjacent" },
+        { "SourceNodeId": "C", "TargetNodeId": "D", "RouteClass": "ShortAdjacent" }
+      ]
+    },
+    {
+      "DiagramId": "SingleDecisionBranch",
+      "Direction": "TD",
+      "Edges": [
+        { "SourceNodeId": "Root", "TargetNodeId": "Gate", "RouteClass": "ShortAdjacent" },
+        { "SourceNodeId": "Gate", "TargetNodeId": "Proceed", "RouteClass": "LocalDecisionBranch" },
+        { "SourceNodeId": "Gate", "TargetNodeId": "Stop", "RouteClass": "LocalDecisionBranch" }
+      ]
+    },
+    {
+      "DiagramId": "NestedDecisionBranch",
+      "Direction": "TD",
+      "Edges": [
+        { "SourceNodeId": "S", "TargetNodeId": "A", "RouteClass": "ShortAdjacent" },
+        { "SourceNodeId": "A", "TargetNodeId": "B", "RouteClass": "LocalDecisionBranch" },
+        { "SourceNodeId": "A", "TargetNodeId": "X", "RouteClass": "LocalDecisionBranch" },
+        { "SourceNodeId": "B", "TargetNodeId": "Y", "RouteClass": "LocalDecisionBranch" },
+        { "SourceNodeId": "B", "TargetNodeId": "Z", "RouteClass": "LocalDecisionBranch" }
+      ]
+    },
+    {
+      "DiagramId": "MultiMergeCollector",
+      "Direction": "TD",
+      "Edges": [
+        { "SourceNodeId": "A", "TargetNodeId": "Sink", "RouteClass": "ShortAdjacent" },
+        { "SourceNodeId": "B", "TargetNodeId": "Sink", "RouteClass": "ShortAdjacent" },
+        { "SourceNodeId": "C", "TargetNodeId": "Sink", "RouteClass": "ShortAdjacent" }
+      ]
+    },
+    {
+      "DiagramId": "LongBypassSkip",
+      "Direction": "TD",
+      "Edges": [
+        { "SourceNodeId": "Top", "TargetNodeId": "Mid", "RouteClass": "ShortAdjacent" },
+        { "SourceNodeId": "Mid", "TargetNodeId": "Bottom", "RouteClass": "LocalDecisionBranch" },
+        { "SourceNodeId": "Mid", "TargetNodeId": "Step1", "RouteClass": "LocalDecisionBranch" },
+        { "SourceNodeId": "Step1", "TargetNodeId": "Step2", "RouteClass": "ShortAdjacent" },
+        { "SourceNodeId": "Step2", "TargetNodeId": "Bottom", "RouteClass": "ShortAdjacent" }
+      ]
+    },
+    {
+      "DiagramId": "LongExceptionPath",
+      "Direction": "TD",
+      "Edges": [
+        { "SourceNodeId": "Start", "TargetNodeId": "Check", "RouteClass": "ShortAdjacent" },
+        { "SourceNodeId": "Check", "TargetNodeId": "Continue", "RouteClass": "LocalDecisionBranch" },
+        { "SourceNodeId": "Check", "TargetNodeId": "Error", "RouteClass": "LocalDecisionBranch" },
+        { "SourceNodeId": "Error", "TargetNodeId": "End", "RouteClass": "ShortAdjacent" },
+        { "SourceNodeId": "Continue", "TargetNodeId": "End", "RouteClass": "ShortAdjacent" }
+      ]
+    },
+    {
+      "DiagramId": "CrossLaneLink",
+      "Direction": "TD",
+      "Edges": [
+        { "SourceNodeId": "Left", "TargetNodeId": "Right", "RouteClass": "ShortAdjacent" },
+        { "SourceNodeId": "Centre", "TargetNodeId": "Left", "RouteClass": "ShortAdjacent" }
+      ]
+    },
+    {
+      "DiagramId": "DenseLocalBranches",
+      "Direction": "TD",
+      "Edges": [
+        { "SourceNodeId": "Hub", "TargetNodeId": "A1", "RouteClass": "LocalDecisionBranch" },
+        { "SourceNodeId": "Hub", "TargetNodeId": "B1", "RouteClass": "LocalDecisionBranch" },
+        { "SourceNodeId": "Hub", "TargetNodeId": "C1", "RouteClass": "LocalDecisionBranch" },
+        { "SourceNodeId": "Hub", "TargetNodeId": "D1", "RouteClass": "LocalDecisionBranch" }
+      ]
+    },
+    {
+      "DiagramId": "LabelledEdges",
+      "Direction": "TD",
+      "Edges": [
+        { "SourceNodeId": "A", "TargetNodeId": "B", "RouteClass": "ShortAdjacent" },
+        { "SourceNodeId": "B", "TargetNodeId": "C", "RouteClass": "LocalDecisionBranch" },
+        { "SourceNodeId": "B", "TargetNodeId": "D", "RouteClass": "LocalDecisionBranch" },
+        { "SourceNodeId": "D", "TargetNodeId": "E", "RouteClass": "ShortAdjacent" },
+        { "SourceNodeId": "E", "TargetNodeId": "F", "RouteClass": "ShortAdjacent" },
+        { "SourceNodeId": "C", "TargetNodeId": "F", "RouteClass": "ShortAdjacent" }
+      ]
+    },
+    {
+      "DiagramId": "MultiFanInOut",
+      "Direction": "TD",
+      "Edges": [
+        { "SourceNodeId": "In1", "TargetNodeId": "Hub", "RouteClass": "ShortAdjacent" },
+        { "SourceNodeId": "In2", "TargetNodeId": "Hub", "RouteClass": "ShortAdjacent" },
+        { "SourceNodeId": "Hub", "TargetNodeId": "Out1", "RouteClass": "ShortAdjacent" },
+        { "SourceNodeId": "Hub", "TargetNodeId": "Out2", "RouteClass": "ShortAdjacent" }
+      ]
+    },
+    {
+      "DiagramId": "DirectionLR",
+      "Direction": "LR",
+      "Edges": [
+        { "SourceNodeId": "L", "TargetNodeId": "M", "RouteClass": "ShortAdjacent" },
+        { "SourceNodeId": "M", "TargetNodeId": "R", "RouteClass": "ShortAdjacent" }
+      ]
+    },
+    {
+      "DiagramId": "DirectionBT",
+      "Direction": "BT",
+      "Edges": [
+        { "SourceNodeId": "Low", "TargetNodeId": "High", "RouteClass": "ShortAdjacent" }
+      ]
+    },
+    {
+      "DiagramId": "DirectionRL",
+      "Direction": "RL",
+      "Edges": [
+        { "SourceNodeId": "Right", "TargetNodeId": "Left", "RouteClass": "ShortAdjacent" }
+      ]
+    }
+  ]
+}

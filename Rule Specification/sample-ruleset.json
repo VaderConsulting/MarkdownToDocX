@@ -1,0 +1,77 @@
+{
+  "SchemaVersion": "2.0.0",
+  "Name": "MermaidFlowchartUniversalRuleset",
+  "Scope": {
+    "DiagramKinds": [
+      "flowchart",
+      "graph",
+      "flowchart-elk"
+    ],
+    "PrimaryKind": "flowchart"
+  },
+  "DefaultToleranceProfileId": "DefaultGeometry",
+  "RuleGroups": [
+    "Recognition",
+    "Layout",
+    "NeighbourRelationships",
+    "RoutingClassification",
+    "PortSelection",
+    "PathShape",
+    "Markers",
+    "Labels",
+    "ObstacleAvoidance",
+    "Subgraphs",
+    "Diagnostics",
+    "AntiPatterns"
+  ],
+  "Rules": [
+    {
+      "RuleId": "Routing.Obstacle.NoNodeBodyIntersection",
+      "RuleGroup": "ObstacleAvoidance",
+      "AppliesTo": "Edge",
+      "Severity": "Error",
+      "Description": "A visible edge path must not pass through any unrelated node body.",
+      "When": {
+        "All": [
+          {
+            "Field": "Edge.IsVisible",
+            "Operator": "Equals",
+            "Value": true
+          }
+        ]
+      },
+      "Require": {
+        "Path.DoesNotIntersectUnrelatedNodeBodies": true
+      },
+      "FailWhen": [
+        "PathIntersectsUnrelatedNodeBody"
+      ],
+      "DiagnosticTemplate": "Edge {EdgeId} crosses node {IntersectedNodeId}. Route the edge around the node body.",
+      "SuggestedCorrectionTemplate": "Move the route into an available corridor and preserve source/target ports and marker intent."
+    },
+    {
+      "RuleId": "Diagnostics.NoScenarioNameDrivenRouting",
+      "RuleGroup": "AntiPatterns",
+      "AppliesTo": "Implementation",
+      "Severity": "Error",
+      "Description": "Routing logic must not branch on scenario IDs or fixture names.",
+      "When": {
+        "All": [
+          {
+            "Field": "Implementation.StaticAnalysis.Available",
+            "Operator": "Equals",
+            "Value": true
+          }
+        ]
+      },
+      "Require": {
+        "Implementation.NoScenarioNameSelectors": true
+      },
+      "FailWhen": [
+        "ScenarioNameDrivenSelectorFound"
+      ],
+      "DiagnosticTemplate": "Implementation contains scenario-driven routing selector {SelectorName}.",
+      "SuggestedCorrectionTemplate": "Replace the selector with structural graph, layout, or routing conditions."
+    }
+  ]
+}

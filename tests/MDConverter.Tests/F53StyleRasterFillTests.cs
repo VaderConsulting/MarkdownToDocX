@@ -28,7 +28,7 @@ public sealed class F53StyleRasterFillTests
     [TestMethod]
     public void TryRasterizeSvgToPng_F53Recognition_PreservesStyledNodeFillPixels()
     {
-        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderLegacyNaiadFlowchartSvg(
             F53_SOURCE,
             RenderOptions.Default,
             out string Svg);

@@ -16,7 +16,7 @@ public sealed class InvisibleEdgeRenderTests
             B ~~~ C[C]
             """;
 
-        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+        bool Rendered = FlowchartRecognitionRenderBridge.TryRenderLegacyNaiadFlowchartSvg(
             Source,
             RenderOptions.Default,
             out string Svg);
