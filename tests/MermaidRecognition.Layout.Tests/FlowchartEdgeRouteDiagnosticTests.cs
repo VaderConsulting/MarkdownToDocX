@@ -54,7 +54,6 @@ public sealed class FlowchartEdgeRouteDiagnosticTests
                 || Finding.Kind == FlowchartEdgeRouteDiagnosticKind.CentreSpineRegression
                 || Finding.Kind == FlowchartEdgeRouteDiagnosticKind.HookOrOvershoot
                 || Finding.Kind == FlowchartEdgeRouteDiagnosticKind.NodePassThrough)
-            .Where(Finding => !string.Equals(Finding.EdgeKey, "Reject->Done", StringComparison.Ordinal))
             .ToList();
 
         if (StructuralFindings.Count > 0)
@@ -67,7 +66,7 @@ public sealed class FlowchartEdgeRouteDiagnosticTests
     }
 
     [Test]
-    public void Analyze_F58RegressionFixture_DetectsDoneMergePortAmbiguity()
+    public void Analyze_F58RegressionFixture_DoneMergeHasNoPortAmbiguity()
     {
         DiagramContract Contract = MermaidRecognizer.Parse(F58_FLOWCHART);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
@@ -82,8 +81,8 @@ public sealed class FlowchartEdgeRouteDiagnosticTests
             Findings.Any(
                 Finding => Finding.Kind == FlowchartEdgeRouteDiagnosticKind.MergeAmbiguity
                     && string.Equals(Finding.TargetNodeId, "Done", StringComparison.Ordinal)),
-            Is.True,
-            "Done should report merge ambiguity while Reject and Persist share the same target port.");
+            Is.False,
+            "Reject and Persist sit either side of Done and enter its facing sides (spec §15.0C.1), so they never share a target port.");
     }
 
     [Test]

@@ -26,14 +26,8 @@ public sealed class F104FeedbackLoopRenderTests
 
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
 
-        Match LabelA = Regex.Match(
-            Svg,
-            @"<text y=""([^""]+)""[^>]*>\s*<tspan[^>]*>\s*A\s*</tspan>",
-            RegexOptions.Singleline);
-        Match LabelB = Regex.Match(
-            Svg,
-            @"<text y=""([^""]+)""[^>]*>\s*<tspan[^>]*>\s*B\s*</tspan>",
-            RegexOptions.Singleline);
+        Match LabelA = Regex.Match(Svg, @"<text x=""[^""]+"" y=""([^""]+)""[^>]*>A</text>");
+        Match LabelB = Regex.Match(Svg, @"<text x=""[^""]+"" y=""([^""]+)""[^>]*>B</text>");
         Assert.That(LabelA.Success, Is.True);
         Assert.That(LabelB.Success, Is.True);
 
@@ -41,8 +35,8 @@ public sealed class F104FeedbackLoopRenderTests
         double SvgBy = double.Parse(LabelB.Groups[1].Value, CultureInfo.InvariantCulture);
         Assert.That(SvgBy, Is.LessThan(SvgAy), "B should render above A");
 
-        List<double> LineX1 = Regex.Matches(Svg, @"<line x1=""([^""]+)""")
-            .Select(Match => double.Parse(Match.Groups[1].Value, CultureInfo.InvariantCulture))
+        List<double> LineX1 = SvgStraightConnectorReader.Read(Svg)
+            .Select(Connector => Connector.X1)
             .ToList();
         Assert.That(LineX1, Has.Count.EqualTo(2));
         Assert.That(Math.Abs(LineX1[0] - LineX1[1]), Is.GreaterThan(5.0), "Feedback edges should be horizontally separated");

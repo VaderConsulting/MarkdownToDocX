@@ -37,9 +37,21 @@ public static class FlowchartInlineLinkLabelExtractor
         return Result;
     }
 
+    /// <summary>
+    /// Keeps only the start marker (<c>x</c>, <c>o</c> or <c>&lt;</c>) and the closing link, because Mermaid's
+    /// <c>destructLink</c> takes the edge length from the closing link alone (<c>-- text --&gt;</c> has length 1).
+    /// </summary>
     static string ReplaceLabeledMatch(Match Match, List<string> InlineLabels)
     {
         InlineLabels.Add(FlowchartLabelNormalizer.Normalize(Match.Groups["label"].Value));
-        return " " + Match.Groups["start"].Value + Match.Groups["end"].Value + " ";
+        string Start = Match.Groups["start"].Value;
+        string StartMarker = Start.Length > 0 && (Start[0] == 'x' || Start[0] == 'o' || Start[0] == '<') ? Start[..1] : string.Empty;
+        string End = Match.Groups["end"].Value;
+        if (StartMarker.Length > 0 && End.Length > 0 && (End[0] == 'x' || End[0] == 'o' || End[0] == '<'))
+        {
+            End = End[1..];
+        }
+
+        return $" {StartMarker}{End} ";
     }
 }

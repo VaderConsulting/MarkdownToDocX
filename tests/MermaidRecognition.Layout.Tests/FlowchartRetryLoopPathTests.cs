@@ -18,7 +18,7 @@ namespace MermaidRecognition.Layout.Tests;
 public sealed class FlowchartRetryLoopPathTests
 {
     [Test]
-    public void BuildRetryLoopPathData_OmitsCornerInterpolationPoints()
+    public void BuildRetryLoopPathData_OmitsCollinearPointsAndRoundsEachCorner()
     {
         List<(double X, double Y)> GuidePoints =
         [
@@ -33,10 +33,12 @@ public sealed class FlowchartRetryLoopPathTests
 
         string PathData = FlowchartCurvePathBuilder.BuildRetryLoopPathData(GuidePoints);
 
+        // Spec §15.0C.4: collinear guide points are dropped and each of the three corners becomes one quarter-circle cubic.
         Assert.That(PathData, Does.Not.Contain("112,70"));
-        Assert.That(PathData, Does.Contain("M100,50L112,50L112,120L300,120"));
+        Assert.That(PathData, Does.StartWith("M100,50"));
         Assert.That(PathData, Does.EndWith("L300,80"));
-        Assert.That(PathData, Does.Contain("L300,120"));
+        Assert.That(PathData.Count(Character => Character == 'C'), Is.EqualTo(3));
+        Assert.That(PathData, Does.Contain(" 140,120L272,120C"), "The bottom run should start and end 28 px (the corner radius) from each corner.");
     }
 
     [Test]

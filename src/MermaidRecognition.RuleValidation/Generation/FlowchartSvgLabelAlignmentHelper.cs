@@ -160,7 +160,7 @@ public static class FlowchartSvgLabelAlignmentHelper
                 ? Edge.Label ?? string.Empty
                 : EdgeContract.Label;
 
-            (double ExpectedLayoutX, double ExpectedLayoutY) =
+            (double PlacementLayoutX, double PlacementLayoutY) =
                 FlowchartEdgeLabelPlacementHelper.ResolveEdgeLabelPosition(
                     SourceBounds,
                     TargetBounds,
@@ -172,7 +172,21 @@ public static class FlowchartSvgLabelAlignmentHelper
                     Contract,
                     BoundsById,
                     RouteClass);
+            (double ExpectedLayoutX, double ExpectedLayoutY) = FlowchartSugiyamaSvgRenderer.ResolveDrawnEdgeLabelCentre(
+                EdgeContract,
+                Contract,
+                BoundsById,
+                SourceBounds,
+                TargetBounds,
+                SourceShape,
+                LayoutPoints,
+                Direction,
+                RouteClass,
+                Options);
 
+            (double PlacementCentreSvgX, double PlacementCentreSvgY) = CoordinateFrame.LayoutToSvg(
+                PlacementLayoutX,
+                PlacementLayoutY);
             (double ExpectedCentreSvgX, double ExpectedCentreSvgY) = CoordinateFrame.LayoutToSvg(
                 ExpectedLayoutX,
                 ExpectedLayoutY);
@@ -212,11 +226,16 @@ public static class FlowchartSvgLabelAlignmentHelper
             bool HasExteriorCorridorDetour =
                 FlowchartEdgeLabelPlacementHelper.HasExteriorCorridorDetourForValidation(LayoutPoints, Direction);
 
+            bool CentredAlongConnector = VerticalFlow
+                ? Math.Abs(MeasuredCentreSvgY - PlacementCentreSvgY) <= ALIGNMENT_TOLERANCE_PX
+                : Math.Abs(MeasuredCentreSvgX - PlacementCentreSvgX) <= ALIGNMENT_TOLERANCE_PX;
+
             Edge.LabelFacts["CentredOnConnectorHorizontally"] = CentredHorizontally;
             Edge.LabelFacts["CentredOnConnectorVertically"] = CentredVertically;
             Edge.LabelFacts["CentredOnConnectorSpine"] = EvaluateCentredOnConnectorSpine(
                 CentredHorizontally,
                 CentredVertically,
+                CentredAlongConnector,
                 IsLrLabelledRectFanOut,
                 Edge.RouteClass,
                 StraightConnector,
@@ -225,9 +244,15 @@ public static class FlowchartSvgLabelAlignmentHelper
         }
     }
 
+    /// <summary>
+    /// Decides whether a label sits where the spine rules want it. Labels on straight connectors are drawn
+    /// beside the line, not on it (spec §15.0C.8), so they must be centred along the connector at its midspan
+    /// and drawn at the renderer's cleared position across the flow.
+    /// </summary>
     private static bool EvaluateCentredOnConnectorSpine(
         bool CentredHorizontally,
         bool CentredVertically,
+        bool CentredAlongConnector,
         bool IsLrLabelledRectFanOut,
         string RouteClass,
         bool StraightConnector,
@@ -254,14 +279,9 @@ public static class FlowchartSvgLabelAlignmentHelper
             return true;
         }
 
-        if (StraightConnector && VerticalFlow)
-        {
-            return CentredHorizontally;
-        }
-
         if (StraightConnector)
         {
-            return CentredVertically;
+            return CentredAlongConnector && CentredHorizontally && CentredVertically;
         }
 
         return true;
@@ -486,9 +506,6 @@ public static class FlowchartSvgLabelAlignmentHelper
         }
 
         double FirstLineSvgY = ParseCssPx(YMatch.Groups[1].Value);
-        bool UsesMiddleBaseline = Attributes.Contains(
-            "dominant-baseline=\"middle\"",
-            StringComparison.OrdinalIgnoreCase);
         bool UsesMiddleAnchor = Attributes.Contains(
             "text-anchor=\"middle\"",
             StringComparison.OrdinalIgnoreCase);
@@ -502,24 +519,7 @@ public static class FlowchartSvgLabelAlignmentHelper
             FontSizePx = ParseCssPx(FontSizeMatch.Groups[1].Value);
         }
 
-        if (UsesMiddleBaseline)
-        {
-            CentreY = FlowchartRichLabelSvgWriter.ComputeLabelBlockCentreY(
-                FirstLineSvgY,
-                LineCount,
-                FontSizePx,
-                FLOWCHART_MULTILINE_LINE_HEIGHT_FACTOR,
-                UseMiddleDominantBaseline: true);
-        }
-        else
-        {
-            CentreY = FlowchartRichLabelSvgWriter.ComputeLabelBlockCentreY(
-                FirstLineSvgY,
-                LineCount,
-                FontSizePx,
-                FLOWCHART_MULTILINE_LINE_HEIGHT_FACTOR,
-                UseMiddleDominantBaseline: false);
-        }
+        CentreY = FlowchartRichLabelSvgWriter.ComputeLabelBlockCentreY(FirstLineSvgY, LineCount, FontSizePx, FLOWCHART_MULTILINE_LINE_HEIGHT_FACTOR);
 
         if (XMatch.Success)
         {

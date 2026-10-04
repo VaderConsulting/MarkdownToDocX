@@ -76,6 +76,27 @@ public static class FlowchartEdgeRouteResolver
             return true;
         }
 
+        if (FlowchartLoopBackRouteHelper.TryResolveDecisionLoopBackRoute(Edge, Contract, BoundsById, NodeById, Direction, out List<(double X, double Y)> DecisionLoopPoints))
+        {
+            LayoutPoints = DecisionLoopPoints;
+            RouteKind = FlowchartEdgeRouteKind.RetryLoop;
+            return true;
+        }
+
+        if (FlowchartLoopBackRouteHelper.TryResolveSoleForwardDecisionBranch(Edge, Contract, BoundsById, NodeById, Direction, out List<(double X, double Y)> SoleBranchPoints))
+        {
+            LayoutPoints = SoleBranchPoints;
+            RouteKind = FlowchartEdgeRouteKind.Straight;
+            return true;
+        }
+
+        if (FlowchartLoopBackRouteHelper.TryResolveStackedReciprocalLane(Edge, Contract, BoundsById, NodeById, Direction, out List<(double X, double Y)> ReciprocalLanePoints))
+        {
+            LayoutPoints = ReciprocalLanePoints;
+            RouteKind = FlowchartEdgeRouteKind.Straight;
+            return true;
+        }
+
         string? CrossSourceGroupId = FlowchartSubgraphMembershipHelper.FindInnermostGroupId(Edge.SourceId, Contract);
         string? CrossTargetGroupId = FlowchartSubgraphMembershipHelper.FindInnermostGroupId(Edge.TargetId, Contract);
         if (!string.Equals(CrossSourceGroupId, CrossTargetGroupId, StringComparison.Ordinal)
@@ -222,10 +243,10 @@ public static class FlowchartEdgeRouteResolver
             return true;
         }
 
-        if (FlowchartParallelBranchHubPortHelper.TryResolveEdgeRoute(Edge, Contract, BoundsById, NodeById, Direction, out List<(double X, double Y)> ParallelBranchPoints, out bool ParallelHubIsSource))
+        if (FlowchartParallelBranchHubPortHelper.TryResolveEdgeRoute(Edge, Contract, BoundsById, NodeById, Direction, out List<(double X, double Y)> ParallelBranchPoints, out bool _))
         {
             LayoutPoints = ParallelBranchPoints;
-            RouteKind = ParallelHubIsSource ? FlowchartEdgeRouteKind.Curved : FlowchartEdgeRouteKind.CrossGroup;
+            RouteKind = FlowchartEdgeRouteKind.Curved;
             return true;
         }
 
@@ -249,7 +270,7 @@ public static class FlowchartEdgeRouteResolver
             RouteKind = FlowchartEdgeConnectionGeometry.IsCollinearStubStraightRoute(FanInPoints)
                 || FanInPoints.Count == 2
                 ? FlowchartEdgeRouteKind.Straight
-                : FlowchartEdgeRouteKind.CrossGroup;
+                : FlowchartEdgeRouteKind.Curved;
             return true;
         }
 

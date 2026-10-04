@@ -272,7 +272,8 @@ public static class FlowchartEdgeLabelPlacementHelper
     }
 
     /// <summary>
-    /// Returns a label anchor at half the polyline arc-length along the connector.
+    /// Returns a label anchor at half the polyline arc-length along the connector, moved
+    /// <paramref name="OffsetPx"/> to one side so the label does not sit on the line.
     /// </summary>
     public static (double X, double Y) ComputeOffsetLabelPosition(
         IReadOnlyList<(double X, double Y)> GuidePoints,
@@ -289,7 +290,8 @@ public static class FlowchartEdgeLabelPlacementHelper
     }
 
     /// <summary>
-    /// Returns a label anchor at the midpoint of a straight connector segment.
+    /// Returns a label anchor at the midpoint of a straight connector segment, moved
+    /// <paramref name="OffsetPx"/> to one side so the label does not sit on the line.
     /// </summary>
     public static (double X, double Y) ComputeOffsetLabelPositionForStraightSegment(
         double StartX,

@@ -18,8 +18,6 @@ namespace MermaidRecognition.Layout;
 /// </summary>
 public static class FlowchartSugiyamaSvgRenderer
 {
-    private const double FLOWCHART_NODE_LABEL_EXTRA_VERTICAL_OFFSET_PX = 4.0;
-
     private const double FLOWCHART_MULTILINE_LINE_HEIGHT_FACTOR = 1.5;
 
     private const double ARROWHEAD_LENGTH_PX = 10.0;
@@ -238,14 +236,7 @@ public static class FlowchartSugiyamaSvgRenderer
                 TargetShape);
 
             if (IsRetryLoop
-                && FlowchartEdgePathBuilder.TryBuildLrRetryLoopPath(
-                    SourceBounds,
-                    TargetBounds,
-                    Layout.NodeBounds,
-                    Direction,
-                    out List<(double X, double Y)> LayoutPoints,
-                    Edge.MarkerStart,
-                    Edge.MarkerEnd))
+                && TryBuildRetryLoopLayoutPoints(Edge, Contract, BoundsById, NodeById, Layout.NodeBounds, Direction, out List<(double X, double Y)> LayoutPoints))
             {
                 List<(double X, double Y)> SvgPoints = [];
                 foreach ((double LayoutX, double LayoutY) in LayoutPoints)
@@ -888,26 +879,24 @@ public static class FlowchartSugiyamaSvgRenderer
                 EdgeStyle.Stroke,
                 EdgeStyle.FontFamily,
                 EdgeStyle.FontWeight,
-                FLOWCHART_MULTILINE_LINE_HEIGHT_FACTOR,
-                UseMiddleDominantBaseline: true);
+                FLOWCHART_MULTILINE_LINE_HEIGHT_FACTOR);
             return;
         }
 
         string[] Lines = LabelDimensions.DisplayText.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
         double EdgeLabelFontSizePx = Options.EdgeLabelFontSizePx;
         double LineHeightPx = EdgeLabelFontSizePx * FLOWCHART_MULTILINE_LINE_HEIGHT_FACTOR;
-        double FirstLineY = FlowchartRichLabelSvgWriter.ComputeVerticallyCentredFirstLineY(
+        double FirstLineY = FlowchartRichLabelSvgWriter.ComputeFirstBaselineY(
             CentreY,
             Lines.Length,
             EdgeLabelFontSizePx,
-            FLOWCHART_MULTILINE_LINE_HEIGHT_FACTOR,
-            UseMiddleDominantBaseline: true);
+            FLOWCHART_MULTILINE_LINE_HEIGHT_FACTOR);
 
         Builder.Append("<text x=\"");
         Builder.Append(CentreX.ToString(CultureInfo.InvariantCulture));
         Builder.Append("\" y=\"");
         Builder.Append(FirstLineY.ToString(CultureInfo.InvariantCulture));
-        Builder.Append("\" text-anchor=\"middle\" dominant-baseline=\"middle\" fill=\"");
+        Builder.Append("\" text-anchor=\"middle\" fill=\"");
         Builder.Append(EscapeXml(EdgeStyle.Stroke));
         Builder.Append("\" font-family=\"");
         Builder.Append(EscapeXml(EdgeStyle.FontFamily));
@@ -1017,14 +1006,7 @@ public static class FlowchartSugiyamaSvgRenderer
                 continue;
             }
 
-            if (!FlowchartEdgePathBuilder.TryBuildLrRetryLoopPath(
-                    SourceBounds,
-                    TargetBounds,
-                    NodeBounds,
-                    Direction,
-                    out List<(double X, double Y)> LayoutPoints,
-                    Edge.MarkerStart,
-                    Edge.MarkerEnd))
+            if (!TryBuildRetryLoopLayoutPoints(Edge, Contract, BoundsById, NodeById, NodeBounds, Direction, out List<(double X, double Y)> LayoutPoints))
             {
                 continue;
             }
@@ -1052,6 +1034,27 @@ public static class FlowchartSugiyamaSvgRenderer
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Builds the guide points for an LR/RL retry loop. Loops that share a node with another retry loop get nested corridors;
+    /// a lone loop uses the single corridor above the nodes (F34).
+    /// </summary>
+    private static bool TryBuildRetryLoopLayoutPoints(
+        EdgeContract Edge,
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        IReadOnlyDictionary<string, NodeContract> NodeById,
+        IReadOnlyList<FlowchartLayoutNodeBounds> NodeBounds,
+        FlowchartDirection Direction,
+        out List<(double X, double Y)> LayoutPoints)
+    {
+        if (FlowchartEdgePathBuilder.TryBuildNestedLrRetryLoopPath(Edge, Contract, BoundsById, NodeById, Direction, out LayoutPoints))
+        {
+            return true;
+        }
+
+        return FlowchartEdgePathBuilder.TryBuildLrRetryLoopPath(BoundsById[Edge.SourceId], BoundsById[Edge.TargetId], NodeBounds, Direction, out LayoutPoints, Edge.MarkerStart, Edge.MarkerEnd);
     }
 
     private static void RenderResolvedEdgeRoute(
@@ -1229,6 +1232,40 @@ public static class FlowchartSugiyamaSvgRenderer
             Edge.Label,
             RenderOptions,
             RenderOptions.EdgeLabelFontSizePx);
+        (double LabelX, double LabelY) = ResolveDrawnEdgeLabelCentre(Edge, Contract, BoundsById, SourceBounds, TargetBounds, SourceShape, LayoutPoints, Direction, RouteClass, RenderOptions);
+        (LabelX, LabelY) = LayoutToSvgPoint(LabelX, LabelY, MinLeft, MaxTop, DiagramPaddingPx);
+        AppendEdgeLabel(Builder, LabelDimensions, LabelX, LabelY, EdgeStyle, RenderOptions, Edge.Label);
+    }
+
+    /// <summary>
+    /// Returns the centre of an edge label where it is drawn, in layout coordinates (Y up).
+    /// This is the placement position from <see cref="FlowchartEdgeLabelPlacementHelper"/>, moved so the label box does not cover its own connector, other connectors or nodes (spec §15.0C.8).
+    /// Rule validation calls this so it checks labels against the same position the renderer uses.
+    /// </summary>
+    /// <param name="Edge">The labelled edge.</param>
+    /// <param name="Contract">The diagram the edge belongs to.</param>
+    /// <param name="BoundsById">Layout bounds for every node, keyed by node id.</param>
+    /// <param name="SourceBounds">Layout bounds of the edge source.</param>
+    /// <param name="TargetBounds">Layout bounds of the edge target.</param>
+    /// <param name="SourceShape">Shape name of the edge source, or null.</param>
+    /// <param name="LayoutPoints">The edge guide points in layout coordinates.</param>
+    /// <param name="Direction">The diagram direction.</param>
+    /// <param name="RouteClass">The semantic route class name, or null.</param>
+    /// <param name="RenderOptions">Render options used to measure the label.</param>
+    /// <returns>The drawn label centre in layout coordinates.</returns>
+    public static (double X, double Y) ResolveDrawnEdgeLabelCentre(
+        EdgeContract Edge,
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        FlowchartLayoutNodeBounds SourceBounds,
+        FlowchartLayoutNodeBounds TargetBounds,
+        string? SourceShape,
+        IReadOnlyList<(double X, double Y)> LayoutPoints,
+        FlowchartDirection Direction,
+        string? RouteClass,
+        FlowchartRenderOptions RenderOptions)
+    {
+        FlowchartLabelDimensions LabelDimensions = FlowchartNodeSizeEstimator.MeasureWrappedLabel(Edge.Label ?? string.Empty, RenderOptions, RenderOptions.EdgeLabelFontSizePx);
         (double LabelX, double LabelY) = FlowchartEdgeLabelPlacementHelper.ResolveEdgeLabelPosition(
             SourceBounds,
             TargetBounds,
@@ -1241,9 +1278,7 @@ public static class FlowchartSugiyamaSvgRenderer
             BoundsById,
             RouteClass);
         double LabelHeight = FlowchartEdgeLabelPlacementHelper.ComputeRenderedEdgeLabelHeight(LabelDimensions, RenderOptions.EdgeLabelFontSizePx);
-        (LabelX, LabelY) = MoveLayoutLabelClearOfConnector(Edge, Contract, LabelX, LabelY, LabelDimensions.Width, LabelHeight, LayoutPoints, BoundsById, SourceBounds, TargetBounds, Direction);
-        (LabelX, LabelY) = LayoutToSvgPoint(LabelX, LabelY, MinLeft, MaxTop, DiagramPaddingPx);
-        AppendEdgeLabel(Builder, LabelDimensions, LabelX, LabelY, EdgeStyle, RenderOptions, Edge.Label);
+        return MoveLayoutLabelClearOfConnector(Edge, Contract, LabelX, LabelY, LabelDimensions.Width, LabelHeight, LayoutPoints, BoundsById, SourceBounds, TargetBounds, Direction);
     }
 
     /// <summary>
@@ -1271,15 +1306,58 @@ public static class FlowchartSugiyamaSvgRenderer
 
         List<IReadOnlyList<(double X, double Y)>> OtherRenderPoints = CollectOtherEdgeRenderGuidePoints(Edge, Contract, BoundsById, Direction);
 
+        HashSet<string> DiamondIds = new HashSet<string>(Contract.Nodes.Where(Node => IsDecisionShape(Node.Shape)).Select(Node => Node.Id), StringComparer.Ordinal);
         List<FlowchartSvgRect> NodeRects = [];
         foreach (FlowchartLayoutNodeBounds Bounds in BoundsById.Values)
         {
+            if (DiamondIds.Contains(Bounds.NodeId))
+            {
+                AppendDiamondRenderStrips(NodeRects, Bounds);
+                continue;
+            }
+
             NodeRects.Add(new FlowchartSvgRect(Bounds.CenterX - (Bounds.Width / 2.0), -(Bounds.CenterY + (Bounds.Height / 2.0)), Bounds.CenterX + (Bounds.Width / 2.0), -(Bounds.CenterY - (Bounds.Height / 2.0))));
         }
 
         double PreferredSign = ResolveLabelClearanceSign(SourceBounds, TargetBounds, Direction);
         (double RenderX, double RenderY) = FlowchartEdgeLabelClearanceHelper.MoveClearOfConnector(LabelX, -LabelY, LabelWidth, LabelHeight, GuideRenderPoints, Direction, NodeRects, PreferredSign, OtherRenderPoints);
         return (RenderX, -RenderY);
+    }
+
+    /// <summary>
+    /// Adds a diamond to the label obstacle list as thin horizontal strips that follow its sloped sides
+    /// (render orientation, X and -Y), so a label may sit in the empty corners of the diamond's bounding box.
+    /// </summary>
+    private static bool IsDecisionShape(string? Shape)
+    {
+        if (string.IsNullOrWhiteSpace(Shape))
+        {
+            return false;
+        }
+
+        string Normalised = Shape.Trim();
+        return string.Equals(Normalised, "diamond", StringComparison.OrdinalIgnoreCase) || string.Equals(Normalised, "rhombus", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void AppendDiamondRenderStrips(List<FlowchartSvgRect> NodeRects, FlowchartLayoutNodeBounds Bounds)
+    {
+        const int DIAMOND_STRIP_COUNT = 16;
+        double HalfWidth = Bounds.Width / 2.0;
+        double HalfHeight = Bounds.Height / 2.0;
+        double StripHeight = Bounds.Height / DIAMOND_STRIP_COUNT;
+        for (int StripIndex = 0; StripIndex < DIAMOND_STRIP_COUNT; StripIndex++)
+        {
+            double StripTop = (Bounds.CenterY + HalfHeight) - (StripIndex * StripHeight);
+            double StripBottom = StripTop - StripHeight;
+            double NearestToCentre = Math.Min(Math.Abs(StripTop - Bounds.CenterY), Math.Abs(StripBottom - Bounds.CenterY));
+            if (StripTop > Bounds.CenterY && StripBottom < Bounds.CenterY)
+            {
+                NearestToCentre = 0.0;
+            }
+
+            double StripHalfWidth = HalfWidth * (1.0 - (NearestToCentre / HalfHeight));
+            NodeRects.Add(new FlowchartSvgRect(Bounds.CenterX - StripHalfWidth, -StripTop, Bounds.CenterX + StripHalfWidth, -StripBottom));
+        }
     }
 
     /// <summary>
@@ -1910,18 +1988,11 @@ public static class FlowchartSugiyamaSvgRenderer
         string RichProbe = RichMarkupSourceLabel ?? Label;
         if (Options.HtmlLabels && FlowchartRichLabelSvgWriter.ContainsIntentionalRichMarkup(RichProbe))
         {
-            double AdjustedCentreY = CentreY;
-            if (!RichProbe.Contains('\n', StringComparison.Ordinal)
-                && RichProbe.IndexOf("<br", StringComparison.OrdinalIgnoreCase) < 0)
-            {
-                AdjustedCentreY += FLOWCHART_NODE_LABEL_EXTRA_VERTICAL_OFFSET_PX;
-            }
-
             FlowchartRichLabelSvgWriter.AppendCentredLabel(
                 Builder,
                 RichProbe,
                 CentreX,
-                AdjustedCentreY,
+                CentreY,
                 NodeStyle.FontSizePx,
                 NodeStyle.TextColor,
                 NodeStyle.FontFamily,
@@ -1933,11 +2004,12 @@ public static class FlowchartSugiyamaSvgRenderer
         string[] Lines = Label.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
         if (Lines.Length == 1)
         {
+            double BaselineY = FlowchartRichLabelSvgWriter.ComputeFirstBaselineY(CentreY, 1, NodeStyle.FontSizePx, FLOWCHART_MULTILINE_LINE_HEIGHT_FACTOR);
             Builder.Append("<text x=\"");
             Builder.Append(CentreX.ToString(CultureInfo.InvariantCulture));
             Builder.Append("\" y=\"");
-            Builder.Append(CentreY.ToString(CultureInfo.InvariantCulture));
-            Builder.Append("\" text-anchor=\"middle\" dominant-baseline=\"middle\" fill=\"");
+            Builder.Append(BaselineY.ToString(CultureInfo.InvariantCulture));
+            Builder.Append("\" text-anchor=\"middle\" fill=\"");
             Builder.Append(EscapeXml(NodeStyle.TextColor));
             Builder.Append("\" font-family=\"");
             Builder.Append(EscapeXml(NodeStyle.FontFamily));
@@ -1952,8 +2024,7 @@ public static class FlowchartSugiyamaSvgRenderer
         }
 
         double LineHeightPx = NodeStyle.FontSizePx * FLOWCHART_MULTILINE_LINE_HEIGHT_FACTOR;
-        double TotalTextHeightPx = Lines.Length * LineHeightPx;
-        double FirstLineY = CentreY - (TotalTextHeightPx / 2.0) + (LineHeightPx / 2.0);
+        double FirstLineY = FlowchartRichLabelSvgWriter.ComputeFirstBaselineY(CentreY, Lines.Length, NodeStyle.FontSizePx, FLOWCHART_MULTILINE_LINE_HEIGHT_FACTOR);
 
         Builder.Append("<text y=\"");
         Builder.Append(FirstLineY.ToString(CultureInfo.InvariantCulture));

@@ -16,6 +16,8 @@ public static class FlowchartEdgeTerminalStubExpander
 
     private const double DUPLICATE_TOLERANCE_PX = 0.75;
 
+    private const double NORMAL_ALIGNMENT_COSINE = 0.999;
+
     /// <summary>
     /// Ensures both ends of <paramref name="Points"/> include a straight stub of minimum length along the face normal.
     /// </summary>
@@ -38,7 +40,7 @@ public static class FlowchartEdgeTerminalStubExpander
     }
 
     /// <summary>
-    /// Minimum terminal stub length for a node (8–12 px or 10% of the smaller node dimension).
+    /// Minimum terminal stub length for a node (8-12 px or 10% of the smaller node dimension).
     /// </summary>
     public static double ComputeTerminalStubLength(FlowchartLayoutNodeBounds Bounds)
     {
@@ -127,6 +129,11 @@ public static class FlowchartEdgeTerminalStubExpander
         double ExistingLength = Math.Sqrt((ExistingDeltaX * ExistingDeltaX) + (ExistingDeltaY * ExistingDeltaY));
         if (ExistingLength + DUPLICATE_TOLERANCE_PX >= StubLength)
         {
+            if (ShouldInsertStub(Points.Count, ExistingDeltaX, ExistingDeltaY, ExistingLength, NormalX, NormalY))
+            {
+                InsertStubWaypoint(Points, 1, StubX, StubY);
+            }
+
             return;
         }
 
@@ -164,10 +171,30 @@ public static class FlowchartEdgeTerminalStubExpander
         double ExistingLength = Math.Sqrt((ExistingDeltaX * ExistingDeltaX) + (ExistingDeltaY * ExistingDeltaY));
         if (ExistingLength + DUPLICATE_TOLERANCE_PX >= StubLength)
         {
+            if (ShouldInsertStub(Points.Count, ExistingDeltaX, ExistingDeltaY, ExistingLength, NormalX, NormalY))
+            {
+                InsertStubWaypoint(Points, BoundaryIndex, StubX, StubY);
+            }
+
             return;
         }
 
         Points[InteriorIndex] = (StubX, StubY);
+    }
+
+    /// <summary>
+    /// Returns true when a long end segment leaves the boundary off the face normal, so a stub must be added.
+    /// Two-point routes are straight chords (spec §15.0A) and never get a stub.
+    /// </summary>
+    private static bool ShouldInsertStub(int PointCount, double ExistingDeltaX, double ExistingDeltaY, double ExistingLength, double NormalX, double NormalY)
+    {
+        if (PointCount < 3 || ExistingLength < 1e-6)
+        {
+            return false;
+        }
+
+        double Alignment = ((ExistingDeltaX * NormalX) + (ExistingDeltaY * NormalY)) / ExistingLength;
+        return Alignment < NORMAL_ALIGNMENT_COSINE;
     }
 
     private static void InsertStubWaypoint(

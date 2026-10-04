@@ -104,16 +104,7 @@ public static class FlowchartSvgEdgeLabelSpineHelper
             LineCount = 1;
         }
 
-        bool UsesMiddleBaseline = LabelText.Value.Contains(
-            "dominant-baseline=\"middle\"",
-            StringComparison.OrdinalIgnoreCase);
-        double LineHeightPx = Options.EdgeLabelFontSizePx * FLOWCHART_MULTILINE_LINE_HEIGHT_FACTOR;
-        double TotalTextHeightPx = LineCount == 1
-            ? Options.EdgeLabelFontSizePx
-            : LineCount * LineHeightPx;
-        double LabelCentreSvgY = UsesMiddleBaseline && LineCount == 1
-            ? FirstLineSvgY
-            : FirstLineSvgY + (TotalTextHeightPx / 2.0) - (LineHeightPx / 2.0);
+        double LabelCentreSvgY = FlowchartRichLabelSvgWriter.ComputeLabelBlockCentreY(FirstLineSvgY, LineCount, Options.EdgeLabelFontSizePx, FLOWCHART_MULTILINE_LINE_HEIGHT_FACTOR);
 
         Match? SpineLine = Regex.Matches(
                 Svg,

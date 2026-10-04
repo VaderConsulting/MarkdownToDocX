@@ -37,6 +37,7 @@ public static class FlowchartGeometryGraphBuilder
     /// <summary>
     /// Builds a geometry graph from a flowchart contract using measured node sizes (spec §3.17.3).
     /// For LR/RL diagrams, layout dimensions are transposed so rank spacing applies along the flow axis.
+    /// For TB/BT diagrams, loop-back edges are left out so their placeholder nodes do not push the main chain sideways.
     /// </summary>
     public static GeometryGraph Build(
         DiagramContract Contract,
@@ -64,8 +65,14 @@ public static class FlowchartGeometryGraphBuilder
             NodesById[NodeContract.Id] = LayoutNode;
         }
 
+        HashSet<EdgeContract> SkippedBackEdges = SwapLayoutDimensions ? new HashSet<EdgeContract>() : FlowchartBackEdgeHelper.FindBackEdges(Contract);
         foreach (EdgeContract EdgeContract in Contract.Edges)
         {
+            if (SkippedBackEdges.Contains(EdgeContract) && !string.Equals(EdgeContract.SourceId, EdgeContract.TargetId, StringComparison.Ordinal) && !HasReverseEdge(Contract, EdgeContract))
+            {
+                continue;
+            }
+
             if (!NodesById.TryGetValue(EdgeContract.SourceId, out Node? SourceNode)
                 || !NodesById.TryGetValue(EdgeContract.TargetId, out Node? TargetNode))
             {
@@ -77,6 +84,19 @@ public static class FlowchartGeometryGraphBuilder
         }
 
         return Graph;
+    }
+
+    private static bool HasReverseEdge(DiagramContract Contract, EdgeContract Edge)
+    {
+        foreach (EdgeContract Candidate in Contract.Edges)
+        {
+            if (string.Equals(Candidate.SourceId, Edge.TargetId, StringComparison.Ordinal) && string.Equals(Candidate.TargetId, Edge.SourceId, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool ShouldSwapLayoutDimensions(FlowchartDirection Direction) => Direction == FlowchartDirection.LeftToRight

@@ -28,13 +28,13 @@ public sealed class F82TrapezoidBracketShapeTests
         Assert.That(PathsByLabel["inv_trapezoid"], Is.Not.Null);
 
         Assert.That(
-            GetHorizontalSpanAtTopEdge(PathsByLabel["trapezoid"]),
-            Is.GreaterThan(GetHorizontalSpanAtBottomEdge(PathsByLabel["trapezoid"])),
-            "[/trapezoid \\] must be wider at the top");
+            GetHorizontalSpanAtBottomEdge(PathsByLabel["trapezoid"]),
+            Is.GreaterThan(GetHorizontalSpanAtTopEdge(PathsByLabel["trapezoid"])),
+            "[/trapezoid \\] (trap-b) must be wider at the bottom");
         Assert.That(
-            GetHorizontalSpanAtBottomEdge(PathsByLabel["inv_trapezoid"]),
-            Is.GreaterThan(GetHorizontalSpanAtTopEdge(PathsByLabel["inv_trapezoid"])),
-            "[\\inv_trapezoid /] must be wider at the bottom");
+            GetHorizontalSpanAtTopEdge(PathsByLabel["inv_trapezoid"]),
+            Is.GreaterThan(GetHorizontalSpanAtBottomEdge(PathsByLabel["inv_trapezoid"])),
+            "[\\inv_trapezoid /] (trap-t) must be wider at the top");
     }
 
     static Dictionary<string, string> ExtractNodePathsByLabel(string Svg)

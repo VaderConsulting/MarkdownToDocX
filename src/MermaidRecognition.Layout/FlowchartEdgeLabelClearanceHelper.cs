@@ -113,6 +113,13 @@ public static class FlowchartEdgeLabelClearanceHelper
 
     private const double SAMPLE_SPACING_PX = 2.0;
 
+    /// <summary>
+    /// Step and limit for sliding a label along the flow when the only clear spot straight across is too far from its connector.
+    /// </summary>
+    private const double ALONG_FLOW_SHIFT_STEP_PX = 4.0;
+
+    private const double MAX_ALONG_FLOW_SHIFT_PX = 60.0;
+
     private static readonly Regex _PathTokenPattern = new Regex(@"[MLC]|-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?", RegexOptions.Compiled);
 
     /// <summary>
@@ -202,13 +209,59 @@ public static class FlowchartEdgeLabelClearanceHelper
         (double CentreX, double CentreY) = ResolveArcLengthMidpoint(OwnSamples);
         bool SearchAlongX = Direction == FlowchartDirection.TopToBottom || Direction == FlowchartDirection.BottomToTop;
         double FirstSign = PreferredSign < 0.0 ? -1.0 : 1.0;
+        if (TrySearchAcrossFlow(CentreX, CentreY, 0.0, SearchAlongX, FirstSign, Width, Height, ObstacleSamples, NodeRects, out ClearX, out ClearY) && DistanceFromLabelToConnector(ClearX, ClearY, Width, Height, OwnSamples) <= MAX_DETACHED_LABEL_GAP_PX)
+        {
+            return true;
+        }
+
+        double FirstClearX = ClearX;
+        double FirstClearY = ClearY;
+        bool FoundFirst = IsClear(FirstClearX, FirstClearY, Width, Height, ObstacleSamples, NodeRects, CheckNodes: true);
+        for (double Shift = ALONG_FLOW_SHIFT_STEP_PX; Shift <= MAX_ALONG_FLOW_SHIFT_PX; Shift += ALONG_FLOW_SHIFT_STEP_PX)
+        {
+            for (int ShiftAttempt = 0; ShiftAttempt < 2; ShiftAttempt++)
+            {
+                double SignedShift = ShiftAttempt == 0 ? Shift : -Shift;
+                if (TrySearchAcrossFlow(CentreX, CentreY, SignedShift, SearchAlongX, FirstSign, Width, Height, ObstacleSamples, NodeRects, out double ShiftedX, out double ShiftedY) && DistanceFromLabelToConnector(ShiftedX, ShiftedY, Width, Height, OwnSamples) <= MAX_DETACHED_LABEL_GAP_PX)
+                {
+                    ClearX = ShiftedX;
+                    ClearY = ShiftedY;
+                    return true;
+                }
+            }
+        }
+
+        ClearX = FirstClearX;
+        ClearY = FirstClearY;
+        return FoundFirst;
+    }
+
+    /// <summary>
+    /// Walks across the flow from a point that sits <paramref name="AlongFlowShift"/> along the flow from the connector midpoint,
+    /// returning the first label centre clear of <paramref name="ObstacleSamples"/> and every node.
+    /// </summary>
+    private static bool TrySearchAcrossFlow(
+        double CentreX,
+        double CentreY,
+        double AlongFlowShift,
+        bool SearchAlongX,
+        double FirstSign,
+        double Width,
+        double Height,
+        IReadOnlyList<(double X, double Y)> ObstacleSamples,
+        IReadOnlyList<FlowchartSvgRect> NodeRects,
+        out double ClearX,
+        out double ClearY)
+    {
+        double StartX = SearchAlongX ? CentreX : CentreX + AlongFlowShift;
+        double StartY = SearchAlongX ? CentreY + AlongFlowShift : CentreY;
         for (double Distance = SEARCH_STEP_PX; Distance <= MAX_SEARCH_DISTANCE_PX; Distance += SEARCH_STEP_PX)
         {
             for (int Attempt = 0; Attempt < 2; Attempt++)
             {
                 double Sign = Attempt == 0 ? FirstSign : -FirstSign;
-                double CandidateX = SearchAlongX ? CentreX + (Sign * Distance) : CentreX;
-                double CandidateY = SearchAlongX ? CentreY : CentreY + (Sign * Distance);
+                double CandidateX = SearchAlongX ? StartX + (Sign * Distance) : StartX;
+                double CandidateY = SearchAlongX ? StartY : StartY + (Sign * Distance);
                 if (IsClear(CandidateX, CandidateY, Width, Height, ObstacleSamples, NodeRects, CheckNodes: true))
                 {
                     ClearX = CandidateX;
@@ -218,8 +271,8 @@ public static class FlowchartEdgeLabelClearanceHelper
             }
         }
 
-        ClearX = CentreX;
-        ClearY = CentreY;
+        ClearX = StartX;
+        ClearY = StartY;
         return false;
     }
 

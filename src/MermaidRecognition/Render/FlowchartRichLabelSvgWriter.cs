@@ -242,57 +242,64 @@ public static class FlowchartRichLabelSvgWriter
     }
 
     /// <summary>
-    /// Returns the SVG <c>y</c> for the first line of a vertically centred multi-line label.
+    /// Distance from the visual centre of a text line down to its alphabetic baseline, as a fraction
+    /// of the font size. This is half the cap height of Trebuchet MS (about 0.72 em), so capitals sit
+    /// centred on the line centre.
     /// </summary>
-    public static double ComputeVerticallyCentredFirstLineY(
-        double CentreY,
-        int LineCount,
-        double FontSizePx,
-        double LineHeightFactor,
-        bool UseMiddleDominantBaseline)
+    /// <remarks>
+    /// Text is written with an explicit baseline <c>y</c> and no <c>dominant-baseline</c>, because
+    /// Svg.Skia (used to rasterise diagrams for DOCX) ignores <c>dominant-baseline</c>. Browsers,
+    /// Word and Svg.Skia then all place the text in the same position.
+    /// </remarks>
+    public const double TEXT_BASELINE_OFFSET_EM = 0.36;
+
+    /// <summary>
+    /// Returns the distance in pixels from a line's visual centre down to its baseline.
+    /// </summary>
+    /// <param name="FontSizePx">Font size in pixels.</param>
+    public static double ComputeBaselineOffsetPx(double FontSizePx)
     {
-        double LineHeightPx = FontSizePx * LineHeightFactor;
-        if (UseMiddleDominantBaseline)
-        {
-            if (LineCount <= 1)
-            {
-                return CentreY;
-            }
-
-            return CentreY - (((LineCount - 1) * LineHeightPx) / 2.0);
-        }
-
-        double TotalTextHeightPx = LineCount == 1
-            ? FontSizePx
-            : LineCount * LineHeightPx;
-        return CentreY - (TotalTextHeightPx / 2.0) + (LineHeightPx / 2.0);
+        return FontSizePx * TEXT_BASELINE_OFFSET_EM;
     }
 
     /// <summary>
-    /// Returns the vertical centre of a rendered multi-line label block.
+    /// Returns the SVG baseline <c>y</c> of the first line of a label block whose visual centre is
+    /// <paramref name="CentreY"/>. Later lines follow at <c>FontSizePx * LineHeightFactor</c> spacing.
     /// </summary>
-    public static double ComputeLabelBlockCentreY(
-        double FirstLineY,
+    /// <param name="CentreY">Visual centre of the whole label block.</param>
+    /// <param name="LineCount">Number of rendered lines.</param>
+    /// <param name="FontSizePx">Font size in pixels.</param>
+    /// <param name="LineHeightFactor">Line spacing as a multiple of the font size.</param>
+    public static double ComputeFirstBaselineY(
+        double CentreY,
         int LineCount,
         double FontSizePx,
-        double LineHeightFactor,
-        bool UseMiddleDominantBaseline)
+        double LineHeightFactor)
     {
         double LineHeightPx = FontSizePx * LineHeightFactor;
-        if (UseMiddleDominantBaseline)
-        {
-            if (LineCount <= 1)
-            {
-                return FirstLineY;
-            }
+        int SafeLineCount = Math.Max(1, LineCount);
+        double FirstLineCentreY = CentreY - (((SafeLineCount - 1) * LineHeightPx) / 2.0);
+        return FirstLineCentreY + ComputeBaselineOffsetPx(FontSizePx);
+    }
 
-            return FirstLineY + (((LineCount - 1) * LineHeightPx) / 2.0);
-        }
-
-        double TotalTextHeightPx = LineCount == 1
-            ? FontSizePx
-            : LineCount * LineHeightPx;
-        return FirstLineY + (TotalTextHeightPx / 2.0) - (LineHeightPx / 2.0);
+    /// <summary>
+    /// Returns the visual centre of a label block from its first-line baseline. This is the inverse of
+    /// <see cref="ComputeFirstBaselineY"/>.
+    /// </summary>
+    /// <param name="FirstBaselineY">SVG <c>y</c> of the first line's baseline.</param>
+    /// <param name="LineCount">Number of rendered lines.</param>
+    /// <param name="FontSizePx">Font size in pixels.</param>
+    /// <param name="LineHeightFactor">Line spacing as a multiple of the font size.</param>
+    public static double ComputeLabelBlockCentreY(
+        double FirstBaselineY,
+        int LineCount,
+        double FontSizePx,
+        double LineHeightFactor)
+    {
+        double LineHeightPx = FontSizePx * LineHeightFactor;
+        int SafeLineCount = Math.Max(1, LineCount);
+        double FirstLineCentreY = FirstBaselineY - ComputeBaselineOffsetPx(FontSizePx);
+        return FirstLineCentreY + (((SafeLineCount - 1) * LineHeightPx) / 2.0);
     }
 
     /// <summary>
@@ -307,28 +314,20 @@ public static class FlowchartRichLabelSvgWriter
         string DefaultFill,
         string FontFamily,
         string DefaultFontWeight,
-        double LineHeightFactor,
-        bool UseMiddleDominantBaseline = false)
+        double LineHeightFactor)
     {
         string Normalised = NormaliseLabelForRender(RawLabel);
         List<string> Lines = SplitLines(Normalised);
         double LineHeightPx = FontSizePx * LineHeightFactor;
-        double FirstLineY = ComputeVerticallyCentredFirstLineY(
+        double FirstLineY = ComputeFirstBaselineY(
             CentreY,
             Lines.Count,
             FontSizePx,
-            LineHeightFactor,
-            UseMiddleDominantBaseline);
+            LineHeightFactor);
 
         Builder.Append("<text y=\"");
         Builder.Append(FirstLineY.ToString(CultureInfo.InvariantCulture));
-        Builder.Append("\" text-anchor=\"start\"");
-        if (UseMiddleDominantBaseline)
-        {
-            Builder.Append(" dominant-baseline=\"middle\"");
-        }
-
-        Builder.Append(" fill=\"");
+        Builder.Append("\" text-anchor=\"start\" fill=\"");
         Builder.Append(EscapeXml(DefaultFill));
         Builder.Append("\" font-family=\"");
         Builder.Append(EscapeXml(FontFamily));

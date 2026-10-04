@@ -1540,7 +1540,7 @@ This is the horizontal-flow form of §15.0C.1. Mermaid instead draws every branc
 
 ##### 15.0C.4 Rounded corners on loop and corridor routes (F34, F59, F60)
 
-**Rule:** Routes resolved as `RouteKind.RetryLoop` with an orthogonal polyline (LR retry loops, the F59 loop-back and the F60 under-corridor route) render as the polyline with each interior corner replaced by a quarter-circle cubic. The radius is up to **28 px**, capped at half the shorter adjoining segment. Collinear guide points are dropped first.
+**Rule:** Routes resolved as `RouteKind.RetryLoop` with an orthogonal polyline (LR retry loops, the F59 loop-back and the F60 under-corridor route) render as the polyline with each interior corner replaced by a quarter-circle cubic. The radius is up to **28 px**, capped at half the shorter adjoining segment. A first or last segment, which touches a node and is not shared with another corner, may be used in full, so the curve still leaves and enters the node at right angles. Collinear guide points are dropped first.
 
 **Closure:** `FlowchartCurvePathBuilder.BuildRoundedCornerPathData`, chosen through `ShouldUseOrthogonalPolylinePathData`.
 
@@ -1595,6 +1595,101 @@ The same placement is used when sizing the canvas, so labels moved this way are 
 
 **Closure:** `FlowchartEdgeLabelClearanceHelper.MoveClearOfConnector` (with `OtherGuideSvgPoints`) and `FlowchartSugiyamaSvgRenderer.CollectOtherEdgeRenderGuidePoints`.
 
+**Addendum (EIP 2.56):** If the first clear spot straight across the flow is more than 40 px from the label's own connector, the search also slides the label along the flow, in 4 px steps up to 60 px either way, and takes the first clear spot within 40 px. If none is found, the first clear spot is kept. When checking labels against nodes, a diamond counts as 16 thin horizontal strips that follow its sloped sides, not its bounding box. This lets a decision-branch label sit in the empty corner beside the diamond instead of being pushed above the diamond's top point.
+
+**Closure:** `FlowchartEdgeLabelClearanceHelper.TrySearchAcrossFlow` and `FlowchartSugiyamaSvgRenderer.AppendDiamondRenderStrips`.
+
+##### 15.0C.9 Inline link text does not lengthen the edge (Mermaid parity, EIP 2.14 and 2.52)
+
+**Source:** Mermaid `flowDb.destructLink` takes the edge length from the closing link token only. `A -- text --> B` has length 1, the same as `A -->|text| B`.
+
+**Rule:** When the parser removes inline link text (`-- text -->`, `== text ==>`, `-. text .->`), the remaining link keeps the start marker (`x`, `o` or `<`, if present) and the closing token only. It is not the start and the closing token run together, which used to read as `---->` (minlen 3) and pushed the target two ranks further away.
+
+**Closure:** `FlowchartInlineLinkLabelExtractor.ReplaceLabeledMatch`. Fixture F85 changed as a result (shorter labelled edge, matching Mermaid).
+
+##### 15.0C.10 Back edges in top-to-bottom layout and fan counts (EIP 2.31, 2.52)
+
+**Rule:** Back edges are found by a depth-first search that starts from root nodes (nodes with no incoming edge) and then by earliest edge, and follows outgoing edges in declaration order, as in Dagre's acyclic pass. In TB and BT diagrams:
+
+- Back edges are left out of the MSAGL layout graph, so a loop does not drag its target sideways or add a rank. Self-loops and edges that have a reverse edge (A to B and B to A) are kept, so the two-node reciprocal pair (F104) is unchanged.
+- Back edges are left out of every fan-in and fan-out count in the layout post-processor (centring, spreading and decision ordering), so a loop into a node does not make it a fan-in hub.
+
+**Closure:** `FlowchartBackEdgeHelper.FindBackEdges`, `FlowchartGeometryGraphBuilder.Build`, `FlowchartLayoutPostProcessor` (all fan helpers).
+
+##### 15.0C.11 Spine column overlap guard (EIP 2.52)
+
+**Rule:** The spine column pass (F58 Yes/No columns) is undone when its result has more overlapping node pairs than its input. This stops two branches of a three-way decision being sent to the same margin column.
+
+**Closure:** `FlowchartSpineColumnPostProcessor.Apply` and `CountOverlappingPairs`.
+
+##### 15.0C.12 Decision loop-back and sole forward branch, top-to-bottom (EIP 2.31 Dynamic Router)
+
+**Rule:** In a TB or BT diagram, a back edge from a decision to an earlier node routes as follows:
+
+1. Leave the diamond's left or right point.
+2. Run out at least **24 px**, to a column **20 px** beyond the outermost node edge between the two rows.
+3. Run back along the flow to the target's middle row.
+4. Enter the middle of the target's facing side.
+
+The side faces away from the decision's forward branches; if they are centred, it faces the target's offset, and otherwise the right (matching F59). The corners are rounded per §15.0C.4. If a node blocks either horizontal run, the ordinary routes are used.
+
+When the decision then has exactly one forward branch and its target is directly downstream, that branch is a straight line from the diamond's downstream point (F58 straight spine).
+
+**Closure:** `FlowchartLoopBackRouteHelper.TryResolveDecisionLoopBackRoute` (resolver kind `RetryLoop`) and `TryResolveSoleForwardDecisionBranch` (kind `Straight`).
+
+##### 15.0C.13 Reciprocal pair between stacked nodes (EIP 2.39 Process Manager)
+
+**Rule:** In a TB or BT diagram with more than the two-node pair of F104, when two non-decision nodes are linked both ways (A to B and B to A), do not overlap along the flow, share at least **40 px** of width, and have no node between them across the lanes, each edge is a straight line in its own lane. The lanes sit **12 px** either side of the centre of the shared width. The first declared edge takes the right lane, as in F104. The two lines never meet at a shared port.
+
+**Closure:** `FlowchartLoopBackRouteHelper.TryResolveStackedReciprocalLane` (kind `Straight`).
+
+##### 15.0C.14 Hub mirrored between matching fan-in and fan-out (EIP 2.46 Canonical Data Model)
+
+**Rule:** When a non-decision hub has the same number (two or more) of forward sources and forward targets, it is each target's only forward predecessor, the targets lead nowhere else, and the source spacing leaves room for the targets, then:
+
+- the hub is centred on the mean cross-axis position of its sources;
+- each target takes the cross-axis position of one source, keeping the targets' existing order.
+
+The "From" boxes then line up with the "To" boxes, and the hub sits midway between them.
+
+**Closure:** `FlowchartLayoutPostProcessor.MirrorFanInSourcesThroughHub` (runs after the second `CenterSingleSuccessorSources`).
+
+##### 15.0C.15 Nested LR retry loops (EIP 2.63 Smart Proxy)
+
+**Rule:** In an LR or RL diagram, when two or more unlabelled retry loops (back edges between non-decision nodes) have overlapping spans, the loops are routed through corridors above the nodes so they never merge:
+
+- A loop whose source also has a forward edge (so its downstream face is taken) leaves from the top of the source instead of the side.
+- Loops are placed in this order: loops that leave from the top first, then shorter loops, then declaration order. Each loop takes the lowest corridor where its horizontal run stays at least **12 px** clear of every run already placed in that corridor.
+- Loops whose horizontal runs sit side by side therefore share one corridor height and look alike (EIP 2.63: Service back to Smart proxy, and Smart proxy back to Caller). Only loops whose runs would overlap are stacked, and then the shorter loop reads as a small loop inside the larger one.
+- The first corridor is **33 px** above the highest node in the group's span. Each extra stacked corridor adds **22 px**. 33 px is halfway between the earlier 22 px and 44 px levels: high enough for a gentle exit from a side stub, low enough to keep the loops compact.
+- Loop ends on a shared top face get separate ports at evenly spaced points across the face (thirds for two ends), ordered by where the other end of each loop lies. A face with one loop end uses its centre.
+
+A lone retry loop keeps the single-corridor route of F34. The canvas includes the nested corridors.
+
+**Closure:** `FlowchartEdgePathBuilder.TryBuildNestedLrRetryLoopPath`, used through `FlowchartSugiyamaSvgRenderer.TryBuildRetryLoopLayoutPoints`.
+
+##### 15.0C.16 Decision branch order across the flow in LR diagrams
+
+**Rule:** LR and RL decision fan-out branches are ordered by their targets' Y (the cross axis), highest first, then by declaration order. They were previously ordered by X, which only worked while every target shared one X; with targets of different widths it could swap the Yes and No ports and cross the branches (EIP 2.14, 2.15).
+
+**Closure:** `FlowchartDecisionPortAllocator.SortOutgoingByTargetCrossAxis` (`UseCrossAxisY`).
+
+##### 15.0C.17 Straight chains follow their decision branch
+
+**Rule:** When decision fan-out targets are spread across the flow, the straight chain below each target moves with it, so the chain stays in the branch's column. A node joins the chain when it is the only forward successor of the node above it, that node is its only forward predecessor, and it was in the same column as that node before the spread. The chain stops at a decision node, whose own branches are placed around it separately. EIP 2.65 (Channel Purger, layered view): Export, Remove and Log stay in one column under the "yes" branch instead of Remove and Log returning to the centre.
+
+The rule uses only graph structure (edges, back edges, invisible links and node shape). It never looks at label or id text.
+
+**Closure:** `FlowchartLayoutPostProcessor.MoveStraightChainWithBranch`, called from `OrderDecisionFanOutTargets`.
+
+##### 15.0C.18 Text baseline (Word-first parity)
+
+**Rule:** Flowchart text (node labels, edge labels and subgraph titles) is written with an explicit alphabetic baseline and no `dominant-baseline`. Each line's baseline is its visual centre plus **0.36 em** (half the cap height of Trebuchet MS, measured as about 0.72 em). Multi-line blocks centre the whole block: the first line's centre is the block centre minus `(lines - 1) * lineHeight / 2`.
+
+**Naiad note:** Mermaid uses `dominant-baseline="middle"` / `central`. Svg.Skia, which rasterises diagrams to PNG for DOCX, ignores `dominant-baseline` and treats `y` as the baseline, so every label sat about 6 px high at 16 px. Writing the baseline explicitly gives the same result in browsers, Word's SVG renderer and Svg.Skia. The old +4 px nudge for single-line rich labels is removed.
+
+**Closure:** `FlowchartRichLabelSvgWriter.ComputeFirstBaselineY` / `ComputeLabelBlockCentreY` (inverse, used by rule validation), `TEXT_BASELINE_OFFSET_EM`; used by `FlowchartSugiyamaSvgRenderer` (node and edge labels), `FlowchartRichLabelSvgWriter.AppendCentredLabel` and `FlowchartSubgraphSvgRenderer`.
+
 Key:
 
 - **Closed**: traced far enough to specify primitive, size formula, main points/path formula, transforms, and boundary-intersection family.
@@ -1617,8 +1712,8 @@ Key:
 | Hexagon | `hex` | Closed | Six-point polygon; bevel `M = H/F` (`F=3.5 neo else 4`). |
 | Lean right | `lean-r` | Closed | Parallelogram; skew `H/2`. |
 | Lean left | `lean-l` | Closed | Parallelogram; skew `H/2`. |
-| Trapezoid bottom | `trap-b` | Closed | Trapezoid with top wider by `H/2` each side. |
-| Trapezoid top | `trap-t` | Closed | Trapezoid with bottom wider by `H/2` each side. |
+| Trapezoid bottom | `trap-b` | Closed | Source `[/text\]`. Base at the bottom: as drawn (SVG y down), the bottom edge is wider by `H/2` each side. |
+| Trapezoid top | `trap-t` | Closed | Source `[\text/]`. Base at the top: as drawn, the top edge is wider by `H/2` each side. |
 | Notched rectangle (card) | `notch-rect` | Closed | Rectangle with top-left diagonal notch; `NOTCH_SIZE = 12`. |
 | Lined rectangle | `lin-rect` | Closed | Rectangle-like outline + left divider; label shift. |
 | Filled circle (junction) | `f-circ` | Closed | Fixed radius 7 filled circle. |
@@ -1914,6 +2009,14 @@ Persist[(Optional archive)] --> Done
 ```
 
 **Semantic route classes** (`FlowchartEdgeRouteClassifier`):
+
+**Superseded layout note (EIP work, 2026-10):** the table below describes the earlier single-spine layout. The newer rules win (§1): the spine column pass (§15.0C.11) puts each two-way decision's branches in columns either side of it, and branches leave from the shoulder that faces their target. For this source, `Reject` now sits in the column left of `Validate`, one row above `Done`, and `Done` sits left of `DoArchive` with `Persist` to its right. So:
+
+- `Validate→Reject`, `Validate→Parse`, `DoArchive→Persist` and `DoArchive→Done` are `LocalDecisionBranch` shoulder branches. No edge needs an exterior corridor or skip bypass, because no node lies in the way.
+- `Reject→Done` and `Persist→Done` join the middle of `Done`'s facing side (§15.0C.1), so they never share a target port.
+- `Parse→HasMermaid` and `Word→DoArchive` are straight vertical runs. Their terminal stub points (§15.0A) are not a centre-spine detour.
+
+The table is kept as the reference for diagrams whose layout still has a single spine with a node in the way.
 
 | Edge (by node id) | Class | Render notes |
 | --- | --- | --- |

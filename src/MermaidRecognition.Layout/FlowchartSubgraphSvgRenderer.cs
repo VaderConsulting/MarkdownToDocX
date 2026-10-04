@@ -62,14 +62,14 @@ public static class FlowchartSubgraphSvgRenderer
             }
 
             double TitleX = SvgLeft + (Width / 2.0);
-            double TitleY = SvgTop + (TITLE_BAND_PX / 2.0) + 3.0;
             double TitleFontSize = Math.Max(10.0, RenderOptions.FontSizePx);
+            double TitleY = SvgTop + (TITLE_BAND_PX / 2.0) + FlowchartRichLabelSvgWriter.ComputeBaselineOffsetPx(TitleFontSize);
 
             Builder.Append("<text x=\"");
             Builder.Append(TitleX.ToString(CultureInfo.InvariantCulture));
             Builder.Append("\" y=\"");
             Builder.Append(TitleY.ToString(CultureInfo.InvariantCulture));
-            Builder.Append("\" text-anchor=\"middle\" dominant-baseline=\"middle\" fill=\"#333\" font-family=\"");
+            Builder.Append("\" text-anchor=\"middle\" fill=\"#333\" font-family=\"");
             Builder.Append(EscapeXml(RenderOptions.FontFamily));
             Builder.Append("\" font-size=\"");
             Builder.Append(TitleFontSize.ToString(CultureInfo.InvariantCulture));

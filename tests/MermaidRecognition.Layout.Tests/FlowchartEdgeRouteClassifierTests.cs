@@ -33,7 +33,7 @@ public sealed class FlowchartEdgeRouteClassifierTests
         """;
 
     [Test]
-    public void ClassifyWithContext_F58_AssignsExpectedSemanticRouteClasses()
+    public void ClassifyWithContext_F58_AssignsLocalBranchClassesWithoutCorridors()
     {
         DiagramContract Contract = MermaidRecognizer.Parse(F58_FLOWCHART);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
@@ -53,21 +53,22 @@ public sealed class FlowchartEdgeRouteClassifierTests
 
         AssertSemanticClass(Contract, BoundsById, NodeById, Direction, SpineContext, "Start", "Ingest", FlowchartEdgeSemanticRouteClass.CentreSpine);
         AssertSemanticClass(Contract, BoundsById, NodeById, Direction, SpineContext, "Ingest", "Validate", FlowchartEdgeSemanticRouteClass.CentreSpine);
-        AssertSemanticClass(Contract, BoundsById, NodeById, Direction, SpineContext, "Validate", "Reject", FlowchartEdgeSemanticRouteClass.LongExceptionRoute);
-        AssertSemanticClass(Contract, BoundsById, NodeById, Direction, SpineContext, "Validate", "Parse", FlowchartEdgeSemanticRouteClass.CentreSpine);
-        AssertSemanticClass(Contract, BoundsById, NodeById, Direction, SpineContext, "Parse", "HasMermaid", FlowchartEdgeSemanticRouteClass.CentreSpine);
-        AssertSemanticClass(Contract, BoundsById, NodeById, Direction, SpineContext, "HasMermaid", "Render", FlowchartEdgeSemanticRouteClass.LocalDecisionBranch);
-        AssertSemanticClass(Contract, BoundsById, NodeById, Direction, SpineContext, "HasMermaid", "Word", FlowchartEdgeSemanticRouteClass.LocalDecisionBranch);
-        AssertSemanticClass(Contract, BoundsById, NodeById, Direction, SpineContext, "Render", "Word", FlowchartEdgeSemanticRouteClass.MergeBack);
-        AssertSemanticClass(Contract, BoundsById, NodeById, Direction, SpineContext, "Word", "DoArchive", FlowchartEdgeSemanticRouteClass.CentreSpine);
-        AssertSemanticClass(Contract, BoundsById, NodeById, Direction, SpineContext, "DoArchive", "Persist", FlowchartEdgeSemanticRouteClass.CentreSpine);
-        AssertSemanticClass(Contract, BoundsById, NodeById, Direction, SpineContext, "DoArchive", "Done", FlowchartEdgeSemanticRouteClass.SkipBypass);
-        AssertSemanticClass(Contract, BoundsById, NodeById, Direction, SpineContext, "Reject", "Done", FlowchartEdgeSemanticRouteClass.MergeBack);
-        AssertSemanticClass(Contract, BoundsById, NodeById, Direction, SpineContext, "Persist", "Done", FlowchartEdgeSemanticRouteClass.CentreSpine);
+
+        // The spine column pass (spec §15.0C.11) places Reject in the next column beside Validate, so both
+        // Validate branches are local shoulder branches and none needs an exterior corridor or skip bypass.
+        AssertSemanticClass(Contract, BoundsById, NodeById, Direction, SpineContext, "Validate", "Reject", FlowchartEdgeSemanticRouteClass.LocalDecisionBranch);
+        AssertSemanticClass(Contract, BoundsById, NodeById, Direction, SpineContext, "Validate", "Parse", FlowchartEdgeSemanticRouteClass.LocalDecisionBranch);
+
+        foreach (EdgeContract Edge in Contract.Edges)
+        {
+            FlowchartEdgeSemanticRouteClass ActualClass = FlowchartEdgeRouteClassifier.Classify(Edge, Contract, BoundsById, NodeById, Direction, SpineContext);
+            Assert.That(ActualClass, Is.Not.EqualTo(FlowchartEdgeSemanticRouteClass.LongExceptionRoute), $"{Edge.SourceId}->{Edge.TargetId} has no node in its way and needs no exterior corridor");
+            Assert.That(ActualClass, Is.Not.EqualTo(FlowchartEdgeSemanticRouteClass.SkipBypass), $"{Edge.SourceId}->{Edge.TargetId} skips no intervening node");
+        }
     }
 
     [Test]
-    public void TryResolveLayoutGuidePoints_F58_CentreSpineEdges_UseTwoPointShapeBoundaryAttach()
+    public void TryResolveLayoutGuidePoints_F58_ColumnAlignedEdges_AreStraight()
     {
         DiagramContract Contract = MermaidRecognizer.Parse(F58_FLOWCHART);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
@@ -79,9 +80,30 @@ public sealed class FlowchartEdgeRouteClassifierTests
             .ToDictionary(Node => Node.Id, Node => Node);
 
         AssertCentreSpineRoute(Contract, BoundsById, NodeById, Direction, "Start", "Ingest");
-        AssertCentreSpineRoute(Contract, BoundsById, NodeById, Direction, "Validate", "Parse");
-        AssertCentreSpineRoute(Contract, BoundsById, NodeById, Direction, "DoArchive", "Persist");
-        AssertCentreSpineRoute(Contract, BoundsById, NodeById, Direction, "Persist", "Done");
+        AssertCentreSpineRoute(Contract, BoundsById, NodeById, Direction, "Ingest", "Validate");
+        AssertCollinearStraightRoute(Contract, BoundsById, NodeById, Direction, "Parse", "HasMermaid");
+        AssertCollinearStraightRoute(Contract, BoundsById, NodeById, Direction, "Word", "DoArchive");
+    }
+
+    /// <summary>
+    /// Checks a column-aligned edge is one straight vertical run, with or without terminal stub points (spec §15.0A).
+    /// </summary>
+    private static void AssertCollinearStraightRoute(
+        DiagramContract Contract,
+        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        Dictionary<string, NodeContract> NodeById,
+        FlowchartDirection Direction,
+        string SourceId,
+        string TargetId)
+    {
+        EdgeContract Edge = Contract.Edges.First(Candidate => Candidate.SourceId == SourceId && Candidate.TargetId == TargetId);
+        bool Resolved = FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(Edge, Contract, BoundsById, NodeById, Direction, out List<(double X, double Y)> LayoutPoints, out _);
+
+        Assert.That(Resolved, Is.True, $"{SourceId}->{TargetId} should resolve");
+        foreach ((double X, double Y) Point in LayoutPoints)
+        {
+            Assert.That(Point.X, Is.EqualTo(BoundsById[SourceId].CenterX).Within(1.0), $"{SourceId}->{TargetId} should stay on the shared column");
+        }
     }
 
     [Test]
@@ -163,25 +185,10 @@ public sealed class FlowchartEdgeRouteClassifierTests
             Math.Abs(LayoutPoints[0].X - LayoutPoints[1].X),
             Is.LessThan(1.0),
             SourceId + "->" + TargetId + " should stay on the spine column");
-
-        if (string.Equals(SourceId, "Persist", System.StringComparison.Ordinal))
-        {
-            FlowchartLayoutNodeBounds PersistBounds = BoundsById["Persist"];
-            Assert.That(
-                FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(
-                    LayoutPoints[0].X,
-                    LayoutPoints[0].Y,
-                    LayoutPoints[1].X,
-                    LayoutPoints[1].Y,
-                    PersistBounds,
-                    InsetPx: 4.0),
-                Is.False,
-                "Persist→Done should not pass through the cylinder body");
-        }
     }
 
     [Test]
-    public void TryResolveLayoutGuidePoints_F58_SemanticRoutes_UseExpectedPathShapes()
+    public void TryResolveLayoutGuidePoints_F58_Routes_LeaveFacingShoulderAndClearOtherNodes()
     {
         DiagramContract Contract = MermaidRecognizer.Parse(F58_FLOWCHART);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
@@ -192,84 +199,45 @@ public sealed class FlowchartEdgeRouteClassifierTests
         Dictionary<string, NodeContract> NodeById = Contract.Nodes
             .ToDictionary(Node => Node.Id, Node => Node);
 
-        AssertSemanticRoutePoints(Contract, BoundsById, NodeById, Direction, "Validate", "Reject", 5, FlowchartEdgeRouteKind.Corridor);
-        AssertSemanticRoutePoints(Contract, BoundsById, NodeById, Direction, "HasMermaid", "Render", 5);
-        AssertSemanticRoutePoints(Contract, BoundsById, NodeById, Direction, "HasMermaid", "Word", 5, FlowchartEdgeRouteKind.Decision);
-        AssertSemanticRoutePoints(Contract, BoundsById, NodeById, Direction, "DoArchive", "Done", 6, FlowchartEdgeRouteKind.Corridor);
-        AssertSemanticRoutePoints(Contract, BoundsById, NodeById, Direction, "Render", "Word", 6, FlowchartEdgeRouteKind.Corridor);
+        foreach (EdgeContract Edge in Contract.Edges)
+        {
+            bool Resolved = FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(Edge, Contract, BoundsById, NodeById, Direction, out List<(double X, double Y)> LayoutPoints, out FlowchartEdgeRouteKind RouteKind);
+            string EdgeKey = $"{Edge.SourceId}->{Edge.TargetId}";
+            Assert.That(Resolved, Is.True, $"{EdgeKey} should resolve");
+            AssertRouteClearsUnrelatedNodes(EdgeKey, Edge, LayoutPoints, BoundsById);
 
-        EdgeContract ValidateRejectEdge = Contract.Edges.First(
-            Edge => Edge.SourceId == "Validate" && Edge.TargetId == "Reject");
-        bool ValidateRejectResolved = FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
-            ValidateRejectEdge,
-            Contract,
-            BoundsById,
-            NodeById,
-            Direction,
-            out List<(double X, double Y)> ValidateRejectPoints,
-            out FlowchartEdgeRouteKind ValidateRejectRouteKind);
-        Assert.That(ValidateRejectResolved, Is.True);
-        Assert.That(ValidateRejectRouteKind, Is.EqualTo(FlowchartEdgeRouteKind.Corridor));
+            if (!FlowchartDiamondAttachHelper.IsDiamondShape(NodeById[Edge.SourceId].Shape))
+            {
+                continue;
+            }
 
-        FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
-        Assert.That(
-            FlowchartSpineGraphHelper.TryBuildContext(Contract, BoundsById, Direction, Options, out FlowchartSpineLayoutContext? SpineContext),
-            Is.True);
-        Assert.That(
-            FlowchartSpineCorridorHelper.TryBuildCorridor(BoundsById, SpineContext!, out FlowchartSpineCorridorBounds Corridor),
-            Is.True);
-        double CorridorLaneX = ValidateRejectPoints[2].X;
-        Assert.That(
-            CorridorLaneX,
-            Is.LessThan(Corridor.Left - 8.0),
-            "Validate→Reject corridor lane should stay outside the spine column");
-        Assert.That(
-            Math.Abs(CorridorLaneX - ValidateRejectPoints[0].X),
-            Is.GreaterThan(120.0),
-            "Validate→Reject corridor lane should route in the far margin, not near the source column");
-
-        EdgeContract DoArchiveDoneEdge = Contract.Edges.First(
-            Edge => Edge.SourceId == "DoArchive" && Edge.TargetId == "Done");
-        bool DoArchiveDoneResolved = FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
-            DoArchiveDoneEdge,
-            Contract,
-            BoundsById,
-            NodeById,
-            Direction,
-            out List<(double X, double Y)> DoArchiveDonePoints,
-            out _);
-        Assert.That(DoArchiveDoneResolved, Is.True);
-        Assert.That(
-            DoArchiveDonePoints[2].X,
-            Is.GreaterThan(Corridor.Right),
-            "DoArchive→Done skip bypass should route outside the spine column on the source side");
+            FlowchartLayoutNodeBounds SourceBounds = BoundsById[Edge.SourceId];
+            FlowchartLayoutNodeBounds TargetBounds = BoundsById[Edge.TargetId];
+            double TargetSide = Math.Sign(TargetBounds.CenterX - SourceBounds.CenterX);
+            Assert.That(TargetSide, Is.Not.EqualTo(0.0), $"{EdgeKey} target should sit beside the decision");
+            Assert.That(RouteKind, Is.EqualTo(FlowchartEdgeRouteKind.Decision), $"{EdgeKey} route kind");
+            Assert.That((LayoutPoints[0].X - SourceBounds.CenterX) * TargetSide, Is.GreaterThan(4.0), $"{EdgeKey} should leave the diamond shoulder that faces its target");
+            Assert.That(LayoutPoints[LayoutPoints.Count - 1].X, Is.EqualTo(TargetBounds.CenterX).Within(1.0), $"{EdgeKey} should enter the top centre of its target");
+        }
     }
 
-    private static void AssertSemanticRoutePoints(
-        DiagramContract Contract,
-        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById,
-        Dictionary<string, NodeContract> NodeById,
-        FlowchartDirection Direction,
-        string SourceId,
-        string TargetId,
-        int ExpectedPointCount,
-        FlowchartEdgeRouteKind? ExpectedRouteKind = null)
+    /// <summary>
+    /// Checks that no guide segment cuts through a node other than the edge's own source and target.
+    /// </summary>
+    private static void AssertRouteClearsUnrelatedNodes(string EdgeKey, EdgeContract Edge, List<(double X, double Y)> LayoutPoints, Dictionary<string, FlowchartLayoutNodeBounds> BoundsById)
     {
-        EdgeContract Edge = Contract.Edges.First(
-            Candidate => Candidate.SourceId == SourceId && Candidate.TargetId == TargetId);
-        bool Resolved = FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
-            Edge,
-            Contract,
-            BoundsById,
-            NodeById,
-            Direction,
-            out List<(double X, double Y)> LayoutPoints,
-            out FlowchartEdgeRouteKind RouteKind);
-        Assert.That(Resolved, Is.True, SourceId + "->" + TargetId + " should resolve");
-        Assert.That(LayoutPoints.Count, Is.EqualTo(ExpectedPointCount), SourceId + "->" + TargetId + " point count");
-        if (ExpectedRouteKind.HasValue)
+        foreach (FlowchartLayoutNodeBounds Bounds in BoundsById.Values)
         {
-            Assert.That(RouteKind, Is.EqualTo(ExpectedRouteKind.Value), SourceId + "->" + TargetId + " route kind");
+            if (Bounds.NodeId == Edge.SourceId || Bounds.NodeId == Edge.TargetId)
+            {
+                continue;
+            }
+
+            for (int Index = 1; Index < LayoutPoints.Count; Index++)
+            {
+                bool Crosses = FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(LayoutPoints[Index - 1].X, LayoutPoints[Index - 1].Y, LayoutPoints[Index].X, LayoutPoints[Index].Y, Bounds, InsetPx: 4.0);
+                Assert.That(Crosses, Is.False, $"{EdgeKey} should not pass through {Bounds.NodeId}");
+            }
         }
     }
 }

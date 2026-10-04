@@ -386,7 +386,7 @@ public static class FlowchartEdgeRouteDiagnosticAnalyzer
             ((TargetPortX - SourcePortX) * (TargetPortX - SourcePortX))
             + ((TargetPortY - SourcePortY) * (TargetPortY - SourcePortY)));
         double RoutedDistance = ComputePolylineLength(Points);
-        bool UnnecessarilyComplex = Points.Count > 2
+        bool UnnecessarilyComplex = !ArePointsOnChord(Points)
             || RoutedDistance > (DirectDistance * CENTRE_SPINE_DETOUR_RATIO);
 
         if (!UnnecessarilyComplex)
@@ -398,6 +398,37 @@ public static class FlowchartEdgeRouteDiagnosticAnalyzer
             ResolvedRoute,
             FlowchartEdgeRouteDiagnosticKind.CentreSpineRegression,
             "Spine-aligned unobstructed attach points are rendered with curves, kinks, or detours instead of a straight centre-spine connector."));
+    }
+
+    /// <summary>
+    /// Returns true when every point lies on the straight line from the first point to the last.
+    /// A straight connector keeps its terminal stub points (spec §15.0A), so extra collinear points are not a detour.
+    /// </summary>
+    private static bool ArePointsOnChord(List<(double X, double Y)> Points)
+    {
+        (double StartX, double StartY) = Points[0];
+        (double EndX, double EndY) = Points[Points.Count - 1];
+        double ChordX = EndX - StartX;
+        double ChordY = EndY - StartY;
+        double ChordLength = Math.Sqrt((ChordX * ChordX) + (ChordY * ChordY));
+        if (ChordLength < 1e-6)
+        {
+            return Points.Count <= 2;
+        }
+
+        for (int Index = 1; Index < Points.Count - 1; Index++)
+        {
+            double OffsetX = Points[Index].X - StartX;
+            double OffsetY = Points[Index].Y - StartY;
+            double Distance = Math.Abs((OffsetX * ChordY) - (OffsetY * ChordX)) / ChordLength;
+            double Along = ((OffsetX * ChordX) + (OffsetY * ChordY)) / ChordLength;
+            if (Distance > COLLINEAR_EPSILON_PX || Along < -COLLINEAR_EPSILON_PX || Along > ChordLength + COLLINEAR_EPSILON_PX)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static void AppendHookOrOvershootFindings(

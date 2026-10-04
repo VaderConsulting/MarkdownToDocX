@@ -17,7 +17,8 @@ public sealed class FlowchartSvgLayoutCoordinateMapper
     private readonly double _DiagramPaddingPx;
 
     /// <summary>
-    /// Builds a mapper using the same bounds and padding as <see cref="FlowchartSugiyamaSvgRenderer"/>.
+    /// Builds a mapper using the same bounds and padding as <see cref="FlowchartSugiyamaSvgRenderer"/>, including the
+    /// canvas growth for edge labels, retry loops and subgraph boxes.
     /// </summary>
     public static bool TryCreate(
         DiagramContract Contract,
@@ -26,55 +27,12 @@ public sealed class FlowchartSvgLayoutCoordinateMapper
     {
         Mapper = null;
 
-        if (Layout.NodeBounds.Count == 0)
+        if (!FlowchartSvgCoordinateFrameResolver.TryResolve(Contract, Layout, out FlowchartSvgCoordinateFrame Frame))
         {
             return false;
         }
 
-        Dictionary<string, NodeContract> NodeById = new Dictionary<string, NodeContract>(StringComparer.Ordinal);
-        foreach (NodeContract NodeEntry in Contract.Nodes)
-        {
-            NodeById[NodeEntry.Id] = NodeEntry;
-        }
-
-        double MinLeft = double.MaxValue;
-        double MinBottom = double.MaxValue;
-        double MaxRight = double.MinValue;
-        double MaxTop = double.MinValue;
-
-        foreach (FlowchartLayoutNodeBounds Bounds in Layout.NodeBounds)
-        {
-            string? Shape = NodeById.TryGetValue(Bounds.NodeId, out NodeContract? BoundsNode) ? BoundsNode.Shape : null;
-            double LeftExtension = FlowchartShapeLayoutHelper.GetLeftExtensionPx(Shape, Bounds.Height);
-            double RightExtension = FlowchartShapeLayoutHelper.GetRightExtensionPx(Shape, Bounds.Height);
-            double Left = Bounds.CenterX - (Bounds.Width / 2.0) - LeftExtension;
-            double Right = Bounds.CenterX + (Bounds.Width / 2.0) + RightExtension;
-            double Bottom = Bounds.CenterY - (Bounds.Height / 2.0);
-            double Top = Bounds.CenterY + (Bounds.Height / 2.0);
-
-            if (Left < MinLeft)
-            {
-                MinLeft = Left;
-            }
-
-            if (Right > MaxRight)
-            {
-                MaxRight = Right;
-            }
-
-            if (Bottom < MinBottom)
-            {
-                MinBottom = Bottom;
-            }
-
-            if (Top > MaxTop)
-            {
-                MaxTop = Top;
-            }
-        }
-
-        FlowchartRenderOptions RenderOptions = FlowchartRenderOptions.FromContract(Contract);
-        Mapper = new FlowchartSvgLayoutCoordinateMapper(MinLeft, MaxTop, RenderOptions.DiagramPaddingPx);
+        Mapper = new FlowchartSvgLayoutCoordinateMapper(Frame.MinLeft, Frame.MaxTop, Frame.DiagramPaddingPx);
         return true;
     }
 

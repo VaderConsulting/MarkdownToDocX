@@ -242,32 +242,12 @@ public sealed class FlowCatalogueRuleValidationTests
         NodeActualResult WaitNode = Diagram.Nodes.Single(Node => Node.NodeId == "Wait");
         NodeActualResult ProcessNode = Diagram.Nodes.Single(Node => Node.NodeId == "P");
 
-        Assert.That(YesBranch.Path.Points[0].X, Is.EqualTo(HubNode.Bounds.CentreX).Within(1.0));
-        Assert.That(
-            NoBranch.Path.Points[0].X,
-            Is.LessThan(HubNode.Bounds.CentreX - 8.0),
-            "No branch should exit the left decision port, not the bottom-centre slot.");
-        Assert.That(
-            NoBranch.Path.Points[NoBranch.Path.Points.Count - 1].X,
-            Is.EqualTo(WaitNode.Bounds.CentreX).Within(1.0),
-            "No branch should land on the Wait top-centre slot.");
+        // Two-way decisions leave from the shoulder that faces each target, never the bottom vertex.
+        AssertBranchLeavesFacingShoulder(YesBranch, HubNode, ProcessNode, "Yes");
+        AssertBranchLeavesFacingShoulder(NoBranch, HubNode, WaitNode, "No");
         Assert.That(NoBranch.Facts["Path.NoVisibleKinkInSmoothBody"], Is.EqualTo(true));
-
-        double ProcessLeft = ProcessNode.Bounds.X;
-        for (int PointIndex = 0; PointIndex < NoBranch.Path.Points.Count - 1; PointIndex++)
-        {
-            double PointY = NoBranch.Path.Points[PointIndex].Y;
-            if (PointY > ProcessNode.Bounds.CentreY + (ProcessNode.Bounds.Height / 2.0)
-                || PointY < ProcessNode.Bounds.CentreY - (ProcessNode.Bounds.Height / 2.0))
-            {
-                continue;
-            }
-
-            Assert.That(
-                NoBranch.Path.Points[PointIndex].X,
-                Is.LessThan(ProcessLeft - 4.0),
-                "No branch corridor should stay left of Process job before entering Wait.");
-        }
+        Assert.That(NoBranch.Facts["Path.DoesNotIntersectUnrelatedNodeBodies"], Is.EqualTo(true));
+        Assert.That(YesBranch.Facts["Path.DoesNotIntersectUnrelatedNodeBodies"], Is.EqualTo(true));
 
         List<string> FailureRules = FailureRuleIds(Result, "F59");
         Assert.That(FailureRules, Does.Not.Contain("Subgraph.MembersHorizontallyCentered"));
@@ -840,7 +820,7 @@ public sealed class FlowCatalogueRuleValidationTests
         DiagramActualResult Diagram = Result.ActualResults.Diagrams.Single();
         foreach (EdgeActualResult Edge in Diagram.Edges.Where(Candidate => Candidate.IsVisible))
         {
-            Assert.That(Edge.Facts["Ports.PerpendicularAttach"], Is.EqualTo(true), Edge.EdgeId);
+            Assert.That(Edge.Facts["Ports.PerpendicularAttach"], Is.EqualTo(true), () => $"{Edge.EdgeId}: {DescribeAttachFailure(Edge)}");
         }
 
         List<string> FailureRules = FailureRuleIds(Result, "F31");
@@ -1272,6 +1252,31 @@ public sealed class FlowCatalogueRuleValidationTests
         File.WriteAllText(TempFile, Markdown);
         MermaidRuleValidationPipeline Pipeline = new MermaidRuleValidationPipeline(_SpecDirectory);
         return Pipeline.ProcessMarkdownFile(TempFile, OutputDirectory);
+    }
+
+    private static string DescribeAttachFailure(EdgeActualResult Edge)
+    {
+        List<string> Details = [];
+        foreach (string Key in new[] { "Path.LayoutAttachFailure", "Path.RenderedAttachFailure" })
+        {
+            if (Edge.Facts.TryGetValue(Key, out object? Value) && Value is not null)
+            {
+                Details.Add($"{Key}={Value}");
+            }
+        }
+
+        return string.Join("; ", Details);
+    }
+
+    /// <summary>
+    /// Checks a decision branch leaves the diamond shoulder on the side of its target and lands on the target's top centre.
+    /// </summary>
+    private static void AssertBranchLeavesFacingShoulder(EdgeActualResult Branch, NodeActualResult Hub, NodeActualResult Target, string BranchName)
+    {
+        double TargetSide = Math.Sign(Target.Bounds.CentreX - Hub.Bounds.CentreX);
+        Assert.That(TargetSide, Is.Not.EqualTo(0.0), $"{BranchName} target should sit beside the decision");
+        Assert.That((Branch.Path.Points[0].X - Hub.Bounds.CentreX) * TargetSide, Is.GreaterThan(8.0), $"{BranchName} branch should leave the shoulder that faces its target, not the bottom vertex");
+        Assert.That(Branch.Path.Points[Branch.Path.Points.Count - 1].X, Is.EqualTo(Target.Bounds.CentreX).Within(1.0), $"{BranchName} branch should land on the target's top centre");
     }
 
     private static List<string> FailureRuleIds(MermaidRuleValidationPipelineResult Result, string DiagramId) => Result.ValidationReport.Failures

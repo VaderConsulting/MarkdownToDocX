@@ -9219,35 +9219,34 @@
         {
           "SourceNodeId": "Validate",
           "TargetNodeId": "Reject",
-          "RouteClass": "LongExceptionBypass",
-          "LabelPlacementIntent": "NearCorridorSegment",
-          "ObstacleAvoidanceIntent": "AvoidSpineCorridor",
+          "RouteClass": "LocalDecisionBranch",
+          "LabelPlacementIntent": "NearSourceBranchSegment",
+          "ObstacleAvoidanceIntent": "AvoidDecisionNodeAndSiblingBranch",
           "ExpectedBehaviour": [
-            "RouteInExteriorCorridorLane",
-            "AvoidSpineCorridorInterior",
-            "KeepLabelAttachedToEdge",
+            "LeaveDecisionClearly",
+            "KeepLabelAttachedToBranch",
+            "DoNotCrossSiblingBranch",
             "TreatAsSeparateLocalBranch"
           ],
           "InvalidBehaviours": [
-            "DiagonalSpineCrossing",
-            "RouteThroughCentreSpine",
-            "LocalBranchMisclassification"
+            "LongBypassMisclassification",
+            "CrossesSiblingBranch"
           ]
         },
         {
           "SourceNodeId": "Validate",
           "TargetNodeId": "Parse",
-          "RouteClass": "CentreSpine",
-          "LabelPlacementIntent": "OffsetAlongEdgeMidpoint",
+          "RouteClass": "LocalDecisionBranch",
+          "LabelPlacementIntent": "NearSourceBranchSegment",
           "ExpectedBehaviour": [
-            "RemainOnMainSpine",
-            "KeepLabelAttachedToEdge"
+            "LeaveDecisionClearly",
+            "TreatAsSeparateLocalBranch"
           ]
         },
         {
           "SourceNodeId": "Parse",
           "TargetNodeId": "HasMermaid",
-          "RouteClass": "CentreSpine"
+          "RouteClass": "ShortAdjacent"
         },
         {
           "SourceNodeId": "HasMermaid",
@@ -9279,65 +9278,47 @@
         {
           "SourceNodeId": "Render",
           "TargetNodeId": "Word",
-          "RouteClass": "MultiInputMerge",
-          "ExpectedBehaviour": [
-            "UseDistinctMergePort",
-            "AvoidAmbiguousMergeCollapse",
-            "MergeBackIntoMainPath"
-          ],
-          "InvalidBehaviours": [
-            "AmbiguousMerge",
-            "HookAtTarget"
-          ]
+          "RouteClass": "ShortAdjacent"
         },
         {
           "SourceNodeId": "Word",
           "TargetNodeId": "DoArchive",
-          "RouteClass": "CentreSpine"
+          "RouteClass": "ShortAdjacent"
         },
         {
           "SourceNodeId": "DoArchive",
           "TargetNodeId": "Persist",
-          "RouteClass": "CentreSpine",
-          "LabelPlacementIntent": "OffsetAlongEdgeMidpoint",
+          "RouteClass": "LocalDecisionBranch",
+          "LabelPlacementIntent": "NearSourceBranchSegment",
           "ExpectedBehaviour": [
-            "KeepLabelAttachedToEdge",
+            "LeaveDecisionClearly",
             "TreatAsSeparateLocalBranch"
           ]
         },
         {
           "SourceNodeId": "DoArchive",
           "TargetNodeId": "Done",
-          "RouteClass": "SkipBypass",
-          "LabelPlacementIntent": "NearCorridorSegment",
-          "ObstacleAvoidanceIntent": "AvoidNodeBodiesAndDecisionDiamonds",
+          "RouteClass": "LocalDecisionBranch",
+          "LabelPlacementIntent": "NearSourceBranchSegment",
+          "ObstacleAvoidanceIntent": "AvoidDecisionNodeAndSiblingBranch",
           "ExpectedBehaviour": [
-            "BypassInterveningSpineNodesLocally",
-            "DoNotTreatAsArbitraryLongDetour",
+            "LeaveDecisionClearly",
             "TreatAsSeparateLocalBranch"
           ],
           "InvalidBehaviours": [
-            "RouteThroughCentreSpine",
-            "ArbitraryLongDetour"
+            "LongBypassMisclassification",
+            "CrossesSiblingBranch"
           ]
         },
         {
           "SourceNodeId": "Reject",
           "TargetNodeId": "Done",
-          "RouteClass": "MultiInputMerge",
-          "ExpectedBehaviour": [
-            "UseDistinctMergePort",
-            "MergeBackIntoMainPath"
-          ]
+          "RouteClass": "ShortAdjacent"
         },
         {
           "SourceNodeId": "Persist",
           "TargetNodeId": "Done",
-          "RouteClass": "CentreSpine",
-          "ExpectedBehaviour": [
-            "RemainOnMainSpine",
-            "RespectSpineColumnAlignment"
-          ]
+          "RouteClass": "ShortAdjacent"
         }
       ],
       "ValidationMode": "EdgeLevelIntentDiagnosticNotExactCoordinates",

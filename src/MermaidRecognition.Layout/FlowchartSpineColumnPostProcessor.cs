@@ -90,7 +90,37 @@ public static class FlowchartSpineColumnPostProcessor
         AssignSideBranchColumns(Contract, MutableById, SpineNodeIds, SpineCrossAxis, ColumnStep);
         AlignTerminalCollectorRows(Contract, MutableById, SpineNodeIds, SpineCrossAxis, ColumnStep, Options);
 
+        if (CountOverlappingPairs(MutableById.Values.ToList()) > CountOverlappingPairs(Source))
+        {
+            return new List<FlowchartLayoutNodeBounds>(Source);
+        }
+
         return MutableById.Values.ToList();
+    }
+
+    /// <summary>
+    /// Counts the node pairs whose boxes overlap. The spine column layout is dropped when it would add an overlap,
+    /// for example when several unlabelled decision branches would all be sent to the same margin column.
+    /// </summary>
+    private static int CountOverlappingPairs(IReadOnlyList<FlowchartLayoutNodeBounds> Bounds)
+    {
+        int Count = 0;
+        for (int FirstIndex = 0; FirstIndex < Bounds.Count; FirstIndex++)
+        {
+            for (int SecondIndex = FirstIndex + 1; SecondIndex < Bounds.Count; SecondIndex++)
+            {
+                FlowchartLayoutNodeBounds First = Bounds[FirstIndex];
+                FlowchartLayoutNodeBounds Second = Bounds[SecondIndex];
+                double OverlapX = ((First.Width + Second.Width) / 2.0) - Math.Abs(First.CenterX - Second.CenterX);
+                double OverlapY = ((First.Height + Second.Height) / 2.0) - Math.Abs(First.CenterY - Second.CenterY);
+                if (OverlapX > COLLINEAR_EPSILON_PX && OverlapY > COLLINEAR_EPSILON_PX)
+                {
+                    Count++;
+                }
+            }
+        }
+
+        return Count;
     }
 
     private static void AssignSideBranchColumns(

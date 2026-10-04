@@ -142,7 +142,8 @@ public static class FlowchartSubgraphMemberInsetHelper
                 }
             }
 
-            if (FlowchartSubgraphSpineCenterHelper.TryGetPrimaryRowCenterY(
+            if (!FlowchartSubgraphSpineCenterHelper.IsColumnLed(Contract, Group, BoundsById)
+                && FlowchartSubgraphSpineCenterHelper.TryGetPrimaryRowCenterY(
                     Contract,
                     Group,
                     BoundsById,

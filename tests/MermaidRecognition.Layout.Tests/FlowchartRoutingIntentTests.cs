@@ -81,17 +81,17 @@ public sealed class FlowchartRoutingIntentTests
 
         AssertRouteClass(Intent, "Start", "Ingest", FlowchartRoutingIntentRouteClass.CentreSpine);
         AssertRouteClass(Intent, "Ingest", "Validate", FlowchartRoutingIntentRouteClass.CentreSpine);
-        AssertRouteClass(Intent, "Validate", "Reject", FlowchartRoutingIntentRouteClass.LongExceptionBypass);
-        AssertRouteClass(Intent, "Validate", "Parse", FlowchartRoutingIntentRouteClass.CentreSpine);
-        AssertRouteClass(Intent, "Parse", "HasMermaid", FlowchartRoutingIntentRouteClass.CentreSpine);
+        AssertRouteClass(Intent, "Validate", "Reject", FlowchartRoutingIntentRouteClass.LocalDecisionBranch);
+        AssertRouteClass(Intent, "Validate", "Parse", FlowchartRoutingIntentRouteClass.LocalDecisionBranch);
+        AssertRouteClass(Intent, "Parse", "HasMermaid", FlowchartRoutingIntentRouteClass.ShortAdjacent);
         AssertRouteClass(Intent, "HasMermaid", "Render", FlowchartRoutingIntentRouteClass.LocalDecisionBranch);
         AssertRouteClass(Intent, "HasMermaid", "Word", FlowchartRoutingIntentRouteClass.LocalDecisionBranch);
-        AssertRouteClass(Intent, "Render", "Word", FlowchartRoutingIntentRouteClass.MultiInputMerge);
-        AssertRouteClass(Intent, "Word", "DoArchive", FlowchartRoutingIntentRouteClass.CentreSpine);
-        AssertRouteClass(Intent, "DoArchive", "Persist", FlowchartRoutingIntentRouteClass.CentreSpine);
-        AssertRouteClass(Intent, "DoArchive", "Done", FlowchartRoutingIntentRouteClass.SkipBypass);
-        AssertRouteClass(Intent, "Reject", "Done", FlowchartRoutingIntentRouteClass.MultiInputMerge);
-        AssertRouteClass(Intent, "Persist", "Done", FlowchartRoutingIntentRouteClass.CentreSpine);
+        AssertRouteClass(Intent, "Render", "Word", FlowchartRoutingIntentRouteClass.ShortAdjacent);
+        AssertRouteClass(Intent, "Word", "DoArchive", FlowchartRoutingIntentRouteClass.ShortAdjacent);
+        AssertRouteClass(Intent, "DoArchive", "Persist", FlowchartRoutingIntentRouteClass.LocalDecisionBranch);
+        AssertRouteClass(Intent, "DoArchive", "Done", FlowchartRoutingIntentRouteClass.LocalDecisionBranch);
+        AssertRouteClass(Intent, "Reject", "Done", FlowchartRoutingIntentRouteClass.ShortAdjacent);
+        AssertRouteClass(Intent, "Persist", "Done", FlowchartRoutingIntentRouteClass.ShortAdjacent);
     }
 
     [Test]

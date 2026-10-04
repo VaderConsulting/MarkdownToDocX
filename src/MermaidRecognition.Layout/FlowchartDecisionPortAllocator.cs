@@ -277,11 +277,11 @@ public static class FlowchartDecisionPortAllocator
         }
         else if (HorizontalFlow)
         {
-            SortOutgoingByTargetCrossAxis(Outgoing, BoundsById, UseDescendingCrossAxis: true);
+            SortOutgoingByTargetCrossAxis(Outgoing, BoundsById, UseDescendingCrossAxis: true, UseCrossAxisY: true);
         }
         else
         {
-            SortOutgoingByTargetCrossAxis(Outgoing, BoundsById, UseDescendingCrossAxis: false);
+            SortOutgoingByTargetCrossAxis(Outgoing, BoundsById, UseDescendingCrossAxis: false, UseCrossAxisY: false);
         }
 
         BranchIndex = Outgoing.FindIndex(
@@ -1035,10 +1035,11 @@ public static class FlowchartDecisionPortAllocator
     private static void SortOutgoingByTargetCrossAxis(
         List<EdgeContract> Outgoing,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
-        bool UseDescendingCrossAxis) => Outgoing.Sort((Left, Right) =>
+        bool UseDescendingCrossAxis,
+        bool UseCrossAxisY) => Outgoing.Sort((Left, Right) =>
                                              {
-                                                 double LeftValue = GetCrossAxis(Left.TargetId, BoundsById);
-                                                 double RightValue = GetCrossAxis(Right.TargetId, BoundsById);
+                                                 double LeftValue = UseCrossAxisY ? GetCrossAxisY(Left.TargetId, BoundsById) : GetCrossAxis(Left.TargetId, BoundsById);
+                                                 double RightValue = UseCrossAxisY ? GetCrossAxisY(Right.TargetId, BoundsById) : GetCrossAxis(Right.TargetId, BoundsById);
                                                  int CrossCompare = UseDescendingCrossAxis
                                                      ? RightValue.CompareTo(LeftValue)
                                                      : LeftValue.CompareTo(RightValue);
@@ -1064,6 +1065,18 @@ public static class FlowchartDecisionPortAllocator
 
                                                                                        return Left.CreationIndex.CompareTo(Right.CreationIndex);
                                                                                    });
+
+    private static double GetCrossAxisY(
+        string NodeId,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById)
+    {
+        if (BoundsById.TryGetValue(NodeId, out FlowchartLayoutNodeBounds Bounds))
+        {
+            return Bounds.CenterY;
+        }
+
+        return 0.0;
+    }
 
     private static double GetCrossAxis(
         string NodeId,

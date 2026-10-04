@@ -27,8 +27,8 @@ public sealed class FlowchartR1RenderGateTests
         Assert.That(Svg, Does.Contain("fill=\"#ECECFF\""));
         Assert.That(Svg, Does.Contain("stroke=\"#9370DB\""));
         Assert.That(CountMatches(Svg, "<rect"), Is.EqualTo(1));
-        Assert.That(CountMatches(Svg, "<path"), Is.EqualTo(3));
-        Assert.That(CountMatches(Svg, "<line"), Is.EqualTo(2));
+        Assert.That(CountMatches(Svg, "<path"), Is.EqualTo(5));
+        Assert.That(SvgStraightConnectorReader.Read(Svg), Has.Count.EqualTo(2));
         Assert.That(CountMatches(Svg, "<text"), Is.EqualTo(3));
     }
 
@@ -142,7 +142,7 @@ public sealed class FlowchartR1RenderGateTests
 
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
         Assert.That(Svg, Does.StartWith("<svg"));
-        Assert.That(CountMatches(Svg, "<line"), Is.EqualTo(1));
+        Assert.That(SvgStraightConnectorReader.Read(Svg), Has.Count.EqualTo(1));
     }
 
     [Test]
@@ -241,11 +241,11 @@ public sealed class FlowchartR1RenderGateTests
             Assert.That(
                 Math.Abs(TargetX - EndBounds.CenterX),
                 Is.GreaterThan(4.0),
-                $"{SourceId} should land on the stadium shoulder, not the top-centre slot.");
+                $"{SourceId} should land on the side of End, not the top-centre slot.");
             Assert.That(
                 TargetY,
-                Is.LessThan(EndBounds.CenterY),
-                $"{SourceId} should attach on the upper stadium cap.");
+                Is.EqualTo(EndBounds.CenterY).Within(1.0),
+                $"{SourceId} should enter the middle of End's facing side (spec §15.0C.1).");
         }
     }
 
@@ -385,11 +385,11 @@ public sealed class FlowchartR1RenderGateTests
             Assert.That(
                 Math.Abs(TargetX - EndBounds.CenterX),
                 Is.GreaterThan(4.0),
-                $"{SourceId} should land on the stadium shoulder, not the top-centre slot.");
+                $"{SourceId} should land on the side of End, not the top-centre slot.");
             Assert.That(
                 TargetY,
-                Is.LessThan(EndBounds.CenterY),
-                $"{SourceId} should attach on the upper stadium cap.");
+                Is.EqualTo(EndBounds.CenterY).Within(1.0),
+                $"{SourceId} should enter the middle of End's facing side (spec §15.0C.1).");
         }
     }
 
@@ -460,7 +460,7 @@ public sealed class FlowchartR1RenderGateTests
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
 
         List<double> NodeTops = [];
-        foreach (Match NodeMatch in Regex.Matches(Svg, @"<path d=""M([\d\.]+),([\d\.]+)"))
+        foreach (Match NodeMatch in Regex.Matches(Svg, @"<path d=""M([\d\.]+),([\d\.]+) H"))
         {
             NodeTops.Add(double.Parse(NodeMatch.Groups[2].Value, CultureInfo.InvariantCulture));
         }

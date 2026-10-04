@@ -290,11 +290,15 @@ public sealed class F125NodesFirstDiamondRenderTests
             Assert.That(LabelText!.Success, Is.True, "Could not locate " + Edge.Label + " edge label in SVG.");
 
             double LabelSvgX = double.Parse(LabelText.Groups[1].Value, CultureInfo.InvariantCulture);
-            double MinLeft = BoundsById.Values.Min(Bounds => Bounds.CenterX - (Bounds.Width / 2.0));
-            double Padding = FlowchartRenderOptions.FromContract(Contract).DiagramPaddingPx;
-            double ExpectedSvgX = Padding + (ExpectedLayoutX - MinLeft);
+            Assert.That(FlowchartSvgLayoutCoordinateMapper.TryCreate(Contract, Layout, out FlowchartSvgLayoutCoordinateMapper? Mapper), Is.True);
+            (double PlacementSvgX, double _) = Mapper!.LayoutToSvg(ExpectedLayoutX, 0.0);
+            (double DiamondSvgX, double _) = Mapper.LayoutToSvg(MergeBounds.CenterX, 0.0);
+            (double DrawnSvgX, double _) = DrawnEdgeLabelLocator.ResolveSvgCentre(Contract, Layout, Edge);
 
-            Assert.That(LabelSvgX, Is.EqualTo(ExpectedSvgX).Within(2.0), Edge.Label + " SVG X");
+            // The label is drawn at the decision placement point moved clear of the connector and the diamond
+            // (spec §15.0C.8 and the EIP 2.56 addendum), so it stays on the outer side of its branch.
+            Assert.That(LabelSvgX, Is.EqualTo(DrawnSvgX).Within(2.0), $"{Edge.Label} SVG X");
+            Assert.That(Math.Sign(LabelSvgX - DiamondSvgX), Is.EqualTo(Math.Sign(PlacementSvgX - DiamondSvgX)), $"{Edge.Label} should stay on its branch side.");
         }
     }
 

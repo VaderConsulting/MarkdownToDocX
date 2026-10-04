@@ -251,15 +251,24 @@ public static class FlowchartSvgPathGeometryHelper
                     CurrentX = Values[ValueIndex];
                     CurrentY = Values[ValueIndex + 1];
                 }
+
+                continue;
+            }
+
+            if (string.Equals(Command, "C", StringComparison.Ordinal) && Values.Count >= 6)
+            {
+                CurrentX = Values[Values.Count - 2];
+                CurrentY = Values[Values.Count - 1];
+                LineSegmentStarts.Clear();
             }
         }
 
-        if (LineSegmentStarts.Count < 4)
+        if (LineSegmentStarts.Count < 2)
         {
             return false;
         }
 
-        int LastStartIndex = LineSegmentStarts.Count - 4;
+        int LastStartIndex = LineSegmentStarts.Count - 2;
         StartX = LineSegmentStarts[LastStartIndex];
         StartY = LineSegmentStarts[LastStartIndex + 1];
         EndX = CurrentX;

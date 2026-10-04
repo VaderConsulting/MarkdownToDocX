@@ -1,5 +1,7 @@
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
@@ -44,11 +46,14 @@ public sealed class FlowchartPerpendicularAttachTests
         ];
 
         string PathData = FlowchartCurvePathBuilder.BuildCurveBasisPathData(Points);
-        Assert.That(PathData, Does.Match(@"M0,0L0,10C0,12[\d\.]* "));
+        Match FirstControl = Regex.Match(PathData, @"^M0,0L0,10C(-?[\d\.]+),(-?[\d\.]+) ");
+        Assert.That(FirstControl.Success, Is.True, PathData);
+        Assert.That(double.Parse(FirstControl.Groups[1].Value, CultureInfo.InvariantCulture), Is.EqualTo(0.0).Within(0.01), "The first control point should lie on the source stub line.");
+        Assert.That(double.Parse(FirstControl.Groups[2].Value, CultureInfo.InvariantCulture), Is.GreaterThan(10.0), "The first control point should extend past the stub end.");
     }
 
     [Test]
-    public void BuildCurveBasisPathData_FivePointRoute_CurvesThroughTargetStubWithSmoothTerminal()
+    public void BuildCurveBasisPathData_FivePointRoute_BridgesStubsWithOneCubic()
     {
         List<(double X, double Y)> Points =
         [
@@ -59,15 +64,15 @@ public sealed class FlowchartPerpendicularAttachTests
             (40.0, 60.0)
         ];
 
+        // Spec §15.0C.3: the two straight stubs are joined by one cubic.
         string PathData = FlowchartCurvePathBuilder.BuildCurveBasisPathData(Points);
-        Assert.That(PathData, Does.Contain("C"));
-        Assert.That(PathData, Does.EndWith("L40,60"));
-        Assert.That(PathData, Does.Contain("L40,50L40,60"),
-            "Target stub-to-boundary must stay a straight segment");
+        Assert.That(PathData, Does.StartWith("M0,0L0,10C"));
+        Assert.That(PathData.Count(Character => Character == 'C'), Is.EqualTo(1));
+        Assert.That(PathData, Does.EndWith(" 40,50L40,60"), "Target stub-to-boundary must stay a straight segment");
     }
 
     [Test]
-    public void BuildCurveBasisPathData_SixPointRoute_IncludesMultipleCurveSegmentsBeforeTerminal()
+    public void BuildCurveBasisPathData_SixPointRoute_BridgesStubsWithOneCubic()
     {
         List<(double X, double Y)> Points =
         [
@@ -79,14 +84,16 @@ public sealed class FlowchartPerpendicularAttachTests
             (40.0, 60.0)
         ];
 
+        // Spec §15.0C.3 covers four- to six-point stub routes: the step guides are bridged by one cubic.
         string PathData = FlowchartCurvePathBuilder.BuildCurveBasisPathData(Points);
         int CurveSegmentCount = PathData.Split('C').Length - 1;
-        Assert.That(CurveSegmentCount, Is.GreaterThanOrEqualTo(3));
-        Assert.That(PathData, Does.EndWith("40,60"));
+        Assert.That(CurveSegmentCount, Is.EqualTo(1));
+        Assert.That(PathData, Does.StartWith("M0,0L0,10C"));
+        Assert.That(PathData, Does.EndWith("L40,60"));
     }
 
     [Test]
-    public void ComputeOffsetLabelPositionForStraightSegment_UsesConnectorMidspan()
+    public void ComputeOffsetLabelPositionForStraightSegment_UsesConnectorMidspanOffsetToOneSide()
     {
         (double LabelX, double LabelY) = FlowchartEdgeLabelPlacementHelper.ComputeOffsetLabelPositionForStraightSegment(
             100.0,
@@ -94,7 +101,7 @@ public sealed class FlowchartPerpendicularAttachTests
             100.0,
             50.0);
 
-        Assert.That(LabelX, Is.EqualTo(100.0).Within(0.5));
+        Assert.That(Math.Abs(LabelX - 100.0), Is.EqualTo(FlowchartEdgeLabelPlacementHelper.DEFAULT_OFFSET_PX).Within(0.5));
         Assert.That(LabelY, Is.EqualTo(25.0).Within(0.5));
     }
 
@@ -135,7 +142,7 @@ public sealed class FlowchartPerpendicularAttachTests
     }
 
     [Test]
-    public void ComputeOffsetLabelPosition_UsesHalfPolylineDistance()
+    public void ComputeOffsetLabelPosition_UsesHalfPolylineDistanceOffsetToOneSide()
     {
         List<(double X, double Y)> GuidePoints =
         [
@@ -146,10 +153,14 @@ public sealed class FlowchartPerpendicularAttachTests
         ];
 
         (double LabelX, double LabelY) = FlowchartEdgeLabelPlacementHelper.ComputeOffsetLabelPosition(GuidePoints);
-        (double ExpectedX, double ExpectedY) = FlowchartEdgeLabelPlacementHelper.ComputePolylineHalfDistancePosition(GuidePoints);
+        (double MidX, double MidY) = FlowchartEdgeLabelPlacementHelper.ComputePolylineHalfDistancePosition(GuidePoints);
 
-        Assert.That(LabelX, Is.EqualTo(ExpectedX).Within(0.5));
-        Assert.That(LabelY, Is.EqualTo(ExpectedY).Within(0.5));
+        double OffsetX = LabelX - MidX;
+        double OffsetY = LabelY - MidY;
+        double OffsetLength = Math.Sqrt((OffsetX * OffsetX) + (OffsetY * OffsetY));
+        Assert.That(OffsetLength, Is.EqualTo(FlowchartEdgeLabelPlacementHelper.DEFAULT_OFFSET_PX).Within(0.5));
+        double AlongDiagonal = (OffsetX + OffsetY) / Math.Sqrt(2.0);
+        Assert.That(AlongDiagonal, Is.EqualTo(0.0).Within(0.5), "The offset should be at right angles to the 45 degree segment at the midpoint.");
     }
 
     [Test]
@@ -245,10 +256,10 @@ public sealed class FlowchartPerpendicularAttachTests
             """);
 
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
-        int StraightSpineCount = System.Text.RegularExpressions.Regex.Matches(Svg, "<line ").Count;
-        int CurvedBranchCount = System.Text.RegularExpressions.Regex.Matches(
+        int StraightSpineCount = SvgStraightConnectorReader.Read(Svg).Count(Connector => Math.Abs(Connector.X1 - Connector.X2) < 0.5);
+        int CurvedBranchCount = Regex.Matches(
             Svg,
-            @"<path d=""M[^""]+L[^""]+C[^""]+C[^""]+L[^""]+"" fill=""none""").Count;
+            @"<path d=""M[^""C]+L[^""C]+C[^""]+L[^""C]+"" fill=""none""").Count;
 
         Assert.That(StraightSpineCount, Is.GreaterThanOrEqualTo(1), "Start→Valid? should be a straight vertical connector");
         Assert.That(CurvedBranchCount, Is.GreaterThanOrEqualTo(2),
@@ -279,8 +290,8 @@ public sealed class FlowchartPerpendicularAttachTests
             }
 
             int CubicCount = System.Text.RegularExpressions.Regex.Matches(PathData, @"C").Count;
-            Assert.That(CubicCount, Is.EqualTo(2),
-                "Pure curveBasis decision branches must emit exactly two cubics, not a terminal-hook third cubic");
+            Assert.That(CubicCount, Is.EqualTo(1),
+                "Decision branches are stub-bridge routes (spec §15.0C.3): one cubic between the stubs, with no terminal hook cubic");
         }
     }
 
@@ -373,7 +384,7 @@ public sealed class FlowchartPerpendicularAttachTests
             """);
 
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
-        int StraightLineCount = System.Text.RegularExpressions.Regex.Matches(Svg, "<line ").Count;
+        int StraightLineCount = SvgStraightConnectorReader.Read(Svg).Count(Connector => Math.Abs(Connector.X1 - Connector.X2) < 0.5);
 
         Assert.That(StraightLineCount, Is.GreaterThanOrEqualTo(3),
             "Christmas→Go shopping, Go shopping→Let me think, and Let me think→iPhone should be straight");
@@ -402,14 +413,14 @@ public sealed class FlowchartPerpendicularAttachTests
                 && System.Text.RegularExpressions.Regex.IsMatch(
                     Match.Groups[1].Value,
                     @"M[^""]*L[^""]*L[^""]*L[^""]*L"));
-        int MultiCurveBranchCount = System.Text.RegularExpressions.Regex.Matches(
+        int CurvedBranchCount = System.Text.RegularExpressions.Regex.Matches(
             Svg,
-            @"<path d=""[^""]*C[^""]*C[^""]*"" fill=""none""").Count;
+            @"<path d=""[^""]*C[^""]*"" fill=""none""").Count;
 
         Assert.That(AngularPolylineCount, Is.EqualTo(0),
             "Side branches must not regress to kinked polyline paths");
-        Assert.That(MultiCurveBranchCount, Is.GreaterThanOrEqualTo(2),
-            "Laptop and Other gift side branches should use smooth curveBasis bodies");
+        Assert.That(CurvedBranchCount, Is.GreaterThanOrEqualTo(2),
+            "Laptop and Other gift side branches should use smooth curved bodies (one stub-bridge cubic, spec §15.0C.3)");
     }
 
     [Test]

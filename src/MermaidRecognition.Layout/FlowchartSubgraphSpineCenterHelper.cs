@@ -169,7 +169,7 @@ public static class FlowchartSubgraphSpineCenterHelper
             return;
         }
 
-        if (CountLargestAlignedSet(Contract, Group, BoundsById, ByColumn: true) >= CountLargestAlignedSet(Contract, Group, BoundsById, ByColumn: false))
+        if (IsColumnLed(Contract, Group, BoundsById))
         {
             return;
         }
@@ -179,6 +179,18 @@ public static class FlowchartSubgraphSpineCenterHelper
         double HalfSpan = Math.Max(BottomExtent, TopExtent);
         MinY = RowCenterY - HalfSpan;
         MaxY = RowCenterY + HalfSpan;
+    }
+
+    /// <summary>
+    /// Returns true when the group's longest column has at least as many members as its longest row.
+    /// The box of a column-led group is centred on its column only, never on a row (F59).
+    /// </summary>
+    public static bool IsColumnLed(
+        DiagramContract Contract,
+        GroupContract Group,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById)
+    {
+        return CountLargestAlignedSet(Contract, Group, BoundsById, ByColumn: true) >= CountLargestAlignedSet(Contract, Group, BoundsById, ByColumn: false);
     }
 
     /// <summary>

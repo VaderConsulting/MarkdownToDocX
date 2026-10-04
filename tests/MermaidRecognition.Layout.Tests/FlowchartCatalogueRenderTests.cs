@@ -233,13 +233,12 @@ public sealed class FlowchartCatalogueRenderTests
                 NodeById,
                 FlowchartDirection.TopToBottom,
                 out List<(double X, double Y)> GuidePoints,
-                out FlowchartEdgeRouteKind RouteKind),
+                out FlowchartEdgeRouteKind _),
             Is.True);
-        Assert.That(RouteKind, Is.EqualTo(FlowchartEdgeRouteKind.Straight));
-        Assert.That(GuidePoints.Count, Is.EqualTo(2));
+        Assert.That(GuidePoints.Count == 2 || FlowchartEdgeConnectionGeometry.IsCollinearStubStraightRoute(GuidePoints), Is.True, "App to Store should be one straight connector, with or without terminal stubs.");
 
         double ExpectedTopY = StoreBounds.CenterY + (StoreBounds.Height / 2.0);
-        Assert.That(GuidePoints[1].Y, Is.EqualTo(ExpectedTopY).Within(0.5));
+        Assert.That(GuidePoints[GuidePoints.Count - 1].Y, Is.EqualTo(ExpectedTopY).Within(0.5));
 
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
         Match CylinderOutline = Regex.Match(Svg, @"<path d=""([^""]+)""[^>]*fill-opacity=""0""");
@@ -346,21 +345,39 @@ public sealed class FlowchartCatalogueRenderTests
             """);
 
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
-        Match LineMatch = Regex.Match(Svg, @"<line x1=""([^""]+)"" y1=""[^""]+"" x2=""([^""]+)""");
+        List<SvgStraightConnector> Connectors = SvgStraightConnectorReader.Read(Svg);
         MatchCollection Polygons = Regex.Matches(Svg, @"<polygon points=""([^""]+)""");
-        Assert.That(LineMatch.Success, Is.True);
+        Assert.That(Connectors, Has.Count.EqualTo(1));
         Assert.That(Polygons.Count, Is.GreaterThanOrEqualTo(2));
 
-        double LineStartX = double.Parse(LineMatch.Groups[1].Value, CultureInfo.InvariantCulture);
-        double LineEndX = double.Parse(LineMatch.Groups[2].Value, CultureInfo.InvariantCulture);
+        double LineStartX = Math.Min(Connectors[0].X1, Connectors[0].X2);
+        double LineEndX = Math.Max(Connectors[0].X1, Connectors[0].X2);
 
         double[] FirstTip = ParsePolygonTip(Polygons[0].Groups[1].Value.Split(' ', StringSplitOptions.RemoveEmptyEntries)[0]);
         double[] SecondTip = ParsePolygonTip(Polygons[1].Groups[1].Value.Split(' ', StringSplitOptions.RemoveEmptyEntries)[0]);
         double LeftTipX = Math.Min(FirstTip[0], SecondTip[0]);
         double RightTipX = Math.Max(FirstTip[0], SecondTip[0]);
 
-        Assert.That(RightTipX, Is.EqualTo(LineEndX + 10.0).Within(2.0));
-        Assert.That(LeftTipX, Is.EqualTo(LineStartX - 10.0).Within(2.0));
+        // Default look does not trim the stroke for markers (spec §12): the line runs to each node
+        // boundary under the arrowhead, and each tip sits 1 px inside its node.
+        Assert.That(RightTipX, Is.EqualTo(LineEndX + 1.0).Within(0.5));
+        Assert.That(LeftTipX, Is.EqualTo(LineStartX - 1.0).Within(0.5));
+    }
+
+    /// <summary>
+    /// Checks that a label box lies wholly on one side of a straight connector and its near edge is within
+    /// 40 px of it (spec §15.0C.8). Coordinates are measured across the flow.
+    /// </summary>
+    /// <param name="LabelLow">The lower edge of the label box across the flow.</param>
+    /// <param name="LabelHigh">The upper edge of the label box across the flow.</param>
+    /// <param name="LineCoordinate">The connector position across the flow.</param>
+    internal static void AssertLabelEdgeBesideLine(double LabelLow, double LabelHigh, double LineCoordinate)
+    {
+        const double MAXIMUM_LABEL_GAP_PX = 40.0;
+        bool ClearOfLine = LabelLow >= LineCoordinate || LabelHigh <= LineCoordinate;
+        Assert.That(ClearOfLine, Is.True, $"Label box {LabelLow:0.##}..{LabelHigh:0.##} covers the connector at {LineCoordinate:0.##}.");
+        double Gap = Math.Min(Math.Abs(LabelLow - LineCoordinate), Math.Abs(LabelHigh - LineCoordinate));
+        Assert.That(Gap, Is.LessThanOrEqualTo(MAXIMUM_LABEL_GAP_PX), "Label should stay close to its connector.");
     }
 
     private static double[] ParsePolygonTip(string PointToken)
@@ -448,47 +465,36 @@ public sealed class FlowchartCatalogueRenderTests
         FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
 
-        Match HorizontalSpineLine = Regex.Matches(
-                Svg,
-                @"<line x1=""([^""]+)"" y1=""([^""]+)"" x2=""([^""]+)"" y2=""([^""]+)""")
-            .Select(Match => Match)
-            .Where(Match =>
-            {
-                double X1 = double.Parse(Match.Groups[1].Value, CultureInfo.InvariantCulture);
-                double Y1 = double.Parse(Match.Groups[2].Value, CultureInfo.InvariantCulture);
-                double X2 = double.Parse(Match.Groups[3].Value, CultureInfo.InvariantCulture);
-                double Y2 = double.Parse(Match.Groups[4].Value, CultureInfo.InvariantCulture);
-                return Math.Abs(Y1 - Y2) < 0.5 && Math.Abs(X2 - X1) > 50.0;
-            })
-            .OrderByDescending(Match => double.Parse(Match.Groups[3].Value, CultureInfo.InvariantCulture)
-                - double.Parse(Match.Groups[1].Value, CultureInfo.InvariantCulture))
+        SvgStraightConnector HorizontalSpineLine = SvgStraightConnectorReader.Read(Svg)
+            .Where(Connector => Math.Abs(Connector.Y1 - Connector.Y2) < 0.5 && Math.Abs(Connector.X2 - Connector.X1) > 50.0)
+            .OrderByDescending(Connector => Math.Abs(Connector.X2 - Connector.X1))
             .First();
 
-        double SpineMidSvgY =
-            (double.Parse(HorizontalSpineLine.Groups[2].Value, CultureInfo.InvariantCulture)
-            + double.Parse(HorizontalSpineLine.Groups[4].Value, CultureInfo.InvariantCulture)) / 2.0;
+        double SpineMidSvgY = (HorizontalSpineLine.Y1 + HorizontalSpineLine.Y2) / 2.0;
 
-        Match LabelText = Regex.Match(
-            Svg,
-            @"<text x=""([^""]+)"" y=""([^""]+)""[^>]*dominant-baseline=""middle""[^>]*>(.*?)</text>",
-            RegexOptions.Singleline);
-        Assert.That(LabelText.Success, Is.True, "Could not locate wrapped edge-label <text> in SVG.");
+        Match? LabelText = Regex.Matches(
+                Svg,
+                @"<text x=""([^""]+)"" y=""([^""]+)""[^>]*>(.*?)</text>",
+                RegexOptions.Singleline)
+            .Cast<Match>()
+            .FirstOrDefault(Candidate => Candidate.Groups[3].Value.Contains("intentionally", StringComparison.Ordinal));
+        Assert.That(LabelText, Is.Not.Null, "Could not locate wrapped edge-label <text> in SVG.");
 
-        double FirstLineSvgY = double.Parse(LabelText.Groups[2].Value, CultureInfo.InvariantCulture);
+        double FirstLineSvgY = double.Parse(LabelText!.Groups[2].Value, CultureInfo.InvariantCulture);
         int LineCount = Regex.Matches(LabelText.Groups[3].Value, "<tspan", RegexOptions.IgnoreCase).Count;
         if (LineCount < 1)
         {
             LineCount = 1;
         }
 
-        double LabelCentreSvgY = FlowchartRichLabelSvgWriter.ComputeLabelBlockCentreY(
-            FirstLineSvgY,
-            LineCount,
-            Options.EdgeLabelFontSizePx,
-            1.5,
-            UseMiddleDominantBaseline: true);
+        double LabelCentreSvgY = FlowchartRichLabelSvgWriter.ComputeLabelBlockCentreY(FirstLineSvgY, LineCount, Options.EdgeLabelFontSizePx, 1.5);
+        double LabelHalfHeight = (LineCount * Options.EdgeLabelFontSizePx * 1.5) / 2.0;
+        double LabelCentreSvgX = double.Parse(LabelText.Groups[1].Value, CultureInfo.InvariantCulture);
+        double ConnectorMidSvgX = (HorizontalSpineLine.X1 + HorizontalSpineLine.X2) / 2.0;
 
-        Assert.That(LabelCentreSvgY, Is.EqualTo(SpineMidSvgY).Within(2.0));
+        // The wrapped label sits above or below the connector (spec §15.0C.8), centred along it.
+        AssertLabelEdgeBesideLine(LabelCentreSvgY - LabelHalfHeight, LabelCentreSvgY + LabelHalfHeight, SpineMidSvgY);
+        Assert.That(LabelCentreSvgX, Is.EqualTo(ConnectorMidSvgX).Within(2.0));
     }
 
     [Test]
@@ -527,17 +533,9 @@ public sealed class FlowchartCatalogueRenderTests
         double Step1TextX = double.Parse(Step1Text.Groups[1].Value, CultureInfo.InvariantCulture);
         double Step2TextX = double.Parse(Step2Text.Groups[1].Value, CultureInfo.InvariantCulture);
 
-        List<double> VerticalSpineLineXValues = Regex.Matches(
-                Svg,
-                @"<line x1=""([^""]+)"" y1=""([^""]+)"" x2=""([^""]+)"" y2=""([^""]+)""")
-            .Select(Match => Match)
-            .Where(Match =>
-            {
-                double X1 = double.Parse(Match.Groups[1].Value, CultureInfo.InvariantCulture);
-                double X2 = double.Parse(Match.Groups[3].Value, CultureInfo.InvariantCulture);
-                return Math.Abs(X1 - X2) < 0.5;
-            })
-            .Select(Match => double.Parse(Match.Groups[1].Value, CultureInfo.InvariantCulture))
+        List<double> VerticalSpineLineXValues = SvgStraightConnectorReader.Read(Svg)
+            .Where(Connector => Math.Abs(Connector.X1 - Connector.X2) < 0.5)
+            .Select(Connector => Connector.X1)
             .Distinct()
             .ToList();
 
@@ -545,8 +543,13 @@ public sealed class FlowchartCatalogueRenderTests
         double SpineSvgX = VerticalSpineLineXValues
             .OrderBy(X => Math.Abs(X - Step1TextX))
             .First();
-        Assert.That(Step1TextX, Is.EqualTo(SpineSvgX).Within(1.0));
-        Assert.That(Step2TextX, Is.EqualTo(SpineSvgX).Within(1.0));
+
+        // Labels sit beside the spine, not on it (spec §15.0C.8): the near edge clears the line and stays close to it.
+        FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
+        double Step1HalfWidth = FlowchartNodeSizeEstimator.MeasureWrappedLabel("Step 1: validate input", Options, Options.EdgeLabelFontSizePx).Width / 2.0;
+        double Step2HalfWidth = FlowchartNodeSizeEstimator.MeasureWrappedLabel("Step 2: persist (async)", Options, Options.EdgeLabelFontSizePx).Width / 2.0;
+        AssertLabelEdgeBesideLine(Step1TextX - Step1HalfWidth, Step1TextX + Step1HalfWidth, SpineSvgX);
+        AssertLabelEdgeBesideLine(Step2TextX - Step2HalfWidth, Step2TextX + Step2HalfWidth, SpineSvgX);
 
         Dictionary<string, NodeContract> NodeById = Contract.Nodes
             .ToDictionary(Node => Node.Id, Node => Node);
@@ -582,40 +585,18 @@ public sealed class FlowchartCatalogueRenderTests
         double ExpectedStep2PortMidLayoutY =
             (Step2GuidePoints[0].Y + Step2GuidePoints[Step2GuidePoints.Count - 1].Y) / 2.0;
 
-        List<Match> VerticalLines = Regex.Matches(
-                Svg,
-                @"<line x1=""([^""]+)"" y1=""([^""]+)"" x2=""([^""]+)"" y2=""([^""]+)""")
-            .Select(Match => Match)
-            .Where(Match =>
-            {
-                double X1 = double.Parse(Match.Groups[1].Value, CultureInfo.InvariantCulture);
-                double X2 = double.Parse(Match.Groups[3].Value, CultureInfo.InvariantCulture);
-                return Math.Abs(X1 - X2) < 0.5;
-            })
+        List<SvgStraightConnector> VerticalLines = SvgStraightConnectorReader.Read(Svg)
+            .Where(Connector => Math.Abs(Connector.X1 - Connector.X2) < 0.5)
             .ToList();
-        Match Step1SpineLine = VerticalLines
-            .OrderBy(Match =>
-            {
-                double Y1 = double.Parse(Match.Groups[2].Value, CultureInfo.InvariantCulture);
-                double Y2 = double.Parse(Match.Groups[4].Value, CultureInfo.InvariantCulture);
-                return Math.Abs(((Y1 + Y2) / 2.0) - Step1TextY);
-            })
+        SvgStraightConnector Step1SpineLine = VerticalLines
+            .OrderBy(Connector => Math.Abs(((Connector.Y1 + Connector.Y2) / 2.0) - Step1TextY))
             .First();
-        Match Step2SpineLine = VerticalLines
-            .OrderBy(Match =>
-            {
-                double Y1 = double.Parse(Match.Groups[2].Value, CultureInfo.InvariantCulture);
-                double Y2 = double.Parse(Match.Groups[4].Value, CultureInfo.InvariantCulture);
-                return Math.Abs(((Y1 + Y2) / 2.0) - Step2TextY);
-            })
+        SvgStraightConnector Step2SpineLine = VerticalLines
+            .OrderBy(Connector => Math.Abs(((Connector.Y1 + Connector.Y2) / 2.0) - Step2TextY))
             .First();
 
-        double Step1LineMidSvgY =
-            (double.Parse(Step1SpineLine.Groups[2].Value, CultureInfo.InvariantCulture)
-            + double.Parse(Step1SpineLine.Groups[4].Value, CultureInfo.InvariantCulture)) / 2.0;
-        double Step2LineMidSvgY =
-            (double.Parse(Step2SpineLine.Groups[2].Value, CultureInfo.InvariantCulture)
-            + double.Parse(Step2SpineLine.Groups[4].Value, CultureInfo.InvariantCulture)) / 2.0;
+        double Step1LineMidSvgY = (Step1SpineLine.Y1 + Step1SpineLine.Y2) / 2.0;
+        double Step2LineMidSvgY = (Step2SpineLine.Y1 + Step2SpineLine.Y2) / 2.0;
 
         Assert.That(Step1TextY, Is.EqualTo(Step1LineMidSvgY).Within(10.0));
         Assert.That(Step2TextY, Is.EqualTo(Step2LineMidSvgY).Within(10.0));
@@ -736,11 +717,15 @@ public sealed class FlowchartCatalogueRenderTests
             Assert.That(LabelText!.Success, Is.True, "Could not locate " + Edge.Label + " edge label in SVG.");
 
             double LabelSvgX = double.Parse(LabelText.Groups[1].Value, CultureInfo.InvariantCulture);
-            double MinLeft = BoundsById.Values.Min(Bounds => Bounds.CenterX - (Bounds.Width / 2.0));
-            double Padding = FlowchartRenderOptions.FromContract(Contract).DiagramPaddingPx;
-            double ExpectedSvgX = Padding + (ExpectedLayoutX - MinLeft);
+            Assert.That(FlowchartSvgLayoutCoordinateMapper.TryCreate(Contract, Layout, out FlowchartSvgLayoutCoordinateMapper? Mapper), Is.True);
+            (double PlacementSvgX, double _) = Mapper!.LayoutToSvg(ExpectedLayoutX, 0.0);
+            (double DiamondSvgX, double _) = Mapper.LayoutToSvg(CheckBounds.CenterX, 0.0);
+            (double DrawnSvgX, double _) = DrawnEdgeLabelLocator.ResolveSvgCentre(Contract, Layout, Edge);
 
-            Assert.That(LabelSvgX, Is.EqualTo(ExpectedSvgX).Within(2.0));
+            // The label is drawn at the decision placement point moved clear of the connector and the diamond
+            // (spec §15.0C.8 and the EIP 2.56 addendum), so it stays on the outer side of its branch.
+            Assert.That(LabelSvgX, Is.EqualTo(DrawnSvgX).Within(2.0));
+            Assert.That(Math.Sign(LabelSvgX - DiamondSvgX), Is.EqualTo(Math.Sign(PlacementSvgX - DiamondSvgX)), $"{Edge.Label} should stay on its branch side.");
         }
     }
 
@@ -936,6 +921,7 @@ public sealed class FlowchartCatalogueRenderTests
             .ToDictionary(Node => Node.Id, Node => Node);
         FlowchartLayoutNodeBounds HubBounds = BoundsById["Hub"];
 
+        // Spec §15.0C.1: workers wholly beside the hub leave from the middle of the hub's facing side.
         AssertEdgeSourceFace(
             Contract,
             BoundsById,
@@ -943,7 +929,7 @@ public sealed class FlowchartCatalogueRenderTests
             Direction,
             "Hub",
             "W1",
-            FlowchartEdgeAttachFace.Bottom,
+            FlowchartEdgeAttachFace.Left,
             FlowchartEdgeRouteKind.Curved);
 
         AssertEdgeSourceFace(
@@ -963,7 +949,7 @@ public sealed class FlowchartCatalogueRenderTests
             Direction,
             "Hub",
             "W3",
-            FlowchartEdgeAttachFace.Bottom,
+            FlowchartEdgeAttachFace.Right,
             FlowchartEdgeRouteKind.Curved);
 
         foreach (string WorkerId in new[] { "W1", "W2", "W3" })
@@ -1061,8 +1047,8 @@ public sealed class FlowchartCatalogueRenderTests
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
         int CurvedPathCount = System.Text.RegularExpressions.Regex.Matches(
             Svg,
-            @"<path d=""M[^""]+L[^""]+C[^""]+C[^""]+C[^""]+L[^""]+"" fill=""none""").Count;
-        int StraightLineCount = System.Text.RegularExpressions.Regex.Matches(Svg, "<line ").Count;
+            @"<path d=""M[^""C]+L[^""C]+C[^""]+L[^""C]+"" fill=""none""").Count;
+        int StraightLineCount = SvgStraightConnectorReader.Read(Svg).Count;
 
         Assert.That(StraightLineCount, Is.EqualTo(1), "Centre Worker 2→Aggregate should be a straight vertical line");
         Assert.That(CurvedPathCount, Is.GreaterThanOrEqualTo(2),
@@ -1133,8 +1119,22 @@ public sealed class FlowchartCatalogueRenderTests
                 BoundsById["Agg"],
                 LayoutPoints[LayoutPoints.Count - 1].X,
                 LayoutPoints[LayoutPoints.Count - 1].Y);
-            Assert.That(TargetFace, Is.EqualTo(FlowchartEdgeAttachFace.Bottom),
-                WorkerId + " should enter Aggregate at bottom-centre (spec §15 F32)");
+
+            // Spec §15.0C.1: a worker wholly beside the hub joins the middle of the hub's facing side;
+            // the aligned worker stays a straight vertical into the bottom face.
+            FlowchartLayoutNodeBounds WorkerBounds = BoundsById[WorkerId];
+            FlowchartLayoutNodeBounds HubBounds = BoundsById["Agg"];
+            FlowchartEdgeAttachFace ExpectedFace = FlowchartEdgeAttachFace.Bottom;
+            if (WorkerBounds.CenterX + (WorkerBounds.Width / 2.0) < HubBounds.CenterX - (HubBounds.Width / 2.0))
+            {
+                ExpectedFace = FlowchartEdgeAttachFace.Left;
+            }
+            else if (WorkerBounds.CenterX - (WorkerBounds.Width / 2.0) > HubBounds.CenterX + (HubBounds.Width / 2.0))
+            {
+                ExpectedFace = FlowchartEdgeAttachFace.Right;
+            }
+
+            Assert.That(TargetFace, Is.EqualTo(ExpectedFace), $"{WorkerId} should enter Aggregate on the face that faces it (spec §15.0C.1)");
         }
     }
 
@@ -1164,8 +1164,8 @@ public sealed class FlowchartCatalogueRenderTests
 
             SideBranchPathCount++;
             int CubicCount = System.Text.RegularExpressions.Regex.Matches(PathData, @"C").Count;
-            Assert.That(CubicCount, Is.EqualTo(3),
-                "Side fan-in branches use a 4-point boundary S-route → three curveBasis cubics");
+            Assert.That(CubicCount, Is.EqualTo(1),
+                "Side fan-in branches join the hub side with one quarter curve between the stubs (spec §15.0C.1)");
             Assert.That(PathData, Does.Match(@"M[^""]+L[^""]+C[^""]+L[^""]+$"),
                 "Pure curveBasis fan routes must end with a straight line to the target boundary");
         }
@@ -1187,7 +1187,7 @@ public sealed class FlowchartCatalogueRenderTests
             """);
 
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
-        int StraightLineCount = System.Text.RegularExpressions.Regex.Matches(Svg, "<line ").Count;
+        int StraightLineCount = SvgStraightConnectorReader.Read(Svg).Count;
 
         Assert.That(StraightLineCount, Is.EqualTo(2),
             "Only Ingress→Enqueue and Aggregate→Out should remain straight; fan branches are curved");
@@ -1293,11 +1293,13 @@ public sealed class FlowchartCatalogueRenderTests
 
         Assert.That(Worker1Resolved, Is.True);
         Assert.That(Worker2Resolved, Is.True);
-        Assert.That(BoundsById["D"].CenterY, Is.GreaterThan(BoundsById["C"].CenterY),
-            "Worker 2 should sit above Worker 1 in layout coordinates");
+        Assert.That(Math.Abs(BoundsById["D"].CenterY - BoundsById["C"].CenterY), Is.GreaterThan(1.0), "The two workers should sit in different rows");
+        bool Worker1IsUpper = BoundsById["C"].CenterY > BoundsById["D"].CenterY;
+        List<(double X, double Y)> UpperPoints = Worker1IsUpper ? Worker1Points : Worker2Points;
+        List<(double X, double Y)> LowerPoints = Worker1IsUpper ? Worker2Points : Worker1Points;
         Assert.That(
-            Worker2Points[Worker2Points.Count - 1].Y,
-            Is.GreaterThan(Worker1Points[Worker1Points.Count - 1].Y),
+            UpperPoints[UpperPoints.Count - 1].Y,
+            Is.GreaterThan(LowerPoints[LowerPoints.Count - 1].Y),
             "Upper worker should enter Aggregate on the upper left slot, not cross beneath the lower worker");
     }
 
@@ -1330,8 +1332,8 @@ public sealed class FlowchartCatalogueRenderTests
 
             SideFanPathCount++;
             int CubicCount = System.Text.RegularExpressions.Regex.Matches(PathData, @"C").Count;
-            Assert.That(CubicCount, Is.EqualTo(3),
-                "LR side fan routes use a 4-point boundary S-route → three curveBasis cubics");
+            Assert.That(CubicCount, Is.EqualTo(1),
+                "LR side fan routes are stub-bridge routes: one cubic between the stubs (spec §15.0C.3)");
             Assert.That(PathData, Does.Match(@"M[^""]+L[^""]+C[^""]+L[^""]+$"),
                 "Pure curveBasis fan routes must end with a straight line to the target boundary");
         }
@@ -1408,10 +1410,10 @@ public sealed class FlowchartCatalogueRenderTests
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
         int CurvedBranchCount = System.Text.RegularExpressions.Regex.Matches(
             Svg,
-            @"<path d=""M[^""]+L[^""]+C[^""]+C[^""]+"" fill=""none""").Count;
+            @"<path d=""M[^""C]+L[^""C]+C[^""]+L[^""C]+"" fill=""none""").Count;
 
         Assert.That(CurvedBranchCount, Is.GreaterThanOrEqualTo(2),
-            "Left and right decision branches should use curved S-routes with perpendicular terminal stubs");
+            "Left and right decision branches should use curved S-routes with perpendicular terminal stubs (one stub-bridge cubic, spec §15.0C.3)");
     }
 
     [Test]
@@ -1648,7 +1650,8 @@ public sealed class FlowchartCatalogueRenderTests
 
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
         Assert.That(Svg, Does.Contain(">Rect</text>"));
-        Assert.That(Svg, Does.Contain("text-anchor=\"middle\" dominant-baseline=\"middle\""));
+        Assert.That(Svg, Does.Contain("text-anchor=\"middle\" fill="));
+        Assert.That(Svg, Does.Not.Contain("dominant-baseline"));
     }
 
     [Test]
@@ -2246,7 +2249,7 @@ public sealed class FlowchartCatalogueRenderTests
     }
 
     [Test]
-    public void TryResolveLayoutGuidePoints_F59_NoBranch_UsesLeftPortAndWaitCentreTarget()
+    public void TryResolveLayoutGuidePoints_F59_NoBranch_UsesSidePortFacingWaitAndWaitCentreTarget()
     {
         DiagramContract Contract = MermaidRecognizer.Parse("""
             flowchart TB
@@ -2282,7 +2285,9 @@ public sealed class FlowchartCatalogueRenderTests
             Is.True);
 
         double HubCentreX = BoundsById["W"].CenterX;
-        Assert.That(NoPoints[0].X, Is.LessThan(HubCentreX - 8.0));
+        double WaitSide = Math.Sign(BoundsById["Wait"].CenterX - HubCentreX);
+        Assert.That(WaitSide, Is.Not.EqualTo(0.0), "Wait should sit beside the decision, not on its spine.");
+        Assert.That((NoPoints[0].X - HubCentreX) * WaitSide, Is.GreaterThan(8.0), "The No branch should leave the diamond slope that faces Wait.");
         Assert.That(NoPoints[NoPoints.Count - 1].X, Is.EqualTo(BoundsById["Wait"].CenterX).Within(1.0));
     }
 
@@ -2441,24 +2446,28 @@ public sealed class FlowchartCatalogueRenderTests
 
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
 
-        double SpineX = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "Start").CenterX;
-        double RejectX = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "Reject").CenterX;
-        double RenderX = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "Render").CenterX;
-        double WordX = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "Word").CenterX;
-        double DoneY = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "Done").CenterY;
-        double ValidateY = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "Validate").CenterY;
-        double RejectY = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "Reject").CenterY;
+        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds.ToDictionary(Bounds => Bounds.NodeId, Bounds => Bounds);
+        double SpineX = BoundsById["Start"].CenterX;
 
-        Assert.That(RejectX, Is.LessThan(SpineX - 40.0), "Reject should occupy a left margin column");
-        Assert.That(RenderX, Is.LessThan(SpineX - 8.0), "Render SVG should sit in the inner left-hand column after HasMermaid");
-        Assert.That(RejectX, Is.LessThan(RenderX - 8.0), "Reject should sit in the far-left margin column, left of Render SVG");
-        Assert.That(Math.Abs(WordX - SpineX), Is.LessThan(30.0), "Main spine nodes stay centred");
-        double DoneX = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "Done").CenterX;
-        double PersistY = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "Persist").CenterY;
-        Assert.That(Math.Abs(DoneX - SpineX), Is.LessThan(30.0), "Done returns to the centre spine column");
-        Assert.That(PersistY, Is.GreaterThan(DoneY + 40.0), "Optional archive sits above Done on the spine");
-        Assert.That(RejectY, Is.LessThan(DoneY - 40.0), "Reject should sit above Done on the margin leg");
-        Assert.That(ValidateY, Is.GreaterThan(RejectY + 40.0), "Validate stays above the reject branch row");
+        Assert.That(BoundsById["Reject"].CenterX, Is.LessThan(SpineX - 40.0), "Reject should occupy a left margin column");
+        Assert.That(BoundsById["Reject"].CenterX, Is.LessThan(BoundsById["Render"].CenterX - 8.0), "Reject should sit in the far-left column, left of Render SVG");
+
+        // Spec §15.0C.11: each two-way decision sends its branches to columns on either side of it.
+        AssertBranchesOnBothSides(BoundsById, "Validate", "Reject", "Parse");
+        AssertBranchesOnBothSides(BoundsById, "HasMermaid", "Render", "Word");
+        AssertBranchesOnBothSides(BoundsById, "DoArchive", "Done", "Persist");
+
+        // Layout is y-up: a larger CenterY is higher on the page.
+        Assert.That(BoundsById["Persist"].CenterY, Is.GreaterThan(BoundsById["Done"].CenterY + 40.0), "Optional archive sits above Done");
+        Assert.That(BoundsById["Reject"].CenterY, Is.GreaterThan(BoundsById["Done"].CenterY + 40.0), "Reject sits above Done so its merge runs down into Done");
+        Assert.That(BoundsById["Validate"].CenterY, Is.GreaterThan(BoundsById["Reject"].CenterY + 40.0), "Validate stays above the reject branch row");
+    }
+
+    private static void AssertBranchesOnBothSides(Dictionary<string, FlowchartLayoutNodeBounds> BoundsById, string DecisionId, string LeftTargetId, string RightTargetId)
+    {
+        double DecisionX = BoundsById[DecisionId].CenterX;
+        Assert.That(BoundsById[LeftTargetId].CenterX, Is.LessThan(DecisionX - 8.0), $"{LeftTargetId} should sit left of {DecisionId}");
+        Assert.That(BoundsById[RightTargetId].CenterX, Is.GreaterThan(DecisionX + 8.0), $"{RightTargetId} should sit right of {DecisionId}");
     }
 
     [Test]
@@ -2490,6 +2499,7 @@ public sealed class FlowchartCatalogueRenderTests
         Dictionary<string, NodeContract> NodeById = Contract.Nodes
             .ToDictionary(Node => Node.Id, Node => Node);
 
+        // Spec §15.0C.1: sources wholly beside Done join the middle of Done's facing side.
         AssertEdgeTargetFace(
             Contract,
             BoundsById,
@@ -2497,7 +2507,7 @@ public sealed class FlowchartCatalogueRenderTests
             Direction,
             "Reject",
             "Done",
-            FlowchartEdgeAttachFace.Top);
+            FlowchartEdgeAttachFace.Left);
 
         AssertEdgeTargetFace(
             Contract,
@@ -2506,7 +2516,7 @@ public sealed class FlowchartCatalogueRenderTests
             Direction,
             "Persist",
             "Done",
-            FlowchartEdgeAttachFace.Top);
+            FlowchartEdgeAttachFace.Right);
     }
 
     [Test]
@@ -2584,38 +2594,13 @@ public sealed class FlowchartCatalogueRenderTests
         Dictionary<string, NodeContract> NodeById = Contract.Nodes
             .ToDictionary(Node => Node.Id, Node => Node);
 
+        // Two-way decisions leave from the shoulder that faces each target, never the bottom vertex.
+        AssertDecisionSourceAttachLeftOfHub(Contract, BoundsById, NodeById, Direction, "Validate", "Reject");
+        AssertDecisionSourceAttachRightOfHub(Contract, BoundsById, NodeById, Direction, "Validate", "Parse");
         AssertDecisionSourceAttachLeftOfHub(Contract, BoundsById, NodeById, Direction, "HasMermaid", "Render");
-        AssertDecisionSourceAttachBelowHub(Contract, BoundsById, NodeById, Direction, "HasMermaid", "Word");
-        AssertDecisionSourceAttachBelowHub(Contract, BoundsById, NodeById, Direction, "DoArchive", "Persist");
-        AssertDecisionSourceAttachRightOfHub(Contract, BoundsById, NodeById, Direction, "DoArchive", "Done");
-
-        EdgeContract ValidateRejectEdge = Contract.Edges.First(
-            Edge => Edge.SourceId == "Validate" && Edge.TargetId == "Reject");
-        bool ValidateRejectResolved = FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
-            ValidateRejectEdge,
-            Contract,
-            BoundsById,
-            NodeById,
-            Direction,
-            out List<(double X, double Y)> ValidateRejectPoints,
-            out _);
-        Assert.That(ValidateRejectResolved, Is.True);
-        Assert.That(
-            ValidateRejectPoints.Count,
-            Is.EqualTo(5),
-            "Validate→Reject should use a five-point exterior corridor route");
-        Assert.That(
-            Math.Abs(ValidateRejectPoints[0].X - ValidateRejectPoints[1].X),
-            Is.GreaterThan(4.0),
-            "Validate→Reject should leave the diamond on the left boundary without an immediate vertical drop");
-        Assert.That(
-            Math.Abs(ValidateRejectPoints[2].Y - ValidateRejectPoints[1].Y),
-            Is.LessThan(1.0),
-            "Validate→Reject should move horizontally into the far-margin corridor lane");
-        Assert.That(
-            Math.Abs(ValidateRejectPoints[2].X - ValidateRejectPoints[0].X),
-            Is.GreaterThan(120.0),
-            "Validate→Reject corridor lane should stay in the far margin outside the spine column");
+        AssertDecisionSourceAttachRightOfHub(Contract, BoundsById, NodeById, Direction, "HasMermaid", "Word");
+        AssertDecisionSourceAttachRightOfHub(Contract, BoundsById, NodeById, Direction, "DoArchive", "Persist");
+        AssertDecisionSourceAttachLeftOfHub(Contract, BoundsById, NodeById, Direction, "DoArchive", "Done");
     }
 
     [Test]
@@ -2989,19 +2974,20 @@ public sealed class FlowchartCatalogueRenderTests
             (ExtractRectangleCentreXFromSvg(Svg, 1), "Next")
         ];
 
-        MatchCollection LabelMatches = Regex.Matches(
+        Match RichLabelMatch = Regex.Match(
             Svg,
             @"<text[^>]*text-anchor=""start""[^>]*><tspan x=""([-\d.]+)""");
-        Assert.That(LabelMatches.Count, Is.EqualTo(2));
+        Assert.That(RichLabelMatch.Success, Is.True, "HTML node label should be written as left-anchored tspans.");
+        double RichLineWidthPx = FlowchartRichLabelSvgWriter.EstimateLineWidthPx(NodeLabelPairs[0].LabelText, 16.0);
+        double RichLabelMidpointX = double.Parse(RichLabelMatch.Groups[1].Value, CultureInfo.InvariantCulture) + (RichLineWidthPx / 2.0);
+        Assert.That(RichLabelMidpointX, Is.EqualTo(NodeLabelPairs[0].NodeCentreX).Within(1.5));
 
-        for (int Index = 0; Index < NodeLabelPairs.Count; Index++)
-        {
-            (double NodeCentreX, string LabelText) = NodeLabelPairs[Index];
-            double LineWidthPx = FlowchartRichLabelSvgWriter.EstimateLineWidthPx(LabelText, 16.0);
-            double LabelMidpointX = double.Parse(LabelMatches[Index].Groups[1].Value, CultureInfo.InvariantCulture)
-                + (LineWidthPx / 2.0);
-            Assert.That(LabelMidpointX, Is.EqualTo(NodeCentreX).Within(1.5));
-        }
+        Match PlainLabelMatch = Regex.Match(
+            Svg,
+            @"<text x=""([-\d.]+)""[^>]*text-anchor=""middle""[^>]*>Next</text>");
+        Assert.That(PlainLabelMatch.Success, Is.True, "Plain node label should be a single middle-anchored text element.");
+        double PlainLabelX = double.Parse(PlainLabelMatch.Groups[1].Value, CultureInfo.InvariantCulture);
+        Assert.That(PlainLabelX, Is.EqualTo(NodeLabelPairs[1].NodeCentreX).Within(1.5));
     }
 
     private static double ExtractRectangleCentreXFromSvg(string Svg, int RectangleIndex)
@@ -3133,7 +3119,7 @@ public sealed class FlowchartCatalogueRenderTests
     }
 
     [Test]
-    public void RenderToSvg_F95_ArrowTipInsetsIntoTargetNodeAndUsesButtLineCap()
+    public void RenderToSvg_F95_ArrowTipInsetsIntoTargetNodeAndLineMeetsBoundary()
     {
         DiagramContract Contract = MermaidRecognizer.Parse("""
             flowchart LR
@@ -3142,12 +3128,10 @@ public sealed class FlowchartCatalogueRenderTests
 
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
 
-        Match LineMatch = Regex.Match(
-            Svg,
-            @"<line x1=""([^""]+)"" y1=""([^""]+)"" x2=""([^""]+)"" y2=""([^""]+)""[^>]*stroke-linecap=""butt""");
-        Assert.That(LineMatch.Success, Is.True, Svg);
+        List<SvgStraightConnector> Connectors = SvgStraightConnectorReader.Read(Svg);
+        Assert.That(Connectors, Has.Count.EqualTo(1), Svg);
 
-        double LineEndX = double.Parse(LineMatch.Groups[3].Value, CultureInfo.InvariantCulture);
+        double LineEndX = Connectors[0].X2;
 
         Match ArrowMatch = Regex.Match(Svg, @"<polygon points=""([^""]+)""");
         Assert.That(ArrowMatch.Success, Is.True);
@@ -3163,7 +3147,7 @@ public sealed class FlowchartCatalogueRenderTests
         double TargetNodeLeftX = double.Parse(TargetNodeMatch.Groups[1].Value, CultureInfo.InvariantCulture);
 
         Assert.That(ArrowTipX, Is.EqualTo(TargetNodeLeftX + 1.0).Within(0.5));
-        Assert.That(ArrowTipX, Is.EqualTo(LineEndX + 10.0).Within(0.5));
+        Assert.That(LineEndX, Is.EqualTo(TargetNodeLeftX).Within(0.5));
     }
 
     private static void AssertEdgeSourceFace(

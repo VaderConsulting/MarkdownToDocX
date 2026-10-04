@@ -101,24 +101,28 @@ public sealed class FlowchartRichLabelSvgWriterTests
     }
 
     [Test]
-    public void ComputeVerticallyCentredFirstLineY_EdgeLabelMiddleBaseline_CentresThreeLineBlockOnSpine()
+    public void ComputeFirstBaselineY_ThreeLineBlock_CentresBlockOnSpine()
     {
         const double SpineY = 43.0;
-        double FirstLineY = FlowchartRichLabelSvgWriter.ComputeVerticallyCentredFirstLineY(
-            SpineY,
-            3,
-            12.0,
-            1.5,
-            UseMiddleDominantBaseline: true);
-        double BlockCentreY = FlowchartRichLabelSvgWriter.ComputeLabelBlockCentreY(
-            FirstLineY,
-            3,
-            12.0,
-            1.5,
-            UseMiddleDominantBaseline: true);
+        double FirstBaselineY = FlowchartRichLabelSvgWriter.ComputeFirstBaselineY(SpineY, 3, 12.0, 1.5);
+        double BlockCentreY = FlowchartRichLabelSvgWriter.ComputeLabelBlockCentreY(FirstBaselineY, 3, 12.0, 1.5);
+        double FirstLineCentreY = FirstBaselineY - FlowchartRichLabelSvgWriter.ComputeBaselineOffsetPx(12.0);
 
-        Assert.That(FirstLineY, Is.EqualTo(25.0).Within(0.01));
+        Assert.That(FirstBaselineY, Is.EqualTo(25.0 + (12.0 * FlowchartRichLabelSvgWriter.TEXT_BASELINE_OFFSET_EM)).Within(0.01));
         Assert.That(BlockCentreY, Is.EqualTo(SpineY).Within(0.01));
-        Assert.That(FirstLineY + 18.0, Is.EqualTo(SpineY).Within(0.01));
+        Assert.That(FirstLineCentreY + 18.0, Is.EqualTo(SpineY).Within(0.01));
+    }
+
+    [Test]
+    public void AppendCentredLabel_SingleLine_WritesExplicitBaselineWithoutDominantBaseline()
+    {
+        StringBuilder Builder = new StringBuilder();
+        FlowchartRichLabelSvgWriter.AppendCentredLabel(Builder, "<b>Bold</b>", 100.0, 50.0, 16.0, "#333", "trebuchet ms", "normal", 1.5);
+        string Svg = Builder.ToString();
+        Match TextMatch = Regex.Match(Svg, @"<text y=""([^""]+)""");
+
+        Assert.That(TextMatch.Success, Is.True, Svg);
+        Assert.That(double.Parse(TextMatch.Groups[1].Value, CultureInfo.InvariantCulture), Is.EqualTo(50.0 + (16.0 * FlowchartRichLabelSvgWriter.TEXT_BASELINE_OFFSET_EM)).Within(0.01));
+        Assert.That(Svg, Does.Not.Contain("dominant-baseline"));
     }
 }

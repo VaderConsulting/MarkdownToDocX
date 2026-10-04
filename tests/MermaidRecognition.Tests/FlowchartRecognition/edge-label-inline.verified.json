@@ -26,7 +26,7 @@
       "IsUserDefinedId": false,
       "SourceId": "A",
       "TargetId": "B",
-      "MinLength": 3,
+      "MinLength": 1,
       "Stroke": "normal",
       "MarkerStart": "None",
       "MarkerEnd": "Point",

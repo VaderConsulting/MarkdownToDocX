@@ -32,6 +32,7 @@ public static class FlowchartLayoutPostProcessor
         Adjusted = CenterFanOutSources(Contract, Adjusted, Direction);
         Adjusted = OrderDecisionFanOutTargets(Contract, Adjusted, Direction, Options);
         Adjusted = CenterSingleSuccessorSources(Contract, Adjusted, Direction);
+        Adjusted = MirrorFanInSourcesThroughHub(Contract, Adjusted, Direction, Options);
         Adjusted = AlignRootNodesToCommonRank(Contract, Adjusted, Direction);
         Adjusted = ExpandFlowAxisGapForMinLength(Contract, Adjusted, Direction, Options);
         Adjusted = ExpandFlowAxisGapForEdgeLabels(Contract, Adjusted, Direction, Options);
@@ -736,10 +737,11 @@ public static class FlowchartLayoutPostProcessor
     {
         Dictionary<string, List<string>> SourceIdsByTargetId =
             new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
 
         foreach (EdgeContract Edge in Contract.Edges)
         {
-            if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase) || BackEdges.Contains(Edge))
             {
                 continue;
             }
@@ -798,6 +800,7 @@ public static class FlowchartLayoutPostProcessor
             || Direction == FlowchartDirection.RightToLeft;
 
         Dictionary<string, double> CrossAxisAdjustments = new Dictionary<string, double>(StringComparer.Ordinal);
+        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
 
         foreach (NodeContract Node in Contract.Nodes)
         {
@@ -813,7 +816,8 @@ public static class FlowchartLayoutPostProcessor
 
             List<string> TargetIds = Contract.Edges
                 .Where(Edge => string.Equals(Edge.SourceId, Node.Id, StringComparison.Ordinal)
-                    && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+                    && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
+                    && !BackEdges.Contains(Edge))
                 .Select(Edge => Edge.TargetId)
                 .Distinct(StringComparer.Ordinal)
                 .ToList();
@@ -900,6 +904,106 @@ public static class FlowchartLayoutPostProcessor
         return Adjusted;
     }
 
+    /// <summary>
+    /// Centres a hub between its fan-in sources and lines each fan-out target up with one source (EIP Canonical Data Model:
+    /// two "To canonical" boxes feed the hub, which feeds two "From canonical" boxes). Applies only when the hub has the same
+    /// number of forward sources and targets, the hub is each target's only forward predecessor, the targets lead nowhere else,
+    /// and the source spacing leaves room for the targets. Targets keep their existing order across the flow.
+    /// </summary>
+    private static List<FlowchartLayoutNodeBounds> MirrorFanInSourcesThroughHub(
+        DiagramContract Contract,
+        IReadOnlyList<FlowchartLayoutNodeBounds> Source,
+        FlowchartDirection Direction,
+        FlowchartRenderOptions Options)
+    {
+        bool HorizontalFlow = Direction == FlowchartDirection.LeftToRight || Direction == FlowchartDirection.RightToLeft;
+        Dictionary<string, FlowchartLayoutNodeBounds> MutableById = new Dictionary<string, FlowchartLayoutNodeBounds>(StringComparer.Ordinal);
+        foreach (FlowchartLayoutNodeBounds Bounds in Source)
+        {
+            MutableById[Bounds.NodeId] = Bounds;
+        }
+
+        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        List<EdgeContract> ForwardEdges = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase) && !BackEdges.Contains(Edge) && !string.Equals(Edge.SourceId, Edge.TargetId, StringComparison.Ordinal)).ToList();
+        bool Changed = false;
+
+        foreach (NodeContract Node in Contract.Nodes)
+        {
+            if (IsDecisionShape(Node.Shape) || !MutableById.TryGetValue(Node.Id, out FlowchartLayoutNodeBounds HubBounds))
+            {
+                continue;
+            }
+
+            List<string> SourceIds = ForwardEdges.Where(Edge => string.Equals(Edge.TargetId, Node.Id, StringComparison.Ordinal)).Select(Edge => Edge.SourceId).Distinct(StringComparer.Ordinal).ToList();
+            List<string> TargetIds = ForwardEdges.Where(Edge => string.Equals(Edge.SourceId, Node.Id, StringComparison.Ordinal)).Select(Edge => Edge.TargetId).Distinct(StringComparer.Ordinal).ToList();
+            if (SourceIds.Count < 2 || SourceIds.Count != TargetIds.Count)
+            {
+                continue;
+            }
+
+            bool TargetsQualify = true;
+            foreach (string TargetId in TargetIds)
+            {
+                bool OnlyFromHub = ForwardEdges.Where(Edge => string.Equals(Edge.TargetId, TargetId, StringComparison.Ordinal)).All(Edge => string.Equals(Edge.SourceId, Node.Id, StringComparison.Ordinal));
+                bool LeadsNowhere = !ForwardEdges.Any(Edge => string.Equals(Edge.SourceId, TargetId, StringComparison.Ordinal));
+                if (!OnlyFromHub || !LeadsNowhere || !MutableById.ContainsKey(TargetId) || SourceIds.Contains(TargetId, StringComparer.Ordinal))
+                {
+                    TargetsQualify = false;
+                    break;
+                }
+            }
+
+            if (!TargetsQualify || SourceIds.Any(SourceId => !MutableById.ContainsKey(SourceId)))
+            {
+                continue;
+            }
+
+            List<double> SourceCrosses = SourceIds.Select(SourceId => GetCrossCenter(MutableById[SourceId], HorizontalFlow)).OrderBy(Cross => Cross).ToList();
+            List<FlowchartLayoutNodeBounds> OrderedTargets = TargetIds.Select(TargetId => MutableById[TargetId]).OrderBy(Bounds => GetCrossCenter(Bounds, HorizontalFlow)).ToList();
+
+            bool RoomForTargets = true;
+            for (int Index = 1; Index < OrderedTargets.Count; Index++)
+            {
+                double Needed = ((GetCrossAxisExtent(OrderedTargets[Index - 1], HorizontalFlow) + GetCrossAxisExtent(OrderedTargets[Index], HorizontalFlow)) / 2.0) + Options.NodeSpacingPx;
+                if (SourceCrosses[Index] - SourceCrosses[Index - 1] < Needed - 0.5)
+                {
+                    RoomForTargets = false;
+                    break;
+                }
+            }
+
+            if (!RoomForTargets)
+            {
+                continue;
+            }
+
+            MutableById[Node.Id] = SetCrossAxisCenter(HubBounds, HorizontalFlow, SourceCrosses.Average());
+            for (int Index = 0; Index < OrderedTargets.Count; Index++)
+            {
+                MutableById[OrderedTargets[Index].NodeId] = SetCrossAxisCenter(OrderedTargets[Index], HorizontalFlow, SourceCrosses[Index]);
+            }
+
+            Changed = true;
+        }
+
+        if (!Changed)
+        {
+            return new List<FlowchartLayoutNodeBounds>(Source);
+        }
+
+        return Source.Select(Bounds => MutableById[Bounds.NodeId]).ToList();
+    }
+
+    private static double GetCrossCenter(FlowchartLayoutNodeBounds Bounds, bool HorizontalFlow)
+    {
+        if (HorizontalFlow)
+        {
+            return Bounds.CenterY;
+        }
+
+        return Bounds.CenterX;
+    }
+
     private static List<FlowchartLayoutNodeBounds> SpreadFanOutTargetsAroundHub(
         DiagramContract Contract,
         IReadOnlyList<FlowchartLayoutNodeBounds> Source,
@@ -921,6 +1025,7 @@ public static class FlowchartLayoutPostProcessor
             MutableById[Bounds.NodeId] = Bounds;
         }
 
+        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         foreach (NodeContract Node in Contract.Nodes)
         {
             if (IsDecisionShape(Node.Shape))
@@ -930,7 +1035,8 @@ public static class FlowchartLayoutPostProcessor
 
             List<EdgeContract> OutgoingEdges = Contract.Edges
                 .Where(Edge => string.Equals(Edge.SourceId, Node.Id, StringComparison.Ordinal)
-                    && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+                    && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
+                    && !BackEdges.Contains(Edge))
                 .OrderBy(Edge => Edge.CreationIndex)
                 .ToList();
 
@@ -999,11 +1105,13 @@ public static class FlowchartLayoutPostProcessor
             MutableById[Bounds.NodeId] = Bounds;
         }
 
+        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         foreach (NodeContract Node in Contract.Nodes)
         {
             List<EdgeContract> IncomingEdges = Contract.Edges
                 .Where(Edge => string.Equals(Edge.TargetId, Node.Id, StringComparison.Ordinal)
-                    && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+                    && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
+                    && !BackEdges.Contains(Edge))
                 .OrderBy(Edge => Edge.CreationIndex)
                 .ToList();
 
@@ -1072,6 +1180,7 @@ public static class FlowchartLayoutPostProcessor
             MutableById[Bounds.NodeId] = Bounds;
         }
 
+        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         foreach (NodeContract Node in Contract.Nodes)
         {
             if (!IsDecisionShape(Node.Shape))
@@ -1081,7 +1190,8 @@ public static class FlowchartLayoutPostProcessor
 
             List<EdgeContract> OutgoingEdges = Contract.Edges
                 .Where(Edge => string.Equals(Edge.SourceId, Node.Id, StringComparison.Ordinal)
-                    && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+                    && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
+                    && !BackEdges.Contains(Edge))
                 .OrderBy(Edge => Edge.CreationIndex)
                 .ToList();
 
@@ -1122,11 +1232,84 @@ public static class FlowchartLayoutPostProcessor
                     OutgoingEdges.Count,
                     Step,
                     HorizontalFlow);
+                double PreviousCross = GetCrossAxisCenter(TargetBounds, HorizontalFlow);
                 MutableById[Edge.TargetId] = SetCrossAxisCenter(TargetBounds, HorizontalFlow, TargetCross);
+                MoveStraightChainWithBranch(Contract, BackEdges, MutableById, Edge.TargetId, PreviousCross, TargetCross, HorizontalFlow);
             }
         }
 
         return MutableById.Values.ToList();
+    }
+
+    /// <summary>
+    /// Moves the straight chain that hangs below a decision branch target across the flow with that target, so the chain
+    /// stays in the branch's column (EIP Channel Purger: Export, then Remove, then Log under one branch). A chain node
+    /// follows when it is the only forward successor of the node above it, that node is its only forward predecessor, and
+    /// it sat in the same column as that node before the move. The chain stops at a decision, because a decision's own
+    /// branches are placed around it separately.
+    /// </summary>
+    private static void MoveStraightChainWithBranch(
+        DiagramContract Contract,
+        HashSet<EdgeContract> BackEdges,
+        Dictionary<string, FlowchartLayoutNodeBounds> MutableById,
+        string BranchTargetId,
+        double PreviousCross,
+        double NewCross,
+        bool HorizontalFlow)
+    {
+        const double SAME_COLUMN_TOLERANCE_PX = 1.0;
+        HashSet<string> Visited = new HashSet<string>(StringComparer.Ordinal) { BranchTargetId };
+        string CurrentId = BranchTargetId;
+        while (true)
+        {
+            List<string> SuccessorIds = GetForwardNeighbourIds(Contract, BackEdges, CurrentId, Successors: true);
+            if (SuccessorIds.Count != 1)
+            {
+                return;
+            }
+
+            string NextId = SuccessorIds[0];
+            if (Visited.Contains(NextId) || GetForwardNeighbourIds(Contract, BackEdges, NextId, Successors: false).Count != 1)
+            {
+                return;
+            }
+
+            NodeContract? NextNode = Contract.Nodes.FirstOrDefault(Candidate => string.Equals(Candidate.Id, NextId, StringComparison.Ordinal));
+            if (NextNode is null || IsDecisionShape(NextNode.Shape) || !MutableById.TryGetValue(NextId, out FlowchartLayoutNodeBounds NextBounds))
+            {
+                return;
+            }
+
+            if (Math.Abs(GetCrossAxisCenter(NextBounds, HorizontalFlow) - PreviousCross) > SAME_COLUMN_TOLERANCE_PX)
+            {
+                return;
+            }
+
+            MutableById[NextId] = SetCrossAxisCenter(NextBounds, HorizontalFlow, NewCross);
+            Visited.Add(NextId);
+            CurrentId = NextId;
+        }
+    }
+
+    private static List<string> GetForwardNeighbourIds(DiagramContract Contract, HashSet<EdgeContract> BackEdges, string NodeId, bool Successors)
+    {
+        List<string> NeighbourIds = [];
+        foreach (EdgeContract Edge in Contract.Edges)
+        {
+            if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase) || BackEdges.Contains(Edge) || string.Equals(Edge.SourceId, Edge.TargetId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            string OwnEndId = Successors ? Edge.SourceId : Edge.TargetId;
+            string OtherEndId = Successors ? Edge.TargetId : Edge.SourceId;
+            if (string.Equals(OwnEndId, NodeId, StringComparison.Ordinal) && !NeighbourIds.Contains(OtherEndId, StringComparer.Ordinal))
+            {
+                NeighbourIds.Add(OtherEndId);
+            }
+        }
+
+        return NeighbourIds;
     }
 
     private static List<FlowchartLayoutNodeBounds> ApplyInvisibleEdgeStackPlacement(
@@ -1379,12 +1562,14 @@ public static class FlowchartLayoutPostProcessor
             || Direction == FlowchartDirection.RightToLeft;
 
         Dictionary<string, double> CrossAxisAdjustments = new Dictionary<string, double>(StringComparer.Ordinal);
+        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
 
         foreach (NodeContract Node in Contract.Nodes)
         {
             List<string> SourceIds = Contract.Edges
                 .Where(Edge => string.Equals(Edge.TargetId, Node.Id, StringComparison.Ordinal)
-                    && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+                    && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
+                    && !BackEdges.Contains(Edge))
                 .Select(Edge => Edge.SourceId)
                 .Distinct(StringComparer.Ordinal)
                 .ToList();

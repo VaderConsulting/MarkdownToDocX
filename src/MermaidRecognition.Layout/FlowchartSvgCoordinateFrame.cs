@@ -53,6 +53,20 @@ public static class FlowchartSvgCoordinateFrameResolver
             return false;
         }
 
+        return TryResolve(Contract, Layout, out Frame);
+    }
+
+    /// <summary>
+    /// Builds the same MinLeft/MaxTop frame used when rendering SVG output, from a layout the caller already has.
+    /// </summary>
+    /// <param name="Contract">The diagram that was laid out.</param>
+    /// <param name="Layout">The layout result for <paramref name="Contract"/>.</param>
+    /// <param name="Frame">The resolved frame, or an empty frame when the layout has no nodes.</param>
+    /// <returns>True when a frame was built.</returns>
+    public static bool TryResolve(DiagramContract Contract, FlowchartLayoutResult Layout, out FlowchartSvgCoordinateFrame Frame)
+    {
+        Frame = new FlowchartSvgCoordinateFrame();
+
         if (Layout.NodeBounds.Count == 0)
         {
             return false;
