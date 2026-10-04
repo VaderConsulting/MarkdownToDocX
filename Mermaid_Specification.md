@@ -1492,8 +1492,8 @@ Catalogue regression: `F111` (single-row members in stacked subgraphs).
 - Layout supplies boundary attach points on the diamond and target (shape intersection), including **3-way fan-out** attach overrides (bottom-left / bottom vertex / bottom-right for TB).
 - When dagre routing already yields a **straight or Manhattan** polyline (three or more collinear/orthogonal points, or a single vertical column), the renderer keeps that polyline and emits **`L`** segments (F30). Do **not** replace it with the ER-style **guided `curveBasis`** shortcut (that bows and crosses on multi-target diamonds).
 - **Decision fan-out (F29/F30):** TB labelled branches use fixed diamond exits. Side branches use the **S-route** `(P0, (P0.X, midY), (P3.X, midY), P3)` so the bow is outward; labels use **`edge.LabelPosition`** on the three-point polyline (source, guide, target). Targets enter at **top-centre**.
-- **TB hub fan-out (F31):** hub exits **left face / bottom centre / right face**; mirrored S-curves with guide at `hubCentre ± |targetX − hubCentre|`.
-- **BT fan-in (F32):** workers exit **top-left / top-centre / top-right**; all branches meet **aggregate bottom-centre** with outward `curveBasis` bows on the source leg (no shared T through the centre worker).
+- **TB hub fan-out (F31):** hub exits **left face / bottom centre / right face**. Side branches are quarter routes from the middle of the hub's side face into the target's top centre (see §15.0C.1).
+- **BT fan-in (F32):** side workers leave their top centre and enter the middle of the aggregate's left or right face; the centre worker is a straight vertical into the aggregate's bottom centre (see §15.0C.1).
 - **LR decision (F34):** dagre layout points and standard flowchart routing (no TB decision-branch override).
 - Do **not** run `fixCorners` on the full dagre elbow for these branches (avoids short-branch wobble in Word).
 - Do **not** snap targets to side-centre independently of layout (that fought the dagre attach points).
@@ -1504,6 +1504,96 @@ Vertical flowchart port rule (TD/BT, fixture):
   - Example: \(N=2\) uses **3** slots; use the **1st** and **3rd** slot centres.
 - **Small-N inboard ports (F31/F32):** for \(N=2\) or \(N=3\) on the same facing edge, use inboard left / centre / right (or top/centre/bottom) rather than corner slots.
 - **Targets below source (F31):** edges entering a node from above attach at **top-centre**, not shape-intersection side ports.
+
+#### 15.0C Native layout routing and layout parity notes (Word-first parity note, October 2026)
+
+These rules belong to the native Sugiyama layout in `new_src/MermaidRecognition.Layout`. Mermaid itself takes its route points from Dagre and smooths them with `curveBasis`; it does not define port slots, loop corridors, or label clearance against other edges. Each rule below is a **Naiad** extension so that Word output stays readable where the Dagre-style route would overlap, hook, or stack arrowheads. All were checked against the fixtures named and are locked in the approved regression set (`out/Regression/approved`, compared by `out/FixtureProbe/Compare-Fixtures.ps1`).
+
+##### 15.0C.1 Hub side-face ports, top-to-bottom and bottom-to-top (F31, F32, F111)
+
+**Rule:** In a TB or BT diagram, when a hub (the fan-out source or the fan-in target) has a branch node lying wholly beyond its left or right edge, that branch joins the hub at the middle of the facing side. The route is a horizontal stub at the hub, a vertical stub at the branch node's flow face centre, and one smooth quarter curve between them. A branch aligned with the hub stays a straight vertical between the facing centres.
+
+- The side port is only used when the route is clear: the horizontal run along the hub's middle row and the vertical run along the branch column must not pass within 4 px of any other node.
+- Dense layouts that fail this check, such as the full bipartite join between two rows in F111, keep spread slots on the flow face instead.
+
+**Closure:** `FlowchartHubSidePortHelper.TryResolveClearHubSideAttach` and `AppendQuarterRoute`, called from `FlowchartFanOutPortAllocator` and `FlowchartFanInPortAllocator`.
+
+##### 15.0C.2 Parallel-branch hub ports, left-to-right and right-to-left (F113)
+
+**Rule:** In an LR or RL diagram, when a rectangle hub has at least four branch nodes and all of them sit in one column beside the hub (on the downstream side for fan-out, the upstream side for fan-in):
+
+- A branch whose node centre lies above the hub's top face uses its own slot on the hub's **top face**. A branch below the bottom face uses a slot on the **bottom face**.
+- Slots are spread evenly across the face with an 8 px inset at each end. A single branch on a face uses the face centre.
+- The farthest branch takes the slot farthest from the branch column, and nearer branches move inward. The quarter curves therefore nest without crossing, and no two arrowheads share a point.
+- The edge leaves the slot vertically, curves a quarter turn, and joins the middle of the branch node's facing side horizontally.
+- A branch level with the hub (centre between the hub's top and bottom faces) keeps the ordinary fan-out or fan-in route.
+
+This is the horizontal-flow form of §15.0C.1. Mermaid instead draws every branch from the hub boundary along the Dagre route, which for many branches stacks the arrowheads on one point.
+
+**Closure:** `FlowchartParallelBranchHubPortHelper.TryResolveEdgeRoute`, called from `FlowchartEdgeRouteResolver` before the fan-in and fan-out allocators.
+
+##### 15.0C.3 Stub-bridge curve for short four- to six-point routes
+
+**Rule:** A route of the form boundary, stub, optional step guides, stub, boundary renders as the two straight stubs joined by **one cubic** whose end tangents match the stubs. The edge therefore leaves and enters each node at right angles without the small hooks that `curveBasis` produces on a stepped guide polyline. The route must make forward progress along both stub directions. A fully collinear route stays a straight line.
+
+**Closure:** `FlowchartCurvePathBuilder.TryBuildStubBridgeCurvePathData`.
+
+##### 15.0C.4 Rounded corners on loop and corridor routes (F34, F59, F60)
+
+**Rule:** Routes resolved as `RouteKind.RetryLoop` with an orthogonal polyline (LR retry loops, the F59 loop-back and the F60 under-corridor route) render as the polyline with each interior corner replaced by a quarter-circle cubic. The radius is up to **28 px**, capped at half the shorter adjoining segment. Collinear guide points are dropped first.
+
+**Closure:** `FlowchartCurvePathBuilder.BuildRoundedCornerPathData`, chosen through `ShouldUseOrthogonalPolylinePathData`.
+
+##### 15.0C.5 Loop-back from the underside (F59)
+
+**Rule:** In a TB or BT diagram, an edge back into a non-decision node that has at least two visible incoming edges, from a source further downstream that lies wholly beyond the target's side, routes as follows:
+
+1. Leave the source's downstream face centre and drop **36 px**.
+2. Run outward to a corridor **14 px** beyond the outermost node edge in the span between the two nodes.
+3. Run back up to the target's middle row.
+4. Enter the middle of the target's facing side.
+
+The corners are rounded per §15.0C.4. If a node blocks the drop row, the ordinary fan-in route is used instead. When both ends are direct members of one subgraph, the corridor points are included in that subgraph's box so the box grows to keep the loop inside it (and keeps its other members centred).
+
+**Closure:** `FlowchartFanInPortAllocator.TryResolveLoopBackRoute` (resolver kind `RetryLoop`) and `FlowchartSubgraphBoundsBuilder.IncludeInternalLoopBackRoutes`.
+
+##### 15.0C.6 Branching subgraph row layout (F59)
+
+**Rule:** Inside a TB subgraph whose members do not form a simple chain (some member has more than one internal incoming or outgoing edge, or the members form a cycle):
+
+- Back edges are found by a depth-first search in declaration order.
+- Each member's row is the length of its longest forward path from the group's entry.
+- Members in one row sit side by side with the node spacing, ordered by the creation order of their first forward incoming edge, and centred on the group's mean X.
+- Rows are separated by the larger of the rank spacing and the node spacing.
+- An external node linked to a branching group is aligned to the X of the member it links to.
+
+Supporting guards keep this layout intact: the primary-row box expansion is skipped when the group is at least as tall as it is wide in aligned nodes, and the parallel-column alignment pass is skipped when a visible edge joins two different column chains.
+
+**Closure:** `FlowchartSubgraphLayoutPostProcessor.TryLayoutVerticalSubgraphMembersByRow`, `FlowchartSubgraphSpineCenterHelper.ExpandVerticalBoundsAroundPrimaryRow`, `FlowchartParallelColumnAlignHelper.HasEdgeBetweenChains`.
+
+##### 15.0C.7 Dotted cross-group under-corridor route (F60)
+
+**Rule:** In an LR or RL diagram, a dotted edge whose ends are in different innermost subgraphs, and whose nodes do not overlap horizontally, routes underneath the diagram:
+
+1. Leave the source's bottom face centre.
+2. Run along a corridor **20 px** below the lowest node or subgroup box in the horizontal span.
+3. Rise into the target's bottom face centre.
+
+The corners are rounded per §15.0C.4. Because the dotted edge no longer uses the side faces, these edges are left out of the fan-out and fan-in counts at both ends, and the solid edges there stay straight. The edge label is centred under the horizontal run, **20 px** below it, so it never sits on the group box borders.
+
+**Closure:** `FlowchartEdgeGuidePointBuilder.TryAppendUnderCorridorRoute` and `UsesBottomFaceCorridor`, `FlowchartEdgeRouteResolver.IsUnderCorridorRoute`, `FlowchartEdgeLabelPlacementHelper.TryGetUnderCorridorLabelPosition`.
+
+##### 15.0C.8 Edge labels clear of other connectors (F59)
+
+**Rule:** An edge label stays at its preferred spot only when it is within 40 px of its own connector and does not overlap any other edge's connector. Otherwise:
+
+1. Search for the nearest spot that is clear of every connector.
+2. If none is found and the original spot was clear of its own connector, keep the original spot.
+3. Otherwise search against its own connector only, then fall back to the midpoint of the curve.
+
+The same placement is used when sizing the canvas, so labels moved this way are never clipped.
+
+**Closure:** `FlowchartEdgeLabelClearanceHelper.MoveClearOfConnector` (with `OtherGuideSvgPoints`) and `FlowchartSugiyamaSvgRenderer.CollectOtherEdgeRenderGuidePoints`.
 
 Key:
 
@@ -1621,6 +1711,19 @@ Transform:
     translate(-S / 2 + 0.5, S / 2)
 Intersection = polygon intersection, then adjusted by (-0.5, -0.5)
 ```
+
+#### 16.4.1 Single edge at a diamond vertex (Word-first parity note, October 2026)
+
+**Rule:** When a decision node has only one edge on a side (one incoming edge, or one outgoing edge), that edge joins the diamond at the vertex facing the other node. The connector meets the vertex at right angles to the line joining the two neighbouring vertices. In other words, it runs along the diamond's axis through that vertex and splits the angle between the two sloped sides evenly.
+
+- Top and bottom vertices: the terminal stub is vertical.
+- Left and right vertices: the terminal stub is horizontal.
+- When the other node is aligned with the vertex, the edge is a straight two-point line (see the straight-connector rule for aligned ports).
+- When the other node is off-axis, a short straight stub along the vertex axis is kept, then the body curves smoothly toward the other node. The stub must not tilt toward either slope.
+
+**Closure:** implemented in `FlowchartDiamondAttachHelper.TryResolveOutwardNormal`. An attach point within 1 px of a vertex returns the axis direction instead of the nearest slope's normal.
+
+**Naiad note:** Mermaid clips the edge to the polygon and does not define a stub direction. This rule exists so Word output does not show a 45° jog where a straight line was intended (fixture F11: `B(Rounded rectangle) --> C{Diamond decision} --> D((Circle))`).
 
 ### 16.5 Hexagon (`hex`)
 

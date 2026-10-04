@@ -325,7 +325,7 @@ public static class FlowchartSpineColumnPostProcessor
         double ColumnStep,
         FlowchartRenderOptions Options)
     {
-        double CollectorRowY = double.NegativeInfinity;
+        double CollectorRowY = double.PositiveInfinity;
         foreach (EdgeContract Edge in Contract.Edges)
         {
             if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
@@ -353,17 +353,17 @@ public static class FlowchartSpineColumnPostProcessor
                 continue;
             }
 
-            if (SourceBounds.CenterY < TargetBounds.CenterY - COLLINEAR_EPSILON_PX
-                && SourceBounds.CenterY > CollectorRowY)
+            if (SourceBounds.CenterY > TargetBounds.CenterY + COLLINEAR_EPSILON_PX
+                && SourceBounds.CenterY < CollectorRowY)
             {
                 CollectorRowY = SourceBounds.CenterY;
             }
         }
 
-        if (double.IsNegativeInfinity(CollectorRowY))
+        if (double.IsPositiveInfinity(CollectorRowY))
         {
             double TypicalHeight = GetTypicalNodeHeight(MutableById.Values);
-            CollectorRowY = TargetBounds.CenterY - Options.RankSpacingPx - (TypicalHeight / 2.0);
+            CollectorRowY = TargetBounds.CenterY + Options.RankSpacingPx + (TypicalHeight / 2.0);
         }
 
         return CollectorRowY;

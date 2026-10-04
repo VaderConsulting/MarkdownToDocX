@@ -119,6 +119,11 @@ public static class FlowchartEdgeRouteClassifier
             return FlowchartEdgeSemanticRouteClass.CentreSpine;
         }
 
+        if (IsDecisionFanOut)
+        {
+            return FlowchartEdgeSemanticRouteClass.Unknown;
+        }
+
         if (!SourceOnSpine
             && TargetOnSpine
             && TargetIncomingCount >= TERMINAL_COLLECTOR_INCOMING_THRESHOLD

@@ -41,6 +41,7 @@ public static class FlowchartLayoutPostProcessor
         Adjusted = ApplyLrRetryCycleNodeLayout(Contract, Adjusted, Direction, Options);
         Adjusted = FlowchartReciprocalEdgeHelper.NormalizeTbFeedbackLoopNodeOrder(Contract, Adjusted, Direction);
         Adjusted = FlowchartSpineColumnPostProcessor.Apply(Contract, Adjusted, Direction, Options);
+        Adjusted = FlowchartDecisionShoulderLayoutPostProcessor.Apply(Contract, Adjusted, Direction, Options);
         return Adjusted;
     }
 
@@ -419,19 +420,13 @@ public static class FlowchartLayoutPostProcessor
         return Root;
     }
 
-    private sealed class ComponentLayoutGroup
+    private sealed class ComponentLayoutGroup(
+        List<string> NodeIds,
+        int MinCreationIndex)
     {
-        public ComponentLayoutGroup(
-            List<string> NodeIds,
-            int MinCreationIndex)
-        {
-            this.NodeIds = NodeIds;
-            this.MinCreationIndex = MinCreationIndex;
-        }
+        public List<string> NodeIds { get; } = NodeIds;
 
-        public List<string> NodeIds { get; }
-
-        public int MinCreationIndex { get; }
+        public int MinCreationIndex { get; } = MinCreationIndex;
     }
 
     private static List<FlowchartLayoutNodeBounds> AlignRootNodesToCommonRank(

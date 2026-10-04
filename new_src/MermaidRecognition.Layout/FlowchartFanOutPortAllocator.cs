@@ -105,6 +105,35 @@ public static class FlowchartFanOutPortAllocator
         double SourceY;
         double TargetX;
         double TargetY;
+        if (UseVerticalHubFanOutPorts
+            && FlowchartHubSidePortHelper.TryResolveClearHubSideAttach(
+                SourceBounds,
+                TargetBounds,
+                Direction,
+                Edge.MarkerStart,
+                BoundsById.Values,
+                out double HubSideX,
+                out double HubSideY,
+                out double HubOutwardX))
+        {
+            (double OtherX, double OtherY, double OtherOutwardY) = FlowchartHubSidePortHelper.ResolveOtherNodeFlowFaceAttach(
+                TargetBounds,
+                SourceBounds,
+                Edge.MarkerEnd);
+            FlowchartHubSidePortHelper.AppendQuarterRoute(
+                LayoutPoints,
+                HubIsSource: true,
+                HubSideX,
+                HubSideY,
+                HubOutwardX,
+                SourceBounds,
+                OtherX,
+                OtherY,
+                OtherOutwardY,
+                TargetBounds);
+            return true;
+        }
+
         if (UseVerticalHubFanOutPorts)
         {
             (SourceX, SourceY) = FlowchartVerticalRouteGuideBuilder.ResolveVerticalHubFanOutSourceAttach(
@@ -451,7 +480,7 @@ public static class FlowchartFanOutPortAllocator
         List<EdgeContract> Edges = [];
         foreach (EdgeContract Candidate in Contract.Edges)
         {
-            if (string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase) || FlowchartEdgeGuidePointBuilder.UsesBottomFaceCorridor(Candidate, Contract))
             {
                 continue;
             }
@@ -470,7 +499,7 @@ public static class FlowchartFanOutPortAllocator
         List<EdgeContract> Edges = [];
         foreach (EdgeContract Candidate in Contract.Edges)
         {
-            if (string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase) || FlowchartEdgeGuidePointBuilder.UsesBottomFaceCorridor(Candidate, Contract))
             {
                 continue;
             }
@@ -715,7 +744,7 @@ public static class FlowchartFanOutPortAllocator
         int Count = 0;
         foreach (EdgeContract Candidate in Contract.Edges)
         {
-            if (string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase) || FlowchartEdgeGuidePointBuilder.UsesBottomFaceCorridor(Candidate, Contract))
             {
                 continue;
             }

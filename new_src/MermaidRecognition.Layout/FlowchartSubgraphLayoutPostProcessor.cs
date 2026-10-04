@@ -123,6 +123,46 @@ public static class FlowchartSubgraphLayoutPostProcessor
     }
 
     /// <summary>
+    /// Returns true when the visible edges between the members form one chain with no branches, merges, or loops.
+    /// Only such a group can be packed into a single column without hiding a decision fan-out or a retry loop (F59).
+    /// </summary>
+    private static bool IsSimpleInternalChain(DiagramContract Contract, List<string> MemberNodeIds)
+    {
+        HashSet<string> MemberSet = new HashSet<string>(MemberNodeIds, StringComparer.Ordinal);
+        Dictionary<string, int> InternalInCount = new Dictionary<string, int>(StringComparer.Ordinal);
+        Dictionary<string, int> InternalOutCount = new Dictionary<string, int>(StringComparer.Ordinal);
+        int InternalEdgeCount = 0;
+
+        foreach (EdgeContract Edge in Contract.Edges)
+        {
+            if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (!MemberSet.Contains(Edge.SourceId) || !MemberSet.Contains(Edge.TargetId))
+            {
+                continue;
+            }
+
+            InternalEdgeCount++;
+            InternalOutCount[Edge.SourceId] = InternalOutCount.GetValueOrDefault(Edge.SourceId) + 1;
+            InternalInCount[Edge.TargetId] = InternalInCount.GetValueOrDefault(Edge.TargetId) + 1;
+            if (InternalOutCount[Edge.SourceId] > 1 || InternalInCount[Edge.TargetId] > 1)
+            {
+                return false;
+            }
+        }
+
+        if (InternalEdgeCount >= MemberSet.Count)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
     /// Mermaid ignores declared subgraph direction when a member node links across the subgraph boundary.
     /// </summary>
     private static bool SubgraphHasMemberExternalEdge(
@@ -563,6 +603,11 @@ public static class FlowchartSubgraphLayoutPostProcessor
             return;
         }
 
+        if (!IsSimpleInternalChain(Contract, MemberNodeIds) && TryLayoutVerticalSubgraphMembersByRow(Contract, MemberNodeIds, MutableById, Options))
+        {
+            return;
+        }
+
         List<string> OrderedNodeIds = OrderNodesByInternalFlow(Contract, MemberNodeIds);
         if (OrderedNodeIds.Count < 2)
         {
@@ -623,6 +668,176 @@ public static class FlowchartSubgraphLayoutPostProcessor
                 Height = Bounds.Height
             };
         }
+    }
+
+    /// <summary>
+    /// Packs the members of a branching top-to-bottom group into rows instead of one column (F59).
+    /// Rows come from the longest forward path between members. Edges that loop back to an earlier member are ignored for ranking.
+    /// Nodes that share a row sit side by side, in the order of the edges that reach them, centred on the group's column.
+    /// </summary>
+    /// <returns>True when the members were placed.</returns>
+    private static bool TryLayoutVerticalSubgraphMembersByRow(
+        DiagramContract Contract,
+        List<string> MemberNodeIds,
+        Dictionary<string, FlowchartLayoutNodeBounds> MutableById,
+        FlowchartRenderOptions Options)
+    {
+        HashSet<string> MemberSet = new HashSet<string>(StringComparer.Ordinal);
+        foreach (string NodeId in MemberNodeIds)
+        {
+            if (MutableById.ContainsKey(NodeId))
+            {
+                MemberSet.Add(NodeId);
+            }
+        }
+
+        if (MemberSet.Count < 2)
+        {
+            return false;
+        }
+
+        List<EdgeContract> InternalEdges = Contract.Edges
+            .Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+            .Where(Edge => MemberSet.Contains(Edge.SourceId) && MemberSet.Contains(Edge.TargetId))
+            .Where(Edge => !string.Equals(Edge.SourceId, Edge.TargetId, StringComparison.Ordinal))
+            .OrderBy(Edge => Edge.CreationIndex)
+            .ToList();
+
+        HashSet<EdgeContract> BackEdges = FindBackEdges(Contract, MemberSet, InternalEdges);
+        List<EdgeContract> ForwardEdges = InternalEdges.Where(Edge => !BackEdges.Contains(Edge)).ToList();
+
+        Dictionary<string, int> RankById = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (string NodeId in MemberSet)
+        {
+            RankById[NodeId] = 0;
+        }
+
+        for (int Pass = 0; Pass < MemberSet.Count; Pass++)
+        {
+            bool Changed = false;
+            foreach (EdgeContract Edge in ForwardEdges)
+            {
+                int Candidate = RankById[Edge.SourceId] + 1;
+                if (Candidate > RankById[Edge.TargetId])
+                {
+                    RankById[Edge.TargetId] = Candidate;
+                    Changed = true;
+                }
+            }
+
+            if (!Changed)
+            {
+                break;
+            }
+        }
+
+        Dictionary<string, int> ArrivalIndexById = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (string NodeId in MemberSet)
+        {
+            EdgeContract? FirstForwardIn = ForwardEdges.FirstOrDefault(Edge => string.Equals(Edge.TargetId, NodeId, StringComparison.Ordinal));
+            ArrivalIndexById[NodeId] = FirstForwardIn is null ? GetEarliestEdgeCreationIndex(Contract, NodeId) : FirstForwardIn.CreationIndex;
+        }
+
+        List<List<string>> Rows = MemberSet
+            .GroupBy(NodeId => RankById[NodeId])
+            .OrderBy(Group => Group.Key)
+            .Select(Group => Group.OrderBy(NodeId => ArrivalIndexById[NodeId]).ToList())
+            .ToList();
+
+        double SharedCenterX = 0.0;
+        double PackCenterY = 0.0;
+        foreach (string NodeId in MemberSet)
+        {
+            SharedCenterX += MutableById[NodeId].CenterX;
+            PackCenterY += MutableById[NodeId].CenterY;
+        }
+
+        SharedCenterX /= MemberSet.Count;
+        PackCenterY /= MemberSet.Count;
+
+        double MinimumGap = Math.Max(Options.RankSpacingPx, Options.NodeSpacingPx);
+        List<double> RowHeights = [];
+        double TotalHeight = 0.0;
+        foreach (List<string> Row in Rows)
+        {
+            double RowHeight = Row.Max(NodeId => MutableById[NodeId].Height);
+            RowHeights.Add(RowHeight);
+            TotalHeight += RowHeight;
+        }
+
+        TotalHeight += MinimumGap * (Rows.Count - 1);
+        double CursorY = PackCenterY + (TotalHeight / 2.0);
+        for (int RowIndex = 0; RowIndex < Rows.Count; RowIndex++)
+        {
+            List<string> Row = Rows[RowIndex];
+            double RowCenterY = CursorY - (RowHeights[RowIndex] / 2.0);
+            CursorY -= RowHeights[RowIndex] + MinimumGap;
+
+            double RowWidth = Row.Sum(NodeId => MutableById[NodeId].Width) + (Options.NodeSpacingPx * (Row.Count - 1));
+            double CursorX = SharedCenterX - (RowWidth / 2.0);
+            foreach (string NodeId in Row)
+            {
+                FlowchartLayoutNodeBounds Bounds = MutableById[NodeId];
+                double CenterX = CursorX + (Bounds.Width / 2.0);
+                CursorX += Bounds.Width + Options.NodeSpacingPx;
+                MutableById[NodeId] = new FlowchartLayoutNodeBounds
+                {
+                    NodeId = Bounds.NodeId,
+                    CenterX = CenterX,
+                    CenterY = RowCenterY,
+                    Width = Bounds.Width,
+                    Height = Bounds.Height
+                };
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Finds the internal edges that close a loop, using a depth-first walk that starts from members in edge declaration order.
+    /// </summary>
+    private static HashSet<EdgeContract> FindBackEdges(DiagramContract Contract, HashSet<string> MemberSet, List<EdgeContract> InternalEdges)
+    {
+        HashSet<EdgeContract> BackEdges = new HashSet<EdgeContract>();
+        Dictionary<string, int> StateById = new Dictionary<string, int>(StringComparer.Ordinal);
+        List<string> StartOrder = MemberSet.OrderBy(NodeId => GetEarliestEdgeCreationIndex(Contract, NodeId)).ToList();
+
+        foreach (string StartId in StartOrder)
+        {
+            if (StateById.ContainsKey(StartId))
+            {
+                continue;
+            }
+
+            Stack<(string NodeId, int EdgeIndex)> Pending = new Stack<(string NodeId, int EdgeIndex)>();
+            Pending.Push((StartId, 0));
+            StateById[StartId] = 1;
+            while (Pending.Count > 0)
+            {
+                (string NodeId, int EdgeIndex) = Pending.Pop();
+                int NextIndex = InternalEdges.FindIndex(EdgeIndex, Edge => string.Equals(Edge.SourceId, NodeId, StringComparison.Ordinal));
+                if (NextIndex < 0)
+                {
+                    StateById[NodeId] = 2;
+                    continue;
+                }
+
+                Pending.Push((NodeId, NextIndex + 1));
+                EdgeContract Edge = InternalEdges[NextIndex];
+                if (!StateById.TryGetValue(Edge.TargetId, out int TargetState))
+                {
+                    StateById[Edge.TargetId] = 1;
+                    Pending.Push((Edge.TargetId, 0));
+                }
+                else if (TargetState == 1)
+                {
+                    BackEdges.Add(Edge);
+                }
+            }
+        }
+
+        return BackEdges;
     }
 
     private static List<string> CollectDirectGroupMemberNodeIds(
@@ -944,6 +1159,18 @@ public static class FlowchartSubgraphLayoutPostProcessor
             GroupIdByNodeId.TryGetValue(Edge.SourceId, out string? SourceGroupId);
             GroupIdByNodeId.TryGetValue(Edge.TargetId, out string? TargetGroupId);
 
+            if (!HorizontalFlow && SourceGroupId is null && TargetGroupId is not null && IsBranchingGroup(Contract, TargetGroupId, GroupById))
+            {
+                AlignNodeToMemberCrossCenter(Edge.SourceId, Edge.TargetId, MutableById);
+                continue;
+            }
+
+            if (!HorizontalFlow && SourceGroupId is not null && TargetGroupId is null && IsBranchingGroup(Contract, SourceGroupId, GroupById))
+            {
+                AlignNodeToMemberCrossCenter(Edge.TargetId, Edge.SourceId, MutableById);
+                continue;
+            }
+
             if (SourceGroupId is null && TargetGroupId is not null)
             {
                 AlignNodeToGroupCrossCenter(
@@ -966,6 +1193,41 @@ public static class FlowchartSubgraphLayoutPostProcessor
                     HorizontalFlow);
             }
         }
+    }
+
+    /// <summary>
+    /// Returns true when the group has a declared direction, no nested groups, and internal edges that branch, merge, or loop.
+    /// Such groups are packed by row, so outside nodes line up with the member they link to rather than the group centre (F59).
+    /// </summary>
+    private static bool IsBranchingGroup(DiagramContract Contract, string GroupId, Dictionary<string, GroupContract> GroupById)
+    {
+        if (!GroupById.TryGetValue(GroupId, out GroupContract? Group) || string.IsNullOrWhiteSpace(Group.Direction) || Group.ChildGroupIds.Count > 0)
+        {
+            return false;
+        }
+
+        List<string> MemberNodeIds = CollectDirectGroupMemberNodeIds(Group, GroupById, Contract);
+        return MemberNodeIds.Count >= 2 && !IsSimpleInternalChain(Contract, MemberNodeIds);
+    }
+
+    /// <summary>
+    /// Moves an outside node across the flow so it shares the column of the group member it links to.
+    /// </summary>
+    private static void AlignNodeToMemberCrossCenter(string ExternalNodeId, string MemberNodeId, Dictionary<string, FlowchartLayoutNodeBounds> MutableById)
+    {
+        if (!MutableById.TryGetValue(ExternalNodeId, out FlowchartLayoutNodeBounds ExternalBounds) || !MutableById.TryGetValue(MemberNodeId, out FlowchartLayoutNodeBounds MemberBounds))
+        {
+            return;
+        }
+
+        MutableById[ExternalNodeId] = new FlowchartLayoutNodeBounds
+        {
+            NodeId = ExternalBounds.NodeId,
+            CenterX = MemberBounds.CenterX,
+            CenterY = ExternalBounds.CenterY,
+            Width = ExternalBounds.Width,
+            Height = ExternalBounds.Height
+        };
     }
 
     private static void AlignNodeToGroupCrossCenter(

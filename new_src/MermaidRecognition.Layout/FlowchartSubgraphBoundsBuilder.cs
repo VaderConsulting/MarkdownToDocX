@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using MermaidRecognition.Contract;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Render;
 
 namespace MermaidRecognition.Layout;
@@ -275,6 +276,7 @@ public static class FlowchartSubgraphBoundsBuilder
 
         if (HasAny)
         {
+            IncludeInternalLoopBackRoutes(Contract, Group, BoundsById, ref MinX, ref MinY, ref MaxX, ref MaxY);
             FlowchartSubgraphSpineCenterHelper.ExpandHorizontalBoundsAroundPrimaryColumn(
                 Contract,
                 Group,
@@ -363,6 +365,65 @@ public static class FlowchartSubgraphBoundsBuilder
             ref MinY,
             ref MaxX,
             ref MaxY);
+    }
+
+    /// <summary>
+    /// Widens the content bounds to take in the turning points of any loop-back edge between two direct members (F59 Wait back to Queue).
+    /// The loop runs outside its nodes, so without this the cluster border would crowd it, and the primary column would no longer sit in the middle of the box.
+    /// </summary>
+    private static void IncludeInternalLoopBackRoutes(
+        DiagramContract Contract,
+        GroupContract Group,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        ref double MinX,
+        ref double MinY,
+        ref double MaxX,
+        ref double MaxY)
+    {
+        HashSet<string> DirectMemberIds = new HashSet<string>(StringComparer.Ordinal);
+        Dictionary<string, string?> ShapeById = new Dictionary<string, string?>(StringComparer.Ordinal);
+        foreach (NodeContract Node in Contract.Nodes)
+        {
+            ShapeById[Node.Id] = Node.Shape;
+            if (string.Equals(Node.ParentGroupId, Group.Id, StringComparison.Ordinal))
+            {
+                DirectMemberIds.Add(Node.Id);
+            }
+        }
+
+        foreach (string NodeId in Group.ChildNodeIds)
+        {
+            DirectMemberIds.Add(NodeId);
+        }
+
+        FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
+        foreach (EdgeContract Edge in Contract.Edges)
+        {
+            if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (!DirectMemberIds.Contains(Edge.SourceId) || !DirectMemberIds.Contains(Edge.TargetId))
+            {
+                continue;
+            }
+
+            ShapeById.TryGetValue(Edge.TargetId, out string? TargetShape);
+            if (!FlowchartFanInPortAllocator.TryResolveLoopBackRoute(Edge, Contract, BoundsById, TargetShape, Direction, out List<(double X, double Y)> LoopPoints))
+            {
+                continue;
+            }
+
+            for (int PointIndex = 1; PointIndex < LoopPoints.Count - 1; PointIndex++)
+            {
+                (double PointX, double PointY) = LoopPoints[PointIndex];
+                MinX = Math.Min(MinX, PointX);
+                MaxX = Math.Max(MaxX, PointX);
+                MinY = Math.Min(MinY, PointY);
+                MaxY = Math.Max(MaxY, PointY);
+            }
+        }
     }
 
     private static void IncludeNodeBounds(

@@ -4,6 +4,7 @@ using System.Linq;
 
 using MermaidRecognition.Contract;
 using MermaidRecognition.Kinds.Flowchart;
+using MermaidRecognition.Render;
 
 namespace MermaidRecognition.Layout;
 
@@ -523,6 +524,11 @@ public static class FlowchartEdgeGuidePointBuilder
         string TargetNodeId,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById)
     {
+        if (TryAppendUnderCorridorRoute(Contract, Points, StartX, StartY, SourceBounds, EndX, EndY, TargetBounds, BoundsById))
+        {
+            return;
+        }
+
         double PreTargetX = TargetBounds.CenterX - (TargetBounds.Width / 2.0) - DOTTED_CROSS_GROUP_CLEARANCE_PX;
         if (PreTargetX < StartX)
         {
@@ -574,6 +580,96 @@ public static class FlowchartEdgeGuidePointBuilder
         }
 
         Points.Add((EndX, EndY));
+    }
+
+    /// <summary>
+    /// Left-to-right cross-group link that would otherwise cut through unrelated nodes or titles (F60 audit copy).
+    /// The edge leaves the middle of the source's bottom face, runs in a corridor below every node and group box it passes,
+    /// and rises into the middle of the target's bottom face. Both ends meet their nodes at right angles,
+    /// and the route stays clear of the subgraph title bands, which sit at the top of each box.
+    /// </summary>
+    /// <returns>True when the route was appended.</returns>
+    private static bool TryAppendUnderCorridorRoute(
+        DiagramContract Contract,
+        List<(double X, double Y)> Points,
+        double StartX,
+        double StartY,
+        FlowchartLayoutNodeBounds SourceBounds,
+        double EndX,
+        double EndY,
+        FlowchartLayoutNodeBounds TargetBounds,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById)
+    {
+        double SourceHalfWidth = SourceBounds.Width / 2.0;
+        double TargetHalfWidth = TargetBounds.Width / 2.0;
+        double SourceGap = Math.Max(0.0, Math.Abs(StartX - SourceBounds.CenterX) - SourceHalfWidth);
+        double TargetGap = Math.Max(0.0, Math.Abs(EndX - TargetBounds.CenterX) - TargetHalfWidth);
+        double SourceX = SourceBounds.CenterX;
+        double TargetX = TargetBounds.CenterX;
+        if (Math.Abs(TargetX - SourceX) <= SourceHalfWidth + TargetHalfWidth)
+        {
+            return false;
+        }
+
+        double SourceY = SourceBounds.CenterY - (SourceBounds.Height / 2.0) - SourceGap;
+        double TargetY = TargetBounds.CenterY - (TargetBounds.Height / 2.0) - TargetGap;
+        double SpanMinX = Math.Min(SourceX, TargetX);
+        double SpanMaxX = Math.Max(SourceX, TargetX);
+        double LowestBottom = Math.Min(SourceY, TargetY);
+
+        foreach (FlowchartLayoutNodeBounds Bounds in BoundsById.Values)
+        {
+            double Left = Bounds.CenterX - (Bounds.Width / 2.0);
+            double Right = Bounds.CenterX + (Bounds.Width / 2.0);
+            if (Right < SpanMinX || Left > SpanMaxX)
+            {
+                continue;
+            }
+
+            LowestBottom = Math.Min(LowestBottom, Bounds.CenterY - (Bounds.Height / 2.0));
+        }
+
+        foreach (FlowchartSubgraphLayoutRect Rect in FlowchartSubgraphBoundsBuilder.BuildOrderedRects(Contract, BoundsById))
+        {
+            if (Rect.Right < SpanMinX || Rect.Left > SpanMaxX)
+            {
+                continue;
+            }
+
+            LowestBottom = Math.Min(LowestBottom, Rect.Bottom);
+        }
+
+        double CorridorY = LowestBottom - UNDER_CORRIDOR_CLEARANCE_PX;
+        Points.Add((SourceX, SourceY));
+        Points.Add((SourceX, CorridorY));
+        Points.Add((TargetX, CorridorY));
+        Points.Add((TargetX, TargetY));
+        return true;
+    }
+
+    private const double UNDER_CORRIDOR_CLEARANCE_PX = 20.0;
+
+    /// <summary>
+    /// Returns true for a dotted edge between two different groups in a left-to-right or right-to-left diagram.
+    /// Such an edge leaves and enters through the bottom faces (under-corridor route), so it must not take a slot
+    /// on the side faces that the solid flow edges use (F60 audit copy beside Verify manifest to Normalise).
+    /// </summary>
+    public static bool UsesBottomFaceCorridor(EdgeContract Edge, DiagramContract Contract)
+    {
+        if (!string.Equals(Edge.Stroke, "dotted", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
+        if (Direction != FlowchartDirection.LeftToRight && Direction != FlowchartDirection.RightToLeft)
+        {
+            return false;
+        }
+
+        string? SourceGroupId = FlowchartSubgraphMembershipHelper.FindInnermostGroupId(Edge.SourceId, Contract);
+        string? TargetGroupId = FlowchartSubgraphMembershipHelper.FindInnermostGroupId(Edge.TargetId, Contract);
+        return !string.Equals(SourceGroupId, TargetGroupId, StringComparison.Ordinal);
     }
 
     private static string? FindGroupForNode(string NodeId, DiagramContract Contract)

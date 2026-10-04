@@ -7,39 +7,32 @@ namespace MermaidRecognition.Layout;
 /// <summary>
 /// Parameters for computing subgraph cluster bounds with direction-aware nested gaps.
 /// </summary>
-public readonly struct FlowchartSubgraphBoundsRequest
+/// <remarks>
+/// Creates a bounds request.
+/// </remarks>
+public readonly struct FlowchartSubgraphBoundsRequest(FlowchartDirection Direction, double NestedFlowAxisGapPx)
 {
-    /// <summary>
-    /// Creates a bounds request.
-    /// </summary>
-    public FlowchartSubgraphBoundsRequest(FlowchartDirection Direction, double NestedFlowAxisGapPx)
-    {
-        this.Direction = Direction;
-        this.NestedFlowAxisGapPx = NestedFlowAxisGapPx;
-        HorizontalFlow = Direction == FlowchartDirection.LeftToRight
-            || Direction == FlowchartDirection.RightToLeft;
-        NestedCrossAxisGapPx = FlowchartSubgraphGapThresholds.ResolveNestedCrossAxisGapPx();
-    }
 
     /// <summary>
     /// Diagram direction used to distinguish flow-axis from cross-axis nested gaps.
     /// </summary>
-    public FlowchartDirection Direction { get; }
+    public FlowchartDirection Direction { get; } = Direction;
 
     /// <summary>
     /// Whether the primary flow axis is horizontal.
     /// </summary>
-    public bool HorizontalFlow { get; }
+    public bool HorizontalFlow { get; } = Direction == FlowchartDirection.LeftToRight
+            || Direction == FlowchartDirection.RightToLeft;
 
     /// <summary>
     /// Minimum nested child-to-parent gap on the primary flow axis.
     /// </summary>
-    public double NestedFlowAxisGapPx { get; }
+    public double NestedFlowAxisGapPx { get; } = NestedFlowAxisGapPx;
 
     /// <summary>
     /// Minimum nested child-to-parent gap on the cross-flow axis.
     /// </summary>
-    public double NestedCrossAxisGapPx { get; }
+    public double NestedCrossAxisGapPx { get; } = FlowchartSubgraphGapThresholds.ResolveNestedCrossAxisGapPx();
 
     /// <summary>
     /// Builds a request from contract direction and render options.

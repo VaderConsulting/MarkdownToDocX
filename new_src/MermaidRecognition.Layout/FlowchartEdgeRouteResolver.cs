@@ -106,7 +106,7 @@ public static class FlowchartEdgeRouteResolver
                     out List<(double X, double Y)> EarlyCrossGroupPoints))
             {
                 LayoutPoints = EarlyCrossGroupPoints;
-                RouteKind = FlowchartEdgeRouteKind.CrossGroup;
+                RouteKind = IsUnderCorridorRoute(EarlyCrossGroupPoints, Direction) ? FlowchartEdgeRouteKind.RetryLoop : FlowchartEdgeRouteKind.CrossGroup;
                 return true;
             }
         }
@@ -222,6 +222,20 @@ public static class FlowchartEdgeRouteResolver
             return true;
         }
 
+        if (FlowchartParallelBranchHubPortHelper.TryResolveEdgeRoute(Edge, Contract, BoundsById, NodeById, Direction, out List<(double X, double Y)> ParallelBranchPoints, out bool ParallelHubIsSource))
+        {
+            LayoutPoints = ParallelBranchPoints;
+            RouteKind = ParallelHubIsSource ? FlowchartEdgeRouteKind.Curved : FlowchartEdgeRouteKind.CrossGroup;
+            return true;
+        }
+
+        if (FlowchartFanInPortAllocator.TryResolveLoopBackRoute(Edge, Contract, BoundsById, TargetShape, Direction, out List<(double X, double Y)> LoopBackPoints))
+        {
+            LayoutPoints = LoopBackPoints;
+            RouteKind = FlowchartEdgeRouteKind.RetryLoop;
+            return true;
+        }
+
         if (FlowchartFanInPortAllocator.TryResolveEdgeRoute(
                 Edge,
                 Contract,
@@ -317,6 +331,13 @@ public static class FlowchartEdgeRouteResolver
                 PreferOrthogonalCorridor,
                 out List<(double X, double Y)> CrossGroupPoints))
         {
+            if (IsUnderCorridorRoute(CrossGroupPoints, Direction))
+            {
+                LayoutPoints = CrossGroupPoints;
+                RouteKind = FlowchartEdgeRouteKind.RetryLoop;
+                return true;
+            }
+
             LayoutPoints = FlowchartEdgeTerminalStubExpander.Apply(
                 CrossGroupPoints,
                 SourceBounds,
@@ -422,6 +443,28 @@ public static class FlowchartEdgeRouteResolver
         TargetY -= DirY * TargetGapPx;
 
         return (SourceX, SourceY, TargetX, TargetY);
+    }
+
+    /// <summary>
+    /// Returns true for the four-point left-to-right under-corridor route: down out of the source, across, and up into the target (F60).
+    /// That route is drawn with rounded corners.
+    /// </summary>
+    private static bool IsUnderCorridorRoute(IReadOnlyList<(double X, double Y)> Points, FlowchartDirection Direction)
+    {
+        if (Direction != FlowchartDirection.LeftToRight && Direction != FlowchartDirection.RightToLeft)
+        {
+            return false;
+        }
+
+        if (Points.Count != 4)
+        {
+            return false;
+        }
+
+        bool DownOut = Math.Abs(Points[0].X - Points[1].X) < 0.01 && Points[1].Y < Points[0].Y;
+        bool Across = Math.Abs(Points[1].Y - Points[2].Y) < 0.01;
+        bool UpIn = Math.Abs(Points[2].X - Points[3].X) < 0.01 && Points[3].Y > Points[2].Y;
+        return DownOut && Across && UpIn;
     }
 
     private static FlowchartEdgeRouteKind ResolveObstacleAwareRouteKind(

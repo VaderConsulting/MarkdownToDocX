@@ -74,23 +74,24 @@ public static class FlowchartEdgeLabelPlacementHelper
     }
 
     /// <summary>
-    /// Positions an LR labelled rectangle fan-out label on the longest horizontal guide segment when present.
+    /// Positions an LR labelled rectangle fan-out label in the gap between the two nodes, just outside the branch curve.
+    /// The label is centred on the gap and lifted past the target's centre line on the side away from the source,
+    /// so it clears the connector, the arrowhead and both node boundaries.
     /// </summary>
     public static (double X, double Y) ComputeLrLabelledRectFanOutEdgeLabelPosition(
         IReadOnlyList<(double X, double Y)> LayoutPoints,
         FlowchartLayoutNodeBounds SourceBounds,
         FlowchartLayoutNodeBounds TargetBounds)
     {
-        if (TryGetLongestAxisAlignedSegmentMidpoint(
-                LayoutPoints,
-                HorizontalSegment: true,
-                out double MidX,
-                out double MidY))
-        {
-            return (MidX, MidY);
-        }
-
-        return ComputeLrLabelledRectFanOutEdgeLabelPosition(SourceBounds, TargetBounds);
+        _ = LayoutPoints;
+        double SourceHalfWidth = SourceBounds.Width / 2.0;
+        double TargetHalfWidth = TargetBounds.Width / 2.0;
+        double GapMidX = TargetBounds.CenterX >= SourceBounds.CenterX
+            ? ((SourceBounds.CenterX + SourceHalfWidth) + (TargetBounds.CenterX - TargetHalfWidth)) / 2.0
+            : ((SourceBounds.CenterX - SourceHalfWidth) + (TargetBounds.CenterX + TargetHalfWidth)) / 2.0;
+        double OutwardSign = TargetBounds.CenterY < SourceBounds.CenterY ? -1.0 : 1.0;
+        double LabelY = TargetBounds.CenterY + (OutwardSign * DEFAULT_OFFSET_PX);
+        return (GapMidX, LabelY);
     }
 
     /// <summary>
@@ -189,6 +190,11 @@ public static class FlowchartEdgeLabelPlacementHelper
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds>? BoundsById,
         string? RouteClass)
     {
+        if (TryGetUnderCorridorLabelPosition(LayoutPoints, Direction, out (double X, double Y) UnderCorridorLabel))
+        {
+            return UnderCorridorLabel;
+        }
+
         if (Edge is not null
             && string.Equals(Edge.Stroke, "dotted", StringComparison.OrdinalIgnoreCase)
             && LayoutPoints.Count >= 4
@@ -600,6 +606,43 @@ public static class FlowchartEdgeLabelPlacementHelper
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Distance from the under-corridor line to the label centre. Puts the label just below the line, outside every group box.
+    /// </summary>
+    private const double UNDER_CORRIDOR_LABEL_OFFSET_PX = 20.0;
+
+    /// <summary>
+    /// Places the label of a left-to-right under-corridor route (down, across, up) centred under the horizontal run (F60 audit copy).
+    /// Above the run would put the label on the group box borders.
+    /// </summary>
+    private static bool TryGetUnderCorridorLabelPosition(
+        IReadOnlyList<(double X, double Y)> LayoutPoints,
+        FlowchartDirection Direction,
+        out (double X, double Y) LabelPosition)
+    {
+        LabelPosition = (0.0, 0.0);
+        if (Direction != FlowchartDirection.LeftToRight && Direction != FlowchartDirection.RightToLeft)
+        {
+            return false;
+        }
+
+        if (LayoutPoints.Count != 4)
+        {
+            return false;
+        }
+
+        bool DownOut = Math.Abs(LayoutPoints[0].X - LayoutPoints[1].X) < 0.01 && LayoutPoints[1].Y < LayoutPoints[0].Y;
+        bool Across = Math.Abs(LayoutPoints[1].Y - LayoutPoints[2].Y) < 0.01;
+        bool UpIn = Math.Abs(LayoutPoints[2].X - LayoutPoints[3].X) < 0.01 && LayoutPoints[3].Y > LayoutPoints[2].Y;
+        if (!DownOut || !Across || !UpIn)
+        {
+            return false;
+        }
+
+        LabelPosition = ((LayoutPoints[1].X + LayoutPoints[2].X) / 2.0, LayoutPoints[1].Y - UNDER_CORRIDOR_LABEL_OFFSET_PX);
+        return true;
     }
 
     private static bool TryGetHighestHorizontalCorridorLabelPosition(

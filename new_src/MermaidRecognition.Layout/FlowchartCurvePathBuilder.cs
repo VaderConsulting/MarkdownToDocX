@@ -42,6 +42,8 @@ public static class FlowchartCurvePathBuilder
 
     private const double AXIS_ALIGNMENT_TOLERANCE_PX = 0.75;
 
+    private const double RETRY_LOOP_CORNER_RADIUS_PX = 28.0;
+
     /// <summary>
     /// Builds SVG path data for a multi-point routed edge using <paramref name="CurveStyle"/>.
     /// </summary>
@@ -183,6 +185,11 @@ public static class FlowchartCurvePathBuilder
             return BuildCurveBasisPathData(Points);
         }
 
+        if (TryBuildStubBridgeCurvePathData(Points, out string StubBridgePathData))
+        {
+            return StubBridgePathData;
+        }
+
         StringBuilder Builder = new StringBuilder();
         Builder.Append('M');
         Builder.Append(FormatCoordinate(Points[0].X));
@@ -260,7 +267,7 @@ public static class FlowchartCurvePathBuilder
     }
 
     /// <summary>
-    /// F34 LR retry loops: straight source stub, then a smooth U-shaped corridor curve into the target.
+    /// F34 LR retry loops: follows the corridor polyline with rounded corners so the loop has no hard right angles.
     /// </summary>
     public static string BuildRetryLoopPathData(IReadOnlyList<(double X, double Y)> Points)
     {
@@ -269,49 +276,108 @@ public static class FlowchartCurvePathBuilder
             return string.Empty;
         }
 
-        if (Points.Count < 7)
+        return BuildRoundedCornerPathData(Points, RETRY_LOOP_CORNER_RADIUS_PX);
+    }
+
+    /// <summary>
+    /// Builds a polyline path whose interior corners are replaced by quarter-circle cubics of up to <paramref name="MaxRadius"/>.
+    /// Collinear guide points are dropped first, and each radius is capped at half of the shorter adjoining segment.
+    /// </summary>
+    public static string BuildRoundedCornerPathData(IReadOnlyList<(double X, double Y)> Points, double MaxRadius)
+    {
+        List<(double X, double Y)> Corners = RemoveCollinearPoints(Points);
+        if (Corners.Count < 3)
         {
-            return BuildLinearPathData(Points);
+            return BuildLinearPathData(Corners);
         }
 
+        const double CIRCLE_CUBIC_HANDLE_RATIO = 0.5523;
         StringBuilder Builder = new StringBuilder();
         Builder.Append('M');
-        Builder.Append(FormatCoordinate(Points[0].X));
+        Builder.Append(FormatCoordinate(Corners[0].X));
         Builder.Append(',');
-        Builder.Append(FormatCoordinate(Points[0].Y));
-        Builder.Append('L');
-        Builder.Append(FormatCoordinate(Points[1].X));
-        Builder.Append(',');
-        Builder.Append(FormatCoordinate(Points[1].Y));
-        Builder.Append('L');
-        Builder.Append(FormatCoordinate(Points[3].X));
-        Builder.Append(',');
-        Builder.Append(FormatCoordinate(Points[3].Y));
-        Builder.Append('L');
-        Builder.Append(FormatCoordinate(Points[4].X));
-        Builder.Append(',');
-        Builder.Append(FormatCoordinate(Points[4].Y));
+        Builder.Append(FormatCoordinate(Corners[0].Y));
 
-        string TargetApproach = BuildCurveBasisPathData(new List<(double X, double Y)>
+        for (int CornerIndex = 1; CornerIndex < Corners.Count - 1; CornerIndex++)
         {
-            Points[4],
-            Points[5],
-            Points[6]
-        });
-        int TargetLineIndex = TargetApproach.IndexOf('L', StringComparison.Ordinal);
-        if (TargetLineIndex >= 0)
-        {
-            Builder.Append(TargetApproach.AsSpan(TargetLineIndex));
-        }
-        else
-        {
+            (double PreviousX, double PreviousY) = Corners[CornerIndex - 1];
+            (double CornerX, double CornerY) = Corners[CornerIndex];
+            (double NextX, double NextY) = Corners[CornerIndex + 1];
+
+            double InX = CornerX - PreviousX;
+            double InY = CornerY - PreviousY;
+            double InLength = Math.Sqrt((InX * InX) + (InY * InY));
+            double OutX = NextX - CornerX;
+            double OutY = NextY - CornerY;
+            double OutLength = Math.Sqrt((OutX * OutX) + (OutY * OutY));
+            double IncomingLimit = CornerIndex == 1 ? InLength : InLength / 2.0;
+            double OutgoingLimit = CornerIndex == Corners.Count - 2 ? OutLength : OutLength / 2.0;
+            double Radius = Math.Min(MaxRadius, Math.Min(IncomingLimit, OutgoingLimit));
+            InX /= InLength;
+            InY /= InLength;
+            OutX /= OutLength;
+            OutY /= OutLength;
+
+            double ArcStartX = CornerX - (InX * Radius);
+            double ArcStartY = CornerY - (InY * Radius);
+            double ArcEndX = CornerX + (OutX * Radius);
+            double ArcEndY = CornerY + (OutY * Radius);
+            double Handle = Radius * CIRCLE_CUBIC_HANDLE_RATIO;
+
             Builder.Append('L');
-            Builder.Append(FormatCoordinate(Points[6].X));
+            Builder.Append(FormatCoordinate(ArcStartX));
             Builder.Append(',');
-            Builder.Append(FormatCoordinate(Points[6].Y));
+            Builder.Append(FormatCoordinate(ArcStartY));
+            Builder.Append('C');
+            Builder.Append(FormatCoordinate(ArcStartX + (InX * Handle)));
+            Builder.Append(',');
+            Builder.Append(FormatCoordinate(ArcStartY + (InY * Handle)));
+            Builder.Append(' ');
+            Builder.Append(FormatCoordinate(ArcEndX - (OutX * Handle)));
+            Builder.Append(',');
+            Builder.Append(FormatCoordinate(ArcEndY - (OutY * Handle)));
+            Builder.Append(' ');
+            Builder.Append(FormatCoordinate(ArcEndX));
+            Builder.Append(',');
+            Builder.Append(FormatCoordinate(ArcEndY));
         }
 
+        Builder.Append('L');
+        Builder.Append(FormatCoordinate(Corners[Corners.Count - 1].X));
+        Builder.Append(',');
+        Builder.Append(FormatCoordinate(Corners[Corners.Count - 1].Y));
         return Builder.ToString();
+    }
+
+    private static List<(double X, double Y)> RemoveCollinearPoints(IReadOnlyList<(double X, double Y)> Points)
+    {
+        List<(double X, double Y)> Result = [];
+        foreach ((double X, double Y) Point in Points)
+        {
+            if (Result.Count > 0
+                && Math.Abs(Result[Result.Count - 1].X - Point.X) < 1e-6
+                && Math.Abs(Result[Result.Count - 1].Y - Point.Y) < 1e-6)
+            {
+                continue;
+            }
+
+            if (Result.Count >= 2)
+            {
+                (double AX, double AY) = Result[Result.Count - 2];
+                (double BX, double BY) = Result[Result.Count - 1];
+                double Cross = ((BX - AX) * (Point.Y - BY)) - ((BY - AY) * (Point.X - BX));
+                double Dot = ((BX - AX) * (Point.X - BX)) + ((BY - AY) * (Point.Y - BY));
+                if (Math.Abs(Cross) < 1e-3 && Dot >= 0.0)
+                {
+                    Result[Result.Count - 1] = Point;
+                    continue;
+                }
+            }
+
+            Result.Add(Point);
+        }
+
+        return Result;
     }
 
     /// <summary>
@@ -319,6 +385,11 @@ public static class FlowchartCurvePathBuilder
     /// </summary>
     public static string BuildDecisionBranchPathData(IReadOnlyList<(double X, double Y)> Points)
     {
+        if (TryBuildStubBridgeCurvePathData(Points, out string StubBridgePathData))
+        {
+            return StubBridgePathData;
+        }
+
         if (Points.Count == 5)
         {
             StringBuilder Builder = new StringBuilder();
@@ -475,6 +546,11 @@ public static class FlowchartCurvePathBuilder
         if (RouteKind == FlowchartEdgeRouteKind.Decision)
         {
             return BuildDecisionBranchPathData(GuidePoints);
+        }
+
+        if (TryBuildStubBridgeCurvePathData(GuidePoints, out string StubBridgePathData))
+        {
+            return StubBridgePathData;
         }
 
         if (IsStadiumMergeGuideRoute(GuidePoints))
@@ -889,6 +965,11 @@ public static class FlowchartCurvePathBuilder
             return BuildLinearPathData(Points);
         }
 
+        if (TryBuildStubBridgeCurvePathData(Points, out string StubBridgePathData))
+        {
+            return StubBridgePathData;
+        }
+
         StringBuilder Builder = new StringBuilder();
         Builder.Append('M');
         Builder.Append(FormatCoordinate(Points[0].X));
@@ -1040,6 +1121,108 @@ public static class FlowchartCurvePathBuilder
         Builder.Append(FormatCoordinate(X1));
         Builder.Append(',');
         Builder.Append(FormatCoordinate(Y1));
+    }
+
+    /// <summary>
+    /// Builds a smooth S or quarter curve for a short route of the form boundary, stub, optional step guides, stub, boundary.
+    /// The body is one cubic whose end tangents match the two stubs, so the edge leaves and enters each node at right
+    /// angles without the small hooks that curveBasis produces on a stepped guide polyline.
+    /// </summary>
+    /// <param name="Points">Guide points in render coordinates.</param>
+    /// <param name="PathData">The SVG path data when the route qualifies.</param>
+    /// <returns>True when the route matched the stub-step-stub pattern and <paramref name="PathData"/> was built.</returns>
+    public static bool TryBuildStubBridgeCurvePathData(IReadOnlyList<(double X, double Y)> Points, out string PathData)
+    {
+        PathData = string.Empty;
+        if (Points.Count < 4 || Points.Count > 6)
+        {
+            return false;
+        }
+
+        (double BoundaryStartX, double BoundaryStartY) = Points[0];
+        (double StubStartX, double StubStartY) = Points[1];
+        (double StubEndX, double StubEndY) = Points[Points.Count - 2];
+        (double BoundaryEndX, double BoundaryEndY) = Points[Points.Count - 1];
+
+        double SourceDirX = StubStartX - BoundaryStartX;
+        double SourceDirY = StubStartY - BoundaryStartY;
+        double SourceLength = Math.Sqrt((SourceDirX * SourceDirX) + (SourceDirY * SourceDirY));
+        double TargetDirX = BoundaryEndX - StubEndX;
+        double TargetDirY = BoundaryEndY - StubEndY;
+        double TargetLength = Math.Sqrt((TargetDirX * TargetDirX) + (TargetDirY * TargetDirY));
+        if (SourceLength < 1e-6 || TargetLength < 1e-6)
+        {
+            return false;
+        }
+
+        SourceDirX /= SourceLength;
+        SourceDirY /= SourceLength;
+        TargetDirX /= TargetLength;
+        TargetDirY /= TargetLength;
+
+        double ChordX = StubEndX - StubStartX;
+        double ChordY = StubEndY - StubStartY;
+        double SourceProgress = (ChordX * SourceDirX) + (ChordY * SourceDirY);
+        double TargetProgress = (ChordX * TargetDirX) + (ChordY * TargetDirY);
+        if (SourceProgress <= 1.0 || TargetProgress <= 1.0)
+        {
+            return false;
+        }
+
+        double CrossOffset = Math.Abs((ChordX * SourceDirY) - (ChordY * SourceDirX));
+        double DirectionDot = (SourceDirX * TargetDirX) + (SourceDirY * TargetDirY);
+        if (CrossOffset <= AXIS_ALIGNMENT_TOLERANCE_PX && DirectionDot > 0.999)
+        {
+            return false;
+        }
+
+        const double INTERIOR_BOX_TOLERANCE_PX = 1.0;
+        double MinX = Math.Min(StubStartX, StubEndX) - INTERIOR_BOX_TOLERANCE_PX;
+        double MaxX = Math.Max(StubStartX, StubEndX) + INTERIOR_BOX_TOLERANCE_PX;
+        double MinY = Math.Min(StubStartY, StubEndY) - INTERIOR_BOX_TOLERANCE_PX;
+        double MaxY = Math.Max(StubStartY, StubEndY) + INTERIOR_BOX_TOLERANCE_PX;
+        for (int PointIndex = 2; PointIndex < Points.Count - 2; PointIndex++)
+        {
+            (double PointX, double PointY) = Points[PointIndex];
+            if (PointX < MinX || PointX > MaxX || PointY < MinY || PointY > MaxY)
+            {
+                return false;
+            }
+        }
+
+        const double CONTROL_PROGRESS_RATIO = 0.5;
+        double Control1X = StubStartX + (SourceDirX * SourceProgress * CONTROL_PROGRESS_RATIO);
+        double Control1Y = StubStartY + (SourceDirY * SourceProgress * CONTROL_PROGRESS_RATIO);
+        double Control2X = StubEndX - (TargetDirX * TargetProgress * CONTROL_PROGRESS_RATIO);
+        double Control2Y = StubEndY - (TargetDirY * TargetProgress * CONTROL_PROGRESS_RATIO);
+
+        StringBuilder Builder = new StringBuilder();
+        Builder.Append('M');
+        Builder.Append(FormatCoordinate(BoundaryStartX));
+        Builder.Append(',');
+        Builder.Append(FormatCoordinate(BoundaryStartY));
+        Builder.Append('L');
+        Builder.Append(FormatCoordinate(StubStartX));
+        Builder.Append(',');
+        Builder.Append(FormatCoordinate(StubStartY));
+        Builder.Append('C');
+        Builder.Append(FormatCoordinate(Control1X));
+        Builder.Append(',');
+        Builder.Append(FormatCoordinate(Control1Y));
+        Builder.Append(' ');
+        Builder.Append(FormatCoordinate(Control2X));
+        Builder.Append(',');
+        Builder.Append(FormatCoordinate(Control2Y));
+        Builder.Append(' ');
+        Builder.Append(FormatCoordinate(StubEndX));
+        Builder.Append(',');
+        Builder.Append(FormatCoordinate(StubEndY));
+        Builder.Append('L');
+        Builder.Append(FormatCoordinate(BoundaryEndX));
+        Builder.Append(',');
+        Builder.Append(FormatCoordinate(BoundaryEndY));
+        PathData = Builder.ToString();
+        return true;
     }
 
     private static void ApplyInboundAlignedTargetControl(

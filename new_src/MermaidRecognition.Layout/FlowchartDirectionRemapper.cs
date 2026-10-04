@@ -135,25 +135,16 @@ public static class FlowchartDirectionRemapper
         return (Math.Max(1.0, MaxRight - MinLeft), Math.Max(1.0, MaxTop - MinBottom));
     }
 
-    private sealed class WorkingBounds
+    private sealed class WorkingBounds(string NodeId, double CenterX, double CenterY, double Width, double Height)
     {
-        public WorkingBounds(string NodeId, double CenterX, double CenterY, double Width, double Height)
-        {
-            this.NodeId = NodeId;
-            this.CenterX = CenterX;
-            this.CenterY = CenterY;
-            this.Width = Width;
-            this.Height = Height;
-        }
+        public string NodeId { get; } = NodeId;
 
-        public string NodeId { get; }
+        public double CenterX { get; } = CenterX;
 
-        public double CenterX { get; }
+        public double CenterY { get; } = CenterY;
 
-        public double CenterY { get; }
+        public double Width { get; } = Width;
 
-        public double Width { get; }
-
-        public double Height { get; }
+        public double Height { get; } = Height;
     }
 }

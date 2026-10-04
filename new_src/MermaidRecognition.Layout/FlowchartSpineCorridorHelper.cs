@@ -6,38 +6,31 @@ namespace MermaidRecognition.Layout;
 /// <summary>
 /// Axis-aligned corridor around spine-aligned nodes for obstacle detection.
 /// </summary>
-public sealed class FlowchartSpineCorridorBounds
+/// <remarks>
+/// Creates corridor bounds in layout coordinates.
+/// </remarks>
+public sealed class FlowchartSpineCorridorBounds(double Left, double Top, double Right, double Bottom)
 {
-    /// <summary>
-    /// Creates corridor bounds in layout coordinates.
-    /// </summary>
-    public FlowchartSpineCorridorBounds(double Left, double Top, double Right, double Bottom)
-    {
-        this.Left = Left;
-        this.Top = Top;
-        this.Right = Right;
-        this.Bottom = Bottom;
-    }
 
     /// <summary>
     /// Minimum cross-axis coordinate of the corridor.
     /// </summary>
-    public double Left { get; }
+    public double Left { get; } = Left;
 
     /// <summary>
     /// Maximum flow-axis coordinate of the corridor (TB: top / larger Y).
     /// </summary>
-    public double Top { get; }
+    public double Top { get; } = Top;
 
     /// <summary>
     /// Maximum cross-axis coordinate of the corridor.
     /// </summary>
-    public double Right { get; }
+    public double Right { get; } = Right;
 
     /// <summary>
     /// Minimum flow-axis coordinate of the corridor (TB: bottom / smaller Y).
     /// </summary>
-    public double Bottom { get; }
+    public double Bottom { get; } = Bottom;
 }
 
 /// <summary>

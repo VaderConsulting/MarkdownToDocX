@@ -169,11 +169,51 @@ public static class FlowchartSubgraphSpineCenterHelper
             return;
         }
 
+        if (CountLargestAlignedSet(Contract, Group, BoundsById, ByColumn: true) >= CountLargestAlignedSet(Contract, Group, BoundsById, ByColumn: false))
+        {
+            return;
+        }
+
         double BottomExtent = RowCenterY - MinY;
         double TopExtent = MaxY - RowCenterY;
         double HalfSpan = Math.Max(BottomExtent, TopExtent);
         MinY = RowCenterY - HalfSpan;
         MaxY = RowCenterY + HalfSpan;
+    }
+
+    /// <summary>
+    /// Returns the size of the largest set of members that share one column (or one row).
+    /// A top-to-bottom group whose column is at least as long as any row is column-led, so its box must not be centred on a row (F59).
+    /// </summary>
+    private static int CountLargestAlignedSet(
+        DiagramContract Contract,
+        GroupContract Group,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        bool ByColumn)
+    {
+        Dictionary<double, int> CountByKey = [];
+        foreach (string NodeId in CollectMemberNodeIds(Group, Contract))
+        {
+            if (!BoundsById.TryGetValue(NodeId, out FlowchartLayoutNodeBounds Bounds))
+            {
+                continue;
+            }
+
+            double Coordinate = ByColumn ? Bounds.CenterX : Bounds.CenterY;
+            double Key = Math.Round(Coordinate / COLUMN_TOLERANCE_PX) * COLUMN_TOLERANCE_PX;
+            CountByKey[Key] = CountByKey.GetValueOrDefault(Key) + 1;
+        }
+
+        int Largest = 0;
+        foreach (int Count in CountByKey.Values)
+        {
+            if (Count > Largest)
+            {
+                Largest = Count;
+            }
+        }
+
+        return Largest;
     }
 
     /// <summary>

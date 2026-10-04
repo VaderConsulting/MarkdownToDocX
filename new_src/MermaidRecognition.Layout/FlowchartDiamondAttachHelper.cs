@@ -9,6 +9,7 @@ namespace MermaidRecognition.Layout;
 public static class FlowchartDiamondAttachHelper
 {
     private const double EDGE_DISTANCE_TOLERANCE_PX = 3.0;
+    private const double VERTEX_DISTANCE_TOLERANCE_PX = 1.0;
 
     /// <summary>
     /// Returns true when <paramref name="Shape"/> is a decision diamond.
@@ -51,6 +52,14 @@ public static class FlowchartDiamondAttachHelper
         double BottomY = CenterY - HalfHeight;
         double LeftX = CenterX - HalfWidth;
         double LeftY = CenterY;
+
+        if (TryResolveVertexAxisNormal(AttachX, AttachY, TopX, TopY, 0.0, 1.0, out NormalX, out NormalY)
+            || TryResolveVertexAxisNormal(AttachX, AttachY, BottomX, BottomY, 0.0, -1.0, out NormalX, out NormalY)
+            || TryResolveVertexAxisNormal(AttachX, AttachY, LeftX, LeftY, -1.0, 0.0, out NormalX, out NormalY)
+            || TryResolveVertexAxisNormal(AttachX, AttachY, RightX, RightY, 1.0, 0.0, out NormalX, out NormalY))
+        {
+            return true;
+        }
 
         double BestDistance = double.PositiveInfinity;
         double BestNormalX = 0.0;
@@ -150,6 +159,35 @@ public static class FlowchartDiamondAttachHelper
         }
 
         return (DirX / Length, DirY / Length);
+    }
+
+    /// <summary>
+    /// Returns the axis direction through a diamond vertex when the attach point sits on that vertex.
+    /// A connector at an apex must leave along the bisector of the two meeting sides, not along one slope's normal.
+    /// </summary>
+    private static bool TryResolveVertexAxisNormal(
+        double AttachX,
+        double AttachY,
+        double VertexX,
+        double VertexY,
+        double AxisX,
+        double AxisY,
+        out double NormalX,
+        out double NormalY)
+    {
+        NormalX = 0.0;
+        NormalY = 0.0;
+
+        double DeltaX = AttachX - VertexX;
+        double DeltaY = AttachY - VertexY;
+        if ((DeltaX * DeltaX) + (DeltaY * DeltaY) > VERTEX_DISTANCE_TOLERANCE_PX * VERTEX_DISTANCE_TOLERANCE_PX)
+        {
+            return false;
+        }
+
+        NormalX = AxisX;
+        NormalY = AxisY;
+        return true;
     }
 
     private static void ConsiderDiamondEdge(

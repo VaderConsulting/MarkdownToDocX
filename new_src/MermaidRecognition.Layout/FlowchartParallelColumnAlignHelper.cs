@@ -54,6 +54,11 @@ public static class FlowchartParallelColumnAlignHelper
             return;
         }
 
+        if (HasEdgeBetweenChains(Contract, ColumnChains))
+        {
+            return;
+        }
+
         List<double> TargetRowCenterByIndex = new List<double>(MaxRowCount);
         for (int RowIndex = 0; RowIndex < MaxRowCount; RowIndex++)
         {
@@ -116,4 +121,34 @@ public static class FlowchartParallelColumnAlignHelper
         }
     }
 
+    /// <summary>
+    /// Returns true when a visible edge joins nodes in two different columns.
+    /// Parallel columns (F73) are independent; columns joined by a decision branch or a loop-back (F59) must keep their own rows.
+    /// </summary>
+    private static bool HasEdgeBetweenChains(DiagramContract Contract, List<List<string>> ColumnChains)
+    {
+        Dictionary<string, int> ChainIndexByNodeId = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (int ChainIndex = 0; ChainIndex < ColumnChains.Count; ChainIndex++)
+        {
+            foreach (string NodeId in ColumnChains[ChainIndex])
+            {
+                ChainIndexByNodeId[NodeId] = ChainIndex;
+            }
+        }
+
+        foreach (EdgeContract Edge in Contract.Edges)
+        {
+            if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (ChainIndexByNodeId.TryGetValue(Edge.SourceId, out int SourceChain) && ChainIndexByNodeId.TryGetValue(Edge.TargetId, out int TargetChain) && SourceChain != TargetChain)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

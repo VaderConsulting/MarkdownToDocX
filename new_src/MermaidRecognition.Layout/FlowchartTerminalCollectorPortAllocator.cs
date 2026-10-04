@@ -88,6 +88,11 @@ public static class FlowchartTerminalCollectorPortAllocator
             out int BranchIndex,
             out int BranchCount);
 
+        if (TryAppendSideFaceRoute(SourceBounds, TargetBounds, Direction, Edge, LayoutPoints))
+        {
+            return true;
+        }
+
         bool BottomToTop = Direction == FlowchartDirection.BottomToTop;
         bool IsMarginBranch = BranchRole == FlowchartTerminalCollectorBranchRole.FarLeftMargin
             || BranchRole == FlowchartTerminalCollectorBranchRole.FarRightAuxiliary;
@@ -249,6 +254,42 @@ public static class FlowchartTerminalCollectorPortAllocator
     }
 
     /// <summary>
+    /// Routes a collector branch whose source sits upstream and wholly beyond the target's left or right edge
+    /// into the middle of the facing side of the target, with one smooth quarter curve (F58 Reject and Persist into Done).
+    /// </summary>
+    private static bool TryAppendSideFaceRoute(
+        FlowchartLayoutNodeBounds SourceBounds,
+        FlowchartLayoutNodeBounds TargetBounds,
+        FlowchartDirection Direction,
+        EdgeContract Edge,
+        List<(double X, double Y)> LayoutPoints)
+    {
+        double FlowSign = Direction == FlowchartDirection.BottomToTop ? 1.0 : -1.0;
+        double SourceFaceY = SourceBounds.CenterY + (FlowSign * SourceBounds.Height / 2.0);
+        double TargetFaceY = TargetBounds.CenterY - (FlowSign * TargetBounds.Height / 2.0);
+        if ((TargetFaceY - SourceFaceY) * FlowSign <= COLLINEAR_EPSILON_PX)
+        {
+            return false;
+        }
+
+        if (!FlowchartHubSidePortHelper.TryResolveHubSideAttach(TargetBounds, SourceBounds, Direction, Edge.MarkerEnd, out double HubX, out double HubY, out double HubOutwardX))
+        {
+            return false;
+        }
+
+        double SourceRight = SourceBounds.CenterX + (SourceBounds.Width / 2.0);
+        double SourceLeft = SourceBounds.CenterX - (SourceBounds.Width / 2.0);
+        if ((HubOutwardX < 0.0 && SourceRight >= HubX) || (HubOutwardX > 0.0 && SourceLeft <= HubX))
+        {
+            return false;
+        }
+
+        (double OtherX, double OtherY, double OtherOutwardY) = FlowchartHubSidePortHelper.ResolveOtherNodeFlowFaceAttach(SourceBounds, TargetBounds, Edge.MarkerStart);
+        FlowchartHubSidePortHelper.AppendQuarterRoute(LayoutPoints, false, HubX, HubY, HubOutwardX, TargetBounds, OtherX, OtherY, OtherOutwardY, SourceBounds);
+        return true;
+    }
+
+    /// <summary>
     /// Returns true when the route is a spine-aligned two-point connector.
     /// </summary>
     public static bool IsSpineStraightRoute(IReadOnlyList<(double X, double Y)> LayoutPoints)
@@ -332,19 +373,8 @@ public static class FlowchartTerminalCollectorPortAllocator
             TargetShape,
             TargetStubLength);
 
-        double SpanY = TargetY - SourceY;
-        double RouteY = SourceY + Math.Clamp(SpanY * 0.45, -40.0, 40.0);
-        double MidY = (RouteY + TargetY) / 2.0;
-        double MergeApproachX = ApproachX;
-        if (Math.Abs(MergeApproachX - SourceX) < COLLINEAR_EPSILON_PX)
-        {
-            MergeApproachX = SourceX + ((TargetX - SourceX) * 0.45);
-        }
-
         Points.Add((SourceX, SourceY));
         Points.Add((SourceStubX, SourceStubY));
-        Points.Add((SourceX, RouteY));
-        Points.Add((MergeApproachX, MidY));
         Points.Add((TargetStubX, TargetStubY));
         Points.Add((TargetX, TargetY));
     }
@@ -364,10 +394,10 @@ public static class FlowchartTerminalCollectorPortAllocator
         switch (Face)
         {
             case FlowchartEdgeAttachFace.Top:
-                return (BoundaryX, BoundaryY - StubLength);
+                return (BoundaryX, BoundaryY + StubLength);
 
             case FlowchartEdgeAttachFace.Bottom:
-                return (BoundaryX, BoundaryY + StubLength);
+                return (BoundaryX, BoundaryY - StubLength);
 
             case FlowchartEdgeAttachFace.Left:
                 return (BoundaryX - StubLength, BoundaryY);
@@ -376,7 +406,7 @@ public static class FlowchartTerminalCollectorPortAllocator
                 return (BoundaryX + StubLength, BoundaryY);
 
             default:
-                return (BoundaryX, BoundaryY + StubLength);
+                return (BoundaryX, BoundaryY - StubLength);
         }
     }
 
@@ -469,14 +499,9 @@ public static class FlowchartTerminalCollectorPortAllocator
 
         if (IsStadiumLikeShape(TargetShape))
         {
-            (TargetX, TargetY) = ResolveStadiumShoulderAttach(
-                CentreX,
-                CentreY,
-                TargetBounds.Width,
-                TargetBounds.Height,
-                SourceBounds.CenterX,
-                ApproachX,
-                ApproachY,
+            (TargetX, TargetY) = ResolveStadiumMergeAttach(
+                SourceBounds,
+                TargetBounds,
                 TargetEndpointMarker);
         }
         else
@@ -660,38 +685,33 @@ public static class FlowchartTerminalCollectorPortAllocator
         return (HitX, HitY);
     }
 
-    private static (double X, double Y) ResolveStadiumShoulderAttach(
-        double TargetCentreX,
-        double TargetCentreY,
-        double TargetWidth,
-        double TargetHeight,
-        double SourceCentreX,
-        double ApproachX,
-        double ApproachY,
+    /// <summary>
+    /// Picks the attach point on a stadium sink for a merge branch (layout space, Y up).
+    /// A source beside the stadium joins the middle of the facing left or right side; a source over the stadium joins the top.
+    /// </summary>
+    private static (double X, double Y) ResolveStadiumMergeAttach(
+        FlowchartLayoutNodeBounds SourceBounds,
+        FlowchartLayoutNodeBounds TargetBounds,
         EdgeEndpointMarker TargetEndpointMarker)
     {
         double TargetGapPx = FlowchartEdgeAttachConstants.GetExteriorGapPx(TargetEndpointMarker);
-        double Radius = TargetHeight / 2.0;
-        double HalfWidth = TargetWidth / 2.0;
-        double CapCentreX = SourceCentreX < TargetCentreX - COLLINEAR_EPSILON_PX
-            ? TargetCentreX - HalfWidth + Radius
-            : TargetCentreX + HalfWidth - Radius;
-        double CapCentreY = TargetCentreY;
-        double Angle = Math.Atan2(ApproachY - CapCentreY, ApproachX - CapCentreX);
-        double HitX = CapCentreX + (Radius * Math.Cos(Angle));
-        double HitY = CapCentreY + (Radius * Math.Sin(Angle));
+        double HalfWidth = TargetBounds.Width / 2.0;
+        double HalfHeight = TargetBounds.Height / 2.0;
+        double TargetLeft = TargetBounds.CenterX - HalfWidth;
+        double TargetRight = TargetBounds.CenterX + HalfWidth;
 
-        double GapX = HitX - TargetCentreX;
-        double GapY = HitY - TargetCentreY;
-        double GapLength = Math.Sqrt((GapX * GapX) + (GapY * GapY));
-        if (GapLength > COLLINEAR_EPSILON_PX)
+        if (SourceBounds.CenterX < TargetLeft - COLLINEAR_EPSILON_PX)
         {
-            double Scale = (GapLength + TargetGapPx) / GapLength;
-            HitX = TargetCentreX + (GapX * Scale);
-            HitY = TargetCentreY + (GapY * Scale);
+            return (TargetLeft - TargetGapPx, TargetBounds.CenterY);
         }
 
-        return (HitX, HitY);
+        if (SourceBounds.CenterX > TargetRight + COLLINEAR_EPSILON_PX)
+        {
+            return (TargetRight + TargetGapPx, TargetBounds.CenterY);
+        }
+
+        double TopX = Math.Clamp(SourceBounds.CenterX, TargetLeft + HalfHeight, TargetRight - HalfHeight);
+        return (TopX, TargetBounds.CenterY + HalfHeight + TargetGapPx);
     }
 
     private static bool IsTerminalCollectorTarget(DiagramContract Contract, string TargetNodeId)

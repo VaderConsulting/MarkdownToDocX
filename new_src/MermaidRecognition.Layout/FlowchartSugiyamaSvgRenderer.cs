@@ -1240,8 +1240,117 @@ public static class FlowchartSugiyamaSvgRenderer
             Contract,
             BoundsById,
             RouteClass);
+        double LabelHeight = FlowchartEdgeLabelPlacementHelper.ComputeRenderedEdgeLabelHeight(LabelDimensions, RenderOptions.EdgeLabelFontSizePx);
+        (LabelX, LabelY) = MoveLayoutLabelClearOfConnector(Edge, Contract, LabelX, LabelY, LabelDimensions.Width, LabelHeight, LayoutPoints, BoundsById, SourceBounds, TargetBounds, Direction);
         (LabelX, LabelY) = LayoutToSvgPoint(LabelX, LabelY, MinLeft, MaxTop, DiagramPaddingPx);
         AppendEdgeLabel(Builder, LabelDimensions, LabelX, LabelY, EdgeStyle, RenderOptions, Edge.Label);
+    }
+
+    /// <summary>
+    /// Moves a label centre (layout coordinates, Y up) so the label box does not cover its connector.
+    /// Canvas sizing and label drawing both call this, so the canvas always fits the moved label.
+    /// </summary>
+    private static (double X, double Y) MoveLayoutLabelClearOfConnector(
+        EdgeContract Edge,
+        DiagramContract Contract,
+        double LabelX,
+        double LabelY,
+        double LabelWidth,
+        double LabelHeight,
+        IReadOnlyList<(double X, double Y)> LayoutPoints,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        FlowchartLayoutNodeBounds SourceBounds,
+        FlowchartLayoutNodeBounds TargetBounds,
+        FlowchartDirection Direction)
+    {
+        List<(double X, double Y)> GuideRenderPoints = [];
+        foreach ((double LayoutX, double LayoutY) in LayoutPoints)
+        {
+            GuideRenderPoints.Add((LayoutX, -LayoutY));
+        }
+
+        List<IReadOnlyList<(double X, double Y)>> OtherRenderPoints = CollectOtherEdgeRenderGuidePoints(Edge, Contract, BoundsById, Direction);
+
+        List<FlowchartSvgRect> NodeRects = [];
+        foreach (FlowchartLayoutNodeBounds Bounds in BoundsById.Values)
+        {
+            NodeRects.Add(new FlowchartSvgRect(Bounds.CenterX - (Bounds.Width / 2.0), -(Bounds.CenterY + (Bounds.Height / 2.0)), Bounds.CenterX + (Bounds.Width / 2.0), -(Bounds.CenterY - (Bounds.Height / 2.0))));
+        }
+
+        double PreferredSign = ResolveLabelClearanceSign(SourceBounds, TargetBounds, Direction);
+        (double RenderX, double RenderY) = FlowchartEdgeLabelClearanceHelper.MoveClearOfConnector(LabelX, -LabelY, LabelWidth, LabelHeight, GuideRenderPoints, Direction, NodeRects, PreferredSign, OtherRenderPoints);
+        return (RenderX, -RenderY);
+    }
+
+    /// <summary>
+    /// Resolves the guide points of every visible edge except <paramref name="Edge"/>, flipped to render orientation (X, -Y).
+    /// Used so a label is not placed on top of a neighbouring connector (F59 "No" beside the Wait loop-back).
+    /// </summary>
+    private static List<IReadOnlyList<(double X, double Y)>> CollectOtherEdgeRenderGuidePoints(
+        EdgeContract Edge,
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        FlowchartDirection Direction)
+    {
+        List<IReadOnlyList<(double X, double Y)>> Result = [];
+        Dictionary<string, NodeContract> NodeById = new Dictionary<string, NodeContract>(StringComparer.Ordinal);
+        foreach (NodeContract Node in Contract.Nodes)
+        {
+            NodeById[Node.Id] = Node;
+        }
+
+        foreach (EdgeContract Other in Contract.Edges)
+        {
+            if (ReferenceEquals(Other, Edge) || string.Equals(Other.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (!FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(Other, Contract, BoundsById, NodeById, Direction, out List<(double X, double Y)> OtherPoints, out FlowchartEdgeRouteKind _))
+            {
+                continue;
+            }
+
+            List<(double X, double Y)> RenderPoints = [];
+            foreach ((double LayoutX, double LayoutY) in OtherPoints)
+            {
+                RenderPoints.Add((LayoutX, -LayoutY));
+            }
+
+            Result.Add(RenderPoints);
+        }
+
+        return Result;
+    }
+
+    /// <summary>
+    /// Returns the preferred render-space direction for moving a label off its connector: away from the source across the flow.
+    /// Straight connectors prefer the right side (top-to-bottom) or above the line (left-to-right).
+    /// </summary>
+    private static double ResolveLabelClearanceSign(
+        FlowchartLayoutNodeBounds SourceBounds,
+        FlowchartLayoutNodeBounds TargetBounds,
+        FlowchartDirection Direction)
+    {
+        const double ALIGNED_TOLERANCE_PX = 0.75;
+        if (Direction == FlowchartDirection.TopToBottom || Direction == FlowchartDirection.BottomToTop)
+        {
+            double DeltaX = TargetBounds.CenterX - SourceBounds.CenterX;
+            if (DeltaX < -ALIGNED_TOLERANCE_PX)
+            {
+                return -1.0;
+            }
+
+            return 1.0;
+        }
+
+        double LayoutDeltaY = TargetBounds.CenterY - SourceBounds.CenterY;
+        if (LayoutDeltaY < -ALIGNED_TOLERANCE_PX)
+        {
+            return 1.0;
+        }
+
+        return -1.0;
     }
 
     private static void RenderStraightEdgeSegment(
@@ -1678,6 +1787,7 @@ public static class FlowchartSugiyamaSvgRenderer
         ref double MaxTop)
     {
         const double EDGE_LABEL_MARGIN_PX = 4.0;
+        const double MOVED_EDGE_LABEL_HORIZONTAL_MARGIN_PX = 10.0;
 
         foreach (EdgeContract Edge in Contract.Edges)
         {
@@ -1736,7 +1846,17 @@ public static class FlowchartSugiyamaSvgRenderer
                 Contract,
                 BoundsById,
                 RouteClass);
-            double HalfLabelWidth = (LabelDimensions.Width / 2.0) + EDGE_LABEL_MARGIN_PX;
+            double RenderedLabelHeight = FlowchartEdgeLabelPlacementHelper.ComputeRenderedEdgeLabelHeight(LabelDimensions, RenderOptions.EdgeLabelFontSizePx);
+            (double ClearedCentreX, double ClearedCentreY) = MoveLayoutLabelClearOfConnector(Edge, Contract, LabelCentreX, LabelCentreY, LabelDimensions.Width, RenderedLabelHeight, LayoutGuidePoints, BoundsById, SourceBounds, TargetBounds, Direction);
+            double HorizontalMarginPx = EDGE_LABEL_MARGIN_PX;
+            if (Math.Abs(ClearedCentreX - LabelCentreX) > 0.01 || Math.Abs(ClearedCentreY - LabelCentreY) > 0.01)
+            {
+                HorizontalMarginPx = MOVED_EDGE_LABEL_HORIZONTAL_MARGIN_PX;
+            }
+
+            LabelCentreX = ClearedCentreX;
+            LabelCentreY = ClearedCentreY;
+            double HalfLabelWidth = (LabelDimensions.Width / 2.0) + HorizontalMarginPx;
             double HalfLabelHeight = (TotalTextHeightPx / 2.0) + EDGE_LABEL_MARGIN_PX;
 
             double LabelLeft = LabelCentreX - HalfLabelWidth;

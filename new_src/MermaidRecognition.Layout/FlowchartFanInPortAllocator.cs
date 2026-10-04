@@ -15,6 +15,117 @@ public static class FlowchartFanInPortAllocator
     private const double COLLINEAR_EPSILON_PX = 0.75;
 
     /// <summary>
+    /// How far the loop-back runs straight out of the source's downstream face before it turns.
+    /// </summary>
+    private const double LOOP_BACK_DROP_PX = 36.0;
+
+    /// <summary>
+    /// Gap between the loop-back's return column and the outermost node it passes.
+    /// </summary>
+    private const double LOOP_BACK_CORRIDOR_CLEARANCE_PX = 14.0;
+
+    /// <summary>
+    /// Routes a top-to-bottom or bottom-to-top loop-back edge into the side of its fan-in target (F59 Wait back to Queue).
+    /// The source must sit downstream of the target and wholly beyond the target's left or right edge.
+    /// The edge leaves the middle of the source's downstream face, turns outwards, climbs in a column clear of every node it passes,
+    /// and turns in to join the middle of the target's facing side at a right angle.
+    /// The guide points form an axis-aligned loop; the caller renders it with rounded corners (<see cref="FlowchartEdgeRouteKind.RetryLoop"/>).
+    /// </summary>
+    /// <returns>True when the loop-back route applies and <paramref name="LayoutPoints"/> holds its guide points.</returns>
+    public static bool TryResolveLoopBackRoute(
+        EdgeContract Edge,
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        string? TargetShape,
+        FlowchartDirection Direction,
+        out List<(double X, double Y)> LayoutPoints)
+    {
+        LayoutPoints = [];
+        if (Direction != FlowchartDirection.TopToBottom && Direction != FlowchartDirection.BottomToTop)
+        {
+            return false;
+        }
+
+        if (IsDecisionShape(TargetShape))
+        {
+            return false;
+        }
+
+        if (!BoundsById.TryGetValue(Edge.SourceId, out FlowchartLayoutNodeBounds SourceBounds) || !BoundsById.TryGetValue(Edge.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
+        {
+            return false;
+        }
+
+        if (FlowchartTerminalCollectorPortAllocator.ShouldApplyTerminalCollectorRouting(Contract, Edge.TargetId) || CountVisibleEdges(Contract, Edge.TargetId, false) < 2)
+        {
+            return false;
+        }
+
+        double FlowSign = Direction == FlowchartDirection.BottomToTop ? 1.0 : -1.0;
+        double SourceUpstreamFace = SourceBounds.CenterY - (FlowSign * SourceBounds.Height / 2.0);
+        double TargetDownstreamFace = TargetBounds.CenterY + (FlowSign * TargetBounds.Height / 2.0);
+        if ((SourceUpstreamFace - TargetDownstreamFace) * FlowSign <= COLLINEAR_EPSILON_PX)
+        {
+            return false;
+        }
+
+        if (!FlowchartHubSidePortHelper.TryResolveHubSideAttach(TargetBounds, SourceBounds, Direction, Edge.MarkerEnd, out double HubX, out double HubY, out double HubOutwardX))
+        {
+            return false;
+        }
+
+        double SourceGap = FlowchartEdgeAttachConstants.GetExteriorGapPx(Edge.MarkerStart);
+        double StartX = SourceBounds.CenterX;
+        double StartY = SourceBounds.CenterY + (FlowSign * ((SourceBounds.Height / 2.0) + SourceGap));
+        double TurnY = StartY + (FlowSign * LOOP_BACK_DROP_PX);
+        double SpanMinY = Math.Min(TurnY, HubY);
+        double SpanMaxY = Math.Max(TurnY, HubY);
+
+        double CorridorX = StartX + (HubOutwardX * ((SourceBounds.Width / 2.0) + LOOP_BACK_CORRIDOR_CLEARANCE_PX));
+        foreach (FlowchartLayoutNodeBounds Bounds in BoundsById.Values)
+        {
+            double Bottom = Bounds.CenterY - (Bounds.Height / 2.0);
+            double Top = Bounds.CenterY + (Bounds.Height / 2.0);
+            if (Top < SpanMinY || Bottom > SpanMaxY)
+            {
+                continue;
+            }
+
+            double OuterEdge = Bounds.CenterX + (HubOutwardX * Bounds.Width / 2.0);
+            double Candidate = OuterEdge + (HubOutwardX * LOOP_BACK_CORRIDOR_CLEARANCE_PX);
+            if ((Candidate - CorridorX) * HubOutwardX > 0.0)
+            {
+                CorridorX = Candidate;
+            }
+        }
+
+        foreach (FlowchartLayoutNodeBounds Bounds in BoundsById.Values)
+        {
+            if (ReferenceEquals(Bounds, SourceBounds))
+            {
+                continue;
+            }
+
+            double Left = Bounds.CenterX - (Bounds.Width / 2.0);
+            double Right = Bounds.CenterX + (Bounds.Width / 2.0);
+            double Bottom = Bounds.CenterY - (Bounds.Height / 2.0);
+            double Top = Bounds.CenterY + (Bounds.Height / 2.0);
+            bool BlocksDrop = TurnY > Bottom && TurnY < Top && Math.Max(StartX, CorridorX) > Left && Math.Min(StartX, CorridorX) < Right;
+            if (BlocksDrop)
+            {
+                return false;
+            }
+        }
+
+        LayoutPoints.Add((StartX, StartY));
+        LayoutPoints.Add((StartX, TurnY));
+        LayoutPoints.Add((CorridorX, TurnY));
+        LayoutPoints.Add((CorridorX, HubY));
+        LayoutPoints.Add((HubX, HubY));
+        return true;
+    }
+
+    /// <summary>
     /// Resolves layout attach points and guided waypoints for rectangle collector fan-in edges.
     /// </summary>
     public static bool TryResolveEdgeRoute(
@@ -126,6 +237,35 @@ public static class FlowchartFanInPortAllocator
                 TargetShape,
                 CorridorX);
             return LayoutPoints.Count >= 2;
+        }
+
+        if (UseVerticalHubFanInPorts
+            && FlowchartHubSidePortHelper.TryResolveClearHubSideAttach(
+                TargetBounds,
+                SourceBounds,
+                Direction,
+                Edge.MarkerEnd,
+                BoundsById.Values,
+                out double HubSideX,
+                out double HubSideY,
+                out double HubOutwardX))
+        {
+            (double OtherX, double OtherY, double OtherOutwardY) = FlowchartHubSidePortHelper.ResolveOtherNodeFlowFaceAttach(
+                SourceBounds,
+                TargetBounds,
+                Edge.MarkerStart);
+            FlowchartHubSidePortHelper.AppendQuarterRoute(
+                LayoutPoints,
+                HubIsSource: false,
+                HubSideX,
+                HubSideY,
+                HubOutwardX,
+                TargetBounds,
+                OtherX,
+                OtherY,
+                OtherOutwardY,
+                SourceBounds);
+            return true;
         }
 
         if (UseVerticalHubFanInPorts)
@@ -492,7 +632,7 @@ public static class FlowchartFanInPortAllocator
         List<EdgeContract> Edges = [];
         foreach (EdgeContract Candidate in Contract.Edges)
         {
-            if (string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase) || FlowchartEdgeGuidePointBuilder.UsesBottomFaceCorridor(Candidate, Contract))
             {
                 continue;
             }
@@ -545,7 +685,7 @@ public static class FlowchartFanInPortAllocator
         List<EdgeContract> Edges = [];
         foreach (EdgeContract Candidate in Contract.Edges)
         {
-            if (string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase) || FlowchartEdgeGuidePointBuilder.UsesBottomFaceCorridor(Candidate, Contract))
             {
                 continue;
             }
@@ -793,7 +933,7 @@ public static class FlowchartFanInPortAllocator
         int Count = 0;
         foreach (EdgeContract Candidate in Contract.Edges)
         {
-            if (string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase) || FlowchartEdgeGuidePointBuilder.UsesBottomFaceCorridor(Candidate, Contract))
             {
                 continue;
             }
