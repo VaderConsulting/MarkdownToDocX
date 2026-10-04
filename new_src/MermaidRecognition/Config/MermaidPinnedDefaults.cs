@@ -51,7 +51,7 @@ public static partial class MermaidPinnedDefaults
 
         string? InitKey = ResolveInitKey(ProgrammeKindId);
         if (InitKey != null
-            && KindDefaultsByInitKey.TryGetValue(InitKey, out (string Key, string Value)[] KindDefaults))
+            && KindDefaultsByInitKey.TryGetValue(InitKey, out (string Key, string Value)[]? KindDefaults))
         {
             ApplyPairs(Configuration, KindDefaults);
         }
@@ -67,7 +67,7 @@ public static partial class MermaidPinnedDefaults
             return null;
         }
 
-        if (ProgrammeKindToInitKey.TryGetValue(ProgrammeKindId, out string MappedInitKey))
+        if (ProgrammeKindToInitKey.TryGetValue(ProgrammeKindId, out string? MappedInitKey))
         {
             return MappedInitKey;
         }

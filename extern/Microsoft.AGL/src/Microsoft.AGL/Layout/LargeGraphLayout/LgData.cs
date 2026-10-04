@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -8,46 +8,40 @@ using Microsoft.AGL.Core.Geometry;
 using Microsoft.AGL.Core.Geometry.Curves;
 using Microsoft.AGL.Core.Layout;
 using Microsoft.AGL.DebugHelpers;
-using Microsoft.AGL.Prototype.Ranking;
+using Microsoft.AGL.Miscellaneous.Ranking;
 
 namespace Microsoft.AGL.Layout.LargeGraphLayout {
     /// <summary>
     /// data for large graph browsing
     /// </summary>
     public class LgData {
-        readonly List<GeometryGraph> _connectedComponents = new List<GeometryGraph>();
+        readonly List<GeometryGraph> _connectedComponents = [];
         internal Dictionary<Node, LgNodeInfo> GeometryNodesToLgNodeInfos;
-        internal readonly Dictionary<Edge, LgEdgeInfo> GeometryEdgesToLgEdgeInfos = new Dictionary<Edge, LgEdgeInfo>();
+        internal readonly Dictionary<Edge, LgEdgeInfo> GeometryEdgesToLgEdgeInfos = [];
 
-        readonly Set<Edge> _selectedEdges=new Set<Edge>();
-        Set<LgNodeInfo> _selectedNodeInfos = new Set<LgNodeInfo>();
-        readonly List<LgLevel> _levels = new List<LgLevel>();
+        readonly Set<Edge> _selectedEdges=[];
+        Set<LgNodeInfo> _selectedNodeInfos = [];
+        readonly List<LgLevel> _levels = [];
 
-        internal readonly List<LgSkeletonLevel> SkeletonLevels = new List<LgSkeletonLevel>();
+        internal readonly List<LgSkeletonLevel> SkeletonLevels = [];
 
         /// <summary>
         /// the list of levels
         /// </summary>
-        public IList<LgLevel> Levels { get { return _levels; } }
+        public IList<LgLevel> Levels => _levels;
 
-        internal LgData(GeometryGraph mainGeomGraph) {
-            this.mainGeomGraph = mainGeomGraph;
-        }
+        internal LgData(GeometryGraph mainGeomGraph) => this.mainGeomGraph = mainGeomGraph;
 
-       
+
 
         #region Level class
 
         #endregion  end of Level class
 
-        
-        internal void AddConnectedGeomGraph(GeometryGraph geomGraph) {
-            _connectedComponents.Add(geomGraph);
-        }
 
-        internal IEnumerable<GeometryGraph> ConnectedGeometryGraphs {
-            get { return _connectedComponents; }
-        }
+        internal void AddConnectedGeomGraph(GeometryGraph geomGraph) => _connectedComponents.Add(geomGraph);
+
+        internal IEnumerable<GeometryGraph> ConnectedGeometryGraphs => _connectedComponents;
 
         /// <summary>
         /// LgNodeInfos sorted by their importance
@@ -71,13 +65,11 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
                 }
         */
 
-        internal LgLevel GetCurrentLevelByScale(double zoomLevel) {
-            return this._levels[GetLevelIndexByScale(zoomLevel)];
-        }
-        
+        internal LgLevel GetCurrentLevelByScale(double zoomLevel) => _levels[GetLevelIndexByScale(zoomLevel)];
+
         internal LgLevel AddLevel() {
             int zoomLevel = (int) Math.Pow(2, _levels.Count());
-            var level = new LgLevel(zoomLevel, mainGeomGraph);
+            LgLevel level = new LgLevel(zoomLevel, mainGeomGraph);
             _levels.Add(level);
             return level;
         }
@@ -131,7 +123,7 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
         internal int GetLevelIndexByScale(double scale) {
             if (scale <= 1) return 0;
             if (scale >= _levels.Last().ZoomLevel) return _levels.Count - 1;
-            var z = Math.Log(scale, 2);
+            double z = Math.Log(scale, 2);
             int ret = (int)Math.Ceiling(z);
             Debug.Assert(0 <= ret && ret < _levels.Count);
             return ret;
@@ -167,9 +159,9 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
         */
 #if DEBUG && !SILVERLIGHT && !SHARPKIT
         static void ShowDimmedRails(Set<Rail> dimmedRails) {
-            var l = new List<DebugHelpers.DebugCurve>();
-            foreach (var r in dimmedRails) {
-                var s = r.ToString();
+            List<DebugCurve> l = new List<DebugHelpers.DebugCurve>();
+            foreach (Rail r in dimmedRails) {
+                string s = r.ToString();
                 string color =
                     s.StartsWith("15") ? "green" : (s.StartsWith("1384") ? "red" : "blue");
                  l.Add(new DebugHelpers.DebugCurve(100, 1, color, r.Geometry as ICurve));
@@ -217,22 +209,19 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
                 SelectEdgesOnLevel(i, passingEdges);
         }
 
-        public Set<Edge> SelectedEdges {
-            get { return _selectedEdges; } }
+        public Set<Edge> SelectedEdges => _selectedEdges;
 
-        internal Set<LgNodeInfo> SelectedNodeInfos {
-            get { return _selectedNodeInfos; }
-            private set { _selectedNodeInfos = value; }
+        internal Set<LgNodeInfo> SelectedNodeInfos { get => _selectedNodeInfos; private set => _selectedNodeInfos = value;
         }
 
         void SelectEdgesOnLevel(int i, List<Edge> edges) {
-            var level = _levels[i];
-            var railsToHighlight = new Set<Rail>();
-            foreach (var edge in edges) {
-                Set<Rail> railsOfEdge;
-                if (!level._railsOfEdges.TryGetValue(edge, out railsOfEdge)) {
-                    var edgeInfo = GeometryEdgesToLgEdgeInfos[edge];
-                    int edgeLevelIndex = (int)Math.Min( Math.Log(edgeInfo.ZoomLevel, 2), _levels.Count - 1);
+            LgLevel level = _levels[i];
+            Set<Rail> railsToHighlight = new Set<Rail>();
+            foreach (Edge edge in edges) {
+                if (!level._railsOfEdges.TryGetValue(edge, out Set<Rail> railsOfEdge))
+                {
+                    LgEdgeInfo edgeInfo = GeometryEdgesToLgEdgeInfos[edge];
+                    int edgeLevelIndex = (int)Math.Min(Math.Log(edgeInfo.ZoomLevel, 2), _levels.Count - 1);
                     railsOfEdge = _levels[edgeLevelIndex]._railsOfEdges[edge];
                     TransferHighlightedRails(level, edge, railsOfEdge);
                 }
@@ -240,7 +229,7 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
                     railsToHighlight.InsertRange(railsOfEdge);
             }
             //need to analyze and highlight the new highlighted rails
-            foreach (var rail in railsToHighlight) {
+            foreach (Rail rail in railsToHighlight) {
                 if (!level.HighlightedRails.Contains(rail)) {
                     rail.IsHighlighted = true;
                     level.HighlightedRails.Insert(rail);
@@ -257,14 +246,13 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
         /// <returns></returns>
         public Set<Rail> GetRailsOfEdgesOnLevel(int i, List<Edge> edges)
         {
-            var level = _levels[i];
-            var railsToHighlight = new Set<Rail>();
-            foreach (var edge in edges)
+            LgLevel level = _levels[i];
+            Set<Rail> railsToHighlight = new Set<Rail>();
+            foreach (Edge edge in edges)
             {
-                Set<Rail> railsOfEdge;
-                if (!level._railsOfEdges.TryGetValue(edge, out railsOfEdge))
+                if (!level._railsOfEdges.TryGetValue(edge, out Set<Rail> railsOfEdge))
                 {
-                    var edgeInfo = GeometryEdgesToLgEdgeInfos[edge];
+                    LgEdgeInfo edgeInfo = GeometryEdgesToLgEdgeInfos[edge];
                     int edgeLevelIndex = (int)Math.Min(Math.Log(edgeInfo.ZoomLevel, 2), _levels.Count - 1);
                     railsOfEdge = _levels[edgeLevelIndex]._railsOfEdges[edge];
                     TransferHighlightedRails(level, edge, railsOfEdge); // roman: todo: necessary?
@@ -277,11 +265,10 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
 
         public Set<Rail> GetRailsOfEdgeOnLevel(int i, Edge edge)
         {
-            var level = _levels[i];
-            var railsToHighlight = new Set<Rail>();
+            LgLevel level = _levels[i];
+            Set<Rail> railsToHighlight = new Set<Rail>();
 
-            Set<Rail> railsOfEdge;
-            if (level._railsOfEdges.TryGetValue(edge, out railsOfEdge))
+            if (level._railsOfEdges.TryGetValue(edge, out Set<Rail> railsOfEdge))
             {
                 railsToHighlight.InsertRange(railsOfEdge);
             }
@@ -298,7 +285,7 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
 
         static void TransferHighlightedRails(LgLevel level, Edge edge, Set<Rail> railsOfEdge) {
             //need to remove those rails later, when putting them off
-            foreach (var rail in railsOfEdge)
+            foreach (Rail rail in railsOfEdge)
                 AddRailToRailTreeOfLowerLevel(rail, level);
             level._railsOfEdges[edge] = railsOfEdge;
             level.HighlightedRails.InsertRange(railsOfEdge);
@@ -328,8 +315,8 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
 */
 
         static void AddRailToRailTreeOfLowerLevel(Rail rail, LgLevel lowerLevel) {
-            var pt = rail.PointTuple();
-            var box = new Rectangle(pt.Item1, pt.Item2);
+            Tuple<Point, Point> pt = rail.PointTuple();
+            Rectangle box = new Rectangle(pt.Item1, pt.Item2);
             if (!lowerLevel._railTree.Contains(box, rail))
                 lowerLevel._railTree.Add(box, rail);
         }
@@ -341,37 +328,37 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
         }
 
         internal void PutOffEdgesPassingThroughTheRail(Rail rail) {
-            var railLevel = _levels[(int)Math.Log(rail.ZoomLevel, 2)];
-            var passingEdges = railLevel.GetEdgesPassingThroughRail(rail);
+            LgLevel railLevel = _levels[(int)Math.Log(rail.ZoomLevel, 2)];
+            List<Edge> passingEdges = railLevel.GetEdgesPassingThroughRail(rail);
             UnselectEdges(passingEdges);
         }
 
         public void UnselectEdges(List<Edge> edgesToPutOff) {
-            var edgesToPutoffSet = new Set<Edge>(edgesToPutOff);
+            Set<Edge> edgesToPutoffSet = new Set<Edge>(edgesToPutOff);
             for (int i = _levels.Count - 1; i >= 0; i--)
                 PutOffEdgesOnLevel(i, edgesToPutoffSet);
-            foreach (var e in edgesToPutOff)
+            foreach (Edge e in edgesToPutOff)
                 SelectedEdges.Remove(e);
         }
 
         void PutOffEdgesOnLevel(int i, Set<Edge> edgesToPutOff) {
-            var level = _levels[i];
-            var railsThatShouldBeHiglighted = GetRailsThatShouldBeHighlighted(level, edgesToPutOff);
+            LgLevel level = _levels[i];
+            Set<Rail> railsThatShouldBeHiglighted = GetRailsThatShouldBeHighlighted(level, edgesToPutOff);
 
-            foreach (var rail in level.HighlightedRails) {
+            foreach (Rail rail in level.HighlightedRails) {
                 if (!railsThatShouldBeHiglighted.Contains(rail)) {
                     if (RailBelongsToLevel(level, rail))
                         rail.IsHighlighted = false;
                     else {
-                        var railTuple = rail.PointTuple();  
-                        var rect = new Rectangle(railTuple.Item1, railTuple.Item2);
+                        Tuple<Point, Point> railTuple = rail.PointTuple();
+                        Rectangle rect = new Rectangle(railTuple.Item1, railTuple.Item2);
                         level._railTree.Remove(rect, rail);
                     }
                         
                 }
             }
-            foreach (var edge in edgesToPutOff) {
-                var lgEdgeInfo = GeometryEdgesToLgEdgeInfos[edge];
+            foreach (Edge edge in edgesToPutOff) {
+                LgEdgeInfo lgEdgeInfo = GeometryEdgesToLgEdgeInfos[edge];
                 if (lgEdgeInfo.ZoomLevel > level.ZoomLevel)
                     level._railsOfEdges.Remove(edge);
             }
@@ -379,16 +366,14 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
             level.HighlightedRails = railsThatShouldBeHiglighted;
         }
 
-        static bool RailBelongsToLevel(LgLevel level, Rail rail) {
-            return level.ZoomLevel >= rail.ZoomLevel;
-        }
+        static bool RailBelongsToLevel(LgLevel level, Rail rail) => level.ZoomLevel >= rail.ZoomLevel;
 
         Set<Rail> GetRailsThatShouldBeHighlighted(LgLevel level, Set<Edge> edgesToPutOff) {
-            var ret = new Set<Rail>();
-            foreach (var edge in SelectedEdges) {
+            Set<Rail> ret = new Set<Rail>();
+            foreach (Edge edge in SelectedEdges) {
                 if (edgesToPutOff.Contains(edge)) continue;
-                Set<Rail> railsOfEdge;
-                if (level._railsOfEdges.TryGetValue(edge, out railsOfEdge)) {
+                if (level._railsOfEdges.TryGetValue(edge, out Set<Rail> railsOfEdge))
+                {
                     ret.InsertRange(railsOfEdge);
                 }
             }
@@ -397,9 +382,9 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
 
 
         public void AssembleEdgeAtLevel(LgEdgeInfo lgEi, int iLevel, Set<Rail> rails) {
-            var edge = lgEi.Edge;
+            Edge edge = lgEi.Edge;
 
-            var level = Levels[iLevel];
+            LgLevel level = Levels[iLevel];
 
             level._railsOfEdges[edge] = rails;
             foreach (Rail rail in rails) {
@@ -408,21 +393,16 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
             }
         }
 
-        public void PutOffAllEdges()
-        {
-            UnselectEdges(SelectedEdges.ToList());
-        }
+        public void PutOffAllEdges() => UnselectEdges(SelectedEdges.ToList());
 
         public void CreateLevelNodeTrees(double nodeDotWidth) {
             for (int i = 0; i < _levels.Count; i++) {
-                _levels[i].CreateNodeTree(SortedLgNodeInfos.Take(this.LevelNodeCounts[i]), nodeDotWidth);
+                _levels[i].CreateNodeTree(SortedLgNodeInfos.Take(LevelNodeCounts[i]), nodeDotWidth);
                 nodeDotWidth /= 2;
             }
         }
 
 
-        public bool NodeTreeIsCorrectOnLevel(int iLevel) {
-            return _levels[iLevel].NodeInfoTree.Count == LevelNodeCounts[iLevel];
-        }
+        public bool NodeTreeIsCorrectOnLevel(int iLevel) => _levels[iLevel].NodeInfoTree.Count == LevelNodeCounts[iLevel];
     }
 }

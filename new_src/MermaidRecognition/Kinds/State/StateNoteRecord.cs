@@ -1,4 +1,4 @@
-namespace MermaidRecognition.State;
+namespace MermaidRecognition.Kinds.State;
 
 /// <summary>
 /// Parse-time state diagram note record.
@@ -9,55 +9,27 @@ public sealed class StateNoteRecord
 
     public string Id
     {
-        get
-        {
-            return _Id;
-        }
-        set
-        {
-            _Id = value;
-        }
+        get => _Id; set => _Id = value;
     }
 
     private string _Placement = string.Empty;
 
     public string Placement
     {
-        get
-        {
-            return _Placement;
-        }
-        set
-        {
-            _Placement = value;
-        }
+        get => _Placement; set => _Placement = value;
     }
 
     private string _AnchorIds = string.Empty;
 
     public string AnchorIds
     {
-        get
-        {
-            return _AnchorIds;
-        }
-        set
-        {
-            _AnchorIds = value;
-        }
+        get => _AnchorIds; set => _AnchorIds = value;
     }
 
     private string _Text = string.Empty;
 
     public string Text
     {
-        get
-        {
-            return _Text;
-        }
-        set
-        {
-            _Text = value;
-        }
+        get => _Text; set => _Text = value;
     }
 }

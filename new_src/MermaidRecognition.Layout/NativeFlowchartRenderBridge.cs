@@ -1,6 +1,7 @@
 using System;
-using MermaidRecognition;
+
 using MermaidRecognition.Contract;
+using MermaidRecognition.Core;
 
 namespace MermaidRecognition.Layout;
 

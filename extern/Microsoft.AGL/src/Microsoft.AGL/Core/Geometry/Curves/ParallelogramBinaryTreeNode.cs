@@ -5,23 +5,11 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
     internal class ParallelogramBinaryTreeNode:ParallelogramNode {
         
         ParallelogramNode leftSon;
-        public ParallelogramNode LeftSon {
-            get {
-                return leftSon;
-            }
-            set {
-                leftSon = value;
-            }
+        public ParallelogramNode LeftSon { get => leftSon; set => leftSon = value;
         }
         ParallelogramNode rightSon;
 
-        public ParallelogramNode RightSon {
-            get {
-                return rightSon;
-            }
-            set {
-                rightSon = value;
-            }
+        public ParallelogramNode RightSon { get => rightSon; set => rightSon = value;
         }
     }
 }

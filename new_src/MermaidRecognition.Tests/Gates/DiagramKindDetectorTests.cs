@@ -12,7 +12,7 @@ public sealed class DiagramKindDetectorTests
         DiagramDetectionResult? Detection = DiagramKindDetector.TryDetect(Preprocessed, null);
 
         Assert.That(Detection, Is.Not.Null);
-        Assert.That(Detection.ProgrammeKindId, Is.EqualTo(ExpectedProgrammeKind));
+        Assert.That(Detection!.ProgrammeKindId, Is.EqualTo(ExpectedProgrammeKind));
     }
 
     [Test]
@@ -23,8 +23,8 @@ public sealed class DiagramKindDetectorTests
         DiagramDetectionResult? Detection = DiagramKindDetector.TryDetect(Preprocessed, null);
 
         Assert.That(Detection, Is.Not.Null);
-        Assert.That(Detection.MermaidDetectorId, Is.EqualTo("flowchart-v2"));
-        Assert.That(Detection.ProgrammeKindId, Is.EqualTo("flowchart"));
+        Assert.That(Detection!.MermaidDetectorId, Is.EqualTo("flowchart-v2"));
+        Assert.That(Detection!.ProgrammeKindId, Is.EqualTo("flowchart"));
     }
 
     [Test]
@@ -35,8 +35,8 @@ public sealed class DiagramKindDetectorTests
         DiagramDetectionResult? Detection = DiagramKindDetector.TryDetect(Preprocessed, null);
 
         Assert.That(Detection, Is.Not.Null);
-        Assert.That(Detection.MermaidDetectorId, Is.EqualTo("flowchart"));
-        Assert.That(Detection.ProgrammeKindId, Is.EqualTo("flowchart"));
+        Assert.That(Detection!.MermaidDetectorId, Is.EqualTo("flowchart"));
+        Assert.That(Detection!.ProgrammeKindId, Is.EqualTo("flowchart"));
     }
 
     [Test]
@@ -47,7 +47,7 @@ public sealed class DiagramKindDetectorTests
         DiagramDetectionResult? Detection = DiagramKindDetector.TryDetect(Preprocessed, null);
 
         Assert.That(Detection, Is.Not.Null);
-        Assert.That(Detection.MermaidDetectorId, Is.EqualTo("pie"));
+        Assert.That(Detection!.MermaidDetectorId, Is.EqualTo("pie"));
     }
 
     static IEnumerable<object[]> ProgrammeSmokeCases()

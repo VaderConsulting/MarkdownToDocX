@@ -1,3 +1,5 @@
+using MermaidRecognition.Kinds.Flowchart;
+
 namespace MermaidRecognition.NaiadAdapter;
 
 /// <summary>
@@ -14,14 +16,14 @@ public static class FlowchartEdgeMapper
         Edge Target = new Edge
         {
             SourceId = Source.SourceId,
-            TargetId = Source.TargetId
+            TargetId = Source.TargetId,
+            Label = string.IsNullOrEmpty(Source.Label)
+                ? Source.Label
+                : FlowchartLabelNormalizer.Normalize(Source.Label),
+            Type = Type,
+            LineStyle = Style,
+            MinRankSpan = Math.Max(1, Source.MinLength)
         };
-        Target.Label = string.IsNullOrEmpty(Source.Label)
-            ? Source.Label
-            : FlowchartLabelNormalizer.Normalize(Source.Label);
-        Target.Type = Type;
-        Target.LineStyle = Style;
-        Target.MinRankSpan = Math.Max(1, Source.MinLength);
 
         if (string.Equals(Source.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
         {

@@ -2,15 +2,9 @@ namespace Converter;
 
 internal sealed class CommandLineRequest
 {
-    private readonly List<string> _InputPathArguments = new List<string>();
+    private readonly List<string> _InputPathArguments = [];
 
-    public IReadOnlyList<string> InputPathArguments
-    {
-        get
-        {
-            return _InputPathArguments;
-        }
-    }
+    public IReadOnlyList<string> InputPathArguments => _InputPathArguments;
 
     public List<string>? ResolvedMarkdownFiles { get; set; }
 

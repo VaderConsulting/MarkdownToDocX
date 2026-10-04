@@ -14,32 +14,14 @@ public sealed class MermaidDeclaration
 
     private readonly string _Kind;
 
-    public string Kind
-    {
-        get
-        {
-            return _Kind;
-        }
-    }
+    public string Kind => _Kind;
 
     private readonly string _RawText;
 
-    public string RawText
-    {
-        get
-        {
-            return _RawText;
-        }
-    }
+    public string RawText => _RawText;
 
     private readonly MermaidSourceSpan _SourceSpan;
 
-    public MermaidSourceSpan SourceSpan
-    {
-        get
-        {
-            return _SourceSpan;
-        }
-    }
+    public MermaidSourceSpan SourceSpan => _SourceSpan;
 }
 

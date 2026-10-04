@@ -1,13 +1,16 @@
-﻿using Microsoft.AGL.Core.DataStructures;
+using Microsoft.AGL.Core.DataStructures;
 using Microsoft.AGL.Core.Geometry;
+using Microsoft.AGL.Core.Geometry.RTree;
 using Microsoft.AGL.Core.GraphAlgorithms;
+using Microsoft.AGL.Core.GraphAlgorithms.CycleRemoval;
 using Microsoft.AGL.Core.Layout;
-using Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MinimumSpanningTree;
-using Microsoft.AGL.Routing;
+using Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MST;
 using Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using SymmetricSegment = Microsoft.AGL.Core.DataStructures.SymmetricTuple<Microsoft.AGL.Core.Geometry.Point>;
 namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
 {
@@ -24,13 +27,13 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
 
         Point[] oldPositionsMoveable;
 
-        String[] nodeLabelsMoveable;
-        String[] nodeLabelsFixed;
+        string[] nodeLabelsMoveable;
+        string[] nodeLabelsFixed;
 
 
         Cdt cdt;
 
-        Dictionary<Point, TreeNode> pointToTreeNode = new Dictionary<Point, TreeNode>();
+        Dictionary<Point, TreeNode> pointToTreeNode = [];
 
         RTree<Segment> _segmentTree = new RTree<Segment>();
 
@@ -40,15 +43,15 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
 
         RTree<TreeNode> _rectNodesRtree = new RTree<TreeNode>();
 
-        Dictionary<TreeNode, List<TreeNode>> movedCriticalNodes = new Dictionary<TreeNode, List<TreeNode>>();
+        Dictionary<TreeNode, List<TreeNode>> movedCriticalNodes = [];
 
-        Dictionary<TreeNode, List<TreeNode>> oldOverlapsBoxes = new Dictionary<TreeNode, List<TreeNode>>();
+        Dictionary<TreeNode, List<TreeNode>> oldOverlapsBoxes = [];
 
-        Dictionary<TreeNode, List<Segment>> oldOverlapsSegments = new Dictionary<TreeNode, List<Segment>>();
+        Dictionary<TreeNode, List<Segment>> oldOverlapsSegments = [];
 
-        List<List<TreeNode>> _subtrees = new List<List<TreeNode>>();
+        List<List<TreeNode>> _subtrees = [];
  
-        List<TreeNode> _roots = new List<TreeNode>();
+        List<TreeNode> _roots = [];
 
          List<SymmetricSegment> treeSegments; 
 
@@ -70,8 +73,8 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
                 this.point1 = point1;
                 this.point2 = point2;
             }
-            public Point p1 { get { return point1; } }
-            public Point p2 { get { return point2; } }
+            public Point p1 => point1;
+            public Point p2 => point2;
         }
 
         public enum SiteType
@@ -86,7 +89,7 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
             public static int numNodes = 0;
 
             public Point shiftToRoot = new Point(0, 0);
-            public Set<TreeNode> neighbors = new Set<TreeNode>();
+            public Set<TreeNode> neighbors = [];
             public int visited = 0;
             public TreeNode parent = null;
             public bool isFixed = false;
@@ -101,22 +104,15 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
 
             public SiteType type;
 
-            public TreeNode(){
-                id = numNodes++;
-            }
+            public TreeNode() => id = numNodes++;
 
-            public override string ToString()
-            {
-                return (label != null ? label.ToString() : "null"); // +", " + sitePoint.ToString() + ", " + rect.ToString();
-            }
+            public override string ToString() => (label != null ? label.ToString() : "null"); // +", " + sitePoint.ToString() + ", " + rect.ToString();
         }
 
 
-        Point Round(Point p) {
-            return ApproximateComparer.Round(p, Precision);
-        }
+        Point Round(Point p) => ApproximateComparer.Round(p, Precision);
 
-        public void SetNodeLabels(String[] labelsMovealbe, String[] labelsFixed) {
+        public void SetNodeLabels(string[] labelsMovealbe, string[] labelsFixed) {
             nodeLabelsMoveable = labelsMovealbe;
             nodeLabelsFixed = labelsFixed;
         }
@@ -130,11 +126,11 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
             }
         }
 
-        public Point[] GetTranslations() {            
-            var nodes = _moveableRectanglesTree.GetAllLeaves();
+        public Point[] GetTranslations() {
+            IEnumerable<TreeNode> nodes = _moveableRectanglesTree.GetAllLeaves();
             Point[] translation = new Point[_moveableRectanglesTree.Count];
 
-            foreach (var n in nodes)
+            foreach (TreeNode n in nodes)
             {
                 translation[n.rectId] = n.rect.Center - oldPositionsMoveable[n.rectId];
             }
@@ -163,7 +159,7 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
 
             for (int i = 0; i < fixedRectangles.Length; i++) {
                 Point p = Round( fixedRectangles[i].Center );
-                var node = new TreeNode { isFixed = true, rectId = i, rect = fixedRectangles[i], sitePoint = p, type = SiteType.RectFixed };
+                TreeNode node = new TreeNode { isFixed = true, rectId = i, rect = fixedRectangles[i], sitePoint = p, type = SiteType.RectFixed };
                 if (nodeLabelsFixed != null)
                 {
                     node.label = nodeLabelsFixed[i];
@@ -176,7 +172,7 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
             for (int i = 0; i < moveableRectangles.Length; i++)
             {
                 Point p = Round(moveableRectangles[i].Center);
-                var node = new TreeNode { isFixed = false, rectId = i, rect = moveableRectangles[i], sitePoint = p, type = SiteType.RectMoveable };
+                TreeNode node = new TreeNode { isFixed = false, rectId = i, rect = moveableRectangles[i], sitePoint = p, type = SiteType.RectMoveable };
                 if (nodeLabelsMoveable != null)
                 {
                     node.label = nodeLabelsMoveable[i];
@@ -187,7 +183,7 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
                 _moveableRectanglesTree.Add(moveableRectangles[i], node);
             }
 
-            var sites = pointToTreeNode.Keys.ToList();
+            List<Point> sites = pointToTreeNode.Keys.ToList();
 
             //AddSitesForBoxSegmentOverlaps(sites);            
 
@@ -197,15 +193,15 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
 
          void AddNodesForBoxSegmentOverlaps(out List<Point> sites, out List<SymmetricSegment> edges)
         {
-            sites = new List<Point>();
-            edges = new List<SymmetricSegment>();
+            sites = [];
+            edges = [];
 
-            foreach (var rect in moveableRectangles)
+            foreach (Rectangle rect in moveableRectangles)
             {
                 List<Segment> segments = GetAllSegmentsIntersecting(rect);
                 if (!segments.Any()) continue;
 
-                var seg = segments.First();
+                Segment seg = segments.First();
                 //foreach (var seg in segments)
                 //{
                     Point p;
@@ -238,9 +234,9 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
 
          List<Segment> GetAllSegmentsIntersecting(Rectangle rect)
         {
-            var segmentsIntersecting = new List<Segment>();
-            var boxIntersecting = _segmentTree.GetAllIntersecting(rect);
-            foreach(var seg in boxIntersecting)
+            List<Segment> segmentsIntersecting = new List<Segment>();
+            Segment[] boxIntersecting = _segmentTree.GetAllIntersecting(rect);
+            foreach(Segment seg in boxIntersecting)
             {
                 if(RectSegIntersection.Intersect(rect, seg.p1, seg.p2))
                     segmentsIntersecting.Add(seg);
@@ -251,19 +247,19 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
         public void InitSegmentTree() {
             for (int i = 0; i < fixedSegments.Length; i++) {
                 Segment seg = new Segment(fixedSegments[i].A, fixedSegments[i].B);
-                var bbox = new Rectangle(seg.p1, seg.p2);
+                Rectangle bbox = new Rectangle(seg.p1, seg.p2);
                 _segmentTree.Add(bbox, seg);
             }
         }
 
         public List<SymmetricSegment> GetMstFromCdt() {
             Func<CdtEdge, double> weights = GetWeightOfCdtEdgeDefault;//GetWeightOfCdtEdgeDefault;// GetWeightOfCdtEdgePenalizeFixed; //GetWeightOfCdtEdgePenalizeSegmentCrossings ;
-            var mstEdges = MstOnDelaunayTriangulation.GetMstOnCdt(cdt, weights);
+            List<CdtEdge> mstEdges = MstOnDelaunayTriangulation.GetMstOnCdt(cdt, weights);
             return (from e in mstEdges select new SymmetricSegment(e.upperSite.Point, e.lowerSite.Point)).ToList();
         }
 
         public void BuildForestFromCdtEdges(List<SymmetricSegment> edges) {
-            foreach (var edge in edges) {
+            foreach (SymmetricSegment edge in edges) {
                 Point p1 = edge.A;
                 Point p2 = edge.B;
                 AddTreeEdge(p1, p2);
@@ -272,15 +268,13 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
 
          void AddTreeEdge(Point p1, Point p2)
         {
-            var n1 = pointToTreeNode[p1];
-            var n2 = pointToTreeNode[p2];
+            TreeNode n1 = pointToTreeNode[p1];
+            TreeNode n2 = pointToTreeNode[p2];
             n1.neighbors.Insert(n2);
             n2.neighbors.Insert(n1);
         }
 
-         bool RectsOverlap(TreeNode n1, TreeNode n2) {
-            return !Rectangle.Intersect(n1.rect, n2.rect).IsEmpty;
-        }
+        bool RectsOverlap(TreeNode n1, TreeNode n2) => !Rectangle.Intersect(n1.rect, n2.rect).IsEmpty;
 
         public double GetWeightOfCdtEdgeDefault(CdtEdge e) {
             Point point1 = Round(e.upperSite.Point);
@@ -295,10 +289,9 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
             Rectangle box1 = n1.rect;
             Rectangle box2 = n2.rect;
 
-            double t;
 
             if (!Rectangle.Intersect(box1, box2).IsEmpty)
-                return GetWeightOverlappingRectangles(box1, box2, out t);
+                return GetWeightOverlappingRectangles(box1, box2, out double t);
 
             return GetDistance(box1, box2);
         }
@@ -314,10 +307,9 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
             Rectangle box2 = n2.rect;
 
             bool overlap = Rectangle.Intersect(box1, box2).IsEmpty;
-            double t;
 
             if (!Rectangle.Intersect(box1, box2).IsEmpty)
-                return GetWeightOverlappingRectangles(box1, box2, out t);
+                return GetWeightOverlappingRectangles(box1, box2, out double t);
 
             double factor = (n1.isFixed || n2.isFixed ? 10 : 1);
 
@@ -335,10 +327,9 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
             Rectangle box2 = n2.rect;
 
             bool overlap = Rectangle.Intersect(box1, box2).IsEmpty;
-            double t;
 
             if (!Rectangle.Intersect(box1, box2).IsEmpty)
-                return GetWeightOverlappingRectangles(box1, box2, out t);
+                return GetWeightOverlappingRectangles(box1, box2, out double t);
 
             double factor = ( IsCrossedBySegment(new SymmetricSegment(point1, point2)) ? 3 : 1 );
 
@@ -464,10 +455,10 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
         public Rectangle GetInitialBoundingBox() {
             Rectangle bbox = new Rectangle();
             bbox.SetToEmpty();
-            foreach (var rect in fixedRectangles) {
+            foreach (Rectangle rect in fixedRectangles) {
                 bbox.Add(rect);
             }
-            foreach (var rect in moveableRectangles)
+            foreach (Rectangle rect in moveableRectangles)
             {
                 bbox.Add(rect);
             }
@@ -478,7 +469,7 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
         {
             Rectangle bbox = new Rectangle();
             bbox.SetToEmpty();
-            foreach (var node in nodes)
+            foreach (TreeNode node in nodes)
             {
                 bbox.Add(node.rect);
             }
@@ -486,9 +477,9 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
         }
 
         public Point GetClosestSiteTo(Point p) {
-            double dist = Double.MaxValue;
+            double dist = double.MaxValue;
             Point closest = pointToTreeNode.Keys.First();
-            foreach (var s in pointToTreeNode.Keys)
+            foreach (Point s in pointToTreeNode.Keys)
             {
                 double dist1 = (p - s).LengthSquared;
                 if (dist1 < dist) {
@@ -501,9 +492,9 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
 
         public Point GetClosestSiteTo(List<TreeNode> nodes, Point p)
         {
-            double dist = Double.MaxValue;
+            double dist = double.MaxValue;
             Point closest = pointToTreeNode.Keys.First();
-            foreach (var node in nodes)
+            foreach (TreeNode node in nodes)
             {
                 Point s = node.sitePoint;
                 double dist1 = (p - s).LengthSquared;
@@ -518,9 +509,9 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
 
         public Point GetClosestSiteToPreferFixed(List<TreeNode> nodes, Point p)
         {
-            double dist = Double.MaxValue;
+            double dist = double.MaxValue;
             Point closest = pointToTreeNode.Keys.First();
-            foreach (var node in nodes)
+            foreach (TreeNode node in nodes)
             {
                 Point s = node.sitePoint;
                 double dist1 = (p - s).LengthSquared;
@@ -545,7 +536,7 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
         }
 
          void OrientTreeEdges(TreeNode root) {
-            List<TreeNode> L = new List<TreeNode>();
+            List<TreeNode> L = [];
             time++;
             root.visited = time;
             root.parent = null;
@@ -555,7 +546,7 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
             {
                 TreeNode p = L[L.Count() - 1];
                 L.RemoveAt(L.Count() - 1);
-                foreach (var neighb in p.neighbors) {
+                foreach (TreeNode neighb in p.neighbors) {
                     if (neighb.visited < time) {
                         neighb.parent = p;
                         neighb.visited = time;
@@ -570,9 +561,9 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
             if (movedCriticalNodes.ContainsKey(n))
                 return; // never happens
 
-            movedCriticalNodes[n] = new List<TreeNode>();
+            movedCriticalNodes[n] = [];
                             
-            foreach(var neighb in n.neighbors){
+            foreach(TreeNode neighb in n.neighbors){
                 if (neighb != n.parent)
                 {
                     PrecomputeMovedCriticalNodes(neighb);
@@ -595,9 +586,9 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
             if (movedCriticalNodes.ContainsKey(n))
                 return; // never happens
 
-            movedCriticalNodes[n] = new List<TreeNode>();
+            movedCriticalNodes[n] = [];
 
-            foreach (var neighb in n.neighbors)
+            foreach (TreeNode neighb in n.neighbors)
             {
                 if (neighb != n.parent)
                 {
@@ -616,7 +607,7 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
 
         public void MoveSubtree(TreeNode n, Point delta) {
             if (n.isFixed) return;
-            foreach (var neighb in n.neighbors)
+            foreach (TreeNode neighb in n.neighbors)
             {
                 if (neighb != n.parent)
                 {
@@ -628,7 +619,7 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
 
         public void PrecomputeMovedCriticalNodesRoot(TreeNode root)
         {
-            foreach (var n in root.neighbors)
+            foreach (TreeNode n in root.neighbors)
             {
                 PrecomputeMovedCriticalNodes(n);
             }
@@ -636,7 +627,7 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
 
         public void PrecomputeMovedCriticalNodesBoxesSegmentsRoot(TreeNode root)
         {
-            foreach (var n in root.neighbors)
+            foreach (TreeNode n in root.neighbors)
             {
                 PrecomputeMovedCriticalNodesBoxesSegments(n);
             }
@@ -644,7 +635,7 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
 
         public void PrecomputeMovedCriticalNodesBoxesSegmentsAllRoots()
         {
-            foreach (var root in _roots)
+            foreach (TreeNode root in _roots)
             {
                 PrecomputeMovedCriticalNodesBoxesSegmentsRoot(root);
             }
@@ -652,14 +643,14 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
 
         public void PrecomputeMovedCriticalNodesAllRoots()
         {
-            foreach (var root in _roots)
+            foreach (TreeNode root in _roots)
             {
                 PrecomputeMovedCriticalNodesRoot(root);
             }
         }
 
         public void GetDfsOrder(TreeNode node, List<TreeNode> nodes) {
-            foreach (var neighb in node.neighbors) {
+            foreach (TreeNode neighb in node.neighbors) {
                 if (neighb != node.parent) {
                     nodes.Add(neighb);
                     GetDfsOrder(neighb, nodes);
@@ -670,14 +661,14 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
          void SaveCurrentOverlapsBoxes() {
             // assume all Rtrees are updated
 
-            oldOverlapsBoxes = new Dictionary<TreeNode, List<TreeNode>>();
-            foreach (var v in _moveableRectanglesTree.GetAllLeaves())
+            oldOverlapsBoxes = [];
+            foreach (TreeNode v in _moveableRectanglesTree.GetAllLeaves())
             {
-                var vOverlaps = _rectNodesRtree.GetAllIntersecting(v.rect);
+                TreeNode[] vOverlaps = _rectNodesRtree.GetAllIntersecting(v.rect);
                 if (vOverlaps.Count() <= 1)
                     continue;
-                var vOverlapsList = new List<TreeNode>();
-                foreach (var u in vOverlaps)
+                List<TreeNode> vOverlapsList = new List<TreeNode>();
+                foreach (TreeNode u in vOverlaps)
                 {
                     if (u != v)
                         vOverlapsList.Add(u);
@@ -687,14 +678,14 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
         }
 
          void SaveCurrentOverlapsSegments() {
-            oldOverlapsSegments = new Dictionary<TreeNode, List<Segment>>();
-            foreach (var v in _moveableRectanglesTree.GetAllLeaves())
+            oldOverlapsSegments = [];
+            foreach (TreeNode v in _moveableRectanglesTree.GetAllLeaves())
             {
-                var vOverlaps = _segmentTree.GetAllIntersecting(v.rect);
+                Segment[] vOverlaps = _segmentTree.GetAllIntersecting(v.rect);
                 if (!vOverlaps.Any())
                     continue;
-                var vOverlapsList = new List<Segment>();
-                foreach (var s in vOverlaps)
+                List<Segment> vOverlapsList = new List<Segment>();
+                foreach (Segment s in vOverlaps)
                 {
                     if(RectSegIntersection.Intersect(v.rect, s.p1, s.p2))
                         vOverlapsList.Add(s);
@@ -713,7 +704,7 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
             SaveCurrentOverlapsBoxesSegments();
             PrecomputeMovedCriticalNodesBoxesSegmentsAllRoots();
 
-            foreach (var root in _roots)
+            foreach (TreeNode root in _roots)
             {
                 DoOneIterationBoxesSegments(root);
             }
@@ -723,12 +714,12 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
         {
             //SaveCurrentOverlapsBoxesSegments(); // do once 
 
-            List<TreeNode> dfsOrderedNodes = new List<TreeNode>();
+            List<TreeNode> dfsOrderedNodes = [];
             GetDfsOrder(root, dfsOrderedNodes); //doesn't contain root
 
-            foreach (var v in dfsOrderedNodes)
+            foreach (TreeNode v in dfsOrderedNodes)
             {
-                var vMovesCritical = movedCriticalNodes[v];
+                List<TreeNode> vMovesCritical = movedCriticalNodes[v];
                 if (!vMovesCritical.Any()) continue;
 
                 Point delta;
@@ -790,12 +781,9 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
             }
         }
 
-         Point GetShiftUntilNoLongerOverlapRectSeg(Rectangle rect, Segment segment, Point moveDir)
-        {
-            return RectSegIntersection.GetOrthShiftUntilNoLongerOverlapRectSeg(rect, segment.p1, segment.p2, moveDir);
-        }
+        Point GetShiftUntilNoLongerOverlapRectSeg(Rectangle rect, Segment segment, Point moveDir) => RectSegIntersection.GetOrthShiftUntilNoLongerOverlapRectSeg(rect, segment.p1, segment.p2, moveDir);
 
-         void HandleCaseAdditionalPointOvlp(TreeNode v, out Point delta)
+        void HandleCaseAdditionalPointOvlp(TreeNode v, out Point delta)
         {
             // v should be assigned the corresponding rectangle
             if (RectsOverlap(v, v.parent))
@@ -811,20 +799,20 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
          double GetAreaOldOverlapsBoxesSegments(List<TreeNode> vMovesCritical)
         {
             double a = 0;
-            foreach (var u in vMovesCritical)
+            foreach (TreeNode u in vMovesCritical)
             {
                 if (oldOverlapsBoxes.ContainsKey(u))
                 {
-                    var uOverlaps = oldOverlapsBoxes[u];
-                    foreach (var w in uOverlaps)
+                    List<TreeNode> uOverlaps = oldOverlapsBoxes[u];
+                    foreach (TreeNode w in uOverlaps)
                     {
-                        var rect = Rectangle.Intersect(u.rect, w.rect);
+                        Rectangle rect = Rectangle.Intersect(u.rect, w.rect);
                         if (!rect.IsEmpty) a += rect.Area;
                     }
                 }
                 if (oldOverlapsSegments.ContainsKey(u)) {
-                    var uOverlaps = oldOverlapsSegments[u];
-                    foreach (var seg in uOverlaps)
+                    List<Segment> uOverlaps = oldOverlapsSegments[u];
+                    foreach (Segment seg in uOverlaps)
                     {
                         a += RectSegIntersection.GetOverlapAmount(u.rect, seg.p1, seg.p2);
                     }
@@ -833,13 +821,11 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
             return a;
         }
 
-         Rectangle translate(Rectangle rect, Point delta) {
-            return new Rectangle(rect.LeftBottom + delta, rect.RightTop + delta);
-        }
+        Rectangle translate(Rectangle rect, Point delta) => new Rectangle(rect.LeftBottom + delta, rect.RightTop + delta);
 
-         void translateAllRects(List<TreeNode> nodes, Point delta)
+        void translateAllRects(List<TreeNode> nodes, Point delta)
         {
-            foreach (var v in nodes) {
+            foreach (TreeNode v in nodes) {
                 v.rect = translate(v.rect, delta);
             }
         }
@@ -847,8 +833,8 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
 
         public List<SymmetricSegment> GetEdgesWithoutSegmentCrossings(List<SymmetricSegment> edges)
         {
-            List<SymmetricSegment> edgesLeft = new List<SymmetricSegment>();
-            foreach (var edge in edges)
+            List<SymmetricSegment> edgesLeft = [];
+            foreach (SymmetricSegment edge in edges)
             {
                 if (!IsCrossedBySegment(edge))
                     edgesLeft.Add(edge);
@@ -858,25 +844,25 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
 
         public void InitConnectedComponents(List<SymmetricSegment> edges)
         {
-            var treeNodes = new TreeNode[pointToTreeNode.Count];
-            foreach (var node in pointToTreeNode.Values)
+            TreeNode[] treeNodes = new TreeNode[pointToTreeNode.Count];
+            foreach (TreeNode node in pointToTreeNode.Values)
             {
                 treeNodes[node.id] = node;
             }
 
-            var intEdges = new List<SimpleIntEdge>();
-            foreach (var edge in edges)
+            List<SimpleIntEdge> intEdges = new List<SimpleIntEdge>();
+            foreach (SymmetricSegment edge in edges)
             {
                 int sourceId = pointToTreeNode[edge.A].id;
                 int targetId = pointToTreeNode[edge.B].id;
                 intEdges.Add(new SimpleIntEdge { Source = sourceId, Target = targetId });                              
             }
-            var components = ConnectedComponentCalculator<SimpleIntEdge>.GetComponents(new BasicGraph<SimpleIntEdge>(intEdges, pointToTreeNode.Count));
+            IEnumerable<IEnumerable<int>> components = ConnectedComponentCalculator<SimpleIntEdge>.GetComponents(new BasicGraph<SimpleIntEdge>(intEdges, pointToTreeNode.Count));
 
-            foreach (var component in components)
+            foreach (IEnumerable<int> component in components)
             {
-                List<TreeNode> nodeList = new List<TreeNode>();
-                foreach (var nodeId in component)
+                List<TreeNode> nodeList = [];
+                foreach (int nodeId in component)
                 {
                     nodeList.Add(treeNodes[nodeId]);
                 }
@@ -888,7 +874,7 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
 
             BuildForestFromCdtEdges(edges);
 
-            foreach (var root in _roots)
+            foreach (TreeNode root in _roots)
             {
                 OrientTreeEdges(root);
             }
@@ -896,20 +882,20 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
 
         public void ChooseRoots()
         {
-            foreach (var subtree in _subtrees)
+            foreach (List<TreeNode> subtree in _subtrees)
             {
-                var bbox = GetBoundingBox(subtree);
-                var p = GetClosestSiteToPreferFixed(subtree, bbox.Center);
+                Rectangle bbox = GetBoundingBox(subtree);
+                Point p = GetClosestSiteToPreferFixed(subtree, bbox.Center);
                 _roots.Add(pointToTreeNode[p]);
             }
         }
 
         public void ChooseRootsRandom()
         {
-            foreach (var subtree in _subtrees)
+            foreach (List<TreeNode> subtree in _subtrees)
             {
                 bool rootChosen = false;
-                foreach (var n in subtree)
+                foreach (TreeNode n in subtree)
                 {
                     if (n.type == SiteType.AdditionalPointBoxSegmentOverlap)
                     {
@@ -920,7 +906,7 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
                 }
                 if (!rootChosen)
                 {
-                    var n = GetRandom(subtree);
+                    TreeNode n = GetRandom(subtree);
                     _roots.Add(n);
                 }
             }
@@ -928,9 +914,9 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
 
          bool IsCrossedBySegment(SymmetricSegment edge)
         {
-            var intersectingSegments = _segmentTree.GetAllIntersecting(new Rectangle(edge.A, edge.B));
+            Segment[] intersectingSegments = _segmentTree.GetAllIntersecting(new Rectangle(edge.A, edge.B));
             bool hasIntersection = false;
-            foreach (var seg in intersectingSegments)
+            foreach (Segment seg in intersectingSegments)
             {
                 if (RectSegIntersection.SegmentsIntersect(edge.A, edge.B, seg.p1, seg.p2))
                 {
@@ -943,14 +929,12 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
 
         public void InitTree()
         {
-            var mstEdges = GetMstFromCdt();
+            List<SymmetricSegment> mstEdges = GetMstFromCdt();
 
             List<SymmetricSegment> treeEdges = GetEdgesWithoutSegmentCrossings(mstEdges);
 
-            List<Point> addSites;
-            List<SymmetricSegment> addEdges;
 
-            AddNodesForBoxSegmentOverlaps(out addSites, out addEdges);
+            AddNodesForBoxSegmentOverlaps(out List<Point> addSites, out List<SymmetricSegment> addEdges);
 
             treeEdges.AddRange(addEdges);
 
@@ -959,9 +943,6 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
             treeSegments = treeEdges;
         }
 
-        public List<SymmetricSegment> GetTreeEdges()
-        {
-            return treeSegments;
-        }
+        public List<SymmetricSegment> GetTreeEdges() => treeSegments;
     }
 }

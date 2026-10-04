@@ -14,23 +14,19 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         /// <summary>
         /// the sequence values
         /// </summary>
-        internal Func<int,double> Sequence {
-            get { return sequence; }
-            set { sequence = value; }
+        internal Func<int,double> Sequence { get => sequence; set => sequence = value;
         }
 
         int length;
         /// <summary>
         /// the length of the sequence: the sequence starts from 0
         /// </summary>
-        internal int Length {
-            get { return length; }
-            set { length = value; }
+        internal int Length { get => length; set => length = value;
         }
 
         internal UnimodalSequence(Func<int,double> sequenceDelegate, int length) {
-            this.Sequence = sequenceDelegate;
-            this.Length = length;
+            Sequence = sequenceDelegate;
+            Length = length;
         }
 
         internal enum Behavior {

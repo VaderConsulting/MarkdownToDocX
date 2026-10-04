@@ -16,7 +16,6 @@ namespace Microsoft.AGL.Core {
     /// <summary>
     /// a place holder for the cancelled flag
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1001:TypesThatOwnDisposableFieldsShouldBeDisposable")]
     public class CancelToken {
 
         volatile bool canceled;
@@ -24,9 +23,11 @@ namespace Microsoft.AGL.Core {
         /// <summary>
         /// Set this flag to true when you want to cancel the layout.
         /// </summary>
-        public bool Canceled {
-            get { return canceled; }
-            set { 
+        public bool Canceled
+        {
+            get => canceled;
+            set
+            {
                 canceled = value;
 #if PPC
                 if (canceled)
@@ -44,7 +45,7 @@ namespace Microsoft.AGL.Core {
 #if PPC
             cancellationTokenSource.Token.ThrowIfCancellationRequested();
 #endif
-            if (this.Canceled)
+            if (Canceled)
                 throw new OperationCanceledException();
         }
 

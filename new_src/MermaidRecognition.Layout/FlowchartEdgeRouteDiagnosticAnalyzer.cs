@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Render;
 
 namespace MermaidRecognition.Layout;
@@ -60,7 +61,7 @@ public static class FlowchartEdgeRouteDiagnosticAnalyzer
         FlowchartLayoutResult Layout,
         FlowchartDirection Direction)
     {
-        List<FlowchartEdgeRouteDiagnosticFinding> Findings = new List<FlowchartEdgeRouteDiagnosticFinding>();
+        List<FlowchartEdgeRouteDiagnosticFinding> Findings = [];
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds
             .ToDictionary(Bounds => Bounds.NodeId, Bounds => Bounds);
         Dictionary<string, NodeContract> NodeById = Contract.Nodes
@@ -81,7 +82,7 @@ public static class FlowchartEdgeRouteDiagnosticAnalyzer
             }
         }
 
-        List<FlowchartResolvedEdgeRoute> ResolvedRoutes = new List<FlowchartResolvedEdgeRoute>();
+        List<FlowchartResolvedEdgeRoute> ResolvedRoutes = [];
         foreach (EdgeContract Edge in Contract.Edges)
         {
             if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
@@ -153,7 +154,7 @@ public static class FlowchartEdgeRouteDiagnosticAnalyzer
         FlowchartLayoutResult Layout,
         FlowchartDirection Direction)
     {
-        List<FlowchartEdgeRouteDiagnosticFinding> Findings = new List<FlowchartEdgeRouteDiagnosticFinding>();
+        List<FlowchartEdgeRouteDiagnosticFinding> Findings = [];
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds
             .ToDictionary(Bounds => Bounds.NodeId, Bounds => Bounds);
 
@@ -496,7 +497,7 @@ public static class FlowchartEdgeRouteDiagnosticAnalyzer
             }
 
             List<(FlowchartResolvedEdgeRoute Route, double TargetX, double TargetY)> TargetPorts =
-                new List<(FlowchartResolvedEdgeRoute Route, double TargetX, double TargetY)>();
+                [];
             foreach (FlowchartResolvedEdgeRoute Route in TargetGroup)
             {
                 (double TargetX, double TargetY) = Route.LayoutPoints[Route.LayoutPoints.Count - 1];
@@ -682,11 +683,8 @@ public static class FlowchartEdgeRouteDiagnosticAnalyzer
         return Edge.SourceId + "->" + Edge.TargetId + LabelSuffix;
     }
 
-    private static string FormatPort(double PortX, double PortY)
-    {
-        return "(" + PortX.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)
+    private static string FormatPort(double PortX, double PortY) => "(" + PortX.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)
             + "," + PortY.ToString("F1", System.Globalization.CultureInfo.InvariantCulture) + ")";
-    }
 
     private static bool IsNodeBetweenEndpoints(
         FlowchartLayoutNodeBounds SourceBounds,

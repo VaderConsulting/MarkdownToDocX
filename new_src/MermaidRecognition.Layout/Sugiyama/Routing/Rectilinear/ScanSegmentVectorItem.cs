@@ -33,7 +33,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 
             internal void AddPendingPerpendicularCoord(double coord) {
                 if (pendingPerpCoords == null) {
-                    pendingPerpCoords = new List<double>();
+                    pendingPerpCoords = [];
                 }
                 pendingPerpCoords.Add(coord);
             }
@@ -42,16 +42,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             /// Restores state between intersection passes.
             /// </summary>
             internal void ResetForIntersections() {
-                Debug.Assert(null != this.FirstSegment, "Empty ScanSegmentVectorItem");
-                this.CurrentSegment = this.FirstSegment;
+                Debug.Assert(null != FirstSegment, "Empty ScanSegmentVectorItem");
+                CurrentSegment = FirstSegment;
             }
 
             /// <summary>
             /// Indicates whether ScanSegments in this item are horizontally or vertically oriented.
             /// </summary>
-            internal bool IsHorizontal {
-                get { return !this.FirstSegment.IsVertical; }
-            }
+            internal bool IsHorizontal => !FirstSegment.IsVertical;
 
             /// <summary>
             /// Returns the constant coordinate of the ScanSegments in this item, i.e. the coordinate
@@ -63,9 +61,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             /// Ctor, taking the parallel (constant) coordinate.
             /// </summary>
             /// <param name="coord">the parallel (constant) coordinate</param>
-            internal ScanSegmentVectorItem(double coord) {
-                this.Coord = coord;
-            }
+            internal ScanSegmentVectorItem(double coord) => Coord = coord;
 
             /// <summary>
             /// Move along the linked list until we hit the ScanSegment that contains the point.
@@ -74,14 +70,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
                 // This is not a simple Next() because scan segments are extended "through" obstacles
                 // (intermixing overlapped and non-overlapped) and thus a ScanSegment's Start and End
                 // may not be in the vertexPoints collection and the ScanSegment must be skipped.
-                if (this.CurrentSegment.ContainsPoint(point)) {
+                if (CurrentSegment.ContainsPoint(point)) {
                     return true;
                 }
 
-                var pointCoord = this.IsHorizontal ? point.Y : point.X;
-                if (!PointComparer.Equal(this.Coord, pointCoord)) {
-                    Debug.Assert(PointComparer.Compare(this.Coord, pointCoord) == -1, "point is before current Coord");
-                    while (this.MoveNext()) {
+                double pointCoord = IsHorizontal ? point.Y : point.X;
+                if (!PointComparer.Equal(Coord, pointCoord)) {
+                    Debug.Assert(PointComparer.Compare(Coord, pointCoord) == -1, "point is before current Coord");
+                    while (MoveNext()) {
                         // Skip to the end of the linked list if this point is not on the same coordinate.
                     }
                     return false;
@@ -93,27 +89,27 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
                     // after the current segment.  If the point is in some space that doesn't have a
                     // scansegment, and if we are "close enough" to one end or the other of a scansegment,
                     // then grow the scansegment enough to include the new point.
-                    if ((null == this.CurrentSegment.NextSegment) ||
-                            PointComparer.GetDirections(this.CurrentSegment.End, point)
-                                == PointComparer.GetDirections(point, this.CurrentSegment.NextSegment.Start)) {
-                        if (ApproximateComparer.CloseIntersections(this.CurrentSegment.End, point)) {
-                            this.CurrentSegment.Update(this.CurrentSegment.Start, point);
+                    if ((null == CurrentSegment.NextSegment) ||
+                            PointComparer.GetDirections(CurrentSegment.End, point)
+                                == PointComparer.GetDirections(point, CurrentSegment.NextSegment.Start)) {
+                        if (ApproximateComparer.CloseIntersections(CurrentSegment.End, point)) {
+                            CurrentSegment.Update(CurrentSegment.Start, point);
                             return true;
                         }
                     }
 
-                    if (!this.MoveNext()) {
+                    if (!MoveNext()) {
                         return false;
                     }
-                    if (this.CurrentSegment.ContainsPoint(point)) {
+                    if (CurrentSegment.ContainsPoint(point)) {
                         return true;
                     }
 
                     // This is likely the reverse of the above; the point rounding mismatched to just before
                     // rather than just after the current segment.
-                    if (PointComparer.IsPureLower(point, this.CurrentSegment.Start)) {
-                        Debug.Assert(ApproximateComparer.CloseIntersections(this.CurrentSegment.Start, point), "Skipped over the point in the ScanSegment linked list");
-                        this.CurrentSegment.Update(point, this.CurrentSegment.End);
+                    if (PointComparer.IsPureLower(point, CurrentSegment.Start)) {
+                        Debug.Assert(ApproximateComparer.CloseIntersections(CurrentSegment.Start, point), "Skipped over the point in the ScanSegment linked list");
+                        CurrentSegment.Update(point, CurrentSegment.End);
                         return true;
                     }
                 }
@@ -121,20 +117,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             }
 
             internal bool MoveNext() {
-                this.CurrentSegment = this.CurrentSegment.NextSegment;
-                return this.HasCurrent;
+                CurrentSegment = CurrentSegment.NextSegment;
+                return HasCurrent;
             }
 
-            internal bool HasCurrent {
-                get { return (null != this.CurrentSegment); }
-            }
+            internal bool HasCurrent => (null != CurrentSegment);
 
             /// <summary>
             /// Returns true if the point is the end of the current segment and there is an adjoining NextSegment.
             /// </summary>
-            internal bool PointIsCurrentEndAndNextStart(Point point) {
-                return (point == this.CurrentSegment.End) && (null != this.CurrentSegment.NextSegment) && (point == this.CurrentSegment.NextSegment.Start);
-            }
+            internal bool PointIsCurrentEndAndNextStart(Point point) => (point == CurrentSegment.End) && (null != CurrentSegment.NextSegment) && (point == CurrentSegment.NextSegment.Start);
 
             /// <summary>
             /// Set Current to the ScanSegment containing the perpendicular coordinate, then add that coordinate to its
@@ -142,42 +134,40 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             /// </summary>
             /// <param name="perpCoord"></param>
             internal void AddPerpendicularCoord(double perpCoord) {
-                var point = this.IsHorizontal ? new Point(perpCoord, this.Coord) : new Point(this.Coord, perpCoord);
-                this.TraverseToSegmentContainingPoint(point);
-                this.CurrentSegment.AddSparseVertexCoord(perpCoord);
+                Point point = IsHorizontal ? new Point(perpCoord, Coord) : new Point(Coord, perpCoord);
+                TraverseToSegmentContainingPoint(point);
+                CurrentSegment.AddSparseVertexCoord(perpCoord);
             }
 
             /// <summary>
             /// </summary>
             /// <returns></returns>
             public override string ToString() {
-                if (null == this.FirstSegment) {
-                    return "-0- " + this.Coord;
+                if (null == FirstSegment) {
+                    return "-0- " + Coord;
                 }
-                return (this.IsHorizontal ? "(H) Y == " : "(V) X == ") + this.Coord;
+                return (IsHorizontal ? "(H) Y == " : "(V) X == ") + Coord;
             }
 
             // Create a point from the input coordinate which is on the axis that changes along this item's segments
             // (and is thus the parallel coord of an intersecting segment).
-            internal Point CreatePointFromPerpendicularCoord(double endPerpCoord) {
-                return this.IsHorizontal ? new Point(endPerpCoord, this.Coord) : new Point(this.Coord, endPerpCoord);
-            }
+            internal Point CreatePointFromPerpendicularCoord(double endPerpCoord) => IsHorizontal ? new Point(endPerpCoord, Coord) : new Point(Coord, endPerpCoord);
 
             internal void AppendScanSegment(ScanSegment segment) {
-                if (null == this.FirstSegment) {
-                    this.FirstSegment = segment;
+                if (null == FirstSegment) {
+                    FirstSegment = segment;
                 } else {
                     // Note: segment.Start may != Current.End due to skipping internal ScanSegment creation for non-overlapped obstacles.
-                    this.CurrentSegment.NextSegment = segment;
+                    CurrentSegment.NextSegment = segment;
                 }
-                this.CurrentSegment = segment;
+                CurrentSegment = segment;
             }
             
             internal void AddPendingPerpendicularCoordsToScanSegments() {
-                if (this.pendingPerpCoords != null) {
-                    this.ResetForIntersections();
-                    foreach (var point in this.pendingPerpCoords) {
-                        this.AddPerpendicularCoord(point);
+                if (pendingPerpCoords != null) {
+                    ResetForIntersections();
+                    foreach (double point in pendingPerpCoords) {
+                        AddPerpendicularCoord(point);
                     }
                 }
             }

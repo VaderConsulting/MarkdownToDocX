@@ -1,9 +1,11 @@
+using MermaidRecognition.Layout.Sugiyama.Layout.Layered.Layering;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
+
 using MermaidRecognition.Layout.Sugiyama.Core.DataStructures;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves;
@@ -33,25 +35,19 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// <summary>
         /// the width of dummy nodes
         /// </summary>
-        static double VirtualNodeWidth {
-            get { return 1; }
-        }
+        static double VirtualNodeWidth => 1;
 
         /// <summary>
         /// the height of dummy nodes
         /// </summary>
-        static double VirtualNodeHeight(SugiyamaLayoutSettings settings) {
-            return settings.MinNodeHeight * 1.5f / 8;
-        }
+        static double VirtualNodeHeight(SugiyamaLayoutSettings settings) => settings.MinNodeHeight * 1.5f / 8;
 
         Database database;
 
         /// <summary>
         /// Keeps assorted data associated with the graph.
         /// </summary>
-        internal Database Database {
-            set { database = value; }
-            get { return database; }
+        internal Database Database { set => database = value; get => database;
         }
 
         internal BasicGraph<Node, IntEdge> IntGraph; //the input graph
@@ -65,7 +61,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         readonly LayerArrays recoveredLayerArrays;
         double[] layerToRecoveredYCoordinates;
-        readonly Dictionary<int, double> skeletonVirtualVerticesToX = new Dictionary<int, double>();
+        readonly Dictionary<int, double> skeletonVirtualVerticesToX = [];
 
 
         internal RecoveryLayeredLayoutEngine(GeometryGraph originalGraph) {
@@ -82,7 +78,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
         void Init(GeometryGraph geometryGraph) {
-            nodeIdToIndex = new Dictionary<Node, int>();
+            nodeIdToIndex = [];
 
             IList<Node> nodes = geometryGraph.Nodes;
 
@@ -104,16 +100,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
         IntEdge[] CreateIntEdges(GeometryGraph geometryGraph) {
-            var edges = geometryGraph.Edges;
+            EdgeCollection edges = geometryGraph.Edges;
 
 
-            var intEdges = new IntEdge[edges.Count];
+            IntEdge[] intEdges = new IntEdge[edges.Count];
             int i = 0;
-            foreach (var edge in edges) {
+            foreach (Edge edge in edges) {
                 if (edge.Source == null || edge.Target == null)
                     throw new InvalidOperationException(); //"creating an edge with null source or target");
 
-                var intEdge = new IntEdge(nodeIdToIndex[edge.Source], nodeIdToIndex[edge.Target], edge);
+                IntEdge intEdge = new IntEdge(nodeIdToIndex[edge.Source], nodeIdToIndex[edge.Target], edge);
 
                 intEdges[i] = intEdge;
                 i++;
@@ -130,9 +126,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             }
         }
 
-        internal static int EdgeSpan(int[] layers, IntEdge e) {
-            return layers[e.Source] - layers[e.Target];
-        }
+        internal static int EdgeSpan(int[] layers, IntEdge e) => layers[e.Source] - layers[e.Target];
 
         /// <summary>
         /// Creating a DAG which glues same layer vertices into one original, 
@@ -146,11 +140,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
         void SetGluedEdgesWeights() {
-            var gluedPairsToGluedEdge = new Dictionary<IntPair, IntEdge>();
+            Dictionary<IntPair, IntEdge> gluedPairsToGluedEdge = new Dictionary<IntPair, IntEdge>();
             foreach (IntEdge ie in GluedDagSkeletonForLayering.Edges)
                 gluedPairsToGluedEdge[new IntPair(ie.Source, ie.Target)] = ie;
 
-            foreach (var t in database.Multiedges)
+            foreach (KeyValuePair<IntPair, List<IntEdge>> t in database.Multiedges)
                 if (t.Key.x != t.Key.y) {
                     IntPair gluedPair = VerticalConstraints.GluedIntPair(t.Key);
                     if (gluedPair.x == gluedPair.y) continue;
@@ -161,7 +155,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
         IEnumerable<IntEdge> GluedDagSkeletonEdges() {
-            var ret =
+            Set<IntEdge> ret =
                 new Set<IntEdge>(from kv in database.Multiedges
                                  where kv.Key.x != kv.Key.y
                                  let e = VerticalConstraints.GluedIntEdge(kv.Value[0])
@@ -176,10 +170,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
         static IntEdge CreateUpDownConstrainedIntEdge(IntPair intPair) {
-            var intEdge = new IntEdge(intPair.x, intPair.y);
-            intEdge.Weight = 0;
-            //we do not want the edge weight to contribute in to the sum but just take the constraint into account
-            intEdge.Separation = 1;
+            IntEdge intEdge = new IntEdge(intPair.x, intPair.y)
+            {
+                Weight = 0,
+                //we do not want the edge weight to contribute in to the sum but just take the constraint into account
+                Separation = 1
+            };
             return intEdge;
         }
 
@@ -187,10 +183,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// <summary>
         /// The main calculation is done here
         /// </summary>       
-        [SuppressMessage("Microsoft.Globalization", "CA1305:SpecifyIFormatProvider",
-            MessageId = "System.String.Format(System.String,System.Object,System.Object,System.Object)"),
-         SuppressMessage("Microsoft.Globalization", "CA1305:SpecifyIFormatProvider",
-             MessageId = "System.String.Format(System.String,System.Object)")]
         internal void Run() {
             if (originalGraph.Nodes.Count > 0) {
                 engineLayerArrays = CalculateLayers();
@@ -251,13 +243,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// </summary>
         void StretchWidth() {
             //calculate the desired span of the anchor centers and the current span of anchor center
-            var desiredSpan = new RealNumberSpan();
+            RealNumberSpan desiredSpan = new RealNumberSpan();
             foreach (Node node in originalGraph.Nodes) {
                 desiredSpan.AddValue(node.BoundingBox.Width / 2);
                 desiredSpan.AddValue(sugiyamaSettings.MinimalWidth - node.BoundingBox.Width / 2);
             }
 
-            var currentSpan = new RealNumberSpan();
+            RealNumberSpan currentSpan = new RealNumberSpan();
             foreach (Anchor anchor in NodeAnchors())
                 currentSpan.AddValue(anchor.X);
 
@@ -278,7 +270,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
         double GetCurrentHeight() {
-            var span = new RealNumberSpan();
+            RealNumberSpan span = new RealNumberSpan();
             foreach (Anchor anchor in NodeAnchors()) {
                 span.AddValue(anchor.Top);
                 span.AddValue(anchor.Bottom);
@@ -287,13 +279,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
         void StretchHeight() {
-            var desiredSpan = new RealNumberSpan();
+            RealNumberSpan desiredSpan = new RealNumberSpan();
             foreach (Node node in originalGraph.Nodes) {
                 desiredSpan.AddValue(node.BoundingBox.Height / 2);
                 desiredSpan.AddValue(sugiyamaSettings.MinimalHeight - node.BoundingBox.Height / 2);
             }
 
-            var currentSpan = new RealNumberSpan();
+            RealNumberSpan currentSpan = new RealNumberSpan();
             foreach (Anchor anchor in NodeAnchors())
                 currentSpan.AddValue(anchor.Y);
 
@@ -305,12 +297,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             }
         }
 
-        IEnumerable<Anchor> NodeAnchors() {
-            return anchors.Take(Math.Min(IntGraph.Nodes.Count, anchors.Length));
-        }
+        IEnumerable<Anchor> NodeAnchors() => anchors.Take(Math.Min(IntGraph.Nodes.Count, anchors.Length));
 
         double GetCurrentWidth() {
-            var span = new RealNumberSpan();
+            RealNumberSpan span = new RealNumberSpan();
             foreach (Anchor anchor in NodeAnchors()) {
                 span.AddValue(anchor.Left);
                 span.AddValue(anchor.Right);
@@ -370,8 +360,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             engineLayerArrays = layerArrays;
             StraightensShortEdges();
 
-            double aspectRatio;
-            CalculateOriginalGraphBox(out aspectRatio);
+            CalculateOriginalGraphBox(out double aspectRatio);
 
             if (sugiyamaSettings.AspectRatio != 0)
                 StretchToDesiredAspectRatio(aspectRatio, sugiyamaSettings.AspectRatio);
@@ -416,7 +405,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 #else
             else {
                 string s = Environment.GetEnvironmentVariable("Brandes");
-                if (!String.IsNullOrEmpty(s) && String.Compare(s, "on", true, CultureInfo.CurrentCulture) == 0)
+                if (!string.IsNullOrEmpty(s) && string.Compare(s, "on", true, CultureInfo.CurrentCulture) == 0)
                     Brandes = true;
             }
 #endif
@@ -502,13 +491,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             return InsertLayersIfNeeded(layerArrays);
         }
 
-        VerticalConstraintsForSugiyama VerticalConstraints {
-            get { return sugiyamaSettings.VerticalConstraints; }
-        }
+        VerticalConstraintsForSugiyama VerticalConstraints => sugiyamaSettings.VerticalConstraints;
 
-        HorizontalConstraintsForSugiyama HorizontalConstraints {
-            get { return sugiyamaSettings.HorizontalConstraints; }
-        }
+        HorizontalConstraintsForSugiyama HorizontalConstraints => sugiyamaSettings.HorizontalConstraints;
 
         void CalculateAnchorsAndYPositions(LayerArrays layerArrays) {
             CalculateAnchorSizes(database, out anchors, properLayeredGraph, originalGraph, IntGraph, sugiyamaSettings);
@@ -524,13 +509,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                 Anchor a = anchors[i];
                 if (a.LabelToTheRightOfAnchorCenter) {
                     //by default the label is put to the right of the spline
-                    Anchor predecessor;
-                    Anchor successor;
-                    GetSuccessorAndPredecessor(i, out predecessor, out successor);
+                    GetSuccessorAndPredecessor(i, out Anchor? predecessor, out Anchor? successor);
                     if (!TryToPutLabelOutsideOfAngle(a, predecessor, successor)) {
                         double sumNow = (predecessor.Origin - a.Origin).Length + (successor.Origin - a.Origin).Length;
                         double nx = a.Right - a.LeftAnchor; //new potential anchor center 
-                        var xy = new Point(nx, a.Y);
+                        Point xy = new Point(nx, a.Y);
                         double sumWouldBe = (predecessor.Origin - xy).Length + (successor.Origin - xy).Length;
                         if (sumWouldBe < sumNow) //we need to swap
                             PutLabelToTheLeft(a);
@@ -624,7 +607,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// Create a DAG from the given graph
         /// </summary>
         void CycleRemoval() {
-            var feedbackSet = IntGraph.Edges.Where(e => recoveredLayerArrays.Y[e.Source] < recoveredLayerArrays.Y[e.Target]).ToArray();
+            IntEdge[] feedbackSet = IntGraph.Edges.Where(e => recoveredLayerArrays.Y[e.Source] < recoveredLayerArrays.Y[e.Target]).ToArray();
             database.AddFeedbackSet(feedbackSet);
         }
 
@@ -694,7 +677,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                 if (span > 1) {
                     //we create span-2 dummy nodes and span new edges
                     int d0 = n + nOfVv++;
-                    var layerEdge = new LayerEdge(e.Source, d0, e.CrossingWeight);
+                    LayerEdge layerEdge = new LayerEdge(e.Source, d0, e.CrossingWeight);
                     e.LayerEdges[pe++] = layerEdge;
                     //create span-2 internal edges all from dummy nodes
                     for (int j = 0; j < span - 2; j++) {
@@ -707,12 +690,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                     layerEdge = new LayerEdge(d0, e.Target, e.CrossingWeight);
                     e.LayerEdges[pe] = layerEdge;
                 } else if (span == 1) {
-                    var layerEdge = new LayerEdge(e.Source, e.Target, e.CrossingWeight);
+                    LayerEdge layerEdge = new LayerEdge(e.Source, e.Target, e.CrossingWeight);
                     e.LayerEdges[pe] = layerEdge;
                 }
             }
 
-            var extendedVertexLayering = new int[originalGraph.Nodes.Count + nOfVv];
+            int[] extendedVertexLayering = new int[originalGraph.Nodes.Count + nOfVv];
 
             foreach (IntEdge e in database.SkeletonEdges())
                 if (e.LayerEdges != null) {
@@ -737,7 +720,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
             int[] yLayers = layering.GetLayers();
             yLayers = ExtendLayeringToUngluedSameLayerVertices(yLayers);
-            var layerArrays = new LayerArrays(yLayers);
+            LayerArrays layerArrays = new LayerArrays(yLayers);
             //if (!SugiyamaSettings.UseEdgeBundling && (HorizontalConstraints == null || HorizontalConstraints.IsEmpty)) {
             if (HorizontalConstraints == null || HorizontalConstraints.IsEmpty) {
                 layerArrays = YLayeringAndOrderingWithoutHorizontalConstraints(layerArrays);
@@ -762,19 +745,19 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
         void GetXCoordinatesOfVirtualNodesOfTheProperLayeredGraph(LayerArrays layerArrays) {
-            foreach (var skeletonEdge in database.SkeletonEdges())
+            foreach (IntEdge skeletonEdge in database.SkeletonEdges())
                 GetXCoordinatesOfVirtualNodesOfTheProperLayeredGraphForSkeletonEdge(skeletonEdge, layerArrays);
         }
       
         void GetXCoordinatesOfVirtualNodesOfTheProperLayeredGraphForSkeletonEdge(IntEdge intEdge, LayerArrays layerArrays) {
             if (intEdge.LayerEdges == null || intEdge.LayerEdges.Count < 2) return;
-            var edgeCurve = intEdge.Edge.Curve;
-            var layerIndex = layerArrays.Y[intEdge.Source] - 1;//it is the layer of the highest virtual node of the edge
+            ICurve edgeCurve = intEdge.Edge.Curve;
+            int layerIndex = layerArrays.Y[intEdge.Source] - 1;//it is the layer of the highest virtual node of the edge
             for (int i = 1; i < intEdge.LayerEdges.Count; i++) {
-                var v = intEdge.LayerEdges[i].Source;
-                var layerY = layerToRecoveredYCoordinates[layerIndex--];
-                var layerLine = new LineSegment(new Point(originalGraph.Left, layerY), new Point(originalGraph.Right, layerY));
-                var intersection=Curve.CurveCurveIntersectionOne(edgeCurve, layerLine, false);
+                int v = intEdge.LayerEdges[i].Source;
+                double layerY = layerToRecoveredYCoordinates[layerIndex--];
+                LineSegment layerLine = new LineSegment(new Point(originalGraph.Left, layerY), new Point(originalGraph.Right, layerY));
+                IntersectionInfo intersection =Curve.CurveCurveIntersectionOne(edgeCurve, layerLine, false);
                
                 skeletonVirtualVerticesToX[v] =intersection.IntersectionPoint.X;
                 
@@ -782,13 +765,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
         void OrderLayers(LayerArrays layerArrays) {
-            foreach (var layer in layerArrays.Layers)
+            foreach (int[] layer in layerArrays.Layers)
                 OrderLayerBasedOnRecoveredXCoords(layer);
         }
 
         void OrderLayerBasedOnRecoveredXCoords(int[] layer) {
             if (layer.Length <= 1) return;
-            var keys = new double[layer.Length];
+            double[] keys = new double[layer.Length];
             for (int i = 0; i < layer.Length; i++) {
                 int v = layer[i];
                 keys[i] = properLayeredGraph.IsVirtualNode(v)
@@ -801,16 +784,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
 
-        void CalculateXPositionsByBrandes(LayerArrays layerArrays) {
-            XCoordsWithAlignment.CalculateXCoordinates(layerArrays, properLayeredGraph, originalGraph.Nodes.Count,
+        void CalculateXPositionsByBrandes(LayerArrays layerArrays) => XCoordsWithAlignment.CalculateXCoordinates(layerArrays, properLayeredGraph, originalGraph.Nodes.Count,
                                                        database.Anchors, sugiyamaSettings.NodeSeparation);
-        }
 
 
         void CalculateOriginalGraphBox(out double aspectRatio) {
             aspectRatio = 0;
             if (anchors.Length > 0) {
-                var box = new Rectangle(anchors[0].Left, anchors[0].Top, anchors[0].Right, anchors[0].Bottom);
+                Rectangle box = new Rectangle(anchors[0].Left, anchors[0].Top, anchors[0].Right, anchors[0].Bottom);
 
                 for (int i = 1; i < anchors.Length; i++) {
                     Anchor a = anchors[i];
@@ -823,7 +804,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
                 double delta = (box.LeftTop - box.RightBottom).Length / 2;
 
-                var del = new Point(-delta, delta);
+                Point del = new Point(-delta, delta);
                 box.Add(box.LeftTop + del);
                 box.Add(box.RightBottom - del);
 
@@ -854,8 +835,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         bool LayersAreDoubled { get; set; }
 
         void RecreateIntGraphFromDataBase() {
-            var edges = new List<IntEdge>();
-            foreach (var list in database.Multiedges.Values)
+            List<IntEdge> edges = new List<IntEdge>();
+            foreach (List<IntEdge> list in database.Multiedges.Values)
                 edges.AddRange(list);
             IntGraph.SetEdges(edges, IntGraph.NodeCount);
         }
@@ -871,7 +852,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
             if (needToInsertLayers == false && constrainedOrdering == null)
                 //if we have constrains the multiple edges have been already represented in layers
-                foreach (var kv in database.Multiedges)
+                foreach (KeyValuePair<IntPair, List<IntEdge>> kv in database.Multiedges)
                     if (kv.Value.Count > 1) {
                         multipleEdges = true;
                         if (layerArrays.Y[kv.Key.x] - layerArrays.Y[kv.Key.y] == 1) {
@@ -887,13 +868,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             if (constrainedOrdering != null) //if there are constraints we handle multiedges correctly
                 return;
 
-            foreach (var kv in database.Multiedges)
+            foreach (KeyValuePair<IntPair, List<IntEdge>> kv in database.Multiedges)
                 // If there are an even number of multi-edges between two nodes then
                 //  add a virtual edge in the multi-edge dict to improve the placement, but only in case when the edge goes down only one layer.         
                 if (kv.Value.Count % 2 == 0 && layerArrays.Y[kv.Key.First] - 1 == layerArrays.Y[kv.Key.Second]) {
-                    var newVirtualEdge = new IntEdge(kv.Key.First, kv.Key.Second);
-                    newVirtualEdge.Edge = new Edge();
-                    newVirtualEdge.IsVirtualEdge = true;
+                    IntEdge newVirtualEdge = new IntEdge(kv.Key.First, kv.Key.Second)
+                    {
+                        Edge = new Edge(),
+                        IsVirtualEdge = true
+                    };
                     kv.Value.Insert(kv.Value.Count / 2, newVirtualEdge);
                     IntGraph.AddEdge(newVirtualEdge);
                 }
@@ -970,7 +953,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             Anchor[] anchors = database.Anchors;
             double ymax = originalGraph.Margins + spaceBeforeMargins; //setting up y coord - going up by y-layers
             int i = 0;
-            foreach (var yLayer in layerArrays.Layers) {
+            foreach (int[] yLayer in layerArrays.Layers) {
                 double bottomAnchorMax = 0;
                 double topAnchorMax = 0;
                 foreach (int j in yLayer) {
@@ -1002,23 +985,22 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// <returns>the width and height in X and Y respectively</returns>
         internal Point CalculateApproximateDimensions() {
             CreateGluedDagSkeletonForLayering();
-            var ns = new NetworkSimplexForGeneralGraph(GluedDagSkeletonForLayering, null);
+            NetworkSimplexForGeneralGraph ns = new NetworkSimplexForGeneralGraph(GluedDagSkeletonForLayering, null);
 
             // layers[0] is the layer of the first node, layers[1]: layer of second node, etc...
             int[] layers = ns.GetLayers();
 
             // for each layer we need the maximum node height and the sum of all node widths
             // in order to calculate the total width and height of the graph
-            var layerMap = new Dictionary<int, Point>();
+            Dictionary<int, Point> layerMap = new Dictionary<int, Point>();
             double width, height;
 
             Directions layoutDirection = GetLayoutDirection(sugiyamaSettings);
             if (layoutDirection == Directions.North || layoutDirection == Directions.South) {
                 for (int i = 0; i < layers.Length; ++i) {
                     Node v = originalGraph.Nodes[i];
-                    Point size;
                     int l = layers[i];
-                    layerMap.TryGetValue(l, out size);
+                    layerMap.TryGetValue(l, out Point size);
                     layerMap[l] = new Point(
                         v.BoundingBox.Width + size.X + sugiyamaSettings.NodeSeparation,
                         Math.Max(v.BoundingBox.Height, size.Y));
@@ -1033,9 +1015,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             } else {
                 for (int i = 0; i < layers.Length; ++i) {
                     Node v = originalGraph.Nodes[i];
-                    Point size;
                     int l = layers[i];
-                    layerMap.TryGetValue(l, out size);
+                    layerMap.TryGetValue(l, out Point size);
                     layerMap[l] = new Point(
                         Math.Max(v.BoundingBox.Width, size.X),
                         v.BoundingBox.Height + size.Y + sugiyamaSettings.NodeSeparation);
@@ -1091,13 +1072,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
 
-        static IEnumerable<IntPair> GetFlatPairs(int[] layer, int[] layering, BasicGraph<IntEdge> intGraph) {
-            return new Set<IntPair>(from v in layer
-                                    where v < intGraph.NodeCount
-                                    from edge in intGraph.OutEdges(v)
-                                    where layering[edge.Source] == layering[edge.Target]
-                                    select new IntPair(edge.Source, edge.Target));
-        }
+        static IEnumerable<IntPair> GetFlatPairs(int[] layer, int[] layering, BasicGraph<IntEdge> intGraph) => new Set<IntPair>(from v in layer
+                                                                                                                                where v < intGraph.NodeCount
+                                                                                                                                from edge in intGraph.OutEdges(v)
+                                                                                                                                where layering[edge.Source] == layering[edge.Target]
+                                                                                                                                select new IntPair(edge.Source, edge.Target));
 
         static void MakeVirtualNodesHigh(int[] yLayer, double bottomAnchorMax, double topAnchorMax,
                                          int originalNodeCount, Anchor[] anchors) {
@@ -1209,11 +1188,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             int nOfVerts = properLayeredGraph.NodeCount;
 
             //create edges of XLayoutGraph
-            var edges = new List<IntEdge>();
+            List<IntEdge> edges = new List<IntEdge>();
 
             foreach (LayerEdge e in properLayeredGraph.Edges) {
-                var n1 = new IntEdge(nOfVerts, e.Source);
-                var n2 = new IntEdge(nOfVerts, e.Target);
+                IntEdge n1 = new IntEdge(nOfVerts, e.Source);
+                IntEdge n2 = new IntEdge(nOfVerts, e.Target);
                 n1.Weight = n2.Weight = 1;
                 n1.Separation = 0; //these edge have 0 separation
                 n2.Separation = 0;
@@ -1222,11 +1201,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                 edges.Add(n2);
             }
 
-            foreach (var layer in layerArrays.Layers)
+            foreach (int[] layer in layerArrays.Layers)
                 for (int i = layer.Length - 1; i > 0; i--) {
                     int source = layer[i];
                     int target = layer[i - 1];
-                    var ie = new IntEdge(source, target);
+                    IntEdge ie = new IntEdge(source, target);
                     Anchor sourceAnchor = database.Anchors[source];
                     Anchor targetAnchor = database.Anchors[target];
 
@@ -1237,7 +1216,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                     edges.Add(ie);
                 }
 
-            var ret = new XLayoutGraph(IntGraph, properLayeredGraph, layerArrays, edges, nOfVerts);
+            XLayoutGraph ret = new XLayoutGraph(IntGraph, properLayeredGraph, layerArrays, edges, nOfVerts);
             ret.SetEdgeWeights();
             return ret;
         }
@@ -1250,13 +1229,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
         static LayerArrays RecoverOriginalHorizontalLayers(GeometryGraph geometryGraph, SugiyamaLayoutSettings sugiyamaLayoutSettings) {
-            var nodes = geometryGraph.Nodes;
-            var list = new List<int>();
+            IList<Node> nodes = geometryGraph.Nodes;
+            List<int> list = new List<int>();
             for (int i = 0; i < nodes.Count; i++)
                 list.Add(i);
-            var layers = list.GroupBy(i => nodes[i].Center.Y);
-            var layerList = new List<int[]>();
-            foreach (var layer in layers)
+            IEnumerable<IGrouping<double, int>> layers = list.GroupBy(i => nodes[i].Center.Y);
+            List<int[]> layerList = new List<int[]>();
+            foreach (IGrouping<double, int> layer in layers)
                 layerList.Add(layer.ToArray());
 
             sugiyamaLayoutSettings.LayerSeparation = double.PositiveInfinity;
@@ -1264,19 +1243,19 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             layerList = new List<int[]>(layerList.OrderBy(l => nodes[l[0]].Center.Y));
             //check that the layers are separated
             for (int i = 0; i < layerList.Count - 1; i++) {
-                var topOfI = layerList[i].Max(j => nodes[j].BoundingBox.Top);
-                var bottomOfINext = layerList[i + 1].Min(j => nodes[j].BoundingBox.Bottom);
-                var layerSep = bottomOfINext - topOfI;
+                double topOfI = layerList[i].Max(j => nodes[j].BoundingBox.Top);
+                double bottomOfINext = layerList[i + 1].Min(j => nodes[j].BoundingBox.Bottom);
+                double layerSep = bottomOfINext - topOfI;
                 if (layerSep <= 0) {
                     sugiyamaLayoutSettings.Transformation = null;
                     return null;
                 }
                 sugiyamaLayoutSettings.LayerSeparation = Math.Min(sugiyamaLayoutSettings.LayerSeparation, layerSep);
             }
-            var nodesToLayers = new int[nodes.Count];
+            int[] nodesToLayers = new int[nodes.Count];
 
             for (int i = 0; i < layerList.Count; i++) {
-                var layer = layerList[i];
+                int[] layer = layerList[i];
                 for (int j = 0; j < layer.Length; j++)
                     nodesToLayers[layer[j]] = i;
             }
@@ -1291,30 +1270,30 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         static LayerArrays RecoverOriginalVerticalLayers(GeometryGraph geometryGraph, SugiyamaLayoutSettings sugiyamaLayoutSettings) {
 
-            var nodes = geometryGraph.Nodes;
-            var list = new List<int>();
+            IList<Node> nodes = geometryGraph.Nodes;
+            List<int> list = new List<int>();
             for (int i = 0; i < geometryGraph.Nodes.Count; i++) list.Add(i);
-            var layers = list.GroupBy(i => nodes[i].Center.X);
-            var layerList = new List<int[]>();
-            foreach (var layer in layers) {
+            IEnumerable<IGrouping<double, int>> layers = list.GroupBy(i => nodes[i].Center.X);
+            List<int[]> layerList = new List<int[]>();
+            foreach (IGrouping<double, int> layer in layers) {
                 layerList.Add(layer.ToArray());
             }
             layerList = new List<int[]>(layerList.OrderBy(l => nodes[l[0]].Center.X));
             sugiyamaLayoutSettings.LayerSeparation = double.PositiveInfinity;
             //check that the layers are separated
             for (int i = 0; i < layerList.Count - 1; i++) {
-                var rightOfI = layerList[i].Max(j => nodes[j].BoundingBox.Right);
-                var leftOfNext = layerList[i + 1].Min(j => nodes[j].BoundingBox.Left);
-                var layerSep = leftOfNext - rightOfI;
+                double rightOfI = layerList[i].Max(j => nodes[j].BoundingBox.Right);
+                double leftOfNext = layerList[i + 1].Min(j => nodes[j].BoundingBox.Left);
+                double layerSep = leftOfNext - rightOfI;
                 if (layerSep <= 0) {
                     return null;
                 }
                 sugiyamaLayoutSettings.LayerSeparation = Math.Min(sugiyamaLayoutSettings.LayerSeparation, layerSep);
             }
-            var nodesToLayers = new int[nodes.Count];
+            int[] nodesToLayers = new int[nodes.Count];
 
             for (int i = 0; i < layerList.Count; i++) {
-                var layer = layerList[i];
+                int[] layer = layerList[i];
                 for (int j = 0; j < layer.Length; j++)
                     nodesToLayers[layer[j]] = i;
             }
@@ -1336,17 +1315,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             FillLayersToRecoveredYCoordinates();
             CycleRemoval();
             Run();
-            var engine= CreateEngine();
+            LayeredLayoutEngine engine = CreateEngine();
             if (!sugiyamaSettings.Transformation.IsIdentity) {
                 originalGraph.Transform(sugiyamaSettings.Transformation);
             }
             return engine;
         }
 
-        LayeredLayoutEngine CreateEngine() {
-            return new LayeredLayoutEngine(engineLayerArrays, originalGraph, properLayeredGraph, 
-                sugiyamaSettings, database, IntGraph, nodeIdToIndex, GluedDagSkeletonForLayering, 
+        LayeredLayoutEngine CreateEngine() => new LayeredLayoutEngine(engineLayerArrays, originalGraph, properLayeredGraph,
+                sugiyamaSettings, database, IntGraph, nodeIdToIndex, GluedDagSkeletonForLayering,
                 LayersAreDoubled, constrainedOrdering, Brandes, xLayoutGraph);
-        }
     }
 }

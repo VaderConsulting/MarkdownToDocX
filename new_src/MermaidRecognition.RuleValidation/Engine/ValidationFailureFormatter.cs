@@ -509,12 +509,9 @@ public static class ValidationFailureFormatter
         return Prefix + ": " + ElementKind + HumanElementDescription + " — " + FactDescription + ".";
     }
 
-    private static bool LooksLikeInternalIdentifier(string Message)
-    {
-        return Message.Contains("L-", StringComparison.Ordinal)
+    private static bool LooksLikeInternalIdentifier(string Message) => Message.Contains("L-", StringComparison.Ordinal)
             || Message.Contains(" failed Routing.", StringComparison.Ordinal)
             || Message.Contains(" failed required fact ", StringComparison.Ordinal);
-    }
 
     private static string BuildNodeOverlapCorrection(EvaluationContext Context, string ScenarioPrefix)
     {
@@ -623,38 +620,29 @@ public static class ValidationFailureFormatter
         return "Diagnostic analyser reported: " + DiagnosticReason + " ";
     }
 
-    private static string DescribePrimaryFlowDirection(string Direction)
+    private static string DescribePrimaryFlowDirection(string Direction) => Direction switch
     {
-        return Direction switch
-        {
-            "TB" => "top-to-bottom",
-            "BT" => "bottom-to-top",
-            "LR" => "left-to-right",
-            "RL" => "right-to-left",
-            _ => "diagram"
-        };
-    }
+        "TB" => "top-to-bottom",
+        "BT" => "bottom-to-top",
+        "LR" => "left-to-right",
+        "RL" => "right-to-left",
+        _ => "diagram"
+    };
 
-    private static string DescribeSeparationAxis(string Direction)
+    private static string DescribeSeparationAxis(string Direction) => Direction switch
     {
-        return Direction switch
-        {
-            "TB" => "vertical rank spacing",
-            "BT" => "vertical rank spacing",
-            "LR" => "horizontal lane spacing",
-            "RL" => "horizontal lane spacing",
-            _ => "primary-axis spacing"
-        };
-    }
+        "TB" => "vertical rank spacing",
+        "BT" => "vertical rank spacing",
+        "LR" => "horizontal lane spacing",
+        "RL" => "horizontal lane spacing",
+        _ => "primary-axis spacing"
+    };
 
-    private static string FormatNodeCentre(NodeActualResult Node)
-    {
-        return "("
+    private static string FormatNodeCentre(NodeActualResult Node) => "("
             + Node.Bounds.CentreX.ToString("F1", CultureInfo.InvariantCulture)
             + ", "
             + Node.Bounds.CentreY.ToString("F1", CultureInfo.InvariantCulture)
             + ")";
-    }
 
     private static string DescribePathSummary(EdgeActualResult Edge)
     {
@@ -684,7 +672,7 @@ public static class ValidationFailureFormatter
             return string.Empty;
         }
 
-        List<string> Parts = new List<string>();
+        List<string> Parts = [];
         foreach (Dictionary<string, object> CollisionFact in Edge.CollisionFacts)
         {
             if (CollisionFact.TryGetValue("Reason", out object? ReasonValue)
@@ -705,7 +693,7 @@ public static class ValidationFailureFormatter
 
     private static string DescribeOverlapAxes(BoundsActualResult Left, BoundsActualResult Right)
     {
-        List<string> Axes = new List<string>();
+        List<string> Axes = [];
         double HorizontalOverlap = Math.Min(Left.X + Left.Width, Right.X + Right.Width) - Math.Max(Left.X, Right.X);
         double VerticalOverlap = Math.Min(Left.Y + Left.Height, Right.Y + Right.Height) - Math.Max(Left.Y, Right.Y);
 

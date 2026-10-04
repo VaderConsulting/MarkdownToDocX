@@ -5,7 +5,6 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
         abstract internal Point Site { get; }
 
         /// <summary/>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1305:SpecifyIFormatProvider", MessageId = "System.String.Format(System.String,System.Object,System.Object)")]
         public override string ToString() {
             string typeString = GetType().ToString();
             int lastDotLoc = typeString.LastIndexOf('.');

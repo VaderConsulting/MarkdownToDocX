@@ -9,13 +9,9 @@ using MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner;
 
 namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
     internal class AxisCoordinateEvent : SweepEvent {
-        internal AxisCoordinateEvent(Point p) {
-            this.site = p;
-        }
+        internal AxisCoordinateEvent(Point p) => site = p;
 
-        internal override Point Site {
-            get { return site; }
-        }
+        internal override Point Site => site;
 
         private readonly Point site;
     }

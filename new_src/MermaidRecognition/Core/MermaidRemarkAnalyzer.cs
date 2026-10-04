@@ -1,7 +1,8 @@
 using System.Text;
+
 using MermaidRecognition.Config;
 
-namespace MermaidRecognition;
+namespace MermaidRecognition.Core;
 
 /// <summary>
 /// Analyses Mermaid <c>%%</c> remarks: full-line comments, trailing comments, init directives, and catalogue-remarked blocks.

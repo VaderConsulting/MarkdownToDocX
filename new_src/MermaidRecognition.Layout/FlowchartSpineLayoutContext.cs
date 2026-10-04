@@ -29,13 +29,7 @@ public sealed class FlowchartSpineLayoutContext
     /// <summary>
     /// Node identifiers on the primary spine walk from root to sink.
     /// </summary>
-    public IReadOnlySet<string> SpineNodeIds
-    {
-        get
-        {
-            return _SpineNodeIds;
-        }
-    }
+    public IReadOnlySet<string> SpineNodeIds => _SpineNodeIds;
 
     /// <summary>
     /// Earliest root node used to seed the spine walk.

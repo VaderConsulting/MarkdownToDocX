@@ -1,16 +1,16 @@
 using System;
 using System.Collections.Generic;
+
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves;
 
 namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
     /// <summary>
     /// represents the polyline of an edge
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1710:IdentifiersShouldHaveCorrectSuffix"),
-     System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly",
-         MessageId = "Polyline")
+    [
+
 #if TEST_MSAGL
-    ,Serializable
+Serializable
 #endif
     ]
     public class SmoothedPolyline: IEnumerable<Point> {
@@ -29,8 +29,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
                     site=new Site(p);
                     ret=new SmoothedPolyline(site);
                 } else {
-                    Site s=new Site(p);
-                    s.Previous=site;
+                    Site s = new Site(p)
+                    {
+                        Previous = site
+                    };
                     site.Next=s;
                     site=s;
                 }
@@ -43,13 +45,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <summary>
         /// the first site of the polyline
         /// </summary>
-        public Site HeadSite {
-            get { return headSite; }
-        }
-/// <summary>
-/// clones the polyline
-/// </summary>
-/// <returns></returns>
+        public Site HeadSite => headSite;
+        /// <summary>
+        /// clones the polyline
+        /// </summary>
+        /// <returns></returns>
         public SmoothedPolyline Clone() {
             Site h; //the site of teh clone
             Site s = headSite; //the old site
@@ -67,13 +67,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
             }
             return new SmoothedPolyline(headOfTheClone);
         }
-/// <summary>
-/// a constructor
-/// </summary>
-/// <param name="head"></param>
-        public SmoothedPolyline(Site head) {
-            this.headSite = head;
-        }
+        /// <summary>
+        /// a constructor
+        /// </summary>
+        /// <param name="head"></param>
+        public SmoothedPolyline(Site head) => headSite = head;
 
         /// <summary>
         /// the last site of the polyline
@@ -92,7 +90,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// 
         /// </summary>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public IEnumerable<LineSegment> GetSegments() {
             Site s0 = headSite;
             Site s1 = headSite.Next;
@@ -112,14 +109,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
             Curve curve = new Curve();
             Site a = HeadSite;//the corner start
             Site b; //the corner origin
-            Site c;//the corner other end
+                    //the corner other end
 
-            while (Curve.FindCorner(a, out b, out c)) {
+            while (Curve.FindCorner(a, out b, out Site? c))
+            {
                 CubicBezierSegment bezierSeg = CreateBezierSegOnSite(b);
-                if (curve.Segments.Count == 0) {
+                if (curve.Segments.Count == 0)
+                {
                     if (!ApproximateComparer.Close(a.Point, bezierSeg.Start))
                         Curve.AddLineSegment(curve, a.Point, bezierSeg.Start);
-                } else if (!ApproximateComparer.Close(curve.End, bezierSeg.Start))
+                }
+                else if (!ApproximateComparer.Close(curve.End, bezierSeg.Start))
                     Curve.ContinueWithLineSegment(curve, bezierSeg.Start);
                 curve.AddSegment(bezierSeg);
                 a = b;
@@ -140,33 +140,29 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         }
 
         static internal CubicBezierSegment CreateBezierSegOnSite(Site b) {
-            var kPrev = b.PreviousBezierSegmentFitCoefficient;
-            var kNext = b.NextBezierSegmentFitCoefficient;
-            var a = b.Previous;
-            var c = b.Next;
-            var s = kPrev*a.Point + (1 - kPrev)*b.Point;
-            var e = kNext*c.Point + (1 - kNext)*b.Point;
-            var u = s*b.PreviousTangentCoefficient + (1 - b.PreviousTangentCoefficient)*b.Point;
-            var v = e*b.NextTangentCoefficient + (1 - b.NextTangentCoefficient)*b.Point;
+            double kPrev = b.PreviousBezierSegmentFitCoefficient;
+            double kNext = b.NextBezierSegmentFitCoefficient;
+            Site? a = b.Previous;
+            Site? c = b.Next;
+            Point s = kPrev*a.Point + (1 - kPrev)*b.Point;
+            Point e = kNext*c.Point + (1 - kNext)*b.Point;
+            Point u = s*b.PreviousTangentCoefficient + (1 - b.PreviousTangentCoefficient)*b.Point;
+            Point v = e*b.NextTangentCoefficient + (1 - b.NextTangentCoefficient)*b.Point;
             return new CubicBezierSegment(s, u, v, e);
         }
 
         #region IEnumerable<Point> Members
-/// <summary>
-/// the enumerator of the polyline corners
-/// </summary>
-/// <returns></returns>
-        public IEnumerator<Point> GetEnumerator() {
-            return new PointNodesList(this.headSite);
-        }
+        /// <summary>
+        /// the enumerator of the polyline corners
+        /// </summary>
+        /// <returns></returns>
+        public IEnumerator<Point> GetEnumerator() => new PointNodesList(headSite);
 
         #endregion
 
         #region IEnumerable Members
 
-        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() {
-            return new PointNodesList(this.headSite);
-        }
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => new PointNodesList(headSite);
 
         #endregion
         /// <summary>
@@ -175,9 +171,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <returns></returns>
         internal SmoothedPolyline Reverse()
         {
-            var ret = FromPoints(this);
-            var a = ret.HeadSite;
-            var b = ret.LastSite;
+            SmoothedPolyline ret = FromPoints(this);
+            Site? a = ret.HeadSite;
+            Site? b = ret.LastSite;
             while(b!=null)
             {
                 a.NextBezierSegmentFitCoefficient = b.PreviousBezierSegmentFitCoefficient;

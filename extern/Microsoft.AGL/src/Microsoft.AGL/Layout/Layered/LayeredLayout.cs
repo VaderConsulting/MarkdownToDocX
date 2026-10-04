@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+
 using Microsoft.AGL.Core;
 using Microsoft.AGL.Core.Geometry;
 using Microsoft.AGL.Core.Geometry.Curves;
@@ -32,7 +33,7 @@ namespace Microsoft.AGL.Layout.Layered
         {
             this.geometryGraph = geometryGraph;
             this.settings = settings;
-            this.engine = new LayeredLayoutEngine(geometryGraph, settings);
+            engine = new LayeredLayoutEngine(geometryGraph, settings);
         }
 
         /// <summary>
@@ -41,7 +42,7 @@ namespace Microsoft.AGL.Layout.Layered
         /// <returns>width / height</returns>
         public double EstimateAspectRatio()
         {
-            Point dimensions = this.engine.CalculateApproximateDimensions();
+            Point dimensions = engine.CalculateApproximateDimensions();
             Debug.Assert(dimensions.X > 0, "The estimated width of the layered layout should be greater than 0");
             Debug.Assert(dimensions.Y > 0, "The estimated width of the layered layout should be greater than 0");
             return dimensions.X / dimensions.Y;
@@ -62,7 +63,7 @@ namespace Microsoft.AGL.Layout.Layered
 
         internal static void PreRunTransform(GeometryGraph geomGraph, PlaneTransformation matrix) {
             if (matrix.IsIdentity) return;
-            var m = matrix.Inverse;
+            PlaneTransformation m = matrix.Inverse;
             foreach (Node n in geomGraph.Nodes)
                 n.Transform(m);
             //calculate new label widths and heights
@@ -70,7 +71,7 @@ namespace Microsoft.AGL.Layout.Layered
                 if (e.Label != null) {
                     e.OriginalLabelWidth = e.Label.Width;
                     e.OriginalLabelHeight = e.Label.Height;
-                    var r = new Rectangle(m*new Point(0, 0), m*new Point(e.Label.Width, e.Label.Height));
+                    Rectangle r = new Rectangle(m*new Point(0, 0), m*new Point(e.Label.Width, e.Label.Height));
                     e.Label.Width = r.Width;
                     e.Label.Height = r.Height;
                 }
@@ -120,7 +121,7 @@ namespace Microsoft.AGL.Layout.Layered
             if (e.Curve != null)
             {
                 e.Curve = e.Curve.Transform(transformation);
-                var eg = e.EdgeGeometry;
+                EdgeGeometry eg = e.EdgeGeometry;
                 if (eg.SourceArrowhead != null)
                     eg.SourceArrowhead.TipPosition = transformation * eg.SourceArrowhead.TipPosition;
                 if (eg.TargetArrowhead != null)
@@ -145,7 +146,7 @@ namespace Microsoft.AGL.Layout.Layered
         ///</summary>
         ///<param name="graph"></param>
         public static void RecoverAlgorithmData(GeometryGraph graph) {
-            var recoveryEngine = new RecoveryLayeredLayoutEngine(graph);
+            RecoveryLayeredLayoutEngine recoveryEngine = new RecoveryLayeredLayoutEngine(graph);
             graph.AlgorithmData=recoveryEngine.GetEngine();          
         }
 
@@ -155,8 +156,7 @@ namespace Microsoft.AGL.Layout.Layered
         public static void IncrementalLayout(GeometryGraph geometryGraph, Node node) {
             ValidateArg.IsNotNull(geometryGraph, "geometryGraph");
 
-            LayeredLayoutEngine engine = geometryGraph.AlgorithmData as LayeredLayoutEngine;
-            if (engine == null) return;
+            if (geometryGraph.AlgorithmData is not LayeredLayoutEngine engine) return;
             PreRunTransform(geometryGraph, engine.SugiyamaSettings.Transformation);
             engine.IncrementalRun(node);
             PostRunTransform(geometryGraph, engine.SugiyamaSettings.Transformation);

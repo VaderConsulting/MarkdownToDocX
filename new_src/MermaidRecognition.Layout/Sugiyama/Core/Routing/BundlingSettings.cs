@@ -26,9 +26,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Routing {
         ///this number is muliplied by the overflow penalty cost and by the sum of the LengthImportanceCoefficient 
         ///and InkImportanceCoefficient, and added to the routing price
         ///</summary>
-        public double CapacityOverflowCoefficient {
-            get { return capacityOverflowCoefficient; }
-            set { capacityOverflowCoefficient = value; }
+        public double CapacityOverflowCoefficient { get => capacityOverflowCoefficient; set => capacityOverflowCoefficient = value;
         }
 
         /// <summary>
@@ -55,9 +53,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Routing {
         /// <summary>
         /// the importance of path lengths coefficient
         /// </summary>
-        public double PathLengthImportance {
-            get { return pathLengthImportance; }
-            set { pathLengthImportance = value; }
+        public double PathLengthImportance { get => pathLengthImportance; set => pathLengthImportance = value;
         }
 
         ///<summary>
@@ -69,9 +65,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Routing {
 
         ///<summary>
         ///</summary>
-        public double InkImportance {
-            get { return inkImportance; }
-            set { inkImportance = value; }
+        public double InkImportance { get => inkImportance; set => inkImportance = value;
         }
 
         double edgeSeparation = DefaultEdgeSeparation;
@@ -84,9 +78,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Routing {
         /// <summary>
         /// Separation between to neighboring edges within a bundle
         /// </summary>
-        public double EdgeSeparation {
-            get { return edgeSeparation; }
-            set { edgeSeparation = value; }
+        public double EdgeSeparation { get => edgeSeparation; set => edgeSeparation = value;
         }
 
         bool useCubicBezierSegmentsInsideOfHubs;
@@ -94,9 +86,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Routing {
         ///<summary>
         ///if is set to true will be using Cubic Bezie Segments inside of hubs, otherwise will be using Biarcs
         ///</summary>
-        public bool UseCubicBezierSegmentsInsideOfHubs {
-            get { return useCubicBezierSegmentsInsideOfHubs; }
-            set { useCubicBezierSegmentsInsideOfHubs = value; }
+        public bool UseCubicBezierSegmentsInsideOfHubs { get => useCubicBezierSegmentsInsideOfHubs; set => useCubicBezierSegmentsInsideOfHubs = value;
         }
 
         bool useGreedyMetrolineOrdering = true;
@@ -104,18 +94,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Routing {
         ///<summary>
         ///if is set to true will be using greedy ordering algorithm, otherwise will be using linear
         ///</summary>
-        public bool UseGreedyMetrolineOrdering {
-            get { return useGreedyMetrolineOrdering; }
-            set { useGreedyMetrolineOrdering = value; }
+        public bool UseGreedyMetrolineOrdering { get => useGreedyMetrolineOrdering; set => useGreedyMetrolineOrdering = value;
         }
 
         double angleThreshold = Math.PI / 180 * 45; //45 degrees;
         ///<summary>
         ///min angle for gluing edges
         ///</summary>
-        public double AngleThreshold {
-            get { return angleThreshold; }
-            set { angleThreshold = value; }
+        public double AngleThreshold { get => angleThreshold; set => angleThreshold = value;
         }
 
         double hubRepulsionImportance = 100;
@@ -123,9 +109,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Routing {
         /// <summary>
         /// the importance of hub repulsion coefficient
         /// </summary>
-        public double HubRepulsionImportance {
-            get { return hubRepulsionImportance; }
-            set { hubRepulsionImportance = value; }
+        public double HubRepulsionImportance { get => hubRepulsionImportance; set => hubRepulsionImportance = value;
         }
 
         double bundleRepulsionImportance = 100;
@@ -133,9 +117,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Routing {
         /// <summary>
         /// the importance of bundle repulsion coefficient
         /// </summary>
-        public double BundleRepulsionImportance {
-            get { return bundleRepulsionImportance; }
-            set { bundleRepulsionImportance = value; }
+        public double BundleRepulsionImportance { get => bundleRepulsionImportance; set => bundleRepulsionImportance = value;
         }
 
         double minimalRatioOfGoodCdtEdges = 0.9;
@@ -144,9 +126,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Routing {
         /// minimal ration of cdt edges with satisfied capacity needed to perform bundling
         /// (otherwise bundling will not be executed)
         /// </summary>
-        public double MinimalRatioOfGoodCdtEdges {
-            get { return minimalRatioOfGoodCdtEdges; }
-            set { minimalRatioOfGoodCdtEdges = value; }
+        public double MinimalRatioOfGoodCdtEdges { get => minimalRatioOfGoodCdtEdges; set => minimalRatioOfGoodCdtEdges = value;
         }
 
         bool highestQuality = true;
@@ -154,9 +134,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Routing {
         /// <summary>
         /// speed vs quality of the drawing
         /// </summary>
-        public bool HighestQuality {
-            get { return highestQuality; }
-            set { highestQuality = value; }
+        public bool HighestQuality { get => highestQuality; set => highestQuality = value;
         }
         /// <summary>
         /// if is set to true the original spline before the trimming should be kept under the corresponding EdgeGeometry

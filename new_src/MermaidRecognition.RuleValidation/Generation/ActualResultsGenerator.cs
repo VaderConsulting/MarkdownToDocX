@@ -4,9 +4,11 @@ using System.Globalization;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+
 using MermaidRecognition.Contract;
+using MermaidRecognition.Core;
 using MermaidRecognition.Diagnostics;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Layout;
 using MermaidRecognition.Render;
 using MermaidRecognition.RuleValidation.Models;
@@ -225,7 +227,7 @@ public static class ActualResultsGenerator
             DeclarationCounts[Node.Id]++;
         }
 
-        List<NodeActualResult> RankedNodes = new List<NodeActualResult>();
+        List<NodeActualResult> RankedNodes = [];
         foreach (NodeContract Node in Contract.Nodes)
         {
             BoundsById.TryGetValue(Node.Id, out FlowchartLayoutNodeBounds? Bounds);
@@ -294,7 +296,7 @@ public static class ActualResultsGenerator
                 MemberNodeIds = Group.ChildNodeIds.ToList()
             };
 
-            List<FlowchartLayoutNodeBounds> MemberBounds = new List<FlowchartLayoutNodeBounds>();
+            List<FlowchartLayoutNodeBounds> MemberBounds = [];
             foreach (string MemberNodeId in Group.ChildNodeIds)
             {
                 if (BoundsById.TryGetValue(MemberNodeId, out FlowchartLayoutNodeBounds? Bounds))
@@ -643,12 +645,9 @@ public static class ActualResultsGenerator
         }
     }
 
-    private static bool IsFlowchartFamily(string Kind)
-    {
-        return Kind.Equals("flowchart", StringComparison.OrdinalIgnoreCase)
+    private static bool IsFlowchartFamily(string Kind) => Kind.Equals("flowchart", StringComparison.OrdinalIgnoreCase)
             || Kind.Equals("graph", StringComparison.OrdinalIgnoreCase)
             || Kind.Contains("flowchart", StringComparison.OrdinalIgnoreCase);
-    }
 
     private static string ResolveHeaderToken(string Header)
     {
@@ -697,49 +696,40 @@ public static class ActualResultsGenerator
         return "Normal";
     }
 
-    private static string MapMarker(EdgeEndpointMarker Marker)
+    private static string MapMarker(EdgeEndpointMarker Marker) => Marker switch
     {
-        return Marker switch
-        {
-            EdgeEndpointMarker.Point => "Point",
-            EdgeEndpointMarker.Circle => "Circle",
-            EdgeEndpointMarker.Cross => "Cross",
-            _ => "None"
-        };
-    }
+        EdgeEndpointMarker.Point => "Point",
+        EdgeEndpointMarker.Circle => "Circle",
+        EdgeEndpointMarker.Cross => "Cross",
+        _ => "None"
+    };
 
-    private static string MapRouteClass(FlowchartRoutingIntentRouteClass RouteClass)
+    private static string MapRouteClass(FlowchartRoutingIntentRouteClass RouteClass) => RouteClass switch
     {
-        return RouteClass switch
-        {
-            FlowchartRoutingIntentRouteClass.CentreSpine => "CentreSpine",
-            FlowchartRoutingIntentRouteClass.ShortAdjacent => "ShortAdjacent",
-            FlowchartRoutingIntentRouteClass.LocalDecisionBranch => "LocalDecisionBranch",
-            FlowchartRoutingIntentRouteClass.MultiInputMerge => "FanIn",
-            FlowchartRoutingIntentRouteClass.MergeBack => "MergeBack",
-            FlowchartRoutingIntentRouteClass.LongExceptionBypass => "LongBypass",
-            FlowchartRoutingIntentRouteClass.SkipBypass => "LongBypass",
-            FlowchartRoutingIntentRouteClass.ReturnBackward => "CycleOrReturn",
-            FlowchartRoutingIntentRouteClass.CrossLane => "CrossLane",
-            FlowchartRoutingIntentRouteClass.ObstacleAvoidance => "CrossLane",
-            _ => "Unknown"
-        };
-    }
+        FlowchartRoutingIntentRouteClass.CentreSpine => "CentreSpine",
+        FlowchartRoutingIntentRouteClass.ShortAdjacent => "ShortAdjacent",
+        FlowchartRoutingIntentRouteClass.LocalDecisionBranch => "LocalDecisionBranch",
+        FlowchartRoutingIntentRouteClass.MultiInputMerge => "FanIn",
+        FlowchartRoutingIntentRouteClass.MergeBack => "MergeBack",
+        FlowchartRoutingIntentRouteClass.LongExceptionBypass => "LongBypass",
+        FlowchartRoutingIntentRouteClass.SkipBypass => "LongBypass",
+        FlowchartRoutingIntentRouteClass.ReturnBackward => "CycleOrReturn",
+        FlowchartRoutingIntentRouteClass.CrossLane => "CrossLane",
+        FlowchartRoutingIntentRouteClass.ObstacleAvoidance => "CrossLane",
+        _ => "Unknown"
+    };
 
-    private static string MapPathFamily(FlowchartPathShapeIntent PathShapeIntent)
+    private static string MapPathFamily(FlowchartPathShapeIntent PathShapeIntent) => PathShapeIntent switch
     {
-        return PathShapeIntent switch
-        {
-            FlowchartPathShapeIntent.OrthogonalCorridor => "Orthogonal",
-            FlowchartPathShapeIntent.StraightOrSoftVertical => "Straight",
-            FlowchartPathShapeIntent.StraightOrSoftHorizontal => "Straight",
-            FlowchartPathShapeIntent.ShortSmoothBranch => "Smooth",
-            FlowchartPathShapeIntent.SmoothMergeBack => "Spline",
-            FlowchartPathShapeIntent.LongBypassCorridor => "Polyline",
-            FlowchartPathShapeIntent.ReturnLoopCurve => "Spline",
-            _ => "Unknown"
-        };
-    }
+        FlowchartPathShapeIntent.OrthogonalCorridor => "Orthogonal",
+        FlowchartPathShapeIntent.StraightOrSoftVertical => "Straight",
+        FlowchartPathShapeIntent.StraightOrSoftHorizontal => "Straight",
+        FlowchartPathShapeIntent.ShortSmoothBranch => "Smooth",
+        FlowchartPathShapeIntent.SmoothMergeBack => "Spline",
+        FlowchartPathShapeIntent.LongBypassCorridor => "Polyline",
+        FlowchartPathShapeIntent.ReturnLoopCurve => "Spline",
+        _ => "Unknown"
+    };
 
     private static bool IsPrimaryFlowEdge(
         EdgeContract Edge,
@@ -766,17 +756,14 @@ public static class ActualResultsGenerator
         };
     }
 
-    private static string ToCanonicalDirectionString(FlowchartDirection Direction)
+    private static string ToCanonicalDirectionString(FlowchartDirection Direction) => Direction switch
     {
-        return Direction switch
-        {
-            FlowchartDirection.TopToBottom => "TB",
-            FlowchartDirection.BottomToTop => "BT",
-            FlowchartDirection.LeftToRight => "LR",
-            FlowchartDirection.RightToLeft => "RL",
-            _ => "TB"
-        };
-    }
+        FlowchartDirection.TopToBottom => "TB",
+        FlowchartDirection.BottomToTop => "BT",
+        FlowchartDirection.LeftToRight => "LR",
+        FlowchartDirection.RightToLeft => "RL",
+        _ => "TB"
+    };
 
     private static string ComputeSha256(string Text)
     {

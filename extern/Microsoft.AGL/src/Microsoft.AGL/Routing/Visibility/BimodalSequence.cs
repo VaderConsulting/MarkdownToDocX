@@ -18,17 +18,13 @@ namespace Microsoft.AGL.Routing.Visibility {
         /// <summary>
         /// the sequence values
         /// </summary>
-        internal Func<int,double> Sequence {
-            get { return sequence; }
-        }
+        internal Func<int, double> Sequence => sequence;
 
         int length;
         /// <summary>
         /// the length of the sequence: the sequence starts from 0
         /// </summary>
-        internal int Length {
-            get { return length; }
-        }
+        internal int Length => length;
         //following Chazelle, Dobkin
         internal int FindMinimum(){
             if (sequence(0) == sequence(Length - 1)) //we have a unimodal function
@@ -43,7 +39,7 @@ namespace Microsoft.AGL.Routing.Visibility {
             double leftVal=Sequence(0);
             double rightVal=Sequence(Length-1);
             double k=(rightVal-leftVal)/(Length-1);
-            return delegate(int i) { return Math.Min(this.Sequence(i), leftVal + k * i); };
+            return delegate(int i) { return Math.Min(Sequence(i), leftVal + k * i); };
         }
 
         internal int FindMaximum() {
@@ -58,7 +54,7 @@ namespace Microsoft.AGL.Routing.Visibility {
             double leftVal = Sequence(0);
             double rightVal = Sequence(Length - 1);
             double k = (rightVal - leftVal) / (Length - 1);
-            return delegate(int i) { return Math.Max(this.Sequence(i), leftVal + k * i); };
+            return delegate(int i) { return Math.Max(Sequence(i), leftVal + k * i); };
         }
     }
 }

@@ -14,8 +14,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         internal LowObstacleSide Side { get; private set; }
 
         internal LowReflectionEvent(BasicReflectionEvent previousSite, LowObstacleSide targetSide, Point site)
-            : base (previousSite, targetSide.Obstacle, site) {
-            this.Side = targetSide;
-        }
+            : base(previousSite, targetSide.Obstacle, site) => Side = targetSide;
     }
 }

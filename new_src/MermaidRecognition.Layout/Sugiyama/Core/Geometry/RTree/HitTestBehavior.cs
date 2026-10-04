@@ -1,4 +1,5 @@
-namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
+namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree
+{
     ///<summary>
     ///continue or stop the hit tree traversal
     ///</summary>

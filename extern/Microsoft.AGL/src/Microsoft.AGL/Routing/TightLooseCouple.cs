@@ -41,14 +41,10 @@ namespace Microsoft.AGL.Routing
         /// <returns></returns>
         public override bool Equals(object obj)
         {
-            var couple = obj as TightLooseCouple;
-            if(couple==null)
+            if (obj is not TightLooseCouple couple)
                 return false;
             return TightPolyline == couple.TightPolyline;
         }
-        public override string ToString()
-        {
-            return (TightPolyline == null ? "null" : TightPolyline.ToString().Substring(0,5)) + "," + (LooseShape == null ? "null" : LooseShape.ToString().Substring(0,5));
-        }
+        public override string ToString() => (TightPolyline == null ? "null" : TightPolyline.ToString().Substring(0, 5)) + "," + (LooseShape == null ? "null" : LooseShape.ToString().Substring(0, 5));
     }
 }

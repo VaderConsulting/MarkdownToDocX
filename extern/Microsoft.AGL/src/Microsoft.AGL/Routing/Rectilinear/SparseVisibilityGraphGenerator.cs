@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using Microsoft.AGL.Core.DataStructures;
+using Microsoft.AGL.Core.DataStructures.RBTree;
 using Microsoft.AGL.Core.Geometry;
 using Microsoft.AGL.Routing.Spline.ConeSpanner;
 
@@ -31,28 +32,28 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         /// <summary>
         /// The points of obstacle vertices encountered on horizontal scan.
         /// </summary>
-        private readonly Set<Point> horizontalVertexPoints = new Set<Point>();
+        private readonly Set<Point> horizontalVertexPoints = [];
 
         /// <summary>
         /// The points of obstacle vertices encountered on vertical scan.
         /// </summary>
-        private readonly Set<Point> verticalVertexPoints = new Set<Point>();
+        private readonly Set<Point> verticalVertexPoints = [];
 
         /// <summary>
         /// The Steiner points generated at the bounding box of obstacles.
         /// These help ensure that we can "go around" the obstacle, as with the non-orthogonal edges in the paper.
         /// </summary>
-        private readonly Set<Point> boundingBoxSteinerPoints = new Set<Point>();
+        private readonly Set<Point> boundingBoxSteinerPoints = [];
 
         /// <summary>
         /// Accumulates distinct vertex projections to the X axis during sweep.
         /// </summary>
-        private readonly Set<double> xCoordAccumulator = new Set<double>();
+        private readonly Set<double> xCoordAccumulator = [];
 
         /// <summary>
         /// Accumulates distinct vertex projections to the Y axis during sweep.
         /// </summary>
-        private readonly Set<double> yCoordAccumulator = new Set<double>();
+        private readonly Set<double> yCoordAccumulator = [];
 
         /// <summary>
         /// ScanSegment vector locations on the Y axis; final array after sweep.
@@ -67,12 +68,12 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         /// <summary>
         /// The index from a coordinate to a horizontal vector slot.
         /// </summary>
-        private readonly Dictionary<double, int> horizontalCoordMap = new Dictionary<double, int>();
+        private readonly Dictionary<double, int> horizontalCoordMap = [];
 
         /// <summary>
         /// The index from a point to a vertical vector slot.
         /// </summary>
-        private readonly Dictionary<double, int> verticalCoordMap = new Dictionary<double, int>();
+        private readonly Dictionary<double, int> verticalCoordMap = [];
 
         /// <summary>
         /// The index from a coordinate to a vector slot on the axis we are intersecting to.
@@ -100,17 +101,17 @@ namespace Microsoft.AGL.Routing.Rectilinear {
 
         internal override void Clear() {
             base.Clear();
-            this.Cleanup();
+            Cleanup();
         }
 
         private void Cleanup() {
-            this.horizontalVertexPoints.Clear();
-            this.verticalVertexPoints.Clear();
-            this.boundingBoxSteinerPoints.Clear();
-            this.xCoordAccumulator.Clear();
-            this.yCoordAccumulator.Clear();
-            this.horizontalCoordMap.Clear();
-            this.verticalCoordMap.Clear();
+            horizontalVertexPoints.Clear();
+            verticalVertexPoints.Clear();
+            boundingBoxSteinerPoints.Clear();
+            xCoordAccumulator.Clear();
+            yCoordAccumulator.Clear();
+            horizontalCoordMap.Clear();
+            verticalCoordMap.Clear();
         }
 
         /// <summary>
@@ -118,24 +119,24 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         /// </summary>
         /// <returns></returns>
         internal override void GenerateVisibilityGraph() {
-            this.AccumulateVertexCoords();
-            this.CreateSegmentVectorsAndPopulateCoordinateMaps();
-            this.RunScanLineToCreateSegmentsAndBoundingBoxSteinerPoints();
-            this.GenerateSparseIntersectionsFromVertexPoints();
-            this.CreateScanSegmentTrees();
+            AccumulateVertexCoords();
+            CreateSegmentVectorsAndPopulateCoordinateMaps();
+            RunScanLineToCreateSegmentsAndBoundingBoxSteinerPoints();
+            GenerateSparseIntersectionsFromVertexPoints();
+            CreateScanSegmentTrees();
 
             HorizontalScanSegments.DevTraceVerifyVisibility();
             VerticalScanSegments.DevTraceVerifyVisibility();
             Debug_AssertGraphIsRectilinear(VisibilityGraph, ObstacleTree);
 
-            this.Cleanup();
+            Cleanup();
         }
 
         void AccumulateVertexCoords() {
             // Unlike the paper we only generate lines for extreme vertices (i.e. on the horizontal pass we
             // don't generate a horizontal vertex projection to the Y axis for a vertex that is not on the top
             // or bottom of the obstacle).  So we can just use the bounding box.
-            foreach (var obstacle in this.ObstacleTree.GetAllObstacles()) {
+            foreach (Obstacle obstacle in ObstacleTree.GetAllObstacles()) {
                 xCoordAccumulator.Insert(obstacle.VisibilityBoundingBox.Left);
                 xCoordAccumulator.Insert(obstacle.VisibilityBoundingBox.Right);
                 yCoordAccumulator.Insert(obstacle.VisibilityBoundingBox.Top);
@@ -144,14 +145,14 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         }
 
         private void CreateSegmentVectorsAndPopulateCoordinateMaps() {
-            this.horizontalScanSegmentVector = new ScanSegmentVector(yCoordAccumulator, true);
-            this.verticalScanSegmentVector = new ScanSegmentVector(xCoordAccumulator, false);
+            horizontalScanSegmentVector = new ScanSegmentVector(yCoordAccumulator, true);
+            verticalScanSegmentVector = new ScanSegmentVector(xCoordAccumulator, false);
 
-            for (int slot = 0; slot < this.horizontalScanSegmentVector.Length; ++slot) {
-                this.horizontalCoordMap[this.horizontalScanSegmentVector[slot].Coord] = slot;
+            for (int slot = 0; slot < horizontalScanSegmentVector.Length; ++slot) {
+                horizontalCoordMap[horizontalScanSegmentVector[slot].Coord] = slot;
             }
-            for (int slot = 0; slot < this.verticalScanSegmentVector.Length; ++slot) {
-                this.verticalCoordMap[this.verticalScanSegmentVector[slot].Coord] = slot;
+            for (int slot = 0; slot < verticalScanSegmentVector.Length; ++slot) {
+                verticalCoordMap[verticalScanSegmentVector[slot].Coord] = slot;
             }
         }
 
@@ -159,28 +160,28 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             // Do a scanline pass to create scan segments that span the entire height/width of the graph
             // (mixing overlapped with free segments as needed) and generate the type-2 Steiner points.
             base.GenerateVisibilityGraph();
-            this.horizontalScanSegmentVector.ScanSegmentsComplete();
-            this.verticalScanSegmentVector.ScanSegmentsComplete();
-            this.xCoordAccumulator.Clear();
-            this.yCoordAccumulator.Clear();
+            horizontalScanSegmentVector.ScanSegmentsComplete();
+            verticalScanSegmentVector.ScanSegmentsComplete();
+            xCoordAccumulator.Clear();
+            yCoordAccumulator.Clear();
         }
 
         internal override void InitializeEventQueue(ScanDirection scanDir)
         {
             base.InitializeEventQueue(scanDir);
-            this.SetVectorsAndCoordMaps(scanDir);
-            this.AddAxisCoordinateEvents(scanDir);
+            SetVectorsAndCoordMaps(scanDir);
+            AddAxisCoordinateEvents(scanDir);
         }
 
         private void AddAxisCoordinateEvents(ScanDirection scanDir) {
             // Normal event ordering will apply - and will thus order the ScanSegments created in the vectors.
             if (scanDir.IsHorizontal) {
-                foreach (var coord in yCoordAccumulator) {
+                foreach (double coord in yCoordAccumulator) {
                     base.eventQueue.Enqueue(new AxisCoordinateEvent(new Point(ObstacleTree.GraphBox.Left - SentinelOffset, coord)));
                 }
                 return;
             }
-            foreach (var coord in xCoordAccumulator) {
+            foreach (double coord in xCoordAccumulator) {
                 base.eventQueue.Enqueue(new AxisCoordinateEvent(new Point(coord, ObstacleTree.GraphBox.Bottom - SentinelOffset)));
             }
         }
@@ -192,9 +193,9 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         }
 
         private bool ProcessAxisCoordinate(SweepEvent evt) {
-            var axisEvent = evt as AxisCoordinateEvent;
-            if (null != axisEvent) {
-                this.CreateScanSegmentsOnAxisCoordinate(axisEvent.Site);
+            if (evt is AxisCoordinateEvent axisEvent)
+            {
+                CreateScanSegmentsOnAxisCoordinate(axisEvent.Site);
                 return true;
             }
             return false;
@@ -217,40 +218,39 @@ namespace Microsoft.AGL.Routing.Rectilinear {
 
         protected override void ProcessVertexEvent(RBNode<BasicObstacleSide> lowSideNode,
                                                    RBNode<BasicObstacleSide> highSideNode, BasicVertexEvent vertexEvent) {
-            var vertexPoints = (base.ScanDirection.IsHorizontal) ? this.horizontalVertexPoints : this.verticalVertexPoints;
+            Set<Point> vertexPoints = (base.ScanDirection.IsHorizontal) ? horizontalVertexPoints : verticalVertexPoints;
             vertexPoints.Insert(vertexEvent.Site);
 
             // For easier reading...
-            var lowNborSide = LowNeighborSides.LowNeighbor.Item;
-            var highNborSide = HighNeighborSides.HighNeighbor.Item;
-            var highDir = base.ScanDirection.Direction;
-            var lowDir = base.ScanDirection.OppositeDirection;
+            BasicObstacleSide lowNborSide = LowNeighborSides.LowNeighbor.Item;
+            BasicObstacleSide highNborSide = HighNeighborSides.HighNeighbor.Item;
+            Directions highDir = base.ScanDirection.Direction;
+            Directions lowDir = base.ScanDirection.OppositeDirection;
 
             // Generate the neighbor side intersections, regardless of overlaps; these are the type-2 Steiner points.
-            var lowSteiner = ScanLineIntersectSide(vertexEvent.Site, lowNborSide);
-            var highSteiner = ScanLineIntersectSide(vertexEvent.Site, highNborSide);
+            Point lowSteiner = ScanLineIntersectSide(vertexEvent.Site, lowNborSide);
+            Point highSteiner = ScanLineIntersectSide(vertexEvent.Site, highNborSide);
 
             // Add the intersections at the neighbor bounding boxes if the intersection is not at a sentinel.  
             // Go in the opposite direction from the neighbor intersection to find the border between the Steiner 
             // point and vertexEvent.Site (unless vertexEvent.Site is inside the bounding box).
             if (ObstacleTree.GraphBox.Contains(lowSteiner)) {
-                var bboxIntersectBeforeLowSteiner = StaticGraphUtility.RectangleBorderIntersect(lowNborSide.Obstacle.VisibilityBoundingBox, lowSteiner, highDir);
+                Point bboxIntersectBeforeLowSteiner = StaticGraphUtility.RectangleBorderIntersect(lowNborSide.Obstacle.VisibilityBoundingBox, lowSteiner, highDir);
                 if (PointComparer.IsPureLower(bboxIntersectBeforeLowSteiner, vertexEvent.Site)) {
-                    this.boundingBoxSteinerPoints.Insert(bboxIntersectBeforeLowSteiner);
+                    boundingBoxSteinerPoints.Insert(bboxIntersectBeforeLowSteiner);
                 }
             }
             if (ObstacleTree.GraphBox.Contains(highSteiner)) {
-                var bboxIntersectBeforeHighSteiner = StaticGraphUtility.RectangleBorderIntersect(highNborSide.Obstacle.VisibilityBoundingBox, highSteiner, lowDir);
+                Point bboxIntersectBeforeHighSteiner = StaticGraphUtility.RectangleBorderIntersect(highNborSide.Obstacle.VisibilityBoundingBox, highSteiner, lowDir);
                 if (PointComparer.IsPureLower(vertexEvent.Site, bboxIntersectBeforeHighSteiner)) {
-                    this.boundingBoxSteinerPoints.Insert(bboxIntersectBeforeHighSteiner);
+                    boundingBoxSteinerPoints.Insert(bboxIntersectBeforeHighSteiner);
                 }
             }
 
             // Add the corners of the bounding box of the vertex obstacle, if they are visible to the event site.
             // This ensures that we "go around" the obstacle, as with the non-orthogonal edges in the paper.
-            Point lowCorner, highCorner;
-            GetBoundingCorners(lowSideNode.Item.Obstacle.VisibilityBoundingBox, vertexEvent is OpenVertexEvent, this.ScanDirection.IsHorizontal,
-                        out lowCorner, out highCorner);
+            GetBoundingCorners(lowSideNode.Item.Obstacle.VisibilityBoundingBox, vertexEvent is OpenVertexEvent, ScanDirection.IsHorizontal,
+                        out Point lowCorner, out Point highCorner);
             if (PointComparer.IsPureLower(lowSteiner, lowCorner) || lowNborSide.Obstacle.IsInSameClump(vertexEvent.Obstacle)) {
                 vertexPoints.Insert(lowCorner);
             }
@@ -273,10 +273,10 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             base.CurrentGroupBoundaryCrossingMap.Clear();
 
             // Iterate the ScanLine and create ScanSegments.  There will always be at least the two sentinel sides.
-            var sideNode = base.scanLine.Lowest();
-            var nextNode = base.scanLine.NextHigh(sideNode);
-            var overlapDepth = 0;
-            var start = site;
+            RBNode<BasicObstacleSide> sideNode = base.scanLine.Lowest();
+            RBNode<BasicObstacleSide> nextNode = base.scanLine.NextHigh(sideNode);
+            int overlapDepth = 0;
+            Point start = site;
             bool isInsideOverlappedObstacle = false;
             for (; null != nextNode; nextNode = base.scanLine.NextHigh(nextNode)) {
                 if (SkipSide(start, nextNode.Item)) {
@@ -291,7 +291,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                     continue;
                 }
 
-                var isLowSide = nextNode.Item is LowObstacleSide;
+                bool isLowSide = nextNode.Item is LowObstacleSide;
                 if (isLowSide) {
                     if (overlapDepth > 0) {
                         ++overlapDepth;
@@ -317,19 +317,19 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                 // If we are not within an overlapped obstacle, don't bother creating the overlapped ScanSegment
                 // as there will never be visibility connecting to it.
                 start = (nextNode.Item.Obstacle.IsOverlapped || nextNode.Item.Obstacle.OverlapsGroupCorner)
-                        ? this.CreateScanSegment(start, nextNode.Item, ScanSegment.OverlappedWeight)
-                        : this.ScanLineIntersectSide(start, nextNode.Item);
+                        ? CreateScanSegment(start, nextNode.Item, ScanSegment.OverlappedWeight)
+                        : ScanLineIntersectSide(start, nextNode.Item);
                 base.CurrentGroupBoundaryCrossingMap.Clear();
                 isInsideOverlappedObstacle = false;
             }
 
             // The final piece.
-            var end = base.ScanDirection.IsHorizontal
+            Point end = base.ScanDirection.IsHorizontal
                     ? new Point(ObstacleTree.GraphBox.Right + SentinelOffset, start.Y)
                     : new Point(start.X, ObstacleTree.GraphBox.Top + SentinelOffset);
-            this.parallelSegmentVector.CreateScanSegment(start, end, ScanSegment.NormalWeight,
+            parallelSegmentVector.CreateScanSegment(start, end, ScanSegment.NormalWeight,
                     base.CurrentGroupBoundaryCrossingMap.GetOrderedListBetween(start, end));
-            this.parallelSegmentVector.ScanSegmentsCompleteForCurrentSlot();
+            parallelSegmentVector.ScanSegmentsCompleteForCurrentSlot();
         }
 
         private void HandleGroupCrossing(Point site, BasicObstacleSide groupSide) {
@@ -341,8 +341,8 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             // the boundary crossing on or off based on group membership at ShortestPath-time.  Even though this is
             // the sparse VG, we always create these edges at group boundaries so we don't skip over them.
             Directions dirToInsideOfGroup = (groupSide is LowObstacleSide) ? base.ScanDirection.Direction : base.ScanDirection.OppositeDirection;
-            var intersect = this.ScanLineIntersectSide(site, groupSide);
-            var crossing = base.CurrentGroupBoundaryCrossingMap.AddIntersection(intersect, groupSide.Obstacle, dirToInsideOfGroup);
+            Point intersect = ScanLineIntersectSide(site, groupSide);
+            GroupBoundaryCrossing crossing = base.CurrentGroupBoundaryCrossingMap.AddIntersection(intersect, groupSide.Obstacle, dirToInsideOfGroup);
 
             // The vertex crossing the edge is perpendicular to the group boundary.  A rectilinear group will also have
             // an edge parallel to that group boundary that includes the point of that crossing vertex; therefore we must
@@ -350,14 +350,14 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             AddPerpendicularCoordForGroupCrossing(intersect);
 
             // Similarly, the crossing edge's opposite vertex may be on a perpendicular segment.
-            var interiorPoint = crossing.GetInteriorVertexPoint(intersect);
+            Point interiorPoint = crossing.GetInteriorVertexPoint(intersect);
             AddPerpendicularCoordForGroupCrossing(interiorPoint);
         }
 
         private void AddPerpendicularCoordForGroupCrossing(Point intersect) {
-            var nonCrossingPerpSlot = this.FindPerpendicularSlot(intersect, 0);
+            int nonCrossingPerpSlot = FindPerpendicularSlot(intersect, 0);
             if (-1 != nonCrossingPerpSlot) {
-                this.perpendicularSegmentVector[nonCrossingPerpSlot].AddPendingPerpendicularCoord(this.parallelSegmentVector.CurrentSlot.Coord);
+                perpendicularSegmentVector[nonCrossingPerpSlot].AddPendingPerpendicularCoord(parallelSegmentVector.CurrentSlot.Coord);
             }
         }
 
@@ -367,7 +367,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             }
 
             // Skip sides of obstacles that we do not actually pass through.
-            var bbox = side.Obstacle.VisibilityBoundingBox;
+            Rectangle bbox = side.Obstacle.VisibilityBoundingBox;
             if (base.ScanDirection.IsHorizontal) {
                 return ((start.Y == bbox.Bottom) || (start.Y == bbox.Top));
             }
@@ -375,67 +375,67 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         }
 
         private Point CreateScanSegment(Point start, BasicObstacleSide side, double weight) {
-            var end = ScanLineIntersectSide(start, side);
+            Point end = ScanLineIntersectSide(start, side);
             if (start != end) {
-                this.parallelSegmentVector.CreateScanSegment(start, end, weight, CurrentGroupBoundaryCrossingMap.GetOrderedListBetween(start, end));
+                parallelSegmentVector.CreateScanSegment(start, end, weight, CurrentGroupBoundaryCrossingMap.GetOrderedListBetween(start, end));
             }
             return end;
         }
 
         private void GenerateSparseIntersectionsFromVertexPoints() {
-            this.VisibilityGraph = NewVisibilityGraph();
+            VisibilityGraph = NewVisibilityGraph();
 
             // Generate the sparse intersections between ScanSegments based upon the ordered vertexPoints.
             GenerateSparseIntersectionsAlongHorizontalAxis();
             GenerateSparseIntersectionsAlongVerticalAxis();
 
-            this.ConnectAdjoiningScanSegments();
+            ConnectAdjoiningScanSegments();
 
             // Now each segment has the coordinates all of its intersections, so create the visibility graph.
-            this.horizontalScanSegmentVector.CreateSparseVerticesAndEdges(this.VisibilityGraph);
-            this.verticalScanSegmentVector.CreateSparseVerticesAndEdges(this.VisibilityGraph);
+            horizontalScanSegmentVector.CreateSparseVerticesAndEdges(VisibilityGraph);
+            verticalScanSegmentVector.CreateSparseVerticesAndEdges(VisibilityGraph);
         }
 
         private void GenerateSparseIntersectionsAlongHorizontalAxis() {
-            this.currentAxisPointComparer = new HorizontalPointComparer();
-            var vertexPoints = this.horizontalVertexPoints.OrderBy(point => point, this.currentAxisPointComparer).GetEnumerator();
-            var bboxSteinerPoints = new EnumeratorWrapper<Point>(this.boundingBoxSteinerPoints.OrderBy(point => point, this.currentAxisPointComparer));
+            currentAxisPointComparer = new HorizontalPointComparer();
+            IEnumerator<Point> vertexPoints = horizontalVertexPoints.OrderBy(point => point, currentAxisPointComparer).GetEnumerator();
+            EnumeratorWrapper<Point> bboxSteinerPoints = new EnumeratorWrapper<Point>(boundingBoxSteinerPoints.OrderBy(point => point, currentAxisPointComparer));
             base.ScanDirection = ScanDirection.HorizontalInstance;
             SetVectorsAndCoordMaps(base.ScanDirection);
-            this.GenerateSparseIntersections(vertexPoints, bboxSteinerPoints);
+            GenerateSparseIntersections(vertexPoints, bboxSteinerPoints);
         }
 
         private void GenerateSparseIntersectionsAlongVerticalAxis() {
-            this.currentAxisPointComparer = new VerticalPointComparer();
-            var vertexPoints = this.verticalVertexPoints.OrderBy(point => point, this.currentAxisPointComparer).GetEnumerator();
-            var bboxSteinerPoints = new EnumeratorWrapper<Point>(this.boundingBoxSteinerPoints.OrderBy(point => point, this.currentAxisPointComparer));
+            currentAxisPointComparer = new VerticalPointComparer();
+            IEnumerator<Point> vertexPoints = verticalVertexPoints.OrderBy(point => point, currentAxisPointComparer).GetEnumerator();
+            EnumeratorWrapper<Point> bboxSteinerPoints = new EnumeratorWrapper<Point>(boundingBoxSteinerPoints.OrderBy(point => point, currentAxisPointComparer));
             base.ScanDirection = ScanDirection.VerticalInstance;
             SetVectorsAndCoordMaps(base.ScanDirection);
-            this.GenerateSparseIntersections(vertexPoints, bboxSteinerPoints);
+            GenerateSparseIntersections(vertexPoints, bboxSteinerPoints);
         }
 
         private void SetVectorsAndCoordMaps(ScanDirection scanDir) {
             if (scanDir.IsHorizontal) {
-                this.parallelSegmentVector = this.horizontalScanSegmentVector;
-                this.perpendicularSegmentVector = this.verticalScanSegmentVector;
-                this.perpendicularCoordMap = this.verticalCoordMap;
+                parallelSegmentVector = horizontalScanSegmentVector;
+                perpendicularSegmentVector = verticalScanSegmentVector;
+                perpendicularCoordMap = verticalCoordMap;
             } else {
-                this.parallelSegmentVector = this.verticalScanSegmentVector;
-                this.perpendicularSegmentVector = this.horizontalScanSegmentVector;
-                this.perpendicularCoordMap = this.horizontalCoordMap;
+                parallelSegmentVector = verticalScanSegmentVector;
+                perpendicularSegmentVector = horizontalScanSegmentVector;
+                perpendicularCoordMap = horizontalCoordMap;
             }
         }
 
         private void ConnectAdjoiningScanSegments() {
             // Ensure there is a vertex at the end/start point of two ScanSegments; these will always differ in overlappedness.
-            this.horizontalScanSegmentVector.ConnectAdjoiningSegmentEndpoints();
-            this.verticalScanSegmentVector.ConnectAdjoiningSegmentEndpoints();
+            horizontalScanSegmentVector.ConnectAdjoiningSegmentEndpoints();
+            verticalScanSegmentVector.ConnectAdjoiningSegmentEndpoints();
         }
 
         internal class HorizontalPointComparer : IComparer<Point> {
             // Order by vertical first, then horizontal.
             public int Compare(Point lhs, Point rhs) {
-                var cmp = lhs.Y.CompareTo(rhs.Y);
+                int cmp = lhs.Y.CompareTo(rhs.Y);
                 return (0 != cmp) ? cmp : lhs.X.CompareTo(rhs.X);
             }
         }
@@ -443,31 +443,31 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         public class VerticalPointComparer : IComparer<Point> {
             // Order by horizontal first, then vertical.
             public int Compare(Point lhs, Point rhs) {
-                var cmp = lhs.X.CompareTo(rhs.X);
+                int cmp = lhs.X.CompareTo(rhs.X);
                 return (0 != cmp) ? cmp : lhs.Y.CompareTo(rhs.Y);
             }
         }
 
         private void GenerateSparseIntersections(IEnumerator<Point> vertexPoints, EnumeratorWrapper<Point> bboxSteinerPoints) {
-            this.perpendicularSegmentVector.ResetForIntersections();
-            this.parallelSegmentVector.ResetForIntersections();
+            perpendicularSegmentVector.ResetForIntersections();
+            parallelSegmentVector.ResetForIntersections();
 
             // Position the enumerations to the first point.
             vertexPoints.MoveNext();
             bboxSteinerPoints.MoveNext();
-            foreach (var item in parallelSegmentVector.Items) {
+            foreach (ScanSegmentVectorItem item in parallelSegmentVector.Items) {
                 for (;;) {
                     if (!item.CurrentSegment.ContainsPoint(vertexPoints.Current)) {
                         // Done accumulating intersections for the current segment; move to the next segment.
-                        if (!this.AddSteinerPointsToInterveningSegments(vertexPoints.Current, bboxSteinerPoints, item)
+                        if (!AddSteinerPointsToInterveningSegments(vertexPoints.Current, bboxSteinerPoints, item)
                                 || !item.TraverseToSegmentContainingPoint(vertexPoints.Current)) {
                             // Done with this vectorItem, move to the next item.
                             break;
                         }
                     }
 
-                    this.AddPointsToCurrentSegmentIntersections(bboxSteinerPoints, item);
-                    this.GenerateIntersectionsFromVertexPointForCurrentSegment(vertexPoints.Current, item);
+                    AddPointsToCurrentSegmentIntersections(bboxSteinerPoints, item);
+                    GenerateIntersectionsFromVertexPointForCurrentSegment(vertexPoints.Current, item);
 
                     if (item.PointIsCurrentEndAndNextStart(vertexPoints.Current)) {
                         // MoveNext will always return true because the test to enter this block returned true.
@@ -490,12 +490,12 @@ namespace Microsoft.AGL.Routing.Rectilinear {
 
         private bool AddSteinerPointsToInterveningSegments(Point currentVertexPoint, EnumeratorWrapper<Point> bboxSteinerPoints, ScanSegmentVectorItem item) {
             // With overlaps, we may have bboxSteinerPoints on segments that do not contain vertices.
-            while (bboxSteinerPoints.HasCurrent && (this.currentAxisPointComparer.Compare(bboxSteinerPoints.Current, currentVertexPoint) == -1)) {
+            while (bboxSteinerPoints.HasCurrent && (currentAxisPointComparer.Compare(bboxSteinerPoints.Current, currentVertexPoint) == -1)) {
                 if (!item.TraverseToSegmentContainingPoint(bboxSteinerPoints.Current)) {
                     // Done with this vectorItem, move to the next item.
                     return false;
                 }
-                this.AddPointsToCurrentSegmentIntersections(bboxSteinerPoints, item);
+                AddPointsToCurrentSegmentIntersections(bboxSteinerPoints, item);
             }
             return true;
         }
@@ -505,15 +505,15 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             // that results in no Steiner points having been generated, or Steiner points being generated on a segment that has
             // the opposite overlap state from the segment containing the corresponding vertex.
             for (; pointsToAdd.HasCurrent && parallelItem.CurrentSegment.ContainsPoint(pointsToAdd.Current); pointsToAdd.MoveNext()) {
-                int steinerSlot = this.FindPerpendicularSlot(pointsToAdd.Current, 0);
-                this.AddSlotToSegmentIntersections(parallelItem, steinerSlot);
+                int steinerSlot = FindPerpendicularSlot(pointsToAdd.Current, 0);
+                AddSlotToSegmentIntersections(parallelItem, steinerSlot);
             }
         }
 
         private void GenerateIntersectionsFromVertexPointForCurrentSegment(Point site, ScanSegmentVectorItem parallelItem) {
-            int perpStartSlot = this.FindPerpendicularSlot(parallelItem.CurrentSegment.Start, 1);
-            int perpEndSlot = this.FindPerpendicularSlot(parallelItem.CurrentSegment.End, -1);
-            int siteSlot = this.FindPerpendicularSlot(site, 0);
+            int perpStartSlot = FindPerpendicularSlot(parallelItem.CurrentSegment.Start, 1);
+            int perpEndSlot = FindPerpendicularSlot(parallelItem.CurrentSegment.End, -1);
+            int siteSlot = FindPerpendicularSlot(site, 0);
 
             // See comments in FindIntersectingSlot; we don't add non-extreme vertices in the perpendicular direction
             // so in some heavily-overlapped scenarios, we may not have any intersections within this scan segment.
@@ -521,23 +521,21 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                 return;
             }
 
-            this.AddSlotToSegmentIntersections(parallelItem, perpStartSlot);
-            this.AddSlotToSegmentIntersections(parallelItem, perpEndSlot);
+            AddSlotToSegmentIntersections(parallelItem, perpStartSlot);
+            AddSlotToSegmentIntersections(parallelItem, perpEndSlot);
             if ((siteSlot > perpStartSlot) && (siteSlot < perpEndSlot)) {
-                this.AddSlotToSegmentIntersections(parallelItem, siteSlot);
-                this.AddBinaryDivisionSlotsToSegmentIntersections(parallelItem, perpStartSlot, siteSlot, perpEndSlot);
+                AddSlotToSegmentIntersections(parallelItem, siteSlot);
+                AddBinaryDivisionSlotsToSegmentIntersections(parallelItem, perpStartSlot, siteSlot, perpEndSlot);
             }
         }
- 
+
         // These are called when the site may not be in the vector.
-        private int FindPerpendicularSlot(Point site, int directionIfMiss) {
-            return FindIntersectingSlot(perpendicularSegmentVector, perpendicularCoordMap, site, directionIfMiss);
-        }
+        private int FindPerpendicularSlot(Point site, int directionIfMiss) => FindIntersectingSlot(perpendicularSegmentVector, perpendicularCoordMap, site, directionIfMiss);
 
         private static int FindIntersectingSlot(ScanSegmentVector segmentVector, Dictionary<double, int> coordMap, Point site, int directionIfMiss) {
-            var coord = segmentVector.GetParallelCoord(site);
-            int slot;
-            if (coordMap.TryGetValue(coord, out slot)) {
+            double coord = segmentVector.GetParallelCoord(site);
+            if (coordMap.TryGetValue(coord, out int slot))
+            {
                 return slot;
             }
 
@@ -554,7 +552,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         }
 
         private void AddSlotToSegmentIntersections(ScanSegmentVectorItem parallelItem, int perpSlot) {
-            ScanSegmentVectorItem perpItem = this.perpendicularSegmentVector[perpSlot];
+            ScanSegmentVectorItem perpItem = perpendicularSegmentVector[perpSlot];
             parallelItem.CurrentSegment.AddSparseVertexCoord(perpItem.Coord);
             perpItem.AddPerpendicularCoord(parallelItem.Coord);
         }
@@ -564,7 +562,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             // If there was no object to the low or high side, then the start or end slot was already
             // the graphbox max (0 or perpSegmentVector.Length, respectively).  So start dividing.
             int low = 0;
-            int high = this.perpendicularSegmentVector.Length - 1;
+            int high = perpendicularSegmentVector.Length - 1;
 
             // Terminate when we are one away because we don't have an edge from a point to itself.
             while ((high - low) > 1) {
@@ -575,26 +573,26 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                 if (siteSlot <= mid) {
                     high = mid;
                     if ((siteSlot < high) && (high <= endSlot)) {
-                        this.AddSlotToSegmentIntersections(parallelItem, high);
+                        AddSlotToSegmentIntersections(parallelItem, high);
                     }
                     continue;
                 }
                 low = mid;
                 if ((siteSlot > low) && (low >= startSlot)) {
-                    this.AddSlotToSegmentIntersections(parallelItem, low);
+                    AddSlotToSegmentIntersections(parallelItem, low);
                 }
             }
         }
 
         // Create the ScanSegmentTrees that functions as indexes for port-visibility splicing.
         private void CreateScanSegmentTrees() {
-            CreateScanSegmentTree(this.horizontalScanSegmentVector, this.HorizontalScanSegments);
-            CreateScanSegmentTree(this.verticalScanSegmentVector, this.VerticalScanSegments);
+            CreateScanSegmentTree(horizontalScanSegmentVector, HorizontalScanSegments);
+            CreateScanSegmentTree(verticalScanSegmentVector, VerticalScanSegments);
         }
 
         private static void CreateScanSegmentTree(ScanSegmentVector segmentVector, ScanSegmentTree segmentTree) {
-            foreach (var item in segmentVector.Items) {
-                for (var segment = item.FirstSegment; segment != null; segment = segment.NextSegment) {
+            foreach (ScanSegmentVectorItem item in segmentVector.Items) {
+                for (ScanSegment segment = item.FirstSegment; segment != null; segment = segment.NextSegment) {
                     if (segment.HasVisibility()) {
                         segmentTree.InsertUnique(segment);
                     }

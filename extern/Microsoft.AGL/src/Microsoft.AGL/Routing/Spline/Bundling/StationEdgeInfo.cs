@@ -1,12 +1,12 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Microsoft.AGL.Core.Geometry;
 using Microsoft.AGL.Core.Geometry.Curves;
 
 namespace Microsoft.AGL.Routing.Spline.Bundling {
     internal class StationEdgeInfo {
         internal StationEdgeInfo(Point iPos, Point jPos) {
-            var dir = jPos - iPos;
-            var length = dir.Length;
+            Point dir = jPos - iPos;
+            double length = dir.Length;
             if (length > ApproximateComparer.DistanceEpsilon)
                 dir /= length;
         }
@@ -14,7 +14,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         internal int Count;
         internal double Width;
 
-        internal List<Metroline> Metrolines = new List<Metroline>();
+        internal List<Metroline> Metrolines = [];
 
         #region cache
 

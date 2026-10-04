@@ -53,25 +53,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         /// <summary>
         /// the length
         /// </summary>
-        public double Length { get { return End - Start; } }
+        public double Length => End - Start;
 
         /// <summary>
         /// return true if the value is inside the range
         /// </summary>
         /// <param name="v"></param>
         /// <returns></returns>
-        public bool Contains(double v) {
-            return Start <= v && v <= End;
-        }
+        public bool Contains(double v) => Start <= v && v <= End;
 
         /// <summary>
         /// bringe v into the range
         /// </summary>
         /// <param name="v"></param>
         /// <returns></returns>
-        public double GetInRange(double v) {
-            return v < Start ? Start : (v > End ? End : v);
-        }
+        public double GetInRange(double v) => v < Start ? Start : (v > End ? End : v);
 
         /// <summary>
         /// returns true if and only if two intervals are intersecting

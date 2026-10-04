@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Render;
 
 namespace MermaidRecognition.Layout;
@@ -161,9 +162,7 @@ public static class FlowchartEdgeLabelPlacementHelper
         IReadOnlyList<(double X, double Y)> LayoutPoints,
         FlowchartDirection Direction,
         string? SourceShape,
-        string? EdgeLabel)
-    {
-        return ResolveEdgeLabelPosition(
+        string? EdgeLabel) => ResolveEdgeLabelPosition(
             SourceBounds,
             TargetBounds,
             LayoutPoints,
@@ -174,7 +173,6 @@ public static class FlowchartEdgeLabelPlacementHelper
             null,
             null,
             null);
-    }
 
     /// <summary>
     /// Resolves edge-label placement for any routed connector with optional diagram context.
@@ -471,15 +469,12 @@ public static class FlowchartEdgeLabelPlacementHelper
         FlowchartLayoutNodeBounds SourceBounds,
         string? EdgeLabel,
         FlowchartDirection Direction,
-        double OffsetPx = DEFAULT_OFFSET_PX)
-    {
-        return ComputeLocalDecisionBranchLabelExpectedPosition(
+        double OffsetPx = DEFAULT_OFFSET_PX) => ComputeLocalDecisionBranchLabelExpectedPosition(
             GuidePoints,
             SourceBounds,
             EdgeLabel,
             Direction,
             OffsetPx);
-    }
 
     /// <summary>
     /// Builds the polyline used for decision-branch label midspan (source, target-leg guide, target).
@@ -489,35 +484,31 @@ public static class FlowchartEdgeLabelPlacementHelper
     {
         if (GuidePoints.Count >= 5)
         {
-            return new List<(double X, double Y)>
-            {
+            return
+            [
                 GuidePoints[0],
                 GuidePoints[2],
                 GuidePoints[GuidePoints.Count - 1]
-            };
+            ];
         }
 
         if (GuidePoints.Count >= 3)
         {
-            List<(double X, double Y)> Copy = new List<(double X, double Y)>();
-            foreach ((double X, double Y) Point in GuidePoints)
-            {
-                Copy.Add(Point);
-            }
+            List<(double X, double Y)> Copy = [.. GuidePoints];
 
             return Copy;
         }
 
         if (GuidePoints.Count == 2)
         {
-            return new List<(double X, double Y)>
-            {
+            return
+            [
                 GuidePoints[0],
                 GuidePoints[1]
-            };
+            ];
         }
 
-        return new List<(double X, double Y)> { GuidePoints[0] };
+        return [GuidePoints[0]];
     }
 
     private static bool IsDecisionShape(string? Shape)
@@ -557,9 +548,7 @@ public static class FlowchartEdgeLabelPlacementHelper
         IReadOnlyList<(double X, double Y)> GuidePoints,
         double HubCentreX,
         string? EdgeLabel,
-        double OffsetPx = DEFAULT_OFFSET_PX)
-    {
-        return ComputeDecisionBranchLabelPosition(
+        double OffsetPx = DEFAULT_OFFSET_PX) => ComputeDecisionBranchLabelPosition(
             GuidePoints,
             new FlowchartLayoutNodeBounds
             {
@@ -572,17 +561,13 @@ public static class FlowchartEdgeLabelPlacementHelper
             EdgeLabel,
             FlowchartDirection.TopToBottom,
             OffsetPx);
-    }
 
     /// <summary>
     /// Returns true when a routed polyline detours away from the source/target spine to avoid obstacles.
     /// </summary>
     public static bool HasExteriorCorridorDetourForValidation(
         IReadOnlyList<(double X, double Y)> GuidePoints,
-        FlowchartDirection Direction)
-    {
-        return HasExteriorCorridorDetour(GuidePoints, Direction);
-    }
+        FlowchartDirection Direction) => HasExteriorCorridorDetour(GuidePoints, Direction);
 
     private static bool HasExteriorCorridorDetour(
         IReadOnlyList<(double X, double Y)> GuidePoints,
@@ -619,13 +604,10 @@ public static class FlowchartEdgeLabelPlacementHelper
 
     private static bool TryGetHighestHorizontalCorridorLabelPosition(
         IReadOnlyList<(double X, double Y)> GuidePoints,
-        out (double X, double Y) LabelPosition)
-    {
-        return TryGetHorizontalCorridorLabelPosition(
+        out (double X, double Y) LabelPosition) => TryGetHorizontalCorridorLabelPosition(
             GuidePoints,
             PreferMaximumY: true,
             out LabelPosition);
-    }
 
     private static bool TryGetExteriorCorridorLabelPosition(
         IReadOnlyList<(double X, double Y)> GuidePoints,

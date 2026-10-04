@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using Microsoft.AGL.Core.Geometry;
@@ -15,11 +15,9 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
         /// to string for debugging
         /// </summary>
         /// <returns></returns>
-        public override string ToString() {
-            return String.Format("zoom lvl={0:F2}", ZoomLevel);
-        }
+        public override string ToString() => string.Format("zoom lvl={0:F2}", ZoomLevel);
 #endif
-        
+
 
         /// <summary>
         /// 

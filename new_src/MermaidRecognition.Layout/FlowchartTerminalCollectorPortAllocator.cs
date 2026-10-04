@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Render;
 
 namespace MermaidRecognition.Layout;
@@ -47,7 +48,7 @@ public static class FlowchartTerminalCollectorPortAllocator
         FlowchartDirection Direction,
         out List<(double X, double Y)> LayoutPoints)
     {
-        LayoutPoints = new List<(double X, double Y)>();
+        LayoutPoints = [];
 
         if (Direction != FlowchartDirection.TopToBottom
             && Direction != FlowchartDirection.BottomToTop)
@@ -537,7 +538,7 @@ public static class FlowchartTerminalCollectorPortAllocator
             return FlowchartTerminalCollectorBranchRole.FarRightAuxiliary;
         }
 
-        List<(string NodeId, double CenterX)> RectangleSourcesAbove = new List<(string NodeId, double CenterX)>();
+        List<(string NodeId, double CenterX)> RectangleSourcesAbove = [];
         foreach (EdgeContract IncomingEdge in Contract.Edges)
         {
             if (string.Equals(IncomingEdge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))

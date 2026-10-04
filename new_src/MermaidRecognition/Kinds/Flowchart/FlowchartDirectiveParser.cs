@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace MermaidRecognition.Flowchart;
+namespace MermaidRecognition.Kinds.Flowchart;
 
 /// <summary>
 /// Parses flowchart directives (<c>linkStyle</c>, <c>classDef</c>, <c>style</c>, <c>class</c>, <c>click</c>).
@@ -83,7 +83,7 @@ public static class FlowchartDirectiveParser
             return true;
         }
 
-        List<int> EdgeIndexes = new List<int>();
+        List<int> EdgeIndexes = [];
         foreach (string Part in TargetToken.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             if (int.TryParse(Part, out int EdgeIndex))
@@ -134,10 +134,7 @@ public static class FlowchartDirectiveParser
         return true;
     }
 
-    static IEnumerable<string> SplitTargetIds(string TargetList)
-    {
-        return TargetList.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-    }
+    static IEnumerable<string> SplitTargetIds(string TargetList) => TargetList.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
     public static RecognitionStyle ParseStyleList(string StyleList)
     {

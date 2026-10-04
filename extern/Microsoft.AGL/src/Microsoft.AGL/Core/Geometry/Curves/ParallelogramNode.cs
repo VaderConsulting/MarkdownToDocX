@@ -19,13 +19,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <summary>
         /// gets or sets the parallelogram of the node
         /// </summary>
-        public Parallelogram Parallelogram {
-            get {
-                return parallelogram;
-            }
-            set {
-                parallelogram = value;
-            }
+        public Parallelogram Parallelogram { get => parallelogram; set => parallelogram = value;
         }
     }
 }

@@ -8,13 +8,7 @@ public readonly struct MermaidImageAccessibility
     /// <summary>
     /// Default alt text when the diagram declares no accessibility metadata.
     /// </summary>
-    public static MermaidImageAccessibility Default
-    {
-        get
-        {
-            return new MermaidImageAccessibility(null, null);
-        }
-    }
+    public static MermaidImageAccessibility Default => new MermaidImageAccessibility(null, null);
 
     /// <summary>
     /// Creates accessibility metadata for a diagram image.
@@ -32,26 +26,14 @@ public readonly struct MermaidImageAccessibility
     /// <summary>
     /// Short accessible title (<c>accTitle</c>).
     /// </summary>
-    public string? Title
-    {
-        get
-        {
-            return _Title;
-        }
-    }
+    public string? Title => _Title;
 
     private readonly string? _Description;
 
     /// <summary>
     /// Longer accessible description (<c>accDescr</c>).
     /// </summary>
-    public string? Description
-    {
-        get
-        {
-            return _Description;
-        }
-    }
+    public string? Description => _Description;
 
     /// <summary>
     /// Word drawing description / alt text: <c>accDescr</c>, then <c>accTitle</c>, then a generic fallback.
@@ -87,8 +69,5 @@ public readonly struct MermaidImageAccessibility
     /// <summary>
     /// Returns true when either title or description is present.
     /// </summary>
-    public bool HasAccessibilityMetadata()
-    {
-        return !string.IsNullOrWhiteSpace(_Title) || !string.IsNullOrWhiteSpace(_Description);
-    }
+    public bool HasAccessibilityMetadata() => !string.IsNullOrWhiteSpace(_Title) || !string.IsNullOrWhiteSpace(_Description);
 }

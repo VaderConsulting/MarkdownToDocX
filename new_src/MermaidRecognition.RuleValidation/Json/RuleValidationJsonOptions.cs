@@ -13,13 +13,7 @@ public static class RuleValidationJsonOptions
     /// <summary>
     /// Serialiser options with PascalCase property names matching the specification artefacts.
     /// </summary>
-    public static JsonSerializerOptions Options
-    {
-        get
-        {
-            return _Options;
-        }
-    }
+    public static JsonSerializerOptions Options => _Options;
 
     private static JsonSerializerOptions CreateOptions()
     {

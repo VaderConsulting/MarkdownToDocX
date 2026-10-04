@@ -29,10 +29,8 @@ namespace MermaidRecognition.Layout.Sugiyama.DebugHelpers {
     static
 #endif // DEVTRACE
     internal class DevTrace {
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1305:SpecifyIFormatProvider", MessageId = "System.String.Format(System.String,System.Object[])"), Conditional("DEVTRACE")]
-        internal static void Assert(bool condition, string format, params object[] args) {
-            Trace.Assert(condition, string.Format(format, args));
-        }
+        [Conditional("DEVTRACE")]
+        internal static void Assert(bool condition, string format, params object[] args) => Trace.Assert(condition, string.Format(format, args));
 
 #if DEVTRACE
         // Called by the test app.  By default this is added to the Trace.Listeners collection,

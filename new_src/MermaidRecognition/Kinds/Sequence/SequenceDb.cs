@@ -1,4 +1,4 @@
-namespace MermaidRecognition.Sequence;
+namespace MermaidRecognition.Kinds.Sequence;
 
 /// <summary>
 /// Mermaid-style sequence diagram database (parse-time mutations only).
@@ -8,7 +8,7 @@ public sealed class SequenceDb
     private readonly Dictionary<string, SequenceNodeRecord> _ParticipantsById =
         new Dictionary<string, SequenceNodeRecord>(StringComparer.Ordinal);
 
-    private readonly List<SequenceEdgeRecord> _Messages = new List<SequenceEdgeRecord>();
+    private readonly List<SequenceEdgeRecord> _Messages = [];
 
     private readonly Dictionary<string, SequenceGroupRecord> _GroupsById =
         new Dictionary<string, SequenceGroupRecord>(StringComparer.Ordinal);
@@ -25,66 +25,28 @@ public sealed class SequenceDb
 
     private int _NextNoteIndex;
 
-    private readonly List<SequenceNoteRecord> _Notes = new List<SequenceNoteRecord>();
+    private readonly List<SequenceNoteRecord> _Notes = [];
 
     private string? _AccessibilityTitle;
 
     private string? _AccessibilityDescription;
 
-    public IReadOnlyDictionary<string, SequenceNodeRecord> ParticipantsById
-    {
-        get
-        {
-            return _ParticipantsById;
-        }
-    }
+    public IReadOnlyDictionary<string, SequenceNodeRecord> ParticipantsById => _ParticipantsById;
 
-    public IReadOnlyList<SequenceEdgeRecord> Messages
-    {
-        get
-        {
-            return _Messages;
-        }
-    }
+    public IReadOnlyList<SequenceEdgeRecord> Messages => _Messages;
 
-    public IReadOnlyDictionary<string, SequenceGroupRecord> GroupsById
-    {
-        get
-        {
-            return _GroupsById;
-        }
-    }
+    public IReadOnlyDictionary<string, SequenceGroupRecord> GroupsById => _GroupsById;
 
-    public IReadOnlyList<SequenceNoteRecord> Notes
-    {
-        get
-        {
-            return _Notes;
-        }
-    }
+    public IReadOnlyList<SequenceNoteRecord> Notes => _Notes;
 
     public string? AccessibilityTitle
     {
-        get
-        {
-            return _AccessibilityTitle;
-        }
-        set
-        {
-            _AccessibilityTitle = value;
-        }
+        get => _AccessibilityTitle; set => _AccessibilityTitle = value;
     }
 
     public string? AccessibilityDescription
     {
-        get
-        {
-            return _AccessibilityDescription;
-        }
-        set
-        {
-            _AccessibilityDescription = value;
-        }
+        get => _AccessibilityDescription; set => _AccessibilityDescription = value;
     }
 
     /// <summary>
@@ -109,10 +71,12 @@ public sealed class SequenceDb
             return Existing;
         }
 
-        SequenceNodeRecord Created = new SequenceNodeRecord();
-        Created.Id = Id;
-        Created.Label = Label ?? Id;
-        Created.DrawType = DrawType;
+        SequenceNodeRecord Created = new SequenceNodeRecord
+        {
+            Id = Id,
+            Label = Label ?? Id,
+            DrawType = DrawType
+        };
         _ParticipantsById[Id] = Created;
         AssignParticipantToActiveBox(Id, Created);
         return Created;
@@ -121,10 +85,7 @@ public sealed class SequenceDb
     /// <summary>
     /// Ensures implicit participants exist for message endpoints.
     /// </summary>
-    public void EnsureImplicitParticipant(string Id)
-    {
-        GetOrCreateParticipant(Id, null, "participant");
-    }
+    public void EnsureImplicitParticipant(string Id) => GetOrCreateParticipant(Id, null, "participant");
 
     /// <summary>
     /// Records a directed message between participants.
@@ -140,8 +101,10 @@ public sealed class SequenceDb
         EnsureImplicitParticipant(SourceId);
         EnsureImplicitParticipant(TargetId);
 
-        SequenceEdgeRecord Message = new SequenceEdgeRecord();
-        Message.CreationIndex = _NextCreationIndex;
+        SequenceEdgeRecord Message = new SequenceEdgeRecord
+        {
+            CreationIndex = _NextCreationIndex
+        };
         _NextCreationIndex = _NextCreationIndex + 1;
         Message.SourceId = SourceId;
         Message.TargetId = TargetId;
@@ -188,8 +151,10 @@ public sealed class SequenceDb
     /// </summary>
     public void AddNote(string Placement, string AnchorIds, string Text)
     {
-        SequenceNoteRecord Note = new SequenceNoteRecord();
-        Note.Id = "note-" + _NextNoteIndex.ToString();
+        SequenceNoteRecord Note = new SequenceNoteRecord
+        {
+            Id = "note-" + _NextNoteIndex.ToString()
+        };
         _NextNoteIndex = _NextNoteIndex + 1;
         Note.Placement = Placement;
         Note.AnchorIds = AnchorIds;
@@ -302,10 +267,12 @@ public sealed class SequenceDb
         string GroupId = Keyword + "-" + _NextBlockIndex.ToString();
         _NextBlockIndex = _NextBlockIndex + 1;
 
-        SequenceGroupRecord Group = new SequenceGroupRecord();
-        Group.Id = GroupId;
-        Group.BlockKeyword = Keyword;
-        Group.Title = Title;
+        SequenceGroupRecord Group = new SequenceGroupRecord
+        {
+            Id = GroupId,
+            BlockKeyword = Keyword,
+            Title = Title
+        };
         _GroupsById[GroupId] = Group;
         return Group;
     }

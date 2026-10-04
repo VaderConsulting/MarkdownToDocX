@@ -14,7 +14,7 @@ public sealed class TableOptions
     /// </summary>
     public bool EnableAlignment
     {
-        get { return _EnableAlignment; }
+        get => _EnableAlignment;
         set { _EnableAlignment = value; HasEnableAlignment = true; }
     }
 

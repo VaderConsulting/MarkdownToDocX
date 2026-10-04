@@ -8,7 +8,8 @@ using System.Diagnostics;
 
 #endregion
 
-namespace Microsoft.AGL.Core.Geometry {
+namespace Microsoft.AGL.Core.Geometry.RTree
+{
     /// <summary>
     /// Represents a node containing a box and some user data.
     /// Is used in curve intersections routines.
@@ -19,10 +20,7 @@ namespace Microsoft.AGL.Core.Geometry {
         /// 
         /// </summary>
         /// <returns></returns>
-        [SuppressMessage("Microsoft.Globalization", "CA1305:SpecifyIFormatProvider", MessageId = "System.Int32.ToString")]
-        public override string ToString() {
-            return IsLeaf ? (Count + " " + UserData) : Count.ToString();
-        }
+        public override string ToString() => IsLeaf ? (Count + " " + UserData) : Count.ToString();
 #endif
         /// <summary>
         /// 
@@ -49,9 +47,7 @@ namespace Microsoft.AGL.Core.Geometry {
             Count = 1;
         }
 
-        RectangleNode(int count) {
-            Count=count;
-        }
+        RectangleNode(int count) => Count = count;
 
         /// <summary>
         /// This field provides direct internal access to the value type Rectangle, which RTree and other callers
@@ -64,25 +60,22 @@ namespace Microsoft.AGL.Core.Geometry {
         /// <summary>
         /// gets or sets the rectangle of the node
         /// </summary>
-        public Rectangle Rectangle {
-            get { return rectangle; }
-            set { rectangle = value; }
+        public Rectangle Rectangle { get => rectangle; set => rectangle = value;
         }
 
         /// <summary>
         /// false if it is an internal node and true if it is a leaf
         /// </summary>
-        internal bool IsLeaf
-        {
-            get { return left==null /*&& right==null*/; } //if left is a null then right is also a null
-        }
+        internal bool IsLeaf => left == null /*&& right==null*/;
         /// <summary>
         /// 
         /// </summary>
-        public RectangleNode<TData> Left {
-            get { return left; }
-            internal set {
-                if (left != null && left.Parent==this)
+        public RectangleNode<TData> Left
+        {
+            get => left;
+            internal set
+            {
+                if (left != null && left.Parent == this)
                     left.Parent = null;
                 left = value;
                 if (left != null)
@@ -93,10 +86,12 @@ namespace Microsoft.AGL.Core.Geometry {
         /// <summary>
         /// 
         /// </summary>
-        public RectangleNode<TData> Right {
-            get { return right; }
-            internal set {
-                if (right != null&& right.Parent==this)
+        public RectangleNode<TData> Right
+        {
+            get => right;
+            internal set
+            {
+                if (right != null && right.Parent == this)
                     right.Parent = null;
                 right = value;
                 if (right != null)
@@ -179,7 +174,7 @@ namespace Microsoft.AGL.Core.Geometry {
         /// <param name="hitTestAccept"></param>
         /// <returns></returns>
         public IEnumerable<TData> AllHitItems(Rectangle rectanglePar, Func<TData, bool> hitTestAccept) {
-            var stack = new Stack<RectangleNode<TData>>();
+            Stack<RectangleNode<TData>> stack = new Stack<RectangleNode<TData>>();
             stack.Push(this);
             while (stack.Count > 0) {
                 RectangleNode<TData> node = stack.Pop();
@@ -202,10 +197,10 @@ namespace Microsoft.AGL.Core.Geometry {
         /// </summary>
         /// <returns></returns>
         public IEnumerable<TData> AllHitItems(Point point) {
-            var stack = new Stack<RectangleNode<TData>>();
+            Stack<RectangleNode<TData>> stack = new Stack<RectangleNode<TData>>();
             stack.Push(this);
             while (stack.Count > 0) {
-                var node = stack.Pop();
+                RectangleNode<TData> node = stack.Pop();
                 if (node.Rectangle.Contains(point)) {
                     if (node.IsLeaf)
                         yield return node.UserData;
@@ -224,9 +219,7 @@ namespace Microsoft.AGL.Core.Geometry {
         /// <param name="hitTest"></param>
         /// <param name="hitRectangle"></param>
         /// <returns></returns>
-        internal void VisitTree(Func<TData, HitTestBehavior> hitTest, Rectangle hitRectangle) {
-            VisitTreeStatic(this, hitTest, hitRectangle);
-        }
+        internal void VisitTree(Func<TData, HitTestBehavior> hitTest, Rectangle hitRectangle) => VisitTreeStatic(this, hitTest, hitRectangle);
 
         static HitTestBehavior VisitTreeStatic(RectangleNode<TData> rectangleNode, Func<TData, HitTestBehavior> hitTest, Rectangle hitRectangle) {
             if (rectangleNode.Rectangle.Intersects(hitRectangle)) {
@@ -251,7 +244,7 @@ namespace Microsoft.AGL.Core.Geometry {
         /// </summary>
         /// <returns></returns>
         public RectangleNode<TData> Clone() {
-            var ret = new RectangleNode<TData>(Count) {UserData = UserData, Rectangle = Rectangle};
+            RectangleNode<TData> ret = new RectangleNode<TData>(Count) {UserData = UserData, Rectangle = Rectangle};
             if (Left != null)
                 ret.Left = Left.Clone();
             if (Right != null)
@@ -264,18 +257,15 @@ namespace Microsoft.AGL.Core.Geometry {
         /// </summary>
         /// <param name="rectanglePar"></param>
         /// <returns></returns>
-        public IEnumerable<TData> GetNodeItemsIntersectingRectangle(Rectangle rectanglePar) {
-            return GetLeafRectangleNodesIntersectingRectangle(rectanglePar).Select(node => node.UserData);
-        }
+        public IEnumerable<TData> GetNodeItemsIntersectingRectangle(Rectangle rectanglePar) => GetLeafRectangleNodesIntersectingRectangle(rectanglePar).Select(node => node.UserData);
 
         /// <summary>
         /// yields all leaves whose rectangles intersect the given one. We suppose that leaves are all nodes having UserData not a null.
         /// </summary>
         /// <param name="rectanglePar"></param>
         /// <returns></returns>
-        [SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures")]
         public IEnumerable<RectangleNode<TData>> GetLeafRectangleNodesIntersectingRectangle(Rectangle rectanglePar) {
-            var stack = new Stack<RectangleNode<TData>>();
+            Stack<RectangleNode<TData>> stack = new Stack<RectangleNode<TData>>();
             stack.Push(this);
             while (stack.Count > 0) {
                 RectangleNode<TData> node = stack.Pop();
@@ -294,24 +284,17 @@ namespace Microsoft.AGL.Core.Geometry {
         /// Walk the tree and return the data from all leaves
         /// </summary>
         /// <returns></returns>
-        [SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
-        public IEnumerable<TData> GetAllLeaves() {
-            return GetAllLeafNodes().Select(n => n.UserData);
-        }
+        public IEnumerable<TData> GetAllLeaves() => GetAllLeafNodes().Select(n => n.UserData);
 
-        internal IEnumerable<RectangleNode<TData>> GetAllLeafNodes() {
-            return EnumRectangleNodes(true /*leafOnly*/);
-        }
+        internal IEnumerable<RectangleNode<TData>> GetAllLeafNodes() => EnumRectangleNodes(true /*leafOnly*/);
 
-        internal IEnumerable<RectangleNode<TData>> GetAllNodes() {
-            return EnumRectangleNodes(false /*leafOnly*/);
-        }
+        internal IEnumerable<RectangleNode<TData>> GetAllNodes() => EnumRectangleNodes(false /*leafOnly*/);
 
         IEnumerable<RectangleNode<TData>> EnumRectangleNodes(bool leafOnly) {
-            var stack = new Stack<RectangleNode<TData>>();
+            Stack<RectangleNode<TData>> stack = new Stack<RectangleNode<TData>>();
             stack.Push(this);
             while (stack.Count > 0) {
-                var node = stack.Pop();
+                RectangleNode<TData> node = stack.Pop();
                 if (node.IsLeaf || !leafOnly) {
                     yield return node;
                 }
@@ -324,17 +307,16 @@ namespace Microsoft.AGL.Core.Geometry {
 
         const int GroupSplitThreshold = 2;
 
-        
+
         /// <summary>
         /// calculates a tree based on the given nodes
         /// </summary>
         /// <param name="nodes"></param>
         /// <returns></returns>
-        [SuppressMessage("Microsoft.Design", "CA1000:DoNotDeclareStaticMembersOnGenericTypes"), SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures")]
         public static RectangleNode<TData> CreateRectangleNodeOnEnumeration(IEnumerable<RectangleNode<TData>> nodes) {
             if(nodes==null)
                 return null;
-            var nodeList = new List<RectangleNode<TData>>(nodes);
+            List<RectangleNode<TData>> nodeList = new List<RectangleNode<TData>>(nodes);
             return CreateRectangleNodeOnListOfNodes(nodeList);
         }
 
@@ -344,11 +326,10 @@ namespace Microsoft.AGL.Core.Geometry {
         ///<param name="dataEnumeration"></param>
         ///<param name="rectangleDelegate"></param>
         ///<returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1000:DoNotDeclareStaticMembersOnGenericTypes")]
         public static RectangleNode<TData> CreateRectangleNodeOnData(IEnumerable<TData>  dataEnumeration, Func<TData, Rectangle> rectangleDelegate) {
             if (dataEnumeration == null || rectangleDelegate == null)
                 return null;
-            var nodeList = new List<RectangleNode<TData>>(dataEnumeration.Select(d=>new RectangleNode<TData>(d, rectangleDelegate(d))));
+            List<RectangleNode<TData>> nodeList = new List<RectangleNode<TData>>(dataEnumeration.Select(d=>new RectangleNode<TData>(d, rectangleDelegate(d))));
             return CreateRectangleNodeOnListOfNodes(nodeList);
         }
 
@@ -358,7 +339,6 @@ namespace Microsoft.AGL.Core.Geometry {
         /// </summary>
         /// <param name="nodes"></param>
         /// <returns></returns>
-        [SuppressMessage("Microsoft.Design", "CA1000:DoNotDeclareStaticMembersOnGenericTypes"), SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures")]
         static public RectangleNode<TData> CreateRectangleNodeOnListOfNodes(IList<RectangleNode<TData>> nodes) {
             ValidateArg.IsNotNull(nodes, "nodes");
             if (nodes.Count == 0) return null;
@@ -366,7 +346,7 @@ namespace Microsoft.AGL.Core.Geometry {
             if (nodes.Count == 1)return nodes[0];
 
             //Finding the seeds
-            var b0 = nodes[0].Rectangle;
+            Rectangle b0 = nodes[0].Rectangle;
 
             //the first seed
             int seed0 = 1;
@@ -374,18 +354,18 @@ namespace Microsoft.AGL.Core.Geometry {
             int seed1 = ChooseSeeds(nodes, ref b0, ref seed0);
 
             //We have two seeds at hand. Build two groups.
-            var gr0 = new List<RectangleNode<TData>>();
-            var gr1 = new List<RectangleNode<TData>>();
+            List<RectangleNode<TData>> gr0 = new List<RectangleNode<TData>>();
+            List<RectangleNode<TData>> gr1 = new List<RectangleNode<TData>>();
 
             gr0.Add(nodes[seed0]);
             gr1.Add(nodes[seed1]);
 
-            var box0 = nodes[seed0].Rectangle;
-            var box1 = nodes[seed1].Rectangle;
+            Rectangle box0 = nodes[seed0].Rectangle;
+            Rectangle box1 = nodes[seed1].Rectangle;
             //divide nodes on two groups
             DivideNodes(nodes, seed0, seed1, gr0, gr1, ref box0, ref box1, GroupSplitThreshold);
 
-            var ret = new RectangleNode<TData>(nodes.Count) {
+            RectangleNode<TData> ret = new RectangleNode<TData>(nodes.Count) {
                     Rectangle = new Rectangle(box0, box1),
                     Left = CreateRectangleNodeOnListOfNodes(gr0),
                     Right = CreateRectangleNodeOnListOfNodes(gr1)
@@ -439,11 +419,11 @@ namespace Microsoft.AGL.Core.Geometry {
                 if (i == seed0 || i == seed1)
                     continue;
 
-// ReSharper disable InconsistentNaming
-                var box0_ = new Rectangle(box0, nodes[i].Rectangle);
+                // ReSharper disable InconsistentNaming
+                Rectangle box0_ = new Rectangle(box0, nodes[i].Rectangle);
                 double delta0 = box0_.Area - box0.Area;
 
-                var box1_ = new Rectangle(box1, nodes[i].Rectangle);
+                Rectangle box1_ = new Rectangle(box1, nodes[i].Rectangle);
                 double delta1 = box1_.Area - box1.Area;
 // ReSharper restore InconsistentNaming
 
@@ -470,15 +450,14 @@ namespace Microsoft.AGL.Core.Geometry {
                 }
             }
         }
-       
-        
+
+
 
         /// <summary>
         /// Walk the tree from node down and apply visitor to all nodes
         /// </summary>
         /// <param name="node"></param>
         /// <param name="visitor"></param>
-        [SuppressMessage("Microsoft.Design", "CA1000:DoNotDeclareStaticMembersOnGenericTypes"), SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures")]
         static public void TraverseHierarchy(RectangleNode<TData> node, Action<RectangleNode<TData>> visitor) {
             ValidateArg.IsNotNull(node, "node");
             ValidateArg.IsNotNull(visitor, "visitor");

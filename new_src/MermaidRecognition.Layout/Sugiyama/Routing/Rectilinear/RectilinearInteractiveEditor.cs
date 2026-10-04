@@ -6,7 +6,6 @@ using System.Diagnostics;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
 using MermaidRecognition.Layout.Sugiyama.Core.Routing;
-using MermaidRecognition.Layout.Sugiyama.Core;
 
 namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear{
     ///<summary>
@@ -29,7 +28,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear{
                             , IEnumerable<Node> obstacleNodes, IEnumerable<Edge> geometryEdges
                             , EdgeRoutingMode edgeRoutingMode, bool useSparseVisibilityGraph
                             , bool useObstacleRectangles, double bendPenaltyAsAPercentageOfDistance) {
-            var r = FillRouter(cornerFitRadius, padding, obstacleNodes, geometryEdges, edgeRoutingMode, useSparseVisibilityGraph
+            RectilinearEdgeRouter r = FillRouter(cornerFitRadius, padding, obstacleNodes, geometryEdges, edgeRoutingMode, useSparseVisibilityGraph
                             , useObstacleRectangles, bendPenaltyAsAPercentageOfDistance);
             r.Run();
             CreateSelfEdges(geometryEdges.Where(e => e.SourcePort.Location == e.TargetPort.Location), cornerFitRadius);
@@ -49,10 +48,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear{
         static public void CreatePortsAndRouteEdges(double cornerFitRadius, double padding
                             , IEnumerable<Node> obstacleNodes, IEnumerable<Edge> geometryEdges
                             , EdgeRoutingMode edgeRoutingMode, bool useSparseVisibilityGraph
-                            , bool useObstacleRectangles) {
-            CreatePortsAndRouteEdges(cornerFitRadius, padding, obstacleNodes, geometryEdges, edgeRoutingMode
+                            , bool useObstacleRectangles) => CreatePortsAndRouteEdges(cornerFitRadius, padding, obstacleNodes, geometryEdges, edgeRoutingMode
                             , useSparseVisibilityGraph, useObstacleRectangles, SsstRectilinearPath.DefaultBendPenaltyAsAPercentageOfDistance);
-        }
 
         /// <summary>
         /// Create a RectilinearEdgeRouter from the passed obstacleNodes, with one port at the center of each obstacle,
@@ -66,11 +63,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear{
         /// <param name="useSparseVisibilityGraph">Use a more memory-efficient but possibly path-suboptimal visibility graph</param>
         static public void CreatePortsAndRouteEdges(double cornerFitRadius, double padding
                             , IEnumerable<Node> obstacleNodes, IEnumerable<Edge> geometryEdges
-                            , EdgeRoutingMode edgeRoutingMode, bool useSparseVisibilityGraph)
-        {
-            CreatePortsAndRouteEdges(cornerFitRadius, padding, obstacleNodes, geometryEdges, edgeRoutingMode
+                            , EdgeRoutingMode edgeRoutingMode, bool useSparseVisibilityGraph) => CreatePortsAndRouteEdges(cornerFitRadius, padding, obstacleNodes, geometryEdges, edgeRoutingMode
                             , useSparseVisibilityGraph, false, SsstRectilinearPath.DefaultBendPenaltyAsAPercentageOfDistance);
-        }
 
         /// <summary>
         /// Create a RectilinearEdgeRouter populated with the passed obstacles.
@@ -81,21 +75,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear{
             Debug.Assert((EdgeRoutingMode.Rectilinear == edgeRoutingMode) || (EdgeRoutingMode.RectilinearToCenter == edgeRoutingMode)
                         , "Non-rectilinear edgeRoutingMode");
 
-            var nodeShapeMap = new Dictionary<Node, Shape>();
+            Dictionary<Node, Shape> nodeShapeMap = new Dictionary<Node, Shape>();
             foreach (Node node in obstacleNodes)
             {
                 Shape shape = CreateShapeWithRelativeNodeAtCenter(node);
                 nodeShapeMap.Add(node, shape);
             }
 
-            var router = new RectilinearEdgeRouter(nodeShapeMap.Values, padding, cornerFitRadius, useSparseVisibilityGraph, useObstacleRectangles)
+            RectilinearEdgeRouter router = new RectilinearEdgeRouter(nodeShapeMap.Values, padding, cornerFitRadius, useSparseVisibilityGraph, useObstacleRectangles)
             {
                 RouteToCenterOfObstacles = (edgeRoutingMode == EdgeRoutingMode.RectilinearToCenter),
                 BendPenaltyAsAPercentageOfDistance = bendPenaltyAsAPercentageOfDistance
             };
 
-            foreach (var geomEdge in geomEdges) {
-                var edgeGeom = geomEdge.EdgeGeometry;
+            foreach (Edge geomEdge in geomEdges) {
+                EdgeGeometry edgeGeom = geomEdge.EdgeGeometry;
                 edgeGeom.SourcePort = nodeShapeMap[geomEdge.Source].Ports.First();
                 edgeGeom.TargetPort = nodeShapeMap[geomEdge.Target].Ports.First();
                 router.AddEdgeGeometryToRoute(edgeGeom);
@@ -104,7 +98,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear{
         }
 
         static void CreateSelfEdges(IEnumerable<Edge> selfEdges, double cornerFitRadius) {
-            foreach (var edge in selfEdges) {
+            foreach (Edge edge in selfEdges) {
                 CreateSimpleEdgeCurveWithGivenFitRadius(edge, cornerFitRadius);
             }
         }
@@ -118,14 +112,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear{
         public static void CreateSimpleEdgeCurveWithGivenFitRadius(Edge edge, double cornerFitRadius)
         {
             ValidateArg.IsNotNull(edge, "edge");
-            var a = edge.Source.Center;
-            var b = edge.Target.Center;
+            Point a = edge.Source.Center;
+            Point b = edge.Target.Center;
             if (edge.Source == edge.Target)
             {
-                var dx = edge.Source.BoundaryCurve.BoundingBox.Width / 2;
-                var dy = edge.Source.BoundingBox.Height / 4;
+                double dx = edge.Source.BoundaryCurve.BoundingBox.Width / 2;
+                double dy = edge.Source.BoundingBox.Height / 4;
                 edge.UnderlyingPolyline = CreateUnderlyingPolylineForSelfEdge(a, dx, dy);
-                for (var site = edge.UnderlyingPolyline.HeadSite.Next; site.Next != null; site = site.Next) CalculateCoefficiensUnderSite(site, cornerFitRadius);
+                for (Site? site = edge.UnderlyingPolyline.HeadSite.Next; site.Next != null; site = site.Next) CalculateCoefficiensUnderSite(site, cornerFitRadius);
                 edge.Curve = edge.UnderlyingPolyline.CreateCurve();
             }
             else
@@ -148,12 +142,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear{
         public static void CreateSimpleEdgeCurve(Edge edge)
         {
             ValidateArg.IsNotNull(edge, "edge");
-            var a = edge.Source.Center;
-            var b = edge.Target.Center;
+            Point a = edge.Source.Center;
+            Point b = edge.Target.Center;
             if (edge.Source == edge.Target)
             {
-                var dx = edge.Source.BoundaryCurve.BoundingBox.Width / 2;
-                var dy = edge.Source.BoundingBox.Height / 4;
+                double dx = edge.Source.BoundaryCurve.BoundingBox.Width / 2;
+                double dy = edge.Source.BoundingBox.Height / 4;
                 edge.UnderlyingPolyline = CreateUnderlyingPolylineForSelfEdge(a, dx, dy);
                 edge.Curve = edge.UnderlyingPolyline.CreateCurve();
             }
@@ -167,16 +161,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear{
                 Arrowheads.CreateBigEnoughSpline(edge);
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA1806:DoNotIgnoreMethodResults", MessageId = "MermaidRecognition.Layout.Sugiyama.Core.Geometry.Site")]
         static SmoothedPolyline CreateUnderlyingPolylineForSelfEdge(Point p0, double dx, double dy)
         {
-            var p1 = p0 + new Point(0, dy);
-            var p2 = p0 + new Point(dx, dy);
-            var p3 = p0 + new Point(dx, -dy);
-            var p4 = p0 + new Point(0, -dy);
+            Point p1 = p0 + new Point(0, dy);
+            Point p2 = p0 + new Point(dx, dy);
+            Point p3 = p0 + new Point(dx, -dy);
+            Point p4 = p0 + new Point(0, -dy);
 
-            var site = new Site(p0);
-            var polyline = new SmoothedPolyline(site);
+            Site site = new Site(p0);
+            SmoothedPolyline polyline = new SmoothedPolyline(site);
             site = new Site(site, p1);
             site = new Site(site, p2);
             site = new Site(site, p3);
@@ -192,7 +185,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear{
         /// <returns></returns>
         public static Shape CreateShapeWithRelativeNodeAtCenter(Node node) {
             ValidateArg.IsNotNull(node, "node");
-            var shape = new RelativeShape(() => node.BoundaryCurve);
+            RelativeShape shape = new RelativeShape(() => node.BoundaryCurve);
             shape.Ports.Insert(new RelativeFloatingPort(() => node.BoundaryCurve, () => node.Center));
             return shape;
         }

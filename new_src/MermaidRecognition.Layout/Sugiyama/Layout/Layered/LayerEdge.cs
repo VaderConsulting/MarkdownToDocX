@@ -14,8 +14,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
  class LayerEdge {
         internal int Weight = 1;
         internal LayerEdge(int source, int target, int crossingWeight, int weight) {
-            this.Source = source;
-            this.Target = target;
+            Source = source;
+            Target = target;
             this.crossingWeight = crossingWeight;
             Weight = weight;
         }
@@ -25,35 +25,23 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// <summary>
         /// the source
         /// </summary>
-        public int Source {
-            get {
-                return source;
-            }
-            set {
-                source = value;
-            }
+        public int Source { get => source; set => source = value;
         }
 
         int target;
         /// <summary>
         /// the target
         /// </summary>
-        public int Target {
-            get {
-                return target;
-            }
-            set {
-                target = value;
-            }
+        public int Target { get => target; set => target = value;
         }
-/// <summary>
-/// overrides the equlity
-/// </summary>
-/// <param name="obj"></param>
-/// <returns></returns>
+        /// <summary>
+        /// overrides the equlity
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <returns></returns>
         public override bool Equals(object obj) {
             LayerEdge ie = obj as LayerEdge;
-            return ie.source == this.source && ie.target == this.target;
+            return ie.source == source && ie.target == target;
         }
 
         /// <summary>
@@ -69,16 +57,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// <summary>
         /// it is equalt to the number of edges this edge represents 
         /// </summary>
-        public int CrossingWeight {
-            get { return crossingWeight; }
-//            set { crossingWeight = value; }
-        }
+        public int CrossingWeight => crossingWeight;
         /// <summary>
         /// 
         /// </summary>
         /// <returns></returns>
-        public override string ToString() {
-            return String.Format(System.Globalization.CultureInfo.InvariantCulture, "{0}->{1}", this.source, this.target);
-        }
+        public override string ToString() => string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0}->{1}", source, target);
     }
 }

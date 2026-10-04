@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace MermaidRecognition.Sequence;
+namespace MermaidRecognition.Kinds.Sequence;
 
 /// <summary>
 /// Parsed sequence participant box from a source line.
@@ -11,28 +11,14 @@ public sealed class SequenceBoxParseResult
 
     public string? Title
     {
-        get
-        {
-            return _Title;
-        }
-        set
-        {
-            _Title = value;
-        }
+        get => _Title; set => _Title = value;
     }
 
     private string? _RgbToken;
 
     public string? RgbToken
     {
-        get
-        {
-            return _RgbToken;
-        }
-        set
-        {
-            _RgbToken = value;
-        }
+        get => _RgbToken; set => _RgbToken = value;
     }
 }
 

@@ -5,34 +5,26 @@ namespace Microsoft.AGL.Core.Geometry {
     internal class PointNodesList : IEnumerator<Point>, IEnumerable<Point> {
         Site current, head;
 
-        Site Head {
-            get { return head; }
-        }
+        Site Head => head;
 
-        internal PointNodesList(Site pointNode) {
-            head = pointNode;
-        }
+        internal PointNodesList(Site pointNode) => head = pointNode;
 
         internal PointNodesList() { }
         #region IEnumerator<Point> Members
 
-        public Point Current {
-            get { return current.Point; }
-        }
-     
+        public Point Current => current.Point;
+
         #endregion
 
         #region IDisposable Members
 
-        public void Dispose() { GC.SuppressFinalize(this); }
+        public void Dispose() => GC.SuppressFinalize(this);
 
         #endregion
 
         #region IEnumerator Members
 
-        object System.Collections.IEnumerator.Current {
-            get { return current.Point; }
-        }
+        object System.Collections.IEnumerator.Current => current.Point;
 
         public bool MoveNext() {
             if (current != null) {
@@ -48,25 +40,19 @@ namespace Microsoft.AGL.Core.Geometry {
 
         }
 
-        public void Reset() {
-            current = null;
-        }
+        public void Reset() => current = null;
 
         #endregion
 
         #region IEnumerable<Point> Members
 
-        public IEnumerator<Point> GetEnumerator() {
-            return this;
-        }
+        public IEnumerator<Point> GetEnumerator() => this;
 
         #endregion
 
         #region IEnumerable Members
 
-        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() {
-            return this;
-        }
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => this;
 
         #endregion
     }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -29,7 +29,7 @@ namespace Microsoft.AGL.Layout.Initial
             switch (mode)
             {
                 case EdgeRoutingMode.Spline:
-                    var splineRouter = new SplineRouter(
+                    SplineRouter splineRouter = new SplineRouter(
                         component,
                         settings.EdgeRoutingSettings.Padding,
                         settings.NodeSeparation, settings.EdgeRoutingSettings.ConeAngle, null);
@@ -46,12 +46,12 @@ namespace Microsoft.AGL.Layout.Initial
                 case EdgeRoutingMode.Rectilinear:
                     double edgePadding = settings.EdgeRoutingSettings.Padding;
                     double cornerRadius = settings.EdgeRoutingSettings.CornerRadius;
-                    var rectilinearEdgeRouter = new RectilinearEdgeRouter(component, edgePadding, cornerRadius,
+                    RectilinearEdgeRouter rectilinearEdgeRouter = new RectilinearEdgeRouter(component, edgePadding, cornerRadius,
                                                                           true);
                     rectilinearEdgeRouter.Run(cancelToken);
                     break;
                 case EdgeRoutingMode.StraightLine:
-                    var router = new StraightLineEdges(component.Edges,
+                    StraightLineEdges router = new StraightLineEdges(component.Edges,
                                                        settings.EdgeRoutingSettings.Padding);
                     router.Run(cancelToken);
                     break;
@@ -61,7 +61,7 @@ namespace Microsoft.AGL.Layout.Initial
         internal static void PlaceLabels(GeometryGraph component, CancelToken cancelToken)
         {
             List<Label> labelList = component.Edges.SelectMany(e => e.Labels).ToList();
-            var labelPlacer = new EdgeLabelPlacement(component, labelList);
+            EdgeLabelPlacement labelPlacer = new EdgeLabelPlacement(component, labelList);
             labelPlacer.Run(cancelToken);
         }
 

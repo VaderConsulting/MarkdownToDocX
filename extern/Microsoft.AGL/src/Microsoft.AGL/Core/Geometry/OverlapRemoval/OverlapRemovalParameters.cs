@@ -8,9 +8,10 @@
 // --------------------------------------------------------------------------------------------------------------------
 
 using System;
+
 using Microsoft.AGL.Core.ProjectionSolver;
 
-namespace Microsoft.AGL.Core.Geometry
+namespace Microsoft.AGL.Core.Geometry.OverlapRemoval
 {
     /// <summary>
     /// Per-instance parameters for OverlapRemoval.ConstraintGenerator.Generate()/Solve().
@@ -26,7 +27,6 @@ namespace Microsoft.AGL.Core.Geometry
         /// constraints will not be generated on the horizontal pass if a vertical constraint
         /// would result in less movement.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1051:DoNotDeclareVisibleInstanceFields")]
         public bool AllowDeferToVertical { get; set; }
 
         /// <summary>
@@ -36,11 +36,10 @@ namespace Microsoft.AGL.Core.Geometry
         /// HOverlap / (u.Width + v.Width) > VOverlap / (u.Height + v.Height)
         /// </summary>
         public bool ConsiderProportionalOverlap { get; set; }
-        
+
         /// <summary>
         /// Parameters to the Solver, used in Generate as well as passed through to the Solver.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1051:DoNotDeclareVisibleInstanceFields")]
         public Parameters SolverParameters { get; set; }
 
         /// <summary>
@@ -57,7 +56,7 @@ namespace Microsoft.AGL.Core.Geometry
         /// <param name="solverParameters"></param>
         public OverlapRemovalParameters(Parameters solverParameters)
         {
-            this.SolverParameters = solverParameters;
+            SolverParameters = solverParameters;
             AllowDeferToVertical = true;
         }
 
@@ -68,8 +67,8 @@ namespace Microsoft.AGL.Core.Geometry
         /// <param name="solverParameters"></param>
         public OverlapRemovalParameters(bool allowDeferToVertical, Parameters solverParameters)
         {
-            this.AllowDeferToVertical = allowDeferToVertical;
-            this.SolverParameters = solverParameters;
+            AllowDeferToVertical = allowDeferToVertical;
+            SolverParameters = solverParameters;
         }
 
         #region ICloneable members
@@ -79,8 +78,8 @@ namespace Microsoft.AGL.Core.Geometry
         /// <returns></returns>
         public object Clone()
         {
-            OverlapRemovalParameters newParams = (OverlapRemovalParameters)this.MemberwiseClone();
-            newParams.SolverParameters = (Parameters)this.SolverParameters.Clone();
+            OverlapRemovalParameters newParams = (OverlapRemovalParameters)MemberwiseClone();
+            newParams.SolverParameters = (Parameters)SolverParameters.Clone();
             return newParams;
         }
         #endregion // ICloneable members

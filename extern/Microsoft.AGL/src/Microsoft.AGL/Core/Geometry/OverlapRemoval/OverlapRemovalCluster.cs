@@ -13,6 +13,8 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+
+using Microsoft.AGL.Core.Geometry.OverlapRemoval;
 using Microsoft.AGL.Core.ProjectionSolver;
 
 //
@@ -68,15 +70,15 @@ namespace Microsoft.AGL.Core.Geometry
     public partial class OverlapRemovalCluster : OverlapRemovalNode
     {
         // Our internal Node list - some of which may be Clusters.
-         readonly List<OverlapRemovalNode> nodeList = new List<OverlapRemovalNode>();
+         readonly List<OverlapRemovalNode> nodeList = [];
 
         // Our internal child Cluster list - duplicated from nodeList for iterative recursion perf.
-         readonly List<OverlapRemovalCluster> clusterList = new List<OverlapRemovalCluster>();
+         readonly List<OverlapRemovalCluster> clusterList = [];
 
         /// <summary>
         /// Empty clusters are ignored on positioning.
         /// </summary>
-        public bool IsEmpty { get { return 0 == this.nodeList.Count; } }
+        public bool IsEmpty => 0 == nodeList.Count;
 
         /// <summary>
         /// If the following is true then constraints will be generated the prevent children coming
@@ -164,17 +166,11 @@ namespace Microsoft.AGL.Core.Geometry
 #endif // VERBOSE
 
         // The number of node IDs used by a Cluster - for the cluster itself and its fake nodes.
-        internal static uint NumInternalNodes
-        {
-            get { return 3; }
-        }
+        internal static uint NumInternalNodes => 3;
 
         // The width (height) of the node along the primary axis, which should be fairly thin
         // (along the secondary (perpendicular) axis, it is the full size of the cluster).
-        internal static double DefaultBorderWidth
-        {
-            get { return OverlapRemovalGlobalConfiguration.ClusterDefaultBorderWidth; }
-        }
+        internal static double DefaultBorderWidth => OverlapRemovalGlobalConfiguration.ClusterDefaultBorderWidth;
 
         /// <summary>
         /// The Root Cluster is a special case, functioning as the "infinite" root cluster of a hierarchy
@@ -182,7 +178,7 @@ namespace Microsoft.AGL.Core.Geometry
         /// the root cluster "infinite" means we don't have to generate the constraints for nodes and clusters
         /// in the root, which may be numerous.
         /// </summary>
-        public bool IsRootCluster { get { return null == this.ParentCluster; } }
+        public bool IsRootCluster => null == ParentCluster;
         OverlapRemovalCluster ParentCluster { get; set; }
 
         // Zero cluster margins. This ctor is currently used only by the generator's DefaultClusterHierarchy,
@@ -199,68 +195,65 @@ namespace Microsoft.AGL.Core.Geometry
                         BorderInfo openBorderInfoP, BorderInfo closeBorderInfoP)
             : base(id, userData)
         {
-            this.MinimumSize = minSize;
-            this.MinimumSizeP = minSizeP;
-            this.NodePadding = nodePadding;
-            this.NodePaddingP = nodePaddingP;
-            this.ClusterPadding = clusterPadding;
-            this.ClusterPaddingP = clusterPaddingP;
-            this.ParentCluster = parentCluster;
-            this.OpenBorderInfo = openBorderInfo;
-            this.OpenBorderInfo.EnsureWeight();
-            this.CloseBorderInfo = closeBorderInfo;
-            this.CloseBorderInfo.EnsureWeight();
-            this.OpenBorderInfoP = openBorderInfoP;
-            this.OpenBorderInfoP.EnsureWeight();
-            this.CloseBorderInfoP = closeBorderInfoP;
-            this.CloseBorderInfoP.EnsureWeight();
+            MinimumSize = minSize;
+            MinimumSizeP = minSizeP;
+            NodePadding = nodePadding;
+            NodePaddingP = nodePaddingP;
+            ClusterPadding = clusterPadding;
+            ClusterPaddingP = clusterPaddingP;
+            ParentCluster = parentCluster;
+            OpenBorderInfo = openBorderInfo;
+            OpenBorderInfo.EnsureWeight();
+            CloseBorderInfo = closeBorderInfo;
+            CloseBorderInfo.EnsureWeight();
+            OpenBorderInfoP = openBorderInfoP;
+            OpenBorderInfoP.EnsureWeight();
+            CloseBorderInfoP = closeBorderInfoP;
+            CloseBorderInfoP.EnsureWeight();
             CreateBorderNodes();
         }
 
          void CreateBorderNodes()
         {
-            if (!this.IsRootCluster)
+            if (!IsRootCluster)
             {
                 string strNodeIdL = null, strNodeIdR = null;
 #if VERIFY || VERBOSE
                 strNodeIdL = "L" + this.UserDataString;
                 strNodeIdR = "R" + this.UserDataString;
 #endif // VERIFY || VERBOSE
-                this.LeftBorderNode = new OverlapRemovalNode(this.Id + 1, strNodeIdL);
-                this.RightBorderNode = new OverlapRemovalNode(this.Id + 2, strNodeIdR);
+                LeftBorderNode = new OverlapRemovalNode(Id + 1, strNodeIdL);
+                RightBorderNode = new OverlapRemovalNode(Id + 2, strNodeIdR);
             }
         }
 
         // Enumerates the Nodes (including Clusters) of this Cluster.
         // This returns the immediate child Nodes, including Clusters; the caller should
         // recurse into any Clusters if desired.
-        internal IEnumerable<OverlapRemovalNode> Nodes { get { return this.nodeList; } }
+        internal IEnumerable<OverlapRemovalNode> Nodes => nodeList;
 
         // Enumerates only cluster children of this cluster.
-        internal IEnumerable<OverlapRemovalCluster> Clusters { get { return this.clusterList; } }
+        internal IEnumerable<OverlapRemovalCluster> Clusters => clusterList;
 
         /// <summary>
         /// Generate a string representation of the Cluster.
         /// </summary>
         /// <returns>A string representation of the Cluster.</returns>
-        public override string ToString()
-        {
+        public override string ToString() =>
             // Currently this is just the same as the base Node; all zero if we haven't
             // yet called Solve(), else the values at the last time we called Solve().
-            return string.Format(System.Globalization.CultureInfo.InvariantCulture,
+            string.Format(System.Globalization.CultureInfo.InvariantCulture,
                                 "Cluster '{0}': id {1} p {2:F5} s {3:F5} pP {4:F5} sP {5:F5}",
-                                this.UserDataString, this.Id, this.Position, this.Size, this.PositionP, this.SizeP);
-        }
+                                UserDataString, Id, Position, Size, PositionP, SizeP);
 
         // newNode may be a cluster in which case we add it to the cluster list.  We never call this to
         // add the fake border nodes to nodeList; the caller never sees them.
         internal void AddNode(OverlapRemovalNode newNode)
         {
-            this.nodeList.Add(newNode);
-            var newCluster = newNode as OverlapRemovalCluster;
-            if (null != newCluster)
+            nodeList.Add(newNode);
+            if (newNode is OverlapRemovalCluster newCluster)
             {
-                this.clusterList.Add(newCluster);
+                clusterList.Add(newCluster);
             }
         }
 
@@ -288,27 +281,24 @@ namespace Microsoft.AGL.Core.Geometry
         {
             internal readonly OverlapRemovalCluster Cluster;
             internal bool ChildrenHaveBeenPushed;
-            internal ClusterItem(OverlapRemovalCluster cluster)
-            {
-                this.Cluster = cluster;
-            }
+            internal ClusterItem(OverlapRemovalCluster cluster) => Cluster = cluster;
         }
 
         internal delegate void ClusterDelegate(OverlapRemovalCluster cluster);
 
          static void ProcessClusterHierarchy(OverlapRemovalCluster root, ClusterDelegate worker)
         {
-            var stack = new Stack<ClusterItem>();
+            Stack<ClusterItem> stack = new Stack<ClusterItem>();
             stack.Push(new ClusterItem(root));
             while (stack.Count > 0)
             {
                 // Keep the cluster on the stack until we're done with its children.
-                var item = stack.Peek();
+                ClusterItem item = stack.Peek();
                 int prevStackCount = stack.Count;
                 if (!item.ChildrenHaveBeenPushed)
                 {
                     item.ChildrenHaveBeenPushed = true;
-                    foreach (var childCluster in item.Cluster.Clusters)
+                    foreach (OverlapRemovalCluster childCluster in item.Cluster.Clusters)
                     {
                         stack.Push(new ClusterItem(childCluster));
                     }
@@ -344,20 +334,20 @@ namespace Microsoft.AGL.Core.Geometry
             // it needs to be (since we expand space between nodes but don't necessarily shrink it).
             // Squeezing causes constraints to be *minimally* enforced.  Note - this may introduce
             // a defer-to-vertical issue, so we special-case that section to ignore border nodes).
-            if (this.IsEmpty || this.IsRootCluster || !this.IsInSolver)
+            if (IsEmpty || IsRootCluster || !IsInSolver)
             {
                 return;
             }
 
-            double leftBorderDesiredPos = this.LeftBorderNode.Position;
-            double rightBorderDesiredPos = this.RightBorderNode.Position;
-            if (!this.OpenBorderInfo.IsFixedPosition)
+            double leftBorderDesiredPos = LeftBorderNode.Position;
+            double rightBorderDesiredPos = RightBorderNode.Position;
+            if (!OpenBorderInfo.IsFixedPosition)
             {
-                this.LeftBorderNode.Variable.DesiredPos = rightBorderDesiredPos;
+                LeftBorderNode.Variable.DesiredPos = rightBorderDesiredPos;
             }
-            if (!this.CloseBorderInfo.IsFixedPosition)
+            if (!CloseBorderInfo.IsFixedPosition)
             {
-                this.RightBorderNode.Variable.DesiredPos = leftBorderDesiredPos;
+                RightBorderNode.Variable.DesiredPos = leftBorderDesiredPos;
             }
         }
 
@@ -371,7 +361,7 @@ namespace Microsoft.AGL.Core.Geometry
 
             // Variables to calculate our boundaries.  Top and Bottom refer to the perpendicular direction;
             // for vertical, read Top <-> Left and Bottom <-> Right.
-            var boundaryRect = new Rectangle
+            Rectangle boundaryRect = new Rectangle
                 {
                     //Left =
                     //    this.OpenBorderInfo.IsFixedPosition && this.TranslateChildren
@@ -403,7 +393,7 @@ namespace Microsoft.AGL.Core.Geometry
 
             // The list of open/close events, which will be sorted on the perpendicular coordinate of the event
             // (e.g. for horizontal constraint generation, order on vertical position).
-            var events = this.CreateEvents(solver, ref boundaryRect);
+            List<Event> events = CreateEvents(solver, ref boundaryRect);
 
             // If we added no events, we're either Fixed (so continue) or empty (so return).
             if (0 == events.Count && !TranslateChildren)
@@ -414,7 +404,7 @@ namespace Microsoft.AGL.Core.Geometry
             // Top/Bottom are considered the secondary (Perpendicular) axis here.
             double leftBorderWidth = DefaultBorderWidth;
             double rightBorderWidth = DefaultBorderWidth;
-            if (!this.IsRootCluster)
+            if (!IsRootCluster)
             {
                 CalculateBorderWidths(solver, events, boundaryRect, out leftBorderWidth, out rightBorderWidth);
 #if VERBOSE
@@ -425,27 +415,26 @@ namespace Microsoft.AGL.Core.Geometry
 
             GenerateFromEvents(solver, parameters, events, isHorizontal);
 
-            if (!this.IsRootCluster)
+            if (!IsRootCluster)
             {
                 // Non-fixed borders are moved later by SqueezeNonFixedBorderPositions().
-                this.AdjustFixedBorderPositions(solver, leftBorderWidth, rightBorderWidth, isHorizontal);
+                AdjustFixedBorderPositions(solver, leftBorderWidth, rightBorderWidth, isHorizontal);
             }
             return true;
         }
 
          List<Event> CreateEvents(Solver solver, ref Rectangle boundaryRect)
         {
-            var events = new List<Event>();
-            int cNodes = this.nodeList.Count; // cache for perf
-            double leftBorderWidth = CalcBorderWidth(this.OpenBorderInfo.InnerMargin);
-            double rightBorderWidth = CalcBorderWidth(this.CloseBorderInfo.InnerMargin);
-            double openBorderWidth = CalcBorderWidth(this.OpenBorderInfoP.InnerMargin);
-            double closeBorderWidth = CalcBorderWidth(this.CloseBorderInfoP.InnerMargin);
+            List<Event> events = new List<Event>();
+            int cNodes = nodeList.Count; // cache for perf
+            double leftBorderWidth = CalcBorderWidth(OpenBorderInfo.InnerMargin);
+            double rightBorderWidth = CalcBorderWidth(CloseBorderInfo.InnerMargin);
+            double openBorderWidth = CalcBorderWidth(OpenBorderInfoP.InnerMargin);
+            double closeBorderWidth = CalcBorderWidth(CloseBorderInfoP.InnerMargin);
             for (int nodeIndex = 0; nodeIndex < cNodes; ++nodeIndex)
             {
-                OverlapRemovalNode node = this.nodeList[nodeIndex];
-                var cluster = node as OverlapRemovalCluster;
-                if (null != cluster)
+                OverlapRemovalNode node = nodeList[nodeIndex];
+                if (node is OverlapRemovalCluster cluster)
                 {
                     // Child Clusters have already "recursively" been processed before the current cluster,
                     // so we just need to check to see if it had any events.  If so, then it has created its
@@ -471,7 +460,7 @@ namespace Microsoft.AGL.Core.Geometry
                 AddEvents(node, events);
 
                 // Update our boundaries if this node goes past any of them.
-                if (!this.IsRootCluster)
+                if (!IsRootCluster)
                 {
                     double pad = node.Size / 2 + ClusterPadding;
                     double padP = node.SizeP / 2 + ClusterPaddingP;
@@ -491,17 +480,17 @@ namespace Microsoft.AGL.Core.Geometry
 #endif
                 }
             }
-            if (!this.IsRootCluster)
+            if (!IsRootCluster)
             {
                 // Force the cluster borders to the full minimum sizes if any were specified.
                 // Without the full cluster boundaries being available at constraint generation time, Tuvalu was
                 // getting unresolved overlaps when dragging an external node over the corner of a cluster boundary.
-                double padMinSize = this.MinimumSize - boundaryRect.Width;
+                double padMinSize = MinimumSize - boundaryRect.Width;
                 if (padMinSize > 0)
                 {
                     boundaryRect.PadWidth(padMinSize / 2);
                 }
-                double padMinSizeP = this.MinimumSizeP - boundaryRect.Height;
+                double padMinSizeP = MinimumSizeP - boundaryRect.Height;
                 if (padMinSizeP > 0)
                 {
                     boundaryRect.PadHeight(padMinSizeP / 2);
@@ -524,8 +513,8 @@ namespace Microsoft.AGL.Core.Geometry
             // is added only at the inside edge of the cluster; for example, as space for a
             // title of the cluster to be printed.  We just use the margin as the boundary node
             // sizes.  Margin is separate from padding; padding is always added.
-            leftBorderWidth = CalcBorderWidth(this.OpenBorderInfo.InnerMargin);
-            rightBorderWidth = CalcBorderWidth(this.CloseBorderInfo.InnerMargin);
+            leftBorderWidth = CalcBorderWidth(OpenBorderInfo.InnerMargin);
+            rightBorderWidth = CalcBorderWidth(CloseBorderInfo.InnerMargin);
 
             // @@DCR "Precalculate Cluster Sizes": at this point we could solve them to get the "real" cluster
             // size (as above, this may be requested by solver being null on input so we create our own above).
@@ -539,15 +528,15 @@ namespace Microsoft.AGL.Core.Geometry
             // border was the rhs of a constraint with a node inside the cluster; it should always be an lhs
             // to any node in the cluster, and having it as an rhs will probably generate a cycle).  We adjust
             // to fixed positions below after GenerateFromEvents.
-            this.Size = boundaryRect.Width;
-            this.Position = boundaryRect.Center.X;
+            Size = boundaryRect.Width;
+            Position = boundaryRect.Center.X;
 
             // The final perpendicular positions may be modified below, after GenerateFromEvents; they
             // will be used by a parent cluster's Generate after we return if this is a recursive call.
             // We don't do it here because we are doing the variables internal to this cluster, based
             // upon their current positions, so this would get confused if we moved the P coordinates here.
-            this.SizeP = boundaryRect.Height;
-            this.PositionP = boundaryRect.Center.Y;
+            SizeP = boundaryRect.Height;
+            PositionP = boundaryRect.Center.Y;
 
             // Now create the two "fake nodes" for the borders and add them to the event list line and solver.
             // This constraint will never be deferred, since there is no overlap in the secondary axis but is
@@ -555,62 +544,62 @@ namespace Microsoft.AGL.Core.Geometry
             // outer borders of the outer nodes, regardless of whether the perpendicular borders are
             // fixed-position; this ensures that the scan line will correctly see their open and close.
             // Left/Open...
-            this.LeftBorderNode.Position = boundaryRect.Left + (leftBorderWidth / 2);
-            this.LeftBorderNode.Size = leftBorderWidth;
-            this.LeftBorderNode.Weight = this.OpenBorderInfo.Weight;
-            this.LeftBorderNode.PositionP = this.PositionP;
-            this.LeftBorderNode.SizeP = this.SizeP;
-            this.LeftBorderNode.CreateVariable(solver);
-            AddEvents(this.LeftBorderNode, events);
+            LeftBorderNode.Position = boundaryRect.Left + (leftBorderWidth / 2);
+            LeftBorderNode.Size = leftBorderWidth;
+            LeftBorderNode.Weight = OpenBorderInfo.Weight;
+            LeftBorderNode.PositionP = PositionP;
+            LeftBorderNode.SizeP = SizeP;
+            LeftBorderNode.CreateVariable(solver);
+            AddEvents(LeftBorderNode, events);
 
             // Note:  The Left/Right, Open/Close terminology here is inconsistent with GenerateFromEvents
             //  since here Open is in the primary axis and in GenerateFromEvents it's in the secondary/P axis.
 
             // Right/Close...
-            this.RightBorderNode.Position = boundaryRect.Right - (rightBorderWidth / 2);
-            this.RightBorderNode.Size = rightBorderWidth;
-            this.RightBorderNode.Weight = this.CloseBorderInfo.Weight;
-            this.RightBorderNode.PositionP = this.PositionP;
-            this.RightBorderNode.SizeP = this.SizeP;
-            this.RightBorderNode.CreateVariable(solver);
-            AddEvents(this.RightBorderNode, events);
+            RightBorderNode.Position = boundaryRect.Right - (rightBorderWidth / 2);
+            RightBorderNode.Size = rightBorderWidth;
+            RightBorderNode.Weight = CloseBorderInfo.Weight;
+            RightBorderNode.PositionP = PositionP;
+            RightBorderNode.SizeP = SizeP;
+            RightBorderNode.CreateVariable(solver);
+            AddEvents(RightBorderNode, events);
         }
 
          void AdjustFixedBorderPositions(Solver solver, double leftBorderWidth, double rightBorderWidth, bool isHorizontal)
         {
             // Note:  Open == Left, Close == Right.
-            if (this.OpenBorderInfo.IsFixedPosition && this.CloseBorderInfo.IsFixedPosition)
+            if (OpenBorderInfo.IsFixedPosition && CloseBorderInfo.IsFixedPosition)
             {
                 // Both are fixed, so just move them to their specified positions.  For FixedPosition
                 // the API is that it's the outer border edge, so add or subtract half the (left|right)BorderWidth
                 // to set the position to the midpoint.  Since both borders are fixed, this provides a
                 // limit to the size of the overall node.
-                this.LeftBorderNode.UpdateDesiredPosition(
-                    this.OpenBorderInfo.FixedPosition + (leftBorderWidth / 2));
-                this.RightBorderNode.UpdateDesiredPosition(
-                    this.CloseBorderInfo.FixedPosition - (rightBorderWidth / 2));
-                this.Size = this.CloseBorderInfo.FixedPosition - this.OpenBorderInfo.FixedPosition;
-                this.Position = this.OpenBorderInfo.FixedPosition + (this.Size / 2);
+                LeftBorderNode.UpdateDesiredPosition(
+                    OpenBorderInfo.FixedPosition + (leftBorderWidth / 2));
+                RightBorderNode.UpdateDesiredPosition(
+                    CloseBorderInfo.FixedPosition - (rightBorderWidth / 2));
+                Size = CloseBorderInfo.FixedPosition - OpenBorderInfo.FixedPosition;
+                Position = OpenBorderInfo.FixedPosition + (Size / 2);
             }
-            else if (this.OpenBorderInfo.IsFixedPosition || this.CloseBorderInfo.IsFixedPosition)
+            else if (OpenBorderInfo.IsFixedPosition || CloseBorderInfo.IsFixedPosition)
             {
                 // One border is fixed and the other isn't.  We'll keep the same cluster size,
                 // move the fixed border to its specified position, adjust our midpoint to reflect that,
                 // and then move the unfixed border to be immediately adjacent to the fixed border; the
                 // solver will cause it to be moved to the minimal position satisfying the constraints.
-                if (this.OpenBorderInfo.IsFixedPosition)
+                if (OpenBorderInfo.IsFixedPosition)
                 {
                     // FixedPosition is the outer border edge so add BorderWidth/2 to set it to the Left midpoint.
-                    this.LeftBorderNode.UpdateDesiredPosition(
-                        this.OpenBorderInfo.FixedPosition + (leftBorderWidth / 2));
-                    this.Position = this.OpenBorderInfo.FixedPosition + (this.Size / 2);
+                    LeftBorderNode.UpdateDesiredPosition(
+                        OpenBorderInfo.FixedPosition + (leftBorderWidth / 2));
+                    Position = OpenBorderInfo.FixedPosition + (Size / 2);
                 }
                 else /* this.CloseBorderInfo.IsFixedPosition */
                 {
                     // FixedPosition is the outer border edge so subtract BorderWidth/2 to set it to the Right midpoint.
-                    this.RightBorderNode.UpdateDesiredPosition(
-                        this.CloseBorderInfo.FixedPosition - (rightBorderWidth / 2));
-                    this.Position = this.CloseBorderInfo.FixedPosition - (this.Size / 2);
+                    RightBorderNode.UpdateDesiredPosition(
+                        CloseBorderInfo.FixedPosition - (rightBorderWidth / 2));
+                    Position = CloseBorderInfo.FixedPosition - (Size / 2);
                 }
             }
 
@@ -620,10 +609,10 @@ namespace Microsoft.AGL.Core.Geometry
             // positions in the Horizontal (perpendicular) BorderInfos parameter to Vertical generation;
             // otherwise, because the Horizontal cluster span may be larger than is calculated simply from
             // variable positions, some variables may not have appropriate constraints generated.
-            if (this.MinimumSize > 0.0)
+            if (MinimumSize > 0.0)
             {
                 Constraint cst = solver.AddConstraint(
-                    this.LeftBorderNode.Variable, this.RightBorderNode.Variable, this.MinimumSize - leftBorderWidth/2 - rightBorderWidth/2);
+                    LeftBorderNode.Variable, RightBorderNode.Variable, MinimumSize - leftBorderWidth/2 - rightBorderWidth/2);
                 Debug.Assert(null != cst, "Minimum Cluster size: unexpected null cst");
 #if VERBOSE
                     Console.WriteLine(" {0} MinClusterSizeCst {1} -> {2} g {3:F5}", isHorizontal ? "H" : "V"
@@ -641,19 +630,19 @@ namespace Microsoft.AGL.Core.Geometry
             // pass and leave excessive space between the fixed border and the outer nodes.  In that case the
             // Vertical pass can't get the true X border positions by evaluating our nodes' X positions; the
             // caller must pass this updated position in (the same thing it must do for nodes' X coordinates).
-            if (this.OpenBorderInfoP.IsFixedPosition || this.CloseBorderInfoP.IsFixedPosition)
+            if (OpenBorderInfoP.IsFixedPosition || CloseBorderInfoP.IsFixedPosition)
             {
                 // If both are fixed, we'll set to those positions and recalculate size.
                 // Remember that FixedPosition API is the outer border edge so we don't need to adjust for border width.
-                if (this.OpenBorderInfoP.IsFixedPosition && this.CloseBorderInfoP.IsFixedPosition)
+                if (OpenBorderInfoP.IsFixedPosition && CloseBorderInfoP.IsFixedPosition)
                 {
-                    this.SizeP = this.CloseBorderInfoP.FixedPosition - this.OpenBorderInfoP.FixedPosition;
-                    this.PositionP = this.OpenBorderInfoP.FixedPosition + (this.SizeP / 2);
-                    if (this.SizeP < 0)
+                    SizeP = CloseBorderInfoP.FixedPosition - OpenBorderInfoP.FixedPosition;
+                    PositionP = OpenBorderInfoP.FixedPosition + (SizeP / 2);
+                    if (SizeP < 0)
                     {
                         // Open border is to the right of close border; they'll move later, but we have to
                         // make the size non-negative.  TODOunit: create a specific test for this (fixed LRTB)
-                        this.SizeP = -this.SizeP;
+                        SizeP = -SizeP;
                     }
                 }
                 else
@@ -666,19 +655,19 @@ namespace Microsoft.AGL.Core.Geometry
                     //   so we need to accommodate the case described above, where the Solver opened up space
                     //   between the fixed border and the outermost nodes (it will never *reduce* this distance
                     //   of course).  This means we adjust both border position and our overall node size.
-                    double curTopOuterBorder = this.PositionP - (this.SizeP / 2);
-                    double curBottomOuterBorder = this.PositionP + (this.SizeP / 2);
-                    if (this.OpenBorderInfoP.IsFixedPosition)
+                    double curTopOuterBorder = PositionP - (SizeP / 2);
+                    double curBottomOuterBorder = PositionP + (SizeP / 2);
+                    if (OpenBorderInfoP.IsFixedPosition)
                     {
                         if (isHorizontal)
                         {
                             // Don't change SizeP.
-                            this.PositionP += this.OpenBorderInfoP.FixedPosition - curTopOuterBorder;
+                            PositionP += OpenBorderInfoP.FixedPosition - curTopOuterBorder;
                         }
                         else
                         {
-                            this.SizeP = curBottomOuterBorder - this.OpenBorderInfoP.FixedPosition;
-                            this.PositionP = this.OpenBorderInfoP.FixedPosition + (this.SizeP / 2);
+                            SizeP = curBottomOuterBorder - OpenBorderInfoP.FixedPosition;
+                            PositionP = OpenBorderInfoP.FixedPosition + (SizeP / 2);
                         }
                     }
                     else
@@ -686,21 +675,21 @@ namespace Microsoft.AGL.Core.Geometry
                         if (isHorizontal)
                         {
                             // Don't change SizeP.
-                            this.PositionP += this.CloseBorderInfoP.FixedPosition - curBottomOuterBorder;
+                            PositionP += CloseBorderInfoP.FixedPosition - curBottomOuterBorder;
                         }
                         else
                         {
-                            this.SizeP = this.CloseBorderInfoP.FixedPosition - curTopOuterBorder;
-                            this.PositionP = curTopOuterBorder + (this.SizeP / 2);
+                            SizeP = CloseBorderInfoP.FixedPosition - curTopOuterBorder;
+                            PositionP = curTopOuterBorder + (SizeP / 2);
                         }
                     }
                 } // endifelse both borders fixed or only one border is
 
                 // Now update our fake border nodes' PositionP/SizeP to be consistent.
-                this.LeftBorderNode.PositionP = this.PositionP;
-                this.LeftBorderNode.SizeP = this.SizeP;
-                this.RightBorderNode.PositionP = this.PositionP;
-                this.RightBorderNode.SizeP = this.SizeP;
+                LeftBorderNode.PositionP = PositionP;
+                LeftBorderNode.SizeP = SizeP;
+                RightBorderNode.PositionP = PositionP;
+                RightBorderNode.SizeP = SizeP;
             }
         }
 
@@ -712,18 +701,10 @@ namespace Microsoft.AGL.Core.Geometry
         //   variable FROM which we create the constraint.
         // - Else it is being operated on as the right neighbour, so use its left border as the
         //   variable TO which we create the constraint.
-        internal static OverlapRemovalNode GetLeftConstraintNode(OverlapRemovalNode node)
-        {
-            var cluster = node as OverlapRemovalCluster;
-            return (null != cluster) ? cluster.RightBorderNode : node;
-        }
-        internal static OverlapRemovalNode GetRightConstraintNode(OverlapRemovalNode node)
-        {
-            var cluster = node as OverlapRemovalCluster;
-            return (null != cluster) ? cluster.LeftBorderNode : node;
-        }
+        internal static OverlapRemovalNode GetLeftConstraintNode(OverlapRemovalNode node) => (node is OverlapRemovalCluster cluster) ? cluster.RightBorderNode : node;
+        internal static OverlapRemovalNode GetRightConstraintNode(OverlapRemovalNode node) => (node is OverlapRemovalCluster cluster) ? cluster.LeftBorderNode : node;
 
-         void GenerateFromEvents(Solver solver, OverlapRemovalParameters parameters,
+        void GenerateFromEvents(Solver solver, OverlapRemovalParameters parameters,
                         List<Event> events, bool isHorizontal)
         {
             // First, sort the events on the perpendicular coordinate of the event
@@ -738,7 +719,7 @@ namespace Microsoft.AGL.Core.Geometry
             }
 #endif // VERBOSE
 
-            var scanLine = new ScanLine();
+            ScanLine scanLine = new ScanLine();
             foreach (Event evt in events)
             {
                 OverlapRemovalNode currentNode = evt.Node;
@@ -908,7 +889,7 @@ namespace Microsoft.AGL.Core.Geometry
          List<OverlapRemovalNode> GetLeftNeighbours(OverlapRemovalParameters parameters, ScanLine scanLine,
                                     OverlapRemovalNode currentNode, bool isHorizontal)
         {
-            var lstNeighbours = new List<OverlapRemovalNode>();
+            List<OverlapRemovalNode> lstNeighbours = new List<OverlapRemovalNode>();
             OverlapRemovalNode nextNode = scanLine.NextLeft(currentNode);
             for (; null != nextNode; nextNode = scanLine.NextLeft(nextNode))
             {
@@ -928,7 +909,7 @@ namespace Microsoft.AGL.Core.Geometry
          List<OverlapRemovalNode> GetRightNeighbours(OverlapRemovalParameters parameters, ScanLine scanLine,
                                     OverlapRemovalNode currentNode, bool isHorizontal)
         {
-            var lstNeighbours = new List<OverlapRemovalNode>();
+            List<OverlapRemovalNode> lstNeighbours = new List<OverlapRemovalNode>();
             OverlapRemovalNode nextNode = scanLine.NextRight(currentNode);
             for (; null != nextNode; nextNode = scanLine.NextRight(nextNode))
             {
@@ -949,7 +930,7 @@ namespace Microsoft.AGL.Core.Geometry
                         List<OverlapRemovalNode> neighbors, bool isLeftNeighbor, bool isHorizontal)
         {
             // Sanity check to be sure that the borders are past all other nodes.
-            Debug.Assert(currentNode != (isLeftNeighbor ? this.LeftBorderNode : this.RightBorderNode), "currentNode must != BorderNode");
+            Debug.Assert(currentNode != (isLeftNeighbor ? LeftBorderNode : RightBorderNode), "currentNode must != BorderNode");
 
             double overlap = Overlap(currentNode, nextNode, NodePadding);
             if (overlap <= 0)
@@ -993,10 +974,10 @@ namespace Microsoft.AGL.Core.Geometry
                     if (isOverlapping)
                     {
                         // Don't skip if either of these is a border node.
-                        if ((currentNode != this.LeftBorderNode)
-                                && (currentNode != this.RightBorderNode)
-                                && (nextNode != this.LeftBorderNode)
-                                && (nextNode != this.RightBorderNode))
+                        if ((currentNode != LeftBorderNode)
+                                && (currentNode != RightBorderNode)
+                                && (nextNode != LeftBorderNode)
+                                && (nextNode != RightBorderNode))
                         {
                             // Moving in the horizontal direction requires more movement than in the vertical
                             // direction to remove the overlap, so skip this node on horizontal constraint
@@ -1052,19 +1033,16 @@ namespace Microsoft.AGL.Core.Geometry
         }
 
         // Overrides Node.UpdateFromVariable.
-        internal override void UpdateFromVariable()
-        {
-            ProcessClusterHierarchy(this, cluster => cluster.UpdateFromVariableWorker());
-        }
+        internal override void UpdateFromVariable() => ProcessClusterHierarchy(this, cluster => cluster.UpdateFromVariableWorker());
 
-         void UpdateFromVariableWorker()
+        void UpdateFromVariableWorker()
         {
             // The root cluster has no "position" and thus no border variables.
-            if (!this.IsRootCluster)
+            if (!IsRootCluster)
             {
                 // If empty, we had nothing to do.  We're also empty if we had child clusters
                 // that were empty; in that case we check that we don't have our Variables created.
-                if (IsEmpty || (null == this.LeftBorderNode.Variable))
+                if (IsEmpty || (null == LeftBorderNode.Variable))
                 {
                     return;
                 }
@@ -1074,25 +1052,25 @@ namespace Microsoft.AGL.Core.Geometry
                 // to the barycenter of the cluster, e.g. FastIncrementalLayout).  Because the algorithm
                 // guarantees a minimal solution, the borders are in their optimal position now (including
                 // padding from their outer nodes).
-                this.LeftBorderNode.UpdateFromVariable();
-                this.RightBorderNode.UpdateFromVariable();
+                LeftBorderNode.UpdateFromVariable();
+                RightBorderNode.UpdateFromVariable();
 
                 // Now update our position and size from those nodes, accounting for possibly different widths
                 // of the border variables (due to cluster margin specifications). Because the margins apply at
                 // the inner edge (only), we must take our size as the difference between the outer borders of
                 // the border variables.  This leaves our single Node as having the size necessary to accommodate
                 // the internal padding when external nodes/clusters have their constraints to it formed.
-                double clusterLeft = this.LeftBorderNode.Position - (this.LeftBorderNode.Size / 2);
-                double clusterRight = this.RightBorderNode.Position + (this.RightBorderNode.Size / 2);
-                this.Size = clusterRight - clusterLeft;
-                this.Position = clusterLeft + (this.Size / 2);
+                double clusterLeft = LeftBorderNode.Position - (LeftBorderNode.Size / 2);
+                double clusterRight = RightBorderNode.Position + (RightBorderNode.Size / 2);
+                Size = clusterRight - clusterLeft;
+                Position = clusterLeft + (Size / 2);
             }
 
             // Update our child nodes.
-            int cNodes = this.nodeList.Count;          // cache for perf
+            int cNodes = nodeList.Count;          // cache for perf
             for (int nodeIndex = 0; nodeIndex < cNodes; ++nodeIndex)
             {
-                OverlapRemovalNode node = this.nodeList[nodeIndex];
+                OverlapRemovalNode node = nodeList[nodeIndex];
 
                 // Child Clusters have already "recursively" been processed before the current cluster.
                 if (!(node is OverlapRemovalCluster))

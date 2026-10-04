@@ -18,68 +18,32 @@ public sealed class DiagramConfigContract
     /// <summary>
     /// Values from <c>%%{init: ...}%%</c> blocks only, flattened with dotted keys.
     /// </summary>
-    public IReadOnlyDictionary<string, string> RawDirectiveValues
-    {
-        get
-        {
-            return _RawDirectiveValues;
-        }
-    }
+    public IReadOnlyDictionary<string, string> RawDirectiveValues => _RawDirectiveValues;
 
     /// <summary>
     /// Merged effective configuration (defaults, directives, resolved theme variables).
     /// </summary>
-    public IReadOnlyDictionary<string, string> EffectiveValues
-    {
-        get
-        {
-            return _EffectiveValues;
-        }
-    }
+    public IReadOnlyDictionary<string, string> EffectiveValues => _EffectiveValues;
 
     /// <summary>
     /// Optional provenance per effective key.
     /// </summary>
-    public IReadOnlyDictionary<string, ConfigValueSource> ValueSources
-    {
-        get
-        {
-            return _ValueSources;
-        }
-    }
+    public IReadOnlyDictionary<string, ConfigValueSource> ValueSources => _ValueSources;
 
     /// <summary>
     /// Mutable raw directive bag used while parsing init blocks.
     /// </summary>
-    public Dictionary<string, string> RawDirectiveValuesMutable
-    {
-        get
-        {
-            return _RawDirectiveValues;
-        }
-    }
+    public Dictionary<string, string> RawDirectiveValuesMutable => _RawDirectiveValues;
 
     /// <summary>
     /// Mutable effective bag used while merging defaults and directives.
     /// </summary>
-    public Dictionary<string, string> EffectiveValuesMutable
-    {
-        get
-        {
-            return _EffectiveValues;
-        }
-    }
+    public Dictionary<string, string> EffectiveValuesMutable => _EffectiveValues;
 
     /// <summary>
     /// Mutable provenance bag.
     /// </summary>
-    public Dictionary<string, ConfigValueSource> ValueSourcesMutable
-    {
-        get
-        {
-            return _ValueSources;
-        }
-    }
+    public Dictionary<string, ConfigValueSource> ValueSourcesMutable => _ValueSources;
 
     /// <summary>
     /// Copies all raw directive keys into effective values when not already set (directive override wins).
@@ -110,17 +74,11 @@ public sealed class DiagramConfigContract
     /// <summary>
     /// Builds effective configuration from pinned Mermaid defaults (section 3.17) plus raw directives.
     /// </summary>
-    public void BuildEffectiveConfiguration(string ProgrammeKindId)
-    {
-        MermaidConfigurationPipeline.BuildEffectiveConfiguration(this, ProgrammeKindId);
-    }
+    public void BuildEffectiveConfiguration(string ProgrammeKindId) => MermaidConfigurationPipeline.BuildEffectiveConfiguration(this, ProgrammeKindId);
 
     /// <summary>
     /// Tries to read an effective value.
     /// </summary>
-    public bool TryGetEffective(string Key, out string Value)
-    {
-        return _EffectiveValues.TryGetValue(Key, out Value!);
-    }
+    public bool TryGetEffective(string Key, out string Value) => _EffectiveValues.TryGetValue(Key, out Value!);
 }
 

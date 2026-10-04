@@ -1,4 +1,4 @@
-namespace MermaidRecognition.Class;
+namespace MermaidRecognition.Kinds.Class;
 
 /// <summary>
 /// Parses <c>namespace</c> statements from class diagram source lines.

@@ -15,10 +15,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         ///<summary>
         /// underlying curve
         ///</summary>
-        public Curve Curve
-        {
-            get { return curve; }
-        }
+        public Curve Curve => curve;
 
         /// <summary>
         /// The horizontal radius of the corner ellipse segments
@@ -54,9 +51,9 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="target">target bounds</param>
         /// <returns>new RoundedRect with the same CornerRadius inside the target bounds</returns>
         public ICurve FitTo(Rectangle target) {
-            if (ApproximateComparer.Close(target, this.BoundingBox, ApproximateComparer.UserDefinedTolerance))
+            if (ApproximateComparer.Close(target, BoundingBox, ApproximateComparer.UserDefinedTolerance))
             {
-                return this.Clone();
+                return Clone();
             }
 
             return new RoundedRect(target, RadiusX, RadiusY);
@@ -76,36 +73,28 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// </summary>
         /// <param name="t">the parameter where the derivative is calculated</param>
         /// <returns></returns>
-        public Point Derivative(double t) {
-            return curve.Derivative(t);
-        }
+        public Point Derivative(double t) => curve.Derivative(t);
 
         /// <summary>
         /// second derivative
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        public Point SecondDerivative(double t) {
-            return curve.SecondDerivative(t);
-        }
+        public Point SecondDerivative(double t) => curve.SecondDerivative(t);
 
         /// <summary>
         /// third derivative
         /// </summary>
         /// <param name="t">the parameter of the derivative</param>
         /// <returns></returns>
-        public Point ThirdDerivative(double t) {
-            return curve.ThirdDerivative(t);
-        }
+        public Point ThirdDerivative(double t) => curve.ThirdDerivative(t);
 
         /// <summary>
         /// A tree of ParallelogramNodes covering the curve. 
         /// This tree is used in curve intersections routines.
         /// </summary>
         /// <value></value>
-        public ParallelogramNodeOverICurve ParallelogramNodeOverICurve {
-            get { return curve.ParallelogramNodeOverICurve; }
-        }
+        public ParallelogramNodeOverICurve ParallelogramNodeOverICurve => curve.ParallelogramNodeOverICurve;
 
         bool dirtyBounds = true;
         Rectangle cachedBounds;
@@ -128,16 +117,12 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <summary>
         /// the start of the parameter domain
         /// </summary>
-        public double ParStart {
-            get { return curve.ParStart; }
-        }
+        public double ParStart => curve.ParStart;
 
         /// <summary>
         /// the end of the parameter domain
         /// </summary>
-        public double ParEnd {
-            get { return curve.ParEnd; }
-        }
+        public double ParEnd => curve.ParEnd;
 
         /// <summary>
         /// returns the trim curve
@@ -145,9 +130,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="start"></param>
         /// <param name="end"></param>
         /// <returns></returns>
-        public ICurve Trim(double start, double end) {
-            return curve.Trim(start, end);
-        }
+        public ICurve Trim(double start, double end) => curve.Trim(start, end);
 
         /// <summary>
         /// Returns the trimmed curve, wrapping around the end if start is greater than end.
@@ -155,15 +138,13 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="start">The starting parameter</param>
         /// <param name="end">The ending parameter</param>
         /// <returns>The trimmed curve</returns>
-        public ICurve TrimWithWrap(double start, double end) {
-            return curve.TrimWithWrap(start, end);
-        }
+        public ICurve TrimWithWrap(double start, double end) => curve.TrimWithWrap(start, end);
 
         /// <summary>
         /// Returns the curved moved by delta
         /// </summary>
         public void Translate(Point delta) {
-            this.curve.Translate(delta);
+            curve.Translate(delta);
             dirtyBounds = true;
         }
 
@@ -172,33 +153,27 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// </summary>
         /// <returns></returns>
         public ICurve ScaleFromOrigin(double xScale, double yScale) {
-            var bounds = curve.BoundingBox;
-            var lt = Point.Scale(xScale, yScale, bounds.LeftTop);
-            var rb = Point.Scale(xScale, yScale, bounds.RightBottom);
+            Rectangle bounds = curve.BoundingBox;
+            Point lt = Point.Scale(xScale, yScale, bounds.LeftTop);
+            Point rb = Point.Scale(xScale, yScale, bounds.RightBottom);
             return new RoundedRect(new Rectangle(lt, rb), RadiusX, RadiusY);
         }
 
         /// <summary>
         /// this[ParStart]
         /// </summary>
-        public Point Start {
-            get { return curve.Start; }
-        }
+        public Point Start => curve.Start;
 
         /// <summary>
         /// this[ParEnd]
         /// </summary>
-        public Point End {
-            get { return curve.End; }
-        }
+        public Point End => curve.End;
 
         /// <summary>
         /// this[Reverse[t]]=this[ParEnd+ParStart-t] - not implemented
         /// </summary>
         /// <returns></returns>
-        public ICurve Reverse() {
-            throw new NotImplementedException();
-        }
+        public ICurve Reverse() => throw new NotImplementedException();
 
         /// <summary>
         /// Offsets the curve in the direction of dir
@@ -206,9 +181,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="offset"></param>
         /// <param name="dir"></param>
         /// <returns></returns>
-        public ICurve OffsetCurve(double offset, Point dir) {
-            return curve.OffsetCurve(offset, dir);
-        }
+        public ICurve OffsetCurve(double offset, Point dir) => curve.OffsetCurve(offset, dir);
 
         /// <summary>
         /// return length of the curve segment [start,end] 
@@ -216,16 +189,12 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="start"></param>
         /// <param name="end"></param>
         /// <returns></returns>
-        public double LengthPartial(double start, double end) {
-            return curve.LengthPartial(start, end);
-        }
+        public double LengthPartial(double start, double end) => curve.LengthPartial(start, end);
 
         /// <summary>
         /// Get the length of the curve
         /// </summary>
-        public double Length {
-            get { return curve.Length; }
-        }
+        public double Length => curve.Length;
 
 
         /// <summary>
@@ -233,9 +202,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// </summary>
         /// <param name="length"></param>
         /// <returns></returns>
-        public double GetParameterAtLength(double length) {
-            return curve.GetParameterAtLength(length);
-        }
+        public double GetParameterAtLength(double length) => curve.GetParameterAtLength(length);
 
         /// <summary>
         /// Return the transformed curve
@@ -243,10 +210,10 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="transformation"></param>
         /// <returns>the transformed curve</returns>
         public ICurve Transform(PlaneTransformation transformation) {
-            var bounds = curve.BoundingBox;
-            var lt = transformation * bounds.LeftTop;
-            var rb = transformation * bounds.RightBottom;
-            var transBounds = new Rectangle(lt, rb);
+            Rectangle bounds = curve.BoundingBox;
+            Point lt = transformation * bounds.LeftTop;
+            Point rb = transformation * bounds.RightBottom;
+            Rectangle transBounds = new Rectangle(lt, rb);
             return new RoundedRect(transBounds, RadiusX, RadiusY);
         }
 
@@ -258,28 +225,26 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="high">the upper bound of the parameter</param>
         /// <param name="low">the low bound of the parameter</param>
         /// <returns></returns>
-        public double ClosestParameterWithinBounds(Point targetPoint, double low, double high) {
-            return this.Curve.ClosestParameterWithinBounds( targetPoint, low, high);
-        }
+        public double ClosestParameterWithinBounds(Point targetPoint, double low, double high) => Curve.ClosestParameterWithinBounds(targetPoint, low, high);
 
         /// <summary>
         /// returns a parameter t such that the distance between curve[t] and a is minimal
         /// </summary>
         /// <param name="targetPoint"></param>
         /// <returns></returns>
-        public double ClosestParameter(Point targetPoint) {
-            return curve.ClosestParameter(targetPoint);
-        }
+        public double ClosestParameter(Point targetPoint) => curve.ClosestParameter(targetPoint);
 
         /// <summary>
         /// clones the curve. 
         /// </summary>
         /// <returns>the cloned curve</returns>
         public ICurve Clone() {
-            RoundedRect newRect = new RoundedRect();
-            newRect.RadiusX = this.RadiusX;
-            newRect.RadiusY = this.RadiusY;
-            newRect.curve = (Curve)this.curve.Clone();
+            RoundedRect newRect = new RoundedRect
+            {
+                RadiusX = RadiusX,
+                RadiusY = RadiusY,
+                curve = (Curve)curve.Clone()
+            };
             return newRect;
         }
 
@@ -288,44 +253,34 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// </summary>
         /// <param name="t">the parameter where the derivative is calculated</param>
         /// <returns></returns>
-        public Point LeftDerivative(double t) {
-            return curve.LeftDerivative(t);
-        }
+        public Point LeftDerivative(double t) => curve.LeftDerivative(t);
 
         /// <summary>
         /// the right derivative at t
         /// </summary>
         /// <param name="t">the parameter where the derivative is calculated</param>
         /// <returns></returns>
-        public Point RightDerivative(double t) {
-            return curve.RightDerivative(t);
-        }
+        public Point RightDerivative(double t) => curve.RightDerivative(t);
 
         /// <summary>
         /// the signed curvature of the segment at t
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        public double Curvature(double t) {
-            return curve.Curvature(t);
-        }
+        public double Curvature(double t) => curve.Curvature(t);
 
         /// <summary>
         /// the derivative of the curvature at t
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        public double CurvatureDerivative(double t) {
-            return curve.CurvatureDerivative(t);
-        }
+        public double CurvatureDerivative(double t) => curve.CurvatureDerivative(t);
 
         /// <summary>
         /// the derivative of CurvatureDerivative
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        public double CurvatureSecondDerivative(double t) {
-            return curve.CurvatureSecondDerivative(t);
-        }
+        public double CurvatureSecondDerivative(double t) => curve.CurvatureSecondDerivative(t);
     }
 }

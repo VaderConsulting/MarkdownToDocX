@@ -37,7 +37,7 @@ public sealed class GanttL4AxisGateTests
             Contract.SourceStatements.Any(Statement => Statement.LineTypeId == "gantt.dateFormat"),
             Is.True);
         Assert.That(
-            Contract.Configuration.RawDirectiveValues.TryGetValue("gantt.dateFormat", out string DateFormat),
+            Contract.Configuration.RawDirectiveValues.TryGetValue("gantt.dateFormat", out string? DateFormat),
             Is.True);
         Assert.That(DateFormat, Is.EqualTo("YYYY-MM-DD"));
     }
@@ -53,7 +53,7 @@ public sealed class GanttL4AxisGateTests
             Contract.SourceStatements.Any(Statement => Statement.LineTypeId == "gantt.excludes"),
             Is.True);
         Assert.That(
-            Contract.Configuration.RawDirectiveValues.TryGetValue("gantt.excludes", out string Excludes),
+            Contract.Configuration.RawDirectiveValues.TryGetValue("gantt.excludes", out string? Excludes),
             Is.True);
         Assert.That(Excludes, Is.EqualTo("weekends"));
     }
@@ -65,7 +65,7 @@ public sealed class GanttL4AxisGateTests
         Assert.That(File.Exists(MmdPath), Is.True);
 
         DiagramContract Contract = MermaidRecognizer.Parse(File.ReadAllText(MmdPath));
-        Assert.That(Contract.Configuration.RawDirectiveValues.TryGetValue("theme", out string Theme), Is.True);
+        Assert.That(Contract.Configuration.RawDirectiveValues.TryGetValue("theme", out string? Theme), Is.True);
         Assert.That(Theme, Is.EqualTo("forest"));
     }
 
@@ -80,7 +80,7 @@ public sealed class GanttL4AxisGateTests
             Contract.SourceStatements.Any(Statement => Statement.LineTypeId == "gantt.inclusiveEndDates"),
             Is.True);
         Assert.That(
-            Contract.Configuration.RawDirectiveValues.TryGetValue("gantt.inclusiveEndDates", out string Flag),
+            Contract.Configuration.RawDirectiveValues.TryGetValue("gantt.inclusiveEndDates", out string? Flag),
             Is.True);
         Assert.That(Flag, Is.EqualTo("true"));
     }

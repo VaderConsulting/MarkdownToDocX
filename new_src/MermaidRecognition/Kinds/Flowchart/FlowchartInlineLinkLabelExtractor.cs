@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace MermaidRecognition.Flowchart;
+namespace MermaidRecognition.Kinds.Flowchart;
 
 /// <summary>
 /// Extracts inline edge labels from link text (Mermaid START_LINK / edgeText / LINK model).

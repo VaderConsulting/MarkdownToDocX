@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace MermaidRecognition.Mindmap;
+namespace MermaidRecognition.Kinds.Mindmap;
 
 /// <summary>
 /// Parses a trimmed mindmap node line into display label and shape (MMP-7–MMP-12).
@@ -139,10 +139,12 @@ public static class MindmapNodeLineParser
 
     static MindmapParsedNodeLine BuildParsedNodeLine(string Label, string Shape, string? NodeId)
     {
-        MindmapParsedNodeLine Parsed = new MindmapParsedNodeLine();
-        Parsed.Label = Label;
-        Parsed.Shape = Shape;
-        Parsed.NodeId = NodeId;
+        MindmapParsedNodeLine Parsed = new MindmapParsedNodeLine
+        {
+            Label = Label,
+            Shape = Shape,
+            NodeId = NodeId
+        };
         return Parsed;
     }
 }
@@ -156,41 +158,20 @@ public sealed class MindmapParsedNodeLine
 
     public string Label
     {
-        get
-        {
-            return _Label;
-        }
-        set
-        {
-            _Label = value;
-        }
+        get => _Label; set => _Label = value;
     }
 
     private string _Shape = "mindmap";
 
     public string Shape
     {
-        get
-        {
-            return _Shape;
-        }
-        set
-        {
-            _Shape = value;
-        }
+        get => _Shape; set => _Shape = value;
     }
 
     private string? _NodeId;
 
     public string? NodeId
     {
-        get
-        {
-            return _NodeId;
-        }
-        set
-        {
-            _NodeId = value;
-        }
+        get => _NodeId; set => _NodeId = value;
     }
 }

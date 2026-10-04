@@ -44,10 +44,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// <summary>
         /// Executes the actual algorithm.
         /// </summary>
-        protected override void RunInternal()
-        {
-            this.CreateSplines();
-        }
+        protected override void RunInternal() => CreateSplines();
 
         /// <summary>
         /// The method does the main work.
@@ -60,7 +57,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
         void RouteFlatEdges() {
-            var flatEdgeRouter = new FlatEdgeRouter(settings, this);
+            FlatEdgeRouter flatEdgeRouter = new FlatEdgeRouter(settings, this);
             flatEdgeRouter.Run();
         }
 
@@ -72,7 +69,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             Parallel.ForEach<List<IntEdge>>(this.Database.RegularMultiedges, options, (intEdgeList) =>
             {
 #else
-            foreach (var intEdgeList in Database.RegularMultiedges) {
+            foreach (List<IntEdge> intEdgeList in Database.RegularMultiedges) {
 #endif
                 //Here we try to optimize multi-edge routing
                 int m = intEdgeList.Count;
@@ -88,12 +85,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 #endif
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA1806:DoNotIgnoreMethodResults", MessageId = "MermaidRecognition.Layout.Sugiyama.Core.Geometry.Site")]
         void CreateSelfSplines()
         {
-            foreach (var kv in Database.Multiedges)
+            foreach (KeyValuePair<IntPair, List<IntEdge>> kv in Database.Multiedges)
             {
-                this.ProgressStep();
+                ProgressStep();
 
                 IntPair ip = kv.Key;
                 if (ip.x == ip.y) {
@@ -110,8 +106,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                         Point p3 = p0 + new Point(dx, -dy);
                         Point p4 = p0 + new Point(0, -dy);
 
-                        var s = new Site(p0);
-                        var polyline = new SmoothedPolyline(s);
+                        Site s = new Site(p0);
+                        SmoothedPolyline polyline = new SmoothedPolyline(s);
                         s = new Site(s, p1);
                         s = new Site(s, p2);
                         s = new Site(s, p3);
@@ -127,9 +123,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                             Point center =
                                 intEdge.Edge.Label.Center =
                                 new Point(c[(c.ParStart + c.ParEnd) / 2].X + intEdge.LabelWidth / 2, anchor.Y);
-                            var del = new Point(intEdge.Edge.Label.Width / 2, intEdge.Edge.Label.Height / 2);
+                            Point del = new Point(intEdge.Edge.Label.Width / 2, intEdge.Edge.Label.Height / 2);
 
-                            var box = new Rectangle(center + del, center - del);
+                            Rectangle box = new Rectangle(center + del, center - del);
                             intEdge.Edge.Label.BoundingBox = box;
                         }
                         Arrowheads.TrimSplineAndCalculateArrowheads(intEdge.Edge.EdgeGeometry,
@@ -141,7 +137,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             }
         }
         void CreateSplineForNonSelfEdge(IntEdge es){
-            this.ProgressStep();
+            ProgressStep();
 
             if (es.LayerEdges != null)
             {
@@ -157,7 +153,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
         void DrawSplineBySmothingThePolyline(IntEdge edgePath) {
-            var smoothedPolyline = new SmoothedPolylineCalculator(edgePath, Database.Anchors, OriginalGraph, settings,
+            SmoothedPolylineCalculator smoothedPolyline = new SmoothedPolylineCalculator(edgePath, Database.Anchors, OriginalGraph, settings,
                                                                   LayerArrays,
                                                                   ProperLayeredGraph, Database);
             ICurve spline = smoothedPolyline.GetSpline();
@@ -193,22 +189,24 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             if (segmentInFrontOfLabel == null)
                 return;
             if (Curve.GetAllIntersections(e.Curve, Curve.PolyFromBox(e.LabelBBox), false).Count == 0){
-                Point curveClosestPoint;
-                Point labelSideClosest;
-                if (FindClosestPoints(out curveClosestPoint, out labelSideClosest, segmentInFrontOfLabel, labelSide)){
+                if (FindClosestPoints(out Point curveClosestPoint, out Point labelSideClosest, segmentInFrontOfLabel, labelSide))
+                {
                     //shift the label if needed
                     ShiftLabel(e, ref curveClosestPoint, ref labelSideClosest);
                 }
-                else{
+                else
+                {
                     //assume that the distance is reached at the ends of labelSideClosest
                     double u = segmentInFrontOfLabel.ClosestParameter(labelSide.Start);
                     double v = segmentInFrontOfLabel.ClosestParameter(labelSide.End);
                     if ((segmentInFrontOfLabel[u] - labelSide.Start).Length <
-                        (segmentInFrontOfLabel[v] - labelSide.End).Length){
+                        (segmentInFrontOfLabel[v] - labelSide.End).Length)
+                    {
                         curveClosestPoint = segmentInFrontOfLabel[u];
                         labelSideClosest = labelSide.Start;
                     }
-                    else{
+                    else
+                    {
                         curveClosestPoint = segmentInFrontOfLabel[v];
                         labelSideClosest = labelSide.End;
                     }
@@ -227,20 +225,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
         static bool FindClosestPoints(out Point curveClosestPoint, out Point labelSideClosest,
-                                      ICurve segmentInFrontOfLabel, LineSegment labelSide) {
-            double u, v;
-            return Curve.MinDistWithinIntervals(segmentInFrontOfLabel, labelSide, segmentInFrontOfLabel.ParStart,
+                                      ICurve segmentInFrontOfLabel, LineSegment labelSide) => Curve.MinDistWithinIntervals(segmentInFrontOfLabel, labelSide, segmentInFrontOfLabel.ParStart,
                                                 segmentInFrontOfLabel.ParEnd, labelSide.ParStart, labelSide.ParEnd,
-                                                (segmentInFrontOfLabel.ParStart + segmentInFrontOfLabel.ParEnd)/2,
-                                                (labelSide.ParStart + labelSide.ParEnd)/2,
-                                                out u, out v, out curveClosestPoint, out labelSideClosest);
-        }
+                                                (segmentInFrontOfLabel.ParStart + segmentInFrontOfLabel.ParEnd) / 2,
+                                                (labelSide.ParStart + labelSide.ParEnd) / 2,
+                                                out double u, out double v, out curveClosestPoint, out labelSideClosest);
 
         static ICurve GetSegmentInFrontOfLabel(ICurve edgeCurve, double labelY) {
-            var curve = edgeCurve as Curve;
-            if (curve != null) {
+            if (edgeCurve is Curve curve)
+            {
                 foreach (ICurve seg in curve.Segments)
-                    if ((seg.Start.Y - labelY)*(seg.End.Y - labelY) <= 0)
+                    if ((seg.Start.Y - labelY) * (seg.End.Y - labelY) <= 0)
                         return seg;
             }
             else Debug.Assert(false); //not implemented
@@ -248,10 +243,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
 
-        internal static NodeKind GetNodeKind(int vertexOffset, IntEdge edgePath) {
-            return vertexOffset == 0
+        internal static NodeKind GetNodeKind(int vertexOffset, IntEdge edgePath) => vertexOffset == 0
                        ? NodeKind.Top
                        : (vertexOffset < edgePath.Count ? NodeKind.Internal : NodeKind.Bottom);
-        }
     }
 }

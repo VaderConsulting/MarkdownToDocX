@@ -13,13 +13,7 @@ namespace MermaidRecognition.RuleValidation.Evaluators;
 public sealed class RequireFactEvaluator : IRuleEvaluator
 {
     /// <inheritdoc />
-    public string EvaluatorId
-    {
-        get
-        {
-            return "RequireFactEvaluator";
-        }
-    }
+    public string EvaluatorId => "RequireFactEvaluator";
 
     /// <inheritdoc />
     public RuleEvaluationResult Evaluate(

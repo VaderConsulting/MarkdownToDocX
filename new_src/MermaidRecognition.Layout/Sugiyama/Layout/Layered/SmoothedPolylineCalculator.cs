@@ -18,8 +18,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         ParallelogramNode leftHierarchy;
         ParallelogramNode thinRightHierarchy;
         ParallelogramNode thinLeftHierarchy;
-        List<ParallelogramNode> thinRightNodes = new List<ParallelogramNode>();
-        List<ParallelogramNode> thinLefttNodes = new List<ParallelogramNode>();
+        List<ParallelogramNode> thinRightNodes = [];
+        List<ParallelogramNode> thinLefttNodes = [];
         Database database;
         ProperLayeredGraph layeredGraph;
         LayerArrays layerArrays;
@@ -29,44 +29,44 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// Creates a smoothed polyline
         /// </summary>
         internal SmoothedPolylineCalculator(IntEdge edgePathPar, Anchor[] anchorsP, GeometryGraph origGraph, SugiyamaLayoutSettings settings, LayerArrays la, ProperLayeredGraph layerGraph, Database databaseP) {
-            this.database = databaseP;
+            database = databaseP;
             edgePath = edgePathPar;
             anchors = anchorsP;
-            this.layerArrays = la;
-            this.originalGraph = origGraph;
+            layerArrays = la;
+            originalGraph = origGraph;
             this.settings = settings;
-            this.layeredGraph = layerGraph;
+            layeredGraph = layerGraph;
             rightHierarchy = BuildRightHierarchy();
             leftHierarchy = BuildLeftHierarchy();
         }
 
         private ParallelogramNode BuildRightHierarchy() {
             List<Polyline> boundaryAnchorsCurves = FindRightBoundaryAnchorCurves();
-            List<ParallelogramNode> l = new List<ParallelogramNode>();
+            List<ParallelogramNode> l = [];
             foreach (Polyline c in boundaryAnchorsCurves)
                 l.Add(c.ParallelogramNodeOverICurve);
 
-            this.thinRightHierarchy = HierarchyCalculator.Calculate(thinRightNodes, this.settings.GroupSplit);
+            thinRightHierarchy = HierarchyCalculator.Calculate(thinRightNodes, settings.GroupSplit);
 
-            return HierarchyCalculator.Calculate(l, this.settings.GroupSplit);
+            return HierarchyCalculator.Calculate(l, settings.GroupSplit);
         }
 
         private ParallelogramNode BuildLeftHierarchy() {
             List<Polyline> boundaryAnchorCurves = FindLeftBoundaryAnchorCurves();
-            List<ParallelogramNode> l = new List<ParallelogramNode>();
+            List<ParallelogramNode> l = [];
             foreach (Polyline a in boundaryAnchorCurves)
                 l.Add(a.ParallelogramNodeOverICurve);
 
-            this.thinLeftHierarchy = HierarchyCalculator.Calculate(thinLefttNodes, this.settings.GroupSplit);
+            thinLeftHierarchy = HierarchyCalculator.Calculate(thinLefttNodes, settings.GroupSplit);
 
-            return HierarchyCalculator.Calculate(l, this.settings.GroupSplit);
+            return HierarchyCalculator.Calculate(l, settings.GroupSplit);
         }
 
         List<Polyline> FindRightBoundaryAnchorCurves() {
-            List<Polyline> ret = new List<Polyline>();
+            List<Polyline> ret = [];
             int uOffset = 0;
 
-            foreach (int u in this.edgePath) {
+            foreach (int u in edgePath) {
                 Anchor rightMostAnchor = null;
                 foreach (int v in LeftBoundaryNodesOfANode(u, Routing.GetNodeKind(uOffset, edgePath))) {
                     Anchor a = anchors[v];
@@ -97,18 +97,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
         private List<Polyline> FindLeftBoundaryAnchorCurves() {
-            List<Polyline> ret = new List<Polyline>();
+            List<Polyline> ret = [];
             int uOffset = 0;
 
-            foreach (int u in this.edgePath) {
+            foreach (int u in edgePath) {
                 int leftMost = -1;
-                foreach (int v in RightBoundaryNodesOfANode(u, Routing.GetNodeKind(uOffset, this.edgePath))) {
+                foreach (int v in RightBoundaryNodesOfANode(u, Routing.GetNodeKind(uOffset, edgePath))) {
                     if (leftMost == -1 || layerArrays.X[v] < layerArrays.X[leftMost])
                         leftMost = v;
-                    ret.Add(this.anchors[v].PolygonalBoundary);
+                    ret.Add(anchors[v].PolygonalBoundary);
                 }
                 if (leftMost != -1) {
-                    Anchor a = this.anchors[leftMost];
+                    Anchor a = anchors[leftMost];
                     thinLefttNodes.Add(new LineSegment(a.Origin, originalGraph.Right, a.Origin.Y).ParallelogramNodeOverICurve);
                 }
                 uOffset++;
@@ -119,16 +119,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         IEnumerable<int> FillRightTopAndBottomVerts(int[] layer, int vPosition, NodeKind nodeKind) {
             double t = 0, b = 0;
             if (nodeKind == NodeKind.Bottom) {
-                b = Single.MaxValue;//we don't have bottom boundaries here since they will be cut off
+                b = float.MaxValue;//we don't have bottom boundaries here since they will be cut off
             } else if (nodeKind == NodeKind.Top) {
-                t = Single.MaxValue;//we don't have top boundaries here since they will be cut off
+                t = float.MaxValue;//we don't have top boundaries here since they will be cut off
             }
 
             int v = layer[vPosition];
 
             for (int i = vPosition + 1; i < layer.Length; i++) {
                 int u = layer[i];
-                Anchor anchor = this.anchors[u];
+                Anchor anchor = anchors[u];
                 if (anchor.TopAnchor > t) {
                     if (!NodeUCanBeCrossedByNodeV(u, v)) {
                         t = anchor.TopAnchor;
@@ -151,15 +151,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         IEnumerable<int> FillLeftTopAndBottomVerts(int[] layer, int vPosition, NodeKind nodeKind) {
             double t = 0, b = 0;
             if (nodeKind == NodeKind.Top)
-                t = Single.MaxValue; //there are no top vertices - they are cut down by the top boundaryCurve curve       
+                t = float.MaxValue; //there are no top vertices - they are cut down by the top boundaryCurve curve       
             else if (nodeKind == NodeKind.Bottom)
-                b = Single.MaxValue; //there are no bottom vertices - they are cut down by the top boundaryCurve curve
+                b = float.MaxValue; //there are no bottom vertices - they are cut down by the top boundaryCurve curve
 
             int v = layer[vPosition];
 
             for (int i = vPosition - 1; i >= 0; i--) {
                 int u = layer[i];
-                Anchor anchor = this.anchors[u];
+                Anchor anchor = anchors[u];
                 if (anchor.TopAnchor > t + ApproximateComparer.DistanceEpsilon) {
                     if (!NodeUCanBeCrossedByNodeV(u, v)) {
                         t = anchor.TopAnchor;
@@ -177,22 +177,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
         #region Nodes and edges anylisis
-        bool IsVirtualVertex(int v) {
-            return v >= this.originalGraph.Nodes.Count;
-        }
+        bool IsVirtualVertex(int v) => v >= originalGraph.Nodes.Count;
 
-        bool IsLabel(int u) {
-            return this.anchors[u].RepresentsLabel;
-        }
+        bool IsLabel(int u) => anchors[u].RepresentsLabel;
 
         private bool NodeUCanBeCrossedByNodeV(int u, int v) {
-            if (this.IsLabel(u))
+            if (IsLabel(u))
                 return false;
 
-            if (this.IsLabel(v))
+            if (IsLabel(v))
                 return false;
 
-            if (this.IsVirtualVertex(u) && this.IsVirtualVertex(v) && EdgesIntersectSomewhere(u, v))
+            if (IsVirtualVertex(u) && IsVirtualVertex(v) && EdgesIntersectSomewhere(u, v))
                 return true;
 
             return false;
@@ -206,7 +202,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
         private bool UVAreMiddlesOfTheSameMultiEdge(int u, int v) {
-            if (this.database.MultipleMiddles.Contains(u) && this.database.MultipleMiddles.Contains(v)
+            if (database.MultipleMiddles.Contains(u) && database.MultipleMiddles.Contains(v)
                 && SourceOfTheOriginalEdgeContainingAVirtualNode(u) == SourceOfTheOriginalEdgeContainingAVirtualNode(v))
                 return true;
             return false;
@@ -262,25 +258,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         #region Node queries
         //here u is a virtual vertex
-        private LayerEdge IncomingEdge(int u) {
-            return layeredGraph.InEdgeOfVirtualNode(u);
-        }
+        private LayerEdge IncomingEdge(int u) => layeredGraph.InEdgeOfVirtualNode(u);
         //here u is a virtual vertex
-        private LayerEdge OutcomingEdge(int u) {
-            return layeredGraph.OutEdgeOfVirtualNode(u);
-        }
+        private LayerEdge OutcomingEdge(int u) => layeredGraph.OutEdgeOfVirtualNode(u);
 
-        private IEnumerable<int> RightBoundaryNodesOfANode(int i, NodeKind nodeKind) {
-            return FillRightTopAndBottomVerts(NodeLayer(i), layerArrays.X[i], nodeKind);
-        }
+        private IEnumerable<int> RightBoundaryNodesOfANode(int i, NodeKind nodeKind) => FillRightTopAndBottomVerts(NodeLayer(i), layerArrays.X[i], nodeKind);
 
-        private int[] NodeLayer(int i) {
-            return layerArrays.Layers[layerArrays.Y[i]];
-        }
+        private int[] NodeLayer(int i) => layerArrays.Layers[layerArrays.Y[i]];
 
-        private IEnumerable<int> LeftBoundaryNodesOfANode(int i, NodeKind nodeKind) {
-            return FillLeftTopAndBottomVerts(NodeLayer(i), layerArrays.X[i], nodeKind);
-        }
+        private IEnumerable<int> LeftBoundaryNodesOfANode(int i, NodeKind nodeKind) => FillLeftTopAndBottomVerts(NodeLayer(i), layerArrays.X[i], nodeKind);
         #endregion
 
         internal ICurve GetSpline() {
@@ -303,7 +289,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         Curve CreatePolyTest() {
             Curve c = new Curve();
-            IEnumerator<Point> e = new PointNodesList(this.headSite);
+            IEnumerator<Point> e = new PointNodesList(headSite);
             e.MoveNext();
             Point p = e.Current;
             while (e.MoveNext()) {
@@ -316,18 +302,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         internal SmoothedPolyline GetPolyline {
             get {
-                System.Diagnostics.Debug.Assert(this.headSite != null);
+                System.Diagnostics.Debug.Assert(headSite != null);
                 return new SmoothedPolyline(headSite);
             }
         }
 
-        bool SegIntersectRightBound(Site a, Site b) {
-            return SegIntersectsBound(a, b, leftHierarchy) || SegIntersectsBound(a, b, this.thinLeftHierarchy);
-        }
+        bool SegIntersectRightBound(Site a, Site b) => SegIntersectsBound(a, b, leftHierarchy) || SegIntersectsBound(a, b, thinLeftHierarchy);
 
-        bool SegIntersectLeftBound(Site a, Site b) {
-            return SegIntersectsBound(a, b, rightHierarchy) || SegIntersectsBound(a, b, this.thinRightHierarchy);
-        }
+        bool SegIntersectLeftBound(Site a, Site b) => SegIntersectsBound(a, b, rightHierarchy) || SegIntersectsBound(a, b, thinRightHierarchy);
 
         private bool TryToRemoveInflectionEdge(ref Site s) {
             if (s.Next.Next == null)
@@ -374,9 +356,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
 
-        static bool SegIntersectsBound(Site a, Site b, ParallelogramNode hierarchy) {
-            return CurveIntersectsHierarchy(new LineSegment(a.Point, b.Point), hierarchy);
-        }
+        static bool SegIntersectsBound(Site a, Site b, ParallelogramNode hierarchy) => CurveIntersectsHierarchy(new LineSegment(a.Point, b.Point), hierarchy);
 
         private static bool CurveIntersectsHierarchy(LineSegment lineSeg, ParallelogramNode hierarchy) {
             if (hierarchy == null)
@@ -384,8 +364,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             if (!Parallelogram.Intersect(lineSeg.ParallelogramNodeOverICurve.Parallelogram, hierarchy.Parallelogram))
                 return false;
 
-            ParallelogramBinaryTreeNode n = hierarchy as ParallelogramBinaryTreeNode;
-            if (n != null)
+            if (hierarchy is ParallelogramBinaryTreeNode n)
                 return CurveIntersectsHierarchy(lineSeg, n.LeftSon) || CurveIntersectsHierarchy(lineSeg, n.RightSon);
 
             return Curve.GetAllIntersections(lineSeg, ((ParallelogramNodeOverICurve)hierarchy).Seg, false).Count > 0;
@@ -393,13 +372,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         }
 
-        static bool Flat(Site i) {
-            return Point.GetTriangleOrientation(i.Previous.Point, i.Point, i.Next.Point) == TriangleOrientation.Collinear;
-        }
+        static bool Flat(Site i) => Point.GetTriangleOrientation(i.Previous.Point, i.Point, i.Next.Point) == TriangleOrientation.Collinear;
 
         internal SmoothedPolylineCalculator Reverse() {
-            SmoothedPolylineCalculator ret = new SmoothedPolylineCalculator(this.edgePath, this.anchors, this.originalGraph, this.settings, this.layerArrays, this.layeredGraph, this.database);
-            Site site = this.headSite;
+            SmoothedPolylineCalculator ret = new SmoothedPolylineCalculator(edgePath, anchors, originalGraph, settings, layerArrays, layeredGraph, database);
+            Site site = headSite;
             Site v = null;
             while (site != null) {
                 ret.headSite = site.Clone();
@@ -415,23 +392,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         private void CreateRefinedPolyline() {
             CreateInitialListOfSites();
 
-            Site topSite = this.headSite;
+            Site topSite = headSite;
             Site bottomSite;
-            for (int i = 0; i < this.edgePath.Count; i++) {
+            for (int i = 0; i < edgePath.Count; i++) {
                 bottomSite = topSite.Next;
-                RefineBeetweenNeighborLayers(topSite, this.EdgePathNode(i), this.EdgePathNode(i + 1));
+                RefineBeetweenNeighborLayers(topSite, EdgePathNode(i), EdgePathNode(i + 1));
                 topSite = bottomSite;
             }
             TryToRemoveInflections();
         }
 
-        private void RefineBeetweenNeighborLayers(Site topSite, int topNode, int bottomNode) {
-            RefinerBetweenTwoLayers.Refine(topNode, bottomNode, topSite, this.anchors,
-                                           this.layerArrays, this.layeredGraph, this.originalGraph, this.settings.LayerSeparation);
-        }
+        private void RefineBeetweenNeighborLayers(Site topSite, int topNode, int bottomNode) => RefinerBetweenTwoLayers.Refine(topNode, bottomNode, topSite, anchors,
+                                           layerArrays, layeredGraph, originalGraph, settings.LayerSeparation);
 
         private void CreateInitialListOfSites() {
-            Site currentSite = this.headSite = new Site(EdgePathPoint(0));
+            Site currentSite = headSite = new Site(EdgePathPoint(0));
             for (int i = 1; i <= edgePath.Count; i++)
                 currentSite = new Site(currentSite, EdgePathPoint(i));
         }
@@ -444,7 +419,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             bool progress = true;
             while (progress) {
                 progress = false;
-                for (Site s = this.headSite; s != null && s.Next != null; s = s.Next) {
+                for (Site s = headSite; s != null && s.Next != null; s = s.Next) {
                     progress = TryToRemoveInflectionEdge(ref s) || progress;
                 }
             }
@@ -452,7 +427,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         private bool TurningAlwaySameDirection() {
             int sign = 0;//undecided
-            for (Site s = this.headSite.Next; s != null && s.Next != null; s = s.Next) {
+            for (Site s = headSite.Next; s != null && s.Next != null; s = s.Next) {
                 double nsign = s.Turn;
                 if (sign == 0) {//try to set the sign
                     if (nsign > 0)
@@ -470,9 +445,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
 
         #region Edge path node access
-        Point EdgePathPoint(int i) {
-            return anchors[EdgePathNode(i)].Origin;
-        }
+        Point EdgePathPoint(int i) => anchors[EdgePathNode(i)].Origin;
 
         int EdgePathNode(int i) {
             int v;
@@ -489,12 +462,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             RemoveVerticesWithNoTurns();
             Curve curve = new Curve();
             Site a = headSite;//the corner start
-            Site b; //the corner origin
-            Site c;//the corner other end
-            if (Curve.FindCorner(a, out b, out c)) {
+                              //the corner origin
+                              //the corner other end
+            if (Curve.FindCorner(a, out Site? b, out Site? c))
+            {
                 CreateFilletCurve(curve, ref a, ref b, ref c);
                 curve = ExtendCurveToEndpoints(curve);
-            } else
+            }
+            else
                 curve.AddSegment(new LineSegment(EdgePathPoint(0), EdgePathPoint(edgePath.Count)));
             return curve;
         }
@@ -518,13 +493,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
         private Curve ExtendCurveToEndpoints(Curve curve) {
-            Point p = this.EdgePathPoint(0);
+            Point p = EdgePathPoint(0);
             if (!ApproximateComparer.Close(p, curve.Start)) {
                 Curve nc = new Curve();
                 nc.AddSegs(new LineSegment(p, curve.Start), curve);
                 curve = nc;
             }
-            p = this.EdgePathPoint(edgePath.Count);
+            p = EdgePathPoint(edgePath.Count);
             if (!ApproximateComparer.Close(p, curve.End))
                 curve.AddSegment(new LineSegment(curve.End, p));
             return curve;
@@ -580,10 +555,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             if (tree == null)
                 return false;
             if (Parallelogram.Intersect(seg.ParallelogramNodeOverICurve.Parallelogram, tree.Parallelogram)) {
-                ParallelogramBinaryTreeNode n = tree as ParallelogramBinaryTreeNode;
-                if (n != null) {
+                if (tree is ParallelogramBinaryTreeNode n)
+                {
                     return BezierSegIntersectsTree(seg, n.LeftSon) || BezierSegIntersectsTree(seg, n.RightSon);
-                } else
+                }
+                else
                     return BezierSegIntersectsBoundary(seg, ((ParallelogramNodeOverICurve)tree).Seg);
 
             } else return false;
@@ -591,11 +567,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         static bool BezierSegIntersectsBoundary(CubicBezierSegment seg, ICurve curve) {
             foreach (IntersectionInfo x in Curve.GetAllIntersections(seg, curve, false)) {
-                Curve c = curve as Curve;
-                if (c != null) {
+                if (curve is Curve c)
+                {
                     if (Curve.RealCutWithClosedCurve(x, c, false))
                         return true;
-                } else {
+                }
+                else
+                {
                     //curve is a line from a thin hierarchy that's forbidden to touch
                     return true;
                 }

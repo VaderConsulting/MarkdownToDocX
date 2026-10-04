@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using MermaidRecognition.Layout.Sugiyama.Core;
+using MermaidRecognition.Layout.Sugiyama.Core.DataStructures;
 using MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms;
+using MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms.CycleRemoval;
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
 
 namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
@@ -37,22 +39,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
         /// An array of distances from the source node to all nodes.
         /// Nodes are indexed in their natural order when iterating over them.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays", Justification = "This is performance critical.  Copying the array would be slow.")]
         public double[] Result { get; private set; }
 
         /// <summary>
         /// Executes the algorithm.
         /// </summary>
         protected override void RunInternal() {
-            this.StartListenToLocalProgress(graph.Nodes.Count);
+            StartListenToLocalProgress(graph.Nodes.Count);
 
             Result = new double[graph.Nodes.Count];
 
-            var q = new MermaidRecognition.Layout.Sugiyama.Core.DataStructures.GenericBinaryHeapPriorityQueue<Node>();
-            Dictionary<Node, double> d = new Dictionary<Node, double>();
+            GenericBinaryHeapPriorityQueue<Node> q = new MermaidRecognition.Layout.Sugiyama.Core.DataStructures.GenericBinaryHeapPriorityQueue<Node>();
+            Dictionary<Node, double> d = [];
             foreach (Node node in graph.Nodes) {
-                q.Enqueue(node, Double.PositiveInfinity);
-                d[node] = Double.PositiveInfinity;
+                q.Enqueue(node, double.PositiveInfinity);
+                d[node] = double.PositiveInfinity;
             }
             q.DecreasePriority(source, 0);
 
@@ -60,8 +61,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
                 
                 ProgressStep();
 
-                double prio;
-                Node u = q.Dequeue(out prio);
+                Node u = q.Dequeue(out double prio);
                 d[u] = prio;
                 IEnumerator<Edge> enumerator;
                 if (directed)
@@ -89,7 +89,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
                 Result[i] = dummy;
 #else
                 if (!d.TryGetValue(v, out Result[i]))
-                    Result[i] = Double.PositiveInfinity;
+                    Result[i] = double.PositiveInfinity;
 #endif
                 i++;
             }
@@ -171,7 +171,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
                 return new GeometryGraph[] { graph };
             GeometryGraph[] ret = new GeometryGraph[comps.Count];
             int i = 0;
-            foreach (var comp in comps)
+            foreach (IEnumerable<int> comp in comps)
                 ret[i++] = GeomGraphFromBasicGraph(comp, nodes);
 
             return ret;
@@ -180,12 +180,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
         private static GeometryGraph GeomGraphFromBasicGraph(IEnumerable<int> componentNodeIndices, Node[] nodes) {
             GeometryGraph geometryGraph = new GeometryGraph();
 
-            Dictionary<Node, Node> nodeMap = new Dictionary<Node, Node>();
+            Dictionary<Node, Node> nodeMap = [];
             foreach (int v in componentNodeIndices) {
                 Node originalNode = nodes[v];
-                Node newNode = new Node(originalNode.BoundaryCurve.Clone());
-                newNode.UserData = originalNode;
-                newNode.Center = originalNode.Center;
+                Node newNode = new Node(originalNode.BoundaryCurve.Clone())
+                {
+                    UserData = originalNode,
+                    Center = originalNode.Center
+                };
                 geometryGraph.Nodes.Add(newNode);
                 nodeMap[originalNode] = newNode;
             }
@@ -194,8 +196,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
                 Node node = nodes[v]; 
                 //avoiding adding InEdges, otherwise each edge will appear twice
                 foreach (Edge e in node.OutEdges) {
-                    Edge ed = new Edge(nodeMap[e.Source], nodeMap[e.Target]);
-                    ed.Length = e.Length;
+                    Edge ed = new Edge(nodeMap[e.Source], nodeMap[e.Target])
+                    {
+                        Length = e.Length
+                    };
                     geometryGraph.Edges.Add(ed);
                 }
                 //self edges do not play any role here
@@ -204,8 +208,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
             return geometryGraph;
         }
 
-        static bool IsConnected(GeometryGraph geometryGraph) {
-            return GraphConnectedComponents.CreateComponents(geometryGraph.Nodes, geometryGraph.Edges).Count() == 1;            
-        }
+        static bool IsConnected(GeometryGraph geometryGraph) => GraphConnectedComponents.CreateComponents(geometryGraph.Nodes, geometryGraph.Edges).Count() == 1;
     }
 }

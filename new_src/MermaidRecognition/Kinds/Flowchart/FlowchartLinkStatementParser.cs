@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace MermaidRecognition.Flowchart;
+namespace MermaidRecognition.Kinds.Flowchart;
 
 /// <summary>
 /// Parses flowchart link statements (node sets, chained links, grouped <c>&amp;</c>).
@@ -26,10 +26,7 @@ public static class FlowchartLinkStatementParser
     /// <summary>
     /// Returns true when the line contains a Mermaid flowchart link token.
     /// </summary>
-    public static bool IsLinkStatement(string Line)
-    {
-        return LinkPresenceRegex.IsMatch(Line);
-    }
+    public static bool IsLinkStatement(string Line) => LinkPresenceRegex.IsMatch(Line);
 
     /// <summary>
     /// Parses a link statement into node-set chains and adds expanded edges to <paramref name="Database"/>.
@@ -39,14 +36,14 @@ public static class FlowchartLinkStatementParser
         FlowchartLinkToken LineLevelId = new FlowchartLinkToken();
         TryApplyLineLevelEdgeId(Line, LineLevelId);
         string NormalizedLine = EdgeIdBeforeLinkRegex.Replace(Line.Trim(), string.Empty);
-        List<string> EdgeLabels = new List<string>();
+        List<string> EdgeLabels = [];
         NormalizedLine = FlowchartPipeEdgeLabelExtractor.StripFromLine(NormalizedLine, EdgeLabels);
-        List<string> InlineLabels = new List<string>();
+        List<string> InlineLabels = [];
         NormalizedLine = FlowchartInlineLinkLabelExtractor.Normalize(NormalizedLine, InlineLabels);
         string[] Parts = ChainSplitRegex.Split(NormalizedLine);
-        List<FlowchartNodeSet> NodeSets = new List<FlowchartNodeSet>();
-        List<FlowchartLinkToken> LinkTokens = new List<FlowchartLinkToken>();
-        List<string> LinkSegments = new List<string>();
+        List<FlowchartNodeSet> NodeSets = [];
+        List<FlowchartLinkToken> LinkTokens = [];
+        List<string> LinkSegments = [];
         int LabelIndex = 0;
         int InlineLabelIndex = 0;
 

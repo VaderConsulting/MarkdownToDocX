@@ -34,14 +34,11 @@ public static class FlowchartEdgeConnectionGeometry
         double SourceAttachX,
         double SourceAttachY,
         double TargetAttachX,
-        double TargetAttachY)
-    {
-        return AreAttachPointsAxisAligned(
+        double TargetAttachY) => AreAttachPointsAxisAligned(
             SourceAttachX,
             SourceAttachY,
             TargetAttachX,
             TargetAttachY);
-    }
 
     /// <summary>
     /// Returns true when a four-point stub-expanded guide is a single straight connector between boundaries.

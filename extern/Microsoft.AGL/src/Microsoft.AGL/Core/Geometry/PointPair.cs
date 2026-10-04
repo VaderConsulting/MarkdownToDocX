@@ -28,17 +28,11 @@ namespace Microsoft.AGL.Core.Geometry {
 #endif
         }
 
-        public Point First {
-            get { return first; }
-        }
+        public Point First => first;
 
-        public Point Second {
-            get { return second; }
-        }
+        public Point Second => second;
 
-        public double Length {
-            get { return (first - second).Length; }
-        }
+        public double Length => (first - second).Length;
 
         #region IComparable<PointPair> Members
 
@@ -60,27 +54,21 @@ namespace Microsoft.AGL.Core.Geometry {
         }
 
         public override int GetHashCode() {
-            var hc = (uint) first.GetHashCode();
+            uint hc = (uint) first.GetHashCode();
             return (int) ((hc << 5 | hc >> 27) + (uint) second.GetHashCode());
         }
 
         public override bool Equals(object obj) {
-            var otherPair = obj as PointPair;
+            PointPair otherPair = obj as PointPair;
             if (ReferenceEquals(otherPair, null))
                 return false;
             return otherPair == this;
         }
 
-        public static bool operator ==(PointPair pair0, PointPair pair1) {
-            return (pair0.first == pair1.first && pair0.second == pair1.second);
-        }
+        public static bool operator ==(PointPair pair0, PointPair pair1) => (pair0.first == pair1.first && pair0.second == pair1.second);
 
-        public static bool operator !=(PointPair pair0, PointPair pair1) {
-            return !(pair0 == pair1);
-        }
+        public static bool operator !=(PointPair pair0, PointPair pair1) => !(pair0 == pair1);
 
-        public override string ToString() {
-            return first + " " + second;
-        }
+        public override string ToString() => first + " " + second;
     }
 }

@@ -8,7 +8,7 @@ using System.Text;
 
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
 
-namespace MermaidRecognition.Layout.Sugiyama.Core
+namespace MermaidRecognition.Layout.Sugiyama
 {
     /// <summary>
     /// Helper class for validating parameter arguments.
@@ -24,7 +24,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Core
         /// The ValidatedNotNullAttribute lets FxCop know that this method null-checks the argument.
         /// </remarks>
         [DebuggerStepThrough]
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode", Justification = "This is shared source. This method may not be called in the current assembly.")]
         public static void IsNotNull([ValidatedNotNull] object arg, string parameterName)
         {
             if (arg == null)

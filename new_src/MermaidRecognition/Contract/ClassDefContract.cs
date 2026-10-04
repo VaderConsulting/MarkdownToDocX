@@ -9,23 +9,10 @@ public sealed class ClassDefContract
 
     public string ClassId
     {
-        get
-        {
-            return _ClassId;
-        }
-        set
-        {
-            _ClassId = value;
-        }
+        get => _ClassId; set => _ClassId = value;
     }
 
     private readonly RecognitionStyle _Style = new RecognitionStyle();
 
-    public RecognitionStyle Style
-    {
-        get
-        {
-            return _Style;
-        }
-    }
+    public RecognitionStyle Style => _Style;
 }

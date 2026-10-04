@@ -1,7 +1,7 @@
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 
-namespace MermaidRecognition.Er;
+namespace MermaidRecognition.Kinds.Er;
 
 /// <summary>
 /// Mermaid-style ER diagram database (parse-time mutations only).
@@ -11,7 +11,7 @@ public sealed class ErDb
     private readonly Dictionary<string, ErNodeRecord> _EntitiesById =
         new Dictionary<string, ErNodeRecord>(StringComparer.Ordinal);
 
-    private readonly List<ErEdgeRecord> _Edges = new List<ErEdgeRecord>();
+    private readonly List<ErEdgeRecord> _Edges = [];
 
     private int _EdgeCreationIndex;
 
@@ -22,52 +22,20 @@ public sealed class ErDb
 
     private string? _AccessibilityDescription;
 
-    public IReadOnlyDictionary<string, ErNodeRecord> EntitiesById
-    {
-        get
-        {
-            return _EntitiesById;
-        }
-    }
+    public IReadOnlyDictionary<string, ErNodeRecord> EntitiesById => _EntitiesById;
 
-    public IReadOnlyList<ErEdgeRecord> Edges
-    {
-        get
-        {
-            return _Edges;
-        }
-    }
+    public IReadOnlyList<ErEdgeRecord> Edges => _Edges;
 
-    public IReadOnlyDictionary<string, ClassDefContract> ClassDefsById
-    {
-        get
-        {
-            return _ClassDefsById;
-        }
-    }
+    public IReadOnlyDictionary<string, ClassDefContract> ClassDefsById => _ClassDefsById;
 
     public string? AccessibilityTitle
     {
-        get
-        {
-            return _AccessibilityTitle;
-        }
-        set
-        {
-            _AccessibilityTitle = value;
-        }
+        get => _AccessibilityTitle; set => _AccessibilityTitle = value;
     }
 
     public string? AccessibilityDescription
     {
-        get
-        {
-            return _AccessibilityDescription;
-        }
-        set
-        {
-            _AccessibilityDescription = value;
-        }
+        get => _AccessibilityDescription; set => _AccessibilityDescription = value;
     }
 
     /// <summary>
@@ -80,9 +48,11 @@ public sealed class ErDb
             return Existing;
         }
 
-        ErNodeRecord Created = new ErNodeRecord();
-        Created.Id = EntityId;
-        Created.Label = EntityId;
+        ErNodeRecord Created = new ErNodeRecord
+        {
+            Id = EntityId,
+            Label = EntityId
+        };
         _EntitiesById[EntityId] = Created;
         return Created;
     }
@@ -101,14 +71,16 @@ public sealed class ErDb
         GetOrCreateEntity(SourceId);
         GetOrCreateEntity(TargetId);
 
-        ErEdgeRecord Edge = new ErEdgeRecord();
-        Edge.SourceId = SourceId;
-        Edge.TargetId = TargetId;
-        Edge.LeftMarker = LeftMarker;
-        Edge.Link = Link;
-        Edge.RightMarker = RightMarker;
-        Edge.RoleLabel = RoleLabel;
-        Edge.CreationIndex = _EdgeCreationIndex;
+        ErEdgeRecord Edge = new ErEdgeRecord
+        {
+            SourceId = SourceId,
+            TargetId = TargetId,
+            LeftMarker = LeftMarker,
+            Link = Link,
+            RightMarker = RightMarker,
+            RoleLabel = RoleLabel,
+            CreationIndex = _EdgeCreationIndex
+        };
         _EdgeCreationIndex++;
         _Edges.Add(Edge);
     }
@@ -120,8 +92,10 @@ public sealed class ErDb
     {
         if (!_ClassDefsById.TryGetValue(ClassId, out ClassDefContract? Existing))
         {
-            Existing = new ClassDefContract();
-            Existing.ClassId = ClassId;
+            Existing = new ClassDefContract
+            {
+                ClassId = ClassId
+            };
             _ClassDefsById[ClassId] = Existing;
         }
 

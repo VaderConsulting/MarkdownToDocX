@@ -8,22 +8,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
     internal class ConeClosureEvent:SweepEvent {
         Cone coneToClose;
 
-        internal Cone ConeToClose {
-            get { return coneToClose; }
-        }
+        internal Cone ConeToClose => coneToClose;
         Point site;
 
-        internal override Point Site {
-            get { return site; }
-        }
+        internal override Point Site => site;
 
         internal ConeClosureEvent(Point site, Cone cone) {
             this.site = site;
-            this.coneToClose = cone;
+            coneToClose = cone;
         }
 
-        public override string ToString() {
-            return "ConeClosureEvent " + site;
-        }
+        public override string ToString() => "ConeClosureEvent " + site;
     }
 }

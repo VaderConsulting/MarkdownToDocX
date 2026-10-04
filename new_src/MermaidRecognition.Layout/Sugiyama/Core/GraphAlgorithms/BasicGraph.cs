@@ -28,9 +28,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
         /// <summary>
         /// array of nodes
         /// </summary>
-        public IList<TNode> Nodes {
-            get { return nodes; }
-            set { nodes = value; }
+        public IList<TNode> Nodes { get => nodes; set => nodes = value;
         }
     }
 
@@ -47,9 +45,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
         /// <summary>
         /// a default constructor
         /// </summary>
-        internal BasicGraph() {
-            SetEdges(new List<TEdge>(), 0);
-        }
+        internal BasicGraph() => SetEdges(new List<TEdge>(), 0);
 
         internal BasicGraph(IEnumerable<TEdge> edges) : this(edges, VertexCount(edges)) {}
 
@@ -58,24 +54,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
         /// </summary>
         /// <param name="edges"></param>
         /// <param name="numberOfVerts"></param>
-        internal BasicGraph(IEnumerable<TEdge> edges, int numberOfVerts) {
-            SetEdges(edges, numberOfVerts);
-        }
+        internal BasicGraph(IEnumerable<TEdge> edges, int numberOfVerts) => SetEdges(edges, numberOfVerts);
 
 
         /// <summary>
         /// returning number of vertices of the graph
         /// </summary>
-        internal int NodeCount {
-            get { return numberOfVertices; }
-        }
+        internal int NodeCount => numberOfVertices;
 
         /// <summary>
         /// returning all edges of the graph
         /// </summary>
-        public ICollection<TEdge> Edges {
-            get { return edges; }
-        }
+        public ICollection<TEdge> Edges => edges;
 
         /// <summary>
         /// the method is not efficient, takes linear time
@@ -85,7 +75,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
             edges.Remove(edge);
             if (edge.Source != edge.Target) {
                 TEdge[] edgesToChange = outEdges[edge.Source];
-                var newEdges = new TEdge[edgesToChange.Length - 1];
+                TEdge[] newEdges = new TEdge[edgesToChange.Length - 1];
                 FillArraySkippingTheEdge(edge, edgesToChange, newEdges);
                 outEdges[edge.Source] = newEdges;
                 edgesToChange = inEdges[edge.Target];
@@ -124,22 +114,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
         /// </summary>
         /// <param name="vertex"></param>
         /// <returns></returns>
-        public IList<TEdge> OutEdges(int vertex) {
-            return outEdges[vertex];
-        }
+        public IList<TEdge> OutEdges(int vertex) => outEdges[vertex];
 
-        internal IList<TEdge> SelfEdges(int vertex) {
-            return selfEdges[vertex];
-        }
+        internal IList<TEdge> SelfEdges(int vertex) => selfEdges[vertex];
 
         /// <summary>
         /// Edges entering a vertex
         /// </summary>
         /// <param name="vertex"></param>
         /// <returns></returns>
-        public IList<TEdge> InEdges(int vertex) {
-            return inEdges[vertex];
-        }
+        public IList<TEdge> InEdges(int vertex) => inEdges[vertex];
 
         /// <summary>
         /// sets edges of the graph
@@ -150,9 +134,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
             edges = valEdges as List<TEdge> ?? new List<TEdge>(valEdges);
 
             numberOfVertices = nov;
-            var outEdgesCounts = new int[numberOfVertices];
-            var inEdgesCounts = new int[numberOfVertices];
-            var selfEdgesCounts = new int[numberOfVertices];
+            int[] outEdgesCounts = new int[numberOfVertices];
+            int[] inEdgesCounts = new int[numberOfVertices];
+            int[] selfEdgesCounts = new int[numberOfVertices];
 
             outEdges = new TEdge[numberOfVertices][];
             inEdges = new TEdge[numberOfVertices][];
@@ -192,13 +176,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
             }
         }
 
-        public int InEdgesCount(int node) {
-            return InEdges(node).Count;
-        }
+        public int InEdgesCount(int node) => InEdges(node).Count;
 
-        public int OutEdgesCount(int node) {
-            return OutEdges(node).Count;
-        }
+        public int OutEdgesCount(int node) => OutEdges(node).Count;
 
         /// <summary>
         /// this function is extremely non-efficient and is called only when adding virtual edges
@@ -217,7 +197,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
         /// <param name="source"></param>
         void AddEdgeToOutEdges(TEdge e, int source) {
             TEdge[] ies = outEdges[source];
-            var nies = new TEdge[ies.Length + 1];
+            TEdge[] nies = new TEdge[ies.Length + 1];
             ies.CopyTo(nies, 1);
             nies[0] = e;
             outEdges[source] = nies;
@@ -230,7 +210,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
         /// <param name="target"></param>
         void AddEdgeToInEdges(TEdge e, int target) {
             TEdge[] ies = inEdges[target];
-            var nies = new TEdge[ies.Length + 1];
+            TEdge[] nies = new TEdge[ies.Length + 1];
             ies.CopyTo(nies, 1);
             nies[0] = e;
             inEdges[target] = nies;
@@ -242,8 +222,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
         /// <returns></returns>
         internal IEnumerable<int> NodesOfConnectedGraph() {
             if (edges.Count > 0) {
-                var enqueed = new Set<int>();
-                var q = new Queue<int>();
+                Set<int> enqueed = new Set<int>();
+                Queue<int> q = new Queue<int>();
                 int i = edges[0].Source;
                 Enqueue(enqueed, q, i);
                 yield return i;

@@ -8,13 +8,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         internal static void SetEdgeInfosZoomLevelsAndIcreaseRanks(LgData lgData,
                                                     IZoomLevelCalculator nodeZoomLevelCalculator,
                                                     int nodeCountOnLevel) {
-            var edgePicker = new EdgePicker(lgData, nodeZoomLevelCalculator, nodeCountOnLevel);
+            EdgePicker edgePicker = new EdgePicker(lgData, nodeZoomLevelCalculator, nodeCountOnLevel);
             edgePicker.Run();
         }
 
         void Run() {
             if (_nodeCountOnLevel == lgData.GeometryNodesToLgNodeInfos.Count) {
-                foreach (var e in lgData.GeometryEdgesToLgEdgeInfos.Keys)
+                foreach (Edge e in lgData.GeometryEdgesToLgEdgeInfos.Keys)
                     UpdateEdgeInfoZoomLevel(e);
                 return;
             }
@@ -51,7 +51,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
                    int nodeCountOnLevel) {
             this.lgData = lgData;
             this.nodeZoomLevelCalculator = nodeZoomLevelCalculator;
-            this._nodeCountOnLevel = nodeCountOnLevel;
+            _nodeCountOnLevel = nodeCountOnLevel;
             zoomLevel = (int) nodeZoomLevelCalculator.SortedLgNodeInfos[nodeCountOnLevel - 1].ZoomLevel;
         }
 
@@ -63,7 +63,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         }
 
         void FillShortRoutesOfNode(Node node) {
-            foreach (var e in node.OutEdges)
+            foreach (Edge e in node.OutEdges)
                 TryPickingEdge(e);
         }
 
@@ -74,13 +74,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         }
 
         void UpdateEdgeInfoZoomLevel(Edge edge) {
-            var sourceNodeInfo = lgData.GeometryNodesToLgNodeInfos[edge.Source];
-            var targetNodeInfo = lgData.GeometryNodesToLgNodeInfos[edge.Target];
+            LgNodeInfo sourceNodeInfo = lgData.GeometryNodesToLgNodeInfos[edge.Source];
+            LgNodeInfo targetNodeInfo = lgData.GeometryNodesToLgNodeInfos[edge.Target];
             UpdateEdgeInfoZoomLevel(edge, sourceNodeInfo.Rank + targetNodeInfo.Rank);
         }
 
         void UpdateEdgeInfoZoomLevel(Edge edge, double edgeRank) {
-            var edgeInfo = lgData.GeometryEdgesToLgEdgeInfos[edge];
+            LgEdgeInfo edgeInfo = lgData.GeometryEdgesToLgEdgeInfos[edge];
             TryToDecreaseZoomLevel(edgeInfo);
             TryToIncreaseRank(edgeInfo, edgeRank);
         }

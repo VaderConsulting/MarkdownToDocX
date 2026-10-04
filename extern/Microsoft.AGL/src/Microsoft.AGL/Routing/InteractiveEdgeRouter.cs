@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+
 using Microsoft.AGL.Core;
 using Microsoft.AGL.Core.DataStructures;
 using Microsoft.AGL.Core.Geometry;
@@ -12,6 +13,9 @@ using Microsoft.AGL.Layout.Initial;
 using Microsoft.AGL.Layout.LargeGraphLayout;
 using Microsoft.AGL.Routing.Spline.ConeSpanner;
 using Microsoft.AGL.Routing.Visibility;
+using Microsoft.AGL.Core.Geometry.RTree;
+
+
 #if TEST_MSAGL
 using Microsoft.AGL.DebugHelpers;
 #endif
@@ -35,9 +39,7 @@ namespace Microsoft.AGL.Routing {
 
         Polyline _sourceTightPolyline;
 
-        Polyline SourceTightPolyline {
-            get { return _sourceTightPolyline; }
-            set { _sourceTightPolyline = value; }
+        Polyline SourceTightPolyline { get => _sourceTightPolyline; set => _sourceTightPolyline = value;
         }
 
         /// <summary>
@@ -50,16 +52,12 @@ namespace Microsoft.AGL.Routing {
         /// <summary>
         /// 
         /// </summary>
-        Polyline TargetTightPolyline {
-            get { return targetTightPolyline; }
-            set { targetTightPolyline = value; }
+        Polyline TargetTightPolyline { get => targetTightPolyline; set => targetTightPolyline = value;
         }
 
         Polyline targetLoosePolyline;
 
-        Polyline TargetLoosePolyline {
-            get { return targetLoosePolyline; }
-            set { targetLoosePolyline = value; }
+        Polyline TargetLoosePolyline { get => targetLoosePolyline; set => targetLoosePolyline = value;
         }
 
         //RectangleNode<Polyline> RootOfTightHierarchy {
@@ -70,14 +68,12 @@ namespace Microsoft.AGL.Routing {
 
         VisibilityGraph visibilityGraph;
 
-        internal VisibilityGraph VisibilityGraph {
-            get { return visibilityGraph; }
-            set { visibilityGraph = value; }
+        internal VisibilityGraph VisibilityGraph { get => visibilityGraph; set => visibilityGraph = value;
         }
 
         //List<Polyline> activeTightPolylines = new List<Polyline>();
-        List<Polygon> activePolygons = new List<Polygon>();
-        readonly Set<Polyline> alreadyAddedOrExcludedPolylines = new Set<Polyline>();
+        List<Polygon> activePolygons = [];
+        readonly Set<Polyline> alreadyAddedOrExcludedPolylines = [];
 
         //    Dictionary<Point, Polyline> pointsToObstacles = new Dicitonary<Point, Polyline>();
 
@@ -86,20 +82,25 @@ namespace Microsoft.AGL.Routing {
         /// <summary>
         /// the port of the edge start
         /// </summary>
-        public Port SourcePort {
-            get { return sourcePort; }
-            private set {
+        public Port SourcePort
+        {
+            get => sourcePort;
+            private set
+            {
                 sourcePort = value;
-                if (sourcePort != null) {
+                if (sourcePort != null)
+                {
                     SourceTightPolyline = GetFirstHitPolyline(sourcePort.Location,
                                                               ObstacleCalculator.RootOfTightHierarchy);
-                    if (sourcePort is FloatingPort) {
+                    if (sourcePort is FloatingPort)
+                    {
                         alreadyAddedOrExcludedPolylines.Insert(SourceLoosePolyline);
                         //we need to exclude the loose polyline around the source port from the tangent visibily graph
                         StartPointOfEdgeRouting = SourcePort.Location;
                     }
-                    else {
-                        var bp = (CurvePort) sourcePort;
+                    else
+                    {
+                        CurvePort bp = (CurvePort)sourcePort;
                         StartPointOfEdgeRouting = TakeBoundaryPortOutsideOfItsLoosePolyline(bp.Curve, bp.Parameter,
                                                                                             SourceLoosePolyline);
                     }
@@ -112,9 +113,7 @@ namespace Microsoft.AGL.Routing {
         /// <summary>
         /// the port of the edge end
         /// </summary>
-        Port TargetPort {
-            get { return targetPort; }
-            set { targetPort = value; }
+        Port TargetPort { get => targetPort; set => targetPort = value;
         }
 
 
@@ -128,13 +127,13 @@ namespace Microsoft.AGL.Routing {
         /// <summary>
         /// we further pad each node but not more than LoosePadding.
         /// </summary>
-        public double LoosePadding {
-            get {
-                return loosePadding;
-            }
-            internal set {
+        public double LoosePadding
+        {
+            get => loosePadding;
+            internal set
+            {
                 loosePadding = value;
-                if(ObstacleCalculator!=null)
+                if (ObstacleCalculator != null)
                     ObstacleCalculator.LoosePadding = value;
             }
         }
@@ -142,15 +141,11 @@ namespace Microsoft.AGL.Routing {
 
         VisibilityVertex _sourceVisibilityVertex;
 
-        VisibilityVertex SourceVisibilityVertex {
-            get { return _sourceVisibilityVertex; } //            set { sourceVisibilityVertex = value; }
-        }
+        VisibilityVertex SourceVisibilityVertex => _sourceVisibilityVertex;
 
         VisibilityVertex targetVisibilityVertex;
 
-        VisibilityVertex TargetVisibilityVertex {
-            get { return targetVisibilityVertex; } //            set { targetVisibilityVertex = value; }
-        }
+        VisibilityVertex TargetVisibilityVertex => targetVisibilityVertex;
 
 
         Polyline _polyline;
@@ -203,9 +198,7 @@ namespace Microsoft.AGL.Routing {
         /// <summary>
         /// An empty constructor for calling it from inside of MSAGL
         /// </summary>        
-        internal InteractiveEdgeRouter() {
-            ObstacleCalculator = new InteractiveObstacleCalculator(Obstacles, TightPadding, LoosePadding, false);
-        }
+        internal InteractiveEdgeRouter() => ObstacleCalculator = new InteractiveObstacleCalculator(Obstacles, TightPadding, LoosePadding, false);
 
         Point StartPointOfEdgeRouting { get; set; }
 
@@ -229,7 +222,7 @@ namespace Microsoft.AGL.Routing {
             }
             else {
                 RemovePointVisibilityGraphs();
-                var visibilityGraphGenerator = new InteractiveTangentVisibilityGraphCalculator(addedPolygons,
+                InteractiveTangentVisibilityGraphCalculator visibilityGraphGenerator = new InteractiveTangentVisibilityGraphCalculator(addedPolygons,
                                                                                                activePolygons,
                                                                                                VisibilityGraph);
                 visibilityGraphGenerator.Run();
@@ -247,10 +240,8 @@ namespace Microsoft.AGL.Routing {
                 VisibilityGraph.RemoveVertex(_sourceVisibilityVertex);
         }
 
-        void CalculateEdgeTargetVisibilityGraph(Point location) {
-            PointVisibilityCalculator.CalculatePointVisibilityGraph(GetActivePolylines(), VisibilityGraph, location,
+        void CalculateEdgeTargetVisibilityGraph(Point location) => PointVisibilityCalculator.CalculatePointVisibilityGraph(GetActivePolylines(), VisibilityGraph, location,
                                                                     VisibilityKind.Tangent, out targetVisibilityVertex);
-        }
 
         void CalculateSourcePortVisibilityGraph() {
             PointVisibilityCalculator.CalculatePointVisibilityGraph(GetActivePolylines(), VisibilityGraph,
@@ -272,7 +263,7 @@ namespace Microsoft.AGL.Routing {
             tangent = tangent.Rotate(Math.PI/2);
 
             double len = loosePolyline.BoundingBox.Diagonal;
-            var ls = new LineSegment(location, location + len*tangent);
+            LineSegment ls = new LineSegment(location, location + len*tangent);
             Point p = Curve.GetAllIntersections(ls, loosePolyline, false)[0].IntersectionPoint;
 
             Point del = tangent*(p - location).Length*0.5;
@@ -296,9 +287,7 @@ namespace Microsoft.AGL.Routing {
             return ls.End;
         }
 
-        static Point PointInsideOfConvexCurve(ICurve nodeBoundary) {
-            return (nodeBoundary[0] + nodeBoundary[1.5])/2; //a hack !!!!!!!!!!!!!!!!!!!!!!
-        }
+        static Point PointInsideOfConvexCurve(ICurve nodeBoundary) => (nodeBoundary[0] + nodeBoundary[1.5]) / 2; //a hack !!!!!!!!!!!!!!!!!!!!!!
 
         //Point TakeSourcePortOutsideOfLoosePolyline() {
         //    CurvePort bp = SourcePort as CurvePort;
@@ -339,7 +328,7 @@ namespace Microsoft.AGL.Routing {
 
         List<Polygon> GetAddedPolygonesAndMaybeExtendActiveRectangle() {
             Rectangle rect = activeRectangle;
-            var addedPolygones = new List<Polygon>();
+            List<Polygon> addedPolygones = new List<Polygon>();
             bool added;
             do {
                 added = false;
@@ -395,11 +384,11 @@ namespace Microsoft.AGL.Routing {
 
         static RelaxedPolylinePoint CreateRelaxedPolylinePoints(Polyline polyline) {
             PolylinePoint p = polyline.StartPoint;
-            var ret = new RelaxedPolylinePoint(p, p.Point);
+            RelaxedPolylinePoint ret = new RelaxedPolylinePoint(p, p.Point);
             RelaxedPolylinePoint currentRelaxed = ret;
             while (p.Next != null) {
                 p = p.Next;
-                var r = new RelaxedPolylinePoint(p, p.Point) {Prev = currentRelaxed};
+                RelaxedPolylinePoint r = new RelaxedPolylinePoint(p, p.Point) {Prev = currentRelaxed};
                 currentRelaxed.Next = r;
                 currentRelaxed = r;
             }
@@ -431,27 +420,18 @@ namespace Microsoft.AGL.Routing {
             return false;
         }
 
-        static void PullCloserRelaxedPoint(RelaxedPolylinePoint relaxedPolylinePoint) {
-            relaxedPolylinePoint.PolylinePoint.Point = 0.2*relaxedPolylinePoint.OriginalPosition +
-                                                       0.8*relaxedPolylinePoint.PolylinePoint.Point;
-        }
+        static void PullCloserRelaxedPoint(RelaxedPolylinePoint relaxedPolylinePoint) => relaxedPolylinePoint.PolylinePoint.Point = 0.2 * relaxedPolylinePoint.OriginalPosition +
+                                                       0.8 * relaxedPolylinePoint.PolylinePoint.Point;
 
-        bool StickingSegmentDoesNotIntersectTightObstacles(RelaxedPolylinePoint relaxedPoint) {
-            return
-                !PolylineSegmentIntersectsTightHierarchy(relaxedPoint.PolylinePoint.Point,
+        bool StickingSegmentDoesNotIntersectTightObstacles(RelaxedPolylinePoint relaxedPoint) => !PolylineSegmentIntersectsTightHierarchy(relaxedPoint.PolylinePoint.Point,
                                                          relaxedPoint.Prev.PolylinePoint.Point) &&
                 (relaxedPoint.Next == null ||
                  !PolylineSegmentIntersectsTightHierarchy(relaxedPoint.PolylinePoint.Point,
                                                           relaxedPoint.Next.PolylinePoint.Point));
-        }
 
-        bool PolylineSegmentIntersectsTightHierarchy(Point a, Point b) {
-            return PolylineIntersectsPolyRectangleNodeOfTightHierarchy(a, b, ObstacleCalculator.RootOfTightHierarchy);
-        }
+        bool PolylineSegmentIntersectsTightHierarchy(Point a, Point b) => PolylineIntersectsPolyRectangleNodeOfTightHierarchy(a, b, ObstacleCalculator.RootOfTightHierarchy);
 
-        bool PolylineIntersectsPolyRectangleNodeOfTightHierarchy(Point a, Point b, RectangleNode<Polyline> rect) {
-            return PolylineIntersectsPolyRectangleNodeOfTightHierarchy(new LineSegment(a, b), rect);
-        }
+        bool PolylineIntersectsPolyRectangleNodeOfTightHierarchy(Point a, Point b, RectangleNode<Polyline> rect) => PolylineIntersectsPolyRectangleNodeOfTightHierarchy(new LineSegment(a, b), rect);
 
         bool PolylineIntersectsPolyRectangleNodeOfTightHierarchy(LineSegment ls, RectangleNode<Polyline> rect) {
             if (!ls.BoundingBox.Intersects(rect.Rectangle))
@@ -474,7 +454,7 @@ namespace Microsoft.AGL.Routing {
         internal static List<IntersectionInfo> IntersectionsOfLineAndRectangleNodeOverPolyline(LineSegment ls,
                                                                                                RectangleNode<Polyline>
                                                                                                    rectNode) {
-            var ret = new List<IntersectionInfo>();
+            List<IntersectionInfo> ret = new List<IntersectionInfo>();
             IntersectionsOfLineAndRectangleNodeOverPolyline(ls, rectNode, ret);
             return ret;
         }
@@ -567,8 +547,7 @@ namespace Microsoft.AGL.Routing {
         }
 
 #if TEST_MSAGL
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
-// ReSharper disable UnusedMember.Local
+        // ReSharper disable UnusedMember.Local
         internal void ShowPolylineAndObstacles(params ICurve[] curves)
         {
 // ReSharper restore UnusedMember.Local
@@ -576,26 +555,22 @@ namespace Microsoft.AGL.Routing {
             LayoutAlgorithmSettings.ShowDebugCurvesEnumeration(ls);
         }
 
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         IEnumerable<DebugCurve> GetDebugCurves(params ICurve[] curves)
         {
-            var ls = CreateListWithObstaclesAndPolyline(curves);
+            List<DebugCurve> ls = CreateListWithObstaclesAndPolyline(curves);
             //ls.AddRange(this.VisibilityGraph.Edges.Select(e => new DebugCurve(100,0.1, e is TollFreeVisibilityEdge?"red":"green", new LineSegment(e.SourcePoint, e.TargetPoint))));
             if (_sourceVisibilityVertex != null)
                 ls.Add(new DebugCurve("red", CurveFactory.CreateDiamond(4, 4, _sourceVisibilityVertex.Point)));
             if (targetVisibilityVertex != null)
                 ls.Add(new DebugCurve("purple", new Ellipse(4, 4, targetVisibilityVertex.Point)));
-            var anywerePort=targetPort as HookUpAnywhereFromInsidePort;
-            if (anywerePort != null)
+            if (targetPort is HookUpAnywhereFromInsidePort anywerePort)
                 ls.Add(new DebugCurve("purple", anywerePort.LoosePolyline));
             return ls;
         }
 
-
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         List<DebugCurve> CreateListWithObstaclesAndPolyline(params ICurve[] curves)
         {
-            var ls = new List<DebugCurve>(ObstacleCalculator.RootOfLooseHierarchy.GetAllLeaves().Select(e => new DebugCurve(100,0.01, "green", e)));
+            List<DebugCurve> ls = new List<DebugCurve>(ObstacleCalculator.RootOfLooseHierarchy.GetAllLeaves().Select(e => new DebugCurve(100,0.01, "green", e)));
             ls.AddRange(curves.Select(c=>new DebugCurve(100,0.01,"red", c)));
             ls.AddRange(ObstacleCalculator.RootOfTightHierarchy.GetAllLeaves().Select(e => new DebugCurve(100, 0.01, "blue", e)));
 
@@ -610,21 +585,20 @@ namespace Microsoft.AGL.Routing {
         /// smoothing the corners of the polyline
         /// </summary>
         /// <param name="edgePolyline"></param>
-        [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Polyline")]
         public void SmoothCorners(SmoothedPolyline edgePolyline) {
             ValidateArg.IsNotNull(edgePolyline, "edgePolyline");
 
             Site a = edgePolyline.HeadSite; //the corner start
-            Site b; //the corner origin
-            Site c; //the corner other end
-            while (Curve.FindCorner(a, out b, out c))
+                                            //the corner origin
+                                            //the corner other end
+            while (Curve.FindCorner(a, out Site b, out Site c))
                 a = SmoothOneCorner(a, c, b);
         }
 
         Site SmoothOneCorner(Site a, Site c, Site b) {
             if (CacheCorners) {
-                double p, n;
-                if (FindCachedCorner(a, b, c, out p, out n)) {
+                if (FindCachedCorner(a, b, c, out double p, out double n))
+                {
                     b.PreviousBezierSegmentFitCoefficient = p;
                     b.NextBezierSegmentFitCoefficient = n;
                     return b;
@@ -671,13 +645,15 @@ namespace Microsoft.AGL.Routing {
         internal int foundCachedCorners;
         bool FindCachedCorner(Site a, Site b, Site c, out double prev, out double next) {
             Corner corner=new Corner(a.Point,b.Point,c.Point);
-            Tuple<double, double> prevNext;
-            if (cornerTable.TryGetValue(corner, out prevNext)) {
-                if (a.Point == corner.a) {
+            if (cornerTable.TryGetValue(corner, out Tuple<double, double> prevNext))
+            {
+                if (a.Point == corner.a)
+                {
                     prev = prevNext.Item1;
                     next = prevNext.Item2;
                 }
-                else {
+                else
+                {
                     prev = prevNext.Item2;
                     next = prevNext.Item1;
                 }
@@ -688,24 +664,25 @@ namespace Microsoft.AGL.Routing {
             return false;
         }
 
-        void CacheCorner(Site a, Site b, Site c) {
-            cornerTable[new Corner(a.Point,b.Point,c.Point)]=new Tuple<double, double>(b.PreviousBezierSegmentFitCoefficient,b.NextBezierSegmentFitCoefficient);
-        }
+        void CacheCorner(Site a, Site b, Site c) => cornerTable[new Corner(a.Point, b.Point, c.Point)] = new Tuple<double, double>(b.PreviousBezierSegmentFitCoefficient, b.NextBezierSegmentFitCoefficient);
 
         /// <summary>
         /// is set to true will cache three points defining the corner 
         /// to avoid obstacle avoidance calculation
         /// </summary>
-        public bool CacheCorners {
-            get { return cacheCorners; }
-            set {
+        public bool CacheCorners
+        {
+            get => cacheCorners;
+            set
+            {
                 cacheCorners = value;
                 if (cacheCorners)
-                    cornerTable = new Dictionary<Corner, Tuple<double, double>>();
-                else {
+                    cornerTable = [];
+                else
+                {
                     if (cornerTable != null)
                         cornerTable.Clear();
-                } 
+                }
 
             }
         }
@@ -714,7 +691,6 @@ namespace Microsoft.AGL.Routing {
         /// 
         /// </summary>
         /// <param name="underlyingPolyline"></param>
-        [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Polyline")]
         public void TryToRemoveInflectionsAndCollinearSegments(SmoothedPolyline underlyingPolyline) {
             ValidateArg.IsNotNull(underlyingPolyline, "underlyingPolyline");
             bool progress = true;
@@ -779,7 +755,7 @@ namespace Microsoft.AGL.Routing {
 
         Polyline GetShortestPolyline(VisibilityVertex sourceVisVertex, VisibilityVertex _targetVisVertex) {
             CleanTheGraphForShortestPath();
-            var pathCalc = new SingleSourceSingleTargetShortestPathOnVisibilityGraph(this.visibilityGraph, sourceVisVertex, _targetVisVertex);
+            SingleSourceSingleTargetShortestPathOnVisibilityGraph pathCalc = new SingleSourceSingleTargetShortestPathOnVisibilityGraph(visibilityGraph, sourceVisVertex, _targetVisVertex);
 
             IEnumerable<VisibilityVertex> path = pathCalc.GetPath(UseEdgeLengthMultiplier);
             if (path == null) {
@@ -789,17 +765,16 @@ namespace Microsoft.AGL.Routing {
 
 
             Debug.Assert(path.First() == sourceVisVertex && path.Last() == _targetVisVertex);
-            var ret = new Polyline();
+            Polyline ret = new Polyline();
             foreach (VisibilityVertex v in path)
                 ret.AddPoint(v.Point);
             return RemoveCollinearVertices(ret);
         }
 
 #if TEST_MSAGL
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         private void ShowIsPassable(VisibilityVertex sourceVisVertex, VisibilityVertex targetVisVertex)
         {
-            var dd = new List<DebugCurve>(
+            List<DebugCurve> dd = new List<DebugCurve>(
                 visibilityGraph.Edges.Select(
                     e =>
                     new DebugCurve(100, 0.5, e.IsPassable == null || e.IsPassable() ? "green" : "red",
@@ -815,9 +790,7 @@ namespace Microsoft.AGL.Routing {
         }
 #endif
 
-        void CleanTheGraphForShortestPath() {
-            visibilityGraph.ClearPrevEdgesTable();            
-        }
+        void CleanTheGraphForShortestPath() => visibilityGraph.ClearPrevEdgesTable();
 
         internal static Polyline RemoveCollinearVertices(Polyline ret) {
             for (PolylinePoint pp = ret.StartPoint.Next; pp.Next != null; pp = pp.Next) {
@@ -834,22 +807,16 @@ namespace Microsoft.AGL.Routing {
         /// <summary>
         /// returns true if the nodes overlap or just positioned too close
         /// </summary>
-        public bool OverlapsDetected {
-            get { return ObstacleCalculator.OverlapsDetected; }
-        }
+        public bool OverlapsDetected => ObstacleCalculator.OverlapsDetected;
 
         ///<summary>
         ///</summary>
         public double ConeSpannerAngle { get; set; }
 
-        internal RectangleNode<Polyline> TightHierarchy {
-            get { return ObstacleCalculator.RootOfTightHierarchy; }
-            set { ObstacleCalculator.RootOfTightHierarchy = value; }
+        internal RectangleNode<Polyline> TightHierarchy { get => ObstacleCalculator.RootOfTightHierarchy; set => ObstacleCalculator.RootOfTightHierarchy = value;
         }
 
-        internal RectangleNode<Polyline> LooseHierarchy {
-            get { return ObstacleCalculator.RootOfLooseHierarchy; }
-            set { ObstacleCalculator.RootOfLooseHierarchy = value; }
+        internal RectangleNode<Polyline> LooseHierarchy { get => ObstacleCalculator.RootOfLooseHierarchy; set => ObstacleCalculator.RootOfLooseHierarchy = value;
         }
 
         internal bool UseSpanner { get; set; }
@@ -873,9 +840,9 @@ namespace Microsoft.AGL.Routing {
             TargetPort = new FloatingPort((ICurve) null, targetLocation); //otherwise route edge to a port would be called
             TargetTightPolyline = null;
             TargetLoosePolyline = null;
-            var edgeGeometry = new EdgeGeometry();
+            EdgeGeometry edgeGeometry = new EdgeGeometry();
 
-            var ls = new LineSegment(SourcePort.Location, targetLocation);
+            LineSegment ls = new LineSegment(SourcePort.Location, targetLocation);
 
             if (LineCanBeAcceptedForRouting(ls)) {
                 _polyline = new Polyline();
@@ -924,7 +891,6 @@ namespace Microsoft.AGL.Routing {
         /// <param name="smooth"> if true will smooth the edge avoiding the obstacles, will take more time</param>
         /// <param name="smoothedPolyline"></param>
         /// <returns></returns>
-        [SuppressMessage("Microsoft.Design", "CA1021:AvoidOutParameters", MessageId = "3#"), SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Polyline")]
         public ICurve RouteEdgeToPort(Port edgeTargetPort, Polyline portLoosePolyline, bool smooth, out SmoothedPolyline smoothedPolyline) {
             ValidateArg.IsNotNull(edgeTargetPort, "edgeTargetToPort");
             if (!ObstacleCalculator.IsEmpty()) {
@@ -932,8 +898,7 @@ namespace Microsoft.AGL.Routing {
                 TargetTightPolyline = GetFirstHitPolyline(edgeTargetPort.Location,
                                                           ObstacleCalculator.RootOfTightHierarchy);
                 Debug.Assert(targetTightPolyline != null);
-                var bp = edgeTargetPort as CurvePort;
-                if (bp != null)
+                if (edgeTargetPort is CurvePort bp)
                     return RouteEdgeToBoundaryPort(portLoosePolyline, smooth, out smoothedPolyline);
                 return RouteEdgeToFloatingPortOfNode(portLoosePolyline, smooth, out smoothedPolyline);
             }
@@ -961,7 +926,7 @@ namespace Microsoft.AGL.Routing {
         ICurve RouteFromBoundaryPortToFloatingPort(Polyline targetPortLoosePolyline, bool smooth, out SmoothedPolyline polyline) {
             Point sourcePortLocation = SourcePort.Location;
             Point targetPortLocation = targetPort.Location;
-            var ls = new LineSegment(sourcePortLocation, targetPortLocation);
+            LineSegment ls = new LineSegment(sourcePortLocation, targetPortLocation);
             if (LineCanBeAcceptedForRouting(ls)) {
                 polyline = SmoothedPolylineFromTwoPoints(ls.Start, ls.End);
                 return ls;
@@ -1002,7 +967,7 @@ namespace Microsoft.AGL.Routing {
         ICurve RouteFromFloatingPortToFloatingPort(Polyline portLoosePolyline, bool smooth, out SmoothedPolyline smoothedPolyline) {
             Point targetPortLocation = TargetPort.Location;
 
-            var ls = new LineSegment(StartPointOfEdgeRouting, targetPortLocation);
+            LineSegment ls = new LineSegment(StartPointOfEdgeRouting, targetPortLocation);
             if ( AllowedShootingStraightLines && LineAvoidsTightHierarchy(ls, SourceTightPolyline, targetTightPolyline) ) {
                 smoothedPolyline = SmoothedPolylineFromTwoPoints(ls.Start, ls.End);
                 return ls;
@@ -1043,7 +1008,7 @@ namespace Microsoft.AGL.Routing {
             if (c == null) return;
             Point m = 0.5*(b.Point + c.Point);
             if (LineAvoidsTightHierarchy(a.Point, m, _sourceTightPolyline, targetTightPolyline)) {
-                var p = new PolylinePoint(m) {Next = a, Prev = c};
+                PolylinePoint p = new PolylinePoint(m) {Next = a, Prev = c};
                 a.Prev = p;
                 c.Next = p;
             }
@@ -1057,7 +1022,7 @@ namespace Microsoft.AGL.Routing {
             if (c == null) return;
             Point m = 0.5*(b.Point + c.Point);
             if (LineAvoidsTightHierarchy(a.Point, m, _sourceTightPolyline, targetTightPolyline)) {
-                var p = new PolylinePoint(m) {Prev = a, Next = c};
+                PolylinePoint p = new PolylinePoint(m) {Prev = a, Next = c};
                 a.Next = p;
                 c.Prev = p;
             }
@@ -1117,7 +1082,7 @@ namespace Microsoft.AGL.Routing {
             }
             else {
                 RemovePointVisibilityGraphs();
-                var visibilityGraphGenerator = new InteractiveTangentVisibilityGraphCalculator(addedPolygons,
+                InteractiveTangentVisibilityGraphCalculator visibilityGraphGenerator = new InteractiveTangentVisibilityGraphCalculator(addedPolygons,
                                                                                                activePolygons,
                                                                                                VisibilityGraph);
                 visibilityGraphGenerator.Run();
@@ -1194,11 +1159,9 @@ namespace Microsoft.AGL.Routing {
         }
 
         internal bool IgnoreTightPadding {get;set;}
-        
 
-        IEnumerable<Polyline> GetActivePolylinesWithException(Polyline targetLoosePoly) {
-            return from polygon in activePolygons where polygon.Polyline != targetLoosePoly select polygon.Polyline;
-        }
+
+        IEnumerable<Polyline> GetActivePolylinesWithException(Polyline targetLoosePoly) => from polygon in activePolygons where polygon.Polyline != targetLoosePoly select polygon.Polyline;
 
         ICurve RouteEdgeToBoundaryPort(Polyline portLoosePolyline, bool smooth, out SmoothedPolyline smoothedPolyline) {
             TargetLoosePolyline = portLoosePolyline;
@@ -1211,7 +1174,7 @@ namespace Microsoft.AGL.Routing {
             Point sourcePortLocation = SourcePort.Location;
             ICurve curve;
             Point targetPortLocation = targetPort.Location;
-            var ls = new LineSegment(sourcePortLocation, targetPortLocation);
+            LineSegment ls = new LineSegment(sourcePortLocation, targetPortLocation);
             if (LineCanBeAcceptedForRouting(ls)) {
                 _polyline = new Polyline();
                 _polyline.AddPoint(ls.Start);
@@ -1242,21 +1205,25 @@ namespace Microsoft.AGL.Routing {
                         curve = SmoothCornersAndReturnCurve(smooth, out smoothedPolyline);
                     } else {
                         // we still can make the polyline with two segs when the port sticking segs are intersecting
-                        Point x;
                         if (LineSegment.Intersect(sourcePortLocation, StartPointOfEdgeRouting, targetPortLocation,
-                                                  takenOutPoint, out x)) {
+                                                  takenOutPoint, out Point x))
+                        {
                             _polyline = new Polyline();
                             _polyline.AddPoint(sourcePortLocation);
                             _polyline.AddPoint(x);
                             _polyline.AddPoint(targetPortLocation);
                             curve = SmoothCornersAndReturnCurve(smooth, out smoothedPolyline);
-                        } else if (ApproximateComparer.Close(StartPointOfEdgeRouting, takenOutPoint)) {
+                        }
+                        else if (ApproximateComparer.Close(StartPointOfEdgeRouting, takenOutPoint))
+                        {
                             _polyline = new Polyline();
                             _polyline.AddPoint(sourcePortLocation);
                             _polyline.AddPoint(takenOutPoint);
                             _polyline.AddPoint(targetPortLocation);
                             curve = SmoothCornersAndReturnCurve(smooth, out smoothedPolyline);
-                        } else if (LineAvoidsTightHierarchy(new LineSegment(StartPointOfEdgeRouting, takenOutPoint))) {
+                        }
+                        else if (LineAvoidsTightHierarchy(new LineSegment(StartPointOfEdgeRouting, takenOutPoint)))
+                        {
                             //can we do three segments?
                             _polyline = new Polyline();
                             _polyline.AddPoint(sourcePortLocation);
@@ -1264,12 +1231,13 @@ namespace Microsoft.AGL.Routing {
                             _polyline.AddPoint(takenOutPoint);
                             _polyline.AddPoint(targetPortLocation);
                             curve = SmoothCornersAndReturnCurve(smooth, out smoothedPolyline);
-                        } else {
+                        }
+                        else
+                        {
                             ExtendVisibilityGraphToTargetBoundaryPort(takenOutPoint);
                             _polyline = GetShortestPolyline(SourceVisibilityVertex, TargetVisibilityVertex);
-                            
-                            Polyline tmpTargetTight;
-                            Polyline tmpSourceTight = HideSourceTargetTightsIfNeeded(out tmpTargetTight);
+
+                            Polyline tmpSourceTight = HideSourceTargetTightsIfNeeded(out Polyline tmpTargetTight);
                             TryShortcutPolyline();
                             RecoverSourceTargetTights(tmpSourceTight, tmpTargetTight);
 
@@ -1297,11 +1265,8 @@ namespace Microsoft.AGL.Routing {
             return tmpSourceTight;
         }
 
-        bool LineAvoidsTightHierarchy(LineSegment lineSegment) {
-            return
-                IntersectionsOfLineAndRectangleNodeOverPolyline(lineSegment, ObstacleCalculator.RootOfTightHierarchy).
+        bool LineAvoidsTightHierarchy(LineSegment lineSegment) => IntersectionsOfLineAndRectangleNodeOverPolyline(lineSegment, ObstacleCalculator.RootOfTightHierarchy).
                     Count == 0;
-        }
 
 
         ICurve RouteFromFloatingPortToBoundaryPort(bool smooth, out SmoothedPolyline smoothedPolyline) {
@@ -1356,9 +1321,7 @@ namespace Microsoft.AGL.Routing {
             return lineIsGood;
         }
 
-        bool LineAvoidsTightHierarchy(Point a, Point b, Polyline polylineToExclude0, Polyline polylineToExclude1) {
-            return LineAvoidsTightHierarchy(new LineSegment(a, b), polylineToExclude0, polylineToExclude1);
-        }
+        bool LineAvoidsTightHierarchy(Point a, Point b, Polyline polylineToExclude0, Polyline polylineToExclude1) => LineAvoidsTightHierarchy(new LineSegment(a, b), polylineToExclude0, polylineToExclude1);
 
         void ExtendVisibilityGraphToTargetBoundaryPort(Point takenOutTargetPortLocation) {
             List<Polygon> addedPolygons = null;
@@ -1387,7 +1350,7 @@ namespace Microsoft.AGL.Routing {
                 CalculateEdgeTargetVisibilityGraph(takenOutTargetPortLocation);
             } else {
                 RemovePointVisibilityGraphs();
-                var visibilityGraphGenerator = new InteractiveTangentVisibilityGraphCalculator(addedPolygons,
+                InteractiveTangentVisibilityGraphCalculator visibilityGraphGenerator = new InteractiveTangentVisibilityGraphCalculator(addedPolygons,
                                                                                                activePolygons,
                                                                                                VisibilityGraph);
                 visibilityGraphGenerator.Run();
@@ -1402,7 +1365,6 @@ namespace Microsoft.AGL.Routing {
         /// </summary>
         /// <param name="point"></param>
         /// <returns></returns>
-        [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Polyline")]
         public Polyline GetHitLoosePolyline(Point point) {
             if (ObstacleCalculator.IsEmpty() || ObstacleCalculator.RootOfLooseHierarchy == null)
                 return null;
@@ -1444,8 +1406,6 @@ namespace Microsoft.AGL.Routing {
         /// </summary>
         /// <param name="port"></param>
         /// <param name="sourceLoosePolylinePar"></param>
-        [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "polyline"),
-         SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Polyline")]
         public void SetSourcePortAndSourceLoosePolyline(Port port, Polyline sourceLoosePolylinePar) {
             SourceLoosePolyline = sourceLoosePolylinePar;
             sourcePort = port;
@@ -1467,9 +1427,7 @@ namespace Microsoft.AGL.Routing {
         /// <summary>
         /// 
         /// </summary>
-        protected override void RunInternal() {
-            CalculateWholeTangentVisibilityGraph();
-        }
+        protected override void RunInternal() => CalculateWholeTangentVisibilityGraph();
 
         internal void CalculateWholeTangentVisibilityGraph() {
             VisibilityGraph = new VisibilityGraph();
@@ -1487,7 +1445,7 @@ namespace Microsoft.AGL.Routing {
                 {ConeAngle = ConeSpannerAngle};
             }
             else {
-                visibilityGraphGenerator = new InteractiveTangentVisibilityGraphCalculator(new List<Polygon>(),
+                visibilityGraphGenerator = new InteractiveTangentVisibilityGraphCalculator([],
                                                                                            activePolygons,
                                                                                            visibilityGraph);
             }
@@ -1501,7 +1459,6 @@ namespace Microsoft.AGL.Routing {
         ///<param name="smooth"></param>
         ///<param name="smoothedPolyline"></param>
         ///<returns></returns>
-        [SuppressMessage("Microsoft.Performance", "CA1800:DoNotCastUnnecessarily")]
         public ICurve RouteSplineFromPortToPortWhenTheWholeGraphIsReady(Port sourcePortLocal,
                                                                           Port targetPortLocal, bool smooth, out SmoothedPolyline smoothedPolyline) {
             bool reversed = (sourcePortLocal is FloatingPort && targetPortLocal is CurvePort) 
@@ -1533,9 +1490,8 @@ namespace Microsoft.AGL.Routing {
                                                   Curve.PointRelativeToCurveLocation(sourcePort.Location,
                                                                                      TargetTightPolyline) ==
                                                   PointLocation.Inside;
-            var curvePort = sourcePort as CurvePort;
             ICurve curve;
-            if (curvePort != null) {
+            if (sourcePort is CurvePort curvePort) {
                 StartPointOfEdgeRouting = !targetIsInsideOfSourceTightPolyline
                                               ? TakeBoundaryPortOutsideOfItsLoosePolyline(curvePort.Curve,
                                                                                           curvePort.Parameter,
@@ -1585,23 +1541,23 @@ namespace Microsoft.AGL.Routing {
         }
 
         void BuildHook(HookUpAnywhereFromInsidePort port) {
-            var curve = port.Curve;
+            ICurve curve = port.Curve;
             //creating a hook
-            var ellipse = new Ellipse(port.HookSize, port.HookSize, _polyline.End);
-            var intersections = Curve.GetAllIntersections(curve, ellipse, true).ToArray();
+            Ellipse ellipse = new Ellipse(port.HookSize, port.HookSize, _polyline.End);
+            IntersectionInfo[] intersections = Curve.GetAllIntersections(curve, ellipse, true).ToArray();
             Debug.Assert(intersections.Length == 2);
             if (Point.GetTriangleOrientation(intersections[0].IntersectionPoint, _polyline.End, _polyline.EndPoint.Prev.Point) == TriangleOrientation.Counterclockwise)
                 intersections.Reverse(); //so the [0] point is to the left of the Polyline
 
-            var polylineTangent = (_polyline.End - _polyline.EndPoint.Prev.Point).Normalize();
+            Point polylineTangent = (_polyline.End - _polyline.EndPoint.Prev.Point).Normalize();
 
-            var tan0 = curve.Derivative(intersections[0].Par0).Normalize();
-            var prj0 = tan0 * polylineTangent;
+            Point tan0 = curve.Derivative(intersections[0].Par0).Normalize();
+            double prj0 = tan0 * polylineTangent;
             if (Math.Abs(prj0) < 0.2)
                 ExtendPolyline(tan0, intersections[0], polylineTangent, port);
             else {
-                var tan1 = curve.Derivative(intersections[1].Par0).Normalize();
-                var prj1 = tan1 * polylineTangent;
+                Point tan1 = curve.Derivative(intersections[1].Par0).Normalize();
+                double prj1 = tan1 * polylineTangent;
                 if (prj1 < prj0)
                     ExtendPolyline(tan1, intersections[1], polylineTangent, port);
                 else
@@ -1612,13 +1568,12 @@ namespace Microsoft.AGL.Routing {
 
         void ExtendPolyline(Point tangentAtIntersection, IntersectionInfo x, Point polylineTangent, HookUpAnywhereFromInsidePort port) {
 
-            var normal=tangentAtIntersection.Rotate(Math.PI/2);
+            Point normal =tangentAtIntersection.Rotate(Math.PI/2);
             if(normal*polylineTangent<0)
                 normal=-normal;
 
-            var pointBeforeLast = x.IntersectionPoint + normal * port.HookSize;
-            Point pointAfterX;
-            if (!Point.LineLineIntersection(pointBeforeLast, pointBeforeLast+tangentAtIntersection, _polyline.End, _polyline.End+polylineTangent, out pointAfterX))
+            Point pointBeforeLast = x.IntersectionPoint + normal * port.HookSize;
+            if (!Point.LineLineIntersection(pointBeforeLast, pointBeforeLast + tangentAtIntersection, _polyline.End, _polyline.End + polylineTangent, out Point pointAfterX))
                 return;
 
             _polyline.AddPoint(pointAfterX);
@@ -1631,19 +1586,19 @@ namespace Microsoft.AGL.Routing {
                 PolylinePoint lastPointInside = GetLastPointInsideOfCurveOnPolyline(port.Curve);
                 lastPointInside.Next.Next = null;
                 _polyline.EndPoint=lastPointInside.Next;
-                var dir = lastPointInside.Next.Point - lastPointInside.Point;
+                Point dir = lastPointInside.Next.Point - lastPointInside.Point;
                 dir = dir.Normalize()*port.Curve.BoundingBox.Diagonal; //make it a long vector
-                var dir0 = dir.Rotate(-port.AdjustmentAngle);
-                var dir1 = dir.Rotate(port.AdjustmentAngle);
-                var rx=Curve.CurveCurveIntersectionOne(port.Curve, new LineSegment(lastPointInside.Point, lastPointInside.Point+dir0), true);
-                var lx=Curve.CurveCurveIntersectionOne(port.Curve, new LineSegment(lastPointInside.Point, lastPointInside.Point+dir1), true);
+                Point dir0 = dir.Rotate(-port.AdjustmentAngle);
+                Point dir1 = dir.Rotate(port.AdjustmentAngle);
+                IntersectionInfo rx =Curve.CurveCurveIntersectionOne(port.Curve, new LineSegment(lastPointInside.Point, lastPointInside.Point+dir0), true);
+                IntersectionInfo lx =Curve.CurveCurveIntersectionOne(port.Curve, new LineSegment(lastPointInside.Point, lastPointInside.Point+dir1), true);
                 if (rx == null || lx == null) return;
-                   //this.ShowPolylineAndObstacles(Polyline, new LineSegment(lastPointInside.Point, lastPointInside.Point+dir0), new LineSegment(lastPointInside.Point, rerPoint+dir1), port.Curve);
+                //this.ShowPolylineAndObstacles(Polyline, new LineSegment(lastPointInside.Point, lastPointInside.Point+dir0), new LineSegment(lastPointInside.Point, rerPoint+dir1), port.Curve);
 
-                var trimmedCurve = GetTrimmedCurveForHookingUpAnywhere(port.Curve, lastPointInside, rx, lx);
-                var newLastPoint = trimmedCurve[trimmedCurve.ClosestParameter(lastPointInside.Point)];
+                ICurve trimmedCurve = GetTrimmedCurveForHookingUpAnywhere(port.Curve, lastPointInside, rx, lx);
+                Point newLastPoint = trimmedCurve[trimmedCurve.ClosestParameter(lastPointInside.Point)];
                 if (!LineAvoidsTightHierarchy(new LineSegment(lastPointInside.Point, newLastPoint), SourceTightPolyline, null)) {
-                    var xx=Curve.CurveCurveIntersectionOne(port.Curve, new LineSegment(lastPointInside.Point, lastPointInside.Next.Point), false);
+                    IntersectionInfo xx =Curve.CurveCurveIntersectionOne(port.Curve, new LineSegment(lastPointInside.Point, lastPointInside.Next.Point), false);
                     if (xx == null) return;
                         //this.ShowPolylineAndObstacles(Polyline, port.Curve);
                     _polyline.EndPoint.Point = xx.IntersectionPoint;
@@ -1657,7 +1612,7 @@ namespace Microsoft.AGL.Routing {
         }
 
         static ICurve GetTrimmedCurveForHookingUpAnywhere(ICurve curve, PolylinePoint lastPointInside, IntersectionInfo x0, IntersectionInfo x1) {
-            var clockwise =
+            bool clockwise =
                 Point.GetTriangleOrientation(x1.IntersectionPoint, x0.IntersectionPoint, lastPointInside.Point) ==
                 TriangleOrientation.Clockwise;
 
@@ -1684,7 +1639,7 @@ namespace Microsoft.AGL.Routing {
         }
 
         PolylinePoint GetLastPointInsideOfCurveOnPolyline(ICurve curve) {
-            for (var p = _polyline.EndPoint.Prev; p != null; p = p.Prev) {
+            for (PolylinePoint p = _polyline.EndPoint.Prev; p != null; p = p.Prev) {
                 if (p.Prev == null)
                     return p;
                 if (Curve.PointRelativeToCurveLocation(p.Point, curve) == PointLocation.Inside)
@@ -1698,26 +1653,24 @@ namespace Microsoft.AGL.Routing {
         Polyline GetShortestPolylineToMulitpleTargets(VisibilityVertex sourceVisVertex, IEnumerable<VisibilityVertex> targets) {
             CleanTheGraphForShortestPath();
             //ShowPolylineAndObstacles(targets.Select(t=>new Ellipse(3,3,t.Point)).ToArray());
-            var pathCalc = new SingleSourceMultipleTargetsShortestPathOnVisibilityGraph(sourceVisVertex, targets, VisibilityGraph);// { dd = ShowPolylineAndObstacles };
+            SingleSourceMultipleTargetsShortestPathOnVisibilityGraph pathCalc = new SingleSourceMultipleTargetsShortestPathOnVisibilityGraph(sourceVisVertex, targets, VisibilityGraph);// { dd = ShowPolylineAndObstacles };
             IEnumerable<VisibilityVertex> path = pathCalc.GetPath();
             if (path == null)
                 return null;
 
 
             Debug.Assert(path.First() == sourceVisVertex && targets.Contains(path.Last()));
-            var ret = new Polyline();
+            Polyline ret = new Polyline();
             foreach (VisibilityVertex v in path)
                 ret.AddPoint(v.Point);
             return RemoveCollinearVertices(ret);
             
         }
 
-        IEnumerable<VisibilityVertex> Targets(Polyline targetLoosePoly) {
-            return new List<VisibilityVertex> (targetLoosePoly.Select(p=>visibilityGraph.FindVertex(p))); 
-        }
+        IEnumerable<VisibilityVertex> Targets(Polyline targetLoosePoly) => new List<VisibilityVertex>(targetLoosePoly.Select(p => visibilityGraph.FindVertex(p)));
 
         void ExtendVisibilityGraphFromFloatingSourcePort() {
-            var fp = sourcePort as FloatingPort;
+            FloatingPort fp = sourcePort as FloatingPort;
             Debug.Assert(fp != null);
             StartPointOfEdgeRouting = fp.Location;
             if (UseSpanner)
@@ -1748,16 +1701,13 @@ namespace Microsoft.AGL.Routing {
         /// <summary>
         /// </summary>
         /// <returns></returns>
-        [SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
-        public VisibilityGraph GetVisibilityGraph() {
-            return VisibilityGraph;
-        }
+        public VisibilityGraph GetVisibilityGraph() => VisibilityGraph;
 
         ///<summary>
         ///</summary>
         ///<param name="portLocationsPointSet"></param>
         internal void CalculatePortVisibilityGraph(Set<Point> portLocationsPointSet) {
-            var coneSpanner = new ConeSpannerForPortLocations(
+            ConeSpannerForPortLocations coneSpanner = new ConeSpannerForPortLocations(
                 ObstacleCalculator.LooseObstacles, VisibilityGraph, portLocationsPointSet)
                               {ConeAngle = ConeSpannerAngle};
             coneSpanner.Run();
@@ -1783,11 +1733,7 @@ namespace Microsoft.AGL.Routing {
         }
 #endif
 
-        internal void AddActivePolygons(IEnumerable<Polygon> polygons) {
-            activePolygons.AddRange(polygons);
-        }
-        internal void ClearActivePolygons() {
-            activePolygons.Clear();
-        }
+        internal void AddActivePolygons(IEnumerable<Polygon> polygons) => activePolygons.AddRange(polygons);
+        internal void ClearActivePolygons() => activePolygons.Clear();
     }
 }

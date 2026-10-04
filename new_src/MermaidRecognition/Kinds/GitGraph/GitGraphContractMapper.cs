@@ -1,8 +1,9 @@
 using System.Text.RegularExpressions;
-using MermaidRecognition.Class;
-using MermaidRecognition.Contract;
 
-namespace MermaidRecognition.GitGraph;
+using MermaidRecognition.Contract;
+using MermaidRecognition.Kinds.Class;
+
+namespace MermaidRecognition.Kinds.GitGraph;
 
 /// <summary>
 /// Maps classified git graph source statements into <see cref="DiagramContract"/> nodes and edges (L3 G4).
@@ -89,10 +90,12 @@ public static class GitGraphContractMapper
             {
                 if (TryParseBranchName(RawLine, out string BranchName))
                 {
-                    NodeContract Node = new NodeContract();
-                    Node.Id = BranchName;
-                    Node.Label = BranchName;
-                    Node.Shape = "branch";
+                    NodeContract Node = new NodeContract
+                    {
+                        Id = BranchName,
+                        Label = BranchName,
+                        Shape = "branch"
+                    };
                     Contract.NodesMutable.Add(Node);
 
                     if (PreviousNodeId is not null)
@@ -118,10 +121,12 @@ public static class GitGraphContractMapper
         ref string? PreviousNodeId,
         ref int EdgeIndex)
     {
-        NodeContract Node = new NodeContract();
-        Node.Id = NodeId;
-        Node.Label = NodeId;
-        Node.Shape = "commit";
+        NodeContract Node = new NodeContract
+        {
+            Id = NodeId,
+            Label = NodeId,
+            Shape = "commit"
+        };
         Contract.NodesMutable.Add(Node);
 
         if (PreviousNodeId is not null)
@@ -134,11 +139,13 @@ public static class GitGraphContractMapper
 
     static void AddEdge(DiagramContract Contract, string SourceId, string TargetId, ref int EdgeIndex)
     {
-        EdgeContract Edge = new EdgeContract();
-        Edge.SourceId = SourceId;
-        Edge.TargetId = TargetId;
-        Edge.CreationIndex = EdgeIndex;
-        Edge.Id = "L-" + SourceId + "-" + TargetId + "-" + EdgeIndex.ToString();
+        EdgeContract Edge = new EdgeContract
+        {
+            SourceId = SourceId,
+            TargetId = TargetId,
+            CreationIndex = EdgeIndex,
+            Id = "L-" + SourceId + "-" + TargetId + "-" + EdgeIndex.ToString()
+        };
         EdgeIndex++;
         Contract.EdgesMutable.Add(Edge);
     }

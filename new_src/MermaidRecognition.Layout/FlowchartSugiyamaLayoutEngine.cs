@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
+
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves;
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
 using MermaidRecognition.Layout.Sugiyama.Layout.Layered;
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
 using MermaidRecognition.Render;
+using MermaidRecognition.Kinds.Flowchart;
 
 namespace MermaidRecognition.Layout;
 
@@ -47,7 +48,7 @@ public static class FlowchartSugiyamaLayoutEngine
         LayeredLayout Layout = new LayeredLayout(Graph, Settings);
         Layout.Run();
 
-        List<FlowchartLayoutNodeBounds> RawBounds = new List<FlowchartLayoutNodeBounds>();
+        List<FlowchartLayoutNodeBounds> RawBounds = [];
 
         foreach (KeyValuePair<string, Node> Entry in NodesById)
         {
@@ -84,9 +85,11 @@ public static class FlowchartSugiyamaLayoutEngine
 
     private static SugiyamaLayoutSettings CreateSettings(DiagramContract Contract, FlowchartRenderOptions Options)
     {
-        SugiyamaLayoutSettings Settings = new SugiyamaLayoutSettings();
-        Settings.LayerSeparation = Options.RankSpacingPx;
-        Settings.NodeSeparation = Options.NodeSpacingPx;
+        SugiyamaLayoutSettings Settings = new SugiyamaLayoutSettings
+        {
+            LayerSeparation = Options.RankSpacingPx,
+            NodeSeparation = Options.NodeSpacingPx
+        };
         return Settings;
     }
 }

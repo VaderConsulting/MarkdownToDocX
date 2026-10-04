@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 
-namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
+namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
+{
     /// <summary>
     /// Following "Improving Layered Graph Layouts with Edge Bundling" and
     /// "Two polynomial time algorithms for the bundle-Line crossing minimization problem"
@@ -26,9 +28,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// Reorder only points having identical nodePositions
         /// </summary>
         internal static void UpdateLayerArrays(ProperLayeredGraph properLayeredGraph, LayerArrays layerArrays,
-                                               Dictionary<int, Point> nodePositions) {
-            new MetroMapOrdering(properLayeredGraph, layerArrays, nodePositions).UpdateLayerArrays();
-        }
+                                               Dictionary<int, Point> nodePositions) => new MetroMapOrdering(properLayeredGraph, layerArrays, nodePositions).UpdateLayerArrays();
 
         /// <summary>
         /// Reorder virtual nodes between the same pair of real nodes
@@ -40,7 +40,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         static Dictionary<int, Point> BuildInitialNodePositions(ProperLayeredGraph properLayeredGraph,
                                                                 LayerArrays layerArrays) {
-            var result = new Dictionary<int, Point>();
+            Dictionary<int, Point> result = new Dictionary<int, Point>();
             for (int i = 0; i < layerArrays.Layers.Length; i++) {
                 int prev = 0, curr = 0;
                 while (curr < layerArrays.Layers[i].Length) {
@@ -77,12 +77,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
         Dictionary<Point, List<int>> CreateInitialOrdering() {
-            var initialOrdering = new Dictionary<Point, List<int>>();
+            Dictionary<Point, List<int>> initialOrdering = new Dictionary<Point, List<int>>();
             for (int i = 0; i < layerArrays.Layers.Length; i++)
                 for (int j = 0; j < layerArrays.Layers[i].Length; j++) {
                     int node = layerArrays.Layers[i][j];
                     if (!initialOrdering.ContainsKey(nodePositions[node]))
-                        initialOrdering[nodePositions[node]] = new List<int>();
+                        initialOrdering[nodePositions[node]] = [];
                     initialOrdering[nodePositions[node]].Add(node);
                 }
 
@@ -92,8 +92,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         Dictionary<Point, List<int>> BuildOrdering(Dictionary<Point, List<int>> initialOrdering) {
             //run through nodes points and build order
-            var result = new Dictionary<Point, List<int>>();
-            var reverseOrder = new Dictionary<int, int>();
+            Dictionary<Point, List<int>> result = new Dictionary<Point, List<int>>();
+            Dictionary<int, int> reverseOrder = new Dictionary<int, int>();
             for (int i = 0; i < layerArrays.Layers.Length; i++)
                 for (int j = 0; j < layerArrays.Layers[i].Length; j++) {
                     int node = layerArrays.Layers[i][j];
@@ -117,46 +117,48 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             return result;
         }
 
-        Comparison<int> Comparison(Dictionary<int, int> inverseToOrder) {
-            return delegate(int node1, int node2) {
-                       Debug.Assert(properLayeredGraph.IsVirtualNode(node1) &&
-                                    properLayeredGraph.IsVirtualNode(node2));
+        Comparison<int> Comparison(Dictionary<int, int> inverseToOrder) => delegate (int node1, int node2)
+        {
+            Debug.Assert(properLayeredGraph.IsVirtualNode(node1) &&
+                         properLayeredGraph.IsVirtualNode(node2));
 
-                       int succ1 = properLayeredGraph.Succ(node1).ElementAt(0);
-                       int succ2 = properLayeredGraph.Succ(node2).ElementAt(0);
-                       int pred1 = properLayeredGraph.Pred(node1).ElementAt(0);
-                       int pred2 = properLayeredGraph.Pred(node2).ElementAt(0);
+            int succ1 = properLayeredGraph.Succ(node1).ElementAt(0);
+            int succ2 = properLayeredGraph.Succ(node2).ElementAt(0);
+            int pred1 = properLayeredGraph.Pred(node1).ElementAt(0);
+            int pred2 = properLayeredGraph.Pred(node2).ElementAt(0);
 
-                       Point succPoint1 = nodePositions[succ1];
-                       Point succPoint2 = nodePositions[succ2];
-                       Point predPoint1 = nodePositions[pred1];
-                       Point predPoint2 = nodePositions[pred2];
+            Point succPoint1 = nodePositions[succ1];
+            Point succPoint2 = nodePositions[succ2];
+            Point predPoint1 = nodePositions[pred1];
+            Point predPoint2 = nodePositions[pred2];
 
-                       if (succPoint1 != succPoint2) {
-                           if (predPoint1 != predPoint2)
-                               return predPoint1.CompareTo(predPoint2);
-                           return succPoint1.CompareTo(succPoint2);
-                       }
-                       if (properLayeredGraph.IsVirtualNode(succ1)) {
-                           if (predPoint1 != predPoint2)
-                               return predPoint1.CompareTo(predPoint2);
+            if (succPoint1 != succPoint2)
+            {
+                if (predPoint1 != predPoint2)
+                    return predPoint1.CompareTo(predPoint2);
+                return succPoint1.CompareTo(succPoint2);
+            }
+            if (properLayeredGraph.IsVirtualNode(succ1))
+            {
+                if (predPoint1 != predPoint2)
+                    return predPoint1.CompareTo(predPoint2);
 
-                           int o1 = inverseToOrder[succ1];
-                           int o2 = inverseToOrder[succ2];
-                           Debug.Assert(o1 != -1 && o2 != -1);
-                           return (o1.CompareTo(o2));
-                       }
-                       while (nodePositions[pred1] == nodePositions[pred2] &&
-                              properLayeredGraph.IsVirtualNode(pred1)) {
-                           pred1 = properLayeredGraph.Pred(pred1).ElementAt(0);
-                           pred2 = properLayeredGraph.Pred(pred2).ElementAt(0);
-                       }
+                int o1 = inverseToOrder[succ1];
+                int o2 = inverseToOrder[succ2];
+                Debug.Assert(o1 != -1 && o2 != -1);
+                return (o1.CompareTo(o2));
+            }
+            while (nodePositions[pred1] == nodePositions[pred2] &&
+                   properLayeredGraph.IsVirtualNode(pred1))
+            {
+                pred1 = properLayeredGraph.Pred(pred1).ElementAt(0);
+                pred2 = properLayeredGraph.Pred(pred2).ElementAt(0);
+            }
 
-                       if (nodePositions[pred1] == nodePositions[pred2])
-                           return node1.CompareTo(node2);
-                       return nodePositions[pred1].CompareTo(nodePositions[pred2]);
-                   };
-        }
+            if (nodePositions[pred1] == nodePositions[pred2])
+                return node1.CompareTo(node2);
+            return nodePositions[pred1].CompareTo(nodePositions[pred2]);
+        };
 
         void RestoreLayerArrays(Dictionary<Point, List<int>> ordering) {
             for (int i = 0; i < layerArrays.Layers.Length; i++) {

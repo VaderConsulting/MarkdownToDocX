@@ -1,7 +1,8 @@
 using System.Text.RegularExpressions;
+
 using MermaidRecognition.Contract;
 
-namespace MermaidRecognition.Class;
+namespace MermaidRecognition.Kinds.Class;
 
 /// <summary>
 /// Parses Mermaid class diagram <c>click</c> interaction directives (href, call, tooltip, link target).
@@ -158,7 +159,7 @@ public static class ClassClickParser
 
     static List<string> ExtractQuotedStrings(string Text)
     {
-        List<string> Results = new List<string>();
+        List<string> Results = [];
         int Index = 0;
         while (Index < Text.Length)
         {
@@ -192,14 +193,11 @@ public static class ClassClickParser
         return Results;
     }
 
-    static void AddUnparseableDiagnostic(string Line, int LineIndex, ClassDb Database, string TargetId)
-    {
-        Database.DiagnosticsMutable.Add(
+    static void AddUnparseableDiagnostic(string Line, int LineIndex, ClassDb Database, string TargetId) => Database.DiagnosticsMutable.Add(
             new MermaidDiagnostic(
                 MermaidDiagnosticSeverity.Warning,
                 "class.click-unparseable",
                 "Click directive could not be parsed; interaction ignored for export.",
                 new MermaidSourceSpan(0, 0, LineIndex, 0, LineIndex, Line.Length),
                 TargetId));
-    }
 }

@@ -105,10 +105,7 @@ public static class FlowchartRichLabelSvgWriter
     /// <summary>
     /// Normalises rich label markup to the plain multi-line text used for layout and rendering.
     /// </summary>
-    public static string NormaliseRichLabelText(string RawLabel)
-    {
-        return NormaliseLabelForRender(RawLabel);
-    }
+    public static string NormaliseRichLabelText(string RawLabel) => NormaliseLabelForRender(RawLabel);
 
     /// <summary>
     /// Strips HTML and Markdown styling to the visible label text used for layout measurement.
@@ -117,7 +114,7 @@ public static class FlowchartRichLabelSvgWriter
     {
         string Normalised = NormaliseLabelForRender(RawLabel);
         List<string> Lines = SplitLines(Normalised);
-        List<string> PlainLines = new List<string>();
+        List<string> PlainLines = [];
         foreach (string Line in Lines)
         {
             List<StyledRun> Runs = TokeniseInlineContent(Line);
@@ -387,7 +384,7 @@ public static class FlowchartRichLabelSvgWriter
         MatchCollection Rows = TableRowPattern.Matches(Result);
         if (Rows.Count > 0)
         {
-            List<string> TableLines = new List<string>();
+            List<string> TableLines = [];
             foreach (Match RowMatch in Rows)
             {
                 MatchCollection Cells = TableCellPattern.Matches(RowMatch.Groups[1].Value);
@@ -396,7 +393,7 @@ public static class FlowchartRichLabelSvgWriter
                     continue;
                 }
 
-                List<string> CellTexts = new List<string>();
+                List<string> CellTexts = [];
                 foreach (Match CellMatch in Cells)
                 {
                     CellTexts.Add(StripTags(CellMatch.Groups[1].Value).Trim());
@@ -418,7 +415,7 @@ public static class FlowchartRichLabelSvgWriter
     private static List<string> SplitLines(string Normalised)
     {
         string[] RawLines = Normalised.Split('\n');
-        List<string> Lines = new List<string>();
+        List<string> Lines = [];
         foreach (string RawLine in RawLines)
         {
             string Trimmed = RawLine.Trim();
@@ -500,7 +497,7 @@ public static class FlowchartRichLabelSvgWriter
 
     private static List<StyledRun> TokeniseInlineContent(string Line)
     {
-        List<StyledRun> Runs = new List<StyledRun>();
+        List<StyledRun> Runs = [];
         TokeniseHtmlAndMarkdown(Line, DefaultFontWeight: "normal", DefaultFill: null, Runs);
         if (Runs.Count == 0)
         {
@@ -691,7 +688,7 @@ public static class FlowchartRichLabelSvgWriter
         string? FontStyle,
         List<StyledRun> Runs)
     {
-        List<StyledRun> NestedRuns = new List<StyledRun>();
+        List<StyledRun> NestedRuns = [];
         TokeniseHtmlAndMarkdown(NestedText, DefaultFontWeight, DefaultFill, NestedRuns);
         foreach (StyledRun NestedRun in NestedRuns)
         {
@@ -782,10 +779,7 @@ public static class FlowchartRichLabelSvgWriter
         return true;
     }
 
-    private static string StripTags(string Value)
-    {
-        return Regex.Replace(Value, "<[^>]+>", string.Empty);
-    }
+    private static string StripTags(string Value) => Regex.Replace(Value, "<[^>]+>", string.Empty);
 
     private static string EscapeXml(string Value)
     {

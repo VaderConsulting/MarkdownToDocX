@@ -13,10 +13,7 @@ public sealed class ImageInline : InlineNode
     public string Title { get; }
 
     /// <summary>Alias for SourceUri for backward compatibility.</summary>
-    public string Url
-    {
-        get { return SourceUri; }
-    }
+    public string Url => SourceUri;
 
     public ImageInline(string SourceUri, string AltText = "", string Title = "")
     {

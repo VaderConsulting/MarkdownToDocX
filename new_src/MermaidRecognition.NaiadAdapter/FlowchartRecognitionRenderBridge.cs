@@ -1,7 +1,9 @@
 using System.Text;
-using MermaidRecognition;
+
+using MermaidRecognition.Core;
 using MermaidRecognition.Detection;
 using MermaidRecognition.Layout;
+
 using MermaidSharp;
 using MermaidSharp.Rendering;
 
@@ -37,10 +39,7 @@ public static class FlowchartRecognitionRenderBridge
     /// <param name="Options">Naiad render options (legacy fallback only).</param>
     /// <param name="Svg">Rendered SVG XML when this method returns true.</param>
     /// <returns>True when recognition + render succeeded for a flowchart.</returns>
-    public static bool TryRenderFlowchartSvg(string Source, RenderOptions Options, out string Svg)
-    {
-        return TryRenderFlowchartSvg(Source, Options, UseNativeSugiyamaRenderer: true, out Svg);
-    }
+    public static bool TryRenderFlowchartSvg(string Source, RenderOptions Options, out string Svg) => TryRenderFlowchartSvg(Source, Options, UseNativeSugiyamaRenderer: true, out Svg);
 
     /// <summary>
     /// Parses with <see cref="MermaidRecognizer"/> and renders SVG when the kind is flowchart.

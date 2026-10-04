@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Render;
 
 namespace MermaidRecognition.Layout;
@@ -173,7 +174,7 @@ public static class FlowchartMultiIncomingTargetPortAllocator
         FlowchartSpineLayoutContext? SpineContext,
         string TargetNodeId)
     {
-        List<(string SourceId, double SortKey)> IncomingSources = new List<(string SourceId, double SortKey)>();
+        List<(string SourceId, double SortKey)> IncomingSources = [];
         if (!BoundsById.TryGetValue(TargetNodeId, out FlowchartLayoutNodeBounds TargetBounds))
         {
             return IncomingSources;

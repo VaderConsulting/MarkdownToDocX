@@ -1,17 +1,18 @@
 using System.Text.RegularExpressions;
-using MermaidRecognition.Contract;
-using MermaidRecognition.Class;
-using MermaidRecognition.Er;
-using MermaidRecognition.Flowchart;
-using MermaidRecognition.Gantt;
-using MermaidRecognition.GitGraph;
-using MermaidRecognition.KindRecognition;
-using MermaidRecognition.Mindmap;
-using MermaidRecognition.Pie;
-using MermaidRecognition.Sequence;
-using MermaidRecognition.State;
 
-namespace MermaidRecognition;
+using MermaidRecognition.Contract;
+using MermaidRecognition.Kinds.Er;
+using MermaidRecognition.Kinds.LinePattern;
+using MermaidRecognition.Kinds.Pie;
+using MermaidRecognition.Kinds.Sequence;
+using MermaidRecognition.Kinds.Class;
+using MermaidRecognition.Kinds.GitGraph;
+using MermaidRecognition.Kinds.Gantt;
+using MermaidRecognition.Kinds.Flowchart;
+using MermaidRecognition.Kinds.Mindmap;
+using MermaidRecognition.Kinds.State;
+
+namespace MermaidRecognition.Core;
 
 /// <summary>
 /// Maps Mermaid detector ids to kind recognisers.
@@ -188,97 +189,121 @@ public static class KindRecognizerRegistry
 
     static KindLinePattern GanttSectionPattern()
     {
-        KindLinePattern Pattern = new KindLinePattern();
-        Pattern.LineTypeId = "gantt.section";
-        Pattern.Pattern = new Regex(@"^\s*section\s+", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        KindLinePattern Pattern = new KindLinePattern
+        {
+            LineTypeId = "gantt.section",
+            Pattern = new Regex(@"^\s*section\s+", RegexOptions.IgnoreCase | RegexOptions.Compiled)
+        };
         return Pattern;
     }
 
     static KindLinePattern GanttDateFormatPattern()
     {
-        KindLinePattern Pattern = new KindLinePattern();
-        Pattern.LineTypeId = "gantt.dateFormat";
-        Pattern.Pattern = new Regex(@"^\s*dateFormat\s+", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        KindLinePattern Pattern = new KindLinePattern
+        {
+            LineTypeId = "gantt.dateFormat",
+            Pattern = new Regex(@"^\s*dateFormat\s+", RegexOptions.IgnoreCase | RegexOptions.Compiled)
+        };
         return Pattern;
     }
 
     static KindLinePattern GanttInclusiveEndDatesPattern()
     {
-        KindLinePattern Pattern = new KindLinePattern();
-        Pattern.LineTypeId = "gantt.inclusiveEndDates";
-        Pattern.Pattern = new Regex(@"^\s*inclusiveEndDates\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        KindLinePattern Pattern = new KindLinePattern
+        {
+            LineTypeId = "gantt.inclusiveEndDates",
+            Pattern = new Regex(@"^\s*inclusiveEndDates\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled)
+        };
         return Pattern;
     }
 
     static KindLinePattern GanttExcludesPattern()
     {
-        KindLinePattern Pattern = new KindLinePattern();
-        Pattern.LineTypeId = "gantt.excludes";
-        Pattern.Pattern = new Regex(@"^\s*excludes\s+", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        KindLinePattern Pattern = new KindLinePattern
+        {
+            LineTypeId = "gantt.excludes",
+            Pattern = new Regex(@"^\s*excludes\s+", RegexOptions.IgnoreCase | RegexOptions.Compiled)
+        };
         return Pattern;
     }
 
     static KindLinePattern GanttTaskPattern()
     {
-        KindLinePattern Pattern = new KindLinePattern();
-        Pattern.LineTypeId = "gantt.task";
-        Pattern.Pattern = new Regex(@"^\s*\w.+\s*:\s*\w", RegexOptions.Compiled);
+        KindLinePattern Pattern = new KindLinePattern
+        {
+            LineTypeId = "gantt.task",
+            Pattern = new Regex(@"^\s*\w.+\s*:\s*\w", RegexOptions.Compiled)
+        };
         return Pattern;
     }
 
     static KindLinePattern GitGraphCommitPattern()
     {
-        KindLinePattern Pattern = new KindLinePattern();
-        Pattern.LineTypeId = "gitGraph.commit";
-        Pattern.Pattern = new Regex(@"^\s*commit\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        KindLinePattern Pattern = new KindLinePattern
+        {
+            LineTypeId = "gitGraph.commit",
+            Pattern = new Regex(@"^\s*commit\b", RegexOptions.IgnoreCase | RegexOptions.Compiled)
+        };
         return Pattern;
     }
 
     static KindLinePattern GitGraphBranchPattern()
     {
-        KindLinePattern Pattern = new KindLinePattern();
-        Pattern.LineTypeId = "gitGraph.branch";
-        Pattern.Pattern = new Regex(@"^\s*branch\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        KindLinePattern Pattern = new KindLinePattern
+        {
+            LineTypeId = "gitGraph.branch",
+            Pattern = new Regex(@"^\s*branch\b", RegexOptions.IgnoreCase | RegexOptions.Compiled)
+        };
         return Pattern;
     }
 
     static KindLinePattern GitGraphCheckoutPattern()
     {
-        KindLinePattern Pattern = new KindLinePattern();
-        Pattern.LineTypeId = "gitGraph.branch";
-        Pattern.Pattern = new Regex(@"^\s*checkout\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        KindLinePattern Pattern = new KindLinePattern
+        {
+            LineTypeId = "gitGraph.branch",
+            Pattern = new Regex(@"^\s*checkout\b", RegexOptions.IgnoreCase | RegexOptions.Compiled)
+        };
         return Pattern;
     }
 
     static KindLinePattern GitGraphSwitchPattern()
     {
-        KindLinePattern Pattern = new KindLinePattern();
-        Pattern.LineTypeId = "gitGraph.branch";
-        Pattern.Pattern = new Regex(@"^\s*switch\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        KindLinePattern Pattern = new KindLinePattern
+        {
+            LineTypeId = "gitGraph.branch",
+            Pattern = new Regex(@"^\s*switch\b", RegexOptions.IgnoreCase | RegexOptions.Compiled)
+        };
         return Pattern;
     }
 
     static KindLinePattern GitGraphMergePattern()
     {
-        KindLinePattern Pattern = new KindLinePattern();
-        Pattern.LineTypeId = "gitGraph.commit";
-        Pattern.Pattern = new Regex(@"^\s*merge\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        KindLinePattern Pattern = new KindLinePattern
+        {
+            LineTypeId = "gitGraph.commit",
+            Pattern = new Regex(@"^\s*merge\b", RegexOptions.IgnoreCase | RegexOptions.Compiled)
+        };
         return Pattern;
     }
 
     static KindLinePattern GitGraphAccDescrPattern()
     {
-        KindLinePattern Pattern = new KindLinePattern();
-        Pattern.LineTypeId = "gitGraph.accDescr";
-        Pattern.Pattern = new Regex(@"^\s*accDescr\s*:", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        KindLinePattern Pattern = new KindLinePattern
+        {
+            LineTypeId = "gitGraph.accDescr",
+            Pattern = new Regex(@"^\s*accDescr\s*:", RegexOptions.IgnoreCase | RegexOptions.Compiled)
+        };
         return Pattern;
     }
 
     static KindLinePattern MindmapNodePattern()
     {
-        KindLinePattern Pattern = new KindLinePattern();
-        Pattern.LineTypeId = "mindmap.node";
-        Pattern.Pattern = new Regex(@"^\s{2,}\S", RegexOptions.Compiled);
+        KindLinePattern Pattern = new KindLinePattern
+        {
+            LineTypeId = "mindmap.node",
+            Pattern = new Regex(@"^\s{2,}\S", RegexOptions.Compiled)
+        };
         return Pattern;
     }
 

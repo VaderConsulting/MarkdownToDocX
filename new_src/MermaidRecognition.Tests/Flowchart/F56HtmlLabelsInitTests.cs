@@ -1,5 +1,5 @@
 using MermaidRecognition.Config;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 
 namespace MermaidRecognition.Tests.Flowchart;
 

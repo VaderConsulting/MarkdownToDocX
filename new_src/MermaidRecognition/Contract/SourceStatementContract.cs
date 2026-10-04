@@ -9,41 +9,20 @@ public sealed class SourceStatementContract
 
     public int LineNumber
     {
-        get
-        {
-            return _LineNumber;
-        }
-        set
-        {
-            _LineNumber = value;
-        }
+        get => _LineNumber; set => _LineNumber = value;
     }
 
     private string _LineTypeId = string.Empty;
 
     public string LineTypeId
     {
-        get
-        {
-            return _LineTypeId;
-        }
-        set
-        {
-            _LineTypeId = value;
-        }
+        get => _LineTypeId; set => _LineTypeId = value;
     }
 
     private string _RawLine = string.Empty;
 
     public string RawLine
     {
-        get
-        {
-            return _RawLine;
-        }
-        set
-        {
-            _RawLine = value;
-        }
+        get => _RawLine; set => _RawLine = value;
     }
 }

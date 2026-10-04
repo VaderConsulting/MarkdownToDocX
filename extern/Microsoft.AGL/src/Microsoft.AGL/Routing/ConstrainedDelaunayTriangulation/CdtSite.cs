@@ -1,13 +1,13 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+
 using Microsoft.AGL.Core.Geometry;
 using Microsoft.AGL.Core.Geometry.Curves;
-using Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation;
 
-namespace Microsoft.AGL.Routing
+namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation
 {
     ///<summary>
     ///</summary>
@@ -27,10 +27,10 @@ namespace Microsoft.AGL.Routing
             get
             {
                 if (Edges != null)
-                    foreach (var e in Edges)
+                    foreach (CdtEdge e in Edges)
                         yield return e;
                 if (InEdges != null)
-                    foreach (var e in InEdges)
+                    foreach (CdtEdge e in InEdges)
                         yield return e;
             }
         }
@@ -48,15 +48,12 @@ namespace Microsoft.AGL.Routing
         ///<summary>
         ///</summary>
         ///<param name="isolatedSite"></param>
-        public CdtSite(Point isolatedSite)
-        {
-            Point = isolatedSite;
-        }
+        public CdtSite(Point isolatedSite) => Point = isolatedSite;
 
         internal void AddEdgeToSite(CdtEdge edge)
         {
             if (Edges == null)
-                Edges = new List<CdtEdge>();
+                Edges = [];
             Edges.Add(edge);
         }
 #if DEBUG && TEST_MSAGL
@@ -67,17 +64,14 @@ namespace Microsoft.AGL.Routing
         /// A <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
         /// </returns>
         /// <filterpriority>2</filterpriority>
-        public override string ToString()
-        {
-            return Point.ToString();
-        }
+        public override string ToString() => Point.ToString();
 #endif
 
         internal CdtEdge EdgeBetweenUpperSiteAndLowerSite(CdtSite b)
         {
             Debug.Assert(Cdt.Above(this, b) > 0);
             if (Edges != null)
-                foreach (var edge in Edges)
+                foreach (CdtEdge edge in Edges)
                     if (edge.lowerSite == b)
                         return edge;
             return null;
@@ -86,7 +80,7 @@ namespace Microsoft.AGL.Routing
         internal void AddInEdge(CdtEdge e)
         {
             if (InEdges == null)
-                InEdges = new List<CdtEdge>();
+                InEdges = [];
             InEdges.Add(e);
         }
         /// <summary>
@@ -105,10 +99,10 @@ namespace Microsoft.AGL.Routing
                 else yield break;
 
                 //going counterclockwise around the site
-                var e = edge;
+                CdtEdge e = edge;
                 do
                 {
-                    var t = e.upperSite == this ? e.CcwTriangle : e.CwTriangle;
+                    CdtTriangle t = e.upperSite == this ? e.CcwTriangle : e.CwTriangle;
                     if (t == null)
                     {
                         e = null;
@@ -122,8 +116,8 @@ namespace Microsoft.AGL.Routing
                 { //we have not done the full circle, starting again with edge but now going clockwise around the site
                     e = edge;
                     do
-                    { 
-                        var t = e.upperSite == this ? e.CwTriangle : e.CcwTriangle;
+                    {
+                        CdtTriangle t = e.upperSite == this ? e.CwTriangle : e.CcwTriangle;
                         if (t == null)
                         {
                             break;

@@ -102,25 +102,31 @@ public sealed class MarkdownToDocxConverter
         }
 
         _ProgressReporter?.Report(0, "Starting conversion");
-        string Markdown = File.ReadAllText(MarkdownPath, UTF8_NO_BOM);
-        string BasePath = Path.GetDirectoryName(MarkdownPath) ?? Environment.CurrentDirectory;
-        using (FileStream OutputStream = OpenWriteStream(OutputDocxPath))
+        string FullOutputPath = Path.GetFullPath(OutputDocxPath);
+        string DirectoryPath = Path.GetDirectoryName(FullOutputPath)!;
+        Directory.CreateDirectory(DirectoryPath);
+        string TemporaryPath = Path.Combine(DirectoryPath, ".md2docx-" + Guid.NewGuid().ToString("N") + ".tmp");
+        try
         {
-            ConvertTextToStream(Markdown, BasePath, OutputStream);
+            string Markdown = File.ReadAllText(MarkdownPath, UTF8_NO_BOM);
+            string BasePath = Path.GetDirectoryName(MarkdownPath) ?? Environment.CurrentDirectory;
+            using (FileStream OutputStream = new FileStream(TemporaryPath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None))
+            {
+                ConvertTextToStream(Markdown, BasePath, OutputStream);
+            }
+
+            // Replace only after conversion and package disposal have both succeeded.
+            File.Move(TemporaryPath, FullOutputPath, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(TemporaryPath))
+            {
+                File.Delete(TemporaryPath);
+            }
         }
 
         _ProgressReporter?.Report(100, "Complete");
-    }
-
-    private static FileStream OpenWriteStream(string OutputDocxPath)
-    {
-        string? DirectoryPath = Path.GetDirectoryName(OutputDocxPath);
-        if (!string.IsNullOrWhiteSpace(DirectoryPath))
-        {
-            Directory.CreateDirectory(DirectoryPath);
-        }
-
-        return new FileStream(OutputDocxPath, FileMode.Create, FileAccess.ReadWrite, FileShare.Read);
     }
 
     /// <summary>

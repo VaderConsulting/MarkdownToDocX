@@ -64,22 +64,22 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         #region Initialization
 
         void AllocateBundleBases() {
-            externalBases = new Dictionary<ICurve, List<BundleBase>>();
-            internalBases = new Dictionary<ICurve, List<BundleBase>>();
-            Bundles = new List<BundleInfo>();
+            externalBases = [];
+            internalBases = [];
+            Bundles = [];
 
-            foreach (var station in metroGraphData.Stations) {
+            foreach (Station station in metroGraphData.Stations) {
                 if (station.BoundaryCurve == null)
                     station.BoundaryCurve = new Ellipse(station.Radius, station.Radius, station.Position);
             }
 
-            foreach (var station in metroGraphData.Stations) {
+            foreach (Station station in metroGraphData.Stations) {
                 foreach (Station neighbor in station.Neighbors) {
                     if (station < neighbor) {
-                        var bb = new BundleBase(metroGraphData.RealEdgeCount(station, neighbor), station.BoundaryCurve, station.Position, station.IsRealNode, neighbor.SerialNumber);
+                        BundleBase bb = new BundleBase(metroGraphData.RealEdgeCount(station, neighbor), station.BoundaryCurve, station.Position, station.IsRealNode, neighbor.SerialNumber);
                         station.BundleBases[neighbor] = bb;
 
-                        var bb2 = new BundleBase(metroGraphData.RealEdgeCount(station, neighbor), neighbor.BoundaryCurve, neighbor.Position, neighbor.IsRealNode, station.SerialNumber);
+                        BundleBase bb2 = new BundleBase(metroGraphData.RealEdgeCount(station, neighbor), neighbor.BoundaryCurve, neighbor.Position, neighbor.IsRealNode, station.SerialNumber);
                         neighbor.BundleBases[station] = bb2;
 
                         if (Curve.PointRelativeToCurveLocation(neighbor.Position, station.BoundaryCurve) != PointLocation.Outside) {
@@ -98,7 +98,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                         }
 
                         Set<Polyline> obstaclesToIgnore = metroGraphData.tightIntersections.ObstaclesToIgnoreForBundle(station, neighbor);
-                        var bundle = new BundleInfo(bb, bb2, obstaclesToIgnore, bundlingSettings.EdgeSeparation, metroOrdering.GetOrder(station, neighbor).Select(l => l.Width / 2).ToArray());
+                        BundleInfo bundle = new BundleInfo(bb, bb2, obstaclesToIgnore, bundlingSettings.EdgeSeparation, metroOrdering.GetOrder(station, neighbor).Select(l => l.Width / 2).ToArray());
                         bb.OutgoingBundleInfo = bb2.IncomingBundleInfo = bundle;
                         Bundles.Add(bundle);
                     }
@@ -111,7 +111,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         void SetBundleBaseNeighbors() {
-            foreach (var c in externalBases.Keys) {
+            foreach (ICurve c in externalBases.Keys) {
                 List<BundleBase> list = externalBases[c];
                 SortBundlesCounterClockwise(list);
 
@@ -119,7 +119,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 SetLeftRightBases(list);
             }
 
-            foreach (var c in internalBases.Keys) {
+            foreach (ICurve c in internalBases.Keys) {
                 List<BundleBase> list = internalBases[c];
                 SortBundlesCounterClockwise(list);
 
@@ -149,7 +149,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         void CreateOrientedSegs() {
-            foreach (var metroline in metroGraphData.Metrolines) {
+            foreach (Metroline metroline in metroGraphData.Metrolines) {
                 CreateOrientedSegsOnLine(metroline);
             }
         }
@@ -174,28 +174,27 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         void UpdateSourceAndTargetBases() {
-            foreach (var bundleInfo in Bundles)
+            foreach (BundleInfo bundleInfo in Bundles)
                 bundleInfo.UpdateSourceAndTargetBases(true, true);
         }
 
         void SetBasesRightLeftParamsToTheMiddles() {
-            foreach (var bundle in Bundles) {
-                var sbase = bundle.SourceBase;
-                var tbase = bundle.TargetBase;
+            foreach (BundleInfo bundle in Bundles) {
+                BundleBase sbase = bundle.SourceBase;
+                BundleBase tbase = bundle.TargetBase;
                 sbase.ParRight = sbase.ParLeft = GetBaseMiddleParamInDirection(sbase, sbase.Position, tbase.Position);
                 tbase.ParRight = tbase.ParLeft = GetBaseMiddleParamInDirection(tbase, tbase.Position, sbase.Position);
             }
         }
 
         double GetBaseMiddleParamInDirection(BundleBase targetBase, Point sPos, Point neighbPos) {
-            var curve = targetBase.Curve;
-            var circle = curve as Ellipse;
-            if (circle != null && circle.IsArc())
+            ICurve curve = targetBase.Curve;
+            if (curve is Ellipse circle && circle.IsArc())
                 return Point.Angle(circle.AxisA, neighbPos - sPos);
 
-            var intersections = Curve.GetAllIntersections(curve, new LineSegment(sPos, neighbPos), true);
-            foreach (var intersectionInfo in intersections) {
-                var xP = intersectionInfo.IntersectionPoint;
+            IList<IntersectionInfo> intersections = Curve.GetAllIntersections(curve, new LineSegment(sPos, neighbPos), true);
+            foreach (IntersectionInfo intersectionInfo in intersections) {
+                Point xP = intersectionInfo.IntersectionPoint;
                 if ((xP - sPos) * (xP - neighbPos) <= 0) {
                     return intersectionInfo.Par0;
                 }
@@ -205,17 +204,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         void SetRightLeftParamsFeasiblySymmetrically() {
-            foreach (var bundle in Bundles) {
+            foreach (BundleInfo bundle in Bundles) {
                 bundle.SetParamsFeasiblySymmetrically(metroGraphData.TightTree);
             }
         }
 
         void AdjustStartEndParamsToAvoidBaseOverlaps() {
-            foreach (var c in externalBases.Keys) {
+            foreach (ICurve c in externalBases.Keys) {
                 AdjustCurrentBundleWidthsOnCurve(externalBases[c]);
             }
 
-            foreach (var c in internalBases.Keys) {
+            foreach (ICurve c in internalBases.Keys) {
                 AdjustCurrentBundleWidthsOnCurve(internalBases[c]);
             }
         }
@@ -341,7 +340,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         const double CostThreshold = 0.00001;
         const double CostDeltaThreshold = 0.01;
 
-        HashSet<BundleInfo> fixedBundles = new HashSet<BundleInfo>();
+        HashSet<BundleInfo> fixedBundles = [];
 
         void Optimize() {
             double parameterChange = MaxParameterChange;
@@ -392,8 +391,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         bool OptimizeBundles(double parameterChange, ref double cost) {
-            var progress = false;
-            foreach (var bundleInfo in Bundles) {
+            bool progress = false;
+            foreach (BundleInfo bundleInfo in Bundles) {
                 if (fixedBundles.Contains(bundleInfo))
                     continue;
 
@@ -450,7 +449,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 return 0;
 
             bundleInfo.RotateBy(rotationOfSourceRigthPoint, rotationOfSourceLeftPoint, rotationOfTargetRigthPoint, rotationOfTargetLeftPoint, parameterChange);
-            var newCost = Cost(bundleInfo, bundleCost);
+            double newCost = Cost(bundleInfo, bundleCost);
 
             //restoring
             bundleInfo.RotateBy(-rotationOfSourceRigthPoint, -rotationOfSourceLeftPoint, -rotationOfTargetRigthPoint, -rotationOfTargetLeftPoint, parameterChange);
@@ -458,13 +457,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             return bundleCost - newCost;
         }
 
-        double Cost(BundleInfo bundleInfo) {
-            return
-                SeparationCoeff * SeparationCost(bundleInfo) +
+        double Cost(BundleInfo bundleInfo) => SeparationCoeff * SeparationCost(bundleInfo) +
                 SqueezeCoeff * SqueezeCost(bundleInfo) +
                 AssymetryCoeff * AssymetryCost(bundleInfo) +
                 CenterCoeff * CenterCost(bundleInfo);
-        }
 
         //this is an accelerated version of the above function (calculate cost partly)
         double Cost(BundleInfo bundleInfo, double limit) {
@@ -483,10 +479,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         double SqueezeCost(BundleInfo bundleInfo) {
-            var middleLineDir = (bundleInfo.TargetBase.MidPoint - bundleInfo.SourceBase.MidPoint).Normalize();
-            var perp = middleLineDir.Rotate90Ccw();
-            var projecton0 = Math.Abs((bundleInfo.SourceBase.RightPoint - bundleInfo.SourceBase.LeftPoint) * perp);
-            var projecton1 = Math.Abs((bundleInfo.TargetBase.RightPoint - bundleInfo.TargetBase.LeftPoint) * perp);
+            Point middleLineDir = (bundleInfo.TargetBase.MidPoint - bundleInfo.SourceBase.MidPoint).Normalize();
+            Point perp = middleLineDir.Rotate90Ccw();
+            double projecton0 = Math.Abs((bundleInfo.SourceBase.RightPoint - bundleInfo.SourceBase.LeftPoint) * perp);
+            double projecton1 = Math.Abs((bundleInfo.TargetBase.RightPoint - bundleInfo.TargetBase.LeftPoint) * perp);
 
             double del0 = Math.Abs(bundleInfo.TotalRequiredWidth - projecton0) / bundleInfo.TotalRequiredWidth;
             double del1 = Math.Abs(bundleInfo.TotalRequiredWidth - projecton1) / bundleInfo.TotalRequiredWidth;
@@ -519,9 +515,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 return 500 * dist * dist;
         }
 
-        double AssymetryCost(BundleInfo bundleInfo) {
-            return GetAssymetryCostForBase(bundleInfo.SourceBase) + GetAssymetryCostForBase(bundleInfo.TargetBase);
-        }
+        double AssymetryCost(BundleInfo bundleInfo) => GetAssymetryCostForBase(bundleInfo.SourceBase) + GetAssymetryCostForBase(bundleInfo.TargetBase);
 
         double GetAssymetryCostForBase(BundleBase bundleBase) {
             if (bundleBase.BelongsToRealNode)
@@ -529,16 +523,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
             double assymetryWeight = bundleBase.OppositeBase.BelongsToRealNode ? 200 : 500;
             double cost = 0;
-            foreach (var o in bundleBase.OrientedHubSegments) {
+            foreach (OrientedHubSegment o in bundleBase.OrientedHubSegments) {
                 int i0 = o.Index;
                 int i1 = o.Other.Index;
 
-                var a = bundleBase.Points[i0];
-                var ta = bundleBase.Tangents[i0];
+                Point a = bundleBase.Points[i0];
+                Point ta = bundleBase.Tangents[i0];
 
-                var oppositeBase = o.Other.BundleBase;
-                var b = oppositeBase.Points[i1];
-                var tb = oppositeBase.Tangents[i1];
+                BundleBase oppositeBase = o.Other.BundleBase;
+                Point b = oppositeBase.Points[i1];
+                Point tb = oppositeBase.Tangents[i1];
 
                 double s = bundleBase.Count + oppositeBase.Count;
                 cost += GetAssymetryCostOnData(a, ta, b, tb, assymetryWeight) / s;
@@ -548,21 +542,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         double GetAssymetryCostOnData(Point a, Point tangentA, Point b, Point tangentB, double assymetryWeight) {
-            var xAxis = (a - b);
-            var len = xAxis.Length;
+            Point xAxis = (a - b);
+            double len = xAxis.Length;
             if (len < ApproximateComparer.DistanceEpsilon)
                 return 0;
             xAxis /= len;
             //Tangents both have length 1. If they compensate each other on x-asis,
             //then their projections on y-axis are the same.
-            var delx = (tangentA + tangentB) * xAxis;
+            double delx = (tangentA + tangentB) * xAxis;
             //var yAxis = xAxis.Rotate90Ccw();
             //var ay = tangentA * yAxis;
             //var by = tangentB * yAxis;
-            var ay = Point.CrossProduct(xAxis, tangentA);
-            var by = Point.CrossProduct(xAxis, tangentB);
+            double ay = Point.CrossProduct(xAxis, tangentA);
+            double by = Point.CrossProduct(xAxis, tangentB);
 
-            var dely = ay - by;
+            double dely = ay - by;
 
             //double ac = Math.Sqrt(delx * delx + dely * dely);
             //double bc = Math.Sqrt(ay * ay + by * by);
@@ -571,9 +565,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             return 10 * ac + assymetryWeight * bc;
         }
 
-        double SeparationCost(BundleInfo bundleInfo) {
-            return SeparationCostForBundleBase(bundleInfo.SourceBase) + SeparationCostForBundleBase(bundleInfo.TargetBase);
-        }
+        double SeparationCost(BundleInfo bundleInfo) => SeparationCostForBundleBase(bundleInfo.SourceBase) + SeparationCostForBundleBase(bundleInfo.TargetBase);
 
         double SeparationCostForBundleBase(BundleBase bBase) {
             if (bBase.Prev == null)
@@ -602,8 +594,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         /// <param name="d"></param>
         /// <param name="curve"></param>
         double IntervalsOverlapLength(double a, double b, double c, double d, ICurve curve) {
-            var s = curve.ParStart;
-            var e = curve.ParEnd;
+            double s = curve.ParStart;
+            double e = curve.ParEnd;
             if (a < b) {
                 if (c < d)
                     return IntersectRegularIntervals(a, b, c, d);
@@ -616,8 +608,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         double IntersectRegularIntervals(double a, double b, double c, double d) {
-            var low = Math.Max(a, c);
-            var up = Math.Min(b, d);
+            double low = Math.Max(a, c);
+            double up = Math.Min(b, d);
             if (low < up) {
                 return up - low;
             }
@@ -626,7 +618,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
         double Cost() {
             double cost = 0;
-            foreach (var bundleInfo in Bundles) {
+            foreach (BundleInfo bundleInfo in Bundles) {
                 double c1 = SeparationCoeff * SeparationCost(bundleInfo);
                 double c2 = AssymetryCoeff * AssymetryCost(bundleInfo);
                 double c3 = SqueezeCoeff * SqueezeCost(bundleInfo);

@@ -23,28 +23,26 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
         /// 
         /// </summary>
         /// <returns></returns>
-        public double[] Values(){return values;}
+        public double[] Values() => values;
 
         /// <summary>
         /// 
         /// </summary>
         /// <returns></returns>
-        public int[] ColInd() {return col_ind;}
+        public int[] ColInd() => col_ind;
 
         /// <summary>
         /// 
         /// </summary>
         /// <returns></returns>
-        public int[] RowPtr() {return row_ptr;}
+        public int[] RowPtr() => row_ptr;
 
 
-         int numRow;
+        int numRow;
         /// <summary>
         /// Number of rows of the matrix.
         /// </summary>
-        public int NumRow {
-            set { numRow = value; }
-            get { return numRow;} }
+        public int NumRow { set => numRow = value; get => numRow; }
         /// <summary>
         /// Number of columns of the matrix.
         /// </summary>
@@ -107,9 +105,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
         /// <param name="m"></param>
         /// <param name="vec"></param>
         /// <returns></returns>
-        public static double[] operator *(SparseMatrix m, double[] vec) {
-            return (m*new Vector(vec)).array;
-        }
+        public static double[] operator *(SparseMatrix m, double[] vec) => (m * new Vector(vec)).array;
 
         /// <summary>
         /// Returns the inverted diagonal of this matrix.
@@ -157,7 +153,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
         /// Prints the full matrix.
         /// </summary>
         public void PrintMatrix() {
-            var matrix = GetFullMatrix();
+            double[,] matrix = GetFullMatrix();
             int rowLength = matrix.GetLength(0);
             int colLength = matrix.GetLength(1);
             

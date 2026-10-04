@@ -6,6 +6,7 @@ using System.Linq;
 using Microsoft.AGL.Core.DataStructures;
 using Microsoft.AGL.Core.Geometry;
 using Microsoft.AGL.Core.Geometry.Curves;
+using Microsoft.AGL.Core.Geometry.RTree;
 using Microsoft.AGL.Core.Layout;
 using Microsoft.AGL.Core.Routing;
 using Microsoft.AGL.DebugHelpers;
@@ -76,42 +77,31 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             Initialize(false);
         }
 
-        internal double Ink {
-            get { return ink; }
-        }
+        internal double Ink => ink;
 
-        internal EdgeGeometry[] Edges {
-            get { return regularEdges; }
-        }
+        internal EdgeGeometry[] Edges => regularEdges;
 
-        internal IEnumerable<Station> VirtualNodes() {
-            return Stations.Where(s => !s.IsRealNode);
-        }
+        internal IEnumerable<Station> VirtualNodes() => Stations.Where(s => !s.IsRealNode);
 
-        internal List<Metroline> Metrolines { get { return metrolines; } }
+        internal List<Metroline> Metrolines => metrolines;
 
-        internal RectangleNode<Polyline> LooseTree { get { return looseIntersections.obstacleTree; } }
+        internal RectangleNode<Polyline> LooseTree => looseIntersections.obstacleTree;
 
-        internal RectangleNode<Polyline> TightTree { get { return tightIntersections.obstacleTree; } }
+        internal RectangleNode<Polyline> TightTree => tightIntersections.obstacleTree;
 
-        internal IEnumerable<Tuple<Station, Station>> VirtualEdges() {
-            return edgeInfoDictionary.Keys;
-        }
+        internal IEnumerable<Tuple<Station, Station>> VirtualEdges() => edgeInfoDictionary.Keys;
 
         /// <summary>
         /// number of real edges passing the node
         /// </summary>
-        internal int RealEdgeCount(Station node) {
-            return node.MetroNodeInfos.Count;
-        }
+        internal int RealEdgeCount(Station node) => node.MetroNodeInfos.Count;
 
         /// <summary>
         /// number of real edges passing the edge uv
         /// </summary>
         internal int RealEdgeCount(Station u, Station v) {
-            var couple = u < v ? new Tuple<Station, Station>(u, v) : new Tuple<Station, Station>(v, u);
-            StationEdgeInfo cw;
-            if (edgeInfoDictionary.TryGetValue(couple, out cw))
+            Tuple<Station, Station> couple = u < v ? new Tuple<Station, Station>(u, v) : new Tuple<Station, Station>(v, u);
+            if (edgeInfoDictionary.TryGetValue(couple, out StationEdgeInfo cw))
                 return cw.Count;
             return 0;
         }
@@ -119,15 +109,13 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         /// <summary>
         /// real edges passing the node
         /// </summary>
-        internal List<MetroNodeInfo> MetroNodeInfosOfNode(Station node) {
-            return node.MetroNodeInfos;
-        }
+        internal List<MetroNodeInfo> MetroNodeInfosOfNode(Station node) => node.MetroNodeInfos;
 
         /// <summary>
         /// real edges passing the edge uv
         /// </summary>
         internal StationEdgeInfo GetIjInfo(Station u, Station v) {
-            var couple = u < v ? new Tuple<Station, Station>(u, v) : new Tuple<Station, Station>(v, u);
+            Tuple<Station, Station> couple = u < v ? new Tuple<Station, Station>(u, v) : new Tuple<Station, Station>(v, u);
             return edgeInfoDictionary[couple];
         }
 
@@ -146,35 +134,34 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
             //update lengths
             foreach (MetroNodeInfo e in MetroNodeInfosOfNode(node)) {
-                var metroLine = e.Metroline;
-                var prev = e.PolyPoint.Prev.Point;
-                var succ = e.PolyPoint.Next.Point;
+                Metroline metroLine = e.Metroline;
+                Point prev = e.PolyPoint.Prev.Point;
+                Point succ = e.PolyPoint.Next.Point;
                 metroLine.Length += (succ - newPosition).Length + (prev - newPosition).Length
                     - (succ - oldPosition).Length - (prev - oldPosition).Length;
             }
 
             //update ink
-            foreach (var adj in node.Neighbors) {
+            foreach (Station adj in node.Neighbors) {
                 ink += (newPosition - adj.Position).Length - (oldPosition - adj.Position).Length;
             }
 
             //update neighbors order
             SortNeighbors(node);
-            foreach (var adj in node.Neighbors)
+            foreach (Station adj in node.Neighbors)
                 SortNeighbors(adj);            
         }
 
         internal double GetWidth(Station u, Station v, double edgeSeparation) {
-            var couple = u < v ? new Tuple<Station, Station>(u, v) : new Tuple<Station, Station>(v, u);
-            StationEdgeInfo cw;
-            if (edgeInfoDictionary.TryGetValue(couple, out cw))
+            Tuple<Station, Station> couple = u < v ? new Tuple<Station, Station>(u, v) : new Tuple<Station, Station>(v, u);
+            if (edgeInfoDictionary.TryGetValue(couple, out StationEdgeInfo cw))
                 return cw.Width + (cw.Count - 1) * edgeSeparation;
             return 0;
         }
 
         internal double GetWidth(IEnumerable<Metroline> metrolines, double edgeSeparation) {
             double width = 0;
-            foreach (var metroline in metrolines) {
+            foreach (Metroline metroline in metrolines) {
                 width += metroline.Width;
             }
             int count = metrolines.Count();
@@ -186,9 +173,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         /// <summary>
         /// Initialize data
         /// </summary>
-        internal void Initialize() {
-            Initialize(true);
-        }
+        internal void Initialize() => Initialize(true);
 
         /// <summary>
         /// Initialize data
@@ -217,7 +202,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         /// remove self-cycles
         /// </summary>
         void SimplifyRegularEdges() {
-            foreach (var edge in regularEdges)
+            foreach (EdgeGeometry edge in regularEdges)
                 SimplifyRegularEdge(edge);
         }
 
@@ -227,14 +212,14 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         void SimplifyRegularEdge(EdgeGeometry edge) {
             Polyline polyline = (Polyline)edge.Curve;
 
-            var stack = new Stack<Point>();
-            var seen = new Set<Point>();
-            for (var p = polyline.EndPoint; p != null; p = p.Prev) {
-                var v = p.Point;
+            Stack<Point> stack = new Stack<Point>();
+            Set<Point> seen = new Set<Point>();
+            for (PolylinePoint p = polyline.EndPoint; p != null; p = p.Prev) {
+                Point v = p.Point;
                 if (seen.Contains(p.Point)) {
-                    var pp = p.Next;
+                    PolylinePoint pp = p.Next;
                     do {
-                        var u = stack.Peek();
+                        Point u = stack.Peek();
                         if (u != v) {
                             seen.Remove(u);
                             stack.Pop();
@@ -254,18 +239,18 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         }
 
         void InitializeNodeData() {
-            Stations = new Set<Station>();
+            Stations = [];
             //create indexes
-            PointToStations = new Dictionary<Point, Station>();
+            PointToStations = [];
             int i = 0;
-            foreach (var edge in regularEdges) {
+            foreach (EdgeGeometry edge in regularEdges) {
                 Polyline poly = (Polyline)edge.Curve;
                 i = ProcessPolylinePoints(i, poly);
             }
         }
 
         int ProcessPolylinePoints(int i, Polyline poly) {
-            var pp = poly.StartPoint;
+            PolylinePoint pp = poly.StartPoint;
             i = RegisterStation(i, pp, true);
 
             for (pp = pp.Next; pp != poly.EndPoint; pp = pp.Next)
@@ -283,7 +268,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             }
             else {
 #if DEBUG && TEST_MSAGL
-                var s = PointToStations[pp.Point];
+                Station s = PointToStations[pp.Point];
                 Debug.Assert(s.IsRealNode == isRealNode);
 #endif
             }
@@ -291,7 +276,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         }
 
         void InitializeEdgeData() {
-            metrolines = new List<Metroline>();
+            metrolines = [];
             for (int i = 0; i < regularEdges.Length; i++) {
                 EdgeGeometry geomEdge=regularEdges[i];
                 InitEdgeData(geomEdge, i);
@@ -299,35 +284,32 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         }
 
         void InitEdgeData(EdgeGeometry geomEdge, int index) {
-            var metroEdge = new Metroline((Polyline)geomEdge.Curve, geomEdge.LineWidth, EdgeSourceAndTargetFunc(geomEdge), index);
+            Metroline metroEdge = new Metroline((Polyline)geomEdge.Curve, geomEdge.LineWidth, EdgeSourceAndTargetFunc(geomEdge), index);
             metrolines.Add(metroEdge);
             PointToStations[metroEdge.Polyline.Start].BoundaryCurve = geomEdge.SourcePort.Curve;
             PointToStations[metroEdge.Polyline.End].BoundaryCurve = geomEdge.TargetPort.Curve;
         }
 
-        internal Func<Tuple<Polyline, Polyline>> EdgeSourceAndTargetFunc(EdgeGeometry geomEdge) {
-            return
-                () =>
+        internal Func<Tuple<Polyline, Polyline>> EdgeSourceAndTargetFunc(EdgeGeometry geomEdge) => () =>
                 new Tuple<Polyline, Polyline>(LoosePolylineOfPort(geomEdge.SourcePort),
                                                LoosePolylineOfPort(geomEdge.TargetPort));
-        }
 
         /// <summary>
         /// Initialize graph comprised of stations and their neighbors
         /// </summary>
         void InitializeVirtualGraph() {
-            Dictionary<Station, Set<Station>> neighbors = new Dictionary<Station, Set<Station>>();
-            foreach (var metroline in metrolines) {
+            Dictionary<Station, Set<Station>> neighbors = [];
+            foreach (Metroline metroline in metrolines) {
                 Station u = PointToStations[metroline.Polyline.Start];
                 Station v;
-                for (var p = metroline.Polyline.StartPoint; p.Next != null; p = p.Next, u = v) {
+                for (PolylinePoint p = metroline.Polyline.StartPoint; p.Next != null; p = p.Next, u = v) {
                     v = PointToStations[p.Next.Point];
                     CollectionUtilities.AddToMap(neighbors, u, v);
                     CollectionUtilities.AddToMap(neighbors, v, u);
                 }
             }
 
-            foreach (var s in Stations) {
+            foreach (Station s in Stations) {
                 s.Neighbors = neighbors[s].ToArray();
             }
         }
@@ -339,28 +321,27 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         StationEdgeInfo GetOrderedIjInfo(Station i, Station j) {
             Debug.Assert(i < j);
-            var couple = new Tuple<Station, Station>(i, j);
-            StationEdgeInfo cw;
-            if (edgeInfoDictionary.TryGetValue(couple, out cw))
+            Tuple<Station, Station> couple = new Tuple<Station, Station>(i, j);
+            if (edgeInfoDictionary.TryGetValue(couple, out StationEdgeInfo cw))
                 return cw;
             edgeInfoDictionary[couple] = cw = new StationEdgeInfo(i.Position, j.Position);
             return cw;
         }
 
         void InitializeEdgeNodeInfo(bool initTightTree) {
-            edgeInfoDictionary = new Dictionary<Tuple<Station, Station>, StationEdgeInfo>();
+            edgeInfoDictionary = [];
 
             InitMetroNodeInfos(initTightTree);
             SortNeighbors();
             InitEdgeIjInfos();
             ink = 0;
-            foreach (var edge in VirtualEdges())
+            foreach (Tuple<Station, Station> edge in VirtualEdges())
                 ink += (edge.Item1.Position - edge.Item2.Position).Length;
         }
 
         void InitMetroNodeInfos(bool initTightTree) {
             for (int i = 0; i < metrolines.Count; i++) {
-                var metroline = metrolines[i];
+                Metroline metroline = metrolines[i];
                 InitMetroNodeInfos(metroline);
                 InitNodeEnterableLoosePolylines(metroline, regularEdges[i]);
                 if (initTightTree)
@@ -370,7 +351,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         }
 
         void InitMetroNodeInfos(Metroline metroline) {
-            for (var pp = metroline.Polyline.StartPoint; pp != null; pp = pp.Next) {
+            for (PolylinePoint pp = metroline.Polyline.StartPoint; pp != null; pp = pp.Next) {
                 Station station = PointToStations[pp.Point];
                 station.MetroNodeInfos.Add(new MetroNodeInfo(metroline, station, pp));
             }
@@ -378,10 +359,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         void InitNodeEnterableLoosePolylines(Metroline metroline, EdgeGeometry regularEdge) {
             //If we have groups, EdgeLooseEnterable are precomputed.
-            var metrolineEnterable = EdgeLooseEnterable != null ? EdgeLooseEnterable[regularEdge] : new Set<Polyline>();
+            Set<Polyline> metrolineEnterable = EdgeLooseEnterable != null ? EdgeLooseEnterable[regularEdge] : [];
 
-            for (var p = metroline.Polyline.StartPoint.Next; p!=null && p.Next != null; p = p.Next) {
-                var v = PointToStations[p.Point];
+            for (PolylinePoint p = metroline.Polyline.StartPoint.Next; p!=null && p.Next != null; p = p.Next) {
+                Station v = PointToStations[p.Point];
                 if (v.EnterableLoosePolylines != null)
                     v.EnterableLoosePolylines *= metrolineEnterable;
                 else
@@ -401,12 +382,12 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             AddTightEnterableForEnd(metroline.Polyline.End);
         }
 
-        Dictionary<Point, Set<Polyline>> cachedEnterableLooseForEnd = new Dictionary<Point, Set<Polyline>>();
+        Dictionary<Point, Set<Polyline>> cachedEnterableLooseForEnd = [];
 
         void AddLooseEnterableForEnd(Point point) {
             Station station = PointToStations[point];
             if (!cachedEnterableLooseForEnd.ContainsKey(point)) {
-                foreach (var poly in LooseTree.AllHitItems(point))
+                foreach (Polyline poly in LooseTree.AllHitItems(point))
                     if (Curve.PointRelativeToCurveLocation(point, poly) == PointLocation.Inside) 
                         station.AddEnterableLoosePolyline(poly);
                     
@@ -423,17 +404,17 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         void AddTightEnterableForEnd(Point point) {
             Station station = PointToStations[point];
-            foreach (var poly in TightTree.AllHitItems(point))
+            foreach (Polyline poly in TightTree.AllHitItems(point))
                 if (Curve.PointRelativeToCurveLocation(point, poly) == PointLocation.Inside)
                     station.AddEnterableTightPolyline(poly);
         }
 
         void InitNodeEnterableTightPolylines(Metroline metroline, EdgeGeometry regularEdge) {
             //If we have groups, EdgeTightEnterable are precomputed.
-            var metrolineEnterable = EdgeTightEnterable != null ? EdgeTightEnterable[regularEdge] : new Set<Polyline>();
+            Set<Polyline> metrolineEnterable = EdgeTightEnterable != null ? EdgeTightEnterable[regularEdge] : [];
 
-            for (var p = metroline.Polyline.StartPoint.Next; p!=null && p.Next != null; p = p.Next) {
-                var v = PointToStations[p.Point];
+            for (PolylinePoint p = metroline.Polyline.StartPoint.Next; p!=null && p.Next != null; p = p.Next) {
+                Station v = PointToStations[p.Point];
                 Set<Polyline> nodeEnterable = v.EnterableTightPolylines;
                 if (nodeEnterable != null)
                     v.EnterableTightPolylines = nodeEnterable * metrolineEnterable;
@@ -446,7 +427,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         void SortNeighbors() {
             //counter-clockwise sorting
-            foreach (var station in Stations)
+            foreach (Station station in Stations)
                 SortNeighbors(station);
         }
 
@@ -463,12 +444,12 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         void InitEdgeIjInfos() {
             foreach (Metroline metroLine in metrolines) {
-                var poly = metroLine.Polyline;
-                var u = PointToStations[poly.Start];
+                Polyline poly = metroLine.Polyline;
+                Station u = PointToStations[poly.Start];
                 Station v;
-                for (var p = metroLine.Polyline.StartPoint; p.Next != null; p = p.Next, u = v) {
+                for (PolylinePoint p = metroLine.Polyline.StartPoint; p.Next != null; p = p.Next, u = v) {
                     v = PointToStations[p.Next.Point];
-                    var info = GetUnorderedIjInfo(u, v);
+                    StationEdgeInfo info = GetUnorderedIjInfo(u, v);
                     info.Count++;
                     info.Width += metroLine.Width;
                     info.Metrolines.Add(metroLine);
@@ -478,7 +459,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         void InitializeCdtInfo() {
             RectangleNode<CdtTriangle> cdtTree = Cdt.GetCdtTree();
-            foreach (var station in Stations) {
+            foreach (Station station in Stations) {
                 station.CdtTriangle = cdtTree.FirstHitNode(station.Position, IntersectionCache.Test).UserData;
                 Debug.Assert(station.CdtTriangle != null);
             }
@@ -487,7 +468,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         internal bool PointIsAcceptableForEdge(Metroline metroline, Point point) {
             if (LoosePolylineOfPort == null)
                 return true;
-            var polys = metroline.sourceAndTargetLoosePolylines();
+            Tuple<Polyline, Polyline> polys = metroline.sourceAndTargetLoosePolylines();
             return Curve.PointRelativeToCurveLocation(point, polys.Item1) == PointLocation.Outside &&
                    Curve.PointRelativeToCurveLocation(point, polys.Item2) == PointLocation.Outside;
         }

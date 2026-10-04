@@ -11,17 +11,12 @@ namespace Microsoft.AGL.Routing.Rectilinear {
     /// This is the list of obstacles in the clump.
     /// </summary>
     internal class Clump : List<Obstacle> {
-        internal Clump(IEnumerable<Obstacle> obstacles) {
-            this.AddRange(obstacles);
-        }
+        internal Clump(IEnumerable<Obstacle> obstacles) => AddRange(obstacles);
 #if DEBUG && TEST_MSAGL
         /// <summary>
         /// </summary>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1305:SpecifyIFormatProvider", MessageId = "System.String.Format(System.String,System.Object)")]
-        public override string ToString() {
-            return string.Format("({0}", this.Count);
-        }
+        public override string ToString() => string.Format("({0}", Count);
 #endif
     }
 }

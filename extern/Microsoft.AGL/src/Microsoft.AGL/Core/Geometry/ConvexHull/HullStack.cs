@@ -2,24 +2,16 @@ namespace Microsoft.AGL.Core.Geometry {
     internal class HullStack {
         Point hullPoint;
 
-        internal Point Point {
-            get { return hullPoint; }
-            set { hullPoint = value; }
+        internal Point Point { get => hullPoint; set => hullPoint = value;
         }
         HullStack next;
 
-        internal HullStack Next {
-            get { return next; }
-            set { next = value; }
+        internal HullStack Next { get => next; set => next = value;
         }
 
-        internal HullStack(Point hullPoint) {
-            this.Point = hullPoint;
-        }
+        internal HullStack(Point hullPoint) => Point = hullPoint;
 
-        public override string ToString() {
-            return hullPoint.ToString();
-        }
+        public override string ToString() => hullPoint.ToString();
 
     }
 }

@@ -28,20 +28,20 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         internal Rectangle VisibilityRectangle = Rectangle.CreateAnEmptyBox();
 
         internal ObstaclePort(Port port, Obstacle obstacle) {
-            this.Port = port;
-            this.Obstacle = obstacle;
-            this.PortEntrances = new List<ObstaclePortEntrance>();
-            this.Location = ApproximateComparer.Round(this.Port.Location);
+            Port = port;
+            Obstacle = obstacle;
+            PortEntrances = [];
+            Location = ApproximateComparer.Round(Port.Location);
         }
 
         internal void CreatePortEntrance(Point unpaddedBorderIntersect, Directions outDir, ObstacleTree obstacleTree) {
-            var entrance = new ObstaclePortEntrance(this, unpaddedBorderIntersect, outDir, obstacleTree);
+            ObstaclePortEntrance entrance = new ObstaclePortEntrance(this, unpaddedBorderIntersect, outDir, obstacleTree);
             PortEntrances.Add(entrance);
-            this.VisibilityRectangle.Add(entrance.MaxVisibilitySegment.End);
+            VisibilityRectangle.Add(entrance.MaxVisibilitySegment.End);
 #if SHARPKIT //https://code.google.com/p/sharpkit/issues/detail?id=370
             this.HasCollinearEntrances = this.HasCollinearEntrances | entrance.IsCollinearWithPort;
 #else
-            this.HasCollinearEntrances |= entrance.IsCollinearWithPort;
+            HasCollinearEntrances |= entrance.IsCollinearWithPort;
 #endif
         }
 
@@ -50,44 +50,41 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             PortEntrances.Clear();
         }
 
-        internal void ClearVisibility() {
+        internal void ClearVisibility() =>
             // Most of the retained PortEntrance stuff is about precalculated visibility.
-            this.PortEntrances.Clear();
-        }
+            PortEntrances.Clear();
 
         internal void AddToGraph(TransientGraphUtility transUtil, bool routeToCenter) {
             // We use only border vertices if !routeToCenter.
             if (routeToCenter) {
-                CenterVertex = transUtil.FindOrAddVertex(this.Location);
+                CenterVertex = transUtil.FindOrAddVertex(Location);
             }
         }
 
         internal void RemoveFromGraph() {
             // Currently all transient removals and edge restorations are done by TransientGraphUtility itself.
-            foreach (var entrance in PortEntrances) {
+            foreach (ObstaclePortEntrance entrance in PortEntrances) {
                 entrance.RemoveFromGraph();
             }
             CenterVertex = null;
         }
 
         // PortManager will recreate the Port if it detects this (this.Location has already been rounded).
-        internal bool LocationHasChanged { get { return !PointComparer.Equal(this.Location, ApproximateComparer.Round(this.Port.Location)); } }
+        internal bool LocationHasChanged => !PointComparer.Equal(Location, ApproximateComparer.Round(Port.Location));
 
         /// <summary>
         /// The curve associated with the port.
         /// </summary>
-        public ICurve PortCurve { get { return this.Port.Curve; } }
+        public ICurve PortCurve => Port.Curve;
 
         /// <summary>
         /// The (unrounded) location of the port.
         /// </summary>
-        public Point PortLocation { get { return this.Port.Location; } }
+        public Point PortLocation => Port.Location;
 
         /// <summary>
         /// </summary>
         /// <returns></returns>
-        public override string ToString() {
-            return this.Port + this.Obstacle.ToString();
-        }
+        public override string ToString() => Port + Obstacle.ToString();
     }
 }

@@ -2,63 +2,47 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+
 using Microsoft.AGL.Core.DataStructures;
 using Microsoft.AGL.Core.Geometry;
 using Microsoft.AGL.Core.Geometry.Curves;
+using Microsoft.AGL.Core.Geometry.RTree;
 using Microsoft.AGL.Core.Layout;
 using Microsoft.AGL.Routing;
 using Microsoft.AGL.Routing.Visibility;
 
-namespace Microsoft.AGL.Prototype.LayoutEditing {
+namespace Microsoft.AGL.Miscellaneous.LayoutEditing
+{
     /// <summary>
     /// calculations with obstacles
     /// </summary>
     public class ObstacleCalculator {
-        List<Polyline> looseObstacles = new List<Polyline>();
-        Set<ICurve> portObstacles = new Set<ICurve>();
+        List<Polyline> looseObstacles = [];
+        Set<ICurve> portObstacles = [];
         RectangleNode<Polyline> rootOfLooseHierarchy;
         RectangleNode<Polyline> rootOfTightHierarachy;
         RouterBetweenTwoNodes router;
         LineSegment sourceFilterLine;
         LineSegment targetFilterLine;
-        Set<Polyline> tightObstacles = new Set<Polyline>();
+        Set<Polyline> tightObstacles = [];
 
-        internal ObstacleCalculator(RouterBetweenTwoNodes router) {
-            this.router = router;
+        internal ObstacleCalculator(RouterBetweenTwoNodes router) => this.router = router;
+
+        internal Set<Polyline> TightObstacles => tightObstacles;
+
+        internal List<Polyline> LooseObstacles => looseObstacles;
+
+        internal RectangleNode<Polyline> RootOfTightHierararchy { get => rootOfTightHierarachy; private set => rootOfTightHierarachy = value;
         }
 
-        internal Set<Polyline> TightObstacles {
-            get { return tightObstacles; }
-            //            set { tightObstacles = value; }
+        RectangleNode<Polyline> RootOfLooseHierarchy { get => rootOfLooseHierarchy; set => rootOfLooseHierarchy = value;
         }
 
-        internal List<Polyline> LooseObstacles {
-            get { return looseObstacles; }
-            //            set { looseObstacles = value; }
-        }
+        internal LineSegment SourceFilterLine => sourceFilterLine;
 
-        internal RectangleNode<Polyline> RootOfTightHierararchy {
-            get { return rootOfTightHierarachy; }
-            private set { rootOfTightHierarachy = value; }
-        }
+        internal LineSegment TargetFilterLine => targetFilterLine;
 
-        RectangleNode<Polyline> RootOfLooseHierarchy {
-            get { return rootOfLooseHierarchy; }
-            set { rootOfLooseHierarchy = value; }
-        }
-
-        internal LineSegment SourceFilterLine {
-            get { return sourceFilterLine; }
-        }
-
-        internal LineSegment TargetFilterLine {
-            get { return targetFilterLine; }
-            //            set { targetFilterLine = value; }
-        }
-
-        double EnteringAngle {
-            get { return router.EnteringAngleBound * Math.PI / 180; }
-        }
+        double EnteringAngle => router.EnteringAngleBound * Math.PI / 180;
 
         /// <summary>
         /// There are two sets of obstacles: tight and loose.
@@ -124,13 +108,13 @@ namespace Microsoft.AGL.Prototype.LayoutEditing {
                 RemoveTightObstaclesOverlappingPortTightObstacles();
                 CalculateTightHierarchy();
                 overlappingPolylineSets = GetOverlappingSets();
-                foreach (var overlappingSet in overlappingPolylineSets)
+                foreach (Set<Polyline> overlappingSet in overlappingPolylineSets)
                     InsertOverlappingSet(overlappingSet);
             } while (overlappingPolylineSets.Count > 0);
         }
 
         void RemoveTightObstaclesOverlappingPortTightObstacles() {
-            var toRemove = new List<Polyline>();
+            List<Polyline> toRemove = new List<Polyline>();
             foreach (Polyline poly in TightObstaclesMinusPortObstacles())
                 foreach (ICurve portObstacle in portObstacles)
                     if (poly.BoundingBox.Intersects(portObstacle.BoundingBox))
@@ -152,7 +136,7 @@ namespace Microsoft.AGL.Prototype.LayoutEditing {
             foreach (Polyline p in overlappingSet)
                 tightObstacles.Remove(p);
 
-            var hull = new Polyline();
+            Polyline hull = new Polyline();
             foreach (Point p in ConvexHull.CalculateConvexHull(EnumerateOverSetOfPolylines(overlappingSet)))
                 hull.AddPoint(p);
             hull.Closed = true;
@@ -181,8 +165,8 @@ namespace Microsoft.AGL.Prototype.LayoutEditing {
         }
 
         static List<Set<Polyline>> ConnectedComponents(PolylineGraph overlapGraph) {
-            var list = new List<Set<Polyline>>();
-            var processedPolylines = new Set<Polyline>();
+            List<Set<Polyline>> list = new List<Set<Polyline>>();
+            Set<Polyline> processedPolylines = new Set<Polyline>();
             foreach (Polyline poly in overlapGraph.Nodes) {
                 if (!processedPolylines.Contains(poly)) {
                     Set<Polyline> component = GetComponent(poly, overlapGraph);
@@ -195,9 +179,9 @@ namespace Microsoft.AGL.Prototype.LayoutEditing {
         }
 
         static Set<Polyline> GetComponent(Polyline poly, PolylineGraph graph) {
-            var ret = new Set<Polyline>();
+            Set<Polyline> ret = new Set<Polyline>();
             ret.Insert(poly);
-            var queue = new Queue<Polyline>();
+            Queue<Polyline> queue = new Queue<Polyline>();
             queue.Enqueue(poly);
             while (queue.Count > 0) {
                 foreach (Polyline p in graph.Descendents(queue.Dequeue())) {
@@ -211,22 +195,20 @@ namespace Microsoft.AGL.Prototype.LayoutEditing {
         }
 
         PolylineGraph CalculateOverlapGraph() {
-            var graph = new PolylineGraph();
+            PolylineGraph graph = new PolylineGraph();
             CreateEdgesUnderTwoNodes(rootOfTightHierarachy, rootOfTightHierarachy, graph);
             return graph;
         }
 
         void CalculateTightHierarchy() {
-            var rectNodes = new List<RectangleNode<Polyline>>();
+            List<RectangleNode<Polyline>> rectNodes = new List<RectangleNode<Polyline>>();
             foreach (Polyline polyline in TightObstacles)
                 rectNodes.Add(CreateRectNodeOfPolyline(polyline));
             RootOfTightHierararchy = RectangleNode<Polyline>.CreateRectangleNodeOnListOfNodes(rectNodes);
         }
 
 
-        static RectangleNode<Polyline> CreateRectNodeOfPolyline(Polyline polyline) {
-            return new RectangleNode<Polyline>(polyline, (polyline as ICurve).BoundingBox);
-        }
+        static RectangleNode<Polyline> CreateRectNodeOfPolyline(Polyline polyline) => new RectangleNode<Polyline>(polyline, (polyline as ICurve).BoundingBox);
 
 
         void CreateEdgesUnderTwoNodes(RectangleNode<Polyline> a, RectangleNode<Polyline> b,
@@ -264,17 +246,15 @@ namespace Microsoft.AGL.Prototype.LayoutEditing {
         }
 
 
-        static bool OneCurveLiesInsideOfOther(ICurve polyA, ICurve polyB) {
-            return (Curve.PointRelativeToCurveLocation(polyA.Start, polyB) != PointLocation.Outside ||
+        static bool OneCurveLiesInsideOfOther(ICurve polyA, ICurve polyB) => (Curve.PointRelativeToCurveLocation(polyA.Start, polyB) != PointLocation.Outside ||
                     Curve.PointRelativeToCurveLocation(polyB.Start, polyA) != PointLocation.Outside);
-        }
 
 
         /// <summary>
         /// 
         /// </summary>
         void CreateInitialTightObstacles() {
-            tightObstacles = new Set<Polyline>();
+            tightObstacles = [];
             foreach (Node node in router.Graph.Nodes) {
                 if (node == router.Source)
                     CreatePortObstacles(router.Source, router.SourcePort, out sourceFilterLine);
@@ -288,10 +268,10 @@ namespace Microsoft.AGL.Prototype.LayoutEditing {
 
 
         void CreatePortObstacles(Node node, Port port, out LineSegment filterLine) {
-            var bp = port as CurvePort;
-            if (bp != null) {
-                var padding = router.Padding;
-                var closedCurve = node.BoundaryCurve;
+            if (port is CurvePort bp)
+            {
+                double padding = router.Padding;
+                ICurve closedCurve = node.BoundaryCurve;
                 Curve paddingCurve = GetPaddedPolyline(closedCurve, padding).ToCurve();
                 Point portPoint = node.BoundaryCurve[bp.Parameter];
                 double length = node.BoundaryCurve.BoundingBox.Width + node.BoundaryCurve.BoundingBox.Height;
@@ -332,7 +312,9 @@ namespace Microsoft.AGL.Prototype.LayoutEditing {
                 AddRightObstacle(rightTopTip, nextToRightTopTip, polyRightBottomPoint, rightLow);
                 AddLeftObstacle(leftLow, polyRightBottomPoint.NextOnPolyline, prevToLeftTopTip, leftTopTip);
                  */
-            } else {
+            }
+            else
+            {
                 filterLine = null;
                 portObstacles.Insert(node.BoundaryCurve);
             }
@@ -343,9 +325,7 @@ namespace Microsoft.AGL.Prototype.LayoutEditing {
         ///<param name="closedCurve"></param>
         ///<param name="padding"></param>
         ///<returns></returns>
-        static public Polyline GetPaddedPolyline(ICurve closedCurve, double padding) {
-            return InteractiveObstacleCalculator.CreatePaddedPolyline(Curve.PolylineAroundClosedCurve(closedCurve), padding);
-        }
+        static public Polyline GetPaddedPolyline(ICurve closedCurve, double padding) => InteractiveObstacleCalculator.CreatePaddedPolyline(Curve.PolylineAroundClosedCurve(closedCurve), padding);
 
 
 
@@ -355,7 +335,7 @@ namespace Microsoft.AGL.Prototype.LayoutEditing {
             if (u < v)
                 return curve.Trim(u, v) as Curve;
 
-            var c = new Curve();
+            Curve c = new Curve();
             c.AddSegment(curve.Trim(u, curve.ParEnd) as Curve);
             c.AddSegment(curve.Trim(curve.ParStart, v) as Curve);
             return c;
@@ -392,9 +372,7 @@ namespace Microsoft.AGL.Prototype.LayoutEditing {
         /// <param name="node"></param>
         /// <param name="padding"></param>
         /// <returns></returns>
-        static Polyline PaddedPolylineBoundaryOfNode(Node node, double padding) {
-            return InteractiveObstacleCalculator.CreatePaddedPolyline(Curve.PolylineAroundClosedCurve(node.BoundaryCurve), padding);
-        }
+        static Polyline PaddedPolylineBoundaryOfNode(Node node, double padding) => InteractiveObstacleCalculator.CreatePaddedPolyline(Curve.PolylineAroundClosedCurve(node.BoundaryCurve), padding);
 
 
         static Polyline LoosePolylineWithFewCorners(Polyline tightPolyline, double p) {
@@ -433,11 +411,11 @@ namespace Microsoft.AGL.Prototype.LayoutEditing {
         //}
 
         static Polyline CreateLoosePolylineOnBisectors(Polyline tightPolyline, double p) {
-            var ret = new Polyline();
+            Polyline ret = new Polyline();
 
             ret.AddPoint(GetStickingVertexOnBisector(tightPolyline.StartPoint, p));
-            var blockingPoint = new Point(); //to silence the compiler
-            var candidate = new Point();
+            Point blockingPoint = new Point(); //to silence the compiler
+            Point candidate = new Point();
             bool justAdded = true;
 
             for (PolylinePoint pp = tightPolyline.StartPoint.Next; pp != null; pp = pp.Next) {
@@ -501,10 +479,10 @@ namespace Microsoft.AGL.Prototype.LayoutEditing {
 
 
         double FindMaxPaddingForTightPolyline(Polyline polyline) {
-            var dist = double.MaxValue;
-            var polygon = new Polygon(polyline);
+            double dist = double.MaxValue;
+            Polygon polygon = new Polygon(polyline);
 
-            foreach (var poly in RootOfLooseHierarchy.GetAllLeaves().Where(p => p != polyline))
+            foreach (Polyline poly in RootOfLooseHierarchy.GetAllLeaves().Where(p => p != polyline))
                 dist = Math.Min(dist, Polygon.Distance(polygon, new Polygon(poly)));
 
             //            TraverseHierarchy(RootOfLooseHierarchy, delegate(RectangleNode<Polyline> node) {
@@ -521,21 +499,15 @@ namespace Microsoft.AGL.Prototype.LayoutEditing {
         }
 
 
-        static bool CurvesIntersect(ICurve a, ICurve b) {
-            return Curve.GetAllIntersections(a, b, false).Count > 0;
-        }
+        static bool CurvesIntersect(ICurve a, ICurve b) => Curve.GetAllIntersections(a, b, false).Count > 0;
 
-        internal bool ObstaclesIntersectLine(Point a, Point b) {
-            return ObstaclesIntersectICurve(new LineSegment(a, b));
-        }
+        internal bool ObstaclesIntersectLine(Point a, Point b) => ObstaclesIntersectICurve(new LineSegment(a, b));
 
-        internal bool ObstaclesIntersectICurve(ICurve curve) {
-            return CurveIntersectsRectangleNode(curve, RootOfTightHierararchy)
+        internal bool ObstaclesIntersectICurve(ICurve curve) => CurveIntersectsRectangleNode(curve, RootOfTightHierararchy)
                    ||
                    (SourceFilterLine != null && CurvesIntersect(curve, SourceFilterLine))
                    ||
                    (TargetFilterLine != null && CurvesIntersect(curve, TargetFilterLine));
-        }
 
         internal static bool CurveIntersectsRectangleNode(ICurve curve, RectangleNode<Polyline> rectNode) {
             Rectangle boundingBox = curve.BoundingBox;
@@ -563,9 +535,7 @@ namespace Microsoft.AGL.Prototype.LayoutEditing {
         /// <param name="curveUnderTest"></param>
         /// <param name="curve"></param>
         /// <returns></returns>
-        static bool Inside(ICurve curveUnderTest, ICurve curve) {
-            return Curve.PointRelativeToCurveLocation(curve.Start, curveUnderTest) == PointLocation.Inside;
-        }
+        static bool Inside(ICurve curveUnderTest, ICurve curve) => Curve.PointRelativeToCurveLocation(curve.Start, curveUnderTest) == PointLocation.Inside;
 
         #region Nested type: Visitor
 
@@ -602,25 +572,21 @@ namespace Microsoft.AGL.Prototype.LayoutEditing {
 
         private class PolylineGraph
         {
-            private Dictionary<Polyline, List<Polyline>> sourceToTargets = new Dictionary<Polyline, List<Polyline>>();
+            private Dictionary<Polyline, List<Polyline>> sourceToTargets = [];
 
-            internal IEnumerable<Polyline> Nodes { get { return sourceToTargets.Keys; } }
+            internal IEnumerable<Polyline> Nodes => sourceToTargets.Keys;
 
             internal void AddEdge(Polyline source, Polyline target)
             {
-                List<Polyline> listOfEdges;
-                if (!sourceToTargets.TryGetValue(source, out listOfEdges))
+                if (!sourceToTargets.TryGetValue(source, out List<Polyline> listOfEdges))
                 {
-                    sourceToTargets[source] = listOfEdges = new List<Polyline>();
+                    sourceToTargets[source] = listOfEdges = [];
                 }
 
                 listOfEdges.Add(target);
             }
 
-            internal IEnumerable<Polyline> Descendents(Polyline Polyline)
-            {
-                return sourceToTargets[Polyline];
-            }
+            internal IEnumerable<Polyline> Descendents(Polyline Polyline) => sourceToTargets[Polyline];
         }
     }
 }

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 
-namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
+namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms.CycleRemoval
+{
 
    
     static internal class ConnectedComponentCalculator<TEdge> where TEdge:IEdge {
@@ -13,7 +14,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
             Queue<int> queue = new Queue<int>();
             for (int i = 0; i < graph.NodeCount; i++) {
                 if (!enqueueed[i]) {
-                    List<int> nodes = new List<int>();
+                    List<int> nodes = [];
 
                     Enqueue(i, queue, enqueueed);
 

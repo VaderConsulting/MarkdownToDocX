@@ -30,9 +30,7 @@ namespace Microsoft.AGL.Core.Layout
         /// Padding around the node: splines should not get closer than padding to the node boundary
         /// </summary>
         public double Padding
-        {
-            get { return padding; }
-            set { padding = value; }
+        { get => padding; set => padding = value;
         }
 
         ICurve boundaryCurve;
@@ -43,7 +41,7 @@ namespace Microsoft.AGL.Core.Layout
         public virtual ICurve
             BoundaryCurve
         {
-            get { return boundaryCurve; }
+            get => boundaryCurve;
             set
             {
                 RaiseLayoutChangeEvent(value);
@@ -60,18 +58,15 @@ namespace Microsoft.AGL.Core.Layout
         /// Creates a Node instance
         /// </summary>
         /// <param name="curve">node boundaryCurve</param>
-        public Node(ICurve curve)
-        {
-            boundaryCurve = curve;
-        }
+        public Node(ICurve curve) => boundaryCurve = curve;
 
         /// <summary>
         /// Create a node instance with the given curve and user data.
         /// </summary>
         public Node(ICurve curve, object userData)
         {
-            this.boundaryCurve = curve;
-            this.UserData = userData;
+            boundaryCurve = curve;
+            UserData = userData;
         }
 
         /// <summary>
@@ -83,7 +78,7 @@ namespace Microsoft.AGL.Core.Layout
 
             if (UserData != null)
             {
-                var ret = UserData.ToString();
+                string ret = UserData.ToString();
 #if TEST_MSAGL
 //            if(DebugId!=null)
 //                ret+= " "+DebugId.ToString();
@@ -98,50 +93,42 @@ namespace Microsoft.AGL.Core.Layout
         /// <summary>
         /// the list of in edges
         /// </summary>
-        protected Set<Edge> inEdges_ = new Set<Edge>();
+        protected Set<Edge> inEdges_ = [];
         /// <summary>
         /// enumeration of the node incoming edges
         /// </summary>
         virtual public IEnumerable<Edge> InEdges
-        {
-            get { return inEdges_; }
-            set { inEdges_ = (Set<Edge>)value; }
+        { get => inEdges_; set => inEdges_ = (Set<Edge>)value;
         }
         /// <summary>
         /// the list of out edges
         /// </summary>
-        protected Set<Edge> outEdges_ = new Set<Edge>();
+        protected Set<Edge> outEdges_ = [];
 
         /// <summary>
         /// enumeration of the node outcoming edges
         /// </summary>
         virtual public IEnumerable<Edge> OutEdges
-        {
-            get { return outEdges_; }
-            set { outEdges_ = (Set<Edge>)value; }
+        { get => outEdges_; set => outEdges_ = (Set<Edge>)value;
         }
         /// <summary>
         /// the list of self edges
         /// </summary>
-        protected Set<Edge> selfEdges_ = new Set<Edge>();
+        protected Set<Edge> selfEdges_ = [];
         /// <summary>
         ///enumeration of the node self edges
         /// </summary>
         virtual public IEnumerable<Edge> SelfEdges
-        {
-            get { return selfEdges_; }
-            set { selfEdges_ = (Set<Edge>)value; }
+        { get => selfEdges_; set => selfEdges_ = (Set<Edge>)value;
         }
 
-        List<Cluster> clusterParents = new List<Cluster>();
+        List<Cluster> clusterParents = [];
 
         /// <summary>
         /// Parents (if any) of which this node is a member
         /// </summary>
         public IEnumerable<Cluster> ClusterParents
-        {
-            get { return clusterParents; }
-            set { clusterParents = (List<Cluster>)value; }
+        { get => clusterParents; set => clusterParents = (List<Cluster>)value;
         }
 
         /// <summary>
@@ -152,7 +139,7 @@ namespace Microsoft.AGL.Core.Layout
         {
             get
             {
-                Cluster parent = this.ClusterParents.FirstOrDefault();
+                Cluster parent = ClusterParents.FirstOrDefault();
                 while (parent != null)
                 {
                     yield return parent;
@@ -176,10 +163,7 @@ namespace Microsoft.AGL.Core.Layout
         /// removes a self edge
         /// </summary>
         /// <param name="edge"></param>
-        public bool RemoveSelfEdge(Edge edge)
-        {
-            return selfEdges_.Remove(edge);
-        }
+        public bool RemoveSelfEdge(Edge edge) => selfEdges_.Remove(edge);
 
         /// <summary>
         /// adds and outgoing edge
@@ -237,10 +221,10 @@ namespace Microsoft.AGL.Core.Layout
         /// </summary>
         public Point Center
         {
-            get { return BoundaryCurve.BoundingBox.Center; }
+            get => BoundaryCurve.BoundingBox.Center;
             set
             {
-                var del = value - Center;
+                Point del = value - Center;
                 if (del.X == 0 && del.Y == 0) return;
                 RaiseLayoutChangeEvent(value);
                 //an optimization can be appied here; move the boundary curve only on demand
@@ -257,8 +241,7 @@ namespace Microsoft.AGL.Core.Layout
             if (BoundaryCurve != null)
             {
                 // RoundedRect is special, rather than simply scaling the geometry we want to keep the corner radii constant
-                RoundedRect rr = BoundaryCurve as RoundedRect;
-                if (rr == null)
+                if (BoundaryCurve is not RoundedRect rr)
                 {
                     Debug.Assert(BoundaryCurve.BoundingBox.Width > 0);
                     Debug.Assert(BoundaryCurve.BoundingBox.Height > 0);
@@ -283,10 +266,7 @@ namespace Microsoft.AGL.Core.Layout
         /// </summary>
         override public Rectangle BoundingBox
         {
-            get
-            {
-                return BoundaryCurve != null ? BoundaryCurve.BoundingBox : Rectangle.CreateAnEmptyBox();
-            }
+            get => BoundaryCurve != null ? BoundaryCurve.BoundingBox : Rectangle.CreateAnEmptyBox();
             set
             {
                 if (Math.Abs(value.Width - Width) < 0.01 && Math.Abs(value.Height - Height) < 0.01)
@@ -295,27 +275,24 @@ namespace Microsoft.AGL.Core.Layout
                 }
                 else
                 {
-                    this.FitBoundaryCurveToTarget(value);
+                    FitBoundaryCurveToTarget(value);
                 }
             }
         }
         /// <summary>
         /// Width of the node does not include the padding
         /// </summary>
-        public double Width { get { return BoundaryCurve.BoundingBox.Width; } }
+        public double Width => BoundaryCurve.BoundingBox.Width;
 
         /// <summary>
         /// Height of the node does not including the padding
         /// </summary>
-        public double Height { get { return BoundaryCurve.BoundingBox.Height; } }
+        public double Height => BoundaryCurve.BoundingBox.Height;
 
         /// <summary>
         /// returns the node degree
         /// </summary>
-        public int Degree
-        {
-            get { return OutEdges.Count() + InEdges.Count() + SelfEdges.Count(); }
-        }
+        public int Degree => OutEdges.Count() + InEdges.Count() + SelfEdges.Count();
 
         #endregion
 
@@ -324,19 +301,13 @@ namespace Microsoft.AGL.Core.Layout
         /// </summary>
         /// <param name="edge"></param>
         /// <returns>True if the node is adjacent to the edge , and false otherwise.</returns>
-        public bool RemoveInEdge(Edge edge)
-        {
-            return inEdges_.Remove(edge);
-        }
+        public bool RemoveInEdge(Edge edge) => inEdges_.Remove(edge);
         /// <summary>
         /// removes an incoming edge
         /// </summary>
         /// <param name="edge"></param>
         /// <returns>True if the node is adjacent to the edge , and false otherwise.</returns>
-        public bool RemoveOutEdge(Edge edge)
-        {
-            return outEdges_.Remove(edge);
-        }
+        public bool RemoveOutEdge(Edge edge) => outEdges_.Remove(edge);
         /// <summary>
         /// remove all edges
         /// </summary>
@@ -349,10 +320,7 @@ namespace Microsoft.AGL.Core.Layout
         ///<summary>
         ///</summary>
         ///<param name="transformation"></param>
-        public void Transform(PlaneTransformation transformation)
-        {
-            BoundaryCurve = BoundaryCurve.Transform(transformation);
-        }
+        public void Transform(PlaneTransformation transformation) => BoundaryCurve = BoundaryCurve.Transform(transformation);
 
 
         /// <summary>
@@ -361,7 +329,7 @@ namespace Microsoft.AGL.Core.Layout
         /// <returns>True if the node is a descendant of the cluster.  False otherwise.</returns>
         public bool IsDescendantOf(Cluster cluster)
         {
-            Queue<Cluster> parents = new Queue<Cluster>(this.ClusterParents);
+            Queue<Cluster> parents = new Queue<Cluster>(ClusterParents);
 
             while (parents.Count > 0)
             {
@@ -381,9 +349,6 @@ namespace Microsoft.AGL.Core.Layout
             return false;
         }
 
-        internal bool UnderCollapsedCluster()
-        {
-            return ClusterParents.Any(c => c.IsCollapsed);
-        }
+        internal bool UnderCollapsedCluster() => ClusterParents.Any(c => c.IsCollapsed);
     }
 }

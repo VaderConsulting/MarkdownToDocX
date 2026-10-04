@@ -1,6 +1,7 @@
 ﻿using System;
 
-namespace Microsoft.AGL.Core.Geometry {
+namespace Microsoft.AGL.Core.Geometry.RTree
+{
     internal sealed class RectangleNodeUtils {
         internal static void CrossRectangleNodes<TA, TB>(RectangleNode<TA> a, RectangleNode<TB> b, Action<TA, TB> action) {
             if (!a.rectangle.Intersects(b.rectangle))

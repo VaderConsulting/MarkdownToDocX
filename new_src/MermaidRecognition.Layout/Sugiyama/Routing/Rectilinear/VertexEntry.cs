@@ -13,9 +13,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         /// <param name="numberOfBends">Number of bends in the path up to this vertex</param>
         /// <param name="cost">Cost of the path up to this vertex</param>
         internal VertexEntry(VisibilityVertexRectilinear vertex, VertexEntry prevEntry, double length, int numberOfBends, double cost) {
-            this.Vertex = vertex;
-            this.Direction = (prevEntry != null) ? CompassVector.PureDirectionFromPointToPoint(prevEntry.Vertex.Point, vertex.Point) : Directions. None;
-            this.ResetEntry(prevEntry, length, numberOfBends, cost);
+            Vertex = vertex;
+            Direction = (prevEntry != null) ? CompassVector.PureDirectionFromPointToPoint(prevEntry.Vertex.Point, vertex.Point) : Directions. None;
+            ResetEntry(prevEntry, length, numberOfBends, cost);
         }
 
         internal void ResetEntry(VertexEntry prevEntry, double length, int numberOfBends, double cost) {
@@ -23,17 +23,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             // e.g. we could have prevEntry from S, which in turn had a prevEntry from E, replaced by prevEntry from
             // S which has a prevEntry from S.
 #if DEBUG
-            if (this.PreviousEntry != null) {
-                Debug.Assert(this.PreviousEntry.Vertex == prevEntry.Vertex, "Inconsistent prevEntry vertex");
-                Debug.Assert(this.PreviousEntry.Direction != prevEntry.Direction, "Duplicate prevEntry direction");
-                Debug.Assert(this.Direction == CompassVector.PureDirectionFromPointToPoint(this.PreviousEntry.Vertex.Point, this.Vertex.Point),
+            if (PreviousEntry != null) {
+                Debug.Assert(PreviousEntry.Vertex == prevEntry.Vertex, "Inconsistent prevEntry vertex");
+                Debug.Assert(PreviousEntry.Direction != prevEntry.Direction, "Duplicate prevEntry direction");
+                Debug.Assert(Direction == CompassVector.PureDirectionFromPointToPoint(PreviousEntry.Vertex.Point, Vertex.Point),
                         "Inconsistent entryDir");
             }
 #endif // DEBUG
-            this.PreviousEntry = prevEntry;
-            this.Length = length;
-            this.NumberOfBends = numberOfBends;
-            this.Cost = cost;
+            PreviousEntry = prevEntry;
+            Length = length;
+            NumberOfBends = numberOfBends;
+            Cost = cost;
         }
 
         /// <summary>
@@ -49,7 +49,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         /// <summary>
         /// The vertex that this VertexEntry is entered from
         /// </summary>
-        internal VisibilityVertexRectilinear PreviousVertex { get { return (this.PreviousEntry == null) ? null : this.PreviousEntry.Vertex; } }
+        internal VisibilityVertexRectilinear PreviousVertex => (PreviousEntry == null) ? null : PreviousEntry.Vertex;
 
         /// <summary>
         /// The direction of entry to the vertex for this path (i.e. the direction from PreviousVertex to this.Vertex).
@@ -78,8 +78,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 
         /// <summary>
         /// </summary>
-        public override string ToString() {
-            return this.Vertex.Point + " " + this.Direction + " " + this.IsClosed + " " + this.Cost;
-        }
+        public override string ToString() => Vertex.Point + " " + Direction + " " + IsClosed + " " + Cost;
     }
 }

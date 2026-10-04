@@ -35,14 +35,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// An offset relative to the Center of the Node that we use to calculate Location
         /// </summary>
         public virtual Point LocationOffset { get; private set; }
-        
+
         /// <summary>
         /// Create a port relative to a specific node with an offset for the port Location from the nodes center
         /// <param name="curveDelegate"></param>
         /// <param name="centerDelegate"></param>
         /// <param name="locationOffset"></param>
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1062:Validate arguments of public methods", MessageId = "1")]
         public RelativeFloatingPort(Func<ICurve> curveDelegate, Func<Point> centerDelegate, Point locationOffset)
             : base(null, centerDelegate() + locationOffset) {
             LocationOffset = locationOffset;
@@ -58,22 +57,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         public RelativeFloatingPort(Func<ICurve> curveDelegate, Func<Point> centerDelegate)
             : this(curveDelegate, centerDelegate, new Point()) {
         }
-        
+
         /// <summary>
         /// Get the location = CenterDelegate() + LocationOffset
         /// </summary>
-        public override Point Location {
-            get {
-                return CenterDelegate() + LocationOffset;
-            }
-        }
+        public override Point Location => CenterDelegate() + LocationOffset;
         /// <summary>
         /// Get the curve from the node's BoundaryCurve
         /// </summary>
-        public override ICurve Curve {
-            get {
-                return CurveDelegate();
-            }
-        }
+        public override ICurve Curve => CurveDelegate();
     }
 }

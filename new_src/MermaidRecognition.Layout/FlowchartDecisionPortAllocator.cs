@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Render;
 
 namespace MermaidRecognition.Layout;
@@ -30,7 +31,7 @@ public static class FlowchartDecisionPortAllocator
         FlowchartDirection Direction,
         out List<(double X, double Y)> LayoutPoints)
     {
-        LayoutPoints = new List<(double X, double Y)>();
+        LayoutPoints = [];
 
         if (!BoundsById.TryGetValue(Edge.SourceId, out FlowchartLayoutNodeBounds SourceBounds)
             || !BoundsById.TryGetValue(Edge.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
@@ -1034,41 +1035,35 @@ public static class FlowchartDecisionPortAllocator
     private static void SortOutgoingByTargetCrossAxis(
         List<EdgeContract> Outgoing,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
-        bool UseDescendingCrossAxis)
-    {
-        Outgoing.Sort((Left, Right) =>
-        {
-            double LeftValue = GetCrossAxis(Left.TargetId, BoundsById);
-            double RightValue = GetCrossAxis(Right.TargetId, BoundsById);
-            int CrossCompare = UseDescendingCrossAxis
-                ? RightValue.CompareTo(LeftValue)
-                : LeftValue.CompareTo(RightValue);
-            if (CrossCompare != 0)
-            {
-                return CrossCompare;
-            }
+        bool UseDescendingCrossAxis) => Outgoing.Sort((Left, Right) =>
+                                             {
+                                                 double LeftValue = GetCrossAxis(Left.TargetId, BoundsById);
+                                                 double RightValue = GetCrossAxis(Right.TargetId, BoundsById);
+                                                 int CrossCompare = UseDescendingCrossAxis
+                                                     ? RightValue.CompareTo(LeftValue)
+                                                     : LeftValue.CompareTo(RightValue);
+                                                 if (CrossCompare != 0)
+                                                 {
+                                                     return CrossCompare;
+                                                 }
 
-            return Left.CreationIndex.CompareTo(Right.CreationIndex);
-        });
-    }
+                                                 return Left.CreationIndex.CompareTo(Right.CreationIndex);
+                                             });
 
     private static void SortIncomingBySourceCrossAxis(
         List<EdgeContract> Incoming,
-        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById)
-    {
-        Incoming.Sort((Left, Right) =>
-        {
-            double LeftCross = GetCrossAxis(Left.SourceId, BoundsById);
-            double RightCross = GetCrossAxis(Right.SourceId, BoundsById);
-            int CrossCompare = LeftCross.CompareTo(RightCross);
-            if (CrossCompare != 0)
-            {
-                return CrossCompare;
-            }
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById) => Incoming.Sort((Left, Right) =>
+                                                                                   {
+                                                                                       double LeftCross = GetCrossAxis(Left.SourceId, BoundsById);
+                                                                                       double RightCross = GetCrossAxis(Right.SourceId, BoundsById);
+                                                                                       int CrossCompare = LeftCross.CompareTo(RightCross);
+                                                                                       if (CrossCompare != 0)
+                                                                                       {
+                                                                                           return CrossCompare;
+                                                                                       }
 
-            return Left.CreationIndex.CompareTo(Right.CreationIndex);
-        });
-    }
+                                                                                       return Left.CreationIndex.CompareTo(Right.CreationIndex);
+                                                                                   });
 
     private static double GetCrossAxis(
         string NodeId,
@@ -1084,7 +1079,7 @@ public static class FlowchartDecisionPortAllocator
 
     private static List<EdgeContract> GetVisibleEdgesFromSource(DiagramContract Contract, string SourceId)
     {
-        List<EdgeContract> Edges = new List<EdgeContract>();
+        List<EdgeContract> Edges = [];
         foreach (EdgeContract Edge in Contract.Edges)
         {
             if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
@@ -1103,7 +1098,7 @@ public static class FlowchartDecisionPortAllocator
 
     private static List<EdgeContract> GetVisibleEdgesToTarget(DiagramContract Contract, string TargetId)
     {
-        List<EdgeContract> Edges = new List<EdgeContract>();
+        List<EdgeContract> Edges = [];
         foreach (EdgeContract Edge in Contract.Edges)
         {
             if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
@@ -1204,7 +1199,7 @@ public static class FlowchartDecisionPortAllocator
             return;
         }
 
-        List<(double X, double Y)> CandidatePoints = new List<(double X, double Y)>();
+        List<(double X, double Y)> CandidatePoints = [];
         FlowchartVerticalRouteGuideBuilder.AppendVerticalDecisionBranchRoute(
             CandidatePoints,
             SourceX,

@@ -1,6 +1,7 @@
 using System.ComponentModel;
+
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
-using MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval.MinimumSpanningTree;
+using MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval;
 
 namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS
 {
@@ -41,9 +42,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS
         int _callIterationsWithMajorizationThreshold = 3000;
 
         /// remove overlaps between node boundaries
-        public bool RemoveOverlaps {
-            set { removeOverlaps = value; }
-            get { return removeOverlaps; }
+        public bool RemoveOverlaps { set => removeOverlaps = value; get => removeOverlaps;
         }
 
         /*
@@ -65,9 +64,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS
         [Description("Number of pivots in MDS")]
         [DefaultValue(50)]
 #endif
-        public int PivotNumber {
-            set { pivotNumber = value; }
-            get { return pivotNumber; }
+        public int PivotNumber { set => pivotNumber = value; get => pivotNumber;
         }
 
         /// <summary>
@@ -75,16 +72,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS
         /// </summary>
 
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming",
-            "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Majorization")]
 #if PROPERTY_GRID_SUPPORT
         [DisplayName("Number of iterations with majorization")]
         [Description("If this number is positive then the majorization method will be used with the initial solution taken from the landmark method")]
         [DefaultValue(0)]
 #endif
-            public int IterationsWithMajorization {
-            set { iterationsWithMajorization = value; }
-            get { return iterationsWithMajorization; }
+        public int IterationsWithMajorization { set => iterationsWithMajorization = value; get => iterationsWithMajorization;
         }
 
         /// <summary>
@@ -95,9 +88,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS
         [Description("The resulting layout will be scaled in the x-axis by this number")]
         [DefaultValue(200.0)]
 #endif
-        public double ScaleX {
-            set { scaleX = value; }
-            get { return scaleX; }
+        public double ScaleX { set => scaleX = value; get => scaleX;
         }
 
         /// <summary>
@@ -108,9 +99,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS
         [Description("The resulting layout will be scaled by y-axis by this number")]
         [DefaultValue(200.0)]
 #endif
-        public double ScaleY {
-            set { scaleY = value; }
-            get { return scaleY; }
+        public double ScaleY { set => scaleY = value; get => scaleY;
         }
 
         /// <summary>
@@ -120,9 +109,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS
         [Description("The power to raise the distances to in the majorization step")]
         [DefaultValue(-2.00)]
 #endif
-        public double Exponent {
-            set { exponent = value; }
-            get { return exponent; }
+        public double Exponent { set => exponent = value; get => exponent;
         }
 
         /// <summary>
@@ -133,18 +120,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS
         [Description("The resulting layout will be rotated by this angle")]
         [DefaultValue(0.0)]
 #endif
-        public double RotationAngle {
-            set { rotationAngle = value%360; }
-            get { return rotationAngle; }
+        public double RotationAngle { set => rotationAngle = value % 360; get => rotationAngle;
         }
 
         /// <summary>
         /// Clones the object
         /// </summary>
         /// <returns></returns>
-        public override LayoutAlgorithmSettings Clone() {
-            return MemberwiseClone() as LayoutAlgorithmSettings;
-        }
+        public override LayoutAlgorithmSettings Clone() => MemberwiseClone() as LayoutAlgorithmSettings;
 
         /// <summary>
         /// Settings for calculation of ideal edge length
@@ -160,9 +143,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS
         /// <summary>
         /// The method which should be used to remove the overlaps.
         /// </summary>
-        public OverlapRemovalMethod OverlapRemovalMethod {
-            get { return overlapMethod; }
-            set { overlapMethod = value; }
+        public OverlapRemovalMethod OverlapRemovalMethod { get => overlapMethod; set => overlapMethod = value;
         }
 
         public int GetNumberOfIterationsWithMajorization(int nodeCount) {
@@ -172,9 +153,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS
             return IterationsWithMajorization;
         }
 
-        public int CallIterationsWithMajorizationThreshold {
-            get { return _callIterationsWithMajorizationThreshold; }
-            set { _callIterationsWithMajorizationThreshold = value; }
+        public int CallIterationsWithMajorizationThreshold { get => _callIterationsWithMajorizationThreshold; set => _callIterationsWithMajorizationThreshold = value;
         }
     }
 }

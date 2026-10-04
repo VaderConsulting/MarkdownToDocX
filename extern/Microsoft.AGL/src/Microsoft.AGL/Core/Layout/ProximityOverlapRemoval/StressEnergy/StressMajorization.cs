@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -117,10 +117,8 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.StressEnergy {
         /// <returns></returns>
          List<Point> IterateSingleConjugateGradient() {
 #if !SILVERLIGHT
-            SparseMatrix Lw;
-            SparseMatrix Lx;
-            ConstructLinearSystemFromMajorization(out Lw, out Lx);
-           
+            ConstructLinearSystemFromMajorization(out SparseMatrix Lw, out SparseMatrix Lx);
+
             double[] zX = Positions.Select(p => p.X).ToArray();
             double[] zY = Positions.Select(p => p.Y).ToArray();
 
@@ -132,11 +130,11 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.StressEnergy {
 
             // solve for x/y dimension and do it in parallel if settings allow.
 
-            var invokers = new Dictionary<bool, Action<Action[]>> {
+            Dictionary<bool, Action<Action[]>> invokers = new Dictionary<bool, Action<Action[]>> {
                 {true, Parallel.Invoke},
                 {false, actions => Array.ForEach(actions, a => a())}
             };
-            var solvers = new Dictionary<SolvingMethod, Func<SparseMatrix, double[], double[], int, double, double[]>> {
+            Dictionary<SolvingMethod, Func<SparseMatrix, double[], double[], int, double, double[]>> solvers = new Dictionary<SolvingMethod, Func<SparseMatrix, double[], double[], int, double, double[]>> {
                 { SolvingMethod.ConjugateGradient, LinearSystemSolver.SolveConjugateGradient },
                 { SolvingMethod.PrecondConjugateGradient, LinearSystemSolver.SolvePrecondConjugateGradient }
             };
@@ -232,20 +230,21 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.StressEnergy {
     /// </summary>
         public static void TestMajorizationSmall() {
             // small 4-star to test the majorization
-            var positions = new List<Point>(4);
-
-            positions.Add(new Point(0, 0));
-            positions.Add(new Point(-2, -1));
-            positions.Add(new Point(1, 2));
+            List<Point> positions = new List<Point>(4)
+            {
+                new Point(0, 0),
+                new Point(-2, -1),
+                new Point(1, 2)
+            };
 
 
             //for first node on 0/0 create forces to push the other away
-            var nodeVotings = new List<NodeVoting>(8);
+            List<NodeVoting> nodeVotings = new List<NodeVoting>(8);
 
 
-            var votesNode1 = new List<Vote>();
-            var votesNodeLeft = new List<Vote>();
-            var votesNodeRight = new List<Vote>();
+            List<Vote> votesNode1 = new List<Vote>();
+            List<Vote> votesNodeLeft = new List<Vote>();
+            List<Vote> votesNodeRight = new List<Vote>();
 
             votesNodeLeft.Add(new Vote(0, 10, 1/Math.Pow(10, 2))); // force from middle node to left node
             votesNodeRight.Add(new Vote(0, 10, 1/Math.Pow(10, 2))); // force from middle node to right node
@@ -253,14 +252,20 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.StressEnergy {
             votesNode1.Add(new Vote(1, 10, 1/Math.Pow(10, 2)));
             votesNode1.Add(new Vote(2, 10, 1/Math.Pow(10, 2)));
 
-            var blockNode1 = new List<VoteBlock>();
-            blockNode1.Add(new VoteBlock(votesNode1, 1));
+            List<VoteBlock> blockNode1 = new List<VoteBlock>
+            {
+                new VoteBlock(votesNode1, 1)
+            };
 
-            var blockNodeLeft = new List<VoteBlock>();
-            blockNodeLeft.Add(new VoteBlock(votesNodeLeft, 1));
+            List<VoteBlock> blockNodeLeft = new List<VoteBlock>
+            {
+                new VoteBlock(votesNodeLeft, 1)
+            };
 
-            var blockNodeRight = new List<VoteBlock>();
-            blockNodeRight.Add(new VoteBlock(votesNodeRight, 1));
+            List<VoteBlock> blockNodeRight = new List<VoteBlock>
+            {
+                new VoteBlock(votesNodeRight, 1)
+            };
 
 
             nodeVotings.Add(new NodeVoting(0, blockNode1));
@@ -268,9 +273,11 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.StressEnergy {
             nodeVotings.Add(new NodeVoting(2, blockNodeRight));
 
 
-            var majorization = new StressMajorization();
-            majorization.Positions = positions;
-            majorization.NodeVotings = nodeVotings;
+            StressMajorization majorization = new StressMajorization
+            {
+                Positions = positions,
+                NodeVotings = nodeVotings
+            };
 
             for (int i = 0; i < 20; i++) {
                 List<Point> result = majorization.IterateSingleLocalizedMethod();
@@ -294,14 +301,14 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.StressEnergy {
             var edgesDistance = new double[numEdges];
             var edgesWeight = new double[numEdges];
 #else            
-            var edges = new double[numEdges,2];
+            double[,] edges = new double[numEdges,2];
 #endif
 
             // list of undirected (symmetric) edges: [,0]=distance, [,1]=weight , every edge must be symmetric (thus exist once in each direction).
 
             //each element in the array corresponds to a node, the list corresponds to the adjacency list of that node.
             //int[0]: node id of adjacent node, int[1]: edge id of this edge
-            var adjLists = new List<int[]>[NodeVotings.Count];
+            List<int[]>[] adjLists = new List<int[]>[NodeVotings.Count];
 
             int row = 0;
             int edgeId = 0;
@@ -309,7 +316,7 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.StressEnergy {
                 int targetId = nodeVoting.VotedNodeIndex;
                 int numAdj = 0;
                 nodeVoting.VotingBlocks.ForEach(block => numAdj += block.Votings.Count);
-                var currentAdj = new List<int[]>(numAdj);
+                List<int[]> currentAdj = new List<int[]>(numAdj);
                 if (row != targetId)
                     throw new ArgumentOutOfRangeException("VotedNodeIndex must be consecutive starting from 0");
                 adjLists[row] = currentAdj;
@@ -344,7 +351,7 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.StressEnergy {
             }
             numEdges += adjLists.Length; //self loop added to every node, so number of edges has increased by n.
 
-            var diagonalPos = new int[adjLists.Length];
+            int[] diagonalPos = new int[adjLists.Length];
             // points to the position of the i-th diagonal entry in the flatened value array
             Lw = new SparseMatrix(numEdges, adjLists.Length, adjLists.Length);
             Lx = new SparseMatrix(numEdges, adjLists.Length, adjLists.Length);
@@ -354,7 +361,7 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.StressEnergy {
                 List<int[]> adjList = adjLists[rowId];
                 double sumLw = 0;
                 double sumLx = 0;
-                foreach (var node in adjList) {
+                foreach (int[] node in adjList) {
                     int colId = node[0];
                     Lw.ColInd()[valPos] = colId;
                     Lx.ColInd()[valPos] = colId;

@@ -13,7 +13,7 @@ public sealed class ActualResultsDocument
 
     public ActualResultsSource Source { get; set; } = new ActualResultsSource();
 
-    public List<DiagramActualResult> Diagrams { get; set; } = new List<DiagramActualResult>();
+    public List<DiagramActualResult> Diagrams { get; set; } = [];
 }
 
 /// <summary>
@@ -51,27 +51,27 @@ public sealed class DiagramActualResult
 
     public string? ScenarioTitle { get; set; }
 
-    public Dictionary<string, object> Recognition { get; set; } = new Dictionary<string, object>();
+    public Dictionary<string, object> Recognition { get; set; } = [];
 
-    public Dictionary<string, object> Config { get; set; } = new Dictionary<string, object>();
+    public Dictionary<string, object> Config { get; set; } = [];
 
-    public List<NodeActualResult> Nodes { get; set; } = new List<NodeActualResult>();
+    public List<NodeActualResult> Nodes { get; set; } = [];
 
-    public List<EdgeActualResult> Edges { get; set; } = new List<EdgeActualResult>();
+    public List<EdgeActualResult> Edges { get; set; } = [];
 
-    public List<GroupActualResult> Groups { get; set; } = new List<GroupActualResult>();
+    public List<GroupActualResult> Groups { get; set; } = [];
 
-    public Dictionary<string, object> Layout { get; set; } = new Dictionary<string, object>();
+    public Dictionary<string, object> Layout { get; set; } = [];
 
-    public Dictionary<string, object> Routing { get; set; } = new Dictionary<string, object>();
+    public Dictionary<string, object> Routing { get; set; } = [];
 
-    public List<Dictionary<string, object>> Labels { get; set; } = new List<Dictionary<string, object>>();
+    public List<Dictionary<string, object>> Labels { get; set; } = [];
 
-    public List<Dictionary<string, object>> Markers { get; set; } = new List<Dictionary<string, object>>();
+    public List<Dictionary<string, object>> Markers { get; set; } = [];
 
-    public List<Dictionary<string, object>> Diagnostics { get; set; } = new List<Dictionary<string, object>>();
+    public List<Dictionary<string, object>> Diagnostics { get; set; } = [];
 
-    public Dictionary<string, object> Implementation { get; set; } = new Dictionary<string, object>();
+    public Dictionary<string, object> Implementation { get; set; } = [];
 }
 
 /// <summary>
@@ -105,13 +105,13 @@ public sealed class NodeActualResult
 
     public int OutDegree { get; set; }
 
-    public List<string> IncomingEdgeIds { get; set; } = new List<string>();
+    public List<string> IncomingEdgeIds { get; set; } = [];
 
-    public List<string> OutgoingEdgeIds { get; set; } = new List<string>();
+    public List<string> OutgoingEdgeIds { get; set; } = [];
 
-    public List<Dictionary<string, object>> NeighbourFacts { get; set; } = new List<Dictionary<string, object>>();
+    public List<Dictionary<string, object>> NeighbourFacts { get; set; } = [];
 
-    public Dictionary<string, object> Facts { get; set; } = new Dictionary<string, object>();
+    public Dictionary<string, object> Facts { get; set; } = [];
 }
 
 /// <summary>
@@ -173,13 +173,13 @@ public sealed class EdgeActualResult
 
     public PathActualResult Path { get; set; } = new PathActualResult();
 
-    public List<Dictionary<string, object>> CollisionFacts { get; set; } = new List<Dictionary<string, object>>();
+    public List<Dictionary<string, object>> CollisionFacts { get; set; } = [];
 
-    public Dictionary<string, object> LabelFacts { get; set; } = new Dictionary<string, object>();
+    public Dictionary<string, object> LabelFacts { get; set; } = [];
 
-    public Dictionary<string, object> MarkerFacts { get; set; } = new Dictionary<string, object>();
+    public Dictionary<string, object> MarkerFacts { get; set; } = [];
 
-    public Dictionary<string, object> Facts { get; set; } = new Dictionary<string, object>();
+    public Dictionary<string, object> Facts { get; set; } = [];
 }
 
 /// <summary>
@@ -187,9 +187,9 @@ public sealed class EdgeActualResult
 /// </summary>
 public sealed class PathActualResult
 {
-    public List<PointActualResult> Points { get; set; } = new List<PointActualResult>();
+    public List<PointActualResult> Points { get; set; } = [];
 
-    public List<Dictionary<string, object>> Segments { get; set; } = new List<Dictionary<string, object>>();
+    public List<Dictionary<string, object>> Segments { get; set; } = [];
 
     public BoundsActualResult? BoundingBox { get; set; }
 }
@@ -221,7 +221,7 @@ public sealed class GroupActualResult
 
     public BoundsActualResult Bounds { get; set; } = new BoundsActualResult();
 
-    public List<string> MemberNodeIds { get; set; } = new List<string>();
+    public List<string> MemberNodeIds { get; set; } = [];
 
-    public Dictionary<string, object> Facts { get; set; } = new Dictionary<string, object>();
+    public Dictionary<string, object> Facts { get; set; } = [];
 }

@@ -44,8 +44,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core
                 task = new Task(() =>
                     {
                         // Execute the actions in parallel
-                        ParallelOptions options = new ParallelOptions();
-                        options.CancellationToken = cancelSource.Token;
+                        ParallelOptions options = new ParallelOptions
+                        {
+                            CancellationToken = cancelSource.Token
+                        };
                         Parallel.ForEach(sourceArray, options, item =>
                             {
                                 action(item);
@@ -113,8 +115,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core
             if (exception != null)
             {
                 // Nested cancels are propagated as OperationCanceledExceptions.
-                AggregateException innerException = exception.InnerException as AggregateException;
-                if (innerException != null && innerException.InnerException is OperationCanceledException)
+                if (exception.InnerException is AggregateException innerException && innerException.InnerException is OperationCanceledException)
                 {
                     throw new OperationCanceledException(Strings.ParallelOperationCanceledExceptionMessage, innerException.InnerException);
                 }

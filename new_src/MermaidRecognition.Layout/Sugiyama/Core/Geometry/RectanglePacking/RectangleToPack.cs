@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
+namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RectanglePacking
 {
     /// <summary>
     /// A rectangle and associated data that need to be packed
@@ -28,8 +28,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
         /// <param name="data"></param>
         public RectangleToPack(Rectangle rectangle, TData data)
         {
-            this.Rectangle = rectangle;
-            this.Data = data;
+            Rectangle = rectangle;
+            Data = data;
         }
     }
 }

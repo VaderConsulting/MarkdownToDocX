@@ -16,7 +16,7 @@ public static class MermaidEffectiveConfigBuilder
             return;
         }
 
-        if (Configuration.RawDirectiveValues.TryGetValue("flowchart.htmlLabels", out string FlowchartHtmlLabels))
+        if (Configuration.RawDirectiveValues.TryGetValue("flowchart.htmlLabels", out string? FlowchartHtmlLabels))
         {
             Configuration.EffectiveValuesMutable["htmlLabels"] = FlowchartHtmlLabels;
             Configuration.ValueSourcesMutable["htmlLabels"] = ConfigValueSource.DirectiveOverride;

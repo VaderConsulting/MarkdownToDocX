@@ -5,12 +5,12 @@
 // Copyright Microsoft Corporation.
 using System.Diagnostics;
 using System.Collections.Generic;
-using MermaidRecognition.Layout.Sugiyama.Core.DataStructures;
+
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves;
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
 using MermaidRecognition.Layout.Sugiyama.DebugHelpers;
-using MermaidRecognition.Layout.Sugiyama.Core;
+using MermaidRecognition.Layout.Sugiyama.Core.DataStructures.RBTree;
 
 namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
     internal class RectilinearScanLine : IComparer<BasicObstacleSide> {
@@ -27,76 +27,66 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         internal RectilinearScanLine(ScanDirection scanDir, Point start) {
             scanDirection = scanDir;
             SideTree = new RbTree<BasicObstacleSide>(this);
-            this.linePositionAtLastInsertOrRemove = start;
+            linePositionAtLastInsertOrRemove = start;
         }
 
         internal RBNode<BasicObstacleSide> Insert(BasicObstacleSide side, Point scanPos) {
-            DevTraceInfo(1, "prev LinePos = {0}, new LinePos = {1}, inserting side = {2}", this.linePositionAtLastInsertOrRemove, scanPos, side.ToString());
+            DevTraceInfo(1, "prev LinePos = {0}, new LinePos = {1}, inserting side = {2}", linePositionAtLastInsertOrRemove, scanPos, side.ToString());
             Assert(!scanDirection.IsFlat(side), "Flat sides are not allowed in the scanline");
             Assert(null == Find(side), "side already exists in the ScanLine");
-            this.linePositionAtLastInsertOrRemove = scanPos;
+            linePositionAtLastInsertOrRemove = scanPos;
 
             // RBTree's internal operations on insert/remove etc. mean the node can't cache the
             // RBNode returned by insert(); instead we must do find() on each call.  But we can
             // use the returned node to get predecessor/successor.
-            var node = SideTree.Insert(side);
+            RBNode<BasicObstacleSide> node = SideTree.Insert(side);
             DevTraceDump(2);
             return node;
         }
 
-        internal int Count { get { return SideTree.Count; } }
+        internal int Count => SideTree.Count;
 
         internal void Remove(BasicObstacleSide side, Point scanPos) {
-            DevTraceInfo(1, "current linePos = {0}, removing side = {1}", this.linePositionAtLastInsertOrRemove, side.ToString());
+            DevTraceInfo(1, "current linePos = {0}, removing side = {1}", linePositionAtLastInsertOrRemove, side.ToString());
             Assert(null != Find(side), "side does not exist in the ScanLine");
-            this.linePositionAtLastInsertOrRemove = scanPos;
+            linePositionAtLastInsertOrRemove = scanPos;
             SideTree.Remove(side);
             DevTraceDump(2);
         }
 
         internal RBNode<BasicObstacleSide> Find(BasicObstacleSide side) {
             // Sides that start after the current position cannot be in the scanline.
-            if (-1 == scanDirection.ComparePerpCoord(this.linePositionAtLastInsertOrRemove, side.Start)) {
+            if (-1 == scanDirection.ComparePerpCoord(linePositionAtLastInsertOrRemove, side.Start)) {
                 return null;
             }
             return SideTree.Find(side);
         }
 
-        internal RBNode<BasicObstacleSide> NextLow(BasicObstacleSide side) {
-            return NextLow(Find(side));
-        }
+        internal RBNode<BasicObstacleSide> NextLow(BasicObstacleSide side) => NextLow(Find(side));
 
         internal RBNode<BasicObstacleSide> NextLow(RBNode<BasicObstacleSide> sideNode) {
-            var pred = SideTree.Previous(sideNode);
+            RBNode<BasicObstacleSide> pred = SideTree.Previous(sideNode);
             return pred;
         }
 
-        internal RBNode<BasicObstacleSide> NextHigh(BasicObstacleSide side) {
-            return NextHigh(Find(side));
-        }
+        internal RBNode<BasicObstacleSide> NextHigh(BasicObstacleSide side) => NextHigh(Find(side));
 
         internal RBNode<BasicObstacleSide> NextHigh(RBNode<BasicObstacleSide> sideNode) {
-            var succ = SideTree.Next(sideNode);
+            RBNode<BasicObstacleSide> succ = SideTree.Next(sideNode);
             return succ;
         }
 
-        internal RBNode<BasicObstacleSide> Next(Directions dir, BasicObstacleSide side) {
-            return Next(dir, Find(side));
-        }
+        internal RBNode<BasicObstacleSide> Next(Directions dir, BasicObstacleSide side) => Next(dir, Find(side));
 
         internal RBNode<BasicObstacleSide> Next(Directions dir, RBNode<BasicObstacleSide> sideNode) {
-            var succ = (StaticGraphUtility.IsAscending(dir)) ? SideTree.Next(sideNode) : SideTree.Previous(sideNode);
+            RBNode<BasicObstacleSide> succ = (StaticGraphUtility.IsAscending(dir)) ? SideTree.Next(sideNode) : SideTree.Previous(sideNode);
             return succ;
         }
 
-        internal RBNode<BasicObstacleSide> Lowest()
-        {
-            return SideTree.TreeMinimum();
-        }
+        internal RBNode<BasicObstacleSide> Lowest() => SideTree.TreeMinimum();
 
         [Conditional("DEVTRACE")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
-// ReSharper disable InconsistentNaming
+        // ReSharper disable InconsistentNaming
         internal void DevTrace_VerifyConsistency(string descFormat, params object[] descArgs) {
 // ReSharper restore InconsistentNaming
 #if DEVTRACE
@@ -127,8 +117,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         /// <param name="first"></param>
         /// <param name="second"></param>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1800:DoNotCastUnnecessarily")]
-        public int Compare(BasicObstacleSide first, BasicObstacleSide second) {
+        public int Compare(BasicObstacleSide? first, BasicObstacleSide? second) {
+            if (first is null) return second is null ? 0 : -1; if (second is null) return 1;
             ValidateArg.IsNotNull(first, "first");
             ValidateArg.IsNotNull(second, "second");
             
@@ -143,9 +133,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             Debug_VerifySidesDoNotIntersect(first, second);
 
             // Other than intersecting sides at vertices of the same obstacle, there should be no interior intersections...
-            Point firstIntersect = VisibilityGraphGenerator.ScanLineIntersectSide(this.linePositionAtLastInsertOrRemove, first, scanDirection);
-            Point secondIntersect = VisibilityGraphGenerator.ScanLineIntersectSide(this.linePositionAtLastInsertOrRemove, second, scanDirection);
-            var cmp = firstIntersect.CompareTo(secondIntersect);
+            Point firstIntersect = VisibilityGraphGenerator.ScanLineIntersectSide(linePositionAtLastInsertOrRemove, first, scanDirection);
+            Point secondIntersect = VisibilityGraphGenerator.ScanLineIntersectSide(linePositionAtLastInsertOrRemove, second, scanDirection);
+            int cmp = firstIntersect.CompareTo(secondIntersect);
 
             // ... but we may still have rectangular sides that coincide, or angled sides that are close enough here but
             // are not detected by the convex-hull overlap calculations.  In those cases, we refine the comparison by side
@@ -167,14 +157,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 
         [Conditional("DEBUG")]
         internal static void Debug_VerifySidesDoNotIntersect(BasicObstacleSide side1, BasicObstacleSide side2) {
-            Point intersect;
-            if (!Point.LineLineIntersection(side1.Start, side1.End, side2.Start, side2.End, out intersect)) {
+            if (!Point.LineLineIntersection(side1.Start, side1.End, side2.Start, side2.End, out Point intersect))
+            {
                 return;
             }
 
             // The test for being within the interval is just multiplying to ensure that both subtractions 
             // return same-signed results (including endpoints).
-            var isInterior = ((side1.Start - intersect) * (intersect - side1.End) >= -ApproximateComparer.DistanceEpsilon)
+            bool isInterior = ((side1.Start - intersect) * (intersect - side1.End) >= -ApproximateComparer.DistanceEpsilon)
                         && ((side2.Start - intersect) * (intersect - side2.End) >= -ApproximateComparer.DistanceEpsilon);
             Debug.Assert(!isInterior, "Shouldn't have interior intersections except sides of the same obstacle");
         }
@@ -184,12 +174,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         /// <summary>
         /// </summary>
         /// <returns></returns>
-        public override string ToString() {
-            return this.linePositionAtLastInsertOrRemove + " " + scanDirection;
-        }
+        public override string ToString() => linePositionAtLastInsertOrRemove + " " + scanDirection;
 
         [Conditional("DEBUG")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         void Assert(bool condition, string message) {
 #if TEST_MSAGL
             if (!condition) {
@@ -207,7 +194,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 #endif // DEVTRACE
 
         [Conditional("DEVTRACE")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         void DevTraceInfo(int verboseLevel, string format, params object[] args) {
 #if DEVTRACE
             scanLineTrace.WriteLineIf(DevTrace.Level.Info, verboseLevel, format, args);
@@ -215,7 +201,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         }
 
         [Conditional("DEVTRACE")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         void DevTraceDump(int verboseLevel) {
 #if DEVTRACE
             if (scanLineDump.IsLevel(verboseLevel)) {
@@ -227,8 +212,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 
         #region DebugCurves
         [Conditional("TEST_MSAGL")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
-// ReSharper disable InconsistentNaming
+        // ReSharper disable InconsistentNaming
         internal void Test_ShowScanLine() {
 #if TEST_MSAGL
             LayoutAlgorithmSettings.ShowDebugCurvesEnumeration(Test_GetScanLineDebugCurves());
@@ -236,7 +220,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         }
 
         [Conditional("TEST_MSAGL")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         internal void Test_DumpScanLine() {
 #if TEST_MSAGL
             DebugCurveCollection.WriteToFile(Test_GetScanLineDebugCurves(), StaticGraphUtility.GetDumpFileName("ScanLine"));
@@ -245,16 +228,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 
 #if TEST_MSAGL
         internal List<DebugCurve> Test_GetScanLineDebugCurves() {
-// ReSharper restore InconsistentNaming
-            var debugCurves = new List<DebugCurve>();
+            // ReSharper restore InconsistentNaming
+            List<DebugCurve> debugCurves = new List<DebugCurve>();
 
             // Alternate the colors between green and blue, so that any inconsistency will stand out.
             // Use red to highlight that.
             string[] colors = { "green", "blue" };
             int index = 0;
-            var bbox = new Rectangle();
+            Rectangle bbox = new Rectangle();
             BasicObstacleSide prevSide = null;
-            foreach (var currentSide in SideTree) {
+            foreach (BasicObstacleSide currentSide in SideTree) {
                 string color = colors[index];
                 index ^= 1;
                 if (null == prevSide) {
@@ -275,8 +258,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             }
 
             // Add the sweep line.
-            Point start = StaticGraphUtility.RectangleBorderIntersect(bbox, this.linePositionAtLastInsertOrRemove, scanDirection.OppositeDirection);
-            Point end = StaticGraphUtility.RectangleBorderIntersect(bbox, this.linePositionAtLastInsertOrRemove, scanDirection.Direction);
+            Point start = StaticGraphUtility.RectangleBorderIntersect(bbox, linePositionAtLastInsertOrRemove, scanDirection.OppositeDirection);
+            Point end = StaticGraphUtility.RectangleBorderIntersect(bbox, linePositionAtLastInsertOrRemove, scanDirection.Direction);
             debugCurves.Add(new DebugCurve(0.025, "black", new LineSegment(start, end)));
             return debugCurves;
         }

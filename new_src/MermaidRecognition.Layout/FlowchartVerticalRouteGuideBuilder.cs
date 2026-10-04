@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 
 namespace MermaidRecognition.Layout;
 
@@ -60,15 +61,12 @@ public static class FlowchartVerticalRouteGuideBuilder
     public static (double X, double Y) ResolveVerticalHubFanOutTargetAttach(
         FlowchartLayoutNodeBounds TargetBounds,
         FlowchartDirection Direction,
-        EdgeEndpointMarker TargetEndpointMarker = EdgeEndpointMarker.None)
-    {
-        return ResolveVerticalHubFanInTargetAttach(
+        EdgeEndpointMarker TargetEndpointMarker = EdgeEndpointMarker.None) => ResolveVerticalHubFanInTargetAttach(
             TargetBounds,
             BranchIndex: 0,
             BranchCount: 1,
             Direction,
             TargetEndpointMarker);
-    }
 
     /// <summary>
     /// F111 dense bipartite / TB hub fan-in: top-left / top-centre / top-right on the upper face.
@@ -143,21 +141,21 @@ public static class FlowchartVerticalRouteGuideBuilder
         double MidY = (StartY + EndY) / 2.0;
         if (Math.Abs(EndX - StartX) < COLLINEAR_EPSILON_PX)
         {
-            return new List<(double X, double Y)>
-            {
+            return
+            [
                 (StartX, StartY),
                 (StartX, MidY),
                 (EndX, EndY)
-            };
+            ];
         }
 
-        return new List<(double X, double Y)>
-        {
+        return
+        [
             (StartX, StartY),
             (StartX, MidY),
             (EndX, MidY),
             (EndX, EndY)
-        };
+        ];
     }
 
     /// <summary>

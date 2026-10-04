@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Collections;
+
 using Microsoft.AGL.Core.DataStructures;
 using Microsoft.AGL.Layout.LargeGraphLayout;
 
@@ -14,7 +15,7 @@ namespace Microsoft.AGL.Core.Layout {
     
 #endif
     public class EdgeCollection : IEnumerable<Edge> {
-        readonly IList<Edge> edges = new List<Edge>();
+        readonly IList<Edge> edges = [];
         /// <summary>
         /// the graph of the collection
         /// </summary>
@@ -24,9 +25,7 @@ namespace Microsoft.AGL.Core.Layout {
         /// Creates a collection for edges.
         /// </summary>
         /// <param name="graph">The graph that each edge will be parented under.</param>
-        public EdgeCollection(GeometryGraph graph) {
-            this.graph = graph;
-        }
+        public EdgeCollection(GeometryGraph graph) => this.graph = graph;
 
         /// <summary>
         /// Adds the edge to the collection
@@ -52,8 +51,8 @@ namespace Microsoft.AGL.Core.Layout {
         /// Clears all of the edges.
         /// </summary>
         virtual public void Clear() {
-            this.edges.Clear();
-            foreach (var node in graph.Nodes) {
+            edges.Clear();
+            foreach (Node node in graph.Nodes) {
                 ((Set<Edge>) node.OutEdges).Clear();
                 ((Set<Edge>) node.InEdges).Clear();
                 ((Set<Edge>) node.SelfEdges).Clear();
@@ -72,30 +71,24 @@ namespace Microsoft.AGL.Core.Layout {
         /// <summary>
         /// Copies the contents of the collection to the given array, starting at the given index.
         /// </summary>
-        public void CopyTo(Edge[] array, int arrayIndex) {
-            this.edges.CopyTo(array, arrayIndex);
-        }
+        public void CopyTo(Edge[] array, int arrayIndex) => edges.CopyTo(array, arrayIndex);
 
         /// <summary>
         /// The number of edges in the collection.
         /// </summary>
-        public virtual int Count {
-            get { return this.edges.Count; }
-        }
+        public virtual int Count => edges.Count;
 
         /// <summary>
         /// Returns false. Edge collections are never readonly.
         /// </summary>
-        public bool IsReadOnly {
-            get { return false; }
-        }
+        public bool IsReadOnly => false;
 
         /// <summary>
         /// Removes the edge from the collection.
         /// </summary>
         /// <returns>True if the edge was removed. False if the edge was not removed or the edge was not found.</returns>
         virtual public bool Remove(Edge item) {
-            if (item == null || !this.edges.Contains(item))
+            if (item == null || !edges.Contains(item))
                 return false;
 
             DetouchEdge(item);
@@ -120,16 +113,12 @@ namespace Microsoft.AGL.Core.Layout {
         /// Gets an enumerator for the collection.
         /// </summary>
         /// <returns>The enumerator for the colleciton.</returns>
-        virtual public IEnumerator<Edge> GetEnumerator() {
-            return edges.GetEnumerator();
-        }
+        virtual public IEnumerator<Edge> GetEnumerator() => edges.GetEnumerator();
 
         /// <summary>
         /// Gets an enumerator for the collection.
         /// </summary>
         /// <returns>The enumerator for the collection.</returns>
-        IEnumerator IEnumerable.GetEnumerator() {
-            return ((IEnumerable) this.edges).GetEnumerator();
-        }
+        IEnumerator IEnumerable.GetEnumerator() => ((IEnumerable)edges).GetEnumerator();
     }
 }

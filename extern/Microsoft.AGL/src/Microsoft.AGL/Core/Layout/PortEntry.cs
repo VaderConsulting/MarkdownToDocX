@@ -10,7 +10,6 @@ namespace Microsoft.AGL.Core.Layout {
         /// returns the points nearby the middle of the entries
         /// </summary>
         /// <returns></returns>      
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         IEnumerable<Point> GetEntryPoints();
     }
 }

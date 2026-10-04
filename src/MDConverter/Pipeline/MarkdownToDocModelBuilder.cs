@@ -32,12 +32,10 @@ namespace MDConverter.Pipeline;
 /// <summary>
 /// Builds the internal DocModel from Markdown text using Markdig.
 /// </summary>
-public sealed class MarkdownToDocModelBuilder
+public sealed class MarkdownToDocModelBuilder(MarkdownOptions markdownOptions)
 {
-    private readonly MarkdownOptions options;
+    private readonly MarkdownOptions options = markdownOptions ?? new MarkdownOptions();
     private string rootPath = string.Empty;
-
-    public MarkdownToDocModelBuilder(MarkdownOptions MarkdownOptions) => options = MarkdownOptions ?? new MarkdownOptions();
 
     /// <summary>
     /// Parses the given Markdown and builds a DocModel. BasePath is used for resolving relative image paths (informational only in the model).
@@ -154,7 +152,7 @@ public sealed class MarkdownToDocModelBuilder
         {
             TableBlock OurTable = new TableBlock { HasHeaderRow = true };
             IReadOnlyList<TableColumnDefinition> Columns = Table.ColumnDefinitions;
-            List<TableAlignment> Alignments = new List<TableAlignment>();
+            List<TableAlignment> Alignments = [];
             for (int I = 0; I < Columns.Count; I++)
             {
                 Alignments.Add(ToTableAlignment(Columns[I].Alignment ?? Markdig.Extensions.Tables.TableColumnAlign.Left));
@@ -201,18 +199,12 @@ public sealed class MarkdownToDocModelBuilder
         }
     }
 
-    private static TableAlignment ToTableAlignment(Markdig.Extensions.Tables.TableColumnAlign Align)
+    private static TableAlignment ToTableAlignment(Markdig.Extensions.Tables.TableColumnAlign Align) => Align switch
     {
-        switch (Align)
-        {
-            case Markdig.Extensions.Tables.TableColumnAlign.Center:
-                return TableAlignment.Center;
-            case Markdig.Extensions.Tables.TableColumnAlign.Right:
-                return TableAlignment.Right;
-            default:
-                return TableAlignment.Left;
-        }
-    }
+        Markdig.Extensions.Tables.TableColumnAlign.Center => TableAlignment.Center,
+        Markdig.Extensions.Tables.TableColumnAlign.Right => TableAlignment.Right,
+        _ => TableAlignment.Left
+    };
 
     private void AppendBlockToQuote(Model.QuoteBlock OurQuote, Block Block)
     {
@@ -354,7 +346,7 @@ public sealed class MarkdownToDocModelBuilder
 
     private List<InlineNode> CollectInlines(Inline Inline)
     {
-        List<InlineNode> Result = new List<InlineNode>();
+        List<InlineNode> Result = [];
         CollectInlines(Inline, Result);
         return Result;
     }

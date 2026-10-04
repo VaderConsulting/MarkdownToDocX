@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace MermaidRecognition.State;
+namespace MermaidRecognition.Kinds.State;
 
 /// <summary>
 /// Parses Mermaid state diagram note directives.

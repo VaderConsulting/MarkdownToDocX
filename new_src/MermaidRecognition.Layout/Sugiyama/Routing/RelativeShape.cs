@@ -15,16 +15,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         /// <summary>
         /// The curve of the shape.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "BoundaryCurve"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "RelativeShape")]
-        public override ICurve BoundaryCurve { 
-            get { return curveDelegate(); }
-            set {
-                throw new InvalidOperationException(
+        public override ICurve BoundaryCurve { get => curveDelegate(); set => throw new InvalidOperationException(
 #if TEST_MSAGL
-                        "Cannot set BoundaryCurve directly for RelativeShape"
+                                                                                   "Cannot set BoundaryCurve directly for RelativeShape"
 #endif // TEST
-                    );
-            }
+                                                                               );
         }
 
         readonly Func<ICurve> curveDelegate;
@@ -33,9 +28,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         /// Constructor taking the ID and the curve delegate for the shape.
         /// </summary>
         /// <param name="curveDelegate"></param>
-        public RelativeShape(Func<ICurve> curveDelegate)
-        {
-            this.curveDelegate = curveDelegate;
-        }
+        public RelativeShape(Func<ICurve> curveDelegate) => this.curveDelegate = curveDelegate;
     }
 }

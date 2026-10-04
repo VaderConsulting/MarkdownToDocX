@@ -1,4 +1,4 @@
-namespace MermaidRecognition;
+namespace MermaidRecognition.Core;
 
 /// <summary>
 /// Multi-kind Mermaid recognition entry point (spec §4.2).
@@ -22,9 +22,11 @@ public static class MermaidRecognizer
         DiagramDetectionResult? Detection = DiagramKindDetector.TryDetect(DetectionText, Config);
         if (Detection == null && IsYamlFrontMatterOnlyTrap(Source, DetectionText))
         {
-            Detection = new DiagramDetectionResult();
-            Detection.MermaidDetectorId = "---";
-            Detection.ProgrammeKindId = "yaml-front-matter";
+            Detection = new DiagramDetectionResult
+            {
+                MermaidDetectorId = "---",
+                ProgrammeKindId = "yaml-front-matter"
+            };
         }
 
         if (Detection == null)
@@ -58,10 +60,7 @@ public static class MermaidRecognizer
     /// <summary>
     /// Parses with default detector configuration.
     /// </summary>
-    public static DiagramContract Parse(string Source)
-    {
-        return Parse(Source, null);
-    }
+    public static DiagramContract Parse(string Source) => Parse(Source, null);
 
     static bool IsYamlFrontMatterOnlyTrap(string Source, string DetectionText)
     {
@@ -75,8 +74,10 @@ public static class MermaidRecognizer
 
     static DiagramContract BuildUnknownDiagramContract(string Source)
     {
-        DiagramContract Contract = new DiagramContract();
-        Contract.Kind = "unknown";
+        DiagramContract Contract = new DiagramContract
+        {
+            Kind = "unknown"
+        };
         Contract.DiagnosticsMutable.Add(new MermaidDiagnostic(
             MermaidDiagnosticSeverity.Error,
             "recognition.unknown-diagram",

@@ -285,7 +285,6 @@ namespace Converter
         private void Main_DragEnter(object? Sender, DragEventArgs E)
 
         {
-
             if (E.Data == null)
 
             {
@@ -312,9 +311,8 @@ namespace Converter
 
             object? Data = E.Data.GetData(DataFormats.FileDrop);
 
-            string[]? Files = Data as string[];
 
-            if (Files == null || Files.Length == 0)
+            if (Data is not string[] Files || Files.Length == 0)
 
             {
 
@@ -357,7 +355,6 @@ namespace Converter
         private void Main_DragDrop(object? Sender, DragEventArgs E)
 
         {
-
             if (E.Data == null)
 
             {
@@ -370,9 +367,8 @@ namespace Converter
 
             object? Data = E.Data.GetData(DataFormats.FileDrop);
 
-            string[]? Files = Data as string[];
 
-            if (Files == null || Files.Length == 0)
+            if (Data is not string[] Files || Files.Length == 0)
 
             {
 

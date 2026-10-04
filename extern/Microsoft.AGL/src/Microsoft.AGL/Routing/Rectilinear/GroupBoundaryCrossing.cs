@@ -21,21 +21,17 @@ namespace Microsoft.AGL.Routing.Rectilinear {
 
         internal GroupBoundaryCrossing(Obstacle group, Directions dirToInside) {
             Debug.Assert(CompassVector.IsPureDirection(dirToInside), "Impure direction");
-            this.Group = group;
-            this.DirectionToInside = dirToInside;
+            Group = group;
+            DirectionToInside = dirToInside;
         }
 
-        static internal double BoundaryWidth { get { return ApproximateComparer.DistanceEpsilon; } }
+        static internal double BoundaryWidth => ApproximateComparer.DistanceEpsilon;
 
-        internal Point GetInteriorVertexPoint(Point outerVertex) {
-            return ApproximateComparer.Round(outerVertex + (CompassVector.ToPoint(DirectionToInside) * BoundaryWidth));
-        }
+        internal Point GetInteriorVertexPoint(Point outerVertex) => ApproximateComparer.Round(outerVertex + (CompassVector.ToPoint(DirectionToInside) * BoundaryWidth));
 
         /// <summary>
         /// </summary>
         /// <returns></returns>
-        public override string ToString() {
-            return string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0} {1}", DirectionToInside, Group);
-        }
+        public override string ToString() => string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0} {1}", DirectionToInside, Group);
     }
 }

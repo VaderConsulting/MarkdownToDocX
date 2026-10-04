@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -22,7 +22,6 @@ namespace Microsoft.AGL.Layout.MDS
         /// <summary>
         /// A square matrix with shortest path distances.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays", Justification = "This is performance critical.  Copying the array would be slow.")]
         public double[][] Result { get; private set; }
 
         /// <summary>
@@ -52,12 +51,12 @@ namespace Microsoft.AGL.Layout.MDS
             double[] min = new double[graph.Nodes.Count];
             for (int i = 0; i < min.Length; i++)
             {
-                min[i] = Double.PositiveInfinity;
+                min[i] = double.PositiveInfinity;
             }
             Node pivot = nodes[0];
             pivotArray[0] = 0;
             for (int i = 0; ; i++) {
-                var ssd = new SingleSourceDistances(graph, pivot, directed);
+                SingleSourceDistances ssd = new SingleSourceDistances(graph, pivot, directed);
                 ssd.Run();
                 Result[i] = ssd.Result;
                 if (i + 1 < pivotArray.Length)

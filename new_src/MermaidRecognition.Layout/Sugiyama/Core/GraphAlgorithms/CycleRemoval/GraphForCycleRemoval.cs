@@ -1,17 +1,19 @@
 using System.Collections.Generic;
+
 using MermaidRecognition.Layout.Sugiyama.Core.DataStructures;
 
-namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
+namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms.CycleRemoval
+{
 
     internal class GraphForCycleRemoval {
         /// <summary>
         /// this dictionary contains only buckets with nodes which are sources in the graph of constrained edges
         /// </summary>
-        SortedDictionary<int, Set<int>> deltaDegreeBucketsForSourcesInConstrainedSubgraph = new SortedDictionary<int, Set<int>>();
-        Dictionary<int, NodeInfo> nodeInfoDictionary = new Dictionary<int, NodeInfo>();
-        Set<int> sources=new Set<int>();
-        Set<int> sinks=new Set<int>();
-        Set<IntPair> edgesToKeep = new Set<IntPair>();
+        SortedDictionary<int, Set<int>> deltaDegreeBucketsForSourcesInConstrainedSubgraph = [];
+        Dictionary<int, NodeInfo> nodeInfoDictionary = [];
+        Set<int> sources=[];
+        Set<int> sinks=[];
+        Set<IntPair> edgesToKeep = [];
 
         internal void AddEdge(IntPair edge) {
             edgesToKeep.Insert(edge);
@@ -22,8 +24,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
 
 
          NodeInfo GetOrCreateNodeInfo(int node) {
-            NodeInfo nodeInfo;
-            if (!nodeInfoDictionary.TryGetValue(node, out nodeInfo)) {
+            if (!nodeInfoDictionary.TryGetValue(node, out NodeInfo? nodeInfo))
+            {
                 nodeInfo = new NodeInfo();
                 nodeInfoDictionary[node] = nodeInfo;
             }
@@ -36,15 +38,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
             GetOrCreateNodeInfo(target).AddInConstrainedEdge(source);
         }
 
-        internal bool IsEmpty() {
-            return nodeInfoDictionary.Count == 0;
-        }
+        internal bool IsEmpty() => nodeInfoDictionary.Count == 0;
 
         internal void RemoveNode(int u) {
             sources.Remove(u);
             sinks.Remove(u);
             RemoveNodeFromItsBucket(u);
-            NodeInfo uNodeInfo=this.nodeInfoDictionary[u];
+            NodeInfo uNodeInfo=nodeInfoDictionary[u];
             Set<int> allNbs = new Set<int>(uNodeInfo.AllNeighbors);
             foreach(int v in allNbs)
                 RemoveNodeFromItsBucket(v);
@@ -77,8 +77,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
 
          void RemoveNodeFromItsBucket(int v) {
             int delta = DeltaDegree(v);
-            Set<int> bucket;
-            if (this.deltaDegreeBucketsForSourcesInConstrainedSubgraph.TryGetValue(delta, out bucket)) {
+            if (deltaDegreeBucketsForSourcesInConstrainedSubgraph.TryGetValue(delta, out Set<int>? bucket))
+            {
                 bucket.Remove(v);
                 if (bucket.Count == 0)
                     deltaDegreeBucketsForSourcesInConstrainedSubgraph.Remove(delta);
@@ -93,11 +93,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
 
 
         internal bool TryFindVertexWithNoIncomingConstrainedEdgeAndMaximumOutDegreeMinusInDedree(out int u) {
-            var enumerator = this.deltaDegreeBucketsForSourcesInConstrainedSubgraph.GetEnumerator();
+            SortedDictionary<int, Set<int>>.Enumerator enumerator = deltaDegreeBucketsForSourcesInConstrainedSubgraph.GetEnumerator();
             if (enumerator.MoveNext()) {
-                var bucketSet = enumerator.Current.Value;
+                Set<int> bucketSet = enumerator.Current.Value;
                 System.Diagnostics.Debug.Assert(bucketSet.Count > 0);
-                var nodeEnumerator = bucketSet.GetEnumerator();
+                IEnumerator<int> nodeEnumerator = bucketSet.GetEnumerator();
                 nodeEnumerator.MoveNext();
                 u = nodeEnumerator.Current;
                 return true;
@@ -107,7 +107,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
         }
 
         internal bool TryGetSource(out int u) {
-            var enumerator = this.sources.GetEnumerator();
+            IEnumerator<int> enumerator = sources.GetEnumerator();
             if (enumerator.MoveNext()) {
                 u = enumerator.Current;
                 return true;
@@ -117,7 +117,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
         }
 
         internal bool TryGetSink(out int u) {
-            var enumerator = this.sinks.GetEnumerator();
+            IEnumerator<int> enumerator = sinks.GetEnumerator();
             if (enumerator.MoveNext()) {
                 u = enumerator.Current;
                 return true;
@@ -126,12 +126,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
             return false;
         }
 
-        internal IEnumerable<IntPair> GetOriginalIntPairs() {
-            return this.edgesToKeep;
-        }
+        internal IEnumerable<IntPair> GetOriginalIntPairs() => edgesToKeep;
 
         internal void Initialize() {
-            foreach (var p in nodeInfoDictionary) 
+            foreach (KeyValuePair<int, NodeInfo> p in nodeInfoDictionary) 
                 AddNodeToBucketsSourcesAndSinks(p.Key, p.Value);
         }
 
@@ -145,10 +143,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
         }
 
          Set<int> GetOrCreateBucket(int delta) {
-            Set<int> ret;
-            if (this.deltaDegreeBucketsForSourcesInConstrainedSubgraph.TryGetValue(delta, out ret))
+            if (deltaDegreeBucketsForSourcesInConstrainedSubgraph.TryGetValue(delta, out Set<int>? ret))
                 return ret;
-            return deltaDegreeBucketsForSourcesInConstrainedSubgraph[delta] = new Set<int>();
+            return deltaDegreeBucketsForSourcesInConstrainedSubgraph[delta] = [];
         }
     }
 }

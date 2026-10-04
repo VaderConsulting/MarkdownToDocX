@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace MermaidRecognition.Er;
+namespace MermaidRecognition.Kinds.Er;
 
 /// <summary>
 /// Extracts entity identifiers, cardinality markers, link type, and role label from ER relationship lines.

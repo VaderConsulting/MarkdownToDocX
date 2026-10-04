@@ -62,7 +62,7 @@ dotnet build new_src/MermaidRecognition/MermaidRecognition.csproj
 dotnet test new_src/MermaidRecognition.Tests/MermaidRecognition.Tests.csproj
 ```
 
-Regenerate verified JSON after intentional parser changes:
+Fixture writer tests are explicit and are skipped during normal verification. Regenerate verified JSON after intentional parser changes by selecting the writers:
 
 ```powershell
 dotnet test new_src/MermaidRecognition.Tests/MermaidRecognition.Tests.csproj --filter "FullyQualifiedName~Write_"

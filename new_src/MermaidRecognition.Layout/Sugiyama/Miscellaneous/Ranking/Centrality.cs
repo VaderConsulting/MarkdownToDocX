@@ -1,8 +1,10 @@
 using System.Collections.Generic;
 using System.Linq;
+
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
 
-namespace MermaidRecognition.Layout.Sugiyama.Prototype.Ranking {
+namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Ranking
+{
     /// <summary>
     /// Class for centrality computation.
     /// </summary>
@@ -17,13 +19,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Prototype.Ranking {
         /// <param name="inverse">false=PageRank, true=TrustRank.</param>
         /// <returns>PageRank scores.</returns>
         public static double[] PageRank(GeometryGraph graph, double omega, bool inverse) {
-            Dictionary<Node, double> p=new Dictionary<Node,double>();
+            Dictionary<Node, double> p=[];
             int n = graph.Nodes.Count;
             foreach(Node v in graph.Nodes) {
                 p[v] = 1d / (graph.Nodes.Count);
             }
             for(int c=0; c<50; c++) {
-                Dictionary<Node, double> q = new Dictionary<Node, double>();
+                Dictionary<Node, double> q = [];
                 foreach (Node v in graph.Nodes) {
                     q[v] = (1 - omega) / (graph.Nodes.Count);
                 }

@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
 
-namespace MermaidRecognition.Layout.Sugiyama.Prototype.Ranking {
+namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Ranking
+{
     /// <summary>
     /// Ranking layout settings
     /// </summary>
@@ -20,22 +22,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Prototype.Ranking {
 
         ///<summary>
         ///</summary>
-        public RankingLayoutSettings()
-        {
-            this.NodeSeparation = 0;
-        }
+        public RankingLayoutSettings() => NodeSeparation = 0;
 
         /// <summary>
         /// Number of pivots in Landmark Scaling (between 3 and number of objects).
         /// </summary>
-        #if PROPERTY_GRID_SUPPORT
+#if PROPERTY_GRID_SUPPORT
 [DisplayName("Number of pivots")]
         [Description("Number of pivots in MDS")]
         [DefaultValue(50)]
 #endif
-        public int PivotNumber {
-            set { pivotNumber = value; }
-            get { return pivotNumber; }
+        public int PivotNumber { set => pivotNumber = value; get => pivotNumber;
         }
 
         /// <summary>
@@ -45,9 +42,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Prototype.Ranking {
         [DisplayName("Group effect by x-axis")]
         [DefaultValue(0.15)]
 #endif
-        public double OmegaX {
-            set { omegaX = value; }
-            get { return omegaX; }
+        public double OmegaX { set => omegaX = value; get => omegaX;
         }
 
         /// <summary>
@@ -57,9 +52,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Prototype.Ranking {
         [DisplayName("Group effect by y-axis")]
         [DefaultValue(0.15)]
 #endif
-        public double OmegaY {
-            set { omegaY = value; }
-            get { return omegaY; }
+        public double OmegaY { set => omegaY = value; get => omegaY;
         }
 
 
@@ -71,9 +64,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Prototype.Ranking {
         [Description("The resulting layout will be scaled by x-axis by this number")]
         [DefaultValue(200.0)]
 #endif
-        public double ScaleX {
-            set { scaleX = value; }
-            get { return scaleX; }
+        public double ScaleX { set => scaleX = value; get => scaleX;
         }
 
         /// <summary>
@@ -85,17 +76,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Prototype.Ranking {
         [DefaultValue(200.0)]
 
 #endif
-        public double ScaleY {
-            set { scaleY = value; }
-            get { return scaleY; }
+        public double ScaleY { set => scaleY = value; get => scaleY;
         }
 
         /// <summary>
-/// Clones the object
-/// </summary>
-/// <returns></returns>
-        public override LayoutAlgorithmSettings Clone() {
-            return MemberwiseClone() as LayoutAlgorithmSettings;
-        }
+        /// Clones the object
+        /// </summary>
+        /// <returns></returns>
+        public override LayoutAlgorithmSettings Clone() => MemberwiseClone() as LayoutAlgorithmSettings;
     }
 }

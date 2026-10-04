@@ -1,9 +1,8 @@
-﻿namespace Microsoft.AGL.DebugHelpers {
+namespace Microsoft.AGL.DebugHelpers.Persistence
+{
     internal class DoubleStreamElement : CurveStreamElement {
-        public DoubleStreamElement(double res) {
-            Value = res;
-        }
+        public DoubleStreamElement(double res) => Value = res;
 
-        internal double Double { get { return (double)Value; } }
+        internal double Double => (double)Value;
     }
 }

@@ -23,8 +23,8 @@ public static class FlowchartParallelColumnChainBuilder
             .OrderBy(Bounds => Bounds.CenterX)
             .ToList();
 
-        List<List<FlowchartLayoutNodeBounds>> ColumnBounds = new List<List<FlowchartLayoutNodeBounds>>();
-        List<FlowchartLayoutNodeBounds> CurrentColumn = new List<FlowchartLayoutNodeBounds>();
+        List<List<FlowchartLayoutNodeBounds>> ColumnBounds = [];
+        List<FlowchartLayoutNodeBounds> CurrentColumn = [];
 
         foreach (FlowchartLayoutNodeBounds Bounds in OrderedByColumnAxis)
         {
@@ -42,7 +42,7 @@ public static class FlowchartParallelColumnChainBuilder
             else
             {
                 ColumnBounds.Add(CurrentColumn);
-                CurrentColumn = new List<FlowchartLayoutNodeBounds> { Bounds };
+                CurrentColumn = [Bounds];
             }
         }
 
@@ -51,7 +51,7 @@ public static class FlowchartParallelColumnChainBuilder
             ColumnBounds.Add(CurrentColumn);
         }
 
-        List<List<string>> Chains = new List<List<string>>();
+        List<List<string>> Chains = [];
         foreach (List<FlowchartLayoutNodeBounds> Column in ColumnBounds)
         {
             if (Column.Count < 2)
@@ -68,7 +68,7 @@ public static class FlowchartParallelColumnChainBuilder
                 continue;
             }
 
-            List<FlowchartLayoutNodeBounds> OrderedTopToBottom = new List<FlowchartLayoutNodeBounds>();
+            List<FlowchartLayoutNodeBounds> OrderedTopToBottom = [];
             foreach (string NodeId in FlowOrderedNodeIds)
             {
                 if (BoundsById.TryGetValue(NodeId, out FlowchartLayoutNodeBounds Bounds))
@@ -111,7 +111,7 @@ public static class FlowchartParallelColumnChainBuilder
             }
         }
 
-        List<string> Ordered = new List<string>();
+        List<string> Ordered = [];
         Queue<string> Ready = new Queue<string>();
         foreach (KeyValuePair<string, int> Entry in InDegree.OrderBy(Entry => GetEarliestEdgeCreationIndex(Contract, Entry.Key)))
         {

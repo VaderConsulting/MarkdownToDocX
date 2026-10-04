@@ -12,16 +12,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             this.polyPoint = polyPoint;
         }
 
-        internal Metroline Metroline {
-            get { return metroline; }
-        }
+        internal Metroline Metroline => metroline;
 
-        internal PolylinePoint PolyPoint {
-            get { return polyPoint; }
-        }
+        internal PolylinePoint PolyPoint => polyPoint;
 
-        internal Station Station {
-            get { return station; }
-        }
+        internal Station Station => station;
     }
 }

@@ -27,7 +27,7 @@ public sealed class MarkdownOptions
     /// </summary>
     public bool EnableTables
     {
-        get { return _EnableTables; }
+        get => _EnableTables;
         set { _EnableTables = value; HasEnableTables = true; }
     }
 
@@ -36,7 +36,7 @@ public sealed class MarkdownOptions
     /// </summary>
     public bool EnableTaskLists
     {
-        get { return _EnableTaskLists; }
+        get => _EnableTaskLists;
         set { _EnableTaskLists = value; HasEnableTaskLists = true; }
     }
 
@@ -45,7 +45,7 @@ public sealed class MarkdownOptions
     /// </summary>
     public bool EnableAutoLinks
     {
-        get { return _EnableAutoLinks; }
+        get => _EnableAutoLinks;
         set { _EnableAutoLinks = value; HasEnableAutoLinks = true; }
     }
 
@@ -54,7 +54,7 @@ public sealed class MarkdownOptions
     /// </summary>
     public bool EnableFootnotes
     {
-        get { return _EnableFootnotes; }
+        get => _EnableFootnotes;
         set { _EnableFootnotes = value; HasEnableFootnotes = true; }
     }
 
@@ -63,7 +63,7 @@ public sealed class MarkdownOptions
     /// </summary>
     public bool EnableInlineHtml
     {
-        get { return _EnableInlineHtml; }
+        get => _EnableInlineHtml;
         set { _EnableInlineHtml = value; HasEnableInlineHtml = true; }
     }
 

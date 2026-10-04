@@ -15,9 +15,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
         readonly Func<IEdge, double> weight;
         readonly int root;
         readonly BinaryHeapPriorityQueue q;
-        Set<int> treeNodes = new Set<int>();
+        Set<int> treeNodes = [];
         //map of neighbors of the tree to the edges connected them to the tree
-        Dictionary<int, IEdge> hedgehog = new Dictionary<int, IEdge>(); 
+        Dictionary<int, IEdge> hedgehog = []; 
         
         /// <summary>
         /// 
@@ -46,9 +46,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
             q=new BinaryHeapPriorityQueue(graph.NodeCount);
         }
 
-        bool NodeIsInTree(int i) {
-            return treeNodes.Contains(i);
-        }
+        bool NodeIsInTree(int i) => treeNodes.Contains(i);
 
         /// <summary>
         /// 
@@ -56,7 +54,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
         /// <returns></returns>
         public IList<IEdge> GetTreeEdges()
         {
-            var ret = new List<IEdge>(graph.NodeCount - 1);
+            List<IEdge> ret = new List<IEdge>(graph.NodeCount - 1);
             Init();
             while (ret.Count < graph.NodeCount - 1 && q.Count > 0) //some nodes might have no edges
                 AddEdgeToTree(ret);
@@ -64,8 +62,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
         }
 
         void AddEdgeToTree(List<IEdge> ret) {
-            var v = q.Dequeue();
-            var e = hedgehog[v];
+            int v = q.Dequeue();
+            IEdge e = hedgehog[v];
             treeNodes.Insert(v);
             ret.Add(e);
             UpdateOutEdgesOfV(v);
@@ -73,18 +71,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
         }
 
         void UpdateOutEdgesOfV(int v) {
-            foreach (var outEdge in graph.OutEdges(v)) {
-                var u = outEdge.Target;
+            foreach (IEdge outEdge in graph.OutEdges(v)) {
+                int u = outEdge.Target;
                 if (NodeIsInTree(u)) continue;
-                IEdge oldEdge;
-                if (hedgehog.TryGetValue(u, out oldEdge)) {
-                    var oldWeight = weight(oldEdge);
-                    var newWeight = weight(outEdge);
-                    if (newWeight < oldWeight) {
+                if (hedgehog.TryGetValue(u, out IEdge? oldEdge))
+                {
+                    double oldWeight = weight(oldEdge);
+                    double newWeight = weight(outEdge);
+                    if (newWeight < oldWeight)
+                    {
                         q.DecreasePriority(u, newWeight);
                         hedgehog[u] = outEdge;
                     }
-                } else {
+                }
+                else
+                {
                     q.Enqueue(u, weight(outEdge));
                     hedgehog[u] = outEdge;
                 }
@@ -93,15 +94,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
 
         void UpdateInEdgesOfV(int v)
         {
-            foreach (var inEdge in graph.InEdges(v))
+            foreach (IEdge inEdge in graph.InEdges(v))
             {
-                var u = inEdge.Source;
+                int u = inEdge.Source;
                 if (NodeIsInTree(u)) continue;
-                IEdge oldEdge;
-                if (hedgehog.TryGetValue(u, out oldEdge))
+                if (hedgehog.TryGetValue(u, out IEdge? oldEdge))
                 {
-                    var oldWeight = weight(oldEdge);
-                    var newWeight = weight(inEdge);
+                    double oldWeight = weight(oldEdge);
+                    double newWeight = weight(inEdge);
                     if (newWeight < oldWeight)
                     {
                         q.DecreasePriority(u, newWeight);
@@ -119,14 +119,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
         void Init() {
             treeNodes.Insert(root);
 
-            foreach (var outEdge in graph.OutEdges(root)) {
-                var w = weight(outEdge);
+            foreach (IEdge outEdge in graph.OutEdges(root)) {
+                double w = weight(outEdge);
                 q.Enqueue(outEdge.Target, w);
                 hedgehog[outEdge.Target] = outEdge;
             }
 
-            foreach (var inEdge in graph.InEdges(root)) {
-                var w = weight(inEdge);
+            foreach (IEdge inEdge in graph.InEdges(root)) {
+                double w = weight(inEdge);
                 q.Enqueue(inEdge.Source, w);
                 hedgehog[inEdge.Source] = inEdge;
             }

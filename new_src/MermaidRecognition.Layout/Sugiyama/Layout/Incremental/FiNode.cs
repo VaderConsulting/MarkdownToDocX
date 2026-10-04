@@ -1,4 +1,5 @@
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
+using MermaidRecognition.Layout.Sugiyama.Core.Geometry.OverlapRemoval;
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
 
 namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
@@ -16,13 +17,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// <summary>
         /// local cache of node center (which in the MSAGL node has to be computed from the bounding box)
         /// </summary>
-        internal Point Center {
-            get {
-                return center;
-            }
-            set {
-                center = mNode.Center = value;
-            }
+        internal Point Center { get => center; set => center = mNode.Center = value;
         }
         /// <summary>
         /// When mNode's bounds change we need to update our local
@@ -49,9 +44,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
             ResetBounds();
         }
 
-        internal OverlapRemovalNode getOlapNode(bool horizontal) {
-            return horizontal ? mOlapNodeX : mOlapNodeY;
-        }
+        internal OverlapRemovalNode getOlapNode(bool horizontal) => horizontal ? mOlapNodeX : mOlapNodeY;
 
         internal void SetOlapNode(bool horizontal, OverlapRemovalNode olapNode) {
             if (horizontal)
@@ -79,9 +72,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
                 Center = new Point(Center.X, getOlapNode(false).Position);
         }
 
-        public override string ToString()
-        {
-            return "FINode(" + index + "):" + mNode;
-        }
+        public override string ToString() => "FINode(" + index + "):" + mNode;
     }
 }

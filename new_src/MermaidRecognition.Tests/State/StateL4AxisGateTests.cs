@@ -15,7 +15,7 @@ public sealed class StateL4AxisGateTests
         Assert.That(File.Exists(MmdPath), Is.True);
 
         DiagramContract Contract = MermaidRecognizer.Parse(File.ReadAllText(MmdPath));
-        Assert.That(Contract.Configuration.RawDirectiveValues.TryGetValue("theme", out string Theme), Is.True);
+        Assert.That(Contract.Configuration.RawDirectiveValues.TryGetValue("theme", out string? Theme), Is.True);
         Assert.That(Theme, Is.EqualTo("base"));
     }
 

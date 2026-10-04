@@ -7,60 +7,53 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
     /// Implementation of Set.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1710:IdentifiersShouldHaveCorrectSuffix"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1716:IdentifiersShouldNotMatchKeywords", MessageId = "Set")]
 #if SILVERLIGHT
     public class Set<T> : ICollection<T> {
 #else
     public class Set<T> : MarshalByRefObject, ICollection<T> {
 #endif
-        HashSet<T> hashSet = new HashSet<T>();
-        internal HashSet<T> HashSet {
-            get { return this.hashSet; }
-        }
+        HashSet<T> hashSet = [];
+        internal HashSet<T> HashSet => hashSet;
         /// <summary>
         /// inserts an element into the set
         /// </summary>
         /// <param name="element"></param>
-        public void Insert(T element) {
-            hashSet.Add(element);
-        }
-        void System.Collections.Generic.ICollection<T>.Add(T t) { Insert(t); }
+        public void Insert(T element) => hashSet.Add(element);
+        void System.Collections.Generic.ICollection<T>.Add(T t) => Insert(t);
         /// <summary>
         /// returns true when the set contains the element
         /// </summary>
         /// <param name="item"></param>
         /// <returns></returns>
-        public bool Contains(T item) { return hashSet.Contains(item); }
+        public bool Contains(T item) => hashSet.Contains(item);
         /// <summary>
         /// deletes the element from the set
         /// </summary>
         /// <param name="item"></param>
-        public void Delete(T item) { hashSet.Remove(item); }
+        public void Delete(T item) => hashSet.Remove(item);
         /// <summary>
         /// deletes the element from the set
         /// </summary>
         /// <param name="item"></param>
         /// <returns></returns>
-        public bool Remove(T item) { return hashSet.Remove(item); }
+        public bool Remove(T item) => hashSet.Remove(item);
         /// <summary>
         /// returns the number elements in the set
         /// </summary>
-        public int Count { get { return hashSet.Count; } }
+        public int Count => hashSet.Count;
         /// <summary>
         /// returns the set entities enumerator
         /// </summary>
         /// <returns></returns>
-        public IEnumerator<T> GetEnumerator() { return hashSet.GetEnumerator(); }
-        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() {
-            return hashSet.GetEnumerator();
-        }
+        public IEnumerator<T> GetEnumerator() => hashSet.GetEnumerator();
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => hashSet.GetEnumerator();
 
 
 
         /// <summary>
         /// the read only flag
         /// </summary>
-        public bool IsReadOnly { get { return false; } }
+        public bool IsReadOnly => false;
 
         //		public bool  IsSynchronized {get {return table.IsSynchronized; }}
 
@@ -71,9 +64,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
         /// </summary>
         /// <param name="array"></param>
         /// <param name="arrayIndex"></param>
-        public void CopyTo(T[] array, int arrayIndex) {
-            hashSet.CopyTo(array, arrayIndex);
-        }
+        public void CopyTo(T[] array, int arrayIndex) => hashSet.CopyTo(array, arrayIndex);
 
         /// <summary>
         /// ToString
@@ -95,15 +86,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
         /// <summary>
         /// cleans the set
         /// </summary>
-        public void Clear() {
-            this.hashSet.Clear();
-        }
+        public void Clear() => hashSet.Clear();
         /// <summary>
         /// clones the set
         /// </summary>
         /// <returns></returns>
         public Set<T> Clone() {
-            Set<T> ret = new Set<T>();
+            Set<T> ret = [];
             foreach (T i in this) {
                 ret.Insert(i);
             }
@@ -117,7 +106,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
         public Set(IEnumerable<T> enumerableCollection) {
             ValidateArg.IsNotNull(enumerableCollection, "enumerableCollection");
             foreach (T j in enumerableCollection)
-                this.Insert(j);
+                Insert(j);
         }
 
         /// <summary>
@@ -132,7 +121,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
         /// <param name="type"></param>
         /// <returns></returns>
         public System.Array ToArray(System.Type type) {
-            System.Array ret = System.Array.CreateInstance(type, this.Count);
+            System.Array ret = System.Array.CreateInstance(type, Count);
             int i = 0;
             foreach (T o in this) {
                 ret.SetValue(o, i++);
@@ -159,7 +148,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
         /// <param name="set0"></param>
         /// <param name="set1"></param>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2225:OperatorOverloadsHaveNamedAlternates")]
         static public Set<T> operator -(Set<T> set0, Set<T> set1) {
             ValidateArg.IsNotNull(set1, "set1");
             Set<T> ret = new Set<T>(set0);
@@ -167,13 +155,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
                 ret.Remove(t);
             return ret;
         }
+
         /// <summary>
         /// overloading the == operator
         /// </summary>
         /// <param name="set0"></param>
         /// <param name="set1"></param>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1062:Validate arguments of public methods", MessageId = "1"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1062:Validate arguments of public methods", MessageId = "0")]
         static public bool operator ==(Set<T> set0, Set<T> set1) {
             if ((object)set0 == null && (object)set1 == null)
                 return true;
@@ -200,16 +188,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
         /// <param name="set0"></param>
         /// <param name="set1"></param>
         /// <returns></returns>
-        static public bool operator !=(Set<T> set0, Set<T> set1) {
-            return !(set0 == set1);
-        }
+        static public bool operator !=(Set<T> set0, Set<T> set1) => !(set0 == set1);
+
         /// <summary>
         /// intersection
         /// </summary>
         /// <param name="set0"></param>
         /// <param name="set1"></param>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2225:OperatorOverloadsHaveNamedAlternates")]
         static public Set<T> operator *(Set<T> set0, Set<T> set1) {
             ValidateArg.IsNotNull(set0, "set0");
             ValidateArg.IsNotNull(set1, "set1");
@@ -247,9 +233,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
         /// <param name="set0"></param>
         /// <param name="set1"></param>
         /// <returns></returns>
-        public Set<T> Add(Set<T> set0, Set<T> set1) {
-            return set0 + set1;
-        }
+        public Set<T> Add(Set<T> set0, Set<T> set1) => set0 + set1;
 
         /// <summary>
         /// inserts a range of elements into the set
@@ -258,7 +242,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
         public void InsertRange(IEnumerable<T> elements )
         {
             ValidateArg.IsNotNull(elements,"elements");
-            foreach (var element in elements)
+            foreach (T? element in elements)
                 Insert(element);
         }
 
@@ -267,13 +251,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
         ///</summary>
         ///<param name="otherSet"></param>
         ///<returns></returns>
-        public bool IsContained(Set<T> otherSet) { return this.All(p => otherSet.Contains(p)); }
+        public bool IsContained(Set<T> otherSet) => this.All(p => otherSet.Contains(p));
 
         ///<summary>
         /// checks that this set conains the "otherSet"
         ///</summary>
         ///<param name="otherSet"></param>
         ///<returns></returns>
-        public bool Contains(Set<T> otherSet) { return otherSet.All(p => Contains(p)); }
+        public bool Contains(Set<T> otherSet) => otherSet.All(p => Contains(p));
     }
 }

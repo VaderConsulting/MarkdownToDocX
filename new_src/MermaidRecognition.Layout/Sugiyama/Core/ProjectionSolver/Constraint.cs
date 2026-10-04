@@ -20,7 +20,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
     /// (thus is essentially a wrapper around the require minimal separation between
     /// two nodes).
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1036:OverrideMethodsOnComparableTypes")]
     public class Constraint : IComparable<Constraint>
     {
         /// <summary>
@@ -71,12 +70,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
                 --Right.ActiveConstraintCount;
             }
         }
-        internal void SetVectorIndex(int vectorIndex)
-        {
+        internal void SetVectorIndex(int vectorIndex) =>
             // This is separate from set_VectorIndex because we can't restrict the caller to a specific
             // class and we only want ConstraintVector to be able to call this.
-            this.VectorIndex = vectorIndex;
-        }
+            VectorIndex = vectorIndex;
 
         internal void Reinitialize()
         {
@@ -84,11 +81,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
             // All variables have been moved to their own blocks again, so reset solution states.
             IsActive = false;
             IsUnsatisfiable = false;
-            this.ClearDfDv();
+            ClearDfDv();
         }
 
         // This is an internal function, not a propset, because we only want it called by the Solver.
-        internal void UpdateGap(double newGap) { this.Gap = newGap; }
+        internal void UpdateGap(double newGap) => Gap = newGap;
 
 #if VERIFY || VERBOSE
         internal uint Id { get; private set; }
@@ -105,31 +102,27 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
 #endif // VERIFY || VERBOSE
 )
         {
-            this.Left = left;
-            this.Right = right;
-            this.Gap = gap;
-            this.IsEquality = isEquality;
+            Left = left;
+            Right = right;
+            Gap = gap;
+            IsEquality = isEquality;
 #if VERIFY || VERBOSE
             Id = constraintId;
 #endif // VERIFY || VERBOSE
 
-            this.Lagrangian = 0.0;
-            this.IsActive = false;
+            Lagrangian = 0.0;
+            IsActive = false;
         }
 
         // For Solver.ComputeDfDv's DummyParentNode's constraint only.
-        internal Constraint(Variable variable)
-        {
-            this.Left = this.Right = variable;
-        }
-        internal bool IsDummy { get { return this.Left == this.Right; } }
+        internal Constraint(Variable variable) => Left = Right = variable;
+        internal bool IsDummy => Left == Right;
 
         /// <summary>
         /// Generates a string representation of the Constraint.
         /// </summary>
         /// <returns>A string representation of the Constraint.</returns>
-        public override string ToString()
-        {
+        public override string ToString() =>
 #if VERIFY || VERBOSE
             return string.Format(System.Globalization.CultureInfo.InvariantCulture,
                                 "  Cst ({8}/{9}-{10}): [{0}] [{1}] {2} {3:F5} vio {4:F5} Lm {5:F5}/{6:F5} {7}actv",
@@ -138,31 +131,29 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
                                 this.IsActive ? "+" : (this.IsUnsatisfiable ? "!" : "-"),
                                 this.Id, this.Left.Block.Id, this.Right.Block.Id);
 #else  // VERIFY || VERBOSE
-            return string.Format(System.Globalization.CultureInfo.InvariantCulture,
+            string.Format(System.Globalization.CultureInfo.InvariantCulture,
                                 "  Cst: [{0}] [{1}] {2} {3:F5} vio {4:F5} Lm {5:F5}/{6:F5} {7}actv",
-                                this.Left, this.Right, this.IsEquality ? "==" : ">=", this.Gap,
-                                this.Violation, this.Lagrangian, this.Lagrangian * 2,
-                                this.IsActive ? "+" : (this.IsUnsatisfiable ? "!" : "-"));
+                                Left, Right, IsEquality ? "==" : ">=", Gap,
+                                Violation, Lagrangian, Lagrangian * 2,
+                                IsActive ? "+" : (IsUnsatisfiable ? "!" : "-"));
 #endif // VERIFY || VERBOSE
-        }
+
 
         internal double Violation
-        {
             // If the difference in position is negative or zero, it means the startpos of the Rhs
             // node is greater than or equal to the gap and thus there's no violation.
             // This uses an absolute (unscaled) positional comparison (multiplying by scale
             // "undoes" the division-by-scale in Block.UpdateVariablePositions).
             // Note: this is too big for the CLR to inline so it is "manually inlined" in 
             // high-call-volume places; these are marked with Inline_Violation.
-            get { return (this.Left.ActualPos * this.Left.Scale) + this.Gap - (this.Right.ActualPos * this.Right.Scale); }
-        }
+            => (Left.ActualPos * Left.Scale) + Gap - (Right.ActualPos * Right.Scale);
 
         internal void ClearDfDv()
         {
 #if DEBUG
-            this.IdDfDv = 0;
+            IdDfDv = 0;
 #endif // DEBUG
-            this.Lagrangian = 0.0;
+            Lagrangian = 0.0;
         }
 
         #region IComparable<Constraint> Members
@@ -172,18 +163,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
         /// <param name="other">The object being compared to.</param>
         /// <returns>-1 if this.Left/Right are "less"; +1 if this.Left/Right are "greater"; 0 if this.Left/Right
         ///         and rhs.Left/Right are equal.</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1307:SpecifyStringComparison", MessageId = "System.String.CompareTo(System.String)")]
-        public int CompareTo(Constraint other)
-        {
+        public int CompareTo(Constraint? other) {
+            if (other is null) return 1;
             ValidateArg.IsNotNull(other, "other");
-            int cmp = this.Left.CompareTo(other.Left);
+            int cmp = Left.CompareTo(other.Left);
             if (0 == cmp)
             {
-                cmp = this.Right.CompareTo(other.Right);
+                cmp = Right.CompareTo(other.Right);
             }
             if (0 == cmp)
             {
-                cmp = this.Gap.CompareTo(other.Gap);
+                cmp = Gap.CompareTo(other.Gap);
             }
             return cmp;
         }

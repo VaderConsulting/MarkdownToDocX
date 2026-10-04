@@ -1,6 +1,8 @@
 using System.Globalization;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Core;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Layout;
 using MermaidRecognition.Render;
 
@@ -81,7 +83,7 @@ public sealed class F111DenseBipartiteRenderTests
         FlowchartDirection Direction,
         string SourceId)
     {
-        List<double> AttachXValues = new List<double>();
+        List<double> AttachXValues = [];
         foreach (EdgeContract Edge in Contract.Edges.Where(Edge => Edge.SourceId == SourceId))
         {
             bool Resolved = FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
@@ -106,7 +108,7 @@ public sealed class F111DenseBipartiteRenderTests
         FlowchartDirection Direction,
         string TargetId)
     {
-        List<double> AttachXValues = new List<double>();
+        List<double> AttachXValues = [];
         foreach (EdgeContract Edge in Contract.Edges.Where(Edge => Edge.TargetId == TargetId))
         {
             bool Resolved = FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(

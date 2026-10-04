@@ -23,9 +23,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
             return (Point)obj == this;
         }
 
-        static internal Point P(double xCoordinate, double yCoordinate) {
-            return new Point(xCoordinate, yCoordinate);
-        }
+        static internal Point P(double xCoordinate, double yCoordinate) => new Point(xCoordinate, yCoordinate);
         /// <summary>
         /// 
         /// </summary>
@@ -37,38 +35,32 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <summary>
         /// the point norm
         /// </summary>
-        public double Length { get { return (double)Math.Sqrt(X * X + Y * Y); } }
+        public double Length => (double)Math.Sqrt(X * X + Y * Y);
         /// <summary>
         /// point norm squared (faster to compute than Length)
         /// </summary>
-        public double LengthSquared { get { return X * X + Y * Y; } }
+        public double LengthSquared => X * X + Y * Y;
         /// <summary>
         /// overrides the equality
         /// </summary>
         /// <param name="point0"></param>
         /// <param name="point1"></param>
         /// <returns></returns>
-        public static bool operator ==(Point point0, Point point1) {
-            return point0.X == point1.X && point0.Y == point1.Y;
-        }
+        public static bool operator ==(Point point0, Point point1) => point0.X == point1.X && point0.Y == point1.Y;
         /// <summary>
         /// overrides the less operator
         /// </summary>
         /// <param name="point0"></param>
         /// <param name="point1"></param>
         /// <returns></returns>
-        public static bool operator <(Point point0, Point point1) {
-            return point0.CompareTo(point1) < 0;
-        }
+        public static bool operator <(Point point0, Point point1) => point0.CompareTo(point1) < 0;
         /// <summary>
         /// overrides the less or equal operator
         /// </summary>
         /// <param name="point0"></param>
         /// <param name="point1"></param>
         /// <returns></returns>
-        public static bool operator <=(Point point0, Point point1) {
-            return point0.CompareTo(point1) <= 0;
-        }
+        public static bool operator <=(Point point0, Point point1) => point0.CompareTo(point1) <= 0;
 
         /// <summary>
         /// overrides the greater or equal operator
@@ -76,18 +68,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="point0"></param>
         /// <param name="point1"></param>
         /// <returns></returns>
-        public static bool operator >=(Point point0, Point point1) {
-            return point0.CompareTo(point1) >= 0;
-        }
+        public static bool operator >=(Point point0, Point point1) => point0.CompareTo(point1) >= 0;
         /// <summary>
         /// overrides the greater operator
         /// </summary>
         /// <param name="point0"></param>
         /// <param name="point1"></param>
         /// <returns></returns>
-        public static bool operator >(Point point0, Point point1) {
-            return point0.CompareTo(point1) > 0;
-        }
+        public static bool operator >(Point point0, Point point1) => point0.CompareTo(point1) > 0;
 
         /// <summary>
         /// the inequality operator
@@ -95,24 +83,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="point0"></param>
         /// <param name="point1"></param>
         /// <returns></returns>
-        public static bool operator !=(Point point0, Point point1) {
-            return !(point0 == point1);
-        }
+        public static bool operator !=(Point point0, Point point1) => !(point0 == point1);
         /// <summary>
         ///  the negation operator
         /// </summary>
         /// <param name="point0"></param>
         /// <returns></returns>
-        public static Point operator -(Point point0) {
-            return new Point(-point0.X, -point0.Y);
-        }
+        public static Point operator -(Point point0) => new Point(-point0.X, -point0.Y);
         /// <summary>
         /// the negation operator
         /// </summary>
         /// <returns></returns>
-        public Point Negate() {
-            return -this;
-        }
+        public Point Negate() => -this;
 
         /// <summary>
         ///  the addition
@@ -120,27 +102,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="point0"></param>
         /// <param name="point1"></param>
         /// <returns></returns>
-        public static Point operator +(Point point0, Point point1) {
-            return new Point(point0.X + point1.X, point0.Y + point1.Y);
-        }
+        public static Point operator +(Point point0, Point point1) => new Point(point0.X + point1.X, point0.Y + point1.Y);
         /// <summary>
         ///  the addition
         /// </summary>
         /// <param name="point0"></param>
         /// <param name="point1"></param>
         /// <returns></returns>
-        public static Point Add(Point point0, Point point1) {
-            return point0 + point1;
-        }
+        public static Point Add(Point point0, Point point1) => point0 + point1;
         /// <summary>
         /// overrides the substraction
         /// </summary>
         /// <param name="point0"></param>
         /// <param name="point1"></param>
         /// <returns></returns>
-        public static Point operator -(Point point0, Point point1) {
-            return new Point(point0.X - point1.X, point0.Y - point1.Y);
-        }
+        public static Point operator -(Point point0, Point point1) => new Point(point0.X - point1.X, point0.Y - point1.Y);
 
 
         /// <summary>
@@ -149,9 +125,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="point0"></param>
         /// <param name="point1"></param>
         /// <returns></returns>
-        public static Point Subtract(Point point0, Point point1) {
-            return point0 - point1;
-        }
+        public static Point Subtract(Point point0, Point point1) => point0 - point1;
 
         /// <summary>
         /// othe internal product
@@ -159,9 +133,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="point0"></param>
         /// <param name="point1"></param>
         /// <returns></returns>
-        public static double operator *(Point point0, Point point1) {
-            return point0.X * point1.X + point0.Y * point1.Y;
-        }
+        public static double operator *(Point point0, Point point1) => point0.X * point1.X + point0.Y * point1.Y;
 
 
         /// <summary>
@@ -170,44 +142,34 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="point0"></param>
         /// <param name="point1"></param>
         /// <returns></returns>
-        public static double CrossProduct(Point point0, Point point1) {
-            return point0.X * point1.Y - point0.Y * point1.X;
-        }
+        public static double CrossProduct(Point point0, Point point1) => point0.X * point1.Y - point0.Y * point1.X;
+
         /// <summary>
         /// the multipliction by scalar in x and y
         /// </summary>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "x"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "y")]
-        public static Point Scale(double xScale, double yScale, Point point) {
-            return new Point(xScale * point.X, yScale * point.Y);
-        }
+        public static Point Scale(double xScale, double yScale, Point point) => new Point(xScale * point.X, yScale * point.Y);
         /// <summary>
         /// the multipliction by scalar
         /// </summary>
         /// <param name="coefficient"></param>
         /// <param name="point"></param>
         /// <returns></returns>
-        public static Point operator *(double coefficient, Point point) {
-            return new Point(coefficient * point.X, coefficient * point.Y);
-        }
+        public static Point operator *(double coefficient, Point point) => new Point(coefficient * point.X, coefficient * point.Y);
         /// <summary>
         /// multiplication on coefficient scalar
         /// </summary>
         /// <param name="point"></param>
         /// <param name="coefficient"></param>
         /// <returns></returns>
-        public static Point operator *(Point point, double coefficient) {
-            return new Point(coefficient * point.X, coefficient * point.Y);
-        }
+        public static Point operator *(Point point, double coefficient) => new Point(coefficient * point.X, coefficient * point.Y);
         /// <summary>
         ///  multiplication on coefficient scalar
         /// </summary>
         /// <param name="coefficient"></param>
         /// <param name="point"></param>
         /// <returns></returns>
-        public static Point Multiply(double coefficient, Point point) {
-            return new Point(coefficient * point.X, coefficient * point.Y);
-        }
+        public static Point Multiply(double coefficient, Point point) => new Point(coefficient * point.X, coefficient * point.Y);
 
         /// <summary>
         ///  multiplication on coefficient scalar
@@ -215,18 +177,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="point"></param>
         /// <param name="coefficient"></param>
         /// <returns></returns>
-        public static Point Multiply(Point point, double coefficient) {
-            return new Point(coefficient * point.X, coefficient * point.Y);
-        }
+        public static Point Multiply(Point point, double coefficient) => new Point(coefficient * point.X, coefficient * point.Y);
         /// <summary>
         ///  division on coefficient scalar
         /// </summary>
         /// <param name="point"></param>
         /// <param name="coefficient"></param>
         /// <returns></returns>
-        public static Point operator /(Point point, double coefficient) {
-            return new Point(point.X / coefficient, point.Y / coefficient);
-        }
+        public static Point operator /(Point point, double coefficient) => new Point(point.X / coefficient, point.Y / coefficient);
 
         /// <summary>
         /// division on coefficient scalar
@@ -234,43 +192,31 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="coefficient"></param>
         /// <param name="point"></param>
         /// <returns></returns>
-        public static Point operator /(double coefficient, Point point) {
-            return new Point(point.X / coefficient, point.Y / coefficient);
-        }
+        public static Point operator /(double coefficient, Point point) => new Point(point.X / coefficient, point.Y / coefficient);
         /// <summary>
         /// division on coefficient scalar
         /// </summary>
         /// <param name="point"></param>
         /// <param name="coefficient"></param>
         /// <returns></returns>
-        public static Point Divide(Point point, double coefficient) {
-            return new Point(point.X / coefficient, point.Y / coefficient);
-        }
+        public static Point Divide(Point point, double coefficient) => new Point(point.X / coefficient, point.Y / coefficient);
         /// <summary>
         /// division on coefficient scalar
         /// </summary>
         /// <param name="coefficient"></param>
         /// <param name="point"></param>
         /// <returns></returns>
-        public static Point Divide(double coefficient, Point point) {
-            return new Point(point.X / coefficient, point.Y / coefficient);
-        }
-        static internal string DoubleToString(double d) {
-            return (Math.Abs(d) < 1e-11) ? "0" : d.ToString("#.##########", CultureInfo.InvariantCulture);
-        }
+        public static Point Divide(double coefficient, Point point) => new Point(point.X / coefficient, point.Y / coefficient);
+        static internal string DoubleToString(double d) => (Math.Abs(d) < 1e-11) ? "0" : d.ToString("#.##########", CultureInfo.InvariantCulture);
         /// <summary>
         /// Rounded representation of the points.  DebuggerDisplay shows the unrounded form.
         /// </summary>
         /// <returns></returns>
-        public override string ToString() {
-            return "(" + DoubleToString(X) + "," + DoubleToString(Y) + ")";
-        }
+        public override string ToString() => "(" + DoubleToString(X) + "," + DoubleToString(Y) + ")";
 
         /// <summary>
         /// the x coordinate
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1051:DoNotDeclareVisibleInstanceFields")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "X")]
 #if SHARPKIT //https://code.google.com/p/sharpkit/issues/detail?id=369
         // Filippo: because structs become by-ref in SharpKit, assigning to the coordinates directly can be really dangerous. If you assign Point P1 to Point P2, and then
         // modify P2, in .NET you're modifying a copy, but in JS you're modifying the content of a reference. For this reason, I need to take a look every instance of
@@ -293,8 +239,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <summary>
         /// the y coordinate
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1051:DoNotDeclareVisibleInstanceFields")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Y")]
 #if SHARPKIT //https://code.google.com/p/sharpkit/issues/detail?id=369
         private double m_Y;
         public double Y
@@ -329,7 +273,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// </summary>
         /// <param name="xCoordinate"></param>
         /// <param name="yCoordinate"></param>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "x"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "y")]
         public Point(double xCoordinate, double yCoordinate)
         {
 #if SHARPKIT //https://code.google.com/p/sharpkit/issues/detail?id=289
@@ -374,7 +317,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// </summary>
         /// <returns></returns>
         public Point Normalize() {
-            var length = Length;
+            double length = Length;
             if (length < ApproximateComparer.Tolerance)
                 throw new InvalidOperationException(); //the vector is too short to be normalized
             return this / length;
@@ -384,14 +327,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// The counter-clockwise angle when rotating point1 towards point3 around point2
         /// </summary>
         /// <returns></returns>
-        static public double Angle(Point point1, Point center, Point point3) {
-            return Angle(point1 - center, point3 - center);
-        }
+        static public double Angle(Point point1, Point center, Point point3) => Angle(point1 - center, point3 - center);
 
-        public static double Dot(Point v1, Point v2)
-        {
-            return v1.X*v2.X + v1.Y*v2.Y;
-        }
+        public static double Dot(Point v1, Point v2) => v1.X * v2.X + v1.Y * v2.Y;
 
         /// <summary>
         /// The angle you need to turn "side0" counterclockwise to make it collinear with "side1"
@@ -400,10 +338,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="side1"></param>
         /// <returns></returns>
         static public double Angle(Point side0, Point side1) {
-            var ax = side0.X;
-            var ay = side0.Y;
-            var bx = side1.X;
-            var by = side1.Y;
+            double ax = side0.X;
+            double ay = side0.Y;
+            double bx = side1.X;
+            double by = side1.Y;
 
             double cross = ax * by - ay * bx;
             double dot = ax * bx + ay * by;
@@ -481,9 +419,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="cornerB"></param>
         /// <param name="cornerC"></param>
         /// <returns></returns>        
-        static public double SignedDoubledTriangleArea(Point cornerA, Point cornerB, Point cornerC) {
-            return (cornerB.X - cornerA.X) * (cornerC.Y - cornerA.Y) - (cornerC.X - cornerA.X) * (cornerB.Y - cornerA.Y);
-        }
+        static public double SignedDoubledTriangleArea(Point cornerA, Point cornerB, Point cornerC) => (cornerB.X - cornerA.X) * (cornerC.Y - cornerA.Y) - (cornerC.X - cornerA.X) * (cornerB.Y - cornerA.Y);
 
         /// <summary>
         /// figures out the triangle on the plane orientation: positive- counterclockwise, negative - clockwise
@@ -511,7 +447,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <returns></returns>
         static public TriangleOrientation GetTriangleOrientationWithIntersectionEpsilon(Point cornerA, Point cornerB, Point cornerC)
         {
-            var area = Point.SignedDoubledTriangleArea(cornerA, cornerB, cornerC);
+            double area = Point.SignedDoubledTriangleArea(cornerA, cornerB, cornerC);
             if (area > ApproximateComparer.IntersectionEpsilon)
                 return TriangleOrientation.Counterclockwise;
             if (area < -ApproximateComparer.IntersectionEpsilon)
@@ -529,7 +465,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <returns></returns>
         static public TriangleOrientation GetTriangleOrientationWithNoEpsilon(Point cornerA, Point cornerB, Point cornerC)
         {
-            var area = Point.SignedDoubledTriangleArea(cornerA, cornerB, cornerC);
+            double area = Point.SignedDoubledTriangleArea(cornerA, cornerB, cornerC);
             if (area > 0)
                 return TriangleOrientation.Counterclockwise;
             if (area < 0)
@@ -564,8 +500,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         static internal bool IntervalIntersectsRay(Point segStart, Point segEnd, Point rayOrigin, Point rayDirection, out Point x) {
             if (!LineLineIntersection(segStart, segEnd, rayOrigin, rayOrigin + rayDirection, out x))
                 return false;
-            var ds = segStart - x;
-            var de = x - segEnd;
+            Point ds = segStart - x;
+            Point de = x - segEnd;
             if (ds * de <= 0)
                 return false;
             if ((x - rayOrigin) * rayDirection < 0)
@@ -574,19 +510,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         }
 
         //returns true if there is an intersection lying in the inner part of rays
-        static internal bool RayIntersectsRayInteriors(Point aOrig, Point aDirection, Point bOrig, Point bDirection, out Point x) {
-            return Point.LineLineIntersection(aOrig, aOrig + aDirection,
+        static internal bool RayIntersectsRayInteriors(Point aOrig, Point aDirection, Point bOrig, Point bDirection, out Point x) => Point.LineLineIntersection(aOrig, aOrig + aDirection,
                                               bOrig, bOrig + bDirection, out x) &&
                    (x - aOrig) * aDirection / aDirection.L1 > ApproximateComparer.DistanceEpsilon &&
                    (x - bOrig) * bDirection / bDirection.L1 > ApproximateComparer.DistanceEpsilon;
-        }
 
-        static internal bool RayIntersectsRay(Point aOrig, Point aDirection, Point bOrig, Point bDirection, out Point x) {
-            return Point.LineLineIntersection(aOrig, aOrig + aDirection,
+        static internal bool RayIntersectsRay(Point aOrig, Point aDirection, Point bOrig, Point bDirection, out Point x) => Point.LineLineIntersection(aOrig, aOrig + aDirection,
                                               bOrig, bOrig + bDirection, out x) &&
                    (x - aOrig) * aDirection >= -ApproximateComparer.Tolerance &&
                    (x - bOrig) * bDirection >= -ApproximateComparer.Tolerance;
-        }
 
         /// <summary>
         /// projects a point to an infinite line
@@ -595,15 +527,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="pointOnLine1"> a point on the line </param>
         /// <param name="point"> the point to project </param>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1702:CompoundWordsShouldBeCasedCorrectly", MessageId = "OnLine")]
         static public Point ProjectionToLine(Point pointOnLine0, Point pointOnLine1, Point point) {
-            var d = pointOnLine1 - pointOnLine0;
-            var dLen = d.Length;
+            Point d = pointOnLine1 - pointOnLine0;
+            double dLen = d.Length;
             if (dLen < ApproximateComparer.DistanceEpsilon)
                 return pointOnLine0;
             d /= dLen;
-            var pr = (point - pointOnLine0) * d; //projection 
-            var ret = pointOnLine0 + pr * d;
+            double pr = (point - pointOnLine0) * d; //projection 
+            Point ret = pointOnLine0 + pr * d;
             Debug.Assert(Math.Abs((point - ret) * d) < ApproximateComparer.DistanceEpsilon);
             return ret;
         }
@@ -663,7 +594,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="segmentStart"></param>
         /// <param name="segmentEnd"></param>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "seg"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1702:CompoundWordsShouldBeCasedCorrectly", MessageId = "OnLine")]
         static public double ClosestParameterOnLineSegment(Point point, Point segmentStart, Point segmentEnd) {
             Point bc = segmentEnd - segmentStart;
             Point ba = point - segmentStart;
@@ -687,14 +617,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="d"></param>
         /// <param name="x"></param>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1021:AvoidOutParameters", MessageId = "4#"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "x"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "d"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "c"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "b"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "a")]
         static public bool LineLineIntersection(Point a, Point b, Point c, Point d, out Point x) {
             //look for the solution in the form a+u*(b-a)=c+v*(d-c)
-            double u, v;
             Point ba = b - a;
             Point cd = c - d;
             Point ca = c - a;
-            bool ret = LinearSystem2.Solve(ba.X, cd.X, ca.X, ba.Y, cd.Y, ca.Y, out u, out v);
+            bool ret = LinearSystem2.Solve(ba.X, cd.X, ca.X, ba.Y, cd.Y, ca.Y, out double u, out double v);
             if (ret) {
                 x = a + u * ba;
                 return true;
@@ -714,14 +642,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="d"></param>
         /// <param name="x"></param>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1021:AvoidOutParameters", MessageId = "4#"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "x"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "d"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "c"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "b"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "a")]
         static public bool SegmentSegmentIntersection(Point a, Point b, Point c, Point d, out Point x) {
             //look for the solution in the form a+u*(b-a)=c+v*(d-c)
-            double u, v;
             Point ba = b - a;
             Point cd = c - d;
             Point ca = c - a;
-            bool ret = LinearSystem2.Solve(ba.X, cd.X, ca.X, ba.Y, cd.Y, ca.Y, out u, out v);
+            bool ret = LinearSystem2.Solve(ba.X, cd.X, ca.X, ba.Y, cd.Y, ca.Y, out double u, out double v);
             double eps = ApproximateComparer.Tolerance;
             if (ret && u > -eps && u < 1.0 + eps && v > -eps && v < 1.0 + eps) {
                 x = a + u * ba;
@@ -740,35 +666,24 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="linePoint0"></param>
         /// <param name="linePoint1"></param>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1702")]
-        public static bool PointToTheLeftOfLineOrOnLine(Point point, Point linePoint0, Point linePoint1) {
-            return SignedDoubledTriangleArea(point, linePoint0, linePoint1) >= 0;
-        }
+        public static bool PointToTheLeftOfLineOrOnLine(Point point, Point linePoint0, Point linePoint1) => SignedDoubledTriangleArea(point, linePoint0, linePoint1) >= 0;
 
         ///<summary>
         /// returns true if "point" lies to the left of the line linePoint0, linePoint1 
         ///</summary>
         ///<returns></returns>
-        public static bool PointToTheLeftOfLine(Point point, Point linePoint0, Point linePoint1) {
-            return SignedDoubledTriangleArea(point, linePoint0, linePoint1) > 0;
-        }
+        public static bool PointToTheLeftOfLine(Point point, Point linePoint0, Point linePoint1) => SignedDoubledTriangleArea(point, linePoint0, linePoint1) > 0;
+
         /// <summary>
         ///returns true if "point" lies to the right of the line linePoint0, linePoint1 
         /// </summary>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1702")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704")]
-        public static bool PointToTheRightOfLineOrOnLine(Point point, Point linePoint0, Point linePoint1) {
-            return SignedDoubledTriangleArea(linePoint0, linePoint1, point) <= 0;
-        }
+        public static bool PointToTheRightOfLineOrOnLine(Point point, Point linePoint0, Point linePoint1) => SignedDoubledTriangleArea(linePoint0, linePoint1, point) <= 0;
 
         ///<summary>
         ///</summary>
         ///<returns></returns>
-        public static bool PointToTheRightOfLine(Point point, Point linePoint0, Point linePoint1) {
-            return SignedDoubledTriangleArea(linePoint0, linePoint1, point) < 0;
-        }
+        public static bool PointToTheRightOfLine(Point point, Point linePoint0, Point linePoint1) => SignedDoubledTriangleArea(linePoint0, linePoint1, point) < 0;
 
 
         #region IComparable<Point> Members
@@ -778,42 +693,32 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="other"></param>
         /// <returns></returns>
         public int CompareTo(Point other) {
-            var r = X.CompareTo(other.X);
+            int r = X.CompareTo(other.X);
             return r != 0 ? r : Y.CompareTo(other.Y);
         }
         /// <summary>
         /// 
         /// </summary>
-        internal Directions CompassDirection {
-            get { return CompassVector.VectorDirection(this); }
-        }
+        internal Directions CompassDirection => CompassVector.VectorDirection(this);
         /// <summary>
         /// the L1 norm
         /// </summary>
-        public double L1 {
-            get { return Math.Abs(X) + Math.Abs(Y); }
-        }
+        public double L1 => Math.Abs(X) + Math.Abs(Y);
 
         #endregion
 
         ///<summary>
         ///rotates the point 90 degrees counterclockwise
         ///</summary>
-        public Point Rotate90Ccw() {
-            return new Point(-Y, X);
-        }
+        public Point Rotate90Ccw() => new Point(-Y, X);
 
         ///<summary>
         ///rotates the point 90 degrees counterclockwise
         ///</summary>
-        public Point Rotate90Cw() {
-            return new Point(Y, -X);
-        }
+        public Point Rotate90Cw() => new Point(Y, -X);
 
-        internal static bool PointIsInsideCone(Point p, Point apex, Point leftSideConePoint, Point rightSideConePoint) {
-            return PointToTheRightOfLineOrOnLine(p, apex, leftSideConePoint) &&
+        internal static bool PointIsInsideCone(Point p, Point apex, Point leftSideConePoint, Point rightSideConePoint) => PointToTheRightOfLineOrOnLine(p, apex, leftSideConePoint) &&
                    PointToTheLeftOfLineOrOnLine(p, apex, rightSideConePoint);
-        }
 
         static Random rnd = new Random(1);
         ///<summary>

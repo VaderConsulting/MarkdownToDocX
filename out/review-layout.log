@@ -1,0 +1,303 @@
+Test run for C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\bin\Debug\net10.0\MermaidRecognition.Layout.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+  Failed RenderToSvg_F104_TwoParallelEdges_BAboveA [286 ms]
+  Error Message:
+     Assert.That(LabelA.Success, Is.True)
+  Expected: True
+  But was:  False
+
+  Stack Trace:
+     at MermaidRecognition.Layout.Tests.F104FeedbackLoopRenderTests.RenderToSvg_F104_TwoParallelEdges_BAboveA() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\F104FeedbackLoopRenderTests.cs:line 36
+
+1)    at MermaidRecognition.Layout.Tests.F104FeedbackLoopRenderTests.RenderToSvg_F104_TwoParallelEdges_BAboveA() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\F104FeedbackLoopRenderTests.cs:line 36
+
+
+  Failed RenderToSvg_F94_MultiLineEdgeLabel_IsVerticallyCentredOnConnector [54 ms]
+  Error Message:
+   System.InvalidOperationException : Sequence contains no elements
+  Stack Trace:
+     at System.Linq.ThrowHelper.ThrowNoElementsException()
+   at System.Linq.Enumerable.First[TSource](IEnumerable`1 source)
+   at MermaidRecognition.Layout.Tests.F94EdgeLabelRenderTests.RenderToSvg_F94_MultiLineEdgeLabel_IsVerticallyCentredOnConnector() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\F94EdgeLabelRenderTests.cs:line 23
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+1)    at System.Linq.ThrowHelper.ThrowNoElementsException()
+   at System.Linq.Enumerable.First[TSource](IEnumerable`1 source)
+   at MermaidRecognition.Layout.Tests.F94EdgeLabelRenderTests.RenderToSvg_F94_MultiLineEdgeLabel_IsVerticallyCentredOnConnector() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\F94EdgeLabelRenderTests.cs:line 23
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+
+  Failed RenderToSvg_F13_ArrowTipMeetsCylinderTopBoundary [2 ms]
+  Error Message:
+     Assert.That(RouteKind, Is.EqualTo(FlowchartEdgeRouteKind.Straight))
+  Expected: Straight
+  But was:  Corridor
+
+  Stack Trace:
+     at MermaidRecognition.Layout.Tests.FlowchartCatalogueRenderTests.RenderToSvg_F13_ArrowTipMeetsCylinderTopBoundary() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartCatalogueRenderTests.cs:line 236
+
+1)    at MermaidRecognition.Layout.Tests.FlowchartCatalogueRenderTests.RenderToSvg_F13_ArrowTipMeetsCylinderTopBoundary() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartCatalogueRenderTests.cs:line 236
+
+
+  Failed RenderToSvg_F22_BidirectionalArrowTipsMeetNodeBoundaries [8 ms]
+  Error Message:
+     Assert.That(LineMatch.Success, Is.True)
+  Expected: True
+  But was:  False
+
+  Stack Trace:
+     at MermaidRecognition.Layout.Tests.FlowchartCatalogueRenderTests.RenderToSvg_F22_BidirectionalArrowTipsMeetNodeBoundaries() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartCatalogueRenderTests.cs:line 349
+
+1)    at MermaidRecognition.Layout.Tests.FlowchartCatalogueRenderTests.RenderToSvg_F22_BidirectionalArrowTipsMeetNodeBoundaries() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartCatalogueRenderTests.cs:line 349
+
+
+  Failed RenderToSvg_F25_SpineLabels_AreCentredOnNodeMidspan [3 ms]
+  Error Message:
+     Assert.That(VerticalSpineLineXValues, Is.Not.Empty)
+  Expected: not <empty>
+  But was:  <empty>
+
+  Stack Trace:
+     at MermaidRecognition.Layout.Tests.FlowchartCatalogueRenderTests.RenderToSvg_F25_SpineLabels_AreCentredOnNodeMidspan() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartCatalogueRenderTests.cs:line 542
+
+1)    at MermaidRecognition.Layout.Tests.FlowchartCatalogueRenderTests.RenderToSvg_F25_SpineLabels_AreCentredOnNodeMidspan() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartCatalogueRenderTests.cs:line 542
+
+
+  Failed RenderToSvg_F26_LongEdgeLabel_IsCentredOnConnectorLine [1 ms]
+  Error Message:
+   System.InvalidOperationException : Sequence contains no elements
+  Stack Trace:
+     at System.Linq.ThrowHelper.ThrowNoElementsException()
+   at System.Linq.Enumerable.First[TSource](IEnumerable`1 source)
+   at MermaidRecognition.Layout.Tests.FlowchartCatalogueRenderTests.RenderToSvg_F26_LongEdgeLabel_IsCentredOnConnectorLine() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartCatalogueRenderTests.cs:line 449
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+1)    at System.Linq.ThrowHelper.ThrowNoElementsException()
+   at System.Linq.Enumerable.First[TSource](IEnumerable`1 source)
+   at MermaidRecognition.Layout.Tests.FlowchartCatalogueRenderTests.RenderToSvg_F26_LongEdgeLabel_IsCentredOnConnectorLine() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartCatalogueRenderTests.cs:line 449
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+
+  Failed RenderToSvg_F32_FanIn_UsesCurvedPathsForOffsetWorkers [1 ms]
+  Error Message:
+     Offset fan-in edges should use smooth curves, not orthogonal elbow paths
+Assert.That(CurvedPathCount, Is.GreaterThanOrEqualTo(2))
+  Expected: greater than or equal to 2
+  But was:  0
+
+  Stack Trace:
+     at MermaidRecognition.Layout.Tests.FlowchartCatalogueRenderTests.RenderToSvg_F32_FanIn_UsesCurvedPathsForOffsetWorkers() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartCatalogueRenderTests.cs:line 1066
+
+1)    at MermaidRecognition.Layout.Tests.FlowchartCatalogueRenderTests.RenderToSvg_F32_FanIn_UsesCurvedPathsForOffsetWorkers() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartCatalogueRenderTests.cs:line 1066
+
+
+  Failed RenderToSvg_F32_SideBranches_UseBoundarySRouteWithoutHookCubics [1 ms]
+  Error Message:
+     Side fan-in branches use a 4-point boundary S-route → three curveBasis cubics
+Assert.That(CubicCount, Is.EqualTo(3))
+  Expected: 3
+  But was:  1
+
+  Stack Trace:
+     at MermaidRecognition.Layout.Tests.FlowchartCatalogueRenderTests.RenderToSvg_F32_SideBranches_UseBoundarySRouteWithoutHookCubics() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartCatalogueRenderTests.cs:line 1165
+
+1)    at MermaidRecognition.Layout.Tests.FlowchartCatalogueRenderTests.RenderToSvg_F32_SideBranches_UseBoundarySRouteWithoutHookCubics() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartCatalogueRenderTests.cs:line 1165
+
+
+  Failed RenderToSvg_F33_SideFanRoutes_UseBoundarySRouteWithoutHookCubics [1 ms]
+  Error Message:
+     LR side fan routes use a 4-point boundary S-route → three curveBasis cubics
+Assert.That(CubicCount, Is.EqualTo(3))
+  Expected: 3
+  But was:  4
+
+  Stack Trace:
+     at MermaidRecognition.Layout.Tests.FlowchartCatalogueRenderTests.RenderToSvg_F33_SideFanRoutes_UseBoundarySRouteWithoutHookCubics() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartCatalogueRenderTests.cs:line 1331
+
+1)    at MermaidRecognition.Layout.Tests.FlowchartCatalogueRenderTests.RenderToSvg_F33_SideFanRoutes_UseBoundarySRouteWithoutHookCubics() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartCatalogueRenderTests.cs:line 1331
+
+
+  Failed RenderToSvg_F33_SpineEdgesRemainStraight [1 ms]
+  Error Message:
+     Only Ingress→Enqueue and Aggregate→Out should remain straight; fan branches are curved
+Assert.That(StraightLineCount, Is.EqualTo(2))
+  Expected: 2
+  But was:  0
+
+  Stack Trace:
+     at MermaidRecognition.Layout.Tests.FlowchartCatalogueRenderTests.RenderToSvg_F33_SpineEdgesRemainStraight() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartCatalogueRenderTests.cs:line 1190
+
+1)    at MermaidRecognition.Layout.Tests.FlowchartCatalogueRenderTests.RenderToSvg_F33_SpineEdgesRemainStraight() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartCatalogueRenderTests.cs:line 1190
+
+
+  Failed RenderToSvg_F89_NodeLabels_AreHorizontallyCentredInNodeBounds [2 ms]
+  Error Message:
+     Assert.That(LabelMatches.Count, Is.EqualTo(2))
+  Expected: 2
+  But was:  1
+
+  Stack Trace:
+     at MermaidRecognition.Layout.Tests.FlowchartCatalogueRenderTests.RenderToSvg_F89_NodeLabels_AreHorizontallyCentredInNodeBounds() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartCatalogueRenderTests.cs:line 2993
+
+1)    at MermaidRecognition.Layout.Tests.FlowchartCatalogueRenderTests.RenderToSvg_F89_NodeLabels_AreHorizontallyCentredInNodeBounds() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartCatalogueRenderTests.cs:line 2993
+
+
+  Failed RenderToSvg_F95_ArrowTipInsetsIntoTargetNodeAndUsesButtLineCap [1 ms]
+  Error Message:
+     <svg xmlns="http://www.w3.org/2000/svg" width="394" height="86" viewBox="0 0 394 86"><rect x="0" y="0" width="393.20000000000005" height="86" fill="white"/><path d="M135.20000000000005,43L143.20000000000005,43L258,43" fill="none" stroke="#333333" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><text y="43" text-anchor="start" dominant-baseline="middle" fill="#333333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="12" font-weight="normal"><tspan x="143.20000000000002" dy="0"><tspan font-weight="bold">Approve</tspan> or <tspan font-style="italic">Reject</tspan></tspan></text><path d="M8,8 H135.2 V78 H8 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M258,8 H385.2 V78 H258 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><polygon points="259,43 249,46.5 249,39.5" fill="#333333" stroke="none"/><text x="71.6" y="43" text-anchor="middle" dominant-baseline="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">A</text><text x="321.6" y="43" text-anchor="middle" dominant-baseline="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">B</text></svg>
+Assert.That(LineMatch.Success, Is.True)
+  Expected: True
+  But was:  False
+
+  Stack Trace:
+     at MermaidRecognition.Layout.Tests.FlowchartCatalogueRenderTests.RenderToSvg_F95_ArrowTipInsetsIntoTargetNodeAndUsesButtLineCap() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartCatalogueRenderTests.cs:line 3146
+
+1)    at MermaidRecognition.Layout.Tests.FlowchartCatalogueRenderTests.RenderToSvg_F95_ArrowTipInsetsIntoTargetNodeAndUsesButtLineCap() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartCatalogueRenderTests.cs:line 3146
+
+
+  Failed TryResolveLayoutGuidePoints_F32_FanIn_SelectsTopFaceSourcePortsAndBottomCentreTarget [1 ms]
+  Error Message:
+     W1->Agg route kind
+Assert.That(RouteKind, Is.EqualTo(ExpectedRouteKind))
+  Expected: Curved
+  But was:  CrossGroup
+
+  Stack Trace:
+     at MermaidRecognition.Layout.Tests.FlowchartCatalogueRenderTests.AssertEdgeSourceFace(DiagramContract Contract, Dictionary`2 BoundsById, Dictionary`2 NodeById, FlowchartDirection Direction, String SourceId, String TargetId, FlowchartEdgeAttachFace ExpectedSourceFace, FlowchartEdgeRouteKind ExpectedRouteKind) in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartCatalogueRenderTests.cs:line 3190
+   at MermaidRecognition.Layout.Tests.FlowchartCatalogueRenderTests.TryResolveLayoutGuidePoints_F32_FanIn_SelectsTopFaceSourcePortsAndBottomCentreTarget() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartCatalogueRenderTests.cs:line 1088
+
+1)    at MermaidRecognition.Layout.Tests.FlowchartCatalogueRenderTests.AssertEdgeSourceFace(DiagramContract Contract, Dictionary`2 BoundsById, Dictionary`2 NodeById, FlowchartDirection Direction, String SourceId, String TargetId, FlowchartEdgeAttachFace ExpectedSourceFace, FlowchartEdgeRouteKind ExpectedRouteKind) in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartCatalogueRenderTests.cs:line 3190
+   at MermaidRecognition.Layout.Tests.FlowchartCatalogueRenderTests.TryResolveLayoutGuidePoints_F32_FanIn_SelectsTopFaceSourcePortsAndBottomCentreTarget() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartCatalogueRenderTests.cs:line 1088
+
+
+  Failed TryResolveLayoutGuidePoints_F33_LrFan_SelectsInboardSidePorts [1 ms]
+  Error Message:
+     C->E route kind
+Assert.That(RouteKind, Is.EqualTo(ExpectedRouteKind))
+  Expected: Curved
+  But was:  CrossGroup
+
+  Stack Trace:
+     at MermaidRecognition.Layout.Tests.FlowchartCatalogueRenderTests.AssertEdgeSourceFace(DiagramContract Contract, Dictionary`2 BoundsById, Dictionary`2 NodeById, FlowchartDirection Direction, String SourceId, String TargetId, FlowchartEdgeAttachFace ExpectedSourceFace, FlowchartEdgeRouteKind ExpectedRouteKind) in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartCatalogueRenderTests.cs:line 3190
+   at MermaidRecognition.Layout.Tests.FlowchartCatalogueRenderTests.TryResolveLayoutGuidePoints_F33_LrFan_SelectsInboardSidePorts() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartCatalogueRenderTests.cs:line 1235
+
+1)    at MermaidRecognition.Layout.Tests.FlowchartCatalogueRenderTests.AssertEdgeSourceFace(DiagramContract Contract, Dictionary`2 BoundsById, Dictionary`2 NodeById, FlowchartDirection Direction, String SourceId, String TargetId, FlowchartEdgeAttachFace ExpectedSourceFace, FlowchartEdgeRouteKind ExpectedRouteKind) in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartCatalogueRenderTests.cs:line 3190
+   at MermaidRecognition.Layout.Tests.FlowchartCatalogueRenderTests.TryResolveLayoutGuidePoints_F33_LrFan_SelectsInboardSidePorts() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartCatalogueRenderTests.cs:line 1235
+
+
+  Failed ApplyTerminalStubs_WhenDecisionFanOut_InsertsDiamondNormalStub [1 ms]
+  Error Message:
+     Assert.That(Expanded.Count, Is.GreaterThan(Points.Count))
+  Expected: greater than 3
+  But was:  3
+
+  Stack Trace:
+     at MermaidRecognition.Layout.Tests.FlowchartPerpendicularAttachTests.ApplyTerminalStubs_WhenDecisionFanOut_InsertsDiamondNormalStub() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartPerpendicularAttachTests.cs:line 173
+
+1)    at MermaidRecognition.Layout.Tests.FlowchartPerpendicularAttachTests.ApplyTerminalStubs_WhenDecisionFanOut_InsertsDiamondNormalStub() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartPerpendicularAttachTests.cs:line 173
+
+
+  Failed ComputeOffsetLabelPosition_UsesHalfPolylineDistance [1 ms]
+  Error Message:
+     Assert.That(LabelX, Is.EqualTo(ExpectedX).Within(0.5))
+  Expected: 16.464466094067262d +/- 0.5d
+  But was:  6.5649711574555987d
+  Off by:   9.8994949366116636d
+
+  Stack Trace:
+     at MermaidRecognition.Layout.Tests.FlowchartPerpendicularAttachTests.ComputeOffsetLabelPosition_UsesHalfPolylineDistance() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartPerpendicularAttachTests.cs:line 149
+
+1)    at MermaidRecognition.Layout.Tests.FlowchartPerpendicularAttachTests.ComputeOffsetLabelPosition_UsesHalfPolylineDistance() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartPerpendicularAttachTests.cs:line 149
+
+
+  Failed ComputeOffsetLabelPositionForStraightSegment_UsesConnectorMidspan [< 1 ms]
+  Error Message:
+     Assert.That(LabelX, Is.EqualTo(100.0).Within(0.5))
+  Expected: 100.0d +/- 0.5d
+  But was:  86.0d
+  Off by:   14.0d
+
+  Stack Trace:
+     at MermaidRecognition.Layout.Tests.FlowchartPerpendicularAttachTests.ComputeOffsetLabelPositionForStraightSegment_UsesConnectorMidspan() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartPerpendicularAttachTests.cs:line 95
+
+1)    at MermaidRecognition.Layout.Tests.FlowchartPerpendicularAttachTests.ComputeOffsetLabelPositionForStraightSegment_UsesConnectorMidspan() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartPerpendicularAttachTests.cs:line 95
+
+
+  Failed RenderToSvg_F29_DecisionBranches_NoTerminalHookCubic [1 ms]
+  Error Message:
+     Pure curveBasis decision branches must emit exactly two cubics, not a terminal-hook third cubic
+Assert.That(CubicCount, Is.EqualTo(2))
+  Expected: 2
+  But was:  4
+
+  Stack Trace:
+     at MermaidRecognition.Layout.Tests.FlowchartPerpendicularAttachTests.RenderToSvg_F29_DecisionBranches_NoTerminalHookCubic() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartPerpendicularAttachTests.cs:line 283
+
+1)    at MermaidRecognition.Layout.Tests.FlowchartPerpendicularAttachTests.RenderToSvg_F29_DecisionBranches_NoTerminalHookCubic() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartPerpendicularAttachTests.cs:line 283
+
+
+  Failed RenderToSvg_F29_SpineStraight_BranchesCurvedWithStraightTerminals [2 ms]
+  Error Message:
+     Start→Valid? should be a straight vertical connector
+Assert.That(StraightSpineCount, Is.GreaterThanOrEqualTo(1))
+  Expected: greater than or equal to 1
+  But was:  0
+
+  Stack Trace:
+     at MermaidRecognition.Layout.Tests.FlowchartPerpendicularAttachTests.RenderToSvg_F29_SpineStraight_BranchesCurvedWithStraightTerminals() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartPerpendicularAttachTests.cs:line 254
+
+1)    at MermaidRecognition.Layout.Tests.FlowchartPerpendicularAttachTests.RenderToSvg_F29_SpineStraight_BranchesCurvedWithStraightTerminals() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartPerpendicularAttachTests.cs:line 254
+
+
+  Failed RenderToSvg_F30_CenterBranch_IsStraightVertical [2 ms]
+  Error Message:
+     Christmas→Go shopping, Go shopping→Let me think, and Let me think→iPhone should be straight
+Assert.That(StraightLineCount, Is.GreaterThanOrEqualTo(3))
+  Expected: greater than or equal to 3
+  But was:  2
+
+  Stack Trace:
+     at MermaidRecognition.Layout.Tests.FlowchartPerpendicularAttachTests.RenderToSvg_F30_CenterBranch_IsStraightVertical() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartPerpendicularAttachTests.cs:line 379
+
+1)    at MermaidRecognition.Layout.Tests.FlowchartPerpendicularAttachTests.RenderToSvg_F30_CenterBranch_IsStraightVertical() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartPerpendicularAttachTests.cs:line 379
+
+
+  Failed RenderToSvg_Chain_ArrowTipsMeetTargetNodeBorders [4 ms]
+  Error Message:
+     Assert.That(NodeTops, Has.Count.EqualTo(3))
+  Expected: property Count equal to 3
+  But was:  5
+
+  Stack Trace:
+     at MermaidRecognition.Layout.Tests.FlowchartR1RenderGateTests.RenderToSvg_Chain_ArrowTipsMeetTargetNodeBorders() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartR1RenderGateTests.cs:line 476
+
+1)    at MermaidRecognition.Layout.Tests.FlowchartR1RenderGateTests.RenderToSvg_Chain_ArrowTipsMeetTargetNodeBorders() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartR1RenderGateTests.cs:line 476
+
+
+  Failed RenderToSvg_Chain_Fixture_ContainsThreeNodesAndTwoEdges [1 ms]
+  Error Message:
+     Assert.That(CountMatches(Svg, "<path"), Is.EqualTo(3))
+  Expected: 3
+  But was:  5
+
+  Stack Trace:
+     at MermaidRecognition.Layout.Tests.FlowchartR1RenderGateTests.RenderToSvg_Chain_Fixture_ContainsThreeNodesAndTwoEdges() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartR1RenderGateTests.cs:line 28
+
+1)    at MermaidRecognition.Layout.Tests.FlowchartR1RenderGateTests.RenderToSvg_Chain_Fixture_ContainsThreeNodesAndTwoEdges() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartR1RenderGateTests.cs:line 28
+
+
+  Failed RenderToSvg_SubgraphMembership_Fixture_LaysOutInnerNodes [2 ms]
+  Error Message:
+     Assert.That(CountMatches(Svg, "<line"), Is.EqualTo(1))
+  Expected: 1
+  But was:  0
+
+  Stack Trace:
+     at MermaidRecognition.Layout.Tests.FlowchartR1RenderGateTests.RenderToSvg_SubgraphMembership_Fixture_LaysOutInnerNodes() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartR1RenderGateTests.cs:line 143
+
+1)    at MermaidRecognition.Layout.Tests.FlowchartR1RenderGateTests.RenderToSvg_SubgraphMembership_Fixture_LaysOutInnerNodes() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\FlowchartR1RenderGateTests.cs:line 143
+
+
+Results File: C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\new_src\MermaidRecognition.Layout.Tests\TestResults\review-layout.trx
+
+Failed!  - Failed:    23, Passed:   187, Skipped:     0, Total:   210, Duration: 999 ms - MermaidRecognition.Layout.Tests.dll (net10.0)

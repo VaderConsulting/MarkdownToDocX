@@ -1,9 +1,7 @@
 namespace MermaidRecognition.Layout.Sugiyama.DebugHelpers.Persistence {
     internal class CharStreamElement : CurveStreamElement {
-        internal CharStreamElement(char ch) {
-            Value = ch;
-        }
+        internal CharStreamElement(char ch) => Value = ch;
 
-        internal char Char { get { return (char)Value; } }
+        internal char Char => (char)Value;
     }
 }

@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Layout;
 using MermaidRecognition.RuleValidation.Models;
 
@@ -65,7 +66,7 @@ public static class FlowchartParallelColumnRowAlignHelper
         bool AnyRowViolation = false;
         for (int RowIndex = 0; RowIndex < MaxRowCount; RowIndex++)
         {
-            List<double> RowCenters = new List<double>();
+            List<double> RowCenters = [];
             foreach (List<string> Chain in ColumnChains)
             {
                 if (RowIndex >= Chain.Count)
@@ -73,7 +74,7 @@ public static class FlowchartParallelColumnRowAlignHelper
                     continue;
                 }
 
-                if (BoundsById.TryGetValue(Chain[RowIndex], out FlowchartLayoutNodeBounds Bounds))
+                if (BoundsById.TryGetValue(Chain[RowIndex], out FlowchartLayoutNodeBounds? Bounds))
                 {
                     RowCenters.Add(Bounds.CenterY);
                 }

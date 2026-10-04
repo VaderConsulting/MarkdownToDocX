@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
 using MermaidRecognition.Contract;
 
-namespace MermaidRecognition.Flowchart;
+namespace MermaidRecognition.Kinds.Flowchart;
 
 /// <summary>
 /// Parses edge metadata mutation lines such as <c>e1@{ curve: basis }</c> (vendored flow-lines.spec.js).
@@ -57,14 +57,14 @@ public static class FlowchartEdgeMetadataParser
         if (string.Equals(Key, "animate", StringComparison.OrdinalIgnoreCase))
         {
             bool? Animate = ParseBoolean(Value);
-            AnimationMetadata Existing = GetExistingAnimationMetadata(Edge);
+            AnimationMetadata? Existing = GetExistingAnimationMetadata(Edge);
             Edge.MetadataMutable["animate"] = new AnimationMetadata(Animate, Existing?.Animation);
             return;
         }
 
         if (string.Equals(Key, "animation", StringComparison.OrdinalIgnoreCase))
         {
-            AnimationMetadata Existing = GetExistingAnimationMetadata(Edge);
+            AnimationMetadata? Existing = GetExistingAnimationMetadata(Edge);
             Edge.MetadataMutable["animate"] = new AnimationMetadata(Existing?.Animate, Value);
             return;
         }

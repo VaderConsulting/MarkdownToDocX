@@ -14,7 +14,6 @@ namespace Microsoft.AGL.Core.DataStructures {
     /// A generic version priority queue based on the binary heap algorithm where
     /// the priority of each element is passed as a parameter and priority ties are broken by timestamp.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1710:IdentifiersShouldHaveCorrectSuffix"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1711:IdentifiersShouldNotHaveIncorrectSuffix")]
     public class GenericBinaryHeapPriorityQueueWithTimestamp<T> : IEnumerable<T> {
 
         const int InitialHeapCapacity = 16;
@@ -37,31 +36,29 @@ namespace Microsoft.AGL.Core.DataStructures {
 
         // ReSharper disable InconsistentNaming
         GenericHeapElementWithTimestamp<T>[] A;//array of heap elements
-        // ReSharper restore InconsistentNaming
+                                               // ReSharper restore InconsistentNaming
 
-         UInt64 timestamp;
-         UInt64 NextTimestamp { get { return ++this.timestamp; } }
+        ulong timestamp;
+        ulong NextTimestamp => ++timestamp;
 
         /// <summary>
         /// it is a mapping from queue elements and their correspondent HeapElements
         /// </summary>
         readonly Dictionary<T, GenericHeapElementWithTimestamp<T>> cache;
-        internal int Count { get { return heapSize; } }
+        internal int Count => heapSize;
         int heapSize;
 
-        internal bool ContainsElement(T key) {
-            return cache.ContainsKey(key);
-        }
+        internal bool ContainsElement(T key) => cache.ContainsKey(key);
 
 
         internal GenericBinaryHeapPriorityQueueWithTimestamp() {
-            cache = new Dictionary<T, GenericHeapElementWithTimestamp<T>>();
+            cache = [];
             A = new GenericHeapElementWithTimestamp<T>[InitialHeapCapacity + 1];
         }
 
 
         void SwapWithParent(int i) {
-            var parent = A[i >> 1];
+            GenericHeapElementWithTimestamp<T> parent = A[i >> 1];
 
             PutAtI(i >> 1, A[i]);
             PutAtI(i, parent);
@@ -69,7 +66,7 @@ namespace Microsoft.AGL.Core.DataStructures {
 
         internal void Enqueue(T element, double priority) {
             if (heapSize == A.Length - 1) {
-                var newA = new GenericHeapElementWithTimestamp<T>[A.Length * 2];
+                GenericHeapElementWithTimestamp<T>[] newA = new GenericHeapElementWithTimestamp<T>[A.Length * 2];
                 Array.Copy(A, 1, newA, 1, heapSize);
                 A = newA;
             }
@@ -78,7 +75,7 @@ namespace Microsoft.AGL.Core.DataStructures {
             int i = heapSize;
             GenericHeapElementWithTimestamp<T> h;
 
-            A[i] = cache[element] = h = new GenericHeapElementWithTimestamp<T>(i, priority, element, this.NextTimestamp);
+            A[i] = cache[element] = h = new GenericHeapElementWithTimestamp<T>(i, priority, element, NextTimestamp);
             while (i > 1 && A[i >> 1].ComparePriority(A[i]) > 0) {
                 SwapWithParent(i);
                 i >>= 1;
@@ -88,9 +85,7 @@ namespace Microsoft.AGL.Core.DataStructures {
 
         }
 
-        internal bool IsEmpty() {
-            return heapSize == 0;
-        }
+        internal bool IsEmpty() => heapSize == 0;
 
         void PutAtI(int i, GenericHeapElementWithTimestamp<T> h) {
             A[i] = h;
@@ -111,7 +106,7 @@ namespace Microsoft.AGL.Core.DataStructures {
         /// <summary>
         /// Gets the timestamp of the next element to be dequeued, without dequeueing it.
         /// </summary>
-        internal UInt64 PeekTimestamp() {
+        internal ulong PeekTimestamp() {
             if (heapSize == 0) {
                 throw new InvalidOperationException();
             }
@@ -123,7 +118,7 @@ namespace Microsoft.AGL.Core.DataStructures {
             if (heapSize == 0)
                 throw new InvalidOperationException();
 
-            var ret = A[1].v;
+            T ret = A[1].v;
 
             MoveQueueOneStepForward(ret);
 
@@ -134,7 +129,7 @@ namespace Microsoft.AGL.Core.DataStructures {
         internal T Dequeue(out double priority) {
             if (heapSize == 0) throw new InvalidOperationException();
 
-            var ret = A[1].v;
+            T ret = A[1].v;
             priority = A[1].priority;
             MoveQueueOneStepForward(ret);
             return ret;
@@ -171,13 +166,11 @@ namespace Microsoft.AGL.Core.DataStructures {
         /// <summary>
         /// sets the object priority to c
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         internal void DecreasePriority(T element, double newPriority)
         {
-            GenericHeapElementWithTimestamp<T> h;
             //ignore the element if it is not in the queue
-            if (!cache.TryGetValue(element, out h)) return;
-                
+            if (!cache.TryGetValue(element, out GenericHeapElementWithTimestamp<T> h)) return;
+
             //var h = cache[element];
             h.priority = newPriority;
             int i = h.indexToA;
@@ -192,7 +185,6 @@ namespace Microsoft.AGL.Core.DataStructures {
 
         ///<summary>
         ///</summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1000:DoNotDeclareStaticMembersOnGenericTypes"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         //        public static void Test() {
         //            Timer nm = new Timer();
         //            var bound = 1000000;
@@ -234,9 +226,8 @@ namespace Microsoft.AGL.Core.DataStructures {
         //            Console.WriteLine(nm.Duration);
         //}
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         public static void Test() {
-            var q = new GenericBinaryHeapPriorityQueue<int>();
+            GenericBinaryHeapPriorityQueue<int> q = new GenericBinaryHeapPriorityQueue<int>();
             q.Enqueue(2, 2);
             q.Enqueue(1, 1);
             q.Enqueue(9, 9);
@@ -274,8 +265,8 @@ namespace Microsoft.AGL.Core.DataStructures {
         /// </summary>
         /// <returns></returns>
         public override string ToString() {
-            var sb=new StringBuilder();
-            foreach (var i in this)
+            StringBuilder sb =new StringBuilder();
+            foreach (T i in this)
                 sb.Append(i + ",");
             return sb.ToString();
         }

@@ -5,7 +5,7 @@ namespace MDConverter.Model;
 /// <summary>Plain paragraph; contains a sequence of inline nodes.</summary>
 public sealed class ParagraphBlock : BlockNode
 {
-    private readonly List<InlineNode> _Inlines = new List<InlineNode>();
+    private readonly List<InlineNode> _Inlines = [];
 
     public IReadOnlyList<InlineNode> Inlines => _Inlines;
 

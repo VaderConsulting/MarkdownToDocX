@@ -1,6 +1,8 @@
 using System.Text.RegularExpressions;
 
-namespace MermaidRecognition.Pie;
+using MermaidRecognition.Core;
+
+namespace MermaidRecognition.Kinds.Pie;
 
 /// <summary>
 /// Pie diagram recognition (vendored <c>pieDetector.ts</c> / pie parser sections).
@@ -34,8 +36,10 @@ public sealed class PieKindRecognizer : IKindRecognizer
     /// <inheritdoc />
     public DiagramContract Parse(string Source, DiagramDetectionResult Detection)
     {
-        DiagramContract Contract = new DiagramContract();
-        Contract.Kind = Detection.ProgrammeKindId;
+        DiagramContract Contract = new DiagramContract
+        {
+            Kind = Detection.ProgrammeKindId
+        };
 
         MermaidConfigurationPipeline.ParseLeadingInitDirectives(Source, Contract.Configuration);
 
@@ -133,10 +137,12 @@ public sealed class PieKindRecognizer : IKindRecognizer
 
     static void AddStatement(DiagramContract Contract, int LineNumber, string LineTypeId, string RawLine)
     {
-        SourceStatementContract Statement = new SourceStatementContract();
-        Statement.LineNumber = LineNumber;
-        Statement.LineTypeId = LineTypeId;
-        Statement.RawLine = RawLine;
+        SourceStatementContract Statement = new SourceStatementContract
+        {
+            LineNumber = LineNumber,
+            LineTypeId = LineTypeId,
+            RawLine = RawLine
+        };
         Contract.SourceStatementsMutable.Add(Statement);
     }
 

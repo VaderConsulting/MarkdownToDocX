@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Layout;
 using MermaidRecognition.Render;
 using MermaidRecognition.RuleValidation.Models;
@@ -53,7 +54,7 @@ public static class FlowchartSubgraphSiblingGapHelper
             string ParentKey = Group.ParentGroupId ?? string.Empty;
             if (!SiblingsByParentId.TryGetValue(ParentKey, out List<GroupContract>? Siblings))
             {
-                Siblings = new List<GroupContract>();
+                Siblings = [];
                 SiblingsByParentId[ParentKey] = Siblings;
             }
 

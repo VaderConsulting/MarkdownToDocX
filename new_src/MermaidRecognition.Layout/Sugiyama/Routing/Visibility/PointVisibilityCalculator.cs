@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using MermaidRecognition.Layout.Sugiyama.Core.DataStructures;
+using MermaidRecognition.Layout.Sugiyama.Core.DataStructures.RBTree;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves;
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
@@ -13,15 +14,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
     /// following "Visibility Algorithms in the Plane", Ghosh
     /// </summary>
     internal class PointVisibilityCalculator {
-        [SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")] //  VisibilityGraph graphOfHoleBoundaries;
-            ActiveEdgeComparerWithRay activeEdgeComparer;
+        ActiveEdgeComparerWithRay activeEdgeComparer;
 
         RbTree<PolylinePoint> activeSidesTree;
 
         /// <summary>
         /// A mapping from sides to their RBNodes
         /// </summary>
-        Dictionary<PolylinePoint, RBNode<PolylinePoint>> sideNodes = new Dictionary<PolylinePoint, RBNode<PolylinePoint>>();
+        Dictionary<PolylinePoint, RBNode<PolylinePoint>> sideNodes = [];
 
         readonly BinaryHeapWithComparer<Stem> heapForSorting;
 
@@ -31,15 +31,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         /// <summary>
         /// These are parts of hole boundaries visible from q where each node is taken in isolation
         /// </summary>
-        readonly Dictionary<Polyline, Stem> visibleBoundaries = new Dictionary<Polyline, Stem>();
+        readonly Dictionary<Polyline, Stem> visibleBoundaries = [];
 
         Point q;
         readonly PolylinePoint qPolylinePoint;
 
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         internal VisibilityVertex QVertex { get; set; }
 
-        readonly List<PolylinePoint> sortedListOfPolypoints = new List<PolylinePoint>();
+        readonly List<PolylinePoint> sortedListOfPolypoints = [];
                                      //the sorted list of possibly visible vertices
 
         readonly IEnumerable<Polyline> holes;
@@ -53,24 +52,22 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         /// <param name="visibilityKind">tangent or regural visibility</param>
         /// <param name="qVertex">the graph vertex corresponding to the pivot</param>        
         /// <returns></returns>
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         internal static void CalculatePointVisibilityGraph(IEnumerable<Polyline> listOfHoles,
                                                            VisibilityGraph visibilityGraph, Point point,
                                                VisibilityKind visibilityKind, out VisibilityVertex qVertex) {
             //maybe there is nothing to do
-            var qv = visibilityGraph.FindVertex(point);
+            VisibilityVertex qv = visibilityGraph.FindVertex(point);
             if (qv != null){
                 qVertex = qv;
                 return;
             }
-                
-            var calculator = new PointVisibilityCalculator(listOfHoles, visibilityGraph, point, visibilityKind);
+
+            PointVisibilityCalculator calculator = new PointVisibilityCalculator(listOfHoles, visibilityGraph, point, visibilityKind);
             calculator.FillGraph();
             qVertex = calculator.QVertex;
             Debug.Assert(qVertex != null);
         }
 
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         void FillGraph() {
             ComputeHoleBoundariesPossiblyVisibleFromQ();
             if (visibleBoundaries.Count > 0) {
@@ -83,7 +80,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         /// <summary>
         /// sorts the set of potentially visible vertices around point q
         /// </summary>
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         void SortSAndInitActiveSides() {
             InitHeapAndInsertActiveSides();
             for (Stem stem = heapForSorting.GetMinimum();; stem = heapForSorting.GetMinimum()) {
@@ -97,7 +93,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             }
         }
 
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         void InitHeapAndInsertActiveSides() {
             foreach (Stem pp in GetInitialVisibleBoundaryStemsAndInsertActiveSides())
                 heapForSorting.Enqueue(pp);
@@ -110,9 +105,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         /// In the general case we have two stems from one polyline
         /// </summary>
         /// <returns></returns>
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         IEnumerable<Stem> GetInitialVisibleBoundaryStemsAndInsertActiveSides() {
-            foreach (var keyValuePair in visibleBoundaries) {
+            foreach (KeyValuePair<Polyline, Stem> keyValuePair in visibleBoundaries) {
                 Polyline hole = keyValuePair.Key;
                 Stem stem = keyValuePair.Value;
                 bool crosses = false;
@@ -171,7 +165,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         //    return ret;
         //}
 
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         PointVisibilityCalculator(IEnumerable<Polyline> holes, VisibilityGraph visibilityGraph, Point point,
                                   VisibilityKind visibilityKind) {
             this.holes = holes;
@@ -184,8 +177,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             heapForSorting = new BinaryHeapWithComparer<Stem>(new StemStartPointComparer(q));
         }
 
-
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         void Sweep() {
             foreach (PolylinePoint polylinePoint in sortedListOfPolypoints)
                 SweepPolylinePoint(polylinePoint);
@@ -204,7 +195,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         }
 
         //this code will work for convex holes
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         void SweepPolylinePoint(PolylinePoint v) {
             PolylinePoint inSide = GetIncomingSide(v);
             PolylinePoint outSide = GetOutgoingSide(v);
@@ -219,39 +209,43 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             //    SugiyamaLayoutSettings.Show(new LineSegment(outEdge.Start.Point, outEdge.End.Point), new LineSegment(this.q, v.Point));
 
             activeEdgeComparer.IntersectionOfTheRayAndInsertedEdge = v.Point;
-            RBNode<PolylinePoint> node;
-            if (sideNodes.TryGetValue(inSide, out node) && node != null) {
-//we have an active edge
+            if (sideNodes.TryGetValue(inSide, out RBNode<PolylinePoint>? node) && node != null)
+            {
+                //we have an active edge
                 if (node == activeSidesTree.TreeMinimum())
                     AddEdge(v);
 
-                if (outSide != null) {
+                if (outSide != null)
+                {
                     node.Item = outSide; //just replace the edge since the order does not change
                     sideNodes[outSide] = node;
-                } else {
+                }
+                else
+                {
                     RBNode<PolylinePoint> changedNode = activeSidesTree.DeleteSubtree(node);
                     if (changedNode != null)
                         if (changedNode.Item != null)
                             sideNodes[changedNode.Item] = changedNode;
                 }
                 sideNodes.Remove(inSide);
-            } else //the incoming edge is not active
-                if (outSide != null) {
-                    RBNode<PolylinePoint> outsideNode;
-                    if (!sideNodes.TryGetValue(outSide, out outsideNode) || outsideNode == null) {
+            }
+            else //the incoming edge is not active
+                if (outSide != null)
+                {
+                    if (!sideNodes.TryGetValue(outSide, out RBNode<PolylinePoint>? outsideNode) || outsideNode == null)
+                    {
                         outsideNode = activeSidesTree.Insert(outSide);
                         sideNodes[outSide] = outsideNode;
                         if (outsideNode == activeSidesTree.TreeMinimum())
                             AddEdge(v);
                     }
-                } else
+                }
+                else
                     throw new InvalidOperationException();
 
             // CheckActiveSidesAreConsistent();
         }
 
-
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         void AddEdge(PolylinePoint v) {
             if (visibilityKind == VisibilityKind.Regular ||
                 (visibilityKind == VisibilityKind.Tangent && LineTouchesPolygon(QVertex.Point, v))) {
@@ -259,7 +253,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             }
         }
 
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         static bool LineTouchesPolygon(Point a, PolylinePoint p) {
             Point prev = p.Polyline.Prev(p).Point;
             Point next = p.Polyline.Next(p).Point;
@@ -268,11 +261,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         }
 
 #if TEST_MSAGL
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
-// ReSharper disable UnusedMember.Local
+        // ReSharper disable UnusedMember.Local
         void DrawActiveEdgesAndVisibleGraph() {
-// ReSharper restore UnusedMember.Local
-            var l = new List<ICurve>();
+            // ReSharper restore UnusedMember.Local
+            List<ICurve> l = new List<ICurve>();
             foreach (VisibilityEdge pe in visibilityGraph.Edges)
                 l.Add(new LineSegment(pe.SourcePoint, pe.TargetPoint));
 
@@ -285,7 +277,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         }
 #endif
 
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         PolylinePoint GetOutgoingSide(PolylinePoint v) {
             Stem visibleStem = visibleBoundaries[v.Polyline];
 
@@ -295,13 +286,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             return v;
         }
 
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
-        static PolylinePoint GetIncomingSide(PolylinePoint v) {
-            return v.PrevOnPolyline;
-        }
+        static PolylinePoint GetIncomingSide(PolylinePoint v) => v.PrevOnPolyline;
 
-
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         void ComputeHoleBoundariesPossiblyVisibleFromQ() {
             InitActiveEdgesAndActiveEdgesComparer();
 
@@ -309,18 +295,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
                 ComputeVisiblePartOfTheHole(hole);
         }
 
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         void InitActiveEdgesAndActiveEdgesComparer() {
             activeEdgeComparer = new ActiveEdgeComparerWithRay {Pivot = q};
             activeSidesTree = new RbTree<PolylinePoint>(activeEdgeComparer);
         }
 
-
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         void ComputeVisiblePartOfTheHole(Polyline hole) {
             //find a separating edge
             PolylinePoint a;
-            var needToGoCounterclockWise = true;
+            bool needToGoCounterclockWise = true;
 
             for (a = hole.StartPoint; !HoleSideIsVisibleFromQ(hole, a); a = hole.Next(a)) {
                 Debug.Assert(needToGoCounterclockWise || a != hole.StartPoint);
@@ -341,9 +324,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             visibleBoundaries[hole] = new Stem(a, b);
         }
 
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
-        bool HoleSideIsVisibleFromQ(Polyline hole, PolylinePoint b) {
-            return Point.SignedDoubledTriangleArea(q, b.Point, hole.Next(b).Point) >= -ApproximateComparer.SquareOfDistanceEpsilon;
-        }
+        bool HoleSideIsVisibleFromQ(Polyline hole, PolylinePoint b) => Point.SignedDoubledTriangleArea(q, b.Point, hole.Next(b).Point) >= -ApproximateComparer.SquareOfDistanceEpsilon;
     }
 }

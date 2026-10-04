@@ -1,35 +1,29 @@
 using MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms;
 
-namespace MermaidRecognition.Layout.Sugiyama.Prototype.LayoutEditing {
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1812:AvoidUninstantiatedInternalClasses")]
+namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing
+{
     internal class WeightedEdge : IEdge {
         int source;
 
         /// <summary>
         /// source
         /// </summary>
-        public int Source {
-            get { return source; }
-            set { source = value; }
+        public int Source { get => source; set => source = value;
         }
         int target;
 
         /// <summary>
         /// source
         /// </summary>
-        public int Target {
-            get { return target; }
-            set { target = value; }
+        public int Target { get => target; set => target = value;
         }
 
         double weight;
 
-        internal double Weight {
-            get { return weight; }
-            set { weight = value; }
+        internal double Weight { get => weight; set => weight = value;
         }
 
-    
+
         internal WeightedEdge(int source, int target, double weight) {
             Source = source;
             Target = target;

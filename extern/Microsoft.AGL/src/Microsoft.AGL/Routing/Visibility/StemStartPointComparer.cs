@@ -74,10 +74,7 @@ namespace Microsoft.AGL.Routing.Visibility {
             return 0; //points are equal
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
-        internal StemStartPointComparer(Point pivotPoint) {
-            this.pivot = pivotPoint;
-        }
+        internal StemStartPointComparer(Point pivotPoint) => pivot = pivotPoint;
 
     }
 }

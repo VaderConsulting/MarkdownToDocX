@@ -1,6 +1,7 @@
 using System;
 
-namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
+namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree
+{
     internal sealed class IntervalNodeUtils {
         internal static void CrossIntervalNodes<TA, TB>(IntervalNode<TA> a, IntervalNode<TB> b, Action<TA, TB> action) {
             if (!a.interval.Intersects(b.interval))

@@ -1,4 +1,4 @@
-namespace MermaidRecognition.Flowchart;
+namespace MermaidRecognition.Kinds.Flowchart;
 
 /// <summary>
 /// Flowchart layout direction from the diagram header.

@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using MermaidRecognition.Layout.Sugiyama.Core;
-using MermaidRecognition.Layout.Sugiyama.Core.DataStructures;
+
+using MermaidRecognition.Layout.Sugiyama.Core.DataStructures.RBTree;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves;
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
@@ -22,9 +22,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
 #endif
         static double AreaComparisonEpsilon = ApproximateComparer.IntersectionEpsilon;
         readonly PointProjection xProjection;
-        
-        internal static double X(Point p){return p.X;}
-        internal static double MinusY(Point p) { return -p.Y; }
+
+        internal static double X(Point p) => p.X;
+        internal static double MinusY(Point p) => -p.Y;
 
         readonly RbTree<AxisEdgesContainer> edgeContainersTree;
         internal Dictionary<AxisEdge, List<PathEdge>> PathOrders { get; set; }
@@ -78,16 +78,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         }
 
         void ProcessEvent(SweepEvent sweepEvent) {
-//            if (SweepDirection.Y == 1 && (sweepEvent.Site - new Point(75.45611, 15.21524)).Length < 0.1)
-               // ShowAtPoint(sweepEvent.Site);
-          
-            var vertexEvent = sweepEvent as VertexEvent;
-            if (vertexEvent != null)
+            //            if (SweepDirection.Y == 1 && (sweepEvent.Site - new Point(75.45611, 15.21524)).Length < 0.1)
+            // ShowAtPoint(sweepEvent.Site);
+
+            if (sweepEvent is VertexEvent vertexEvent)
                 ProcessVertexEvent(vertexEvent);
-            else {
-                var lowEdgeEvent = sweepEvent as AxisEdgeLowPointEvent;
+            else
+            {
                 Z = GetZ(sweepEvent.Site);
-                if (lowEdgeEvent != null)
+                if (sweepEvent is AxisEdgeLowPointEvent lowEdgeEvent)
                     ProcessLowEdgeEvent(lowEdgeEvent);
                 else
                     ProcessHighEdgeEvent((AxisEdgeHighPointEvent)sweepEvent);
@@ -95,27 +94,27 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         }
 
         void ProcessHighEdgeEvent(AxisEdgeHighPointEvent edgeForNudgingHighPointEvent) {
-            var edge = edgeForNudgingHighPointEvent.AxisEdge;
+            AxisEdge edge = edgeForNudgingHighPointEvent.AxisEdge;
             RemoveEdge(edge);
             ConstraintEdgeWithObstaclesAtZ(edge, edge.Target.Point);
         }
 
         void ProcessLowEdgeEvent(AxisEdgeLowPointEvent lowEdgeEvent) {
-            
-            var edge = lowEdgeEvent.AxisEdge;
 
-            var containerNode = GetOrCreateAxisEdgesContainer(edge);
+            AxisEdge edge = lowEdgeEvent.AxisEdge;
+
+            RBNode<AxisEdgesContainer> containerNode = GetOrCreateAxisEdgesContainer(edge);
             containerNode.Item.AddEdge(edge);
-            var prev = edgeContainersTree.Previous(containerNode);
+            RBNode<AxisEdgesContainer> prev = edgeContainersTree.Previous(containerNode);
             if (prev != null)
-                foreach (var prevEdge in prev.Item)
-                    foreach (var ed in containerNode.Item)
+                foreach (AxisEdge prevEdge in prev.Item)
+                    foreach (AxisEdge ed in containerNode.Item)
                         TryToAddRightNeighbor(prevEdge, ed);
-                        
-            var next = edgeContainersTree.Next(containerNode);
+
+            RBNode<AxisEdgesContainer> next = edgeContainersTree.Next(containerNode);
             if (next != null)
-                foreach (var ed in containerNode.Item)
-                    foreach (var neEdge in next.Item)
+                foreach (AxisEdge ed in containerNode.Item)
+                    foreach (AxisEdge neEdge in next.Item)
                         TryToAddRightNeighbor(ed, neEdge);
             ConstraintEdgeWithObstaclesAtZ(edge, edge.Source.Point);
         }
@@ -125,43 +124,35 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
                 leftEdge.AddRightNeighbor(rightEdge);
         }
 
-        bool ProjectionsOfEdgesOverlap(AxisEdge leftEdge, AxisEdge rightEdge) {
-            return SweepPole == Directions.North
+        bool ProjectionsOfEdgesOverlap(AxisEdge leftEdge, AxisEdge rightEdge) => SweepPole == Directions.North
                        ? !(leftEdge.TargetPoint.Y < rightEdge.SourcePoint.Y - ApproximateComparer.DistanceEpsilon ||
                            rightEdge.TargetPoint.Y < leftEdge.SourcePoint.Y - ApproximateComparer.DistanceEpsilon)
                        : !(leftEdge.TargetPoint.X < rightEdge.SourcePoint.X - ApproximateComparer.DistanceEpsilon ||
                            rightEdge.TargetPoint.X < leftEdge.SourcePoint.X - ApproximateComparer.DistanceEpsilon);
-        }
 
 #if TEST_MSAGL
-// ReSharper disable UnusedMember.Local
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
-        void DebShowEdge(AxisEdge edge, Point point){
-// ReSharper restore UnusedMember.Local
-           // if (InterestingEdge(edge))
-                ShowEdge(edge,point);
-        }
+        // ReSharper disable UnusedMember.Local
+        void DebShowEdge(AxisEdge edge, Point point) =>
+                // ReSharper restore UnusedMember.Local
+                // if (InterestingEdge(edge))
+                ShowEdge(edge, point);
 
 
-// ReSharper disable SuggestBaseTypeForParameter
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
+        // ReSharper disable SuggestBaseTypeForParameter
         void ShowEdge(AxisEdge edge, Point point){
-// ReSharper restore SuggestBaseTypeForParameter
+            // ReSharper restore SuggestBaseTypeForParameter
 
-            var dd = GetObstacleBoundaries("black");
-            var seg = new DebugCurve( 1, "red", new LineSegment(edge.Source.Point, edge.Target.Point));
+            IEnumerable<DebugCurve> dd = GetObstacleBoundaries("black");
+            DebugCurve seg = new DebugCurve( 1, "red", new LineSegment(edge.Source.Point, edge.Target.Point));
             LayoutAlgorithmSettings.ShowDebugCurvesEnumeration(dd.Concat(
                 new[]{seg ,new DebugCurve("blue",CurveFactory.CreateEllipse(3, 3, point))}));
   
 
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
-        IEnumerable<DebugCurve> GetObstacleBoundaries(string color){
-            return Obstacles.Select(p => new DebugCurve(1, color, p));
-        }
+        IEnumerable<DebugCurve> GetObstacleBoundaries(string color) => Obstacles.Select(p => new DebugCurve(1, color, p));
 #endif
-        
+
 
         /// <summary>
         /// 
@@ -175,43 +166,34 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         }
 
         void ConstraintEdgeWithObstaclesAtZFromRight(AxisEdge edge, Point point) {
-            var node = GetActiveSideFromRight(point);
+            RBNode<SegmentBase> node = GetActiveSideFromRight(point);
             if (node == null) return;
             if (NotRestricting(edge, ((LeftObstacleSide) node.Item).Polyline)) return;
-            var x = ObstacleSideComparer.IntersectionOfSideAndSweepLine(node.Item);
+            Point x = ObstacleSideComparer.IntersectionOfSideAndSweepLine(node.Item);
             edge.BoundFromRight(x*DirectionPerp);
         }
 
-        RBNode<SegmentBase> GetActiveSideFromRight(Point point){
-            return LeftObstacleSideTree.FindFirst(side =>
+        RBNode<SegmentBase> GetActiveSideFromRight(Point point) => LeftObstacleSideTree.FindFirst(side =>
                                            PointToTheLeftOfLineOrOnLineLocal(point, side.Start, side.End));
-        }
 
         void ConstraintEdgeWithObstaclesAtZFromLeft(AxisEdge edge, Point point){
             //    ShowNudgedSegAndPoint(point, nudgedSegment);
-            var node = GetActiveSideFromLeft(point);
+            RBNode<SegmentBase> node = GetActiveSideFromLeft(point);
             if (node == null) return;
             if (NotRestricting(edge, ((RightObstacleSide) node.Item).Polyline)) return;
-            var x = ObstacleSideComparer.IntersectionOfSideAndSweepLine(node.Item);
+            Point x = ObstacleSideComparer.IntersectionOfSideAndSweepLine(node.Item);
             edge.BoundFromLeft(x * DirectionPerp);
         }
-       
-        static bool PointToTheLeftOfLineOrOnLineLocal(Point a, Point linePoint0, Point linePoint1) {
-            return Point.SignedDoubledTriangleArea(a, linePoint0, linePoint1) > -AreaComparisonEpsilon;
-        }
 
-        static bool PointToTheRightOfLineOrOnLineLocal(Point a, Point linePoint0, Point linePoint1) {
-            return Point.SignedDoubledTriangleArea(linePoint0, linePoint1, a) < AreaComparisonEpsilon;
-        }
+        static bool PointToTheLeftOfLineOrOnLineLocal(Point a, Point linePoint0, Point linePoint1) => Point.SignedDoubledTriangleArea(a, linePoint0, linePoint1) > -AreaComparisonEpsilon;
 
-        RBNode<SegmentBase> GetActiveSideFromLeft(Point point){
-            return RightObstacleSideTree.FindLast(side =>
+        static bool PointToTheRightOfLineOrOnLineLocal(Point a, Point linePoint0, Point linePoint1) => Point.SignedDoubledTriangleArea(linePoint0, linePoint1, a) < AreaComparisonEpsilon;
+
+        RBNode<SegmentBase> GetActiveSideFromLeft(Point point) => RightObstacleSideTree.FindLast(side =>
                                                   PointToTheRightOfLineOrOnLineLocal(point, side.Start, side.End));
-        }
         #region debug
 #if TEST_MSAGL
         // ReSharper disable UnusedMember.Local
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         void ShowPointAndEdge(Point point, AxisEdge edge) {
 // ReSharper restore UnusedMember.Local
             List<ICurve> curves = GetCurves(point, edge);
@@ -219,8 +201,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             LayoutAlgorithmSettings.Show(curves.ToArray());
         }
 
-// ReSharper disable UnusedMember.Local
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
+        // ReSharper disable UnusedMember.Local
         void ShowPointAndEdgeWithSweepline(Point point, AxisEdge edge) {
 // ReSharper restore UnusedMember.Local
             List<ICurve> curves = GetCurves(point, edge);
@@ -230,21 +211,20 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             LayoutAlgorithmSettings.Show(curves.ToArray());
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         List<ICurve> GetCurves(Point point, AxisEdge edge) {
-            var ellipse = CurveFactory.CreateEllipse(3, 3, point);
-            var curves = new List<ICurve>(Obstacles.Select(o => o as ICurve)){ellipse,
+            ICurve ellipse = CurveFactory.CreateEllipse(3, 3, point);
+            List<ICurve> curves = new List<ICurve>(Obstacles.Select(o => o as ICurve)){ellipse,
                                                                             new LineSegment(edge.Source.Point, edge.Target.Point
                                                                                 )};
 
             if (edge.RightBound < double.PositiveInfinity) {
                 double rightOffset = edge.RightBound;
-                var del = DirectionPerp * rightOffset;
+                Point del = DirectionPerp * rightOffset;
                 curves.Add(new LineSegment(edge.Source.Point + del, edge.Target.Point + del));
             }
             if (edge.LeftBound > double.NegativeInfinity) {
                 double leftOffset = edge.LeftBound;
-                var del = DirectionPerp * leftOffset;
+                Point del = DirectionPerp * leftOffset;
                 curves.Add(new LineSegment(edge.Source.Point + del, edge.Target.Point  + del));
             }
 
@@ -256,10 +236,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             return curves;
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         List<DebugCurve> GetCurvesTest(Point point){
-            var ellipse = CurveFactory.CreateEllipse(3, 3, point);
-            var curves = new List<DebugCurve>(Obstacles.Select(o => new DebugCurve(100, 1, "black", o)))
+            ICurve ellipse = CurveFactory.CreateEllipse(3, 3, point);
+            List<DebugCurve> curves = new List<DebugCurve>(Obstacles.Select(o => new DebugCurve(100, 1, "black", o)))
                          {new DebugCurve(100, 1, "red", ellipse)};
             curves.AddRange(from e in edgeContainersTree
                              from axisEdge in e
@@ -273,29 +252,25 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             return curves;
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         static IEnumerable<DebugCurve> RightNeighborsCurvesTest(IEnumerable<AxisEdgesContainer> rbTree) {
-            foreach (var container in rbTree) {
-                foreach (var edge  in container) {
-                    foreach (var rn in edge.RightNeighbors) {
+            foreach (AxisEdgesContainer container in rbTree) {
+                foreach (AxisEdge edge  in container) {
+                    foreach (AxisEdge rn in edge.RightNeighbors) {
                         yield return new DebugCurve(100,1,"brown",new LineSegment(EdgeMidPoint(edge), EdgeMidPoint(rn)));
                     }
                 }
             }
         }
 
-        static Point EdgeMidPoint(AxisEdge edge) {
-            return 0.5*(edge.SourcePoint + edge.TargetPoint);
-        }
+        static Point EdgeMidPoint(AxisEdge edge) => 0.5 * (edge.SourcePoint + edge.TargetPoint);
 
         // ReSharper disable UnusedMember.Local
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         void ShowAxisEdges() {
             // ReSharper restore UnusedMember.Local
-            var dd = new List<DebugCurve>(GetObstacleBoundaries("black"));
+            List<DebugCurve> dd = new List<DebugCurve>(GetObstacleBoundaries("black"));
             int i = 0;
-            foreach (var axisEdge in AxisEdges) {
-                var color = DebugCurve.Colors[i];
+            foreach (AxisEdge axisEdge in AxisEdges) {
+                string color = DebugCurve.Colors[i];
                 dd.Add(new DebugCurve(200, 1, color,
                                        new LineSegment(axisEdge.Source.Point, axisEdge.Target.Point)));
                 Point perp = axisEdge.Direction == Directions.East ? new Point(0, 1) : new Point(-1, 0);
@@ -313,19 +288,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             LayoutAlgorithmSettings.ShowDebugCurvesEnumeration(dd);
         }
 
-// ReSharper disable UnusedMember.Local
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
+        // ReSharper disable UnusedMember.Local
         void ShowAtPoint(Point point) {
-// ReSharper restore UnusedMember.Local
-            var curves = GetCurvesTest(point);
+            // ReSharper restore UnusedMember.Local
+            List<DebugCurve> curves = GetCurvesTest(point);
             LayoutAlgorithmSettings.ShowDebugCurves(curves.ToArray());
         }
 #endif
         #endregion
         RBNode<AxisEdgesContainer> GetOrCreateAxisEdgesContainer(AxisEdge edge) {
-            var source = edge.Source.Point;
+            Point source = edge.Source.Point;
 
-            var ret = GetAxisEdgesContainerNode(source);
+            RBNode<AxisEdgesContainer> ret = GetAxisEdgesContainerNode(source);
       
             if(ret!=null)
                 return ret;
@@ -338,8 +312,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         /// <param name="point">the point has to be on the same line as the container</param>
         /// <returns></returns>
         RBNode<AxisEdgesContainer> GetAxisEdgesContainerNode(Point point){
-            var prj = xProjection( point);
-            var ret =
+            double prj = xProjection( point);
+            RBNode<AxisEdgesContainer> ret =
                 edgeContainersTree.FindFirst(cont => xProjection(cont.Source) >= prj-ApproximateComparer.DistanceEpsilon/2);
             if(ret != null)
                 if (xProjection(ret.Item.Source) <= prj+ApproximateComparer.DistanceEpsilon/2) 
@@ -351,14 +325,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
 
         void ProcessVertexEvent(VertexEvent vertexEvent) {
             Z = GetZ(vertexEvent);
-            var leftVertexEvent = vertexEvent as LeftVertexEvent;
-            if (leftVertexEvent != null)
+            if (vertexEvent is LeftVertexEvent leftVertexEvent)
                 ProcessLeftVertex(leftVertexEvent, vertexEvent.Vertex.NextOnPolyline);
-            else {
-                var rightVertexEvent = vertexEvent as RightVertexEvent;
-                if (rightVertexEvent != null)
+            else
+            {
+                if (vertexEvent is RightVertexEvent rightVertexEvent)
                     ProcessRightVertex(rightVertexEvent, vertexEvent.Vertex.PrevOnPolyline);
-                else {
+                else
+                {
                     ProcessLeftVertex(vertexEvent, vertexEvent.Vertex.NextOnPolyline);
                     ProcessRightVertex(vertexEvent, vertexEvent.Vertex.PrevOnPolyline);
                 }
@@ -368,12 +342,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         void ProcessRightVertex(VertexEvent rightVertexEvent, PolylinePoint nextVertex){
             Debug.Assert(Z == rightVertexEvent.Site*SweepDirection);
 
-            var site = rightVertexEvent.Site;
+            Point site = rightVertexEvent.Site;
             ProcessPrevSegmentForRightVertex(rightVertexEvent, site);
 
-            var delta = nextVertex.Point - rightVertexEvent.Site;
-            var deltaX = delta*DirectionPerp;
-            var deltaZ = delta*SweepDirection;
+            Point delta = nextVertex.Point - rightVertexEvent.Site;
+            double deltaX = delta*DirectionPerp;
+            double deltaZ = delta*SweepDirection;
             if (deltaZ <= ApproximateComparer.DistanceEpsilon){
                 if (deltaX > 0 && deltaZ >= 0)
                     EnqueueEvent(new RightVertexEvent(nextVertex));
@@ -390,27 +364,24 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         }
 
         private void RestrictEdgeContainerToTheRightOfEvent(PolylinePoint polylinePoint) {
-            var site = polylinePoint.Point;
-            var siteX = xProjection(site);
-            var containerNode =
+            Point site = polylinePoint.Point;
+            double siteX = xProjection(site);
+            RBNode<AxisEdgesContainer> containerNode =
                 edgeContainersTree.FindFirst
                     (container => siteX <= xProjection(container.Source));
 
             if (containerNode != null)
-                foreach (var edge in containerNode.Item)
+                foreach (AxisEdge edge in containerNode.Item)
                     if (!NotRestricting(edge, polylinePoint.Polyline))
                         edge.BoundFromLeft(DirectionPerp*site);
         }
 
-        bool NotRestricting(AxisEdge edge, Polyline polyline) {
-            Polyline p;
-            return AxisEdgesToObstaclesTheyOriginatedFrom.TryGetValue(edge, out p) && p == polyline;
-        }
+        bool NotRestricting(AxisEdge edge, Polyline polyline) => AxisEdgesToObstaclesTheyOriginatedFrom.TryGetValue(edge, out Polyline? p) && p == polyline;
 
 
         void ProcessPrevSegmentForRightVertex(VertexEvent rightVertexEvent, Point site) {
-            var prevSite = rightVertexEvent.Vertex.NextOnPolyline.Point;
-            var delta = site - prevSite;
+            Point prevSite = rightVertexEvent.Vertex.NextOnPolyline.Point;
+            Point delta = site - prevSite;
             double deltaZ = delta * SweepDirection;
             if (deltaZ > ApproximateComparer.DistanceEpsilon)
                 RemoveRightSide(new RightObstacleSide(rightVertexEvent.Vertex.NextOnPolyline));
@@ -418,7 +389,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
 
 
         void RemoveEdge(AxisEdge edge){
-            var containerNode = GetAxisEdgesContainerNode(edge.Source.Point);
+            RBNode<AxisEdgesContainer> containerNode = GetAxisEdgesContainerNode(edge.Source.Point);
             containerNode.Item.RemoveAxis(edge);
             if(containerNode.Item.IsEmpty())
                 edgeContainersTree.DeleteNodeInternal(containerNode);
@@ -430,7 +401,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         void ProcessLeftVertex(VertexEvent leftVertexEvent, PolylinePoint nextVertex){
             Debug.Assert(Z == leftVertexEvent.Site*SweepDirection);
 
-            var site = leftVertexEvent.Site;
+            Point site = leftVertexEvent.Site;
             ProcessPrevSegmentForLeftVertex(leftVertexEvent, site);
 
             Point delta = nextVertex.Point - leftVertexEvent.Site;
@@ -455,7 +426,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             RBNode<AxisEdgesContainer> containerNode = GetContainerNodeToTheLeftOfEvent(site);
 
             if (containerNode != null)
-                foreach (var edge in containerNode.Item)
+                foreach (AxisEdge edge in containerNode.Item)
                     if (!NotRestricting(edge, polylinePoint.Polyline))
                         edge.BoundFromRight(site*DirectionPerp);
         }
@@ -471,8 +442,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
 
 
         private void ProcessPrevSegmentForLeftVertex(VertexEvent leftVertexEvent, Point site) {
-            var prevSite = leftVertexEvent.Vertex.PrevOnPolyline.Point;
-            var delta = site - prevSite;
+            Point prevSite = leftVertexEvent.Vertex.PrevOnPolyline.Point;
+            Point delta = site - prevSite;
             double deltaZ = delta * SweepDirection;
             if (deltaZ > ApproximateComparer.DistanceEpsilon)
                 RemoveLeftSide(new LeftObstacleSide(leftVertexEvent.Vertex.PrevOnPolyline));
@@ -481,7 +452,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
 
         void InitTheQueueOfEvents() {
             InitQueueOfEvents();
-            foreach (var axisEdge in AxisEdges)
+            foreach (AxisEdge axisEdge in AxisEdges)
                 EnqueueEventsForEdge(axisEdge);
         }
 
@@ -494,19 +465,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             }
         }
 
-        bool EdgeIsParallelToSweepDir(AxisEdge edge) {
-            return edge.Direction == SweepPole || edge.Direction == CompassVector.OppositeDir(SweepPole);
-        }
+        bool EdgeIsParallelToSweepDir(AxisEdge edge) => edge.Direction == SweepPole || edge.Direction == CompassVector.OppositeDir(SweepPole);
 
 
-        static SweepEvent EdgeHighPointEvent(AxisEdge edge, Point point) {
-            return new AxisEdgeHighPointEvent(edge, point);
-        }
+        static SweepEvent EdgeHighPointEvent(AxisEdge edge, Point point) => new AxisEdgeHighPointEvent(edge, point);
 
-        static SweepEvent EdgeLowPointEvent(AxisEdge edge, Point point) {
-            return new AxisEdgeLowPointEvent(edge, point);
-
-        }
+        static SweepEvent EdgeLowPointEvent(AxisEdge edge, Point point) => new AxisEdgeLowPointEvent(edge, point);
 
 #if SHARPKIT //https://code.google.com/p/sharpkit/issues/detail?id=301
         public class FreeSpaceFinderComparer : IComparer<AxisEdgesContainer>
@@ -516,15 +480,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             {
                 m_Owner = owner;
             }
-            public int Compare(AxisEdgesContainer x, AxisEdgesContainer y)
-            {
+            public int Compare(AxisEdgesContainer? x, AxisEdgesContainer? y) {
+            if (x is null) return y is null ? 0 : -1; if (y is null) return 1;
                 ValidateArg.IsNotNull(x, "x");
                 ValidateArg.IsNotNull(y, "y");
                 return (x.Source * m_Owner.DirectionPerp).CompareTo(y.Source * m_Owner.DirectionPerp);
             }
         }
 #else
-        public int Compare(AxisEdgesContainer x, AxisEdgesContainer y) {
+        public int Compare(AxisEdgesContainer? x, AxisEdgesContainer? y) {
+            if (x is null) return y is null ? 0 : -1; if (y is null) return 1;
             ValidateArg.IsNotNull(x, "x");
             ValidateArg.IsNotNull(y, "y");
             return (x.Source * DirectionPerp).CompareTo(y.Source * DirectionPerp);

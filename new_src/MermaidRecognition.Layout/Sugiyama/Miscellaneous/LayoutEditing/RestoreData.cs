@@ -1,7 +1,7 @@
 using System;
-using MermaidRecognition.Layout.Sugiyama.Prototype.LayoutEditing;
 
-namespace MermaidRecognition.Layout.Sugiyama.Prototype.LayoutEditing {
+namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing
+{
     /// <summary>
     /// a base class for restoring geometrical objects
     /// </summary>

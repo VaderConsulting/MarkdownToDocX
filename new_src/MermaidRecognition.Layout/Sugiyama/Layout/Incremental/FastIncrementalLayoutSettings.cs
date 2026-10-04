@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
+
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
 using MermaidRecognition.Layout.Sugiyama.Core;
@@ -25,46 +26,36 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// <summary>
         /// Stop after maxIterations completed
         /// </summary>
-        public int MaxIterations {
-            get { return maxIterations; }
-            set { maxIterations = value; }
+        public int MaxIterations { get => maxIterations; set => maxIterations = value;
         }
-        
+
         int minorIterations = 3;
         /// <summary>
         /// Number of iterations in inner loop.
         /// </summary>
-        public int MinorIterations {
-            get { return minorIterations; }
-            set { minorIterations = value; }
+        public int MinorIterations { get => minorIterations; set => minorIterations = value;
         }
-        
+
         int iterations;
         /// <summary>
         /// Number of iterations completed
         /// </summary>
-        public int Iterations {
-            get { return iterations; }
-            set { iterations = value; }
+        public int Iterations { get => iterations; set => iterations = value;
         }
-        
+
         int projectionIterations = 5;
         /// <summary>
         /// number of times to project over all constraints at each layout iteration
         /// </summary>
-        public int ProjectionIterations {
-            get { return projectionIterations; }
-            set { projectionIterations = value; }
+        public int ProjectionIterations { get => projectionIterations; set => projectionIterations = value;
         }
-        
+
         bool approximateRepulsion = true;
         /// <summary>
         /// Rather than computing the exact repulsive force between all pairs of nodes (which would take O(n^2) time for n nodes)
         /// use a fast inexact technique (that takes O(n log n) time)
         /// </summary>
-        public bool ApproximateRepulsion {
-            get { return approximateRepulsion; }
-            set { approximateRepulsion = value; }
+        public bool ApproximateRepulsion { get => approximateRepulsion; set => approximateRepulsion = value;
         }
 
         /// <summary>
@@ -81,38 +72,47 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// potential energy at each step.  With this scheme changing the InitialStepSize doesn't have much effect
         /// because if it is too large or too small it will be quickly updated by the algorithm anyway.
         /// </summary>
-        public double InitialStepSize {
-            get { return initialStepSize; }
-            set {
-                if (value <= 0 || value > 2) {
+        public double InitialStepSize
+        {
+            get => initialStepSize;
+            set
+            {
+                if (value <= 0 || value > 2)
+                {
                     throw new ArgumentException("ForceScalar should be greater than 0 and less than 2 (if we let you set it to 0 nothing would happen, greater than 2 would most likely be very unstable!)");
                 }
                 initialStepSize = value;
             }
         }
-        
+
         double decay = 0.9;
         /// <summary>
         /// FrictionalDecay isn't really friction so much as a scaling of velocity to improve convergence.  0.8 seems to work well.
         /// </summary>
-        public double Decay {
-            get { return decay; }
-            set {
-                if (value < 0.1 || value > 1) {
+        public double Decay
+        {
+            get => decay;
+            set
+            {
+                if (value < 0.1 || value > 1)
+                {
                     throw new ArgumentException("Setting decay too small gives no progress.  1==no decay, 0.1==minimum allowed value");
                 }
                 decay = value;
             }
         }
-        
+
         double friction = 0.8;
         /// <summary>
         /// Friction isn't really friction so much as a scaling of velocity to improve convergence.  0.8 seems to work well.
         /// </summary>
-        public double Friction {
-            get { return friction; }
-            set {
-                if (value < 0 || value > 1) {
+        public double Friction
+        {
+            get => friction;
+            set
+            {
+                if (value < 0 || value > 1)
+                {
                     throw new ArgumentException("Setting friction less than 0 or greater than 1 would just be strange.  1==no friction, 0==no conservation of velocity");
                 }
                 friction = value;
@@ -123,18 +123,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// <summary>
         /// strength of repulsive force between each pair of nodes.  A setting of 1.0 should work OK.
         /// </summary>
-        public double RepulsiveForceConstant {
-            get { return repulsiveForceConstant; }
-            set { repulsiveForceConstant = value; }
+        public double RepulsiveForceConstant { get => repulsiveForceConstant; set => repulsiveForceConstant = value;
         }
 
         double attractiveForceConstant = 1.0;
         /// <summary>
         /// strength of attractive force between pairs of nodes joined by an edge.  A setting of 1.0 should work OK.
         /// </summary>
-        public double AttractiveForceConstant {
-            get { return attractiveForceConstant; }
-            set { attractiveForceConstant = value; }
+        public double AttractiveForceConstant { get => attractiveForceConstant; set => attractiveForceConstant = value;
         }
 
         double gravity = 1.0;
@@ -142,9 +138,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// gravity is a constant force applied to all nodes attracting them to the Origin
         /// and keeping disconnected components from flying apart.  A setting of 1.0 should work OK.
         /// </summary>
-        public double GravityConstant {
-            get { return gravity; }
-            set { gravity = value; }
+        public double GravityConstant { get => gravity; set => gravity = value;
         }
 
         bool interComponentForces = true;
@@ -152,9 +146,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// If the following is false forces will not be considered between each component and each component will have its own gravity origin.
         /// </summary>
         public bool InterComponentForces
-        {
-            get { return interComponentForces; }
-            set { interComponentForces = value; }
+        { get => interComponentForces; set => interComponentForces = value;
         }
 
         bool applyForces = true;
@@ -162,9 +154,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// If the following is false forces will not be applied, but constraints will still be satisfied.
         /// </summary>
         public bool ApplyForces
-        {
-            get { return applyForces; }
-            set { applyForces = value; }
+        { get => applyForces; set => applyForces = value;
         }
 
         internal FastIncrementalLayout algorithm;
@@ -205,18 +195,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// <summary>
         /// Remove all locks on node positions
         /// </summary>
-        public void ClearLocks() {
-//            foreach (var l in locks) {
-//                l.listNode = null;
-//            }
+        public void ClearLocks() =>
+            //            foreach (var l in locks) {
+            //                l.listNode = null;
+            //            }
             locks.Clear();
-        }
 
         /// <summary>
         /// Remove a specific lock on node position.  Once you remove it, you'll have to call AddLock again to create a new one if you want to lock it again.
         /// </summary>
         /// <param name="lockPosition">the LinkedListNode returned by the AddLock method above</param>
-        [SuppressMessage("Microsoft.Globalization", "CA1303:Do not pass literals as localized parameters", MessageId = "System.Console.WriteLine(System.String)"), SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "FastIncrementalLayoutSettings"), SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "RemoveLock")]
         public void RemoveLock(LockPosition lockPosition) {
             ValidateArg.IsNotNull(lockPosition, "lockPosition");
             if (lockPosition.listNode != null) {
@@ -254,13 +242,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
             converged = false;
         }
 
-		/// <summary>
-		/// 
-		/// </summary>
-		public void InitializeLayout(GeometryGraph graph, int initialConstraintLevel)
-        {
-            InitializeLayout(graph, initialConstraintLevel, anyCluster => this);
-        }
+        /// <summary>
+        /// 
+        /// </summary>
+        public void InitializeLayout(GeometryGraph graph, int initialConstraintLevel) => InitializeLayout(graph, initialConstraintLevel, anyCluster => this);
 
         /// <summary>
         /// Initialize the layout algorithm
@@ -278,26 +263,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// <summary>
         /// 
         /// </summary>
-        public void Uninitialize()
-        {
-            this.algorithm = null;
-        }
+        public void Uninitialize() => algorithm = null;
 
         /// <summary>
         /// 
         /// </summary>
-        public bool IsInitialized
-        {
-            get { return this.algorithm != null; }
-        }
+        public bool IsInitialized => algorithm != null;
 
-		/// <summary>
-		/// 
-		/// </summary>
-		public void IncrementalRun(GeometryGraph graph)
-        {
-            IncrementalRun(graph, anyCluster => this);
-        }
+        /// <summary>
+        /// 
+        /// </summary>
+        public void IncrementalRun(GeometryGraph graph) => IncrementalRun(graph, anyCluster => this);
 
         private void SetupIncrementalRun(GeometryGraph graph, Func<Cluster, LayoutAlgorithmSettings> clusterSettings)
         {
@@ -341,25 +317,19 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// Clones the object
         /// </summary>
         /// <returns></returns>
-        public override LayoutAlgorithmSettings Clone() {
-            return MemberwiseClone() as LayoutAlgorithmSettings;
-        }
+        public override LayoutAlgorithmSettings Clone() => MemberwiseClone() as LayoutAlgorithmSettings;
 
         /// <summary>
         /// 
         /// </summary>
-        public IEnumerable<IConstraint> StructuralConstraints {
-            get { return structuralConstraints; }
-        }
+        public IEnumerable<IConstraint> StructuralConstraints => structuralConstraints;
 
         /// <summary>
         /// 
         /// </summary>
-        public void AddStructuralConstraint(IConstraint cc) {
-            structuralConstraints.Add(cc);
-        }
+        public void AddStructuralConstraint(IConstraint cc) => structuralConstraints.Add(cc);
 
-        internal List<IConstraint> structuralConstraints = new List<IConstraint>();
+        internal List<IConstraint> structuralConstraints = [];
         /// <summary>
         /// Clear all constraints over the graph
         /// </summary>
@@ -372,10 +342,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// <summary>
         /// 
         /// </summary>
-        public void ClearStructuralConstraints()
-        {
-            structuralConstraints.Clear();
-        }
+        public void ClearStructuralConstraints() => structuralConstraints.Clear();
 
         /// <summary>
         /// Avoid overlaps between nodes boundaries, and if there are any
@@ -400,9 +367,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// If RouteEdges is true then the following is checked to see whether to do optimal shortest path routing
         /// or use a sparse visibility graph spanner to do approximate---but much faster---shortest path routing
         /// </summary>
-        public bool ApproximateRouting {
-            get { return approximateRouting; }
-            set { approximateRouting = value; }
+        public bool ApproximateRouting { get => approximateRouting; set => approximateRouting = value;
         }
 
         bool logScaleEdgeForces = true;
@@ -414,9 +379,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// If false then a the edge force is based on (actualLength - idealLength)^2, which works better with
         /// lots of constraints.
         /// </summary>
-        public bool LogScaleEdgeForces {
-            get { return logScaleEdgeForces; }
-            set { logScaleEdgeForces = value; }
+        public bool LogScaleEdgeForces { get => logScaleEdgeForces; set => logScaleEdgeForces = value;
         }
 
         double displacementThreshold = 0.1;
@@ -424,9 +387,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// If the amount of total squared displacement after a particular iteration falls below DisplacementThreshold then Converged is set to true.
         /// Make DisplacementThreshold larger if you want layout to finish sooner - but not necessarily make as much progress towards a good layout.
         /// </summary>
-        public double DisplacementThreshold {
-            get { return displacementThreshold; }
-            set { displacementThreshold = value; }
+        public double DisplacementThreshold { get => displacementThreshold; set => displacementThreshold = value;
         }
 
         bool converged;
@@ -442,9 +403,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         ///  
         /// RemainingIterations affects damping.
         /// </summary>
-        public bool Converged { 
-            get { return converged; }
-            set { this.converged = value; }
+        public bool Converged { get => converged; set => converged = value;
         }
 
         /// <summary>
@@ -463,11 +422,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// <summary>
         /// Not quite the same as Converged:
         /// </summary>
-        public bool IsDone {
-            get {
-                return Converged || iterations >= MaxIterations;
-            }
-        }
+        public bool IsDone => Converged || iterations >= MaxIterations;
 
         /// <summary>
         /// Returns an estimate of the cost function calculated in the most recent iteration.
@@ -496,35 +451,29 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// <summary>
         /// 
         /// </summary>
-        public int MaxConstraintLevel { 
-            get { 
-                return maxConstraintLevel; 
-            } 
-            set {
+        public int MaxConstraintLevel
+        {
+            get => maxConstraintLevel;
+            set
+            {
                 if (maxConstraintLevel != value)
                 {
                     maxConstraintLevel = value;
-                    if (this.IsInitialized)
+                    if (IsInitialized)
                     {
-                        this.Uninitialize();
+                        Uninitialize();
                     }
                 }
-            } 
+            }
         }
 
         int minConstraintLevel = 0;
         /// <summary>
         /// 
         /// </summary>
-        public int MinConstraintLevel { 
-            get 
-            { 
-                return minConstraintLevel; 
-            } 
-            set 
-            { 
-                minConstraintLevel = value;
-            } 
+        public int MinConstraintLevel
+        {
+            get => minConstraintLevel; set => minConstraintLevel = value;
         }
 
         /// <summary>
@@ -567,15 +516,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// <summary>
         /// Attractive strength of edges connected to clusters
         /// </summary>
-        public double AttractiveInterClusterForceConstant {
-            get
-            {
-                return attractiveInterClusterForceConstant;
-            }
-            set
-            {
-                attractiveInterClusterForceConstant = value;
-            }
+        public double AttractiveInterClusterForceConstant
+        {
+            get => attractiveInterClusterForceConstant; set => attractiveInterClusterForceConstant = value;
         }
 
         /// <summary>
@@ -628,14 +571,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// </summary>
         public double ClusterGravity
         {
-            get
-            {
-                return clusterGravity;
-            }
-            set
-            {
-                clusterGravity = value;
-            }
+            get => clusterGravity; set => clusterGravity = value;
         }
 
         /// <summary>
@@ -650,44 +586,41 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// true by default.
         /// </summary>
         public bool UpdateClusterBoundariesFromChildren
-        {
-            get { return updateClusterBoundaries; }
-            set { updateClusterBoundaries = value; }
+        { get => updateClusterBoundaries; set => updateClusterBoundaries = value;
         }
 
         /// <summary>
         ///     creates the settings that seems working
         /// </summary>
         /// <returns></returns>
-        public static FastIncrementalLayoutSettings CreateFastIncrementalLayoutSettings() {
-            return new FastIncrementalLayoutSettings {
-                                                         ApplyForces = false,
-                                                         ApproximateRepulsion = true,
-                                                         ApproximateRouting = true,
-                                                         AttractiveForceConstant = 1.0,
-                                                         AttractiveInterClusterForceConstant = 1.0,
-                                                         AvoidOverlaps = true,
-                                                         ClusterGravity = 1.0,
-                                                         Decay = 0.9,
-                                                         DisplacementThreshold = 0.00000005,
-                                                         Friction = 0.8,
-                                                         GravityConstant = 1.0,
-                                                         InitialStepSize = 2.0,
-                                                         InterComponentForces = false,
-                                                         Iterations = 0,
-                                                         LogScaleEdgeForces = false,
-                                                         MaxConstraintLevel = 2,
-                                                         MaxIterations = 20,
-                                                         MinConstraintLevel = 0,
-                                                         MinorIterations = 1,
-                                                         ProjectionIterations = 5,
-                                                         RepulsiveForceConstant = 2.0,
-                                                         RespectEdgePorts = false,
-                                                         RouteEdges = false,
-                                                         RungeKuttaIntegration = true,
-                                                         UpdateClusterBoundariesFromChildren = true,
-                                                         NodeSeparation = 20
-                                                     };
-        }
+        public static FastIncrementalLayoutSettings CreateFastIncrementalLayoutSettings() => new FastIncrementalLayoutSettings
+        {
+            ApplyForces = false,
+            ApproximateRepulsion = true,
+            ApproximateRouting = true,
+            AttractiveForceConstant = 1.0,
+            AttractiveInterClusterForceConstant = 1.0,
+            AvoidOverlaps = true,
+            ClusterGravity = 1.0,
+            Decay = 0.9,
+            DisplacementThreshold = 0.00000005,
+            Friction = 0.8,
+            GravityConstant = 1.0,
+            InitialStepSize = 2.0,
+            InterComponentForces = false,
+            Iterations = 0,
+            LogScaleEdgeForces = false,
+            MaxConstraintLevel = 2,
+            MaxIterations = 20,
+            MinConstraintLevel = 0,
+            MinorIterations = 1,
+            ProjectionIterations = 5,
+            RepulsiveForceConstant = 2.0,
+            RespectEdgePorts = false,
+            RouteEdges = false,
+            RungeKuttaIntegration = true,
+            UpdateClusterBoundariesFromChildren = true,
+            NodeSeparation = 20
+        };
     }
 }

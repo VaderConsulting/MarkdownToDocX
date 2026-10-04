@@ -1,4 +1,4 @@
-namespace MermaidRecognition.State;
+namespace MermaidRecognition.Kinds.State;
 
 /// <summary>
 /// Extracts transition endpoints and optional label from state diagram source lines.

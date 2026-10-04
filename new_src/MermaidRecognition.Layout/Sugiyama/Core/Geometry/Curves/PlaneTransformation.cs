@@ -13,9 +13,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// hash function
         /// </summary>
         /// <returns></returns>
-        public override int GetHashCode() {
-            return (elements != null ? elements.GetHashCode() : 0);
-        }
+        public override int GetHashCode() => (elements != null ? elements.GetHashCode() : 0);
 
         /// <summary>
         /// Determines whether the specified <see cref="T:System.Object"/> is equal to the current <see cref="T:System.Object"/>.
@@ -25,29 +23,25 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// </returns>
         /// <param name="obj">The object to compare with the current object. </param><filterpriority>2</filterpriority>
         public override bool Equals(object obj) {
-            var t = obj as PlaneTransformation;
+            PlaneTransformation? t = obj as PlaneTransformation;
             return t != null && t == this;
         }
 
         readonly double[][] elements = new double[2][];
-        
+
 
         /// <summary>
         /// the matrix elements
         /// </summary>
-        internal double[][] Elements {
-            get { return elements; }
-        }
+        internal double[][] Elements => elements;
+
         /// <summary>
         /// i,j th element
         /// </summary>
         /// <param name="rowIndex"></param>
         /// <param name="columnIndex"></param>
         /// <returns></returns>
-        [SuppressMessage("Microsoft.Design", "CA1023:IndexersShouldNotBeMultidimensional")]
-        public double this[int rowIndex, int columnIndex] {
-            get { return Elements[rowIndex][columnIndex]; }
-            set { Elements[rowIndex][columnIndex] = value; }
+        public double this[int rowIndex, int columnIndex] { get => Elements[rowIndex][columnIndex]; set => Elements[rowIndex][columnIndex] = value;
         }
 
         /// <summary>
@@ -68,7 +62,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// <param name="matrixElement10">1,0</param>
         /// <param name="matrixElement11">1,1</param>
         /// <param name="matrixElement12">1,2</param>
-        [SuppressMessage("Microsoft.Design", "CA1025:ReplaceRepetitiveArgumentsWithParamsArray")]
         public PlaneTransformation(double matrixElement00, double matrixElement01, double matrixElement02,
             double matrixElement10, double matrixElement11, double matrixElement12) {
             elements[0] = new double[3];
@@ -76,16 +69,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             elements[0][0] = matrixElement00; elements[0][1] = matrixElement01; elements[0][2] = matrixElement02;
             elements[1][0] = matrixElement10; elements[1][1] = matrixElement11; elements[1][2] = matrixElement12;
         }
-        
+
         /// <summary>
         /// the matrix by point multiplication
         /// </summary>
         /// <param name="transformation"></param>
         /// <param name="point"></param>
         /// <returns></returns>
-        static public Point operator *(PlaneTransformation transformation, Point point) {
-            return Multiply(transformation, point);
-        }
+        static public Point operator *(PlaneTransformation transformation, Point point) => Multiply(transformation, point);
         /// <summary>
         /// Point by matrix multiplication
         /// </summary>
@@ -103,9 +94,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// <param name="transformation"></param>][
         /// <param name="transformation0"></param>
         /// <returns></returns>
-        static public PlaneTransformation operator *(PlaneTransformation transformation, PlaneTransformation transformation0) {
-            return Multiply(transformation, transformation0);
-        }
+        static public PlaneTransformation operator *(PlaneTransformation transformation, PlaneTransformation transformation0) => Multiply(transformation, transformation0);
 
         /// <summary>
         /// matrix matrix multiplication
@@ -140,13 +129,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// <param name="transformation0"></param>
         /// <param name="transformation1"></param>
         /// <returns></returns>
-        static public PlaneTransformation Divide(PlaneTransformation transformation0, PlaneTransformation transformation1) {
-            return transformation0 / transformation1;
-        }
+        static public PlaneTransformation Divide(PlaneTransformation transformation0, PlaneTransformation transformation1) => transformation0 / transformation1;
 
-/// <summary>
-/// returns the inversed matrix
-/// </summary>
+        /// <summary>
+        /// returns the inversed matrix
+        /// </summary>
         public PlaneTransformation Inverse {
             get {
                 double det = Elements[0][0] * Elements[1][1] - Elements[1][0] * Elements[0][1];
@@ -168,9 +155,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// <summary>
         /// unit matrix
         /// </summary>
-        static public PlaneTransformation UnitTransformation {
-            get { return new PlaneTransformation(1, 0, 0, 0, 1, 0); }
-        }
+        static public PlaneTransformation UnitTransformation => new PlaneTransformation(1, 0, 0, 0, 1, 0);
 
         /// <summary>
         /// Rotation matrix
@@ -186,26 +171,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// <summary>
         /// checks if the matrix is an identity one
         /// </summary>
-        public bool IsIdentity {
-            get {
-                return
-             ApproximateComparer.Close(Elements[0][0], 1) &&
+        public bool IsIdentity => ApproximateComparer.Close(Elements[0][0], 1) &&
              ApproximateComparer.Close(Elements[0][1], 0) &&
              ApproximateComparer.Close(Elements[0][2], 0) &&
              ApproximateComparer.Close(Elements[1][0], 0) &&
              ApproximateComparer.Close(Elements[1][1], 1) &&
              ApproximateComparer.Close(Elements[1][2], 0);
-            }
-        }
 
         /// <summary>
         /// returns the point of the matrix offset
         /// </summary>
-        public Point Offset {
-            get {
-                return new Point(Elements[0][2], Elements[1][2]);
-            }
-        }
+        public Point Offset => new Point(Elements[0][2], Elements[1][2]);
 
         /// <summary>
         /// 
@@ -233,17 +209,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// <param name="a"></param>
         /// <param name="b"></param>
         /// <returns></returns>
-        public static bool operator !=(PlaneTransformation a, PlaneTransformation b) {
-            return !(a == b);
-        }
+        public static bool operator !=(PlaneTransformation a, PlaneTransformation b) => !(a == b);
 
         /// <summary>
         /// clones the transform
         /// </summary>
         /// <returns></returns>
-        public PlaneTransformation Clone() {
-            return new PlaneTransformation(this[0, 0], this[0, 1], this[0, 2], this[1, 0], this[1, 1], this[1, 2]);
-        }
+        public PlaneTransformation Clone() => new PlaneTransformation(this[0, 0], this[0, 1], this[0, 2], this[1, 0], this[1, 1], this[1, 2]);
         /// <summary>
         /// 
         /// </summary>
@@ -257,7 +229,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             var toCenter = new PlaneTransformation(1, 0, center.X, 0, 1, center.Y);
             var t = toCenter*scaleTr*toOrigin;
             return t;*/
-            var d = 1 - scale;
+            double d = 1 - scale;
             return new PlaneTransformation(scale, 0, d * center.X, 0, scale, d * center.Y);
         }
 
@@ -269,8 +241,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             var toCenter = new PlaneTransformation(1, 0, center.X, 0, 1, center.Y);
             var t = toCenter*scaleTr*toOrigin;
             return t;*/
-            var dX = 1 - xScale;
-            var dY = 1 - yScale;
+            double dX = 1 - xScale;
+            double dY = 1 - yScale;
             return new PlaneTransformation(xScale, 0, dX * center.X, 0, yScale, dY * center.Y);
         }
     }

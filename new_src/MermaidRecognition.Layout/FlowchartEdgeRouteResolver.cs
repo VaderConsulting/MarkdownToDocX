@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Render;
 
 namespace MermaidRecognition.Layout;
@@ -24,7 +25,7 @@ public static class FlowchartEdgeRouteResolver
         out List<(double X, double Y)> LayoutPoints,
         out FlowchartEdgeRouteKind RouteKind)
     {
-        LayoutPoints = new List<(double X, double Y)>();
+        LayoutPoints = [];
         RouteKind = FlowchartEdgeRouteKind.Unknown;
 
         if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
@@ -143,7 +144,7 @@ public static class FlowchartEdgeRouteResolver
             Direction,
             SpineContext);
 
-        List<(double X, double Y)> CentreSpinePoints = new List<(double X, double Y)>();
+        List<(double X, double Y)> CentreSpinePoints = [];
         if (SemanticRouteClass == FlowchartEdgeSemanticRouteClass.CentreSpine
             && FlowchartCentreSpineRouteBuilder.TryBuildRoute(
                 SourceBounds,
@@ -344,7 +345,7 @@ public static class FlowchartEdgeRouteResolver
         if (CurvedPoints.Count == 2)
         {
             FlowchartReciprocalEdgeHelper.ApplyReciprocalLaneOffset(Edge, Contract, CurvedPoints);
-            List<(double X, double Y)> ObstacleAwarePoints = new List<(double X, double Y)>();
+            List<(double X, double Y)> ObstacleAwarePoints = [];
             if (FlowchartPerpendicularRouteBuilder.TryAppendStraightOrObstacleAvoidingRoute(
                     ObstacleAwarePoints,
                     CurvedPoints[0].X,

@@ -21,14 +21,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout
             ValidateArg.IsNotNull(edgeGeometry, "edgeGeometry");
             if (edgeGeometry.SourceArrowhead == null && edgeGeometry.TargetArrowhead == null)
                 return true;
-            double parStart, parEnd;
-            if (!FindTrimStartForArrowheadAtSource(edgeGeometry, out parStart))
+            if (!FindTrimStartForArrowheadAtSource(edgeGeometry, out double parStart))
                 return false;
-            if (!FindTrimEndForArrowheadAtTarget(edgeGeometry, out parEnd))
+            if (!FindTrimEndForArrowheadAtTarget(edgeGeometry, out double parEnd))
                 return false;
             if (parStart > parEnd - ApproximateComparer.IntersectionEpsilon || ApproximateComparer.CloseIntersections(edgeGeometry.Curve[parStart], edgeGeometry.Curve[parEnd]))
                 return false; //after the trim nothing would be left of the curve
-            var c = edgeGeometry.Curve.Trim(parStart, parEnd);
+            ICurve c = edgeGeometry.Curve.Trim(parStart, parEnd);
             if (c == null)
                 return false;
             if (edgeGeometry.SourceArrowhead != null)
@@ -42,7 +41,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout
         
         static IList<IntersectionInfo> GetIntersectionsWithArrowheadCircle(ICurve curve, double arrowheadLength, Point circleCenter) {
             Debug.Assert(arrowheadLength > 0);
-            var e = new Ellipse(arrowheadLength, arrowheadLength, circleCenter);
+            Ellipse e = new Ellipse(arrowheadLength, arrowheadLength, circleCenter);
             return Curve.GetAllIntersections(e, curve, true);
         }
         /// <summary>
@@ -52,14 +51,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout
         /// <param name="p"></param>
         /// <returns></returns>
         static bool FindTrimEndForArrowheadAtTarget(EdgeGeometry edgeGeometry, out double p) {
-            var eps = ApproximateComparer.DistanceEpsilon*ApproximateComparer.DistanceEpsilon;
+            double eps = ApproximateComparer.DistanceEpsilon*ApproximateComparer.DistanceEpsilon;
             //Debug.Assert((edgeGeometry.Curve.End - edgeGeometry.Curve.Start).LengthSquared > eps);
             p = edgeGeometry.Curve.ParEnd;
             if (edgeGeometry.TargetArrowhead == null ||
                 edgeGeometry.TargetArrowhead.Length <= ApproximateComparer.DistanceEpsilon)
                 return true;
-            var curve = edgeGeometry.Curve;
-            var arrowheadLength = edgeGeometry.TargetArrowhead.Length;
+            ICurve curve = edgeGeometry.Curve;
+            double arrowheadLength = edgeGeometry.TargetArrowhead.Length;
             Point newCurveEnd;
             IList<IntersectionInfo> intersections;
             int reps = 10;
@@ -80,11 +79,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout
             p = 0; //does not matter
             if (edgeGeometry.SourceArrowhead == null || edgeGeometry.SourceArrowhead.Length <= ApproximateComparer.DistanceEpsilon)
                 return true;
-            var eps = ApproximateComparer.DistanceEpsilon * ApproximateComparer.DistanceEpsilon;
+            double eps = ApproximateComparer.DistanceEpsilon * ApproximateComparer.DistanceEpsilon;
             Debug.Assert((edgeGeometry.Curve.End - edgeGeometry.Curve.Start).LengthSquared > eps);
-            var arrowheadLength = edgeGeometry.SourceArrowhead.Length;
+            double arrowheadLength = edgeGeometry.SourceArrowhead.Length;
             Point newStart;
-            var curve = edgeGeometry.Curve;
+            ICurve curve = edgeGeometry.Curve;
             IList<IntersectionInfo> intersections;
             int reps = 10;
             do
@@ -107,8 +106,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout
             if (Math.Abs(offset) < ApproximateComparer.Tolerance)
                 return arrowTip;
 
-            var d=arrowBase - arrowTip;            
-            var dLen=d.Length;
+            Point d =arrowBase - arrowTip;
+            double dLen =d.Length;
             if(dLen<ApproximateComparer.Tolerance)
                 return arrowTip;
             return arrowTip + offset * (d / dLen);
@@ -169,7 +168,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout
             double targetArrowheadSavedLength = edgeGeometry.TargetArrowhead != null
                                                     ? edgeGeometry.TargetArrowhead.Length
                                                     : 0;
-            var len = (edgeGeometry.Curve.End - edgeGeometry.Curve.Start).Length;
+            double len = (edgeGeometry.Curve.End - edgeGeometry.Curve.Start).Length;
             if (edgeGeometry.SourceArrowhead!=null)
             edgeGeometry.SourceArrowhead.Length = Math.Min(len, sourceArrowheadSavedLength);
             if (edgeGeometry.TargetArrowhead != null)

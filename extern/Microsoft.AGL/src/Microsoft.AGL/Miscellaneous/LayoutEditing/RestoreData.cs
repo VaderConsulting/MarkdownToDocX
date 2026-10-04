@@ -1,7 +1,7 @@
 using System;
-using Microsoft.AGL.Prototype.LayoutEditing;
 
-namespace Microsoft.AGL.Prototype.LayoutEditing {
+namespace Microsoft.AGL.Miscellaneous.LayoutEditing
+{
     /// <summary>
     /// a base class for restoring geometrical objects
     /// </summary>

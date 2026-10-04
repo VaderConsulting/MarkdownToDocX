@@ -1,8 +1,9 @@
 using System.Text;
-using MermaidRecognition.Class;
-using MermaidRecognition.Contract;
 
-namespace MermaidRecognition.Sequence;
+using MermaidRecognition.Contract;
+using MermaidRecognition.Kinds.Class;
+
+namespace MermaidRecognition.Kinds.Sequence;
 
 /// <summary>
 /// Maps classified sequence diagram source statements into <see cref="DiagramContract"/> entities (L3 G4/G5/G7/G9).
@@ -169,12 +170,14 @@ public static class SequenceContractMapper
         foreach (KeyValuePair<string, SequenceNodeRecord> Entry in Database.ParticipantsById)
         {
             SequenceNodeRecord Source = Entry.Value;
-            NodeContract Node = new NodeContract();
-            Node.Id = Source.Id;
-            Node.Label = Source.Label;
-            Node.Shape = Source.DrawType;
-            Node.ShapeSource = "sequence";
-            Node.ParentGroupId = Source.ParentGroupId;
+            NodeContract Node = new NodeContract
+            {
+                Id = Source.Id,
+                Label = Source.Label,
+                Shape = Source.DrawType,
+                ShapeSource = "sequence",
+                ParentGroupId = Source.ParentGroupId
+            };
 
             if (Source.IsActive.HasValue)
             {
@@ -188,11 +191,13 @@ public static class SequenceContractMapper
 
         foreach (SequenceNoteRecord Source in Database.Notes)
         {
-            NodeContract NoteNode = new NodeContract();
-            NoteNode.Id = Source.Id;
-            NoteNode.Label = Source.Text;
-            NoteNode.Shape = "note";
-            NoteNode.ShapeSource = "sequence";
+            NodeContract NoteNode = new NodeContract
+            {
+                Id = Source.Id,
+                Label = Source.Text,
+                Shape = "note",
+                ShapeSource = "sequence"
+            };
             NoteNode.MetadataMutable["sequenceNotePlacement"] = new RawMetadata(
                 "sequenceNotePlacement",
                 Source.Placement);
@@ -204,12 +209,14 @@ public static class SequenceContractMapper
 
         foreach (SequenceEdgeRecord Source in Database.Messages)
         {
-            EdgeContract Edge = new EdgeContract();
-            Edge.SourceId = Source.SourceId;
-            Edge.TargetId = Source.TargetId;
-            Edge.Label = Source.Label;
-            Edge.CreationIndex = Source.CreationIndex;
-            Edge.Id = GenerateEdgeId(Source.SourceId, Source.TargetId, Source.CreationIndex);
+            EdgeContract Edge = new EdgeContract
+            {
+                SourceId = Source.SourceId,
+                TargetId = Source.TargetId,
+                Label = Source.Label,
+                CreationIndex = Source.CreationIndex,
+                Id = GenerateEdgeId(Source.SourceId, Source.TargetId, Source.CreationIndex)
+            };
             Edge.MetadataMutable["sequenceArrow"] = new RawMetadata("sequenceArrow", Source.ArrowToken);
 
             if (Source.ActivateTargetId is not null)
@@ -239,10 +246,12 @@ public static class SequenceContractMapper
         foreach (KeyValuePair<string, SequenceGroupRecord> Entry in Database.GroupsById)
         {
             SequenceGroupRecord Source = Entry.Value;
-            GroupContract Group = new GroupContract();
-            Group.Id = Source.Id;
-            Group.Title = Source.Title ?? Source.BlockKeyword;
-            Group.ParentGroupId = Source.ParentGroupId;
+            GroupContract Group = new GroupContract
+            {
+                Id = Source.Id,
+                Title = Source.Title ?? Source.BlockKeyword,
+                ParentGroupId = Source.ParentGroupId
+            };
 
             foreach (string ChildNodeId in Source.ChildNodeIdsMutable)
             {
@@ -261,10 +270,7 @@ public static class SequenceContractMapper
         Contract.Accessibility.Description = Database.AccessibilityDescription;
     }
 
-    static string GenerateEdgeId(string SourceId, string TargetId, int CreationIndex)
-    {
-        return "L-" + SourceId + "-" + TargetId + "-" + CreationIndex.ToString();
-    }
+    static string GenerateEdgeId(string SourceId, string TargetId, int CreationIndex) => "L-" + SourceId + "-" + TargetId + "-" + CreationIndex.ToString();
 
     enum AccDescrParseState
     {

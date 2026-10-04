@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
+using MermaidRecognition.Layout.Sugiyama.Core.Geometry.OverlapRemoval;
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
 using MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver;
 
@@ -11,7 +12,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
     /// Wrapper round all the ProjectionSolver stuff.
     /// </summary>
     class AxisSolver {
-        internal List<IConstraint> structuralConstraints = new List<IConstraint>();
+        internal List<IConstraint> structuralConstraints = [];
         internal int ConstraintLevel;
         /// <summary>
         /// true means this AxisSolver works horizontally
@@ -33,11 +34,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// <summary>
         /// Do we even need to do a solve?
         /// </summary>
-        internal bool NeedSolve {
-            get {
-                return avoidOverlaps && ConstraintLevel >= 2 || structuralConstraints.Count > 0 && ConstraintLevel >= 1;
-            }
-        }
+        internal bool NeedSolve => avoidOverlaps && ConstraintLevel >= 2 || structuralConstraints.Count > 0 && ConstraintLevel >= 1;
         /// <summary>
         /// Have to reinstantiate if any of these parameters change
         /// </summary>
@@ -49,20 +46,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// <param name="clusterSettings"></param>
         internal AxisSolver(bool isHorizontal, IEnumerable<FiNode> nodes, IEnumerable<Cluster> clusterHierarchies, bool avoidOverlaps, int constraintLevel, Func<Cluster, LayoutAlgorithmSettings> clusterSettings)
         {
-            this.IsHorizontal = isHorizontal;
+            IsHorizontal = isHorizontal;
             this.nodes = nodes;
             this.clusterHierarchies = clusterHierarchies;
             this.avoidOverlaps = avoidOverlaps;
-            this.ConstraintLevel = constraintLevel;
+            ConstraintLevel = constraintLevel;
             this.clusterSettings = clusterSettings;
         }
         /// <summary>
         /// Add the constraint to this axis
         /// </summary>
         /// <param name="c"></param>
-        internal void AddStructuralConstraint(IConstraint c) {
-            structuralConstraints.Add(c);
-        }
+        internal void AddStructuralConstraint(IConstraint c) => structuralConstraints.Add(c);
         Solver solver;
         ConstraintGenerator cg;
         /// <summary>
@@ -82,23 +77,23 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
                                             , IsHorizontal ? cVPad : cHPad);
             solver = new Solver();
 
-            foreach (var filNode in nodes) {
+            foreach (FiNode filNode in nodes) {
                 filNode.SetOlapNode(IsHorizontal,null);
             }
             // Calculate horizontal non-Overlap constraints.  
             if (avoidOverlaps && clusterHierarchies != null) {
-                foreach (var c in clusterHierarchies) {
+                foreach (Cluster c in clusterHierarchies) {
                     AddOlapClusters(cg, null /* OlapParentCluster */, c, nodeCenter);
                 }
             }
 
-            foreach (var filNode in nodes) {
+            foreach (FiNode filNode in nodes) {
                 if (filNode.getOlapNode(IsHorizontal) == null) {
                     AddOlapNode(cg, cg.DefaultClusterHierarchy /* olapParentCluster */, filNode, nodeCenter);
                 }
                 filNode.getOlapNode(IsHorizontal).CreateVariable(solver);
             }
-            if (avoidOverlaps && this.ConstraintLevel >= 2) {
+            if (avoidOverlaps && ConstraintLevel >= 2) {
                 cg.Generate(solver, OverlapRemovalParameters);
             }
             AddStructuralConstraints();
@@ -116,7 +111,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
 
             // Update the positions.
             if (avoidOverlaps && clusterHierarchies != null) {
-                foreach (var c in clusterHierarchies) {
+                foreach (Cluster c in clusterHierarchies) {
                     // Don't update the root cluster of the hierarachy as it doesn't have borders.
                     UpdateOlapClusters(c.Clusters);
                 }
@@ -125,14 +120,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
                 // Set the position from the constraint solution on this axis.
                 v.UpdatePos(IsHorizontal);
             }
-            this.DebugVerifyClusterHierarchy(solution);
+            DebugVerifyClusterHierarchy(solution);
             return solution;
         }
         /// <summary>
         /// Must be called before Solve if the caller has updated Variable Initial Positions
         /// </summary>
         internal void SetDesiredPositions() {
-            foreach (var v in nodes) {
+            foreach (FiNode v in nodes) {
                 v.SetVariableDesiredPos(IsHorizontal);
             }
             solver.UpdateVariables();
@@ -140,16 +135,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
 
         private void AddStructuralConstraints() {
             // Add the vertical structural constraints to the auto-generated ones. 
-            foreach (var c in structuralConstraints) {
+            foreach (IConstraint c in structuralConstraints) {
                 if (ConstraintLevel >= c.Level) {
-                    var hc = c as HorizontalSeparationConstraint;
-                    if (hc != null && IsHorizontal) {
+                    if (c is HorizontalSeparationConstraint hc && IsHorizontal)
+                    {
                         FiNode u = (FiNode)(hc.LeftNode.AlgorithmData);
                         FiNode v = (FiNode)(hc.RightNode.AlgorithmData);
                         solver.AddConstraint(u.getOlapNode(IsHorizontal).Variable, v.getOlapNode(IsHorizontal).Variable, hc.Separation, hc.IsEquality);
                     }
-                    var vc = c as VerticalSeparationConstraint;
-                    if (vc != null && !IsHorizontal) {
+                    if (c is VerticalSeparationConstraint vc && !IsHorizontal)
+                    {
                         FiNode u = (FiNode)(vc.TopNode.AlgorithmData);
                         FiNode v = (FiNode)(vc.BottomNode.AlgorithmData);
                         solver.AddConstraint(u.getOlapNode(IsHorizontal).Variable, v.getOlapNode(IsHorizontal).Variable, vc.Separation, vc.IsEquality);
@@ -190,8 +185,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
             }
             else
             {
-                var postXLeftBorderInfo = new BorderInfo(rb.LeftBorderInfo.InnerMargin, rb.Rect.Left, rb.LeftBorderInfo.Weight);
-                var postXRightBorderInfo = new BorderInfo(rb.RightBorderInfo.InnerMargin, rb.Rect.Right, rb.RightBorderInfo.Weight);
+                BorderInfo postXLeftBorderInfo = new BorderInfo(rb.LeftBorderInfo.InnerMargin, rb.Rect.Left, rb.LeftBorderInfo.Weight);
+                BorderInfo postXRightBorderInfo = new BorderInfo(rb.RightBorderInfo.InnerMargin, rb.Rect.Right, rb.RightBorderInfo.Weight);
                 rb.olapCluster = generator.AddCluster(
                     olapParentCluster,
                     incClus /* userData */,
@@ -209,13 +204,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
             rb.olapCluster.TranslateChildren = rb.GenerateFixedConstraints;
             // Note: Incremental.Cluster always creates child List<Cluster|Node> so we don't have to check for null here.
             // Add our child nodes.
-            foreach (var filNode in incClus.Nodes)
+            foreach (Node filNode in incClus.Nodes)
             {
                 AddOlapNode(generator, rb.olapCluster, (FiNode)filNode.AlgorithmData, nodeCenter);
             }
 
             // Now recurse through all child clusters.
-            foreach (var incChildClus in incClus.Clusters)
+            foreach (Cluster incChildClus in incClus.Clusters)
             {
                 AddOlapClusters(generator, rb.olapCluster, incChildClus, nodeCenter);
             }
@@ -229,7 +224,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
                 return;
             }
 
-            var center = nodeCenter(filNode);
+            Point center = nodeCenter(filNode);
             // We need to create a new Node in the Generator.
             if (IsHorizontal) {
                 // Add the Generator node with the X-axis coords primary, Y-axis secondary.
@@ -245,7 +240,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         }
 
         private void UpdateOlapClusters(IEnumerable<Cluster> incClusters) {
-            foreach (var incClus in incClusters) {
+            foreach (Cluster incClus in incClusters) {
                 RectangularClusterBoundary rb = incClus.RectangularBoundary;
                 // Because two heavily-weighted nodes can force each other to move, we have to update
                 // any BorderInfos that are IsFixedPosition to reflect this possible movement; for example,
@@ -288,21 +283,20 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         {
             if (avoidOverlaps && (null != clusterHierarchies) && (0 != solution.NumberOfUnsatisfiableConstraints ))
             {
-                foreach (var c in clusterHierarchies)
+                foreach (Cluster c in clusterHierarchies)
                     DebugVerifyClusters(cg, c, c);
             }
         }
 
         // This is initially called with Clusters that live at the root level; verify their nodes
         // are within their boundaries, then recurse.
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals", MessageId = "jjNodeRect"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals", MessageId = "jjClusRect"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals", MessageId = "incClusComp")]
         [Conditional("VERIFY")]
         private void DebugVerifyClusters(ConstraintGenerator generator, Cluster incCluster, Cluster root) {
             double dblEpsilon = 0.0001;
 
             // First verify that all nodes are within the cluster.
             Rectangle clusRect = incCluster.RectangularBoundary.rectangle;
-            foreach (var v in incCluster.Nodes) {
+            foreach (Node v in incCluster.Nodes) {
                 FiNode iiFilNode = (FiNode)v.AlgorithmData;
                 Rectangle iiNodeRect = iiFilNode.mNode.BoundaryCurve.BoundingBox;
 
@@ -325,7 +319,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
                                                 , generator.PaddingP, generator.Padding, dblEpsilon);
                     }
                     // Make sure the node doesn't intersect any following nodes, or any clusters.
-                    foreach (var u in incCluster.Nodes) {
+                    foreach (Node u in incCluster.Nodes) {
                         if (u == v) continue;
                         FiNode jjFilNode = (FiNode)u.AlgorithmData;
                         Rectangle jjNodeRect = jjFilNode.mNode.BoundaryCurve.BoundingBox;
@@ -343,7 +337,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
             } // endfor iiNode
 
             // Now verify the clusters are contained and don't overlap.
-            foreach (var iiIncClus in incCluster.Clusters) {
+            foreach (Cluster iiIncClus in incCluster.Clusters) {
                 Rectangle iiClusRect = iiIncClus.RectangularBoundary.rectangle;
 
                 if (IsHorizontal) {
@@ -365,7 +359,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
                                                 , generator.PaddingP, generator.Padding, dblEpsilon);
                     }
                     // Make sure the cluster doesn't intersect any following clusters.
-                    foreach (var jjIncClus in incCluster.Clusters) {
+                    foreach (Cluster jjIncClus in incCluster.Clusters) {
                         if (jjIncClus == iiIncClus) continue;
                         Rectangle jjClusRect = jjIncClus.RectangularBoundary.rectangle;
                         DebugVerifyRectsDisjoint(iiClusRect, jjClusRect

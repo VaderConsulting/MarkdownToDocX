@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Layout;
 using MermaidRecognition.Render;
 using MermaidRecognition.RuleValidation.Models;
@@ -113,8 +114,8 @@ public static class FlowchartNestedSubgraphDirectMemberGapHelper
                 continue;
             }
 
-            List<string> UpstreamDirectNodeIds = new List<string>();
-            List<string> DownstreamDirectNodeIds = new List<string>();
+            List<string> UpstreamDirectNodeIds = [];
+            List<string> DownstreamDirectNodeIds = [];
             for (int Index = 0; Index < FlowOrderedMemberNodeIds.Count; Index++)
             {
                 string NodeId = FlowOrderedMemberNodeIds[Index];
@@ -196,7 +197,7 @@ public static class FlowchartNestedSubgraphDirectMemberGapHelper
                 double MaxDirectTrailingEdge = double.MinValue;
                 foreach (string NodeId in DirectMemberNodeIds)
                 {
-                    if (!BoundsById.TryGetValue(NodeId, out FlowchartLayoutNodeBounds Bounds))
+                    if (!BoundsById.TryGetValue(NodeId, out FlowchartLayoutNodeBounds? Bounds))
                     {
                         continue;
                     }
@@ -214,7 +215,7 @@ public static class FlowchartNestedSubgraphDirectMemberGapHelper
             double MinDirectLeadingEdge = double.MaxValue;
             foreach (string NodeId in DirectMemberNodeIds)
             {
-                if (!BoundsById.TryGetValue(NodeId, out FlowchartLayoutNodeBounds Bounds))
+                if (!BoundsById.TryGetValue(NodeId, out FlowchartLayoutNodeBounds? Bounds))
                 {
                     continue;
                 }
@@ -234,7 +235,7 @@ public static class FlowchartNestedSubgraphDirectMemberGapHelper
             double MinDirectTrailingEdge = double.MaxValue;
             foreach (string NodeId in DirectMemberNodeIds)
             {
-                if (!BoundsById.TryGetValue(NodeId, out FlowchartLayoutNodeBounds Bounds))
+                if (!BoundsById.TryGetValue(NodeId, out FlowchartLayoutNodeBounds? Bounds))
                 {
                     continue;
                 }
@@ -252,7 +253,7 @@ public static class FlowchartNestedSubgraphDirectMemberGapHelper
         double MaxDirectTopEdge = double.MinValue;
         foreach (string NodeId in DirectMemberNodeIds)
         {
-            if (!BoundsById.TryGetValue(NodeId, out FlowchartLayoutNodeBounds Bounds))
+            if (!BoundsById.TryGetValue(NodeId, out FlowchartLayoutNodeBounds? Bounds))
             {
                 continue;
             }
@@ -300,7 +301,7 @@ public static class FlowchartNestedSubgraphDirectMemberGapHelper
             NestedGroupNodeIds.UnionWith(CollectGroupMemberNodeIds(CandidateGroup, GroupById, Contract));
         }
 
-        List<string> DirectMemberNodeIds = new List<string>();
+        List<string> DirectMemberNodeIds = [];
         foreach (NodeContract Node in Contract.Nodes)
         {
             if (!string.Equals(Node.ParentGroupId, Group.Id, StringComparison.Ordinal))
@@ -379,7 +380,7 @@ public static class FlowchartNestedSubgraphDirectMemberGapHelper
             }
         }
 
-        List<string> Ordered = new List<string>();
+        List<string> Ordered = [];
         Queue<string> Ready = new Queue<string>();
         foreach (KeyValuePair<string, int> Entry in InDegree.OrderBy(Entry => GetEarliestEdgeCreationIndex(Contract, Entry.Key)))
         {

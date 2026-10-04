@@ -1,7 +1,9 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Core;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Layout;
 using MermaidRecognition.Render;
 
@@ -457,7 +459,7 @@ public sealed class FlowchartR1RenderGateTests
         DiagramContract Contract = FlowchartRecognizer.Parse(File.ReadAllText(MmdPath));
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
 
-        List<double> NodeTops = new List<double>();
+        List<double> NodeTops = [];
         foreach (Match NodeMatch in Regex.Matches(Svg, @"<path d=""M([\d\.]+),([\d\.]+)"))
         {
             NodeTops.Add(double.Parse(NodeMatch.Groups[2].Value, CultureInfo.InvariantCulture));
@@ -465,7 +467,7 @@ public sealed class FlowchartR1RenderGateTests
 
         NodeTops.Sort();
 
-        List<double> ArrowTipYs = new List<double>();
+        List<double> ArrowTipYs = [];
         foreach (Match ArrowMatch in Regex.Matches(Svg, @"<polygon points=""([\d\.]+),([\d\.]+)"))
         {
             ArrowTipYs.Add(double.Parse(ArrowMatch.Groups[2].Value, CultureInfo.InvariantCulture));
@@ -479,10 +481,7 @@ public sealed class FlowchartR1RenderGateTests
         Assert.That(ArrowTipYs[1], Is.EqualTo(NodeTops[2] + 1.0).Within(0.5));
     }
 
-    private static int CountMatches(string Text, string Pattern)
-    {
-        return Regex.Matches(Text, Regex.Escape(Pattern), RegexOptions.IgnoreCase).Count;
-    }
+    private static int CountMatches(string Text, string Pattern) => Regex.Matches(Text, Regex.Escape(Pattern), RegexOptions.IgnoreCase).Count;
 
     private static string FindFlowchartFixtureDirectory()
     {
@@ -503,7 +502,7 @@ public sealed class FlowchartR1RenderGateTests
 
     private static List<string> ExtractRenderedEdgePathData(string Svg)
     {
-        List<string> PathData = new List<string>();
+        List<string> PathData = [];
         MatchCollection Matches = Regex.Matches(
             Svg,
             @"<path d=""([^""]+)"" fill=""none"" stroke=""",

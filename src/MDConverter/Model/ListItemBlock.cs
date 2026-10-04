@@ -7,18 +7,12 @@ namespace MDConverter.Model;
 /// </summary>
 public sealed class ListItemBlock : BlockNode
 {
-    private readonly List<BlockNode> _Blocks = new List<BlockNode>();
+    private readonly List<BlockNode> _Blocks = [];
 
     /// <summary>
     /// Blocks inside this list item.
     /// </summary>
-    public IReadOnlyList<BlockNode> Blocks
-    {
-        get
-        {
-            return _Blocks;
-        }
-    }
+    public IReadOnlyList<BlockNode> Blocks => _Blocks;
 
     /// <summary>
     /// Adds a block to the list item.

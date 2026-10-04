@@ -1,7 +1,9 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Core;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Render;
 
 namespace MermaidRecognition.Layout.Tests;
@@ -2651,7 +2653,7 @@ public sealed class FlowchartCatalogueRenderTests
         MatchCollection OrthogonalMatches = Regex.Matches(
             Svg,
             @"<path d=""(M[^""]*)"" fill=""none""");
-        List<string> OrthogonalPathSamples = new List<string>();
+        List<string> OrthogonalPathSamples = [];
         foreach (Match Match in OrthogonalMatches)
         {
             if (Match.Groups.Count > 1
@@ -2981,11 +2983,11 @@ public sealed class FlowchartCatalogueRenderTests
             """);
 
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
-        List<(double NodeCentreX, string LabelText)> NodeLabelPairs = new List<(double NodeCentreX, string LabelText)>
-        {
+        List<(double NodeCentreX, string LabelText)> NodeLabelPairs =
+        [
             (ExtractRectangleCentreXFromSvg(Svg, 0), "Bold Italic Red"),
             (ExtractRectangleCentreXFromSvg(Svg, 1), "Next")
-        };
+        ];
 
         MatchCollection LabelMatches = Regex.Matches(
             Svg,
@@ -3352,7 +3354,7 @@ public sealed class FlowchartCatalogueRenderTests
 
     private static List<string> ExtractNodeFillPaths(string Svg)
     {
-        List<string> FillPaths = new List<string>();
+        List<string> FillPaths = [];
         MatchCollection PathMatches = Regex.Matches(
             Svg,
             @"<path d=""([^""]+)"" fill=""([^""]+)""",

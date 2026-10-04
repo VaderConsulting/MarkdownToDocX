@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
 
-namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
+namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree
+{
     /// <summary>
     /// A search tree for rapid lookup of TData objects keyed by rectangles inside a given rectangular region
     /// It is very similar to "R-TREES. A DYNAMIC INDEX STRUCTURE FOR SPATIAL SEARCHING" by Antonin Guttman
@@ -15,29 +17,25 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// </summary>
         public RectangleNode<TData> RootNode
         {
-            get { return _rootNode; }
-            set { _rootNode=value; }
+            get => _rootNode;
+
+            set => _rootNode = value;
         }
 
         RectangleNode<TData> _rootNode;
-       
+
 
         /// <summary>
         /// Create the query tree for a given enumerable of TData keyed by Rectangles
         /// </summary>
         /// <param name="rectsAndData"></param>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures")]
-        public RTree(IEnumerable<KeyValuePair<Rectangle, TData>> rectsAndData) {
-            _rootNode = RectangleNode<TData>.CreateRectangleNodeOnEnumeration(GetNodeRects(rectsAndData));
-        }
+        public RTree(IEnumerable<KeyValuePair<Rectangle, TData>> rectsAndData) => _rootNode = RectangleNode<TData>.CreateRectangleNodeOnEnumeration(GetNodeRects(rectsAndData));
 
         /// <summary>
         /// Create a query tree for a given root node
         /// </summary>
         /// <param name="rootNode"></param>
-        public RTree(RectangleNode<TData> rootNode) {
-            this._rootNode = rootNode;
-        }
+        public RTree(RectangleNode<TData> rootNode) => _rootNode = rootNode;
 
         ///<summary>
         ///</summary>
@@ -48,19 +46,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <summary>
         /// The number of data elements in the tree (number of leaf nodes)
         /// </summary>
-        public int Count {
-            get { return _rootNode == null ? 0 : _rootNode.Count; }
-        }
+        public int Count => _rootNode == null ? 0 : _rootNode.Count;
 
-     
+
         /// <summary>
         /// Add the given key, value pair
         /// </summary>
         /// <param name="key"></param>
         /// <param name="value"></param>
-        public void Add(Rectangle key, TData value) {
-            Add(new RectangleNode<TData>(value, key));            
-        }
+        public void Add(Rectangle key, TData value) => Add(new RectangleNode<TData>(value, key));
 
         internal void Add(RectangleNode<TData> node) {
             if (_rootNode == null)
@@ -73,13 +67,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <summary>
         /// rebuild the whole tree
         /// </summary>
-        public void Rebuild() {
-            _rootNode = RectangleNode<TData>.CreateRectangleNodeOnEnumeration(_rootNode.GetAllLeafNodes());
-        }
+        public void Rebuild() => _rootNode = RectangleNode<TData>.CreateRectangleNodeOnEnumeration(_rootNode.GetAllLeafNodes());
 
-        static IEnumerable<RectangleNode<TData>> GetNodeRects(IEnumerable<KeyValuePair<Rectangle, TData>> nodes) {
-            return nodes.Select(v => new RectangleNode<TData>(v.Value, v.Key));
-        }
+        static IEnumerable<RectangleNode<TData>> GetNodeRects(IEnumerable<KeyValuePair<Rectangle, TData>> nodes) => nodes.Select(v => new RectangleNode<TData>(v.Value, v.Key));
 
         static void AddNodeToTreeRecursive(RectangleNode<TData> newNode, RectangleNode<TData> existingNode) {
             if (existingNode.IsLeaf) {
@@ -101,9 +91,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
                     existingNode.Right.Rectangle = new Rectangle(existingNode.Right.Rectangle, newNode.Rectangle);
                 } else { //decide basing on the boxes
                     leftBox = new Rectangle(existingNode.Left.Rectangle, newNode.Rectangle);
-                    var delLeft = leftBox.Area - existingNode.Left.Rectangle.Area;
+                    double delLeft = leftBox.Area - existingNode.Left.Rectangle.Area;
                     rightBox = new Rectangle(existingNode.Right.Rectangle, newNode.Rectangle);
-                    var delRight = rightBox.Area - existingNode.Right.Rectangle.Area;
+                    double delRight = rightBox.Area - existingNode.Right.Rectangle.Area;
                     if (delLeft < delRight) {
                         AddNodeToTreeRecursive(newNode, existingNode.Left);
                         existingNode.Left.Rectangle = leftBox;
@@ -129,22 +119,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// return all the data elements stored at the leaves of the BSPTree in an IEnumerable
         /// </summary>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
-        public IEnumerable<TData> GetAllLeaves() {
-            return _rootNode!=null && Count>0 ? _rootNode.GetAllLeaves():new TData[0];
-        }
+        public IEnumerable<TData> GetAllLeaves() => _rootNode != null && Count > 0 ? _rootNode.GetAllLeaves() : new TData[0];
 
         /// <summary>
         /// Get all data items with rectangles intersecting the specified rectangular region
         /// </summary>
         /// <param name="queryRegion"></param>
         /// <returns></returns>
-        public TData[] GetAllIntersecting(Rectangle queryRegion)
-        {
-            return _rootNode == null || Count == 0 ? new TData[0] : _rootNode.GetNodeItemsIntersectingRectangle(queryRegion).ToArray();
-        }
+        public TData[] GetAllIntersecting(Rectangle queryRegion) => _rootNode == null || Count == 0 ? new TData[0] : _rootNode.GetNodeItemsIntersectingRectangle(queryRegion).ToArray();
 
-        public bool OneIntersecting(Rectangle queryRegion, out TData intersectedLeaf) {
+        public bool OneIntersecting(Rectangle queryRegion, out TData? intersectedLeaf) {
             if (_rootNode == null || Count == 0) {
                 intersectedLeaf = default(TData);
                 return false;
@@ -163,18 +147,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// </summary>
         /// <param name="queryRegion"></param>
         /// <returns></returns>
-        internal IEnumerable<RectangleNode<TData>> GetAllLeavesIntersectingRectangle(Rectangle queryRegion) {
-            return _rootNode == null || Count == 0 ? new RectangleNode<TData>[0] : _rootNode.GetLeafRectangleNodesIntersectingRectangle(queryRegion);
-        }
+        internal IEnumerable<RectangleNode<TData>> GetAllLeavesIntersectingRectangle(Rectangle queryRegion) => _rootNode == null || Count == 0 ? new RectangleNode<TData>[0] : _rootNode.GetLeafRectangleNodesIntersectingRectangle(queryRegion);
 
         /// <summary>
         /// Does minimal work to determine if any objects in the tree intersect with the query region
         /// </summary>
         /// <param name="queryRegion"></param>
         /// <returns></returns>
-        public bool IsIntersecting(Rectangle queryRegion) {
-            return GetAllIntersecting(queryRegion).Any();
-        }
+        public bool IsIntersecting(Rectangle queryRegion) => GetAllIntersecting(queryRegion).Any();
 
         /// <summary>
         /// return true iff there is a node with the rectangle and UserData that equals to the parameter "userData"
@@ -199,7 +179,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
             {
                 return default(TData);
             }
-            var ret = _rootNode.GetLeafRectangleNodesIntersectingRectangle(rectangle).FirstOrDefault(node => node.UserData.Equals(userData));
+            RectangleNode<TData>? ret = _rootNode.GetLeafRectangleNodesIntersectingRectangle(rectangle).FirstOrDefault(node => node.UserData.Equals(userData));
             if (ret == null)
                 return default(TData);
             if (RootNode.Count == 1)
@@ -211,14 +191,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
 
         void RemoveLeaf(RectangleNode<TData> leaf) {
             Debug.Assert(leaf.IsLeaf);
-            
-            var unbalancedNode = FindTopUnbalancedNode(leaf);
+
+            RectangleNode<TData> unbalancedNode = FindTopUnbalancedNode(leaf);
             if (unbalancedNode != null) {
                 RebuildUnderNodeWithoutLeaf(unbalancedNode, leaf);
                 UpdateParent(unbalancedNode);
             } else {
                 //replace the parent with the sibling and update bounding boxes and counts
-                var parent = leaf.Parent;
+                RectangleNode<TData> parent = leaf.Parent;
                 if (parent == null) {
                     Debug.Assert(_rootNode == leaf);
                     _rootNode = new RectangleNode<TData>();
@@ -242,7 +222,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
 //        }
 
         static void UpdateParent(RectangleNode<TData> parent) {
-            for(var node=parent.Parent; node!=null; node=node.Parent) {
+            for(RectangleNode<TData> node =parent.Parent; node!=null; node=node.Parent) {
                 node.Count--;
                 node.Rectangle=new Rectangle(node.Left.Rectangle, node.Right.Rectangle);
             }
@@ -260,7 +240,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         {
             Debug.Assert(leaf.IsLeaf);
             Debug.Assert(!nodeForRebuild.IsLeaf);
-            var newNode =
+            RectangleNode<TData> newNode =
                 RectangleNode<TData>.CreateRectangleNodeOnEnumeration(
                     nodeForRebuild.GetAllLeafNodes().Where(n => !(n.Equals(leaf))));
             nodeForRebuild.Count = newNode.Count;
@@ -270,27 +250,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         }
 
         static RectangleNode<TData> FindTopUnbalancedNode(RectangleNode<TData> node) {
-            for (var parent = node.Parent; parent != null; parent = parent.Parent)
+            for (RectangleNode<TData> parent = node.Parent; parent != null; parent = parent.Parent)
                 if (! Balanced(parent))
                     return parent;
             return null;
         }
 
-        static bool Balanced(RectangleNode<TData> rectangleNode) {
-            return 2*rectangleNode.Left.Count >= rectangleNode.Right.Count &&
-                   2*rectangleNode.Right.Count >= rectangleNode.Left.Count;
-        }
+        static bool Balanced(RectangleNode<TData> rectangleNode) => 2 * rectangleNode.Left.Count >= rectangleNode.Right.Count &&
+                   2 * rectangleNode.Right.Count >= rectangleNode.Left.Count;
 
         /// <summary>
         /// Removes everything from the tree
         /// </summary>
-        public void Clear() {
-            RootNode = null;
-        }
+        public void Clear() => RootNode = null;
 
-        public bool NumberOfIntersectedIsLessThanBound(Rectangle rect, int bound, Func<TData, bool> conditionFunc ) {
-            return NumberOfIntersectedIsLessThanBoundOnNode(_rootNode, rect, ref bound, conditionFunc);
-        }
+        public bool NumberOfIntersectedIsLessThanBound(Rectangle rect, int bound, Func<TData, bool> conditionFunc) => NumberOfIntersectedIsLessThanBoundOnNode(_rootNode, rect, ref bound, conditionFunc);
 
         static bool NumberOfIntersectedIsLessThanBoundOnNode(RectangleNode<TData> node, Rectangle rect, ref int bound, Func<TData, bool> conditionFunc) {
             Debug.Assert(bound > 0);

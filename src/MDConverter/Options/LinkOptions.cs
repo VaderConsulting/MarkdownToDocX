@@ -13,10 +13,12 @@ public sealed class LinkOptions
 
     /// <summary>
     /// When true, [text](#anchor) is mapped to internal bookmarks/hyperlinks.
+    /// Heading anchors use lowercase text, hyphens for whitespace, and no punctuation
+    /// other than hyphens and underscores. Repeated headings get -1, -2, etc.
     /// </summary>
     public bool EnableInternalLinks
     {
-        get { return _EnableInternalLinks; }
+        get => _EnableInternalLinks;
         set { _EnableInternalLinks = value; HasEnableInternalLinks = true; }
     }
 
@@ -25,7 +27,7 @@ public sealed class LinkOptions
     /// </summary>
     public bool EnableExternalLinks
     {
-        get { return _EnableExternalLinks; }
+        get => _EnableExternalLinks;
         set { _EnableExternalLinks = value; HasEnableExternalLinks = true; }
     }
 

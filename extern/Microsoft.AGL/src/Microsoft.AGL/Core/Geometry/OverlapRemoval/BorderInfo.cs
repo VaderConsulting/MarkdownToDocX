@@ -10,15 +10,14 @@
 using System;
 using System.Globalization;
 
-namespace Microsoft.AGL.Core.Geometry
+namespace Microsoft.AGL.Core.Geometry.OverlapRemoval
 {
     using System.Diagnostics;
 
-    
+
     /// <summary>
     /// Specifies information for one of the four borders of a rectangular cluster.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1034:NestedTypesShouldNotBeVisible")]
     public struct BorderInfo
     {
         /// <summary>
@@ -48,7 +47,7 @@ namespace Microsoft.AGL.Core.Geometry
         /// </summary>
         public double Weight
         {
-            get { return this.borderWeight; }
+            get => borderWeight;
             set
             {
                 if (value <= 0.0)
@@ -59,43 +58,31 @@ namespace Microsoft.AGL.Core.Geometry
 #endif // DEBUG
                         );
                 }
-                this.borderWeight = value;
+                borderWeight = value;
             }
         }
-         double borderWeight;
+        double borderWeight;
 
         /// <summary>
         /// Returns whether FixedPosition has been set.
         /// </summary>
-        public bool IsFixedPosition
-        {
-            get { return !Double.IsNaN(FixedPosition) && (Weight > 0.0); }
-        }
+        public bool IsFixedPosition => !double.IsNaN(FixedPosition) && (Weight > 0.0);
 
         /// <summary>
         /// Default weight for an unfixed border's Weight property; the property may be overridden
         /// by the application.
         /// </summary>
-        public static double DefaultFreeWeight
-        {
-            get { return OverlapRemovalGlobalConfiguration.ClusterDefaultFreeWeight; }
-        }
+        public static double DefaultFreeWeight => OverlapRemovalGlobalConfiguration.ClusterDefaultFreeWeight;
         /// <summary>
         /// Default weight for a fixed border's Weight property; the property may be overridden
         /// by the application.
         /// </summary>
-        public static double DefaultFixedWeight
-        {
-            get { return OverlapRemovalGlobalConfiguration.ClusterDefaultFixedWeight; }
-        }
+        public static double DefaultFixedWeight => OverlapRemovalGlobalConfiguration.ClusterDefaultFixedWeight;
 
         /// <summary>
         /// Value gotten from or set to FixedPosition indicating that it's not set.
         /// </summary>
-        public static double NoFixedPosition
-        {
-            get { return Double.NaN; }
-        }
+        public static double NoFixedPosition => double.NaN;
 
         /// <summary>
         /// Sets the border to fixed (resistant to movement).
@@ -106,8 +93,8 @@ namespace Microsoft.AGL.Core.Geometry
         ///         due to constraint satisfaction of intervening clusters/variables.</param>
         public void SetFixed(double position, double weight)
         {
-            this.FixedPosition = position;
-            this.Weight = weight;
+            FixedPosition = position;
+            Weight = weight;
         }
 
         /// <summary>
@@ -115,8 +102,8 @@ namespace Microsoft.AGL.Core.Geometry
         /// </summary>
         public void SetUnfixed()
         {
-            this.FixedPosition = NoFixedPosition;
-            this.Weight = DefaultFreeWeight;
+            FixedPosition = NoFixedPosition;
+            Weight = DefaultFreeWeight;
         }
 
         /// <summary>
@@ -134,9 +121,9 @@ namespace Microsoft.AGL.Core.Geometry
         public BorderInfo(double innerMargin, double fixedPosition, double weight)
             : this()
         {
-            this.InnerMargin = innerMargin;
-            this.FixedPosition = fixedPosition;
-            this.Weight = weight;
+            InnerMargin = innerMargin;
+            FixedPosition = fixedPosition;
+            Weight = weight;
         }
 
         internal void EnsureWeight()
@@ -144,14 +131,14 @@ namespace Microsoft.AGL.Core.Geometry
             // Weight must be > 0.0 (we'll divide by this later); use DefaultFreeWeight or DefaultFixedWeight,
             // or call one of the parameterized ctors or SetFixed/SetUnfixed.  Assert this for DEBUG builds
             // but handle the default case for release.
-            Debug.Assert(this.Weight > 0.0, "BorderInfo.Weight must be > 0.0; use DefaultFreeWeight or DefaultFixedWeight or a parameterized ctor");
-            if (0.0 == this.Weight)
+            Debug.Assert(Weight > 0.0, "BorderInfo.Weight must be > 0.0; use DefaultFreeWeight or DefaultFixedWeight or a parameterized ctor");
+            if (0.0 == Weight)
             {
                 // This is probably the default ctor that we can't override in a struct so default to unfixed.
-                this.Weight = DefaultFreeWeight;
-                if (0.0 == this.FixedPosition)
+                Weight = DefaultFreeWeight;
+                if (0.0 == FixedPosition)
                 {
-                    this.FixedPosition = NoFixedPosition;
+                    FixedPosition = NoFixedPosition;
                 }
             }
         }
@@ -160,12 +147,9 @@ namespace Microsoft.AGL.Core.Geometry
         /// Generate a string representation of the BorderInfo.
         /// </summary>
         /// <returns>A string representation of the BorderInfo.</returns>
-        public override string ToString()
-        {
-            return String.Format(CultureInfo.InvariantCulture
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture
                                  , "m {0:F5} p {1:F5} w {2:F5}"
-                                 , this.InnerMargin, this.FixedPosition, this.Weight);
-        }
+                                 , InnerMargin, FixedPosition, Weight);
 
         #region RequiredOverridesForStruct
         // These probably aren't compared but it is not expensive to provide the overrides,
@@ -177,10 +161,7 @@ namespace Microsoft.AGL.Core.Geometry
         /// Return a hashcode based upon data members.
         /// </summary>
         /// <returns></returns>
-        public override int GetHashCode()
-        {
-            return InnerMargin.GetHashCode() ^ FixedPosition.GetHashCode() ^ Weight.GetHashCode();
-        }
+        public override int GetHashCode() => InnerMargin.GetHashCode() ^ FixedPosition.GetHashCode() ^ Weight.GetHashCode();
 
         // Omitting any of the following violates rule: OverrideEqualsAndOperatorEqualsOnValueTypes
         /// <summary>
@@ -188,38 +169,31 @@ namespace Microsoft.AGL.Core.Geometry
         /// </summary>
         /// <param name="obj">Object to be compared to the current object.</param>
         /// <returns></returns>
-        public override bool Equals(Object obj)
+        public override bool Equals(object obj)
         {
             if (!(obj is BorderInfo))
                 return false;
-            var bi = (BorderInfo)obj;
-            return (bi.FixedPosition == this.FixedPosition)
-                   && (bi.Weight == this.Weight)
-                   && (bi.InnerMargin == this.InnerMargin);
+            BorderInfo bi = (BorderInfo)obj;
+            return (bi.FixedPosition == FixedPosition)
+                   && (bi.Weight == Weight)
+                   && (bi.InnerMargin == InnerMargin);
         }
         /// <summary>
         /// Compare two BorderInfo objects for equality of data members.
         /// </summary>
         /// <returns></returns>
-        public static bool operator ==(BorderInfo left, BorderInfo right)
-        {
-            return left.Equals(right);
-        }
+        public static bool operator ==(BorderInfo left, BorderInfo right) => left.Equals(right);
 
         /// <summary>
         /// Compare two BorderInfo objects for inequality of data members.
         /// </summary>
         /// <returns></returns>
-        public static bool operator !=(BorderInfo left, BorderInfo right)
-        {
-            return !(left == right);
-        }
+        public static bool operator !=(BorderInfo left, BorderInfo right) => !(left == right);
 
         /// <summary>
         /// Compare two BorderInfo objects for ordering based upon data members.
         /// </summary>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2225:OperatorOverloadsHaveNamedAlternates")]
         public static bool operator <(BorderInfo left, BorderInfo right)
         {
             if (left.FixedPosition < right.FixedPosition)
@@ -242,11 +216,7 @@ namespace Microsoft.AGL.Core.Geometry
         }
 
         /// Compare two BorderInfo objects for ordering based upon data members.
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2225:OperatorOverloadsHaveNamedAlternates")]
-        public static bool operator >(BorderInfo left, BorderInfo right)
-        {
-            return right < left;
-        }
+        public static bool operator >(BorderInfo left, BorderInfo right) => right < left;
         #endregion // RequiredOverridesForStruct
     }
 }

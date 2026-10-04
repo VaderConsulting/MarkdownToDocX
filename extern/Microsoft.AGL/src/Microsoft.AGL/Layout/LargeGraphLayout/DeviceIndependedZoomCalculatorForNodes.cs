@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.AGL.Core.DataStructures;
@@ -19,11 +19,11 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout
         readonly int maxAmountPerTile;
         public GeometryGraph Graph { get; set; }
         public LgLayoutSettings Settings { get; set; }
-        public List<LgNodeInfo> SortedLgNodeInfos { get { return sortedLgNodeInfos; } }
+        public List<LgNodeInfo> SortedLgNodeInfos => sortedLgNodeInfos;
 
-        readonly List<int> _levelNodeCounts = new List<int>();
+        readonly List<int> _levelNodeCounts = [];
 
-        public List<int> LevelNodeCounts { get { return _levelNodeCounts; }}
+        public List<int> LevelNodeCounts => _levelNodeCounts;
 
         int unassigned;
         List<LgNodeInfo> sortedLgNodeInfos;
@@ -57,18 +57,18 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout
 
         internal static Tuple<int, int> PointToTuple(Point graphLeftBottom, Point point, double gridSize)
         {
-            var dx = point.X - graphLeftBottom.X;
-            var dy = point.Y - graphLeftBottom.Y;
+            double dx = point.X - graphLeftBottom.X;
+            double dy = point.Y - graphLeftBottom.Y;
 
             return new Tuple<int, int>((int)(dx / gridSize), (int)(dy / gridSize));
         }
 
 
         void DrawNodesOnLevel(double gridSize) {
-            var tileTable = new Dictionary<Tuple<int, int>, int>();
+            Dictionary<Tuple<int, int>, int> tileTable = new Dictionary<Tuple<int, int>, int>();
             for (int i = 0; i < sortedLgNodeInfos.Count; i++) {
-                var ni = sortedLgNodeInfos[i];
-                var tuple = PointToTuple(Graph.LeftBottom, ni.Center, gridSize);
+                LgNodeInfo ni = sortedLgNodeInfos[i];
+                Tuple<int, int> tuple = PointToTuple(Graph.LeftBottom, ni.Center, gridSize);
                 if (!tileTable.ContainsKey(tuple))
                     tileTable[tuple] = 0;
 
@@ -91,23 +91,21 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout
 
         }
 
-        bool SomeNodesAreNotAssigned() {
-            return unassigned > 0;
-        }
+        bool SomeNodesAreNotAssigned() => unassigned > 0;
 
         static internal double GetDistBetweenBoundingBoxes(Node source, Node target)
         {
-            var sb = source.BoundingBox;
-            var tb = target.BoundingBox;
+            Rectangle sb = source.BoundingBox;
+            Rectangle tb = target.BoundingBox;
             if (sb.Intersects(tb)) return 0;
-            var spolygon = PolygonFromBox(sb);
-            var tpolygon = PolygonFromBox(tb);
+            Polygon spolygon = PolygonFromBox(sb);
+            Polygon tpolygon = PolygonFromBox(tb);
             return Polygon.Distance(spolygon, tpolygon);
         }
 
         static Polygon PolygonFromBox(Rectangle sb)
         {
-            var spolygon =
+            Polygon spolygon =
                 new Polygon(new Polyline(sb.LeftBottom, sb.LeftTop, sb.RightTop, sb.RightBottom) { Closed = true });
             return spolygon;
         }
@@ -124,7 +122,7 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout
 
         List<LgNodeInfo> GetSortedLgNodeInfos()
         {
-            var ret = Graph.Nodes.Select(n => NodeToLgNodeInfo(n)).ToList();
+            List<LgNodeInfo> ret = Graph.Nodes.Select(n => NodeToLgNodeInfo(n)).ToList();
             ret.Sort((a, b) => b.Rank.CompareTo(a.Rank));
             return ret;
         }

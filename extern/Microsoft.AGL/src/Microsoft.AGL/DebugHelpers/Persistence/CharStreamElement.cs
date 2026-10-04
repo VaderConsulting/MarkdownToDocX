@@ -1,9 +1,7 @@
-﻿namespace Microsoft.AGL.DebugHelpers.Persistence {
+namespace Microsoft.AGL.DebugHelpers.Persistence {
     internal class CharStreamElement : CurveStreamElement {
-        internal CharStreamElement(char ch) {
-            Value = ch;
-        }
+        internal CharStreamElement(char ch) => Value = ch;
 
-        internal char Char { get { return (char)Value; } }
+        internal char Char => (char)Value;
     }
 }

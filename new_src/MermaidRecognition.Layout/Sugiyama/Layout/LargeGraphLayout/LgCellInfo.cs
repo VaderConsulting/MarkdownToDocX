@@ -13,9 +13,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout
         public int NumberNodesLeqItsLevelInside = 0;
         public int MaxNumberNodesPerTile = 0;
 
-        public override string ToString()
-        {
-            return "ZoomLevel: " + ZoomLevel + "\nnodes of ZoomLevel <= " + ZoomLevel + " inside: " + NumberNodesLeqItsLevelInside + "/" + MaxNumberNodesPerTile;
-        }
+        public override string ToString() => "ZoomLevel: " + ZoomLevel + "\nnodes of ZoomLevel <= " + ZoomLevel + " inside: " + NumberNodesLeqItsLevelInside + "/" + MaxNumberNodesPerTile;
     }
 }

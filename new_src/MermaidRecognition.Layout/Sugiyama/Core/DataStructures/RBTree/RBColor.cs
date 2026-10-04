@@ -1,4 +1,5 @@
-namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
+namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures.RBTree
+{
 
     internal enum RBColor {
         Red,

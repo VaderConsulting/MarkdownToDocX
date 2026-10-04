@@ -36,10 +36,7 @@ public static class MermaidDiagramExport
     /// <summary>
     /// Rasterises an SVG document string to PNG bytes using the DOCX diagram pipeline.
     /// </summary>
-    public static byte[]? TryRasterizeSvg(string Svg)
-    {
-        return DocxWriter.TryRasterizeSvgToPng(Svg);
-    }
+    public static byte[]? TryRasterizeSvg(string Svg) => DocxWriter.TryRasterizeSvgToPng(Svg);
 
     /// <summary>
     /// Renders Mermaid diagram source to PNG bytes (flowchart markers inlined for Skia).

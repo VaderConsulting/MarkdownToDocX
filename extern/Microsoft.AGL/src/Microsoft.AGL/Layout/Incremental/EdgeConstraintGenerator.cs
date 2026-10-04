@@ -10,11 +10,9 @@ namespace Microsoft.AGL.Layout.Incremental {
         internal LinkedListNode<TNode> stackNode;
         internal Node v;
         internal bool visited;
-        internal List<TNode> outNeighbours = new List<TNode>();
-        internal List<TNode> inNeighbours = new List<TNode>();
-        internal TNode(Node v) {
-            this.v = v;
-        }
+        internal List<TNode> outNeighbours = [];
+        internal List<TNode> inNeighbours = [];
+        internal TNode(Node v) => this.v = v;
     }
 
     /// <summary>
@@ -25,12 +23,12 @@ namespace Microsoft.AGL.Layout.Incremental {
     {
         IdealEdgeLengthSettings settings;
         IEnumerable<Edge> edges;
-        Dictionary<Node, TNode> nodeMap = new Dictionary<Node, TNode>();
+        Dictionary<Node, TNode> nodeMap = [];
         LinkedList<TNode> stack = new LinkedList<TNode>();
         List<TNode> component;
         AxisSolver horizontalSolver;
         AxisSolver verticalSolver;
-        List<Set<Node>> cyclicComponents = new List<Set<Node>>();
+        List<Set<Node>> cyclicComponents = [];
 
         /// <summary>
         /// Creates a VerticalSeparationConstraint for each edge in the given set to structural constraints,
@@ -74,24 +72,24 @@ namespace Microsoft.AGL.Layout.Incremental {
             this.horizontalSolver = horizontalSolver;
             this.verticalSolver = verticalSolver;
 
-            foreach (var e in this.edges) {
+            foreach (Edge e in this.edges) {
                 TNode u = CreateTNode(e.Source), v = CreateTNode(e.Target);
                 u.outNeighbours.Add(v);
                 v.inNeighbours.Add(u);
             }
 
-            foreach (var v in nodeMap.Values) {
+            foreach (TNode v in nodeMap.Values) {
                 if(v.stackNode==null) {
                     DFS(v);
                 }
             }
 
             while (stack.Count > 0) {
-                component = new List<TNode>();
+                component = [];
                 RDFS(stack.Last.Value);
                 if (component.Count > 1) {
-                    var cyclicComponent = new Set<Node>();
-                    foreach (var v in component) {
+                    Set<Node> cyclicComponent = new Set<Node>();
+                    foreach (TNode v in component) {
                         cyclicComponent.Insert(v.v);
                     }
                     cyclicComponents.Add(cyclicComponent);
@@ -100,16 +98,16 @@ namespace Microsoft.AGL.Layout.Incremental {
 
             switch (settings.EdgeDirectionConstraints) {
                 case Directions.South:
-                    this.addConstraint = this.AddSConstraint;
+                    addConstraint = AddSConstraint;
                     break;
                 case Directions.North:
-                    this.addConstraint = this.AddNConstraint;
+                    addConstraint = AddNConstraint;
                     break;
                 case Directions.West:
-                    this.addConstraint = this.AddWConstraint;
+                    addConstraint = AddWConstraint;
                     break;
                 case Directions.East:
-                    this.addConstraint = this.AddEConstraint;
+                    addConstraint = AddEConstraint;
                     break;
             }
         }
@@ -117,45 +115,33 @@ namespace Microsoft.AGL.Layout.Incremental {
         private delegate void AddConstraint(Node u, Node v);
         private AddConstraint addConstraint;
 
-        private void AddSConstraint(Node u, Node v)
-        {
-            verticalSolver.AddStructuralConstraint(
+        private void AddSConstraint(Node u, Node v) => verticalSolver.AddStructuralConstraint(
                 new VerticalSeparationConstraint(u, v, (u.Height + v.Height) / 2 + settings.ConstrainedEdgeSeparation));
-        }
 
-        private void AddNConstraint(Node u, Node v)
-        {
-            verticalSolver.AddStructuralConstraint(
+        private void AddNConstraint(Node u, Node v) => verticalSolver.AddStructuralConstraint(
                 new VerticalSeparationConstraint(v, u, (u.Height + v.Height) / 2 + settings.ConstrainedEdgeSeparation));
-        }
 
-        private void AddEConstraint(Node u, Node v)
-        {
-            horizontalSolver.AddStructuralConstraint(
+        private void AddEConstraint(Node u, Node v) => horizontalSolver.AddStructuralConstraint(
                 new HorizontalSeparationConstraint(v, u, (u.Width + v.Width) / 2 + settings.ConstrainedEdgeSeparation));
-        }
 
-        private void AddWConstraint(Node u, Node v)
-        {
-            horizontalSolver.AddStructuralConstraint(
+        private void AddWConstraint(Node u, Node v) => horizontalSolver.AddStructuralConstraint(
                 new HorizontalSeparationConstraint(u, v, (u.Width + v.Width) / 2 + settings.ConstrainedEdgeSeparation));
-        }
 
         /// <summary>
         /// For each edge not involved in a cycle create a constraint
         /// </summary>
         public void GenerateSeparationConstraints() {
-            foreach (var e in edges) {
+            foreach (Edge e in edges) {
                 bool edgeInCycle = false;
                 Node u = e.Source, v = e.Target;
-                foreach (var c in cyclicComponents) {
+                foreach (Set<Node> c in cyclicComponents) {
                     if (c.Contains(u) && c.Contains(v)) {
                         edgeInCycle = true;
                         break;
                     }
                 }
                 if (!edgeInCycle) {
-                    this.addConstraint(u, v);
+                    addConstraint(u, v);
                 }
             }
         }
@@ -163,16 +149,11 @@ namespace Microsoft.AGL.Layout.Incremental {
         /// <summary>
         /// Get an Enumeration of CyclicComponents
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures")]
-        public IEnumerable<IEnumerable<Node>> CyclicComponents {
-            get {
-                return from c in cyclicComponents
-                       select c.AsEnumerable();
-            }
-        }
+        public IEnumerable<IEnumerable<Node>> CyclicComponents => from c in cyclicComponents
+                                                                  select c.AsEnumerable();
         private void DFS(TNode u) {
             u.visited = true;
-            foreach (var v in u.outNeighbours) {
+            foreach (TNode v in u.outNeighbours) {
                 if (!v.visited) {
                     DFS(v);
                 }
@@ -182,7 +163,7 @@ namespace Microsoft.AGL.Layout.Incremental {
         private void RDFS(TNode u) {
             component.Add(u);
             PopStack(u);
-            foreach (var v in u.inNeighbours) {
+            foreach (TNode v in u.inNeighbours) {
                 if (v.stackNode != null) {
                     RDFS(v);
                 }
@@ -198,9 +179,7 @@ namespace Microsoft.AGL.Layout.Incremental {
             }
             return tv;
         }
-        private void PushStack(TNode v) {
-            v.stackNode = stack.AddLast(v);
-        }
+        private void PushStack(TNode v) => v.stackNode = stack.AddLast(v);
         private void PopStack(TNode v) {
             stack.Remove(v.stackNode);
             v.stackNode = null;

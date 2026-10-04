@@ -1,5 +1,5 @@
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Render;
 
 namespace MermaidRecognition.Layout;
@@ -16,9 +16,9 @@ public readonly struct FlowchartSubgraphBoundsRequest
     {
         this.Direction = Direction;
         this.NestedFlowAxisGapPx = NestedFlowAxisGapPx;
-        this.HorizontalFlow = Direction == FlowchartDirection.LeftToRight
+        HorizontalFlow = Direction == FlowchartDirection.LeftToRight
             || Direction == FlowchartDirection.RightToLeft;
-        this.NestedCrossAxisGapPx = FlowchartSubgraphGapThresholds.ResolveNestedCrossAxisGapPx();
+        NestedCrossAxisGapPx = FlowchartSubgraphGapThresholds.ResolveNestedCrossAxisGapPx();
     }
 
     /// <summary>
@@ -56,13 +56,7 @@ public readonly struct FlowchartSubgraphBoundsRequest
     /// <summary>
     /// Legacy request that applies the historical 24px nested gap on every side.
     /// </summary>
-    public static FlowchartSubgraphBoundsRequest LegacyDefault
-    {
-        get
-        {
-            return new FlowchartSubgraphBoundsRequest(
+    public static FlowchartSubgraphBoundsRequest LegacyDefault => new FlowchartSubgraphBoundsRequest(
                 FlowchartDirection.TopToBottom,
                 FlowchartSubgraphBoundsBuilder.NESTED_CLUSTER_GAP_PX);
-        }
-    }
 }

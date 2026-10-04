@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+
 using Microsoft.AGL.Core.Geometry;
-using Microsoft.AGL.Core;
 
 namespace Microsoft.AGL.Routing.Visibility {
     internal class ObstacleSideComparer : IComparer<SegmentBase> {
@@ -10,9 +10,7 @@ namespace Microsoft.AGL.Routing.Visibility {
         readonly LineSweeperBase lineSweeper;
 
 
-        internal ObstacleSideComparer(LineSweeperBase lineSweeper) {
-            this.lineSweeper = lineSweeper;
-        }
+        internal ObstacleSideComparer(LineSweeperBase lineSweeper) => this.lineSweeper = lineSweeper;
 
         /// <summary>
         /// the intersection of the sweepline and the active segment
@@ -22,7 +20,7 @@ namespace Microsoft.AGL.Routing.Visibility {
 
         public int Compare(SegmentBase a, SegmentBase b) {
             ValidateArg.IsNotNull(b, "b");
-            var orient = Point.GetTriangleOrientation(b.Start, b.End, x);
+            TriangleOrientation orient = Point.GetTriangleOrientation(b.Start, b.End, x);
             switch (orient) {
                 case TriangleOrientation.Collinear:
                     return 0;
@@ -34,14 +32,12 @@ namespace Microsoft.AGL.Routing.Visibility {
         }
 
 
-        internal void SetOperand(SegmentBase side) {
-            x = IntersectionOfSideAndSweepLine(side);
-        }
+        internal void SetOperand(SegmentBase side) => x = IntersectionOfSideAndSweepLine(side);
 
         internal Point IntersectionOfSideAndSweepLine(SegmentBase obstacleSide) {
-            var den = obstacleSide.Direction * lineSweeper.SweepDirection;
+            double den = obstacleSide.Direction * lineSweeper.SweepDirection;
             Debug.Assert(Math.Abs(den) > ApproximateComparer.DistanceEpsilon);
-            var t = (lineSweeper.Z - obstacleSide.Start * lineSweeper.SweepDirection) / den;
+            double t = (lineSweeper.Z - obstacleSide.Start * lineSweeper.SweepDirection) / den;
             return obstacleSide.Start + t * obstacleSide.Direction;
         }
 

@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Render;
 
 namespace MermaidRecognition.Layout;
@@ -404,10 +405,7 @@ public static class FlowchartSpineColumnPostProcessor
             || (HasCylinderSource && IncomingCount >= 2);
     }
 
-    private static bool IsSpineColumnCollectorSource(DiagramContract Contract, string SourceNodeId)
-    {
-        return IsCylinderShape(GetNodeShape(Contract, SourceNodeId));
-    }
+    private static bool IsSpineColumnCollectorSource(DiagramContract Contract, string SourceNodeId) => IsCylinderShape(GetNodeShape(Contract, SourceNodeId));
 
     private static string? GetNodeShape(DiagramContract Contract, string NodeId)
     {
@@ -635,7 +633,7 @@ public static class FlowchartSpineColumnPostProcessor
 
     private static string ResolvePrimarySinkId(DiagramContract Contract)
     {
-        List<string> SinkCandidates = new List<string>();
+        List<string> SinkCandidates = [];
         foreach (NodeContract Node in Contract.Nodes)
         {
             if (CountVisibleOutgoing(Contract, Node.Id) == 0)
@@ -725,7 +723,7 @@ public static class FlowchartSpineColumnPostProcessor
 
     private static List<EdgeContract> GetVisibleOutgoingEdges(DiagramContract Contract, string SourceNodeId)
     {
-        List<EdgeContract> OutgoingEdges = new List<EdgeContract>();
+        List<EdgeContract> OutgoingEdges = [];
         foreach (EdgeContract Edge in Contract.Edges)
         {
             if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
@@ -794,7 +792,7 @@ public static class FlowchartSpineColumnPostProcessor
             TargetIds.Add(Edge.TargetId);
         }
 
-        List<string> RootNodeIds = new List<string>();
+        List<string> RootNodeIds = [];
         foreach (string NodeId in NodeIds)
         {
             if (!TargetIds.Contains(NodeId))

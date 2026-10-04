@@ -1,6 +1,6 @@
 #if PERSISTENCE
-namespace MermaidRecognition.Layout.Sugiyama.DebugHelpers {
-#pragma warning disable 1591
+namespace MermaidRecognition.Layout.Sugiyama.DebugHelpers.Persistence
+{
     /// <summary>
     /// tokens for the graph parser
     /// </summary>
@@ -14,7 +14,6 @@ namespace MermaidRecognition.Layout.Sugiyama.DebugHelpers {
         Force,
         ///<summary>
         ///</summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Barycenter")]
         Barycenter,
         ///<summary>
         ///</summary>
@@ -269,7 +268,6 @@ namespace MermaidRecognition.Layout.Sugiyama.DebugHelpers {
         /// <summary>
         /// 
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Brandes")]
         BrandesThreshold,
         /// <summary>
         /// 
@@ -302,7 +300,6 @@ namespace MermaidRecognition.Layout.Sugiyama.DebugHelpers {
         /// <summary>
         /// 
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Majorization")]
         IterationsWithMajorization,
         /// <summary>
         /// 
@@ -339,8 +336,6 @@ namespace MermaidRecognition.Layout.Sugiyama.DebugHelpers {
         /// <summary>
         /// 
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Kd")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "Kd")]
         UseKdHull,
         /// <summary>
         /// 
@@ -379,24 +374,18 @@ namespace MermaidRecognition.Layout.Sugiyama.DebugHelpers {
         /// <summary>
         /// center x
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Cx")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "Cx")]
         Cx,
         /// <summary>
         /// center y
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "Cy")]
         Cy,
         /// <summary>
         /// 
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Ry")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "Ry")]
         Ry,
         /// <summary>
         /// 
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "Rx")]
         Rx,
         /// <summary>
         /// 
@@ -435,11 +424,9 @@ namespace MermaidRecognition.Layout.Sugiyama.DebugHelpers {
         Points,
         ///<summary>
         ///</summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "T")]
         T,
         ///<summary>
         ///</summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "S")]
         S,
         /// <summary>
         /// arrowhead at source
@@ -456,17 +443,14 @@ namespace MermaidRecognition.Layout.Sugiyama.DebugHelpers {
         ///<summary>
         /// ArrowheadSourceLength
         ///</summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Asl")]
         Asl,
         /// <summary>
         /// ArrowheadTargetLength
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Atl")]
         Atl,
         /// <summary>
         /// RectangleClusterBoundary
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Atl")]        
         RectangularClusterBoundary,
         RightBorderInfo,
         LeftBorderInfo,

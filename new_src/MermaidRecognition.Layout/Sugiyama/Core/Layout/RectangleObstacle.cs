@@ -4,15 +4,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout
 {
     internal class RectangleObstacle : IObstacle
     {
-        internal RectangleObstacle(Rectangle r)
-        {
-            this.Rectangle = r;
-        }
+        internal RectangleObstacle(Rectangle r) => Rectangle = r;
 
         internal RectangleObstacle(Rectangle r, object data)
         {
-            this.Rectangle = r;
-            this.Data = data;
+            Rectangle = r;
+            Data = data;
         }
 
         public Rectangle Rectangle

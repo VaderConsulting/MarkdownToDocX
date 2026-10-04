@@ -1,51 +1,17 @@
-namespace MermaidRecognition.Flowchart;
+namespace MermaidRecognition.Kinds.Flowchart;
 
 /// <summary>
-/// One side of a link (possibly several node ids joined with <c>&</c>).
+/// One side of a link (possibly several node ids).
 /// </summary>
 public sealed class FlowchartNodeSet
 {
-    private readonly List<string> _Items = new List<string>();
+    private readonly List<string> _Items = [];
 
-    public IReadOnlyList<string> Items
-    {
-        get
-        {
-            return _Items;
-        }
-    }
+    public IReadOnlyList<string> Items => _Items;
 
-    public List<string> ItemsMutable
-    {
-        get
-        {
-            return _Items;
-        }
-    }
+    public List<string> ItemsMutable => _Items;
 
-    public string? First
-    {
-        get
-        {
-            if (_Items.Count == 0)
-            {
-                return null;
-            }
+    public string? First => _Items.Count == 0 ? null : _Items[0];
 
-            return _Items[0];
-        }
-    }
-
-    public string? Last
-    {
-        get
-        {
-            if (_Items.Count == 0)
-            {
-                return null;
-            }
-
-            return _Items[_Items.Count - 1];
-        }
-    }
+    public string? Last => _Items.Count == 0 ? null : _Items[_Items.Count - 1];
 }

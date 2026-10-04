@@ -21,7 +21,7 @@ public static class FlowchartSvgPathGeometryHelper
     /// </summary>
     public static bool TryFlattenPathData(string PathData, out List<(double X, double Y)> Samples)
     {
-        Samples = new List<(double X, double Y)>();
+        Samples = [];
 
         if (string.IsNullOrWhiteSpace(PathData))
         {
@@ -223,7 +223,7 @@ public static class FlowchartSvgPathGeometryHelper
         EndX = 0.0;
         EndY = 0.0;
 
-        List<double> LineSegmentStarts = new List<double>();
+        List<double> LineSegmentStarts = [];
         double CurrentX = 0.0;
         double CurrentY = 0.0;
         MatchCollection CommandMatches = Regex.Matches(
@@ -343,7 +343,7 @@ public static class FlowchartSvgPathGeometryHelper
 
     private static List<double> ParseNumericArguments(string ArgumentText)
     {
-        List<double> Values = new List<double>();
+        List<double> Values = [];
         MatchCollection NumberMatches = Regex.Matches(
             ArgumentText,
             @"-?\d+(?:\.\d+)?",

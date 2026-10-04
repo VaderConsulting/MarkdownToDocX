@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 
 namespace MermaidRecognition.Layout;
 
@@ -74,7 +75,7 @@ public static class FlowchartEdgeGuidePointBuilder
         double SourceHubCenterSvgX,
         double SourceHubCenterSvgY)
     {
-        List<(double X, double Y)> Points = new List<(double X, double Y)>();
+        List<(double X, double Y)> Points = [];
         (double StartX, double StartY) Start = (StartX, StartY);
         (double EndX, double EndY) End = (EndX, EndY);
 
@@ -216,7 +217,7 @@ public static class FlowchartEdgeGuidePointBuilder
     {
         if (FlowchartEdgeConnectionGeometry.AreAttachPointsAxisAligned(Start.X, Start.Y, End.X, End.Y))
         {
-            return new List<(double X, double Y)> { Start, End };
+            return [Start, End];
         }
 
         double MidY = (Start.Y + End.Y) / 2.0;
@@ -226,12 +227,12 @@ public static class FlowchartEdgeGuidePointBuilder
             HubCenterX,
             SMOOTH_CURVE_BULGE_RATIO);
 
-        return new List<(double X, double Y)>
-        {
+        return
+        [
             Start,
             (BulgeX, MidY),
             End
-        };
+        ];
     }
 
     private static List<(double X, double Y)> BuildHorizontalFlowSRouteGuidePoints(
@@ -241,7 +242,7 @@ public static class FlowchartEdgeGuidePointBuilder
     {
         if (FlowchartEdgeConnectionGeometry.AreAttachPointsAxisAligned(Start.X, Start.Y, End.X, End.Y))
         {
-            return new List<(double X, double Y)> { Start, End };
+            return [Start, End];
         }
 
         double MidX = (Start.X + End.X) / 2.0;
@@ -251,12 +252,12 @@ public static class FlowchartEdgeGuidePointBuilder
             HubCenterY,
             SMOOTH_CURVE_BULGE_RATIO);
 
-        return new List<(double X, double Y)>
-        {
+        return
+        [
             Start,
             (MidX, BulgeY),
             End
-        };
+        ];
     }
 
     private static List<(double X, double Y)> BuildDecisionFanOutGuidePoints(
@@ -297,18 +298,12 @@ public static class FlowchartEdgeGuidePointBuilder
     private static List<(double X, double Y)> BuildVerticalOutwardCurveGuidePoints(
         (double X, double Y) Start,
         (double X, double Y) End,
-        double HubCentreX)
-    {
-        return BuildVerticalFlowSRouteGuidePoints(Start, End, HubCentreX);
-    }
+        double HubCentreX) => BuildVerticalFlowSRouteGuidePoints(Start, End, HubCentreX);
 
     private static List<(double X, double Y)> BuildHorizontalOutwardCurveGuidePoints(
         (double X, double Y) Start,
         (double X, double Y) End,
-        double HubCentreY)
-    {
-        return BuildHorizontalFlowSRouteGuidePoints(Start, End, HubCentreY);
-    }
+        double HubCentreY) => BuildHorizontalFlowSRouteGuidePoints(Start, End, HubCentreY);
 
     /// <summary>
     /// Builds layout-space curved guides (MSAGL Y-up) with perpendicular stubs.
@@ -328,7 +323,7 @@ public static class FlowchartEdgeGuidePointBuilder
         double TargetHubCenterX,
         double TargetHubCenterY)
     {
-        List<(double X, double Y)> Points = new List<(double X, double Y)>();
+        List<(double X, double Y)> Points = [];
         (double StartX, double StartY) Start = (StartX, StartY);
         (double EndX, double EndY) End = (EndX, EndY);
 
@@ -397,7 +392,7 @@ public static class FlowchartEdgeGuidePointBuilder
         bool PreferOrthogonalCorridor,
         out List<(double X, double Y)> Points)
     {
-        Points = new List<(double X, double Y)>();
+        Points = [];
 
         string? SourceGroupId = FindGroupForNode(SourceId, Contract);
         string? TargetGroupId = FindGroupForNode(TargetId, Contract);
@@ -485,7 +480,7 @@ public static class FlowchartEdgeGuidePointBuilder
         FlowchartDirection Direction,
         out List<(double X, double Y)> Points)
     {
-        Points = new List<(double X, double Y)>();
+        Points = [];
 
         string? SourceGroupId = FindGroupForNode(SourceId, Contract);
         string? TargetGroupId = FindGroupForNode(TargetId, Contract);

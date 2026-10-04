@@ -1,13 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using Point = MermaidRecognition.Layout.Sugiyama.Core.Geometry.Point;
 
 using Rectangle = MermaidRecognition.Layout.Sugiyama.Core.Geometry.Rectangle;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves;
 using SymmetricSegment = MermaidRecognition.Layout.Sugiyama.Core.DataStructures.SymmetricTuple<MermaidRecognition.Layout.Sugiyama.Core.Geometry.Point>;
-
+using MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree;
 
 namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments {
     public class OverlapRemovalFixedSegmentsBitmap {
@@ -61,7 +60,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments 
         }
 
         public OverlapRemovalFixedSegmentsBitmap(Rectangle bbox) {
-            this._bbox = bbox;
+            _bbox = bbox;
             InitBitmap();
             InitTransform();
         }
@@ -69,17 +68,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments 
         public Rectangle GetInitialBoundingBox() {
             Rectangle bbox = new Rectangle();
             bbox.SetToEmpty();
-            foreach (var rect in _fixedRectangles) {
+            foreach (Rectangle rect in _fixedRectangles) {
                 bbox.Add(rect);
             }
-            foreach (var rect in _moveableRectangles) {
+            foreach (Rectangle rect in _moveableRectangles) {
                 bbox.Add(rect);
             }
             return bbox;
         }
 
         public void InitBitmap() {
-            var maxDim = Math.Max(_bbox.Width, _bbox.Height);
+            double maxDim = Math.Max(_bbox.Width, _bbox.Height);
             _mapWidth = (int) (_bbox.Width/maxDim*MaxSize);
             _mapHeight = (int) (_bbox.Height/maxDim*MaxSize);
 
@@ -88,7 +87,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments 
         }
 
         internal bool FindClosestFreePixel(Point p, out PixelPoint found) {
-            var pPixel = PointToPixel(p);
+            PixelPoint pPixel = PointToPixel(p);
 
             for (int r = 0; r < MaxSize/2; r++) {
                 if (!GetFreePixelInRadius(ref pPixel, r)) continue;
@@ -100,9 +99,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments 
             return false;
         }
 
-        public bool IsPositionFree(Point p) {
-            return IsFree(PointToPixel(p));
-        }
+        public bool IsPositionFree(Point p) => IsFree(PointToPixel(p));
 
         public int PositionAllMoveableRectsSameSize(int startInd, RTree<Rectangle> fixedRectanglesTree,
             RTree<SymmetricSegment> fixedSegmentsTree) {
@@ -115,7 +112,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments 
             DrawFixedRectsSegments(fixedRectanglesTree, fixedSegmentsTree);
 
             for (i = startInd; i < _moveableRectangles.Length; i++) {
-                var rect = _moveableRectangles[i];
+                Rectangle rect = _moveableRectangles[i];
 
                 bool couldInsert;
 
@@ -124,8 +121,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments 
                     couldInsert = true;
                 }
                 else {
-                    Point newPos;
-                    couldInsert = FindClosestFreePos(rect.Center, out newPos);
+                    couldInsert = FindClosestFreePos(rect.Center, out Point newPos);
                     movedRectangles[i] = Translate(rect, newPos - rect.Center);
                 }
 
@@ -146,16 +142,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments 
 
         void DrawFixedRectsSegments(RTree<Rectangle> fixedRectanglesTree,
             RTree<SymmetricSegment> fixedSegmentsTree) {
-            foreach (var fr in fixedRectanglesTree.GetAllLeaves())
+            foreach (Rectangle fr in fixedRectanglesTree.GetAllLeaves())
                 DrawRectDilated(fr);
-            foreach (var seg in fixedSegmentsTree.GetAllLeaves()) {
+            foreach (SymmetricSegment seg in fixedSegmentsTree.GetAllLeaves()) {
                 DrawLineSegDilated(seg.A, seg.B);
             }
         }
         
         public bool FindClosestFreePos(Point p, out Point newPos) {
-            PixelPoint iPos;
-            bool found = FindClosestFreePixel(p, out iPos);
+            bool found = FindClosestFreePixel(p, out PixelPoint iPos);
             newPos = GetWorldCoord(iPos);
             return found;
         }
@@ -168,9 +163,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments 
             return translation;
         }
 
-        static Rectangle Translate(Rectangle rect, Point delta) {
-            return new Rectangle(rect.LeftBottom + delta, rect.RightTop + delta);
-        }
+        static Rectangle Translate(Rectangle rect, Point delta) => new Rectangle(rect.LeftBottom + delta, rect.RightTop + delta);
 
         bool GetFreePixelInRadius(ref PixelPoint source, int rad) {
             for (int x = source.X - rad; x <= source.X + rad; x++) {
@@ -200,15 +193,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments 
             return false;
         }
 
-        bool IsFree(PixelPoint p) {
-            return _bitmap.GetPixelValue(p.X, p.Y) == 0;
-        }
+        bool IsFree(PixelPoint p) => _bitmap.GetPixelValue(p.X, p.Y) == 0;
 
 
         void DrawRectDilated(Rectangle rect) {
             Point d = new Point(_insertRectSize/2, _insertRectSize/2);
-            var leftBottom = _worldToMap*(rect.LeftBottom - d);
-            var rightTop = _worldToMap*(rect.RightTop + d);
+            Point leftBottom = _worldToMap*(rect.LeftBottom - d);
+            Point rightTop = _worldToMap*(rect.RightTop + d);
             int ix1 = (int) leftBottom.X;
             int iy1 = (int) leftBottom.Y;
             int iw = (int) (rightTop.X - leftBottom.X);
@@ -219,20 +210,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments 
 
 
         void DrawLineSegDilated(Point p1, Point p2) {
-            var a = PointToPixel(p1);
-            var b = PointToPixel(p2);
+            PixelPoint a = PointToPixel(p1);
+            PixelPoint b = PointToPixel(p2);
             _bitmap.DrawFatSeg(a, b, (int) (_insertRectSize/(2*_pixelSize)+0.5));
         }
 
 
         internal PixelPoint PointToPixel(Point p) {
-            var l = _worldToMap*p;
+            Point l = _worldToMap*p;
             return new PixelPoint((int) (l.X + 0.5), (int) (l.Y + 0.5));
         }
 
-        internal Point GetWorldCoord(PixelPoint p) {
-            return _mapToWorld*new Point(p.X, p.Y);
-        }
+        internal Point GetWorldCoord(PixelPoint p) => _mapToWorld * new Point(p.X, p.Y);
 
         public void InitTransform() {
             double mapCenterX = 0.5*_mapWidth;

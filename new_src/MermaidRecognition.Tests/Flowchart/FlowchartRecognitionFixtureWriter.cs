@@ -1,5 +1,5 @@
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 
 namespace MermaidRecognition.Tests.Flowchart;
 
@@ -9,6 +9,7 @@ namespace MermaidRecognition.Tests.Flowchart;
 public class FlowchartRecognitionFixtureWriter
 {
     [Test]
+    [Explicit("Regenerates baseline fixtures; select this test explicitly to update them.")]
     public void Write_All_Recognition_Fixtures()
     {
         string BaseDir = GetFixtureDirectory();

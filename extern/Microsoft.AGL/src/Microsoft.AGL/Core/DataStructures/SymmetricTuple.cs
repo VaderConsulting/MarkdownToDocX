@@ -6,10 +6,8 @@ namespace Microsoft.AGL.Core.DataStructures {
     /// </summary>
     /// <typeparam name="T"></typeparam>
     public class SymmetricTuple<T> {
-        bool Equals(SymmetricTuple<T> other) {
-            return (A.Equals(other.A) && B.Equals(other.B)) ||
+        bool Equals(SymmetricTuple<T> other) => (A.Equals(other.A) && B.Equals(other.B)) ||
                    (A.Equals(other.B) && B.Equals(other.A));
-        }
 
         /// <summary>
         /// Serves as a hash function for a particular type. 
@@ -55,9 +53,7 @@ namespace Microsoft.AGL.Core.DataStructures {
             return Equals((SymmetricTuple<T>)obj);
         }
 
-        public override string ToString() {
-            return String.Format("({0},{1})", A, B);
-        }
+        public override string ToString() => string.Format("({0},{1})", A, B);
     }
 
 }

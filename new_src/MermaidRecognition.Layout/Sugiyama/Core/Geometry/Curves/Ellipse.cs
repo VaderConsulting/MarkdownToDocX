@@ -15,10 +15,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
         /// <summary>
         /// </summary>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1305:SpecifyIFormatProvider", MessageId = "System.String.Format(System.String,System.Object[])")]
-        public override string ToString() {
-            return String.Format("{0} {1} from {2} to {3} a0={4} a1={5}", Start, End, ParStart, ParEnd, AxisA, AxisB);
-        }
+        public override string ToString() => string.Format("{0} {1} from {2} to {3} a0={4} a1={5}", Start, End, ParStart, ParEnd, AxisA, AxisB);
 #endif
         Rectangle box;
 
@@ -55,23 +52,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
         /// Reverse the ellipe: not implemented.
         /// </summary>
         /// <returns>returns the reversed curve</returns>
-        public ICurve Reverse(){
-            return null; // throw new Exception("not implemented");
-        }
+        public ICurve Reverse() => null; // throw new Exception("not implemented");
 
         /// <summary>
         /// Returns the start point of the curve
         /// </summary>
-        public Point Start{
-            get { return this[ParStart]; }
-        }
+        public Point Start => this[ParStart];
 
         /// <summary>
         /// Returns the end point of the curve
         /// </summary>
-        public Point End{
-            get { return this[ParEnd]; }
-        }
+        public Point End => this[ParEnd];
 
         /// <summary>
         /// Trims the curve
@@ -93,10 +84,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
         /// <param name="start">The starting parameter</param>
         /// <param name="end">The ending parameter</param>
         /// <returns>The trimmed curve</returns>
-        public ICurve TrimWithWrap(double start, double end)
-        {
-            throw new NotImplementedException();
-        }
+        public ICurve TrimWithWrap(double start, double end) => throw new NotImplementedException();
 
         //half x axes
         Point aAxis;
@@ -104,9 +92,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
         /// <summary>
         /// the X axis of the ellipse
         /// </summary>
-        public Point AxisA{
-            get { return aAxis; }
-            set { aAxis = value; }
+        public Point AxisA { get => aAxis; set => aAxis = value;
         }
 
         Point bAxis;
@@ -114,9 +100,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
         /// <summary>
         /// the Y axis of the ellipse
         /// </summary>
-        public Point AxisB{
-            get { return bAxis; }
-            set { bAxis = value; }
+        public Point AxisB { get => bAxis; set => bAxis = value;
         }
 
         Point center;
@@ -124,17 +108,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
         /// <summary>
         /// the center of the ellipse
         /// </summary>
-        public Point Center{
-            get { return center; }
-            set { center = value; }
+        public Point Center { get => center; set => center = value;
         }
 
         /// <summary>
         /// The bounding box of the ellipse
         /// </summary>
-        public Rectangle BoundingBox{
-            get { return box; }
-        }
+        public Rectangle BoundingBox => box;
 
         /// <summary>
         /// Returns the point on the curve corresponding to parameter t
@@ -150,27 +130,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
         /// </summary>
         /// <param name="t">the p</param>
         /// <returns></returns>
-        public Point Derivative(double t){
-            return -Math.Sin(t)*aAxis + Math.Cos(t)*bAxis;
-        }
+        public Point Derivative(double t) => -Math.Sin(t) * aAxis + Math.Cos(t) * bAxis;
 
         /// <summary>
         /// second derivative
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        public Point SecondDerivative(double t){
-            return -Math.Cos(t)*aAxis - Math.Sin(t)*bAxis;
-        }
+        public Point SecondDerivative(double t) => -Math.Cos(t) * aAxis - Math.Sin(t) * bAxis;
 
         /// <summary>
         /// third derivative
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        public Point ThirdDerivative(double t){
-            return Math.Sin(t)*aAxis - Math.Cos(t)*bAxis;
-        }
+        public Point ThirdDerivative(double t) => Math.Sin(t) * aAxis - Math.Cos(t) * bAxis;
 
         /// <summary>
         /// a tree of ParallelogramNodes covering the edge
@@ -193,12 +167,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
 
 
         static ParallelogramNodeOverICurve CreateNodeWithSegmentSplit(double start, double end, Ellipse seg, double eps){
-            var pBNode = new ParallelogramInternalTreeNode(seg, eps);
+            ParallelogramInternalTreeNode pBNode = new ParallelogramInternalTreeNode(seg, eps);
             pBNode.AddChild(CreateParallelogramNodeForCurveSeg(start, 0.5*(start + end), seg, eps));
             pBNode.AddChild(CreateParallelogramNodeForCurveSeg(0.5*(start + end), end, seg, eps));
-            var boxes = new List<Parallelogram>();
-            boxes.Add(pBNode.Children[0].Parallelogram);
-            boxes.Add(pBNode.Children[1].Parallelogram);
+            List<Parallelogram> boxes = new List<Parallelogram>
+            {
+                pBNode.Children[0].Parallelogram,
+                pBNode.Children[1].Parallelogram
+            };
             pBNode.Parallelogram = Parallelogram.GetParallelogramOfAGroup(boxes);
             return pBNode;
         }
@@ -216,8 +192,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
            
             if (ParallelogramNodeOverICurve.DistToSegm(middle, s, e) <= ApproximateComparer.IntersectionEpsilon &&
                 w * w < Curve.LineSegmentThreshold * Curve.LineSegmentThreshold && end - start < Curve.LineSegmentThreshold) {
-                var ls = new LineSegment(s, e);
-                var leaf = ls.ParallelogramNodeOverICurve as ParallelogramLeaf;
+                LineSegment ls = new LineSegment(s, e);
+                ParallelogramLeaf? leaf = ls.ParallelogramNodeOverICurve as ParallelogramLeaf;
                 leaf.Low = start;
                 leaf.High = end;
                 leaf.Seg = seg;
@@ -226,7 +202,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
             }
 
             bool we = WithinEpsilon(seg, start, end, eps);
-            var box = new Parallelogram();
+            Parallelogram box = new Parallelogram();
 
             if(we && CreateParallelogramOnSubSeg(start, end, seg, ref box)){
                 return new ParallelogramLeaf(start, end, box, seg, eps);
@@ -288,19 +264,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
             return d1 <= eps; // && d1d1 > 0;
         }
 
-        static ParallelogramNodeOverICurve CreateParallelogramNodeForCurveSeg(Ellipse seg) {
-            return CreateParallelogramNodeForCurveSeg(seg.ParStart, seg.ParEnd, seg,
+        static ParallelogramNodeOverICurve CreateParallelogramNodeForCurveSeg(Ellipse seg) => CreateParallelogramNodeForCurveSeg(seg.ParStart, seg.ParEnd, seg,
                                                       ParallelogramNodeOverICurve.DefaultLeafBoxesOffset);
-        }
 
         double parStart;
 
         /// <summary>
         /// the start of the parameter domain
         /// </summary>   
-        public double ParStart{
-            get { return parStart; }
-            set { parStart = value; }
+        public double ParStart { get => parStart; set => parStart = value;
         }
 
         double parEnd;
@@ -308,9 +280,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
         /// <summary>
         /// the end of the parameter domain
         /// </summary>
-        public double ParEnd{
-            get { return parEnd; }
-            set { parEnd = value; }
+        public double ParEnd { get => parEnd; set => parEnd = value;
         }
 
         /// <summary>
@@ -392,8 +362,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
         /// </summary>
         public void Translate(Point delta)
         {
-            this.center += delta;
-            this.box = new Rectangle(center + bAxis + aAxis, center - bAxis - aAxis);
+            center += delta;
+            box = new Rectangle(center + bAxis + aAxis, center - bAxis - aAxis);
             parallelogramNodeOverICurve = null;
         }
 
@@ -403,10 +373,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
         /// <param name="xScale"></param>
         /// <param name="yScale"></param>
         /// <returns>the moved ellipse</returns>
-        public ICurve ScaleFromOrigin(double xScale, double yScale)
-        {
-            return new Ellipse(parStart, parEnd, aAxis * xScale, bAxis * yScale, Point.Scale(xScale, yScale, center));
-        }
+        public ICurve ScaleFromOrigin(double xScale, double yScale) => new Ellipse(parStart, parEnd, aAxis * xScale, bAxis * yScale, Point.Scale(xScale, yScale, center));
 
         /// <summary>
         /// 
@@ -417,13 +384,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
             //todo: slow version!
             const double eps = 0.001;
 
-            var l = ParStart;
-            var u = ParEnd;
-            var lenplus = length + eps;
-            var lenminsu = length - eps;
+            double l = ParStart;
+            double u = ParEnd;
+            double lenplus = length + eps;
+            double lenminsu = length - eps;
             while (u - l > ApproximateComparer.DistanceEpsilon) {
-                var m = 0.5*(u + l);
-                var len = LengthPartial(ParStart, m);
+                double m = 0.5*(u + l);
+                double len = LengthPartial(ParStart, m);
                 if(len>lenplus)
                     u=m;
                 else if (len < lenminsu)
@@ -459,7 +426,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
             const int numberOfTestPoints = 8;
             double t = (high - low) / (numberOfTestPoints + 1);
             double closest = low;
-            double minDist = Double.MaxValue;
+            double minDist = double.MaxValue;
             for (int i = 0; i <= numberOfTestPoints; i++) {
                 double par = low + i * t;
                 Point p = targetPoint - this[par];
@@ -483,27 +450,19 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
         /// <param name="start"></param>
         /// <param name="end"></param>
         /// <returns></returns>
-        public double LengthPartial(double start, double end) {
-            return Curve.LengthWithInterpolationAndThreshold(Trim(start, end), Curve.LineSegmentThreshold/100);
-        }
+        public double LengthPartial(double start, double end) => Curve.LengthWithInterpolationAndThreshold(Trim(start, end), Curve.LineSegmentThreshold / 100);
 
         /// <summary>
         /// Return the length of the ellipse curve: not implemented
         /// </summary>
-        public double Length{
-            get {
-                return Curve.LengthWithInterpolation(this);
-            }
-        }
+        public double Length => Curve.LengthWithInterpolation(this);
 
 
         /// <summary>
         /// clones the curve. 
         /// </summary>
         /// <returns>the cloned curve</returns>
-        public ICurve Clone(){
-            return new Ellipse(parStart, parEnd, aAxis, bAxis, center);
-        }
+        public ICurve Clone() => new Ellipse(parStart, parEnd, aAxis, bAxis, center);
 
         #region ICurve Members
 
@@ -517,7 +476,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
             const int numberOfTestPoints = 8;
             double t = (ParEnd - ParStart)/(numberOfTestPoints + 1);
             double closest = ParStart;
-            double minDist = Double.MaxValue;
+            double minDist = double.MaxValue;
             for (int i = 0; i <= numberOfTestPoints; i++){
                 double par = ParStart + i*t;
                 Point p = targetPoint - this[par];
@@ -546,18 +505,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
         /// </summary>
         /// <param name="t">the parameter where the derivative is calculated</param>
         /// <returns></returns>
-        public Point LeftDerivative(double t){
-            return Derivative(t);
-        }
+        public Point LeftDerivative(double t) => Derivative(t);
 
         /// <summary>
         /// right derivative at t
         /// </summary>
         /// <param name="t">the parameter where the derivative is calculated</param>
         /// <returns></returns>
-        public Point RightDerivative(double t){
-            return Derivative(t);
-        }
+        public Point RightDerivative(double t) => Derivative(t);
 
         #endregion
 
@@ -568,18 +523,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        public double Curvature(double t){
-            throw new NotImplementedException();
-        }
+        public double Curvature(double t) => throw new NotImplementedException();
 
         /// <summary>
         /// 
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        public double CurvatureDerivative(double t){
-            throw new NotImplementedException();
-        }
+        public double CurvatureDerivative(double t) => throw new NotImplementedException();
 
 
         /// <summary>
@@ -587,35 +538,29 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        public double CurvatureSecondDerivative(double t){
-            throw new NotImplementedException();
-        }
+        public double CurvatureSecondDerivative(double t) => throw new NotImplementedException();
 
         #endregion
         /// <summary>
         /// returns true if the ellipse goes counterclockwise
         /// </summary>
         /// <returns></returns>
-        public bool OrientedCounterclockwise(){
-            return AxisA.X*AxisB.Y - AxisB.X*AxisA.Y > 0;
-        }
+        public bool OrientedCounterclockwise() => AxisA.X * AxisB.Y - AxisB.X * AxisA.Y > 0;
 
-      
+
         ///<summary>
         ///returns the box of the ellipse that this ellipse is a part of
         ///</summary>
         ///<returns></returns>
         public Rectangle FullBox() {
-            var del=AxisA + AxisB;
+            Point del =AxisA + AxisB;
             return new Rectangle(center + del, center - del);
         }
 
         ///<summary>
         ///is it a proper circle?
         ///</summary>
-        public bool IsArc() {
-            return AxisA.X == AxisB.Y && AxisA.Y == -AxisB.X;
-        }
+        public bool IsArc() => AxisA.X == AxisB.Y && AxisA.Y == -AxisB.X;
 
     }
 }

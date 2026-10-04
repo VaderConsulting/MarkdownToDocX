@@ -55,16 +55,12 @@ namespace Microsoft.AGL.Core.Layout {
         /// <summary>
         ///     Indicates if this EdgeGeometry has waypoints.
         /// </summary>
-        public bool HasWaypoints {
-            get { return (Waypoints != null) && Waypoints.Any(); }
-        }
+        public bool HasWaypoints => (Waypoints != null) && Waypoints.Any();
 
         /// <summary>
         /// </summary>
         /// <returns></returns>
-        public override string ToString() {
-            return String.Format(CultureInfo.InvariantCulture, "{0}->{1}", SourcePort.Location, TargetPort.Location);
-        }
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "{0}->{1}", SourcePort.Location, TargetPort.Location);
 
         /// <summary>
         ///     edge thickness
@@ -75,21 +71,20 @@ namespace Microsoft.AGL.Core.Layout {
         /// <summary>
         ///     A curve representing the edge
         /// </summary>
-        public ICurve Curve {
-            get { return curve; }
-            set {
+        public ICurve Curve
+        {
+            get => curve;
+            set
+            {
                 RaiseLayoutChangeEvent(value);
-                curve = value;                
+                curve = value;
             }
         }
 
         /// <summary>
         ///     the polyline of the untrimmed spline
         /// </summary>
-        [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Polyline")]
-        public SmoothedPolyline SmoothedPolyline {
-            get { return smoothedPolyline; }
-            set { smoothedPolyline = value; }
+        public SmoothedPolyline SmoothedPolyline { get => smoothedPolyline; set => smoothedPolyline = value;
         }
 
         /// <summary>
@@ -103,7 +98,7 @@ namespace Microsoft.AGL.Core.Layout {
                 if (TargetArrowhead != null)
                     bBox.Add(TargetArrowhead.TipPosition);
                 double del = 0.5*LineWidth;
-                var delta = new Point(-del, del);
+                Point delta = new Point(-del, del);
                 bBox.Add(bBox.LeftTop + delta);
                 bBox.Add(bBox.RightBottom - delta);
                 return bBox;

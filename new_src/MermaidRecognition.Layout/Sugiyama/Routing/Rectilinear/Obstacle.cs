@@ -26,21 +26,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         /// </summary>
         public Obstacle(Shape shape, bool makeRect, double padding) {
             if (makeRect) {
-                var paddedBox = shape.BoundingBox;
+                Rectangle paddedBox = shape.BoundingBox;
                 paddedBox.Pad(padding);
-                this.PaddedPolyline = Curve.PolyFromBox(paddedBox);
+                PaddedPolyline = Curve.PolyFromBox(paddedBox);
             } else {
-                this.PaddedPolyline = InteractiveObstacleCalculator.PaddedPolylineBoundaryOfNode(shape.BoundaryCurve, padding);
+                PaddedPolyline = InteractiveObstacleCalculator.PaddedPolylineBoundaryOfNode(shape.BoundaryCurve, padding);
 #if TEST_MSAGL || VERIFY_MSAGL
                 // This throws if the polyline is nonconvex.
-                VisibilityGraph.CheckThatPolylineIsConvex(this.PaddedPolyline);
+                VisibilityGraph.CheckThatPolylineIsConvex(PaddedPolyline);
 #endif // TEST || VERIFY
             }
 
-            RoundVertices(this.PaddedPolyline);
-            this.IsRectangle = this.IsPolylineRectangle();
-            if (!this.IsRectangle) {
-                this.ConvertToRectangleIfClose();
+            RoundVertices(PaddedPolyline);
+            IsRectangle = IsPolylineRectangle();
+            if (!IsRectangle) {
+                ConvertToRectangleIfClose();
             }
             InputShape = shape;
             Ports = new Set<Port>(InputShape.Ports);
@@ -50,7 +50,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         // From CreateSentinel only
         Obstacle(Point a, Point b, int scanlineOrdinal) {
             PaddedPolyline = new Polyline(ApproximateComparer.Round(a), ApproximateComparer.Round(b)) {Closed = true};
-            this.Ordinal = scanlineOrdinal;
+            Ordinal = scanlineOrdinal;
         }
 
         internal LowObstacleSide ActiveLowSide { get; set; }
@@ -66,47 +66,39 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         /// <summary>
         /// The polyline that is either the PaddedPolyline or a convex hull for multiple overlapping obstacles.
         /// </summary>
-        internal Polyline VisibilityPolyline { 
-            get {
-                return (this.ConvexHull != null) ? this.ConvexHull.Polyline : this.PaddedPolyline;
-            }
-        }
+        internal Polyline VisibilityPolyline => (ConvexHull != null) ? ConvexHull.Polyline : PaddedPolyline;
 
         /// <summary>
         /// The visibility polyline that is used for intersection comparisons and group obstacle avoidance.
         /// </summary>
         internal Polyline LooseVisibilityPolyline {
             get { 
-                if (this.looseVisibilityPolyline == null) {
-                    this.looseVisibilityPolyline = CreateLoosePolyline(this.VisibilityPolyline);
+                if (looseVisibilityPolyline == null) {
+                    looseVisibilityPolyline = CreateLoosePolyline(VisibilityPolyline);
                 }
-                return this.looseVisibilityPolyline;
+                return looseVisibilityPolyline;
             }
         }
 
         internal static Polyline CreateLoosePolyline(Polyline polyline) {
-            var loosePolyline = InteractiveObstacleCalculator.CreatePaddedPolyline(polyline, ApproximateComparer.IntersectionEpsilon * 10);
+            Polyline loosePolyline = InteractiveObstacleCalculator.CreatePaddedPolyline(polyline, ApproximateComparer.IntersectionEpsilon * 10);
             RoundVertices(loosePolyline);
             return loosePolyline;
         }
 
         private Polyline looseVisibilityPolyline;
 
-        internal Rectangle PaddedBoundingBox {
-            get { return PaddedPolyline.BoundingBox; }
-        }
+        internal Rectangle PaddedBoundingBox => PaddedPolyline.BoundingBox;
 
-        internal Rectangle VisibilityBoundingBox {
-            get { return VisibilityPolyline.BoundingBox; }
-        }
+        internal Rectangle VisibilityBoundingBox => VisibilityPolyline.BoundingBox;
 
-        internal bool IsGroup {
-            get { return (null != InputShape) && InputShape.IsGroup; }
-        }
+        internal bool IsGroup => (null != InputShape) && InputShape.IsGroup;
 
-        internal bool IsTransparentAncestor {
-            get { return InputShape == null ? false : InputShape.IsTransparent; }
-            set {
+        internal bool IsTransparentAncestor
+        {
+            get => InputShape == null ? false : InputShape.IsTransparent;
+            set
+            {
                 if (InputShape == null)
                     throw new InvalidOperationException();
                 InputShape.IsTransparent = value;
@@ -125,15 +117,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 
         internal bool IsOverlapped {
             get {
-                Debug.Assert((this.Clump == null) || !this.IsGroup, "Groups should not be considered overlapped");
-                Debug.Assert((this.Clump == null) || (this.ConvexHull == null), "Clumped obstacles should not have overlapped convex hulls");
-                return (this.Clump != null);
+                Debug.Assert((Clump == null) || !IsGroup, "Groups should not be considered overlapped");
+                Debug.Assert((Clump == null) || (ConvexHull == null), "Clumped obstacles should not have overlapped convex hulls");
+                return (Clump != null);
             }
         }
 
-        public bool IsInSameClump(Obstacle other) {
-            return this.IsOverlapped && (this.Clump == other.Clump);
-        }
+        public bool IsInSameClump(Obstacle other) => IsOverlapped && (Clump == other.Clump);
 
         /// <summary>
         /// For sparseVg, the obstacle has a group corner inside it.
@@ -142,25 +132,23 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 
         // A single convex hull is shared by all obstacles contained by it and we only want one occurrence of that
         // convex hull's polyline in the visibility graph generation.
-        internal bool IsPrimaryObstacle { get { return (this.ConvexHull == null) || (this == this.ConvexHull.PrimaryObstacle); } }
+        internal bool IsPrimaryObstacle => (ConvexHull == null) || (this == ConvexHull.PrimaryObstacle);
 
         internal OverlapConvexHull ConvexHull { get; private set; }
-        internal bool IsInConvexHull { get { return this.ConvexHull != null; } }    // Note there is no !IsGroup check
+        internal bool IsInConvexHull => ConvexHull != null;     // Note there is no !IsGroup check
 
         internal void SetConvexHull(OverlapConvexHull hull) {
             // This obstacle may have been in a rectangular obstacle or clump that was now found to overlap with a non-rectangular obstacle.
-            this.Clump = null;
-            this.IsRectangle = false;
-            this.ConvexHull = hull;
-            this.looseVisibilityPolyline = null;
+            Clump = null;
+            IsRectangle = false;
+            ConvexHull = hull;
+            looseVisibilityPolyline = null;
         }
 
         // Cloned from InputShape and held to test for Port-membership changes.
         internal Set<Port> Ports { get; private set; }
 
-        internal bool IsSentinel {
-            get { return null == InputShape; }
-        }
+        internal bool IsSentinel => null == InputShape;
 
         // Set the initial ActiveLowSide and ActiveHighSide of the obstacle starting at this point.
         internal void CreateInitialSides(PolylinePoint startPoint, ScanDirection scanDir) {
@@ -182,7 +170,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         }
 
         internal static Obstacle CreateSentinel(Point a, Point b, ScanDirection scanDir, int scanlineOrdinal) {
-            var sentinel = new Obstacle(a, b, scanlineOrdinal);
+            Obstacle sentinel = new Obstacle(a, b, scanlineOrdinal);
             sentinel.CreateInitialSides(sentinel.PaddedPolyline.StartPoint, scanDir);
             return sentinel;
         }
@@ -205,7 +193,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         }
 
         internal static Polyline RemoveCloseAndCollinearVerticesInPlace(Polyline polyline) {
-            var epsilon = ApproximateComparer.IntersectionEpsilon * 10;
+            double epsilon = ApproximateComparer.IntersectionEpsilon * 10;
             for (PolylinePoint pp = polyline.StartPoint.Next; pp != null; pp = pp.Next) {
                 if (ApproximateComparer.Close(pp.Prev.Point, pp.Point, epsilon)) {
                     if (pp.Next == null) {
@@ -234,42 +222,42 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         }
 
         private bool IsPolylineRectangle () {
-            if (this.PaddedPolyline.PolylinePoints.Count() != 4) {
+            if (PaddedPolyline.PolylinePoints.Count() != 4) {
                 return false;
             }
 
-            var ppt = this.PaddedPolyline.StartPoint;
-            var nextPpt = ppt.NextOnPolyline;
-            var dir = CompassVector.DirectionsFromPointToPoint(ppt.Point, nextPpt.Point);
+            PolylinePoint ppt = PaddedPolyline.StartPoint;
+            PolylinePoint nextPpt = ppt.NextOnPolyline;
+            Directions dir = CompassVector.DirectionsFromPointToPoint(ppt.Point, nextPpt.Point);
             if (!CompassVector.IsPureDirection(dir)) {
                 return false;
             }
             do {
                 ppt = nextPpt;
                 nextPpt = ppt.NextOnPolyline;
-                var nextDir = CompassVector.DirectionsFromPointToPoint(ppt.Point, nextPpt.Point);
+                Directions nextDir = CompassVector.DirectionsFromPointToPoint(ppt.Point, nextPpt.Point);
 
                 // We know the polyline is clockwise.
                 if (nextDir != CompassVector.RotateRight(dir)) {
                     return false;
                 }
                 dir = nextDir;
-            } while (ppt != this.PaddedPolyline.StartPoint);
+            } while (ppt != PaddedPolyline.StartPoint);
             return true;
         }
 
         // Internal for testing
         internal void ConvertToRectangleIfClose() {
-            if (this.PaddedPolyline.PolylinePoints.Count() != 4) {
+            if (PaddedPolyline.PolylinePoints.Count() != 4) {
                 return;
             }
 
             // We're not a rectangle now but that may be due to rounding error, so we may be close to one.
             // First check that it's close to an axis.
-            var ppt = this.PaddedPolyline.StartPoint;
-            var nextPpt = ppt.NextOnPolyline;
-            var testPoint = ppt.Point - nextPpt.Point;
-            var slope = ((testPoint.X == 0) || (testPoint.Y == 0)) ? 0 : Math.Abs(testPoint.Y / testPoint.X);
+            PolylinePoint ppt = PaddedPolyline.StartPoint;
+            PolylinePoint nextPpt = ppt.NextOnPolyline;
+            Point testPoint = ppt.Point - nextPpt.Point;
+            double slope = ((testPoint.X == 0) || (testPoint.Y == 0)) ? 0 : Math.Abs(testPoint.Y / testPoint.X);
             const double factor = 1000.0;
             if ((slope < factor) && (slope > (1.0/factor))) {
                 return;
@@ -279,19 +267,19 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 
             // Now check angles.
             do {
-                var nextNextPpt = nextPpt.NextOnPolyline;
-                var angle = Point.Angle(ppt.Point, nextPpt.Point, nextNextPpt.Point);
+                PolylinePoint nextNextPpt = nextPpt.NextOnPolyline;
+                double angle = Point.Angle(ppt.Point, nextPpt.Point, nextNextPpt.Point);
                 if (Math.Abs(radian90 - angle) > maxAngleDiff) {
                     return;
                 }
 
                 ppt = nextPpt;
                 nextPpt = nextNextPpt;
-            } while (ppt != this.PaddedPolyline.StartPoint);
+            } while (ppt != PaddedPolyline.StartPoint);
 
-            this.PaddedPolyline = Curve.PolyFromBox(this.PaddedPolyline.BoundingBox);
-            this.IsRectangle = true;
-            Debug.Assert(this.IsPolylineRectangle(), "PaddedPolyline is not rectangular");
+            PaddedPolyline = Curve.PolyFromBox(PaddedPolyline.BoundingBox);
+            IsRectangle = true;
+            Debug.Assert(IsPolylineRectangle(), "PaddedPolyline is not rectangular");
             return;
         }
 

@@ -94,9 +94,7 @@ public sealed class FlowchartEdgeRouteDiagnosticFinding
     /// <summary>
     /// Returns a single-line diagnostic suitable for test output and logs.
     /// </summary>
-    public string FormatLine()
-    {
-        return string.Format(
+    public string FormatLine() => string.Format(
             CultureInfo.InvariantCulture,
             "[{0}] {1} class={2} kind={3} ports=({4:F1},{5:F1})->({6:F1},{7:F1}) {8}",
             Kind,
@@ -108,5 +106,4 @@ public sealed class FlowchartEdgeRouteDiagnosticFinding
             TargetPortX,
             TargetPortY,
             Reason);
-    }
 }

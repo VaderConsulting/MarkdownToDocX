@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Core;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Layout;
 using MermaidRecognition.Render;
 
@@ -18,8 +20,8 @@ public sealed class FlowchartRetryLoopPathTests
     [Test]
     public void BuildRetryLoopPathData_OmitsCornerInterpolationPoints()
     {
-        List<(double X, double Y)> GuidePoints = new List<(double X, double Y)>
-        {
+        List<(double X, double Y)> GuidePoints =
+        [
             (100.0, 50.0),
             (112.0, 50.0),
             (112.0, 70.0),
@@ -27,7 +29,7 @@ public sealed class FlowchartRetryLoopPathTests
             (300.0, 120.0),
             (300.0, 90.0),
             (300.0, 80.0)
-        };
+        ];
 
         string PathData = FlowchartCurvePathBuilder.BuildRetryLoopPathData(GuidePoints);
 

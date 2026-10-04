@@ -1,6 +1,7 @@
 using System.Collections.Generic;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 
 namespace MermaidRecognition.Layout;
 
@@ -19,9 +20,7 @@ public static class FlowchartLocalDecisionBranchRouteBuilder
         string? SourceShape,
         string? TargetShape,
         FlowchartDirection Direction,
-        List<(double X, double Y)> LayoutPoints)
-    {
-        return FlowchartDecisionPortAllocator.TryBuildDecisionFanOutCurvedRoute(
+        List<(double X, double Y)> LayoutPoints) => FlowchartDecisionPortAllocator.TryBuildDecisionFanOutCurvedRoute(
             Edge,
             Contract,
             BoundsById,
@@ -29,5 +28,4 @@ public static class FlowchartLocalDecisionBranchRouteBuilder
             TargetShape,
             Direction,
             LayoutPoints);
-    }
 }

@@ -10,12 +10,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
     /// </summary>
     internal static class ShapeCreatorForRoutingToParents {
         public static IEnumerable<Shape> GetShapes(IEnumerable<Edge> inParentEdges, List<Edge> outParentEdges) {
-            var nodesToShapes = new Dictionary<Node, Shape>();
-            foreach (var edge in inParentEdges) {
+            Dictionary<Node, Shape> nodesToShapes = new Dictionary<Node, Shape>();
+            foreach (Edge edge in inParentEdges) {
                 ProcessAncestorDescendantCouple((Cluster)edge.Target, edge.Source, nodesToShapes);
                 InsertEdgePortsToShapes(nodesToShapes, edge);
             }
-            foreach (var edge in outParentEdges) {
+            foreach (Edge edge in outParentEdges) {
                 ProcessAncestorDescendantCouple((Cluster)edge.Source, edge.Target, nodesToShapes);
                 InsertEdgePortsToShapes(nodesToShapes, edge);
             }
@@ -30,13 +30,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         }
 
         static void BindShapes(Dictionary<Node, Shape> nodesToShapes) {
-            foreach (var nodeShape in nodesToShapes) {
-                var cluster = nodeShape.Key as Cluster;
-                if(cluster==null) continue;
-                var shape=nodeShape.Value;
-                foreach (var child in Children(cluster) ) {
-                    Shape childShape;
-                    if(nodesToShapes.TryGetValue(child, out childShape))
+            foreach (KeyValuePair<Node, Shape> nodeShape in nodesToShapes) {
+                if (nodeShape.Key is not Cluster cluster) continue;
+                Shape shape =nodeShape.Value;
+                foreach (Node child in Children(cluster) ) {
+                    if (nodesToShapes.TryGetValue(child, out Shape? childShape))
                         shape.AddChild(childShape);
                 }
             }
@@ -45,7 +43,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         static void ProcessAncestorDescendantCouple(Cluster ancestor, Node node, Dictionary<Node, Shape> nodesToShapes) {
             Cluster parent=Parent(node);
             do {
-                foreach (var n in Children(parent))
+                foreach (Node n in Children(parent))
                     CreateShapeIfNeeeded(n, nodesToShapes);
                 if (parent == ancestor)
                     break;
@@ -65,26 +63,24 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
                 ;
         }
 
-        static IEnumerable<Node> Children(Cluster parent) {
+        static IEnumerable<Node> Children(Cluster parent) =>
 #if SILVERLIGHT
             return parent.Clusters.Cast<Node>().Concat(parent.Nodes);
 #else
-            return parent.Clusters.Concat(parent.Nodes);
+            parent.Clusters.Concat(parent.Nodes);
 #endif
-        }
 
 
-        static Cluster Parent(Node node) {
-            return node.ClusterParents.First();
-        }
+
+        static Cluster Parent(Node node) => node.ClusterParents.First();
 
         internal static bool NumberOfActiveNodesIsUnderThreshold(List<Edge> inParentEdges, List<Edge> outParentEdges, int threshold) {
-            var usedNodeSet = new Set<Node>();
-            foreach (var edge in inParentEdges) 
+            Set<Node> usedNodeSet = new Set<Node>();
+            foreach (Edge edge in inParentEdges) 
                 if(SetOfActiveNodesIsLargerThanThreshold((Cluster)edge.Target, edge.Source, usedNodeSet, threshold))
                    return false;
             
-            foreach (var edge in outParentEdges) 
+            foreach (Edge edge in outParentEdges) 
                 if(SetOfActiveNodesIsLargerThanThreshold((Cluster)edge.Source, edge.Target, usedNodeSet, threshold))
                   return false;
             
@@ -94,7 +90,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         private static bool SetOfActiveNodesIsLargerThanThreshold(Cluster ancestor, Node node, Set<Node> usedNodeSet, int threshold) {
             Cluster parent = Parent(node);
             do {
-                foreach (var n in Children(parent)) {
+                foreach (Node n in Children(parent)) {
                     usedNodeSet.Insert(n);
                     if (usedNodeSet.Count > threshold)
                         return true;

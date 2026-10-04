@@ -4,16 +4,13 @@ namespace MDConverter.Model;
 
 public sealed class TableBlock : BlockNode
 {
-    private readonly List<TableRow> _Rows = new List<TableRow>();
+    private readonly List<TableRow> _Rows = [];
 
     public bool HasHeaderRow { get; set; } = true;
 
     public IReadOnlyList<TableAlignment> ColumnAlignments { get; set; } = new List<TableAlignment>();
 
-    public IReadOnlyList<TableRow> Rows
-    {
-        get { return _Rows; }
-    }
+    public IReadOnlyList<TableRow> Rows => _Rows;
 
     public void AddRow(TableRow Row)
     {
@@ -30,12 +27,9 @@ public enum TableAlignment
 
 public sealed class TableRow
 {
-    private readonly List<TableCell> _Cells = new List<TableCell>();
+    private readonly List<TableCell> _Cells = [];
 
-    public IReadOnlyList<TableCell> Cells
-    {
-        get { return _Cells; }
-    }
+    public IReadOnlyList<TableCell> Cells => _Cells;
 
     public void AddCell(TableCell Cell)
     {
@@ -45,12 +39,9 @@ public sealed class TableRow
 
 public sealed class TableCell
 {
-    private readonly List<BlockNode> _Blocks = new List<BlockNode>();
+    private readonly List<BlockNode> _Blocks = [];
 
-    public IReadOnlyList<BlockNode> Blocks
-    {
-        get { return _Blocks; }
-    }
+    public IReadOnlyList<BlockNode> Blocks => _Blocks;
 
     public void AddBlock(BlockNode Block)
     {

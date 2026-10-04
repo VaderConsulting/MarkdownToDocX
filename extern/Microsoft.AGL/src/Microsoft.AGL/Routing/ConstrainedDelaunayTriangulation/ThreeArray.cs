@@ -16,9 +16,7 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
         T item1;
         T item2;
 
-        internal bool Contains(T t) {
-            return t.Equals(item0) || t.Equals(item1) || t.Equals(item2);
-        }
+        internal bool Contains(T t) => t.Equals(item0) || t.Equals(item1) || t.Equals(item2);
 
         internal int Index(T t) {
             if(t.Equals(item0))

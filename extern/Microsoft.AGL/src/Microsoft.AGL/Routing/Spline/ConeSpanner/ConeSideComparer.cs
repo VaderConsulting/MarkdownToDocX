@@ -7,19 +7,14 @@ using Microsoft.AGL.Core.Geometry.Curves;
 namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
     internal class ConeSideComparer : IComparer<ConeSide> {
         Point x;
-        internal void SetOperand(ConeSide activeElement) {
-            x = IntersectionOfSegmentAndSweepLine((activeElement));
-        }
+        internal void SetOperand(ConeSide activeElement) => x = IntersectionOfSegmentAndSweepLine((activeElement));
         readonly IConeSweeper coneSweeper;
 
-        internal ConeSideComparer(IConeSweeper coneSweeper) {
-            this.coneSweeper = coneSweeper;
-        }
+        internal ConeSideComparer(IConeSweeper coneSweeper) => this.coneSweeper = coneSweeper;
 
         public int Compare(ConeSide a, ConeSide b) {
-            var aObst = a as BrokenConeSide;
-            var bObst = b as BrokenConeSide;
-            if (aObst != null) {
+            BrokenConeSide bObst = b as BrokenConeSide;
+            if (a is BrokenConeSide aObst) {
                 return bObst != null ? CompareBrokenSides(aObst, bObst) : CompareObstacleSideAndConeSide(b);
             } else {
                 //a is ConeSide
@@ -28,7 +23,7 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
         }
 
         static int CompareNotIntersectingSegs(ConeSide a, ConeSide b) {
-            var signedArea = Point.GetTriangleOrientation(a.Start, b.Start, b.Start + b.Direction);
+            TriangleOrientation signedArea = Point.GetTriangleOrientation(a.Start, b.Start, b.Start + b.Direction);
 
             switch (signedArea) {
                 case TriangleOrientation.Counterclockwise:
@@ -41,7 +36,7 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
         }
 
         int CompareObstacleSideAndConeSide(ConeSide coneSide) {
-            var orientation = Point.GetTriangleOrientation(x, coneSide.Start,
+            TriangleOrientation orientation = Point.GetTriangleOrientation(x, coneSide.Start,
                                                                            coneSide.Start + coneSide.Direction);
             if (orientation == TriangleOrientation.Counterclockwise)
                 return -1;
@@ -54,7 +49,7 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
         }
 
         int CompareConeSideAndObstacleSide(ConeSide coneSide, BrokenConeSide brokenConeSide) {
-            var orientation = Point.GetTriangleOrientation(x, brokenConeSide.Start, brokenConeSide.End);
+            TriangleOrientation orientation = Point.GetTriangleOrientation(x, brokenConeSide.Start, brokenConeSide.End);
             if (orientation == TriangleOrientation.Counterclockwise)
                 return -1;
             if (orientation == TriangleOrientation.Clockwise)
@@ -68,9 +63,9 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
         }
 
         internal Point IntersectionOfSegmentAndSweepLine(ConeSide obstacleSide) {
-            var den = obstacleSide.Direction*coneSweeper.SweepDirection;
+            double den = obstacleSide.Direction*coneSweeper.SweepDirection;
             Debug.Assert(Math.Abs(den) > 0);
-            var t = (coneSweeper.Z - obstacleSide.Start*coneSweeper.SweepDirection)/den;
+            double t = (coneSweeper.Z - obstacleSide.Start*coneSweeper.SweepDirection)/den;
             return obstacleSide.Start + t*obstacleSide.Direction;
         }
 

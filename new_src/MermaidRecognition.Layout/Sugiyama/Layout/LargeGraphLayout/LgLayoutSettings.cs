@@ -50,17 +50,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         /// <summary>
         /// this graph is shown in the viewer
         /// </summary>
-        public RailGraph RailGraph {
-            get { return Interactor != null ? Interactor.RailGraph : null; }
-        }
+        public RailGraph RailGraph => Interactor != null ? Interactor.RailGraph : null;
 
         /// <summary>
         /// clones the object
         /// </summary>
         /// <returns></returns>
-        public override LayoutAlgorithmSettings Clone() {
-            return (LayoutAlgorithmSettings) MemberwiseClone();
-        }
+        public override LayoutAlgorithmSettings Clone() => (LayoutAlgorithmSettings)MemberwiseClone();
 
         /// <summary>
         /// the algorithm object
@@ -98,22 +94,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         public Func<Rectangle> ClientViewportMappedToGraph { get; set; }            
 
 
-        Dictionary<Node, LgNodeInfo> geometryNodesToLgNodeInfos = new Dictionary<Node, LgNodeInfo>();
+        Dictionary<Node, LgNodeInfo> geometryNodesToLgNodeInfos = [];
 
         /// <summary>
         /// the mapping from Geometry nodes to LgNodes
         /// </summary>
-        public Dictionary<Node, LgNodeInfo> GeometryNodesToLgNodeInfos {
-            get { return geometryNodesToLgNodeInfos; }
-            set { geometryNodesToLgNodeInfos = value; }
+        public Dictionary<Node, LgNodeInfo> GeometryNodesToLgNodeInfos { get => geometryNodesToLgNodeInfos; set => geometryNodesToLgNodeInfos = value;
         }
 
         /// <summary>
         /// 
         /// </summary>
-        public IDictionary<Edge, LgEdgeInfo> GeometryEdgesToLgEdgeInfos {
-            get { return Interactor.GeometryEdgesToLgEdgeInfos; }
-        }
+        public IDictionary<Edge, LgEdgeInfo> GeometryEdgesToLgEdgeInfos => Interactor.GeometryEdgesToLgEdgeInfos;
 
 
 
@@ -133,66 +125,48 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         /// <summary>
         /// the range of scale 
         /// </summary>
-        public Interval ScaleInterval {
-            get { return _scaleInterval; }
-            set { _scaleInterval = value; }
+        public Interval ScaleInterval { get => _scaleInterval; set => _scaleInterval = value;
         }
         /// <summary>
         /// set this property to true if the graph comes with a given layout
         /// </summary>
-        public bool NeedToLayout {
-            get { return needToLayout; }
-            set { needToLayout = value; }
+        public bool NeedToLayout { get => needToLayout; set => needToLayout = value;
         }
 
         /// <summary>
         /// the node quota per tile
         /// </summary>
-        public int MaxNumberOfNodesPerTile {
-            get { return maxNumberOfNodesPerTile; }
-            set { maxNumberOfNodesPerTile = value; }
+        public int MaxNumberOfNodesPerTile { get => maxNumberOfNodesPerTile; set => maxNumberOfNodesPerTile = value;
         }
 
         private int increaseNodeQuota;
 
         public int IncreaseNodeQuota
-        {
-            get { return increaseNodeQuota; }
-            set { increaseNodeQuota = value; }
+        { get => increaseNodeQuota; set => increaseNodeQuota = value;
         }
-        
+
         int maxNumberOfRailsPerTile = 300;
         
         public int MaxNumberOfRailsPerTile
-        {
-            get { return maxNumberOfRailsPerTile; }
-            set { maxNumberOfRailsPerTile = value; }
+        { get => maxNumberOfRailsPerTile; set => maxNumberOfRailsPerTile = value;
         }
 
         /// <summary>
         /// 
         /// </summary>
         /// <returns></returns>
-        public double GetMaximalZoomLevel() {
-            return Interactor.GetMaximalZoomLevel();
-        }
+        public double GetMaximalZoomLevel() => Interactor.GetMaximalZoomLevel();
 
         bool _simplifyRoutes = true;
         int _numberOfNodeShapeSegs = 16;
 
-        public bool SimplifyRoutes {
-            get { return _simplifyRoutes; }
-            set { _simplifyRoutes = value; }
+        public bool SimplifyRoutes { get => _simplifyRoutes; set => _simplifyRoutes = value;
         }
 
-        public int NumberOfNodeShapeSegs {
-            get { return _numberOfNodeShapeSegs; }
-            set { _numberOfNodeShapeSegs = value; }
+        public int NumberOfNodeShapeSegs { get => _numberOfNodeShapeSegs; set => _numberOfNodeShapeSegs = value;
         }
 
-        public bool GenerateTiles {
-            get { return _generateTiles; }
-            set { _generateTiles = value; }
+        public bool GenerateTiles { get => _generateTiles; set => _generateTiles = value;
         }
 
         bool _generateTiles = true;

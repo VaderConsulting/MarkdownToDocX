@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves;
+using MermaidRecognition.Layout.Sugiyama.Core.Geometry.OverlapRemoval;
 
 namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
     /// <summary>
@@ -19,17 +21,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// <summary>
         ///     this flag should be respected by layout algorithms
         /// </summary>
-        public bool IsCollapsed {
-            get { return isCollapsed; }
-            set { isCollapsed = value; }
+        public bool IsCollapsed { get => isCollapsed; set => isCollapsed = value;
         }
 
         /// <summary>
         /// 
         /// </summary>
-        public override ICurve BoundaryCurve {
-            get { return IsCollapsed ? CollapsedBoundary : base.BoundaryCurve; }
-            set { base.BoundaryCurve = value; }
+        public override ICurve BoundaryCurve { get => IsCollapsed ? CollapsedBoundary : base.BoundaryCurve; set => base.BoundaryCurve = value;
         }
 
         event EventHandler<LayoutChangeEventArgs> layoutDoneEvent;
@@ -37,24 +35,20 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// <summary>
         ///     event signalling that the layout is done
         /// </summary>
-        public event EventHandler<LayoutChangeEventArgs> LayoutDoneEvent {
-            add { layoutDoneEvent += value; }
-            remove { layoutDoneEvent -= value; }
+        public event EventHandler<LayoutChangeEventArgs> LayoutDoneEvent { add => layoutDoneEvent += value; remove => layoutDoneEvent -= value;
         }
 
         internal Point Barycenter; // Filled in by SetBarycenter
-        ICurve collapsedBoundary;
+        ICurve? collapsedBoundary;
 
         /// <summary>
         ///     the boundary curve when the cluster is collapsed
         /// </summary>
-        public ICurve CollapsedBoundary {
-            get { return collapsedBoundary; }
-            set { collapsedBoundary = value; }
+        public ICurve? CollapsedBoundary { get => collapsedBoundary; set => collapsedBoundary = value;
         }
 
-        internal List<Cluster> clusters = new List<Cluster>();
-        internal List<Node> nodes = new List<Node>();
+        internal List<Cluster> clusters = [];
+        internal List<Node> nodes = [];
 
         /// <summary>
         /// </summary>
@@ -73,7 +67,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         ///     Construct a cluster with the specified nodes as members
         /// </summary>
         /// <param name="nodes"></param>
-        [SuppressMessage("Microsoft.Design", "CA1002:DoNotExposeGenericLists")]
         public Cluster(IEnumerable<Node> nodes)
             : this() {
             ValidateArg.IsNotNull(nodes, "nodes");
@@ -107,16 +100,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// <summary>
         ///     List of member nodes
         /// </summary>
-        public IEnumerable<Node> Nodes {
-            get { return nodes; }
-        }
+        public IEnumerable<Node> Nodes => nodes;
 
         /// <summary>
         ///     List of child clusters
         /// </summary>
-        public IEnumerable<Cluster> Clusters {
-            get { return clusters; }
-        }
+        public IEnumerable<Cluster> Clusters => clusters;
 
         /// <summary>
         ///     number of nodes in cluster
@@ -127,10 +116,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         ///     BoundingBox_get uses the RectangularBoundary.rectangle if available, otherwise uses the cluster's content bounds
         ///     BoundingBox_set scales the old bounds to fit the desired bounds
         /// </summary>
-        public override Rectangle BoundingBox {
-            get {
-                if (!IsCollapsed ||CollapsedBoundary==null) {
-                    if (RectangularBoundary != null) {
+        public override Rectangle BoundingBox
+        {
+            get
+            {
+                if (!IsCollapsed || CollapsedBoundary == null)
+                {
+                    if (RectangularBoundary != null)
+                    {
                         return RectangularBoundary.Rect;
                     }
 
@@ -145,7 +138,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
                 return CollapsedBoundary.BoundingBox;
 
             }
-            set { FitBoundaryCurveToTarget(value); }
+
+            set => FitBoundaryCurveToTarget(value);
         }
 
         /// <summary>
@@ -155,11 +149,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         public void AddChild(Node child) {
             ValidateArg.IsNotNull(child, "child");
             Debug.Assert(child != this);
-            var childCluster = child as Cluster;
-            if (childCluster != null) {
+            if (child is Cluster childCluster)
+            {
                 clusters.Add(childCluster);
             }
-            else {
+            else
+            {
                 nodes.Add(child);
             }
             child.AddClusterParent(this);
@@ -168,9 +163,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// <summary>
         ///     Cleares the child clusters.
         /// </summary>
-        public void ClearClusters() {
-            clusters.Clear();
-        }
+        public void ClearClusters() => clusters.Clear();
 
         /// <summary>
         ///     Compute the total weight of all nodes and clusters in this cluster.
@@ -187,8 +180,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// <summary>
         /// </summary>
         /// <returns></returns>
-        [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Barycenter"),
-         SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "SetBarycenter")]
         public Point SetBarycenter() {
             Barycenter = new Point();
 
@@ -212,7 +203,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
                     Barycenter /= Weight;
                 }
             }
-            Debug.Assert(!Double.IsNaN(Barycenter.X) && !Double.IsNaN(Barycenter.Y));
+            Debug.Assert(!double.IsNaN(Barycenter.X) && !double.IsNaN(Barycenter.Y));
             return Barycenter;
         }
 
@@ -275,9 +266,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         ///     Remove the specified cluster from the list of children of this cluster
         /// </summary>
         /// <param name="cluster"></param>
-        public void RemoveCluster(Cluster cluster) {
-            clusters.Remove(cluster);
-        }
+        public void RemoveCluster(Cluster cluster) => clusters.Remove(cluster);
 
         /// <summary>
         ///     Translates the cluster's contents into the rectangle.
@@ -293,8 +282,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         public void DeepContentsTranslation(Point delta, bool translateEdges) {
             foreach (Cluster c in AllClustersDepthFirst()) {
                 foreach (Node v in c.Nodes.Concat(c.Clusters.Cast<Node>())) {
-                    var cluster = v as Cluster;
-                    if (cluster != null) {
+                    if (v is Cluster cluster)
+                    {
                         cluster.RectangularBoundary.TranslateRectangle(delta);
                     }
                     v.Center += delta;
@@ -311,27 +300,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         ///     Get edges both of whose end-points are immediate children of this cluster
         /// </summary>
         /// <returns></returns>
-        public IEnumerable<Edge> ChildEdges() {
-            return Nodes.Concat(Clusters).SelectMany(EdgesIncomingToNodeWithChildSource);
-        }
+        public IEnumerable<Edge> ChildEdges() => Nodes.Concat(Clusters).SelectMany(EdgesIncomingToNodeWithChildSource);
 
         /// <summary>
         ///     get the edges incoming to the specified node where the source of the edge is a descendant of this cluster.
         /// </summary>
         /// <param name="node"></param>
         /// <returns></returns>
-        IEnumerable<Edge> EdgesIncomingToNodeWithDescendantSource(Node node) {
-            return node.InEdges.Concat(node.SelfEdges).Where(e => e.Source.IsDescendantOf(this));
-        }
+        IEnumerable<Edge> EdgesIncomingToNodeWithDescendantSource(Node node) => node.InEdges.Concat(node.SelfEdges).Where(e => e.Source.IsDescendantOf(this));
 
         /// <summary>
         ///     get the edges incoming to the specified node where the source of the edge is an immediate child of this cluster.
         /// </summary>
         /// <param name="node"></param>
         /// <returns></returns>
-        IEnumerable<Edge> EdgesIncomingToNodeWithChildSource(Node node) {
-            return node.InEdges.Concat(node.SelfEdges).Where(e => e.Source.ClusterParents.Contains(this));
-        }
+        IEnumerable<Edge> EdgesIncomingToNodeWithChildSource(Node node) => node.InEdges.Concat(node.SelfEdges).Where(e => e.Source.ClusterParents.Contains(this));
 
         /// <summary>
         ///     Translates the cluster and all of it's contents by the delta.
@@ -346,7 +329,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// </summary>
         /// <param name="padding"></param>
         public void CalculateBoundsFromChildren(double padding) {
-            var r = new Rectangle((from v in Nodes select v.BoundingBox).Concat(
+            Rectangle r = new Rectangle((from v in Nodes select v.BoundingBox).Concat(
                 from d in Clusters select d.BoundingBox));
             r.Pad(padding);
             UpdateBoundary(r);
@@ -376,13 +359,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         bool isInInitialLayoutState;
 
 
-        
+
         /// <summary>
         ///     Has the cluster contents been moved or changed since an initial layout was applied?
         /// </summary>
-        public bool IsInInitialLayoutState {
-            get { return isInInitialLayoutState; }
-        }
+        public bool IsInInitialLayoutState => isInInitialLayoutState;
 
 
         /// <summary>
@@ -394,7 +375,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
             isInInitialLayoutState = true;
             if (RectangularBoundary != null) {
                 RectangularBoundary.StoreDefaultMargin();
-                var childBounds =
+                Rectangle childBounds =
                     new Rectangle(from v in Nodes.Concat(Clusters) select v.BoundingBox);
                 childBounds.Pad(padding);
                 RectangularBoundary.LeftMargin = childBounds.Left - RectangularBoundary.Rect.Left;
@@ -430,7 +411,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// </summary>
         /// <returns></returns>
         public IEnumerable<Cluster> AllClustersWideFirstExcludingSelf() {
-            var q = new Queue<Cluster>();
+            Queue<Cluster> q = new Queue<Cluster>();
             foreach (Cluster cluster in Clusters)
                 q.Enqueue(cluster);
 
@@ -446,7 +427,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// </summary>
         /// <returns></returns>
         public IEnumerable<Cluster> AllClustersWidthFirstExcludingSelfAvoidingChildrenOfCollapsed() {
-            var q = new Queue<Cluster>();
+            Queue<Cluster> q = new Queue<Cluster>();
             foreach (Cluster cluster in Clusters)
                 q.Enqueue(cluster);
 
@@ -484,9 +465,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         ///     to string!
         /// </summary>
         /// <returns></returns>
-        public override string ToString() {
-            return UserData != null ? UserData.ToString() : base.ToString();
-        }
+        public override string ToString() => UserData != null ? UserData.ToString() : base.ToString();
 
         internal void RaiseLayoutDoneEvent() {
             if (layoutDoneEvent != null)

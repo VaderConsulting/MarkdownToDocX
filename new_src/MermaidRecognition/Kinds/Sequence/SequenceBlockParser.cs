@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace MermaidRecognition.Sequence;
+namespace MermaidRecognition.Kinds.Sequence;
 
 /// <summary>
 /// Parsed sequence control-block keyword from a source line.
@@ -11,50 +11,24 @@ public sealed class SequenceBlockParseResult
 
     public string Keyword
     {
-        get
-        {
-            return _Keyword;
-        }
-        set
-        {
-            _Keyword = value;
-        }
+        get => _Keyword; set => _Keyword = value;
     }
 
     private string? _Title;
 
     public string? Title
     {
-        get
-        {
-            return _Title;
-        }
-        set
-        {
-            _Title = value;
-        }
+        get => _Title; set => _Title = value;
     }
 
-    public bool IsBranchKeyword
-    {
-        get
-        {
-            return string.Equals(_Keyword, "else", StringComparison.OrdinalIgnoreCase)
+    public bool IsBranchKeyword => string.Equals(_Keyword, "else", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(_Keyword, "and", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(_Keyword, "option", StringComparison.OrdinalIgnoreCase);
-        }
-    }
 
-    public bool IsMultiBranchFrame
-    {
-        get
-        {
-            return string.Equals(_Keyword, "alt", StringComparison.OrdinalIgnoreCase)
+    public bool IsMultiBranchFrame => string.Equals(_Keyword, "alt", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(_Keyword, "par", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(_Keyword, "critical", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(_Keyword, "par_over", StringComparison.OrdinalIgnoreCase);
-        }
-    }
 }
 
 /// <summary>

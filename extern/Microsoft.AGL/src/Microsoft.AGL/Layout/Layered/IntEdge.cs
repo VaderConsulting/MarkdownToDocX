@@ -10,7 +10,6 @@ namespace Microsoft.AGL.Layout.Layered {
     /// <summary>
     /// An edge with source and target represented as integers, they point to an array of Nodes of the graph
     /// </summary>
-    [SuppressMessage("Microsoft.Naming", "CA1710:IdentifiersShouldHaveCorrectSuffix")]
 #if TEST_MSAGL
     public
 #else
@@ -22,12 +21,11 @@ namespace Microsoft.AGL.Layout.Layered {
         /// <summary>
         /// the source
         /// </summary>
-        public int Source {
-            get { return source; }
+        public int Source { get => source;
 #if SHARPKIT //https://code.google.com/p/sharpkit/issues/detail?id=289 Support Dictionary directly based on object's GetHashCode
             set { source = value; UpdateHashKey(); }
 #else
-            set { source = value; }
+            set => source = value;
 #endif
         }
 
@@ -36,12 +34,11 @@ namespace Microsoft.AGL.Layout.Layered {
         /// <summary>
         /// the edge target
         /// </summary>
-        public int Target {
-            get { return target; }
+        public int Target { get => target;
 #if SHARPKIT //https://code.google.com/p/sharpkit/issues/detail?id=289 Support Dictionary directly based on object's GetHashCode
             set { target = value; UpdateHashKey(); }
 #else
-            set { target = value; }
+            set => target = value;
 #endif
         }
 
@@ -50,10 +47,7 @@ namespace Microsoft.AGL.Layout.Layered {
         /// <summary>
         /// An edge can be reversed to keep the graph acyclic
         /// </summary>
-        public bool Reversed {
-            get { return reversed; }
-//            set { reversed = value; }
-        }
+        public bool Reversed => reversed;
 
         /// <summary>
         /// A dummy edge that will not be drawn; serves just as a place holder.
@@ -76,23 +70,17 @@ namespace Microsoft.AGL.Layout.Layered {
         /// <summary>
         /// Returns true if the edge has label
         /// </summary>
-        internal bool HasLabel {
-            get { return Edge.Label != null; }
-        }
+        internal bool HasLabel => Edge.Label != null;
 
         /// <summary>
         /// Label width
         /// </summary>
-        internal double LabelWidth {
-            get { return Edge.Label.Width; }
-        }
+        internal double LabelWidth => Edge.Label.Width;
 
         /// <summary>
         /// Label height
         /// </summary>
-        internal double LabelHeight {
-            get { return Edge.Label.Height; }
-        }
+        internal double LabelHeight => Edge.Label.Height;
 
         /// <summary>
         /// This function changes the edge by swapping 
@@ -138,8 +126,7 @@ namespace Microsoft.AGL.Layout.Layered {
         /// <param name="obj"></param>
         /// <returns></returns>
         public override bool Equals(object obj) {
-            var ie = obj as IntEdge;
-            if (ie == null)
+            if (obj is not IntEdge ie)
                 return false;
             return ie.source == source &&
                    ie.target == target;
@@ -158,7 +145,7 @@ namespace Microsoft.AGL.Layout.Layered {
         /// </summary>
         /// <returns></returns>
         public override int GetHashCode() {
-            var hc = (uint) source.GetHashCode();
+            uint hc = (uint) source.GetHashCode();
             return (int) ((hc << 5 | hc >> 27) + (uint) target);
         }
 
@@ -166,79 +153,56 @@ namespace Microsoft.AGL.Layout.Layered {
         /// 
         /// </summary>
         /// <returns></returns>
-        public override string ToString() {
-            return "Edge(" + source + "->" + target + ")";
+        public override string ToString() => "Edge(" + source + "->" + target + ")";
+
+        internal ICurve Curve { get => Edge.Curve; set => Edge.Curve = value;
         }
 
-        internal ICurve Curve {
-            get { return Edge.Curve; }
-            set { Edge.Curve = value; }
-        }
-
-
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
-        internal SmoothedPolyline UnderlyingPolyline {
-            get { return Edge.UnderlyingPolyline; }
-            set { Edge.UnderlyingPolyline = value; }
+        internal SmoothedPolyline UnderlyingPolyline { get => Edge.UnderlyingPolyline; set => Edge.UnderlyingPolyline = value;
         }
 
 
         int weight = 1;
 
-        internal int Weight {
-            get { return weight; }
-            set { weight = value; }
+        internal int Weight { get => weight; set => weight = value;
         }
 
         int crossingWeight = 1;
 
-        internal int CrossingWeight {
-            get { return crossingWeight; }
-        }
+        internal int CrossingWeight => crossingWeight;
 
         int separation;
 
         /// <summary>
         /// the distance between the source and the target in the number of layers
         /// </summary>
-        public int Separation {
-            get { return separation; }
-            set { separation = value; }
+        public int Separation { get => separation; set => separation = value;
         }
 
         /// <summary>
         /// the edge span in layers
         /// </summary>
-        public int LayerSpan {
-            get {
-                return layerEdges != null ? layerEdges.Length : 0;
-                // return virtualStart == -1 ? 1 : VirtualEnd - VirtualStart + 2;
-            }
-        }
+        public int LayerSpan => layerEdges != null ? layerEdges.Length : 0;// return virtualStart == -1 ? 1 : VirtualEnd - VirtualStart + 2;
 
 
         LayerEdge[] layerEdges;
+
         /// <summary>
         /// 
         /// </summary>
 #if TEST_MSAGL
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
         public
 #else
         internal
 #endif
-            IList<LayerEdge> LayerEdges {
-            get { return layerEdges; }
-            set { layerEdges = (LayerEdge[]) value; }
+    IList<LayerEdge> LayerEdges { get => layerEdges; set => layerEdges = (LayerEdge[])value;
         }
 
 
-        internal bool SelfEdge() {
-            return source == target;
-        }
+        internal bool SelfEdge() => source == target;
 
         internal IntEdge ReversedClone() {
-            var ret = new IntEdge(target, source, Edge);
+            IntEdge ret = new IntEdge(target, source, Edge);
             if (layerEdges != null) {
                 int len = layerEdges.Length;
                 ret.layerEdges = new LayerEdge[len];
@@ -259,9 +223,7 @@ namespace Microsoft.AGL.Layout.Layered {
             get { return layerEdges[i]; }
         }
 
-        internal int Count {
-            get { return layerEdges.Length; }
-        }
+        internal int Count => layerEdges.Length;
 
 
         internal void UpdateEdgeLabelPosition(Anchor[] anchors) {
@@ -305,13 +267,13 @@ namespace Microsoft.AGL.Layout.Layered {
         /// <param name="graph"></param>
         /// <returns></returns>
         internal static int[] GetOrder(BasicGraph<IntEdge> graph){
-            var visited = new bool[graph.NodeCount];
+            bool[] visited = new bool[graph.NodeCount];
 
             //no recursion! So we have to organize a stack
-            var sv = new Stack<int>();
-            var se = new Stack<IEnumerator<int>>();
+            Stack<int> sv = new Stack<int>();
+            Stack<IEnumerator<int>> se = new Stack<IEnumerator<int>>();
 
-            var order = new List<int>();
+            List<int> order = new List<int>();
 
             IEnumerator<int> en;
             for (int u = 0; u < graph.NodeCount; u++){

@@ -7,7 +7,8 @@
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
 
-namespace Microsoft.AGL.Core.Geometry {
+namespace Microsoft.AGL.Core.Geometry.OverlapRemoval
+{
     /// <summary>
     /// Global configuration constants for the OverlapRemoval namespace.
     /// </summary>

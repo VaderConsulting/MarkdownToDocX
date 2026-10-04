@@ -29,7 +29,7 @@ namespace Microsoft.AGL.Core.DataStructures {
         /// cache[k]=A[cache[k].indexToA] this is the invariant
         /// </summary>
         readonly HeapElem[] cache;
-        internal int Count { get { return heapSize; } }
+        internal int Count => heapSize;
         int heapSize;
         /// <summary>
         /// the constructor
@@ -64,9 +64,7 @@ namespace Microsoft.AGL.Core.DataStructures {
        
         }
 
-        internal bool IsEmpty() {
-            return heapSize == 0;
-        }
+        internal bool IsEmpty() => heapSize == 0;
 
         void PutAtI(int i, HeapElem h) {
             A[i] = h;
@@ -129,7 +127,6 @@ namespace Microsoft.AGL.Core.DataStructures {
         /// <summary>
         /// sets the object priority to c
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         internal void DecreasePriority(int o, double newPriority) {
 
             //System.Diagnostics.Debug.WriteLine("delcrease "+ o.ToString()+" to "+ newPriority.ToString());
@@ -146,9 +143,8 @@ namespace Microsoft.AGL.Core.DataStructures {
             }
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         public static void Test() {
-            var q = new BinaryHeapPriorityQueue(10);
+            BinaryHeapPriorityQueue q = new BinaryHeapPriorityQueue(10);
             q.Enqueue(2, 2);
             q.Enqueue(1, 1);
             q.Enqueue(9, 9);

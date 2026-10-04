@@ -36,13 +36,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         /// <summary>
         /// fix routing by simulated annealing algorithm
         /// </summary>
-        internal static bool FixRouting(MetroGraphData metroGraphData, BundlingSettings bundlingSettings) {
-            return FixRouting(metroGraphData, bundlingSettings, null);
-        }
+        internal static bool FixRouting(MetroGraphData metroGraphData, BundlingSettings bundlingSettings) => FixRouting(metroGraphData, bundlingSettings, null);
 
-        internal static bool FixRouting(MetroGraphData metroGraphData, BundlingSettings bundlingSettings, HashSet<Point> changedPoints) {
-            return new SimulatedAnnealing(metroGraphData, bundlingSettings).FixRouting(changedPoints);
-        }
+        internal static bool FixRouting(MetroGraphData metroGraphData, BundlingSettings bundlingSettings, HashSet<Point> changedPoints) => new SimulatedAnnealing(metroGraphData, bundlingSettings).FixRouting(changedPoints);
 
         SimulatedAnnealing(MetroGraphData metroGraphData, BundlingSettings bundlingSettings) {
             this.metroGraphData = metroGraphData;
@@ -61,8 +57,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         /// <summary>
         /// Use constraint edge routing to reduce ink
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1303:Do not pass literals as localized parameters",
-         MessageId = "MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling.GeneralBundling.InkMetric.OutputQ(System.String,MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling.GeneralBundling.MetroGraphData,MermaidRecognition.Layout.Sugiyama.Core.Routing.BundlingSettings)"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1303:Do not pass literals as localized parameters", MessageId = "MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling.GeneralBundling.InkMetric.OutputQ(System.String,MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling.GeneralBundling.MetroGraphData,MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling.BundlingSettings)")]
         bool FixRouting(HashSet<Point> changedPoints) {
             stationsForOptimizations = GetStationsForOptimizations(changedPoints);
 
@@ -99,10 +93,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 return new HashSet<Station>(metroGraphData.VirtualNodes());
             }
             else {
-                HashSet<Station> result = new HashSet<Station>();
-                foreach (var p in changedPoints) {
+                HashSet<Station> result = [];
+                foreach (Point p in changedPoints) {
                     if (metroGraphData.PointToStations.ContainsKey(p)) {
-                        var s = metroGraphData.PointToStations[p];
+                        Station s = metroGraphData.PointToStations[p];
                         if (!s.IsRealNode) result.Add(s);
                     }
                 }
@@ -147,17 +141,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
 
         bool TryMoveNodes() {
-            var coordinatesChanged = false;
-            HashSet<Station> movedStations = new HashSet<Station>();
+            bool coordinatesChanged = false;
+            HashSet<Station> movedStations = [];
             //foreach (var node in metroGraphData.VirtualNodes()) {
-            foreach (var node in stationsForOptimizations) {
+            foreach (Station node in stationsForOptimizations) {
                 if (TryMoveNode(node)) {
                     Debug.Assert(stationsForOptimizations.Contains(node));
 
                     coordinatesChanged = true;
          
                     movedStations.Add(node);
-                    foreach (var adj in node.Neighbors)
+                    foreach (Station adj in node.Neighbors)
                         if (!adj.IsRealNode) movedStations.Add(adj);                    
                 }
             }
@@ -197,12 +191,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         /// Calculate the direction to improve the ink function
         /// </summary>
         Point BuildDirection(Station node) {
-            var forceInk = BuildForceForInk(node);
-            var forcePL = BuildForceForPathLengths(node);
-            var forceR = BuildForceForRadius(node);
-            var forceBundle = BuildForceForBundle(node);
+            Point forceInk = BuildForceForInk(node);
+            Point forcePL = BuildForceForPathLengths(node);
+            Point forceR = BuildForceForRadius(node);
+            Point forceBundle = BuildForceForBundle(node);
 
-            var force = forceInk + forcePL + forceR + forceBundle;
+            Point force = forceInk + forcePL + forceR + forceBundle;
             if (force.Length < 0.1) return new Point();
             force = force.Normalize();
 
@@ -250,8 +244,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         Point BuildForceForInk(Station node) {
             //return new Point();
             Point direction = new Point();
-            foreach (var adj in node.Neighbors) {
-                var p = (adj.Position - node.Position);
+            foreach (Station adj in node.Neighbors) {
+                Point p = (adj.Position - node.Position);
                 direction += p / p.Length;
             }
 
@@ -266,15 +260,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         /// </summary>
         Point BuildForceForPathLengths(Station node) {
             //return new Point();
-            var direction = new Point();
+            Point direction = new Point();
 
-            foreach (var mni in metroGraphData.MetroNodeInfosOfNode(node)) {
-                var metroline = mni.Metroline;
+            foreach (MetroNodeInfo mni in metroGraphData.MetroNodeInfosOfNode(node)) {
+                Metroline metroline = mni.Metroline;
                 Point u = mni.PolyPoint.Next.Point;
                 Point v = mni.PolyPoint.Prev.Point;
 
-                var p1 = u - node.Position;
-                var p2 = v - node.Position;
+                Point p1 = u - node.Position;
+                Point p2 = v - node.Position;
                 direction += p1 / (p1.Length * metroline.IdealLength);
                 direction += p2 / (p2.Length * metroline.IdealLength);
             }
@@ -292,11 +286,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             Point direction = new Point();
 
             double idealR = node.cachedIdealRadius;
-            List<Tuple<Polyline, Point>> touchedObstacles;
-            bool res = metroGraphData.looseIntersections.HubAvoidsObstacles(node, node.Position, idealR, out touchedObstacles);
+            bool res = metroGraphData.looseIntersections.HubAvoidsObstacles(node, node.Position, idealR, out List<Tuple<Polyline, Point>>? touchedObstacles);
             Debug.Assert(res);
 
-            foreach (var d in touchedObstacles) {
+            foreach (Tuple<Polyline, Point> d in touchedObstacles) {
                 double dist = (d.Item2 - node.Position).Length;
                 Debug.Assert(dist <= idealR);
                 double lforce = 2.0 * (1.0 - dist / idealR);
@@ -314,12 +307,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         /// direction to push a bundle away from obstacle
         /// </summary>
         Point BuildForceForBundle(Station node) {
-            var direction = new Point();
-            foreach (var adj in node.Neighbors) {
+            Point direction = new Point();
+            foreach (Station adj in node.Neighbors) {
                 double idealWidth = metroGraphData.GetWidth(node, adj, bundlingSettings.EdgeSeparation);
 
-                List<Tuple<Point, Point>> closestPoints;
-                bool res = metroGraphData.cdtIntersections.BundleAvoidsObstacles(node, adj, node.Position, adj.Position, idealWidth / 2, out closestPoints);
+                bool res = metroGraphData.cdtIntersections.BundleAvoidsObstacles(node, adj, node.Position, adj.Position, idealWidth / 2, out List<Tuple<Point, Point>>? closestPoints);
                 if (!res) {
 #if DEBUG&& TEST_MSAGL
                     HubDebugger.ShowHubs(metroGraphData, bundlingSettings, new LineSegment(node.Position, adj.Position));
@@ -327,7 +319,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 }
                 //Debug.Assert(res);  //todo : still unsolved
 
-                foreach (var d in closestPoints) {
+                foreach (Tuple<Point, Point> d in closestPoints) {
                     double dist = (d.Item1 - d.Item2).Length;
                     Debug.Assert(ApproximateComparer.LessOrEqual(dist, idealWidth / 2));
                     double lforce = 2.0 * (1.0 - dist / (idealWidth / 2));

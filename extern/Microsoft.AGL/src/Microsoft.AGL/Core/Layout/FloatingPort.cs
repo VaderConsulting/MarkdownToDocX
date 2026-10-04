@@ -24,31 +24,22 @@ namespace Microsoft.AGL.Core.Layout {
         /// <summary>
         /// the location of the port
         /// </summary>
-        override public Point Location {
-            get { return location; }
-        }
+        override public Point Location => location;
         /// <summary>
         /// translate the port location by delta
         /// </summary>
         /// <param name="delta"></param>
-        public virtual void Translate(Point delta)
-        {
-            location += delta;
-        }
-/// <summary>
-/// the port's curve
-/// </summary>
-        public override ICurve Curve {
-            get { return curve; }
-            set { curve = value; }
+        public virtual void Translate(Point delta) => location += delta;
+        /// <summary>
+        /// the port's curve
+        /// </summary>
+        public override ICurve Curve { get => curve; set => curve = value;
         }
 
         /// <summary>
         /// Return a string representation of the Port location
         /// </summary>
         /// <returns>a string representation of the Port location</returns>
-        public override string ToString() {
-            return Location.ToString();
-        }
+        public override string ToString() => Location.ToString();
     }
 }

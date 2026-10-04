@@ -1,8 +1,9 @@
 using System.Linq;
+
 using MermaidRecognition.Contract;
 using MermaidRecognition.Diagnostics;
 
-namespace MermaidRecognition.Mindmap;
+namespace MermaidRecognition.Kinds.Mindmap;
 
 /// <summary>
 /// Maps classified mindmap source statements into hierarchical <see cref="DiagramContract"/> nodes (L3 G4).
@@ -17,7 +18,7 @@ public static class MindmapContractMapper
     /// </summary>
     public static void Apply(DiagramContract Contract)
     {
-        Dictionary<int, string> NodeIdByDepth = new Dictionary<int, string>();
+        Dictionary<int, string> NodeIdByDepth = [];
         int NodeIndex = 0;
 
         foreach (SourceStatementContract Statement in Contract.SourceStatements)
@@ -63,12 +64,14 @@ public static class MindmapContractMapper
             string NodeId = "node-" + NodeIndex.ToString();
             NodeIndex++;
 
-            NodeContract Node = new NodeContract();
-            Node.Id = NodeId;
-            Node.Label = ParsedNode.Label;
-            Node.Shape = ParsedNode.Shape;
-            Node.ShapeSource = "mindmap";
-            Node.ParentGroupId = ParentId;
+            NodeContract Node = new NodeContract
+            {
+                Id = NodeId,
+                Label = ParsedNode.Label,
+                Shape = ParsedNode.Shape,
+                ShapeSource = "mindmap",
+                ParentGroupId = ParentId
+            };
             Contract.NodesMutable.Add(Node);
 
             NodeIdByDepth[Depth] = NodeId;

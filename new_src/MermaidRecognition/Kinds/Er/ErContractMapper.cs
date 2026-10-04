@@ -1,10 +1,12 @@
 using System.Text;
 using System.Text.RegularExpressions;
-using MermaidRecognition.Class;
-using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
 
-namespace MermaidRecognition.Er;
+using MermaidRecognition.Contract;
+using MermaidRecognition.Core;
+using MermaidRecognition.Kinds.Class;
+using MermaidRecognition.Kinds.Flowchart;
+
+namespace MermaidRecognition.Kinds.Er;
 
 /// <summary>
 /// Maps classified ER diagram source statements into <see cref="DiagramContract"/> entities (L3 G4/G6/G9).
@@ -180,19 +182,18 @@ public static class ErContractMapper
         MapToContract(Database, Contract);
     }
 
-    static IEnumerable<string> SplitTargetIds(string TargetList)
-    {
-        return TargetList.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-    }
+    static IEnumerable<string> SplitTargetIds(string TargetList) => TargetList.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
     static void MapToContract(ErDb Database, DiagramContract Contract)
     {
         foreach (KeyValuePair<string, ErNodeRecord> Entry in Database.EntitiesById)
         {
             ErNodeRecord Source = Entry.Value;
-            NodeContract Node = new NodeContract();
-            Node.Id = Source.Id;
-            Node.Label = Source.Label;
+            NodeContract Node = new NodeContract
+            {
+                Id = Source.Id,
+                Label = Source.Label
+            };
             foreach (MermaidDeclaration Declaration in Source.DeclarationsMutable)
             {
                 Node.DeclarationsMutable.Add(Declaration);
@@ -209,12 +210,14 @@ public static class ErContractMapper
 
         foreach (ErEdgeRecord Source in Database.Edges)
         {
-            EdgeContract Edge = new EdgeContract();
-            Edge.SourceId = Source.SourceId;
-            Edge.TargetId = Source.TargetId;
-            Edge.CreationIndex = Source.CreationIndex;
-            Edge.Id = GenerateEdgeId(Source.SourceId, Source.TargetId, Source.CreationIndex);
-            Edge.Label = Source.RoleLabel;
+            EdgeContract Edge = new EdgeContract
+            {
+                SourceId = Source.SourceId,
+                TargetId = Source.TargetId,
+                CreationIndex = Source.CreationIndex,
+                Id = GenerateEdgeId(Source.SourceId, Source.TargetId, Source.CreationIndex),
+                Label = Source.RoleLabel
+            };
             Edge.MetadataMutable["erLeftMarker"] = new RawMetadata("erLeftMarker", Source.LeftMarker);
             Edge.MetadataMutable["erLink"] = new RawMetadata("erLink", Source.Link);
             Edge.MetadataMutable["erRightMarker"] = new RawMetadata("erRightMarker", Source.RightMarker);
@@ -228,8 +231,10 @@ public static class ErContractMapper
 
         foreach (KeyValuePair<string, ClassDefContract> Entry in Database.ClassDefsById)
         {
-            ClassDefContract Copy = new ClassDefContract();
-            Copy.ClassId = Entry.Value.ClassId;
+            ClassDefContract Copy = new ClassDefContract
+            {
+                ClassId = Entry.Value.ClassId
+            };
             RecognitionStyleMerge.Apply(Entry.Value.Style, Copy.Style);
             Contract.ClassDefsMutable.Add(Copy);
         }
@@ -238,10 +243,7 @@ public static class ErContractMapper
         Contract.Accessibility.Description = Database.AccessibilityDescription;
     }
 
-    static string GenerateEdgeId(string SourceId, string TargetId, int CreationIndex)
-    {
-        return "L-" + SourceId + "-" + TargetId + "-" + CreationIndex.ToString();
-    }
+    static string GenerateEdgeId(string SourceId, string TargetId, int CreationIndex) => "L-" + SourceId + "-" + TargetId + "-" + CreationIndex.ToString();
 
     enum AccDescrParseState
     {

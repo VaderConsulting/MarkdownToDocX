@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
 using MermaidRecognition.Layout.Sugiyama.Layout.Incremental;
 
-namespace MermaidRecognition.Layout.Sugiyama.Prototype.Constraints {
+namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Constraints
+{
     /// <summary>
     /// This doesn't work yet, but it will be a constraint that aligns nodes, optionally to some fixed orientation (horizontal, vertical, 45 degrees, etc).
     /// </summary>
@@ -15,13 +17,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Prototype.Constraints {
         /// Create an alignment constraint for the given set of nodes
         /// </summary>
         /// <param name="nodes"></param>
-        public AlignmentConstraint(IEnumerable<Node> nodes) {
-            this.nodes = nodes.ToList();
-        }
+        public AlignmentConstraint(IEnumerable<Node> nodes) => this.nodes = nodes.ToList();
 
         void leastSquaresLineFit(out double a, out double b) {
             double mx = 0, my = 0, sx2 = 0, sy2 = 0, sxy=0, n = nodes.Count;
-            foreach (var v in nodes) {
+            foreach (Node v in nodes) {
                 double x = v.Center.X, y = v.Center.Y;
                 mx += x;
                 my += y;
@@ -43,10 +43,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Prototype.Constraints {
         /// </summary>
         /// <returns></returns>
         public double Project() {
-            double a, b, d=0;
-            leastSquaresLineFit(out a, out b);
+            double d = 0;
+            leastSquaresLineFit(out double a, out double b);
             // project to the line y = a + b x
-            foreach (var v in nodes) {
+            foreach (Node v in nodes) {
                 double x0 = v.Center.X, y0 = v.Center.Y;
                 double x = (b * y0 + x0 ) / (b * b + 1.0);
                 double y = a + b * x;
@@ -59,13 +59,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Prototype.Constraints {
         /// <summary>
         /// level 1
         /// </summary>
-        public int Level {
-            get { return 1; }
-        }
+        public int Level => 1;
         /// <summary>
         /// Get the list of nodes involved in the constraint
         /// </summary>
-        public IEnumerable<Node> Nodes { get { return nodes;} }
+        public IEnumerable<Node> Nodes => nodes;
 
         #endregion
     }

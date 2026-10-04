@@ -19,10 +19,7 @@ public sealed class MermaidOptions
     /// </summary>
     public bool UseFlowchartRecognitionParser
     {
-        get
-        {
-            return _UseFlowchartRecognitionParser;
-        }
+        get => _UseFlowchartRecognitionParser;
         set
         {
             _UseFlowchartRecognitionParser = value;
@@ -36,10 +33,7 @@ public sealed class MermaidOptions
     /// </summary>
     public bool UseNativeSugiyamaRenderer
     {
-        get
-        {
-            return _UseNativeSugiyamaRenderer;
-        }
+        get => _UseNativeSugiyamaRenderer;
         set
         {
             _UseNativeSugiyamaRenderer = value;
@@ -47,13 +41,7 @@ public sealed class MermaidOptions
         }
     }
 
-    internal void SetResolvedValue(bool UseFlowchartRecognitionParser)
-    {
-        _UseFlowchartRecognitionParser = UseFlowchartRecognitionParser;
-    }
+    internal void SetResolvedValue(bool UseFlowchartRecognitionParser) => _UseFlowchartRecognitionParser = UseFlowchartRecognitionParser;
 
-    internal void SetResolvedNativeSugiyamaValue(bool UseNativeSugiyamaRenderer)
-    {
-        _UseNativeSugiyamaRenderer = UseNativeSugiyamaRenderer;
-    }
+    internal void SetResolvedNativeSugiyamaValue(bool UseNativeSugiyamaRenderer) => _UseNativeSugiyamaRenderer = UseNativeSugiyamaRenderer;
 }

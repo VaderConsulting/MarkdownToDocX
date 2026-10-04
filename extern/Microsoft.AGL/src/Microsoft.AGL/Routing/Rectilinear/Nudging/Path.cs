@@ -20,33 +20,23 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
         /// </summary>
         internal IEnumerable<Point> PathPoints { get; set; }
 
-        internal double Width { get { return EdgeGeometry.LineWidth;} }
+        internal double Width => EdgeGeometry.LineWidth;
 
         /// <summary>
         /// constructor
         /// </summary>
         /// <param name="edgeGeometry"></param>
-        internal Path(EdgeGeometry edgeGeometry) {
-            EdgeGeometry = edgeGeometry;
-        }
+        internal Path(EdgeGeometry edgeGeometry) => EdgeGeometry = edgeGeometry;
 
 
-        internal Point End {
-            get {
-                return LastEdge.Target;
-            }
-        }
+        internal Point End => LastEdge.Target;
 
-        internal Point Start {
-            get {
-                return FirstEdge.Source;
-            }
-        }
+        internal Point Start => FirstEdge.Source;
 
-        
+
         internal IEnumerable<PathEdge> PathEdges {
             get {
-                for (var e = FirstEdge; e != null; e = e.Next)
+                for (PathEdge e = FirstEdge; e != null; e = e.Next)
                     yield return e;
             }
         }
@@ -55,8 +45,6 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
 
         internal PathEdge LastEdge { get; set; }
 
-
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         internal void SetIsFixedByFollowingParallelEdges() {
 //            SetIsFixedByFollowingParallelEdgesOnEnumeration(PathEdges);
 //            SetIsFixedByFollowingParallelEdgesOnEnumeration(PathEdgesInReverseOrder());
@@ -82,14 +70,11 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
             LastEdge = FirstEdge = edge;
             edge.Path = this;
         }
-    
+
         /// <summary>
         /// 
         /// </summary>
         /// <returns></returns>
-        public override string ToString()
-        {
-            return String.Format(CultureInfo.InvariantCulture, "{0}->{1}", this.EdgeGeometry.SourcePort.Location, this.EdgeGeometry.TargetPort.Location);
-        }
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "{0}->{1}", EdgeGeometry.SourcePort.Location, EdgeGeometry.TargetPort.Location);
     }
 }

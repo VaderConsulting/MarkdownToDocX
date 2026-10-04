@@ -1,4 +1,4 @@
-using MermaidRecognition.Class;
+using MermaidRecognition.Kinds.Class;
 using MermaidRecognition.Contract;
 
 namespace MermaidRecognition.Tests.Class;

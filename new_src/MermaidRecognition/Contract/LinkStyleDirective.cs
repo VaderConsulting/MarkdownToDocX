@@ -1,60 +1,29 @@
 namespace MermaidRecognition.Contract;
 
 /// <summary>
-/// Mermaid <c>linkStyle</c> directive targeting default or indexed edges by creation index (ง7.1.1).
+/// Mermaid <c>linkStyle</c> directive targeting default or indexed edges by creation index (ยง7.1.1).
 /// </summary>
 public sealed class LinkStyleDirective
 {
     private bool _IsDefault;
 
-    public bool IsDefault
-    {
-        get
-        {
-            return _IsDefault;
-        }
-    }
+    public bool IsDefault => _IsDefault;
 
-    private readonly List<int> _EdgeIndexes = new List<int>();
+    private readonly List<int> _EdgeIndexes = [];
 
-    public IReadOnlyList<int> EdgeIndexes
-    {
-        get
-        {
-            return _EdgeIndexes;
-        }
-    }
+    public IReadOnlyList<int> EdgeIndexes => _EdgeIndexes;
 
-    public List<int> EdgeIndexesMutable
-    {
-        get
-        {
-            return _EdgeIndexes;
-        }
-    }
+    public List<int> EdgeIndexesMutable => _EdgeIndexes;
 
     private readonly RecognitionStyle _Style = new RecognitionStyle();
 
-    public RecognitionStyle Style
-    {
-        get
-        {
-            return _Style;
-        }
-    }
+    public RecognitionStyle Style => _Style;
 
     private string? _Curve;
 
     public string? Curve
     {
-        get
-        {
-            return _Curve;
-        }
-        set
-        {
-            _Curve = value;
-        }
+        get => _Curve; set => _Curve = value;
     }
 
     /// <summary>
@@ -62,8 +31,10 @@ public sealed class LinkStyleDirective
     /// </summary>
     public static LinkStyleDirective ForIndex(int EdgeIndex, RecognitionStyle Style, string? Curve)
     {
-        LinkStyleDirective Directive = new LinkStyleDirective();
-        Directive._IsDefault = false;
+        LinkStyleDirective Directive = new LinkStyleDirective
+        {
+            _IsDefault = false
+        };
         Directive._EdgeIndexes.Add(EdgeIndex);
         CopyStyle(Style, Directive._Style);
         Directive._Curve = Curve;
@@ -75,8 +46,10 @@ public sealed class LinkStyleDirective
     /// </summary>
     public static LinkStyleDirective ForIndexes(IReadOnlyList<int> EdgeIndexes, RecognitionStyle Style, string? Curve)
     {
-        LinkStyleDirective Directive = new LinkStyleDirective();
-        Directive._IsDefault = false;
+        LinkStyleDirective Directive = new LinkStyleDirective
+        {
+            _IsDefault = false
+        };
         foreach (int EdgeIndex in EdgeIndexes)
         {
             Directive._EdgeIndexes.Add(EdgeIndex);
@@ -92,8 +65,10 @@ public sealed class LinkStyleDirective
     /// </summary>
     public static LinkStyleDirective ForDefault(RecognitionStyle Style, string? Curve)
     {
-        LinkStyleDirective Directive = new LinkStyleDirective();
-        Directive._IsDefault = true;
+        LinkStyleDirective Directive = new LinkStyleDirective
+        {
+            _IsDefault = true
+        };
         CopyStyle(Style, Directive._Style);
         Directive._Curve = Curve;
         return Directive;

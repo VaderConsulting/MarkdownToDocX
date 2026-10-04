@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.AGL.Core.Geometry;
@@ -15,7 +15,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         internal BundleInfo IncomingBundleInfo;
 
-        internal BundleInfo BundleInfo { get { return OutgoingBundleInfo ?? IncomingBundleInfo; } }
+        internal BundleInfo BundleInfo => OutgoingBundleInfo ?? IncomingBundleInfo;
 
         readonly Point[] points;
 
@@ -61,23 +61,25 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             ParameterSpan = Curve.ParEnd - Curve.ParStart;
         }
 
-        internal Point CurveCenter { get { return Curve.BoundingBox.Center; } }
+        internal Point CurveCenter => Curve.BoundingBox.Center;
 
-        internal BundleBase OppositeBase { get { return OutgoingBundleInfo != null ? OutgoingBundleInfo.TargetBase : IncomingBundleInfo.SourceBase; } }
+        internal BundleBase OppositeBase => OutgoingBundleInfo != null ? OutgoingBundleInfo.TargetBase : IncomingBundleInfo.SourceBase;
 
-        internal double TotalRequiredWidth { get { return BundleInfo.TotalRequiredWidth; } }
+        internal double TotalRequiredWidth => BundleInfo.TotalRequiredWidth;
 
-        internal int Count { get { return points.Length; } }
+        internal int Count => points.Length;
 
-        internal Point[] Points { get { return points; } }
+        internal Point[] Points => points;
 
-        internal Point[] Tangents { get { return tangents; } }
+        internal Point[] Tangents => tangents;
 
         double initialMidParameter;
 
-        internal double InitialMidParameter {
-            get { return initialMidParameter; }
-            set {
+        internal double InitialMidParameter
+        {
+            get => initialMidParameter;
+            set
+            {
                 initialMidParameter = value;
                 InitialMidPoint = Curve[value];
             }
@@ -89,9 +91,11 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         /// <summary>
         /// corresponds to the left point of the base
         /// </summary>
-        internal double ParRight {
-            get { return parRight; }
-            set {
+        internal double ParRight
+        {
+            get => parRight;
+            set
+            {
                 parRight = value;
                 RightPoint = Curve[parRight];
             }
@@ -101,25 +105,23 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         /// <summary>
         /// corresponds to the right point of the base
         /// </summary>
-        internal double ParLeft {
-            get { return parLeft; }
-            set {
+        internal double ParLeft
+        {
+            get => parLeft;
+            set
+            {
                 parLeft = value;
                 LeftPoint = Curve[parLeft];
             }
         }
 
-        internal double ParMid {
-            get { return (parRight + parLeft) / 2; }
-        }
+        internal double ParMid => (parRight + parLeft) / 2;
 
         internal Point RightPoint { get; set; }
 
         internal Point LeftPoint { get; set; }
 
-        internal Point MidPoint {
-            get { return (RightPoint + LeftPoint) / 2; }
-        }
+        internal Point MidPoint => (RightPoint + LeftPoint) / 2;
 
         //previous in ccw order
         internal BundleBase Prev;
@@ -128,11 +130,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         internal double ParameterSpan;
 
-        internal double Span { get { return SpanBetweenTwoPoints(parRight, parLeft); } }
+        internal double Span => SpanBetweenTwoPoints(parRight, parLeft);
 
-        internal double SpanBetweenTwoPoints(double right, double left) {
-            return (right <= left ? left - right : left - right + ParameterSpan);
-        }
+        internal double SpanBetweenTwoPoints(double right, double left) => (right <= left ? left - right : left - right + ParameterSpan);
 
         internal Point RotateLeftPoint(int rotationOfSourceLeftPoint, double parameterChange) {
             if (rotationOfSourceLeftPoint == 0) return LeftPoint;
@@ -169,9 +169,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                 ParLeft = AdjustParam(ParLeft + rotationOfLeftPoint * change);
         }
 
-        internal bool Intersect(BundleBase other) {
-            return Intersect(parRight, parLeft, other.parRight, other.parLeft);
-        }
+        internal bool Intersect(BundleBase other) => Intersect(parRight, parLeft, other.parRight, other.parLeft);
 
         internal bool Intersect(double lParRight, double lParLeft, double rParRight, double rParLeft) {
             if (lParRight > lParLeft)

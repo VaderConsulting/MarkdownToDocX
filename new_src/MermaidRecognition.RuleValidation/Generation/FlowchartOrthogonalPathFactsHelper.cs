@@ -2,8 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Layout;
 using MermaidRecognition.Render;
 using MermaidRecognition.RuleValidation.Models;
@@ -235,7 +236,7 @@ public static class FlowchartOrthogonalPathFactsHelper
                 return false;
             }
 
-            List<(double X, double Y)> TailPoints = new List<(double X, double Y)>();
+            List<(double X, double Y)> TailPoints = [];
             for (int Index = 1; Index < Points.Count; Index++)
             {
                 TailPoints.Add(Points[Index]);
@@ -304,11 +305,11 @@ public static class FlowchartOrthogonalPathFactsHelper
 
         if (string.Equals(Edge.PathFamily, "Straight", StringComparison.OrdinalIgnoreCase))
         {
-            List<(double X, double Y)> EndpointPoints = new List<(double X, double Y)>
-            {
+            List<(double X, double Y)> EndpointPoints =
+            [
                 Points[0],
                 Points[Points.Count - 1]
-            };
+            ];
             return FlowchartCurvePathBuilder.BuildPathDataFromGuidePoints(EndpointPoints, "linear");
         }
 
@@ -357,7 +358,7 @@ public static class FlowchartOrthogonalPathFactsHelper
 
     private static List<string> ExtractRenderedEdgePathData(string Svg)
     {
-        List<string> PathData = new List<string>();
+        List<string> PathData = [];
         MatchCollection Matches = Regex.Matches(
             Svg,
             @"<path d=""([^""]+)"" fill=""none"" stroke=""",

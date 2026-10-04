@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+
 using MermaidRecognition.Layout.Sugiyama.Core.DataStructures;
 
-namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
+namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
+{
     internal class AdjacentSwapsWithConstraints {
         const int maxNumberOfAdjacentExchanges = 50;
         readonly bool hasCrossWeights;
@@ -57,10 +59,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// adjacent exchanges, where every pass goes
         /// all way up to the top layer and down to the lowest layer
         /// </summary>
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
-        static int MaxNumberOfAdjacentExchanges {
-            get { return maxNumberOfAdjacentExchanges; }
-        }
+        static int MaxNumberOfAdjacentExchanges => maxNumberOfAdjacentExchanges;
 
         bool ExchangeWithGainWithNoDisturbance(int[] layer) {
             bool wasGain = false;
@@ -95,9 +94,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             return true;
         }
 
-        bool IsVirtualNode(int v) {
-            return properLayeredGraph.IsVirtualNode(v);
-        }
+        bool IsVirtualNode(int v) => properLayeredGraph.IsVirtualNode(v);
 
         ///// <summary>
         ///// swaps two vertices only if reduces the number of intersections
@@ -119,9 +116,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         int SwapGain(int u, int v) {
             if (!CanSwap(u, v))
                 return -1;
-            int cuv;
-            int cvu;
-            CalcPair(u, v, out cuv, out cvu);
+            CalcPair(u, v, out int cuv, out int cvu);
             return cuv - cvu;
         }
 
@@ -225,9 +220,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             return false;
         }
 
-        bool HeadOfTheCoin() {
-            return random.Next(2) == 0;
-        }
+        bool HeadOfTheCoin() => random.Next(2) == 0;
 
         internal void DoSwaps() {
             InitArrays();

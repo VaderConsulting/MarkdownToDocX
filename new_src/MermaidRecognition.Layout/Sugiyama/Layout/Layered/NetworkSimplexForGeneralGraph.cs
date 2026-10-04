@@ -2,7 +2,9 @@ using System.Collections.Generic;
 using System.Linq;
 using MermaidRecognition.Layout.Sugiyama.Core;
 using MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms;
+using MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms.CycleRemoval;
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
+using MermaidRecognition.Layout.Sugiyama.Layout.Layered.Layering;
 
 namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
     internal class NetworkSimplexForGeneralGraph:LayerCalculator {
@@ -15,7 +17,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         public int[] GetLayers() {
             List<IEnumerable<int>> comps = new List<IEnumerable<int>>(ConnectedComponentCalculator<IntEdge>.GetComponents(graph));
             if (comps.Count == 1) {
-                NetworkSimplex ns = new NetworkSimplex(graph, this.Cancel);
+                NetworkSimplex ns = new NetworkSimplex(graph, Cancel);
                 return ns.GetLayers();
             }
             List<Dictionary<int, int>> mapToComponenents = GetMapsToComponent(comps);
@@ -30,15 +32,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             return UniteLayerings(layerings, mapToComponenents);
         }
 
-        private BasicGraph<Node, IntEdge> ShrunkComponent(Dictionary<int, int> dictionary) {
-            return new BasicGraph<Node, IntEdge>(
+        private BasicGraph<Node, IntEdge> ShrunkComponent(Dictionary<int, int> dictionary) => new BasicGraph<Node, IntEdge>(
                 from p in dictionary
                 let v = p.Key
                 let newEdgeSource = p.Value
                 from e in graph.OutEdges(v)
                 select new IntEdge(newEdgeSource, dictionary[e.Target]) { Separation = e.Separation, Weight = e.Weight },
                 dictionary.Count);
-        }
 
         private int[] UniteLayerings(int[][] layerings, List<Dictionary<int, int>> mapToComponenents) {
             int[] ret = new int[graph.NodeCount];
@@ -47,7 +47,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                 Dictionary<int, int> mapToComp = mapToComponenents[i];
                 //no optimization at the moment - just map the layers back
                 int[] reverseMap = new int[mapToComp.Count];
-                foreach (var p in mapToComp)
+                foreach (KeyValuePair<int, int> p in mapToComp)
                     reverseMap[p.Value] = p.Key;
 
                 for (int j = 0; j < layering.Length; j++)
@@ -57,15 +57,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
         static List<Dictionary<int, int>> GetMapsToComponent(List<IEnumerable<int>> comps) {
-            List<Dictionary<int, int>> ret = new List<Dictionary<int, int>>();
-            foreach (var comp in comps)
+            List<Dictionary<int, int>> ret = [];
+            foreach (IEnumerable<int> comp in comps)
                 ret.Add(MapForComp(comp));
             return ret;
         }
 
         static Dictionary<int, int> MapForComp(IEnumerable<int> comp) {
             int i = 0;
-            Dictionary<int,int> map=new Dictionary<int,int>();
+            Dictionary<int,int> map=[];
             foreach (int v in comp)
                 map[v] = i++;
             return map;
@@ -74,7 +74,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
       
         internal NetworkSimplexForGeneralGraph(BasicGraph<Node, IntEdge> graph, CancelToken cancelObject) {
             this.graph = graph;
-            this.Cancel = cancelObject;
+            Cancel = cancelObject;
         }
 
     }

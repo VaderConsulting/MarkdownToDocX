@@ -1,4 +1,4 @@
-namespace MermaidRecognition;
+namespace MermaidRecognition.Core;
 
 /// <summary>
 /// Whether a fenced Mermaid block is active for render gates or catalogue-remarked (§9.1).

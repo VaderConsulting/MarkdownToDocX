@@ -1,5 +1,6 @@
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Core;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Layout;
 using MermaidRecognition.Render;
 
@@ -20,14 +21,14 @@ public sealed class FlowchartMarkerTangentTests
     [Test]
     public void ResolveDecisionBranchMarkerApproachPoint_FivePointRoute_UsesTerminalStubNotCorridorGuide()
     {
-        List<(double X, double Y)> Points = new List<(double X, double Y)>
-        {
+        List<(double X, double Y)> Points =
+        [
             (100.0, 200.0),
             (100.0, 180.0),
             (160.0, 140.0),
             (150.0, 120.0),
             (140.0, 100.0)
-        };
+        ];
 
         (double TargetApproachX, double TargetApproachY) =
             FlowchartCurvePathBuilder.ResolveMarkerApproachPoint(
@@ -59,7 +60,7 @@ public sealed class FlowchartMarkerTangentTests
         Dictionary<string, NodeContract> NodeById = Contract.Nodes
             .ToDictionary(Node => Node.Id, Node => Node);
 
-        List<string> Failures = new List<string>();
+        List<string> Failures = [];
         foreach (EdgeContract Edge in Contract.Edges)
         {
             if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
@@ -119,7 +120,7 @@ public sealed class FlowchartMarkerTangentTests
         Dictionary<string, NodeContract> NodeById = Contract.Nodes
             .ToDictionary(Node => Node.Id, Node => Node);
 
-        List<string> Failures = new List<string>();
+        List<string> Failures = [];
         foreach (EdgeContract Edge in Contract.Edges)
         {
             if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))

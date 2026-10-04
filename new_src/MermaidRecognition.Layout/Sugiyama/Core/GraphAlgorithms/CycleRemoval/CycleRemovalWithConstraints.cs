@@ -1,8 +1,10 @@
 using System.Collections.Generic;
 using System.Linq;
+
 using MermaidRecognition.Layout.Sugiyama.Core.DataStructures;
 
-namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
+namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms.CycleRemoval
+{
     internal class CycleRemovalWithConstraints<TEdge> where TEdge : IEdge {
         BasicGraph<TEdge> graph;
         BasicGraph<IntPair> graphOfConstraints;
@@ -27,8 +29,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
          IEnumerable<IEdge> GetFeedbackEdgeSet(GraphForCycleRemoval graphForCycleRemoval) {
             graphForCycleRemoval.Initialize();
             //empty at the end of the method
-            List<int> sl = new List<int>(); //sl - the sequence left part
-            List<int> sr = new List<int>(); //sr - the sequence right part. In our case it is a reversed right part
+            List<int> sl = []; //sl - the sequence left part
+            List<int> sr = []; //sr - the sequence right part. In our case it is a reversed right part
             while (!graphForCycleRemoval.IsEmpty()) {
                 int u;
                 while (graphForCycleRemoval.TryGetSink(out u)) {
@@ -64,16 +66,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
                 yield return CreateGraphForCycleRemoval(componentNodes);
         }
 
-         BasicGraph<IntPair> GetCommonGraph() {
-            return new BasicGraph<IntPair>((from edge in graph.Edges select new IntPair(edge.Source, edge.Target)).Concat(constrainedEdges), graph.NodeCount);
-        }
+        BasicGraph<IntPair> GetCommonGraph() => new BasicGraph<IntPair>((from edge in graph.Edges select new IntPair(edge.Source, edge.Target)).Concat(constrainedEdges), graph.NodeCount);
 
-         GraphForCycleRemoval CreateGraphForCycleRemoval(IEnumerable<int> componentNodes) {
+        GraphForCycleRemoval CreateGraphForCycleRemoval(IEnumerable<int> componentNodes) {
             GraphForCycleRemoval graphForCycleRemoval = new GraphForCycleRemoval();
             foreach (int i in componentNodes) {
-                foreach (TEdge edge in this.graph.OutEdges(i))
+                foreach (TEdge edge in graph.OutEdges(i))
                     graphForCycleRemoval.AddEdge(new IntPair(edge.Source,edge.Target));
-                foreach (IntPair intPair in this.graphOfConstraints.OutEdges(i))
+                foreach (IntPair intPair in graphOfConstraints.OutEdges(i))
                     graphForCycleRemoval.AddConstraintEdge(intPair);
             }
             return graphForCycleRemoval;

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves;
 using SymmetricSegment = MermaidRecognition.Layout.Sugiyama.Core.DataStructures.SymmetricTuple<MermaidRecognition.Layout.Sugiyama.Core.Geometry.Point>;
+using MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree;
 namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
 {
     public class RectSegIntersection
@@ -44,19 +45,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
             return code;
         }
 
-        public static bool GetIntX(double x, Point p1, Point p2, out double alpha)
-        {
-            return GetInt(x, p1.X, p2.X, out alpha);
-        }
+        public static bool GetIntX(double x, Point p1, Point p2, out double alpha) => GetInt(x, p1.X, p2.X, out alpha);
 
-        public static bool GetIntY(double y, Point p1, Point p2, out double alpha)
-        {
-            return GetInt(y, p1.Y, p2.Y, out alpha);
-        }
+        public static bool GetIntY(double y, Point p1, Point p2, out double alpha) => GetInt(y, p1.Y, p2.Y, out alpha);
 
-        public static bool GetIntersectionPointX(double x, Point p1, Point p2, out Point p) { 
-            double alpha;
-            if (!GetIntX(x, p1, p2, out alpha)) {
+        public static bool GetIntersectionPointX(double x, Point p1, Point p2, out Point p) {
+            if (!GetIntX(x, p1, p2, out double alpha))
+            {
                 p = new Point();
                 return false;
             }
@@ -70,8 +65,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
 
         public static bool GetIntersectionPointY(double y, Point p1, Point p2, out Point p)
         {
-            double alpha;
-            if (!GetIntY(y, p1, p2, out alpha))
+            if (!GetIntY(y, p1, p2, out double alpha))
             {
                 p = new Point();
                 return false;
@@ -85,33 +79,20 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
             return true;
         }
 
-        public static bool GetIntersectionLeft(Rectangle rect, Point p1, Point p2, out Point p)
-        {
-            return GetIntersectionPointX(rect.Left, p1, p2, out p);
-        }
+        public static bool GetIntersectionLeft(Rectangle rect, Point p1, Point p2, out Point p) => GetIntersectionPointX(rect.Left, p1, p2, out p);
 
-        public static bool GetIntersectionRight(Rectangle rect, Point p1, Point p2, out Point p)
-        {
-            return GetIntersectionPointX(rect.Right, p1, p2, out p);
-        }
+        public static bool GetIntersectionRight(Rectangle rect, Point p1, Point p2, out Point p) => GetIntersectionPointX(rect.Right, p1, p2, out p);
 
-        public static bool GetIntersectionBottom(Rectangle rect, Point p1, Point p2, out Point p)
-        {
-            return GetIntersectionPointY(rect.Bottom, p1, p2, out p);
-        }
+        public static bool GetIntersectionBottom(Rectangle rect, Point p1, Point p2, out Point p) => GetIntersectionPointY(rect.Bottom, p1, p2, out p);
 
-        public static bool GetIntersectionTop(Rectangle rect, Point p1, Point p2, out Point p)
-        {
-            return GetIntersectionPointY(rect.Top, p1, p2, out p);
-        }
+        public static bool GetIntersectionTop(Rectangle rect, Point p1, Point p2, out Point p) => GetIntersectionPointY(rect.Top, p1, p2, out p);
 
         public static double GetOverlapAmountBothOnBorder(Rectangle rect, Point p1, Point p2)
         {
-            Point ipLeft, ipRight, ipTop, ipBottom;
-            bool iLeft = GetIntersectionLeft(rect, p1, p2, out ipLeft);
-            bool iRight = GetIntersectionRight(rect, p1, p2, out ipRight);
-            bool iBottom = GetIntersectionBottom(rect, p1, p2, out ipBottom);
-            bool iTop = GetIntersectionTop(rect, p1, p2, out ipTop);
+            bool iLeft = GetIntersectionLeft(rect, p1, p2, out Point ipLeft);
+            bool iRight = GetIntersectionRight(rect, p1, p2, out Point ipRight);
+            bool iBottom = GetIntersectionBottom(rect, p1, p2, out Point ipBottom);
+            bool iTop = GetIntersectionTop(rect, p1, p2, out Point ipTop);
 
             double a = rect.Area;
             double a1 = 0;
@@ -149,15 +130,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
                 return GetOverlapAmountInsideOutside(rect, p2, p1);
             }
 
-            Point pc1, pc2;
-            ClipOnRect(rect, p1, p2, out pc1, out pc2);
+            ClipOnRect(rect, p1, p2, out Point pc1, out Point pc2);
             return GetOverlapAmountBothOnBorder(rect, pc1, pc2);
         }
 
-        public static bool Intersect(Rectangle rect, Point p1, Point p2) {
-            Point p;
-            return ClipOnRect(rect, p1, p2, out p);
-        }
+        public static bool Intersect(Rectangle rect, Point p1, Point p2) => ClipOnRect(rect, p1, p2, out Point p);
 
         public static bool ClipOnRect(Rectangle rect, Point pointToClip, Point otherEnd, out Point pClipped) {
             pClipped = new Point(pointToClip.X, pointToClip.Y);
@@ -204,14 +181,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
 
         public static bool ClipOnRect(Rectangle rect, Point pointToClip1, Point pointToClip2, out Point pClipped1, out Point pClipped2)
         {
-            Point p1, p2;
-            bool intersect = ClipOnRect(rect, pointToClip1, pointToClip2, out p1);
+            bool intersect = ClipOnRect(rect, pointToClip1, pointToClip2, out Point p1);
             if (!intersect) {
                 pClipped1 = new Point();
                 pClipped2 = new Point();
                 return false;
             }
-            ClipOnRect(rect, pointToClip2, pointToClip1, out p2);
+            ClipOnRect(rect, pointToClip2, pointToClip1, out Point p2);
 
             pClipped1 = p1;
             pClipped2 = p2;
@@ -254,9 +230,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
 
         public static bool SegmentsIntersect(Point p1, Point p2, Point q1, Point q2)
         {
-            var seg1 = new LineSegment(p1, p2);
-            var seg2 = new LineSegment(q1, q2);
-            var allInt = Curve.GetAllIntersections(seg1, seg2, false);
+            LineSegment seg1 = new LineSegment(p1, p2);
+            LineSegment seg2 = new LineSegment(q1, q2);
+            IList<IntersectionInfo> allInt = Curve.GetAllIntersections(seg1, seg2, false);
             return allInt.Any();
         }
         /// <summary>
@@ -275,10 +251,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
             return dot <= 0 ? p1 : (dot >= 1 ? p2 : p1 + l * dot);
         }
 
-        public static double Dot(Point p1, Point p2)
-        {
-            return p1.X*p2.X + p1.Y*p2.Y;
-        }
+        public static double Dot(Point p1, Point p2) => p1.X * p2.X + p1.Y * p2.Y;
 
         public static Point GetOrthShiftUntilNoLongerOverlapRectSeg(Rectangle rect, Point p1, Point p2, Point moveDir)
         {
@@ -296,23 +269,24 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
 
         public static List<SymmetricSegment> GetBoundarySegments(Rectangle bbox)
         {
-            List<SymmetricSegment> segs = new List<SymmetricSegment>();
-            segs.Add(new SymmetricSegment(bbox.LeftBottom, bbox.RightBottom));
-            segs.Add(new SymmetricSegment(bbox.RightBottom, bbox.RightTop));
-            segs.Add(new SymmetricSegment(bbox.RightTop, bbox.LeftTop));
-            segs.Add(new SymmetricSegment(bbox.LeftTop, bbox.LeftBottom));
+            List<SymmetricSegment> segs =
+            [
+                new SymmetricSegment(bbox.LeftBottom, bbox.RightBottom),
+                new SymmetricSegment(bbox.RightBottom, bbox.RightTop),
+                new SymmetricSegment(bbox.RightTop, bbox.LeftTop),
+                new SymmetricSegment(bbox.LeftTop, bbox.LeftBottom),
+            ];
             return segs;
         }
 
         public static Point GetIntersectionWithRayFromRectOrigin(Rectangle rect, Point dir)
         {
-            double t = Double.MaxValue;
-            double alpha = 0;
+            double t = double.MaxValue;
 
-            var p1 = rect.Center;
-            var p2 = rect.Center + dir;
+            Point p1 = rect.Center;
+            Point p2 = rect.Center + dir;
 
-            GetIntX(rect.Left, p1, p2, out alpha);
+            GetIntX(rect.Left, p1, p2, out double alpha);
             if (alpha > 0) t = Math.Min(t, alpha);
 
             GetIntX(rect.Right, p1, p2, out alpha);
@@ -329,7 +303,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
 
         public static Rectangle GetScaled(Rectangle rect, double scale)
         {
-            var scaled = rect.Clone();
+            Rectangle scaled = rect.Clone();
             scaled.ScaleAroundCenter(scale);
             return scaled;
         }
@@ -341,16 +315,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
             dx *= xScale;
             dy *= yScale;
 
-            var scaled = new Rectangle(rect.Center - new Point(dx, dy), rect.Center + new Point(dx, dy));
+            Rectangle scaled = new Rectangle(rect.Center - new Point(dx, dy), rect.Center + new Point(dx, dy));
             return scaled;
         }
 
         public static bool IsSegmentTouchingSomeRectangle(Point p1, Point p2, RTree<Rectangle> rtree, double tolerance)
         {
-            var searchRect = new Rectangle(p1, p2);
+            Rectangle searchRect = new Rectangle(p1, p2);
             searchRect = GetDilated(searchRect, tolerance);
-            var intersected = rtree.GetAllIntersecting(searchRect);
-            var touching =
+            Rectangle[] intersected = rtree.GetAllIntersecting(searchRect);
+            IEnumerable<Rectangle> touching =
                 (from r in intersected
                  let boxBig = GetScaled(r, 1 + tolerance)
                  let boxSmall = GetScaled(r, 1 - tolerance)
@@ -362,16 +336,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
         public static bool IsSegmentInsideBoundaryOfSomeRectangle(Point p1, Point p2, RTree<Rectangle> rtree,
             double tolerance)
         {
-            var searchRect = new Rectangle(p1, p2);
+            Rectangle searchRect = new Rectangle(p1, p2);
             searchRect = GetDilated(searchRect, tolerance);
-            var intersected = rtree.GetAllIntersecting(searchRect);
+            Rectangle[] intersected = rtree.GetAllIntersecting(searchRect);
 
-            var boxesContaining = new List<Rectangle>();
-            foreach (var r in intersected)
+            List<Rectangle> boxesContaining = new List<Rectangle>();
+            foreach (Rectangle r in intersected)
             {
-                var boxBig = GetDilated(r, tolerance);
-                var boxSmall = GetDilated(r, -tolerance);
-                var insideBoundary = true;
+                Rectangle boxBig = GetDilated(r, tolerance);
+                Rectangle boxSmall = GetDilated(r, -tolerance);
+                bool insideBoundary = true;
                 insideBoundary &= boxBig.Contains(p1);
                 insideBoundary &= boxBig.Contains(p2);
                 insideBoundary &= !boxSmall.Contains(p1);
@@ -384,21 +358,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
             return boxesContaining.Any();
         }
 
-        public static Rectangle GetDilated(Rectangle rect, double eps)
-        {
-            return new Rectangle(rect.LeftBottom-new Point(eps,eps), rect.RightTop+new Point(eps,eps));
-        }
+        public static Rectangle GetDilated(Rectangle rect, double eps) => new Rectangle(rect.LeftBottom - new Point(eps, eps), rect.RightTop + new Point(eps, eps));
 
         public static bool ArePointsOnLine(List<Point> points)
         {
             for (int i = 1; i < points.Count-1; i++)
             {
-                var p0 = points[i - 1];
-                var p1 = points[i];
-                var p2 = points[i + 1];
+                Point p0 = points[i - 1];
+                Point p1 = points[i];
+                Point p2 = points[i + 1];
 
-                var v0 = p1 - p0;
-                var v1 = p2 - p1;
+                Point v0 = p1 - p0;
+                Point v1 = p2 - p1;
 
                 if (!Point.ParallelWithinEpsilon(v0, v1, 1))
                     return false;

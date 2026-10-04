@@ -1,5 +1,6 @@
 using MermaidRecognition;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
+
 using MermaidSharp;
 
 namespace MermaidRecognition.NaiadAdapter.Tests;

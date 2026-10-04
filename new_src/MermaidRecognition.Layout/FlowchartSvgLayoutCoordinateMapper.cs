@@ -110,7 +110,7 @@ public sealed class FlowchartSvgLayoutCoordinateMapper
     /// </summary>
     public List<(double X, double Y)> ConvertSamplesToLayout(IReadOnlyList<(double X, double Y)> SvgSamples)
     {
-        List<(double X, double Y)> LayoutSamples = new List<(double X, double Y)>();
+        List<(double X, double Y)> LayoutSamples = [];
         foreach ((double SvgX, double SvgY) in SvgSamples)
         {
             LayoutSamples.Add(SvgToLayout(SvgX, SvgY));

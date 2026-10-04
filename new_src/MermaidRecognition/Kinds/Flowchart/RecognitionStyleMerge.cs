@@ -1,4 +1,4 @@
-namespace MermaidRecognition.Flowchart;
+namespace MermaidRecognition.Kinds.Flowchart;
 
 /// <summary>
 /// Merges <see cref="RecognitionStyle"/> facts onto parse-time records.

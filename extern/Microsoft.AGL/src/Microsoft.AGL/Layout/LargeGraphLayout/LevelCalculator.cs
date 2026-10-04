@@ -1,10 +1,12 @@
-﻿using System;
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+
 using Microsoft.AGL.Core.Geometry.Curves;
 using Microsoft.AGL.Core.Layout;
 using Microsoft.AGL.Core.Routing;
-using Microsoft.AGL.Prototype.Ranking;
+using Microsoft.AGL.Miscellaneous.Ranking;
 using Microsoft.AGL.Routing;
 
 namespace Microsoft.AGL.Layout.LargeGraphLayout {
@@ -12,7 +14,7 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
 
         static void AssignEdges(LgData lgData, IZoomLevelCalculator nodeZoomLevelCalculator) {
             AssignEdgesToLevels(lgData, nodeZoomLevelCalculator);
-            var edgeInfos = SortEdgeInfosByZoomLevel(lgData);
+            LgEdgeInfo[] edgeInfos = SortEdgeInfosByZoomLevel(lgData);
 
             foreach (int nodeCountOnLevel in nodeZoomLevelCalculator.LevelNodeCounts) {
                 bool finished = AddLevel(lgData, nodeZoomLevelCalculator, nodeCountOnLevel, edgeInfos);
@@ -22,14 +24,14 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
         }
 
         static bool AddLevel(LgData lgData, IZoomLevelCalculator nodeZoomLevelCalculator, int nodeCountOnLevel, LgEdgeInfo[] edgeInfos) {
-            var zoomLevel = (int) nodeZoomLevelCalculator.SortedLgNodeInfos[nodeCountOnLevel - 1].ZoomLevel;
-            var edgeInfosOfLevel = edgeInfos.TakeWhile(ei => ei.ZoomLevel <= zoomLevel).ToList();
+            int zoomLevel = (int) nodeZoomLevelCalculator.SortedLgNodeInfos[nodeCountOnLevel - 1].ZoomLevel;
+            List<LgEdgeInfo> edgeInfosOfLevel = edgeInfos.TakeWhile(ei => ei.ZoomLevel <= zoomLevel).ToList();
             lgData.AddLevel();
             return edgeInfosOfLevel.Count() == lgData.GeometryEdgesToLgEdgeInfos.Count;
         }
 
         static LgEdgeInfo[] SortEdgeInfosByZoomLevel(LgData lgData) {
-            var edgeInfos = lgData.GeometryEdgesToLgEdgeInfos.Values.ToArray();
+            LgEdgeInfo[] edgeInfos = lgData.GeometryEdgesToLgEdgeInfos.Values.ToArray();
             Array.Sort(edgeInfos, (a, b) => a.ZoomLevel.CompareTo(b.ZoomLevel));
             return edgeInfos;
         }
@@ -45,7 +47,7 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
             GeometryGraph mainGeometryGraph,
             LgLayoutSettings lgLayoutSettings) {
 
-            var nodeZoomLevelCalculator =
+            DeviceIndependendZoomCalculatorForNodes nodeZoomLevelCalculator =
                 new DeviceIndependendZoomCalculatorForNodes(node => lgData.GeometryNodesToLgNodeInfos[node],
                                                             mainGeometryGraph, lgLayoutSettings, lgLayoutSettings.MaxNumberOfNodesPerTile);
             nodeZoomLevelCalculator.Run();
@@ -56,17 +58,16 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
 
         internal static void RankGraph(LgData lgData, GeometryGraph mainGeometryGraph) {
 //fromDrawingToEdgeInfo = new Dictionary<ICurve, LgEdgeInfo>();
-            foreach (var connectedGraph in lgData.ConnectedGeometryGraphs)
+            foreach (GeometryGraph connectedGraph in lgData.ConnectedGeometryGraphs)
                 RankTheGraph(lgData, mainGeometryGraph, connectedGraph);
 
             UpdateRanksOfClusters(lgData);
         }
 
         static void UpdateRanksOfClusters(LgData lgData) {
-            foreach (var lgInfo in lgData.GeometryNodesToLgNodeInfos.Values) {
-                foreach (var cluster in lgInfo.GeometryNode.ClusterParents) {
-                    LgNodeInfo clusterLgInfo;
-                    if (lgData.GeometryNodesToLgNodeInfos.TryGetValue(cluster, out clusterLgInfo))
+            foreach (LgNodeInfo lgInfo in lgData.GeometryNodesToLgNodeInfos.Values) {
+                foreach (Cluster cluster in lgInfo.GeometryNode.ClusterParents) {
+                    if (lgData.GeometryNodesToLgNodeInfos.TryGetValue(cluster, out LgNodeInfo clusterLgInfo))
                         if (clusterLgInfo.Rank < lgInfo.Rank)
                             clusterLgInfo.Rank = lgInfo.Rank;
                 }
@@ -77,18 +78,18 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
         static void RankTheGraph(LgData lgData,
                                           GeometryGraph mainGeometryGraph, GeometryGraph geomGraph) {
 
-            var nodeArray = geomGraph.Nodes.ToArray();
-            var flatGraph = new GeometryGraph {
+            Node[] nodeArray = geomGraph.Nodes.ToArray();
+            GeometryGraph flatGraph = new GeometryGraph {
                 Nodes = new SimpleNodeCollection(nodeArray),
                 Edges =
                     new SimpleEdgeCollection(
                         geomGraph.Edges.Where(e => !(e.Source is Cluster) && !(e.Target is Cluster)))
             };
 
-            var pageRank = Centrality.PageRank(flatGraph, 0.85, false);
+            double[] pageRank = Centrality.PageRank(flatGraph, 0.85, false);
             double normalizer = (double)geomGraph.Nodes.Count/mainGeometryGraph.Nodes.Count;
             for (int i = 0; i < nodeArray.Length; i++) {
-                var node = nodeArray[i];
+                Node node = nodeArray[i];
                 Debug.Assert(node != mainGeometryGraph.RootCluster);
                 lgData.GeometryNodesToLgNodeInfos[node].Rank = normalizer*pageRank[i];
             }

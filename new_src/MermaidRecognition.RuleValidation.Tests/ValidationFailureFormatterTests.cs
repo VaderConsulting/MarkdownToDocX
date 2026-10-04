@@ -45,7 +45,7 @@ public sealed class ValidationFailureFormatterTests
     {
         EvaluationContext Context = BuildEdgeContext();
         Context.Diagram.Direction = "LR";
-        Context.Edge.Label = "No";
+        Context.Edge!.Label = "No";
         Context.Edge.SourceNodeId = "B";
         Context.Edge.TargetNodeId = "D";
         Context.Edge.Facts["Diagnostic.Reason"] = "Route reverses direction near the source attach, producing a local hook or overshoot.";

@@ -30,13 +30,7 @@ public sealed class FlowF34RuleValidationTests
 
     [SetUp]
 
-    public void SetUp()
-
-    {
-
-        _SpecDirectory = Path.Combine(AppContext.BaseDirectory, "Rule Specification");
-
-    }
+    public void SetUp() => _SpecDirectory = Path.Combine(AppContext.BaseDirectory, "Rule Specification");
 
 
 

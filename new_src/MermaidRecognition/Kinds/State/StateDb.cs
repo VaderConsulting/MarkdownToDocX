@@ -1,7 +1,7 @@
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 
-namespace MermaidRecognition.State;
+namespace MermaidRecognition.Kinds.State;
 
 /// <summary>
 /// Mermaid-style state diagram database (parse-time mutations only).
@@ -11,7 +11,7 @@ public sealed class StateDb
     private readonly Dictionary<string, StateNodeRecord> _StatesById =
         new Dictionary<string, StateNodeRecord>(StringComparer.Ordinal);
 
-    private readonly List<StateEdgeRecord> _Edges = new List<StateEdgeRecord>();
+    private readonly List<StateEdgeRecord> _Edges = [];
 
     private readonly Dictionary<string, StateGroupRecord> _GroupsById =
         new Dictionary<string, StateGroupRecord>(StringComparer.Ordinal);
@@ -22,7 +22,7 @@ public sealed class StateDb
 
     private int _NextNoteIndex;
 
-    private readonly List<StateNoteRecord> _Notes = new List<StateNoteRecord>();
+    private readonly List<StateNoteRecord> _Notes = [];
 
     private readonly Dictionary<string, ClassDefContract> _ClassDefsById =
         new Dictionary<string, ClassDefContract>(StringComparer.Ordinal);
@@ -31,89 +31,33 @@ public sealed class StateDb
 
     private string? _AccessibilityDescription;
 
-    private readonly List<InteractionDirective> _Interactions = new List<InteractionDirective>();
+    private readonly List<InteractionDirective> _Interactions = [];
 
-    private readonly List<MermaidDiagnostic> _Diagnostics = new List<MermaidDiagnostic>();
+    private readonly List<MermaidDiagnostic> _Diagnostics = [];
 
-    public IReadOnlyDictionary<string, StateNodeRecord> StatesById
-    {
-        get
-        {
-            return _StatesById;
-        }
-    }
+    public IReadOnlyDictionary<string, StateNodeRecord> StatesById => _StatesById;
 
-    public IReadOnlyList<StateEdgeRecord> Edges
-    {
-        get
-        {
-            return _Edges;
-        }
-    }
+    public IReadOnlyList<StateEdgeRecord> Edges => _Edges;
 
-    public IReadOnlyDictionary<string, StateGroupRecord> GroupsById
-    {
-        get
-        {
-            return _GroupsById;
-        }
-    }
+    public IReadOnlyDictionary<string, StateGroupRecord> GroupsById => _GroupsById;
 
-    public IReadOnlyDictionary<string, ClassDefContract> ClassDefsById
-    {
-        get
-        {
-            return _ClassDefsById;
-        }
-    }
+    public IReadOnlyDictionary<string, ClassDefContract> ClassDefsById => _ClassDefsById;
 
-    public IReadOnlyList<StateNoteRecord> Notes
-    {
-        get
-        {
-            return _Notes;
-        }
-    }
+    public IReadOnlyList<StateNoteRecord> Notes => _Notes;
 
     public string? AccessibilityTitle
     {
-        get
-        {
-            return _AccessibilityTitle;
-        }
-        set
-        {
-            _AccessibilityTitle = value;
-        }
+        get => _AccessibilityTitle; set => _AccessibilityTitle = value;
     }
 
     public string? AccessibilityDescription
     {
-        get
-        {
-            return _AccessibilityDescription;
-        }
-        set
-        {
-            _AccessibilityDescription = value;
-        }
+        get => _AccessibilityDescription; set => _AccessibilityDescription = value;
     }
 
-    public List<InteractionDirective> InteractionsMutable
-    {
-        get
-        {
-            return _Interactions;
-        }
-    }
+    public List<InteractionDirective> InteractionsMutable => _Interactions;
 
-    public List<MermaidDiagnostic> DiagnosticsMutable
-    {
-        get
-        {
-            return _Diagnostics;
-        }
-    }
+    public List<MermaidDiagnostic> DiagnosticsMutable => _Diagnostics;
 
     /// <summary>
     /// Gets or creates a state node by identifier.
@@ -126,9 +70,11 @@ public sealed class StateDb
             return Existing;
         }
 
-        StateNodeRecord Created = new StateNodeRecord();
-        Created.Id = StateId;
-        Created.Label = StateId;
+        StateNodeRecord Created = new StateNodeRecord
+        {
+            Id = StateId,
+            Label = StateId
+        };
         _StatesById[StateId] = Created;
         AddNodeToCurrentCompositeOnce(StateId, Created);
         return Created;
@@ -157,8 +103,10 @@ public sealed class StateDb
     /// </summary>
     public void AddNote(string Placement, string AnchorIds, string Text)
     {
-        StateNoteRecord Note = new StateNoteRecord();
-        Note.Id = "note-" + _NextNoteIndex.ToString();
+        StateNoteRecord Note = new StateNoteRecord
+        {
+            Id = "note-" + _NextNoteIndex.ToString()
+        };
         _NextNoteIndex = _NextNoteIndex + 1;
         Note.Placement = Placement;
         Note.AnchorIds = AnchorIds;
@@ -173,8 +121,10 @@ public sealed class StateDb
     {
         if (!_GroupsById.TryGetValue(GroupId, out StateGroupRecord? Group))
         {
-            Group = new StateGroupRecord();
-            Group.Id = GroupId;
+            Group = new StateGroupRecord
+            {
+                Id = GroupId
+            };
             _GroupsById[GroupId] = Group;
         }
 
@@ -209,11 +159,13 @@ public sealed class StateDb
         GetOrCreateState(SourceId);
         GetOrCreateState(TargetId);
 
-        StateEdgeRecord Edge = new StateEdgeRecord();
-        Edge.SourceId = SourceId;
-        Edge.TargetId = TargetId;
-        Edge.Label = Label;
-        Edge.CreationIndex = _Edges.Count;
+        StateEdgeRecord Edge = new StateEdgeRecord
+        {
+            SourceId = SourceId,
+            TargetId = TargetId,
+            Label = Label,
+            CreationIndex = _Edges.Count
+        };
         _Edges.Add(Edge);
     }
 
@@ -266,8 +218,10 @@ public sealed class StateDb
     {
         if (!_ClassDefsById.TryGetValue(ClassId, out ClassDefContract? Existing))
         {
-            Existing = new ClassDefContract();
-            Existing.ClassId = ClassId;
+            Existing = new ClassDefContract
+            {
+                ClassId = ClassId
+            };
             _ClassDefsById[ClassId] = Existing;
         }
 

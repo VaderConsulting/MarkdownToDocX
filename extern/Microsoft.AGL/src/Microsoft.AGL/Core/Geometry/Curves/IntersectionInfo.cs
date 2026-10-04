@@ -19,40 +19,30 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <summary>
         /// the parameter on the first curve
         /// </summary>
-        public double Par0 {
-            get { return par0; }
-            set { par0 = value; }
+        public double Par0 { get => par0; set => par0 = value;
         }
         /// <summary>
         /// the parameter on the second curve
         /// </summary>
-        public double Par1 {
-            get { return par1; }
-            set { par1 = value; }
+        public double Par1 { get => par1; set => par1 = value;
         }
 
         /// <summary>
         /// the intersection point
         /// </summary>
-        public Point IntersectionPoint {
-            get { return x; }
-            set { x = value; }
+        public Point IntersectionPoint { get => x; set => x = value;
         }
 
-/// <summary>
-/// the segment of the first curve where the intersection point belongs
-/// </summary>
-        public ICurve Segment0 {
-            get { return seg0; }
-            set { seg0=value; }
+        /// <summary>
+        /// the segment of the first curve where the intersection point belongs
+        /// </summary>
+        public ICurve Segment0 { get => seg0; set => seg0 = value;
         }
 
         /// <summary>
         /// the segment of the second curve where the intersection point belongs
         /// </summary>
-        public ICurve Segment1 {
-            get { return seg1; }
-            set { seg1 = value; }
+        public ICurve Segment1 { get => seg1; set => seg1 = value;
         }
 
         /// <summary>
@@ -63,7 +53,6 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="x"></param>
         /// <param name="s0"></param>
         /// <param name="s1"></param>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1305:SpecifyIFormatProvider", MessageId = "System.String.Format(System.String,System.Object,System.Object,System.Object)")]
         internal IntersectionInfo(double pr0, double pr1, Point x, ICurve s0, ICurve s1) {
             par0 = pr0;
             par1 = pr1;
@@ -82,8 +71,6 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// 
         /// </summary>
         /// <returns></returns>
-        public override string ToString() {
-            return String.Format(CultureInfo.InvariantCulture, "XX({0} {1} {2})", par0, par1, x);
-        }
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "XX({0} {1} {2})", par0, par1, x);
     }
 }

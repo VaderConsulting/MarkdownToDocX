@@ -13,10 +13,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms{
         /// <param name="numberOfVertices">number of vertices</param>
         /// <param name="edges">edge pairs</param>
         /// <returns>ordered node indexes</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures")]
         public static int[] GetOrder(int numberOfVertices, IEnumerable<System.Tuple<int,int>> edges)
         {
-            var dag = new BasicGraph<IntPair>(from e in edges select new IntPair(e.Item1, e.Item2), numberOfVertices);
+            BasicGraph<IntPair> dag = new BasicGraph<IntPair>(from e in edges select new IntPair(e.Item1, e.Item2), numberOfVertices);
             return GetOrder(dag);
         }
 #endif
@@ -30,13 +29,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms{
         /// <param name="graph"></param>
         /// <returns></returns>
         internal static int[] GetOrder<TEdge>(BasicGraph<TEdge> graph) where TEdge : IEdge{
-            var visited = new bool[graph.NodeCount];
+            bool[] visited = new bool[graph.NodeCount];
 
             //no recursion! So we have to organize a stack
-            var sv = new Stack<int>();
-            var se = new Stack<IEnumerator<int>>();
+            Stack<int> sv = new Stack<int>();
+            Stack<IEnumerator<int>> se = new Stack<IEnumerator<int>>();
 
-            var order = new List<int>();
+            List<int> order = new List<int>();
 
             IEnumerator<int> en;
             for (int u = 0; u < graph.NodeCount; u++){
@@ -81,33 +80,32 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms{
         /// </summary>
         /// <returns></returns>
         internal static int[] GetOrderOnEdges<TEdge>(IEnumerable<TEdge> edges) where TEdge : IEdge {
-            var visited = new Dictionary<int,bool>();
-            var graph = new Dictionary<int, List<int>>();
-            foreach (var e in edges) {
+            Dictionary<int, bool> visited = new Dictionary<int,bool>();
+            Dictionary<int, List<int>> graph = new Dictionary<int, List<int>>();
+            foreach (TEdge e in edges) {
                 visited[e.Source]=visited[e.Target]=false;
-                var x=e.Source;
-                List<int> list;
-                if(! graph.TryGetValue(x, out list)) {
-                   graph[x]=list=new List<int>();
+                int x =e.Source;
+                if (!graph.TryGetValue(x, out List<int>? list))
+                {
+                    graph[x] = list = [];
                 }
                 list.Add(e.Target);
             }
             //organize a couple of stacks to avoid the recursion
-            var sv = new Stack<int>();
-            var se = new Stack<IEnumerator<int>>();
+            Stack<int> sv = new Stack<int>();
+            Stack<IEnumerator<int>> se = new Stack<IEnumerator<int>>();
 
-            var order = new List<int>();
+            List<int> order = new List<int>();
 
             IEnumerator<int> en;
-            foreach (var  u in visited.Keys.ToArray()) {
+            foreach (int u in visited.Keys.ToArray()) {
                 if (visited[u])
                     continue;
 
                 int cu = u;
 
                 visited[cu] = true;
-                List<int> glist;
-                if (!graph.TryGetValue(u, out glist)) continue;
+                if (!graph.TryGetValue(u, out List<int>? glist)) continue;
                 if (glist == null) continue;
                 en = glist.GetEnumerator();
                 do {
@@ -115,10 +113,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms{
                         int v = en.Current;
                         if (!visited[v]) {
                             visited[v] = true;
-                            List<int> list;
-                            if (!graph.TryGetValue(v, out list)) {
+                            if (!graph.TryGetValue(v, out List<int>? list))
+                            {
                                 order.Add(v);//it is a leaf
-                                continue; 
+                                continue;
                             }
                             sv.Push(cu);
                             se.Push(en);

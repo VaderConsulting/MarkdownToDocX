@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace Microsoft.AGL.Core.Layout {
     /// <summary>
@@ -12,30 +12,21 @@ namespace Microsoft.AGL.Core.Layout {
         /// <summary>
         /// 
         /// </summary>
-        public double SlidingZoomLevel {
-            get { return _slidingZoomLevel; }
-            set { _slidingZoomLevel = value; }
+        public double SlidingZoomLevel { get => _slidingZoomLevel; set => _slidingZoomLevel = value;
         }
 
         /// <summary>
         /// if the zoom is at least ZoomLevel the node should be rendered
         /// </summary>
-        public double ZoomLevel {
-            get { return Math.Min(_zoomLevel, SlidingZoomLevel); }
-            set { _zoomLevel = value; }
+        public double ZoomLevel { get => Math.Min(_zoomLevel, SlidingZoomLevel); set => _zoomLevel = value;
         }
 
         /// <summary>
         /// the rank of the element
         /// </summary>
-        public double Rank {
-            get { return _rank; }
-            set { _rank = value; }
+        public double Rank { get => _rank; set => _rank = value;
         }
 
-        internal bool ZoomLevelIsNotSet {
-            get { return ZoomLevel == double.PositiveInfinity; }
-
-        }
+        internal bool ZoomLevelIsNotSet => ZoomLevel == double.PositiveInfinity;
     }
 }

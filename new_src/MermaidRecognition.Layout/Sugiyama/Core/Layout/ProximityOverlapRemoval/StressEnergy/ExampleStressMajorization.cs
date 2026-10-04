@@ -41,15 +41,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
 
 
             //create stress majorization class and set the desired distances on the edges
-            StressMajorization majorizer = new StressMajorization();
-
-
-            majorizer.Positions = new List<Point>(graph.Nodes.Select(v=>v.Center));
-            majorizer.NodeVotings = new List<NodeVoting>(graph.Nodes.Count);
+            StressMajorization majorizer = new StressMajorization
+            {
+                Positions = new List<Point>(graph.Nodes.Select(v => v.Center)),
+                NodeVotings = new List<NodeVoting>(graph.Nodes.Count)
+            };
 
             // initialize for every node an empty block
             for (int i = 0; i < graph.Nodes.Count; i++) {
-                var nodeVote = new NodeVoting(i); //by default there is already a block with weighting 1
+                NodeVoting nodeVote = new NodeVoting(i); //by default there is already a block with weighting 1
                 //optional: add second block with different type of edges, e.g., with stronger weight
                 //var secondBlock = new VoteBlock(new List<Vote>(), 100);
                 //nodeVote.VotingBlocks.Add(secondBlock);
@@ -60,21 +60,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
 
 
             // for every edge set the desired distances by setting votings among the two end nodes.
-            Dictionary<Node,int> posDict=new Dictionary<Node, int>();
+            Dictionary<Node,int> posDict=[];
             for (int i = 0; i < graph.Nodes.Count; i++) {
                 posDict[graph.Nodes[i]] = i;
             }
 
-            var edges = graph.Edges.ToArray();
+            Edge[] edges = graph.Edges.ToArray();
             for (int i=0; i<graph.Edges.Count;i++) {
-                var edge = edges[i];
+                Edge edge = edges[i];
                 int nodeId1 = posDict[edge.Source];
                 int nodeId2 = posDict[edge.Target];
 
                 double idealDistance = idealEdgeLength[i];
                 double weight = 1 / (idealDistance * idealDistance);
-                var voteFromNode1 = new Vote(nodeId1, idealDistance, weight); // vote from node1 for node2
-                var voteFromNode2 = new Vote(nodeId2, idealDistance, weight); // vote from node2 for node1
+                Vote voteFromNode1 = new Vote(nodeId1, idealDistance, weight); // vote from node1 for node2
+                Vote voteFromNode2 = new Vote(nodeId2, idealDistance, weight); // vote from node2 for node1
                 
                 // add vote of node1 to list of node2 (in first voting block)
                 majorizer.NodeVotings[nodeId2].VotingBlocks[0].Votings.Add(voteFromNode1);
@@ -85,8 +85,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
             }
 
             //used localized method to reduce stress
-            majorizer.Settings=new StressMajorizationSettings();
-            majorizer.Settings.SolvingMethod=SolvingMethod.Localized;
+            majorizer.Settings = new StressMajorizationSettings
+            {
+                SolvingMethod = SolvingMethod.Localized
+            };
 
             List<Point> result = majorizer.IterateAll();
 

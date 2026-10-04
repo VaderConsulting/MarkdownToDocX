@@ -25,72 +25,30 @@ public sealed class EdgeExpansionTrace
 
     private readonly MermaidSourceSpan _StatementSpan;
 
-    public MermaidSourceSpan StatementSpan
-    {
-        get
-        {
-            return _StatementSpan;
-        }
-    }
+    public MermaidSourceSpan StatementSpan => _StatementSpan;
 
     private readonly int _LinkOrdinalInStatement;
 
-    public int LinkOrdinalInStatement
-    {
-        get
-        {
-            return _LinkOrdinalInStatement;
-        }
-    }
+    public int LinkOrdinalInStatement => _LinkOrdinalInStatement;
 
     private readonly int _StartOrdinal;
 
-    public int StartOrdinal
-    {
-        get
-        {
-            return _StartOrdinal;
-        }
-    }
+    public int StartOrdinal => _StartOrdinal;
 
     private readonly int _EndOrdinal;
 
-    public int EndOrdinal
-    {
-        get
-        {
-            return _EndOrdinal;
-        }
-    }
+    public int EndOrdinal => _EndOrdinal;
 
     private readonly IReadOnlyList<string> _StartSet;
 
-    public IReadOnlyList<string> StartSet
-    {
-        get
-        {
-            return _StartSet;
-        }
-    }
+    public IReadOnlyList<string> StartSet => _StartSet;
 
     private readonly IReadOnlyList<string> _EndSet;
 
-    public IReadOnlyList<string> EndSet
-    {
-        get
-        {
-            return _EndSet;
-        }
-    }
+    public IReadOnlyList<string> EndSet => _EndSet;
 
     private readonly string _RawLinkToken;
 
-    public string RawLinkToken
-    {
-        get
-        {
-            return _RawLinkToken;
-        }
-    }
+    public string RawLinkToken => _RawLinkToken;
 }
 

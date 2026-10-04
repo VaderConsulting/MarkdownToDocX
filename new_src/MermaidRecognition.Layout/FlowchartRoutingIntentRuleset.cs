@@ -10,28 +10,21 @@ public sealed class FlowchartRoutingIntentRuleset
 {
     private string _SchemaVersion = "1.0";
 
-    private List<string> _GlobalInvalidBehaviours = new List<string>();
+    private List<string> _GlobalInvalidBehaviours = [];
 
-    private List<string> _GlobalForbiddenBehaviours = new List<string>();
+    private List<string> _GlobalForbiddenBehaviours = [];
 
-    private List<FlowchartRoutingIntentDiagramExpectation> _Diagrams = new List<FlowchartRoutingIntentDiagramExpectation>();
+    private List<FlowchartRoutingIntentDiagramExpectation> _Diagrams = [];
 
     private List<FlowchartRoutingIntentDiagramExpectation> _DiagramIntentFixtures =
-        new List<FlowchartRoutingIntentDiagramExpectation>();
+        [];
 
     /// <summary>
     /// Ruleset schema version.
     /// </summary>
     public string SchemaVersion
     {
-        get
-        {
-            return _SchemaVersion;
-        }
-        set
-        {
-            _SchemaVersion = value;
-        }
+        get => _SchemaVersion; set => _SchemaVersion = value;
     }
 
     /// <summary>
@@ -39,14 +32,7 @@ public sealed class FlowchartRoutingIntentRuleset
     /// </summary>
     public List<string> GlobalInvalidBehaviours
     {
-        get
-        {
-            return _GlobalInvalidBehaviours;
-        }
-        set
-        {
-            _GlobalInvalidBehaviours = value ?? new List<string>();
-        }
+        get => _GlobalInvalidBehaviours; set => _GlobalInvalidBehaviours = value ?? [];
     }
 
     /// <summary>
@@ -54,14 +40,7 @@ public sealed class FlowchartRoutingIntentRuleset
     /// </summary>
     public List<FlowchartRoutingIntentDiagramExpectation> Diagrams
     {
-        get
-        {
-            return _Diagrams;
-        }
-        set
-        {
-            _Diagrams = value ?? new List<FlowchartRoutingIntentDiagramExpectation>();
-        }
+        get => _Diagrams; set => _Diagrams = value ?? [];
     }
 
     /// <summary>
@@ -69,14 +48,7 @@ public sealed class FlowchartRoutingIntentRuleset
     /// </summary>
     public List<string> GlobalForbiddenBehaviours
     {
-        get
-        {
-            return _GlobalForbiddenBehaviours;
-        }
-        set
-        {
-            _GlobalForbiddenBehaviours = value ?? new List<string>();
-        }
+        get => _GlobalForbiddenBehaviours; set => _GlobalForbiddenBehaviours = value ?? [];
     }
 
     /// <summary>
@@ -84,14 +56,7 @@ public sealed class FlowchartRoutingIntentRuleset
     /// </summary>
     public List<FlowchartRoutingIntentDiagramExpectation> DiagramIntentFixtures
     {
-        get
-        {
-            return _DiagramIntentFixtures;
-        }
-        set
-        {
-            _DiagramIntentFixtures = value ?? new List<FlowchartRoutingIntentDiagramExpectation>();
-        }
+        get => _DiagramIntentFixtures; set => _DiagramIntentFixtures = value ?? [];
     }
 
     /// <summary>
@@ -130,21 +95,14 @@ public sealed class FlowchartRoutingIntentDiagramExpectation
 
     private string _Direction = string.Empty;
 
-    private List<FlowchartRoutingIntentEdgeExpectation> _Edges = new List<FlowchartRoutingIntentEdgeExpectation>();
+    private List<FlowchartRoutingIntentEdgeExpectation> _Edges = [];
 
     /// <summary>
     /// Diagram identifier matching the torture-test markdown marker.
     /// </summary>
     public string DiagramId
     {
-        get
-        {
-            return _DiagramId;
-        }
-        set
-        {
-            _DiagramId = value;
-        }
+        get => _DiagramId; set => _DiagramId = value;
     }
 
     /// <summary>
@@ -152,14 +110,7 @@ public sealed class FlowchartRoutingIntentDiagramExpectation
     /// </summary>
     public string Direction
     {
-        get
-        {
-            return _Direction;
-        }
-        set
-        {
-            _Direction = value;
-        }
+        get => _Direction; set => _Direction = value;
     }
 
     /// <summary>
@@ -167,14 +118,7 @@ public sealed class FlowchartRoutingIntentDiagramExpectation
     /// </summary>
     public List<FlowchartRoutingIntentEdgeExpectation> Edges
     {
-        get
-        {
-            return _Edges;
-        }
-        set
-        {
-            _Edges = value ?? new List<FlowchartRoutingIntentEdgeExpectation>();
-        }
+        get => _Edges; set => _Edges = value ?? [];
     }
 
     /// <summary>
@@ -216,25 +160,18 @@ public sealed class FlowchartRoutingIntentEdgeExpectation
 
     private string _ObstacleAvoidanceIntent = string.Empty;
 
-    private List<string> _ExpectedBehaviour = new List<string>();
+    private List<string> _ExpectedBehaviour = [];
 
-    private List<string> _InvalidBehaviours = new List<string>();
+    private List<string> _InvalidBehaviours = [];
 
-    private List<string> _MustNotIncludeInvalidBehaviours = new List<string>();
+    private List<string> _MustNotIncludeInvalidBehaviours = [];
 
     /// <summary>
     /// Optional stable edge identifier such as <c>E004</c>.
     /// </summary>
     public string EdgeId
     {
-        get
-        {
-            return _EdgeId;
-        }
-        set
-        {
-            _EdgeId = value;
-        }
+        get => _EdgeId; set => _EdgeId = value;
     }
 
     /// <summary>
@@ -242,14 +179,7 @@ public sealed class FlowchartRoutingIntentEdgeExpectation
     /// </summary>
     public string SourceNodeId
     {
-        get
-        {
-            return _SourceNodeId;
-        }
-        set
-        {
-            _SourceNodeId = value;
-        }
+        get => _SourceNodeId; set => _SourceNodeId = value;
     }
 
     /// <summary>
@@ -257,14 +187,7 @@ public sealed class FlowchartRoutingIntentEdgeExpectation
     /// </summary>
     public string TargetNodeId
     {
-        get
-        {
-            return _TargetNodeId;
-        }
-        set
-        {
-            _TargetNodeId = value;
-        }
+        get => _TargetNodeId; set => _TargetNodeId = value;
     }
 
     /// <summary>
@@ -272,14 +195,7 @@ public sealed class FlowchartRoutingIntentEdgeExpectation
     /// </summary>
     public string RouteClass
     {
-        get
-        {
-            return _RouteClass;
-        }
-        set
-        {
-            _RouteClass = value;
-        }
+        get => _RouteClass; set => _RouteClass = value;
     }
 
     /// <summary>
@@ -287,14 +203,7 @@ public sealed class FlowchartRoutingIntentEdgeExpectation
     /// </summary>
     public string SourceBoundaryIntent
     {
-        get
-        {
-            return _SourceBoundaryIntent;
-        }
-        set
-        {
-            _SourceBoundaryIntent = value;
-        }
+        get => _SourceBoundaryIntent; set => _SourceBoundaryIntent = value;
     }
 
     /// <summary>
@@ -302,14 +211,7 @@ public sealed class FlowchartRoutingIntentEdgeExpectation
     /// </summary>
     public string TargetBoundaryIntent
     {
-        get
-        {
-            return _TargetBoundaryIntent;
-        }
-        set
-        {
-            _TargetBoundaryIntent = value;
-        }
+        get => _TargetBoundaryIntent; set => _TargetBoundaryIntent = value;
     }
 
     /// <summary>
@@ -317,14 +219,7 @@ public sealed class FlowchartRoutingIntentEdgeExpectation
     /// </summary>
     public string PathShapeIntent
     {
-        get
-        {
-            return _PathShapeIntent;
-        }
-        set
-        {
-            _PathShapeIntent = value;
-        }
+        get => _PathShapeIntent; set => _PathShapeIntent = value;
     }
 
     /// <summary>
@@ -332,14 +227,7 @@ public sealed class FlowchartRoutingIntentEdgeExpectation
     /// </summary>
     public string LabelPlacementIntent
     {
-        get
-        {
-            return _LabelPlacementIntent;
-        }
-        set
-        {
-            _LabelPlacementIntent = value;
-        }
+        get => _LabelPlacementIntent; set => _LabelPlacementIntent = value;
     }
 
     /// <summary>
@@ -347,14 +235,7 @@ public sealed class FlowchartRoutingIntentEdgeExpectation
     /// </summary>
     public string ObstacleAvoidanceIntent
     {
-        get
-        {
-            return _ObstacleAvoidanceIntent;
-        }
-        set
-        {
-            _ObstacleAvoidanceIntent = value;
-        }
+        get => _ObstacleAvoidanceIntent; set => _ObstacleAvoidanceIntent = value;
     }
 
     /// <summary>
@@ -362,14 +243,7 @@ public sealed class FlowchartRoutingIntentEdgeExpectation
     /// </summary>
     public List<string> ExpectedBehaviour
     {
-        get
-        {
-            return _ExpectedBehaviour;
-        }
-        set
-        {
-            _ExpectedBehaviour = value ?? new List<string>();
-        }
+        get => _ExpectedBehaviour; set => _ExpectedBehaviour = value ?? [];
     }
 
     /// <summary>
@@ -377,14 +251,7 @@ public sealed class FlowchartRoutingIntentEdgeExpectation
     /// </summary>
     public List<string> InvalidBehaviours
     {
-        get
-        {
-            return _InvalidBehaviours;
-        }
-        set
-        {
-            _InvalidBehaviours = value ?? new List<string>();
-        }
+        get => _InvalidBehaviours; set => _InvalidBehaviours = value ?? [];
     }
 
     /// <summary>
@@ -392,13 +259,6 @@ public sealed class FlowchartRoutingIntentEdgeExpectation
     /// </summary>
     public List<string> MustNotIncludeInvalidBehaviours
     {
-        get
-        {
-            return _MustNotIncludeInvalidBehaviours;
-        }
-        set
-        {
-            _MustNotIncludeInvalidBehaviours = value ?? new List<string>();
-        }
+        get => _MustNotIncludeInvalidBehaviours; set => _MustNotIncludeInvalidBehaviours = value ?? [];
     }
 }

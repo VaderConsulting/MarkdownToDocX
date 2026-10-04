@@ -40,13 +40,13 @@ namespace Microsoft.AGL.Routing.Visibility {
 */
 
         internal Polygon PPolygon {
-//            get { return P; }
-            set { P = value; }
+            //            get { return P; }
+            set => P = value;
         }
 
         internal Polygon QPolygon {
-//            get { return Q; }
-            set { Q = value; }
+            //            get { return Q; }
+            set => Q = value;
         }
 
         bool LeftFromLineOnP(int vertexIndex, Point lineStart, Point lineEnd) {
@@ -195,9 +195,7 @@ namespace Microsoft.AGL.Routing.Visibility {
         /// <param name="q2">the closest feature start</param>
         internal void FindDividingBisector(out Point bisectorPivot, out Point bisectorRay,
                                            out int p1, out int p2, out int q1, out int q2) {
-            Point pClosest;
-            Point qClosest;
-            FindClosestFeatures(out p1, out p2, out q1, out q2, out pClosest, out qClosest);
+            FindClosestFeatures(out p1, out p2, out q1, out q2, out Point pClosest, out Point qClosest);
             bisectorPivot = (pClosest + qClosest)/2;
             bisectorRay = (pClosest - qClosest).Rotate(Math.PI/2);
 
@@ -209,10 +207,7 @@ namespace Microsoft.AGL.Routing.Visibility {
         }
 
 
-        internal void FindClosestPoints(out Point pClosest, out Point qClosest) {
-            int p1, p2, q1, q2;
-            FindClosestFeatures(out p1, out p2, out q1, out q2, out pClosest, out qClosest);
-        }
+        internal void FindClosestPoints(out Point pClosest, out Point qClosest) => FindClosestFeatures(out int p1, out int p2, out int q1, out int q2, out pClosest, out qClosest);
 
         void FindClosestFeatures(out int p1, out int p2, out int q1, out int q2, out Point pClosest, out Point qClosest) {
             P.GetTangentPoints(out p2, out p1, Q[0].Point);
@@ -291,14 +286,10 @@ namespace Microsoft.AGL.Routing.Visibility {
             Point mQ = Q[mq].Point;
 
 
-            double a1;
-            double a2;
-            double b1;
-            double b2;
 
 
-            GetAnglesAtTheMedian(mp, mq, ref mP, ref mQ, out a1, out a2, out b1, out b2);
-//            Core.Layout.LayoutAlgorithmSettings.Show(new LineSegment(P.Pnt(p2), Q.Pnt(q2)), new LineSegment(P.Pnt(p1), Q.Pnt(q1)), new LineSegment(P.Pnt(mp),Q.Pnt( mq)), P.Polyline, Q.Polyline);
+            GetAnglesAtTheMedian(mp, mq, ref mP, ref mQ, out double a1, out double a2, out double b1, out double b2);
+            //            Core.Layout.LayoutAlgorithmSettings.Show(new LineSegment(P.Pnt(p2), Q.Pnt(q2)), new LineSegment(P.Pnt(p1), Q.Pnt(q1)), new LineSegment(P.Pnt(mp),Q.Pnt( mq)), P.Polyline, Q.Polyline);
             //if (MovingAlongHiddenSide(ref p1, ref p2, ref q1, ref q2, mp, mq, a1, a2, b1, b2)) {
             //  //  SugiyamaLayoutSettings.Show(ls(p2, q2), ls(p1, q1), ls(mp, mq), P.Polyline, Q.Polyline);
             //    return;
@@ -318,10 +309,9 @@ namespace Microsoft.AGL.Routing.Visibility {
 
             // the case where we have exactly two vertices in each chunk
             if (p2 == P.Next(p1) && q1 == Q.Next(q2)) {
-                double psol, qsol;
 
-                LineSegment.MinDistBetweenLineSegments(P.Pnt(p1), P.Pnt(p2), Q.Pnt(q1), Q.Pnt(q2), out psol,
-                                                             out qsol);
+                LineSegment.MinDistBetweenLineSegments(P.Pnt(p1), P.Pnt(p2), Q.Pnt(q1), Q.Pnt(q2), out double psol,
+                                                             out double qsol);
                 //System.Diagnostics.Debug.Assert(res);
                 if (psol == 0)
                     p2 = p1;
@@ -581,16 +571,10 @@ namespace Microsoft.AGL.Routing.Visibility {
         }
 
         internal void CalculateLeftTangents() {
-            Point bisectorPivot;
-            Point bisectorRay;
-            int p1;
-            int p2;
-            int q1;
-            int q2;
 
 
-            FindDividingBisector(out bisectorPivot, out bisectorRay,
-                                 out p1, out p2, out q1, out q2);
+            FindDividingBisector(out Point bisectorPivot, out Point bisectorRay,
+                                 out int p1, out int p2, out int q1, out int q2);
             int pFurthest = P.FindTheFurthestVertexFromBisector(p1, p2, bisectorPivot, bisectorRay);
             int qFurthest = Q.FindTheFurthestVertexFromBisector(q2, q1, bisectorPivot, bisectorRay);
 
@@ -619,14 +603,8 @@ namespace Microsoft.AGL.Routing.Visibility {
         //}
 
         internal void CalculateRightTangents() {
-            Point bisectorPivot;
-            Point bisectorRay;
-            int p1;
-            int p2;
-            int q1;
-            int q2;
 
-            FindDividingBisector(out bisectorPivot, out bisectorRay, out p1, out p2, out q1, out q2);
+            FindDividingBisector(out Point bisectorPivot, out Point bisectorRay, out int p1, out int p2, out int q1, out int q2);
 
             int pFurthest = P.FindTheFurthestVertexFromBisector(p1, p2, bisectorPivot, bisectorRay);
             int qFurthest = Q.FindTheFurthestVertexFromBisector(q2, q1, bisectorPivot, bisectorRay);

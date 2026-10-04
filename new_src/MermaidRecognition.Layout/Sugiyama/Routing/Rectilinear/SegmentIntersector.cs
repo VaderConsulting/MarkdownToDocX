@@ -7,7 +7,8 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using MermaidRecognition.Layout.Sugiyama.Core.DataStructures;
+
+using MermaidRecognition.Layout.Sugiyama.Core.DataStructures.RBTree;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using MermaidRecognition.Layout.Sugiyama.Routing.Visibility;
 
@@ -22,9 +23,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             findFirstPred = new Func<ScanSegment, bool>(IsVSegInHSegRange);
         }
 
-        bool IsVSegInHSegRange(ScanSegment v) {
-            return PointComparer.Compare(v.Start.X, findFirstHSeg.Start.X) >= 0;
-        }
+        bool IsVSegInHSegRange(ScanSegment v) => PointComparer.Compare(v.Start.X, findFirstHSeg.Start.X) >= 0;
 
         // This creates the VisibilityVertex objects along the segments.
         internal VisibilityGraph Generate(IEnumerable<ScanSegment> hSegments, IEnumerable<ScanSegment> vSegments) {
@@ -69,9 +68,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             return visGraph;
         }
 
-        void OnSegmentOpen(ScanSegment seg) {
-            seg.OnSegmentIntersectorBegin(visGraph);
-        }
+        void OnSegmentOpen(ScanSegment seg) => seg.OnSegmentIntersectorBegin(visGraph);
 
         void OnSegmentClose(ScanSegment seg) {
             seg.OnSegmentIntersectorEnd(visGraph);
@@ -94,7 +91,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         #region Scanline utilities
 
         void ScanInsert(ScanSegment seg) {
-            Debug.Assert(null == this.verticalSegmentsScanLine.Find(seg), "seg already exists in the rbtree");
+            Debug.Assert(null == verticalSegmentsScanLine.Find(seg), "seg already exists in the rbtree");
 
             // RBTree's internal operations on insert/remove etc. mean the node can't cache the
             // RBNode returned by insert(); instead we must do find() on each call.  But we can
@@ -102,9 +99,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             verticalSegmentsScanLine.Insert(seg);
         }
 
-        void ScanRemove(ScanSegment seg) {
-            verticalSegmentsScanLine.Remove(seg);
-        }
+        void ScanRemove(ScanSegment seg) => verticalSegmentsScanLine.Remove(seg);
 
         void ScanIntersect(ScanSegment hSeg) {
             // Find the VSeg in the scanline with the lowest X-intersection with HSeg, then iterate
@@ -145,7 +140,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         /// <param name="first"></param>
         /// <param name="second"></param>
         /// <returns></returns>
-        public int Compare(SegEvent first, SegEvent second) {
+        public int Compare(SegEvent? first, SegEvent? second) {
+            if (first is null) return second is null ? 0 : -1; if (second is null) return 1;
             if (first == second) {
                 return 0;
             }
@@ -218,7 +214,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         /// <param name="first"></param>
         /// <param name="second"></param>
         /// <returns></returns>
-        public int Compare(ScanSegment first, ScanSegment second) {
+        public int Compare(ScanSegment? first, ScanSegment? second) {
+            if (first is null) return second is null ? 0 : -1; if (second is null) return 1;
             if (first == second) {
                 return 0;
             }
@@ -254,22 +251,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             internal SegEventType EventType { get; private set; }
             internal ScanSegment Segment { get; private set; }
 
-            internal bool IsVertical {
-                get { return (SegEventType.HOpen != EventType); }
-            }
+            internal bool IsVertical => (SegEventType.HOpen != EventType);
 
-            internal Point Site {
-                get { return (SegEventType.VClose == EventType) ? Segment.End : Segment.Start; }
-            }
+            internal Point Site => (SegEventType.VClose == EventType) ? Segment.End : Segment.Start;
 
 
             /// <summary>
             /// </summary>
             /// <returns></returns>
-            [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1305:SpecifyIFormatProvider", MessageId = "System.String.Format(System.String,System.Object[])")]
-            public override string ToString() {
-                return string.Format("{0} {1} {2} {3}", EventType, IsVertical, Site, Segment);
-            }
+            public override string ToString() => string.Format("{0} {1} {2} {3}", EventType, IsVertical, Site, Segment);
         }
 
         #endregion
@@ -279,12 +269,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         // To be returned to caller; created in Generate() and used in ScanGenerate().
 
         // Accumulates the set of events and then sorts them by Y coord.
-        readonly List<SegEvent> eventList = new List<SegEvent>();
+        readonly List<SegEvent> eventList = [];
 
         // Tracks the currently open V segments.
         readonly Func<ScanSegment, bool> findFirstPred;
 
-        readonly List<ScanSegment> segmentsWithoutVisibility = new List<ScanSegment>();
+        readonly List<ScanSegment> segmentsWithoutVisibility = [];
         readonly RbTree<ScanSegment> verticalSegmentsScanLine;
 
         // For searching the tree to find the first VSeg for an HSeg.

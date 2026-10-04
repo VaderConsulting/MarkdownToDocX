@@ -11,16 +11,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS
     /// <summary>
     /// Initial layout using PivotMDS method for FastIncrementalLayout
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "MDS")]
     public class PivotMDS : AlgorithmBase
     {
         class PivotMDSNodeWrap
         {
             internal Node node;
-            internal PivotMDSNodeWrap(Node node)
-            {
-                this.node = node;
-            }
+            internal PivotMDSNodeWrap(Node node) => this.node = node;
         }
 
         private GeometryGraph graph;
@@ -38,7 +34,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS
         public PivotMDS(GeometryGraph graph)
         {
             this.graph = graph;
-            this.Scale = 1;
+            Scale = 1;
         }
 
         /// <summary>
@@ -49,11 +45,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS
         /// </summary>
         protected override void RunInternal()
         {
-            var g = new GeometryGraph();
-            foreach (var v in graph.Nodes)
+            GeometryGraph g = new GeometryGraph();
+            foreach (Node v in graph.Nodes)
             {
                 Debug.Assert(!(v is Cluster));
-                var u = new Node(v.BoundaryCurve.Clone())
+                Node u = new Node(v.BoundaryCurve.Clone())
                 {
                     UserData = v
                 };
@@ -61,13 +57,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS
                 g.Nodes.Add(u);
             }
             double avgLength = 0;
-            foreach (var e in graph.Edges)
+            foreach (Edge e in graph.Edges)
             {
                 avgLength += e.Length;
                 if (e.Source is Cluster || e.Target is Cluster) continue;
-                var u = e.Source.AlgorithmData as PivotMDSNodeWrap;
-                var v = e.Target.AlgorithmData as PivotMDSNodeWrap;
-                var ee = new Edge(u.node, v.node)
+                PivotMDSNodeWrap? u = e.Source.AlgorithmData as PivotMDSNodeWrap;
+                PivotMDSNodeWrap? v = e.Target.AlgorithmData as PivotMDSNodeWrap;
+                Edge ee = new Edge(u.node, v.node)
                 {
                     Length = e.Length
                 };
@@ -83,18 +79,20 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS
             }
 
             // create edges from the children of each parent cluster to the parent cluster node
-            foreach (var c in graph.RootCluster.AllClustersDepthFirst())
+            foreach (Cluster c in graph.RootCluster.AllClustersDepthFirst())
             {
                 if (c == graph.RootCluster) continue;
 
-                var u = new Node(CurveFactory.CreateRectangle(10, 10, new Point()));
-                u.UserData = c;
+                Node u = new Node(CurveFactory.CreateRectangle(10, 10, new Point()))
+                {
+                    UserData = c
+                };
                 c.AlgorithmData = new PivotMDSNodeWrap(u);
                 g.Nodes.Add(u);
                     
-                foreach (var v in c.Nodes.Concat(from cc in c.Clusters select (Node)cc))
+                foreach (Node? v in c.Nodes.Concat(from cc in c.Clusters select (Node)cc))
                 {
-                    var vv = v.AlgorithmData as PivotMDSNodeWrap;
+                    PivotMDSNodeWrap? vv = v.AlgorithmData as PivotMDSNodeWrap;
                     g.Edges.Add(new Edge(u, vv.node)
                     {
                         Length = avgLength
@@ -103,13 +101,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS
             }
 
             // create edges between clusters
-            foreach (var e in graph.Edges)
+            foreach (Edge e in graph.Edges)
             {
                 if (e.Source is Cluster || e.Target is Cluster)
                 {
-                    var u = e.Source.AlgorithmData as PivotMDSNodeWrap;
-                    var v = e.Target.AlgorithmData as PivotMDSNodeWrap;
-                    var ee = new Edge(u.node, v.node)
+                    PivotMDSNodeWrap? u = e.Source.AlgorithmData as PivotMDSNodeWrap;
+                    PivotMDSNodeWrap? v = e.Target.AlgorithmData as PivotMDSNodeWrap;
+                    Edge ee = new Edge(u.node, v.node)
                     {
                         Length = e.Length
                     };
@@ -120,20 +118,20 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS
             // with 0 majorization iterations we just do PivotMDS
             MdsLayoutSettings settings = new MdsLayoutSettings
             {
-                ScaleX = this.Scale,
-                ScaleY = this.Scale,
+                ScaleX = Scale,
+                ScaleY = Scale,
                 IterationsWithMajorization = 0,
                 RemoveOverlaps = false,
                 AdjustScale = false
             };
 
             MdsGraphLayout mdsLayout = new MdsGraphLayout(settings, g);
-            this.RunChildAlgorithm(mdsLayout, 1.0);
+            RunChildAlgorithm(mdsLayout, 1.0);
 
             g.UpdateBoundingBox();
-            foreach (var v in graph.Nodes)
+            foreach (Node v in graph.Nodes)
             {
-                var m = v.AlgorithmData as PivotMDSNodeWrap;
+                PivotMDSNodeWrap? m = v.AlgorithmData as PivotMDSNodeWrap;
                 v.Center = m.node.Center;
             }
         }

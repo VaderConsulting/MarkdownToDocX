@@ -79,13 +79,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
         /// </summary>
         public Parameters()
         {
-            this.GapTolerance = 1e-4;
-            this.QpscConvergenceEpsilon = 1e-5;
-            this.QpscConvergenceQuotient = 1e-6;
-            this.OuterProjectIterationsLimit = -1;
-            this.InnerProjectIterationsLimit = -1;
-            this.TimeLimit = -1;
-            this.Advanced = new AdvancedParameters();
+            GapTolerance = 1e-4;
+            QpscConvergenceEpsilon = 1e-5;
+            QpscConvergenceQuotient = 1e-6;
+            OuterProjectIterationsLimit = -1;
+            InnerProjectIterationsLimit = -1;
+            TimeLimit = -1;
+            Advanced = new AdvancedParameters();
         }
 
         #region ICloneable members
@@ -95,8 +95,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
         /// <returns></returns>
         public object Clone()
         {
-            var newParams = (Parameters)this.MemberwiseClone();
-            newParams.Advanced = (AdvancedParameters)this.Advanced.Clone();
+            Parameters newParams = (Parameters)MemberwiseClone();
+            newParams.Advanced = (AdvancedParameters)Advanced.Clone();
             return newParams;
         }
         #endregion // ICloneable members
@@ -127,7 +127,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
         /// Any Lagrangian Multiple less than (more negative than) this causes a block split.
         /// PerfAcc: setting it to a larger negative value yields less splits/accuracy.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Lagrangian")]
         public double MinSplitLagrangianThreshold { get; set; }
 
         /// <summary>
@@ -155,12 +154,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
         /// </summary>
         public AdvancedParameters()
         {
-            this.ForceQpsc = false;
-            this.ScaleInQpsc = true;
-            this.MinSplitLagrangianThreshold = -1e-7;
-            this.UseViolationCache = true;
-            this.ViolationCacheMinBlocksDivisor = 10;
-            this.ViolationCacheMinBlocksCount = 100;
+            ForceQpsc = false;
+            ScaleInQpsc = true;
+            MinSplitLagrangianThreshold = -1e-7;
+            UseViolationCache = true;
+            ViolationCacheMinBlocksDivisor = 10;
+            ViolationCacheMinBlocksCount = 100;
         }
 
         #region ICloneable members
@@ -168,10 +167,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
         /// Shallow-copy the object (there is nothing requiring deep-copy).
         /// </summary>
         /// <returns></returns>
-        public object Clone()
-        {
-            return this.MemberwiseClone();
-        }
+        public object Clone() => MemberwiseClone();
         #endregion // ICloneable members
     }
 }

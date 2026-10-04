@@ -68,10 +68,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         void ConvertParameters(Dictionary<Point, Station> pointToIndex) {
-            Metrolines = new List<int[]>();
+            Metrolines = [];
             positions = new Point[pointToIndex.Count];
             foreach (Metroline gline in MetrolinesGlobal) {
-                List<int> line = new List<int>();
+                List<int> line = [];
                 foreach (Point p in gline.Polyline) {
                     line.Add(pointToIndex[p].SerialNumber);
                     positions[pointToIndex[p].SerialNumber] = p;
@@ -96,10 +96,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             List<int> nodes;
 
             internal static MetroEdge CreateFromTwoNodes(int u, int v) {
-                MetroEdge res = new MetroEdge();
-                res.nodes = new List<int>();
-                res.nodes.Add(Math.Min(u, v));
-                res.nodes.Add(Math.Max(u, v));
+                MetroEdge res = new MetroEdge
+                {
+                    nodes = [Math.Min(u, v), Math.Max(u, v)]
+                };
 
 #if SHARPKIT //https://code.google.com/p/sharpkit/issues/detail?id=289
                 res.UpdateHashKey();
@@ -138,21 +138,19 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                         nodes.Add(e2[i]);
                 }
 
-                MetroEdge res = new MetroEdge();
-                res.nodes = nodes;
+                MetroEdge res = new MetroEdge
+                {
+                    nodes = nodes
+                };
 #if SHARPKIT //https://code.google.com/p/sharpkit/issues/detail?id=289
                 res.UpdateHashKey();
 #endif
                 return res;
             }
 
-            internal int Source() {
-                return nodes[0];
-            }
+            internal int Source() => nodes[0];
 
-            internal int Target() {
-                return nodes[nodes.Count - 1];
-            }
+            internal int Target() => nodes[nodes.Count - 1];
 
             public override string ToString() {
                 string s = "(";
@@ -206,9 +204,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 //return pair0.nodes.SequenceEqual(pair1.nodes);
             }
 
-            public static bool operator !=(MetroEdge pair0, MetroEdge pair1) {
-                return !(pair0 == pair1);
-            }
+            public static bool operator !=(MetroEdge pair0, MetroEdge pair1) => !(pair0 == pair1);
 
         }
 
@@ -220,9 +216,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             internal HashSet<PathOnEdge> paths;
             internal List<PathList> subLists;
 
-            public override string ToString() {
-                return edge.ToString() + " (" + paths.Count + ")";
-            }
+            public override string ToString() => edge.ToString() + " (" + paths.Count + ")";
         }
 
         class PathOnEdge {
@@ -259,10 +253,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
         void Initialize() {
             //non terminals and adjacent
-            nonTerminals = new HashSet<int>();
-            initialEdges = new HashSet<MetroEdge>();
+            nonTerminals = [];
+            initialEdges = [];
             //non-sorted adjacent edges. will be sorted later
-            Dictionary<int, HashSet<MetroEdge>> adjacent = new Dictionary<int, HashSet<MetroEdge>>();
+            Dictionary<int, HashSet<MetroEdge>> adjacent = [];
             for (int mi = 0; mi < Metrolines.Count; mi++) {
                 int[] Metroline = Metrolines[mi];
                 for (int i = 0; i + 1 < Metroline.Length; i++) {
@@ -287,8 +281,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         void InitPathData() {
-            paths = new Dictionary<int, LinkedList<MetroEdge>>();
-            e2p = new Dictionary<MetroEdge, PathList>();
+            paths = [];
+            e2p = [];
             for (int mi = 0; mi < Metrolines.Count; mi++) {
                 int[] Metroline = Metrolines[mi];
                 paths.Add(mi, new LinkedList<MetroEdge>());
@@ -297,23 +291,27 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                     MetroEdge me = MetroEdge.CreateFromTwoNodes(Metroline[i], Metroline[i + 1]);
 
                     if (!e2p.ContainsKey(me)) {
-                        PathList pl = new PathList();
-                        pl.edge = me;
-                        pl.paths = new HashSet<PathOnEdge>();
+                        PathList pl = new PathList
+                        {
+                            edge = me,
+                            paths = []
+                        };
                         e2p.Add(me, pl);
                     }
 
-                    PathOnEdge pathOnEdge = new PathOnEdge();
-                    pathOnEdge.index = mi;
-                    pathOnEdge.node = paths[mi].AddLast(me);
+                    PathOnEdge pathOnEdge = new PathOnEdge
+                    {
+                        index = mi,
+                        node = paths[mi].AddLast(me)
+                    };
                     e2p[me].paths.Add(pathOnEdge);
                 }
             }
         }
 
         void InitAdjacencyData(Dictionary<int, HashSet<MetroEdge>> adjacent) {
-            orderedAdjacent = new Dictionary<int, LinkedList<MetroEdge>>();
-            adjacencyIndex = new Dictionary<Tuple<int, MetroEdge>, LinkedListNode<MetroEdge>>();
+            orderedAdjacent = [];
+            adjacencyIndex = [];
             foreach (int v in adjacent.Keys) {
                 List<MetroEdge> adj = new List<MetroEdge>(adjacent[v]);
                 orderedAdjacent.Add(v, SortAdjacentEdges(v, adj));
@@ -370,7 +368,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         /// recursively build an order on the edge
         /// </summary>
         List<int> RestoreResult(MetroEdge edge) {
-            List<int> res = new List<int>();
+            List<int> res = [];
 
             PathList pl = e2p[edge];
             if (pl.subLists == null) {
@@ -389,11 +387,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         void RestoreResult() {
-            order = new Dictionary<MetroEdge, List<int>>();
-            lineIndexInOrder = new Dictionary<MetroEdge, Dictionary<Metroline, int>>();
+            order = [];
+            lineIndexInOrder = [];
             foreach (MetroEdge me in initialEdges) {
                 order.Add(me, RestoreResult(me));
-                Dictionary<Metroline, int> d = new Dictionary<Metroline, int>();
+                Dictionary<Metroline, int> d = [];
                 int index = 0;
                 foreach (int v in order[me]) {
                     d[MetrolinesGlobal[v]] = index++;
@@ -444,9 +442,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         /// </summary>
         Dictionary<MetroEdge, List<PathList>> RadixSort(int v) {
             //build a map [old_edge => list_of_paths_on_it]; the relative order of paths is important
-            Dictionary<MetroEdge, List<PathOnEdge>> r = new Dictionary<MetroEdge, List<PathOnEdge>>();
+            Dictionary<MetroEdge, List<PathOnEdge>> r = [];
             //first index in circular order
-            Dictionary<MetroEdge, int> firstIndex = new Dictionary<MetroEdge, int>();
+            Dictionary<MetroEdge, int> firstIndex = [];
 
             foreach (MetroEdge oldEdge in orderedAdjacent[v]) {
                 PathList pathList = e2p[oldEdge];
@@ -459,15 +457,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             }
 
             //oldEdge => SortedPathLists
-            Dictionary<MetroEdge, List<PathList>> res = new Dictionary<MetroEdge, List<PathList>>();
+            Dictionary<MetroEdge, List<PathList>> res = [];
             //build the desired order for each edge
             foreach (MetroEdge oldEdge in orderedAdjacent[v]) {
                 //r[oldEdge] is the right order! (up to the circleness)
                 List<PathOnEdge> paths = r[oldEdge];
                 Debug.Assert(paths.Count > 0);
 
-                List<PathList> subLists = new List<PathList>();
-                HashSet<PathOnEdge> curPathSet = new HashSet<PathOnEdge>();
+                List<PathList> subLists = [];
+                HashSet<PathOnEdge> curPathSet = [];
 
                 for (int j = 0; j < paths.Count; j++) {
 
@@ -480,13 +478,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                     if (j == paths.Count - 1 || nowEdge != nextEdge) {
                         //process
                         MetroEdge newEdge = MetroEdge.CreateFromTwoEdges(v, oldEdge, nowEdge);
-                        PathList pl = new PathList();
-                        pl.edge = newEdge;
-                        pl.paths = curPathSet;
+                        PathList pl = new PathList
+                        {
+                            edge = newEdge,
+                            paths = curPathSet
+                        };
                         subLists.Add(pl);
 
                         //clear
-                        curPathSet = new HashSet<PathOnEdge>();
+                        curPathSet = [];
                     }
                 }
 

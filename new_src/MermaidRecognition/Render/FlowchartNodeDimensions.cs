@@ -9,28 +9,14 @@ public sealed class FlowchartNodeDimensions
 
     public double Width
     {
-        get
-        {
-            return _Width;
-        }
-        set
-        {
-            _Width = value;
-        }
+        get => _Width; set => _Width = value;
     }
 
     private double _Height;
 
     public double Height
     {
-        get
-        {
-            return _Height;
-        }
-        set
-        {
-            _Height = value;
-        }
+        get => _Height; set => _Height = value;
     }
 
     private string _DisplayLabel = string.Empty;
@@ -40,13 +26,6 @@ public sealed class FlowchartNodeDimensions
     /// </summary>
     public string DisplayLabel
     {
-        get
-        {
-            return _DisplayLabel;
-        }
-        set
-        {
-            _DisplayLabel = value;
-        }
+        get => _DisplayLabel; set => _DisplayLabel = value;
     }
 }

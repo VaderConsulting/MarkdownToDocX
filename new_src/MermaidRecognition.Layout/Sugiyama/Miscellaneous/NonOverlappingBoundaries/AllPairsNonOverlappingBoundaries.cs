@@ -6,8 +6,10 @@ using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves;
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
 using MermaidRecognition.Layout.Sugiyama.Layout.Incremental;
+using MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree;
 
-namespace MermaidRecognition.Layout.Sugiyama.Prototype.NonOverlappingBoundaries {
+namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.NonOverlappingBoundaries
+{
     /// <summary>
     /// A CvxHull is Convex hull
     /// </summary>
@@ -44,13 +46,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Prototype.NonOverlappingBoundaries 
         /// <param name="other"></param>
         /// <returns></returns>
         public double Project(IHull other) {
-            var v = other as CvxHull;
-            var vc = v as ClusterConvexHull;
-            var c = this as ClusterConvexHull;
-            if (c!=null && c.Contains(v)) {
+            CvxHull? v = other as CvxHull;
+            if (this is ClusterConvexHull c && c.Contains(v))
+            {
                 return 0;
             }
-            if (vc != null && vc.Contains(this)) {
+            if (v is ClusterConvexHull vc && vc.Contains(this)) {
                 return 0;
             }
             Debug.Assert(v != null);
@@ -74,55 +75,53 @@ namespace MermaidRecognition.Layout.Sugiyama.Prototype.NonOverlappingBoundaries 
         /// <summary>
         /// Center of the node
         /// </summary>
-        public override Point Center {
-            get { return mNode.Center; }
-        }
+        public override Point Center => mNode.Center;
         /// <summary>
         /// Move by delta
         /// </summary>
         /// <param name="delta"></param>
-        public override void MoveCenter(Point delta) {
-            mNode.Center += delta;
-        }
+        public override void MoveCenter(Point delta) => mNode.Center += delta;
         /// <summary>
         /// RectangleNode is used in region queries
         /// </summary>
         public override RectangleNode<IHull> RectangleNode {
             get {
-                var r = new Rectangle(Center.X - w2, Center.Y - h2, Center.X + w2, Center.Y + h2);
+                Rectangle r = new Rectangle(Center.X - w2, Center.Y - h2, Center.X + w2, Center.Y + h2);
                 return new RectangleNode<IHull>(this, r);
             }
         }
         /// <summary>
         /// 
         /// </summary>
-        public override double Weight {
-            get { return ((FiNode)mNode.AlgorithmData).stayWeight; }
-        }
+        public override double Weight => ((FiNode)mNode.AlgorithmData).stayWeight;
+
         /// <summary>
         /// 
         /// </summary>
         /// <param name="parent"></param>
         /// <param name="padding"></param>
         /// <param name="mNode"></param>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "m")]
         public RCHull(ClusterConvexHull parent, Node mNode, double padding) {
             //var node = (FastIncrementalLayout.Node)mNode.AlgorithmData;
             //this.w2 = node.width / 2.0 + padding;
             //this.h2 = node.height / 2.0 + padding;
-            this.w2 = mNode.Width / 2.0 + padding;
-            this.h2 = mNode.Height / 2.0 + padding;
-            this.Parent = parent;
+            w2 = mNode.Width / 2.0 + padding;
+            h2 = mNode.Height / 2.0 + padding;
+            Parent = parent;
 
             boundary = new Polyline(new Point[]{
                 new Point(-w2, -h2),
                 new Point(-w2, h2),
                 new Point(w2, h2),
                 new Point(w2, -h2)
-            });
-            boundary.Closed = true;
-            translatedBoundary = new Polyline(boundary);
-            translatedBoundary.Closed = true;
+            })
+            {
+                Closed = true
+            };
+            translatedBoundary = new Polyline(boundary)
+            {
+                Closed = true
+            };
             this.mNode = mNode;
         }
         /// <summary>
@@ -146,30 +145,23 @@ namespace MermaidRecognition.Layout.Sugiyama.Prototype.NonOverlappingBoundaries 
         /// <summary>
         /// The Barycenter of the cluster
         /// </summary>
-        public override Point Center {
-            get { return cluster.SetBarycenter(); }
-        }
+        public override Point Center => cluster.SetBarycenter();
         /// <summary>
         /// Move contents by delta
         /// </summary>
         /// <param name="delta"></param>
-        public override void MoveCenter(Point delta)
-        {
-            cluster.ForEachNode(v => v.Center += delta);
-        }
+        public override void MoveCenter(Point delta) => cluster.ForEachNode(v => v.Center += delta);
         /// <summary>
         /// 
         /// </summary>
-        public override double Weight {
-            get { return cluster.Weight; }
-        }
+        public override double Weight => cluster.Weight;
         /// <summary>
         /// Bounding box used in region queries
         /// </summary>
         public override RectangleNode<IHull> RectangleNode {
             get {
-                var r = new Rectangle(Center);
-                foreach (var node in cluster.Nodes)
+                Rectangle r = new Rectangle(Center);
+                foreach (Node node in cluster.Nodes)
                     r.Add(node.BoundingBox);
 
                 return new RectangleNode<IHull>(this, r);
@@ -182,22 +174,20 @@ namespace MermaidRecognition.Layout.Sugiyama.Prototype.NonOverlappingBoundaries 
         /// <param name="parent"></param>
         public ClusterConvexHull(Cluster cluster, ClusterConvexHull parent) {
             this.cluster = cluster;
-            this.Parent = parent;
+            Parent = parent;
         }
         /// <summary>
         /// Gets the boundary translated to the current Center
         /// </summary>
         /// <returns></returns>
-        public override Polyline TranslatedBoundary() {
-            return ComputeConvexHull();
-        }
+        public override Polyline TranslatedBoundary() => ComputeConvexHull();
 
         /// <summary>
         /// The convex hull of all the points of all the nodes in the cluster
         /// </summary>
         private Polyline ComputeConvexHull()
         {
-            var points = new List<Point>();
+            List<Point> points = new List<Point>();
             foreach (Node v in cluster.Nodes) 
             {
                 CvxHull r = new RCHull(null, v, 0);
@@ -232,14 +222,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Prototype.NonOverlappingBoundaries 
     /// Prevents the boundaries of nodes and clusters from overlapping
     /// </summary>
     public class AllPairsNonOverlappingBoundaries : IConstraint {
-        List<IHull> hulls = new List<IHull>();
+        List<IHull> hulls = [];
         private void traverseClusters(ClusterConvexHull parent, Cluster cluster, double padding) {
             ClusterConvexHull hull = new ClusterConvexHull(cluster, parent);
             hulls.Add(hull);
-            foreach (var v in cluster.nodes) {
+            foreach (Node v in cluster.nodes) {
                 hulls.Add(new RCHull(hull, v, padding));
             }
-            foreach (var c in cluster.clusters) {
+            foreach (Cluster c in cluster.clusters) {
                 traverseClusters(hull, c, padding);
             }
         }
@@ -251,10 +241,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Prototype.NonOverlappingBoundaries 
         /// <param name="cluster"></param>
         /// <param name="settings">for padding extra space around nodes</param>
         public AllPairsNonOverlappingBoundaries(Cluster cluster, FastIncrementalLayoutSettings settings) {
-            foreach (var v in cluster.nodes) {
+            foreach (Node v in cluster.nodes) {
                 hulls.Add(new RCHull(null,v, settings.NodeSeparation));
             }
-            foreach (var c in cluster.clusters) {
+            foreach (Cluster c in cluster.clusters) {
                 traverseClusters(null, c, settings.NodeSeparation);
             }
         }
@@ -275,16 +265,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Prototype.NonOverlappingBoundaries 
                     }
                 }
             } else {
-                var pq = new ProximityQuery(hulls);
+                ProximityQuery pq = new ProximityQuery(hulls);
                 List<Tuple<IHull, IHull>> closePairs = pq.GetAllIntersections();
                 //shuffle(ref closePairs);
-                foreach (var k in closePairs) {
+                foreach (Tuple<IHull, IHull> k in closePairs) {
                     displacement += k.Item1.Project(k.Item2);
                 }
             }
             return displacement;
         }
-        
+
         //void shuffle<T>(ref List<T> l) {
         //    List<T> tmpList = new List<T>();
         //    while (l.Count > 0) {
@@ -298,7 +288,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Prototype.NonOverlappingBoundaries 
         /// NonOverlap constraints are a beautification thing, and therefore higher level than others
         /// </summary>
         /// <returns>2</returns>
-        public int Level { get { return 2; } }
+        public int Level => 2;
         #endregion
 
         #region IConstraint Members
@@ -307,9 +297,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Prototype.NonOverlappingBoundaries 
         /// <summary>
         /// 
         /// </summary>
-        public IEnumerable<Node> Nodes {
-            get { return new List<Node>(); }
-        }
+        public IEnumerable<Node> Nodes => new List<Node>();
 
         #endregion
     }

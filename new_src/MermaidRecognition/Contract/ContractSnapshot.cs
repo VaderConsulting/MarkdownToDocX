@@ -2,6 +2,8 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
+using MermaidRecognition.Core;
+
 namespace MermaidRecognition.Contract;
 
 /// <summary>
@@ -11,9 +13,11 @@ public sealed class ContractSnapshot
 {
     public static ContractSnapshot FromDiagram(DiagramContract Contract)
     {
-        ContractSnapshot Snapshot = new ContractSnapshot();
-        Snapshot.Kind = Contract.Kind;
-        Snapshot.Direction = Contract.Direction;
+        ContractSnapshot Snapshot = new ContractSnapshot
+        {
+            Kind = Contract.Kind,
+            Direction = Contract.Direction
+        };
         if (Contract.RemarkStatus != MermaidDiagramRemarkStatus.Active)
         {
             Snapshot.RemarkStatus = Contract.RemarkStatus.ToString();
@@ -162,7 +166,7 @@ public sealed class ContractSnapshot
             .ToList();
         if (Contract.Groups.Count == 0)
         {
-            Snapshot.Groups = new List<GroupSnapshot>();
+            Snapshot.Groups = [];
         }
         else
         {
@@ -183,7 +187,7 @@ public sealed class ContractSnapshot
 
         if (Contract.LinkStyles.Count == 0)
         {
-            Snapshot.LinkStyles = new List<LinkStyleSnapshot>();
+            Snapshot.LinkStyles = [];
         }
         else
         {
@@ -282,39 +286,43 @@ public sealed class ContractSnapshot
 
     public string? RemarkStatus { get; set; }
 
-    public List<NodeSnapshot> Nodes { get; set; } = new List<NodeSnapshot>();
+    public List<NodeSnapshot> Nodes { get; set; } = [];
 
-    public List<EdgeSnapshot> Edges { get; set; } = new List<EdgeSnapshot>();
+    public List<EdgeSnapshot> Edges { get; set; } = [];
 
-    public List<GroupSnapshot> Groups { get; set; } = new List<GroupSnapshot>();
+    public List<GroupSnapshot> Groups { get; set; } = [];
 
-    public List<LinkStyleSnapshot> LinkStyles { get; set; } = new List<LinkStyleSnapshot>();
+    public List<LinkStyleSnapshot> LinkStyles { get; set; } = [];
 
     public ConfigSnapshot? Config { get; set; }
 
-    public List<ClassDefSnapshot> ClassDefs { get; set; } = new List<ClassDefSnapshot>();
+    public List<ClassDefSnapshot> ClassDefs { get; set; } = [];
 
     public AccessibilitySnapshot? Accessibility { get; set; }
 
-    public List<InteractionSnapshot> Interactions { get; set; } = new List<InteractionSnapshot>();
+    public List<InteractionSnapshot> Interactions { get; set; } = [];
 
-    public List<DiagnosticSnapshot> Diagnostics { get; set; } = new List<DiagnosticSnapshot>();
+    public List<DiagnosticSnapshot> Diagnostics { get; set; } = [];
 
-    public List<SourceStatementSnapshot> SourceStatements { get; set; } = new List<SourceStatementSnapshot>();
+    public List<SourceStatementSnapshot> SourceStatements { get; set; } = [];
 
     public string ToJson()
     {
-        JsonSerializerOptions Options = new JsonSerializerOptions();
-        Options.WriteIndented = true;
-        Options.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
-        Options.Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
+        JsonSerializerOptions Options = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        };
         return JsonSerializer.Serialize(this, Options);
     }
 
     public static ContractSnapshot FromJson(string Json)
     {
-        JsonSerializerOptions Options = new JsonSerializerOptions();
-        Options.PropertyNameCaseInsensitive = true;
+        JsonSerializerOptions Options = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        };
         return JsonSerializer.Deserialize<ContractSnapshot>(Json, Options)
             ?? throw new InvalidOperationException("Invalid contract snapshot JSON.");
     }
@@ -348,13 +356,13 @@ public sealed class NodeSnapshot
 
     public string? PieValue { get; set; }
 
-    public List<string> Classes { get; set; } = new List<string>();
+    public List<string> Classes { get; set; } = [];
 
     public string? InlineStroke { get; set; }
 
-    public List<string> Members { get; set; } = new List<string>();
+    public List<string> Members { get; set; } = [];
 
-    public List<string> Attributes { get; set; } = new List<string>();
+    public List<string> Attributes { get; set; } = [];
 }
 
 public sealed class EdgeSnapshot
@@ -407,7 +415,7 @@ public sealed class EdgeSnapshot
 
     public string? MetadataAnimation { get; set; }
 
-    public List<string> Classes { get; set; } = new List<string>();
+    public List<string> Classes { get; set; } = [];
 }
 
 public sealed class SourceStatementSnapshot
@@ -429,16 +437,16 @@ public sealed class GroupSnapshot
 
     public string? Direction { get; set; }
 
-    public List<string> ChildNodeIds { get; set; } = new List<string>();
+    public List<string> ChildNodeIds { get; set; } = [];
 
-    public List<string> ChildGroupIds { get; set; } = new List<string>();
+    public List<string> ChildGroupIds { get; set; } = [];
 }
 
 public sealed class LinkStyleSnapshot
 {
     public bool IsDefault { get; set; }
 
-    public List<int> EdgeIndexes { get; set; } = new List<int>();
+    public List<int> EdgeIndexes { get; set; } = [];
 
     public string? Stroke { get; set; }
 

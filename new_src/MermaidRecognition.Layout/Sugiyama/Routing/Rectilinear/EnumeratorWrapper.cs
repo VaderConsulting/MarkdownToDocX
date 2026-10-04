@@ -10,7 +10,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         /// <summary>
         /// False iff MoveNext has not been called, or has returned false.
         /// </summary>
-        internal bool HasCurrent { get { return this.state == MoveNextState.True; } }
+        internal bool HasCurrent => state == MoveNextState.True;
 
         /// <summary>
         /// State of MoveNext.  MoveNext is not automatically called on ctor for consistency with unwrapped enumerators.
@@ -25,25 +25,23 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 
         private readonly IEnumerator<T> enumerator;
 
-        internal EnumeratorWrapper(IEnumerable<T> enumerable) {
-            this.enumerator = enumerable.GetEnumerator();
-        }
+        internal EnumeratorWrapper(IEnumerable<T> enumerable) => enumerator = enumerable.GetEnumerator();
 
         internal T Current
         {
             get {
-                Debug.Assert(this.HasCurrent, "MoveNext has not been called or has returned false");
-                return this.enumerator.Current;
+                Debug.Assert(HasCurrent, "MoveNext has not been called or has returned false");
+                return enumerator.Current;
             }
         }
 
         internal bool MoveNext() {
-            Debug.Assert(this.state != MoveNextState.False, "MoveNext has returned false");
-            if (this.enumerator.MoveNext()) {
-                this.state = MoveNextState.True;
+            Debug.Assert(state != MoveNextState.False, "MoveNext has returned false");
+            if (enumerator.MoveNext()) {
+                state = MoveNextState.True;
                 return true;
             } 
-            this.state = MoveNextState.False;
+            state = MoveNextState.False;
             return false;
         }
     }

@@ -20,23 +20,19 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             Debug.Assert(Direction == Directions.East || Direction == Directions.North);
         }
 
-        readonly internal Set<AxisEdge> RightNeighbors = new Set<AxisEdge>();
+        readonly internal Set<AxisEdge> RightNeighbors = [];
 
-        internal void AddRightNeighbor(AxisEdge edge) {
-            RightNeighbors.Insert(edge);
-        }
+        internal void AddRightNeighbor(AxisEdge edge) => RightNeighbors.Insert(edge);
 
         internal double LeftBound { get; set; }
 
         internal double RightBound { get; private set; }
 
-        readonly Set<LongestNudgedSegment> setOfLongestSegs = new Set<LongestNudgedSegment>();
-        
-        internal IEnumerable<LongestNudgedSegment> LongestNudgedSegments { get { return setOfLongestSegs; } }
-        
-        internal void AddLongestNudgedSegment(LongestNudgedSegment segment) {
-            setOfLongestSegs.Insert(segment);
-        }
+        readonly Set<LongestNudgedSegment> setOfLongestSegs = [];
+
+        internal IEnumerable<LongestNudgedSegment> LongestNudgedSegments => setOfLongestSegs;
+
+        internal void AddLongestNudgedSegment(LongestNudgedSegment segment) => setOfLongestSegs.Insert(segment);
 
         internal void BoundFromRight(double rightbound) {
             rightbound = Math.Max(rightbound, LeftBound);

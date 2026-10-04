@@ -10,17 +10,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="a"></param>
         /// <param name="b"></param>
         /// <returns></returns>
-        public static bool operator ==(CompassVector a, CompassVector b) {
-            return a.Dir == b.Dir;
-        }
+        public static bool operator ==(CompassVector a, CompassVector b) => a.Dir == b.Dir;
 
         /// <summary>
         /// Return the hash code.
         /// </summary>
         /// <returns></returns>
-        public override int GetHashCode() {
-            return (int)Dir;
-        }
+        public override int GetHashCode() => (int)Dir;
 
         /// <summary>
         /// Override op!=
@@ -28,37 +24,23 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="a"></param>
         /// <param name="b"></param>
         /// <returns></returns>
-        public static bool operator !=(CompassVector a, CompassVector b) {
-            return a.Dir != b.Dir;
-        }
+        public static bool operator !=(CompassVector a, CompassVector b) => a.Dir != b.Dir;
 
         internal CompassVector(Directions direction)
-            : this() {
-            Dir = direction;
-        }
+            : this() => Dir = direction;
 
         // Warning: do not use for VisibilityGraph generation.  See VectorDirection(a) comments.
         internal CompassVector(Point a)
-            : this() {
-            Dir = VectorDirection(a);
-        }
+            : this() => Dir = VectorDirection(a);
 
         internal CompassVector(Point a, Point b)
-            : this() {
-            Dir = VectorDirection(a, b);
-        }
+            : this() => Dir = VectorDirection(a, b);
 
 
         internal Directions Dir { get; set; }
-        internal CompassVector Left {
-            get { return new CompassVector(RotateLeft(Dir)); }
-        }
-        internal CompassVector Right {
-            get { return new CompassVector(RotateRight(Dir)); }
-        }
-        internal CompassVector Opposite {
-            get { return new CompassVector(OppositeDir(Dir)); }
-        }
+        internal CompassVector Left => new CompassVector(RotateLeft(Dir));
+        internal CompassVector Right => new CompassVector(RotateRight(Dir));
+        internal CompassVector Opposite => new CompassVector(OppositeDir(Dir));
 
         internal static Directions RotateRight(Directions direction) {
             switch (direction) {
@@ -138,9 +120,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
             return r;
         }
 
-        internal static Directions DirectionsFromPointToPoint(Point a, Point b) {
-            return VectorDirection(a, b);
-        }
+        internal static Directions DirectionsFromPointToPoint(Point a, Point b) => VectorDirection(a, b);
 
         internal static Directions PureDirectionFromPointToPoint(Point a, Point b) {
             Directions dir = VectorDirection(a, b);
@@ -178,23 +158,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
             }
         }
 
-        internal static bool IsPureDirection(Point a, Point b) {
-            return IsPureDirection(DirectionsFromPointToPoint(a, b));
-        }
+        internal static bool IsPureDirection(Point a, Point b) => IsPureDirection(DirectionsFromPointToPoint(a, b));
 
         /// <summary>
         /// 
         /// </summary>
         /// <param name="other"></param>
         /// <returns></returns>
-        public bool Equals(CompassVector other) {
-            return Equals(other.Dir, Dir);
-        }
+        public bool Equals(CompassVector other) => Equals(other.Dir, Dir);
 
 
-        internal static bool DirectionsAreParallel(Directions a, Directions b){
-            return a == b || a == OppositeDir(b);
-        }
+        internal static bool DirectionsAreParallel(Directions a, Directions b) => a == b || a == OppositeDir(b);
         /// <summary>
         /// 
         /// </summary>
@@ -210,16 +184,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// Returns a string representing the direction.
         /// </summary>
         /// <returns></returns>
-        public override string ToString() {
-            return Dir.ToString();
-        }
+        public override string ToString() => Dir.ToString();
 
         /// <summary>
         /// Translates the CompassVector's direction into a new Point.
         /// </summary>
         /// <returns></returns>
         public Point ToPoint() {
-            var p = new Point();
+            Point p = new Point();
             if ((Dir & Directions.East) == Directions.East)
                 p.X += 1;
             if ((Dir & Directions.North) == Directions.North)
@@ -235,25 +207,19 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// Translates a direction into a Point.
         /// </summary>
         /// <returns></returns>
-        public static Point ToPoint(Directions dir) {
-            return (new CompassVector(dir)).ToPoint();
-        }
+        public static Point ToPoint(Directions dir) => (new CompassVector(dir)).ToPoint();
 
         /// <summary>
         ///  the negation operator
         /// </summary>
         /// <param name="directionVector"></param>
         /// <returns></returns>
-        public static CompassVector operator -(CompassVector directionVector) {
-            return new CompassVector(OppositeDir(directionVector.Dir));
-        }
+        public static CompassVector operator -(CompassVector directionVector) => new CompassVector(OppositeDir(directionVector.Dir));
         /// <summary>
         /// the negation operator
         /// </summary>
         /// <returns></returns>
-        public CompassVector Negate() {
-            return -this;
-        }
+        public CompassVector Negate() => -this;
 
 
     }

@@ -1,10 +1,12 @@
 using System.Text;
 using System.Text.RegularExpressions;
-using MermaidRecognition.Class;
-using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
 
-namespace MermaidRecognition.State;
+using MermaidRecognition.Contract;
+using MermaidRecognition.Core;
+using MermaidRecognition.Kinds.Class;
+using MermaidRecognition.Kinds.Flowchart;
+
+namespace MermaidRecognition.Kinds.State;
 
 /// <summary>
 /// Maps classified state diagram source statements into <see cref="DiagramContract"/> entities (L3 G4/G6/G8/G9).
@@ -201,20 +203,19 @@ public static class StateContractMapper
         MapToContract(Database, Contract);
     }
 
-    static IEnumerable<string> SplitTargetIds(string TargetList)
-    {
-        return TargetList.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-    }
+    static IEnumerable<string> SplitTargetIds(string TargetList) => TargetList.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
     static void MapToContract(StateDb Database, DiagramContract Contract)
     {
         foreach (KeyValuePair<string, StateNodeRecord> Entry in Database.StatesById)
         {
             StateNodeRecord Source = Entry.Value;
-            NodeContract Node = new NodeContract();
-            Node.Id = Source.Id;
-            Node.Label = Source.Label;
-            Node.ParentGroupId = Source.ParentGroupId;
+            NodeContract Node = new NodeContract
+            {
+                Id = Source.Id,
+                Label = Source.Label,
+                ParentGroupId = Source.ParentGroupId
+            };
 
             if (Source.StateType is not null)
             {
@@ -233,10 +234,12 @@ public static class StateContractMapper
 
         foreach (StateNoteRecord Source in Database.Notes)
         {
-            NodeContract NoteNode = new NodeContract();
-            NoteNode.Id = Source.Id;
-            NoteNode.Label = Source.Text;
-            NoteNode.Shape = "note";
+            NodeContract NoteNode = new NodeContract
+            {
+                Id = Source.Id,
+                Label = Source.Text,
+                Shape = "note"
+            };
             NoteNode.MetadataMutable["stateNotePlacement"] = new RawMetadata(
                 "stateNotePlacement",
                 Source.Placement);
@@ -248,22 +251,26 @@ public static class StateContractMapper
 
         foreach (StateEdgeRecord Source in Database.Edges)
         {
-            EdgeContract Edge = new EdgeContract();
-            Edge.SourceId = Source.SourceId;
-            Edge.TargetId = Source.TargetId;
-            Edge.Label = Source.Label;
-            Edge.CreationIndex = Source.CreationIndex;
-            Edge.Id = GenerateEdgeId(Source.SourceId, Source.TargetId, Source.CreationIndex);
+            EdgeContract Edge = new EdgeContract
+            {
+                SourceId = Source.SourceId,
+                TargetId = Source.TargetId,
+                Label = Source.Label,
+                CreationIndex = Source.CreationIndex,
+                Id = GenerateEdgeId(Source.SourceId, Source.TargetId, Source.CreationIndex)
+            };
             Contract.EdgesMutable.Add(Edge);
         }
 
         foreach (KeyValuePair<string, StateGroupRecord> Entry in Database.GroupsById)
         {
             StateGroupRecord Source = Entry.Value;
-            GroupContract Group = new GroupContract();
-            Group.Id = Source.Id;
-            Group.Title = Source.Id;
-            Group.ParentGroupId = Source.ParentGroupId;
+            GroupContract Group = new GroupContract
+            {
+                Id = Source.Id,
+                Title = Source.Id,
+                ParentGroupId = Source.ParentGroupId
+            };
             foreach (string ChildNodeId in Source.ChildNodeIdsMutable)
             {
                 Group.ChildNodeIdsMutable.Add(ChildNodeId);
@@ -274,8 +281,10 @@ public static class StateContractMapper
 
         foreach (KeyValuePair<string, ClassDefContract> Entry in Database.ClassDefsById)
         {
-            ClassDefContract Copy = new ClassDefContract();
-            Copy.ClassId = Entry.Value.ClassId;
+            ClassDefContract Copy = new ClassDefContract
+            {
+                ClassId = Entry.Value.ClassId
+            };
             RecognitionStyleMerge.Apply(Entry.Value.Style, Copy.Style);
             Contract.ClassDefsMutable.Add(Copy);
         }
@@ -294,10 +303,7 @@ public static class StateContractMapper
         }
     }
 
-    static string GenerateEdgeId(string SourceId, string TargetId, int CreationIndex)
-    {
-        return "L-" + SourceId + "-" + TargetId + "-" + CreationIndex.ToString();
-    }
+    static string GenerateEdgeId(string SourceId, string TargetId, int CreationIndex) => "L-" + SourceId + "-" + TargetId + "-" + CreationIndex.ToString();
 
     enum AccDescrParseState
     {

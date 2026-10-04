@@ -52,6 +52,9 @@ public sealed class DocxWriter
     private int _NextNumberingId = 3;
     private int _NextAbstractNumberingId = 3;
     private uint _NextDrawingId = 1;
+    private readonly Dictionary<HeadingBlock, string> _HeadingBookmarks = [];
+    private readonly Dictionary<string, string> _AnchorBookmarks = new(StringComparer.Ordinal);
+    private int _NextBookmarkId;
 
     public DocxWriter(EffectiveOptions Options)
         : this(Options, null)
@@ -96,7 +99,10 @@ public sealed class DocxWriter
             }
 
             Body Body = MainPart.Document.Body ?? MainPart.Document.AppendChild(new Body());
+            SectionProperties? TemplateSection = Body.GetFirstChild<SectionProperties>();
+            TemplateSection?.Remove();
             Body.RemoveAllChildren();
+            PrepareHeadingBookmarks(Model.Blocks);
 
             int BlockCount = Model.Blocks.Count;
             for (int BlockIndex = 0; BlockIndex < BlockCount; BlockIndex++)
@@ -111,6 +117,10 @@ public sealed class DocxWriter
                 AppendBlock(Body, Block, Styles, 0);
             }
 
+            if (TemplateSection != null)
+            {
+                Body.AppendChild(TemplateSection);
+            }
             MainPart.Document.Save();
             _MainPart = null;
             _NumberingPart = null;
@@ -426,6 +436,8 @@ public sealed class DocxWriter
         {
             string StyleId = GetHeadingStyle(Heading.Level, Styles);
             Paragraph P = CreateParagraphFromInlines(Heading.Inlines, StyleId, Styles);
+            AppendHeadingBookmark(P, Heading);
+
             Parent.AppendChild(P);
             return;
         }
@@ -740,6 +752,15 @@ public sealed class DocxWriter
 
     private void AppendBlockContent(Paragraph Parent, BlockNode Block, StyleMapping Styles)
     {
+        if (Block is HeadingBlock Heading)
+        {
+            foreach (InlineNode Inline in Heading.Inlines)
+            {
+                AppendInline(Parent, Inline, Styles);
+            }
+            AppendHeadingBookmark(Parent, Heading);
+            return;
+        }
         if (Block is ParagraphBlock Paragraph)
         {
             foreach (InlineNode Inline in Paragraph.Inlines)
@@ -783,215 +804,170 @@ public sealed class DocxWriter
         }
     }
 
-    private void AppendInline(Paragraph Parent, InlineNode Inline, StyleMapping Styles)
+    private void PrepareHeadingBookmarks(IReadOnlyList<BlockNode> Blocks)
     {
-        if (Inline is TextRun Text)
+        _HeadingBookmarks.Clear();
+        _AnchorBookmarks.Clear();
+        _NextBookmarkId = _MainPart!.Document!.Descendants<BookmarkStart>()
+            .Concat(_MainPart.HeaderParts.SelectMany(Part => Part.Header!.Descendants<BookmarkStart>()))
+            .Concat(_MainPart.FooterParts.SelectMany(Part => Part.Footer!.Descendants<BookmarkStart>()))
+            .Select(Bookmark => int.TryParse(Bookmark.Id?.Value, out int Id) ? Id : -1)
+            .DefaultIfEmpty(-1).Max() + 1;
+        if (!_Options.Links.EnableInternalLinks) return;
+        RegisterHeadings(Blocks);
+    }
+
+    private void RegisterHeadings(IReadOnlyList<BlockNode> Blocks)
+    {
+        foreach (BlockNode Block in Blocks)
         {
-            Parent.AppendChild(new Run(CreateText(Text.Text)));
-            return;
-        }
-        if (Inline is CodeInline Code)
-        {
-            string Style = Styles != null ? Styles.InlineCodeStyle : "MdInlineCode";
-            Parent.AppendChild(new Run(new RunProperties(new RunStyle() { Val = Style }), CreateText(Code.Content)));
-            return;
-        }
-        if (Inline is EmphasisInline Emphasis)
-        {
-            Run Run = new Run(new RunProperties(new Italic()));
-            foreach (InlineNode Child in Emphasis.Inlines)
+            if (Block is HeadingBlock Heading)
             {
-                AppendInlineToRun(Run, Child, Styles);
+                string Text = GetInlineText(Heading.Inlines).ToLowerInvariant();
+                string Slug = Regex.Replace(Text, @"[^\p{L}\p{N}\p{M}\s_-]", string.Empty);
+                Slug = Regex.Replace(Slug, @"\s", "-");
+                string Anchor = Slug;
+                int Suffix = 1;
+                while (_AnchorBookmarks.ContainsKey(Anchor)) Anchor = Slug + "-" + Suffix++;
+                string Name = "Md_" + Guid.NewGuid().ToString("N");
+                _HeadingBookmarks.Add(Heading, Name);
+                _AnchorBookmarks.Add(Anchor, Name);
             }
-            Parent.AppendChild(Run);
-            return;
-        }
-        if (Inline is StrongInline Strong)
-        {
-            Run Run = new Run(new RunProperties(new Bold()));
-            foreach (InlineNode Child in Strong.Inlines)
+            else if (Block is QuoteBlock Quote) RegisterHeadings(Quote.Blocks);
+            else if (Block is ListBlock List)
             {
-                AppendInlineToRun(Run, Child, Styles);
+                foreach (ListItemBlock Item in List.Items) RegisterHeadings(Item.Blocks);
             }
-            Parent.AppendChild(Run);
-            return;
-        }
-        if (Inline is StrikethroughInline Strikethrough)
-        {
-            Run Run = new Run(new RunProperties(new Strike()));
-            foreach (InlineNode Child in Strikethrough.Inlines)
+            else if (Block is TableBlock Table)
             {
-                AppendInlineToRun(Run, Child, Styles);
+                foreach (Model.TableRow Row in Table.Rows)
+                    foreach (Model.TableCell Cell in Row.Cells) RegisterHeadings(Cell.Blocks);
             }
-            Parent.AppendChild(Run);
+        }
+    }
+
+    private static string GetInlineText(IReadOnlyList<InlineNode> Inlines)
+    {
+        StringBuilder Text = new();
+        foreach (InlineNode Inline in Inlines)
+        {
+            Text.Append(Inline switch
+            {
+                TextRun Run => Run.Text,
+                CodeInline Code => Code.Content,
+                EmphasisInline Emphasis => GetInlineText(Emphasis.Inlines),
+                StrongInline Strong => GetInlineText(Strong.Inlines),
+                StrikethroughInline Strike => GetInlineText(Strike.Inlines),
+                LinkInline Link => GetInlineText(Link.Inlines),
+                ImageInline Image => Image.AltText,
+                BreakInline => " ",
+                _ => string.Empty
+            });
+        }
+        return Text.ToString();
+    }
+
+    private void AppendHeadingBookmark(Paragraph Paragraph, HeadingBlock Heading)
+    {
+        if (!_HeadingBookmarks.TryGetValue(Heading, out string? Name)) return;
+        string Id = (_NextBookmarkId++).ToString(CultureInfo.InvariantCulture);
+        Paragraph.InsertAfter(new BookmarkStart { Id = Id, Name = Name }, Paragraph.ParagraphProperties);
+        Paragraph.AppendChild(new BookmarkEnd { Id = Id });
+    }
+
+    private void AppendInline(Paragraph Parent, InlineNode Inline, StyleMapping Styles) => AppendInlineContent(Parent, Inline, Styles, new RunProperties());
+
+    // Each leaf gets its own run so nested formatting cannot affect adjacent text.
+    private void AppendInlineContent(OpenXmlCompositeElement Parent, InlineNode Inline, StyleMapping Styles, RunProperties Properties)
+    {
+        if (Inline is EmphasisInline || Inline is StrongInline || Inline is StrikethroughInline)
+        {
+            RunProperties Nested = (RunProperties)Properties.CloneNode(true);
+            IReadOnlyList<InlineNode> Children;
+            if (Inline is EmphasisInline Emphasis)
+            {
+                Nested.RemoveAllChildren<Italic>();
+                Nested.AddChild(new Italic(), true);
+                Children = Emphasis.Inlines;
+            }
+            else if (Inline is StrongInline Strong)
+            {
+                Nested.RemoveAllChildren<Bold>();
+                Nested.AddChild(new Bold(), true);
+                Children = Strong.Inlines;
+            }
+            else
+            {
+                Nested.RemoveAllChildren<Strike>();
+                Nested.AddChild(new Strike(), true);
+                Children = ((StrikethroughInline)Inline).Inlines;
+            }
+            foreach (InlineNode Child in Children) AppendInlineContent(Parent, Child, Styles, Nested);
             return;
         }
         if (Inline is LinkInline Link)
         {
+            Hyperlink? Hyperlink = null;
             if (ShouldWriteExternalLink(Link.Url))
             {
                 string RelationshipId = _MainPart!.AddHyperlinkRelationship(new Uri(Link.Url, UriKind.Absolute), true).Id!;
-                Hyperlink H = new Hyperlink() { History = true, Id = RelationshipId };
-                foreach (InlineNode Child in Link.Inlines)
-                {
-                    AppendInlineToHyperlink(H, Child, Styles);
-                }
-                Parent.AppendChild(H);
-                return;
+                Hyperlink = new Hyperlink { History = true, Id = RelationshipId };
             }
-
-            foreach (InlineNode Child in Link.Inlines)
+            else if (_Options.Links.EnableInternalLinks && Link.Url.StartsWith('#')
+                && _AnchorBookmarks.TryGetValue(Uri.UnescapeDataString(Link.Url.Substring(1)), out string? Name))
             {
-                AppendInline(Parent, Child, Styles);
+                Hyperlink = new Hyperlink { History = true, Anchor = Name };
             }
+            RunProperties LinkProperties = (RunProperties)Properties.CloneNode(true);
+            if (Hyperlink != null)
+            {
+                LinkProperties.RemoveAllChildren<RunStyle>();
+                LinkProperties.PrependChild(new RunStyle { Val = "Hyperlink" });
+                Parent.AppendChild(Hyperlink);
+            }
+            foreach (InlineNode Child in Link.Inlines)
+                AppendInlineContent(Hyperlink ?? Parent, Child, Styles, LinkProperties);
             return;
         }
         if (Inline is ImageInline Image)
         {
-            if (!TryAppendImage(Parent, Image))
+            Paragraph ImageContainer = new();
+            if (!TryAppendImage(ImageContainer, Image))
             {
-                string Placeholder = FormatMissingImagePlaceholder(Image.AltText, Image.SourceUri ?? Image.Url, _Options.Images);
-                Parent.AppendChild(new Run(CreateText(Placeholder)));
+                ImageContainer.AppendChild(new Run(CreateText(FormatMissingImagePlaceholder(Image.AltText, Image.SourceUri ?? Image.Url, _Options.Images))));
+            }
+            foreach (OpenXmlElement Child in ImageContainer.ChildElements.ToList())
+            {
+                Child.Remove();
+                Parent.AppendChild(Child);
             }
             return;
         }
 
-        if (Inline is BreakInline)
+        RunProperties LeafProperties = (RunProperties)Properties.CloneNode(true);
+        OpenXmlElement Content;
+        switch (Inline)
         {
-            Parent.AppendChild(new Run(new Break()));
-            return;
+            case TextRun Text: Content = CreateText(Text.Text); break;
+            case CodeInline Code:
+                LeafProperties.RemoveAllChildren<RunStyle>();
+                LeafProperties.PrependChild(new RunStyle { Val = Styles.InlineCodeStyle });
+                Content = CreateText(Code.Content);
+                break;
+            case BreakInline: Content = new Break(); break;
+            case TaskCheckboxInline Task: Content = CreateText(Task.Checked ? "[x]" : "[ ]"); break;
+            default: return;
         }
-
-        if (Inline is TaskCheckboxInline TaskCheckbox)
-        {
-            string CheckboxText = TaskCheckbox.Checked ? "[x]" : "[ ]";
-            Parent.AppendChild(new Run(CreateText(CheckboxText)));
-            return;
-        }
+        Parent.AppendChild(new Run(LeafProperties, Content));
     }
 
     private bool ShouldWriteExternalLink(string Url)
     {
-        if (!_Options.Links.EnableExternalLinks || string.IsNullOrWhiteSpace(Url))
-        {
-            return false;
-        }
-
-        if (!Uri.TryCreate(Url, UriKind.Absolute, out Uri? ParsedUri) || ParsedUri == null)
-        {
-            return false;
-        }
-
+        if (!_Options.Links.EnableExternalLinks || string.IsNullOrWhiteSpace(Url)) return false;
+        if (!Uri.TryCreate(Url, UriKind.Absolute, out Uri? ParsedUri) || ParsedUri == null) return false;
         return ParsedUri.Scheme == Uri.UriSchemeHttp
             || ParsedUri.Scheme == Uri.UriSchemeHttps
             || ParsedUri.Scheme == Uri.UriSchemeMailto;
-    }
-
-    private static void AppendInlineToHyperlink(Hyperlink Parent, InlineNode Inline, StyleMapping Styles)
-    {
-        if (Inline is TextRun Text)
-        {
-            Parent.AppendChild(new Run(CreateHyperlinkRunProperties(), CreateText(Text.Text)));
-            return;
-        }
-        if (Inline is CodeInline Code)
-        {
-            Parent.AppendChild(new Run(new RunProperties(new RunStyle() { Val = Styles.InlineCodeStyle }, new Color() { Val = "0563C1" }, new Underline() { Val = UnderlineValues.Single }), CreateText(Code.Content)));
-            return;
-        }
-        if (Inline is EmphasisInline Emphasis)
-        {
-            Run Run = new Run(CreateHyperlinkRunProperties(new Italic()));
-            foreach (InlineNode Child in Emphasis.Inlines)
-            {
-                AppendInlineToRun(Run, Child, Styles);
-            }
-            Parent.AppendChild(Run);
-            return;
-        }
-        if (Inline is StrongInline Strong)
-        {
-            Run Run = new Run(CreateHyperlinkRunProperties(new Bold()));
-            foreach (InlineNode Child in Strong.Inlines)
-            {
-                AppendInlineToRun(Run, Child, Styles);
-            }
-            Parent.AppendChild(Run);
-            return;
-        }
-        if (Inline is StrikethroughInline Strikethrough)
-        {
-            Run Run = new Run(CreateHyperlinkRunProperties(new Strike()));
-            foreach (InlineNode Child in Strikethrough.Inlines)
-            {
-                AppendInlineToRun(Run, Child, Styles);
-            }
-            Parent.AppendChild(Run);
-            return;
-        }
-    }
-
-    private static void AppendInlineToRun(Run Parent, InlineNode Inline, StyleMapping Styles)
-    {
-        if (Inline is TextRun Text)
-        {
-            Parent.AppendChild(CreateText(Text.Text));
-            return;
-        }
-        if (Inline is CodeInline Code)
-        {
-            Parent.AppendChild(CreateText(Code.Content));
-            return;
-        }
-        if (Inline is BreakInline)
-        {
-            Parent.AppendChild(new Break());
-            return;
-        }
-        if (Inline is TaskCheckboxInline TaskCheckbox)
-        {
-            Parent.AppendChild(CreateText(TaskCheckbox.Checked ? "[x]" : "[ ]"));
-            return;
-        }
-        if (Inline is EmphasisInline Emphasis)
-        {
-            RunProperties? RunProperties = Parent.GetFirstChild<RunProperties>();
-            if (RunProperties != null && !RunProperties.Elements<Italic>().Any())
-            {
-                RunProperties.Append(new Italic());
-            }
-            foreach (InlineNode Child in Emphasis.Inlines)
-            {
-                AppendInlineToRun(Parent, Child, Styles);
-            }
-            return;
-        }
-        if (Inline is StrongInline Strong)
-        {
-            RunProperties? RunProperties = Parent.GetFirstChild<RunProperties>();
-            if (RunProperties != null && !RunProperties.Elements<Bold>().Any())
-            {
-                RunProperties.Append(new Bold());
-            }
-            foreach (InlineNode Child in Strong.Inlines)
-            {
-                AppendInlineToRun(Parent, Child, Styles);
-            }
-            return;
-        }
-        if (Inline is StrikethroughInline Strikethrough)
-        {
-            RunProperties? RunProperties = Parent.GetFirstChild<RunProperties>();
-            if (RunProperties != null && !RunProperties.Elements<Strike>().Any())
-            {
-                RunProperties.Append(new Strike());
-            }
-            foreach (InlineNode Child in Strikethrough.Inlines)
-            {
-                AppendInlineToRun(Parent, Child, Styles);
-            }
-            return;
-        }
     }
 
     private static string FormatMissingImagePlaceholder(string AltText, string Uri, ImageOptions ImageOptions)
@@ -1417,7 +1393,7 @@ public sealed class DocxWriter
             List<XElement> MarkableElements = Root.Descendants()
                 .Where(Element => Element.Attribute("marker-end") != null)
                 .ToList();
-            List<XElement> OverlayElements = new List<XElement>();
+            List<XElement> OverlayElements = [];
 
             foreach (XElement Element in MarkableElements)
             {
@@ -1650,7 +1626,7 @@ public sealed class DocxWriter
 
     private static List<SvgNodeBounds> CollectFlowchartNodeBounds(XElement Root)
     {
-        List<SvgNodeBounds> BoundsList = new List<SvgNodeBounds>();
+        List<SvgNodeBounds> BoundsList = [];
         HashSet<string> SeenKeys = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (XElement Element in Root.Descendants())
@@ -1712,7 +1688,7 @@ public sealed class DocxWriter
 
     private static List<SvgStadiumShape> CollectFlowchartStadiumShapes(XElement Root)
     {
-        List<SvgStadiumShape> StadiumShapeList = new List<SvgStadiumShape>();
+        List<SvgStadiumShape> StadiumShapeList = [];
         HashSet<string> SeenKeys = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (XElement Element in Root.Descendants())
@@ -1757,7 +1733,7 @@ public sealed class DocxWriter
 
     private static List<SvgDiamondShape> CollectFlowchartDiamondShapes(XElement Root)
     {
-        List<SvgDiamondShape> DiamondShapeList = new List<SvgDiamondShape>();
+        List<SvgDiamondShape> DiamondShapeList = [];
         HashSet<string> SeenKeys = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (XElement Element in Root.Descendants())
@@ -2892,10 +2868,7 @@ public sealed class DocxWriter
         }
     }
 
-    private (long Cx, long Cy) CalculateSvgExtents(SvgDimensions Dimensions)
-    {
-        return CalculateEmbeddedExtentsFromPixels(Dimensions.WidthPixels, Dimensions.HeightPixels);
-    }
+    private (long Cx, long Cy) CalculateSvgExtents(SvgDimensions Dimensions) => CalculateEmbeddedExtentsFromPixels(Dimensions.WidthPixels, Dimensions.HeightPixels);
 
     private (long Cx, long Cy) CalculateEmbeddedExtentsFromPixels(int WidthPixels, int HeightPixels)
     {
@@ -3053,10 +3026,7 @@ public sealed class DocxWriter
         };
     }
 
-    private (long Cx, long Cy) CalculateImageExtents(ImageDimensions Dimensions)
-    {
-        return CalculateEmbeddedExtentsFromPixels(Dimensions.WidthPixels, Dimensions.HeightPixels);
-    }
+    private (long Cx, long Cy) CalculateImageExtents(ImageDimensions Dimensions) => CalculateEmbeddedExtentsFromPixels(Dimensions.WidthPixels, Dimensions.HeightPixels);
 
     private static ImageDimensions GetImageDimensions(string Path)
     {

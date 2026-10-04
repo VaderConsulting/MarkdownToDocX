@@ -1,7 +1,7 @@
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 
-namespace MermaidRecognition.Class;
+namespace MermaidRecognition.Kinds.Class;
 
 /// <summary>
 /// Mermaid-style class diagram database (parse-time mutations only).
@@ -11,7 +11,7 @@ public sealed class ClassDb
     private readonly Dictionary<string, ClassNodeRecord> _ClassesById =
         new Dictionary<string, ClassNodeRecord>(StringComparer.Ordinal);
 
-    private readonly List<ClassEdgeRecord> _Edges = new List<ClassEdgeRecord>();
+    private readonly List<ClassEdgeRecord> _Edges = [];
 
     private readonly Dictionary<string, ClassDefContract> _ClassDefsById =
         new Dictionary<string, ClassDefContract>(StringComparer.Ordinal);
@@ -28,83 +28,33 @@ public sealed class ClassDb
 
     private string? _AccessibilityDescription;
 
-    private readonly List<InteractionDirective> _Interactions = new List<InteractionDirective>();
+    private readonly List<InteractionDirective> _Interactions = [];
 
-    private readonly List<MermaidDiagnostic> _Diagnostics = new List<MermaidDiagnostic>();
+    private readonly List<MermaidDiagnostic> _Diagnostics = [];
 
     private int _StandaloneNoteCounter;
 
-    public IReadOnlyDictionary<string, ClassNodeRecord> ClassesById
-    {
-        get
-        {
-            return _ClassesById;
-        }
-    }
+    public IReadOnlyDictionary<string, ClassNodeRecord> ClassesById => _ClassesById;
 
-    public IReadOnlyList<ClassEdgeRecord> Edges
-    {
-        get
-        {
-            return _Edges;
-        }
-    }
+    public IReadOnlyList<ClassEdgeRecord> Edges => _Edges;
 
-    public IReadOnlyDictionary<string, ClassDefContract> ClassDefsById
-    {
-        get
-        {
-            return _ClassDefsById;
-        }
-    }
+    public IReadOnlyDictionary<string, ClassDefContract> ClassDefsById => _ClassDefsById;
 
-    public IReadOnlyDictionary<string, ClassNamespaceRecord> NamespacesById
-    {
-        get
-        {
-            return _NamespacesById;
-        }
-    }
+    public IReadOnlyDictionary<string, ClassNamespaceRecord> NamespacesById => _NamespacesById;
 
     public string? AccessibilityTitle
     {
-        get
-        {
-            return _AccessibilityTitle;
-        }
-        set
-        {
-            _AccessibilityTitle = value;
-        }
+        get => _AccessibilityTitle; set => _AccessibilityTitle = value;
     }
 
     public string? AccessibilityDescription
     {
-        get
-        {
-            return _AccessibilityDescription;
-        }
-        set
-        {
-            _AccessibilityDescription = value;
-        }
+        get => _AccessibilityDescription; set => _AccessibilityDescription = value;
     }
 
-    public List<InteractionDirective> InteractionsMutable
-    {
-        get
-        {
-            return _Interactions;
-        }
-    }
+    public List<InteractionDirective> InteractionsMutable => _Interactions;
 
-    public List<MermaidDiagnostic> DiagnosticsMutable
-    {
-        get
-        {
-            return _Diagnostics;
-        }
-    }
+    public List<MermaidDiagnostic> DiagnosticsMutable => _Diagnostics;
 
     /// <summary>
     /// Gets or creates a class node by identifier.
@@ -117,9 +67,11 @@ public sealed class ClassDb
             return Existing;
         }
 
-        ClassNodeRecord Created = new ClassNodeRecord();
-        Created.Id = ClassId;
-        Created.Label = ClassId;
+        ClassNodeRecord Created = new ClassNodeRecord
+        {
+            Id = ClassId,
+            Label = ClassId
+        };
         _ClassesById[ClassId] = Created;
         AddNodeToCurrentNamespaceOnce(ClassId, Created);
         return Created;
@@ -132,8 +84,10 @@ public sealed class ClassDb
     {
         if (!_NamespacesById.TryGetValue(NamespaceId, out ClassNamespaceRecord? Namespace))
         {
-            Namespace = new ClassNamespaceRecord();
-            Namespace.Id = NamespaceId;
+            Namespace = new ClassNamespaceRecord
+            {
+                Id = NamespaceId
+            };
             _NamespacesById[NamespaceId] = Namespace;
         }
 
@@ -229,14 +183,16 @@ public sealed class ClassDb
         string? RelationLabel)
     {
         EnsureClassIdsExist(new[] { SourceId, TargetId });
-        ClassEdgeRecord Edge = new ClassEdgeRecord();
-        Edge.SourceId = SourceId;
-        Edge.TargetId = TargetId;
-        Edge.RelationToken = RelationToken;
-        Edge.SourceCardinality = SourceCardinality;
-        Edge.TargetCardinality = TargetCardinality;
-        Edge.RelationLabel = RelationLabel;
-        Edge.CreationIndex = _Edges.Count;
+        ClassEdgeRecord Edge = new ClassEdgeRecord
+        {
+            SourceId = SourceId,
+            TargetId = TargetId,
+            RelationToken = RelationToken,
+            SourceCardinality = SourceCardinality,
+            TargetCardinality = TargetCardinality,
+            RelationLabel = RelationLabel,
+            CreationIndex = _Edges.Count
+        };
         _Edges.Add(Edge);
     }
 
@@ -247,8 +203,10 @@ public sealed class ClassDb
     {
         if (!_ClassDefsById.TryGetValue(ClassId, out ClassDefContract? Existing))
         {
-            Existing = new ClassDefContract();
-            Existing.ClassId = ClassId;
+            Existing = new ClassDefContract
+            {
+                ClassId = ClassId
+            };
             _ClassDefsById[ClassId] = Existing;
         }
 
@@ -284,9 +242,11 @@ public sealed class ClassDb
         string NoteId = "note-" + _StandaloneNoteCounter.ToString();
         _StandaloneNoteCounter++;
 
-        ClassNodeRecord NoteNode = new ClassNodeRecord();
-        NoteNode.Id = NoteId;
-        NoteNode.Label = Text;
+        ClassNodeRecord NoteNode = new ClassNodeRecord
+        {
+            Id = NoteId,
+            Label = Text
+        };
         NoteNode.DeclarationsMutable.Add(new MermaidDeclaration("note", Text, SourceSpan));
         _ClassesById[NoteId] = NoteNode;
         AddNodeToCurrentNamespaceOnce(NoteId, NoteNode);

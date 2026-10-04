@@ -7,7 +7,8 @@
 using MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms;
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
 
-namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
+namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered.Layering
+{
     /// <summary>
     /// Layering the DAG by longest path
     /// </summary>
@@ -35,9 +36,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         }
 
-        internal LongestPathLayering(BasicGraph<IntEdge> graph){
-            this.graph=graph;
-        }
-        
+        internal LongestPathLayering(BasicGraph<IntEdge> graph) => this.graph = graph;
+
     }
 }

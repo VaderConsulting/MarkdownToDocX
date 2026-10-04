@@ -10,20 +10,14 @@ namespace Microsoft.AGL.Routing.Visibility {
     internal class Stem {
         PolylinePoint start;
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
-        internal PolylinePoint Start {
-            get { return start; }
-            set { start = value; }
+        internal PolylinePoint Start { get => start; set => start = value;
         }
         PolylinePoint end;
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
-        internal PolylinePoint End {
-            get { return end; }
-            set { end = value; }
+        internal PolylinePoint End { get => end; set => end = value;
         }
-     
-        
+
+
         internal Stem(PolylinePoint start, PolylinePoint end) {
             System.Diagnostics.Debug.Assert(start.Polyline==end.Polyline);
             this.start = start;
@@ -50,9 +44,7 @@ namespace Microsoft.AGL.Routing.Visibility {
             return false;
         }
 
-        public override string ToString() {
-            return String.Format(System.Globalization.CultureInfo.InvariantCulture, "Stem({0},{1})", Start, End);
-        }
+        public override string ToString() => string.Format(System.Globalization.CultureInfo.InvariantCulture, "Stem({0},{1})", Start, End);
 
     }
 }

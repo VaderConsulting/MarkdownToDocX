@@ -1,7 +1,8 @@
 using System.Collections.Generic;
 using System.Diagnostics;
+
 using Microsoft.AGL.Core;
-using Microsoft.AGL.Core.DataStructures;
+using Microsoft.AGL.Core.DataStructures.RBTree;
 using Microsoft.AGL.Core.Geometry;
 
 namespace Microsoft.AGL.Routing.Visibility {
@@ -12,58 +13,48 @@ namespace Microsoft.AGL.Routing.Visibility {
         readonly internal Point Point;
         bool _isTerminal;
         bool _isShortestPathTerminal;
-        readonly List<VisibilityEdge> _inEdges=new List<VisibilityEdge>();
+        readonly List<VisibilityEdge> _inEdges=[];
 
-        internal List<VisibilityEdge> InEdges {
-            get { return _inEdges; }
-        }
+        internal List<VisibilityEdge> InEdges => _inEdges;
 
         readonly RbTree<VisibilityEdge> _outEdges;
-       /* VisibilityEdge prev; */
+        /* VisibilityEdge prev; */
 
         /// <summary>
         /// this collection is sorted by the target point, in the lexicographical order
         /// </summary>
-        internal RbTree<VisibilityEdge> OutEdges {
-            get { return _outEdges; }
-        }
+        internal RbTree<VisibilityEdge> OutEdges => _outEdges;
 
-        internal int Degree {
-            get { return InEdges.Count + OutEdges.Count; }
-        }
+        internal int Degree => InEdges.Count + OutEdges.Count;
         /// <summary>
         /// needed for shortest path calculations
         /// </summary>
         internal double Distance { get;set;}
 
-        internal bool IsTerminal {
-            get { return _isTerminal; }
-            set { _isTerminal = value; }
+        internal bool IsTerminal { get => _isTerminal; set => _isTerminal = value;
         }
 
-        internal bool IsShortestPathTerminal {
-            get { return _isShortestPathTerminal; }
-            set { _isShortestPathTerminal = value; }
+        internal bool IsShortestPathTerminal { get => _isShortestPathTerminal; set => _isShortestPathTerminal = value;
         }
 
 
-/*
-        /// <summary>
-        /// needed for shortest path calculations
-        /// </summary>        
-        internal VisibilityVertex Prev {
-            get {
-                if (prev == null) return null;
-                if(prev.Source==this)
-                    return prev.Target;
-                return prev.Source;
-            }
-        }
+        /*
+                /// <summary>
+                /// needed for shortest path calculations
+                /// </summary>        
+                internal VisibilityVertex Prev {
+                    get {
+                        if (prev == null) return null;
+                        if(prev.Source==this)
+                            return prev.Target;
+                        return prev.Source;
+                    }
+                }
 
-        internal void SetPreviousEdge(VisibilityEdge e) {
-            prev = e;
-        }
-        */
+                internal void SetPreviousEdge(VisibilityEdge e) {
+                    prev = e;
+                }
+                */
         internal VisibilityVertex(Point point) {
             _outEdges = new RbTree<VisibilityEdge>(this);
             Point = point;
@@ -73,9 +64,7 @@ namespace Microsoft.AGL.Routing.Visibility {
         /// Rounded representation; DebuggerDisplay shows the unrounded form.
         /// </summary>
         /// <returns></returns>
-        public override string ToString() {
-            return Point.ToString();
-        }
+        public override string ToString() => Point.ToString();
 
         /// <summary>
         /// These iterate from the end of the list because List.Remove is linear in
@@ -84,9 +73,7 @@ namespace Microsoft.AGL.Routing.Visibility {
         /// rectilinear, this optimization isn't always possible).
         /// </summary>
         /// <param name="edge"></param>
-        internal void RemoveOutEdge(VisibilityEdge edge) {
-            OutEdges.Remove(edge);          
-        }
+        internal void RemoveOutEdge(VisibilityEdge edge) => OutEdges.Remove(edge);
 
         internal void RemoveInEdge(VisibilityEdge edge) {
             for (int ii = InEdges.Count - 1; ii >= 0; --ii) {
@@ -102,9 +89,7 @@ namespace Microsoft.AGL.Routing.Visibility {
         /// <param name="tree"></param>
         /// <param name="targetPoint"></param>
         /// <returns></returns>
-        static RBNode<VisibilityEdge> FindFirst(RbTree<VisibilityEdge> tree, Point targetPoint) {
-            return FindFirst(tree.Root, tree, targetPoint);
-        }
+        static RBNode<VisibilityEdge> FindFirst(RbTree<VisibilityEdge> tree, Point targetPoint) => FindFirst(tree.Root, tree, targetPoint);
 
         static RBNode<VisibilityEdge> FindFirst(RBNode<VisibilityEdge> n, RbTree<VisibilityEdge> tree, Point targetPoint)
         {
@@ -118,7 +103,7 @@ namespace Microsoft.AGL.Routing.Visibility {
         }
 
         internal bool TryGetEdge(VisibilityVertex target, out VisibilityEdge visEdge) {
-            var node = FindFirst(OutEdges, target.Point);// OutEdges.FindFirst(e => e.TargetPoint >= target.Point); 
+            RBNode<VisibilityEdge> node = FindFirst(OutEdges, target.Point);// OutEdges.FindFirst(e => e.TargetPoint >= target.Point); 
             if (node != null) {
                 if (node.Item.Target == target) {
                     visEdge = node.Item;
@@ -137,9 +122,7 @@ namespace Microsoft.AGL.Routing.Visibility {
         }
 
         #region IComparer<VisibilityEdge>
-        public int Compare(VisibilityEdge a, VisibilityEdge b) {
-            return a.TargetPoint.CompareTo(b.TargetPoint);
-        }
+        public int Compare(VisibilityEdge a, VisibilityEdge b) => a.TargetPoint.CompareTo(b.TargetPoint);
         #endregion // IComparer<VisibilityEdge>
 
         public void ClearEdges() {

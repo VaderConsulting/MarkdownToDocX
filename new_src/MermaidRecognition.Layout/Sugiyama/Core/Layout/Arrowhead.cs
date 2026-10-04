@@ -24,9 +24,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout
         ///<summary>
         /// The overall length of the arrow head
         ///</summary>
-        public double Length {
-            get { return length; }
-            set { length = value; }
+        public double Length { get => length; set => length = value;
         }
 
         ///<summary>
@@ -48,15 +46,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout
         /// Clone the arrowhead information
         /// </summary>
         /// <returns></returns>
-        public Arrowhead Clone()
+        public Arrowhead Clone() => new Arrowhead()
         {
-            return new Arrowhead()
-            {
-                Length = this.length,
-                Width = this.Width,
-                TipPosition = this.TipPosition,
-                Offset = this.Offset
-            };
-        }
+            Length = length,
+            Width = Width,
+            TipPosition = TipPosition,
+            Offset = Offset
+        };
     }
 }

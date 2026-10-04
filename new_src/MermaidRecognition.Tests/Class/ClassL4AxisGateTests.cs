@@ -15,7 +15,7 @@ public sealed class ClassL4AxisGateTests
         Assert.That(File.Exists(MmdPath), Is.True);
 
         DiagramContract Contract = MermaidRecognizer.Parse(File.ReadAllText(MmdPath));
-        Assert.That(Contract.Configuration.RawDirectiveValues.TryGetValue("theme", out string Theme), Is.True);
+        Assert.That(Contract.Configuration.RawDirectiveValues.TryGetValue("theme", out string? Theme), Is.True);
         Assert.That(Theme, Is.EqualTo("base"));
     }
 
@@ -77,7 +77,7 @@ public sealed class ClassL4AxisGateTests
             DiagramContract Contract = MermaidRecognizer.Parse(File.ReadAllText(MmdPath));
             bool HasExpectedToken = Contract.Edges.Any(
                 Edge =>
-                    Edge.Metadata.TryGetValue("classRelation", out MermaidMetadataValue MetadataValue)
+                    Edge.Metadata.TryGetValue("classRelation", out MermaidMetadataValue? MetadataValue)
                     && MetadataValue is RawMetadata RelationMetadata
                     && RelationMetadata.RawValue == ExpectedToken);
 

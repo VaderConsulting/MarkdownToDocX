@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves;
 using MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms;
+using MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms.CycleRemoval;
 
 namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
     /// <summary>
@@ -107,33 +109,33 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         public static IEnumerable<GeometryGraph> CreateComponents(IList<Node> nodes, IEnumerable<Edge> edges) {
             ValidateArg.IsNotNull(nodes, "nodes");
             ValidateArg.IsNotNull(edges, "edges");
-            var nodeIndex = new Dictionary<Node, int>();
+            Dictionary<Node, int> nodeIndex = new Dictionary<Node, int>();
             int nodeCount = 0;
-            foreach (var v in nodes) {
+            foreach (Node v in nodes) {
                 // Debug.Assert(v.Parent == null, "Node is already in a graph");
                 nodeIndex[v] = nodeCount++;
             }
-            var intEdges = new List<SimpleIntEdge>();
-            foreach (var e in edges) {
+            List<SimpleIntEdge> intEdges = new List<SimpleIntEdge>();
+            foreach (Edge e in edges) {
                 // Debug.Assert(e.Parent == null, "Edge is already in a graph");
                 intEdges.Add(new SimpleIntEdge {Source = nodeIndex[e.Source], Target = nodeIndex[e.Target]});
             }
-            var components =
+            IEnumerable<IEnumerable<int>> components =
                 ConnectedComponentCalculator<SimpleIntEdge>.GetComponents(new BasicGraph<SimpleIntEdge>(intEdges,
                                                                                                         nodeCount));
-            var nodeToGraph = new Dictionary<Node, GeometryGraph>();
-            var graphs = new List<GeometryGraph>();
-            foreach (var c in components) {
-                var g = new GeometryGraph();
-                foreach (var i in c) {
-                    var v = nodes[i];
+            Dictionary<Node, GeometryGraph> nodeToGraph = new Dictionary<Node, GeometryGraph>();
+            List<GeometryGraph> graphs = new List<GeometryGraph>();
+            foreach (IEnumerable<int> c in components) {
+                GeometryGraph g = new GeometryGraph();
+                foreach (int i in c) {
+                    Node v = nodes[i];
                     g.Nodes.Add(v);
                     nodeToGraph[v] = g;
                 }
                 graphs.Add(g);
             }
-            foreach (var e in edges) {
-                var g = nodeToGraph[e.Source];
+            foreach (Edge e in edges) {
+                GeometryGraph g = nodeToGraph[e.Source];
                 Debug.Assert(nodeToGraph[e.Target] == g, "source and target of edge are not in the same graph");
                 g.Edges.Add(e);
             }
@@ -149,21 +151,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// the set of components, each as its own GeometryGraph.
         /// </returns>
         public static IEnumerable<GeometryGraph> GetClusteredConnectedComponents(this GeometryGraph graph) {
-            var flatGraph = FlatGraph(graph);
-            var basicFlatGraph = new BasicGraph<AlgorithmDataEdgeWrap>(
+            GeometryGraph flatGraph = FlatGraph(graph);
+            BasicGraph<AlgorithmDataEdgeWrap> basicFlatGraph = new BasicGraph<AlgorithmDataEdgeWrap>(
                 from e in flatGraph.Edges
                 select (AlgorithmDataEdgeWrap) e.AlgorithmData,
                 flatGraph.Nodes.Count);
-            var nodes = flatGraph.Nodes.ToList();
-            var graphComponents = new List<GeometryGraph>();
+            List<Node> nodes = flatGraph.Nodes.ToList();
+            List<GeometryGraph> graphComponents = new List<GeometryGraph>();
             foreach (
-                var componentNodes in ConnectedComponentCalculator<AlgorithmDataEdgeWrap>.GetComponents(basicFlatGraph)) {
-                var g = new GeometryGraph();
-                var topClusters = new List<Cluster>();
-                var topNodes = new List<Node>();
+                IEnumerable<int> componentNodes in ConnectedComponentCalculator<AlgorithmDataEdgeWrap>.GetComponents(basicFlatGraph)) {
+                GeometryGraph g = new GeometryGraph();
+                List<Cluster> topClusters = new List<Cluster>();
+                List<Node> topNodes = new List<Node>();
                 foreach (int i in componentNodes) {
-                    var v = nodes[i];
-                    var original = (Node) v.UserData;
+                    Node v = nodes[i];
+                    Node original = (Node) v.UserData;
                     bool topLevel = ((AlgorithmDataNodeWrap) original.AlgorithmData).TopLevel;
                     if (v.UserData is Cluster) {
                         if (topLevel) {
@@ -183,21 +185,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
                 // copy the cluster hierarchies from the original graph
                 int index = g.Nodes.Count;
                 if (topClusters.Count != 0) {
-                    var root = new Cluster(topNodes);
-                    foreach (var top in topClusters) {
+                    Cluster root = new Cluster(topNodes);
+                    foreach (Cluster top in topClusters) {
                         root.AddChild(CopyCluster(top, ref index));
                     }
                     g.RootCluster = root;
                 }
 
                 // add the real edges from the original graph to the component graph
-                foreach (var v in g.GetFlattenedNodesAndClusters()) {
-                    var original = v.UserData as Node;
+                foreach (Node v in g.GetFlattenedNodesAndClusters()) {
+                    Node? original = v.UserData as Node;
                     Debug.Assert(original != null);
-                    foreach (var e in original.InEdges) {
-                        var source = GetCopy(e.Source);
-                        var target = GetCopy(e.Target);
-                        var copy = new Edge(source, target) {
+                    foreach (Edge e in original.InEdges) {
+                        Node source = GetCopy(e.Source);
+                        Node target = GetCopy(e.Target);
+                        Edge copy = new Edge(source, target) {
                                                                 Length = e.Length,
                                                                 UserData = e,
                                                                 EdgeGeometry = e.EdgeGeometry
@@ -212,9 +214,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
             return graphComponents;
         }
 
-        static Node GetCopy(Node node) {
-            return ((AlgorithmDataNodeWrap) node.AlgorithmData).node;
-        }
+        static Node GetCopy(Node node) => ((AlgorithmDataNodeWrap)node.AlgorithmData).node;
 
         /// <summary>
         /// Create deep copy of Cluster hierarchy, where the nodes are already assumed to have been copied and loaded into the original nodes' AlgorithmData
@@ -223,7 +223,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// <param name="index">node counter index to use and increment as we add new Cluster nodes</param>
         /// <returns>Deep copy of cluster hierarchy</returns>
         static Cluster CopyCluster(Cluster top, ref int index) {
-            var copy = new Cluster(from v in top.Nodes select GetCopy(v)) {
+            Cluster copy = new Cluster(from v in top.Nodes select GetCopy(v)) {
                                                                               UserData = top,
                                                                               RectangularBoundary =
                                                                                   top.RectangularBoundary,
@@ -231,7 +231,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
 																			  CollapsedBoundary=top.CollapsedBoundary==null?null:top.CollapsedBoundary.Clone()
                                                                           };
             top.AlgorithmData = new AlgorithmDataNodeWrap(index++, copy);
-            foreach (var c in top.Clusters)
+            foreach (Cluster c in top.Clusters)
                 copy.AddChild(CopyCluster(c, ref index));
             return copy;
         }
@@ -255,7 +255,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
 
             // make a dummy edge with no mapping back to a real edge
             internal static Edge MakeDummyEdgeFromNodeToItsCluster(AlgorithmDataNodeWrap u, AlgorithmDataNodeWrap v, double length) {
-                var e = new Edge(u.node, v.node) {
+                Edge e = new Edge(u.node, v.node) {
                                                      Length = length,
                                                      AlgorithmData =
                                                          new AlgorithmDataEdgeWrap {Source = u.index, Target = v.index}
@@ -265,9 +265,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
 
             // make an edge that corresponds to a real edge
             internal static Edge MakeEdge(Edge original) {
-                var u = original.Source.AlgorithmData as AlgorithmDataNodeWrap;
-                var v = original.Target.AlgorithmData as AlgorithmDataNodeWrap;
-                var e = new Edge(u.node, v.node) {
+                AlgorithmDataNodeWrap? u = original.Source.AlgorithmData as AlgorithmDataNodeWrap;
+                AlgorithmDataNodeWrap? v = original.Target.AlgorithmData as AlgorithmDataNodeWrap;
+                Edge e = new Edge(u.node, v.node) {
                                                      Length = original.Length,
                                                      UserData = original,
                                                      AlgorithmData = new AlgorithmDataEdgeWrap {
@@ -279,24 +279,22 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
             }
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")
-        ]
         internal static GeometryGraph FlatGraph(GeometryGraph graph) {
             // it is a new graph with clusters replaced by nodes and edges connecting nodes to their parent cluster node
-            var flatGraph = new GeometryGraph();
+            GeometryGraph flatGraph = new GeometryGraph();
 
             // from the original graph, foreach node v create a new node u with u.UserData pointing back to v
             // and set v.AlgorithmData to a wrapper of u
-            foreach (var v in graph.Nodes) {
+            foreach (Node v in graph.Nodes) {
                 Debug.Assert(!(v is Cluster));
-                var u = new Node(v.BoundaryCurve.Clone()) {
+                Node u = new Node(v.BoundaryCurve.Clone()) {
                                                               UserData = v
                                                           };
                 v.AlgorithmData = new AlgorithmDataNodeWrap(flatGraph.Nodes.Count, u);
                 flatGraph.Nodes.Add(u);
             }
             double avgLength = 0;
-            foreach (var e in graph.Edges) {
+            foreach (Edge e in graph.Edges) {
                 avgLength += e.Length;
                 if (e.Source is Cluster || e.Target is Cluster) continue;
                 flatGraph.Edges.Add(AlgorithmDataEdgeWrap.MakeEdge(e));
@@ -308,16 +306,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
 
             Cluster rootCluster = graph.RootCluster;
             // create edges from the children of each parent cluster to the parent cluster node
-            foreach (var c in rootCluster.AllClustersDepthFirst()) {
+            foreach (Cluster c in rootCluster.AllClustersDepthFirst()) {
                 if (c == rootCluster) continue;
                 if (c.BoundaryCurve == null)
                     c.BoundaryCurve = CurveFactory.CreateRectangleWithRoundedCorners(10, 10, 1, 1, new Point());
-                var uOfCluster = new Node(c.BoundaryCurve.Clone()) {UserData = c};
-                var uuOfCluster = new AlgorithmDataNodeWrap(flatGraph.Nodes.Count, uOfCluster);
+                Node uOfCluster = new Node(c.BoundaryCurve.Clone()) {UserData = c};
+                AlgorithmDataNodeWrap uuOfCluster = new AlgorithmDataNodeWrap(flatGraph.Nodes.Count, uOfCluster);
                 c.AlgorithmData = uuOfCluster;
                 flatGraph.Nodes.Add(uOfCluster);
 
-                foreach (var v in c.Nodes.Concat(from cc in c.Clusters select (Node) cc))
+                foreach (Node? v in c.Nodes.Concat(from cc in c.Clusters select (Node) cc))
                     flatGraph.Edges.Add(
                         AlgorithmDataEdgeWrap.MakeDummyEdgeFromNodeToItsCluster(
                             v.AlgorithmData as AlgorithmDataNodeWrap, uuOfCluster,
@@ -325,11 +323,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
             }
 
             // mark top-level nodes and clusters
-            foreach (var v in rootCluster.Nodes.Concat(from cc in rootCluster.Clusters select (Node) cc))
+            foreach (Node? v in rootCluster.Nodes.Concat(from cc in rootCluster.Clusters select (Node) cc))
                 ((AlgorithmDataNodeWrap) v.AlgorithmData).TopLevel = true;
 
             // create edges between clusters
-            foreach (var e in graph.Edges)
+            foreach (Edge e in graph.Edges)
                 if (e.Source is Cluster || e.Target is Cluster)
                     flatGraph.Edges.Add(AlgorithmDataEdgeWrap.MakeEdge(e));
 

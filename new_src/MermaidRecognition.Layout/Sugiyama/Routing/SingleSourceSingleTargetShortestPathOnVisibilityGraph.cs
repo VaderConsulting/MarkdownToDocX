@@ -11,9 +11,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         readonly VisibilityVertex _target;
         VisibilityGraph _visGraph;
         double _lengthMultiplier = 1;
-        public double LengthMultiplier {
-            get { return _lengthMultiplier; }
-            set { _lengthMultiplier = value; }
+        public double LengthMultiplier { get => _lengthMultiplier; set => _lengthMultiplier = value;
         }
 
         internal SingleSourceSingleTargetShortestPathOnVisibilityGraph(VisibilityGraph visGraph, VisibilityVertex sourceVisVertex, VisibilityVertex targetVisVertex) {
@@ -29,26 +27,25 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         /// </summary>
         /// <returns>a path or null if the target is not reachable from the source</returns>
         internal IEnumerable<VisibilityVertex> GetPath(bool shrinkEdgeLength) {
-            var pq = new GenericBinaryHeapPriorityQueue<VisibilityVertex>();
+            GenericBinaryHeapPriorityQueue<VisibilityVertex> pq = new GenericBinaryHeapPriorityQueue<VisibilityVertex>();
             _source.Distance = 0;
             _target.Distance = double.PositiveInfinity;
             pq.Enqueue(_source, H(_source));
             while (!pq.IsEmpty()) {
-                double hu;
-                var u = pq.Dequeue(out hu);
+                VisibilityVertex u = pq.Dequeue(out double hu);
                 if (hu >= _target.Distance)
                     break;
 
-                foreach (var e in u.OutEdges) {
+                foreach (VisibilityEdge e in u.OutEdges) {
                     if (PassableOutEdge(e)) {
-                        var v = e.Target;
+                        VisibilityVertex v = e.Target;
                         ProcessNeighbor(pq, u, e, v);
                     }
                 }
 
-                foreach (var e in u.InEdges) {
+                foreach (VisibilityEdge e in u.InEdges) {
                     if (PassableInEdge(e)) {
-                        var v = e.Source;
+                        VisibilityVertex v = e.Source;
                         ProcessNeighbor(pq, u, e, v);
                     }
                 }
@@ -57,21 +54,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
             return _visGraph.PreviosVertex(_target) == null ? null : CalculatePath(shrinkEdgeLength);
         }
 
-        bool PassableOutEdge(VisibilityEdge e) {
-            return e.Source == _source || e.Target == _target || !IsForbidden(e);
-        }
+        bool PassableOutEdge(VisibilityEdge e) => e.Source == _source || e.Target == _target || !IsForbidden(e);
 
-        bool PassableInEdge(VisibilityEdge e) {
-            return e.Source == _target || e.Target == _source || !IsForbidden(e);
-        }
+        bool PassableInEdge(VisibilityEdge e) => e.Source == _target || e.Target == _source || !IsForbidden(e);
 
-        internal static bool IsForbidden(VisibilityEdge e) {
-            return e.IsPassable != null && !e.IsPassable() || e is TollFreeVisibilityEdge;
-        }
+        internal static bool IsForbidden(VisibilityEdge e) => e.IsPassable != null && !e.IsPassable() || e is TollFreeVisibilityEdge;
 
         void ProcessNeighbor(GenericBinaryHeapPriorityQueue<VisibilityVertex> pq, VisibilityVertex u, VisibilityEdge l, VisibilityVertex v) {
-            var len = l.Length;
-            var c = u.Distance + len;
+            double len = l.Length;
+            double c = u.Distance + len;
 
             if (v != _source && _visGraph.PreviosVertex(v) == null) {
                 v.Distance = c;
@@ -92,15 +83,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
             }
         }
 
-        double H(VisibilityVertex visibilityVertex) {
-            return visibilityVertex.Distance + (visibilityVertex.Point - _target.Point).Length*LengthMultiplier;
-        }
+        double H(VisibilityVertex visibilityVertex) => visibilityVertex.Distance + (visibilityVertex.Point - _target.Point).Length * LengthMultiplier;
 
 
 
         IEnumerable<VisibilityVertex> CalculatePath(bool shrinkEdgeLength) {
-            var ret = new List<VisibilityVertex>();
-            var v = _target;
+            List<VisibilityVertex> ret = new List<VisibilityVertex>();
+            VisibilityVertex v = _target;
             do {
                 ret.Add(v);
                 if (shrinkEdgeLength)

@@ -1,8 +1,9 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+
 using MermaidRecognition.Config;
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 
 namespace MermaidRecognition.Render;
 
@@ -20,7 +21,7 @@ public sealed class FlowchartRenderOptions
         RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     private readonly Dictionary<int, RecognitionStyle> _LinkStyleByCreationIndex =
-        new Dictionary<int, RecognitionStyle>();
+        [];
 
     private RecognitionStyle? _DefaultLinkStyle;
 
@@ -290,35 +291,36 @@ public sealed class FlowchartRenderOptions
         }
     }
 
-    private static bool IsEdgeStrokeToken(string Token)
-    {
-        return string.Equals(Token, "normal", StringComparison.OrdinalIgnoreCase)
+    private static bool IsEdgeStrokeToken(string Token) => string.Equals(Token, "normal", StringComparison.OrdinalIgnoreCase)
             || string.Equals(Token, "thick", StringComparison.OrdinalIgnoreCase)
             || string.Equals(Token, "dotted", StringComparison.OrdinalIgnoreCase);
-    }
 
     private RecognitionStyle CreateThemeNodeStyle()
     {
-        RecognitionStyle Style = new RecognitionStyle();
-        Style.Fill = NodeFill;
-        Style.Stroke = NodeStroke;
-        Style.TextColor = TextColor;
-        Style.FontFamily = FontFamily;
-        Style.FontSize = FontSizePx;
-        Style.FontWeight = FontWeight;
-        Style.StrokeWidth = StrokeWidthPx;
+        RecognitionStyle Style = new RecognitionStyle
+        {
+            Fill = NodeFill,
+            Stroke = NodeStroke,
+            TextColor = TextColor,
+            FontFamily = FontFamily,
+            FontSize = FontSizePx,
+            FontWeight = FontWeight,
+            StrokeWidth = StrokeWidthPx
+        };
         return Style;
     }
 
     private RecognitionStyle CreateThemeEdgeStyle()
     {
-        RecognitionStyle Style = new RecognitionStyle();
-        Style.Stroke = EdgeStroke;
-        Style.TextColor = TextColor;
-        Style.FontFamily = FontFamily;
-        Style.FontSize = FontSizePx;
-        Style.FontWeight = FontWeight;
-        Style.StrokeWidth = StrokeWidthPx;
+        RecognitionStyle Style = new RecognitionStyle
+        {
+            Stroke = EdgeStroke,
+            TextColor = TextColor,
+            FontFamily = FontFamily,
+            FontSize = FontSizePx,
+            FontWeight = FontWeight,
+            StrokeWidth = StrokeWidthPx
+        };
         return Style;
     }
 
@@ -454,8 +456,5 @@ public sealed class FlowchartRenderOptions
         return 1.0;
     }
 
-    private static bool LooksLikeCssColour(string Value)
-    {
-        return CssColourRegex.IsMatch(Value);
-    }
+    private static bool LooksLikeCssColour(string Value) => CssColourRegex.IsMatch(Value);
 }

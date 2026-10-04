@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace MermaidRecognition.KindRecognition;
+namespace MermaidRecognition.Kinds.LinePattern;
 
 /// <summary>
 /// One line-classification rule for L1 catalogue recognition.
@@ -11,27 +11,13 @@ public sealed class KindLinePattern
 
     public string LineTypeId
     {
-        get
-        {
-            return _LineTypeId;
-        }
-        set
-        {
-            _LineTypeId = value;
-        }
+        get => _LineTypeId; set => _LineTypeId = value;
     }
 
     private Regex? _Pattern;
 
     public Regex? Pattern
     {
-        get
-        {
-            return _Pattern;
-        }
-        set
-        {
-            _Pattern = value;
-        }
+        get => _Pattern; set => _Pattern = value;
     }
 }

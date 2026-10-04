@@ -25,18 +25,16 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         internal List<Obstacle> Obstacles { get; private set; }
 
         internal OverlapConvexHull(Polyline polyline, IEnumerable<Obstacle> obstacles) {
-            this.Polyline = polyline;
-            this.Obstacles = obstacles.ToList();
-            this.PrimaryObstacle = this.Obstacles[0];
+            Polyline = polyline;
+            Obstacles = obstacles.ToList();
+            PrimaryObstacle = Obstacles[0];
 
-            Obstacle.RoundVertices(this.Polyline);
+            Obstacle.RoundVertices(Polyline);
         }
 
         /// <summary>
         /// </summary>
         /// <returns></returns>
-        public override string ToString() {
-            return this.Polyline.ToString();
-        }
+        public override string ToString() => Polyline.ToString();
     }
 }

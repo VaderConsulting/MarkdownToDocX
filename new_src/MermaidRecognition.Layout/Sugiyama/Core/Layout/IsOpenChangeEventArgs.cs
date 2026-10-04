@@ -14,8 +14,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// constructor
         /// </summary>
         /// <param name="previousValue"></param>
-        public IsOpenChangeEventArgs(bool previousValue) {
-            PreviousValue = previousValue;
-        }
+        public IsOpenChangeEventArgs(bool previousValue) => PreviousValue = previousValue;
     }
 }

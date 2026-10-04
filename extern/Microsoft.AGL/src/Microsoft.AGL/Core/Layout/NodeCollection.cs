@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Collections;
@@ -13,7 +13,7 @@ namespace Microsoft.AGL.Core.Layout
 #endif
     internal class NodeCollection : IList<Node>
     {
-        internal readonly List<Node> nodes = new List<Node>();
+        internal readonly List<Node> nodes = [];
 
          GeometryGraph graph;
 
@@ -21,10 +21,7 @@ namespace Microsoft.AGL.Core.Layout
         /// Creates a collection for nodes.
         /// </summary>
         /// <param name="graph">The graph that each node will be parented under.</param>
-        public NodeCollection(GeometryGraph graph)
-        {
-            this.graph = graph;
-        }
+        public NodeCollection(GeometryGraph graph) => this.graph = graph;
 
         /// <summary>
         /// Adds the node to the collection, but does not add the node edges to the graph
@@ -32,50 +29,35 @@ namespace Microsoft.AGL.Core.Layout
         public void Add(Node item)
         {
             ValidateArg.IsNotNull(item, "node");
-            this.nodes.Add(item);
+            nodes.Add(item);
             item.GeometryParent = graph;
         }
 
         /// <summary>
         /// Clears all of the nodes.
         /// </summary>
-        public void Clear()
-        {
-            this.nodes.Clear();
-        }
+        public void Clear() => nodes.Clear();
 
         /// <summary>
         /// Returns true if the node is found in the collection.
         /// </summary>
         /// <returns>True if the node is found in the collection.</returns>
-        public bool Contains(Node item)
-        {
-            return this.nodes.Contains(item);
-        }
+        public bool Contains(Node item) => nodes.Contains(item);
 
         /// <summary>
         /// Copies the contents of the collection to the given array, starting at the given index.
         /// </summary>
-        public void CopyTo(Node[] array, int arrayIndex)
-        {
-            this.nodes.CopyTo(array, arrayIndex);
-        }
+        public void CopyTo(Node[] array, int arrayIndex) => nodes.CopyTo(array, arrayIndex);
 
         /// <summary>
         /// The number of nodes in the collection.
         /// </summary>
-        public int Count
-        {
-            get { return this.nodes.Count; }
-        }
+        public int Count => nodes.Count;
 
         /// <summary>
         /// Returns false. Node collections are never readonly.
         /// </summary>
-        public bool IsReadOnly
-        {
-            get { return false; }
-        }
+        public bool IsReadOnly => false;
 
         /// <summary>
         /// Removes the node from the collection.
@@ -86,12 +68,12 @@ namespace Microsoft.AGL.Core.Layout
             if (item == null)
                 return false;
             DetouchNode(item);
-            return this.nodes.Remove(item);
+            return nodes.Remove(item);
         }
 
         void DetouchNode(Node item) {
-            var nodeEdges = item.Edges.ToArray(); //cannot use lazy evaluation here
-            foreach (var edge in nodeEdges)
+            Edge[] nodeEdges = item.Edges.ToArray(); //cannot use lazy evaluation here
+            foreach (Edge edge in nodeEdges)
                 graph.Edges.Remove(edge);
 
             item.GeometryParent = null;
@@ -101,19 +83,13 @@ namespace Microsoft.AGL.Core.Layout
         /// Gets an enumerator for the collection.
         /// </summary>
         /// <returns>The enumerator for the colleciton.</returns>
-        public IEnumerator<Node> GetEnumerator()
-        {
-            return nodes.GetEnumerator();
-        }
+        public IEnumerator<Node> GetEnumerator() => nodes.GetEnumerator();
 
         /// <summary>
         /// Gets an enumerator for the collection.
         /// </summary>
         /// <returns>The enumerator for the collection.</returns>
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return nodes.GetEnumerator();
-        }
+        IEnumerator IEnumerable.GetEnumerator() => nodes.GetEnumerator();
 
         /// <summary>
         /// Determines the index of a specific item in the <see cref="T:System.Collections.Generic.IList`1"/>.
@@ -141,7 +117,7 @@ namespace Microsoft.AGL.Core.Layout
         /// </summary>
         /// <param name="index">The zero-based index of the item to remove.</param><exception cref="T:System.ArgumentOutOfRangeException"><paramref name="index"/> is not a valid index in the <see cref="T:System.Collections.Generic.IList`1"/>.</exception><exception cref="T:System.NotSupportedException">The <see cref="T:System.Collections.Generic.IList`1"/> is read-only.</exception>
         public void RemoveAt(int index) {
-            var node = nodes[index];
+            Node node = nodes[index];
             DetouchNode(node);
             nodes.RemoveAt(index);
         }
@@ -155,11 +131,13 @@ namespace Microsoft.AGL.Core.Layout
         /// <param name="index">The zero-based index of the element to get or set.</param><exception cref="T:System.ArgumentOutOfRangeException"><paramref name="index"/> is not a valid index in the <see cref="T:System.Collections.Generic.IList`1"/>.</exception><exception cref="T:System.NotSupportedException">The property is set and the <see cref="T:System.Collections.Generic.IList`1"/> is read-only.</exception>
         public Node this[int index]
         {
-            get { return nodes[index]; }
-            set {
+            get => nodes[index];
+            set
+            {
                 ValidateArg.IsNotNull(value, "value");
-                var node = nodes[index];
-                if (node != value) {
+                Node node = nodes[index];
+                if (node != value)
+                {
                     DetouchNode(node);
                     value.GeometryParent = graph;
                     nodes[index] = value;

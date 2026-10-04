@@ -1,13 +1,17 @@
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
-using MermaidRecognition;
+
+using MermaidRecognition.Core;
 using MermaidRecognition.NaiadAdapter;
+
 using MermaidSharp;
 using MermaidSharp.Diagrams.Flowchart;
 using MermaidSharp.Layout;
 using MermaidSharp.Models;
 using MermaidSharp.Rendering;
+
+using Pidgin;
 
 namespace MermaidRecognition.NaiadAdapter.Tests;
 
@@ -35,7 +39,7 @@ public sealed class TbTwoByTwoCompleteBipartiteRenderTests
     public void LegacyParser_Render_GroupedTwoByTwo_ProducesFourDistinctConnectors()
     {
         FlowchartParser Parser = new FlowchartParser();
-        var ParseOutcome = Parser.Parse(GROUPED_TWO_BY_TWO_SOURCE);
+        Result<char, FlowchartModel> ParseOutcome = Parser.Parse(GROUPED_TWO_BY_TWO_SOURCE);
         Assert.That(ParseOutcome.Success, Is.True);
         Assert.That(ParseOutcome.Value.Edges.Count, Is.EqualTo(4));
 

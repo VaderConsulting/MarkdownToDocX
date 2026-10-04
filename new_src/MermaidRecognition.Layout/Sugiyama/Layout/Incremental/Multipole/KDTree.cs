@@ -1,9 +1,11 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Diagnostics;
-using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 
-namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental
+using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
+using MermaidRecognition.Layout.Sugiyama.Core.Geometry.MinEnclosingDisc;
+
+namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental.Multipole
 {
     /// <summary>
     /// A KDTree recursively divides particles in a 2D space into a balanced tree structure by doing horizontal splits for wide bounding boxes and vertical splits for tall bounding boxes.
@@ -13,12 +15,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental
         Particle[] particles;
         internal InternalKdNode root; 
         List<LeafKdNode> leaves;
-        private Particle[] particlesBy(Particle.Dim d)
-        {
-            return (from Particle p in particles
-                    orderby p.pos(d)
-                    select p).ToArray();
-        }
+        private Particle[] particlesBy(Particle.Dim d) => (from Particle p in particles
+                                                           orderby p.pos(d)
+                                                           select p).ToArray();
 
         /// <summary>
         /// Create a KDTree over the specified particles, with the leaf partitions each containing bucketSize particles.
@@ -31,12 +30,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental
             Particle[][] ps = new Particle[][] {
                 particlesBy(Particle.Dim.Horizontal),
                 particlesBy(Particle.Dim.Vertical)};
-            leaves = new List<LeafKdNode>();
-            LeafKdNode l = new LeafKdNode(ps), r;
+            leaves = [];
+            LeafKdNode l = new LeafKdNode(ps);
             leaves.Add(l);
-            root = l.Split(out r);
+            root = l.Split(out LeafKdNode? r);
             leaves.Add(r);
-            var splitQueue = new SplitQueue(bucketSize);
+            SplitQueue splitQueue = new SplitQueue(bucketSize);
             splitQueue.Enqueue(l, r);
             while (splitQueue.Count > 0)
             {
@@ -52,32 +51,31 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental
         /// <param name="precision"></param>
         public void ComputeForces(int precision) {
             root.computeMultipoleCoefficients(precision);
-            foreach (var l in leaves)
+            foreach (LeafKdNode l in leaves)
             {
                 l.ComputeForces();
-                List<KdNode> stack = new List<KdNode>();
-                stack.Add(root);
+                List<KdNode> stack = [root];
                 while (stack.Count > 0)
                 {
                     KdNode v = stack.Last();
                     stack.RemoveAt(stack.Count - 1);
                     if (!l.intersects(v))
                     {
-                        foreach (var p in l.particles[0])
+                        foreach (Particle p in l.particles[0])
                         {
                             p.force -= v.multipoleCoefficients.ApproximateForce(p.point);
                         }
                     }
                     else
                     {
-                        var leaf = v as LeafKdNode;    
-                        if (leaf!=null)
+                        if (v is LeafKdNode leaf)
                         {
-                            foreach (var p in l.particles[0])
+                            foreach (Particle p in l.particles[0])
                             {
-                                foreach (var q in leaf.particles[0])
+                                foreach (Particle q in leaf.particles[0])
                                 {
-                                    if(p!=q) {
+                                    if (p != q)
+                                    {
                                         p.force += MultipoleCoefficients.Force(p.point, q.point);
                                     }
                                 }
@@ -85,7 +83,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental
                         }
                         else
                         {
-                            var n = v as InternalKdNode;
+                            InternalKdNode? n = v as InternalKdNode;
                             stack.Add(n.leftChild);
                             stack.Add(n.rightChild);
                         }
@@ -97,17 +95,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental
         /// <summary>
         /// Particles used in KDTree multipole force approximations
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1034:NestedTypesShouldNotBeVisible")]
         public class Particle
         {
             internal enum Dim { Horizontal = 0, Vertical = 1 };
             internal Point force;
             internal Point point;
             internal bool splitLeft;
-            internal double pos(Dim d)
-            {
-                return d == Dim.Horizontal ? point.X : point.Y;
-            }
+            internal double pos(Dim d) => d == Dim.Horizontal ? point.X : point.Y;
             /// <summary>
             /// Create particle at point
             /// </summary>
@@ -115,7 +109,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental
             public Particle(Point point)
             {
                 this.point = point;
-                this.force = new Point(0, 0);
+                force = new Point(0, 0);
             }
         }
         internal abstract class KdNode
@@ -141,10 +135,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental
                 this.particles = particles;
                 ComputeMED();
             }
-            internal override void computeMultipoleCoefficients(int precision)
-            {
-                multipoleCoefficients = new MultipoleCoefficients(precision, med.Center, ps);
-            }
+            internal override void computeMultipoleCoefficients(int precision) => multipoleCoefficients = new MultipoleCoefficients(precision, med.Center, ps);
             internal Disc ComputeMED()
             {
                 int n = Size();
@@ -155,22 +146,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental
                 }
                 return med = MinimumEnclosingDisc.LinearComputation(ps);
             }
-            private double Min(Particle.Dim d)
-            {
-                return particles[(int)d][0].pos(d);
-            }
-            internal int Size()
-            {
-                return particles[0].Length;
-            }
-            private double Max(Particle.Dim d)
-            {
-                return particles[(int)d][Size() - 1].pos(d);
-            }
-            private double Dimension(Particle.Dim d)
-            {
-                return Max(d) - Min(d);
-            }
+            private double Min(Particle.Dim d) => particles[(int)d][0].pos(d);
+            internal int Size() => particles[0].Length;
+            private double Max(Particle.Dim d) => particles[(int)d][Size() - 1].pos(d);
+            private double Dimension(Particle.Dim d) => Max(d) - Min(d);
             internal InternalKdNode Split(out LeafKdNode rightSibling)
             {
                 Particle.Dim splitDirection =
@@ -220,9 +199,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental
             }
             internal void ComputeForces()
             {
-                foreach (var u in particles[0])
+                foreach (Particle u in particles[0])
                 {
-                    foreach (var v in particles[0])
+                    foreach (Particle v in particles[0])
                     {
                         if (u != v)
                         {
@@ -252,8 +231,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental
                         parent.rightChild = this;
                     }
                 }
-                this.leftChild = left;
-                this.rightChild = right;
+                leftChild = left;
+                rightChild = right;
                 left.parent = this;
                 right.parent = this;
             }
@@ -267,10 +246,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental
         class SplitQueue : Queue<LeafKdNode>
         {
             int B;
-            public SplitQueue(int B)
-            {
-                this.B = B;
-            }
+            public SplitQueue(int B) => this.B = B;
             public void Enqueue(LeafKdNode l, LeafKdNode r)
             {
                 if (l.Size() > B)

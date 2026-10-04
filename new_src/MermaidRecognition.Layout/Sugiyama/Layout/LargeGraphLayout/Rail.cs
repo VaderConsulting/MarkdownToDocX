@@ -40,12 +40,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
 
         bool _isUsedOnPreviousLevel;
 
-        public double MinPassingEdgeZoomLevel = Double.MaxValue;
+        public double MinPassingEdgeZoomLevel = double.MaxValue;
 
         public bool IsUsedOnPreviousLevel
-        {
-            get { return _isUsedOnPreviousLevel; }
-            set { _isUsedOnPreviousLevel = value; }
+        { get => _isUsedOnPreviousLevel; set => _isUsedOnPreviousLevel = value;
         }
 
         internal int ZoomLevel;
@@ -58,9 +56,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         /// returning id for debugging
         /// </summary>
         /// <returns></returns>
-        public int GetId() {
-            return id;
-        }
+        public int GetId() => id;
         /// <summary>
         /// Returns a string that represents the current object.
         /// </summary>
@@ -68,14 +64,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         /// A string that represents the current object.
         /// </returns>
         /// <filterpriority>2</filterpriority>
-        public override string ToString() {
-            return id + StartEndString();
-        }
+        public override string ToString() => id + StartEndString();
 
-        string StartEndString() {
-            Point s, t;
-            return GetStartEnd(out s, out t) ? " " + new LineSegment(s, t) : "";
-        }
+        string StartEndString() => GetStartEnd(out Point s, out Point t) ? " " + new LineSegment(s, t) : "";
 #endif
 
         internal Rail(ICurve curveSegment, LgEdgeInfo topRankedEdgeInfoOfTheRail, int zoomLevel)
@@ -84,7 +75,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
 #endif
         {
             TopRankedEdgeInfoOfTheRail = topRankedEdgeInfoOfTheRail;
-            this.ZoomLevel = zoomLevel;
+            ZoomLevel = zoomLevel;
             Geometry = curveSegment;
         }
 
@@ -102,11 +93,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
 
         public Rectangle BoundingBox {
             get {
-                var icurve = Geometry as ICurve;
-                if (icurve != null)
+                if (Geometry is ICurve icurve)
                     return icurve.BoundingBox;
-                var arrowhead = (Arrowhead) Geometry;
-                var rec = new Rectangle(arrowhead.TipPosition, CurveAttachmentPoint);
+                Arrowhead arrowhead = (Arrowhead) Geometry;
+                Rectangle rec = new Rectangle(arrowhead.TipPosition, CurveAttachmentPoint);
                 rec.Pad(arrowhead.Width); // sometimes this box will not cover the arrowhead, but rarely
                 return rec;
             }
@@ -115,18 +105,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         /// <summary>
         /// the number of higlighted edges passing through the rail
         /// </summary>
-        public bool IsHighlighted {
-            get { return _isHighlighted; }
-            set { _isHighlighted = value; }
+        public bool IsHighlighted { get => _isHighlighted; set => _isHighlighted = value;
         }
 
 
 
         internal Tuple<Point, Point> PointTuple() {
-            var icurve = Geometry as ICurve;
-            if (icurve != null)
+            if (Geometry is ICurve icurve)
                 return new Tuple<Point, Point>(icurve.Start, icurve.End);
-            var arrowhead = (Arrowhead) Geometry;
+            Arrowhead arrowhead = (Arrowhead) Geometry;
             return new Tuple<Point, Point>(arrowhead.TipPosition, CurveAttachmentPoint);
         }
 
@@ -142,14 +129,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         }
 
         public bool GetStartEnd(out Point p0, out Point p1) {
-            var curve = Geometry as ICurve;
-            if (curve != null) {
+            if (Geometry is ICurve curve)
+            {
                 p0 = curve.Start;
                 p1 = curve.End;
                 return true;
             }
-            var arrow = Geometry as Arrowhead;
-            if (arrow != null) {
+            if (Geometry is Arrowhead arrow)
+            {
                 p0 = CurveAttachmentPoint;
                 p1 = arrow.TipPosition;
                 return true;
@@ -167,9 +154,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
             MinPassingEdgeZoomLevel = Math.Min(MinPassingEdgeZoomLevel, ei.ZoomLevel);
         }
 
-        public LgEdgeInfo GetTopEdgeInfo()
-        {
-            return TopRankedEdgeInfoOfTheRail;
-        }
+        public LgEdgeInfo GetTopEdgeInfo() => TopRankedEdgeInfoOfTheRail;
     }
 }

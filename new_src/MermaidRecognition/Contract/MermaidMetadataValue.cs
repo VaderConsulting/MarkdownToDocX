@@ -12,20 +12,11 @@ public abstract class MermaidMetadataValue
 /// </summary>
 public sealed class ShapeMetadata : MermaidMetadataValue
 {
-    public ShapeMetadata(string CanonicalShapeId)
-    {
-        _CanonicalShapeId = CanonicalShapeId;
-    }
+    public ShapeMetadata(string CanonicalShapeId) => _CanonicalShapeId = CanonicalShapeId;
 
     private readonly string _CanonicalShapeId;
 
-    public string CanonicalShapeId
-    {
-        get
-        {
-            return _CanonicalShapeId;
-        }
-    }
+    public string CanonicalShapeId => _CanonicalShapeId;
 }
 
 /// <summary>
@@ -41,23 +32,11 @@ public sealed class LabelMetadata : MermaidMetadataValue
 
     private readonly string _Text;
 
-    public string Text
-    {
-        get
-        {
-            return _Text;
-        }
-    }
+    public string Text => _Text;
 
     private readonly MermaidLabelType _LabelType;
 
-    public MermaidLabelType LabelType
-    {
-        get
-        {
-            return _LabelType;
-        }
-    }
+    public MermaidLabelType LabelType => _LabelType;
 }
 
 /// <summary>
@@ -65,20 +44,11 @@ public sealed class LabelMetadata : MermaidMetadataValue
 /// </summary>
 public sealed class CurveMetadata : MermaidMetadataValue
 {
-    public CurveMetadata(string Curve)
-    {
-        _Curve = Curve;
-    }
+    public CurveMetadata(string Curve) => _Curve = Curve;
 
     private readonly string _Curve;
 
-    public string Curve
-    {
-        get
-        {
-            return _Curve;
-        }
-    }
+    public string Curve => _Curve;
 }
 
 /// <summary>
@@ -94,23 +64,11 @@ public sealed class AnimationMetadata : MermaidMetadataValue
 
     private readonly bool? _Animate;
 
-    public bool? Animate
-    {
-        get
-        {
-            return _Animate;
-        }
-    }
+    public bool? Animate => _Animate;
 
     private readonly string? _Animation;
 
-    public string? Animation
-    {
-        get
-        {
-            return _Animation;
-        }
-    }
+    public string? Animation => _Animation;
 }
 
 /// <summary>
@@ -126,21 +84,9 @@ public sealed class RawMetadata : MermaidMetadataValue
 
     private readonly string _Key;
 
-    public string Key
-    {
-        get
-        {
-            return _Key;
-        }
-    }
+    public string Key => _Key;
 
     private readonly string _RawValue;
 
-    public string RawValue
-    {
-        get
-        {
-            return _RawValue;
-        }
-    }
+    public string RawValue => _RawValue;
 }

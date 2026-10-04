@@ -1,10 +1,11 @@
 using System.Text;
 using System.Text.RegularExpressions;
-using MermaidRecognition.Class;
-using MermaidRecognition.Contract;
-using MermaidRecognition.Sequence;
 
-namespace MermaidRecognition.Pie;
+using MermaidRecognition.Contract;
+using MermaidRecognition.Kinds.Class;
+using MermaidRecognition.Kinds.Sequence;
+
+namespace MermaidRecognition.Kinds.Pie;
 
 /// <summary>
 /// Maps classified pie chart source statements into <see cref="DiagramContract"/> entities (L3 G4/G7/G9/G11).
@@ -105,11 +106,13 @@ public static class PieContractMapper
             {
                 if (TryParseSection(RawLine, out string Label, out string Value))
                 {
-                    NodeContract Node = new NodeContract();
-                    Node.Id = "slice-" + SliceIndex.ToString();
-                    Node.Label = Label;
-                    Node.Shape = "slice";
-                    Node.ShapeSource = "pie";
+                    NodeContract Node = new NodeContract
+                    {
+                        Id = "slice-" + SliceIndex.ToString(),
+                        Label = Label,
+                        Shape = "slice",
+                        ShapeSource = "pie"
+                    };
                     Node.MetadataMutable["pieValue"] = new RawMetadata("pieValue", Value);
                     Contract.NodesMutable.Add(Node);
                     SliceIndex++;

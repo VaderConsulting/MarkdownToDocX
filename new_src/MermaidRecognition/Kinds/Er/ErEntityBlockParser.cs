@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace MermaidRecognition.Er;
+namespace MermaidRecognition.Kinds.Er;
 
 /// <summary>
 /// Extracts entity identifiers from ER entity block open lines.

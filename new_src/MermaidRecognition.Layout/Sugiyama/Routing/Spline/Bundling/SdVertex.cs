@@ -7,8 +7,8 @@ using MermaidRecognition.Layout.Sugiyama.Routing.Visibility;
 namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
     internal class SdVertex {
         internal VisibilityVertex VisibilityVertex;
-        internal List<SdBoneEdge> InBoneEdges = new List<SdBoneEdge>();
-        internal List<SdBoneEdge> OutBoneEdges = new List<SdBoneEdge>();
+        internal List<SdBoneEdge> InBoneEdges = [];
+        internal List<SdBoneEdge> OutBoneEdges = [];
 
         internal SdVertex Prev {
             get {
@@ -19,9 +19,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
         internal SdBoneEdge PrevEdge { get; set; }
 
-        internal SdVertex(VisibilityVertex visibilityVertex) {
-            VisibilityVertex = visibilityVertex;
-        }
+        internal SdVertex(VisibilityVertex visibilityVertex) => VisibilityVertex = visibilityVertex;
 
         internal CdtTriangle Triangle;
 
@@ -29,20 +27,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
         internal bool IsTargetOfRouting { get; set; }
 
-        internal Point Point { get { return VisibilityVertex.Point; } }
+        internal Point Point => VisibilityVertex.Point;
 
         double cost;
 
-        internal double Cost {
-            get {
+        internal double Cost
+        {
+            get
+            {
                 if (IsSourceOfRouting) return cost;
                 return Prev == null ? double.PositiveInfinity : cost;
             }
-            set { cost = value; }
+
+            set => cost = value;
         }
 
-        public void SetPreviousToNull() {
-            PrevEdge = null;
-        }
+        public void SetPreviousToNull() => PrevEdge = null;
     }
 }

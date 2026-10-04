@@ -7,10 +7,9 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using MermaidRecognition.Layout.Sugiyama.Core.DataStructures;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using RectRout = MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear;
-using MermaidRecognition.Layout.Sugiyama.Core;
+using MermaidRecognition.Layout.Sugiyama.Core.DataStructures.RBTree;
 
 namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
     /// <summary>
@@ -22,7 +21,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         readonly RbTree<BasicReflectionEvent> eventTree;
         readonly Func<BasicReflectionEvent, bool> findFirstPred;
         readonly ScanDirection scanDirection;
-        readonly List<BasicReflectionEvent> staleSites = new List<BasicReflectionEvent>();
+        readonly List<BasicReflectionEvent> staleSites = [];
         Point findFirstPoint;
 
         internal LookaheadScan(ScanDirection scanDir) {
@@ -40,9 +39,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         // Buffer up the events that are known to be stale - that is, will never queued as events because the
         // event-load intersection is the same as the site.
 
-        internal void MarkStaleSite(BasicReflectionEvent siteEvent) {
-            staleSites.Add(siteEvent);
-        }
+        internal void MarkStaleSite(BasicReflectionEvent siteEvent) => staleSites.Add(siteEvent);
 
         internal void RemoveStaleSites() {
             int cSites = staleSites.Count; // for (;;) is faster than IEnumerator for Lists
@@ -63,13 +60,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             RemoveStaleSites();
         }
 
-        internal RBNode<BasicReflectionEvent> Find(Point site) {
-            return FindFirstInRange(site, site);
-        }
+        internal RBNode<BasicReflectionEvent> Find(Point site) => FindFirstInRange(site, site);
 
-        internal bool Remove(BasicReflectionEvent initialSite) {
-            return null != eventTree.Remove(initialSite);
-        }
+        internal bool Remove(BasicReflectionEvent initialSite) => null != eventTree.Remove(initialSite);
 
         internal bool RemoveExact(BasicReflectionEvent initialSite) {
             RBNode<BasicReflectionEvent> node = eventTree.Find(initialSite);
@@ -97,9 +90,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             return null;
         }
 
-        int CompareToFindFirstPoint(Point treeItem) {
-            return Compare(treeItem, findFirstPoint);
-        }
+        int CompareToFindFirstPoint(Point treeItem) => Compare(treeItem, findFirstPoint);
 
         internal RBNode<BasicReflectionEvent> FindNextInRange(RBNode<BasicReflectionEvent> prev, Point high) {
             RBNode<BasicReflectionEvent> nextNode = eventTree.Next(prev);
@@ -119,15 +110,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         /// <param name="lhs"></param>
         /// <param name="rhs"></param>
         /// <returns></returns>
-        public int Compare(BasicReflectionEvent lhs, BasicReflectionEvent rhs) {
+        public int Compare(BasicReflectionEvent? lhs, BasicReflectionEvent? rhs) {
+            if (lhs is null) return rhs is null ? 0 : -1; if (rhs is null) return 1;
             ValidateArg.IsNotNull(lhs, "lhs");
             ValidateArg.IsNotNull(rhs, "rhs");
             return scanDirection.CompareScanCoord(lhs.Site, rhs.Site);
         }
 
-        internal int Compare(Point lhs, Point rhs) {
-            return scanDirection.CompareScanCoord(lhs, rhs);
-        }
+        internal int Compare(Point lhs, Point rhs) => scanDirection.CompareScanCoord(lhs, rhs);
 
         #endregion // IComparer<BasicReflectionEvent>
     }

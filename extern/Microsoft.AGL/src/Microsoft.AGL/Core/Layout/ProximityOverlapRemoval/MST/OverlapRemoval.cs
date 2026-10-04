@@ -2,15 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+
 using Microsoft.AGL.Core.DataStructures;
 using Microsoft.AGL.Core.Geometry;
 using Microsoft.AGL.Core.Geometry.Curves;
 using Microsoft.AGL.DebugHelpers;
 using Microsoft.AGL.Layout.LargeGraphLayout;
-using Microsoft.AGL.Routing;
 using Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation;
 
-namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MinimumSpanningTree {
+namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MST
+{
     /// <summary>
     /// Overlap Removal using Minimum Spanning Tree on the delaunay triangulation. The edge weight corresponds to the amount of overlap between two nodes.
     /// </summary>
@@ -44,11 +45,11 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MinimumSpanningTree 
         /// <param name="nodes"></param>
         /// <param name="nodeSeparation"></param>
         public static void RemoveOverlaps(Node[] nodes, double nodeSeparation) {
-            var settings = new OverlapRemovalSettings {
+            OverlapRemovalSettings settings = new OverlapRemovalSettings {
                 RandomizeAllPointsOnStart = true,
                 NodeSeparation = nodeSeparation
             };
-            var mst = new OverlapRemoval(settings, nodes);
+            OverlapRemoval mst = new OverlapRemoval(settings, nodes);
             mst.RemoveOverlaps();
         }
 
@@ -61,10 +62,8 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MinimumSpanningTree 
                 return;
             }
 
-            Point[] nodePositions;
-            Size[] nodeSizes;
             ProximityOverlapRemoval.InitNodePositionsAndBoxes(_settings, _nodes
-                , out nodePositions, out nodeSizes);
+                , out Point[] nodePositions, out Size[] nodeSizes);
             if (_overlapForLayers) {
                 nodeSizes = _sizes;
             }
@@ -94,17 +93,17 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MinimumSpanningTree 
             if (_nodes.Length == 1)
                 return;
             if (_nodes.Length == 2) {
-                var nodes = _nodes.ToArray();
-                var a = nodes[0];
-                var b = nodes[1];
+                Node[] nodes = _nodes.ToArray();
+                Node a = nodes[0];
+                Node b = nodes[1];
 
                 if (ApproximateComparer.Close(a.Center, b.Center))
                     b.Center += new Point(0.001, 0);
 
-                var idealDist = GetIdealDistanceBetweenTwoNodes(a, b);
-                var center = (a.Center + b.Center)/2;
-                var dir = (a.Center - b.Center);
-                var dist = dir.Length;
+                double idealDist = GetIdealDistanceBetweenTwoNodes(a, b);
+                Point center = (a.Center + b.Center)/2;
+                Point dir = (a.Center - b.Center);
+                double dist = dir.Length;
 
                 dir *= 0.5*idealDist/dist;
 
@@ -115,14 +114,14 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MinimumSpanningTree 
         }
 
         double GetIdealDistanceBetweenTwoNodes(Node a, Node b) {
-            var abox = a.BoundingBox;
-            var bbox = b.BoundingBox;
+            Rectangle abox = a.BoundingBox;
+            Rectangle bbox = b.BoundingBox;
             abox.Pad(_settings.NodeSeparation/2);
             bbox.Pad(_settings.NodeSeparation/2);
-            var ac = abox.Center;
-            var bc = bbox.Center;
+            Point ac = abox.Center;
+            Point bc = bbox.Center;
 
-            var ab = ac - bc;
+            Point ab = ac - bc;
             double dx = Math.Abs(ab.X);
             double dy = Math.Abs(ab.Y);
             double wx = (abox.Width/2 + bbox.Width/2);
@@ -145,7 +144,7 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MinimumSpanningTree 
             // Get the elapsed time as a TimeSpan value.
             TimeSpan ts = stopWatch.Elapsed;
             // Format and display the TimeSpan value.
-            string elapsedTime = String.Format("{0:00}:{1:00}:{2:00}.{3:00}",
+            string elapsedTime = string.Format("{0:00}:{1:00}:{2:00}.{3:00}",
                 ts.Hours, ts.Minutes, ts.Seconds,
                 ts.Milliseconds/10);
             Console.WriteLine(elapsedTime, "RunTime");
@@ -178,25 +177,25 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MinimumSpanningTree 
         /// <param name="scanlinePhase"></param>
         /// <returns></returns>
         bool OneIteration(Point[] nodePositions, Size[] nodeSizes, bool scanlinePhase) {
-            var cdt = new Cdt(nodePositions.Select((p, index) => Tuple.Create(p, (object) index)));
+            Cdt cdt = new Cdt(nodePositions.Select((p, index) => Tuple.Create(p, (object) index)));
             cdt.Run();
-            var siteIndex = new Dictionary<CdtSite, int>();
+            Dictionary<CdtSite, int> siteIndex = new Dictionary<CdtSite, int>();
             for (int i = 0; i < nodePositions.Length; i++)
                 siteIndex[cdt.PointsToSites[nodePositions[i]]] = i;
 
             int numCrossings = 0;
             List<Tuple<int, int, double, double, double>> proximityEdges =
-                new List<Tuple<int, int, double, double, double>>();
-            foreach (var site in cdt.PointsToSites.Values)
-                foreach (var edge in site.Edges) {
+                [];
+            foreach (CdtSite site in cdt.PointsToSites.Values)
+                foreach (CdtEdge edge in site.Edges) {
 
                     Point point1 = edge.upperSite.Point;
                     Point point2 = edge.lowerSite.Point;
-                    var nodeId1 = siteIndex[edge.upperSite];
-                    var nodeId2 = siteIndex[edge.lowerSite];
+                    int nodeId1 = siteIndex[edge.upperSite];
+                    int nodeId2 = siteIndex[edge.lowerSite];
                     Debug.Assert(ApproximateComparer.Close(point1, nodePositions[nodeId1]));
                     Debug.Assert(ApproximateComparer.Close(point2, nodePositions[nodeId2]));
-                    var tuple = GetIdealEdgeLength(nodeId1, nodeId2, point1, point2, nodeSizes, _overlapForLayers);
+                    Tuple<int, int, double, double, double> tuple = GetIdealEdgeLength(nodeId1, nodeId2, point1, point2, nodeSizes, _overlapForLayers);
                     proximityEdges.Add(tuple);
                     if (tuple.Item3 > 1) numCrossings++;
                 }
@@ -212,7 +211,7 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MinimumSpanningTree 
 
                 if (numCrossings == 0 && !scanlinePhase) return false;
             }
-            var treeEdges = MstOnDelaunayTriangulation.GetMstOnTuple(proximityEdges, nodePositions.Length);
+            List<Tuple<int, int, double, double, double>> treeEdges = MstOnDelaunayTriangulation.GetMstOnTuple(proximityEdges, nodePositions.Length);
 
             int rootId = treeEdges.First().Item1;
 
@@ -292,9 +291,8 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MinimumSpanningTree 
             Point point1,
             Point point2,
             Size[] nodeSizes, bool forLayers) {
-            double t;
 
-            double idealDist = GetIdealEdgeLength(nodeId1, nodeId2, point1, point2, nodeSizes, out t);
+            double idealDist = GetIdealEdgeLength(nodeId1, nodeId2, point1, point2, nodeSizes, out double t);
             double length = (point1 - point2).Length;
 
             Rectangle box1, box2;
@@ -307,7 +305,7 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MinimumSpanningTree 
                 box1 = new Rectangle(nodeSizes[nodeId1], point1);
                 box2 = new Rectangle(nodeSizes[nodeId2], point2);
             }
-            var distBox = GetDistanceRects(box1, box2);
+            double distBox = GetDistanceRects(box1, box2);
 
             double weight;
             if (t > 1) //overlap
@@ -417,11 +415,11 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MinimumSpanningTree 
     /// <param name="rootId"></param>
         void ShowAndMoveBoxesRemoveLater(List<Tuple<int, int, double, double, double>> treeEdges,
             List<Tuple<int, int, double, double, double>> proximityEdges, Size[] nodeSizes, Point[] nodePos, int rootId) {
-            var l = new List<DebugCurve>();
-            foreach (var tuple in proximityEdges)
+            List<DebugCurve> l = new List<DebugCurve>();
+            foreach (Tuple<int, int, double, double, double> tuple in proximityEdges)
                 l.Add(new DebugCurve(100, 0.5, "black", new LineSegment(nodePos[tuple.Item1], nodePos[tuple.Item2])));
             //just for debug
-            var nodeBoxes = new Rectangle[nodeSizes.Length];
+            Rectangle[] nodeBoxes = new Rectangle[nodeSizes.Length];
             for (int i = 0; i < nodePos.Length; i++)
                 nodeBoxes[i] = new Rectangle(nodeSizes[i], nodePos[i]);
             l.AddRange(nodeBoxes.Select(b => new DebugCurve(100, 0.3, "green", b.Perimeter())));
@@ -450,12 +448,12 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MinimumSpanningTree 
         /// <param name="rootNodeId"></param>
         static void MoveNodePositions(List<Tuple<int, int, double, double, double>> treeEdges, Point[] nodePositions,
             int rootNodeId) {
-            var posOld = (Point[]) nodePositions.Clone();
+            Point[] posOld = (Point[]) nodePositions.Clone();
 
-            var visited = new Set<int>();
+            Set<int> visited = new Set<int>();
             visited.Insert(rootNodeId);
             for (int i = 0; i < treeEdges.Count; i++) {
-                var tupleEdge = treeEdges[i];
+                Tuple<int, int, double, double, double> tupleEdge = treeEdges[i];
                 if (visited.Contains(tupleEdge.Item1))
                     MoveUpperSite(tupleEdge, nodePositions, posOld, visited);
                 else {
@@ -469,8 +467,8 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MinimumSpanningTree 
         static void MoveUpperSite(Tuple<int, int, double, double, double> edge, Point[] posNew, Point[] oldPos,
             Set<int> visited) {
             double idealLen = edge.Item4;
-            var dir = oldPos[edge.Item2] - oldPos[edge.Item1];
-            var len = dir.Length;
+            Point dir = oldPos[edge.Item2] - oldPos[edge.Item1];
+            double len = dir.Length;
 
             dir *= (idealLen/len + 0.01);
             int standingNode = edge.Item1;
@@ -482,11 +480,11 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MinimumSpanningTree 
         static void MoveLowerSite(Tuple<int, int, double, double, double> edge, Point[] posNew, Point[] oldPos,
             Set<int> visited) {
             double idealLen = edge.Item4;
-            var dir = -oldPos[edge.Item2] + oldPos[edge.Item1];
-            var len = dir.Length;
+            Point dir = -oldPos[edge.Item2] + oldPos[edge.Item1];
+            double len = dir.Length;
             dir *= (idealLen/len + 0.01);
-            var standingNode = edge.Item2;
-            var movedNode = edge.Item1;
+            int standingNode = edge.Item2;
+            int movedNode = edge.Item1;
             posNew[movedNode] = posNew[standingNode] + dir;
             visited.Insert(movedNode);
         }
@@ -501,7 +499,7 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MinimumSpanningTree 
         static void DoInitialScaling(Node[] nodes, Point[] nodePositions, Size[] nodeSizes,
             InitialScaling scalingMethod) {
 
-            var avgEdgeLength = AvgEdgeLength(nodes);
+            double avgEdgeLength = AvgEdgeLength(nodes);
             double goalLength;
             if (scalingMethod == InitialScaling.Inch72Pixel)
                 goalLength = 72;
@@ -518,24 +516,20 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MinimumSpanningTree 
             }
         }
 
-        void IOverlapRemoval.Settings(OverlapRemovalSettings settings) {
-            _settings = settings;
-        }
+        void IOverlapRemoval.Settings(OverlapRemovalSettings settings) => _settings = settings;
 
         /// <summary>
         /// 
         /// </summary>
         /// <returns></returns>
-        public int GetLastRunIterations() {
-            return lastRunNumberIterations;
-        }
+        public int GetLastRunIterations() => lastRunNumberIterations;
 
         public static void RemoveOverlapsForLayers(Node[] nodes, Size[] sizesOnLayers) {
-            var settings = new OverlapRemovalSettings
+            OverlapRemovalSettings settings = new OverlapRemovalSettings
             {
                 RandomizeAllPointsOnStart = true,
             };
-            var mst = new OverlapRemoval(settings, nodes, sizesOnLayers);
+            OverlapRemoval mst = new OverlapRemoval(settings, nodes, sizesOnLayers);
             mst.RemoveOverlaps();
         }
     }

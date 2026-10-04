@@ -11,46 +11,25 @@ public sealed class RulesetDocument
 
     private string _Name = string.Empty;
 
-    private List<RuleDefinition> _Rules = new List<RuleDefinition>();
+    private List<RuleDefinition> _Rules = [];
 
     public string SchemaVersion
     {
-        get
-        {
-            return _SchemaVersion;
-        }
-        set
-        {
-            _SchemaVersion = value;
-        }
+        get => _SchemaVersion; set => _SchemaVersion = value;
     }
 
     public string Name
     {
-        get
-        {
-            return _Name;
-        }
-        set
-        {
-            _Name = value;
-        }
+        get => _Name; set => _Name = value;
     }
 
     public string? DefaultToleranceProfileId { get; set; }
 
-    public List<string> RuleGroups { get; set; } = new List<string>();
+    public List<string> RuleGroups { get; set; } = [];
 
     public List<RuleDefinition> Rules
     {
-        get
-        {
-            return _Rules;
-        }
-        set
-        {
-            _Rules = value ?? new List<RuleDefinition>();
-        }
+        get => _Rules; set => _Rules = value ?? [];
     }
 }
 
@@ -69,78 +48,36 @@ public sealed class EvaluatorBinding
 
     private string _AppliesTo = string.Empty;
 
-    private List<string> _RequiredFields = new List<string>();
+    private List<string> _RequiredFields = [];
 
     public string RuleId
     {
-        get
-        {
-            return _RuleId;
-        }
-        set
-        {
-            _RuleId = value;
-        }
+        get => _RuleId; set => _RuleId = value;
     }
 
     public string EvaluatorId
     {
-        get
-        {
-            return _EvaluatorId;
-        }
-        set
-        {
-            _EvaluatorId = value;
-        }
+        get => _EvaluatorId; set => _EvaluatorId = value;
     }
 
     public string EvaluatorType
     {
-        get
-        {
-            return _EvaluatorType;
-        }
-        set
-        {
-            _EvaluatorType = value;
-        }
+        get => _EvaluatorType; set => _EvaluatorType = value;
     }
 
     public string InputModel
     {
-        get
-        {
-            return _InputModel;
-        }
-        set
-        {
-            _InputModel = value;
-        }
+        get => _InputModel; set => _InputModel = value;
     }
 
     public string AppliesTo
     {
-        get
-        {
-            return _AppliesTo;
-        }
-        set
-        {
-            _AppliesTo = value;
-        }
+        get => _AppliesTo; set => _AppliesTo = value;
     }
 
     public List<string> RequiredFields
     {
-        get
-        {
-            return _RequiredFields;
-        }
-        set
-        {
-            _RequiredFields = value ?? new List<string>();
-        }
+        get => _RequiredFields; set => _RequiredFields = value ?? [];
     }
 
     public string? ToleranceProfileId { get; set; }
@@ -157,7 +94,7 @@ public sealed class EvaluatorMapDocument
 
     public string Name { get; set; } = string.Empty;
 
-    public List<EvaluatorBinding> EvaluatorBindings { get; set; } = new List<EvaluatorBinding>();
+    public List<EvaluatorBinding> EvaluatorBindings { get; set; } = [];
 }
 
 /// <summary>
@@ -169,11 +106,11 @@ public sealed class ExpectedContractDocument
 
     public string Name { get; set; } = string.Empty;
 
-    public Dictionary<string, object> ActualResultsContract { get; set; } = new Dictionary<string, object>();
+    public Dictionary<string, object> ActualResultsContract { get; set; } = [];
 
-    public Dictionary<string, object> ValidationReportContract { get; set; } = new Dictionary<string, object>();
+    public Dictionary<string, object> ValidationReportContract { get; set; } = [];
 
-    public List<Dictionary<string, object>> ToleranceProfiles { get; set; } = new List<Dictionary<string, object>>();
+    public List<Dictionary<string, object>> ToleranceProfiles { get; set; } = [];
 
-    public Dictionary<string, object> DiagnosticRequirements { get; set; } = new Dictionary<string, object>();
+    public Dictionary<string, object> DiagnosticRequirements { get; set; } = [];
 }

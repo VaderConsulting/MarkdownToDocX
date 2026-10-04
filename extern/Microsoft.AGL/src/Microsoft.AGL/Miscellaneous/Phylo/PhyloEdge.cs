@@ -1,6 +1,7 @@
 using Microsoft.AGL.Core.Layout;
 
-namespace Microsoft.AGL.Prototype.Phylo {
+namespace Microsoft.AGL.Miscellaneous.Phylo
+{
     /// <summary>
     /// Phylogenetic edge: an edge with a specified length
     /// </summary>

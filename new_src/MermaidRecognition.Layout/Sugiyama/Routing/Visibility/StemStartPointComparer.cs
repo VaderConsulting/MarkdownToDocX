@@ -12,7 +12,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
     internal class StemStartPointComparer : IComparer<Stem> {
         Point pivot;
 
-        int IComparer<Stem>.Compare(Stem i, Stem j) {
+        int IComparer<Stem>.Compare(Stem? i, Stem? j) {
+            if (i is null) return j is null ? 0 : -1; if (j is null) return 1;
             if (i == j)
                 return 0;
             if (i == null)
@@ -74,10 +75,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             return 0; //points are equal
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
-        internal StemStartPointComparer(Point pivotPoint) {
-            this.pivot = pivotPoint;
-        }
+        internal StemStartPointComparer(Point pivotPoint) => pivot = pivotPoint;
 
     }
 }

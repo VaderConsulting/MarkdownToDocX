@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using Microsoft.AGL.Core.DataStructures;
+using Microsoft.AGL.Core.DataStructures.RBTree;
 using Microsoft.AGL.Core.Geometry;
 using Microsoft.AGL.Core.Geometry.Curves;
 
@@ -33,8 +34,7 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
 
         void ProcessEvents() {
             while (!Queue.IsEmpty()) {
-                double z;
-                var linkedPoint = Queue.Dequeue(out z);
+                LinkedPoint linkedPoint = Queue.Dequeue(out double z);
                 ProcessEvent(linkedPoint, z);
             }
         }
@@ -54,7 +54,7 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
             double left, right;
             bool xAligned;
             Debug.Assert(ApproximateComparer.Close(horizontalPoint.Y,horizontalPoint.Next.Y));
-            var y = horizontalPoint.Y;
+            double y = horizontalPoint.Y;
             if(horizontalPoint.Point.X<horizontalPoint.Next.Point.X) {
                 left = horizontalPoint.Point.X;
                 right = horizontalPoint.Next.Point.X;
@@ -65,17 +65,17 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
                 xAligned=false;
             }
             if(xAligned)
-            for( var node = tree.FindFirst(p => left<= p.Point.X); 
+            for(RBNode<LinkedPoint> node = tree.FindFirst(p => left<= p.Point.X); 
                 node!=null &&  node.Item.Point.X <= right ;
                 node=tree.Next(node)) {
-                var p = new Point(node.Item.Point.X, y );
+                    Point p = new Point(node.Item.Point.X, y );
                 horizontalPoint = TrySplitHorizontalPoint(horizontalPoint, p, true);
                 TrySplitVerticalPoint(node.Item,p);
             }else //xAligned==false
-                for (var node = tree.FindLast(p => p.Point.X <= right);
+                for (RBNode<LinkedPoint> node = tree.FindLast(p => p.Point.X <= right);
                 node != null && node.Item.Point.X >= left;
                 node = tree.Previous(node)) {
-                    var p = new Point(node.Item.Point.X, y);
+                    Point p = new Point(node.Item.Point.X, y);
                     horizontalPoint = TrySplitHorizontalPoint(horizontalPoint, p, false);
                     TrySplitVerticalPoint(node.Item, p);
                 }
@@ -99,33 +99,25 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
             return horizontalPoint;
         }
 
-        void ProcessHighLinkedPointEvent(LinkedPoint linkedPoint) {
-            tree.Remove(linkedPoint);
-        }
+        void ProcessHighLinkedPointEvent(LinkedPoint linkedPoint) => tree.Remove(linkedPoint);
 
         readonly RbTree<LinkedPoint> tree = new RbTree<LinkedPoint>((a, b) => a.Point.X.CompareTo(b.Point.X));
 
-        void ProcessLowLinkedPointEvent(LinkedPoint linkedPoint) {
-            tree.Insert(linkedPoint);
-        }
+        void ProcessLowLinkedPointEvent(LinkedPoint linkedPoint) => tree.Insert(linkedPoint);
 
         void InitEventQueue() {
             Queue = new GenericBinaryHeapPriorityQueue<LinkedPoint>();
-            foreach (var vertPoint in VerticalPoints)
+            foreach (LinkedPoint vertPoint in VerticalPoints)
                 Queue.Enqueue(vertPoint, Low(vertPoint));
             //a horizontal point will appear in the queue after a vertical point 
             // with the same coordinate low coorinate
-            foreach (var horizPoint in HorizontalPoints)
+            foreach (LinkedPoint horizPoint in HorizontalPoints)
                 Queue.Enqueue(horizPoint, horizPoint.Point.Y);
         }
 
-        static double Low(LinkedPoint vertPoint) {
-            return Math.Min(vertPoint.Point.Y, vertPoint.Next.Point.Y);
-        }
+        static double Low(LinkedPoint vertPoint) => Math.Min(vertPoint.Point.Y, vertPoint.Next.Point.Y);
 
-        static double High(LinkedPoint vertPoint) {
-            return Math.Max(vertPoint.Point.Y, vertPoint.Next.Point.Y);
-        }
+        static double High(LinkedPoint vertPoint) => Math.Max(vertPoint.Point.Y, vertPoint.Next.Point.Y);
 
         GenericBinaryHeapPriorityQueue<LinkedPoint> Queue { get; set; }
     }

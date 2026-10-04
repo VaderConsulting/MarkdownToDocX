@@ -15,8 +15,8 @@ namespace Microsoft.AGL.Routing.Rectilinear {
 
         // Called by StoreLookaheadSite only.
         internal BasicReflectionEvent(Obstacle initialObstacle, Obstacle reflectingObstacle, Point site) {
-            this.InitialObstacle = initialObstacle;
-            this.ReflectingObstacle = reflectingObstacle;
+            InitialObstacle = initialObstacle;
+            ReflectingObstacle = reflectingObstacle;
             this.site = site;
         }
 
@@ -25,20 +25,16 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         // In this case we know the eventObstacle and initialObstacle are the same obstacle (the
         // one that the reflected ray bounced off of, to generate the Left/HighReflectionEvent).
         internal BasicReflectionEvent(BasicReflectionEvent previousSite, Obstacle reflectingObstacle, Point site) {
-            this.InitialObstacle = previousSite.ReflectingObstacle;
-            this.ReflectingObstacle = reflectingObstacle;
+            InitialObstacle = previousSite.ReflectingObstacle;
+            ReflectingObstacle = reflectingObstacle;
             this.site = site;
-            this.PreviousSite = previousSite;
+            PreviousSite = previousSite;
         }
 
         // If true, we have a staircase situation.
-        internal bool IsStaircaseStep(Obstacle reflectionTarget) {
-            return (this.InitialObstacle == reflectionTarget);
-        }
+        internal bool IsStaircaseStep(Obstacle reflectionTarget) => (InitialObstacle == reflectionTarget);
 
         private readonly Point site;
-        internal override Point Site {
-            get { return site; }
-        }
+        internal override Point Site => site;
     }
 }

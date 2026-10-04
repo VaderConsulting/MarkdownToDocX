@@ -1,4 +1,6 @@
-namespace MermaidRecognition.Flowchart;
+using MermaidRecognition.Core;
+
+namespace MermaidRecognition.Kinds.Flowchart;
 
 /// <summary>
 /// Adapts <see cref="FlowchartRecognizer"/> to <see cref="IKindRecognizer"/> for <see cref="MermaidRecognizer"/>.

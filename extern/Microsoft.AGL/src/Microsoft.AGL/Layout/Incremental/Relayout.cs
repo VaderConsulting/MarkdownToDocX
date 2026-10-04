@@ -8,18 +8,21 @@ using Microsoft.AGL.Core.DataStructures;
 using Microsoft.AGL.Core.Geometry;
 using Microsoft.AGL.Core.Layout;
 using Microsoft.AGL.Core.Routing;
-using Microsoft.AGL.Layout.Incremental;
 using Microsoft.AGL.Layout.Layered;
 using Microsoft.AGL.Layout.MDS;
 using Microsoft.AGL.Miscellaneous;
 using Microsoft.AGL.Routing;
 using Microsoft.AGL.Routing.Rectilinear;
 using System.Threading.Tasks;
+using Microsoft.AGL.Layout.Initial;
+
+
 #if TEST_MSAGL
 using Microsoft.AGL.DebugHelpers;
 #endif
 
-namespace Microsoft.AGL.Layout.Initial {
+namespace Microsoft.AGL.Layout.Incremental
+{
     /// <summary>
     /// todo: 
     /// find a way to compact disconnected components - incremental packing?
@@ -33,7 +36,7 @@ namespace Microsoft.AGL.Layout.Initial {
 
         readonly Set<Cluster> ancestorsOfModifiedNodes;
 
-        readonly Dictionary<Cluster, HashSet<Node>> addedNodesByCluster = new Dictionary<Cluster, HashSet<Node>>();
+        readonly Dictionary<Cluster, HashSet<Node>> addedNodesByCluster = [];
 
         /// <summary>
         /// Recursively lay out the given clusters using the specified settings for each cluster, or if none is given for a particular
@@ -60,16 +63,15 @@ namespace Microsoft.AGL.Layout.Initial {
                 new Set<Cluster>(modifiedNodes.SelectMany(v => v.AllClusterAncestors));
             if (addedNodes == null) return;
         
-            foreach (var v in addedNodes)
+            foreach (Node v in addedNodes)
                 CreateOrGetAddedChildrenOfParent(v.ClusterParents.First()).Add(v);
             ancestorsOfModifiedNodes.InsertRange(addedNodes.SelectMany(v => v.AllClusterAncestors));
         }
 
         HashSet<Node> CreateOrGetAddedChildrenOfParent(Cluster parent) {
-            HashSet<Node> addedChildren;
-            addedNodesByCluster.TryGetValue(parent, out addedChildren);
+            addedNodesByCluster.TryGetValue(parent, out HashSet<Node> addedChildren);
             if (addedChildren == null)
-                addedNodesByCluster[parent] = addedChildren = new HashSet<Node>();
+                addedNodesByCluster[parent] = addedChildren = [];
             return addedChildren;
         }
 
@@ -78,7 +80,7 @@ namespace Microsoft.AGL.Layout.Initial {
         /// </summary>
         protected override void RunInternal() {
 
-            var openedClusters = modifiedNodes.OfType<Cluster>().Where(cl => !cl.IsCollapsed).ToArray();
+            Cluster[] openedClusters = modifiedNodes.OfType<Cluster>().Where(cl => !cl.IsCollapsed).ToArray();
             if (openedClusters.Length > 0)
                 new InitialLayoutByCluster(graph, openedClusters, clusterSettings).Run();
 
@@ -95,8 +97,8 @@ namespace Microsoft.AGL.Layout.Initial {
         }
 
         bool BetweenClusterOnTheRightLevel(Edge edge) {
-            var sourceAncestors = new Set<Cluster>(edge.Source.AllClusterAncestors);
-            var targetAncestors = new Set<Cluster>(edge.Target.AllClusterAncestors);
+            Set<Cluster> sourceAncestors = new Set<Cluster>(edge.Source.AllClusterAncestors);
+            Set<Cluster> targetAncestors = new Set<Cluster>(edge.Target.AllClusterAncestors);
 
             return (sourceAncestors*targetAncestors).IsContained(ancestorsOfModifiedNodes);
         }
@@ -107,7 +109,7 @@ namespace Microsoft.AGL.Layout.Initial {
             if (u.IsCollapsed || !ancestorsOfModifiedNodes.Contains(u))
                 return;
 
-            foreach (var c in u.Clusters)
+            foreach (Cluster c in u.Clusters)
                 Visit(c);
 
             LayoutCluster(u);
@@ -125,7 +127,7 @@ namespace Microsoft.AGL.Layout.Initial {
             LayoutAlgorithmSettings s = clusterSettings(cluster);
             Directions layoutDirection = Directions.None;
             if (s is SugiyamaLayoutSettings) {
-                var ss = s as SugiyamaLayoutSettings;
+                SugiyamaLayoutSettings ss = s as SugiyamaLayoutSettings;
                 settings = ss.FallbackLayoutSettings != null
                     ? new FastIncrementalLayoutSettings((FastIncrementalLayoutSettings) ss.FallbackLayoutSettings)
                     : new FastIncrementalLayoutSettings();
@@ -145,9 +147,9 @@ namespace Microsoft.AGL.Layout.Initial {
             };
             settings.EdgeRoutingSettings.EdgeRoutingMode = EdgeRoutingMode.Spline;
 
-            HashSet<Node> addedNodes;
-           
-            if (addedNodesByCluster.TryGetValue(cluster, out addedNodes)) {
+
+            if (addedNodesByCluster.TryGetValue(cluster, out HashSet<Node> addedNodes))
+            {
                 // if the structure of the cluster has changed then we apply unconstrained layout first,
                 // then introduce structural constraints, and then all constraints
                 settings.MinConstraintLevel = 0;
@@ -179,14 +181,14 @@ namespace Microsoft.AGL.Layout.Initial {
         [Conditional("RelayoutOrthogonalOrderingConstraints")]
         void GenerateOrthogonalOrderingConstraints(IEnumerable<Node> nodes, FastIncrementalLayoutSettings settings) {
             Node p = null;
-            foreach (var v in graph.Nodes.OrderBy(v => v.Center.X)) {
+            foreach (Node v in graph.Nodes.OrderBy(v => v.Center.X)) {
                 if (p != null) {
                     settings.AddStructuralConstraint(new HorizontalSeparationConstraint(p, v, 0.1));
                 }
                 p = v;
             }
             p = null;
-            foreach (var v in graph.Nodes.OrderBy(v => v.Center.Y)) {
+            foreach (Node v in graph.Nodes.OrderBy(v => v.Center.Y)) {
                 if (p != null) {
                     settings.AddStructuralConstraint(new VerticalSeparationConstraint(p, v, 0.1));
                 }
@@ -201,18 +203,18 @@ namespace Microsoft.AGL.Layout.Initial {
         /// <returns>cluster children and edges between children in a GeometryGraph</returns>
         static GeometryGraph GetShallowCopyGraphUnderCluster(Cluster cluster) {
             Dictionary<Node, Node> originalToCopyNodeMap = InitialLayoutByCluster.ShallowNodeCopyDictionary(cluster);
-            var newGraph = CreateGeometryGraphAndPopulateItWithNodes(originalToCopyNodeMap);
+            GeometryGraph newGraph = CreateGeometryGraphAndPopulateItWithNodes(originalToCopyNodeMap);
 
-            foreach (var target in originalToCopyNodeMap.Keys)
-                foreach (var underNode in AllSuccessors(target)) { 
-                    foreach (var e in underNode.InEdges) {
-                        var sourceAncestorUnderRoot = InitialLayoutByCluster.Ancestor(e.Source, cluster);
+            foreach (Node target in originalToCopyNodeMap.Keys)
+                foreach (Node underNode in AllSuccessors(target)) { 
+                    foreach (Edge e in underNode.InEdges) {
+                        Node sourceAncestorUnderRoot = InitialLayoutByCluster.Ancestor(e.Source, cluster);
                         if (IsBetweenClusters(sourceAncestorUnderRoot, target))
                             //it is a flat edge and we are only interested in flat edges
                             newGraph.Edges.Add(InitialLayoutByCluster.CopyEdge(originalToCopyNodeMap, e,
                                 sourceAncestorUnderRoot, target));
                     }
-                    foreach (var e in target.SelfEdges)
+                    foreach (Edge e in target.SelfEdges)
                         newGraph.Edges.Add(InitialLayoutByCluster.CopyEdge(originalToCopyNodeMap, e));
                 }
             return newGraph;
@@ -220,20 +222,17 @@ namespace Microsoft.AGL.Layout.Initial {
 
         static GeometryGraph CreateGeometryGraphAndPopulateItWithNodes(Dictionary<Node, Node> originalToCopyNodeMap) {
             GeometryGraph newGraph = new GeometryGraph();
-            foreach (var v in originalToCopyNodeMap.Values)
+            foreach (Node v in originalToCopyNodeMap.Values)
                 newGraph.Nodes.Add(v);
             return newGraph;
         }
 
-        static bool IsBetweenClusters(Node sourceAncestorUnderRoot, Node target) {
-            return sourceAncestorUnderRoot != target && sourceAncestorUnderRoot != null;
-        }
+        static bool IsBetweenClusters(Node sourceAncestorUnderRoot, Node target) => sourceAncestorUnderRoot != target && sourceAncestorUnderRoot != null;
 
         static IEnumerable<Node> AllSuccessors(Node node) {
-            var ret = new List<Node> {node};
-            var cl = node as Cluster;
-            if (cl != null)
-                foreach (var u in cl.AllSuccessorsWidthFirst())
+            List<Node> ret = new List<Node> {node};
+            if (node is Cluster cl)
+                foreach (Node u in cl.AllSuccessorsWidthFirst())
                     if (u != node) ret.Add(u);
             return ret;
         }
@@ -250,7 +249,7 @@ namespace Microsoft.AGL.Layout.Initial {
                 anyCluster => settings);
             Debug.Assert(settings.Iterations == 0);
 
-            foreach (var level in Enumerable.Range(settings.MinConstraintLevel, settings.MaxConstraintLevel + 1)) {
+            foreach (int level in Enumerable.Range(settings.MinConstraintLevel, settings.MaxConstraintLevel + 1)) {
                 if (level != fil.CurrentConstraintLevel) {
                     fil.CurrentConstraintLevel = level;
                     if (level == 2) {

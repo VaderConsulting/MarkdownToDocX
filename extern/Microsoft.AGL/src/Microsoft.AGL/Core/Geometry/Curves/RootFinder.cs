@@ -16,7 +16,6 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="guess"></param>
         /// <param name="x"></param>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704")]
         public static bool TryToFindRoot(IFunction f, double start, double end, double guess, out double x) {
             ValidateArg.IsNotNull(f, "f");
             System.Diagnostics.Debug.Assert(start >= f.ParStart && end <= f.ParEnd);
@@ -31,7 +30,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
             bool abort = false;
             do {
 
-                var fp = f.Derivative(x);
+                double fp = f.Derivative(x);
                 if (Math.Abs(fp) < ApproximateComparer.Tolerance) {
                     abort = true;
                     break;

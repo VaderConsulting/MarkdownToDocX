@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using MermaidRecognition.Layout.Sugiyama.Core;
 
 namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
@@ -36,23 +37,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         bool tryReverse = true;
 
-        int NoGainStepsBound {
-            get {
-                return SugiyamaLayoutSettings.NoGainAdjacentSwapStepsBound*
+        int NoGainStepsBound => SugiyamaLayoutSettings.NoGainAdjacentSwapStepsBound *
                        SugiyamaLayoutSettings.RepetitionCoefficientForOrdering;
-            }
-        }
 
-        SugiyamaLayoutSettings SugiyamaLayoutSettings {
-            get { return settings; }
-        }
+        SugiyamaLayoutSettings SugiyamaLayoutSettings => settings;
 
         /// <summary>
         /// gets the random seed for some random choices inside of layer ordering
         /// </summary>
-        int SeedOfRandom {
-            get { return SugiyamaLayoutSettings.RandomSeedForOrdering; }
-        }
+        int SeedOfRandom => SugiyamaLayoutSettings.RandomSeedForOrdering;
 
         #endregion
 
@@ -75,12 +68,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// <summary>
         /// an upper limit on a number of passes in layer ordering
         /// </summary>
-        int MaxOfIterations {
-            get {
-                return SugiyamaLayoutSettings.MaxNumberOfPassesInOrdering*
+        int MaxOfIterations => SugiyamaLayoutSettings.MaxNumberOfPassesInOrdering *
                        SugiyamaLayoutSettings.RepetitionCoefficientForOrdering;
-            }
-        }
 
         internal static void OrderLayers(ProperLayeredGraph graph,
                                          LayerArrays layerArrays,
@@ -94,7 +83,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                     break;
                 }
 
-            var o = new Ordering(graph, true, layerArrays, startOfVirtualNodes, balanceVirtualAndOriginalNodes, hasCrossWeight, settings);
+            Ordering o = new Ordering(graph, true, layerArrays, startOfVirtualNodes, balanceVirtualAndOriginalNodes, hasCrossWeight, settings);
             o.Run(cancelToken);
         }
 
@@ -142,7 +131,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             if ( /*orderingMeasure.x>0 &&*/ tryReverse) {
                 LayerArrays secondLayers = layerArrays.ReversedClone();
 
-                var revOrdering = new Ordering(properLayeredGraph.ReversedClone(), false, secondLayers, startOfVirtNodes, balanceVirtAndOrigNodes,
+                Ordering revOrdering = new Ordering(properLayeredGraph.ReversedClone(), false, secondLayers, startOfVirtNodes, balanceVirtAndOrigNodes,
                                                hasCrossWeights, settings);
 
                 revOrdering.Run();
@@ -168,7 +157,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
             //Stopwatch sw = Stopwatch.StartNew();
             for (int i = 0; i < MaxOfIterations && countOfNoGainSteps < NoGainStepsBound && !measure.IsPerfect(); i++) {
-                this.ProgressStep();
+                ProgressStep();
 
                 bool up = i%2 == 0;
 
@@ -181,7 +170,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                     AdjacentExchangeWithBalancingVirtOrigNodes();
 
 
-                var newMeasure = new OrderingMeasure(layerArrays.Layers,
+                OrderingMeasure newMeasure = new OrderingMeasure(layerArrays.Layers,
                                                      GetCrossingsTotal(properLayeredGraph, layerArrays),
                                                      startOfVirtNodes,
                                                      optimalOriginalGroupSize, optimalVirtualGroupSize);
@@ -208,9 +197,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                     layers[i].CopyTo(layerArraysCopy[i], 0);
         }
 
-        void Restore() {
-            layerArrays.UpdateLayers(layerArraysCopy);
-        }
+        void Restore() => layerArrays.UpdateLayers(layerArraysCopy);
 
         void LayerByLayerSweep(bool up) {
             if (up) {
@@ -233,10 +220,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// <param name="upperLayer">upperLayer means if "layer" is the upperLayer 
         /// of the strip</param>
         void SweepLayer(int layer, bool upperLayer) {
-            this.ProgressStep();
+            ProgressStep();
 
             int[] l = layers[layer];
-            var medianValues = new float[l.Length];
+            float[] medianValues = new float[l.Length];
 
             for (int i = 0; i < medianValues.Length; i++)
                 medianValues[i] = WMedian(l[i], upperLayer);
@@ -256,7 +243,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// <param name="layerToSort"></param>
         /// <param name="medianValues"></param>
         void Sort(int layerToSort, float[] medianValues) {
-            var s = new SortedDictionary<float, object>();
+            SortedDictionary<float, object> s = new SortedDictionary<float, object>();
             int[] vertices = layers[layerToSort];
             int i = 0;
 
@@ -269,7 +256,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                     s[m] = v;
                 else {
                     object o = s[m];
-                    var al = o as List<int>;
+                    List<int>? al = o as List<int>;
                     if (al != null) {
                         if (HeadOfTheCoin())
                             al.Add(v);
@@ -281,8 +268,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                             al.Add(k);
                         }
                     } else {
-                        var io = (int) o;
-                        al = new List<int>();
+                        int io = (int) o;
+                        al = [];
                         s[m] = al;
                         if (HeadOfTheCoin()) {
                             al.Add(io);
@@ -295,7 +282,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                 }
             }
 
-            var senum = s.GetEnumerator();
+            SortedDictionary<float, object>.Enumerator senum = s.GetEnumerator();
 
             for (i = 0; i < vertices.Length;) {
                 if (medianValues[i] != -1) {
@@ -310,7 +297,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 #endif
                         vertices[i++] = (int) o;
                     else {
-                        var al = o as List<int>;
+                        List<int>? al = o as List<int>;
                         foreach (int v in al) {
 //find the first empty spot
                             while (medianValues[i] == -1)
@@ -338,7 +325,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             if (p == 0)
                 return -1.0f;
 
-            var parray = new int[p]; //we have no multiple edges
+            int[] parray = new int[p]; //we have no multiple edges
 
             int i = 0;
             if (theMedianGoingDown)
@@ -370,18 +357,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// Just depth search and assign the index saying when the node was visited
         /// </summary>
         void Init() {
-            var counts = new int[nOfLayers];
+            int[] counts = new int[nOfLayers];
 
             //the initial layers are set by following the order of the 
             //depth first traversal inside one layer
-            var q = new Stack<int>();
+            Stack<int> q = new Stack<int>();
             //enqueue all sources of the graph 
             for (int i = 0; i < properLayeredGraph.NodeCount; i++)
                 if (properLayeredGraph.InEdgesCount(i) == 0)
                     q.Push(i);
 
 
-            var visited = new bool[properLayeredGraph.NodeCount];
+            bool[] visited = new bool[properLayeredGraph.NodeCount];
 
             while (q.Count > 0) {
                 int u = q.Pop();
@@ -469,7 +456,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                 n *= 2;
             //init the accumulator tree
 
-            var tree = new int[2*n - 1];
+            int[] tree = new int[2*n - 1];
 
             n--; // the first bottom node starts from n now
 
@@ -500,7 +487,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                 n *= 2;
             //init accumulator
 
-            var tree = new int[2*n - 1];
+            int[] tree = new int[2*n - 1];
 
             n--; // the first bottom node starts from n now
 

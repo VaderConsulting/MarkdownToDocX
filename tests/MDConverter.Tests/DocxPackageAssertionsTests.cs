@@ -20,7 +20,7 @@ public sealed class DocxPackageAssertionsTests
     [TestMethod]
     public void GeneratedDocx_UsesNativeDecimalAndBulletNumbering()
     {
-        using var Package = CreatePackage(
+        using TestPackage Package = CreatePackage(
             """
             Ordered list:
 
@@ -69,9 +69,9 @@ public sealed class DocxPackageAssertionsTests
     [TestMethod]
     public void GeneratedDocx_WritesHyperlinksImagesTablesCodeAndHorizontalRules()
     {
-        var BasePath = CreateTempImageFolder();
+        string BasePath = CreateTempImageFolder();
 
-        using var Package = CreatePackage(
+        using TestPackage Package = CreatePackage(
             """
             [Example](https://example.com)
 
@@ -152,7 +152,7 @@ public sealed class DocxPackageAssertionsTests
     [TestMethod]
     public void GeneratedDocx_RendersMermaidFencesAsEmbeddedSvgImages()
     {
-        using var Package = CreatePackage(
+        using TestPackage Package = CreatePackage(
             """
             Backtick fence:
 
@@ -176,7 +176,7 @@ public sealed class DocxPackageAssertionsTests
         Assert.IsGreaterThanOrEqualTo(Package.Document.Descendants(W + "drawing").Count(), 2,
             "Expected both Mermaid fences to become Word drawing elements.");
 
-        var Text = DocumentText(Package.Document);
+        string Text = DocumentText(Package.Document);
         Assert.IsFalse(Text.Contains("flowchart TD", StringComparison.Ordinal),
             "Mermaid source should not be emitted as visible code text when SVG rendering succeeds.");
         Assert.IsFalse(Text.Contains("sequenceDiagram", StringComparison.Ordinal),
@@ -243,7 +243,7 @@ public sealed class DocxPackageAssertionsTests
                 merge diagrams id: "merge"
             """;
 
-        using var Package = CreatePackage(
+        using TestPackage Package = CreatePackage(
             $"""
             ```mermaid
             {ClassDiagramSource}
@@ -285,19 +285,19 @@ public sealed class DocxPackageAssertionsTests
     [TestMethod]
     public void Naiad_BlockWithDirectedEdge_RendersNodeLabelsInSvg()
     {
-        var ArrowProbe = String("-->").Parse("--> ");
+        Result<char, string> ArrowProbe = String("-->").Parse("--> ");
         Assert.IsTrue(ArrowProbe.Success, "Pidgin String(\"-->\") smoke test.");
 
-        var BlockInput = string.Join("\n", "block-beta", "columns 3", "a[\"Source\"] b[\"Sink\"]", "a --> b");
+        string BlockInput = string.Join("\n", "block-beta", "columns 3", "a[\"Source\"] b[\"Sink\"]", "a --> b");
 
-        var LocalIdentifier =
+        Parser<char, string> LocalIdentifier =
             Token(static Character => char.IsLetter(Character) || char.IsDigit(Character) || Character == '_')
                 .Then(
                     Token(static Character => char.IsLetterOrDigit(Character) || Character is '_' or '-').ManyString(),
                     (char FirstCharacter, string Rest) => FirstCharacter.ToString() + Rest);
-        var LocalDirected =
+        Parser<char, bool> LocalDirected =
             Try(String("-->").ThenReturn(true)).Or(String("---").ThenReturn(false));
-        var LocalEdge =
+        Parser<char, (string FromId, bool Directed, string ToId)> LocalEdge =
             from _ in MermaidSharp.CommonParsers.InlineWhitespace
             from FromId in LocalIdentifier
             from __ in MermaidSharp.CommonParsers.InlineWhitespace
@@ -308,26 +308,26 @@ public sealed class DocxPackageAssertionsTests
             from _____ in MermaidSharp.CommonParsers.LineEnd
             select (FromId, Directed, ToId);
 
-        var LocalEdgeParsed = LocalEdge.Parse("a --> b");
+        Result<char, (string FromId, bool Directed, string ToId)> LocalEdgeParsed = LocalEdge.Parse("a --> b");
         if (!LocalEdgeParsed.Success)
         {
-            Assert.Fail(LocalEdgeParsed.Error.ToString());
+            Assert.Fail(LocalEdgeParsed.Error?.ToString() ?? "Edge parsing failed.");
         }
 
-        var Parser = new BlockParser();
-        var Parsed = Parser.Parse(BlockInput);
+        BlockParser Parser = new BlockParser();
+        Result<char, BlockModel> Parsed = Parser.Parse(BlockInput);
         if (!Parsed.Success)
         {
-            var EdgeLine = BlockInput.Split('\n').Last();
-            var CodePoints = new List<int>();
-            foreach (var Character in EdgeLine)
+            string EdgeLine = BlockInput.Split('\n').Last();
+            List<int> CodePoints = new List<int>();
+            foreach (char Character in EdgeLine)
             {
                 CodePoints.Add((int)Character);
             }
             Assert.Fail((Parsed.Error?.ToString() ?? "parse") + " | EdgeLine='" + EdgeLine + "' | CodePoints=" + string.Join(",", CodePoints));
         }
 
-        var BlockSvg = Mermaid.Render(BlockInput, RenderOptions.Default);
+        string BlockSvg = Mermaid.Render(BlockInput, RenderOptions.Default);
         Assert.IsTrue(BlockSvg.Contains("Source", StringComparison.Ordinal) && BlockSvg.Contains("Sink", StringComparison.Ordinal),
             "Naiad block diagram should render quoted labels in SVG text elements.");
     }
@@ -353,7 +353,7 @@ public sealed class DocxPackageAssertionsTests
     [TestMethod]
     public void GeneratedDocx_RendersMindmapRootKwIndentedKanbanAndBlockEdges()
     {
-        using var Package = CreatePackage(
+        using TestPackage Package = CreatePackage(
             """
             ```mermaid
             mindmap
@@ -414,13 +414,10 @@ public sealed class DocxPackageAssertionsTests
             "Block diagram edges (-->) should emit connector path markup.");
     }
 
-    private static int CountEmbeddedMermaidImages(TestPackage Package)
-    {
-        return Package.EntryNames.Count(Name =>
-            Name.Contains("media/", StringComparison.OrdinalIgnoreCase)
-            && (Name.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
-                || Name.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)));
-    }
+    private static int CountEmbeddedMermaidImages(TestPackage Package) => Package.EntryNames.Count(Name =>
+                                                                                   Name.Contains("media/", StringComparison.OrdinalIgnoreCase)
+                                                                                   && (Name.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
+                                                                                       || Name.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)));
 
     private static string RenderFlattenedMermaidText(string MermaidSource)
     {
@@ -428,25 +425,22 @@ public sealed class DocxPackageAssertionsTests
         return FlattenSvgText(Svg);
     }
 
-    private static string FlattenSvgText(string Svg)
-    {
-        return Regex.Replace(
+    private static string FlattenSvgText(string Svg) => Regex.Replace(
             string.Concat(XDocument.Parse(Svg).Descendants().Select(Element => Element.Value)),
             @"\s+",
             " ");
-    }
 
     private static TestPackage CreatePackage(string Markdown, string? BasePath = null)
     {
-        var Converter = new MarkdownToDocxConverter(new MarkdownToDocxOptions());
-        var Bytes = Converter.ConvertText(Markdown, BasePath ?? Environment.CurrentDirectory);
+        MarkdownToDocxConverter Converter = new MarkdownToDocxConverter(new MarkdownToDocxOptions());
+        byte[] Bytes = Converter.ConvertText(Markdown, BasePath ?? Environment.CurrentDirectory);
         return TestPackage.Open(Bytes);
     }
 
     private static string CreateTempImageFolder()
     {
-        var DirectoryPath = Path.Combine(Path.GetTempPath(), "MDConverter.Tests." + Guid.NewGuid().ToString("N"));
-        var ImageDirectoryPath = Path.Combine(DirectoryPath, "images");
+        string DirectoryPath = Path.Combine(Path.GetTempPath(), "MDConverter.Tests." + Guid.NewGuid().ToString("N"));
+        string ImageDirectoryPath = Path.Combine(DirectoryPath, "images");
         Directory.CreateDirectory(ImageDirectoryPath);
         File.WriteAllBytes(Path.Combine(ImageDirectoryPath, "logo.png"), Convert.FromBase64String(
             "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAGUlEQVR4nGP8z0A+YKJA76jmUc2jmkc1U0EzACKcAhF9M2bsAAAAAElFTkSuQmCC"));
@@ -455,9 +449,9 @@ public sealed class DocxPackageAssertionsTests
 
     private static void AssertAbstractNumberingPrecedesNumberingInstances(XDocument Numbering)
     {
-        var Children = Numbering.Root!.Elements().Select(Element => Element.Name.LocalName).ToList();
-        var FirstNumberingInstanceIndex = Children.IndexOf("num");
-        var LastAbstractNumberingIndex = Children.LastIndexOf("abstractNum");
+        List<string> Children = Numbering.Root!.Elements().Select(Element => Element.Name.LocalName).ToList();
+        int FirstNumberingInstanceIndex = Children.IndexOf("num");
+        int LastAbstractNumberingIndex = Children.LastIndexOf("abstractNum");
 
         Assert.IsGreaterThanOrEqualTo(0, FirstNumberingInstanceIndex, "Expected numbering instances.");
         Assert.IsGreaterThanOrEqualTo(0, LastAbstractNumberingIndex, "Expected abstract numbering definitions.");
@@ -467,19 +461,19 @@ public sealed class DocxPackageAssertionsTests
 
     private static void AssertParagraphNumberFormat(TestPackage Package, string ParagraphText, string ExpectedFormat, string ExpectedStart)
     {
-        var Paragraph = FindParagraph(Package.Document, ParagraphText);
-        var NumberingProperties = Paragraph.Descendants(W + "numPr").FirstOrDefault();
+        XElement Paragraph = FindParagraph(Package.Document, ParagraphText);
+        XElement? NumberingProperties = Paragraph.Descendants(W + "numPr").FirstOrDefault();
         Assert.IsNotNull(NumberingProperties, $"Expected paragraph '{ParagraphText}' to use native Word numbering.");
 
-        var NumberingId = NumberingProperties.Descendants(W + "numId").First().Attribute(W + "val")!.Value;
-        var LevelIndex = NumberingProperties.Descendants(W + "ilvl").First().Attribute(W + "val")!.Value;
+        string NumberingId = NumberingProperties.Descendants(W + "numId").First().Attribute(W + "val")!.Value;
+        string LevelIndex = NumberingProperties.Descendants(W + "ilvl").First().Attribute(W + "val")!.Value;
 
-        var NumberingInstance = Package.Numbering.Descendants(W + "num")
+        XElement NumberingInstance = Package.Numbering.Descendants(W + "num")
             .First(Num => Num.Attribute(W + "numId")?.Value == NumberingId);
-        var AbstractNumberingId = NumberingInstance.Descendants(W + "abstractNumId").First().Attribute(W + "val")!.Value;
-        var AbstractNumbering = Package.Numbering.Descendants(W + "abstractNum")
+        string AbstractNumberingId = NumberingInstance.Descendants(W + "abstractNumId").First().Attribute(W + "val")!.Value;
+        XElement AbstractNumbering = Package.Numbering.Descendants(W + "abstractNum")
             .First(Num => Num.Attribute(W + "abstractNumId")?.Value == AbstractNumberingId);
-        var Level = AbstractNumbering.Descendants(W + "lvl")
+        XElement Level = AbstractNumbering.Descendants(W + "lvl")
             .First(Lvl => Lvl.Attribute(W + "ilvl")?.Value == LevelIndex);
 
         Assert.AreEqual(ExpectedFormat, Level.Descendants(W + "numFmt").First().Attribute(W + "val")!.Value,
@@ -490,7 +484,7 @@ public sealed class DocxPackageAssertionsTests
 
     private static XElement FindParagraph(XDocument Document, string Text)
     {
-        var Paragraph = Document.Descendants(W + "p")
+        XElement? Paragraph = Document.Descendants(W + "p")
             .FirstOrDefault(Paragraph => ParagraphText(Paragraph) == Text);
         Assert.IsNotNull(Paragraph, $"Could not find paragraph with text '{Text}'.");
         return Paragraph;
@@ -535,8 +529,8 @@ public sealed class DocxPackageAssertionsTests
                 .Where(Entry => Entry.FullName.EndsWith(Suffix, StringComparison.OrdinalIgnoreCase))
                 .Select(Entry =>
                 {
-                    using var Stream = Entry.Open();
-                    using var Reader = new StreamReader(Stream);
+                    using Stream Stream = Entry.Open();
+                    using StreamReader Reader = new StreamReader(Stream);
                     return Reader.ReadToEnd();
                 })
                 .ToList();
@@ -544,8 +538,8 @@ public sealed class DocxPackageAssertionsTests
 
         public static TestPackage Open(byte[] Bytes)
         {
-            var Stream = new MemoryStream(Bytes);
-            var Archive = new ZipArchive(Stream, ZipArchiveMode.Read, leaveOpen: false);
+            MemoryStream Stream = new MemoryStream(Bytes);
+            ZipArchive Archive = new ZipArchive(Stream, ZipArchiveMode.Read, leaveOpen: false);
             return new TestPackage(
                 Stream,
                 Archive,
@@ -563,9 +557,9 @@ public sealed class DocxPackageAssertionsTests
 
         private static XDocument ReadXml(ZipArchive Archive, string EntryName)
         {
-            var Entry = Archive.GetEntry(EntryName)
+            ZipArchiveEntry Entry = Archive.GetEntry(EntryName)
                 ?? throw new AssertFailedException("Missing DOCX package entry: " + EntryName);
-            using var Stream = Entry.Open();
+            using Stream Stream = Entry.Open();
             return XDocument.Load(Stream);
         }
     }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -10,6 +10,7 @@ using Microsoft.AGL.Core.Routing;
 using Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation;
 using Microsoft.AGL.Routing.Visibility;
 using Microsoft.AGL.DebugHelpers;
+using Microsoft.AGL.Core.Geometry.RTree;
 
 namespace Microsoft.AGL.Routing.Spline.Bundling {
     internal class SdShortestPath {
@@ -23,8 +24,8 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         internal Cdt Cdt { get; set; }
         Set<CdtEdge> Gates { get; set; }
 
-        readonly Dictionary<EdgeGeometry, List<SdBoneEdge>> EdgesToRoutes = new Dictionary<EdgeGeometry, List<SdBoneEdge>>();
-        readonly Dictionary<EdgeGeometry, SdVertex> EdgesToRouteSources = new Dictionary<EdgeGeometry, SdVertex>();
+        readonly Dictionary<EdgeGeometry, List<SdBoneEdge>> EdgesToRoutes = [];
+        readonly Dictionary<EdgeGeometry, SdVertex> EdgesToRouteSources = [];
 
         EdgeGeometry CurrentEdgeGeometry;
         Dictionary<VisibilityVertex, SdVertex> VisibilityVerticesToSdVerts;
@@ -43,11 +44,11 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         }
 
         void CreateGraphElements() {
-            foreach (var sdVertex in vertexArray) {
-                var vv = sdVertex.VisibilityVertex;
-                foreach (var vEdge in vv.InEdges) {
-                    var boneEdge = new SdBoneEdge(vEdge, VisibilityVerticesToSdVerts[vEdge.Source], VisibilityVerticesToSdVerts[vEdge.Target]);
-                    var otherSdVertex = VisibilityVerticesToSdVerts[vEdge.Source];
+            foreach (SdVertex sdVertex in vertexArray) {
+                VisibilityVertex vv = sdVertex.VisibilityVertex;
+                foreach (VisibilityEdge vEdge in vv.InEdges) {
+                    SdBoneEdge boneEdge = new SdBoneEdge(vEdge, VisibilityVerticesToSdVerts[vEdge.Source], VisibilityVerticesToSdVerts[vEdge.Target]);
+                    SdVertex otherSdVertex = VisibilityVerticesToSdVerts[vEdge.Source];
                     sdVertex.InBoneEdges.Add(boneEdge);
                     otherSdVertex.OutBoneEdges.Add(boneEdge);
                 }
@@ -57,9 +58,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         void CreateRoutingGraph() {
             vertexArray = new SdVertex[VisibilityGraph.VertexCount];
             int i = 0;
-            VisibilityVerticesToSdVerts = new Dictionary<VisibilityVertex, SdVertex>();
-            foreach (var v in VisibilityGraph.Vertices()) {
-                var sdVert = new SdVertex(v);
+            VisibilityVerticesToSdVerts = [];
+            foreach (VisibilityVertex v in VisibilityGraph.Vertices()) {
+                SdVertex sdVert = new SdVertex(v);
                 vertexArray[i++] = sdVert;
                 VisibilityVerticesToSdVerts[v] = sdVert;
             }
@@ -73,13 +74,13 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         internal void RouteEdges() {
             Initialize();
             RestoreCapacities();
-            foreach (var edgeGeometry in EdgeGeometries) {
+            foreach (EdgeGeometry edgeGeometry in EdgeGeometries) {
                 EdgesToRoutes[edgeGeometry] = RouteEdge(edgeGeometry);
             }
 
             RerouteEdges();
 
-            foreach (var edgeGeometry in EdgeGeometries)
+            foreach (EdgeGeometry edgeGeometry in EdgeGeometries)
                 SetEdgeGeometryCurve(edgeGeometry);
         }
 
@@ -87,7 +88,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             Polyline poly = new Polyline();
             SdVertex curV = EdgesToRouteSources[edgeGeometry];
             poly.AddPoint(curV.Point);
-            foreach (var edge in EdgesToRoutes[edgeGeometry]) {
+            foreach (SdBoneEdge edge in EdgesToRoutes[edgeGeometry]) {
                 if (edge.SourcePoint == curV.Point) {
                     poly.AddPoint(edge.TargetPoint);
                     curV = edge.Target;
@@ -99,29 +100,27 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             }
 
             edgeGeometry.Curve = poly;
-            var clusterSourcePort = edgeGeometry.SourcePort as ClusterBoundaryPort;
-            if (clusterSourcePort != null)
+            if (edgeGeometry.SourcePort is ClusterBoundaryPort clusterSourcePort)
                 ExtendPolylineStartToClusterBoundary(poly, clusterSourcePort.Curve);
 
-            var clusterTargetPort = edgeGeometry.TargetPort as ClusterBoundaryPort;
-            if (clusterTargetPort != null)
+            if (edgeGeometry.TargetPort is ClusterBoundaryPort clusterTargetPort)
                 ExtendPolylineEndToClusterBoundary(poly, clusterTargetPort.Curve);
         }
 
         static void ExtendPolylineEndToClusterBoundary(Polyline poly, ICurve curve) {
-            var par = curve.ClosestParameter(poly.End);
+            double par = curve.ClosestParameter(poly.End);
             poly.AddPoint(curve[par]);
         }
 
         static void ExtendPolylineStartToClusterBoundary(Polyline poly, ICurve curve) {
-            var par = curve.ClosestParameter(poly.Start);
+            double par = curve.ClosestParameter(poly.Start);
             poly.PrependPoint(curve[par]);
         }
 
         void RerouteEdges() {
             RestoreCapacities();
-            foreach (var edgeGeometry in EdgeGeometries) {
-                var newRoute = RerouteEdge(edgeGeometry);
+            foreach (EdgeGeometry edgeGeometry in EdgeGeometries) {
+                List<SdBoneEdge> newRoute = RerouteEdge(edgeGeometry);
                 EdgesToRoutes[edgeGeometry] = newRoute;
             }
         }
@@ -135,9 +134,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         /// Reroute edge
         /// </summary>
         List<SdBoneEdge> RerouteEdge(EdgeGeometry edgeGeometry) {
-            var route = EdgesToRoutes[edgeGeometry];
+            List<SdBoneEdge> route = EdgesToRoutes[edgeGeometry];
 
-            foreach (var edge in route)
+            foreach (SdBoneEdge edge in route)
                 edge.RemoveOccupiedEdge();
 
             return RouteEdge(edgeGeometry);
@@ -146,15 +145,15 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         List<SdBoneEdge> RouteEdge(EdgeGeometry edgeGeometry) {
             CurrentEdgeGeometry = edgeGeometry;
             for (int i = 0; i < vertexArray.Length; i++) {
-                var sdv = vertexArray[i];
+                SdVertex sdv = vertexArray[i];
                 sdv.SetPreviousToNull();
                 sdv.IsSourceOfRouting = sdv.IsTargetOfRouting = false;
             }
 
-            var transparentShapes = MakeTransparentShapesOfEdgeGeometry(edgeGeometry);
-            var ret = RouteEdgeWithGroups();
+            List<Shape> transparentShapes = MakeTransparentShapesOfEdgeGeometry(edgeGeometry);
+            List<SdBoneEdge> ret = RouteEdgeWithGroups();
 
-            foreach (var shape in transparentShapes)
+            foreach (Shape shape in transparentShapes)
                 shape.IsTransparent = false;
 
             /*List<LineSegment> ls = new List<LineSegment>();
@@ -185,22 +184,21 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
 
         List<SdBoneEdge> RouteOnKnownSourceTargetVertices(Point pathDirection, bool lookingForMonotonePath) {
-            LowestCostToTarget = Double.PositiveInfinity;
+            LowestCostToTarget = double.PositiveInfinity;
             ClosestTargetVertex = null;
             while (Queue.Count > 0) {
-                double hu;
-                SdVertex bestNode = Queue.Dequeue(out hu);
+                SdVertex bestNode = Queue.Dequeue(out double hu);
                 if (hu >= LowestCostToTarget)
                     continue;
                 //update the rest
                 for (int i = 0; i < bestNode.OutBoneEdges.Count; i++) {
-                    var outBoneEdge = bestNode.OutBoneEdges[i];
+                    SdBoneEdge outBoneEdge = bestNode.OutBoneEdges[i];
                     if (outBoneEdge.IsPassable)
                         ProcessOutcomingBoneEdge(bestNode, outBoneEdge, pathDirection, lookingForMonotonePath);
                 }
 
                 for (int i = 0; i < bestNode.InBoneEdges.Count; i++) {
-                    var inBoneEdge = bestNode.InBoneEdges[i];
+                    SdBoneEdge inBoneEdge = bestNode.InBoneEdges[i];
                     if (inBoneEdge.IsPassable)
                         ProcessIncomingBoneEdge(bestNode, inBoneEdge, pathDirection, lookingForMonotonePath);
                 }
@@ -268,10 +266,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         List<SdBoneEdge> GetPathAndUpdateRelatedCosts() {
             //restore the path by moving backwards
-            var current = ClosestTargetVertex;
+            SdVertex current = ClosestTargetVertex;
             if (current == null)
                 return null;
-            var result = new List<SdBoneEdge>();
+            List<SdBoneEdge> result = new List<SdBoneEdge>();
 
             while (current.PrevEdge != null) {
                 result.Add(current.PrevEdge);
@@ -294,7 +292,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         }
 
         void UpdateResidualCostsOfCrossedCdtEdges(SdBoneEdge boneEdge) {
-            foreach (var cdtEdge in boneEdge.CrossedCdtEdges) {
+            foreach (CdtEdge cdtEdge in boneEdge.CrossedCdtEdges) {
                 if (AdjacentToSourceOrTarget(cdtEdge))
                     continue;
                 if (cdtEdge.ResidualCapacity == cdtEdge.Capacity)
@@ -306,12 +304,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             }
         }
 
-        double H(SdVertex v) {
-            return v.Cost + LengthCoefficient * (v.Point - CurrentEdgeGeometry.TargetPort.Location).Length;
-        }
+        double H(SdVertex v) => v.Cost + LengthCoefficient * (v.Point - CurrentEdgeGeometry.TargetPort.Location).Length;
 
         double GetEdgeAdditionalCost(SdBoneEdge boneEdge, double previousCost) {
-            var len = (boneEdge.TargetPoint - boneEdge.SourcePoint).Length;
+            double len = (boneEdge.TargetPoint - boneEdge.SourcePoint).Length;
             return LengthCoefficient * len + previousCost +
                 (boneEdge.IsOccupied ? 0 : BundlingSettings.InkImportance * len) + CapacityOverflowCost(boneEdge);
         }
@@ -320,7 +316,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             if (Cdt == null || BundlingSettings.CapacityOverflowCoefficient == 0)
                 return 0;
             double ret = 0;
-            foreach (var cdtEdge in CrossedCdtEdgesOfBoneEdge(boneEdge)) {
+            foreach (CdtEdge cdtEdge in CrossedCdtEdgesOfBoneEdge(boneEdge)) {
                 ret += CostOfCrossingCdtEdgeLocal(capacityOverlowPenaltyMultiplier, BundlingSettings, CurrentEdgeGeometry, cdtEdge);
             }
             return ret;
@@ -338,15 +334,15 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         }
 
         Set<CdtEdge> ThreadBoneEdgeThroughCdt(SdBoneEdge boneEdge) {
-            var start = boneEdge.SourcePoint;
-            var currentTriangle = boneEdge.Source.Triangle;
+            Point start = boneEdge.SourcePoint;
+            CdtTriangle currentTriangle = boneEdge.Source.Triangle;
             Debug.Assert(Cdt.PointIsInsideOfTriangle(start, currentTriangle));
-            var crossedEdges = new Set<CdtEdge>();
-            var end = boneEdge.TargetPoint;
+            Set<CdtEdge> crossedEdges = new Set<CdtEdge>();
+            Point end = boneEdge.TargetPoint;
             if (Cdt.PointIsInsideOfTriangle(end, currentTriangle))
                 return crossedEdges;
 
-            var threader = new CdtThreader(currentTriangle, start, end);
+            CdtThreader threader = new CdtThreader(currentTriangle, start, end);
             while (threader.MoveNext()) {
                 CdtEdge piercedEdge = threader.CurrentPiercedEdge;
                 Debug.Assert(piercedEdge != null);
@@ -372,11 +368,11 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         //TODO: method incorrect since id doesn't check AdjacentToSourceOrTarget condition
         internal static double CostOfCrossingCdtEdge(double capacityOverflMult, BundlingSettings bundlingSettings, EdgeGeometry currentEdgeGeometry, CdtEdge e) {
-            var w = currentEdgeGeometry.LineWidth;
+            double w = currentEdgeGeometry.LineWidth;
             if (e.Capacity != e.ResidualCapacity)
                 w += bundlingSettings.EdgeSeparation;
 
-            var del = e.ResidualCapacity - w;
+            double del = e.ResidualCapacity - w;
             if (del >= 0) return 0;
             return -del * capacityOverflMult;
         }
@@ -387,28 +383,26 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             return CostOfCrossingCdtEdge(capacityOverflMult, bundlingSettings, currentEdgeGeometry, e);
         }
 
-        bool AdjacentToSourceOrTarget(CdtEdge e) {
-            return e.upperSite.Owner == sourceLoosePoly || e.lowerSite.Owner == sourceLoosePoly || e.upperSite.Owner == targetLoosePoly || e.lowerSite.Owner == targetLoosePoly;
-        }
+        bool AdjacentToSourceOrTarget(CdtEdge e) => e.upperSite.Owner == sourceLoosePoly || e.lowerSite.Owner == sourceLoosePoly || e.upperSite.Owner == targetLoosePoly || e.lowerSite.Owner == targetLoosePoly;
 
         double GetIdealDistanceBetweenHookUpAnywherePortAndPort(HookUpAnywhereFromInsidePort hookPort, Port port) {
-            var poly = hookPort.LoosePolyline;
-            var point = port.Location;
-            var closestPar = poly.ClosestParameter(point);
+            Polyline poly = hookPort.LoosePolyline;
+            Point point = port.Location;
+            double closestPar = poly.ClosestParameter(point);
             return (point - poly[closestPar]).Length;
         }
 
         double GetIdealDistanceBetweenClusterPortAndPort(ClusterBoundaryPort clsp, Port port) {
-            var poly = clsp.LoosePolyline;
-            var otherClsp = port as ClusterBoundaryPort;
-            if (otherClsp != null) {
-                var polygon0 = new Polygon(poly);
-                var polygon1 = new Polygon(otherClsp.LoosePolyline);
+            Polyline poly = clsp.LoosePolyline;
+            if (port is ClusterBoundaryPort otherClsp)
+            {
+                Polygon polygon0 = new Polygon(poly);
+                Polygon polygon1 = new Polygon(otherClsp.LoosePolyline);
                 return Polygon.Distance(polygon0, polygon1);
             }
 
-            var point = port.Location;
-            var closestPar = poly.ClosestParameter(point);
+            Point point = port.Location;
+            double closestPar = poly.ClosestParameter(point);
             return (point - poly[closestPar]).Length;
         }
 
@@ -417,41 +411,45 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             LengthCoefficient = BundlingSettings.PathLengthImportance / idealEdgeLength;
         }
 
-        double GetIdealDistanceBetweenSourceAndTarget(EdgeGeometry edgeGeometry) {
-            return (edgeGeometry.SourcePort.Location - edgeGeometry.TargetPort.Location).Length;
-        }
+        double GetIdealDistanceBetweenSourceAndTarget(EdgeGeometry edgeGeometry) => (edgeGeometry.SourcePort.Location - edgeGeometry.TargetPort.Location).Length;
 
         void SetPortVerticesAndObstacles(Port port, bool sources, out Polyline poly) {
             poly = null;
-            var cbport = port as ClusterBoundaryPort;
-            if (cbport != null) {
+            if (port is ClusterBoundaryPort cbport)
+            {
                 //SplineRouter.ShowVisGraph(this.VisibilityGraph, this.ObstacleHierarchy.GetAllLeaves(), null, new[]{cbport.LoosePolyline});
                 poly = cbport.LoosePolyline;
-                foreach (var point in poly) {
+                foreach (Point point in poly)
+                {
                     double initialCost = 0;
-                    if (sources) {
+                    if (sources)
+                    {
                         //we prefer paths starting from the center of the group
                         initialCost = LengthCoefficient * (point - CurrentEdgeGeometry.SourcePort.Location).Length;
                     }
                     AddAndEnqueueVertexToEnds(point, sources, initialCost);
                 }
             }
-            else {
-                var anywherePort = port as HookUpAnywhereFromInsidePort;
-                if (anywherePort != null) {
+            else
+            {
+                if (port is HookUpAnywhereFromInsidePort anywherePort)
+                {
                     poly = anywherePort.LoosePolyline;
-                    foreach (var point in poly)
+                    foreach (Point point in poly)
                         AddAndEnqueueVertexToEnds(point, sources, 0);
                 }
-                else {
+                else
+                {
                     AddAndEnqueueVertexToEnds(port.Location, sources, 0);
-                    var polys = this.ObstacleHierarchy.GetNodeItemsIntersectingRectangle(port.Curve.BoundingBox).ToArray();
+                    Polyline[] polys = ObstacleHierarchy.GetNodeItemsIntersectingRectangle(port.Curve.BoundingBox).ToArray();
                     double mindiag = polys[0].BoundingBox.Diagonal;
                     poly = polys[0];
-                    for (int i = 1; i < polys.Length; i++) {
-                        var pl = polys[i];
-                        var diag = pl.BoundingBox.Diagonal;
-                        if (diag < mindiag) {
+                    for (int i = 1; i < polys.Length; i++)
+                    {
+                        Polyline pl = polys[i];
+                        double diag = pl.BoundingBox.Diagonal;
+                        if (diag < mindiag)
+                        {
                             mindiag = diag;
                             poly = pl;
                         }
@@ -461,13 +459,11 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             }
         }
 
-        void Enqueue(SdVertex simpleSdVertex) {
-            Queue.Enqueue(simpleSdVertex, H(simpleSdVertex));
-        }
+        void Enqueue(SdVertex simpleSdVertex) => Queue.Enqueue(simpleSdVertex, H(simpleSdVertex));
 
         void AddAndEnqueueVertexToEnds(Point point, bool isSource, double initialCost) {
-            var v = FindVertex(point);
-            var sdVert = VisibilityVerticesToSdVerts[v];
+            VisibilityVertex v = FindVertex(point);
+            SdVertex sdVert = VisibilityVerticesToSdVerts[v];
             if (isSource) {
                 sdVert.IsSourceOfRouting = true;
                 sdVert.Cost = initialCost;
@@ -478,14 +474,11 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             }
         }
 
-        VisibilityVertex FindVertex(Point p) {
-            return VisibilityGraph.FindVertex(p) ?? VisibilityGraph.FindVertex(ApproximateComparer.Round(p));
-            /*  if (r == null) {
+        VisibilityVertex FindVertex(Point p) => VisibilityGraph.FindVertex(p) ?? VisibilityGraph.FindVertex(ApproximateComparer.Round(p));/*  if (r == null) {
                   SplineRouter.ShowVisGraph(this.VisibilityGraph, this.ObstacleHierarchy.GetAllLeaves(), null,
                   new[] { new Ellipse(5, 5, p) });               
               }
               return r;*/
-        }
 
         void Initialize() {
             CreateRoutingGraph();
@@ -497,15 +490,15 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         }
 
         void CalculateCapacitiesOfTrianglulation() {
-            foreach (var e in Gates)
+            foreach (CdtEdge e in Gates)
                 CalculateCdtEdgeCapacityForEdge(e);
         }
 
         static void CalculateCdtEdgeCapacityForEdge(CdtEdge e) {
             if (e.Constrained || e.CwTriangle == null || e.CcwTriangle == null)
                 return; //this is a convex hull edge or an obstacle edge
-            var startPoly = e.upperSite.Owner as Polyline;
-            var endPoly = e.lowerSite.Owner as Polyline;
+            Polyline startPoly = e.upperSite.Owner as Polyline;
+            Polyline endPoly = e.lowerSite.Owner as Polyline;
             if (startPoly != endPoly) {
                 //e.Capacity = Polygon.Distance(new Polygon(startPoly), new Polygon(endPoly)); //todo: cache this
                 //e.Capacity = (e.upperSite.Point - e.lowerSite.Point).Length;
@@ -517,15 +510,15 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         }
 
         void SetVertexTriangles() {
-            var triangleTree =
+            RectangleNode<CdtTriangle> triangleTree =
                 RectangleNode<CdtTriangle>.CreateRectangleNodeOnEnumeration(
                     Cdt.GetTriangles().Select(t => new RectangleNode<CdtTriangle>(t, t.BoundingBox())));
-            var vertexTree =
+            RectangleNode<SdVertex> vertexTree =
                 RectangleNode<SdVertex>.CreateRectangleNodeOnEnumeration(
                     vertexArray.Select(v => new RectangleNode<SdVertex>(v, new Rectangle(v.Point))));
 
             RectangleNodeUtils.CrossRectangleNodes(triangleTree, vertexTree, TryToAssigenTriangleToVertex);
-            foreach (var v in vertexArray) {
+            foreach (SdVertex v in vertexArray) {
                 Debug.Assert(v.Triangle != null);
             }
         }
@@ -538,21 +531,19 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                 vertex.Triangle = triangle;
         }
 
-        internal static double CapacityOverflowPenaltyMultiplier(BundlingSettings bundlingSettings) {
-            return bundlingSettings.CapacityOverflowCoefficient * (bundlingSettings.PathLengthImportance + bundlingSettings.InkImportance);
-        }
+        internal static double CapacityOverflowPenaltyMultiplier(BundlingSettings bundlingSettings) => bundlingSettings.CapacityOverflowCoefficient * (bundlingSettings.PathLengthImportance + bundlingSettings.InkImportance);
 
         /// <summary>
         /// compute cdt edges crossed by paths
         /// </summary>
         internal void FillCrossedCdtEdges(Dictionary<EdgeGeometry, Set<CdtEdge>> crossedCdtEdges) {
-            foreach (var geometryEdge in EdgeGeometries) {
+            foreach (EdgeGeometry geometryEdge in EdgeGeometries) {
                 SetPortVerticesAndObstacles(geometryEdge.SourcePort, true, out sourceLoosePoly);
                 SetPortVerticesAndObstacles(geometryEdge.TargetPort, false, out targetLoosePoly);
 
                 //crossedCdtEdges.Add(geometryEdge, new Set<CdtEdge>());
-                foreach (var boneEdge in EdgesToRoutes[geometryEdge]) {
-                    foreach (var cdtEdge in CrossedCdtEdgesOfBoneEdge(boneEdge)) {
+                foreach (SdBoneEdge boneEdge in EdgesToRoutes[geometryEdge]) {
+                    foreach (CdtEdge cdtEdge in CrossedCdtEdgesOfBoneEdge(boneEdge)) {
                         if (AdjacentToSourceOrTarget(cdtEdge))
                             continue;
                         CollectionUtilities.AddToMap(crossedCdtEdges, geometryEdge, cdtEdge);

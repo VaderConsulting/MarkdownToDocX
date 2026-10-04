@@ -1,6 +1,8 @@
 using System.Text.RegularExpressions;
 
-namespace MermaidRecognition.State;
+using MermaidRecognition.Core;
+
+namespace MermaidRecognition.Kinds.State;
 
 /// <summary>
 /// State diagram L2 recognition (vendored <c>stateDiagram.jison</c>).
@@ -32,8 +34,10 @@ public sealed class StateKindRecognizer : IKindRecognizer
     /// <inheritdoc />
     public DiagramContract Parse(string Source, DiagramDetectionResult Detection)
     {
-        DiagramContract Contract = new DiagramContract();
-        Contract.Kind = Detection.ProgrammeKindId;
+        DiagramContract Contract = new DiagramContract
+        {
+            Kind = Detection.ProgrammeKindId
+        };
         ApplyInit(Source, Contract);
 
         string Body = StripLeadingInitBlocks(Source);
@@ -189,10 +193,12 @@ public sealed class StateKindRecognizer : IKindRecognizer
 
     static void AddStatement(DiagramContract Contract, int LineNumber, string LineTypeId, string RawLine)
     {
-        SourceStatementContract Statement = new SourceStatementContract();
-        Statement.LineNumber = LineNumber;
-        Statement.LineTypeId = LineTypeId;
-        Statement.RawLine = RawLine;
+        SourceStatementContract Statement = new SourceStatementContract
+        {
+            LineNumber = LineNumber,
+            LineTypeId = LineTypeId,
+            RawLine = RawLine
+        };
         Contract.SourceStatementsMutable.Add(Statement);
     }
 

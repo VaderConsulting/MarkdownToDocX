@@ -1,10 +1,12 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+
 using Microsoft.AGL.Core.Geometry;
 using Microsoft.AGL.Core.Geometry.Curves;
+using Microsoft.AGL.Core.Geometry.RTree;
 
 
 namespace Microsoft.AGL.Core.Layout {
@@ -20,7 +22,7 @@ namespace Microsoft.AGL.Core.Layout {
         RTree<IObstacle> labelObstacleMap;
 
         readonly Dictionary<Edge, List<KeyValuePair<double, Point>>> edgePoints =
-            new Dictionary<Edge, List<KeyValuePair<double, Point>>>();
+            [];
 
         /// <summary>
         ///     The default and minimum granularity for breaking up a curve into many points.
@@ -47,9 +49,7 @@ namespace Microsoft.AGL.Core.Layout {
         /// <summary>
         ///     The granularity with which to break up a curve into sub points.
         /// </summary>
-        public int CollisionGranularity {
-            get { return granularity; }
-            set { granularity = value; }
+        public int CollisionGranularity { get => granularity; set => granularity = value;
         }
 
         /// <summary>
@@ -63,9 +63,7 @@ namespace Microsoft.AGL.Core.Layout {
         /// <summary>
         ///     True if label placement should be done using multiple threads.
         /// </summary>
-        public bool ParallelProcessingEnabled {
-            get { return parallelProcessingEnabled; }
-            set { parallelProcessingEnabled = value; }
+        public bool ParallelProcessingEnabled { get => parallelProcessingEnabled; set => parallelProcessingEnabled = value;
         }
 #endif
 
@@ -100,18 +98,18 @@ namespace Microsoft.AGL.Core.Layout {
 
         void InitializeObstacles(IEnumerable<Node> nodes, IEnumerable<Edge> edges) {
             List<Edge> edgeList = edges.ToList();
-            var modifiedGranularity = GetModifiedGranularity(edgeList);
+            int modifiedGranularity = GetModifiedGranularity(edgeList);
 
-            var edgeObstacles = GetEdgeObstacles(edges, modifiedGranularity);
+            List<IObstacle> edgeObstacles = GetEdgeObstacles(edges, modifiedGranularity);
 
-            var edgeObstacleMap =
+            RTree<IObstacle> edgeObstacleMap =
                 new RTree<IObstacle>(edgeObstacles.Select(e => new KeyValuePair<Rectangle, IObstacle>(e.Rectangle, e)));
 
-            var nodeObstacles = new List<IObstacle>();
+            List<IObstacle> nodeObstacles = new List<IObstacle>();
             foreach (Node v in nodes)
                 nodeObstacles.Add(new RectangleObstacle(v.BoundingBox, v));
 
-            var nodeObstacleMap =
+            RTree<IObstacle> nodeObstacleMap =
                 new RTree<IObstacle>(nodeObstacles.Select(n => new KeyValuePair<Rectangle, IObstacle>(n.Rectangle, n)));
             //later we init obstacleMaps[0] to lableObstacleMap
             obstacleMaps[1] = nodeObstacleMap;
@@ -119,11 +117,11 @@ namespace Microsoft.AGL.Core.Layout {
         }
 
         List<IObstacle> GetEdgeObstacles(IEnumerable<Edge> edges, int modifiedGranularity) {
-            var edgeObstacles = new List<IObstacle>();
-            foreach (Edge e in edges) {                
-                var curvePoints = CurvePoints(e.Curve ?? new LineSegment(e.Source.Center, e.Target.Center), modifiedGranularity);
+            List<IObstacle> edgeObstacles = new List<IObstacle>();
+            foreach (Edge e in edges) {
+                List<KeyValuePair<double, Point>> curvePoints = CurvePoints(e.Curve ?? new LineSegment(e.Source.Center, e.Target.Center), modifiedGranularity);
                 edgePoints[e] = curvePoints;
-                foreach (var p in curvePoints)
+                foreach (KeyValuePair<double, Point> p in curvePoints)
                     edgeObstacles.Add(new PortObstacle(p.Value));
 
                 ProgressStep();
@@ -204,7 +202,7 @@ namespace Microsoft.AGL.Core.Layout {
         ///     Places the label at the first position requested.  Ignores all overlaps.
         /// </summary>
         void PlaceLabelAtFirstPosition(Label label) {
-            var edge = (Edge) label.GeometryParent;
+            Edge edge = (Edge) label.GeometryParent;
             ICurve curve = edge.Curve ?? new LineSegment(edge.Source.Center, edge.Target.Center);
 
             List<KeyValuePair<double, Point>> points = edgePoints[edge];
@@ -219,22 +217,20 @@ namespace Microsoft.AGL.Core.Layout {
                 derivative = new Point(1, 1);
             }
 
-            var widthHeight = new Point(label.Width, label.Height);
+            Point widthHeight = new Point(label.Width, label.Height);
             double side = GetPossibleSides(label.Side, derivative).First();
 
             Rectangle bounds = GetLabelBounds(point, derivative, widthHeight, side);
             SetLabelBounds(label, bounds);
         }
 
-        static int StartIndex(Label label, ICollection points) {
-            return Math.Min(points.Count - 1, Math.Max(0, (int) Math.Floor(points.Count*label.PlacementOffset)));
-        }
+        static int StartIndex(Label label, ICollection points) => Math.Min(points.Count - 1, Math.Max(0, (int)Math.Floor(points.Count * label.PlacementOffset)));
 
         static void CalculateCenterNotSure(Label label) {
-            var cen = new Point();
-            foreach (var p in label.InnerPoints)
+            Point cen = new Point();
+            foreach (Point p in label.InnerPoints)
                 cen += p;
-            foreach (var p in label.OuterPoints)
+            foreach (Point p in label.OuterPoints)
                 cen += p;
             label.Center = cen/(label.InnerPoints.Count + label.OuterPoints.Count);
         }
@@ -245,16 +241,16 @@ namespace Microsoft.AGL.Core.Layout {
         /// <returns></returns>
         public bool PlaceEdgeLabelHorizontally(Label label) {
             ValidateArg.IsNotNull(label, "label");
-            var e = (Edge) label.GeometryParent;
+            Edge e = (Edge) label.GeometryParent;
             // approximate label with a rectangle
             // process candidate points for label ordered by priority
             // check candidate point for conflicts - if none then stop and keep placement
             label.InnerPoints = null;
             List<KeyValuePair<double, Point>> curvePoints = edgePoints[e];
-            var wh = new Point(label.Width, label.Height);
+            Point wh = new Point(label.Width, label.Height);
 
             int bestConflictIndex = -1;
-            var bestRectangle = new Rectangle();
+            Rectangle bestRectangle = new Rectangle();
             foreach (int index in ExpandingSearch(StartIndex(label,curvePoints), 0, curvePoints.Count)) {
                 KeyValuePair<double, Point> cp = curvePoints[index];
 
@@ -284,7 +280,7 @@ namespace Microsoft.AGL.Core.Layout {
             if (bestConflictIndex >= 0) {
                 SetLabelBounds(label, bestRectangle);
 
-                var r = new RectangleObstacle(bestRectangle);
+                RectangleObstacle r = new RectangleObstacle(bestRectangle);
                 AddLabelObstacle(r);
 
 #if SHARPKIT //https://code.google.com/p/sharpkit/issues/detail?id=371
@@ -354,8 +350,8 @@ namespace Microsoft.AGL.Core.Layout {
         ///     Sets the label's position to be the given bounds.
         /// </summary>
         static void SetLabelBounds(Label label, Rectangle bounds) {
-            var innerPoints = new List<Point>();
-            var outerPoints = new List<Point>();
+            List<Point> innerPoints = new List<Point>();
+            List<Point> outerPoints = new List<Point>();
 
             innerPoints.Add(new Point(bounds.LeftTop.X, bounds.LeftTop.Y));
             innerPoints.Add(new Point(bounds.RightTop.X, bounds.RightTop.Y));
@@ -480,19 +476,18 @@ namespace Microsoft.AGL.Core.Layout {
             // approximate label with a set of circles
             // generate list of candidate points for label ordered by priority
             // check candidate point for conflicts - if none then stop and keep placement
-            var edge = (Edge) label.GeometryParent;
+            Edge edge = (Edge) label.GeometryParent;
             label.InnerPoints = null;
             List<KeyValuePair<double, Point>> curvePoints = edgePoints[edge];
             const double distanceFromCurve = 3;
             double radius = label.Height/2.0;
-            var wh = new Point(radius, radius);
+            Point wh = new Point(radius, radius);
             double labelLength = label.Width;
             foreach (int index in ExpandingSearch(StartIndex(label,curvePoints), 0, curvePoints.Count)) {
-                double[] sides;
-                var curve = GetSidesAndEdgeCurve(label, edge, curvePoints, index, out sides);
+                ICurve curve = GetSidesAndEdgeCurve(label, edge, curvePoints, index, out double[] sides);
 
                 foreach (double side in sides) {
-                    var placedPoints = new PointSetList();
+                    PointSetList placedPoints = new PointSetList();
                     double coveredLength = 0;
                     ProcessExpandingSearchOnSide(index, curvePoints, curve, side, radius, distanceFromCurve, wh,
                                                  ref coveredLength, placedPoints, labelLength);
@@ -508,8 +503,8 @@ namespace Microsoft.AGL.Core.Layout {
 
         void CaseOfCoveredLengthGreaterThanLabelLength(Label label, PointSetList placedPoints, double coveredLength,
                                                        double labelLength, Point wh) {
-            var innerPoints = new List<Point>();
-            var outerPoints = new List<Point>();
+            List<Point> innerPoints = new List<Point>();
+            List<Point> outerPoints = new List<Point>();
             List<PointSet> orderedPoints = placedPoints.Points.ToList();
             double excess = coveredLength - labelLength;
             if (excess > 0) {
@@ -544,7 +539,7 @@ namespace Microsoft.AGL.Core.Layout {
                 Point center = p.Center;
                 innerPoints.Add(p.Inner);
                 outerPoints.Add(p.Outer);
-                var r = new RectangleObstacle(new Rectangle(center + wh, center - wh));
+                RectangleObstacle r = new RectangleObstacle(new Rectangle(center + wh, center - wh));
                 AddLabelObstacle(r);
             }
         }
@@ -564,7 +559,7 @@ namespace Microsoft.AGL.Core.Layout {
                 Point labelPos = p.Value + (radius + distanceFromCurve)*o;
                 if (!Conflict(labelPos, radius, wh)) {
                     // found a valid candidate position
-                    var ps = new PointSet {
+                    PointSet ps = new PointSet {
                         Key = p.Key,
                         Center = labelPos,
                         Inner = p.Value + distanceFromCurve*o,
@@ -596,16 +591,14 @@ namespace Microsoft.AGL.Core.Layout {
         ///     Determines if the query point intersects with any of the obstacles.
         /// </summary>
         /// <returns>True if the query point itnersects with any of the obstacles.</returns>
-        bool Conflict(Point labelPos, double radius, Point wh) {
-            return ConflictIndex(labelPos, radius, wh) != int.MaxValue;
-        }
+        bool Conflict(Point labelPos, double radius, Point wh) => ConflictIndex(labelPos, radius, wh) != int.MaxValue;
 
         /// <summary>
         ///     Determines the index of the first obstacle map that the point intersects.
         /// </summary>
         /// <returns>The index of the first obstacle map that the point intersects. int.MaxValue if there is no intersection.</returns>
         int ConflictIndex(Point labelPos, double radius, Point wh) {
-            var queryRect = new Rectangle(labelPos - wh, labelPos + wh);
+            Rectangle queryRect = new Rectangle(labelPos - wh, labelPos + wh);
             double r2 = radius*radius;
 
             for (int i = 0; i < obstacleMaps.Length; i++) {
@@ -630,7 +623,7 @@ namespace Microsoft.AGL.Core.Layout {
         /// </summary>
         /// <returns>The index of the first obstacle map that the rectangle intersects. int.MaxValue if there is no intersection.</returns>
         int ConflictIndex(Rectangle queryRect, Label label) {
-            var edge = (Edge) label.GeometryParent;
+            Edge edge = (Edge) label.GeometryParent;
             Node source = edge.Source;
             Node target = edge.Target;
 
@@ -646,12 +639,11 @@ namespace Microsoft.AGL.Core.Layout {
                     if ((LabelPlacementResult) i == LabelPlacementResult.OverlapsNodes) {
 #endif
                         // ...and the node is a cluster...
-                        var rectangleObstacle = obstacle as RectangleObstacle;
-                        if (rectangleObstacle != null) {
-                            var cluster = rectangleObstacle.Data as Cluster;
-
+                        if (obstacle is RectangleObstacle rectangleObstacle)
+                        {
                             // ...and the cluster is a grandparent of the source or target...
-                            if (cluster != null && (source.IsDescendantOf(cluster) || target.IsDescendantOf(cluster))) {
+                            if (rectangleObstacle.Data is Cluster cluster && (source.IsDescendantOf(cluster) || target.IsDescendantOf(cluster)))
+                            {
                                 // ...don't consider the overlap to be a conflict.
                                 continue;
                             }
@@ -694,7 +686,7 @@ namespace Microsoft.AGL.Core.Layout {
         }
 
         static List<KeyValuePair<double, Point>> CurvePoints(ICurve curve, int granularity) {
-            var points = new List<KeyValuePair<double, Point>>();
+            List<KeyValuePair<double, Point>> points = new List<KeyValuePair<double, Point>>();
             double delta = (curve.End - curve.Start).LengthSquared/(granularity*granularity);
             SubdivideCurveSegment(points, curve, delta, curve.ParStart, curve.ParEnd);
 

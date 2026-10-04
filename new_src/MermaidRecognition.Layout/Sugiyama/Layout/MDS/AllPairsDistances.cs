@@ -20,7 +20,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS
         /// <summary>
         /// The resulting distances between every pair of nodes in the graph.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays", Justification="This is performance critical.  Copying the array would be slow.")]
         public double[][] Result { get; private set; }
 
         /// <summary>
@@ -41,7 +40,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS
         /// </summary>
         protected override void RunInternal()
         {
-            this.StartListenToLocalProgress(graph.Nodes.Count);
+            StartListenToLocalProgress(graph.Nodes.Count);
             Result = new double[graph.Nodes.Count][];
             int i = 0;
             foreach (Node source in graph.Nodes)
@@ -52,7 +51,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS
                 Result[i] = distances.Result;
                 ++i;
 
-                this.ProgressStep();  // This checks for cancel too.
+                ProgressStep();  // This checks for cancel too.
             }
         }
 
@@ -82,15 +81,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS
             {
                 return stress;
             }
-            var apd = new AllPairsDistances(graph, false);
+            AllPairsDistances apd = new AllPairsDistances(graph, false);
             apd.Run();
-            var D = apd.Result;
+            double[][] D = apd.Result;
             double l = graph.Edges.Average(e => e.Length);
             int i = 0;
-            foreach (var u in graph.Nodes)
+            foreach (Node u in graph.Nodes)
             {
                 int j = 0;
-                foreach (var v in graph.Nodes)
+                foreach (Node v in graph.Nodes)
                 {
                     if (i != j)
                     {

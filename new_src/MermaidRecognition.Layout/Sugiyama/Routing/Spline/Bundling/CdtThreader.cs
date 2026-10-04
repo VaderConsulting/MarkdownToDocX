@@ -12,10 +12,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         readonly Point end;
         int positiveSign;
         int negativeSign;
-        CdtEdge currentPiercedEdge;
-        internal CdtEdge CurrentPiercedEdge {get { return currentPiercedEdge; } }
+        CdtEdge? currentPiercedEdge;
+        internal CdtEdge? CurrentPiercedEdge => currentPiercedEdge;
         CdtTriangle currentTriangle;
-        internal CdtTriangle CurrentTriangle { get { return currentTriangle; } }
+        internal CdtTriangle CurrentTriangle => currentTriangle;
 
         internal CdtThreader(CdtTriangle startTriangle,Point start,Point end) {
             Debug.Assert(PointLocationForTriangle(start, startTriangle) != PointLocation.Outside);
@@ -35,8 +35,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             Debug.Assert(PointLocationForTriangle(start, currentTriangle) != PointLocation.Outside);
             Debug.Assert(PointLocationForTriangle(end, currentTriangle) == PointLocation.Outside);
 
-            var sign0 = GetHyperplaneSign(currentTriangle.Sites[0]);
-            var sign1 = GetHyperplaneSign(currentTriangle.Sites[1]);
+            int sign0 = GetHyperplaneSign(currentTriangle.Sites[0]);
+            int sign1 = GetHyperplaneSign(currentTriangle.Sites[1]);
             if (sign0 != sign1) {
                 if (Point.GetTriangleOrientation(end, currentTriangle.Sites[0].Point, currentTriangle.Sites[1].Point) == TriangleOrientation.Clockwise) {
                     positiveSign = sign0;
@@ -44,7 +44,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                     return currentTriangle.Edges[0];
                 }
             }
-            var sign2 = GetHyperplaneSign( currentTriangle.Sites[2]);
+            int sign2 = GetHyperplaneSign( currentTriangle.Sites[2]);
             if (sign1 != sign2) {
                 if (Point.GetTriangleOrientation(end, currentTriangle.Sites[1].Point, currentTriangle.Sites[2].Point) == TriangleOrientation.Clockwise) {
                     positiveSign = sign1;
@@ -86,7 +86,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         internal static PointLocation PointLocationForTriangle(Point p, CdtTriangle triangle) {
             bool seenBoundary = false;
             for (int i = 0; i < 3; i++) {
-                var area = Point.SignedDoubledTriangleArea(p, triangle.Sites[i].Point, triangle.Sites[i + 1].Point);
+                double area = Point.SignedDoubledTriangleArea(p, triangle.Sites[i].Point, triangle.Sites[i + 1].Point);
                 if (area < -ApproximateComparer.DistanceEpsilon)
                     return PointLocation.Outside;
                 if (area < ApproximateComparer.DistanceEpsilon)
@@ -125,10 +125,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 currentPiercedEdge = null;
                 return;
             }
-            var i = currentTriangle.Edges.Index(currentPiercedEdge);
+            int i = currentTriangle.Edges.Index(currentPiercedEdge);
             int j; //pierced index
-            var oppositeSite = currentTriangle.Sites[i + 2];
-            var oppositeSiteSign = GetHyperplaneSign(oppositeSite);
+            CdtSite oppositeSite = currentTriangle.Sites[i + 2];
+            int oppositeSiteSign = GetHyperplaneSign(oppositeSite);
             if (negativeSign == 0) {
                 Debug.Assert(positiveSign == 1);
                 if (oppositeSiteSign == -1 || oppositeSiteSign == 0) {
@@ -184,7 +184,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 //        }
 
         internal int GetHyperplaneSign(CdtSite cdtSite) {
-            var area = Point.SignedDoubledTriangleArea(start, cdtSite.Point, end);
+            double area = Point.SignedDoubledTriangleArea(start, cdtSite.Point, end);
             if (area > ApproximateComparer.DistanceEpsilon) return 1;
             if (area < -ApproximateComparer.DistanceEpsilon) return -1;
             return 0;

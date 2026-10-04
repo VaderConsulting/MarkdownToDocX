@@ -1,7 +1,8 @@
 using System.Text.RegularExpressions;
+
 using MermaidRecognition.Contract;
 
-namespace MermaidRecognition.KindRecognition;
+namespace MermaidRecognition.Kinds.LinePattern;
 
 /// <summary>
 /// L1 line patterns derived from vendored Mermaid diagram headers and common body forms.
@@ -14,10 +15,7 @@ public static class KindLinePatternProfiles
     public static LinePatternKindRecognizer CreateDefault(
         string ProgrammeKindId,
         string HeaderRegexPattern,
-        params KindLinePattern[] ExtraPatterns)
-    {
-        return CreateDefault(ProgrammeKindId, HeaderRegexPattern, null, ExtraPatterns);
-    }
+        params KindLinePattern[] ExtraPatterns) => CreateDefault(ProgrammeKindId, HeaderRegexPattern, null, ExtraPatterns);
 
     public static LinePatternKindRecognizer CreateDefault(
         string ProgrammeKindId,
@@ -34,9 +32,11 @@ public static class KindLinePatternProfiles
     /// </summary>
     public static KindLinePattern TitlePattern(string ProgrammeKindId)
     {
-        KindLinePattern Pattern = new KindLinePattern();
-        Pattern.LineTypeId = ProgrammeKindId + ".title";
-        Pattern.Pattern = new Regex(@"^\s*title\s+", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        KindLinePattern Pattern = new KindLinePattern
+        {
+            LineTypeId = ProgrammeKindId + ".title",
+            Pattern = new Regex(@"^\s*title\s+", RegexOptions.IgnoreCase | RegexOptions.Compiled)
+        };
         return Pattern;
     }
 
@@ -45,9 +45,11 @@ public static class KindLinePatternProfiles
     /// </summary>
     public static KindLinePattern AccTitlePattern(string ProgrammeKindId)
     {
-        KindLinePattern Pattern = new KindLinePattern();
-        Pattern.LineTypeId = ProgrammeKindId + ".accTitle";
-        Pattern.Pattern = new Regex(@"^\s*accTitle\s*:", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        KindLinePattern Pattern = new KindLinePattern
+        {
+            LineTypeId = ProgrammeKindId + ".accTitle",
+            Pattern = new Regex(@"^\s*accTitle\s*:", RegexOptions.IgnoreCase | RegexOptions.Compiled)
+        };
         return Pattern;
     }
 
@@ -56,9 +58,11 @@ public static class KindLinePatternProfiles
     /// </summary>
     public static KindLinePattern AccDescrPattern(string ProgrammeKindId)
     {
-        KindLinePattern Pattern = new KindLinePattern();
-        Pattern.LineTypeId = ProgrammeKindId + ".accDescr";
-        Pattern.Pattern = new Regex(@"^\s*accDescr(\s*:|\s*\{)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        KindLinePattern Pattern = new KindLinePattern
+        {
+            LineTypeId = ProgrammeKindId + ".accDescr",
+            Pattern = new Regex(@"^\s*accDescr(\s*:|\s*\{)", RegexOptions.IgnoreCase | RegexOptions.Compiled)
+        };
         return Pattern;
     }
 }

@@ -9,14 +9,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
     /// 
     /// </summary>
     internal class PathMerger{
-        internal PathMerger(IEnumerable<Path> paths){
-            Paths = paths;
-        }
+        internal PathMerger(IEnumerable<Path> paths) => Paths = paths;
 
         internal IEnumerable<Path> Paths { get; set; }
 
         readonly Dictionary<Point, Dictionary<Path, LinkedPoint>> verticesToPathOffsets =
-            new Dictionary<Point, Dictionary<Path, LinkedPoint>>();
+            [];
             
 
         /// <summary>
@@ -24,29 +22,28 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         /// </summary>
         internal void MergePaths(){
             InitVerticesToPathOffsetsAndRemoveSelfCycles();
-            foreach (var path in Paths)
+            foreach (Path path in Paths)
                 ProcessPath(path);
         }
 
         void ProcessPath(Path path) {
-            var departedPaths = new Dictionary<Path, LinkedPoint>();
+            Dictionary<Path, LinkedPoint> departedPaths = new Dictionary<Path, LinkedPoint>();
             Dictionary<Path, LinkedPoint> prevLocationPathOffsets = null;
-            for (var linkedPoint = (LinkedPoint) path.PathPoints; linkedPoint != null; linkedPoint = linkedPoint.Next) {
-                var pathOffsets = verticesToPathOffsets[linkedPoint.Point];
+            for (LinkedPoint linkedPoint = (LinkedPoint) path.PathPoints; linkedPoint != null; linkedPoint = linkedPoint.Next) {
+                Dictionary<Path, LinkedPoint> pathOffsets = verticesToPathOffsets[linkedPoint.Point];
                 if (prevLocationPathOffsets != null) {
                     //handle returning paths
                     if (departedPaths.Count > 0)
-                        foreach (var pair in pathOffsets) {
-                            LinkedPoint departerLinkedPoint;
-                            var path0 = pair.Key;
-                            if (departedPaths.TryGetValue(path0, out departerLinkedPoint)) {//returned!
+                        foreach (KeyValuePair<Path, LinkedPoint> pair in pathOffsets) {
+                            Path path0 = pair.Key;
+                            if (departedPaths.TryGetValue(path0, out LinkedPoint? departerLinkedPoint)) {//returned!
                                 CollapseLoopingPath(path0, departerLinkedPoint, pair.Value, path, linkedPoint);
                                 departedPaths.Remove(path0);
                             }
                         }
 
                     //find departed paths
-                    foreach (var pair in prevLocationPathOffsets.Where(pair => !pathOffsets.ContainsKey(pair.Key)))
+                    foreach (KeyValuePair<Path, LinkedPoint> pair in prevLocationPathOffsets.Where(pair => !pathOffsets.ContainsKey(pair.Key)))
                         departedPaths.Add(pair.Key, pair.Value);
                 }
                 prevLocationPathOffsets = pathOffsets;
@@ -71,7 +68,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
 //        }
 
         void CollapseLoopingPath(Path loopingPath, LinkedPoint departureFromLooping, LinkedPoint arrivalToLooping, Path stemPath, LinkedPoint arrivalToStem){
-            var departurePointOnStem = FindLinkedPointInPath(stemPath, departureFromLooping.Point);
+            LinkedPoint departurePointOnStem = FindLinkedPointInPath(stemPath, departureFromLooping.Point);
             IEnumerable<Point> pointsToInsert = GetPointsInBetween(departurePointOnStem, arrivalToStem);
             if(Before(departureFromLooping, arrivalToLooping)){
                 CleanDisappearedPiece(departureFromLooping, arrivalToLooping, loopingPath);
@@ -84,17 +81,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
 
     
         static IEnumerable<Point> GetPointsInBetween(LinkedPoint a, LinkedPoint b){
-            for(var i=a.Next;i!=b;i=i.Next)
+            for(LinkedPoint i =a.Next;i!=b;i=i.Next)
                 yield return i.Point;
         }
 
         void ReplacePiece(LinkedPoint a, LinkedPoint b, IEnumerable<Point> points, Path loopingPath){
-            var prevPoint = a;
-            foreach (var point in points){
-                var lp = new LinkedPoint(point);
+            LinkedPoint prevPoint = a;
+            foreach (Point point in points){
+                LinkedPoint lp = new LinkedPoint(point);
                 prevPoint.Next = lp;
                 prevPoint = lp;
-                var pathOffset = verticesToPathOffsets[point];
+                Dictionary<Path, LinkedPoint> pathOffset = verticesToPathOffsets[point];
                 Debug.Assert(!pathOffset.ContainsKey(loopingPath));
                 pathOffset[loopingPath] = prevPoint;
             }
@@ -102,8 +99,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         }
 
         void CleanDisappearedPiece(LinkedPoint a, LinkedPoint b, Path loopingPath){
-            foreach (var point in GetPointsInBetween(a, b)) {
-                var pathOffset = verticesToPathOffsets[point];
+            foreach (Point point in GetPointsInBetween(a, b)) {
+                Dictionary<Path, LinkedPoint> pathOffset = verticesToPathOffsets[point];
                 Debug.Assert(pathOffset.ContainsKey(loopingPath));
                 pathOffset.Remove(loopingPath);
             }
@@ -125,23 +122,23 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
 
         static LinkedPoint FindLinkedPointInPath(Path path, Point point) {
             //this function is supposed to always succeed. it will throw a null reference exception otherwise
-            for (var linkedPoint = (LinkedPoint) path.PathPoints;; linkedPoint = linkedPoint.Next)
+            for (LinkedPoint linkedPoint = (LinkedPoint) path.PathPoints;; linkedPoint = linkedPoint.Next)
                 if (linkedPoint.Point == point)
                     return linkedPoint;
         }
 
         void InitVerticesToPathOffsetsAndRemoveSelfCycles(){
-            foreach(var path in Paths){
-                for (var linkedPoint = (LinkedPoint)path.PathPoints; linkedPoint != null; linkedPoint = linkedPoint.Next) {
-                    Dictionary<Path, LinkedPoint> pathOffsets;
-                    if (!verticesToPathOffsets.TryGetValue(linkedPoint.Point, out pathOffsets))
-                        verticesToPathOffsets[linkedPoint.Point] = pathOffsets = new Dictionary<Path, LinkedPoint>();
+            foreach(Path path in Paths){
+                for (LinkedPoint linkedPoint = (LinkedPoint)path.PathPoints; linkedPoint != null; linkedPoint = linkedPoint.Next) {
+                    if (!verticesToPathOffsets.TryGetValue(linkedPoint.Point, out Dictionary<Path, LinkedPoint>? pathOffsets))
+                        verticesToPathOffsets[linkedPoint.Point] = pathOffsets = [];
                     //check for the loop
-                    LinkedPoint loopPoint;
-                    if (pathOffsets.TryGetValue(path, out loopPoint)) {//we have a loop
+                    if (pathOffsets.TryGetValue(path, out LinkedPoint? loopPoint))
+                    {//we have a loop
                         CleanDisappearedPiece(loopPoint, linkedPoint, path);
                         loopPoint.Next = linkedPoint.Next;
-                    } else
+                    }
+                    else
                         pathOffsets[path] = linkedPoint;
                 }
             }

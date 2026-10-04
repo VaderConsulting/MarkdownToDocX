@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 
 namespace MermaidRecognition.Layout;
 
@@ -26,7 +27,7 @@ public static class FlowchartGroupedVertexEdgePathBuilder
         FlowchartDirection Direction,
         out List<(double X, double Y)> LayoutPoints)
     {
-        LayoutPoints = new List<(double X, double Y)>();
+        LayoutPoints = [];
 
         if (Direction != FlowchartDirection.TopToBottom
             && Direction != FlowchartDirection.BottomToTop)

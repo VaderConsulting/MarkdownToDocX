@@ -4,6 +4,7 @@ using System.Linq;
 using MermaidRecognition.Layout.Sugiyama.Core.DataStructures;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves;
+using MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree;
 
 namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
     internal class StaircaseRemover {
@@ -11,7 +12,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
 
         protected RTree<Polyline> HierarchyOfObstacles { get; set; }
         readonly RTree<SegWithIndex> segTree=new RTree<SegWithIndex>();
-        Set<Path> crossedOutPaths = new Set<Path>();
+        Set<Path> crossedOutPaths = [];
 
         StaircaseRemover(List<Path> paths, RectangleNode<Polyline> hierarchyOfObstacles) {
             HierarchyOfObstacles = new RTree<Polyline>(hierarchyOfObstacles);
@@ -20,7 +21,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
 
 
         internal static void RemoveStaircases(List<Path> paths, RectangleNode<Polyline> hierarchyOfObstacles) {
-            var r = new StaircaseRemover(paths, hierarchyOfObstacles);
+            StaircaseRemover r = new StaircaseRemover(paths, hierarchyOfObstacles);
             r.Calculate();
         }
 
@@ -29,15 +30,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             bool success;
             do {
                 success = false;
-                foreach (var path in Paths.Where(p=>!crossedOutPaths.Contains(p)))
+                foreach (Path? path in Paths.Where(p=>!crossedOutPaths.Contains(p)))
                     success |= ProcessPath(path);
             } while (success);
         }
 
         bool ProcessPath(Path path) {
-            var pts = (Point[])path.PathPoints;
-            bool canHaveStaircase;
-            if (ProcessPoints(ref pts, out canHaveStaircase)) {
+            Point[] pts = (Point[])path.PathPoints;
+            if (ProcessPoints(ref pts, out bool canHaveStaircase))
+            {
                 path.PathPoints = pts;
                 return true;
             }
@@ -47,7 +48,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         }
 
         bool ProcessPoints(ref Point[] pts, out bool canHaveStaircase) {
-            var staircaseStart  = FindStaircaseStart(pts, out canHaveStaircase);
+            int staircaseStart  = FindStaircaseStart(pts, out canHaveStaircase);
             if (staircaseStart < 0) return false;
             pts = RemoveStaircase(pts, staircaseStart);
             return true;
@@ -58,17 +59,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             canHaveStaircase = false;
             if (pts.Length < 5) // At least five points make a staircase
                 return -1;
-            var segs = new[] {
+            SegWithIndex[] segs = new[] {
                                  new SegWithIndex(pts, 0), new SegWithIndex(pts, 1), new SegWithIndex(pts, 2),
                                  new SegWithIndex(pts, 3)
                              };
             int segToReplace = 0;
 
             for (int i = 0;;) {
-                bool canHaveStaircaseAtI;
-                if (IsStaircase(pts, i, segs, out canHaveStaircaseAtI)) {
+                if (IsStaircase(pts, i, segs, out bool canHaveStaircaseAtI))
+                {
                     canHaveStaircase = true;
-                    return i;                    
+                    return i;
                 }
                 canHaveStaircase = canHaveStaircase || canHaveStaircaseAtI;
                 i++;
@@ -82,7 +83,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         }
 
         static Point GetFlippedPoint(Point[] pts, int offset) {
-            var horiz = ApproximateComparer.Close(pts[offset].Y, pts[offset + 1].Y);
+            bool horiz = ApproximateComparer.Close(pts[offset].Y, pts[offset + 1].Y);
             return horiz ? new Point(pts[offset + 4].X, pts[offset].Y) : new Point(pts[offset].X, pts[offset + 4].Y);
         }
 
@@ -93,9 +94,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         /// <param name="b"></param>
         /// <param name="segsToIgnore"></param>
         /// <returns></returns>
-        bool Crossing(Point a, Point b, SegWithIndex[] segsToIgnore) {
-            return IsCrossing(new LineSegment(a, b), segTree, segsToIgnore);
-        }
+        bool Crossing(Point a, Point b, SegWithIndex[] segsToIgnore) => IsCrossing(new LineSegment(a, b), segTree, segsToIgnore);
 
         /// <summary>
         /// ignoring crossing at ls.Start
@@ -104,28 +103,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         /// <param name="rTree"></param>
         /// <param name="segsToIgnore"></param>
         /// <returns></returns>
-        static bool IsCrossing(LineSegment ls, RTree<SegWithIndex> rTree, SegWithIndex[] segsToIgnore) {
-            return rTree.GetAllIntersecting(ls.BoundingBox).Where(seg => !segsToIgnore.Contains(seg)).Any();
-        }
+        static bool IsCrossing(LineSegment ls, RTree<SegWithIndex> rTree, SegWithIndex[] segsToIgnore) => rTree.GetAllIntersecting(ls.BoundingBox).Where(seg => !segsToIgnore.Contains(seg)).Any();
 
-        
-        bool IntersectObstacleHierarchy(Point a, Point b, Point c) {
-            return IntersectObstacleHierarchy(new LineSegment(a, b)) ||
+
+        bool IntersectObstacleHierarchy(Point a, Point b, Point c) => IntersectObstacleHierarchy(new LineSegment(a, b)) ||
                    IntersectObstacleHierarchy(new LineSegment(b, c));
-        }
 
-        bool IntersectObstacleHierarchy(LineSegment ls) {
-            return
-                HierarchyOfObstacles.GetAllIntersecting(ls.BoundingBox).Any(
+        bool IntersectObstacleHierarchy(LineSegment ls) => HierarchyOfObstacles.GetAllIntersecting(ls.BoundingBox).Any(
                     poly => Curve.CurveCurveIntersectionOne(ls, poly, false) != null);
-        }
 
         bool IsStaircase(Point[] pts, int offset, SegWithIndex[] segsToIgnore, out bool canHaveStaircaseAtI) {
-            var a = pts[offset];
-            var b = pts[offset + 1];
-            var c = pts[offset + 2];
-            var d = pts[offset + 3];
-            var f = pts[offset + 4];
+            Point a = pts[offset];
+            Point b = pts[offset + 1];
+            Point c = pts[offset + 2];
+            Point d = pts[offset + 3];
+            Point f = pts[offset + 4];
             canHaveStaircaseAtI = false;
             if (CompassVector.DirectionsFromPointToPoint(a, b) != CompassVector.DirectionsFromPointToPoint(c, d) ||
                 CompassVector.DirectionsFromPointToPoint(b, c) != CompassVector.DirectionsFromPointToPoint(d, f))
@@ -141,17 +133,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         Point[] RemoveStaircase(Point[] pts, int staircaseStart) {
             Point a = pts[staircaseStart];
             Point b = pts[staircaseStart + 1];
-            var horiz = Math.Abs(a.Y - b.Y) < ApproximateComparer.DistanceEpsilon/2;
+            bool horiz = Math.Abs(a.Y - b.Y) < ApproximateComparer.DistanceEpsilon/2;
             return RemoveStaircase(pts, staircaseStart, horiz);
 
         }
 
         Point[] RemoveStaircase(Point[] pts, int staircaseStart, bool horiz) {
             RemoveSegs(pts);
-            var ret = new Point[pts.Length - 2];
+            Point[] ret = new Point[pts.Length - 2];
             Array.Copy(pts, ret, staircaseStart + 1);
-            var a = pts[staircaseStart + 1];
-            var c = pts[staircaseStart + 3];
+            Point a = pts[staircaseStart + 1];
+            Point c = pts[staircaseStart + 3];
             ret[staircaseStart + 1] = horiz ? new Point(c.X, a.Y) : new Point(a.X, c.Y);
             Array.Copy(pts, staircaseStart + 4, ret, staircaseStart + 2, ret.Length - staircaseStart - 2);
             InsertNewSegs(ret, staircaseStart);
@@ -163,38 +155,32 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
                 RemoveSeg(new SegWithIndex(pts,i));
         }
 
-        void RemoveSeg(SegWithIndex seg) {
-            segTree.Remove(Rect(seg), seg);
-        }
-        
-       
+        void RemoveSeg(SegWithIndex seg) => segTree.Remove(Rect(seg), seg);
+
+
         void InsertNewSegs(Point[] pts, int staircaseStart) {
             InsSeg(pts, staircaseStart);
             InsSeg(pts, staircaseStart+1);
         }
 
         void InitHierarchies() {
-            foreach (var path in Paths)
+            foreach (Path path in Paths)
                 InsertPathSegs(path);
         }
-       
-        void InsertPathSegs(Path path) {
-            InsertSegs((Point[])path.PathPoints);
-        }
 
-   
+        void InsertPathSegs(Path path) => InsertSegs((Point[])path.PathPoints);
+
+
         void InsertSegs(Point[] pts) {
             for (int i = 0; i < pts.Length - 1; i++)
                 InsSeg(pts, i);
         }
 
         void InsSeg(Point[] pts, int i) {
-            var seg = new SegWithIndex(pts, i);
+            SegWithIndex seg = new SegWithIndex(pts, i);
             segTree.Add(Rect(seg), seg);
         }
 
-        static Rectangle Rect(SegWithIndex seg) {
-            return new Rectangle(seg.Start,seg.End);
-        }
+        static Rectangle Rect(SegWithIndex seg) => new Rectangle(seg.Start, seg.End);
     }
 }

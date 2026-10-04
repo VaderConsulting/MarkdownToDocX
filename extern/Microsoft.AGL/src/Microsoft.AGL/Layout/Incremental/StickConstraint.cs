@@ -11,17 +11,16 @@ namespace Microsoft.AGL.Layout.Incremental {
         /// <summary>
         /// 
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1051:DoNotDeclareVisibleInstanceFields")]
         protected Node u;
+
         /// <summary>
         /// 
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1051:DoNotDeclareVisibleInstanceFields")]
         protected Node v;
+
         /// <summary>
         /// 
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1051:DoNotDeclareVisibleInstanceFields")]
         protected double separation;
 
         /// <summary>
@@ -52,11 +51,11 @@ namespace Microsoft.AGL.Layout.Incremental {
         /// StickConstraints are usually structural and therefore default to level 0
         /// </summary>
         /// <returns>0</returns>
-        public int Level { get { return 0; } }
-        
+        public int Level => 0;
+
         /// <summary>
         /// Get the list of nodes involved in the constraint
         /// </summary>
-        public IEnumerable<Node> Nodes { get { return new Node[]{ u, v }; } }
+        public IEnumerable<Node> Nodes => new Node[] { u, v };
     }
 }

@@ -43,7 +43,7 @@ internal static class Program
 
     private static List<MermaidCompareScenario> BuildR1Scenarios(string RepositoryRoot)
     {
-        List<MermaidCompareScenario> Scenarios = new List<MermaidCompareScenario>();
+        List<MermaidCompareScenario> Scenarios = [];
         string FixtureDirectory = Path.Combine(
             RepositoryRoot,
             "new_src",

@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.RuleValidation.Models;
 
 namespace MermaidRecognition.RuleValidation.Generation;
@@ -52,7 +53,7 @@ public static class FlowchartNeighbourFactsBuilder
                 continue;
             }
 
-            string RelativePosition = ResolveRelativePosition(
+            string? RelativePosition = ResolveRelativePosition(
                 SourceNode.Bounds,
                 TargetNode.Bounds,
                 Direction);
@@ -173,9 +174,7 @@ public static class FlowchartNeighbourFactsBuilder
     private static bool EdgeActualResultIsPrimaryFlow(
         BoundsActualResult SourceBounds,
         BoundsActualResult TargetBounds,
-        FlowchartDirection Direction)
-    {
-        return Direction switch
+        FlowchartDirection Direction) => Direction switch
         {
             FlowchartDirection.TopToBottom => TargetBounds.CentreY >= SourceBounds.CentreY - NEIGHBOUR_TOLERANCE_PX,
             FlowchartDirection.BottomToTop => TargetBounds.CentreY <= SourceBounds.CentreY + NEIGHBOUR_TOLERANCE_PX,
@@ -183,5 +182,4 @@ public static class FlowchartNeighbourFactsBuilder
             FlowchartDirection.RightToLeft => TargetBounds.CentreX <= SourceBounds.CentreX + NEIGHBOUR_TOLERANCE_PX,
             _ => true
         };
-    }
 }

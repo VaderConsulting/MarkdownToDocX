@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+
 using Microsoft.AGL.Core.DataStructures;
 using Microsoft.AGL.Core.Geometry;
+using Microsoft.AGL.Core.Geometry.RTree;
 
-namespace Microsoft.AGL.Prototype.NonOverlappingBoundaries {
+namespace Microsoft.AGL.Miscellaneous.NonOverlappingBoundaries
+{
     /// <summary>
     /// An IHull is used for proximity queries and should implement the Project method which (similar to IConstraint)
     /// should remove overlap between two hulls by moving them as little as possible
@@ -34,27 +37,25 @@ namespace Microsoft.AGL.Prototype.NonOverlappingBoundaries {
     /// Uses Lev's HierarchyCalculatorWithRectangularNodes to do overlap queries
     /// </summary>
     internal class ProximityQuery {
-        internal ProximityQuery(List<IHull> nodeHulls) {
-            hierarchy = RectangleNode<IHull>.CreateRectangleNodeOnEnumeration(GetNodeRects(nodeHulls));
-        }
+        internal ProximityQuery(List<IHull> nodeHulls) => hierarchy = RectangleNode<IHull>.CreateRectangleNodeOnEnumeration(GetNodeRects(nodeHulls));
 
         /// <summary>
         /// Find all overlapping pairs.
         /// </summary>
         /// <returns>List of overlapping pairs</returns>
         internal List<Tuple<IHull, IHull>> GetAllIntersections() {
-            List<Tuple<IHull, IHull>> closePairs = new List<Tuple<IHull, IHull>>();
+            List<Tuple<IHull, IHull>> closePairs = [];
             GetClosePairs(hierarchy, hierarchy, closePairs);
             return closePairs;
         }
         private RectangleNode<IHull> hierarchy;
+
         /// <summary>
         /// Search in the hierarchy for rectangles that intersect with leafNode.
         /// </summary>
         /// <param name="leafNode"></param>
         /// <param name="intersecting"></param>
         /// <param name="internalNode"></param>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         private void GetIntersecting(RectangleNode<IHull> leafNode, RectangleNode<IHull> internalNode, List<IHull> intersecting) {
             Debug.Assert(leafNode.UserData != null);
             if (!leafNode.Rectangle.Intersects(internalNode.Rectangle))
@@ -94,7 +95,7 @@ namespace Microsoft.AGL.Prototype.NonOverlappingBoundaries {
         }
 
         private IEnumerable<RectangleNode<IHull>> GetNodeRects(List<IHull> nodes) {
-            foreach (var v in nodes) {
+            foreach (IHull v in nodes) {
                 yield return v.RectangleNode;
             }
         }

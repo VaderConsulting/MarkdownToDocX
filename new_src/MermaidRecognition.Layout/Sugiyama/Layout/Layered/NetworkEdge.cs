@@ -8,7 +8,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
     /// </summary>
     internal class NetworkEdge : IntEdge {
 
-        internal const int Infinity = Int32.MaxValue;
+        internal const int Infinity = int.MaxValue;
         internal NetworkEdge(IntEdge e)
             : base(e.Source, e.Target) {
             Weight = e.Weight;
@@ -17,9 +17,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         internal bool inTree;
         int cut = Infinity;
 
-        internal int Cut {
-            get { return cut; }
-            set { cut = value; }
+        internal int Cut { get => cut; set => cut = value;
         }
     }
 

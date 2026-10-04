@@ -7,10 +7,11 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using Microsoft.AGL.Core.DataStructures;
+
+using Microsoft.AGL.Core.DataStructures.RBTree;
 using Microsoft.AGL.Core.Geometry;
+
 using RectRout = Microsoft.AGL.Routing.Rectilinear;
-using Microsoft.AGL.Core;
 
 namespace Microsoft.AGL.Routing.Rectilinear {
     /// <summary>
@@ -22,7 +23,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         readonly RbTree<BasicReflectionEvent> eventTree;
         readonly Func<BasicReflectionEvent, bool> findFirstPred;
         readonly ScanDirection scanDirection;
-        readonly List<BasicReflectionEvent> staleSites = new List<BasicReflectionEvent>();
+        readonly List<BasicReflectionEvent> staleSites = [];
         Point findFirstPoint;
 
         internal LookaheadScan(ScanDirection scanDir) {
@@ -40,9 +41,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         // Buffer up the events that are known to be stale - that is, will never queued as events because the
         // event-load intersection is the same as the site.
 
-        internal void MarkStaleSite(BasicReflectionEvent siteEvent) {
-            staleSites.Add(siteEvent);
-        }
+        internal void MarkStaleSite(BasicReflectionEvent siteEvent) => staleSites.Add(siteEvent);
 
         internal void RemoveStaleSites() {
             int cSites = staleSites.Count; // for (;;) is faster than IEnumerator for Lists
@@ -63,13 +62,9 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             RemoveStaleSites();
         }
 
-        internal RBNode<BasicReflectionEvent> Find(Point site) {
-            return FindFirstInRange(site, site);
-        }
+        internal RBNode<BasicReflectionEvent> Find(Point site) => FindFirstInRange(site, site);
 
-        internal bool Remove(BasicReflectionEvent initialSite) {
-            return null != eventTree.Remove(initialSite);
-        }
+        internal bool Remove(BasicReflectionEvent initialSite) => null != eventTree.Remove(initialSite);
 
         internal bool RemoveExact(BasicReflectionEvent initialSite) {
             RBNode<BasicReflectionEvent> node = eventTree.Find(initialSite);
@@ -97,9 +92,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             return null;
         }
 
-        int CompareToFindFirstPoint(Point treeItem) {
-            return Compare(treeItem, findFirstPoint);
-        }
+        int CompareToFindFirstPoint(Point treeItem) => Compare(treeItem, findFirstPoint);
 
         internal RBNode<BasicReflectionEvent> FindNextInRange(RBNode<BasicReflectionEvent> prev, Point high) {
             RBNode<BasicReflectionEvent> nextNode = eventTree.Next(prev);
@@ -125,9 +118,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             return scanDirection.CompareScanCoord(lhs.Site, rhs.Site);
         }
 
-        internal int Compare(Point lhs, Point rhs) {
-            return scanDirection.CompareScanCoord(lhs, rhs);
-        }
+        internal int Compare(Point lhs, Point rhs) => scanDirection.CompareScanCoord(lhs, rhs);
 
         #endregion // IComparer<BasicReflectionEvent>
     }

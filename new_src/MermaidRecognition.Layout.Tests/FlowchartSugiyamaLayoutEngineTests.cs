@@ -1,5 +1,6 @@
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Core;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Render;
 
 namespace MermaidRecognition.Layout.Tests;
@@ -177,8 +178,10 @@ public sealed class FlowchartSugiyamaLayoutEngineTests
     [Test]
     public void TryLayout_Empty_Contract_Returns_False()
     {
-        DiagramContract Contract = new DiagramContract();
-        Contract.Kind = "flowchart";
+        DiagramContract Contract = new DiagramContract
+        {
+            Kind = "flowchart"
+        };
 
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Result), Is.False);
     }

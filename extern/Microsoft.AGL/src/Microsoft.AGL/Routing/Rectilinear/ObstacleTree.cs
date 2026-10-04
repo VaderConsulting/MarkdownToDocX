@@ -14,12 +14,16 @@ using Microsoft.AGL.Core.GraphAlgorithms;
 namespace Microsoft.AGL.Routing.Rectilinear {
     using System;
 
+    using Microsoft.AGL.Core.Geometry;
+    using Microsoft.AGL.Core.Geometry.RTree;
+    using Microsoft.AGL.Core.GraphAlgorithms.CycleRemoval;
+
     internal class ObstacleTree {
         /// <summary>
         /// The root of the hierarchy.
         /// </summary>
         internal RectangleNode<Obstacle> Root { get; private set; }
-        internal Rectangle GraphBox { get { return Root.Rectangle; } }
+        internal Rectangle GraphBox => Root.Rectangle;
 
         /// <summary>
         /// Dictionary of sets of ancestors for each shape, for evaluating necessary group-boundary crossings.
@@ -49,7 +53,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         /// <summary>
         /// For accreting obstacles for clumps or convex hulls.
         /// </summary>
-        private readonly Set<IntPair> overlapPairs = new Set<IntPair>();
+        private readonly Set<IntPair> overlapPairs = [];
 
         /// <summary>
         /// Indicates whether one or more obstacles overlap.
@@ -70,67 +74,67 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         internal void Init(IEnumerable<Obstacle> obstacles, Dictionary<Shape, Set<Shape>> ancestorSets
                         , Dictionary<Shape, Obstacle> idToObstacleMap) {
             CreateObstacleListAndOrdinals(obstacles);
-            this.AncestorSets = ancestorSets;
-            this.CreateRoot();
-            this.shapeIdToObstacleMap = idToObstacleMap;
+            AncestorSets = ancestorSets;
+            CreateRoot();
+            shapeIdToObstacleMap = idToObstacleMap;
         }
 
         private void CreateObstacleListAndOrdinals(IEnumerable<Obstacle> obstacles) {
-            this.allObstacles = obstacles.ToList();
+            allObstacles = obstacles.ToList();
             int scanlineOrdinal = Obstacle.FirstNonSentinelOrdinal;
-            foreach (var obstacle in this.allObstacles) {
+            foreach (Obstacle obstacle in allObstacles) {
                 obstacle.Ordinal = scanlineOrdinal++;
             }
         }
 
         private Obstacle OrdinalToObstacle(int index) {
             Debug.Assert(index >= Obstacle.FirstNonSentinelOrdinal, "index too small");
-            Debug.Assert(index < this.allObstacles.Count + Obstacle.FirstNonSentinelOrdinal, "index too large");
-            return this.allObstacles[index - Obstacle.FirstNonSentinelOrdinal];
+            Debug.Assert(index < allObstacles.Count + Obstacle.FirstNonSentinelOrdinal, "index too large");
+            return allObstacles[index - Obstacle.FirstNonSentinelOrdinal];
         }
 
         /// <summary>
         /// The number of obstacles.
         /// </summary>
-        internal int Count { get { return this.shapeIdToObstacleMap.Count; } }
+        internal int Count => shapeIdToObstacleMap.Count;
 
         /// <summary>
         /// Create the root with overlapping non-rectangular obstacles converted to their convex hulls, for more reliable calculations.
         /// </summary>
         private void CreateRoot() {
-            this.Root = CalculateHierarchy(this.GetAllObstacles());
+            Root = CalculateHierarchy(GetAllObstacles());
             if (!OverlapsExist()) {
                 return;
             }
             AccreteClumps();
             AccreteConvexHulls();
             GrowGroupsToAccommodateOverlaps();
-            this.Root = CalculateHierarchy(this.GetAllObstacles().Where(obs => obs.IsPrimaryObstacle));
+            Root = CalculateHierarchy(GetAllObstacles().Where(obs => obs.IsPrimaryObstacle));
         }
 
         private bool OverlapsExist() {
-            if (this.Root == null) {
+            if (Root == null) {
                 return false;
             }
-            RectangleNodeUtils.CrossRectangleNodes<Obstacle>(this.Root, this.Root, this.CheckForInitialOverlaps);
-            return this.hasOverlaps;
+            RectangleNodeUtils.CrossRectangleNodes<Obstacle>(Root, Root, CheckForInitialOverlaps);
+            return hasOverlaps;
         }
 
         private bool OverlapPairAlreadyFound(Obstacle a, Obstacle b) {
             // If we already found it then we'll have enqueued it in the reverse order.
-            this.lookupIntPair.x = b.Ordinal;
-            this.lookupIntPair.y = a.Ordinal;
-            return this.overlapPairs.Contains(this.lookupIntPair);
+            lookupIntPair.x = b.Ordinal;
+            lookupIntPair.y = a.Ordinal;
+            return overlapPairs.Contains(lookupIntPair);
         }
 
         private void CheckForInitialOverlaps(Obstacle a, Obstacle b) {
-            if (this.hasOverlaps) {
+            if (hasOverlaps) {
                 return;
             }
 
-            bool aIsInsideB, bIsInsideA;
-            if (ObstaclesIntersect(a, b, out aIsInsideB, out bIsInsideA)) {
-                this.hasOverlaps = true;
+            if (ObstaclesIntersect(a, b, out bool aIsInsideB, out bool bIsInsideA))
+            {
+                hasOverlaps = true;
                 return;
             }
             if (!aIsInsideB && !bIsInsideA) {
@@ -145,75 +149,75 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             if ((a.IsGroup && bIsInsideA) || (b.IsGroup && aIsInsideB)) {
                 return;
             }
-            this.hasOverlaps = true;
+            hasOverlaps = true;
         }
 
         private void AccreteClumps() {
             // Clumps are only created once.  After that, as the result of convex hull creation, we may
             // overlap an obstacle of a clump, in which case we enclose the clump in the convex hull as well.
             // We only allow clumps of rectangular obstacles, to avoid angled sides in the scanline.
-            this.AccumulateObstaclesForClumps();
-            if (this.overlapPairs.Count == 0) {
+            AccumulateObstaclesForClumps();
+            if (overlapPairs.Count == 0) {
                 return;
             }
-            this.CreateClumps();
+            CreateClumps();
         }
 
         private void AccreteConvexHulls() {
             // Convex-hull creation is transitive, because the created hull may overlap additional obstacles.
             for (; ; ) {
-                this.AccumulateObstaclesForConvexHulls();
-                if (!this.CreateConvexHulls()) {
+                AccumulateObstaclesForConvexHulls();
+                if (!CreateConvexHulls()) {
                     return;
                 }
             }
         }
 
         internal static RectangleNode<Obstacle> CalculateHierarchy(IEnumerable<Obstacle> obstacles) {
-            var rectNodes = obstacles.Select(obs => new RectangleNode<Obstacle>(obs, obs.VisibilityBoundingBox)).ToList();
+            List<RectangleNode<Obstacle>> rectNodes = obstacles.Select(obs => new RectangleNode<Obstacle>(obs, obs.VisibilityBoundingBox)).ToList();
             return RectangleNode<Obstacle>.CreateRectangleNodeOnListOfNodes(rectNodes);
         }
 
         private void AccumulateObstaclesForClumps() {
-            this.overlapPairs.Clear();
-            var rectangularObstacles = CalculateHierarchy(this.GetAllObstacles().Where(obs => !obs.IsGroup && obs.IsRectangle));
+            overlapPairs.Clear();
+            RectangleNode<Obstacle> rectangularObstacles = CalculateHierarchy(GetAllObstacles().Where(obs => !obs.IsGroup && obs.IsRectangle));
             if (rectangularObstacles == null) {
                 return;
             }
-            RectangleNodeUtils.CrossRectangleNodes<Obstacle>(rectangularObstacles, rectangularObstacles, this.EvaluateOverlappedPairForClump);
+            RectangleNodeUtils.CrossRectangleNodes<Obstacle>(rectangularObstacles, rectangularObstacles, EvaluateOverlappedPairForClump);
         }
 
         private void EvaluateOverlappedPairForClump(Obstacle a, Obstacle b) {
             Debug.Assert(!a.IsGroup && !b.IsGroup, "Groups should not come here");
             Debug.Assert(a.IsRectangle && b.IsRectangle, "Only rectangles should come here");
-            if ((a == b) || this.OverlapPairAlreadyFound(a, b)) {
+            if ((a == b) || OverlapPairAlreadyFound(a, b)) {
                 return;
             }
 
-            bool aIsInsideB, bIsInsideA;
-            if (!ObstaclesIntersect(a, b, out aIsInsideB, out bIsInsideA) && !aIsInsideB && !bIsInsideA) {
+            if (!ObstaclesIntersect(a, b, out bool aIsInsideB, out bool bIsInsideA) && !aIsInsideB && !bIsInsideA)
+            {
                 return;
             }
-            this.overlapPairs.Insert(new IntPair(a.Ordinal, b.Ordinal));
+            overlapPairs.Insert(new IntPair(a.Ordinal, b.Ordinal));
         }
 
         private void AccumulateObstaclesForConvexHulls() {
-            this.overlapPairs.Clear();
-            var allPrimaryNonGroupObstacles = CalculateHierarchy(this.GetAllObstacles().Where(obs => obs.IsPrimaryObstacle && !obs.IsGroup));
+            overlapPairs.Clear();
+            RectangleNode<Obstacle> allPrimaryNonGroupObstacles = CalculateHierarchy(GetAllObstacles().Where(obs => obs.IsPrimaryObstacle && !obs.IsGroup));
             if (allPrimaryNonGroupObstacles == null) {
                 return;
             }
-            RectangleNodeUtils.CrossRectangleNodes<Obstacle>(allPrimaryNonGroupObstacles, allPrimaryNonGroupObstacles, this.EvaluateOverlappedPairForConvexHull);
+            RectangleNodeUtils.CrossRectangleNodes<Obstacle>(allPrimaryNonGroupObstacles, allPrimaryNonGroupObstacles, EvaluateOverlappedPairForConvexHull);
         }
 
         private void EvaluateOverlappedPairForConvexHull(Obstacle a, Obstacle b) {
             Debug.Assert(!a.IsGroup && !b.IsGroup, "Groups should not come here");
-            if ((a == b) || this.OverlapPairAlreadyFound(a, b)) {
+            if ((a == b) || OverlapPairAlreadyFound(a, b)) {
                 return;
             }
 
-            bool aIsInsideB, bIsInsideA;
-            if (!ObstaclesIntersect(a, b, out aIsInsideB, out bIsInsideA) && !aIsInsideB && !bIsInsideA) {
+            if (!ObstaclesIntersect(a, b, out bool aIsInsideB, out bool bIsInsideA) && !aIsInsideB && !bIsInsideA)
+            {
                 return;
             }
 
@@ -225,7 +229,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                 }
             }
 
-            this.overlapPairs.Insert(new IntPair(a.Ordinal, b.Ordinal));
+            overlapPairs.Insert(new IntPair(a.Ordinal, b.Ordinal));
             AddClumpToConvexHull(a);
             AddClumpToConvexHull(b);
             AddConvexHullToConvexHull(a);
@@ -235,30 +239,29 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         void GrowGroupsToAccommodateOverlaps() {
             // Group growth is transitive, because the created hull may overlap additional obstacles.
             for (; ; ) {
-                this.AccumulateObstaclesForGroupOverlaps();
-                if (!this.GrowGroupsToResolveOverlaps()) {
+                AccumulateObstaclesForGroupOverlaps();
+                if (!GrowGroupsToResolveOverlaps()) {
                     return;
                 }
             }
         }
 
         private void AccumulateObstaclesForGroupOverlaps() {
-            var groupObstacles = CalculateHierarchy(this.GetAllObstacles().Where(obs => obs.IsGroup));
-            var allPrimaryObstacles = CalculateHierarchy(this.GetAllObstacles().Where(obs => obs.IsPrimaryObstacle));
+            RectangleNode<Obstacle> groupObstacles = CalculateHierarchy(GetAllObstacles().Where(obs => obs.IsGroup));
+            RectangleNode<Obstacle> allPrimaryObstacles = CalculateHierarchy(GetAllObstacles().Where(obs => obs.IsPrimaryObstacle));
             if ((groupObstacles == null) || (allPrimaryObstacles == null)) {
                 return;
             }
-            RectangleNodeUtils.CrossRectangleNodes<Obstacle>(groupObstacles, allPrimaryObstacles, this.EvaluateOverlappedPairForGroup);
+            RectangleNodeUtils.CrossRectangleNodes<Obstacle>(groupObstacles, allPrimaryObstacles, EvaluateOverlappedPairForGroup);
         }
 
         private void EvaluateOverlappedPairForGroup(Obstacle a, Obstacle b) {
             Debug.Assert(a.IsGroup, "Inconsistency in overlapping group enumeration");
-            if ((a == b) || this.OverlapPairAlreadyFound(a, b)) {
+            if ((a == b) || OverlapPairAlreadyFound(a, b)) {
                 return;
             }
 
-            bool aIsInsideB, bIsInsideA;
-            var curvesIntersect = ObstaclesIntersect(a, b, out aIsInsideB, out bIsInsideA);
+            bool curvesIntersect = ObstaclesIntersect(a, b, out bool aIsInsideB, out bool bIsInsideA);
             if (!curvesIntersect && !aIsInsideB && !bIsInsideA) {
                 return;
             }
@@ -284,21 +287,17 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                     return;
                 }
             }
-            this.overlapPairs.Insert(new IntPair(a.Ordinal, b.Ordinal));
+            overlapPairs.Insert(new IntPair(a.Ordinal, b.Ordinal));
         }
 
-        private static bool FirstRectangleContainsACornerOfTheOther(Rectangle a, Rectangle b) {
-            return a.Contains(b.LeftBottom) || a.Contains(b.LeftTop) || a.Contains(b.RightTop) || a.Contains(b.RightBottom);
-        }
+        private static bool FirstRectangleContainsACornerOfTheOther(Rectangle a, Rectangle b) => a.Contains(b.LeftBottom) || a.Contains(b.LeftTop) || a.Contains(b.RightTop) || a.Contains(b.RightBottom);
 
-        private static bool FirstPolylineStartIsInsideSecondPolyline(Polyline first, Polyline second) {
-            return Curve.PointRelativeToCurveLocation(first.Start, second) != PointLocation.Outside;
-        }
+        private static bool FirstPolylineStartIsInsideSecondPolyline(Polyline first, Polyline second) => Curve.PointRelativeToCurveLocation(first.Start, second) != PointLocation.Outside;
 
         private void AddClumpToConvexHull(Obstacle obstacle) {
             if (obstacle.IsOverlapped) {
-                foreach (var sibling in obstacle.Clump.Where(sib => sib.Ordinal != obstacle.Ordinal)) {
-                    this.overlapPairs.Insert(new IntPair(obstacle.Ordinal, sibling.Ordinal));
+                foreach (Obstacle sibling in obstacle.Clump.Where(sib => sib.Ordinal != obstacle.Ordinal)) {
+                    overlapPairs.Insert(new IntPair(obstacle.Ordinal, sibling.Ordinal));
                 }
 
                 // Clear this now so any overlaps with other obstacles in the clump won't doubly insert.
@@ -308,8 +307,8 @@ namespace Microsoft.AGL.Routing.Rectilinear {
 
         private void AddConvexHullToConvexHull(Obstacle obstacle) {
             if (obstacle.IsInConvexHull) {
-                foreach (var sibling in obstacle.ConvexHull.Obstacles.Where(sib => sib.Ordinal != obstacle.Ordinal)) {
-                    this.overlapPairs.Insert(new IntPair(obstacle.Ordinal, sibling.Ordinal));
+                foreach (Obstacle sibling in obstacle.ConvexHull.Obstacles.Where(sib => sib.Ordinal != obstacle.Ordinal)) {
+                    overlapPairs.Insert(new IntPair(obstacle.Ordinal, sibling.Ordinal));
                 }
 
                 // Clear this now so any overlaps with other obstacles in the ConvexHull won't doubly insert.
@@ -318,34 +317,34 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         }
 
         private void CreateClumps() {
-            var graph = new BasicGraph<IntPair>(this.overlapPairs);
-            var connectedComponents = ConnectedComponentCalculator<IntPair>.GetComponents(graph);
-            foreach (var component in connectedComponents) {
+            BasicGraph<IntPair> graph = new BasicGraph<IntPair>(overlapPairs);
+            IEnumerable<IEnumerable<int>> connectedComponents = ConnectedComponentCalculator<IntPair>.GetComponents(graph);
+            foreach (IEnumerable<int> component in connectedComponents) {
                 // GetComponents returns at least one self-entry for each index - including the < FirstNonSentinelOrdinal ones.
                 if (component.Count() == 1) {
                     continue;
                 }
-                var clump = new Clump(component.Select(this.OrdinalToObstacle));
-                foreach (var obstacle in clump) {
+                Clump clump = new Clump(component.Select(OrdinalToObstacle));
+                foreach (Obstacle obstacle in clump) {
                     obstacle.Clump = clump;
                 }
             }
         }
 
         private bool CreateConvexHulls() {
-            var found = false;
-            var graph = new BasicGraph<IntPair>(this.overlapPairs);
-            var connectedComponents = ConnectedComponentCalculator<IntPair>.GetComponents(graph);
-            foreach (var component in connectedComponents) {
+            bool found = false;
+            BasicGraph<IntPair> graph = new BasicGraph<IntPair>(overlapPairs);
+            IEnumerable<IEnumerable<int>> connectedComponents = ConnectedComponentCalculator<IntPair>.GetComponents(graph);
+            foreach (IEnumerable<int> component in connectedComponents) {
                 // GetComponents returns at least one self-entry for each index - including the < FirstNonSentinelOrdinal ones.
                 if (component.Count() == 1) {
                     continue;
                 }
                 found = true;
-                var obstacles = component.Select(this.OrdinalToObstacle);
-                var points = obstacles.SelectMany(obs => obs.VisibilityPolyline);
-                var och = new OverlapConvexHull(ConvexHull.CreateConvexHullAsClosedPolyline(points), obstacles);
-                foreach (var obstacle in obstacles) {
+                IEnumerable<Obstacle> obstacles = component.Select(OrdinalToObstacle);
+                IEnumerable<Point> points = obstacles.SelectMany(obs => obs.VisibilityPolyline);
+                OverlapConvexHull och = new OverlapConvexHull(ConvexHull.CreateConvexHullAsClosedPolyline(points), obstacles);
+                foreach (Obstacle obstacle in obstacles) {
                     obstacle.SetConvexHull(och);
                 }
             }
@@ -354,16 +353,16 @@ namespace Microsoft.AGL.Routing.Rectilinear {
 
         private bool GrowGroupsToResolveOverlaps() {
             // This is one-at-a-time so not terribly efficient but there should be a very small number of such overlaps, if any.
-            var found = false;
-            foreach (var pair in this.overlapPairs) {
+            bool found = false;
+            foreach (IntPair pair in overlapPairs) {
                 found = true;
-                var a = this.OrdinalToObstacle(pair.First);
-                var b = this.OrdinalToObstacle(pair.Second);
+                Obstacle a = OrdinalToObstacle(pair.First);
+                Obstacle b = OrdinalToObstacle(pair.Second);
                 if (!ResolveGroupAndGroupOverlap(a, b)) {
                     ResolveGroupAndObstacleOverlap(a, b);
                 }
             }
-            this.overlapPairs.Clear();
+            overlapPairs.Clear();
             return found;
         }
 
@@ -383,12 +382,12 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         private static void ResolveGroupAndObstacleOverlap(Obstacle group, Obstacle obstacle) {
             // Create a convex hull for the group which goes outside the obstacle (which may also be a group).
             // It must go outside the obstacle so we don't have coinciding angled sides in the scanline.
-            var loosePolyline = obstacle.LooseVisibilityPolyline;
+            Polyline loosePolyline = obstacle.LooseVisibilityPolyline;
             GrowGroupAroundLoosePolyline(group, loosePolyline);
 
             // Due to rounding we may still report this to be close or intersecting; grow it again if so.
-            bool aIsInsideB, bIsInsideA;
-            while (ObstaclesIntersect(obstacle, group, out aIsInsideB, out bIsInsideA) || !aIsInsideB) {
+            while (ObstaclesIntersect(obstacle, group, out bool aIsInsideB, out bool bIsInsideA) || !aIsInsideB)
+            {
                 loosePolyline = Obstacle.CreateLoosePolyline(loosePolyline);
                 GrowGroupAroundLoosePolyline(group, loosePolyline);
             }
@@ -396,7 +395,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         }
 
         private static void GrowGroupAroundLoosePolyline(Obstacle group, Polyline loosePolyline) {
-            var points = group.VisibilityPolyline.Select(p => p).Concat(loosePolyline.Select(p => p));
+            IEnumerable<Point> points = group.VisibilityPolyline.Select(p => p).Concat(loosePolyline.Select(p => p));
             group.SetConvexHull(new OverlapConvexHull(ConvexHull.CreateConvexHullAsClosedPolyline(points), new[] { group }));
         }
 
@@ -430,11 +429,11 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             }
 
             // Otherwise see if the inner one is close enough to the outer border to consider them touching.
-            var innerLoosePolyline = aIsInsideB ? a.LooseVisibilityPolyline : b.LooseVisibilityPolyline;
-            var outerPolyline = aIsInsideB ? b.VisibilityPolyline : a.VisibilityPolyline;
+            Polyline innerLoosePolyline = aIsInsideB ? a.LooseVisibilityPolyline : b.LooseVisibilityPolyline;
+            Polyline outerPolyline = aIsInsideB ? b.VisibilityPolyline : a.VisibilityPolyline;
             foreach (Point innerPoint in innerLoosePolyline) {
                 if (Curve.PointRelativeToCurveLocation(innerPoint, outerPolyline) == PointLocation.Outside) {
-                    var outerParamPoint = Curve.ClosestPoint(outerPolyline, innerPoint);
+                    Point outerParamPoint = Curve.ClosestPoint(outerPolyline, innerPoint);
                     if (!ApproximateComparer.CloseIntersections(innerPoint, outerParamPoint)) {
                         return true;
                     }
@@ -448,20 +447,20 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         /// able to cross their boundaries if we're routing between obstacles on different sides of them.
         /// </summary>
         internal bool AdjustSpatialAncestors() {
-            if (this.SpatialAncestorsAdjusted) {
+            if (SpatialAncestorsAdjusted) {
                 return false;
             }
 
             // Add each group to the AncestorSet of any spatial children (duplicate Insert() is ignored).
-            foreach (var group in GetAllGroups()) {
-                var groupBox = group.VisibilityBoundingBox;
+            foreach (Obstacle group in GetAllGroups()) {
+                Rectangle groupBox = group.VisibilityBoundingBox;
 
-                foreach (var obstacle in Root.GetNodeItemsIntersectingRectangle(groupBox)) {
+                foreach (Obstacle obstacle in Root.GetNodeItemsIntersectingRectangle(groupBox)) {
                     if ((obstacle != group) && Curve.ClosedCurveInteriorsIntersect(obstacle.VisibilityPolyline, group.VisibilityPolyline)) {
                         if (obstacle.IsInConvexHull) 
                         {
                             Debug.Assert(obstacle.IsPrimaryObstacle, "Only primary obstacles should be in the hierarchy");
-                            foreach (var sibling in obstacle.ConvexHull.Obstacles) 
+                            foreach (Obstacle sibling in obstacle.ConvexHull.Obstacles) 
                             {
                                 AncestorSets[sibling.InputShape].Insert(group.InputShape);
                             }
@@ -476,25 +475,23 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             // crossing the boundary the first time and will always go to the full "activate all groups" path.  By
             // removing them here we not only get a better graph (avoiding some spurious crossings) but we're faster
             // both in path generation and Nudging.
-            var nonSpatialGroups = new List<Shape>();
-            foreach (var child in Root.GetAllLeaves()) {
-                var childBox = child.VisibilityBoundingBox;
+            List<Shape> nonSpatialGroups = new List<Shape>();
+            foreach (Obstacle child in Root.GetAllLeaves()) {
+                Rectangle childBox = child.VisibilityBoundingBox;
 
                 // This has to be two steps because we can't modify the Set during enumeration.
-                nonSpatialGroups.AddRange(AncestorSets[child.InputShape].Where(anc => !childBox.Intersects(this.shapeIdToObstacleMap[anc].VisibilityBoundingBox)));
-                foreach (var group in nonSpatialGroups) {
+                nonSpatialGroups.AddRange(AncestorSets[child.InputShape].Where(anc => !childBox.Intersects(shapeIdToObstacleMap[anc].VisibilityBoundingBox)));
+                foreach (Shape group in nonSpatialGroups) {
                     AncestorSets[child.InputShape].Remove(group);
                 }
                 nonSpatialGroups.Clear();
             }
 
-            this.SpatialAncestorsAdjusted = true;
+            SpatialAncestorsAdjusted = true;
             return true;
         }
 
-        internal IEnumerable<Obstacle> GetAllGroups() {
-            return GetAllObstacles().Where(obs => obs.IsGroup);
-        } 
+        internal IEnumerable<Obstacle> GetAllGroups() => GetAllObstacles().Where(obs => obs.IsGroup);
 
         /// <summary>
         /// Clear the internal state.
@@ -508,34 +505,30 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         /// Create a LineSegment that contains the max visibility from startPoint in the desired direction.
         /// </summary>
         internal LineSegment CreateMaxVisibilitySegment(Point startPoint, Directions dir, out PointAndCrossingsList pacList) {
-            var graphBoxBorderIntersect = StaticGraphUtility.RectangleBorderIntersect(this.GraphBox, startPoint, dir);
+            Point graphBoxBorderIntersect = StaticGraphUtility.RectangleBorderIntersect(GraphBox, startPoint, dir);
             if (PointComparer.GetDirections(startPoint, graphBoxBorderIntersect) == Directions. None) {
                 pacList = null;
                 return new LineSegment(startPoint, startPoint);
             }
-            var segment = this.RestrictSegmentWithObstacles(startPoint, graphBoxBorderIntersect);
+            LineSegment segment = RestrictSegmentWithObstacles(startPoint, graphBoxBorderIntersect);
 
             // Store this off before other operations which overwrite it.
-            pacList = this.CurrentGroupBoundaryCrossingMap.GetOrderedListBetween(segment.Start, segment.End);
+            pacList = CurrentGroupBoundaryCrossingMap.GetOrderedListBetween(segment.Start, segment.End);
             return segment;
         }
 
-        
+
         /// <summary>
         /// Convenience functions that call through to RectangleNode.
         /// </summary>
         /// <returns></returns>
-        internal IEnumerable<Obstacle> GetAllObstacles() {
-            return this.allObstacles;
-        }
+        internal IEnumerable<Obstacle> GetAllObstacles() => allObstacles;
 
         /// <summary>
         /// Returns a list of all primary obstacles - secondary obstacles inside a convex hull are not needed in the VisibilityGraphGenerator.
         /// </summary>
         /// <returns></returns>
-        internal IEnumerable<Obstacle> GetAllPrimaryObstacles() {
-            return this.Root.GetAllLeaves();
-        }
+        internal IEnumerable<Obstacle> GetAllPrimaryObstacles() => Root.GetAllLeaves();
 
         // Hit-testing.
         internal bool IntersectionIsInsideAnotherObstacle(Obstacle sideObstacle, Obstacle eventObstacle, Point intersect, ScanDirection scanDirection) {
@@ -546,9 +539,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             return (null != obstacleNode);
         }
 
-        internal bool PointIsInsideAnObstacle(Point intersect, Directions direction) {
-            return PointIsInsideAnObstacle(intersect, ScanDirection.GetInstance(direction));
-        }
+        internal bool PointIsInsideAnObstacle(Point intersect, Directions direction) => PointIsInsideAnObstacle(intersect, ScanDirection.GetInstance(direction));
 
         internal bool PointIsInsideAnObstacle(Point intersect, ScanDirection scanDirection) {
             insideHitTestIgnoreObstacle1 = null;
@@ -589,7 +580,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             Point low = StaticGraphUtility.RectangleBorderIntersect(obstacle.VisibilityBoundingBox, location
                                 , insideHitTestScanDirection.OppositeDirection)
                         - insideHitTestScanDirection.DirectionAsPoint;
-            var testSeg = new LineSegment(low, high);
+            LineSegment testSeg = new LineSegment(low, high);
             IList<IntersectionInfo> xxs = Curve.GetAllIntersections(testSeg, obstacle.VisibilityPolyline, true /*liftIntersections*/);
 
             // If this is an extreme point it can have one intersection, in which case we're either on the border
@@ -697,11 +688,11 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         private void LookForCloserNonGroupIntersectionToRestrictRay(IList<IntersectionInfo> intersections) {
             int numberOfGoodIntersections = 0;
             IntersectionInfo closestIntersectionInfo = null;
-            var localLeastDistSquared = this.restrictedRayLengthSquared;
-            var testDirection = PointComparer.GetDirections(restrictedIntersectionTestSegment.Start, restrictedIntersectionTestSegment.End);
-            foreach (var intersectionInfo in intersections) {
-                var intersect = SpliceUtility.RawIntersection(intersectionInfo, currentRestrictedRay.Start);
-                var dirToIntersect = PointComparer.GetDirections(currentRestrictedRay.Start, intersect);
+            double localLeastDistSquared = restrictedRayLengthSquared;
+            Directions testDirection = PointComparer.GetDirections(restrictedIntersectionTestSegment.Start, restrictedIntersectionTestSegment.End);
+            foreach (IntersectionInfo intersectionInfo in intersections) {
+                Point intersect = SpliceUtility.RawIntersection(intersectionInfo, currentRestrictedRay.Start);
+                Directions dirToIntersect = PointComparer.GetDirections(currentRestrictedRay.Start, intersect);
 
                 if (dirToIntersect == CompassVector.OppositeDir(testDirection)) {
                     continue;
@@ -714,11 +705,11 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                     continue;
                 }
 
-                var distSquared = (intersect - currentRestrictedRay.Start).LengthSquared;
+                double distSquared = (intersect - currentRestrictedRay.Start).LengthSquared;
                 if (distSquared < localLeastDistSquared) {
                     // Rounding may falsely report two intersections as different when they are actually "Close",
                     // e.g. a horizontal vs. vertical intersection on a slanted edge.
-                    var rawDistSquared = (intersectionInfo.IntersectionPoint - currentRestrictedRay.Start).LengthSquared;
+                    double rawDistSquared = (intersectionInfo.IntersectionPoint - currentRestrictedRay.Start).LengthSquared;
                     if (rawDistSquared < ApproximateComparer.SquareOfDistanceEpsilon) {
                         continue;
                     } 
@@ -731,13 +722,13 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                 // If there was only one intersection and it is quite close to an end, ignore it.
                 // If there is more than one intersection, we have crossed the obstacle so we want it.
                 if (numberOfGoodIntersections == 1) {
-                    var intersect = SpliceUtility.RawIntersection(closestIntersectionInfo, currentRestrictedRay.Start);
-                    if (ApproximateComparer.CloseIntersections(intersect, this.currentRestrictedRay.Start) ||
-                            ApproximateComparer.CloseIntersections(intersect, this.currentRestrictedRay.End)) {
+                    Point intersect = SpliceUtility.RawIntersection(closestIntersectionInfo, currentRestrictedRay.Start);
+                    if (ApproximateComparer.CloseIntersections(intersect, currentRestrictedRay.Start) ||
+                            ApproximateComparer.CloseIntersections(intersect, currentRestrictedRay.End)) {
                         return;
                     }
                 }
-                this.restrictedRayLengthSquared = localLeastDistSquared;
+                restrictedRayLengthSquared = localLeastDistSquared;
                 currentRestrictedRay.End = SpliceUtility.MungeClosestIntersectionInfo(currentRestrictedRay.Start, closestIntersectionInfo
                                                    , !StaticGraphUtility.IsVertical(currentRestrictedRay.Start, currentRestrictedRay.End));
             }
@@ -745,23 +736,23 @@ namespace Microsoft.AGL.Routing.Rectilinear {
 
         private void AddGroupIntersectionsToRestrictedRay(Obstacle obstacle, IList<IntersectionInfo> intersections) {
             // We'll let the lines punch through any intersections with groups, but track the location so we can enable/disable crossing.
-            foreach (var intersectionInfo in intersections) {
-                var intersect = SpliceUtility.RawIntersection(intersectionInfo, currentRestrictedRay.Start);
+            foreach (IntersectionInfo intersectionInfo in intersections) {
+                Point intersect = SpliceUtility.RawIntersection(intersectionInfo, currentRestrictedRay.Start);
 
                 // Skip intersections that are past the end of the restricted segment (though there may still be some
                 // there if we shorten it later, but we'll skip them later).
-                var distSquared = (intersect - currentRestrictedRay.Start).LengthSquared;
+                double distSquared = (intersect - currentRestrictedRay.Start).LengthSquared;
                 if (distSquared > restrictedRayLengthSquared) {
                     continue;
                 }
 
-                var dirTowardIntersect = PointComparer.GetPureDirection(currentRestrictedRay.Start, currentRestrictedRay.End);
-                var polyline = (Polyline)intersectionInfo.Segment1; // this is the second arg to GetAllIntersections
-                var dirsOfSide = CompassVector.VectorDirection(polyline.Derivative(intersectionInfo.Par1));
+                Directions dirTowardIntersect = PointComparer.GetPureDirection(currentRestrictedRay.Start, currentRestrictedRay.End);
+                Polyline polyline = (Polyline)intersectionInfo.Segment1; // this is the second arg to GetAllIntersections
+                Directions dirsOfSide = CompassVector.VectorDirection(polyline.Derivative(intersectionInfo.Par1));
 
                 // The derivative is always clockwise, so if the side contains the rightward rotation of the
                 // direction from the ray origin, then we're hitting it from the inside; otherwise from the outside.
-                var dirToInsideOfGroup = dirTowardIntersect;
+                Directions dirToInsideOfGroup = dirTowardIntersect;
                 if (0 != (dirsOfSide & CompassVector.RotateRight(dirTowardIntersect))) {
                     dirToInsideOfGroup = CompassVector.OppositeDir(dirToInsideOfGroup);
                 }

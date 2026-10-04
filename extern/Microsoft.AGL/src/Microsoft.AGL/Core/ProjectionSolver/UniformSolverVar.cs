@@ -9,9 +9,11 @@ namespace Microsoft.AGL.Core.ProjectionSolver{
 
         internal double Width { get; set; }
 
-        internal double Position{
-            get { return position; }
-            set {
+        internal double Position
+        {
+            get => position;
+            set
+            {
                 if (value < lowBound)
                     position = lowBound;
                 else if (value > upperBound)
@@ -21,28 +23,30 @@ namespace Microsoft.AGL.Core.ProjectionSolver{
             }
         }
 
-        internal double LowBound {
-            get { return lowBound; }
-            set {
-                Debug.Assert(value<=upperBound);
+        internal double LowBound
+        {
+            get => lowBound;
+            set
+            {
+                Debug.Assert(value <= upperBound);
                 lowBound = value;
             }
         }
 
-        internal double UpperBound {
-            get { return upperBound; }
-            set {
-                Debug.Assert(value>=LowBound);
+        internal double UpperBound
+        {
+            get => upperBound;
+            set
+            {
+                Debug.Assert(value >= LowBound);
                 upperBound = value;
             }
         }
 
-        
+
 
 #if TEST_MSAGL
-        public override string ToString() {
-            return lowBound + " " + Position + " " + upperBound;
-        }
+        public override string ToString() => lowBound + " " + Position + " " + upperBound;
 #endif
     }
 }

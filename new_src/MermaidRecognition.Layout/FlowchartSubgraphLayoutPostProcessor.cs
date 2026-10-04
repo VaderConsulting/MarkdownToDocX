@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Render;
 
 namespace MermaidRecognition.Layout;
@@ -233,8 +234,8 @@ public static class FlowchartSubgraphLayoutPostProcessor
                 continue;
             }
 
-            List<string> UpstreamDirectNodeIds = new List<string>();
-            List<string> DownstreamDirectNodeIds = new List<string>();
+            List<string> UpstreamDirectNodeIds = [];
+            List<string> DownstreamDirectNodeIds = [];
             for (int Index = 0; Index < FlowOrderedMemberNodeIds.Count; Index++)
             {
                 string NodeId = FlowOrderedMemberNodeIds[Index];
@@ -640,7 +641,7 @@ public static class FlowchartSubgraphLayoutPostProcessor
             NestedGroupNodeIds.UnionWith(CollectGroupMemberNodeIds(CandidateGroup, GroupById, Contract));
         }
 
-        List<string> DirectMemberNodeIds = new List<string>();
+        List<string> DirectMemberNodeIds = [];
         foreach (NodeContract Node in Contract.Nodes)
         {
             if (!string.Equals(Node.ParentGroupId, Group.Id, StringComparison.Ordinal))
@@ -689,7 +690,7 @@ public static class FlowchartSubgraphLayoutPostProcessor
             }
         }
 
-        List<string> Ordered = new List<string>();
+        List<string> Ordered = [];
         Queue<string> Ready = new Queue<string>();
         foreach (KeyValuePair<string, int> Entry in InDegree.OrderBy(Entry => GetEarliestEdgeCreationIndex(Contract, Entry.Key)))
         {
@@ -1177,7 +1178,7 @@ public static class FlowchartSubgraphLayoutPostProcessor
             string ParentKey = Group.ParentGroupId ?? string.Empty;
             if (!SiblingsByParentId.TryGetValue(ParentKey, out List<GroupContract>? Siblings))
             {
-                Siblings = new List<GroupContract>();
+                Siblings = [];
                 SiblingsByParentId[ParentKey] = Siblings;
             }
 

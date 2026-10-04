@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 
 //using TestWpfViewer.Annotations;
 
@@ -6,10 +6,7 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout
 {
     public class ILayerInfo : INotifyPropertyChanged
     {
-        public virtual string getLabel()
-        {
-            return "";
-        }
+        public virtual string getLabel() => "";
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -23,7 +20,7 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout
 
         public bool IsVisible
         {
-            get { return _isVisible; }
+            get => _isVisible;
             set
             {
                 _isVisible = value;
@@ -31,11 +28,11 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout
             }
         }
 
-         bool _isActive;
+        bool _isActive;
 
         public bool IsActive
         {
-            get { return _isActive; }
+            get => _isActive;
             set
             {
                 _isActive = value;
@@ -52,24 +49,18 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout
          NodesSublayerInfo _nodesSublayerInfo;
 
         public NodesSublayerInfo NodesSlInf
-        {
-            get { return _nodesSublayerInfo; }
-            set { _nodesSublayerInfo = value; }
+        { get => _nodesSublayerInfo; set => _nodesSublayerInfo = value;
         }
 
-         EdgesSublayerInfo _edgesSublayerInfo;
+        EdgesSublayerInfo _edgesSublayerInfo;
 
         public EdgesSublayerInfo EdgesSlInf
-        {
-            get { return _edgesSublayerInfo; }
-            set { _edgesSublayerInfo = value; }
+        { get => _edgesSublayerInfo; set => _edgesSublayerInfo = value;
         }
 
-         CellsSublayerInfo _cellsSublayerInfo;
+        CellsSublayerInfo _cellsSublayerInfo;
         public CellsSublayerInfo CellsSlInf
-        {
-            get { return _cellsSublayerInfo; }
-            set { _cellsSublayerInfo = value; }
+        { get => _cellsSublayerInfo; set => _cellsSublayerInfo = value;
         }
 
         public ZoomLayerInfo(int zoomLevel)
@@ -80,32 +71,20 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout
             _cellsSublayerInfo = new CellsSublayerInfo();
         }
 
-        override public string getLabel()
-        {
-            return "level " + ZoomLevel;
-        }
+        override public string getLabel() => "level " + ZoomLevel;
     }
 
     public class SkeletonLayerInfo : ILayerInfo
     {
         public int ZoomLevel;
-        override public string getLabel()
-        {
-            return "skeleton of level " + ZoomLevel;
-        }
+        override public string getLabel() => "skeleton of level " + ZoomLevel;
 
-        public SkeletonLayerInfo(int zoomLevel)
-        {
-            ZoomLevel = zoomLevel;
-        }
+        public SkeletonLayerInfo(int zoomLevel) => ZoomLevel = zoomLevel;
     }
 
     public class LooseLayerInfo : ILayerInfo
     {
-        override public string getLabel()
-        {
-            return "unassigned";
-        }
+        override public string getLabel() => "unassigned";
     }
 
     public interface ISublayerInfo
@@ -119,17 +98,14 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout
 
         public bool IsVisible
         {
-            get { return _isVisible; }
+            get => _isVisible;
             set
             {
                 _isVisible = value;
                 OnPropertyChanged("IsVisible");
             }
         }
-        public string getLabel()
-        {
-            return "nodes";
-        }
+        public string getLabel() => "nodes";
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -147,17 +123,14 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout
 
         public bool IsVisible
         {
-            get { return _isVisible; }
+            get => _isVisible;
             set
             {
                 _isVisible = value;
                 OnPropertyChanged("IsVisible");
             }
         }
-        public string getLabel()
-        {
-            return "edges";
-        }
+        public string getLabel() => "edges";
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -175,17 +148,14 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout
 
         public bool IsVisible
         {
-            get { return _isVisible; }
+            get => _isVisible;
             set
             {
                 _isVisible = value;
                 OnPropertyChanged("IsVisible");
             }
         }
-        public string getLabel()
-        {
-            return "cells";
-        }
+        public string getLabel() => "cells";
 
         public event PropertyChangedEventHandler PropertyChanged;
 

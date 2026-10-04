@@ -4,7 +4,7 @@
 //
 // Copyright Microsoft Corporation.
 
-using MermaidRecognition.Layout.Sugiyama.Core.DataStructures;
+using MermaidRecognition.Layout.Sugiyama.Core.DataStructures.RBTree;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 
 namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
@@ -23,7 +23,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             /// <summary>
             /// Dereferences the node if non-null to return the side Item.
             /// </summary>
-            internal BasicObstacleSide LowNeighborSide { get { return (null == this.LowNeighbor) ? null : this.LowNeighbor.Item; } }
+            internal BasicObstacleSide LowNeighborSide => (null == LowNeighbor) ? null : LowNeighbor.Item;
 
             /// <summary>
             /// A LowObstacleSide that we pass through in the low direction into open space.
@@ -43,7 +43,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             /// <summary>
             /// Dereferences the node if non-null to return the side Item.
             /// </summary>
-            internal BasicObstacleSide HighNeighborSide { get { return (null == this.HighNeighbor) ? null : this.HighNeighbor.Item; } }
+            internal BasicObstacleSide HighNeighborSide => (null == HighNeighbor) ? null : HighNeighbor.Item;
 
             /// <summary>
             /// A HighObstacleSide that we pass through in the high direction into open space.
@@ -56,12 +56,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             internal BasicObstacleSide GroupSideInterveningBeforeHighNeighbor { get; private set; }
 
             internal void Clear() {
-                this.LowNeighbor = null;
-                this.LowOverlapEnd = null;
-                this.GroupSideInterveningBeforeLowNeighbor = null;
-                this.HighNeighbor = null;
-                this.HighOverlapEnd = null;
-                this.GroupSideInterveningBeforeHighNeighbor = null;
+                LowNeighbor = null;
+                LowOverlapEnd = null;
+                GroupSideInterveningBeforeLowNeighbor = null;
+                HighNeighbor = null;
+                HighOverlapEnd = null;
+                GroupSideInterveningBeforeHighNeighbor = null;
             }
 
             internal void SetSides(Directions dir, RBNode<BasicObstacleSide> neighborNode, RBNode<BasicObstacleSide> overlapEndNode,
@@ -69,12 +69,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
                 if (StaticGraphUtility.IsAscending(dir)) {
                     HighNeighbor = neighborNode;
                     HighOverlapEnd = overlapEndNode;
-                    this.GroupSideInterveningBeforeHighNeighbor = interveningGroupSide;
+                    GroupSideInterveningBeforeHighNeighbor = interveningGroupSide;
                     return;
                 }
                 LowNeighbor = neighborNode;
                 LowOverlapEnd = overlapEndNode;
-                this.GroupSideInterveningBeforeLowNeighbor = interveningGroupSide;
+                GroupSideInterveningBeforeLowNeighbor = interveningGroupSide;
             }
         }
     }

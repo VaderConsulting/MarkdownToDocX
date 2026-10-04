@@ -9,43 +9,31 @@ namespace Microsoft.AGL.Core.Geometry.Curves
 
         PolylinePoint currentPolyPoint;
 
-        internal PolylineIterator(Polyline poly)
-        {
-            this.polyline = poly;
-        }
+        internal PolylineIterator(Polyline poly) => polyline = poly;
 
         #region IEnumerator<Point> Members
 
 #if SHARPKIT //https://code.google.com/p/sharpkit/issues/detail?id=332
-        public Point Current
+        public Point Current => currentPolyPoint.Point;
 #else
-        Point IEnumerator<Point>.Current
+        Point IEnumerator<Point>.Current => currentPolyPoint.Point;
 #endif
-        {
-            get { return currentPolyPoint.Point; }
-        }
 
         #endregion
 
         #region IDisposable Members
 
 #if !SHARPKIT //https://code.google.com/p/sharpkit/issues/detail?id=71
-        public void Dispose()
+        public void Dispose() => GC.SuppressFinalize(this);
 #else
-        void IDisposable.Dispose()
+        void IDisposable.Dispose() => GC.SuppressFinalize(this);
 #endif
-        {
-            GC.SuppressFinalize(this);
-        }
 
         #endregion
 
         #region IEnumerator Members
 
-        object System.Collections.IEnumerator.Current
-        {
-            get { return currentPolyPoint.Point; }
-        }
+        object System.Collections.IEnumerator.Current => currentPolyPoint.Point;
 
 #if SHARPKIT //https://code.google.com/p/sharpkit/issues/detail?id=332&thanks=332
         public bool MoveNext()
@@ -64,10 +52,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves
             return true;
         }
 
-        void System.Collections.IEnumerator.Reset()
-        {
-            currentPolyPoint = null;
-        }
+        void System.Collections.IEnumerator.Reset() => currentPolyPoint = null;
 
         #endregion
     }

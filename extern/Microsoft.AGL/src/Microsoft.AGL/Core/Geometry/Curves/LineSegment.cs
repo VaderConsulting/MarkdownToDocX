@@ -20,37 +20,29 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="offset"></param>
         /// <param name="dir"></param>
         /// <returns></returns>
-        public ICurve OffsetCurve(double offset, Point dir) { return null; }
+        public ICurve OffsetCurve(double offset, Point dir) => null;
         /// <summary>
         /// the line start point
         /// </summary>
-        public Point Start {
-            get { return a; }
-            set { a = value; }
+        public Point Start { get => a; set => a = value;
         }
         Point b;
         /// <summary>
         /// the line end point
         /// </summary>
-        public Point End {
-            get { return b; }
-            set { b = value; }
+        public Point End { get => b; set => b = value;
         }
 
 
         /// <summary>
         /// the start parameter
         /// </summary>
-        public double ParStart {
-            get { return 0; }
-        }
+        public double ParStart => 0;
 
         /// <summary>
         /// the end parameter
         /// </summary>
-        public double ParEnd {
-            get { return 1; }
-        }
+        public double ParEnd => 1;
 
         /// <summary>
         /// Returns the trim curve
@@ -77,9 +69,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="start">The starting parameter</param>
         /// <param name="end">The ending parameter</param>
         /// <returns>The trimmed curve</returns>
-        public ICurve TrimWithWrap(double start, double end) {
-            throw new NotImplementedException();
-        }
+        public ICurve TrimWithWrap(double start, double end) => throw new NotImplementedException();
 
         /// <summary>
         /// A tree of ParallelogramNodes covering the curve. 
@@ -117,7 +107,6 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="a">the first point</param>
         /// <param name="x">x-coordinate of the second point</param>
         /// <param name="y">y-coordinate of the second point</param>
-        [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "a"), SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "x"), SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "y")]
         public LineSegment(Point a, double x, double y) : this(a, new Point(x, y)) { }
 
         /// <summary>
@@ -127,7 +116,6 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="y0">y-coordinate of the first point</param>
         /// <param name="x1">x-coordinate of the second point</param>
         /// <param name="y1">y-coordinate of the second point</param>
-        [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "y"), SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "x")]
         public LineSegment(double x0, double y0, double x1, double y1) : this(new Point(x0, y0), new Point(x1, y1)) { }
 
         /// <summary>
@@ -144,44 +132,34 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// </summary>
         /// <param name="t">the parameter where the derivative is calculated</param>
         /// <returns></returns>
-        public Point Derivative(double t) {
-            return b - a;
-        }
+        public Point Derivative(double t) => b - a;
 
         /// <summary>
         /// second derivative
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        public Point SecondDerivative(double t) {
-            return new Point(0, 0);
-        }
+        public Point SecondDerivative(double t) => new Point(0, 0);
 
         /// <summary>
         /// third derivative
         /// </summary>
         /// <param name="t">the parameter of the derivative</param>
         /// <returns></returns>
-        public Point ThirdDerivative(double t) {
-            return new Point(0, 0);
-        }
+        public Point ThirdDerivative(double t) => new Point(0, 0);
 
         /// <summary>
         /// This is the rounded form; DebuggerDisplay shows the unrounded form.
         /// </summary>
         /// <returns></returns>
-        public override string ToString() {
-            return "{" + a + "," + b + "}";
-        }
+        public override string ToString() => "{" + a + "," + b + "}";
 
         /// <summary>
         /// this[Reverse[t]]=this[ParEnd+ParStart-t]
         /// </summary>
         /// <returns></returns>
 
-        public ICurve Reverse() {
-            return new LineSegment(b, a);
-        }
+        public ICurve Reverse() => new LineSegment(b, a);
 
         /*      
           static internal IntersectionInfo Cross(LineSeg coeff, LineSeg side1){
@@ -263,10 +241,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="xScale"></param>
         /// <param name="yScale"></param>
         /// <returns>scaled copy</returns>
-        public ICurve ScaleFromOrigin(double xScale, double yScale)
-        {
-            return new LineSegment(Point.Scale(xScale, yScale, a), Point.Scale(xScale, yScale, b));
-        }
+        public ICurve ScaleFromOrigin(double xScale, double yScale) => new LineSegment(Point.Scale(xScale, yScale, a), Point.Scale(xScale, yScale, b));
 
         /// <summary>
         /// gets the parameter at a specific length from the start along the curve
@@ -274,10 +249,10 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="length"></param>
         /// <returns></returns>
         public double GetParameterAtLength(double length) {
-            var len = (b - a).Length;
+            double len = (b - a).Length;
             if (len < ApproximateComparer.Tolerance)
                 return 0;
-            var t = length/len;
+            double t = length/len;
             return t > 1 ? 1 : (t < 0 ? 0 : t);
         }
 
@@ -286,9 +261,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// </summary>
         /// <param name="transformation"></param>
         /// <returns>the transformed curve</returns>
-        public ICurve Transform(PlaneTransformation transformation) {
-            return new LineSegment(transformation * a, transformation * b);
-        }
+        public ICurve Transform(PlaneTransformation transformation) => new LineSegment(transformation * a, transformation * b);
 
         /// <summary>
         /// returns a parameter t such that the distance between curve[t] and targetPoint is minimal 
@@ -299,7 +272,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="low">the low bound of the parameter</param>
         /// <returns></returns>
         public double ClosestParameterWithinBounds(Point targetPoint, double low, double high) {
-            var t = ClosestParameter(targetPoint);
+            double t = ClosestParameter(targetPoint);
             if (t < low)
                 t = low;
             if(t>high)
@@ -313,26 +286,16 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="start"></param>
         /// <param name="end"></param>
         /// <returns></returns>
-        public double LengthPartial(double start, double end) {
-            return (this[end] - this[start]).Length;
-        }
+        public double LengthPartial(double start, double end) => (this[end] - this[start]).Length;
 
         /// <summary>
         /// Get the length of the curve
         /// </summary>
-        public double Length {
-            get {
-                return (a - b).Length;
-            }
-        }
+        public double Length => (a - b).Length;
         /// <summary>
         /// The bounding box of the line
         /// </summary>
-        public Rectangle BoundingBox {
-            get {
-                return new Rectangle(Start, End);
-            }
-        }
+        public Rectangle BoundingBox => new Rectangle(Start, End);
 
 
 
@@ -341,35 +304,28 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// </summary>
         /// <returns>the cloned curve</returns>
 
-        public ICurve Clone() {
-            return new LineSegment(this.a, this.b);
-        }
+        public ICurve Clone() => new LineSegment(a, b);
 
         /// <summary>
         /// returns a parameter t such that the distance between curve[t] and a is minimal
         /// </summary>
         /// <param name="targetPoint"></param>
         /// <returns></returns>
-        public double ClosestParameter(Point targetPoint) {
-            return Point.ClosestParameterOnLineSegment(targetPoint, Start, End);
-        }
+        public double ClosestParameter(Point targetPoint) => Point.ClosestParameterOnLineSegment(targetPoint, Start, End);
         /// <summary>
         /// left derivative at t
         /// </summary>
         /// <param name="t">the parameter where the derivative is calculated</param>
         /// <returns></returns>
-        public Point LeftDerivative(double t) {
-            return Derivative(t);
-        }
+        public Point LeftDerivative(double t) => Derivative(t);
 
         /// <summary>
         /// right derivative at t
         /// </summary>
         /// <param name="t">the parameter where the derivative is calculated</param>
         /// <returns></returns>
-        public Point RightDerivative(double t) {
-            return Derivative(t);
-        }
+        public Point RightDerivative(double t) => Derivative(t);
+
         /// <summary>
         /// returns true if segments are not parallel and are intesecting
         /// </summary>
@@ -379,16 +335,13 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="d"></param>
         /// <param name="x"></param>
         /// <returns></returns>
-        [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "x"), SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "d"), SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "c"), SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "b"), SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "a"), SuppressMessage("Microsoft.Design", "CA1021:AvoidOutParameters", MessageId = "4#")]
         public static bool Intersect(Point a, Point b, Point c, Point d, out Point x) {
             if (!Point.LineLineIntersection(a, b, c, d, out x))
                 return false;
             return XIsBetweenPoints(ref a, ref b, ref x) && XIsBetweenPoints(ref c, ref d, ref x);
         }
 
-        static bool XIsBetweenPoints(ref Point a, ref Point b, ref Point x) {
-            return (a - x) * (b - x) <= ApproximateComparer.DistanceEpsilon;
-        }
+        static bool XIsBetweenPoints(ref Point a, ref Point b, ref Point x) => (a - x) * (b - x) <= ApproximateComparer.DistanceEpsilon;
 
         #region ICurve Members
 
@@ -397,17 +350,13 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        public double Curvature(double t) {
-            return 0;
-        }
+        public double Curvature(double t) => 0;
         /// <summary>
         /// 
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        public double CurvatureDerivative(double t) {
-            return 0;
-        }
+        public double CurvatureDerivative(double t) => 0;
 
 
         /// <summary>
@@ -415,9 +364,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        public double CurvatureSecondDerivative(double t) {
-            throw new NotImplementedException();
-        }
+        public double CurvatureSecondDerivative(double t) => throw new NotImplementedException();
 
         #endregion
 

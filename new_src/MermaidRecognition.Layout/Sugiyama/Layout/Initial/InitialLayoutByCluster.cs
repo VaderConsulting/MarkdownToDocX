@@ -13,6 +13,7 @@ using MermaidRecognition.Layout.Sugiyama.Layout.MDS;
 using MermaidRecognition.Layout.Sugiyama.Routing;
 using MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear;
 using System.Threading.Tasks;
+
 #if TEST_MSAGL
 using MermaidRecognition.Layout.Sugiyama.DebugHelpers;
 #endif
@@ -42,7 +43,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
         /// </summary>
         /// <param name="graph">The graph being operated on.</param>
         /// <param name="clusterSettings">Settings to use for each cluster and its descendents (if none provided for that descendent.</param>
-        [SuppressMessage("Microsoft.Design", "CA1062:ValidateArgumentsOfPublicMethods")]
         public InitialLayoutByCluster(GeometryGraph graph, Func<Cluster, LayoutAlgorithmSettings> clusterSettings)
             : this(graph, new[] {graph.RootCluster}, clusterSettings) {}
 
@@ -81,9 +81,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
         /// <summary>
         /// if set to true than parallel execution will b
         /// </summary>
-        public bool RunInParallel {
-            get { return runInParallel; }
-            set { runInParallel = value; }
+        public bool RunInParallel { get => runInParallel; set => runInParallel = value;
         }
 
         /// <summary>
@@ -152,8 +150,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
         }
 
         internal static void RouteParentEdges(GeometryGraph graph, EdgeRoutingSettings edgeRoutingSettings) {
-            var inParentEdges = new List<Edge>();
-            var outParentEdges = new List<Edge>();
+            List<Edge> inParentEdges = new List<Edge>();
+            List<Edge> outParentEdges = new List<Edge>();
             RouteSimplHooksAndFillTheLists(graph.RootCluster, inParentEdges, outParentEdges, edgeRoutingSettings);
 
             if (inParentEdges.Count > 0 || outParentEdges.Count > 0)
@@ -163,15 +161,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
         static void LabelParentEdgesAndMaybeRerouteThemNicely(GeometryGraph graph, List<Edge> inParentEdges,
             List<Edge> outParentEdges, EdgeRoutingSettings edgeRoutingSettings) {
             if (AllowedToRoute(inParentEdges, outParentEdges, edgeRoutingSettings)) {
-                var shapeGroupRouter = new SplineRouter(graph, edgeRoutingSettings.Padding,
+                SplineRouter shapeGroupRouter = new SplineRouter(graph, edgeRoutingSettings.Padding,
                     edgeRoutingSettings.PolylinePadding,
                     edgeRoutingSettings.RoutingToParentConeAngle, inParentEdges, outParentEdges);
                 shapeGroupRouter.Run();
             }
 
-            var labeledEdges = outParentEdges.Concat(inParentEdges).Where(e => e.Labels.Any());
+            IEnumerable<Edge> labeledEdges = outParentEdges.Concat(inParentEdges).Where(e => e.Labels.Any());
             if (labeledEdges.Any()) {
-                var elb = new EdgeLabelPlacement(graph.Nodes, labeledEdges);
+                EdgeLabelPlacement elb = new EdgeLabelPlacement(graph.Nodes, labeledEdges);
                     //consider adding more nodes here: some sibling clusters maybe
                 elb.Run();
             }
@@ -200,26 +198,23 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
         }
 
         static bool AllowedToRoute(List<Edge> inParentEdges, List<Edge> outParentEdges,
-            EdgeRoutingSettings edgeRoutingSettings) {
-            return ShapeCreatorForRoutingToParents.NumberOfActiveNodesIsUnderThreshold(inParentEdges, outParentEdges,
+            EdgeRoutingSettings edgeRoutingSettings) => ShapeCreatorForRoutingToParents.NumberOfActiveNodesIsUnderThreshold(inParentEdges, outParentEdges,
                 edgeRoutingSettings.
                     SimpleSelfLoopsForParentEdgesThreshold);
-        }
 
         static void RouteSimplHooksAndFillTheLists(Cluster rootCluster, List<Edge> inParentEdges,
             List<Edge> outParentEdges, EdgeRoutingSettings edgeRoutingSettings) {
-            var padding = edgeRoutingSettings.Padding + edgeRoutingSettings.PolylinePadding;
-            foreach (var cluster in rootCluster.AllClustersWidthFirstExcludingSelfAvoidingChildrenOfCollapsed().Where(c=>!c.IsCollapsed)) {
+            double padding = edgeRoutingSettings.Padding + edgeRoutingSettings.PolylinePadding;
+            foreach (Cluster? cluster in rootCluster.AllClustersWidthFirstExcludingSelfAvoidingChildrenOfCollapsed().Where(c=>!c.IsCollapsed)) {
                 RouteClusterParentInEdges(inParentEdges, edgeRoutingSettings, cluster, padding);
                 RouteClusterParentOutEdges(outParentEdges, edgeRoutingSettings, cluster, padding);
             }
         }
 
         static void RouteClusterParentOutEdges(List<Edge> outParentEdges, EdgeRoutingSettings edgeRoutingSettings, Cluster cluster, double padding) {
-            foreach (var e in cluster.OutEdges.Where(e => IsDescendant(e.Target, cluster))) {
-                var ePadding = Math.Max(padding, 1.5*ArrowlengthAtSource(e));
-                var hookPort = e.SourcePort as HookUpAnywhereFromInsidePort;
-                if (hookPort == null)
+            foreach (Edge? e in cluster.OutEdges.Where(e => IsDescendant(e.Target, cluster))) {
+                double ePadding = Math.Max(padding, 1.5*ArrowlengthAtSource(e));
+                if (e.SourcePort is not HookUpAnywhereFromInsidePort hookPort)
                     e.SourcePort = hookPort = new HookUpAnywhereFromInsidePort(() => cluster.BoundaryCurve);
                 hookPort.HookSize = ePadding;
 
@@ -232,10 +227,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
 
         static void RouteClusterParentInEdges(List<Edge> inParentEdges, EdgeRoutingSettings edgeRoutingSettings, Cluster cluster,
             double padding) {
-            foreach (var e in cluster.InEdges.Where(e => IsDescendant(e.Source, cluster))) {
+            foreach (Edge? e in cluster.InEdges.Where(e => IsDescendant(e.Source, cluster))) {
                 double ePadding = Math.Max(padding, 1.5*ArrowlengthAtTarget(e));
-                var hookPort = e.TargetPort as HookUpAnywhereFromInsidePort;
-                if (hookPort == null)
+                if (e.TargetPort is not HookUpAnywhereFromInsidePort hookPort)
                     e.TargetPort = hookPort = new HookUpAnywhereFromInsidePort(() => cluster.BoundaryCurve);
                 hookPort.HookSize = ePadding;
                 e.Curve = StraightLineEdges.CreateLoop(e.Source.BoundingBox, cluster.BoundingBox, ePadding, false);
@@ -245,43 +239,39 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
             }
         }
 
-        static double ArrowlengthAtSource(Edge edge) {
-            return edge.EdgeGeometry.SourceArrowhead == null ? 0 : edge.EdgeGeometry.SourceArrowhead.Length;
-        }
+        static double ArrowlengthAtSource(Edge edge) => edge.EdgeGeometry.SourceArrowhead == null ? 0 : edge.EdgeGeometry.SourceArrowhead.Length;
 
-        static double ArrowlengthAtTarget(Edge edge) {
-            return edge.EdgeGeometry.TargetArrowhead == null ? 0 : edge.EdgeGeometry.TargetArrowhead.Length;
-        }
+        static double ArrowlengthAtTarget(Edge edge) => edge.EdgeGeometry.TargetArrowhead == null ? 0 : edge.EdgeGeometry.TargetArrowhead.Length;
 
 #if DEBUG
-    //        void CheckEdges() {
-    //            foreach (var edge in graph.Edges)
-    //                CheckEdge(edge);
-    //        }
-    //
-    //        static void CheckEdge(Edge edge) {
-    //            var s = edge.Source;
-    //            var t = edge.Target;
-    //            var sParents = new Set<Node>(s.ClusterParents);
-    //            var tParents = new Set<Node>(t.ClusterParents);
-    //            if (sParents == tParents) // the edge is between of the nodes of the same cluster, in a simple case
-    //                return;
-    //            var cluster = t as Cluster;
-    //            if (cluster != null && IsDescendant(s, cluster))
-    //                return;
-    //            cluster = s as Cluster;
-    //            if (cluster != null && IsDescendant(t, cluster))
-    //                return;
-    //            Debug.Assert(false, "an edge can be flat or connecting with an ancestor");
-    //        }
+        //        void CheckEdges() {
+        //            foreach (var edge in graph.Edges)
+        //                CheckEdge(edge);
+        //        }
+        //
+        //        static void CheckEdge(Edge edge) {
+        //            var s = edge.Source;
+        //            var t = edge.Target;
+        //            var sParents = new Set<Node>(s.ClusterParents);
+        //            var tParents = new Set<Node>(t.ClusterParents);
+        //            if (sParents == tParents) // the edge is between of the nodes of the same cluster, in a simple case
+        //                return;
+        //            var cluster = t as Cluster;
+        //            if (cluster != null && IsDescendant(s, cluster))
+        //                return;
+        //            cluster = s as Cluster;
+        //            if (cluster != null && IsDescendant(t, cluster))
+        //                return;
+        //            Debug.Assert(false, "an edge can be flat or connecting with an ancestor");
+        //        }
 
-    /// <summary>
-    /// Ensures that containment is preserved
-    /// </summary>
-    /// <param name="cluster">check is applied to specified cluster and below</param>
+        /// <summary>
+        /// Ensures that containment is preserved
+        /// </summary>
+        /// <param name="cluster">check is applied to specified cluster and below</param>
         static void ValidateLayout(Cluster cluster) {
-            foreach (var c in cluster.AllClustersDepthFirst())
-                foreach (var v in c.nodes.Concat(c.Clusters.Cast<Node>()))
+            foreach (Cluster c in cluster.AllClustersDepthFirst())
+                foreach (Node? v in c.nodes.Concat(c.Clusters.Cast<Node>()))
                     Debug.Assert(c.BoundingBox.Contains(v.BoundingBox));
         }
 #endif
@@ -300,7 +290,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
             if (runInParallel && cluster.Clusters.Count() > 1)
                 Parallel.ForEach(cluster.Clusters, parallelOptions, LayoutCluster);
             else
-                foreach (var cl in cluster.Clusters)
+                foreach (Cluster cl in cluster.Clusters)
                     LayoutCluster(cl);
 
             List<GeometryGraph> components = (List<GeometryGraph>) GetComponents(cluster);
@@ -312,9 +302,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
             else
                 components.ForEach(c => LayoutComponent(settings, c));
 
-            var bounds = MdsGraphLayout.PackGraphs(components, settings);
+            Rectangle bounds = MdsGraphLayout.PackGraphs(components, settings);
 
-            foreach (var g in components)
+            foreach (GeometryGraph g in components)
                 FixOriginalGraph(g, true);
 
             cluster.UpdateBoundary(bounds);
@@ -334,19 +324,19 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
         }
 
         internal static void FixOriginalGraph(GeometryGraph graph, bool translateEdges) {
-            foreach (var v in graph.Nodes) {
-                var originalNode = (Node) v.UserData;
-                var delta = v.BoundingBox.LeftBottom - originalNode.BoundingBox.LeftBottom;
-                var cluster = originalNode as Cluster;
-                if (cluster != null) {
+            foreach (Node v in graph.Nodes) {
+                Node originalNode = (Node) v.UserData;
+                Point delta = v.BoundingBox.LeftBottom - originalNode.BoundingBox.LeftBottom;
+                if (originalNode is Cluster cluster)
+                {
                     cluster.DeepTranslation(delta, translateEdges);
                 }
                 else
                     originalNode.Center += delta;
             }
             if (translateEdges) {
-                foreach (var e in graph.Edges) {
-                    var originalEdge = (Edge) e.UserData;
+                foreach (Edge e in graph.Edges) {
+                    Edge originalEdge = (Edge) e.UserData;
                     if (e.Curve != null)
                         originalEdge.Curve = e.Curve.Clone();
                     originalEdge.Length = e.Length;
@@ -355,7 +345,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
                         // EdgeGeometry ports get clobbered by edge routing          
                     originalEdge.EdgeGeometry.TargetPort = e.TargetPort = null;
 
-                    foreach (var l in originalEdge.Labels)
+                    foreach (Label l in originalEdge.Labels)
                         l.GeometryParent = originalEdge;
                 }
             }
@@ -367,9 +357,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
         /// <param name="node"></param>
         /// <param name="root"></param>
         /// <returns>true if the node is a descendant of root</returns>
-        static bool IsDescendant(Node node, Cluster root) {
-            return Ancestor(node, root) != null;
-        }
+        static bool IsDescendant(Node node, Cluster root) => Ancestor(node, root) != null;
 
         /// <summary>
         /// Creates a shallow copy of the root cluster and divides into GeometryGraphs each of which is a connected component with
@@ -379,10 +367,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
         /// <returns>GeometryGraphs that are each a connected component</returns>
         static IEnumerable<GeometryGraph> GetComponents(Cluster cluster) {
             Dictionary<Node, Node> originalToCopyNodeMap = ShallowNodeCopyDictionary(cluster);
-            var copiedEdges = new List<Edge>();
-            foreach (var target in originalToCopyNodeMap.Keys) {
-                foreach (var e in target.InEdges) {
-                    var sourceAncestorUnderRoot = Ancestor(e.Source, cluster);
+            List<Edge> copiedEdges = new List<Edge>();
+            foreach (Node target in originalToCopyNodeMap.Keys) {
+                foreach (Edge e in target.InEdges) {
+                    Node sourceAncestorUnderRoot = Ancestor(e.Source, cluster);
                     if (sourceAncestorUnderRoot == e.Source)
                         //it is a flat edge and we are only interested in flat edges
                         copiedEdges.Add(CopyEdge(originalToCopyNodeMap, e, sourceAncestorUnderRoot, target));
@@ -404,7 +392,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
         internal static Edge CopyEdge(Dictionary<Node, Node> originalToCopyNodeMap, Edge originalEdge,
             Node originalSource,
             Node originalTarget) {
-            var e = new Edge(originalToCopyNodeMap[originalSource], originalToCopyNodeMap[originalTarget]) {
+            Edge e = new Edge(originalToCopyNodeMap[originalSource], originalToCopyNodeMap[originalTarget]) {
                 EdgeGeometry = originalEdge.EdgeGeometry,
                 SourcePort = null,
                 TargetPort = null,
@@ -412,7 +400,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
                 UserData = originalEdge
             };
 
-            foreach (var l in originalEdge.Labels) {
+            foreach (Label l in originalEdge.Labels) {
                 e.Labels.Add(l);
                 l.GeometryParent = e;
             }
@@ -425,9 +413,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
         /// <param name="originalToCopyNodeMap">mapping from original nodes to their copies</param>
         /// <param name="originalEdge"></param>
         /// <returns>Copy of edge</returns>
-        internal static Edge CopyEdge(Dictionary<Node, Node> originalToCopyNodeMap, Edge originalEdge) {
-            return CopyEdge(originalToCopyNodeMap, originalEdge, originalEdge.Source, originalEdge.Target);
-        }
+        internal static Edge CopyEdge(Dictionary<Node, Node> originalToCopyNodeMap, Edge originalEdge) => CopyEdge(originalToCopyNodeMap, originalEdge, originalEdge.Source, originalEdge.Target);
 
         /// <summary>
         /// Copy the cluster's child Nodes and Clusters as nodes and return a mapping of original to copy.
@@ -436,12 +422,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
         /// <param name="cluster">Cluster whose contents will be copied</param>
         /// <returns>the mapping from original to copy</returns>
         internal static Dictionary<Node, Node> ShallowNodeCopyDictionary(Cluster cluster) {
-            var originalNodeToCopy = new Dictionary<Node, Node>();
+            Dictionary<Node, Node> originalNodeToCopy = new Dictionary<Node, Node>();
 
-            foreach (var v in cluster.Nodes)
+            foreach (Node v in cluster.Nodes)
                 originalNodeToCopy[v] = new Node(v.BoundaryCurve.Clone()) {UserData = v};
 
-            foreach (var cl in cluster.Clusters) {
+            foreach (Cluster cl in cluster.Clusters) {
                 if (cl.IsCollapsed)
                     originalNodeToCopy[cl] = new Node(cl.CollapsedBoundary.Clone()) {UserData = cl};
                 else {
@@ -465,7 +451,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
         /// a descendent of root</returns>
         internal static Node Ancestor(Node node, Cluster root) {
             if (node.ClusterParents.Contains(root)) return node;
-            var parents = new Queue<Cluster>(node.ClusterParents);
+            Queue<Cluster> parents = new Queue<Cluster>(node.ClusterParents);
             while (parents.Count > 0) {
                 Cluster parent = parents.Dequeue();
 
@@ -482,19 +468,20 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
 
 
         internal void LayoutComponent(LayoutAlgorithmSettings settings, GeometryGraph component) {
-            var fdSettings = settings as FastIncrementalLayoutSettings;
-            var mdsSettings = settings as MdsLayoutSettings;
-            var layeredSettings = settings as SugiyamaLayoutSettings;
-            if (fdSettings != null) {
+            if (settings is FastIncrementalLayoutSettings fdSettings)
+            {
                 ForceDirectedLayout(fdSettings, component);
             }
-            else if (mdsSettings != null) {
+            else if (settings is MdsLayoutSettings mdsSettings)
+            {
                 MDSLayout(mdsSettings, component);
             }
-            else if (layeredSettings != null) {
+            else if (settings is SugiyamaLayoutSettings layeredSettings)
+            {
                 LayeredLayout(layeredSettings, component);
             }
-            else {
+            else
+            {
                 throw new NotImplementedException("Unknown type of layout settings!");
             }
             //LayoutAlgorithmSettings.ShowGraph(component);
@@ -502,31 +489,31 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
 
         void ForceDirectedLayout(FastIncrementalLayoutSettings settings, GeometryGraph component) {
             LayoutAlgorithmHelpers.ComputeDesiredEdgeLengths(settings.IdealEdgeLength, component);
-            var layout = new InitialLayout(component, settings) {SingleComponent = true};
-            layout.Run(this.CancelToken);
-            InitialLayoutHelpers.RouteEdges(component, settings, this.CancelToken);
-            InitialLayoutHelpers.PlaceLabels(component, this.CancelToken);
+            InitialLayout layout = new InitialLayout(component, settings) {SingleComponent = true};
+            layout.Run(CancelToken);
+            InitialLayoutHelpers.RouteEdges(component, settings, CancelToken);
+            InitialLayoutHelpers.PlaceLabels(component, CancelToken);
             InitialLayoutHelpers.FixBoundingBox(component, settings);
         }
 
         void MDSLayout(MdsLayoutSettings settings, GeometryGraph component) {
             LayoutAlgorithmHelpers.ComputeDesiredEdgeLengths(settings.IdealEdgeLength, component);
-            var layout = new MdsGraphLayout(settings, component);
-            layout.Run(this.CancelToken);
-            InitialLayoutHelpers.RouteEdges(component, settings, this.CancelToken);
-            InitialLayoutHelpers.PlaceLabels(component, this.CancelToken);
+            MdsGraphLayout layout = new MdsGraphLayout(settings, component);
+            layout.Run(CancelToken);
+            InitialLayoutHelpers.RouteEdges(component, settings, CancelToken);
+            InitialLayoutHelpers.PlaceLabels(component, CancelToken);
             InitialLayoutHelpers.FixBoundingBox(component, settings);
         }
 
         void LayeredLayout(SugiyamaLayoutSettings layeredSettings, GeometryGraph component) {
-            var layeredLayout = new LayeredLayout(component, layeredSettings);
-            layeredLayout.SetCancelToken(this.CancelToken);
+            LayeredLayout layeredLayout = new LayeredLayout(component, layeredSettings);
+            layeredLayout.SetCancelToken(CancelToken);
             double aspectRatio = layeredLayout.EstimateAspectRatio();
             double edgeDensity = (double) component.Edges.Count/component.Nodes.Count;
 
             // if the estimated aspect ratio is not in the range below then we fall back to force directed layout
             // with constraints which is both faster and usually returns a better aspect ratio for largish graphs
-            var fallbackLayoutSettings = layeredSettings.FallbackLayoutSettings;
+            LayoutAlgorithmSettings fallbackLayoutSettings = layeredSettings.FallbackLayoutSettings;
             if (fallbackLayoutSettings != null &&
                 (component.Nodes.Count > 50 && edgeDensity > 2 // too dense
                  || component.Nodes.Count > 40 && edgeDensity > 3.0 // too dense
@@ -537,7 +524,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
                     )) {
                 // for large graphs there's really no point trying to produce nice edge routes
                 // the sugiyama edge routing can be quite circuitous on large graphs anyway
-                var prevEdgeRouting = fallbackLayoutSettings.EdgeRoutingSettings.EdgeRoutingMode;
+                EdgeRoutingMode prevEdgeRouting = fallbackLayoutSettings.EdgeRoutingSettings.EdgeRoutingMode;
                 if (component.Nodes.Count > 100 && edgeDensity > 2.0)
                     fallbackLayoutSettings.EdgeRoutingSettings.EdgeRoutingMode = EdgeRoutingMode.StraightLine;
 
@@ -545,13 +532,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
                 fallbackLayoutSettings.EdgeRoutingSettings.EdgeRoutingMode = prevEdgeRouting;
             }
             else {
-                var prevEdgeRouting = layeredSettings.EdgeRoutingSettings.EdgeRoutingMode;
+                EdgeRoutingMode prevEdgeRouting = layeredSettings.EdgeRoutingSettings.EdgeRoutingMode;
                 // for large graphs there's really no point trying to produce nice edge routes
                 // the sugiyama edge routing can be quite circuitous on large graphs anyway
                 if (component.Nodes.Count > 100 && edgeDensity > 2.0) {
                     layeredSettings.EdgeRoutingSettings.EdgeRoutingMode = EdgeRoutingMode.StraightLine;
                 }
-                layeredLayout.Run(this.CancelToken);
+                layeredLayout.Run(CancelToken);
                 layeredSettings.EdgeRoutingSettings.EdgeRoutingMode = prevEdgeRouting;
                 InitialLayoutHelpers.FixBoundingBox(component, layeredSettings);
             }

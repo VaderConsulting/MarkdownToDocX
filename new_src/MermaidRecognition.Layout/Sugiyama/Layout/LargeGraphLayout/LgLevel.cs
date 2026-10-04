@@ -5,6 +5,7 @@ using System.Linq;
 using MermaidRecognition.Layout.Sugiyama.Core.DataStructures;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves;
+using MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree;
 using MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms;
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
 using MermaidRecognition.Layout.Sugiyama.DebugHelpers;
@@ -15,24 +16,20 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
     /// </summary>
     public class LgLevel {
         internal readonly Dictionary<SymmetricSegment, Rail> _railDictionary =
-            new Dictionary<SymmetricSegment, Rail>();
+            [];
 
-        internal Dictionary<SymmetricSegment, Rail> RailDictionary {
-            get { return _railDictionary; }
-        }
+        internal Dictionary<SymmetricSegment, Rail> RailDictionary => _railDictionary;
 
-        internal readonly Dictionary<Edge, Set<Rail>> _railsOfEdges = new Dictionary<Edge, Set<Rail>>();
-        internal Set<Rail> HighlightedRails = new Set<Rail>();
+        internal readonly Dictionary<Edge, Set<Rail>> _railsOfEdges = [];
+        internal Set<Rail> HighlightedRails = [];
         internal readonly int ZoomLevel;
         readonly GeometryGraph _geomGraph;
         internal RTree<Rail> _railTree = new RTree<Rail>();
-        internal RTree<Rail> RailTree {
-            get { return _railTree; }
-        }
+        internal RTree<Rail> RailTree => _railTree;
 
         RTree<LgNodeInfo> _nodeInfoTree = new RTree<LgNodeInfo>();
 
-        internal readonly Dictionary<Edge, List<Rail>> _orderedRailsOfEdges = new Dictionary<Edge, List<Rail>>();
+        internal readonly Dictionary<Edge, List<Rail>> _orderedRailsOfEdges = [];
 
         /// <summary>
         /// 
@@ -44,14 +41,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
             ZoomLevel = zoomLevel;
         }
 
-        internal RTree<LgNodeInfo> NodeInfoTree {
-            get { return _nodeInfoTree; }            
-        }
+        internal RTree<LgNodeInfo> NodeInfoTree => _nodeInfoTree;
 
 
-        internal void CreateEmptyRailTree() {
-            _railTree = new RTree<Rail>();
-        }
+        internal void CreateEmptyRailTree() => _railTree = new RTree<Rail>();
 
         //public void CreateRailTree() {
         //    RailTree = new RTree<Rail>(
@@ -63,10 +56,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         /// </summary>
         /// <returns></returns>
         public List<SymmetricSegment> GetAllRailsEndpoints() {
-            var endpts = new List<SymmetricSegment>();
-            Point p0, p1;
-            foreach (var rail in _railTree.GetAllLeaves()) {
-                if (rail.GetStartEnd(out p0, out p1)) {
+            List<SymmetricSegment> endpts = new List<SymmetricSegment>();
+            foreach (Rail rail in _railTree.GetAllLeaves())
+            {
+                if (rail.GetStartEnd(out Point p0, out Point p1))
+                {
                     endpts.Add(new SymmetricSegment(p0, p1));
                 }
             }
@@ -74,9 +68,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         }
 
         public List<Rail> FetchOrCreateRailSequence(List<Point> path) {
-            List<Rail> rails = new List<Rail>();
+            List<Rail> rails = [];
             for (int i = 0; i < path.Count - 1; i++) {
-                var rail = FindOrCreateRail(path[i], path[i + 1]);
+                Rail rail = FindOrCreateRail(path[i], path[i + 1]);
                 if (rail == null)
                     continue;
 
@@ -86,13 +80,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         }
 
         public Rail FindOrCreateRail(Point s, Point t) {
-            var p0 = s;
-            var p1 = t;
+            Point p0 = s;
+            Point p1 = t;
 
-            var t1 = new SymmetricSegment(p0, p1);
-            Rail rail;
-            if (RailDictionary.TryGetValue(t1, out rail)) return rail;
-            var t2 = new SymmetricSegment(p1, p0);
+            SymmetricSegment t1 = new SymmetricSegment(p0, p1);
+            if (RailDictionary.TryGetValue(t1, out Rail? rail)) return rail;
+            SymmetricSegment t2 = new SymmetricSegment(p1, p0);
             if (RailDictionary.TryGetValue(t2, out rail)) return rail;
 
             // no rail exists // roman: please check that this code really can be commented out and does need to be fixed instead 
@@ -111,12 +104,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         }
 
         public Rail CreateRail(Point ep0, Point ep1) {
-            var st = new SymmetricSegment(ep0, ep1);
-            Rail rail;
-            if (RailDictionary.TryGetValue(st, out rail)) {
+            SymmetricSegment st = new SymmetricSegment(ep0, ep1);
+            if (RailDictionary.TryGetValue(st, out Rail? rail))
+            {
                 return rail;
             }
-            var ls = new LineSegment(ep0, ep1);
+            LineSegment ls = new LineSegment(ep0, ep1);
             rail = new Rail(ls, ZoomLevel);
             RailTree.Add(rail.BoundingBox, rail);
             RailDictionary.Add(st, rail);
@@ -124,28 +117,23 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         }
 
         public Rail FindRail(Point s, Point t) {
-            var p0 = s;
-            var p1 = t;
-            var ss = new SymmetricSegment(p1, p0);
-            Rail rail;
-            RailDictionary.TryGetValue(ss, out rail);
+            Point p0 = s;
+            Point p1 = t;
+            SymmetricSegment ss = new SymmetricSegment(p1, p0);
+            RailDictionary.TryGetValue(ss, out Rail? rail);
             return rail;
         }
         
         internal IEnumerable<Rail> GetRailsIntersectingRect(Rectangle visibleRectange) {
-            var ret = new Set<Rail>();
-            foreach (var rail in _railTree.GetAllIntersecting(visibleRectange))
+            Set<Rail> ret = new Set<Rail>();
+            foreach (Rail rail in _railTree.GetAllIntersecting(visibleRectange))
                 ret.Insert(rail);
             return ret;
         }
 
-        internal List<Edge> GetEdgesPassingThroughRail(Rail rail) {
-            return (from kv in _railsOfEdges where kv.Value.Contains(rail) select kv.Key).ToList();
-        }
+        internal List<Edge> GetEdgesPassingThroughRail(Rail rail) => (from kv in _railsOfEdges where kv.Value.Contains(rail) select kv.Key).ToList();
 
-        public Rail RemoveRailFromRtree(Rail rail) {
-            return _railTree.Remove(rail.BoundingBox, rail);
-        }
+        public Rail RemoveRailFromRtree(Rail rail) => _railTree.Remove(rail.BoundingBox, rail);
 
         /// <summary>
         /// try adding single rail to dictionary
@@ -153,9 +141,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         /// <param name="rail"></param>
         /// <returns>true iff the rail does not belong to _railDictionary</returns>
         public bool AddRailToDictionary(Rail rail) {
-            Point p0, p1;
-            if (!rail.GetStartEnd(out p0, out p1)) return false;
-            var st = new SymmetricSegment(p0, p1);
+            if (!rail.GetStartEnd(out Point p0, out Point p1)) return false;
+            SymmetricSegment st = new SymmetricSegment(p0, p1);
             if (!_railDictionary.ContainsKey(st)) {
                 _railDictionary.Add(st, rail);
                 return true;
@@ -164,16 +151,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         }
 
         public void AddRailToRtree(Rail rail) {
-            Point p0, p1;
-            if (!rail.GetStartEnd(out p0, out p1)) return;
+            if (!rail.GetStartEnd(out Point p0, out Point p1)) return;
             if (_railTree.Contains(new Rectangle(p0, p1), rail))
                 return;
             _railTree.Add(new Rectangle(p0, p1), rail);
         }
 
         public void RemoveRailFromDictionary(Rail rail) {
-            Point p0, p1;
-            if (!rail.GetStartEnd(out p0, out p1)) return;
+            if (!rail.GetStartEnd(out Point p0, out Point p1)) return;
             _railDictionary.Remove(new SymmetricSegment(p0, p1));
         }
 
@@ -182,7 +167,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         internal void RunLevelStatistics(IEnumerable<Node> nodes) {
             Console.WriteLine("running stats");
 
-            foreach (var rail in _railDictionary.Values)
+            foreach (Rail rail in _railDictionary.Values)
                 CreateStatisticsForRail(rail);
 
             RunStatisticsForNodes(nodes);
@@ -195,7 +180,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
             int maxRailsPerTile = 0;
             int maxTotalPerTile = 0;
 
-            foreach (var tileStatistic in tileTableForStatistic.Values) {
+            foreach (TileStatistic tileStatistic in tileTableForStatistic.Values) {
                 averageVerticesForTile += tileStatistic.vertices/numberOfTiles;
                 averageRailsForTile += tileStatistic.rails/numberOfTiles;
                 if (maxRailsPerTile < tileStatistic.rails)
@@ -218,22 +203,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         }
 
         void RunStatisticsForNodes(IEnumerable<Node> nodes) {
-            foreach (var node in nodes)
+            foreach (Node node in nodes)
                 CreateStatisticsForNode(node);
         }
 
         void CreateStatisticsForNode(Node node) {
-            foreach (var tile in GetCurveTiles(node.BoundaryCurve))
+            foreach (TileStatistic tile in GetCurveTiles(node.BoundaryCurve))
                 tile.vertices++;
 
         }
 
         void CreateStatisticsForRail(Rail rail) {
-            var arrowhead = rail.Geometry as Arrowhead;
-            if (arrowhead != null)
+            if (rail.Geometry is Arrowhead arrowhead)
                 CreateStatisticsForArrowhead(arrowhead);
             else
-                foreach (var t in GetCurveTiles(rail.Geometry as ICurve))
+                foreach (TileStatistic t in GetCurveTiles(rail.Geometry as ICurve))
                     t.rails++;
         }
 
@@ -245,8 +229,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         TileStatistic GetOrCreateTileStatistic(Point p) {
             Tuple<int, int> t = DeviceIndependendZoomCalculatorForNodes.PointToTuple(_geomGraph.LeftBottom, p,
                 GetGridSize());
-            TileStatistic ts;
-            if (tileTableForStatistic.TryGetValue(t, out ts))
+            if (tileTableForStatistic.TryGetValue(t, out TileStatistic? ts))
                 return ts;
 
             tileTableForStatistic[t] = ts = new TileStatistic {rails = 0, vertices = 0};
@@ -254,14 +237,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         }
 
         IEnumerable<TileStatistic> GetCurveTiles(ICurve curve) {
-            var tiles = new Set<TileStatistic>();
+            Set<TileStatistic> tiles = new Set<TileStatistic>();
             const int n = 64;
-            var s = curve.ParStart;
-            var e = curve.ParEnd;
-            var d = (e - s)/(n - 1);
+            double s = curve.ParStart;
+            double e = curve.ParEnd;
+            double d = (e - s)/(n - 1);
             for (int i = 0; i < 64; i++) {
-                var t = s + i*d;
-                var ts = GetOrCreateTileStatistic(curve[t]);
+                double t = s + i*d;
+                TileStatistic ts = GetOrCreateTileStatistic(curve[t]);
                 tiles.Insert(ts);
             }
             return tiles;
@@ -273,11 +256,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         }
 
         readonly Dictionary<Tuple<int, int>, TileStatistic> tileTableForStatistic =
-            new Dictionary<Tuple<int, int>, TileStatistic>();
+            [];
 
-        double GetGridSize() {
-            return Math.Max(_geomGraph.Width, _geomGraph.Height)/ZoomLevel;
-        }
+        double GetGridSize() => Math.Max(_geomGraph.Width, _geomGraph.Height) / ZoomLevel;
 
         #endregion
 
@@ -287,41 +268,34 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
                 AddRailToRtree(rail);
         }
 
-        public void ClearRailTree() {
-            _railTree.Clear();
-        }
+        public void ClearRailTree() => _railTree.Clear();
 
         public void CreateNodeTree(IEnumerable<LgNodeInfo> nodeInfos, double nodeDotWidth) {
-            foreach (var n in nodeInfos)
+            foreach (LgNodeInfo n in nodeInfos)
                 NodeInfoTree.Add(new RectangleNode<LgNodeInfo>(n,
                     new Rectangle(new Size(nodeDotWidth, nodeDotWidth),n.Center)));
         }
 
-        public IEnumerable<Node> GetNodesIntersectingRect(Rectangle visibleRectangle) {
-            return NodeInfoTree.GetAllIntersecting(visibleRectangle).Select(n => n.GeometryNode);
-        }
+        public IEnumerable<Node> GetNodesIntersectingRect(Rectangle visibleRectangle) => NodeInfoTree.GetAllIntersecting(visibleRectangle).Select(n => n.GeometryNode);
 
-        public bool RectIsEmptyOnLevel(Rectangle tileBox) {
-            LgNodeInfo lg;
-            return !NodeInfoTree.OneIntersecting(tileBox, out lg);
-        }
+        public bool RectIsEmptyOnLevel(Rectangle tileBox) => !NodeInfoTree.OneIntersecting(tileBox, out LgNodeInfo? lg);
 
         internal void RemoveFromRailEdges(List<SymmetricTuple<LgNodeInfo>> removeList) {
-            foreach (var symmetricTuple in removeList)
+            foreach (SymmetricTuple<LgNodeInfo> symmetricTuple in removeList)
                 RemoveTupleFromRailEdges(symmetricTuple);
         }
 
         void RemoveTupleFromRailEdges(SymmetricTuple<LgNodeInfo> tuple) {
-            var a = tuple.A.GeometryNode;
-            var b = tuple.B.GeometryNode;
-            foreach (var edge in EdgesBetween(a, b))
+            Node a = tuple.A.GeometryNode;
+            Node b = tuple.B.GeometryNode;
+            foreach (Edge edge in EdgesBetween(a, b))
                 _railsOfEdges.Remove(edge);
         }
 
         IEnumerable<Edge> EdgesBetween(Node a, Node b) {
-            foreach (var e in a.InEdges.Where(e => e.Source == b))
+            foreach (Edge? e in a.InEdges.Where(e => e.Source == b))
                 yield return e;
-            foreach (var e in a.OutEdges.Where(e => e.Target == b))
+            foreach (Edge? e in a.OutEdges.Where(e => e.Target == b))
                 yield return e;
         }
     }

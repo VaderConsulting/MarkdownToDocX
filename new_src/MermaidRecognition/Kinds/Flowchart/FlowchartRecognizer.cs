@@ -1,8 +1,10 @@
 using System.Text;
 using System.Text.RegularExpressions;
-using MermaidRecognition.Config;
 
-namespace MermaidRecognition.Flowchart;
+using MermaidRecognition.Config;
+using MermaidRecognition.Core;
+
+namespace MermaidRecognition.Kinds.Flowchart;
 
 /// <summary>
 /// Public entry point for flowchart recognition (parse source text to <see cref="DiagramContract"/>).
@@ -223,10 +225,7 @@ public static class FlowchartRecognizer
         }
     }
 
-    static void ParseBareNodeLine(string Line, int LineIndex, FlowchartDb Database)
-    {
-        FlowchartNodeDeclarationParser.ParseAndMerge(Line, LineIndex, Database);
-    }
+    static void ParseBareNodeLine(string Line, int LineIndex, FlowchartDb Database) => FlowchartNodeDeclarationParser.ParseAndMerge(Line, LineIndex, Database);
 
     /// <summary>
     /// Maps diagram header / subgraph direction tokens (including Mermaid symbolic arrows) to layout direction.

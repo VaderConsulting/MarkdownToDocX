@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
-namespace Microsoft.AGL.Core.Geometry
+namespace Microsoft.AGL.Core.Geometry.RectanglePacking
 {
     /// <summary>
     /// Algorithm to pack rectangles
@@ -24,12 +24,6 @@ namespace Microsoft.AGL.Core.Geometry
         /// <summary>
         /// Aspect ratio of the bounding box of the packed solution
         /// </summary>
-        public double PackedAspectRatio
-        {
-            get
-            {
-                return PackedWidth / PackedHeight;
-            }
-        }
+        public double PackedAspectRatio => PackedWidth / PackedHeight;
     }
 }

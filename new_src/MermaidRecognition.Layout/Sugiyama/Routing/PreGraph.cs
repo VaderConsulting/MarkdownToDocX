@@ -18,7 +18,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
             edgeGeometries = new List<EdgeGeometry>(egs);
             this.nodeBoundaries = new Set<ICurve>(nodeBoundaries);
             boundingBox = Rectangle.CreateAnEmptyBox();
-            foreach (var curve in nodeBoundaries)
+            foreach (ICurve curve in nodeBoundaries)
                 boundingBox.Add(curve.BoundingBox);
         }
 

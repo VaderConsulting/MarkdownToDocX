@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MinimumSpanningTree;
+
 using Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.StressEnergy;
 using Microsoft.AGL.Layout.MDS;
 
@@ -24,9 +24,7 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval {
         /// <summary>
         /// Constructor.
         /// </summary>
-        public OverlapRemovalSettings() {
-            StressSettings=new StressMajorizationSettings();
-        }
+        public OverlapRemovalSettings() => StressSettings = new StressMajorizationSettings();
 
         /// <summary>
         /// Settings for the StressMajorization process.
@@ -37,74 +35,56 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval {
         /// <summary>
         /// If true, the overlap iteration process stops after maxIterat iterations.
         /// </summary>
-        public bool StopOnMaxIterat {
-            get { return stopOnMaxIterat; }
-            set { stopOnMaxIterat = value; }
+        public bool StopOnMaxIterat { get => stopOnMaxIterat; set => stopOnMaxIterat = value;
         }
 
         /// <summary>
         /// Epsilon
         /// </summary>
-        public double Epsilon {
-            get { return epsilon; }
-            set { epsilon = value; }
+        public double Epsilon { get => epsilon; set => epsilon = value;
         }
 
         /// <summary>
         /// Number of maxIterat to be made. In each iteration overlap is partly removed.
         /// </summary>
-        public int IterationsMax {
-            get { return iterationsMax; }
-            set { iterationsMax = value; }
+        public int IterationsMax { get => iterationsMax; set => iterationsMax = value;
         }
 
         /// <summary>
         /// Minimal distance between nodes.
         /// </summary>
-        public double NodeSeparation {
-            get { return nodeSeparation; }
-            set { nodeSeparation = value; }
+        public double NodeSeparation { get => nodeSeparation; set => nodeSeparation = value;
         }
 
-     
+
         /// <summary>
         /// 
         /// </summary>
-        public int RandomizationSeed {
-            get { return randomizationSeed; }
-            set { randomizationSeed = value; }
+        public int RandomizationSeed { get => randomizationSeed; set => randomizationSeed = value;
         }
 
         /// <summary>
         /// 
         /// </summary>
-        public bool RandomizeAllPointsOnStart {
-            get { return randomizeAllPointsOnStart; }
-            set { randomizeAllPointsOnStart = value; }
+        public bool RandomizeAllPointsOnStart { get => randomizeAllPointsOnStart; set => randomizeAllPointsOnStart = value;
         }
 
         /// <summary>
         /// Initial Scaling method is used if there is at least one edge.
         /// </summary>
-        public InitialScaling InitialScaling {
-            get { return initialScaling; }
-            set { initialScaling = value; }
+        public InitialScaling InitialScaling { get => initialScaling; set => initialScaling = value;
         }
 
         /// <summary>
         /// Divide the coordinates by 72(Pixels) to work in inches. At the end this transformation is reverted again.
         /// </summary>
-        public bool WorkInInches {
-            get { return workInInches; }
-            set { workInInches = value; }
+        public bool WorkInInches { get => workInInches; set => workInInches = value;
         }
 
         /// <summary>
         /// Method to be used for overlap removal.
         /// </summary>
-        public OverlapRemovalMethod Method {
-            get { return method; }
-            set { method = value; }
+        public OverlapRemovalMethod Method { get => method; set => method = value;
         }
 
         /// <summary>
@@ -112,18 +92,20 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval {
         /// </summary>
         /// <returns></returns>
         public OverlapRemovalSettings Clone() {
-            OverlapRemovalSettings settings = new OverlapRemovalSettings();
-            settings.Method = Method;
-            settings.Epsilon = this.Epsilon;
-            settings.IterationsMax = this.IterationsMax;
-            settings.StopOnMaxIterat = StopOnMaxIterat;
-            settings.NodeSeparation = NodeSeparation;
-            settings.RandomizationSeed = RandomizationSeed;
-            settings.RandomizeAllPointsOnStart = randomizeAllPointsOnStart;
-            settings.InitialScaling = this.InitialScaling;
-            settings.WorkInInches = this.WorkInInches;
-       
-            settings.StressSettings=new StressMajorizationSettings();
+            OverlapRemovalSettings settings = new OverlapRemovalSettings
+            {
+                Method = Method,
+                Epsilon = Epsilon,
+                IterationsMax = IterationsMax,
+                StopOnMaxIterat = StopOnMaxIterat,
+                NodeSeparation = NodeSeparation,
+                RandomizationSeed = RandomizationSeed,
+                RandomizeAllPointsOnStart = randomizeAllPointsOnStart,
+                InitialScaling = InitialScaling,
+                WorkInInches = WorkInInches,
+
+                StressSettings = new StressMajorizationSettings()
+            };
             settings.StressSettings.MaxStressIterations = StressSettings.MaxStressIterations;
             settings.StressSettings.SolvingMethod = StressSettings.SolvingMethod;
             settings.StressSettings.UpdateMethod = StressSettings.UpdateMethod;

@@ -1,4 +1,5 @@
-namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval.MinimumSpanningTree {
+namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
+{
     /// <summary>
     /// Enum containing the different overlap removal methods.
     /// </summary>

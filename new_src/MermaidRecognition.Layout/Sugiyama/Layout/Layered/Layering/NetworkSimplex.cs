@@ -1,11 +1,13 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+
 using MermaidRecognition.Layout.Sugiyama.Core;
 using MermaidRecognition.Layout.Sugiyama.Core.DataStructures;
 using MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms;
 
-namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
+namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered.Layering
+{
     
     /// <summary>
     /// The algorithm follows "A technique for Drawing Directed Graphs", Gansner, Koutsofios, North, Vo.
@@ -14,7 +16,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
     internal class NetworkSimplex : AlgorithmBase, LayerCalculator {
 
         static BasicGraph<IntEdge> CreateGraphWithIEEdges(BasicGraph<IntEdge> bg) {
-            List<IntEdge> ieEdges = new List<IntEdge>();
+            List<IntEdge> ieEdges = [];
 
             foreach (IntEdge e in bg.Edges)
                 ieEdges.Add(new NetworkEdge(e));
@@ -59,7 +61,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         void FeasibleTree() {
             InitLayer();
 
-            while (TightTree() < this.graph.NodeCount) {
+            while (TightTree() < graph.NodeCount) {
 
                 IntEdge e = GetNonTreeEdgeIncidentToTheTreeWithMinimalAmountOfSlack();
                 if (e == null)
@@ -114,9 +116,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// </summary>
         /// <param name="v"></param>
         /// <returns>edges incident to v</returns>
-        IncEdges IncidentEdges(int v) {
-            return new IncEdges(v, this);
-        }
+        IncEdges IncidentEdges(int v) => new IncEdges(v, this);
 
         bool AllLowCutsHaveBeenDone(int v) {
             foreach (NetworkEdge ie in IncidentEdges(v))
@@ -135,13 +135,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// <param name="e">a non-tree edge</param>
         /// <param name="treeEdge">a tree edge</param>
         /// <returns></returns>
-        int EdgeSourceTargetVal(NetworkEdge e, NetworkEdge treeEdge) {
+        int EdgeSourceTargetVal(NetworkEdge e, NetworkEdge treeEdge) =>
 
             // if (e.inTree || treeEdge.inTree == false)
             // throw new Exception("wrong params for EdgeSOurceTargetVal");
 
-            return VertexSourceTargetVal(e.Source, treeEdge) - VertexSourceTargetVal(e.Target, treeEdge);
-        }
+            VertexSourceTargetVal(e.Source, treeEdge) - VertexSourceTargetVal(e.Target, treeEdge);
 
         /// <summary>
         /// The init_cutvalues function computes the cut values of the tree edges.
@@ -249,7 +248,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         }
 
-        List<int> leaves = new List<int>();
+        List<int> leaves = [];
 
         /// <summary> 
         /// A quote:
@@ -290,8 +289,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// <param name="v">the low[v]</param>
         private void InitLowLimParentAndLeavesOnSubtree(ref int curLim, ref int v) {
             Stack<StackStruct> stack = new Stack<StackStruct>();
-            IEnumerator outEnum = this.graph.OutEdges(v).GetEnumerator();
-            IEnumerator inEnum = this.graph.InEdges(v).GetEnumerator();
+            IEnumerator outEnum = graph.OutEdges(v).GetEnumerator();
+            IEnumerator inEnum = graph.InEdges(v).GetEnumerator();
 
             stack.Push(new StackStruct(v, outEnum, inEnum));//vroot is 0 here
             low[v] = curLim;
@@ -317,8 +316,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                         v = e.Target;
                         parent[v] = e;
                         low[v] = curLim;
-                        outEnum = this.graph.OutEdges(v).GetEnumerator();
-                        inEnum = this.graph.InEdges(v).GetEnumerator();
+                        outEnum = graph.OutEdges(v).GetEnumerator();
+                        inEnum = graph.InEdges(v).GetEnumerator();
                     }
                     while (inEnum.MoveNext()) {
                         NetworkEdge e = inEnum.Current as NetworkEdge;
@@ -329,8 +328,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                         v = e.Source;
                         low[v] = curLim;
                         parent[v] = e;
-                        outEnum = this.graph.OutEdges(v).GetEnumerator();
-                        inEnum = this.graph.InEdges(v).GetEnumerator();
+                        outEnum = graph.OutEdges(v).GetEnumerator();
+                        inEnum = graph.InEdges(v).GetEnumerator();
                         done = false;
                         break;
                     }
@@ -361,7 +360,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
 
 
-            for (int i = 0; i < this.graph.NodeCount; i++) {
+            for (int i = 0; i < graph.NodeCount; i++) {
                 if (llow <= lim[i] && lim[i] <= llim)
                     low[i] = 0;
                 else if (low[i] == lim[i])
@@ -391,8 +390,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             IntEdge eret = null;
             int minSlack = NetworkEdge.Infinity;
 
-            foreach (int v in this.treeVertices) {
-                foreach (NetworkEdge e in this.graph.OutEdges(v)) {
+            foreach (int v in treeVertices) {
+                foreach (NetworkEdge e in graph.OutEdges(v)) {
                     if (inTree[e.Source] && inTree[e.Target])
                         continue;
                     int slack = Slack(e);
@@ -405,7 +404,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                     }
                 }
 
-                foreach (NetworkEdge e in this.graph.InEdges(v)) {
+                foreach (NetworkEdge e in graph.InEdges(v)) {
                     if (inTree[e.Source] && inTree[e.Target])
                         continue;
 
@@ -426,7 +425,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         }
 
-        List<int> treeVertices = new List<int>();
+        List<int> treeVertices = [];
         bool[] inTree;
 
 
@@ -441,7 +440,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// <returns>number of verices in a tight tree</returns>
         int TightTree() {
             treeVertices.Clear();
-            foreach (NetworkEdge ie in this.graph.Edges)
+            foreach (NetworkEdge ie in graph.Edges)
                 ie.inTree = false;
 
             for (int i = 1; i < inTree.Length; i++)
@@ -572,19 +571,19 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             front.Push(l);
 
             //set layers to infinity under l
-            for (int i = 0; i < this.graph.NodeCount; i++)
+            for (int i = 0; i < graph.NodeCount; i++)
                 if (low[l] <= lim[i] && lim[i] <= lim[l] && i != l)
                     layers[i] = NetworkEdge.Infinity;
 
             while (front.Count > 0) {
                 int u = front.Pop();
-                foreach (NetworkEdge oe in this.graph.OutEdges(u)) {
+                foreach (NetworkEdge oe in graph.OutEdges(u)) {
                     if (oe.inTree && layers[oe.Target] == NetworkEdge.Infinity) {
                         layers[oe.Target] = layers[u] - oe.Separation;
                         front.Push(oe.Target);
                     }
                 }
-                foreach (NetworkEdge ie in this.graph.InEdges(u)) {
+                foreach (NetworkEdge ie in graph.InEdges(u)) {
                     if (ie.inTree && layers[ie.Source] == NetworkEdge.Infinity) {
                         layers[ie.Source] = layers[u] + ie.Separation;
                         front.Push(ie.Source);
@@ -701,9 +700,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             return l;
         }
 #if TEST_MSAGL
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1303:Do not pass literals as localized parameters", MessageId = "System.Console.WriteLine(System.String,System.Object,System.Object,System.Object)"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         void CheckCutValues() {
-            foreach (NetworkEdge e in this.graph.Edges) {
+            foreach (NetworkEdge e in graph.Edges) {
                 if (e.inTree) {
                     int cut = 0;
                     foreach (NetworkEdge f in graph.Edges) {
@@ -724,8 +722,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 #endif
 
         void InitLayer() {
-            LongestPathLayering lp = new LongestPathLayering(this.graph);
-            this.layers = lp.GetLayers();
+            LongestPathLayering lp = new LongestPathLayering(graph);
+            layers = lp.GetLayers();
         }
 
 
@@ -742,14 +740,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             public IEnumerator<NetworkEdge> GetEnumerator()
             {
 #else
-            IEnumerator<NetworkEdge> IEnumerable<NetworkEdge>.GetEnumerator() {
+            IEnumerator<NetworkEdge> IEnumerable<NetworkEdge>.GetEnumerator() =>
 #endif
-                return new IncEdgeEnumerator(nw.graph.OutEdges(v).GetEnumerator(), nw.graph.InEdges(v).GetEnumerator());
-            }
+                new IncEdgeEnumerator(nw.graph.OutEdges(v).GetEnumerator(), nw.graph.InEdges(v).GetEnumerator());
 
-            IEnumerator IEnumerable.GetEnumerator() {
-                return new IncEdgeEnumerator(nw.graph.OutEdges(v).GetEnumerator(), nw.graph.InEdges(v).GetEnumerator());
-            }
+            IEnumerator IEnumerable.GetEnumerator() => new IncEdgeEnumerator(nw.graph.OutEdges(v).GetEnumerator(), nw.graph.InEdges(v).GetEnumerator());
 
 
             internal IncEdges(int v, NetworkSimplex nw) {
@@ -766,7 +761,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             bool inIsActive;
 
 
-            public void Dispose() { GC.SuppressFinalize(this); }
+            public void Dispose() => GC.SuppressFinalize(this);
 
             internal IncEdgeEnumerator(IEnumerator outEdges, IEnumerator inEdges) {
                 this.outEdges = outEdges;

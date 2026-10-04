@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
+using MermaidRecognition.Layout.Sugiyama.Core.Geometry.OverlapRemoval;
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
 
 namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
@@ -21,7 +22,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// <param name="bounds"></param>
         internal LockPosition(Node node, Rectangle bounds) {
             this.node = node;
-            this.Bounds = bounds;
+            Bounds = bounds;
         }
         /// <summary>
         /// Makes a constraint to preserve the nodes' position with the specified weight
@@ -30,23 +31,22 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// <param name="bounds"></param>
         /// <param name="weight"></param>
         internal LockPosition(Node node, Rectangle bounds, double weight)
-            : this(node, bounds)
-        {
-            Weight = weight;
-        }
+            : this(node, bounds) => Weight = weight;
         /// <summary>
         /// Set the weight for this lock constraint, i.e. if this constraint conflicts with some other constraint,
         /// projection of that constraint be biased by the weights of the nodes involved
         /// </summary>
-        public double Weight {
-            get {
-                return weight;
-            }
-            set {
-                if (value > 1e20) {
+        public double Weight
+        {
+            get => weight;
+            set
+            {
+                if (value > 1e20)
+                {
                     throw new ArgumentOutOfRangeException("value", "must be < 1e10 or we run out of precision");
                 }
-                if (value < 1e-3) {
+                if (value < 1e-3)
+                {
                     throw new ArgumentOutOfRangeException("value", "must be > 1e-3 or we run out of precision");
                 }
                 weight = value;
@@ -74,29 +74,29 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// I use stay weight in "project" of any constraints involving the locked node
         /// </summary>
         public virtual double Project() {
-            var delta = Bounds.LeftBottom - node.BoundingBox.LeftBottom;
+            Point delta = Bounds.LeftBottom - node.BoundingBox.LeftBottom;
             double deltaLength = delta.Length;
             double displacement = deltaLength;
-            var cluster = node as Cluster;
-            if (cluster != null)
+            if (node is Cluster cluster)
             {
-                foreach(var c in cluster.AllClustersDepthFirst())
+                foreach (Cluster c in cluster.AllClustersDepthFirst())
                 {
-                    foreach(var v in c.Nodes)
+                    foreach (Node v in c.Nodes)
                     {
                         v.Center += delta;
                         displacement += deltaLength;
                     }
-                    if(c == cluster) {
+                    if (c == cluster)
+                    {
                         cluster.RectangularBoundary.Rect = Bounds;
                     }
-                    else 
+                    else
                     {
-                        var r = c.RectangularBoundary.Rect;
+                        Rectangle r = c.RectangularBoundary.Rect;
                         c.RectangularBoundary.Rect = new Rectangle(r.LeftBottom + delta, r.RightTop + delta);
                     }
                 }
-            } 
+            }
             else
             {
                 node.BoundingBox = Bounds;
@@ -107,7 +107,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// LockPosition is always applied (level 0)
         /// </summary>
         /// <returns>0</returns>
-        public int Level { get { return 0; } }
+        public int Level => 0;
 
         /// <summary>
         /// Sets the weight of the node (the FINode actually) to the weight required by this lock.
@@ -120,15 +120,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// </summary>
         internal void SetLockNodeWeight()
         {
-            Cluster cluster = node as Cluster;
-            if (cluster != null)
+            if (node is Cluster cluster)
             {
                 RectangularClusterBoundary cb = cluster.RectangularBoundary;
                 cb.Lock(Bounds.Left, Bounds.Right, Bounds.Top, Bounds.Bottom);
-                foreach (var c in cluster.AllClustersDepthFirst())
+                foreach (Cluster c in cluster.AllClustersDepthFirst())
                 {
                     c.RectangularBoundary.GenerateFixedConstraints = true;
-                    foreach (var child in  c.Nodes)
+                    foreach (Node child in c.Nodes)
                     {
                         SetFINodeWeight(child, weight);
                     }
@@ -138,7 +137,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
             {
                 SetFINodeWeight(node, weight);
             }
-            foreach (Cluster ancestor in this.node.AllClusterAncestors)
+            foreach (Cluster ancestor in node.AllClusterAncestors)
             {
                 if (ancestor.RectangularBoundary != null)
                 {
@@ -152,14 +151,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// Reverses the changes made by SetLockNodeWeight
         /// </summary>
         internal void RestoreNodeWeight() {
-            Cluster cluster = node as Cluster;
-            if (cluster != null)
+            if (node is Cluster cluster)
             {
                 cluster.RectangularBoundary.Unlock();
-                foreach (var c in cluster.AllClustersDepthFirst())
+                foreach (Cluster c in cluster.AllClustersDepthFirst())
                 {
                     c.RectangularBoundary.GenerateFixedConstraints = c.RectangularBoundary.GenerateFixedConstraintsDefault;
-                    foreach (var child in c.Nodes)
+                    foreach (Node child in c.Nodes)
                     {
                         SetFINodeWeight(child, 1);
                     }
@@ -182,8 +180,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
 
         private static void SetFINodeWeight(Node child, double weight)
         {
-            var v = child.AlgorithmData as FiNode;
-            if (v != null)
+            if (child.AlgorithmData is FiNode v)
             {
                 v.stayWeight = weight;
             }
@@ -196,9 +193,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         {
             get
             {
-                var nodes = new List<Node>();
-                var cluster = node as Cluster;
-                if(cluster!=null)
+                List<Node> nodes = new List<Node>();
+                if (node is Cluster cluster)
                 {
                     cluster.ForEachNode(nodes.Add);
                 }

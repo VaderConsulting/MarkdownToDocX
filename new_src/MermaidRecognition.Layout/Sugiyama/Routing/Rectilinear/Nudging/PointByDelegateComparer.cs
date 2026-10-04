@@ -6,9 +6,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging{
 
         PointProjection projection;
 
-        public PointByDelegateComparer(PointProjection projection){
-            this.projection = projection;
-        }
+        public PointByDelegateComparer(PointProjection projection) => this.projection = projection;
 
         /// <summary>
         /// Compares two objects and returns a value indicating whether one is less than, equal to, or greater than the other.
@@ -26,9 +24,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging{
         /// <param name="x">The first object to compare.
         ///                 </param><param name="y">The second object to compare.
         ///                 </param>
-        public int Compare(Point x, Point y){
-            return  projection(x).CompareTo(projection(y));
-        }
+        public int Compare(Point x, Point y) => projection(x).CompareTo(projection(y));
 
 
     }

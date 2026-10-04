@@ -1,9 +1,10 @@
 using System.Text;
 using System.Text.RegularExpressions;
-using MermaidRecognition.Class;
-using MermaidRecognition.Contract;
 
-namespace MermaidRecognition.Gantt;
+using MermaidRecognition.Contract;
+using MermaidRecognition.Kinds.Class;
+
+namespace MermaidRecognition.Kinds.Gantt;
 
 /// <summary>
 /// Maps classified gantt source statements into <see cref="DiagramContract"/> entities (L3 G4).
@@ -143,10 +144,12 @@ public static class GanttContractMapper
                 if (Match.Success)
                 {
                     string SectionTitle = Match.Groups[1].Value.Trim();
-                    GroupContract Group = new GroupContract();
-                    Group.Id = "section-" + SectionIndex.ToString();
-                    Group.Title = SectionTitle;
-                    Group.ParentGroupId = null;
+                    GroupContract Group = new GroupContract
+                    {
+                        Id = "section-" + SectionIndex.ToString(),
+                        Title = SectionTitle,
+                        ParentGroupId = null
+                    };
                     Contract.GroupsMutable.Add(Group);
                     CurrentSectionId = Group.Id;
                     SectionIndex++;
@@ -162,9 +165,11 @@ public static class GanttContractMapper
                 {
                     string TaskLabel = Match.Groups[1].Value.Trim();
                     string TaskId = Match.Groups[2].Value.Trim();
-                    NodeContract Node = new NodeContract();
-                    Node.Id = TaskId;
-                    Node.Label = TaskLabel;
+                    NodeContract Node = new NodeContract
+                    {
+                        Id = TaskId,
+                        Label = TaskLabel
+                    };
                     if (string.Equals(TaskId, MILESTONE_TASK_ID, StringComparison.OrdinalIgnoreCase))
                     {
                         Node.Shape = "ganttMilestone";

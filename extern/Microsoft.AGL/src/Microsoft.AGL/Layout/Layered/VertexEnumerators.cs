@@ -11,41 +11,24 @@ namespace Microsoft.AGL.Layout.Layered {
     internal class SuccEnumerator : IEnumerator<int> {
         IEnumerator edges;
 
-        public void Reset() {
-            edges.Reset();
-        }
+        public void Reset() => edges.Reset();
 
-        public void Dispose() {
-            GC.SuppressFinalize(this);
-        }
+        public void Dispose() => GC.SuppressFinalize(this);
 
 
-        public bool MoveNext() {
-            return edges.MoveNext();
-        }
+        public bool MoveNext() => edges.MoveNext();
 
-        internal SuccEnumerator(IEnumerator edges) {
-            this.edges = edges;
-        }
+        internal SuccEnumerator(IEnumerator edges) => this.edges = edges;
 
         #region IEnumerator<int> Members
 
-        public int Current {
-            get {
-                return((IntEdge)edges.Current).Target;
-            }
-
-        }
+        public int Current => ((IntEdge)edges.Current).Target;
 
         #endregion
 
         #region IEnumerator Members
 
-        object IEnumerator.Current {
-            get {
-                throw new NotImplementedException();
-            }
-        }
+        object IEnumerator.Current => throw new NotImplementedException();
 
         #endregion
     }
@@ -56,21 +39,16 @@ namespace Microsoft.AGL.Layout.Layered {
     internal class PredEnumerator : IEnumerator<int> {
         IEnumerator edges;
 
-        public void Dispose() { GC.SuppressFinalize(this); }
+        public void Dispose() => GC.SuppressFinalize(this);
 
-        public void Reset() {
-            edges.Reset();
-        }
+        public void Reset() => edges.Reset();
 
 #if SHARPKIT //http://code.google.com/p/sharpkit/issues/detail?id=203
         public int Current {
 #else
-        int IEnumerator<int>.Current {
+        int IEnumerator<int>.Current
 #endif
-            get {
-                return ((IntEdge)edges.Current).Source;
-            }
-        }
+            => ((IntEdge)edges.Current).Source;
 
         object IEnumerator.Current {
             get {
@@ -79,29 +57,25 @@ namespace Microsoft.AGL.Layout.Layered {
             }
         }
 
-        public bool MoveNext() {
-            return edges.MoveNext();
-        }
+        public bool MoveNext() => edges.MoveNext();
 
-        internal PredEnumerator(IEnumerator edges) {
-            this.edges = edges;
-        }
+        internal PredEnumerator(IEnumerator edges) => this.edges = edges;
     }
 
     internal class EmptyEnumerator : IEnumerator<int> {
-        public bool MoveNext() { return false; }
+        public bool MoveNext() => false;
 
 #if SHARPKIT //http://code.google.com/p/sharpkit/issues/detail?id=203
         public int Current { get { return 0; } }
 #else
-        int IEnumerator<int>.Current { get { return 0; } }
+        int IEnumerator<int>.Current => 0;
 #endif
-        object IEnumerator.Current { get { return 0; } }
+        object IEnumerator.Current => 0;
 
         void IEnumerator.Reset() { }
 
 
-        public void Dispose() { GC.SuppressFinalize(this); }
+        public void Dispose() => GC.SuppressFinalize(this);
 
     }
 
@@ -135,8 +109,8 @@ namespace Microsoft.AGL.Layout.Layered {
         }
 
         internal Pred(BasicGraph<IntEdge> g, int v) {
-            this.graph = g;
-            this.vert = v;
+            graph = g;
+            vert = v;
         }
 
         #endregion
@@ -152,13 +126,11 @@ namespace Microsoft.AGL.Layout.Layered {
 
         int vert;
 
-        public IEnumerator<int> GetEnumerator() {
-            return new SuccEnumerator(graph.OutEdges(vert).GetEnumerator());
-        }
+        public IEnumerator<int> GetEnumerator() => new SuccEnumerator(graph.OutEdges(vert).GetEnumerator());
 
         internal Succ(BasicGraph<IntEdge> g, int v) {
-            this.graph = g;
-            this.vert = v;
+            graph = g;
+            vert = v;
         }
 
 

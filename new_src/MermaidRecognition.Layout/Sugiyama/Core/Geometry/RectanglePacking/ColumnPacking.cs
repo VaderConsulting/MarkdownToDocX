@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
-namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
+namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RectanglePacking
 {
     /// <summary>
     /// Flow fill of columns to some maximum height
@@ -22,10 +22,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
         /// </summary>
         /// <param name="rectangles"></param>
         /// <param name="maxHeight"></param>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1026:DefaultParametersShouldNotBeUsed"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures")]
         public ColumnPacking(IEnumerable<RectangleToPack<TData>> rectangles, double maxHeight)
         {
-            this.orderedRectangles = rectangles;
+            orderedRectangles = rectangles;
             this.maxHeight = maxHeight;
         }
 
@@ -38,7 +37,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
             PackedHeight = PackedWidth = 0;
             double columnPosition = 0;
             double columnHeight = 0;
-            foreach (var current in orderedRectangles)
+            foreach (RectangleToPack<TData> current in orderedRectangles)
             {
                 Rectangle r = current.Rectangle;
                 if (columnHeight + r.Height > maxHeight)

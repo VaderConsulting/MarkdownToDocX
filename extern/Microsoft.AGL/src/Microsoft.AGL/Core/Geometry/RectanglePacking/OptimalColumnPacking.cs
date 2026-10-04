@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
-namespace Microsoft.AGL.Core.Geometry
+namespace Microsoft.AGL.Core.Geometry.RectanglePacking
 {
     /// <summary>
     /// Pack rectangles (without rotation) into a given aspect ratio
@@ -19,7 +19,6 @@ namespace Microsoft.AGL.Core.Geometry
         /// </summary>
         /// <param name="rectangles"></param>
         /// <param name="aspectRatio"></param>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures")]
         public OptimalColumnPacking(IEnumerable<RectangleToPack<TData>> rectangles, double aspectRatio)
             : base(rectangles.ToList(), aspectRatio)
         {
@@ -27,7 +26,7 @@ namespace Microsoft.AGL.Core.Geometry
             Debug.Assert(rectangles.Any(), "Expected more than one rectangle in rectangles");
             Debug.Assert(aspectRatio > 0, "aspect ratio should be greater than 0");
 
-            this.createPacking = (rs, height) => new ColumnPacking<TData>(rs, height);
+            createPacking = (rs, height) => new ColumnPacking<TData>(rs, height);
         }
 
         /// <summary>
@@ -41,7 +40,7 @@ namespace Microsoft.AGL.Core.Geometry
             double totalHeight = 0;
 
             // initial widthLowerBound is the width of a perfect packing for the desired aspect ratio
-            foreach (var rtp in rectangles)
+            foreach (RectangleToPack<TData> rtp in rectangles)
             {
                 Rectangle r = rtp.Rectangle;
                 Debug.Assert(r.Width > 0, "Width must be greater than 0");

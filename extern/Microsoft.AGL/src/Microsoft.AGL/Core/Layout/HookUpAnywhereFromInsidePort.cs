@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+
 using Microsoft.AGL.Core.Geometry;
 using Microsoft.AGL.Core.Geometry.Curves;
 
@@ -32,37 +33,27 @@ namespace Microsoft.AGL.Core.Layout {
         /// <summary>
         /// returns a point on the boundary curve
         /// </summary>
-        public override Point Location {
-            get { return location; }
-        }
+        public override Point Location => location;
 
         /// <summary>
         /// Gets the boundary curve of the port.
         /// </summary>
-        public override ICurve Curve {
-            get { return curve(); }
-            set { throw new InvalidCastException(); }
+        public override ICurve Curve { get => curve(); set => throw new InvalidCastException();
         }
 
-        internal void SetLocation(Point p) { location = p; }
+        internal void SetLocation(Point p) => location = p;
         internal Polyline LoosePolyline { get; set; }
 
         /// <summary>
         /// We are trying to correct the last segment of the polyline by make it perpendicular to the Port.Curve.
         ///For this purpose we trim the curve by the cone of the angle 2*adjustment angle and project the point before the last of the polyline to this curve.
         /// </summary>
-        public double AdjustmentAngle {
-            get {
-                return adjustmentAngle;
-            }
-            set {
-                adjustmentAngle = value;
-            }
+        public double AdjustmentAngle { get => adjustmentAngle; set => adjustmentAngle = value;
         }
         double hookSize = 9;
         /// <summary>
         /// the size of the self-loop
         /// </summary>
-        public double HookSize { get { return hookSize; } set { hookSize = value; } }
+        public double HookSize { get => hookSize; set => hookSize = value; }
     }
 }

@@ -1,4 +1,6 @@
-namespace MermaidRecognition.KindRecognition;
+using MermaidRecognition.Core;
+
+namespace MermaidRecognition.Kinds.LinePattern;
 
 /// <summary>
 /// Recogniser for YAML front-matter trap sources (detector id <c>---</c>).
@@ -10,9 +12,11 @@ public sealed class YamlFrontMatterKindRecognizer : IKindRecognizer
     /// <inheritdoc />
     public DiagramContract Parse(string Source, DiagramDetectionResult Detection)
     {
-        DiagramContract Contract = new DiagramContract();
-        Contract.Kind = "yaml-front-matter";
-        Contract.Header = "---";
+        DiagramContract Contract = new DiagramContract
+        {
+            Kind = "yaml-front-matter",
+            Header = "---"
+        };
 
         MermaidConfigurationPipeline.ParseLeadingInitDirectives(Source, Contract.Configuration);
 
@@ -25,10 +29,12 @@ public sealed class YamlFrontMatterKindRecognizer : IKindRecognizer
                 continue;
             }
 
-            SourceStatementContract Statement = new SourceStatementContract();
-            Statement.LineNumber = LineIndex + 1;
-            Statement.LineTypeId = "yaml-front-matter.line";
-            Statement.RawLine = Line;
+            SourceStatementContract Statement = new SourceStatementContract
+            {
+                LineNumber = LineIndex + 1,
+                LineTypeId = "yaml-front-matter.line",
+                RawLine = Line
+            };
             Contract.SourceStatementsMutable.Add(Statement);
         }
 

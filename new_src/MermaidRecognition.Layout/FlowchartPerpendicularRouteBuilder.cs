@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
-using MermaidRecognition.Flowchart;
+
+using MermaidRecognition.Kinds.Flowchart;
 
 namespace MermaidRecognition.Layout;
 
@@ -174,10 +175,7 @@ public static class FlowchartPerpendicularRouteBuilder
         double BoundaryY,
         FlowchartLayoutNodeBounds Bounds,
         string? Shape,
-        double StubLength)
-    {
-        return ComputeStubOuterPoint(BoundaryX, BoundaryY, Bounds, Shape, StubLength);
-    }
+        double StubLength) => ComputeStubOuterPoint(BoundaryX, BoundaryY, Bounds, Shape, StubLength);
 
     private static (double X, double Y) ComputeStubOuterPoint(
         double BoundaryX,

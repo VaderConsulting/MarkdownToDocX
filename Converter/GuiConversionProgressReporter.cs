@@ -4,10 +4,7 @@ internal sealed class GuiConversionProgressReporter : MDConverter.IConversionPro
 {
     private readonly Main _Form;
 
-    public GuiConversionProgressReporter(Main Form)
-    {
-        _Form = Form;
-    }
+    public GuiConversionProgressReporter(Main Form) => _Form = Form;
 
     public void Report(int PercentComplete, string Message)
     {

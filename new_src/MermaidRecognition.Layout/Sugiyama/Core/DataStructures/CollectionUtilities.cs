@@ -11,7 +11,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
         /// <summary>
         /// Add	key,value to dictionary if the key is not yet presented
         /// </summary>
-        internal static void SafeAdd<T, TC>(Dictionary<T, TC> dictionary, T key, TC value) {
+        internal static void SafeAdd<T, TC>(Dictionary<T, TC> dictionary, T key, TC value) where T : notnull {
             if (!dictionary.ContainsKey(key))
                 dictionary.Add(key, value);
         }
@@ -20,9 +20,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
         /// Add	value to dictionary
         /// </summary>
         internal static void AddToMap<TS, T, TC>(Dictionary<T, TC> dictionary, T key, TS value)
-            where TC : ICollection<TS>, new() {
-            TC tc;
-            if (!dictionary.TryGetValue(key, out tc))
+            where T : notnull where TC : ICollection<TS>, new() {
+            if (!dictionary.TryGetValue(key, out TC? tc))
                 dictionary[key] = tc = new TC();
 
             tc.Add(value);
@@ -31,12 +30,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
         /// <summary>
         /// Remove value from dictionary
         /// </summary>
-        [SuppressMessage("Microsoft.Naming", "CA1715:IdentifiersShouldHaveCorrectPrefix", MessageId = "T"),
-         SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "S"),
-         SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures")]
         internal static void RemoveFromMap<TS, T, TC>(Dictionary<T, TC> dictionary, T key, TS value)
-            where TC : ICollection<TS> {
-            var tc = dictionary[key];
+            where T : notnull where TC : ICollection<TS> {
+            TC tc = dictionary[key];
             tc.Remove(value);
             if (tc.Count == 0)
                 dictionary.Remove(key);

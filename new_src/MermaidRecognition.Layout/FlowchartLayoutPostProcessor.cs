@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Render;
 
 namespace MermaidRecognition.Layout;
@@ -92,7 +93,7 @@ public static class FlowchartLayoutPostProcessor
         {
             if (!NodeIdsByComponentRoot.TryGetValue(Entry.Value, out List<string>? NodeIds))
             {
-                NodeIds = new List<string>();
+                NodeIds = [];
                 NodeIdsByComponentRoot[Entry.Value] = NodeIds;
             }
 
@@ -123,7 +124,7 @@ public static class FlowchartLayoutPostProcessor
             }
         }
 
-        List<ComponentLayoutGroup> ComponentGroups = new List<ComponentLayoutGroup>();
+        List<ComponentLayoutGroup> ComponentGroups = [];
         foreach (KeyValuePair<string, List<string>> Entry in NodeIdsByComponentRoot)
         {
             List<string> NodeIds = Entry.Value;
@@ -456,7 +457,7 @@ public static class FlowchartLayoutPostProcessor
             SourceIds.Add(Edge.SourceId);
         }
 
-        List<string> RootNodeIds = new List<string>();
+        List<string> RootNodeIds = [];
         foreach (FlowchartLayoutNodeBounds Bounds in Source)
         {
             if (!TargetIds.Contains(Bounds.NodeId) && SourceIds.Contains(Bounds.NodeId))
@@ -530,7 +531,7 @@ public static class FlowchartLayoutPostProcessor
     {
         if (Source.Count == 0)
         {
-            return new List<FlowchartLayoutNodeBounds>();
+            return [];
         }
 
         bool HorizontalFlow = Direction == FlowchartDirection.LeftToRight
@@ -711,18 +712,12 @@ public static class FlowchartLayoutPostProcessor
     private static List<FlowchartLayoutNodeBounds> CenterFanOutSources(
         DiagramContract Contract,
         IReadOnlyList<FlowchartLayoutNodeBounds> Source,
-        FlowchartDirection Direction)
-    {
-        return CenterSourcesWithTargetCount(Contract, Source, Direction, MinimumTargetCount: 2);
-    }
+        FlowchartDirection Direction) => CenterSourcesWithTargetCount(Contract, Source, Direction, MinimumTargetCount: 2);
 
     private static List<FlowchartLayoutNodeBounds> CenterFanInTargets(
         DiagramContract Contract,
         IReadOnlyList<FlowchartLayoutNodeBounds> Source,
-        FlowchartDirection Direction)
-    {
-        return CenterTargetsWithSourceCount(Contract, Source, Direction, MinimumSourceCount: 2);
-    }
+        FlowchartDirection Direction) => CenterTargetsWithSourceCount(Contract, Source, Direction, MinimumSourceCount: 2);
 
     private static List<FlowchartLayoutNodeBounds> CenterSingleSuccessorSources(
         DiagramContract Contract,
@@ -756,7 +751,7 @@ public static class FlowchartLayoutPostProcessor
 
             if (!SourceIdsByTargetId.TryGetValue(Edge.TargetId, out List<string>? SourceIds))
             {
-                SourceIds = new List<string>();
+                SourceIds = [];
                 SourceIdsByTargetId[Edge.TargetId] = SourceIds;
             }
 
@@ -794,7 +789,7 @@ public static class FlowchartLayoutPostProcessor
     {
         if (Source.Count == 0)
         {
-            return new List<FlowchartLayoutNodeBounds>();
+            return [];
         }
 
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById =
@@ -833,7 +828,7 @@ public static class FlowchartLayoutPostProcessor
                 continue;
             }
 
-            List<double> CrossPositions = new List<double>();
+            List<double> CrossPositions = [];
             foreach (string TargetId in TargetIds)
             {
                 if (!BoundsById.TryGetValue(TargetId, out FlowchartLayoutNodeBounds TargetBounds))
@@ -874,7 +869,7 @@ public static class FlowchartLayoutPostProcessor
             return new List<FlowchartLayoutNodeBounds>(Source);
         }
 
-        List<FlowchartLayoutNodeBounds> Adjusted = new List<FlowchartLayoutNodeBounds>();
+        List<FlowchartLayoutNodeBounds> Adjusted = [];
         foreach (FlowchartLayoutNodeBounds Bounds in Source)
         {
             if (!CrossAxisAdjustments.TryGetValue(Bounds.NodeId, out double CrossPosition))
@@ -1222,7 +1217,7 @@ public static class FlowchartLayoutPostProcessor
         }
 
         string? HubNodeId = null;
-        List<EdgeContract> LabelledOutgoing = new List<EdgeContract>();
+        List<EdgeContract> LabelledOutgoing = [];
         foreach (EdgeContract Edge in Contract.Edges)
         {
             if (string.IsNullOrWhiteSpace(Edge.Label))
@@ -1375,7 +1370,7 @@ public static class FlowchartLayoutPostProcessor
     {
         if (Source.Count == 0)
         {
-            return new List<FlowchartLayoutNodeBounds>();
+            return [];
         }
 
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById =
@@ -1404,7 +1399,7 @@ public static class FlowchartLayoutPostProcessor
                 continue;
             }
 
-            List<double> CrossPositions = new List<double>();
+            List<double> CrossPositions = [];
             foreach (string SourceId in SourceIds)
             {
                 if (!BoundsById.TryGetValue(SourceId, out FlowchartLayoutNodeBounds SourceBounds))
@@ -1448,7 +1443,7 @@ public static class FlowchartLayoutPostProcessor
             return new List<FlowchartLayoutNodeBounds>(Source);
         }
 
-        List<FlowchartLayoutNodeBounds> Adjusted = new List<FlowchartLayoutNodeBounds>();
+        List<FlowchartLayoutNodeBounds> Adjusted = [];
         foreach (FlowchartLayoutNodeBounds Bounds in Source)
         {
             if (!CrossAxisAdjustments.TryGetValue(Bounds.NodeId, out double CrossPosition))
@@ -1553,7 +1548,7 @@ public static class FlowchartLayoutPostProcessor
     {
         if (Source.Count == 0)
         {
-            return new List<FlowchartLayoutNodeBounds>();
+            return [];
         }
 
         bool HorizontalFlow = Direction == FlowchartDirection.LeftToRight
@@ -1670,7 +1665,7 @@ public static class FlowchartLayoutPostProcessor
             string Root = FindComponentRoot(RankBandRootByNodeId, Entry.Key);
             if (!NodeIdsByRankBandRoot.TryGetValue(Root, out List<string>? NodeIds))
             {
-                NodeIds = new List<string>();
+                NodeIds = [];
                 NodeIdsByRankBandRoot[Root] = NodeIds;
             }
 
@@ -1752,10 +1747,7 @@ public static class FlowchartLayoutPostProcessor
     private static double GetCrossAxisCenterToCenterStep(
         FlowchartLayoutNodeBounds Bounds,
         bool HorizontalFlow,
-        double NodeSpacingPx)
-    {
-        return GetCrossAxisExtent(Bounds, HorizontalFlow) + NodeSpacingPx;
-    }
+        double NodeSpacingPx) => GetCrossAxisExtent(Bounds, HorizontalFlow) + NodeSpacingPx;
 
     /// <summary>
     /// Maps creation-order edge indices to cross-axis slots around a hub.
@@ -1786,10 +1778,7 @@ public static class FlowchartLayoutPostProcessor
         return Bounds.CenterX;
     }
 
-    private static double GetCrossAxisExtent(FlowchartLayoutNodeBounds Bounds, bool HorizontalFlow)
-    {
-        return GetNodeExtentOnPackAxis(Bounds, false, HorizontalFlow);
-    }
+    private static double GetCrossAxisExtent(FlowchartLayoutNodeBounds Bounds, bool HorizontalFlow) => GetNodeExtentOnPackAxis(Bounds, false, HorizontalFlow);
 
     private static FlowchartLayoutNodeBounds SetCrossAxisCenter(
         FlowchartLayoutNodeBounds Bounds,

@@ -1,7 +1,8 @@
 using System.Text;
 using System.Text.RegularExpressions;
-using MermaidRecognition;
+
 using MermaidRecognition.Contract;
+using MermaidRecognition.Core;
 
 namespace MDConverter.Pipeline;
 

@@ -20,10 +20,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         ScanDirection scanDirection;
         readonly BinaryHeapWithComparer<SweepEvent> eventTree;
 
-        internal EventQueue() {
-            eventTree = new BinaryHeapWithComparer<SweepEvent>(this);
-        }
-        
+        internal EventQueue() => eventTree = new BinaryHeapWithComparer<SweepEvent>(this);
+
         internal void Reset(ScanDirection scanDir) {
             Debug.Assert(0 == eventTree.Count, "Stray events in EventQueue.Reset");
             scanDirection = scanDir;
@@ -40,9 +38,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             return evt;
         }
 
-        internal int Count {
-            get { return eventTree.Count; }
-        }
+        internal int Count => eventTree.Count;
 
         #region IComparer<SweepEvent>
         /// <summary>
@@ -54,7 +50,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         /// <param name="lhs"></param>
         /// <param name="rhs"></param>
         /// <returns></returns>
-        public int Compare(SweepEvent lhs, SweepEvent rhs) {
+        public int Compare(SweepEvent? lhs, SweepEvent? rhs) {
+            if (lhs is null) return rhs is null ? 0 : -1; if (rhs is null) return 1;
             if (lhs == rhs) {
                 return 0;
             }
@@ -91,7 +88,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 #endif // DEVTRACE
 
         [Conditional("DEVTRACE")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         void DevTraceInfo(int verboseLevel, string format, params object[] args) {
 #if DEVTRACE
             eventQueueTrace.WriteLineIf(DevTrace.Level.Info, verboseLevel, format, args);

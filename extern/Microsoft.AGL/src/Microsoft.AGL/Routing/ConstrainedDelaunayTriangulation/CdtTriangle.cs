@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Diagnostics;
+
 using Microsoft.AGL.Core.Geometry;
 
 namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
@@ -22,7 +23,7 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
 
 
         internal CdtTriangle(CdtSite a, CdtSite b, CdtSite c, Func<CdtSite, CdtSite, CdtEdge> createEdgeDelegate) {
-            var orientation = Point.GetTriangleOrientationWithNoEpsilon(a.Point, b.Point, c.Point);
+            TriangleOrientation orientation = Point.GetTriangleOrientationWithNoEpsilon(a.Point, b.Point, c.Point);
             switch (orientation) {
                 case TriangleOrientation.Counterclockwise:
                     FillCcwTriangle(a, b, c, createEdgeDelegate);
@@ -79,17 +80,11 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
                 edge.CwTriangle = this;
         }
 
-        internal Point getCenter() {
-            return (Sites[0].Point + Sites[1].Point + Sites[2].Point) / 3.0;
-        }
+        internal Point getCenter() => (Sites[0].Point + Sites[1].Point + Sites[2].Point) / 3.0;
 
-        internal bool EdgeIsReversed(int i) {
-            return Edges[i].CwTriangle == this;
-        }
+        internal bool EdgeIsReversed(int i) => Edges[i].CwTriangle == this;
 
-        internal bool EdgeIsReversed(CdtEdge edge) {
-            return edge.CwTriangle == this;
-        }
+        internal bool EdgeIsReversed(CdtEdge edge) => edge.CwTriangle == this;
 
         /// <summary>
         /// here a,b,c comprise a ccw triangle
@@ -105,18 +100,16 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
         }
 
         void CreateEdge(int i, Func<CdtSite, CdtSite, CdtEdge> createEdgeDelegate) {
-            var a = Sites[i];
-            var b = Sites[i + 1];
-            var edge = Edges[i] = createEdgeDelegate(a, b);
+            CdtSite a = Sites[i];
+            CdtSite b = Sites[i + 1];
+            CdtEdge edge = Edges[i] = createEdgeDelegate(a, b);
             BindEdgeToTriangle(a, edge);
         }
 
-        internal bool Contains(CdtSite cdtSite) {
-            return Sites.Contains(cdtSite);
-        }
+        internal bool Contains(CdtSite cdtSite) => Sites.Contains(cdtSite);
 
         internal CdtEdge OppositeEdge(CdtSite pi) {
-            var index = Sites.Index(pi);
+            int index = Sites.Index(pi);
             Debug.Assert(index != -1);
             return Edges[index + 1];
         }
@@ -129,13 +122,11 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
         /// A <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
         /// </returns>
         /// <filterpriority>2</filterpriority>
-        public override string ToString() {
-            return String.Format("({0},{1},{2}", Sites[0], Sites[1], Sites[2]);
-        }
+        public override string ToString() => string.Format("({0},{1},{2}", Sites[0], Sites[1], Sites[2]);
 #endif
 
         internal CdtSite OppositeSite(CdtEdge cdtEdge) {
-            var i = Edges.Index(cdtEdge);
+            int i = Edges.Index(cdtEdge);
             return Sites[i + 2];
         }
 

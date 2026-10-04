@@ -12,14 +12,7 @@ public sealed class DiagramDetectionResult
     /// </summary>
     public string MermaidDetectorId
     {
-        get
-        {
-            return _MermaidDetectorId;
-        }
-        set
-        {
-            _MermaidDetectorId = value;
-        }
+        get => _MermaidDetectorId; set => _MermaidDetectorId = value;
     }
 
     private string _ProgrammeKindId = string.Empty;
@@ -29,13 +22,6 @@ public sealed class DiagramDetectionResult
     /// </summary>
     public string ProgrammeKindId
     {
-        get
-        {
-            return _ProgrammeKindId;
-        }
-        set
-        {
-            _ProgrammeKindId = value;
-        }
+        get => _ProgrammeKindId; set => _ProgrammeKindId = value;
     }
 }

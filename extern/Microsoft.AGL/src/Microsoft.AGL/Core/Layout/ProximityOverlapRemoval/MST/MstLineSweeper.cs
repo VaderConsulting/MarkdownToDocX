@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+
 using Microsoft.AGL.Core.DataStructures;
 using Microsoft.AGL.Core.Geometry;
+using Microsoft.AGL.Core.Geometry.RTree;
 using Microsoft.AGL.Layout.LargeGraphLayout;
 
-namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MinimumSpanningTree {
+namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MST
+{
     internal class MstLineSweeper {
         readonly List<Tuple<int, int, double, double, double>> _proximityEdges;
         readonly Size[] _nodeSizes;
@@ -44,12 +47,10 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MinimumSpanningTree 
             }
         }
 
-        void RemoveIntervalFromTree(int i) {
-            _intervalTree.Remove(GetInterval(i), i);
-        }
+        void RemoveIntervalFromTree(int i) => _intervalTree.Remove(GetInterval(i), i);
 
         void AddIntervalToTree(int i) {
-            var interval = GetInterval(i);
+            Interval interval = GetInterval(i);
             if (_intervalTree == null)
                 _intervalTree = new IntervalRTree<int>();
 
@@ -60,9 +61,9 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MinimumSpanningTree 
         void FindOverlapsWithInterval(int i) {
             if (_intervalTree == null)
                 return;
-            var interval = GetInterval(i);
+            Interval interval = GetInterval(i);
             foreach (int j in _intervalTree.GetAllIntersecting(interval)) {
-                var tuple = OverlapRemoval.GetIdealEdgeLength(i, j,
+                Tuple<int, int, double, double, double> tuple = OverlapRemoval.GetIdealEdgeLength(i, j,
                     _nodePositions[i], _nodePositions[j], _nodeSizes, _forLayers);
 
                 if (!(tuple.Item3 > 1))
@@ -73,15 +74,15 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MinimumSpanningTree 
         }
 
         Interval GetInterval(int i) {
-            var w = _nodeSizes[i].Width/2;
-            var nodeCenterX = _nodePositions[i].X;
+            double w = _nodeSizes[i].Width/2;
+            double nodeCenterX = _nodePositions[i].X;
             return new Interval(nodeCenterX-w, nodeCenterX+w);
         }
 
         void InitQueue() {
             for (int i = 0; i < _nodeSizes.Length; i++) {
-                var h = _nodeSizes[i].Height/2;
-                var nodeCenterY = _nodePositions[i].Y;
+                double h = _nodeSizes[i].Height/2;
+                double nodeCenterY = _nodePositions[i].Y;
                 _q.Enqueue(i, nodeCenterY - h); // enqueue the bottom event
                 _q.Enqueue(_nodeSizes.Length + i, nodeCenterY + h); // enqueue the top event
             }

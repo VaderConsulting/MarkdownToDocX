@@ -20,9 +20,9 @@ namespace Microsoft.AGL.Core.GraphAlgorithms {
         /// <summary>
         /// the first element of the pair
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811")]
-        public int First {
-            get { return x; }
+        public int First
+        {
+            get => x;
             set
             {
                 x = value;
@@ -35,9 +35,9 @@ namespace Microsoft.AGL.Core.GraphAlgorithms {
         /// <summary>
         /// the second element of the pair
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811")]
-        public int Second {
-            get { return y; }
+        public int Second
+        {
+            get => y;
             set
             {
                 y = value;
@@ -64,16 +64,14 @@ namespace Microsoft.AGL.Core.GraphAlgorithms {
         /// <param name="pair0"></param>
         /// <param name="pair1"></param>
         /// <returns></returns>
-        public static bool operator >(IntPair pair0, IntPair pair1) {
-            return pair1 < pair0;
-        }
+        public static bool operator >(IntPair pair0, IntPair pair1) => pair1 < pair0;
+
         /// <summary>
         /// Compares two pairs
         /// </summary>
         /// <param name="pair0"></param>
         /// <param name="pair1"></param>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811")]
         public static int Compare(IntPair pair0, IntPair pair1) {
             if (pair0 < pair1)
                 return 1;
@@ -89,8 +87,7 @@ namespace Microsoft.AGL.Core.GraphAlgorithms {
         /// <param name="obj"></param>
         /// <returns></returns>
         public override bool Equals(object obj) {
-            IntPair other = obj as IntPair;
-            if (other == null)
+            if (obj is not IntPair other)
                 return false;
 
             return x == other.x && y == other.y;
@@ -119,8 +116,8 @@ namespace Microsoft.AGL.Core.GraphAlgorithms {
         /// <param name="first"></param>
         /// <param name="second"></param>
         public IntPair(int first, int second) {
-            this.x = first;
-            this.y = second;
+            x = first;
+            y = second;
 #if SHARPKIT //https://code.google.com/p/sharpkit/issues/detail?id=289 Support Dictionary directly based on object's GetHashCode
             UpdateHashKey();
 #endif
@@ -130,16 +127,16 @@ namespace Microsoft.AGL.Core.GraphAlgorithms {
         /// 
         /// </summary>
         /// <returns></returns>
-        public override string ToString() {
-            return "(" + x + "," + y + ")";
-        }
+        public override string ToString() => "(" + x + "," + y + ")";
 
 #if SHARPKIT //http://code.google.com/p/sharpkit/issues/detail?id=203 Explicitly implemented interfaces are not generate without any warning
         public int Source {
 #else
-        int IEdge.Source {
+        int IEdge.Source
+        {
 #endif
-            get { return x; }
+            get
+            => x;
             set
             {
                 x = value;
@@ -152,9 +149,11 @@ namespace Microsoft.AGL.Core.GraphAlgorithms {
 #if SHARPKIT //http://code.google.com/p/sharpkit/issues/detail?id=203 Explicitly implemented interfaces are not generate without any warning
         public int Target {
 #else
-        int IEdge.Target {
+        int IEdge.Target
+        {
 #endif
-            get { return y; }
+            get
+            => y;
             set
             {
                 y = value;

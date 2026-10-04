@@ -1,4 +1,4 @@
-namespace MermaidRecognition.Flowchart;
+namespace MermaidRecognition.Kinds.Flowchart;
 
 using MermaidRecognition.Config;
 
@@ -12,10 +12,12 @@ public static class FlowchartContractMapper
     /// </summary>
     public static DiagramContract ToContract(FlowchartDb Database, DiagramConfigContract Configuration)
     {
-        DiagramContract Contract = new DiagramContract();
-        Contract.Kind = "flowchart";
-        Contract.Header = Database.Header;
-        Contract.Direction = Database.Direction.ToString();
+        DiagramContract Contract = new DiagramContract
+        {
+            Kind = "flowchart",
+            Header = Database.Header,
+            Direction = Database.Direction.ToString()
+        };
 
         foreach (KeyValuePair<string, string> Entry in Configuration.RawDirectiveValues)
         {
@@ -35,15 +37,17 @@ public static class FlowchartContractMapper
         foreach (KeyValuePair<string, FlowchartNodeRecord> Entry in Database.NodesById)
         {
             FlowchartNodeRecord Source = Entry.Value;
-            NodeContract Node = new NodeContract();
-            Node.Id = Source.Id;
-            Node.Label = string.IsNullOrEmpty(Source.Label)
-                ? Source.Label
-                : FlowchartLabelNormalizer.Normalize(Source.Label);
-            Node.LabelType = Source.LabelType;
-            Node.Shape = Source.Shape;
-            Node.ShapeSource = Source.ShapeSource;
-            Node.ParentGroupId = Source.ParentSubgraphId;
+            NodeContract Node = new NodeContract
+            {
+                Id = Source.Id,
+                Label = string.IsNullOrEmpty(Source.Label)
+                    ? Source.Label
+                    : FlowchartLabelNormalizer.Normalize(Source.Label),
+                LabelType = Source.LabelType,
+                Shape = Source.Shape,
+                ShapeSource = Source.ShapeSource,
+                ParentGroupId = Source.ParentSubgraphId
+            };
             foreach (MermaidDeclaration Declaration in Source.DeclarationsMutable)
             {
                 Node.DeclarationsMutable.Add(Declaration);
@@ -66,10 +70,12 @@ public static class FlowchartContractMapper
         foreach (KeyValuePair<string, FlowchartSubgraphRecord> Entry in Database.SubgraphsById)
         {
             FlowchartSubgraphRecord Source = Entry.Value;
-            GroupContract Group = new GroupContract();
-            Group.Id = Source.Id;
-            Group.Title = Source.Title;
-            Group.ParentGroupId = Source.ParentSubgraphId;
+            GroupContract Group = new GroupContract
+            {
+                Id = Source.Id,
+                Title = Source.Title,
+                ParentGroupId = Source.ParentSubgraphId
+            };
             if (Source.DeclaredDirection.HasValue)
             {
                 Group.Direction = Source.DeclaredDirection.Value.ToString();
@@ -90,21 +96,23 @@ public static class FlowchartContractMapper
 
         foreach (FlowchartEdgeRecord Source in Database.Edges)
         {
-            EdgeContract Edge = new EdgeContract();
-            Edge.Id = Source.Id;
-            Edge.IsUserDefinedId = Source.IsUserDefinedId;
-            Edge.SourceId = Source.SourceId;
-            Edge.TargetId = Source.TargetId;
-            Edge.CreationIndex = Source.CreationIndex;
-            Edge.MinLength = Source.MinLength;
-            Edge.Stroke = Source.Stroke;
-            Edge.MarkerStart = Source.MarkerStart;
-            Edge.MarkerEnd = Source.MarkerEnd;
-            Edge.Label = string.IsNullOrEmpty(Source.Label)
-                ? Source.Label
-                : FlowchartLabelNormalizer.Normalize(Source.Label);
-            Edge.LabelType = Source.LabelType;
-            Edge.ExpansionTrace = Source.ExpansionTrace;
+            EdgeContract Edge = new EdgeContract
+            {
+                Id = Source.Id,
+                IsUserDefinedId = Source.IsUserDefinedId,
+                SourceId = Source.SourceId,
+                TargetId = Source.TargetId,
+                CreationIndex = Source.CreationIndex,
+                MinLength = Source.MinLength,
+                Stroke = Source.Stroke,
+                MarkerStart = Source.MarkerStart,
+                MarkerEnd = Source.MarkerEnd,
+                Label = string.IsNullOrEmpty(Source.Label)
+                    ? Source.Label
+                    : FlowchartLabelNormalizer.Normalize(Source.Label),
+                LabelType = Source.LabelType,
+                ExpansionTrace = Source.ExpansionTrace
+            };
             foreach (string ClassId in Source.ClassesMutable)
             {
                 Edge.ClassesMutable.Add(ClassId);
@@ -120,8 +128,10 @@ public static class FlowchartContractMapper
 
         foreach (KeyValuePair<string, ClassDefContract> Entry in Database.ClassDefsById)
         {
-            ClassDefContract Copy = new ClassDefContract();
-            Copy.ClassId = Entry.Value.ClassId;
+            ClassDefContract Copy = new ClassDefContract
+            {
+                ClassId = Entry.Value.ClassId
+            };
             RecognitionStyleMerge.Apply(Entry.Value.Style, Copy.Style);
             Contract.ClassDefsMutable.Add(Copy);
         }

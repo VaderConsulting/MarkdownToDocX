@@ -1274,11 +1274,8 @@ public sealed class FlowCatalogueRuleValidationTests
         return Pipeline.ProcessMarkdownFile(TempFile, OutputDirectory);
     }
 
-    private static List<string> FailureRuleIds(MermaidRuleValidationPipelineResult Result, string DiagramId)
-    {
-        return Result.ValidationReport.Failures
+    private static List<string> FailureRuleIds(MermaidRuleValidationPipelineResult Result, string DiagramId) => Result.ValidationReport.Failures
             .Where(Failure => Failure.DiagramId == DiagramId)
             .Select(Failure => Failure.RuleId)
             .ToList();
-    }
 }

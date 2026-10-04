@@ -9,8 +9,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Routing
 {
     public class ShortestPathTree
     {
-         Set<Point> _points = new Set<Point>();
-         Dictionary<Point, Point> _paret = new Dictionary<Point, Point>();
+         Set<Point> _points = [];
+         Dictionary<Point, Point> _paret = [];
          Point _root;
 
         public ShortestPathTree(Point root)
@@ -47,7 +47,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Routing
 
         public List<Point> GetPathFromRoot(Point s)
         {
-            var path = new List<Point>();
+            List<Point> path = new List<Point>();
             if (!_points.Contains(s))
                 return null;
             for (Point p = s; !p.Equals(_root); p = _paret[p])

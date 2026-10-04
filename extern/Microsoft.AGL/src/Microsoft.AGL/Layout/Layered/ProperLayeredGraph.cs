@@ -18,25 +18,16 @@ namespace Microsoft.AGL.Layout.Layered {
         int totalNumberOfNodes;
         int firstVirtualNode;
 
-        private int FirstVirtualNode {
-            get {
-                return firstVirtualNode;
-            }
-        }
+        private int FirstVirtualNode => firstVirtualNode;
 
+        internal ProperLayeredGraph(BasicGraph<Node, IntEdge> intGraph) => Initialize(intGraph);
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
-        internal ProperLayeredGraph(BasicGraph<Node, IntEdge> intGraph) {
-            Initialize(intGraph);
-        }
-
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
         internal void Initialize(BasicGraph<Node, IntEdge> intGraph)
         {
             BaseGraph = intGraph;
 
             if (BaseGraph.Edges.Count > 0) {
-                var edgesGoingDown = from edge in BaseGraph.Edges
+                IEnumerable<IntEdge> edgesGoingDown = from edge in BaseGraph.Edges
                                      where edge.LayerEdges != null
                                      select edge;
                 if(edgesGoingDown.Any() )               
@@ -73,7 +64,7 @@ namespace Microsoft.AGL.Layout.Layered {
         }
 
         static bool ExistVirtualNodes(ICollection<IntEdge> iCollection) {
-            foreach (var edge in iCollection)
+            foreach (IntEdge edge in iCollection)
                 if (edge.LayerEdges != null && edge.LayerEdges.Count > 1)
                     return true;
             return false;
@@ -128,19 +119,14 @@ namespace Microsoft.AGL.Layout.Layered {
 
         }
 
-        private static LayerEdge LastEdge(IntEdge e) {
-            return e.LayerEdges[e.LayerEdges.Count - 1];
+        private static LayerEdge LastEdge(IntEdge e) => e.LayerEdges[e.LayerEdges.Count - 1];
 
-        }
-
-        internal LayerEdge InEdgeOfVirtualNode(int node) {
-            return virtualNodesToInEdges[node - FirstVirtualNode];
-        }
-/// <summary>
-/// enumerates over the node outcoming edges
-/// </summary>
-/// <param name="node"></param>
-/// <returns></returns>
+        internal LayerEdge InEdgeOfVirtualNode(int node) => virtualNodesToInEdges[node - FirstVirtualNode];
+        /// <summary>
+        /// enumerates over the node outcoming edges
+        /// </summary>
+        /// <param name="node"></param>
+        /// <returns></returns>
         public IEnumerable<LayerEdge> OutEdges(int node) {
             if (node < BaseGraph.NodeCount)//original node
                 foreach (IntEdge e in BaseGraph.OutEdges(node)) {
@@ -150,25 +136,17 @@ namespace Microsoft.AGL.Layout.Layered {
                 yield return OutEdgeOfVirtualNode(node);
         }
 
-        internal LayerEdge OutEdgeOfVirtualNode(int node) {
-            return virtualNodesToOutEdges[node - FirstVirtualNode];
-        }
+        internal LayerEdge OutEdgeOfVirtualNode(int node) => virtualNodesToOutEdges[node - FirstVirtualNode];
 
-        private static LayerEdge FirstEdge(IntEdge e) {
-            return e.LayerEdges[0];
-        }
+        private static LayerEdge FirstEdge(IntEdge e) => e.LayerEdges[0];
         /// <summary>
         /// returns the number of incoming edges for an edge
         /// </summary>
         /// <param name="node"></param>
         /// <returns></returns>
-        public int InEdgesCount(int node) {
-            return RealInEdgesCount(node);
-        }
+        public int InEdgesCount(int node) => RealInEdgesCount(node);
 
-        private int RealInEdgesCount(int node) {
-            return node < this.BaseGraph.NodeCount ? BaseGraph.InEdges(node).Count(e=>e.LayerEdges!=null): 1;
-        }
+        private int RealInEdgesCount(int node) => node < BaseGraph.NodeCount ? BaseGraph.InEdges(node).Count(e => e.LayerEdges != null) : 1;
 
 
         /// <summary>
@@ -176,36 +154,26 @@ namespace Microsoft.AGL.Layout.Layered {
         /// </summary>
         /// <param name="node"></param>
         /// <returns></returns>
-        public int OutEdgesCount(int node) {
-            return RealOutEdgesCount(node);
-        }
+        public int OutEdgesCount(int node) => RealOutEdgesCount(node);
 
-        private int RealOutEdgesCount(int node) {
-            return node < this.BaseGraph.NodeCount ? BaseGraph.OutEdges(node).Count(l=>l.LayerEdges!=null):  1;
-        }
+        private int RealOutEdgesCount(int node) => node < BaseGraph.NodeCount ? BaseGraph.OutEdges(node).Count(l => l.LayerEdges != null) : 1;
 
         /// <summary>
         /// returns the node count
         /// </summary>
-        public int NodeCount {
-            get { return this.totalNumberOfNodes; }
-        }
+        public int NodeCount => totalNumberOfNodes;
 
-        public bool IsRealNode(int node) {
-            return (node < this.BaseGraph.NodeCount);
-        }
+        public bool IsRealNode(int node) => (node < BaseGraph.NodeCount);
 
-        public bool IsVirtualNode(int node) {
-            return !IsRealNode(node);
-        }
+        public bool IsVirtualNode(int node) => !IsRealNode(node);
 
         internal ProperLayeredGraph ReversedClone() {
             List<IntEdge> reversedEdges = CreateReversedEdges();
-            return new ProperLayeredGraph(new BasicGraph<Node, IntEdge>(reversedEdges, this.BaseGraph.NodeCount));
+            return new ProperLayeredGraph(new BasicGraph<Node, IntEdge>(reversedEdges, BaseGraph.NodeCount));
         }
 
         private List<IntEdge> CreateReversedEdges() {
-            List<IntEdge> ret = new List<IntEdge>();
+            List<IntEdge> ret = [];
             foreach (IntEdge e in BaseGraph.Edges) 
                 if(!e.SelfEdge())
                    ret.Add(e.ReversedClone());
@@ -213,12 +181,12 @@ namespace Microsoft.AGL.Layout.Layered {
         }
 
         internal IEnumerable<int> Succ(int node) {
-            foreach (LayerEdge le in this.OutEdges(node))
+            foreach (LayerEdge le in OutEdges(node))
                 yield return le.Target;
         }
 
         internal IEnumerable<int> Pred(int node) {
-            foreach (LayerEdge le in this.InEdges(node))
+            foreach (LayerEdge le in InEdges(node))
                 yield return le.Source;
         }
 

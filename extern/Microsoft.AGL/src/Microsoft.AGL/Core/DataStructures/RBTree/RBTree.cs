@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
 
-namespace Microsoft.AGL.Core.DataStructures {
+namespace Microsoft.AGL.Core.DataStructures.RBTree
+{
 
     //public class TestRB :IComparer<int>{
     //    public static void Test() {
@@ -36,7 +37,7 @@ namespace Microsoft.AGL.Core.DataStructures {
     
 #endif
     internal class RbTree<T> : IEnumerable<T> {
-  
+
         /// <summary>
         /// find the first, minimal, node in the tree such that predicate holds
         /// </summary>
@@ -44,9 +45,7 @@ namespace Microsoft.AGL.Core.DataStructures {
         /// so the predicate values have a form (false, false, ..., false, true, true, ..., true)
         /// </param>
         /// <returns>the first node where predicate holds or null</returns>
-        internal RBNode<T> FindFirst(Func<T, bool> predicate) {
-            return FindFirst(root, predicate);
-        }
+        internal RBNode<T> FindFirst(Func<T, bool> predicate) => FindFirst(root, predicate);
 
         internal RbTree() {
             comparer = new DefaultComperer<T>();
@@ -70,9 +69,7 @@ namespace Microsoft.AGL.Core.DataStructures {
         /// so the predicate values on the tree have a form (true, true, ..., true, false, false, ..., false)
         /// </param>
         /// <returns>the last node where predicate holds or null</returns>
-        internal RBNode<T> FindLast(Func<T,bool> predicate) {
-            return FindLast(root, predicate);
-        }
+        internal RBNode<T> FindLast(Func<T, bool> predicate) => FindLast(root, predicate);
 
         RBNode<T> FindLast(RBNode<T> n, Func<T,bool> p) {
             if (n == nil)
@@ -87,18 +84,16 @@ namespace Microsoft.AGL.Core.DataStructures {
 
         readonly IComparer<T> comparer;
 
-        IComparer<T> Comparer {
-            get { return comparer; }
-        }
+        IComparer<T> Comparer => comparer;
 
-        public IEnumerator<T> GetEnumerator() { return new RBTreeEnumerator<T>(this); }
+        public IEnumerator<T> GetEnumerator() => new RBTreeEnumerator<T>(this);
 
         RBNode<T> nil;
 
-        internal RBNode<T> Nil { get { return nil; } }
+        internal RBNode<T> Nil => nil;
 
         RBNode<T> root;
-        internal RBNode<T> Root { get { return root; } }
+        internal RBNode<T> Root => root;
 
         internal RBNode<T> Next(RBNode<T> x) {
             if (x.right != nil)
@@ -111,9 +106,7 @@ namespace Microsoft.AGL.Core.DataStructures {
             return ToNull(y);
         }
 
-        RBNode<T> ToNull(RBNode<T> y) {
-            return y != nil ? y : null;
-        }
+        RBNode<T> ToNull(RBNode<T> y) => y != nil ? y : null;
 
         internal RBNode<T> Previous(RBNode<T> x) {
             if (x.left != nil)
@@ -132,9 +125,7 @@ namespace Microsoft.AGL.Core.DataStructures {
             return ToNull(x);
         }
 
-        internal RBNode<T> TreeMinimum() {
-            return TreeMinimum(root);
-        }
+        internal RBNode<T> TreeMinimum() => TreeMinimum(root);
 
 
         RBNode<T> TreeMaximum(RBNode<T> x) {
@@ -143,9 +134,7 @@ namespace Microsoft.AGL.Core.DataStructures {
             return ToNull(x);
         }
 
-        internal RBNode<T> TreeMaximum() {
-            return TreeMaximum(root);
-        }
+        internal RBNode<T> TreeMaximum() => TreeMaximum(root);
 
 
         //RBTree<T> Clone() {
@@ -210,7 +199,7 @@ namespace Microsoft.AGL.Core.DataStructures {
         }
 
         int count;
-        public int Count { get { return count; } }
+        public int Count => count;
 
         internal RBNode<T> Remove(T i) {
             RBNode<T> n = Find(i);
@@ -234,13 +223,9 @@ namespace Microsoft.AGL.Core.DataStructures {
             return ToNull(x);
         }
 
-        internal RBNode<T> Find(T i) {
-            return Find(root, i);
-        }
+        internal RBNode<T> Find(T i) => Find(root, i);
 
-        internal bool Contains(T i) {
-            return Find(i) != null;
-        }
+        internal bool Contains(T i) => Find(i) != null;
 
         void DeleteFixup(RBNode<T> x) {
             while (x != root && x.color == RBColor.Black) {
@@ -297,12 +282,12 @@ namespace Microsoft.AGL.Core.DataStructures {
             x.color = RBColor.Black;
         }
 
-        internal bool IsEmpty() { return root == nil; }
+        internal bool IsEmpty() => root == nil;
 
         RBNode<T> TreeInsert(T z) {
-            var y = nil;
-            var x = root;
-            var compareRes = 0;
+            RBNode<T> y = nil;
+            RBNode<T> x = root;
+            int compareRes = 0;
             while (x != nil) {
                 y = x;
 #if SHARPKIT //https://code.google.com/p/sharpkit/issues/detail?id=368
@@ -313,7 +298,7 @@ namespace Microsoft.AGL.Core.DataStructures {
 #endif
             }
 
-            var nz = new RBNode<T>(RBColor.Black, z, y, nil, nil);
+            RBNode<T> nz = new RBNode<T>(RBColor.Black, z, y, nil, nil);
 
             if (y == nil)
                 root = nz;
@@ -419,9 +404,7 @@ namespace Microsoft.AGL.Core.DataStructures {
             this.comparer = comparer;
         }
 
-        internal void Clear() {
-            root = nil = new RBNode<T>(RBColor.Black);
-        }
+        internal void Clear() => root = nil = new RBNode<T>(RBColor.Black);
 
         //void checkTheTree() {
         //    int blacks = -1;
@@ -478,19 +461,17 @@ namespace Microsoft.AGL.Core.DataStructures {
 
         #region IEnumerable Members
 
-        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() {
-            return new RBTreeEnumerator<T>(this);
-        }
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => new RBTreeEnumerator<T>(this);
 
         #endregion
 
         internal void AddCollection(IEnumerable<T> enumerable) {
-            foreach (var p in enumerable)
+            foreach (T p in enumerable)
                 Insert(p);
         }
 
         internal RBNode<T> InsertUnique(T item) {
-            var node = Find(item);
+            RBNode<T> node = Find(item);
 
             if (node != null)
                 return node;

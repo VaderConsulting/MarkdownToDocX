@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Layout;
 using MermaidRecognition.Render;
 using MermaidRecognition.RuleValidation.Models;
@@ -162,7 +163,7 @@ public static class FlowchartRenderedEdgePathFactsHelper
 
     private static List<string> ExtractRenderedEdgePathData(string Svg)
     {
-        List<string> PathData = new List<string>();
+        List<string> PathData = [];
         MatchCollection Matches = Regex.Matches(
             Svg,
             @"<path d=""([^""]+)"" fill=""none"" stroke=""",
@@ -182,7 +183,7 @@ public static class FlowchartRenderedEdgePathFactsHelper
     private static List<(double X1, double Y1, double X2, double Y2)> ExtractRenderedEdgeLineSegments(string Svg)
     {
         List<(double X1, double Y1, double X2, double Y2)> LineSegments =
-            new List<(double X1, double Y1, double X2, double Y2)>();
+            [];
         MatchCollection Matches = Regex.Matches(
             Svg,
             @"<line x1=""([^""]+)"" y1=""([^""]+)"" x2=""([^""]+)"" y2=""([^""]+)""[^>]*stroke-linecap=""butt""",

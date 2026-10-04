@@ -1,6 +1,7 @@
 ﻿using System;
 
-namespace Microsoft.AGL.Core.Geometry {
+namespace Microsoft.AGL.Core.Geometry.RTree
+{
     internal sealed class IntervalNodeUtils {
         internal static void CrossIntervalNodes<TA, TB>(IntervalNode<TA> a, IntervalNode<TB> b, Action<TA, TB> action) {
             if (!a.interval.Intersects(b.interval))

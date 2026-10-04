@@ -21,7 +21,6 @@ namespace Microsoft.AGL.Core.ProjectionSolver
     /// A Variable is essentially a wrapper around a node, containing the node's initial and 
     /// current (Actual) positions along the current axis and a collection of Constraints.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1036:OverrideMethodsOnComparableTypes")]
     public class Variable : IComparable<Variable>
     {
         /// <summary>
@@ -31,7 +30,7 @@ namespace Microsoft.AGL.Core.ProjectionSolver
         /// complete, the caller should copy the Variable's ActualPos property into whatever property
         /// the class specialization for this has.
         /// </summary>
-        public Object UserData { get; set; }
+        public object UserData { get; set; }
 
         // These properties are initialized by caller before being passed to Solver.AddVariable.
 
@@ -74,7 +73,7 @@ namespace Microsoft.AGL.Core.ProjectionSolver
         /// <summary>
         /// The derivative value - essentially the weighted difference in position.
         /// </summary>
-        internal double DfDv { get { return (2 * Weight * (ActualPos - DesiredPos)) / this.Scale; } }
+        internal double DfDv => (2 * Weight * (ActualPos - DesiredPos)) / Scale;
 
         // Updated through Solve().
         internal double OffsetInBlock { get; set; }
@@ -95,7 +94,7 @@ namespace Microsoft.AGL.Core.ProjectionSolver
 
         internal int ActiveConstraintCount
         {
-            get { return activeConstraintCount; }
+            get => activeConstraintCount;
             set
             {
                 Debug.Assert(value >= 0, "ActiveConstraintCount must be >= 0");
@@ -111,15 +110,15 @@ namespace Microsoft.AGL.Core.ProjectionSolver
 
             internal NeighborAndWeight(Variable neighbor, double weight) : this()
             {
-                this.Neighbor = neighbor;
-                this.Weight = weight;
+                Neighbor = neighbor;
+                Weight = weight;
             }
         }
         
         // The (x1-x2)^2 neighbor relationships: Key == NeighborVar, Value == Weight of relationship
         internal List<NeighborAndWeight> Neighbors { get; private set; }
 
-        internal Variable(uint ordinal, Object userData, double desiredPos, double weight, double scale)
+        internal Variable(uint ordinal, object userData, double desiredPos, double weight, double scale)
         {
             if (weight <= 0)
             {
@@ -155,66 +154,61 @@ namespace Microsoft.AGL.Core.ProjectionSolver
 #endif // DEBUG
                     );
             }
-            this.Ordinal = ordinal;
-            this.UserData = userData;
-            this.DesiredPos = desiredPos;
-            this.Weight = weight;
-            this.Scale = scale;
-            this.OffsetInBlock = 0.0;
-            this.ActualPos = this.DesiredPos;
+            Ordinal = ordinal;
+            UserData = userData;
+            DesiredPos = desiredPos;
+            Weight = weight;
+            Scale = scale;
+            OffsetInBlock = 0.0;
+            ActualPos = DesiredPos;
         }
 
         internal void Reinitialize()
         {
             // // Called by Qpsc or equivalence-constraint-regapping initial block restructuring.
-            this.ActiveConstraintCount = 0;
-            this.OffsetInBlock = 0.0;
+            ActiveConstraintCount = 0;
+            OffsetInBlock = 0.0;
 
             // If we are in Qpsc, this simply repeats (in the opposite direction) what
             // Qpsc.VariablesComplete did after (possibly) scaling.  If we're not in Qpsc,
             // then we've reset all the blocks because we could not incrementally re-Solve
             // due to changes to equality constraints, so this restores the initial state.
-            this.ActualPos = this.DesiredPos;
+            ActualPos = DesiredPos;
         }
 
         internal void AddNeighbor(Variable neighbor, double weight)
         {
-            if (null == this.Neighbors)
+            if (null == Neighbors)
             {
-                this.Neighbors = new List<NeighborAndWeight>();
+                Neighbors = [];
             }
-            this.Neighbors.Add(new NeighborAndWeight(neighbor, weight));
+            Neighbors.Add(new NeighborAndWeight(neighbor, weight));
         }
 
         /// <summary>
         /// Gets a string representation of the Variable; calls UserData.ToString as part of this.
         /// </summary>
         /// <returns>A string representation of the variable.</returns>
-        public override string ToString()
-        {
-            return string.Format(CultureInfo.InvariantCulture,
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture,
 #if VERBOSE
                                 "Var: '{0}' a {1:F5} d {2:F5} o {3:F5} w {4:F5} s {5:F5}",
                                 this.Name, ActualPos, DesiredPos, OffsetInBlock, Weight, Scale);
 #else  // VERBOSE
                                 "{0} {1:F5} ({2:F5}) {3:F5} {4:F5}",
-                                this.Name, ActualPos, DesiredPos, Weight, Scale);
+                                Name, ActualPos, DesiredPos, Weight, Scale);
 #endif // VERBOSE
-        }
+
 
         /// <summary>
         /// Gets the string representation of UserData.
         /// </summary>
         /// <returns>A string representation of Node.Object.</returns>
-        public string Name
-        {
-            get { return (null == this.UserData) ? "-0-" : this.UserData.ToString(); }
-        }
+        public string Name => (null == UserData) ? "-0-" : UserData.ToString();
 
         internal void SetConstraints(Constraint[] leftConstraints, Constraint[] rightConstraints)
         {
-            this.LeftConstraints = leftConstraints;
-            this.RightConstraints = rightConstraints;
+            LeftConstraints = leftConstraints;
+            RightConstraints = rightConstraints;
         }
 
         #region IComparable<Variable> Members
@@ -224,11 +218,10 @@ namespace Microsoft.AGL.Core.ProjectionSolver
         /// <param name="other">The object being compared to.</param>
         /// <returns>-1 if this.Ordinal is "less"; +1 if this.Ordinal is "greater"; 0 if this.Ordinal
         ///         and rhs are equal.</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1307:SpecifyStringComparison", MessageId = "System.String.CompareTo(System.String)")]
         public int CompareTo(Variable other)
         {
             ValidateArg.IsNotNull(other, "other");
-            return this.Ordinal.CompareTo(other.Ordinal);
+            return Ordinal.CompareTo(other.Ordinal);
         }
         #endregion // IComparer<Node> Members
 

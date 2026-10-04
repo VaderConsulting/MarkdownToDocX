@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace MermaidRecognition.Class;
+namespace MermaidRecognition.Kinds.Class;
 
 /// <summary>
 /// Parses diagram-level accessibility directives (<c>accTitle</c>, <c>accDescr</c>) from class diagram source lines.
@@ -54,8 +54,5 @@ public static class ClassAccessibilityParser
     /// <summary>
     /// Returns whether the line opens a multiline <c>accDescr {</c> block.
     /// </summary>
-    public static bool IsAccDescrBlockStart(string RawLine)
-    {
-        return AccDescrBlockStartRegex.IsMatch(RawLine);
-    }
+    public static bool IsAccDescrBlockStart(string RawLine) => AccDescrBlockStartRegex.IsMatch(RawLine);
 }

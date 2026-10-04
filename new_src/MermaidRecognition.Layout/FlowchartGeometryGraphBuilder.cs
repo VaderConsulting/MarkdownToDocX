@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
+
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves;
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
 using MermaidRecognition.Render;
+using MermaidRecognition.Kinds.Flowchart;
 
 namespace MermaidRecognition.Layout;
 
@@ -55,8 +56,10 @@ public static class FlowchartGeometryGraphBuilder
             double LayoutHeight = SwapLayoutDimensions ? Dimensions.Width : Dimensions.Height;
 
             ICurve Boundary = CurveFactory.CreateRectangle(LayoutWidth, LayoutHeight, new Point(0, 0));
-            Node LayoutNode = new Node(Boundary, NodeContract.Id);
-            LayoutNode.UserData = NodeContract.Id;
+            Node LayoutNode = new Node(Boundary, NodeContract.Id)
+            {
+                UserData = NodeContract.Id
+            };
             Graph.Nodes.Add(LayoutNode);
             NodesById[NodeContract.Id] = LayoutNode;
         }
@@ -76,9 +79,6 @@ public static class FlowchartGeometryGraphBuilder
         return Graph;
     }
 
-    private static bool ShouldSwapLayoutDimensions(FlowchartDirection Direction)
-    {
-        return Direction == FlowchartDirection.LeftToRight
+    private static bool ShouldSwapLayoutDimensions(FlowchartDirection Direction) => Direction == FlowchartDirection.LeftToRight
             || Direction == FlowchartDirection.RightToLeft;
-    }
 }

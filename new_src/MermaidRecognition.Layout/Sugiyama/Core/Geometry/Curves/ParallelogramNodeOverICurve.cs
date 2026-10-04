@@ -23,13 +23,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// <summary>
         /// The segment bounded by the parallelogram
         /// </summary>
-        internal ICurve Seg {
-            get {
-                return seg;
-            }
-            set {
-                seg = value;
-            }
+        internal ICurve Seg { get => seg; set => seg = value;
         }
 
         double leafBoxesOffset = DefaultLeafBoxesOffset;
@@ -39,11 +33,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// The leafs of this node are as tight as the offset
         /// </summary>
         /// <value></value>
-        internal double LeafBoxesOffset {
-            get {
-                return leafBoxesOffset;
-            }
-        }
+        internal double LeafBoxesOffset => leafBoxesOffset;
 
 
 
@@ -183,8 +173,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
                 DistToSegm(middle, s, e) <= ApproximateComparer.IntersectionEpsilon
                 && w*w < Curve.LineSegmentThreshold*Curve.LineSegmentThreshold
                 && end - start < Curve.LineSegmentThreshold) {
-                var ls = new LineSegment(s, e);
-                var leaf = ls.ParallelogramNodeOverICurve as ParallelogramLeaf;
+                LineSegment ls = new LineSegment(s, e);
+                ParallelogramLeaf? leaf = ls.ParallelogramNodeOverICurve as ParallelogramLeaf;
                 leaf.Low = start;
                 leaf.High = end;
                 leaf.Seg = seg;
@@ -206,9 +196,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             ParallelogramInternalTreeNode pBNode = new ParallelogramInternalTreeNode(seg, eps);
             pBNode.AddChild(CreateParallelogramNodeForCurveSeg(start, 0.5 * (start + end), seg, eps));
             pBNode.AddChild(CreateParallelogramNodeForCurveSeg(0.5 * (start + end), end, seg, eps));
-            List<Parallelogram> boxes = new List<Parallelogram>();
-            boxes.Add(pBNode.Children[0].Parallelogram);
-            boxes.Add(pBNode.Children[1].Parallelogram);
+            List<Parallelogram> boxes = [pBNode.Children[0].Parallelogram, pBNode.Children[1].Parallelogram];
             pBNode.Parallelogram = Parallelogram.GetParallelogramOfAGroup(boxes);
             return pBNode;
 

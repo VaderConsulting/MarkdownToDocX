@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 using MermaidRecognition.Contract;
+using MermaidRecognition.Core;
 using MermaidRecognition.Layout;
 using MermaidRecognition.Render;
 

@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+
 using MermaidRecognition.Contract;
+using MermaidRecognition.Core;
 using MermaidRecognition.Diagnostics;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Render;
 
 namespace MermaidRecognition.Layout;
@@ -245,7 +247,7 @@ public static class FlowchartSugiyamaSvgRenderer
                     Edge.MarkerStart,
                     Edge.MarkerEnd))
             {
-                List<(double X, double Y)> SvgPoints = new List<(double X, double Y)>();
+                List<(double X, double Y)> SvgPoints = [];
                 foreach ((double LayoutX, double LayoutY) in LayoutPoints)
                 {
                     SvgPoints.Add(LayoutToSvgPoint(LayoutX, LayoutY, MinLeft, MaxTop, DiagramPaddingPx));
@@ -352,7 +354,7 @@ public static class FlowchartSugiyamaSvgRenderer
                     out List<(double X, double Y)> FanOutLayoutPoints)
                 && FanOutLayoutPoints.Count >= 2)
             {
-                List<(double X, double Y)> FanOutSvgPoints = new List<(double X, double Y)>();
+                List<(double X, double Y)> FanOutSvgPoints = [];
                 foreach ((double LayoutX, double LayoutY) in FanOutLayoutPoints)
                 {
                     FanOutSvgPoints.Add(LayoutToSvgPoint(LayoutX, LayoutY, MinLeft, MaxTop, DiagramPaddingPx));
@@ -425,7 +427,7 @@ public static class FlowchartSugiyamaSvgRenderer
                     out List<(double X, double Y)> FanInLayoutPoints)
                 && FanInLayoutPoints.Count >= 2)
             {
-                List<(double X, double Y)> FanInSvgPoints = new List<(double X, double Y)>();
+                List<(double X, double Y)> FanInSvgPoints = [];
                 foreach ((double LayoutX, double LayoutY) in FanInLayoutPoints)
                 {
                     FanInSvgPoints.Add(LayoutToSvgPoint(LayoutX, LayoutY, MinLeft, MaxTop, DiagramPaddingPx));
@@ -498,7 +500,7 @@ public static class FlowchartSugiyamaSvgRenderer
                     out List<(double X, double Y)> DecisionLayoutPoints)
                 && DecisionLayoutPoints.Count >= 2)
             {
-                List<(double X, double Y)> DecisionSvgPoints = new List<(double X, double Y)>();
+                List<(double X, double Y)> DecisionSvgPoints = [];
                 foreach ((double LayoutX, double LayoutY) in DecisionLayoutPoints)
                 {
                     DecisionSvgPoints.Add(LayoutToSvgPoint(LayoutX, LayoutY, MinLeft, MaxTop, DiagramPaddingPx));
@@ -684,12 +686,9 @@ public static class FlowchartSugiyamaSvgRenderer
 
     private sealed class FlowchartSvgRenderSession
     {
-        private readonly List<Action<StringBuilder>> _DeferredMarkerDraws = new List<Action<StringBuilder>>();
+        private readonly List<Action<StringBuilder>> _DeferredMarkerDraws = [];
 
-        public void DeferMarkerDraw(Action<StringBuilder> DrawMarker)
-        {
-            _DeferredMarkerDraws.Add(DrawMarker);
-        }
+        public void DeferMarkerDraw(Action<StringBuilder> DrawMarker) => _DeferredMarkerDraws.Add(DrawMarker);
 
         public void FlushDeferredMarkers(StringBuilder Builder)
         {
@@ -1073,7 +1072,7 @@ public static class FlowchartSugiyamaSvgRenderer
         FlowchartResolvedStyle EdgeStyle,
         FlowchartRenderOptions RenderOptions)
     {
-        List<(double X, double Y)> GuideSvgPoints = new List<(double X, double Y)>();
+        List<(double X, double Y)> GuideSvgPoints = [];
         foreach ((double LayoutX, double LayoutY) in LayoutPoints)
         {
             GuideSvgPoints.Add(LayoutToSvgPoint(LayoutX, LayoutY, MinLeft, MaxTop, DiagramPaddingPx));
@@ -1465,13 +1464,11 @@ public static class FlowchartSugiyamaSvgRenderer
 
         (double StartX, double StartY) = SvgPoints[0];
         (double EndX, double EndY) = SvgPoints[SvgPoints.Count - 1];
-        double TargetApproachX;
-        double TargetApproachY;
         if (!FlowchartRenderedPathMarkerHelper.TryResolveEndpointApproachPoint(
                 PathData,
                 AtTargetEnd: true,
-                out TargetApproachX,
-                out TargetApproachY))
+                out double TargetApproachX,
+                out double TargetApproachY))
         {
             (TargetApproachX, TargetApproachY) = FlowchartCurvePathBuilder.ResolveMarkerApproachPoint(
                 SvgPoints,
@@ -1479,13 +1476,11 @@ public static class FlowchartSugiyamaSvgRenderer
                 AtTargetEnd: true);
         }
 
-        double SourceApproachX;
-        double SourceApproachY;
         if (!FlowchartRenderedPathMarkerHelper.TryResolveEndpointApproachPoint(
                 PathData,
                 AtTargetEnd: false,
-                out SourceApproachX,
-                out SourceApproachY))
+                out double SourceApproachX,
+                out double SourceApproachY))
         {
             (SourceApproachX, SourceApproachY) = FlowchartCurvePathBuilder.ResolveMarkerApproachPoint(
                 SvgPoints,
@@ -1540,12 +1535,9 @@ public static class FlowchartSugiyamaSvgRenderer
         double BoundaryX,
         double BoundaryY,
         double InteriorDirX,
-        double InteriorDirY)
-    {
-        return (
+        double InteriorDirY) => (
             BoundaryX + (InteriorDirX * ARROW_TIP_NODE_OVERLAP_PX),
             BoundaryY + (InteriorDirY * ARROW_TIP_NODE_OVERLAP_PX));
-    }
 
     private static void AppendArrowhead(
         StringBuilder Builder,
@@ -1713,11 +1705,11 @@ public static class FlowchartSugiyamaSvgRenderer
 
             Dictionary<string, NodeContract> NodeById = Contract.Nodes
                 .ToDictionary(Node => Node.Id, Node => Node);
-            List<(double X, double Y)> LayoutGuidePoints = new List<(double X, double Y)>
-            {
+            List<(double X, double Y)> LayoutGuidePoints =
+            [
                 (SourceBounds.CenterX, SourceBounds.CenterY),
                 (TargetBounds.CenterX, TargetBounds.CenterY)
-            };
+            ];
             if (FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
                     Edge,
                     Contract,
@@ -1932,12 +1924,9 @@ public static class FlowchartSugiyamaSvgRenderer
         return null;
     }
 
-    private static string EscapeXml(string Value)
-    {
-        return Value
+    private static string EscapeXml(string Value) => Value
             .Replace("&", "&amp;", StringComparison.Ordinal)
             .Replace("<", "&lt;", StringComparison.Ordinal)
             .Replace(">", "&gt;", StringComparison.Ordinal)
             .Replace("\"", "&quot;", StringComparison.Ordinal);
-    }
 }

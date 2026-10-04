@@ -25,24 +25,18 @@ namespace Microsoft.AGL.Core.Layout {
         /// <summary>
         /// 
         /// </summary>
-        public double Parameter {
-            get { return parameter; }
-            set { parameter = value; }
+        public double Parameter { get => parameter; set => parameter = value;
         }
         ICurve curve;
         /// <summary>
         /// 
         /// </summary>
-        override public ICurve Curve {
-            get { return curve; }
-            set { curve = value; }
+        override public ICurve Curve { get => curve; set => curve = value;
         }
 
         /// <summary>
         /// 
         /// </summary>
-        public override Point Location {
-            get { return Curve[parameter]; }
-        }
+        public override Point Location => Curve[parameter];
     }
 }

@@ -1,7 +1,8 @@
 using Microsoft.AGL.Core.Geometry;
 using Microsoft.AGL.Routing;
 
-namespace Microsoft.AGL.Prototype.LayoutEditing {
+namespace Microsoft.AGL.Miscellaneous.LayoutEditing
+{
     /// <summary>
     /// keeps a label restore data
     /// </summary>
@@ -11,17 +12,13 @@ namespace Microsoft.AGL.Prototype.LayoutEditing {
         /// <summary>
         /// the label center
         /// </summary>
-        public Point Center {
-            get { return center; }
-            set { center = value; }
+        public Point Center { get => center; set => center = value;
         }
 
         /// <summary>
         /// constructor
         /// </summary>
         /// <param name="centerP"></param>
-        public LabelRestoreData(Point centerP) {
-            this.center = centerP;
-        }
+        public LabelRestoreData(Point centerP) => center = centerP;
     }
 }

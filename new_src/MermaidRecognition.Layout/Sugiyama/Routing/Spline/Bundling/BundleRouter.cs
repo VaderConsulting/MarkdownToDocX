@@ -3,10 +3,12 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+
 using MermaidRecognition.Layout.Sugiyama.Core;
 using MermaidRecognition.Layout.Sugiyama.Core.DataStructures;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves;
+using MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree;
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
 using MermaidRecognition.Layout.Sugiyama.Core.Routing;
 using MermaidRecognition.Layout.Sugiyama.DebugHelpers;
@@ -42,7 +44,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
     
 #if DEBUG && TEST_MSAGL
         void CheckGraph() {
-            foreach (var e in geometryGraph.Edges) {
+            foreach (Edge e in geometryGraph.Edges) {
                 if (e.Source == e.Target)
                     continue;
                 CheckPortOfNode(e.Source, e.SourcePort);
@@ -76,9 +78,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             this.loosePolylineOfPort = loosePolylineOfPort;
         }
 
-        bool ThereAreOverlaps(RectangleNode<Polyline> hierarchy) {
-            return RectangleNodeUtils.FindIntersectionWithProperty(hierarchy, hierarchy, Curve.CurvesIntersect);
-        }
+        bool ThereAreOverlaps(RectangleNode<Polyline> hierarchy) => RectangleNodeUtils.FindIntersectionWithProperty(hierarchy, hierarchy, Curve.CurvesIntersect);
 
         /// <summary>
         /// edge routing with Ordered Bundles:
@@ -105,7 +105,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             FixChildParentEdges();
             if (!bundlingSettings.StopAfterShortestPaths) {
 
-                var metroGraphData = new MetroGraphData(regularEdges.Select(e => e.EdgeGeometry).ToArray(),
+                MetroGraphData metroGraphData = new MetroGraphData(regularEdges.Select(e => e.EdgeGeometry).ToArray(),
                                                         LooseHierarchy,
                                                         TightHierarchy,
                                                         bundlingSettings,
@@ -126,9 +126,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         /// TODO: is there a better solution?
         /// </summary>
         void FixChildParentEdges() {
-            foreach (var edge in regularEdges) {
-                var sPort = edge.SourcePort;
-                var ePort = edge.TargetPort;
+            foreach (Edge edge in regularEdges) {
+                Port? sPort = edge.SourcePort;
+                Port? ePort = edge.TargetPort;
                 if (sPort.Curve.BoundingBox.Contains(ePort.Curve.BoundingBox)) {
                     IntersectionInfo ii = Curve.CurveCurveIntersectionOne(sPort.Curve, new LineSegment(edge.Curve.Start, edge.Curve.End), true);
                     ((Polyline)edge.Curve).StartPoint.Point = ii.IntersectionPoint;
@@ -150,25 +150,24 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             Point rt = rectangle.RightTop + new Point(d, d);
             Point rb = rectangle.RightBottom + new Point(d, -d);
 
-            var additionalObstacles = new[] { 
+            Polyline[] additionalObstacles = new[] { 
                 new Polyline(lb, lt, rt, rb) { Closed = true }};
 
             return GetConstrainedDelaunayTriangulation(obstacles.Concat(additionalObstacles));
         }
 
         static Cdt GetConstrainedDelaunayTriangulation(IEnumerable<Polyline> obstacles) {
-            var constrainedDelaunayTriangulation = new Cdt(null, obstacles, null);
+            Cdt constrainedDelaunayTriangulation = new Cdt(null, obstacles, null);
             constrainedDelaunayTriangulation.Run();
             return constrainedDelaunayTriangulation;
         }
 #if DEBUG && TEST_MSAGL
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         // ReSharper disable UnusedMember.Local
         void ShowGraphLocal() {
             // ReSharper restore UnusedMember.Local
-            var l = new List<ICurve>();
+            List<ICurve> l = new List<ICurve>();
             l.Clear();
-            foreach (var e in geometryGraph.Edges) {
+            foreach (Edge e in geometryGraph.Edges) {
                 {
                     l.Add(new Ellipse(2, 2, e.Curve.Start));
                     l.Add(CurveFactory.CreateDiamond(5, 5, e.Curve.End));
@@ -180,8 +179,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 #endif
 
         void FixLocationsForHookAnywherePorts(IEnumerable<Edge> edges) {
-            foreach (var edge in edges) {
-                var hookPort = edge.SourcePort as HookUpAnywhereFromInsidePort;
+            foreach (Edge edge in edges) {
+                HookUpAnywhereFromInsidePort? hookPort = edge.SourcePort as HookUpAnywhereFromInsidePort;
                 if (hookPort != null)
                     hookPort.SetLocation(FigureOutHookLocation(hookPort.LoosePolyline, edge.TargetPort, edge.EdgeGeometry));
                 else {
@@ -193,35 +192,35 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         Point FigureOutHookLocation(Polyline poly, Port otherEdgeEndPort, EdgeGeometry edgeGeom) {
-            var clusterPort = otherEdgeEndPort as ClusterBoundaryPort;
-            if (clusterPort == null) {
+            if (otherEdgeEndPort is not ClusterBoundaryPort clusterPort)
+            {
                 return FigureOutHookLocationForSimpleOtherPort(poly, otherEdgeEndPort, edgeGeom);
             }
             return FigureOutHookLocationForClusterOtherPort(poly, clusterPort, edgeGeom);
         }
 
         Point FigureOutHookLocationForClusterOtherPort(Polyline poly, ClusterBoundaryPort otherEdgeEndPort, EdgeGeometry edgeGeom) {
-            var shapes = shortestPathRouter.MakeTransparentShapesOfEdgeGeometry(edgeGeom);
+            List<Shape> shapes = shortestPathRouter.MakeTransparentShapesOfEdgeGeometry(edgeGeom);
             //SplineRouter.ShowVisGraph(this.VisibilityGraph, this.LooseHierarchy.GetAllLeaves(),
             //    shapes.Select(sh => sh.BoundaryCurve), new[] { new LineSegment(edgeGeom.SourcePort.Location, edgeGeom.TargetPort.Location) });
-            var s = new MultipleSourceMultipleTargetsShortestPathOnVisibilityGraph(otherEdgeEndPort.LoosePolyline.Select(p => VisibilityGraph.FindVertex(p)),             
+            MultipleSourceMultipleTargetsShortestPathOnVisibilityGraph s = new MultipleSourceMultipleTargetsShortestPathOnVisibilityGraph(otherEdgeEndPort.LoosePolyline.Select(p => VisibilityGraph.FindVertex(p)),             
                 poly.Select(p => VisibilityGraph.FindVertex(p)), VisibilityGraph);
-            var path = s.GetPath();
-            foreach (var sh in shapes)
+            IEnumerable<VisibilityVertex> path = s.GetPath();
+            foreach (Shape sh in shapes)
                 sh.IsTransparent = false;
             return path.Last().Point;
         }
 
         private Point FigureOutHookLocationForSimpleOtherPort(Polyline poly, Port otherEdgeEndPort, EdgeGeometry edgeGeom) {
             Point otherEdgeEnd = otherEdgeEndPort.Location;
-            var shapes = shortestPathRouter.MakeTransparentShapesOfEdgeGeometry(edgeGeom);
+            List<Shape> shapes = shortestPathRouter.MakeTransparentShapesOfEdgeGeometry(edgeGeom);
             //SplineRouter.ShowVisGraph(this.VisibilityGraph, this.LooseHierarchy.GetAllLeaves(),
             //    shapes.Select(sh => sh.BoundaryCurve), new[] { new LineSegment(edgeGeom.SourcePort.Location, edgeGeom.TargetPort.Location) });
-            var s = new SingleSourceMultipleTargetsShortestPathOnVisibilityGraph(
+            SingleSourceMultipleTargetsShortestPathOnVisibilityGraph s = new SingleSourceMultipleTargetsShortestPathOnVisibilityGraph(
                 VisibilityGraph.FindVertex(otherEdgeEnd),
                 poly.PolylinePoints.Select(p => VisibilityGraph.FindVertex(p.Point)), VisibilityGraph);
-            var path = s.GetPath();
-            foreach (var sh in shapes)
+            IEnumerable<VisibilityVertex> path = s.GetPath();
+            foreach (Shape sh in shapes)
                 sh.IsTransparent = false;
             return path.Last().Point;
         }
@@ -252,7 +251,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         ///     move obstacles to get more free space
         /// </summary>
         bool AnalyzeEdgeSeparation() {
-            Dictionary<EdgeGeometry, Set<CdtEdge>> crossedCdtEdges = new Dictionary<EdgeGeometry, Set<CdtEdge>>();
+            Dictionary<EdgeGeometry, Set<CdtEdge>> crossedCdtEdges = [];
             shortestPathRouter.FillCrossedCdtEdges(crossedCdtEdges);
             Dictionary<CdtEdge, Set<EdgeGeometry>> pathsOnCdtEdge = GetPathsOnCdtEdge(crossedCdtEdges);
             double es = CalculateMaxAllowedEdgeSeparation(pathsOnCdtEdge);
@@ -263,7 +262,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
             if (es <= 0.02) {
                 TimeMeasurer.DebugOutput("edge bundling can't be executed: not enough free space around obstacles");
-                foreach (var e in regularEdges)
+                foreach (Edge e in regularEdges)
                     e.Curve = null;
 
                 return false;
@@ -276,9 +275,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         Dictionary<CdtEdge, Set<EdgeGeometry>> GetPathsOnCdtEdge(Dictionary<EdgeGeometry, Set<CdtEdge>> crossedEdges) {
-            Dictionary<CdtEdge, Set<EdgeGeometry>> res = new Dictionary<CdtEdge, Set<EdgeGeometry>>();
-            foreach (var edge in crossedEdges.Keys) {
-                foreach (var cdtEdge in crossedEdges[edge])
+            Dictionary<CdtEdge, Set<EdgeGeometry>> res = [];
+            foreach (EdgeGeometry edge in crossedEdges.Keys) {
+                foreach (CdtEdge cdtEdge in crossedEdges[edge])
                     CollectionUtilities.AddToMap(res, cdtEdge, edge);
             }
 
@@ -308,7 +307,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
             //number of edges with requiredWidth <= availableWidth
             double ok = 0;
-            foreach (var edge in pathsOnCdtEdge.Keys)
+            foreach (CdtEdge edge in pathsOnCdtEdge.Keys)
                 if (EdgeSeparationIsOk(edge, pathsOnCdtEdge[edge], separation))
                     ok++;
 
@@ -324,18 +323,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         void RouteSelfEdges() {
-            foreach (var edge in geometryGraph.Edges.Where(e => e.Source == e.Target)) {
-                SmoothedPolyline sp;
-                edge.Curve = Edge.RouteSelfEdge(edge.Source.BoundaryCurve, LoosePadding * 2, out sp);
+            foreach (Edge? edge in geometryGraph.Edges.Where(e => e.Source == e.Target)) {
+                edge.Curve = Edge.RouteSelfEdge(edge.Source.BoundaryCurve, LoosePadding * 2, out SmoothedPolyline? sp);
             }
         }
 
         void FixArrowheads() {
-            foreach (var edge in geometryGraph.Edges)
+            foreach (Edge edge in geometryGraph.Edges)
                 Arrowheads.TrimSplineAndCalculateArrowheads(edge.EdgeGeometry,
                                                                  edge.Source.BoundaryCurve,
                                                                  edge.Target.BoundaryCurve, 
-                                                                 edge.Curve, false, this.bundlingSettings.KeepOriginalSpline);
+                                                                 edge.Curve, false, bundlingSettings.KeepOriginalSpline);
         }
     }
 }

@@ -12,14 +12,12 @@ namespace Microsoft.AGL.Layout.Layered {
 
         int[][] layers;
 
-        internal LayerArrays(int[] verticesToLayers) {
-            Initialize(verticesToLayers);
-        }
+        internal LayerArrays(int[] verticesToLayers) => Initialize(verticesToLayers);
 
         internal void Initialize(int[] verticesToLayers) {
-            this.Y = verticesToLayers;
-            this.verticesToX = null;
-            this.layers = null;
+            Y = verticesToLayers;
+            verticesToX = null;
+            layers = null;
         }
 
         /// <summary>
@@ -27,11 +25,11 @@ namespace Microsoft.AGL.Layout.Layered {
         /// </summary>
         /// <returns></returns>
         internal LayerArrays DropEmptyLayers() {
-            int[] drop = new int[this.Layers.Length];
+            int[] drop = new int[Layers.Length];
             int dropVal = 0;
-            for (int i = 0; i < this.Layers.Length; i++) {
+            for (int i = 0; i < Layers.Length; i++) {
                 drop[i] = dropVal;
-                if (this.Layers[i].Length == 0)
+                if (Layers[i].Length == 0)
                     dropVal++;
             }
 
@@ -45,14 +43,16 @@ namespace Microsoft.AGL.Layout.Layered {
 
 
             //copy the layers itself
-            int[][] nls = new int[this.layers.Length - dropVal][];
+            int[][] nls = new int[layers.Length - dropVal][];
             for (int i = 0; i < layers.Length; i++) {
                 if (layers[i].Length > 0)
                     nls[i - drop[i]] = (int[])layers[i].Clone();
             }
 
-            LayerArrays la = new LayerArrays(ny);
-            la.layers = nls;
+            LayerArrays la = new LayerArrays(ny)
+            {
+                layers = nls
+            };
 
             return la;
 
@@ -123,20 +123,20 @@ namespace Microsoft.AGL.Layout.Layered {
         /// <summary>
         /// Layers[i] is the array of vertices of i-th layer
         /// </summary>
-        internal int[][] Layers {
-            get {
+        internal int[][] Layers
+        {
+            get
+            {
                 if (layers != null)
                     return layers;
 
                 InitLayers();
 
-                return this.layers;
+                return layers;
 
             }
 
-            set {
-                layers = value;
-            }
+            set => layers = value;
 
 
         }
@@ -145,7 +145,7 @@ namespace Microsoft.AGL.Layout.Layered {
             //find the number of layers
             int nOfLayers = 0;
 
-            foreach (int l in this.Y)
+            foreach (int l in Y)
                 if (l + 1 > nOfLayers)
                     nOfLayers = l + 1;
 

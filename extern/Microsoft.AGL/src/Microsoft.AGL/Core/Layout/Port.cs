@@ -6,7 +6,7 @@ namespace Microsoft.AGL.Core.Layout {
     /// Specifies the way an edge is connected to a curve
     /// </summary>
 #if TEST_MSAGL
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1012:AbstractTypesShouldNotHaveConstructors"), System.Serializable]
+    [System.Serializable]
 #endif
     abstract public class Port {
         
@@ -28,8 +28,6 @@ namespace Microsoft.AGL.Core.Layout {
         /// <summary>
         /// </summary>
         /// <returns></returns>
-        public override string ToString() {
-            return Location.ToString();
-        }
+        public override string ToString() => Location.ToString();
     }
 }

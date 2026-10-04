@@ -4,12 +4,9 @@ namespace MDConverter.Model;
 
 public sealed class StrikethroughInline : InlineNode
 {
-    private readonly List<InlineNode> _Inlines = new List<InlineNode>();
+    private readonly List<InlineNode> _Inlines = [];
 
-    public IReadOnlyList<InlineNode> Inlines
-    {
-        get { return _Inlines; }
-    }
+    public IReadOnlyList<InlineNode> Inlines => _Inlines;
 
     public void AddInline(InlineNode Inline)
     {

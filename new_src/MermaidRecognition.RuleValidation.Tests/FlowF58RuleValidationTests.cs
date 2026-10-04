@@ -14,10 +14,7 @@ public sealed class FlowF58RuleValidationTests
     private string _SpecDirectory = string.Empty;
 
     [SetUp]
-    public void SetUp()
-    {
-        _SpecDirectory = Path.Combine(AppContext.BaseDirectory, "Rule Specification");
-    }
+    public void SetUp() => _SpecDirectory = Path.Combine(AppContext.BaseDirectory, "Rule Specification");
 
     [Test]
     public void FlowMarkdown_F58_PassesRenderedPathAndRoutingValidation()

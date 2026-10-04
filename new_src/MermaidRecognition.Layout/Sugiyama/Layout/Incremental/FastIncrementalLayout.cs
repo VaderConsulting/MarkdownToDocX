@@ -1,13 +1,17 @@
+using MermaidRecognition.Layout.Sugiyama.Core.Geometry.OverlapRemoval;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+
 using MermaidRecognition.Layout.Sugiyama.Core;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms;
+using MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms.CycleRemoval;
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
-using MermaidRecognition.Layout.Sugiyama.Layout.Incremental;
+using MermaidRecognition.Layout.Sugiyama.Layout.Incremental.Multipole;
 using MermaidRecognition.Layout.Sugiyama.Routing;
+
 using Node = MermaidRecognition.Layout.Sugiyama.Core.Layout.Node;
 
 namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
@@ -20,8 +24,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
     public class FastIncrementalLayout : AlgorithmBase {
         readonly BasicGraph<FiEdge> basicGraph;
         readonly List<FiNode[]> components;
-        internal readonly Dictionary<int, List<IConstraint>> constraints = new Dictionary<int, List<IConstraint>>();
-        readonly List<FiEdge> edges = new List<FiEdge>();
+        internal readonly Dictionary<int, List<IConstraint>> constraints = [];
+        readonly List<FiEdge> edges = [];
 
         /// <summary>
         /// Returns the derivative of the cost function calculated in the most recent iteration.
@@ -47,7 +51,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
 
         readonly Func<Cluster, LayoutAlgorithmSettings> clusterSettings;
 
-        List<Edge> clusterEdges = new List<Edge>();
+        List<Edge> clusterEdges = [];
 
         /// <summary>
         /// Create the graph data structures.
@@ -78,15 +82,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
                     clusterEdges.Add(e);
                 else
                     edges.Add(new FiEdge(e));
-                foreach (var l in e.Labels)
+                foreach (Label l in e.Labels)
                     l.InnerPoints = l.OuterPoints = null;
             }
             SetLockNodeWeights();
-            components = new List<FiNode[]>();
+            components = [];
             if (!settings.InterComponentForces) {
                 basicGraph = new BasicGraph<FiEdge>(edges, nodes.Length);
-                foreach (var componentNodes in ConnectedComponentCalculator<FiEdge>.GetComponents(basicGraph)) {
-                    var vs = new FiNode[componentNodes.Count()];
+                foreach (IEnumerable<int> componentNodes in ConnectedComponentCalculator<FiEdge>.GetComponents(basicGraph)) {
+                    FiNode[] vs = new FiNode[componentNodes.Count()];
                     int vi = 0;
                     foreach (int v in componentNodes) {
                         vs[vi++] = nodes[v];
@@ -147,14 +151,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// <summary>
         /// Controls which constraints are applied in CalculateLayout.  Setter enforces feasibility at that level.
         /// </summary>
-        internal int CurrentConstraintLevel {
-            get { return currentConstraintLevel; }
-            set {
+        internal int CurrentConstraintLevel
+        {
+            get => currentConstraintLevel;
+            set
+            {
                 currentConstraintLevel = value;
                 horizontalSolver.ConstraintLevel = value;
                 verticalSolver.ConstraintLevel = value;
                 Feasibility.Enforce(settings, value, nodes, horizontalSolver.structuralConstraints,
-                                    verticalSolver.structuralConstraints, new[] {graph.RootCluster}, clusterSettings);
+                                    verticalSolver.structuralConstraints, new[] { graph.RootCluster }, clusterSettings);
                 settings.Unconverge();
             }
         }
@@ -166,7 +172,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// <param name="c"></param>
         void AddConstraint(IConstraint c) {
             if (!constraints.ContainsKey(c.Level)) {
-                constraints[c.Level] = new List<IConstraint>();
+                constraints[c.Level] = [];
             }
             constraints[c.Level].Add(c);
         }
@@ -177,7 +183,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// <param name="level"></param>
         void AddConstraintLevel(int level) {
             if (!constraints.ContainsKey(level)) {
-                constraints[level] = new List<IConstraint>();
+                constraints[level] = [];
             }
         }
 
@@ -191,17 +197,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
             foreach (FiNode v in nodes) {
                 v.ResetBounds();
             }
-            foreach (var e in edges) {
-                foreach (var l in e.mEdge.Labels) {
+            foreach (FiEdge e in edges) {
+                foreach (Label l in e.mEdge.Labels) {
                     l.InnerPoints = l.OuterPoints = null;
                 }
             }
         }
 
-        void AddRepulsiveForce(FiNode v, Point repulsion) {
+        void AddRepulsiveForce(FiNode v, Point repulsion) =>
             // scale repulsion
-            v.force = 10.0*settings.RepulsiveForceConstant*repulsion;
-        }
+            v.force = 10.0 * settings.RepulsiveForceConstant * repulsion;
 
         void AddLogSpringForces(FiEdge e, Point duv, double d) {
             double l = duv.Length,
@@ -219,14 +224,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         }
 
         static void CalculateMultiPorts(FiEdge e) {
-            var sourceLocation = e.source.Center;
-            var targetLocation = e.target.Center;
-            var sourceMultiPort = e.mEdge.SourcePort as MultiLocationFloatingPort;
-            if (sourceMultiPort != null) {
+            Point sourceLocation = e.source.Center;
+            Point targetLocation = e.target.Center;
+            if (e.mEdge.SourcePort is MultiLocationFloatingPort sourceMultiPort)
+            {
                 sourceMultiPort.SetClosestLocation(targetLocation);
             }
-            var targetMultiPort = e.mEdge.TargetPort as MultiLocationFloatingPort;
-            if (targetMultiPort != null) {
+            if (e.mEdge.TargetPort is MultiLocationFloatingPort targetMultiPort)
+            {
                 targetMultiPort.SetClosestLocation(sourceLocation);
             }
         }
@@ -234,14 +239,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         void AddSpringForces(FiEdge e) {
             Point duv;
             if (settings.RespectEdgePorts) {
-                var sourceLocation = e.source.Center;
-                var targetLocation = e.target.Center;
-                var sourceFloatingPort = e.mEdge.SourcePort as FloatingPort;
-                if (sourceFloatingPort != null) {
+                Point sourceLocation = e.source.Center;
+                Point targetLocation = e.target.Center;
+                if (e.mEdge.SourcePort is FloatingPort sourceFloatingPort)
+                {
                     sourceLocation = sourceFloatingPort.Location;
                 }
-                var targetFloatingPort = e.mEdge.TargetPort as FloatingPort;
-                if (targetFloatingPort != null) {
+                if (e.mEdge.TargetPort is FloatingPort targetFloatingPort)
+                {
                     targetLocation = targetFloatingPort.Location;
                 }
                 duv = sourceLocation - targetLocation;
@@ -257,15 +262,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
             }
         }
 
-        static void AddGravityForce(Point origin, double gravity, FiNode v) {
+        static void AddGravityForce(Point origin, double gravity, FiNode v) =>
             // compute and add gravity
-            v.force -= 0.0001*gravity*(origin - v.Center);
-        }
+            v.force -= 0.0001 * gravity * (origin - v.Center);
 
         void ComputeRepulsiveForces(FiNode[] vs) {
             int n = vs.Length;
             if (n > 16 && settings.ApproximateRepulsion) {
-                var ps = new KDTree.Particle[vs.Length];
+                KDTree.Particle[] ps = new KDTree.Particle[vs.Length];
                 // before calculating forces we perturb each center by a small vector in a unique
                 // but deterministic direction (by walking around a circle in n steps) - this allows
                 // the KD-tree to decompose even when some nodes are at exactly the same position
@@ -274,7 +278,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
                     ps[i] = new KDTree.Particle(vs[i].Center + 1e-5*new Point(Math.Cos(angle), Math.Sin(angle)));
                     angle += angleDelta;
                 }
-                var kdTree = new KDTree(ps, 8);
+                KDTree kdTree = new KDTree(ps, 8);
                 kdTree.ComputeForces(5);
                 for (int i = 0; i < vs.Length; ++i) {
                     AddRepulsiveForce(vs[i], ps[i].force);
@@ -282,7 +286,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
             }
             else {
                 foreach (FiNode u in vs) {
-                    var fu = new Point();
+                    Point fu = new Point();
                     foreach (FiNode v in vs) {
                         if (u != v) {
                             fu += MultipoleCoefficients.Force(u.Center, v.Center);
@@ -299,14 +303,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
             // SetBarycenter is recursive.
             root.SetBarycenter();
             // The cluster edges draw the barycenters of the connected clusters together
-            foreach (var e in clusterEdges) {
+            foreach (Edge e in clusterEdges) {
                 // foreach cluster keep a force vector.  Replace ForEachNode calls below with a simple
                 // addition to this force vector.  Traverse top down, tallying up force vectors of children
                 // to be the sum of their parents.
-                var c1 = e.Source as Cluster;
-                var c2 = e.Target as Cluster;
-                var n1 = e.Source.AlgorithmData as FiNode;
-                var n2 = e.Target.AlgorithmData as FiNode;
+                Cluster? c1 = e.Source as Cluster;
+                Cluster? c2 = e.Target as Cluster;
+                FiNode? n1 = e.Source.AlgorithmData as FiNode;
+                FiNode? n2 = e.Target.AlgorithmData as FiNode;
                 Point center1 = c1 != null ? c1.Barycenter : n1.Center;
                 Point center2 = c2 != null ? c2.Barycenter : n2.Center;
                 Point duv = center1 - center2;
@@ -314,7 +318,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
                        f = 1e-8*settings.AttractiveInterClusterForceConstant*l*Math.Log(l + 0.1);
                 if (c1 != null) {
                     c1.ForEachNode(v => {
-                        var fv = v.AlgorithmData as FiNode;
+                        FiNode? fv = v.AlgorithmData as FiNode;
                         fv.force += f*duv;
                     });
                 }
@@ -323,7 +327,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
                 }
                 if (c2 != null) {
                     c2.ForEachNode(v => {
-                        var fv = v.AlgorithmData as FiNode;
+                        FiNode? fv = v.AlgorithmData as FiNode;
                         fv.force -= f*duv;
                     });
                 }
@@ -348,8 +352,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
                 ComputeRepulsiveForces(nodes);
             }
             edges.ForEach(AddSpringForces);
-            foreach (var c in components) {
-                var origin = new Point();
+            foreach (FiNode[] c in components) {
+                Point origin = new Point();
                 for (int i = 0; i < c.Length; ++i) {
                     origin += c[i].Center;
                 }
@@ -375,14 +379,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
 
         void SatisfyConstraints() {
             for (int i = 0; i < settings.ProjectionIterations; ++i) {
-                foreach (var level in constraints.Keys) {
+                foreach (int level in constraints.Keys) {
                     if (level > CurrentConstraintLevel) {
                         break;
                     }
-                    foreach (var c in constraints[level]) {
+                    foreach (IConstraint c in constraints[level]) {
                         c.Project();
                         // c.Project operates only on MSAGL nodes, so need to update the local FiNode.Centers
-                        foreach (var v in c.Nodes) {
+                        foreach (Node v in c.Nodes) {
                             ((FiNode) v.AlgorithmData).Center = v.Center;
                         }
                     }
@@ -391,12 +395,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
                 foreach (LockPosition l in settings.locks) {
                     l.Project();
                     // again, project operates only on MSAGL nodes, we'll also update FiNode.PreviousPosition since we don't want any inertia in this case
-                    foreach (var v in l.Nodes) {
-                        FiNode fiNode = v.AlgorithmData as FiNode;
-
+                    foreach (Node v in l.Nodes) {
                         // the locks should have had their AlgorithmData updated, but if (for some reason)
                         // the locks list is out of date we don't want to null ref here.
-                        if (fiNode != null && v.AlgorithmData != null) {
+                        if (v.AlgorithmData is FiNode fiNode && v.AlgorithmData != null)
+                        {
                             fiNode.ResetBounds();
                         }
                     }
@@ -409,9 +412,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// generated constraints (such as non-overlap) that need satisfying
         /// </summary>
         /// <returns></returns>
-        bool NeedSolve() {
-            return horizontalSolver.NeedSolve || verticalSolver.NeedSolve;
-        }
+        bool NeedSolve() => horizontalSolver.NeedSolve || verticalSolver.NeedSolve;
 
         /// <summary>
         /// Force directed layout is basically an iterative approach to solving a bunch of differential equations.
@@ -438,7 +439,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         }
 
         void SolveSeparationConstraints() {
-            if (this.NeedSolve()) {
+            if (NeedSolve()) {
                 // Increasing the padding effectively increases the size of the rectangle, so it will lead to more overlaps,
                 // and therefore tighter packing once the overlap is removed and therefore more apparent "columnarity".
                 // We don't want to drastically change the shape of the rectangles, just increase them ever so slightly so that
@@ -504,7 +505,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         // end VerletIntegration()
 
         void ResetForceVectors() {
-            foreach (var v in nodes) {
+            foreach (FiNode v in nodes) {
                 v.force = new Point();
             }
         }
@@ -529,11 +530,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         }
 
         double RungeKuttaIntegration() {
-            var y0 = new Point[nodes.Length];
-            var k1 = new Point[nodes.Length];
-            var k2 = new Point[nodes.Length];
-            var k3 = new Point[nodes.Length];
-            var k4 = new Point[nodes.Length];
+            Point[] y0 = new Point[nodes.Length];
+            Point[] k1 = new Point[nodes.Length];
+            Point[] k2 = new Point[nodes.Length];
+            Point[] k3 = new Point[nodes.Length];
+            Point[] k4 = new Point[nodes.Length];
             float energy0 = energy;
             SatisfyConstraints();
             for (int i = 0; i < nodes.Length; ++i) {
@@ -568,7 +569,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
             //System.Console.WriteLine("energy0={0}, energy={1}, progress={2}, stepsize={3}", energy0, energy, progress, stepSize);
             SolveSeparationConstraints();
 
-            return this.nodes.Sum(v => (v.Center - v.previousCenter).LengthSquared);
+            return nodes.Sum(v => (v.Center - v.previousCenter).LengthSquared);
         }
 
         /// <summary>
@@ -591,7 +592,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
                 energy = float.MaxValue;
                 progress = 0;
             }
-            this.StartListenToLocalProgress(settings.MinorIterations);
+            StartListenToLocalProgress(settings.MinorIterations);
             for (int i = 0; i < settings.MinorIterations; ++i) {
                 if (settings.RespectEdgePorts) {
                     edges.ForEach(CalculateMultiPorts);
@@ -600,7 +601,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
 
                 if (d2 < settings.DisplacementThreshold || settings.Iterations > settings.MaxIterations) {
                     settings.Converged = true;
-                    this.ProgressComplete();
+                    ProgressComplete();
                     break;
                 }
 
@@ -614,12 +615,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// or updating the cluster BoundingBox to the already calculated RectangularBoundary
         /// </summary>
         void FinalizeClusterBoundaries() {
-            foreach (var c in graph.RootCluster.AllClustersDepthFirst()) {
+            foreach (Cluster c in graph.RootCluster.AllClustersDepthFirst()) {
                 if (c == graph.RootCluster) continue;
 
-                if (!this.NeedSolve() && settings.UpdateClusterBoundariesFromChildren) {
+                if (!NeedSolve() && settings.UpdateClusterBoundariesFromChildren) {
                     // if we are not using the solver (e.g. when constraintLevel == 0) then we need to get the cluster bounds manually
-                    c.CalculateBoundsFromChildren(this.settings.ClusterMargin);
+                    c.CalculateBoundsFromChildren(settings.ClusterMargin);
                 }
                 else {
                     c.BoundingBox = c.RectangularBoundary.Rect;

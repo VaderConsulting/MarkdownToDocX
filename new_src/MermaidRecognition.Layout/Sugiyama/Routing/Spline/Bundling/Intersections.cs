@@ -9,6 +9,7 @@ using MermaidRecognition.Layout.Sugiyama.Core.Layout;
 using MermaidRecognition.Layout.Sugiyama.Core.Routing;
 using MermaidRecognition.Layout.Sugiyama.Routing.Visibility;
 using MermaidRecognition.Layout.Sugiyama.DebugHelpers;
+using MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree;
 
 namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
     /// <summary>
@@ -31,16 +32,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             this.obstacleTree = obstacleTree;
         }
 
-        internal Set<Polyline> ObstaclesToIgnoreForHub(Station node) {
-            return (node != null ? obstaclesToIgnore(node) : new Set<Polyline>());
-        }
+        internal Set<Polyline> ObstaclesToIgnoreForHub(Station node) => (node != null ? obstaclesToIgnore(node) : []);
 
         internal Set<Polyline> ObstaclesToIgnoreForBundle(Station node, Station adj) {
             if (node != null && adj != null)
                 return obstaclesToIgnore(node) + obstaclesToIgnore(adj);
 
             if (node == null && adj == null)
-                return new Set<Polyline>();
+                return [];
 
             if (node != null) return obstaclesToIgnore(node);
             else return obstaclesToIgnore(adj);
@@ -50,19 +49,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
         internal bool HubAvoidsObstacles(Station node, Point center, double upperBound,
             out List<Tuple<Polyline, Point>> touchedObstacles) {
-            touchedObstacles = new List<Tuple<Polyline, Point>>();
+            touchedObstacles = [];
             double minimalDistance = upperBound;
             return IntersectCircleWithTree(obstacleTree, center, upperBound, obstaclesToIgnore(node), touchedObstacles, ref minimalDistance);
         }
 
-        internal bool HubAvoidsObstacles(Point center, double upperBound, Set<Polyline> obstaclesToIgnore) {
-            List<Tuple<Polyline, Point>> touchedObstacles;
-            double minimalDistance;
-            return HubAvoidsObstacles(center, upperBound, obstaclesToIgnore, out touchedObstacles, out minimalDistance);
-        }
+        internal bool HubAvoidsObstacles(Point center, double upperBound, Set<Polyline> obstaclesToIgnore) => HubAvoidsObstacles(center, upperBound, obstaclesToIgnore, out List<Tuple<Polyline, Point>>? touchedObstacles, out double minimalDistance);
 
         internal double GetMinimalDistanceToObstacles(Station node, Point nodePosition, double upperBound) {
-            List<Tuple<Polyline, Point>> touchedObstacles = new List<Tuple<Polyline, Point>>();
+            List<Tuple<Polyline, Point>> touchedObstacles = [];
             double minimalDistance = upperBound;
             if (!IntersectCircleWithTree(obstacleTree, nodePosition, upperBound, obstaclesToIgnore(node), touchedObstacles, ref minimalDistance))
                 return 0;
@@ -72,7 +67,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
         bool HubAvoidsObstacles(Point center, double upperBound, Set<Polyline> obstaclesToIgnore,
             out List<Tuple<Polyline, Point>> touchedObstacles, out double minimalDistance) {
-            touchedObstacles = new List<Tuple<Polyline, Point>>();
+            touchedObstacles = [];
             minimalDistance = upperBound;
             return IntersectCircleWithTree(obstacleTree, center, upperBound, obstaclesToIgnore, touchedObstacles, ref minimalDistance);
         }
@@ -127,9 +122,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             double tStart = 0;                  // the maximum entering segment parameter
             double tEnd = 1;                    // the minimum leaving segment parameter
 
-            foreach (var p in poly.PolylinePoints) {
+            foreach (PolylinePoint p in poly.PolylinePoints) {
                 //process one edge
-                var prev = p.PrevOnPolyline;
+                PolylinePoint prev = p.PrevOnPolyline;
                 Point e = prev.Point - p.Point;
                 double num = Point.CrossProduct(e, start - p.Point);
                 double den = -Point.CrossProduct(e, segDirection);
@@ -159,7 +154,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
 
         static internal Polyline Create4gon(Point apex, Point baseCenter, double width1, double width2) {
-            var norm = (baseCenter - apex).Normalize();
+            Point norm = (baseCenter - apex).Normalize();
             norm = new Point(norm.Y, -norm.X);
             return new Polyline(apex + norm * width1 / 2, apex - norm * width1 / 2, baseCenter - norm * width2 / 2, baseCenter + norm * width2 / 2) { Closed = true };
         }
@@ -174,13 +169,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         /// </summary>
         internal bool HubPositionsAreOK() {
             //check polylines
-            foreach (var line in metroGraphData.Metrolines) {
-                var poly = line.Polyline;
-                foreach (var p in poly.PolylinePoints)
+            foreach (Metroline line in metroGraphData.Metrolines) {
+                Polyline poly = line.Polyline;
+                foreach (PolylinePoint p in poly.PolylinePoints)
                     Debug.Assert(metroGraphData.PointToStations.ContainsKey(p.Point));
             }
 
-            foreach (var station in metroGraphData.Stations) {
+            foreach (Station station in metroGraphData.Stations) {
                 
                 if (!station.IsRealNode && !HubAvoidsObstacles(station.Position, 0, obstaclesToIgnore(station))) {
                     if (LayoutAlgorithmSettings.ShowDebugCurvesEnumeration != null) {
@@ -190,22 +185,22 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                     return false;
                 }
                 //bundles
-                foreach (var adj in station.Neighbors) {
+                foreach (Station adj in station.Neighbors) {
                     if (ApproximateComparer.Close(adj.Position, station.Position))
                         return false;
 
                     if (!EdgeIsLegal(station, adj, station.Position, adj.Position)) {
                         if (LayoutAlgorithmSettings.ShowDebugCurvesEnumeration != null) {
                             //debug visualization 
-                            var l = new List<DebugCurve>();
+                            List<DebugCurve> l = new List<DebugCurve>();
                             //foreach (var st in metroGraphData.Stations) {
                             //    l.Add(new DebugCurve(100, 0.5, "grey", st.BoundaryCurve));
                             //}
-                            foreach (var poly in obstaclesToIgnore(station)) {
+                            foreach (Polyline poly in obstaclesToIgnore(station)) {
                                 l.Add(new DebugCurve(100, 5, "green", poly));
                             }
 
-                            foreach (var obstacle in obstacleTree.GetAllLeaves()) {
+                            foreach (Polyline obstacle in obstacleTree.GetAllLeaves()) {
                                 l.Add(new DebugCurve(100, 1, "red", obstacle));
                             }
 
@@ -227,16 +222,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         void ShowStationWithObstaclesToIgnore(Station station, IEnumerable<Polyline> allHitItems) {
-            var l = new List<DebugCurve>();
-            foreach (var poly in allHitItems) {
+            List<DebugCurve> l = new List<DebugCurve>();
+            foreach (Polyline poly in allHitItems) {
                 l.Add(new DebugCurve(100, 0.5, "brown", poly));
             }
             if (obstaclesToIgnore(station) != null)
-                foreach (var poly in obstaclesToIgnore(station))
+                foreach (Polyline poly in obstaclesToIgnore(station))
                     l.Add(new DebugCurve(100, 1, "red", poly));
 
 
-            foreach (var obstacle in obstacleTree.GetAllLeaves())
+            foreach (Polyline obstacle in obstacleTree.GetAllLeaves())
                 l.Add(new DebugCurve(50, 0.1, "green", obstacle));
 
             l.Add(new DebugCurve(0.1, "blue", new Ellipse(1, 1, station.Position)));
@@ -249,11 +244,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         /// NOTE: use method in CdtIntersection insetad!
         /// </summary>
         bool EdgeIsLegal(Station stationA, Station stationB, Point a, Point b) {
-            var crossings = InteractiveEdgeRouter.IntersectionsOfLineAndRectangleNodeOverPolyline(new LineSegment(a, b), obstacleTree);
+            List<IntersectionInfo> crossings = InteractiveEdgeRouter.IntersectionsOfLineAndRectangleNodeOverPolyline(new LineSegment(a, b), obstacleTree);
             Set<Polyline> obstaclesToIgnoreForBundle = ObstaclesToIgnoreForBundle(stationA, stationB);
             if (crossings.Count < 0) {
-                var l = new List<DebugCurve>();
-                var crossingSet = new Set<ICurve>(crossings.Select(ii => ii.Segment1));
+                List<DebugCurve> l = new List<DebugCurve>();
+                Set<ICurve> crossingSet = new Set<ICurve>(crossings.Select(ii => ii.Segment1));
                 l.AddRange(crossingSet.Select(p=>new DebugCurve(100,1,"red",p)));
                 l.AddRange(obstaclesToIgnoreForBundle.Select(p=>new DebugCurve(100,0.5,"green",p)));
                 LayoutAlgorithmSettings.ShowDebugCurvesEnumeration(l);

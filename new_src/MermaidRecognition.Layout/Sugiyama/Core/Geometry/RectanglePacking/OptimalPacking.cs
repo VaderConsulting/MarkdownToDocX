@@ -5,8 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
-#pragma warning disable 1591
-namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
+namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RectanglePacking
 {
     /// <summary>
     /// Pack rectangles (without rotation) into a given aspect ratio
@@ -21,12 +20,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
 
         protected IList<RectangleToPack<TData>> rectangles;
 
-         Dictionary<double, double> cachedCosts = new Dictionary<double, double>();
+         Dictionary<double, double> cachedCosts = [];
 
         protected OptimalPacking(IList<RectangleToPack<TData>> rectangles, double aspectRatio)
         {
             this.rectangles = rectangles;
-            this.desiredAspectRatio = aspectRatio;
+            desiredAspectRatio = aspectRatio;
         }
 
         /// <summary>
@@ -102,10 +101,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
 
          double Pack(double limit)
         {
-            double cost;
-            if (!cachedCosts.TryGetValue(limit, out cost))
+            if (!cachedCosts.TryGetValue(limit, out double cost))
             {
-                var packing = this.createPacking(rectangles, limit);
+                Packing packing = createPacking(rectangles, limit);
                 packing.Run();
                 cachedCosts[limit] = cost = Math.Abs(packing.PackedAspectRatio - desiredAspectRatio);
                 if (cost < bestPackingCost)

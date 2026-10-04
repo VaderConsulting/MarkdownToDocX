@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Layout;
 using MermaidRecognition.RuleValidation.Models;
 
@@ -62,8 +63,8 @@ public static class FlowchartLayoutTerminalStubFactsHelper
                 continue;
             }
 
-            if (!BoundsById.TryGetValue(Edge.SourceId, out FlowchartLayoutNodeBounds SourceBounds)
-                || !BoundsById.TryGetValue(Edge.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
+            if (!BoundsById.TryGetValue(Edge.SourceId, out FlowchartLayoutNodeBounds? SourceBounds)
+                || !BoundsById.TryGetValue(Edge.TargetId, out FlowchartLayoutNodeBounds? TargetBounds))
             {
                 EdgeResult.Facts["Ports.PerpendicularAttach"] = false;
                 EdgeResult.Facts["Path.LayoutAttachFailure"] = "Edge endpoint bounds are missing.";

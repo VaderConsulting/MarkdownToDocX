@@ -37,13 +37,7 @@ public static class RecognitionProgramme
     /// <summary>
     /// Total L1 programme kinds (22).
     /// </summary>
-    public static int L1ProgrammeKindCount
-    {
-        get
-        {
-            return L1ProgrammeKindIds.Length;
-        }
-    }
+    public static int L1ProgrammeKindCount => L1ProgrammeKindIds.Length;
 
     /// <summary>
     /// Maps a Mermaid detector id to the normalised programme kind id.

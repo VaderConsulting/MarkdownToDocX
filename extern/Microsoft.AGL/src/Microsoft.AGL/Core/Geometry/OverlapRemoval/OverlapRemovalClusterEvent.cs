@@ -9,6 +9,8 @@
 
 using System;
 
+using Microsoft.AGL.Core.Geometry.OverlapRemoval;
+
 namespace Microsoft.AGL.Core.Geometry
 {
     public partial class OverlapRemovalCluster
@@ -28,21 +30,18 @@ namespace Microsoft.AGL.Core.Geometry
 
             internal Event(bool isForOpen, OverlapRemovalNode node, double position)
             {
-                this.IsForOpen = isForOpen;
-                this.Node = node;
-                this.Position = position;
+                IsForOpen = isForOpen;
+                Node = node;
+                Position = position;
             }
 
             /// <summary>
             /// Generate a string representation of the Event.
             /// </summary>
             /// <returns>A string representation of the Event.</returns>
-            public override string ToString()
-            {
-                return string.Format(System.Globalization.CultureInfo.InvariantCulture,
+            public override string ToString() => string.Format(System.Globalization.CultureInfo.InvariantCulture,
                                     "Event: pos {0:F5} {1} {2}",
-                                    this.Position, this.IsForOpen ? "open" : "close", this.Node);
-            }
+                                    Position, IsForOpen ? "open" : "close", Node);
 
             #region IComparable Members
             /// <summary>
@@ -52,26 +51,25 @@ namespace Microsoft.AGL.Core.Geometry
             /// </summary>
             /// <param name="other">The right-hand side of the comparison</param>
             /// <returns></returns>
-            [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1307:SpecifyStringComparison", MessageId = "System.String.CompareTo(System.String)")]
             public int CompareTo(Event other)
             {
                 ValidateArg.IsNotNull(other, "other");
                 
                 int cmp = 0;
                 // Use a range so that rounding inaccuracy will give consistent results.
-                if (Math.Abs(this.Position - other.Position) > OverlapRemovalGlobalConfiguration.EventComparisonEpsilon)
+                if (Math.Abs(Position - other.Position) > OverlapRemovalGlobalConfiguration.EventComparisonEpsilon)
                 {
-                    cmp = this.Position.CompareTo(other.Position);
+                    cmp = Position.CompareTo(other.Position);
                 }
                 if (0 == cmp)
                 {
                     // Sub-order by IsRendered (false precedes true, which is what we want).
-                    cmp = this.IsForOpen.CompareTo(other.IsForOpen);
+                    cmp = IsForOpen.CompareTo(other.IsForOpen);
 
                     if (0 == cmp)
                     {
                         // Sub-order by node id
-                        cmp = this.Node.Id.CompareTo(other.Node.Id);
+                        cmp = Node.Id.CompareTo(other.Node.Id);
                     }
                 }
                 return cmp;

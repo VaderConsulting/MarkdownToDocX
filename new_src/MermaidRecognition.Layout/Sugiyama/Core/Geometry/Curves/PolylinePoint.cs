@@ -17,9 +17,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
 		/// <summary>
 		/// 
 		/// </summary>
-		public Point Point {
-            get { return point; }
-            set {
+		public Point Point
+        {
+            get => point;
+            set
+            {
                 point = value;
                 if (Polyline != null)
                     Polyline.RequireInit();
@@ -32,9 +34,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
 		/// <summary>
 		/// 
 		/// </summary>
-		public PolylinePoint Next {
-            get { return next; }
-            set {
+		public PolylinePoint Next
+        {
+            get => next;
+            set
+            {
                 next = value;
                 if (Polyline != null)
                     Polyline.RequireInit();
@@ -46,9 +50,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// <summary>
         /// 
         /// </summary>
-        public PolylinePoint Prev {
-            get { return prev; }
-            set {
+        public PolylinePoint Prev
+        {
+            get => prev;
+            set
+            {
                 prev = value;
                 if (Polyline != null)
                     Polyline.RequireInit();
@@ -61,41 +67,30 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// <summary>
         /// 
         /// </summary>
-        public PolylinePoint(Point p) {
-            Point = p;
-        }
+        public PolylinePoint(Point p) => Point = p;
 
         Polyline polyline;
 
         /// <summary>
         /// 
         /// </summary>
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
-        public Polyline Polyline {
-            get { return polyline; }
-            set { polyline = value; }
-        }
-
-		/// <summary>
-		/// 
-		/// </summary>
-		public override string ToString() {
-            return point.ToString();
+        public Polyline Polyline { get => polyline; set => polyline = value;
         }
 
         /// <summary>
         /// 
         /// </summary>
-        public PolylinePoint NextOnPolyline {
-            get { return Polyline.Next(this); }
-        }
+        public override string ToString() => point.ToString();
 
         /// <summary>
         /// 
         /// </summary>
-        public PolylinePoint PrevOnPolyline {
-            get { return Polyline.Prev(this); }
-        }
+        public PolylinePoint NextOnPolyline => Polyline.Next(this);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public PolylinePoint PrevOnPolyline => Polyline.Prev(this);
 
     }
 }

@@ -1,6 +1,8 @@
 using System.Collections.Generic;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Core;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Render;
 
 namespace MermaidRecognition.Layout;
@@ -17,7 +19,7 @@ public static class FlowchartRoutingIntentPipeline
         string Markdown,
         FlowchartRoutingIntentRuleset? Ruleset)
     {
-        List<FlowchartRoutingIntentPipelineResult> Results = new List<FlowchartRoutingIntentPipelineResult>();
+        List<FlowchartRoutingIntentPipelineResult> Results = [];
         List<MermaidMarkdownFenceExtractor.ExtractedMermaidDiagram> Diagrams =
             MermaidMarkdownFenceExtractor.ExtractFlowcharts(Markdown);
 
@@ -93,21 +95,14 @@ public sealed class FlowchartRoutingIntentPipelineResult
 
     private FlowchartRoutingIntentValidationResult? _IntentValidation;
 
-    private List<FlowchartEdgeRouteDiagnosticFinding> _RenderDiagnostics = new List<FlowchartEdgeRouteDiagnosticFinding>();
+    private List<FlowchartEdgeRouteDiagnosticFinding> _RenderDiagnostics = [];
 
     /// <summary>
     /// Diagram identifier from the torture-test fixture.
     /// </summary>
     public string DiagramId
     {
-        get
-        {
-            return _DiagramId;
-        }
-        set
-        {
-            _DiagramId = value;
-        }
+        get => _DiagramId; set => _DiagramId = value;
     }
 
     /// <summary>
@@ -125,14 +120,7 @@ public sealed class FlowchartRoutingIntentPipelineResult
     /// </summary>
     public FlowchartRoutingIntentDiagramResult? Intent
     {
-        get
-        {
-            return _Intent;
-        }
-        set
-        {
-            _Intent = value;
-        }
+        get => _Intent; set => _Intent = value;
     }
 
     /// <summary>
@@ -140,14 +128,7 @@ public sealed class FlowchartRoutingIntentPipelineResult
     /// </summary>
     public string IntentJson
     {
-        get
-        {
-            return _IntentJson;
-        }
-        set
-        {
-            _IntentJson = value;
-        }
+        get => _IntentJson; set => _IntentJson = value;
     }
 
     /// <summary>
@@ -155,14 +136,7 @@ public sealed class FlowchartRoutingIntentPipelineResult
     /// </summary>
     public FlowchartRoutingIntentValidationResult? IntentValidation
     {
-        get
-        {
-            return _IntentValidation;
-        }
-        set
-        {
-            _IntentValidation = value;
-        }
+        get => _IntentValidation; set => _IntentValidation = value;
     }
 
     /// <summary>
@@ -175,13 +149,6 @@ public sealed class FlowchartRoutingIntentPipelineResult
     /// </summary>
     public List<FlowchartEdgeRouteDiagnosticFinding> RenderDiagnostics
     {
-        get
-        {
-            return _RenderDiagnostics;
-        }
-        set
-        {
-            _RenderDiagnostics = value ?? new List<FlowchartEdgeRouteDiagnosticFinding>();
-        }
+        get => _RenderDiagnostics; set => _RenderDiagnostics = value ?? [];
     }
 }

@@ -21,8 +21,7 @@ namespace Microsoft.AGL.Core.DataStructures {
         /// </summary>
         internal static void AddToMap<TS, T, TC>(Dictionary<T, TC> dictionary, T key, TS value)
             where TC : ICollection<TS>, new() {
-            TC tc;
-            if (!dictionary.TryGetValue(key, out tc))
+            if (!dictionary.TryGetValue(key, out TC tc))
                 dictionary[key] = tc = new TC();
 
             tc.Add(value);
@@ -31,12 +30,9 @@ namespace Microsoft.AGL.Core.DataStructures {
         /// <summary>
         /// Remove value from dictionary
         /// </summary>
-        [SuppressMessage("Microsoft.Naming", "CA1715:IdentifiersShouldHaveCorrectPrefix", MessageId = "T"),
-         SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "S"),
-         SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures")]
         internal static void RemoveFromMap<TS, T, TC>(Dictionary<T, TC> dictionary, T key, TS value)
             where TC : ICollection<TS> {
-            var tc = dictionary[key];
+            TC tc = dictionary[key];
             tc.Remove(value);
             if (tc.Count == 0)
                 dictionary.Remove(key);

@@ -7,6 +7,7 @@ namespace MermaidRecognition.Tests.AllKinds;
 public sealed class AllKindsFixtureWriter
 {
     [Test]
+    [Explicit("Regenerates baseline fixtures; select this test explicitly to update them.")]
     public void Write_All_Remaining_Kind_Fixtures()
     {
         WriteTimeline();

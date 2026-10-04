@@ -203,18 +203,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver{
 
         const double FixedVarWeight = 10e8;
 
-        readonly Dictionary<int, Variable> variables = new Dictionary<int, Variable>();
+        readonly Dictionary<int, Variable> variables = [];
         Solver solver;
         Solution solution;
 
-        readonly Dictionary<int, double> fixedVars = new Dictionary<int, double>();
+        readonly Dictionary<int, double> fixedVars = [];
 
         /// <summary>
         /// Constructor.
         /// </summary>
-        public SolverShell(){
-            InitSolver();
-        }
+        public SolverShell() => InitSolver();
 
         /// <summary>
         /// Add a node that we would like as close to position i as possible, with the requested weight.
@@ -222,19 +220,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver{
         /// <param name="id">Caller's unique identifier for this node</param>
         /// <param name="position">Desired position</param> 
         /// <param name="weight">The weight of the corresponding term in the goal function</param>
-        public void AddVariableWithIdealPosition(int id, double position, double weight){
+        public void AddVariableWithIdealPosition(int id, double position, double weight) =>
             // This throws an ArgumentException if a variable with id is already there.
             variables.Add(id, solver.AddVariable(id, position, weight));
-        }
 
         /// <summary>
         /// Add a node that we would like as close to position i as possible, with the requested weight.
         /// </summary>
         /// <param name="id"></param>
         /// <param name="position"></param>
-        public void AddVariableWithIdealPosition(int id, double position){
-            AddVariableWithIdealPosition(id, position, 1.0);
-        }
+        public void AddVariableWithIdealPosition(int id, double position) => AddVariableWithIdealPosition(id, position, 1.0);
 
         /// <summary>
         /// Add a constraint that leftNode+gap eq|leq RightNode.
@@ -245,9 +240,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver{
         /// <param name="isEquality">Gap is exact rather than minimum</param>
         public void AddLeftRightSeparationConstraint(int idLeft, int idRight, double gap, bool isEquality){
             // The variables must already have been added by AddNodeWithDesiredPosition.
-            var varLeft = GetVariable(idLeft);
+            Variable varLeft = GetVariable(idLeft);
             if (varLeft == null) return;
-            var varRight = GetVariable(idRight);
+            Variable varRight = GetVariable(idRight);
             if (varRight == null) return;
             solver.AddConstraint(varLeft, varRight, gap, isEquality);
         }
@@ -258,9 +253,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver{
         /// <param name="idLeft">Caller's unique identifier for the left node</param>
         /// <param name="idRight">Caller's unique identifier for the right node</param>
         /// <param name="gap">Required minimal gap</param>
-        public void AddLeftRightSeparationConstraint(int idLeft, int idRight, double gap){
-            AddLeftRightSeparationConstraint(idLeft, idRight, gap, false /*isEquality*/);
-        }
+        public void AddLeftRightSeparationConstraint(int idLeft, int idRight, double gap) => AddLeftRightSeparationConstraint(idLeft, idRight, gap, false /*isEquality*/);
 
         /// <summary>
         /// Add a goal that minimizes the distance between two nodes, i.e. weight*((id1-id2)^2).
@@ -269,9 +262,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver{
         /// <param name="id2">Caller's unique identifier for the second node.</param>
         /// <param name="weight">The weight of the corresponding term in the goal function</param>
         public void AddGoalTwoVariablesAreClose(int id1, int id2, double weight){
-            var var1 = GetVariable(id1);
+            Variable var1 = GetVariable(id1);
             if (var1 == null) return;
-            var var2 = GetVariable(id2);
+            Variable var2 = GetVariable(id2);
             if (var2 == null) return;
             solver.AddNeighborPair(var1, var2, weight);
         }
@@ -281,32 +274,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver{
         /// </summary>
         /// <param name="id1"></param>
         /// <param name="id2"></param>
-        public void AddGoalTwoVariablesAreClose(int id1, int id2){
-            AddGoalTwoVariablesAreClose(id1, id2, 1);
-        }
+        public void AddGoalTwoVariablesAreClose(int id1, int id2) => AddGoalTwoVariablesAreClose(id1, id2, 1);
 
-        Variable GetVariable(int i)
-        {
-            Variable v;
-            return variables.TryGetValue(i, out v) ? v : null;
-        }
+        Variable GetVariable(int i) => variables.TryGetValue(i, out Variable? v) ? v : null;
 
         /// <summary>
         /// Execute the solver, filling in the Solution object and the values to be returned by GetVariableResolvedPosition.
         /// </summary>
-        public void Solve(){
-            Solve(null);
-        }
+        public void Solve() => Solve(null);
 
         /// <summary>
         /// Execute the solver, filling in the Solution object and the values to be returned by GetVariableResolvedPosition.
         /// </summary>
         /// <param name="parameters">Parameter object class specific to the underlying solver</param>
         /// <returns>Pass or fail</returns>
-        public void Solve(object parameters){
-            bool executionLimitExceeded;
-            Solve(parameters, out executionLimitExceeded);
-        }
+        public void Solve(object parameters) => Solve(parameters, out bool executionLimitExceeded);
 
         /// <summary>
         /// Execute the solver, filling in the Solution object and the values to be returned by GetVariableResolvedPosition.
@@ -315,7 +297,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver{
         /// <param name="executionLimitExceeded">if true, one or more limits such as iteration count 
         ///         or timeout were exceeded</param>
         /// <returns>Pass or fail</returns>
-        [SuppressMessage("Microsoft.Usage", "CA2208")]
         public bool Solve(object parameters, out bool executionLimitExceeded){
             bool fixedVarsMoved;
             do{
@@ -356,7 +337,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver{
 //        }
 
         bool AdjustConstraintsForMovedFixedVars(){
-            var movedFixedVars=new Set<int>(fixedVars.
+            Set<int> movedFixedVars =new Set<int>(fixedVars.
                 Where(kv=>!Close(kv.Value, GetVariableResolvedPosition(kv.Key))).Select(p=>p.Key));
             if(movedFixedVars.Count==0)
                 return false;
@@ -364,13 +345,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver{
             
         }
 
-        static bool Close(double a, double b){
-            return Math.Abs(a - b) < 0.0005; //so if a fixed variable moved less than 0.0001 we do not care!
-        }
+        static bool Close(double a, double b) => Math.Abs(a - b) < 0.0005; //so if a fixed variable moved less than 0.0001 we do not care!
 
         bool AdjustConstraintsForMovedFixedVarSet(Set<int> movedFixedVars){
             while (movedFixedVars.Count>0){
-                var fixedVar = movedFixedVars.First();
+                int fixedVar = movedFixedVars.First();
                 if(!AdjustSubtreeOfFixedVar(fixedVar, ref movedFixedVars))
                     return false;
             }
@@ -378,13 +357,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver{
         }
 
         bool AdjustSubtreeOfFixedVar(int fixedVar, ref Set<int> movedFixedVars){
-            bool successInAdjusting;
-            var neighbors=AdjustConstraintsOfNeighborsOfFixedVariable(fixedVar, out successInAdjusting);
+            IEnumerable<int> neighbors = AdjustConstraintsOfNeighborsOfFixedVariable(fixedVar, out bool successInAdjusting);
             if (!successInAdjusting)
                 return false;
             if(!neighbors.Any())
                 return false;
-            foreach (var i in neighbors)
+            foreach (int i in neighbors)
                 movedFixedVars.Remove(i);
             return true;
         }
@@ -396,11 +374,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver{
         /// <param name="successInAdjusing"></param>
         /// <returns></returns>
         IEnumerable<int> AdjustConstraintsOfNeighborsOfFixedVariable(int fixedVar, out bool successInAdjusing){
-            var nbs = variables[fixedVar].Block.Variables;
-            var currentSpan = new RealNumberSpan();
-            var idealSpan = new RealNumberSpan();
+            List<Variable> nbs = variables[fixedVar].Block.Variables;
+            RealNumberSpan currentSpan = new RealNumberSpan();
+            RealNumberSpan idealSpan = new RealNumberSpan();
             double scale = 1;
-            foreach (var u in nbs){
+            foreach (Variable u in nbs){
                 if (!fixedVars.ContainsKey((int)u.UserData )) 
                     continue;             
                 currentSpan.AddValue(u.ActualPos);
@@ -419,8 +397,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver{
         const double FailToAdjustEpsilon=0.001;
 
         bool FixActiveConstraints(IEnumerable<Variable> neighbs, double scale){
-            var ret = false;
-            foreach (var c in from v in neighbs from c in v.LeftConstraints where c.IsActive select c) {
+            bool ret = false;
+            foreach (Constraint? c in from v in neighbs from c in v.LeftConstraints where c.IsActive select c) {
                 if (c.Gap > FailToAdjustEpsilon)
                     ret = true;
                 solver.SetConstraintUpdate(c, c.Gap/scale);
@@ -434,7 +412,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver{
         /// <param name="id">Caller's unique identifier for the node.</param>
         /// <returns>The node's solved position.</returns>
         public double GetVariableResolvedPosition(int id){
-            var v = GetVariable(id);
+            Variable v = GetVariable(id);
             return v == null ? 0 : v.ActualPos;
         }
 
@@ -462,26 +440,20 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver{
         /// </summary>
         /// <param name="v"></param>
         /// <returns></returns>
-        public bool ContainsVariable(int v){
-            return variables.ContainsKey(v);
-        }
+        public bool ContainsVariable(int v) => variables.ContainsKey(v);
 
         /// <summary>
         /// returns the ideal position of the node that had been set at the variable construction
         /// </summary>
         /// <param name="v"></param>
         /// <returns></returns>
-        public double GetVariableIdealPosition(int v){
-            return variables[v].DesiredPos;
-        }
+        public double GetVariableIdealPosition(int v) => variables[v].DesiredPos;
 #endif // SOLVERFOUNDATION
 
         /// <summary>
         /// Returns the solution object class specific to the underlying solver, or null if there has
         /// been no call to Solve() or it threw an exception.
         /// </summary>
-        public object Solution{
-            get { return solution; }
-        }
+        public object Solution => solution;
     } // end class SolverShell
 } // end namespace MermaidRecognition.Layout.Sugiyama

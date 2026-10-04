@@ -1,5 +1,5 @@
 using MermaidRecognition.Contract;
-using MermaidRecognition.State;
+using MermaidRecognition.Kinds.State;
 
 namespace MermaidRecognition.Tests.State;
 

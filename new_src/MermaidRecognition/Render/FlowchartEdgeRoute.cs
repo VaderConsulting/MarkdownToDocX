@@ -9,56 +9,28 @@ public sealed class FlowchartEdgeRoute
 
     public string EdgeKey
     {
-        get
-        {
-            return _EdgeKey;
-        }
-        set
-        {
-            _EdgeKey = value;
-        }
+        get => _EdgeKey; set => _EdgeKey = value;
     }
 
     private string _SourceId = string.Empty;
 
     public string SourceId
     {
-        get
-        {
-            return _SourceId;
-        }
-        set
-        {
-            _SourceId = value;
-        }
+        get => _SourceId; set => _SourceId = value;
     }
 
     private string _TargetId = string.Empty;
 
     public string TargetId
     {
-        get
-        {
-            return _TargetId;
-        }
-        set
-        {
-            _TargetId = value;
-        }
+        get => _TargetId; set => _TargetId = value;
     }
 
     private FlowchartRouteKind _Kind = FlowchartRouteKind.SimpleLink;
 
     public FlowchartRouteKind Kind
     {
-        get
-        {
-            return _Kind;
-        }
-        set
-        {
-            _Kind = value;
-        }
+        get => _Kind; set => _Kind = value;
     }
 
     private int _SourceBranchIndex;
@@ -68,14 +40,7 @@ public sealed class FlowchartEdgeRoute
     /// </summary>
     public int SourceBranchIndex
     {
-        get
-        {
-            return _SourceBranchIndex;
-        }
-        set
-        {
-            _SourceBranchIndex = value;
-        }
+        get => _SourceBranchIndex; set => _SourceBranchIndex = value;
     }
 
     private int _TargetJoinIndex;
@@ -85,13 +50,6 @@ public sealed class FlowchartEdgeRoute
     /// </summary>
     public int TargetJoinIndex
     {
-        get
-        {
-            return _TargetJoinIndex;
-        }
-        set
-        {
-            _TargetJoinIndex = value;
-        }
+        get => _TargetJoinIndex; set => _TargetJoinIndex = value;
     }
 }

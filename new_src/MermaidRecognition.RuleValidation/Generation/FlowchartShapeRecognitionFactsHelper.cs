@@ -55,10 +55,7 @@ public static class FlowchartShapeRecognitionFactsHelper
         }
     }
 
-    private static bool EvaluateShapeCanonicalised(string Shape, string ShapeSource)
-    {
-        return KnownCanonicalShapes.Contains(Shape);
-    }
+    private static bool EvaluateShapeCanonicalised(string Shape, string ShapeSource) => KnownCanonicalShapes.Contains(Shape);
 
     private static bool EvaluateTrapezoidBracketRecognition(string Shape, string ShapeSource)
     {

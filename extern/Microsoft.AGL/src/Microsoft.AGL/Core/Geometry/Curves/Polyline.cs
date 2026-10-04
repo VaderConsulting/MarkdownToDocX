@@ -10,10 +10,8 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
     /// <summary>
     /// class representing a polyline
     /// </summary>
-    [SuppressMessage("Microsoft.Naming", "CA1710:IdentifiersShouldHaveCorrectSuffix"),
-     SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Polyline")]
 #if TEST_MSAGL
-    
+
 #endif
     public class Polyline : ICurve, IEnumerable<Point> {
         bool needToInit = true;
@@ -21,23 +19,15 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <summary>
         /// 
         /// </summary>
-        internal void RequireInit() {
-            needToInit = true;
+        internal void RequireInit() => needToInit = true;
+
+        bool NeedToInit { get => needToInit; set => needToInit = value;
         }
 
-        bool NeedToInit {
-            get {
-                return needToInit;
-            }
-            set {
-                needToInit = value;
-            }
-        }
-
-		/// <summary>
-		/// 
-		/// </summary>
-		public IEnumerable<PolylinePoint> PolylinePoints {
+        /// <summary>
+        /// 
+        /// </summary>
+        public IEnumerable<PolylinePoint> PolylinePoints {
             get {
                 PolylinePoint p = StartPoint;
                 while (p != null) {
@@ -51,13 +41,10 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// 
         /// </summary>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1305:SpecifyIFormatProvider", MessageId = "System.String.Format(System.String,System.Object,System.Object,System.Object)")]
-        public override string ToString() {
-            return String.Format("{0},{1},count={2}", Start,End, Count);
-        }
+        public override string ToString() => string.Format("{0},{1},count={2}", Start, End, Count);
 #endif 
         internal Curve ToCurve() {
-            var c = new Curve();
+            Curve c = new Curve();
             Curve.AddLineSegment(c, StartPoint.Point, StartPoint.Next.Point);
             PolylinePoint p = StartPoint.Next;
             while ((p = p.Next) != null)
@@ -75,9 +62,11 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
 		/// <summary>
 		/// 
 		/// </summary>
-		public PolylinePoint StartPoint {
-            get { return startPoint; }
-            set {
+		public PolylinePoint StartPoint
+        {
+            get => startPoint;
+            set
+            {
                 RequireInit();
                 startPoint = value;
             }
@@ -88,9 +77,11 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
 		/// <summary>
 		/// 
 		/// </summary>
-		public PolylinePoint EndPoint {
-            get { return endPoint; }
-            set {
+		public PolylinePoint EndPoint
+        {
+            get => endPoint;
+            set
+            {
                 RequireInit();
                 endPoint = value;
             }
@@ -111,10 +102,13 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <summary>
         /// 
         /// </summary>
-        public bool Closed {
-            get { return closed; }
-            set {
-                if (closed != value) {
+        public bool Closed
+        {
+            get => closed;
+            set
+            {
+                if (closed != value)
+                {
                     closed = value;
                     RequireInit();
                 }
@@ -130,10 +124,9 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <returns></returns>
         public Point this[double t] {
             get {
-                Point a, b;
                 if (NeedToInit)
                     Init();
-                GetAdjustedParamAndStartEndPoints(ref t, out a, out b);
+                GetAdjustedParamAndStartEndPoints(ref t, out Point a, out Point b);
                 return (1 - t)*a + t*b;
             }
         }
@@ -171,10 +164,9 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="t">the parameter where the derivative is calculated</param>
         /// <returns></returns>
         public Point Derivative(double t) {
-            Point a, b;
             if (NeedToInit)
                 Init();
-            GetAdjustedParamAndStartEndPoints(ref t, out a, out b);
+            GetAdjustedParamAndStartEndPoints(ref t, out Point a, out Point b);
             return b - a;
         }
 
@@ -204,7 +196,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         public Point RightDerivative(double t) {
             if(NeedToInit)
                 Init();
-            var pp = TryToGetPolylinePointCorrespondingToT(t);
+            PolylinePoint pp = TryToGetPolylinePointCorrespondingToT(t);
             if (pp == null)
                 return Derivative(t);
             PolylinePoint next = TryToGetNextPointToPolylinePoint(pp);
@@ -248,19 +240,14 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        public Point SecondDerivative(double t) {
-            return new Point();
-        }
+        public Point SecondDerivative(double t) => new Point();
 
         /// <summary>
         /// third derivative
         /// </summary>
         /// <param name="t">the parameter of the derivative</param>
         /// <returns></returns>
-        public Point ThirdDerivative(double t)
-        {
-            return new Point();
-        }
+        public Point ThirdDerivative(double t) => new Point();
 
 
         /// <summary>
@@ -327,7 +314,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
 
         void CalculatePbNode() {
             pBNode = new ParallelogramInternalTreeNode(this, ParallelogramNodeOverICurve.DefaultLeafBoxesOffset);
-            var parallelograms = new List<Parallelogram>();
+            List<Parallelogram> parallelograms = new List<Parallelogram>();
             PolylinePoint pp = StartPoint;
             int offset = 0;
             while (pp.Next != null) {
@@ -350,16 +337,12 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <summary>
         /// the start of the parameter domain
         /// </summary>
-        public double ParStart {
-            get { return 0; }
-        }
+        public double ParStart => 0;
 
         /// <summary>
         /// the end of the parameter domain
         /// </summary>
-        public double ParEnd {
-            get { return Closed ? Count : Count - 1; }
-        }
+        public double ParEnd => Closed ? Count : Count - 1;
 
         /// <summary>
         /// Returns the trimmed polyline. Does not change this polyline. Reversed start and end if start is less than end.
@@ -382,17 +365,17 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="end"></param>
         /// <returns></returns>
         public ICurve TrimWithWrap(double start, double end) {
-            Debug.Assert((start < end) || this.Closed, "Polyline must be closed to wrap");
+            Debug.Assert((start < end) || Closed, "Polyline must be closed to wrap");
 
             //this is a very lazy version!
-            var curve = (Curve)this.ToCurve().TrimWithWrap(start, end);
+            Curve curve = (Curve)ToCurve().TrimWithWrap(start, end);
             return PolylineFromCurve(curve);
         }
 
         internal static Polyline PolylineFromCurve(Curve curve) {
-            var ret = new Polyline();
+            Polyline ret = new Polyline();
             ret.AddPoint(curve.Start);
-            foreach (var ls in curve.Segments)
+            foreach (ICurve ls in curve.Segments)
                 ret.AddPoint(ls.End);
             ret.Closed = curve.Start == curve.End;
             return ret;
@@ -421,7 +404,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <returns></returns>
         public ICurve ScaleFromOrigin(double xScale, double yScale)
         {
-            var ret = new Polyline();
+            Polyline ret = new Polyline();
             PolylinePoint polyPoint = StartPoint;
             while (polyPoint != null)
             {
@@ -432,13 +415,11 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
             return ret;
         }
 
-        internal void AddPoint(double x, double y) {
-            AddPoint(new Point(x, y));
-        }
+        internal void AddPoint(double x, double y) => AddPoint(new Point(x, y));
 
         internal void PrependPoint(Point p) {
-            Debug.Assert(EndPoint == null || !ApproximateComparer.Close(p, EndPoint.Point));           
-            var pp = new PolylinePoint(p) {Polyline = this};
+            Debug.Assert(EndPoint == null || !ApproximateComparer.Close(p, EndPoint.Point));
+            PolylinePoint pp = new PolylinePoint(p) {Polyline = this};
             if (StartPoint != null) {
                 if (!ApproximateComparer.Close(p, StartPoint.Point))
                 {
@@ -457,7 +438,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         ///</summary>
         ///<param name="point"></param>
         public void AddPoint(Point point) {
-            var pp = new PolylinePoint(point) {Polyline = this};
+            PolylinePoint pp = new PolylinePoint(point) {Polyline = this};
             if (EndPoint != null) {
                // if (!ApproximateComparer.Close(point, EndPoint.Point)) {
                     EndPoint.Next = pp;
@@ -473,27 +454,18 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <summary>
         /// this[ParStart]
         /// </summary>
-        public Point Start
-        {
-            get { return StartPoint.Point; }
-        }
+        public Point Start => StartPoint.Point;
 
         /// <summary>
         /// this[ParEnd]
         /// </summary>
-        public Point End
-        {
-            get { return EndPoint.Point; }
-        }
+        public Point End => EndPoint.Point;
 
         /// <summary>
         /// this[Reverse[t]]=this[ParEnd+ParStart-t]
         /// </summary>
         /// <returns></returns>
-        public ICurve Reverse()
-        {
-            return ReversePolyline();
-        }
+        public ICurve Reverse() => ReversePolyline();
 
         /// <summary>
         /// Offsets the curve in the direction of dir
@@ -501,10 +473,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="offset"></param>
         /// <param name="dir"></param>
         /// <returns></returns>
-        public ICurve OffsetCurve(double offset, Point dir)
-        {
-            throw new NotImplementedException();
-        }
+        public ICurve OffsetCurve(double offset, Point dir) => throw new NotImplementedException();
 
         /// <summary>
         /// return length of the curve segment [start,end] 
@@ -512,10 +481,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="start"></param>
         /// <param name="end"></param>
         /// <returns></returns>
-        public double LengthPartial(double start, double end)
-        {
-            throw new NotImplementedException();
-        }
+        public double LengthPartial(double start, double end) => throw new NotImplementedException();
 
         /// <summary>
         /// Get the length of the curve
@@ -542,20 +508,18 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="length"></param>
         /// <returns></returns>
         /// <exception cref="NotImplementedException"></exception>
-        public double GetParameterAtLength(double length) {
-            throw new NotImplementedException();
-        }
+        public double GetParameterAtLength(double length) => throw new NotImplementedException();
 
         /// <summary>
         /// returns the transformed polyline
         /// </summary>
         /// <param name="transformation"></param>
         /// <returns></returns>
-      public ICurve Transform(PlaneTransformation transformation) {
+        public ICurve Transform(PlaneTransformation transformation) {
             if (transformation == null)
                 return this;
-            var poly = new Polyline {Closed = Closed};
-            foreach (var p in this)
+            Polyline poly = new Polyline {Closed = Closed};
+            foreach (Point p in this)
             {
                 poly.AddPoint(transformation*p);
             }
@@ -572,14 +536,14 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <returns></returns>
       public double ClosestParameterWithinBounds(Point targetPoint, double low, double high) {
             double ret = 0;
-            double dist = Double.MaxValue;
+            double dist = double.MaxValue;
             int offset = 0;
             PolylinePoint pp = StartPoint;
             while (pp.Next != null) {
                 if (offset <= high && offset + 1 >= low) {
-                    var lowLocal = Math.Max(0, low - offset);
-                    var highLocal = Math.Min(1, high - offset);
-                    var ls = new LineSegment(pp.Point, pp.Next.Point);
+                    double lowLocal = Math.Max(0, low - offset);
+                    double highLocal = Math.Min(1, high - offset);
+                    LineSegment ls = new LineSegment(pp.Point, pp.Next.Point);
                     double t = ls.ClosestParameterWithinBounds(targetPoint, lowLocal, highLocal);
                     Point delta = ls[t] - targetPoint;
                     double newDist = delta*delta;
@@ -594,9 +558,9 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
 
             if (Closed) {
                 if (offset <= high && offset + 1 >= low) {
-                    var lowLocal = Math.Max(0, low - offset);
-                    var highLocal = Math.Min(1, high - offset);
-                    var ls = new LineSegment(EndPoint.Point, StartPoint.Point);
+                    double lowLocal = Math.Max(0, low - offset);
+                    double highLocal = Math.Min(1, high - offset);
+                    LineSegment ls = new LineSegment(EndPoint.Point, StartPoint.Point);
                     double t = ls.ClosestParameterWithinBounds(targetPoint, lowLocal, highLocal);
                     Point delta = ls[t] - targetPoint;
                     double newDist = delta*delta;
@@ -614,11 +578,11 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <returns></returns>
         public double ClosestParameter(Point targetPoint) {
             double ret = 0;
-            double dist = Double.MaxValue;
+            double dist = double.MaxValue;
             int offset = 0;
             PolylinePoint pp = StartPoint;
             while (pp.Next != null) {
-                var ls = new LineSegment(pp.Point, pp.Next.Point);
+                LineSegment ls = new LineSegment(pp.Point, pp.Next.Point);
                 double t = ls.ClosestParameter(targetPoint);
                 Point delta = ls[t] - targetPoint;
                 double newDist = delta*delta;
@@ -631,7 +595,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
             }
 
             if (Closed) {
-                var ls = new LineSegment(EndPoint.Point, StartPoint.Point);
+                LineSegment ls = new LineSegment(EndPoint.Point, StartPoint.Point);
                 double t = ls.ClosestParameter(targetPoint);
                 Point delta = ls[t] - targetPoint;
                 double newDist = delta*delta;
@@ -646,7 +610,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// </summary>
         /// <returns>the cloned curve</returns>
         ICurve ICurve.Clone() {
-            var ret = new Polyline();
+            Polyline ret = new Polyline();
             foreach (Point p in this)
                 ret.AddPoint(p);
             ret.Closed = Closed;
@@ -661,24 +625,20 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         public IEnumerator<Point> GetEnumerator()
         {
 #else
-        IEnumerator<Point> IEnumerable<Point>.GetEnumerator() {
+        IEnumerator<Point> IEnumerable<Point>.GetEnumerator() =>
 #endif
-            return new PolylineIterator(this);
-        }
+            new PolylineIterator(this);
 
         #endregion
 
         #region IEnumerable Members
 
-        IEnumerator IEnumerable.GetEnumerator() {
-            return new PolylineIterator(this);
-        }
+        IEnumerator IEnumerable.GetEnumerator() => new PolylineIterator(this);
 
         #endregion
 
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         internal Polyline ReversePolyline() {
-            var ret = new Polyline();
+            Polyline ret = new Polyline();
             PolylinePoint pp = EndPoint;
             while (pp.Prev != null) {
                 ret.AddPoint(pp.Point);
@@ -689,13 +649,9 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
             return ret;
         }
 
-        internal PolylinePoint Next(PolylinePoint a) {
-            return a.Next ?? (Closed ? StartPoint : null);
-        }
+        internal PolylinePoint Next(PolylinePoint a) => a.Next ?? (Closed ? StartPoint : null);
 
-        internal PolylinePoint Prev(PolylinePoint a) {
-            return a.Prev ?? (Closed ? EndPoint : null);
-        }
+        internal PolylinePoint Prev(PolylinePoint a) => a.Prev ?? (Closed ? EndPoint : null);
 
         /// <summary>
         /// creates a polyline from a point enumeration
@@ -703,7 +659,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="points"></param>
         public Polyline(IEnumerable<Point> points) {
             ValidateArg.IsNotNull(points, "points");
-            foreach (var p in points)
+            foreach (Point p in points)
                 AddPoint(p);
         }
 
@@ -712,8 +668,6 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// </summary>
         /// <param name="a"></param>
         /// <param name="b"></param>
-        [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "b"),
-         SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "a")]
         public Polyline(Point a, Point b) {
             AddPoint(a);
             AddPoint(b);
@@ -737,10 +691,8 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// true in general for convex polylines
         /// </summary>
         /// <returns></returns>
-        internal bool IsClockwise() {
-            return Point.GetTriangleOrientation(StartPoint.Point, StartPoint.Next.Point, StartPoint.Next.Next.Point) ==
+        internal bool IsClockwise() => Point.GetTriangleOrientation(StartPoint.Point, StartPoint.Next.Point, StartPoint.Next.Next.Point) ==
                    TriangleOrientation.Clockwise;
-        }
 
         internal void RemoveStartPoint() {
             PolylinePoint p = StartPoint.Next;
@@ -791,13 +743,10 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="edgeStart">The starting point of the boundary hit, if any</param>
         /// <param name="edgeEnd">The ending point of the boundary hit, if any</param>
         /// <returns></returns>
-        [SuppressMessage("Microsoft.Design", "CA1021:AvoidOutParameters", MessageId = "2#")]
-        [SuppressMessage("Microsoft.Design", "CA1021:AvoidOutParameters", MessageId = "1#")]
         public PointLocation GetPointLocation(Point point, out Point edgeStart, out Point edgeEnd) {
-            PolylinePoint start;
             edgeStart = new Point();
             edgeEnd = new Point();
-            PointLocation loc = GetPointLocation(point, out start);
+            PointLocation loc = GetPointLocation(point, out PolylinePoint start);
             if (PointLocation.Boundary == loc) {
                 edgeStart = start.Point;
                 edgeEnd = start.NextOnPolyline.Point;
@@ -821,37 +770,31 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        public double Curvature(double t) {
-            throw new NotImplementedException();
-        }
+        public double Curvature(double t) => throw new NotImplementedException();
 
         /// <summary>
         /// 
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        public double CurvatureDerivative(double t) {
-            throw new NotImplementedException();
-        }
+        public double CurvatureDerivative(double t) => throw new NotImplementedException();
 
         /// <summary>
         /// 
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        public double CurvatureSecondDerivative(double t) {
-            throw new NotImplementedException();
-        }
+        public double CurvatureSecondDerivative(double t) => throw new NotImplementedException();
 
         #endregion
 
         internal void AddRangeOfPoints(IEnumerable<Point> points){
-            foreach (var point in points)
+            foreach (Point point in points)
                 AddPoint(point);
         }
 
         internal PolylinePoint GetPolylinePoint(int i) {
-            for (var p = startPoint; p != null; p = p.Next,i--)
+            for (PolylinePoint p = startPoint; p != null; p = p.Next,i--)
                 if (i == 0)
                     return p;
             return null;

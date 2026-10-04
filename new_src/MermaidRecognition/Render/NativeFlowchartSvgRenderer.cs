@@ -151,12 +151,9 @@ public static class NativeFlowchartSvgRenderer
             || string.Equals(Normalised, "rhombus", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string EscapeXml(string Value)
-    {
-        return Value
+    private static string EscapeXml(string Value) => Value
             .Replace("&", "&amp;", StringComparison.Ordinal)
             .Replace("<", "&lt;", StringComparison.Ordinal)
             .Replace(">", "&gt;", StringComparison.Ordinal)
             .Replace("\"", "&quot;", StringComparison.Ordinal);
-    }
 }

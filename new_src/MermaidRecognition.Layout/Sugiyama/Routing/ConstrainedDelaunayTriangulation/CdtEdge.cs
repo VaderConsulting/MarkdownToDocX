@@ -1,9 +1,10 @@
 using System;
 using System.Diagnostics;
-using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
-using MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangulation;
 
-namespace MermaidRecognition.Layout.Sugiyama.Routing {
+using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
+
+namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangulation
+{
     /// <summary>
     /// the edge direction is from the upperSite to lowerSite
     /// </summary>
@@ -20,10 +21,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         public CdtSite lowerSite;
         ///<summary>
         ///</summary>
-        CdtTriangle ccwTriangle; //in this triangle the edge goes counterclockwise
+        CdtTriangle? ccwTriangle; //in this triangle the edge goes counterclockwise
         ///<summary>
         ///</summary>
-        CdtTriangle cwTriangle; //in this triangle the edge goes clockwise, against the triangle orientation
+        CdtTriangle? cwTriangle; //in this triangle the edge goes clockwise, against the triangle orientation
         ///<summary>
         /// is an obstacle side, or a given segment
         ///</summary>
@@ -34,7 +35,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         ///<param name="a"></param>
         ///<param name="b"></param>
         public CdtEdge(CdtSite a, CdtSite b) {
-            var above = Cdt.Above(a.Point, b.Point);
+            int above = Cdt.Above(a.Point, b.Point);
             if (above == 1) {
                 upperSite = a;
                 lowerSite = b;
@@ -61,10 +62,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
 
         ///<summary>
         ///</summary>
-        public CdtTriangle CcwTriangle {
-            get { return ccwTriangle; }
-            set {
-                Debug.Assert(value == null || cwTriangle==null || value.OppositeSite(this) !=
+        public CdtTriangle? CcwTriangle
+        {
+            get => ccwTriangle;
+            set
+            {
+                Debug.Assert(value == null || cwTriangle == null || value.OppositeSite(this) !=
                     cwTriangle.OppositeSite(this));
                 ccwTriangle = value;
             }
@@ -72,10 +75,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
 
         ///<summary>
         ///</summary>
-        public CdtTriangle CwTriangle {
-            get { return cwTriangle; }
-            set {
-                Debug.Assert(value == null || ccwTriangle==null || value.OppositeSite(this) !=
+        public CdtTriangle? CwTriangle
+        {
+            get => cwTriangle;
+            set
+            {
+                Debug.Assert(value == null || ccwTriangle == null || value.OppositeSite(this) !=
                     ccwTriangle.OppositeSite(this));
                 cwTriangle = value;
             }
@@ -87,25 +92,19 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         /// </summary>
         /// <param name="p"></param>
         /// <returns></returns>
-        public CdtTriangle GetOtherTriangle(CdtSite p) {
-            return cwTriangle.Contains(p) ? ccwTriangle : cwTriangle;
-        }
+        public CdtTriangle GetOtherTriangle(CdtSite p) => cwTriangle.Contains(p) ? ccwTriangle : cwTriangle;
 
         ///<summary>
         ///</summary>
         ///<param name="pi"></param>
         ///<returns></returns>
-        public bool IsAdjacent(CdtSite pi) {
-            return pi == upperSite || pi == lowerSite;
-        }
+        public bool IsAdjacent(CdtSite pi) => pi == upperSite || pi == lowerSite;
 
         ///<summary>
         ///</summary>
         ///<param name="triangle"></param>
         ///<returns></returns>
-        public CdtTriangle GetOtherTriangle(CdtTriangle triangle) {
-            return ccwTriangle == triangle ? cwTriangle : ccwTriangle;
-        }
+        public CdtTriangle GetOtherTriangle(CdtTriangle triangle) => ccwTriangle == triangle ? cwTriangle : ccwTriangle;
 
         /// <summary>
         /// Returns a string that represents the current object.
@@ -114,9 +113,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         /// A string that represents the current object.
         /// </returns>
         /// <filterpriority>2</filterpriority>
-        public override string ToString() {
-            return String.Format("({0},{1})", upperSite, lowerSite);
-        }
+        public override string ToString() => string.Format("({0},{1})", upperSite, lowerSite);
 
         ///<summary>
         ///</summary>

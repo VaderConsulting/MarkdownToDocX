@@ -1,14 +1,16 @@
 using System;
 using System.Linq;
+
 using MermaidRecognition.Layout.Sugiyama.Core;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
-using MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval.MinimumSpanningTree;
+using MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval.MST;
 using MermaidRecognition.Layout.Sugiyama.Layout.MDS;
 using MermaidRecognition.Layout.Sugiyama.Routing;
 using MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear;
 
-namespace MermaidRecognition.Layout.Sugiyama.Prototype.Ranking {
+namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Ranking
+{
     /// <summary>
     /// Ranking layout for directed graphs.
     /// </summary>
@@ -23,7 +25,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Prototype.Ranking {
         public RankingLayout(RankingLayoutSettings settings, GeometryGraph geometryGraph)
         {
             this.settings = settings;
-            this.graph = geometryGraph;
+            graph = geometryGraph;
         }
 
          void SetNodePositionsAndMovedBoundaries() {
@@ -36,8 +38,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Prototype.Ranking {
             PivotDistances pivotDistances = new PivotDistances(graph, false, pivotArray);
             pivotDistances.Run();
             double[][] c = pivotDistances.Result;
-            double[] x, y;
-            MultidimensionalScaling.LandmarkClassicalScaling(c, out x, out y, pivotArray);
+            MultidimensionalScaling.LandmarkClassicalScaling(c, out double[]? x, out double[]? y, pivotArray);
 
             Standardize(x);
             double[] p = Centrality.PageRank(graph, .85, false);
@@ -63,19 +64,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Prototype.Ranking {
             SetGraphBoundingBox();
         }
 
-         void SetGraphBoundingBox() {
-            graph.BoundingBox = graph.PumpTheBoxToTheGraphWithMargins();
-        }
+        void SetGraphBoundingBox() => graph.BoundingBox = graph.PumpTheBoxToTheGraphWithMargins();
 
         /// <summary>
         /// Scales and translates a vector so that all values are exactly between 0 and 1.
         /// </summary>
         /// <param name="x">Vector to be standardized.</param>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "x")]
         static void Standardize(double[] x)
         {
-            double min = Double.PositiveInfinity;
-            double max = Double.NegativeInfinity;
+            double min = double.PositiveInfinity;
+            double max = double.NegativeInfinity;
             for (int i = 0; i < x.Length; i++)
             {
                 max = Math.Max(max, x[i]);

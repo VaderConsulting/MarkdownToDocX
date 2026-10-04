@@ -13,6 +13,9 @@ using Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation;
 using Microsoft.AGL.Routing.Spline.Bundling;
 using Microsoft.AGL.Routing.Spline.ConeSpanner;
 using Microsoft.AGL.Routing.Visibility;
+using Microsoft.AGL.Core.Geometry.RTree;
+
+
 
 #if DEBUG && TEST_MSAGL
 using Microsoft.AGL.DebugHelpers;
@@ -29,10 +32,10 @@ namespace Microsoft.AGL.Routing {
         /// </summary>
         /// 
         bool continueOnOverlaps = true;
-        public bool ContinueOnOverlaps { get { return continueOnOverlaps; } set { continueOnOverlaps = value; } }
+        public bool ContinueOnOverlaps { get => continueOnOverlaps; set => continueOnOverlaps = value; }
 
         Shape[] rootShapes;
-        IEnumerable<EdgeGeometry> edgeGeometriesEnumeration { get { return this._edges.Select(e => e.EdgeGeometry); } }
+        IEnumerable<EdgeGeometry> edgeGeometriesEnumeration => _edges.Select(e => e.EdgeGeometry);
         double coneAngle;
         readonly double tightPadding;
         double LoosePadding { get; set; }
@@ -40,13 +43,13 @@ namespace Microsoft.AGL.Routing {
         Shape root;
         VisibilityGraph visGraph;
         Dictionary<Shape, Set<Shape>> ancestorSets;
-        readonly Dictionary<Shape, TightLooseCouple> shapesToTightLooseCouples = new Dictionary<Shape, TightLooseCouple>();
+        readonly Dictionary<Shape, TightLooseCouple> shapesToTightLooseCouples = [];
         Dictionary<Port, Shape> portsToShapes;
         Dictionary<Port, Set<Shape>> portsToEnterableShapes;
 
 
         RTree<Point> portRTree;
-        readonly Dictionary<Point, Polyline> portLocationsToLoosePolylines = new Dictionary<Point, Polyline>();
+        readonly Dictionary<Point, Polyline> portLocationsToLoosePolylines = [];
         Shape looseRoot;
         internal BundlingSettings BundlingSettings { get; set; }
         Dictionary<EdgeGeometry, Set<Polyline>> enterableLoose;
@@ -69,9 +72,7 @@ namespace Microsoft.AGL.Routing {
 
         internal bool AllowedShootingStraightLines = true;
         
-        internal double MultiEdgesSeparation {
-            get { return multiEdgesSeparation; }
-            set { multiEdgesSeparation = value; }
+        internal double MultiEdgesSeparation { get => multiEdgesSeparation; set => multiEdgesSeparation = value;
         }
 
         /// <summary>
@@ -111,7 +112,7 @@ namespace Microsoft.AGL.Routing {
             //graph.CheckClusterConsistency();
 #endif
 
-            this._edges = edges.ToArray();
+            _edges = edges.ToArray();
 
             BundlingSettings=bundlingSettings;            
             geometryGraph = graph;
@@ -200,38 +201,34 @@ namespace Microsoft.AGL.Routing {
         }
         */
         void CalculatePortsToEnterableShapes() {
-            portsToEnterableShapes = new Dictionary<Port, Set<Shape>>();
-            foreach (var portsToShape in portsToShapes) {
-                var port = portsToShape.Key;
-                var set = new Set<Shape>();
+            portsToEnterableShapes = [];
+            foreach (KeyValuePair<Port, Shape> portsToShape in portsToShapes) {
+                Port port = portsToShape.Key;
+                Set<Shape> set = new Set<Shape>();
                 if (!(EdgesAttachedToPortAvoidTheNode(port)))
                     set.Insert(portsToShape.Value);
                 portsToEnterableShapes[port] = set;
             }
 
-            foreach (var rootShape in rootShapes) {
-                foreach(var sh in rootShape.Descendants)
-                    foreach (var port in sh.Ports) {
-                        var enterableSet = portsToEnterableShapes[port];
+            foreach (Shape rootShape in rootShapes) {
+                foreach(Shape sh in rootShape.Descendants)
+                    foreach (Port port in sh.Ports) {
+                        Set<Shape> enterableSet = portsToEnterableShapes[port];
                         enterableSet.InsertRange(sh.Ancestors.Where(s => s.BoundaryCurve != null));
                     }
             }
         }
 
 
-        static bool EdgesAttachedToPortAvoidTheNode(Port port) {
-            return port is CurvePort || port is ClusterBoundaryPort;
-        }
+        static bool EdgesAttachedToPortAvoidTheNode(Port port) => port is CurvePort || port is ClusterBoundaryPort;
 
         void SetLoosePolylinesForAnywherePorts() {
-            foreach (var shapesToTightLooseCouple in shapesToTightLooseCouples) {
-                var shape = shapesToTightLooseCouple.Key;
-                foreach (var port in shape.Ports) {
-                    var aport = port as HookUpAnywhereFromInsidePort;
-                    if (aport != null)
+            foreach (KeyValuePair<Shape, TightLooseCouple> shapesToTightLooseCouple in shapesToTightLooseCouples) {
+                Shape shape = shapesToTightLooseCouple.Key;
+                foreach (Port port in shape.Ports) {
+                    if (port is HookUpAnywhereFromInsidePort aport)
                         aport.LoosePolyline = (Polyline)shapesToTightLooseCouple.Value.LooseShape.BoundaryCurve;
-                    var clusterBoundaryPort = port as ClusterBoundaryPort;
-                    if (clusterBoundaryPort != null)
+                    if (port is ClusterBoundaryPort clusterBoundaryPort)
                         clusterBoundaryPort.LoosePolyline = (Polyline)shapesToTightLooseCouple.Value.LooseShape.BoundaryCurve;
                 }
             }
@@ -242,17 +239,17 @@ namespace Microsoft.AGL.Routing {
 #if TEST_MSAGL
             looseRoot.UserData = (string)root.UserData + "x";
 #endif
-            foreach (var shape in root.Children) {
-                var looseShape = shapesToTightLooseCouples[shape].LooseShape;
+            foreach (Shape shape in root.Children) {
+                Shape looseShape = shapesToTightLooseCouples[shape].LooseShape;
                 BindLooseShapesUnderShape(shape);
                 looseRoot.AddChild(looseShape);
             }
         }
 
         void BindLooseShapesUnderShape(Shape shape) {
-            var loose = shapesToTightLooseCouples[shape].LooseShape;
-            foreach (var child in shape.Children) {
-                var childLooseShape = shapesToTightLooseCouples[child].LooseShape;
+            Shape loose = shapesToTightLooseCouples[shape].LooseShape;
+            foreach (Shape child in shape.Children) {
+                Shape childLooseShape = shapesToTightLooseCouples[child].LooseShape;
                 loose.AddChild(childLooseShape);
                 BindLooseShapesUnderShape(child);
             }
@@ -268,7 +265,7 @@ namespace Microsoft.AGL.Routing {
             foreach (Shape child in shape.Children)
                 CalculateShapeToBoundaries(child);
 
-            var obstacleCalculator = new ShapeObstacleCalculator(shape, tightPadding, AdjustedLoosePadding,
+            ShapeObstacleCalculator obstacleCalculator = new ShapeObstacleCalculator(shape, tightPadding, AdjustedLoosePadding,
                                                                  shapesToTightLooseCouples);
             obstacleCalculator.Calculate();
 
@@ -283,19 +280,17 @@ namespace Microsoft.AGL.Routing {
         /// set to true if and only if there are overlaps in tight obstacles
         /// </summary>
         public bool OverlapsDetected { get; set; }
-        
-        internal double AdjustedLoosePadding {
-            get { return BundlingSettings == null ? LoosePadding : LoosePadding * BundleRouter.SuperLoosePaddingCoefficient; }
-        }
+
+        internal double AdjustedLoosePadding => BundlingSettings == null ? LoosePadding : LoosePadding * BundleRouter.SuperLoosePaddingCoefficient;
 
 
         void RouteOnVisGraph() {
             ancestorSets = GetAncestorSetsMap(root.Descendants);
             if (BundlingSettings == null) {
-                foreach (var edgeGroup in _edges.GroupBy(EdgePassport)) {
-                    var passport = edgeGroup.Key;
+                foreach (IGrouping<Set<Shape>, Edge> edgeGroup in _edges.GroupBy(EdgePassport)) {
+                    Set<Shape> passport = edgeGroup.Key;
                     Set<Shape> obstacleShapes = GetObstaclesFromPassport(passport);
-                    var interactiveEdgeRouter = CreateInteractiveEdgeRouter(obstacleShapes);
+                    InteractiveEdgeRouter interactiveEdgeRouter = CreateInteractiveEdgeRouter(obstacleShapes);
                     RouteEdgesWithTheSamePassport(edgeGroup, interactiveEdgeRouter, obstacleShapes);
                 }
             }
@@ -305,42 +300,40 @@ namespace Microsoft.AGL.Routing {
 
 
         void RouteEdgesWithTheSamePassport(IGrouping<Set<Shape>, Edge> edgeGeometryGroup, InteractiveEdgeRouter interactiveEdgeRouter, Set<Shape> obstacleShapes) {
-            List<Edge> regularEdges;
-            List<Edge[]> multiEdges;
 
-            if (RouteMultiEdgesAsBundles) {
-                SplitOnRegularAndMultiedges(edgeGeometryGroup, out regularEdges, out multiEdges);
-                foreach (var edge in regularEdges)
+            if (RouteMultiEdgesAsBundles)
+            {
+                SplitOnRegularAndMultiedges(edgeGeometryGroup, out List<Edge> regularEdges, out List<Edge[]> multiEdges);
+                foreach (Edge edge in regularEdges)
                     RouteEdge(interactiveEdgeRouter, edge);
-                if (multiEdges != null) {
+                if (multiEdges != null)
+                {
                     ScaleDownLooseHierarchy(interactiveEdgeRouter, obstacleShapes);
                     RouteMultiEdges(multiEdges, interactiveEdgeRouter, edgeGeometryGroup.Key);
                 }
             }
             else
-                foreach (var eg in edgeGeometryGroup)
+                foreach (Edge eg in edgeGeometryGroup)
                     RouteEdge(interactiveEdgeRouter, eg);
         }
 
         /// <summary>
         /// if set to true routes multi edges as ordered bundles
         /// </summary>
-        public bool RouteMultiEdgesAsBundles {
-            get { return routeMultiEdgesAsBundles; }
-            set { routeMultiEdgesAsBundles = value; }
+        public bool RouteMultiEdgesAsBundles { get => routeMultiEdgesAsBundles; set => routeMultiEdgesAsBundles = value;
         }
 
         void RouteEdge(InteractiveEdgeRouter interactiveEdgeRouter, Edge edge) {
-            var transparentShapes = MakeTransparentShapesOfEdgeGeometryAndGetTheShapes(edge.EdgeGeometry);
+            List<Shape> transparentShapes = MakeTransparentShapesOfEdgeGeometryAndGetTheShapes(edge.EdgeGeometry);
             ProgressStep();
             RouteEdgeGeometry(edge, interactiveEdgeRouter);
             SetTransparency(transparentShapes, false);
         }
 
         void ScaleDownLooseHierarchy(InteractiveEdgeRouter interactiveEdgeRouter, Set<Shape> obstacleShapes) {
-            var loosePolys = new List<Polyline>();
-            foreach (var obstacleShape in obstacleShapes) {
-                var tl = shapesToTightLooseCouples[obstacleShape];
+            List<Polyline> loosePolys = new List<Polyline>();
+            foreach (Shape obstacleShape in obstacleShapes) {
+                TightLooseCouple tl = shapesToTightLooseCouples[obstacleShape];
                 loosePolys.Add( InteractiveObstacleCalculator.LoosePolylineWithFewCorners(tl.TightPolyline, tl.Distance / BundleRouter.SuperLoosePaddingCoefficient));
             }
 
@@ -353,7 +346,7 @@ namespace Microsoft.AGL.Routing {
 
         
         void RouteMultiEdges(List<Edge[]> multiEdges, InteractiveEdgeRouter interactiveEdgeRouter, Set<Shape> parents) {
-            var mer = new MultiEdgeRouter(multiEdges, interactiveEdgeRouter, parents.SelectMany(p => p.Children).Select(s => s.BoundaryCurve), 
+            MultiEdgeRouter mer = new MultiEdgeRouter(multiEdges, interactiveEdgeRouter, parents.SelectMany(p => p.Children).Select(s => s.BoundaryCurve), 
                  new BundlingSettings { InkImportance = 0.00001, EdgeSeparation = MultiEdgesSeparation}, MakeTransparentShapesOfEdgeGeometryAndGetTheShapes);
             //giving more importance to ink might produce weird routings with huge detours, maybe 0 is the best value here
             mer.Run();
@@ -383,10 +376,10 @@ namespace Microsoft.AGL.Routing {
 
         void SplitOnRegularAndMultiedges(IEnumerable<Edge> edges, out List<Edge> regularEdges, out List<Edge[]> multiEdges) {
 
-            regularEdges = new List<Edge>();
+            regularEdges = [];
 
-            var portLocationPairsToEdges = new Dictionary<PointPair, List<Edge>>();
-            foreach (var eg in edges) {
+            Dictionary<PointPair, List<Edge>> portLocationPairsToEdges = new Dictionary<PointPair, List<Edge>>();
+            foreach (Edge eg in edges) {
                 if (IsEdgeToParent(eg.EdgeGeometry))
                     regularEdges.Add(eg);
                 else
@@ -395,12 +388,12 @@ namespace Microsoft.AGL.Routing {
 
             multiEdges = null;
 
-            foreach (var edgeGroup in portLocationPairsToEdges.Values) {
+            foreach (List<Edge> edgeGroup in portLocationPairsToEdges.Values) {
                 if (edgeGroup.Count == 1 ||  OverlapsDetected) 
                     regularEdges.AddRange(edgeGroup);                
                 else {
                     if (multiEdges == null)
-                        multiEdges = new List<Edge[]>();
+                        multiEdges = [];
 
                     multiEdges.Add(edgeGroup.ToArray());
                 }
@@ -408,21 +401,18 @@ namespace Microsoft.AGL.Routing {
         }
 
         static void RegisterInPortLocationsToEdges(Edge eg, Dictionary<PointPair, List<Edge>> portLocationPairsToEdges) {
-            List<Edge> list;
-            var pp = new PointPair(eg.SourcePort.Location, eg.TargetPort.Location);
-            if (!portLocationPairsToEdges.TryGetValue(pp, out list))
-                portLocationPairsToEdges[pp] = list = new List<Edge>();
+            PointPair pp = new PointPair(eg.SourcePort.Location, eg.TargetPort.Location);
+            if (!portLocationPairsToEdges.TryGetValue(pp, out List<Edge> list))
+                portLocationPairsToEdges[pp] = list = [];
             list.Add(eg);
         }
 
-        static bool IsEdgeToParent(EdgeGeometry e) {
-            return e.SourcePort is HookUpAnywhereFromInsidePort || e.TargetPort is HookUpAnywhereFromInsidePort;
-        }
+        static bool IsEdgeToParent(EdgeGeometry e) => e.SourcePort is HookUpAnywhereFromInsidePort || e.TargetPort is HookUpAnywhereFromInsidePort;
 
         InteractiveEdgeRouter CreateInteractiveEdgeRouter(IEnumerable<Shape> obstacleShapes) {
             //we need to create a set here because one loose polyline can hold several original shapes
-            var loosePolys = new Set<Polyline>(obstacleShapes.Select(sh => shapesToTightLooseCouples[sh].LooseShape.BoundaryCurve as Polyline));
-            var router = new InteractiveEdgeRouter {
+            Set<Polyline> loosePolys = new Set<Polyline>(obstacleShapes.Select(sh => shapesToTightLooseCouples[sh].LooseShape.BoundaryCurve as Polyline));
+            InteractiveEdgeRouter router = new InteractiveEdgeRouter {
                 VisibilityGraph = visGraph,
                 TightHierarchy =
                     CreateTightObstacleHierarachy(obstacleShapes),
@@ -450,18 +440,18 @@ namespace Microsoft.AGL.Routing {
         Set<Shape> GetObstaclesFromPassport(Set<Shape> passport) {
             if (passport.Count == 0)
                 return new Set<Shape>(root.Children);
-            var commonAncestors = GetCommonAncestorsAbovePassport(passport);
-            var allAncestors = GetAllAncestors(passport);
-            var ret = new Set<Shape>(passport.SelectMany(p => p.Children.Where(child => !allAncestors.Contains(child))));
-            var enqueued = new Set<Shape>(passport.Concat(ret));
-            var queue = new Queue<Shape>();
-            foreach (var shape in passport.Where(shape => !commonAncestors.Contains(shape)))
+            Set<Shape> commonAncestors = GetCommonAncestorsAbovePassport(passport);
+            Set<Shape> allAncestors = GetAllAncestors(passport);
+            Set<Shape> ret = new Set<Shape>(passport.SelectMany(p => p.Children.Where(child => !allAncestors.Contains(child))));
+            Set<Shape> enqueued = new Set<Shape>(passport.Concat(ret));
+            Queue<Shape> queue = new Queue<Shape>();
+            foreach (Shape shape in passport.Where(shape => !commonAncestors.Contains(shape)))
                 queue.Enqueue(shape);
 
             while (queue.Count > 0) {
-                var a = queue.Dequeue();
-                foreach (var parent in a.Parents) {
-                    foreach (var sibling in parent.Children)
+                Shape a = queue.Dequeue();
+                foreach (Shape parent in a.Parents) {
+                    foreach (Shape sibling in parent.Children)
                         if (!allAncestors.Contains(sibling))
                             ret.Insert(sibling);
 
@@ -475,17 +465,17 @@ namespace Microsoft.AGL.Routing {
         }
 
         Set<Shape> GetAllAncestors(Set<Shape> passport) {
-            if (!passport.Any()) return new Set<Shape>();
-            var ret = new Set<Shape>(passport);
-            foreach (var shape in passport)
+            if (!passport.Any()) return [];
+            Set<Shape> ret = new Set<Shape>(passport);
+            foreach (Shape shape in passport)
                 ret += ancestorSets[shape];
             return ret;
         }
 
         Set<Shape> GetCommonAncestorsAbovePassport(Set<Shape> passport) {
-            if (!passport.Any()) return new Set<Shape>();
-            var ret = ancestorSets[passport.First()];
-            foreach (var shape in passport.Skip(1))
+            if (!passport.Any()) return [];
+            Set<Shape> ret = ancestorSets[passport.First()];
+            foreach (Shape shape in passport.Skip(1))
                 ret *= ancestorSets[shape];
             return ret;
         }
@@ -494,12 +484,12 @@ namespace Microsoft.AGL.Routing {
             ScaleLooseShapesDown();
 
             CalculateEdgeEnterablePolylines();
-            var looseHierarchy = GetLooseHierarchy();
-            var cdt = BundleRouter.CreateConstrainedDelaunayTriangulation(looseHierarchy);
+            RectangleNode<Polyline> looseHierarchy = GetLooseHierarchy();
+            Cdt cdt = BundleRouter.CreateConstrainedDelaunayTriangulation(looseHierarchy);
             // CdtSweeper.ShowFront(cdt.GetTriangles(), null, null,this.visGraph.Edges.Select(e=>new LineSegment(e.SourcePoint,e.TargetPoint)));
 
-            var shortestPath = new SdShortestPath(MakeTransparentShapesOfEdgeGeometryAndGetTheShapes, cdt, FindCdtGates(cdt));
-            var bundleRouter = new BundleRouter(geometryGraph, shortestPath, visGraph, BundlingSettings,
+            SdShortestPath shortestPath = new SdShortestPath(MakeTransparentShapesOfEdgeGeometryAndGetTheShapes, cdt, FindCdtGates(cdt));
+            BundleRouter bundleRouter = new BundleRouter(geometryGraph, shortestPath, visGraph, BundlingSettings,
                                                          LoosePadding, GetTightHierarchy(),
                                                          looseHierarchy, enterableLoose, enterableTight,
                                                          port=>LoosePolyOfOriginalShape(portsToShapes[port]));
@@ -508,33 +498,31 @@ namespace Microsoft.AGL.Routing {
         }
 
         void CreateTheMapToParentLooseShapes(Shape shape, Dictionary<ICurve, Shape> loosePolylinesToLooseParentShapeMap) {
-            foreach (var childShape in shape.Children) {
-                var tightLooseCouple = shapesToTightLooseCouples[childShape];
-                var poly = tightLooseCouple.LooseShape.BoundaryCurve;
+            foreach (Shape childShape in shape.Children) {
+                TightLooseCouple tightLooseCouple = shapesToTightLooseCouples[childShape];
+                ICurve poly = tightLooseCouple.LooseShape.BoundaryCurve;
                 loosePolylinesToLooseParentShapeMap[poly] = shape;
                 CreateTheMapToParentLooseShapes(childShape, loosePolylinesToLooseParentShapeMap);
             }
         }
 
         Set<CdtEdge> FindCdtGates(Cdt cdt) {
-            Dictionary<ICurve, Shape> loosePolylinesToLooseParentShapeMap = new Dictionary<ICurve, Shape>();
+            Dictionary<ICurve, Shape> loosePolylinesToLooseParentShapeMap = [];
         
             CreateTheMapToParentLooseShapes(root, loosePolylinesToLooseParentShapeMap);
             //looking for Cdt edges connecting two siblings; only those we define as gates
-            var gates = new Set<CdtEdge>();
-            foreach (var cdtSite in cdt.PointsToSites.Values) {
-                foreach (var cdtEdge in cdtSite.Edges) {
+            Set<CdtEdge> gates = new Set<CdtEdge>();
+            foreach (CdtSite cdtSite in cdt.PointsToSites.Values) {
+                foreach (CdtEdge cdtEdge in cdtSite.Edges) {
                     
                     if(cdtEdge.CwTriangle==null && cdtEdge.CcwTriangle==null)
                         continue;
 
-                    var a = (Polyline)cdtSite.Owner;
-                    var b = (Polyline)cdtEdge.lowerSite.Owner;
+                    Polyline a = (Polyline)cdtSite.Owner;
+                    Polyline b = (Polyline)cdtEdge.lowerSite.Owner;
                     if (a == b) continue;
-                    Shape aParent;
-                    Shape bParent;
-                    if(loosePolylinesToLooseParentShapeMap.TryGetValue(a, out aParent) 
-                        && loosePolylinesToLooseParentShapeMap.TryGetValue(b, out bParent) && aParent==bParent)
+                    if (loosePolylinesToLooseParentShapeMap.TryGetValue(a, out Shape aParent)
+                        && loosePolylinesToLooseParentShapeMap.TryGetValue(b, out Shape bParent) && aParent == bParent)
                         gates.Insert(cdtEdge);
                 }
             }
@@ -545,12 +533,10 @@ namespace Microsoft.AGL.Routing {
 
 
         void CalculateEdgeEnterablePolylines() {
-            enterableLoose = new Dictionary<EdgeGeometry, Set<Polyline>>();
-            enterableTight = new Dictionary<EdgeGeometry, Set<Polyline>>();
-            foreach (var edgeGeometry in edgeGeometriesEnumeration) {
-                Set<Polyline> looseSet;
-                Set<Polyline> tightSet;
-                GetEdgeEnterablePolylines(edgeGeometry, out looseSet, out tightSet);
+            enterableLoose = [];
+            enterableTight = [];
+            foreach (EdgeGeometry edgeGeometry in edgeGeometriesEnumeration) {
+                GetEdgeEnterablePolylines(edgeGeometry, out Set<Polyline> looseSet, out Set<Polyline> tightSet);
                 enterableLoose[edgeGeometry] = looseSet;
                 enterableTight[edgeGeometry] = tightSet;
             }
@@ -558,10 +544,10 @@ namespace Microsoft.AGL.Routing {
 
         void GetEdgeEnterablePolylines(EdgeGeometry edgeGeometry, out Set<Polyline> looseEnterable, 
             out Set<Polyline> tightEnterable) {
-            looseEnterable = new Set<Polyline>();
-            tightEnterable = new Set<Polyline>();
-            var sourceShape = portsToShapes[edgeGeometry.SourcePort];
-            var targetShape = portsToShapes[edgeGeometry.TargetPort];
+            looseEnterable = [];
+            tightEnterable = [];
+            Shape sourceShape = portsToShapes[edgeGeometry.SourcePort];
+            Shape targetShape = portsToShapes[edgeGeometry.TargetPort];
 
             if (sourceShape != root) {
                 looseEnterable.InsertRange(ancestorSets[sourceShape].Select(LoosePolyOfOriginalShape).Where(p => p != null));
@@ -574,19 +560,17 @@ namespace Microsoft.AGL.Routing {
             }
         }
 
-        RectangleNode<Polyline> GetTightHierarchy() {
-            return RectangleNode<Polyline>.CreateRectangleNodeOnEnumeration(shapesToTightLooseCouples.Values.
+        RectangleNode<Polyline> GetTightHierarchy() => RectangleNode<Polyline>.CreateRectangleNodeOnEnumeration(shapesToTightLooseCouples.Values.
                 Select(tl => new RectangleNode<Polyline>(tl.TightPolyline, tl.TightPolyline.BoundingBox)));
-        }
 
         RectangleNode<Polyline> GetLooseHierarchy() {
-            var loosePolylines = new Set<Polyline>(shapesToTightLooseCouples.Values.Select(tl => (Polyline)(tl.LooseShape.BoundaryCurve)));
+            Set<Polyline> loosePolylines = new Set<Polyline>(shapesToTightLooseCouples.Values.Select(tl => (Polyline)(tl.LooseShape.BoundaryCurve)));
             return RectangleNode<Polyline>.CreateRectangleNodeOnEnumeration(loosePolylines.Select(p => new RectangleNode<Polyline>(p, p.BoundingBox)));
         }
 
         void ScaleLooseShapesDown() {
-            foreach (var shapesToTightLooseCouple in shapesToTightLooseCouples) {
-                var tl = shapesToTightLooseCouple.Value;
+            foreach (KeyValuePair<Shape, TightLooseCouple> shapesToTightLooseCouple in shapesToTightLooseCouples) {
+                TightLooseCouple tl = shapesToTightLooseCouple.Value;
                 tl.LooseShape.BoundaryCurve = InteractiveObstacleCalculator.LoosePolylineWithFewCorners(tl.TightPolyline, tl.Distance / BundleRouter.SuperLoosePaddingCoefficient);
             }
         }
@@ -600,9 +584,9 @@ namespace Microsoft.AGL.Routing {
         /// <returns></returns>
         Set<Shape> EdgePassport(Edge edge) {
             EdgeGeometry edgeGeometry = edge.EdgeGeometry;
-            var ret = new Set<Shape>();
-            var sourceShape = portsToShapes[edgeGeometry.SourcePort];
-            var targetShape = portsToShapes[edgeGeometry.TargetPort];
+            Set<Shape> ret = new Set<Shape>();
+            Shape sourceShape = portsToShapes[edgeGeometry.SourcePort];
+            Shape targetShape = portsToShapes[edgeGeometry.TargetPort];
 
             if (IsAncestor(sourceShape, targetShape)) {
                 ret.InsertRange(targetShape.Parents);
@@ -625,19 +609,19 @@ namespace Microsoft.AGL.Routing {
         }
 
         IEnumerable<Port> AllPorts() {
-            foreach (var edgeGeometry in edgeGeometriesEnumeration) {
+            foreach (EdgeGeometry edgeGeometry in edgeGeometriesEnumeration) {
                 yield return edgeGeometry.SourcePort;
                 yield return edgeGeometry.TargetPort;
             }
         }
             
         void CalculatePortsToShapes() {
-            portsToShapes = new Dictionary<Port, Shape>();
-            foreach (var shape in root.Descendants)
-                foreach (var port in shape.Ports)
+            portsToShapes = [];
+            foreach (Shape shape in root.Descendants)
+                foreach (Port port in shape.Ports)
                     portsToShapes[port] = shape;
             //assign all orphan ports to the root 
-            foreach (var port in AllPorts().Where(p => !portsToShapes.ContainsKey(p))) {
+            foreach (Port port in AllPorts().Where(p => !portsToShapes.ContainsKey(p))) {
                 root.Ports.Insert(port);
                 portsToShapes[port] = root;
             }
@@ -646,9 +630,9 @@ namespace Microsoft.AGL.Routing {
 
 
         void RouteEdgeGeometry(Edge edge, InteractiveEdgeRouter iRouter) {
-            var edgeGeometry = edge.EdgeGeometry;
+            EdgeGeometry edgeGeometry = edge.EdgeGeometry;
 
-            var addedEdges = new List<VisibilityEdge>();
+            List<VisibilityEdge> addedEdges = new List<VisibilityEdge>();
             if (!(edgeGeometry.SourcePort is HookUpAnywhereFromInsidePort))
                 addedEdges.AddRange(AddVisibilityEdgesFromPort(edgeGeometry.SourcePort));
             if (!(edgeGeometry.TargetPort is HookUpAnywhereFromInsidePort))
@@ -666,7 +650,7 @@ namespace Microsoft.AGL.Routing {
                 throw new NotImplementedException();
             
             
-            foreach (var visibilityEdge in addedEdges)
+            foreach (VisibilityEdge visibilityEdge in addedEdges)
                 VisibilityGraph.RemoveEdge(visibilityEdge);
           
             Arrowheads.TrimSplineAndCalculateArrowheads(edgeGeometry, edgeGeometry.SourcePort.Curve,
@@ -695,13 +679,11 @@ namespace Microsoft.AGL.Routing {
         
         IEnumerable<VisibilityEdge> AddVisibilityEdgesFromPort(Port port) {
 
-            Shape portShape;
-            TightLooseCouple boundaryCouple;
-            if (port is CurvePort || !portsToShapes.TryGetValue(port, out portShape) ||
-                !shapesToTightLooseCouples.TryGetValue(portShape, out boundaryCouple))
+            if (port is CurvePort || !portsToShapes.TryGetValue(port, out Shape portShape) ||
+                !shapesToTightLooseCouples.TryGetValue(portShape, out TightLooseCouple boundaryCouple))
                 return new VisibilityEdge[] { };
 
-            var portLoosePoly = boundaryCouple.LooseShape;
+            Shape portLoosePoly = boundaryCouple.LooseShape;
             return (from point in portLoosePoly.BoundaryCurve as Polyline
                     where visGraph.FindEdge(port.Location, point) == null
                     select visGraph.AddEdge(port.Location, point));
@@ -710,15 +692,15 @@ namespace Microsoft.AGL.Routing {
             //it is OK here to repeat a shape in the returned list
             Shape sourceShape = portsToShapes[edgeGeometry.SourcePort];
             Shape targetShape = portsToShapes[edgeGeometry.TargetPort];
-      
-            var transparentLooseShapes = new List<Shape>();
 
-            foreach (var shape in GetTransparentShapes(edgeGeometry.SourcePort, edgeGeometry.TargetPort, sourceShape, targetShape).ToArray())
+            List<Shape> transparentLooseShapes = new List<Shape>();
+
+            foreach (Shape shape in GetTransparentShapes(edgeGeometry.SourcePort, edgeGeometry.TargetPort, sourceShape, targetShape).ToArray())
                 if (shape != null)
                     transparentLooseShapes.Add(LooseShapeOfOriginalShape(shape));
-            foreach (var shape in portsToEnterableShapes[edgeGeometry.SourcePort])
+            foreach (Shape shape in portsToEnterableShapes[edgeGeometry.SourcePort])
                 transparentLooseShapes.Add(LooseShapeOfOriginalShape(shape));
-            foreach (var shape in portsToEnterableShapes[edgeGeometry.TargetPort])
+            foreach (Shape shape in portsToEnterableShapes[edgeGeometry.TargetPort])
                 transparentLooseShapes.Add(LooseShapeOfOriginalShape(shape));
 
             SetTransparency(transparentLooseShapes, true);
@@ -731,9 +713,7 @@ namespace Microsoft.AGL.Routing {
             return shapesToTightLooseCouples[s].LooseShape;
         }
 
-        Polyline LoosePolyOfOriginalShape(Shape s) {
-            return (Polyline)(LooseShapeOfOriginalShape(s).BoundaryCurve);
-        }
+        Polyline LoosePolyOfOriginalShape(Shape s) => (Polyline)(LooseShapeOfOriginalShape(s).BoundaryCurve);
         Polyline TightPolyOfOriginalShape(Shape s) {
             if (s == root)
                 return null;
@@ -742,10 +722,9 @@ namespace Microsoft.AGL.Routing {
         #region debugging
 
 #if DEBUG && TEST_MSAGL
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         static internal void AnotherShowMethod(VisibilityGraph visGraph,
             Port sourcePort, Port targetPort, IEnumerable<Shape> obstacleShapes, ICurve curve) {
-            var dd = new List<DebugCurve>(
+            List<DebugCurve> dd = new List<DebugCurve>(
          visGraph.Edges.Select(
             e =>
             new DebugCurve(100, 0.1, GetEdgeColor(e, sourcePort, targetPort),
@@ -782,12 +761,12 @@ namespace Microsoft.AGL.Routing {
         IEnumerable<Shape> GetTransparentShapes(
             Port sourcePort,
             Port targetPort, Shape sourceShape, Shape targetShape) {
-            foreach (var s in ancestorSets[sourceShape])
+            foreach (Shape s in ancestorSets[sourceShape])
                 yield return s;
-            foreach (var s in ancestorSets[targetShape])
+            foreach (Shape s in ancestorSets[targetShape])
                 yield return s;
-            var routingOutsideOfSourceBoundary = EdgesAttachedToPortAvoidTheNode(sourcePort);
-            var routingOutsideOfTargetBoundary = EdgesAttachedToPortAvoidTheNode(targetPort);
+            bool routingOutsideOfSourceBoundary = EdgesAttachedToPortAvoidTheNode(sourcePort);
+            bool routingOutsideOfTargetBoundary = EdgesAttachedToPortAvoidTheNode(targetPort);
             if (!routingOutsideOfSourceBoundary && !routingOutsideOfTargetBoundary) {
                 yield return sourceShape;
                 yield return targetShape;
@@ -832,12 +811,9 @@ namespace Microsoft.AGL.Routing {
         }
 */
 
-        bool IsAncestor(Shape possibleAncestor, Shape possiblePredecessor) {
-            Set<Shape> ancestors;
-            return possiblePredecessor != null &&
-                   ancestorSets.TryGetValue(possiblePredecessor, out ancestors) && ancestors != null &&
+        bool IsAncestor(Shape possibleAncestor, Shape possiblePredecessor) => possiblePredecessor != null &&
+                   ancestorSets.TryGetValue(possiblePredecessor, out Set<Shape> ancestors) && ancestors != null &&
                    ancestors.Contains(possibleAncestor);
-        }
 
         /*
                 static bool PortIsInsideOfShape(Port port, Shape shape) {
@@ -848,15 +824,12 @@ namespace Microsoft.AGL.Routing {
                 }
         */
 
-        static RectangleNode<Polyline> CreateLooseObstacleHierarachy(IEnumerable<Polyline> loosePolys) {
-            return
-                RectangleNode<Polyline>.CreateRectangleNodeOnEnumeration(
+        static RectangleNode<Polyline> CreateLooseObstacleHierarachy(IEnumerable<Polyline> loosePolys) => RectangleNode<Polyline>.CreateRectangleNodeOnEnumeration(
                     loosePolys.Select(
                         poly => new RectangleNode<Polyline>(poly, poly.BoundingBox)));
-        }
 
         RectangleNode<Polyline> CreateTightObstacleHierarachy(IEnumerable<Shape> obstacles) {
-            var tightPolys = obstacles.Select(sh => shapesToTightLooseCouples[sh].TightPolyline);
+            IEnumerable<Polyline> tightPolys = obstacles.Select(sh => shapesToTightLooseCouples[sh].TightPolyline);
             return
                 RectangleNode<Polyline>.CreateRectangleNodeOnEnumeration(
                     tightPolys.Select(tightPoly => new RectangleNode<Polyline>(
@@ -865,8 +838,8 @@ namespace Microsoft.AGL.Routing {
         }
 
         void CalculateVisibilityGraph() {
-            var setOfPortLocations = LineSweeperPorts != null ? new Set<Point>(LineSweeperPorts) : new Set<Point>();
-            foreach (var edgeGeometry in edgeGeometriesEnumeration) {
+            Set<Point> setOfPortLocations = LineSweeperPorts != null ? new Set<Point>(LineSweeperPorts) : [];
+            foreach (EdgeGeometry edgeGeometry in edgeGeometriesEnumeration) {
                 if (!(edgeGeometry.SourcePort is HookUpAnywhereFromInsidePort || edgeGeometry.SourcePort is ClusterBoundaryPort))
                     setOfPortLocations.Insert(edgeGeometry.SourcePort.Location);
                 if (!(edgeGeometry.TargetPort is HookUpAnywhereFromInsidePort || edgeGeometry.TargetPort is ClusterBoundaryPort))
@@ -887,18 +860,17 @@ namespace Microsoft.AGL.Routing {
         /// </summary>
         void FillVisibilityGraphUnderShape(Shape shape) {
             //going depth first 
-            var children = shape.Children;
+            IEnumerable<Shape> children = shape.Children;
             foreach (Shape child in children)
                 FillVisibilityGraphUnderShape(child);
-            TightLooseCouple tightLooseCouple;
-            Polyline looseBoundary = shapesToTightLooseCouples.TryGetValue(shape, out tightLooseCouple) ? tightLooseCouple.LooseShape.BoundaryCurve as Polyline : null;
+            Polyline looseBoundary = shapesToTightLooseCouples.TryGetValue(shape, out TightLooseCouple tightLooseCouple) ? tightLooseCouple.LooseShape.BoundaryCurve as Polyline : null;
             Shape looseShape = tightLooseCouple != null ? tightLooseCouple.LooseShape : looseRoot;
-            var obstacles = new Set<Polyline>(looseShape.Children.Select(c => c.BoundaryCurve as Polyline));
+            Set<Polyline> obstacles = new Set<Polyline>(looseShape.Children.Select(c => c.BoundaryCurve as Polyline));
 
-            var portLocations = RemoveInsidePortsAndSplitBoundaryIfNeeded(looseBoundary);
+            Set<Point> portLocations = RemoveInsidePortsAndSplitBoundaryIfNeeded(looseBoundary);
             //this run will split the polyline enough to route later from the inner ports
-            var tmpVisGraph = new VisibilityGraph();
-            var coneSpanner = new ConeSpanner(new Polyline[] {}, tmpVisGraph, coneAngle, portLocations, looseBoundary);
+            VisibilityGraph tmpVisGraph = new VisibilityGraph();
+            ConeSpanner coneSpanner = new ConeSpanner(new Polyline[] {}, tmpVisGraph, coneAngle, portLocations, looseBoundary);
             coneSpanner.Run();
             //now run the spanner again to create the correct visibility graph around the inner obstacles
             tmpVisGraph = new VisibilityGraph();
@@ -925,9 +897,8 @@ namespace Microsoft.AGL.Routing {
         internal bool Bidirectional { get; set; }
 
 #if TEST_MSAGL
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         static internal void ShowVisGraph(VisibilityGraph tmpVisGraph, IEnumerable<Polyline> obstacles, IEnumerable<ICurve> greenCurves, IEnumerable<ICurve> redCurves) {
-            var l = new List<DebugCurve>(tmpVisGraph.Edges.Select(e => new DebugCurve(100, 1,
+            List<DebugCurve> l = new List<DebugCurve>(tmpVisGraph.Edges.Select(e => new DebugCurve(100, 1,
                 e.IsPassable != null && e.IsPassable() ? "green" : "black"
                 , new LineSegment(e.SourcePoint, e.TargetPoint))));
             if (obstacles != null)
@@ -940,7 +911,7 @@ namespace Microsoft.AGL.Routing {
         }
 #endif
         void TryToCreateNewEdgeAndSetIsPassable(VisibilityEdge edge, Shape looseShape) {
-            var e = visGraph.FindEdge(edge.SourcePoint, edge.TargetPoint);
+            VisibilityEdge e = visGraph.FindEdge(edge.SourcePoint, edge.TargetPoint);
             if (e != null) return;
             e = visGraph.AddEdge(edge.SourcePoint, edge.TargetPoint);
             if (looseShape != null)
@@ -950,9 +921,9 @@ namespace Microsoft.AGL.Routing {
 
         void AddBoundaryEdgesToVisGraph(Polyline boundary) {
             if (boundary == null) return;
-            var p = boundary.StartPoint;
+            PolylinePoint p = boundary.StartPoint;
             do {
-                var pn = p.NextOnPolyline;
+                PolylinePoint pn = p.NextOnPolyline;
                 visGraph.AddEdge(p.Point, pn.Point);
                 if (pn == boundary.StartPoint)
                     break;
@@ -961,17 +932,17 @@ namespace Microsoft.AGL.Routing {
         }
 
         Set<Point> RemoveInsidePortsAndSplitBoundaryIfNeeded(Polyline boundary) {
-            var ret = new Set<Point>();
+            Set<Point> ret = new Set<Point>();
 
             if (boundary == null) {
-                foreach (var point in portRTree.GetAllLeaves())
+                foreach (Point point in portRTree.GetAllLeaves())
                     ret.Insert(point);
                 portRTree.Clear();
                 return ret;
             }
             Rectangle boundaryBox = boundary.BoundingBox;
-            var portLocationsInQuestion = portRTree.GetAllIntersecting(boundaryBox).ToArray();
-            foreach (var point in portLocationsInQuestion) {
+            Point[] portLocationsInQuestion = portRTree.GetAllIntersecting(boundaryBox).ToArray();
+            foreach (Point point in portLocationsInQuestion) {
                 switch (Curve.PointRelativeToCurveLocation(point, boundary)) {
                     case PointLocation.Inside:
                         ret.Insert(point);
@@ -998,8 +969,7 @@ namespace Microsoft.AGL.Routing {
 
                 if (ApproximateComparer.Close(point, p.Point) || ApproximateComparer.Close(point, pn.Point))
                     return null; //the point is already inside
-                double par;
-                if (ApproximateComparer.Close(Point.DistToLineSegment(point, p.Point, pn.Point, out par), 0))
+                if (ApproximateComparer.Close(Point.DistToLineSegment(point, p.Point, pn.Point, out double par), 0))
                     return p;
                 p = pn;
                 if (p == boundary.StartPoint)
@@ -1026,24 +996,23 @@ namespace Microsoft.AGL.Routing {
 #if TEST_MSAGL
             root.UserData = "root";
 #endif
-            foreach (var rootShape in rootShapes)
+            foreach (Shape rootShape in rootShapes)
                 root.AddChild(rootShape);
         }
 
         void RemoveRoot() {
             if (rootWasCreated)
-                foreach (var rootShape in rootShapes)
+                foreach (Shape rootShape in rootShapes)
                     rootShape.RemoveParent(root);
         }
 
 
 #if TEST_MSAGL
         // ReSharper disable UnusedMember.Local
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         static void Show(
             IEnumerable<EdgeGeometry> edgeGeometries, IEnumerable<Shape> listOfShapes) {
             // ReSharper restore UnusedMember.Local
-            var r = new Random(1);
+            Random r = new Random(1);
             LayoutAlgorithmSettings.ShowDebugCurvesEnumeration(
                 listOfShapes.Select(s => s.BoundaryCurve).Select(
                     c => new DebugCurve(50, 1, DebugCurve.Colors[r.Next(DebugCurve.Colors.Length - 1)], c)).Concat(
@@ -1053,17 +1022,16 @@ namespace Microsoft.AGL.Routing {
 
 
         internal static Dictionary<Shape, Set<Shape>> GetAncestorSetsMap(IEnumerable<Shape> shapes) {
-            var ancSets = new Dictionary<Shape, Set<Shape>>();
-            foreach (var child in shapes.Where(child => !ancSets.ContainsKey(child)))
+            Dictionary<Shape, Set<Shape>> ancSets = new Dictionary<Shape, Set<Shape>>();
+            foreach (Shape child in shapes.Where(child => !ancSets.ContainsKey(child)))
                 ancSets[child] = GetAncestorSet(child, ancSets);
             return ancSets;
         }
 
         static Set<Shape> GetAncestorSet(Shape child, Dictionary<Shape, Set<Shape>> ancSets) {
-            var ret = new Set<Shape>(child.Parents);
-            foreach (var parent in child.Parents) {
-                Set<Shape> grandParents;
-                ret += ancSets.TryGetValue(parent, out grandParents)
+            Set<Shape> ret = new Set<Shape>(child.Parents);
+            foreach (Shape parent in child.Parents) {
+                ret += ancSets.TryGetValue(parent, out Set<Shape> grandParents)
                            ? grandParents
                            : ancSets[parent] = GetAncestorSet(parent, ancSets);
             }
@@ -1071,9 +1039,9 @@ namespace Microsoft.AGL.Routing {
         }
 
         static internal void CreatePortsIfNeeded(IEnumerable<Edge> edges) {
-            foreach (var edge in edges) {
+            foreach (Edge edge in edges) {
                 if (edge.SourcePort == null) {
-                    var e = edge;
+                    Edge e = edge;
 #if SHARPKIT // Lambdas bind differently in JS
                     edge.SourcePort = ((Func<Edge,RelativeFloatingPort>)(ed => new RelativeFloatingPort(() => ed.Source.BoundaryCurve,
                         () => ed.Source.Center)))(e);
@@ -1082,7 +1050,7 @@ namespace Microsoft.AGL.Routing {
 #endif
                 }
                 if (edge.TargetPort == null) {
-                    var e = edge;
+                    Edge e = edge;
 #if SHARPKIT // Lambdas bind differently in JS
                     edge.TargetPort = ((Func<Edge, RelativeFloatingPort>)(ed => new RelativeFloatingPort(() => ed.Target.BoundaryCurve,
                         () => ed.Target.Center)))(e);

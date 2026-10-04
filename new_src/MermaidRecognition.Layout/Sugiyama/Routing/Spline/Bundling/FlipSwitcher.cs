@@ -14,18 +14,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
     internal class FlipSwitcher {
         readonly MetroGraphData metroGraphData;
 
-        Dictionary<Polyline, EdgeGeometry> polylineToEdgeGeom = new Dictionary<Polyline, EdgeGeometry>();
-        Dictionary<Point, Set<PolylinePoint>> pathsThroughPoints = new Dictionary<Point, Set<PolylinePoint>>();
-        Set<Point> interestingPoints = new Set<Point>();
+        Dictionary<Polyline, EdgeGeometry> polylineToEdgeGeom = [];
+        Dictionary<Point, Set<PolylinePoint>> pathsThroughPoints = [];
+        Set<Point> interestingPoints = [];
         int numberOfReducedCrossings;
 
-        IEnumerable<Polyline> Polylines {
-            get { return polylineToEdgeGeom.Keys; }
-        }
+        IEnumerable<Polyline> Polylines => polylineToEdgeGeom.Keys;
 
-        internal FlipSwitcher(MetroGraphData metroGraphData) {
-            this.metroGraphData = metroGraphData;
-        }
+        internal FlipSwitcher(MetroGraphData metroGraphData) => this.metroGraphData = metroGraphData;
 
         internal void Run() {
             //TimeMeasurer.DebugOutput("switching flips...");
@@ -42,26 +38,22 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         void RegisterPolylinePointInPathsThrough(IEnumerable<PolylinePoint> points) {
-            foreach (var pp in points)
+            foreach (PolylinePoint pp in points)
                 RegisterPolylinePointInPathsThrough(pp);
         }
 
-        void RegisterPolylinePointInPathsThrough(PolylinePoint pp) {
-            CollectionUtilities.AddToMap(pathsThroughPoints, pp.Point, pp);
-        }
+        void RegisterPolylinePointInPathsThrough(PolylinePoint pp) => CollectionUtilities.AddToMap(pathsThroughPoints, pp.Point, pp);
 
         void UnregisterPolylinePointInPathsThrough(IEnumerable<PolylinePoint> points) {
-            foreach (var pp in points)
+            foreach (PolylinePoint pp in points)
                 UnregisterPolylinePointInPathsThrough(pp);
         }
 
-        void UnregisterPolylinePointInPathsThrough(PolylinePoint pp) {
-            CollectionUtilities.RemoveFromMap(pathsThroughPoints, pp.Point, pp);
-        }
+        void UnregisterPolylinePointInPathsThrough(PolylinePoint pp) => CollectionUtilities.RemoveFromMap(pathsThroughPoints, pp.Point, pp);
 
         void SwitchFlips() {
-            var queued = new Set<Polyline>(Polylines);
-            var queue = new Queue<Polyline>();
+            Set<Polyline> queued = new Set<Polyline>(Polylines);
+            Queue<Polyline> queue = new Queue<Polyline>();
             foreach (Polyline e in Polylines)
                 queue.Enqueue(e);
             while (queue.Count > 0) {
@@ -83,7 +75,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         Polyline ProcessPolyline(Polyline polyline) {
-            var departed = new Dictionary<Polyline, PolylinePoint>();
+            Dictionary<Polyline, PolylinePoint> departed = new Dictionary<Polyline, PolylinePoint>();
             for (PolylinePoint pp = polyline.StartPoint.Next; pp != null; pp = pp.Next) {
                 FillDepartedPolylinePoints(pp, departed);
 
@@ -114,10 +106,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             //temporary switching polylines of the same width only
             //need to check capacities here
             if (polylineToEdgeGeom[polylineA].LineWidth != polylineToEdgeGeom[polylineB].LineWidth) return false;
-            PolylinePoint aFirst, aLast, bFirst, bLast;
-            bool forwardOrderA, forwardOrderB;
-            FindPointsOnPolyline(polylineA, flipStart, flipEnd, out aFirst, out aLast, out forwardOrderA);
-            FindPointsOnPolyline(polylineB, flipStart, flipEnd, out bFirst, out bLast, out forwardOrderB);
+            FindPointsOnPolyline(polylineA, flipStart, flipEnd, out PolylinePoint? aFirst, out PolylinePoint? aLast, out bool forwardOrderA);
+            FindPointsOnPolyline(polylineB, flipStart, flipEnd, out PolylinePoint? bFirst, out PolylinePoint? bLast, out bool forwardOrderB);
             Debug.Assert(PolylinePointsAreInForwardOrder(aFirst, aLast) == forwardOrderA);
             Debug.Assert(PolylinePointsAreInForwardOrder(bFirst, bLast) == forwardOrderB);
 
@@ -159,15 +149,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
         void FindPointsOnPolyline(Polyline polyline, Point first, Point last,
             out PolylinePoint ppFirst, out PolylinePoint ppLast, out bool forwardOrder) {
-            ppFirst = ppLast = null;
+            PolylinePoint? firstPoint = null;
+            PolylinePoint? lastPoint = null;
             forwardOrder = false;
             for (PolylinePoint pp = polyline.StartPoint; pp != null; pp = pp.Next) {
-                if (pp.Point == first) ppFirst = pp;
-                if (pp.Point == last) ppLast = pp;
-                if (ppFirst != null && ppLast == null) forwardOrder = true;
-                if (ppFirst == null && ppLast != null) forwardOrder = false;
+                if (pp.Point == first) firstPoint = pp;
+                if (pp.Point == last) lastPoint = pp;
+                if (firstPoint != null && lastPoint == null) forwardOrder = true;
+                if (firstPoint == null && lastPoint != null) forwardOrder = false;
             }
-            Debug.Assert(ppFirst != null && ppLast != null);
+            ppFirst = firstPoint ?? throw new System.InvalidOperationException("First point is not on the polyline.");
+            ppLast = lastPoint ?? throw new System.InvalidOperationException("Last point is not on the polyline.");
         }
 
         bool PolylinePointsAreInForwardOrder(PolylinePoint u, PolylinePoint v) {
@@ -177,13 +169,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             return false;
         }
 
-        PolylinePoint Next(PolylinePoint p, bool forwardOrder) {
-            return forwardOrder ? p.Next : p.Prev;
-        }
+        PolylinePoint Next(PolylinePoint p, bool forwardOrder) => forwardOrder ? p.Next : p.Prev;
 
-        PolylinePoint Prev(PolylinePoint p, bool forwardOrder) {
-            return forwardOrder ? p.Prev : p.Next;
-        }
+        PolylinePoint Prev(PolylinePoint p, bool forwardOrder) => forwardOrder ? p.Prev : p.Next;
 
         int FindRelationOnFirstPoint(PolylinePoint aFirst, PolylinePoint bFirst, bool forwardOrderA, bool forwardOrderB) {
             Debug.Assert(aFirst.Point == bFirst.Point);
@@ -297,7 +285,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         void ChangePolylineSegment(PolylinePoint aFirst, PolylinePoint aLast, bool forwardOrderA, List<PolylinePoint> intermediateBPoints) {
             PolylinePoint curA = aFirst;
             foreach (PolylinePoint b in intermediateBPoints) {
-                var newp = new PolylinePoint(b.Point) { Polyline = curA.Polyline };
+                PolylinePoint newp = new PolylinePoint(b.Point) { Polyline = curA.Polyline };
                 if (forwardOrderA) {
                     newp.Prev = curA;
                     curA.Next = newp;
@@ -319,7 +307,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         List<PolylinePoint> GetRangeOnPolyline(PolylinePoint start, PolylinePoint end, bool forwardOrder) {
-            List<PolylinePoint> res = new List<PolylinePoint>();
+            List<PolylinePoint> res = [];
             for (PolylinePoint pp = start; pp != end; pp = Next(pp, forwardOrder))
                 res.Add(pp);
 
@@ -327,14 +315,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         Polyline FindFlip(Polyline poly) {
-            var departed = new Dictionary<Polyline, PolylinePoint>();
+            Dictionary<Polyline, PolylinePoint> departed = new Dictionary<Polyline, PolylinePoint>();
             for (PolylinePoint pp = poly.StartPoint.Next; pp != null; pp = pp.Next) {
                 FillDepartedOnPrev(departed, pp);
 
                 //look for a returning path
                 foreach (PolylinePoint polyPoint in pathsThroughPoints[pp.Point]) {
-                    PolylinePoint pointOfDeparture;
-                    if (departed.TryGetValue(polyPoint.Polyline, out pointOfDeparture))
+                    if (departed.TryGetValue(polyPoint.Polyline, out PolylinePoint? pointOfDeparture))
                         return pointOfDeparture.Polyline;
                 }
             }
@@ -352,26 +339,20 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             }
         }
 
-        bool IsNeighbor(PolylinePoint a, PolylinePoint b) {
-            return a.Prev != null && a.Prev.Point == b.Point || a.Next != null && a.Next.Point == b.Point;
-        }
+        bool IsNeighbor(PolylinePoint a, PolylinePoint b) => a.Prev != null && a.Prev.Point == b.Point || a.Next != null && a.Next.Point == b.Point;
 
         void RegisterInterestingPoint(Point p) {
             if (!interestingPoints.Contains(p))
                 interestingPoints.Insert(p);
         }
 
-        internal Set<Point> GetChangedHubs() {
-            return interestingPoints;
-        }
+        internal Set<Point> GetChangedHubs() => interestingPoints;
 
-        internal int NumberOfReducedCrossings() {
-            return numberOfReducedCrossings;
-        }
+        internal int NumberOfReducedCrossings() => numberOfReducedCrossings;
 
         bool PolylineIsOK(Polyline poly) {
-            HashSet<Point> pointsToPP = new HashSet<Point>();
-            for (var pp = poly.StartPoint; pp != null; pp = pp.Next) {
+            HashSet<Point> pointsToPP = [];
+            for (PolylinePoint? pp = poly.StartPoint; pp != null; pp = pp.Next) {
                 if (pp == poly.StartPoint) {
                     if (pp.Prev != null) return false;
                 }

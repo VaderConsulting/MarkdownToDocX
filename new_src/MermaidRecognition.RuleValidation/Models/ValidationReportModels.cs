@@ -15,9 +15,9 @@ public sealed class ValidationReportDocument
 
     public ValidationReportSummary Summary { get; set; } = new ValidationReportSummary();
 
-    public List<DiagramValidationResult> DiagramResults { get; set; } = new List<DiagramValidationResult>();
+    public List<DiagramValidationResult> DiagramResults { get; set; } = [];
 
-    public List<ValidationFailureRecord> Failures { get; set; } = new List<ValidationFailureRecord>();
+    public List<ValidationFailureRecord> Failures { get; set; } = [];
 }
 
 /// <summary>
@@ -97,9 +97,9 @@ public sealed class ValidationFailureRecord
 
     public string Message { get; set; } = string.Empty;
 
-    public Dictionary<string, object> Expected { get; set; } = new Dictionary<string, object>();
+    public Dictionary<string, object> Expected { get; set; } = [];
 
-    public Dictionary<string, object> Actual { get; set; } = new Dictionary<string, object>();
+    public Dictionary<string, object> Actual { get; set; } = [];
 
     public string SuggestedCorrection { get; set; } = string.Empty;
 
@@ -113,7 +113,7 @@ public sealed class RuleEvaluationResult
 {
     public string Status { get; set; } = "Pass";
 
-    public List<ValidationFailureRecord> Failures { get; set; } = new List<ValidationFailureRecord>();
+    public List<ValidationFailureRecord> Failures { get; set; } = [];
 }
 
 /// <summary>
@@ -133,5 +133,5 @@ public sealed class EvaluationContext
 
     public string ElementId { get; set; } = string.Empty;
 
-    public Dictionary<string, object> FieldValues { get; set; } = new Dictionary<string, object>();
+    public Dictionary<string, object> FieldValues { get; set; } = [];
 }

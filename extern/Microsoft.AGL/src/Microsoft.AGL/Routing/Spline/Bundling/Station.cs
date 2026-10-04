@@ -19,9 +19,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
     internal class Station {
 #endif
         internal Station(int serialNumber, bool isRealNode, Point position) {
-            this.SerialNumber = serialNumber;
-            this.IsRealNode = isRealNode;
-            this.Position = position;
+            SerialNumber = serialNumber;
+            IsRealNode = isRealNode;
+            Position = position;
         }
 
         /// <summary>
@@ -52,7 +52,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         /// <summary>
         /// it maps each neighbor to its hub
         /// </summary>
-        internal Dictionary<Station, BundleBase> BundleBases = new Dictionary<Station, BundleBase>();
+        internal Dictionary<Station, BundleBase> BundleBases = [];
 
         /// <summary>
         /// it maps a node to a set of tight polylines that can contain the node
@@ -67,7 +67,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         /// <summary>
         /// MetroNodeInfos corresponding to the node
         /// </summary>
-        internal List<MetroNodeInfo> MetroNodeInfos = new List<MetroNodeInfo>();
+        internal List<MetroNodeInfo> MetroNodeInfos = [];
 
         /// <summary>
         /// curve of the hub
@@ -101,12 +101,12 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         internal void AddEnterableLoosePolyline(Polyline poly) {
             if (EnterableLoosePolylines == null)
-                EnterableLoosePolylines = new Set<Polyline>();
+                EnterableLoosePolylines = [];
             EnterableLoosePolylines.Insert(poly);
         }
         internal void AddEnterableTightPolyline(Polyline poly) {
             if (EnterableTightPolylines == null)
-                EnterableTightPolylines = new Set<Polyline>();
+                EnterableTightPolylines = [];
             EnterableTightPolylines.Insert(poly);
         }
     }

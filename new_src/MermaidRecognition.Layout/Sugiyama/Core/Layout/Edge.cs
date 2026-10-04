@@ -8,30 +8,24 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
     /// Edge of the graph
     /// </summary>
 #if TEST_MSAGL
-    
+
 #endif
-#pragma warning disable 1591
     public class Edge : GeometryObject, ILabeledObject {
-#pragma warning restore 1591
         /// <summary>
         /// Defines the way the edge connects to the source.
         /// The member is used at the moment only when adding an edge to the graph.
         /// </summary>
-        public Port SourcePort {
-            get { return EdgeGeometry.SourcePort; }
-            set { EdgeGeometry.SourcePort = value; }
+        public Port? SourcePort { get => EdgeGeometry.SourcePort; set => EdgeGeometry.SourcePort = value;
         }
 
         /// <summary>
         /// defines the way the edge connects to the target
         /// The member is used at the moment only when adding an edge to the graph.
         /// </summary>
-        public Port TargetPort {
-            get { return EdgeGeometry.TargetPort; }
-            set { EdgeGeometry.TargetPort = value; }
+        public Port? TargetPort { get => EdgeGeometry.TargetPort; set => EdgeGeometry.TargetPort = value;
         }
 
-        readonly List<Label> labels = new List<Label>();
+        readonly List<Label> labels = [];
 
         /// <summary>
         /// gets the default (first) label of the edge
@@ -53,18 +47,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// <summary>
         /// Returns the full enumeration of labels associated with this edge
         /// </summary>
-        public IList<Label> Labels {
-            get { return labels; }
-        }
+        public IList<Label> Labels => labels;
 
         Node source;
 
         /// <summary>
         /// id of the source node
         /// </summary>
-        public Node Source {
-            get { return source; }
-            set { source = value; }
+        public Node Source { get => source; set => source = value;
         }
 
         int sourceAnchorNumber;
@@ -72,9 +62,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// <summary>
         /// For future use: The index of the anchor at the source node. By default is zero.
         /// </summary>
-        public int SourceAnchorNumber {
-            get { return sourceAnchorNumber; }
-            set { sourceAnchorNumber = value; }
+        public int SourceAnchorNumber { get => sourceAnchorNumber; set => sourceAnchorNumber = value;
         }
 
         Node target;
@@ -82,9 +70,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// <summary>
         /// id of the target node
         /// </summary>
-        public Node Target {
-            get { return target; }
-            set { target = value; }
+        public Node Target { get => target; set => target = value;
         }
 
 
@@ -93,9 +79,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// <summary>
         /// For future use:The index of the anchor at the target node. By default is zero.
         /// </summary>
-        public int TargetAnchorNumber {
-            get { return targetAnchorNumber; }
-            set { targetAnchorNumber = value; }
+        public int TargetAnchorNumber { get => targetAnchorNumber; set => targetAnchorNumber = value;
         }
 
         /// <summary>
@@ -138,22 +122,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// </summary>
         public Edge() : this(null, null) {
         }
-        
+
         /// <summary>
         /// The label bounding box
         /// </summary>
-        internal Rectangle LabelBBox {
-            get { return Label.BoundingBox; }
-        }
+        internal Rectangle LabelBBox => Label.BoundingBox;
 
         double length = 1;
 
         /// <summary>
         /// applicable for MDS layouts
         /// </summary>
-        public double Length {
-            get { return length; }
-            set { length = value; }
+        public double Length { get => length; set => length = value;
         }
 
         int weight = 1;
@@ -162,9 +142,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// The greater is the weight the more important is keeping the edge short. It is 1 by default.
         /// Other values are not tested yet.
         /// </summary>
-        public int Weight {
-            get { return weight; }
-            set { weight = value; }
+        public int Weight { get => weight; set => weight = value;
         }
 
         int separation = 1;
@@ -173,9 +151,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// The minimum number of levels dividing source from target: 1 means that the edge goes down at least one level.
         /// Separation is 1 by default. Other values are not tested yet.
         /// </summary>
-        public int Separation {
-            get { return separation; }
-            set { separation = value; }
+        public int Separation { get => separation; set => separation = value;
         }
 
 
@@ -183,25 +159,23 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// overrides ToString
         /// </summary>
         /// <returns></returns>
-        public override string ToString() {
-            return source + "->" + target;
-        }
+        public override string ToString() => source + "->" + target;
 
         /// <summary>
         /// edge thickness
         /// </summary>
-        public double LineWidth {
-            get { return EdgeGeometry.LineWidth; }
-            set { EdgeGeometry.LineWidth = value; }
+        public double LineWidth { get => EdgeGeometry.LineWidth; set => EdgeGeometry.LineWidth = value;
         }
 
         /// <summary>
         /// The bounding box of the edge curve
         /// </summary>
-        public override Rectangle BoundingBox {
-            get {
+        public override Rectangle BoundingBox
+        {
+            get
+            {
 
-                var rect = Rectangle.CreateAnEmptyBox();
+                Rectangle rect = Rectangle.CreateAnEmptyBox();
                 if (UnderlyingPolyline != null)
                     foreach (Point p in UnderlyingPolyline)
                         rect.Add(p);
@@ -209,7 +183,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
                 if (Curve != null)
                     rect.Add(Curve.BoundingBox);
 
-                if (EdgeGeometry != null) {
+                if (EdgeGeometry != null)
+                {
                     if (EdgeGeometry.SourceArrowhead != null)
                         rect.Add(EdgeGeometry.SourceArrowhead.TipPosition);
                     if (EdgeGeometry.TargetArrowhead != null)
@@ -223,7 +198,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
                 rect.Bottom -= del;
                 return rect;
             }
-            set { throw new NotImplementedException(); }
+
+            set => throw new NotImplementedException();
         }
 
 
@@ -232,25 +208,23 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// <summary>
         /// Gets or sets the edge geometry: the curve, the arrowhead positions and the underlying polyline
         /// </summary>
-        public EdgeGeometry EdgeGeometry {
-            get { return edgeGeometry; }
-            set { edgeGeometry = value; }
+        public EdgeGeometry EdgeGeometry { get => edgeGeometry; set => edgeGeometry = value;
         }
 
         /// <summary>
         /// the polyline of the untrimmed spline
         /// </summary>
-        public SmoothedPolyline UnderlyingPolyline {
-            get { return edgeGeometry.SmoothedPolyline; }
-            set { edgeGeometry.SmoothedPolyline = value; }
+        public SmoothedPolyline UnderlyingPolyline { get => edgeGeometry.SmoothedPolyline; set => edgeGeometry.SmoothedPolyline = value;
         }
 
         /// <summary>
         /// A curve representing the edge
         /// </summary>
-        public ICurve Curve {
-            get { return edgeGeometry != null ? edgeGeometry.Curve : null; }
-            set {
+        public ICurve Curve
+        {
+            get => edgeGeometry != null ? edgeGeometry.Curve : null;
+            set
+            {
                 RaiseLayoutChangeEvent(value);
                 edgeGeometry.Curve = value;
             }
@@ -271,10 +245,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
                      s = s.Next, s0 = s0.Next)
                     s.Point = matrix * s.Point;
 
-            var sourceArrow = edgeGeometry.SourceArrowhead;
+            Arrowhead? sourceArrow = edgeGeometry.SourceArrowhead;
             if (sourceArrow != null)
                 sourceArrow.TipPosition = matrix * sourceArrow.TipPosition;
-            var targetArrow = edgeGeometry.TargetArrowhead;
+            Arrowhead? targetArrow = edgeGeometry.TargetArrowhead;
             if (targetArrow != null)
                 targetArrow.TipPosition = matrix * targetArrow.TipPosition;
 
@@ -288,11 +262,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// <param name="delta">amount to shift geometry</param>
         public void Translate(Point delta)
         {
-            if (this.EdgeGeometry != null)
+            if (EdgeGeometry != null)
             {
-                this.EdgeGeometry.Translate(delta);
+                EdgeGeometry.Translate(delta);
             }
-            foreach (var l in this.Labels)
+            foreach (Label l in Labels)
             {
                 l.Translate(delta);
             }
@@ -304,13 +278,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
 		public void TransformRelativeTo(Rectangle oldBounds, Rectangle newBounds)
         {
             if (EdgeGeometry != null) {
-                var toOrigin = new PlaneTransformation(1, 0, -oldBounds.Left, 0, 1, -oldBounds.Bottom);
-                var scale = new PlaneTransformation(newBounds.Width/oldBounds.Width, 0, 0,
+                PlaneTransformation toOrigin = new PlaneTransformation(1, 0, -oldBounds.Left, 0, 1, -oldBounds.Bottom);
+                PlaneTransformation scale = new PlaneTransformation(newBounds.Width/oldBounds.Width, 0, 0,
                                                     0,newBounds.Height/oldBounds.Height, 0);
-                var toNewBounds = new PlaneTransformation(1, 0, newBounds.Left, 0, 1, newBounds.Bottom);
+                PlaneTransformation toNewBounds = new PlaneTransformation(1, 0, newBounds.Left, 0, 1, newBounds.Bottom);
                 Transform(toNewBounds*scale*toOrigin);
             }
-            foreach (var l in this.Labels)
+            foreach (Label l in Labels)
             {
                 l.Translate(newBounds.LeftBottom - oldBounds.LeftBottom);
             }
@@ -319,25 +293,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// <summary>
         /// Checks if an arrowhead is needed at the source
         /// </summary>
-        public bool ArrowheadAtSource
-        {
-            get
-            {
-                return EdgeGeometry != null && EdgeGeometry.SourceArrowhead != null;
-            }
-        }
+        public bool ArrowheadAtSource => EdgeGeometry != null && EdgeGeometry.SourceArrowhead != null;
 
         /// <summary>
         /// Checks if an arrowhead is needed at the target
         /// </summary>
-        public bool ArrowheadAtTarget
-        {
-            get
-            {
-                return EdgeGeometry != null && EdgeGeometry.TargetArrowhead != null;
-            }
-        }
-        
+        public bool ArrowheadAtTarget => EdgeGeometry != null && EdgeGeometry.TargetArrowhead != null;
+
         /// <summary>
         /// Routes a self edge inside the given "howMuchToStickOut" parameter
         /// </summary>
@@ -348,14 +310,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         static internal ICurve RouteSelfEdge(ICurve boundaryCurve, double howMuchToStickOut, out SmoothedPolyline smoothedPolyline)
         {
             //we just need to find the box of the corresponding node
-            var w = boundaryCurve.BoundingBox.Width;
-            var h = boundaryCurve.BoundingBox.Height;
-            var center = boundaryCurve.BoundingBox.Center;
+            double w = boundaryCurve.BoundingBox.Width;
+            double h = boundaryCurve.BoundingBox.Height;
+            Point center = boundaryCurve.BoundingBox.Center;
 
-            var p0 = new Point(center.X - w / 4, center.Y);
-            var p1 = new Point(center.X - w / 4, center.Y - h / 2 - howMuchToStickOut);
-            var p2 = new Point(center.X + w / 4, center.Y - h / 2 - howMuchToStickOut);
-            var p3 = new Point(center.X + w / 4, center.Y);
+            Point p0 = new Point(center.X - w / 4, center.Y);
+            Point p1 = new Point(center.X - w / 4, center.Y - h / 2 - howMuchToStickOut);
+            Point p2 = new Point(center.X + w / 4, center.Y - h / 2 - howMuchToStickOut);
+            Point p3 = new Point(center.X + w / 4, center.Y);
 
             smoothedPolyline = SmoothedPolyline.FromPoints(new[] { p0, p1, p2, p3 });
 
@@ -371,17 +333,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         static internal ICurve RouteSelfEdgeAtSide(ICurve boundaryCurve, double howMuchToStickOut)
         {
             //we just need to find the box of the corresponding node
-            var w = boundaryCurve.BoundingBox.Width;
-            var h = boundaryCurve.BoundingBox.Height;
-            var center = boundaryCurve.BoundingBox.Center;
+            double w = boundaryCurve.BoundingBox.Width;
+            double h = boundaryCurve.BoundingBox.Height;
+            Point center = boundaryCurve.BoundingBox.Center;
 
-            var p0 = new Point(center.X, center.Y - h / 4);
-            var p1 = new Point(center.X - w / 2 - howMuchToStickOut, center.Y - h / 4);
-            var p2 = new Point(center.X - w / 2 - howMuchToStickOut, center.Y);
-            var p3 = new Point(center.X - w / 2 - howMuchToStickOut, center.Y + h / 4);
-            var p4 = new Point(center.X, center.Y + h / 4);
+            Point p0 = new Point(center.X, center.Y - h / 4);
+            Point p1 = new Point(center.X - w / 2 - howMuchToStickOut, center.Y - h / 4);
+            Point p2 = new Point(center.X - w / 2 - howMuchToStickOut, center.Y);
+            Point p3 = new Point(center.X - w / 2 - howMuchToStickOut, center.Y + h / 4);
+            Point p4 = new Point(center.X, center.Y + h / 4);
 
-            var curve = new Curve();
+            Curve curve = new Curve();
             curve.AddSegment(new CubicBezierSegment(p0, p1, p1, p2));
             curve.AddSegment(new CubicBezierSegment(p2, p3, p3, p4));
             return curve;
@@ -391,21 +353,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// 
         /// </summary>
         /// <param name="newValue"></param>
-        public override void RaiseLayoutChangeEvent(object newValue) { 
-            edgeGeometry.RaiseLayoutChangeEvent(newValue);
-        }
+        public override void RaiseLayoutChangeEvent(object newValue) => edgeGeometry.RaiseLayoutChangeEvent(newValue);
 
-        
+
         /// <summary>
         /// 
         /// </summary>
-        public override event EventHandler<LayoutChangeEventArgs> BeforeLayoutChangeEvent {
-            add { edgeGeometry.LayoutChangeEvent+=value; }
-            remove { edgeGeometry.LayoutChangeEvent-=value; }
+        public override event EventHandler<LayoutChangeEventArgs> BeforeLayoutChangeEvent { add => edgeGeometry.LayoutChangeEvent += value; remove => edgeGeometry.LayoutChangeEvent -= value;
         }
 
-        internal bool UnderCollapsedCluster() {
-            return Source.UnderCollapsedCluster() || Target.UnderCollapsedCluster();
-        }
+        internal bool UnderCollapsedCluster() => Source.UnderCollapsedCluster() || Target.UnderCollapsedCluster();
     }
 }

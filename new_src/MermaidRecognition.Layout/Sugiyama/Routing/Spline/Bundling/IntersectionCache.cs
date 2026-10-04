@@ -10,6 +10,7 @@ using MermaidRecognition.Layout.Sugiyama.Core.Routing;
 using MermaidRecognition.Layout.Sugiyama.Routing.Visibility;
 using MermaidRecognition.Layout.Sugiyama.DebugHelpers;
 using MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangulation;
+using MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree;
 
 namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
     /// <summary>
@@ -30,15 +31,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         internal void InitializeCostCache() {
-            foreach (var v in metroGraphData.VirtualNodes()) {
+            foreach (Station v in metroGraphData.VirtualNodes()) {
                 v.cachedIdealRadius = HubRadiiCalculator.CalculateIdealHubRadiusWithNeighbors(metroGraphData, bundlingSettings, v);
                 v.cachedRadiusCost = costCalculator.RadiusCost(v, v.Position);
                 v.cachedBundleCost = 0;
             }
 
-            foreach (var edge in metroGraphData.VirtualEdges()) {
-                var v = edge.Item1;
-                var u = edge.Item2;
+            foreach (Tuple<Station, Station> edge in metroGraphData.VirtualEdges()) {
+                Station v = edge.Item1;
+                Station u = edge.Item2;
                 StationEdgeInfo edgeInfo = metroGraphData.GetIjInfo(v, u);
                 edgeInfo.cachedBundleCost = costCalculator.BundleCost(v, u, v.Position);
                 v.cachedBundleCost += edgeInfo.cachedBundleCost;
@@ -54,7 +55,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             node.cachedRadiusCost = costCalculator.RadiusCost(node, node.Position);
             node.cachedBundleCost = 0;
 
-            foreach (var adj in node.Neighbors) {
+            foreach (Station adj in node.Neighbors) {
                 if (!adj.IsRealNode) {
                     adj.cachedIdealRadius = HubRadiiCalculator.CalculateIdealHubRadiusWithNeighbors(metroGraphData, bundlingSettings, adj);
                     adj.cachedRadiusCost = costCalculator.RadiusCost(adj, adj.Position);
@@ -69,9 +70,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             }
         }
 
-        static internal HitTestBehavior Test(Point pnt, CdtTriangle t) {
-            return Cdt.PointIsInsideOfTriangle(pnt, t) ? HitTestBehavior.Stop : HitTestBehavior.Continue;
-        }
+        static internal HitTestBehavior Test(Point pnt, CdtTriangle t) => Cdt.PointIsInsideOfTriangle(pnt, t) ? HitTestBehavior.Stop : HitTestBehavior.Continue;
 
     }
 }

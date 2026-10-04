@@ -1,4 +1,4 @@
-namespace MermaidRecognition.Sequence;
+namespace MermaidRecognition.Kinds.Sequence;
 
 /// <summary>
 /// Parse-time sequence diagram participant (diagram database record).
@@ -9,69 +9,34 @@ public sealed class SequenceNodeRecord
 
     public string Id
     {
-        get
-        {
-            return _Id;
-        }
-        set
-        {
-            _Id = value;
-        }
+        get => _Id; set => _Id = value;
     }
 
     private string? _Label;
 
     public string? Label
     {
-        get
-        {
-            return _Label;
-        }
-        set
-        {
-            _Label = value;
-        }
+        get => _Label; set => _Label = value;
     }
 
     private string _DrawType = "participant";
 
     public string DrawType
     {
-        get
-        {
-            return _DrawType;
-        }
-        set
-        {
-            _DrawType = value;
-        }
+        get => _DrawType; set => _DrawType = value;
     }
 
     private bool? _IsActive;
 
     public bool? IsActive
     {
-        get
-        {
-            return _IsActive;
-        }
-        set
-        {
-            _IsActive = value;
-        }
+        get => _IsActive; set => _IsActive = value;
     }
 
     private string? _ParentGroupId;
 
     public string? ParentGroupId
     {
-        get
-        {
-            return _ParentGroupId;
-        }
-        set
-        {
-            _ParentGroupId = value;
-        }
+        get => _ParentGroupId; set => _ParentGroupId = value;
     }
 }

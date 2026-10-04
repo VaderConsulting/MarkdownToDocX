@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 
 namespace MermaidRecognition.Layout;
 
@@ -28,21 +29,21 @@ public static class FlowchartHorizontalRouteGuideBuilder
         double MidX = (StartX + EndX) / 2.0;
         if (Math.Abs(EndY - StartY) < COLLINEAR_EPSILON_PX)
         {
-            return new List<(double X, double Y)>
-            {
+            return
+            [
                 (StartX, StartY),
                 (MidX, StartY),
                 (EndX, EndY)
-            };
+            ];
         }
 
-        return new List<(double X, double Y)>
-        {
+        return
+        [
             (StartX, StartY),
             (MidX, StartY),
             (MidX, EndY),
             (EndX, EndY)
-        };
+        ];
     }
 
     /// <summary>

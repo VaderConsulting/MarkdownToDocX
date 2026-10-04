@@ -20,9 +20,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         ProperLayeredGraph nLayeredGraph;
         IntEdge[] virtNodesToIntEdges;
 
-        internal ProperLayeredGraph NLayeredGraph {
-            get { return nLayeredGraph; }
-        }
+        internal ProperLayeredGraph NLayeredGraph => nLayeredGraph;
         /// <summary>
         /// old layer arrays
         /// </summary>
@@ -33,9 +31,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// </summary>
         LayerArrays nla;
 
-        internal LayerArrays Nla {
-            get { return nla; }
-        }
+        internal LayerArrays Nla => nla;
 
 
         /// <summary>
@@ -50,7 +46,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             this.la = la;
             this.database = database;
             this.layeredGraph = layeredGraph;
-            this.intGraph = intGraphP;
+            intGraph = intGraphP;
         }
 
         ///// <summary>
@@ -71,11 +67,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// <summary>
         /// new Y-layering
         /// </summary>
-        int[] NLayering {
-            get {
-                return this.nla.Y;
-            }
-        }
+        int[] NLayering => nla.Y;
 
         /// <summary>
         /// does the main work
@@ -101,7 +93,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// virtual nodes inside of an edge should be of the form i,i+1, ....
         /// </summary>
         private void EditOldLayering() {
-            int curVNode = this.intGraph.NodeCount;
+            int curVNode = intGraph.NodeCount;
 
             foreach (List<IntEdge> list in database.RegularMultiedges) {
                 int span = 0;
@@ -120,9 +112,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
         private void UpdateOldLayer(int replacingNode, int prevNode) {
-            int x = this.la.X[prevNode];
-            int y = this.la.Y[prevNode];
-            int[] layer = this.la.Layers[y];
+            int x = la.X[prevNode];
+            int y = la.Y[prevNode];
+            int[] layer = la.Layers[y];
             layer[x] = replacingNode;
             //   this.la.X[replacingNode] = x;
             //  this.la.Y[replacingNode] = y;
@@ -179,7 +171,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// create the mapping from the vertices to edges to which they belong
         /// </summary>
         void MapVirtualNodesToEdges() {
-            virtNodesToIntEdges = new IntEdge[this.NLayering.Length];
+            virtNodesToIntEdges = new IntEdge[NLayering.Length];
             foreach (IntEdge e in database.AllIntEdges)
                 if (e.Source != e.Target && e.LayerEdges!=null)
                     foreach (LayerEdge le in e.LayerEdges)
@@ -191,7 +183,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// Creating buckets for multi edges and allocating the graph.
         /// </summary>
         private void CreateFullLayeredGraph() {
-            totalNodes = this.intGraph.NodeCount;
+            totalNodes = intGraph.NodeCount;
             foreach (List<IntEdge> list in database.RegularMultiedges) {
                 int span = 0;
                 bool first = true;
@@ -207,11 +199,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                             int target = EdgePathsInserter.GetTarget(ref totalNodes, e, i, span);
                             e.LayerEdges[i] = new LayerEdge(source, target, e.CrossingWeight);
                         }
-                        LayerInserter.RegisterDontStepOnVertex(this.database, e);
+                        LayerInserter.RegisterDontStepOnVertex(database, e);
                     }
                 }
             }
-            this.nLayeredGraph = new ProperLayeredGraph(this.intGraph);
+            nLayeredGraph = new ProperLayeredGraph(intGraph);
         }
 
 
@@ -222,7 +214,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         void SortNewOddLayers() {
 
             for (int i = 1; i < nla.Layers.Length; i += 2) {
-                SortedDictionary<int, object> sd = new SortedDictionary<int, object>();
+                SortedDictionary<int, object> sd = [];
                 int[] layer = nla.Layers[i];
                 foreach (int v in layer) {
 
@@ -243,9 +235,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 #else
                         if (o is int) {
 #endif
-                            List<int> l = new List<int>();
-                            l.Add((int)o);
-                            l.Add(v);
+                            List<int> l = [(int)o, v];
                             sd[x] = l;
                         } else {
                             List<int> l = o as List<int>;
@@ -308,8 +298,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             for (int i = 0; i < counts.Length; i++)
                 newLayers[i] = new int[counts[i]];
 
-            nla = new LayerArrays(NLayering);
-            nla.Layers = newLayers;
+            nla = new LayerArrays(NLayering)
+            {
+                Layers = newLayers
+            };
 
         }
         ///// <summary>

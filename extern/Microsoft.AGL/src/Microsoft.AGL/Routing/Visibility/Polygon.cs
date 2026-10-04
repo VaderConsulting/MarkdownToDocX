@@ -23,10 +23,9 @@ namespace Microsoft.AGL.Routing.Visibility {
     internal class Polygon {
         Polyline polyline;
 
-        internal Polyline Polyline {
-            get { return polyline; }
+        internal Polyline Polyline { get => polyline;
 #if TEST_MSAGL
-            set { polyline = value; }
+            set => polyline = value;
 #endif
         }
 
@@ -42,15 +41,11 @@ namespace Microsoft.AGL.Routing.Visibility {
 
         }
 
-        internal int Next(int i) {
-            return Module(i + 1);
-        }
+        internal int Next(int i) => Module(i + 1);
 
-        internal int Prev(int i) {
-            return Module(i - 1);
-        }
+        internal int Prev(int i) => Module(i - 1);
 
-        internal int Count { get { return Polyline.Count; } }
+        internal int Count => Polyline.Count;
 
         internal int Module(int i) {
             if (i < 0)
@@ -71,14 +66,10 @@ namespace Microsoft.AGL.Routing.Visibility {
         //    return new LineSegment(pivot, Pnt(p));
         //}
 
-        internal Point Pnt(int i) {
-            return this[i].Point;
-        }
+        internal Point Pnt(int i) => this[i].Point;
 
 
-        public override string ToString() {
-            return polyline.ToString();
-        }
+        public override string ToString() => polyline.ToString();
 
         /// <summary>
         /// the median of a chunk going clockwise from p1 to p2
@@ -127,14 +118,13 @@ namespace Microsoft.AGL.Routing.Visibility {
         }
 #if TEST_MSAGL
         // ReSharper disable UnusedMember.Local
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         static double TestPolygonDist(Polygon a, Polygon b) {
             // ReSharper restore UnusedMember.Local
-            double ret = double.PositiveInfinity, u, v;
+            double ret = double.PositiveInfinity;
             for (int i = 0; i < a.Count; i++)
                 for (int j = 0; j < b.Count; j++)
                     ret = Math.Min(ret, LineSegment.MinDistBetweenLineSegments(a.Pnt(i), a.Pnt(i + 1), b.Pnt(j),
-                                                                                b.Pnt(j + 1), out u, out v));
+                                                                                b.Pnt(j + 1), out double u, out double v));
 
             return ret;
         }
@@ -146,12 +136,12 @@ namespace Microsoft.AGL.Routing.Visibility {
         /// The function doesn't work if the polygons intersect each other
         /// </summary>
         static public double Distance(Polygon a, Polygon b, out Point p, out Point q) {
-            var tp = new TangentPair(a, b);
+            TangentPair tp = new TangentPair(a, b);
             tp.FindClosestPoints(out p, out q);
 #if TEST_MSAGL
             if(!ApproximateComparer.Close((p - q).Length,TestPolygonDist(a,b))) {
-                using(var stream = File.Open(@"c:\tmp\polygonBug",FileMode.Create)) {
-                    var bf = new BinaryFormatter();
+                using(FileStream stream = File.Open(@"c:\tmp\polygonBug",FileMode.Create)) {
+                    BinaryFormatter bf = new BinaryFormatter();
                     bf.Serialize(stream, a);
                     bf.Serialize(stream, b);                    
                 }
@@ -173,14 +163,13 @@ namespace Microsoft.AGL.Routing.Visibility {
             System.Diagnostics.Debug.Assert(PolygonIsLegalDebug(a));
             System.Diagnostics.Debug.Assert(PolygonIsLegalDebug(b));
 
-            Point p, q;
-            return Distance(a, b, out p, out q);
+            return Distance(a, b, out Point p, out Point q);
         }
 
         private static bool PolygonIsLegalDebug(Polygon a)
         {
-            var poly = a.Polyline;
-            for (var p = poly.StartPoint; p.Next != null && p.Next.Next != null; p = p.Next)
+            Polyline poly = a.Polyline;
+            for (PolylinePoint p = poly.StartPoint; p.Next != null && p.Next.Next != null; p = p.Next)
                 if (Point.GetTriangleOrientation(p.Point, p.Next.Point, p.Next.Next.Point) ==
                     TriangleOrientation.Collinear)
                     return false;
@@ -194,15 +183,14 @@ namespace Microsoft.AGL.Routing.Visibility {
         {
             double res = double.PositiveInfinity;
             for (int i = 0; i < poly.Count; i++) {
-                double par;
-                double dist = Point.DistToLineSegment(b, poly.points[i].Point, poly.points[(i + 1) % poly.Count].Point, out par);
+                double dist = Point.DistToLineSegment(b, poly.points[i].Point, poly.points[(i + 1) % poly.Count].Point, out double par);
                 res = Math.Min(res, dist);
             }
             return res;
         }
 
         internal void GetTangentPoints(out int leftTangentPoint, out int rightTangentPoint, Point point) {
-            var bimodalSequence = new BimodalSequence(GetSequenceDelegate(point), Count);
+            BimodalSequence bimodalSequence = new BimodalSequence(GetSequenceDelegate(point), Count);
             leftTangentPoint = bimodalSequence.FindMaximum();
             rightTangentPoint = bimodalSequence.FindMinimum();
         }

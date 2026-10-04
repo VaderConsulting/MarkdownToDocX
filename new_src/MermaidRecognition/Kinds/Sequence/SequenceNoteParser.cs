@@ -1,7 +1,8 @@
 using System.Text.RegularExpressions;
+
 using MermaidRecognition.Contract;
 
-namespace MermaidRecognition.Sequence;
+namespace MermaidRecognition.Kinds.Sequence;
 
 /// <summary>
 /// Parses Mermaid sequence diagram note directives (left/right/over placement).

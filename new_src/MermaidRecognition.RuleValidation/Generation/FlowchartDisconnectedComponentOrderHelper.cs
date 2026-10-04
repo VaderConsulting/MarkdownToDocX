@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Layout;
 using MermaidRecognition.RuleValidation.Models;
 
@@ -57,8 +58,8 @@ public static class FlowchartDisconnectedComponentOrderHelper
         {
             string EarlierNodeId = OrderedNodeIds[Index];
             string LaterNodeId = OrderedNodeIds[Index + 1];
-            if (!BoundsById.TryGetValue(EarlierNodeId, out FlowchartLayoutNodeBounds EarlierBounds)
-                || !BoundsById.TryGetValue(LaterNodeId, out FlowchartLayoutNodeBounds LaterBounds))
+            if (!BoundsById.TryGetValue(EarlierNodeId, out FlowchartLayoutNodeBounds? EarlierBounds)
+                || !BoundsById.TryGetValue(LaterNodeId, out FlowchartLayoutNodeBounds? LaterBounds))
             {
                 continue;
             }
@@ -92,10 +93,10 @@ public static class FlowchartDisconnectedComponentOrderHelper
         }
 
         bool AnyCrossAxisViolation = false;
-        List<double> CrossAxisCenters = new List<double>();
+        List<double> CrossAxisCenters = [];
         foreach (string NodeId in OrderedNodeIds)
         {
-            if (!BoundsById.TryGetValue(NodeId, out FlowchartLayoutNodeBounds Bounds))
+            if (!BoundsById.TryGetValue(NodeId, out FlowchartLayoutNodeBounds? Bounds))
             {
                 continue;
             }
@@ -148,14 +149,14 @@ public static class FlowchartDisconnectedComponentOrderHelper
         {
             if (!NodeIdsByComponentRoot.TryGetValue(Entry.Value, out List<string>? NodeIds))
             {
-                NodeIds = new List<string>();
+                NodeIds = [];
                 NodeIdsByComponentRoot[Entry.Value] = NodeIds;
             }
 
             NodeIds.Add(Entry.Key);
         }
 
-        List<List<string>> Components = new List<List<string>>();
+        List<List<string>> Components = [];
         foreach (List<string> NodeIds in NodeIdsByComponentRoot.Values)
         {
             if (NodeIds.Count == 1)
@@ -164,7 +165,7 @@ public static class FlowchartDisconnectedComponentOrderHelper
             }
             else
             {
-                return new List<List<string>>();
+                return [];
             }
         }
 

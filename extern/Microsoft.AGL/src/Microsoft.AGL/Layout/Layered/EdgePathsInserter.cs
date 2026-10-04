@@ -12,23 +12,15 @@ namespace Microsoft.AGL.Layout.Layered {
         BasicGraph<Node, IntEdge> intGraph;
         ProperLayeredGraph layeredGraph;
         ProperLayeredGraph nLayeredGraph;
-        Dictionary<int, IntEdge> virtNodesToIntEdges = new Dictionary<int, IntEdge>();
+        Dictionary<int, IntEdge> virtNodesToIntEdges = [];
 
-        internal ProperLayeredGraph NLayeredGraph {
-            get { return nLayeredGraph; }
-        }
+        internal ProperLayeredGraph NLayeredGraph => nLayeredGraph;
         LayerArrays la;
         LayerArrays nla;
 
-        internal LayerArrays Nla {
-            get { return nla; }
-        }
+        internal LayerArrays Nla => nla;
 
-        int[] NLayering {
-            get {
-                return this.nla.Y;
-            }
-        }
+        int[] NLayering => nla.Y;
 
         static internal void InsertPaths(
                                          ref ProperLayeredGraph layeredGraph, ref LayerArrays la,
@@ -44,7 +36,7 @@ namespace Microsoft.AGL.Layout.Layered {
             this.la = la;
             this.database = database;
             this.layeredGraph = layeredGraph;
-            this.intGraph = intGraphP;
+            intGraph = intGraphP;
         }
 
         void InsertPaths() {
@@ -64,8 +56,7 @@ namespace Microsoft.AGL.Layout.Layered {
                 int[] layer = nla.Layers[i];
                 int offset = 0;
                 foreach (int v in la.Layers[i]) {
-                    IntEdge e;
-                    this.virtNodesToIntEdges.TryGetValue(v, out e);
+                    virtNodesToIntEdges.TryGetValue(v, out IntEdge e);
                     if (e != null) {
                         int layerOffsetInTheEdge = NLayering[e.Source] - NLayering[v];
                         List<IntEdge> list = database.Multiedges[new IntPair(e.Source, e.Target)];
@@ -90,24 +81,22 @@ namespace Microsoft.AGL.Layout.Layered {
             }
         }
 
-        private bool EdgeIsFlat(IntEdge ie) {
-            return la.Y[ie.Source] == la.Y[ie.Target];
-        }
+        private bool EdgeIsFlat(IntEdge ie) => la.Y[ie.Source] == la.Y[ie.Target];
 
 
         void MapVirtualNodesToEdges() {
-            foreach (List<IntEdge> list in this.database.RegularMultiedges)
+            foreach (List<IntEdge> list in database.RegularMultiedges)
                 foreach (IntEdge e in list)
                     if (! EdgeIsFlat(e))//the edge is not flat
                         foreach (LayerEdge le in e.LayerEdges)
                             if (le.Target != e.Target)
-                                this.virtNodesToIntEdges[le.Target] = e;
+                                virtNodesToIntEdges[le.Target] = e;
 
         }
 
 
         private void CreateFullLayeredGraph() {
-            int currentVV = this.layeredGraph.NodeCount;
+            int currentVV = layeredGraph.NodeCount;
             foreach (KeyValuePair<IntPair, List<IntEdge>>
                     kv in database.Multiedges) {
                 if (kv.Key.x != kv.Key.y) { //not a self edge
@@ -130,11 +119,11 @@ namespace Microsoft.AGL.Layout.Layered {
                                 }
                             }
                         }
-                        LayerInserter.RegisterDontStepOnVertex(this.database, e);
+                        LayerInserter.RegisterDontStepOnVertex(database, e);
                     }
                 }
             }
-            this.nLayeredGraph = new ProperLayeredGraph(this.intGraph);
+            nLayeredGraph = new ProperLayeredGraph(intGraph);
         }
 
         internal static int GetTarget(ref int currentVV, IntEdge e, int i, int span) {
@@ -153,7 +142,7 @@ namespace Microsoft.AGL.Layout.Layered {
         void InitNewLayering() {
 
        
-            nla = new LayerArrays(new int[this.NLayeredGraph.NodeCount]);
+            nla = new LayerArrays(new int[NLayeredGraph.NodeCount]);
 
             for (int i = 0; i < layeredGraph.NodeCount; i++)
                 NLayering[i] = la.Y[i];
@@ -188,8 +177,10 @@ namespace Microsoft.AGL.Layout.Layered {
                 newLayers[i] = new int[counts[i]];
 
 
-            nla = new LayerArrays(NLayering);
-            nla.Layers = newLayers;
+            nla = new LayerArrays(NLayering)
+            {
+                Layers = newLayers
+            };
 
         }
     }

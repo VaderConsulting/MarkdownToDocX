@@ -27,10 +27,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments 
             return x + _width*y;
         }
 
-        bool InBounds(int x, int y) {
-            return 0 <= x && x < _width &&
+        bool InBounds(int x, int y) => 0 <= x && x < _width &&
                    0 <= y && y < _height;
-        }
 
         public void FillRectangle(int left, int bottom, int w, int h) {
             AdjustLeftTop(ref left, ref bottom);
@@ -56,18 +54,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments 
 
         }
 
-        void Plot(int x, int y) {
-            _m[Offset(x, y)] = 1;
-        }
+        void Plot(int x, int y) => _m[Offset(x, y)] = 1;
 
         internal void DrawFatSegByX(PixelPoint a, PixelPoint b, int insertRectHalfSize) {
-            var perp = new PixelPoint(-(b.Y - a.Y), b.X - a.X);
+            PixelPoint perp = new PixelPoint(-(b.Y - a.Y), b.X - a.X);
             if (perp.Y == 0) {
                 FillRectangle(a.X, a.Y - insertRectHalfSize, b.X - a.X, 2*insertRectHalfSize);
                 return;
             }
             if (perp.Y < 0) perp = -perp;
-            var pixelInside = a;
+            PixelPoint pixelInside = a;
             double perpLen = Math.Sqrt(perp*perp);
             // pixel p is inside if and only if (p-a)*perp belongs to the interval [-halfInterval, halfInterval]
             int halfInterval = (int) (perpLen*insertRectHalfSize);
@@ -83,8 +79,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments 
         }
 
         void ScanVertLineDown(int x, PixelPoint pixelInside, PixelPoint a, PixelPoint perp, int halfInterval) {
-            var y = pixelInside.Y;
-            var proj = perp*(pixelInside - a);
+            int y = pixelInside.Y;
+            int proj = perp*(pixelInside - a);
             Debug.Assert(Math.Abs(proj) <= halfInterval);
             do {
                 Plot(x, y);
@@ -96,8 +92,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments 
 
         void ScanVertLineUp(int x, PixelPoint pixelInside, PixelPoint a, PixelPoint perp, int halfInterval) {
             Debug.Assert(perp.Y > 0);
-            var y = pixelInside.Y;
-            var proj = perp*(pixelInside - a);
+            int y = pixelInside.Y;
+            int proj = perp*(pixelInside - a);
             Debug.Assert(Math.Abs(proj) <= halfInterval);
             do {
                 Plot(x, y);
@@ -125,13 +121,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments 
 
         internal void DrawFatSegByY(PixelPoint a, PixelPoint b, int halfDistInPixels) {
             Debug.Assert(a.Y <= b.Y);
-            var perp = new PixelPoint(-b.Y + a.Y, b.X - a.X);
+            PixelPoint perp = new PixelPoint(-b.Y + a.Y, b.X - a.X);
             if (perp.X == 0) {
                 FillRectangle(a.X - halfDistInPixels, a.Y, 2*halfDistInPixels, b.Y - a.Y);
                 return;
             }
             if (perp.X < 0) perp = -perp;
-            var pixelInside = a;
+            PixelPoint pixelInside = a;
             double perpLen = Math.Sqrt(perp*perp);
             // pixel p is inside if and only if (p-a)*perp belongs to the interval [-halfInterval, halfInterval]
             int halfInterval = (int) (perpLen*halfDistInPixels);
@@ -164,8 +160,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments 
 
         void ScanHorizontalLineRight(int y, PixelPoint pixelInside, PixelPoint a, PixelPoint perp, int halfInterval) {
             Debug.Assert(perp.X > 0);
-            var x = pixelInside.X;
-            var proj = perp*(pixelInside - a);
+            int x = pixelInside.X;
+            int proj = perp*(pixelInside - a);
             Debug.Assert(Math.Abs(proj) <= halfInterval);
             do {
                 Plot(x, y);
@@ -177,8 +173,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments 
 
         void ScanHorizontalLineLeft(int y, PixelPoint pixelInside, PixelPoint a, PixelPoint perp, int halfInterval) {
             Debug.Assert(perp.X > 0);
-            var x = pixelInside.X;
-            var proj = perp*(pixelInside - a);
+            int x = pixelInside.X;
+            int proj = perp*(pixelInside - a);
             Debug.Assert(Math.Abs(proj) <= halfInterval);
             do {
                 Plot(x, y);

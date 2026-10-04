@@ -8,7 +8,9 @@
 // --------------------------------------------------------------------------------------------------------------------
 
 using System.Diagnostics;
-using Microsoft.AGL.Core.DataStructures;
+
+using Microsoft.AGL.Core.DataStructures.RBTree;
+using Microsoft.AGL.Core.Geometry.OverlapRemoval;
 
 namespace Microsoft.AGL.Core.Geometry 
 {
@@ -33,27 +35,24 @@ namespace Microsoft.AGL.Core.Geometry
 
             internal void Insert(OverlapRemovalNode node)
             {
-                Debug.Assert(null == this.nodeTree.Find(node), "node already exists in the rbtree");
+                Debug.Assert(null == nodeTree.Find(node), "node already exists in the rbtree");
 
                 // RBTree's internal operations on insert/remove etc. mean the node can't cache the
                 // RBNode returned by insert(); instead we must do find() on each call.
-                this.nodeTree.Insert(node);
+                nodeTree.Insert(node);
             }
 
-            internal void Remove(OverlapRemovalNode node)
-            {
-                this.nodeTree.Remove(node);
-            }
+            internal void Remove(OverlapRemovalNode node) => nodeTree.Remove(node);
 
             internal OverlapRemovalNode NextLeft(OverlapRemovalNode node)
             {
-                var pred = this.nodeTree.Previous(this.nodeTree.Find(node));
+                RBNode<OverlapRemovalNode> pred = nodeTree.Previous(nodeTree.Find(node));
                 return (null != pred) ? pred.Item : null;
             }
 
             internal OverlapRemovalNode NextRight(OverlapRemovalNode node)
             {
-                var succ = this.nodeTree.Next(this.nodeTree.Find(node));
+                RBNode<OverlapRemovalNode> succ = nodeTree.Next(nodeTree.Find(node));
                 return (null != succ) ? succ.Item : null;
             }
         } // end class ScanLine

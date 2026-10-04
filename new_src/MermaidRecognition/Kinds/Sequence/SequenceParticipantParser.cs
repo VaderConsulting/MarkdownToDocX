@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace MermaidRecognition.Sequence;
+namespace MermaidRecognition.Kinds.Sequence;
 
 /// <summary>
 /// Parsed sequence participant declaration from a source line.
@@ -11,42 +11,21 @@ public sealed class SequenceParticipantParseResult
 
     public string Id
     {
-        get
-        {
-            return _Id;
-        }
-        set
-        {
-            _Id = value;
-        }
+        get => _Id; set => _Id = value;
     }
 
     private string? _Label;
 
     public string? Label
     {
-        get
-        {
-            return _Label;
-        }
-        set
-        {
-            _Label = value;
-        }
+        get => _Label; set => _Label = value;
     }
 
     private string _DrawType = "participant";
 
     public string DrawType
     {
-        get
-        {
-            return _DrawType;
-        }
-        set
-        {
-            _DrawType = value;
-        }
+        get => _DrawType; set => _DrawType = value;
     }
 }
 

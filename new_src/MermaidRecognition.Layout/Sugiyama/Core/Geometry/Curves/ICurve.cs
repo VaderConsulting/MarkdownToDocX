@@ -9,29 +9,27 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1043:UseIntegralOrStringArgumentForIndexers")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "t")]
         Point this[double t] { get; }
+
         /// <summary>
         /// first derivative at t
         /// </summary>
         /// <param name="t">the parameter where the derivative is calculated</param>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "t")]
         Point Derivative(double t);
+
         /// <summary>
         /// second derivative
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "t")]
         Point SecondDerivative(double t);
+
         /// <summary>
         /// third derivative
         /// </summary>
         /// <param name="t">the parameter of the derivative</param>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "t")]
         Point ThirdDerivative(double t);
 
         /// <summary>
@@ -62,7 +60,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// <param name="start"></param>
         /// <param name="end"></param>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1716:IdentifiersShouldNotMatchKeywords", MessageId = "End")]
         ICurve Trim(double start, double end);
 
         /// <summary>
@@ -71,7 +68,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// <param name="start"></param>
         /// <param name="end"></param>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1716:IdentifiersShouldNotMatchKeywords", MessageId = "End")]
         ICurve TrimWithWrap(double start, double end);
 
         /// <summary>
@@ -93,7 +89,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// <summary>
         /// this[ParEnd]
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1716:IdentifiersShouldNotMatchKeywords", MessageId = "End")]
         Point End { get; }
 
         /// <summary>
@@ -121,7 +116,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// <param name="start"></param>
         /// <param name="end"></param>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1716:IdentifiersShouldNotMatchKeywords", MessageId = "End")]
         double LengthPartial(double start, double end);
 
         /// <summary>
@@ -135,8 +129,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// </summary>
         /// <param name="length"></param>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming",
-            "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "t")]
         double GetParameterAtLength(double length);
 
         /// <summary>
@@ -175,7 +167,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// </summary>
         /// <param name="t">the parameter where the derivative is calculated</param>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "t")]
         Point LeftDerivative(double t);
 
 
@@ -184,23 +175,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// </summary>
         /// <param name="t">the parameter where the derivative is calculated</param>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "t")]
         Point RightDerivative(double t);
 
-        
+
         /// <summary>
         /// the signed curvature of the segment at t
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "t")]
         double Curvature(double t);
+
         /// <summary>
         /// the derivative of the curvature at t
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "t")]
         double CurvatureDerivative(double t);
 
 
@@ -209,7 +198,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "t")]
         double CurvatureSecondDerivative(double t);
 
 

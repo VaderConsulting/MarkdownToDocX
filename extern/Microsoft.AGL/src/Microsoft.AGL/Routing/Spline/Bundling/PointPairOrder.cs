@@ -3,14 +3,12 @@
 namespace Microsoft.AGL.Routing.Spline.Bundling {
     internal class PointPairOrder {
         //order for node u of edge u->v
-        internal List<Metroline> Metrolines = new List<Metroline>();
+        internal List<Metroline> Metrolines = [];
         internal bool orderFixed;
         internal Dictionary<Metroline, int> LineIndexInOrder;
 
-        internal int Count { get { return Metrolines.Count; } }
+        internal int Count => Metrolines.Count;
 
-        internal void Add(Metroline metroline) {
-            Metrolines.Add(metroline);
-        }
+        internal void Add(Metroline metroline) => Metrolines.Add(metroline);
     }
 }

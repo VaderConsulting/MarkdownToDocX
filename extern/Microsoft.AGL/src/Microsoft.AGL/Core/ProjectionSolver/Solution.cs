@@ -28,28 +28,28 @@ namespace Microsoft.AGL.Core.ProjectionSolver
         /// <summary>
         /// The number of times the outer Project/Split loop was run.
         /// </summary>
-        public Int32 OuterProjectIterations { get; internal set; }
+        public int OuterProjectIterations { get; internal set; }
 
         /// <summary>
         /// The number of times Project iterated internally; divide by OuterProjectIterations to get the average
         /// inner iterations per outer iteration; see also MinInnerProjectIterations and MaxInnerProjectIterations.
         /// </summary>
-        public Int64 InnerProjectIterationsTotal { get; internal set; }
+        public long InnerProjectIterationsTotal { get; internal set; }
 
         /// <summary>
         /// The minimum number of times Project iterated internally for any outer Project iterations.
         /// </summary>
-        public Int32 MinInnerProjectIterations { get; internal set; }
+        public int MinInnerProjectIterations { get; internal set; }
 
         /// <summary>
         /// The maximum number of times Project iterated internally for any outer Project iterations.
         /// </summary>
-        public Int32 MaxInnerProjectIterations { get; internal set; }
+        public int MaxInnerProjectIterations { get; internal set; }
 
         /// <summary>
         /// The maximum depth of a constraint tree.
         /// </summary>
-        public Int32 MaxConstraintTreeDepth { get; internal set; }
+        public int MaxConstraintTreeDepth { get; internal set; }
 
         /// <summary>
         /// The final value of the goal function.
@@ -81,23 +81,14 @@ namespace Microsoft.AGL.Core.ProjectionSolver
         /// <summary>
         /// Indicates whether one or more execution limits were exceeded.
         /// </summary>
-        public bool ExecutionLimitExceeded
-        {
-            get
-            {
-                return TimeLimitExceeded || OuterProjectIterationsLimitExceeded || InnerProjectIterationsLimitExceeded;
-            }
-        }
+        public bool ExecutionLimitExceeded => TimeLimitExceeded || OuterProjectIterationsLimitExceeded || InnerProjectIterationsLimitExceeded;
 
         #region ICloneable members
         /// <summary>
         /// Shallow-copy everything, including the contained list.
         /// </summary>
         /// <returns></returns>
-        public object Clone()
-        {
-            return this.MemberwiseClone();
-        }
+        public object Clone() => MemberwiseClone();
         #endregion // ICloneable members
     }
 }

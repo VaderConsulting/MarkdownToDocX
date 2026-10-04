@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.AGL.Core.DataStructures;
@@ -22,8 +22,8 @@ namespace Microsoft.AGL.Routing {
                                                                          IEnumerable<VisibilityVertex> targetVisVertices, VisibilityGraph visibilityGraph) {
             _visGraph = visibilityGraph;
             _visGraph.ClearPrevEdgesTable();
-            foreach (var v in visibilityGraph.Vertices())
-                v.Distance = Double.PositiveInfinity;
+            foreach (VisibilityVertex v in visibilityGraph.Vertices())
+                v.Distance = double.PositiveInfinity;
 
             source = sourceVisVertex;
             targets = new Set<VisibilityVertex>(targetVisVertices);
@@ -36,7 +36,7 @@ namespace Microsoft.AGL.Routing {
         /// </summary>
         /// <returns>a path or null if the target is not reachable from the source</returns>
         internal IEnumerable<VisibilityVertex> GetPath() {
-            var pq = new GenericBinaryHeapPriorityQueue<VisibilityVertex>();
+            GenericBinaryHeapPriorityQueue<VisibilityVertex> pq = new GenericBinaryHeapPriorityQueue<VisibilityVertex>();
             source.Distance = 0;
             pq.Enqueue(source, 0);
             while (!pq.IsEmpty()) {
@@ -44,35 +44,29 @@ namespace Microsoft.AGL.Routing {
                 if (targets.Contains(current))
                     break;
 
-                foreach (var e in current.OutEdges.Where(PassableOutEdge))
+                foreach (VisibilityEdge e in current.OutEdges.Where(PassableOutEdge))
                     ProcessNeighbor(pq, e, e.Target);
 
-                foreach (var e in current.InEdges.Where(PassableInEdge))
+                foreach (VisibilityEdge e in current.InEdges.Where(PassableInEdge))
                     ProcessNeighbor(pq, e, e.Source);
             }
 
             return _visGraph.PreviosVertex(current) == null ? null : CalculatePath();
         }
 
-        bool PassableOutEdge(VisibilityEdge e) {
-            return e.Source == source || 
-                targets.Contains(e.Target) || 
+        bool PassableOutEdge(VisibilityEdge e) => e.Source == source ||
+                targets.Contains(e.Target) ||
                 !IsForbidden(e);
-        }
 
-        bool PassableInEdge(VisibilityEdge e) {
-            return targets.Contains(e.Source) || e.Target == source || !IsForbidden(e);
-        }
+        bool PassableInEdge(VisibilityEdge e) => targets.Contains(e.Source) || e.Target == source || !IsForbidden(e);
 
 
-        internal static bool IsForbidden(VisibilityEdge e) {
-            return e.IsPassable != null && !e.IsPassable() || e is TollFreeVisibilityEdge;
-        }
+        internal static bool IsForbidden(VisibilityEdge e) => e.IsPassable != null && !e.IsPassable() || e is TollFreeVisibilityEdge;
 
         void ProcessNeighbor(GenericBinaryHeapPriorityQueue<VisibilityVertex> pq, VisibilityEdge l,
                              VisibilityVertex v) {
-            var len = l.Length;
-            var c = current.Distance + len;
+            double len = l.Length;
+            double c = current.Distance + len;
             if (c >= upperBound)
                 return;
             if (targets.Contains(v)) {
@@ -100,8 +94,8 @@ namespace Microsoft.AGL.Routing {
         IEnumerable<VisibilityVertex> CalculatePath() {
             if (closestTarget == null)
                 return null;
-            var ret = new List<VisibilityVertex>();
-            var v = closestTarget;
+            List<VisibilityVertex> ret = new List<VisibilityVertex>();
+            VisibilityVertex v = closestTarget;
             do {
                 ret.Add(v);
                 v = _visGraph.PreviosVertex(v);

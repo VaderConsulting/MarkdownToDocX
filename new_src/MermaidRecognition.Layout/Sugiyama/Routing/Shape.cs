@@ -10,7 +10,6 @@ using MermaidRecognition.Layout.Sugiyama.Core.DataStructures;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves;
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
-using MermaidRecognition.Layout.Sugiyama.Core;
 using System.Diagnostics;
 
 namespace MermaidRecognition.Layout.Sugiyama.Routing {
@@ -20,42 +19,36 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
     [DebuggerDisplay("Shape = {UserData}")]
     public class Shape {
 
-        readonly Set<Shape> parents = new Set<Shape>();
+        readonly Set<Shape> parents = [];
         ///<summary>
         /// shape parents
         ///</summary>
-        public IEnumerable<Shape> Parents {
-            get { return parents; }
-        }
+        public IEnumerable<Shape> Parents => parents;
 
-        readonly Set<Shape> children = new Set<Shape>();
+        readonly Set<Shape> children = [];
         /// <summary>
         /// shape children
         /// </summary>
-        public IEnumerable<Shape> Children {
-            get { return children; }
-        }
+        public IEnumerable<Shape> Children => children;
         /// <summary>
         /// The curve of the shape.
         /// </summary>
-        public virtual ICurve BoundaryCurve { 
-            get { return boundaryCurve; }
-            set {boundaryCurve = value; }
+        public virtual ICurve BoundaryCurve { get => boundaryCurve; set => boundaryCurve = value;
         }
         ICurve boundaryCurve;
 
         /// <summary>
         /// The bounding box of the shape.
         /// </summary>
-        public Rectangle BoundingBox { get { return BoundaryCurve.BoundingBox; } }
+        public Rectangle BoundingBox => BoundaryCurve.BoundingBox;
 
         /// <summary>
         /// The set of Ports for this obstacle, usually RelativePorts.  In the event of overlapping
         /// obstacles, this identifies the obstacle to which the port applies.
         /// </summary>
-        public Set<Port> Ports { get { return ports; } }
+        public Set<Port> Ports => ports;
 
-        private readonly Set<Port> ports = new Set<Port>();
+        private readonly Set<Port> ports = [];
 
         /// <summary>
         /// A location for storing user data associated with the Shape.
@@ -72,28 +65,24 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         /// Constructor taking the ID and the curve of the shape.
         /// </summary>
         /// <param name="boundaryCurve"></param>
-        public Shape(ICurve boundaryCurve) {
-            this.boundaryCurve = boundaryCurve;     // RelativeShape throws an exception on BoundaryCurve_set so set _boundaryCurve directly.
-        }
+        public Shape(ICurve boundaryCurve) => this.boundaryCurve = boundaryCurve;     // RelativeShape throws an exception on BoundaryCurve_set so set _boundaryCurve directly.
 
         /// <summary>
         /// A group is a shape that has children.
         /// </summary>
-        public bool IsGroup {
-            get { return children.Count > 0; }
-        }
+        public bool IsGroup => children.Count > 0;
 
         internal bool IsTransparent { get; set; }
 
         internal IEnumerable<Shape> Descendants {
             get {
-                var q = new Queue<Shape>();
-                foreach (var shape in Children)
+                Queue<Shape> q = new Queue<Shape>();
+                foreach (Shape shape in Children)
                     q.Enqueue(shape);
                 while (q.Count > 0) {
-                    var sh = q.Dequeue();
+                    Shape sh = q.Dequeue();
                     yield return sh;
-                    foreach (var shape in sh.Children)
+                    foreach (Shape shape in sh.Children)
                         q.Enqueue(shape);
                 }
             }
@@ -101,13 +90,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
 
         internal IEnumerable<Shape> Ancestors {
             get {
-                var q = new Queue<Shape>();
-                foreach (var shape in Parents)
+                Queue<Shape> q = new Queue<Shape>();
+                foreach (Shape shape in Parents)
                     q.Enqueue(shape);
                 while (q.Count > 0) {
-                    var sh = q.Dequeue();
+                    Shape sh = q.Dequeue();
                     yield return sh;
-                    foreach (var shape in sh.Parents)
+                    foreach (Shape shape in sh.Parents)
                         q.Enqueue(shape);
                 }
             }
@@ -155,10 +144,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         /// 
         /// </summary>
         /// <returns></returns>
-        public override string ToString()
-        {
-            return UserData == null ? "null" : UserData.ToString();
-        }
+        public override string ToString() => UserData == null ? "null" : UserData.ToString();
 #endif 
     }
 }

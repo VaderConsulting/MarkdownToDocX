@@ -26,10 +26,8 @@ namespace Microsoft.AGL.Layout.Layered {
         /// ToString
         /// </summary>
         /// <returns></returns>
-        public override string ToString() {
-            return "la:ra " +
+        public override string ToString() => "la:ra " +
               la.ToString("#.##", CultureInfo.InvariantCulture) + " " + ra.ToString("#.##", CultureInfo.InvariantCulture) + " ta:ba " + ta.ToString("#.##", CultureInfo.InvariantCulture) + " " + ba.ToString("#.##", CultureInfo.InvariantCulture) + " x:y " + x.ToString("#.##", CultureInfo.InvariantCulture) + " " + y.ToString("#.##", CultureInfo.InvariantCulture);
-        }
 
         double la;
         double ra;
@@ -41,11 +39,11 @@ namespace Microsoft.AGL.Layout.Layered {
         /// <summary>
         /// distance for the center of the node to its left boundary
         /// </summary>
-        public double LeftAnchor {
-            get {
-                return la;
-            }
-            set {
+        public double LeftAnchor
+        {
+            get => la;
+            set
+            {
                 //the absence of this check allows a situation when an edge crosses its label or 
                 // a label which does not belong to the edge
                 //       if(value<-Curve.DistEps)
@@ -57,121 +55,88 @@ namespace Microsoft.AGL.Layout.Layered {
         /// <summary>
         /// distance from the center of the node to its right boundary
         /// </summary>
-        public double RightAnchor {
-            get {
-                return ra;
-            }
-            set {
-                //   if(value<-Curve.DistEps)
-                //   throw new Exception("assigning negative value to a anchor: "+value );
-                ra = Math.Max(value, 0);
-            }
+        public double RightAnchor { get => ra; set =>
+                                                   //   if(value<-Curve.DistEps)
+                                                   //   throw new Exception("assigning negative value to a anchor: "+value );
+                                                   ra = Math.Max(value, 0);
         }
 
         /// <summary>
         /// distance from the center of the node to its top boundary
         /// </summary>
-        public double TopAnchor {
-            get {
-                return ta;
-            }
-            set {
-                //if(value<-Curve.DistEps)
-                //throw new Exception("assigning negative value to a anchor");
-                ta = Math.Max(value, 0);
-            }
+        public double TopAnchor { get => ta; set =>
+                                                 //if(value<-Curve.DistEps)
+                                                 //throw new Exception("assigning negative value to a anchor");
+                                                 ta = Math.Max(value, 0);
         }
 
         /// <summary>
         /// distance from the center of the node to it bottom boundary
         /// </summary>
-        public double BottomAnchor {
-            get {
-                return ba;
-            }
-            set {
+        public double BottomAnchor { get => ba; set =>
 
-                //if(value<-Curve.DistEps)
-                //throw new InvalidOperationException();//"assigning negative value to a anchor");
-                ba = Math.Max(value, 0);
-            }
+                                                    //if(value<-Curve.DistEps)
+                                                    //throw new InvalidOperationException();//"assigning negative value to a anchor");
+                                                    ba = Math.Max(value, 0);
         }
 
 
         /// <summary>
         /// Left boundary of the node
         /// </summary>
-        public double Left {
-            get { return x - la; }
-        }
+        public double Left => x - la;
 
         /// <summary>
         /// right boundary of the node
         /// </summary>
-        public double Right {
-            get { return x + ra; }
-        }
+        public double Right => x + ra;
 
         /// <summary>
         /// top boundary of the node
         /// </summary>
-        public double Top {
-            get { return y + ta; }
-            set { 
-                y += value - Top;
-            }
+        public double Top { get => y + ta; set => y += value - Top;
         }
 
         /// <summary>
         /// bottom of the node
         /// </summary>
-        public double Bottom {
-            get { return y - ba; }
-            set { y += value - Bottom; }
+        public double Bottom { get => y - ba; set => y += value - Bottom;
         }
 
         /// <summary>
         /// Left top corner
         /// </summary>
-        public Point LeftTop {
-            get { return new Point(Left, Top); }
-        }
+        public Point LeftTop => new Point(Left, Top);
         /// <summary>
         /// Left bottom of the node
         /// </summary>
-        public Point LeftBottom {
-            get { return new Point(Left, Bottom); }
-        }
+        public Point LeftBottom => new Point(Left, Bottom);
         /// <summary>
         /// Right bottom of the node
         /// </summary>
-        public Point RightBottom {
-            get { return new Point(Right, Bottom); }
-        }
+        public Point RightBottom => new Point(Right, Bottom);
 
         Node node;
 
-        internal Node Node {
-            get { return node; }
-            set { 
+        internal Node Node
+        {
+            get => node;
+            set
+            {
                 node = value;
-                this.polygonalBoundary = null;
+                polygonalBoundary = null;
             }
         }
 
         /// <summary>
         /// Right top of the node
         /// </summary>
-        public Point RightTop {
-            get { return new Point(Right, Top); }
-        }
+        public Point RightTop => new Point(Right, Top);
 
         /// <summary>
         /// an empty constructor
         /// </summary>
-        public Anchor(double labelCornersPreserveCoefficient) {
-            this.labelCornersPreserveCoefficient = labelCornersPreserveCoefficient;
-        }
+        public Anchor(double labelCornersPreserveCoefficient) => this.labelCornersPreserveCoefficient = labelCornersPreserveCoefficient;
         /// <summary>
         /// constructor
         /// </summary>
@@ -189,12 +154,12 @@ namespace Microsoft.AGL.Layout.Layered {
         /// <summary>
         /// the x position
         /// </summary>
-        internal double X {
-            get {
-                return x;
-            }
+        internal double X
+        {
+            get => x;
 
-            set {
+            set
+            {
                 polygonalBoundary = null;
                 x = value;
             }
@@ -204,12 +169,12 @@ namespace Microsoft.AGL.Layout.Layered {
         /// <summary>
         /// the y position
         /// </summary>
-        internal double Y {
-            get {
-                return y;
-            }
+        internal double Y
+        {
+            get => y;
 
-            set {
+            set
+            {
                 polygonalBoundary = null;
                 y = value;
             }
@@ -218,44 +183,31 @@ namespace Microsoft.AGL.Layout.Layered {
         /// <summary>
         /// Center of the node
         /// </summary>
-        public Point Origin {
-            get {
-                return new Point(x, y);
-            }
-        }
+        public Point Origin => new Point(x, y);
 
         bool alreadySitsOnASpline;
+
         /// <summary>
         /// signals if the spline has been routed already through the node
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811")]
-        public bool AlreadySitsOnASpline {
-            get { return alreadySitsOnASpline; }
-            set { alreadySitsOnASpline = value; }
+        public bool AlreadySitsOnASpline { get => alreadySitsOnASpline; set => alreadySitsOnASpline = value;
         }
 
         /// <summary>
         /// node widths
         /// </summary>
-        public double Width {
-            get { return this.la + this.ra; }
-        }
+        public double Width => la + ra;
 
         /// <summary>
         /// node height
         /// </summary>
-        public double Height {
-            get { return this.ta + this.ba; }
-        }
+        public double Height => ta + ba;
 
 
         /// <summary>
         /// set to true if the anchor has been introduced for a label
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811")]
-        public bool RepresentsLabel {
-            get { return LabelToTheRightOfAnchorCenter || LabelToTheLeftOfAnchorCenter; }
-        }
+        public bool RepresentsLabel => LabelToTheRightOfAnchorCenter || LabelToTheLeftOfAnchorCenter;
 
         bool labelIsToTheLeftOfTheSpline;
 
@@ -263,9 +215,7 @@ namespace Microsoft.AGL.Layout.Layered {
         /// An anchor for an edge label with the label to the right of the spline has its height equal to the one of the label
         /// Its leftAnchor is a reserved space for the spline and the rightAnchor is equal to the label width.
         /// </summary>
-        internal bool LabelToTheLeftOfAnchorCenter {
-            get { return labelIsToTheLeftOfTheSpline; }
-            set { labelIsToTheLeftOfTheSpline = value; }
+        internal bool LabelToTheLeftOfAnchorCenter { get => labelIsToTheLeftOfTheSpline; set => labelIsToTheLeftOfTheSpline = value;
         }
 
         bool labelIsToTheRightOfTheSpline;
@@ -274,14 +224,10 @@ namespace Microsoft.AGL.Layout.Layered {
         /// An anchor for an edge label with the label to the left of the spline has its height equal to the one of the label
         /// Its rightAnchor is a reserved space for the spline and the leftAnchor is equal to the label width.
         /// </summary>
-        internal bool LabelToTheRightOfAnchorCenter {
-            get { return labelIsToTheRightOfTheSpline; }
-            set { labelIsToTheRightOfTheSpline = value; }
+        internal bool LabelToTheRightOfAnchorCenter { get => labelIsToTheRightOfTheSpline; set => labelIsToTheRightOfTheSpline = value;
         }
 
-        internal bool HasLabel {
-            get { return LabelToTheRightOfAnchorCenter || LabelToTheLeftOfAnchorCenter; }
-        }
+        internal bool HasLabel => LabelToTheRightOfAnchorCenter || LabelToTheLeftOfAnchorCenter;
 
         internal double LabelWidth {
             get {
@@ -322,8 +268,7 @@ namespace Microsoft.AGL.Layout.Layered {
         }
 
         static void PadCorner(Polyline poly, PolylinePoint p0, PolylinePoint p1, PolylinePoint p2, double padding) {
-            Point a, b;
-            int numberOfPoints=GetPaddedCorner(p0, p1, p2, out a, out b, padding);
+            int numberOfPoints = GetPaddedCorner(p0, p1, p2, out Point a, out Point b, padding);
             poly.AddPoint(a);
             if (numberOfPoints==2)
                 poly.AddPoint(b);
@@ -404,12 +349,12 @@ namespace Microsoft.AGL.Layout.Layered {
 
         private Polyline CreatPolygonalBoundaryWithoutPadding() {
             Polyline ret;
-            if (this.HasLabel)
+            if (HasLabel)
                 ret = LabelToTheLeftOfAnchorCenter ? PolygonOnLeftLabel() : PolygonOnRightLabel();
-            else if (this.NodeBoundary == null)
+            else if (NodeBoundary == null)
                 ret = StandardRectBoundary();
             else 
-                ret = Curve.PolylineAroundClosedCurve(this.NodeBoundary);
+                ret = Curve.PolylineAroundClosedCurve(NodeBoundary);
             
             return ret;
         }
@@ -426,7 +371,7 @@ namespace Microsoft.AGL.Layout.Layered {
 
         private Polyline PolygonOnLeftLabel() {
             Polyline poly = new Polyline();
-            double t = Left + (1 - this.labelCornersPreserveCoefficient) * LabelWidth;
+            double t = Left + (1 - labelCornersPreserveCoefficient) * LabelWidth;
             poly.AddPoint(new Point(t, Top));
             poly.AddPoint(RightTop);
             poly.AddPoint(RightBottom);
@@ -438,7 +383,7 @@ namespace Microsoft.AGL.Layout.Layered {
 
         private Polyline PolygonOnRightLabel() {
             Polyline poly = new Polyline();
-            double t = Right - (1 - this.labelCornersPreserveCoefficient) * LabelWidth;
+            double t = Right - (1 - labelCornersPreserveCoefficient) * LabelWidth;
             poly.AddPoint(t, Top);
             poly.AddPoint(Right, Y);
             poly.AddPoint(t, Bottom);
@@ -449,29 +394,25 @@ namespace Microsoft.AGL.Layout.Layered {
 
         }
 
-      
-        internal ICurve NodeBoundary {
-            get { return Node!=null?Node.BoundaryCurve:null; }
-        }
+
+        internal ICurve NodeBoundary => Node != null ? Node.BoundaryCurve : null;
 
 
         double padding;
         /// <summary>
         /// node padding
         /// </summary>
-        public double Padding {
-            get { return padding; }
-            set { padding = value; }
+        public double Padding { get => padding; set => padding = value;
         }
 
         internal void Move(Point p){
-            this.X += p.X;
-            this.Y += p.Y;
+            X += p.X;
+            Y += p.Y;
         }
 
         internal void MoveTo(Point p) {
-            this.X = p.X;
-            this.Y = p.Y;
+            X = p.X;
+            Y = p.Y;
         }
 
 #if TEST_MSAGL

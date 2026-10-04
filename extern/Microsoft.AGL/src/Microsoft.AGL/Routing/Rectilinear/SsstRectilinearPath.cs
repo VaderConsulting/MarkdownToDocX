@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using Microsoft.AGL.Core.DataStructures;
+using Microsoft.AGL.Core.DataStructures.RBTree;
 using Microsoft.AGL.Core.Geometry;
 using Microsoft.AGL.Core.Geometry.Curves;
 using Microsoft.AGL.Core.Layout;
@@ -32,13 +33,9 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         /// <summary>
         /// The cost of the path calculation
         /// </summary>
-        private double CombinedCost(double length, double numberOfBends) {
-            return LengthImportance * length + BendsImportance * numberOfBends;
-        }
+        private double CombinedCost(double length, double numberOfBends) => LengthImportance * length + BendsImportance * numberOfBends;
 
-        private double TotalCostFromSourceToVertex(double length, double numberOfBends) {
-            return this.CombinedCost(length, numberOfBends) + this.sourceCostAdjustment;
-        }
+        private double TotalCostFromSourceToVertex(double length, double numberOfBends) => CombinedCost(length, numberOfBends) + sourceCostAdjustment;
 
         /// <summary>
         /// The priority queue for path extensions.
@@ -58,18 +55,16 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             internal VisibilityVertexRectilinear Vertex;
             internal double Weight;
 
-            internal NextNeighbor() {
-                Clear();
-            }
+            internal NextNeighbor() => Clear();
 
             internal void Set(VisibilityVertexRectilinear v, double w) {
-                this.Vertex = v;
-                this.Weight = w;
+                Vertex = v;
+                Weight = w;
             }
 
             internal void Clear() {
-                this.Vertex = null;
-                this.Weight = double.NaN;
+                Vertex = null;
+                Weight = double.NaN;
             }
         }
 
@@ -87,47 +82,44 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             if ((source == target) || !InitEntryDirectionsAtTarget(target)) {
                 return false;
             }
-            this.Target = target;
-            this.Source = source;
-            double cost = this.TotalCostFromSourceToVertex(0, 0) + HeuristicDistanceFromVertexToTarget(source.Point, Directions. None);
-            if (cost >= this.upperBoundOnCost) {
+            Target = target;
+            Source = source;
+            double cost = TotalCostFromSourceToVertex(0, 0) + HeuristicDistanceFromVertexToTarget(source.Point, Directions. None);
+            if (cost >= upperBoundOnCost) {
                 return false;
             }
 
             // This path starts lower than upperBoundOnCost, so create our structures and process it.
-            this.queue = new GenericBinaryHeapPriorityQueueWithTimestamp<VertexEntry>();
-            this.visitedVertices = new List<VisibilityVertexRectilinear> { source };
+            queue = new GenericBinaryHeapPriorityQueueWithTimestamp<VertexEntry>();
+            visitedVertices = [source];
 
             if (sourceVertexEntries == null) {
                 EnqueueInitialVerticesFromSource(cost);
             } else {
                 EnqueueInitialVerticesFromSourceEntries(sourceVertexEntries);
             }
-            return this.queue.Count > 0;
+            return queue.Count > 0;
         }
 
         private bool InitEntryDirectionsAtTarget(VisibilityVertex vert) {
             EntryDirectionsToTarget = Directions. None;
 
             // This routine is only called once so don't worry about optimizing foreach.
-            foreach (var edge in vert.OutEdges) {
+            foreach (VisibilityEdge edge in vert.OutEdges) {
                 EntryDirectionsToTarget |= CompassVector.DirectionsFromPointToPoint(edge.TargetPoint, vert.Point);
             }
-            foreach (var edge in vert.InEdges) {
+            foreach (VisibilityEdge edge in vert.InEdges) {
                 EntryDirectionsToTarget |= CompassVector.DirectionsFromPointToPoint(edge.SourcePoint, vert.Point);
             }
             // If this returns false then the target is isolated.
             return EntryDirectionsToTarget != Directions. None;
         }
 
-        private static bool IsInDirs(Directions direction, Directions dirs) {
-            return direction == (direction & dirs);
-        }
+        private static bool IsInDirs(Directions direction, Directions dirs) => direction == (direction & dirs);
 
-        internal double MultistageAdjustedCostBound(double bestCost) {
+        internal double MultistageAdjustedCostBound(double bestCost) =>
             // Allow an additional bend's cost for intermediate stages so we don't jump out early.
-            return !double.IsPositiveInfinity(bestCost) ? bestCost + this.BendsImportance : bestCost;
-        }
+            !double.IsPositiveInfinity(bestCost) ? bestCost + BendsImportance : bestCost;
 
         /// <summary>
         /// estimation from below for the distance
@@ -139,7 +131,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             Point vectorToTarget = Target.Point - point;
             if (ApproximateComparer.Close(vectorToTarget.X, 0) && ApproximateComparer.Close(vectorToTarget.Y, 0)) {
                 // We are at the target.
-                return this.targetCostAdjustment;
+                return targetCostAdjustment;
             }
             Directions dirToTarget = CompassVector.VectorDirection(vectorToTarget);
 
@@ -150,14 +142,12 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             } else {
                 numberOfBends = GetNumberOfBends(entryDirToVertex, dirToTarget);
             }
-            return CombinedCost(ManhattanDistance(point, Target.Point), numberOfBends) + this.targetCostAdjustment;
+            return CombinedCost(ManhattanDistance(point, Target.Point), numberOfBends) + targetCostAdjustment;
         }
 
-        private int GetNumberOfBends(Directions entryDirToVertex, Directions dirToTarget) {
-            return CompassVector.IsPureDirection(dirToTarget)
+        private int GetNumberOfBends(Directions entryDirToVertex, Directions dirToTarget) => CompassVector.IsPureDirection(dirToTarget)
                                     ? GetNumberOfBendsForPureDirection(entryDirToVertex, dirToTarget)
                                     : GetBendsForNotPureDirection(dirToTarget, entryDirToVertex, EntryDirectionsToTarget);
-        }
 
         private int GetNumberOfBendsForPureDirection(Directions entryDirToVertex, Directions dirToTarget) {
             if ( (dirToTarget & entryDirToVertex) == dirToTarget) {
@@ -237,15 +227,13 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             }
         }
 
-        internal static IEnumerable<Point> RestorePath(VertexEntry entry) {
-            return RestorePath(ref entry, null);
-        }
+        internal static IEnumerable<Point> RestorePath(VertexEntry entry) => RestorePath(ref entry, null);
 
         internal static IEnumerable<Point> RestorePath(ref VertexEntry entry, VisibilityVertex firstVertexInStage) {
             if (entry == null) {
                 return null;
             }
-            var list = new List<Point>();
+            List<Point> list = new List<Point>();
             bool skippedCollinearEntry = false;
             Directions lastEntryDir = Directions. None;
             while (true) {
@@ -258,7 +246,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                     lastEntryDir = entry.Direction;
                 }
 
-                var previousEntry = entry.PreviousEntry;
+                VertexEntry previousEntry = entry.PreviousEntry;
                 if ((previousEntry == null) || (entry.Vertex == firstVertexInStage)) {
                     break;
                 }
@@ -273,32 +261,31 @@ namespace Microsoft.AGL.Routing.Rectilinear {
 
         #region TEST_MSAGL
 #if TEST_MSAGL
-// ReSharper disable UnusedMember.Local
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "len"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "newEntry"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "nbend"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "iters"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "hcost"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "ccost"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals", MessageId = "so"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals", MessageId = "q"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals", MessageId = "edges"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1303:Do not pass literals as localized parameters", MessageId = "System.Console.WriteLine(System.String,System.Object[])"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
+        // ReSharper disable UnusedMember.Local
         private void TestShowAllPaths(VisibilityVertex source, VertexEntry mostRecentlyExtendedPath) {
-// ReSharper restore UnusedMember.Local
-            var edges = GetAllEdgesTest(source).Select(e => (ICurve) (new LineSegment(e.SourcePoint, e.TargetPoint))).
+            // ReSharper restore UnusedMember.Local
+            IEnumerable<DebugCurve> edges = GetAllEdgesTest(source).Select(e => (ICurve) (new LineSegment(e.SourcePoint, e.TargetPoint))).
                         Select(c => new DebugCurve(c));
-            var q = queue.Select(ent => CurveFactory.CreateDiamond(2, 2, ent.Vertex.Point)).Select(c => new DebugCurve(c));
-            var so = new[] {
+            IEnumerable<DebugCurve> q = queue.Select(ent => CurveFactory.CreateDiamond(2, 2, ent.Vertex.Point)).Select(c => new DebugCurve(c));
+            DebugCurve[] so = new[] {
                               new DebugCurve(1, "brown", new Ellipse(3, 3, source.Point)),
                               new DebugCurve(1, "purple", CurveFactory.CreateDiamond(4, 4, Target.Point)),
                               new DebugCurve(1, "red", CurveFactory.CreateDiamond(6, 6, mostRecentlyExtendedPath.Vertex.Point))
                           };
 
-            var pathEdges = new List<DebugCurve>();
-            var newEntries = new List<VertexEntry>();
-            var count = this.visitedVertices.Count;
+            List<DebugCurve> pathEdges = new List<DebugCurve>();
+            List<VertexEntry> newEntries = new List<VertexEntry>();
+            int count = visitedVertices.Count;
             for (int ii = 0; ii < count; ++ii) {
-                var vertex = this.visitedVertices[ii];
+                VisibilityVertexRectilinear vertex = visitedVertices[ii];
                 if (vertex.VertexEntries == null) {
                     continue;   // this is the source vertex
                 }
-                foreach (var entry in vertex.VertexEntries) {
+                foreach (VertexEntry entry in vertex.VertexEntries) {
                     if (entry == null) {
                         continue;
                     }
-                    var color = "green";
+                    string color = "green";
                     if (entry.PreviousEntry == mostRecentlyExtendedPath) {
                         newEntries.Add(entry);
                         color = "red";
@@ -309,43 +296,42 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                 }
             }
             Console.WriteLine("entry {0} seq = {1} len = {2} nbend = {3} ccost = {4} hcost = {5} iters = {6}/{7}", mostRecentlyExtendedPath,
-                             this.lastDequeueTimestamp,
+                             lastDequeueTimestamp,
                              mostRecentlyExtendedPath.Length, mostRecentlyExtendedPath.NumberOfBends,
-                             this.CombinedCost(mostRecentlyExtendedPath.Length, mostRecentlyExtendedPath.NumberOfBends),
-                             this.HeuristicDistanceFromVertexToTarget(mostRecentlyExtendedPath.Vertex.Point, mostRecentlyExtendedPath.Direction),
-                             this.currentIterations, totalIterations);
-            foreach (var newEntry in newEntries) {
+                             CombinedCost(mostRecentlyExtendedPath.Length, mostRecentlyExtendedPath.NumberOfBends),
+                             HeuristicDistanceFromVertexToTarget(mostRecentlyExtendedPath.Vertex.Point, mostRecentlyExtendedPath.Direction),
+                             currentIterations, totalIterations);
+            foreach (VertexEntry newEntry in newEntries) {
                 Console.WriteLine("   newEntry {0} len = {1} nbend = {2} ccost = {3} hcost = {4}", newEntry,
                                  newEntry.Length, newEntry.NumberOfBends,
-                                 this.CombinedCost(newEntry.Length, newEntry.NumberOfBends),
-                                 this.HeuristicDistanceFromVertexToTarget(newEntry.Vertex.Point, newEntry.Direction));
+                                 CombinedCost(newEntry.Length, newEntry.NumberOfBends),
+                                 HeuristicDistanceFromVertexToTarget(newEntry.Vertex.Point, newEntry.Direction));
             }
             DevTraceDisplay(edges.Concat(q).Concat(so).Concat(pathEdges));
         }
 
-// ReSharper disable UnusedMember.Local
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "len"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "nbend"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "iters"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals", MessageId = "so"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals", MessageId = "pathEdges"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals", MessageId = "edges"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1303:Do not pass literals as localized parameters", MessageId = "System.Console.WriteLine(System.String,System.Object[])"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
+        // ReSharper disable UnusedMember.Local
         private void TestShowPath(VisibilityVertex source, IEnumerable<Point> pathPoints, double cost, double length, int numberOfBends) {
-// ReSharper restore UnusedMember.Local
-            var edges = GetAllEdgesTest(source).Select(e => (ICurve) (new LineSegment(e.SourcePoint, e.TargetPoint))).
+            // ReSharper restore UnusedMember.Local
+            IEnumerable<DebugCurve> edges = GetAllEdgesTest(source).Select(e => (ICurve) (new LineSegment(e.SourcePoint, e.TargetPoint))).
                         Select(c => new DebugCurve(c));
-            var so = new[] {
+            DebugCurve[] so = new[] {
                               new DebugCurve(1, "brown", new Ellipse(3, 3, source.Point)),
                               new DebugCurve(1, "purple", CurveFactory.CreateDiamond(4, 4, Target.Point)),
                           };
 
             List<DebugCurve> pathEdges = GetPathEdgeDebugCurves(pathPoints, "green");
             Console.WriteLine("path {0} -> {1} cost = {2} len = {3} nbend = {4} iters = {5}/{6}",
-                            source.Point, this.Target.Point, cost, length, numberOfBends, this.currentIterations, totalIterations);
+                            source.Point, Target.Point, cost, length, numberOfBends, currentIterations, totalIterations);
             DevTraceDisplay(edges.Concat(so).Concat(pathEdges));
         }
 
         internal static List<DebugCurve> GetPathEdgeDebugCurves(IEnumerable<Point> pathPoints, string color) {
-            var pathEdges = new List<DebugCurve>();
+            List<DebugCurve> pathEdges = new List<DebugCurve>();
             if (pathPoints != null) {
                 bool first = true;
-                var prevPoint = new Point();
-                foreach (var point in pathPoints) {
+                Point prevPoint = new Point();
+                foreach (Point point in pathPoints) {
                     if (first) {
                         prevPoint = point;
                         first = false;
@@ -358,39 +344,38 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             return pathEdges;
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         private IEnumerable<VisibilityEdge> GetAllEdgesTest(VisibilityVertex vertex) {
-            var processedVertices = new Set<VisibilityVertex>();
-            var q = new Queue<VisibilityVertex>();
+            Set<VisibilityVertex> processedVertices = new Set<VisibilityVertex>();
+            Queue<VisibilityVertex> q = new Queue<VisibilityVertex>();
             q.Enqueue(vertex);
 
             // Target may not be connected to source.
-            bool targetFound = (vertex == this.Target);
+            bool targetFound = (vertex == Target);
             while (!targetFound) {
                 while (q.Count > 0) {
                     VisibilityVertex v = q.Dequeue();
                     if (processedVertices.Contains(v)) {
                         continue;
                     }
-                    targetFound |= (v == this.Target);
+                    targetFound |= (v == Target);
                     processedVertices.Insert(v);
-                    foreach (var u in VertsToGo(v).Where(u => !processedVertices.Contains(u))) {
+                    foreach (VisibilityVertex u in VertsToGo(v).Where(u => !processedVertices.Contains(u))) {
                         q.Enqueue(u);
                     }
                     foreach (VisibilityEdge edge in v.OutEdges) {
                         yield return edge;
                     }
                 }
-                q.Enqueue(this.Target);
+                q.Enqueue(Target);
                 targetFound = true;
             }
         }
 
         private static IEnumerable<VisibilityVertex> VertsToGo(VisibilityVertex visibilityVertex) {
-            foreach (var edge in visibilityVertex.OutEdges) {
+            foreach (VisibilityEdge edge in visibilityVertex.OutEdges) {
                 yield return edge.Target;
             }
-            foreach (var edge in visibilityVertex.InEdges) {
+            foreach (VisibilityEdge edge in visibilityVertex.InEdges) {
                 yield return edge.Source;}
         }
 
@@ -401,45 +386,39 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             // If we have a lower-cost path from bestEntry to entryFromNeighbor.PreviousVertex than the cost of entryFromNeighbor,
             // or bestEntry has degree 1 (it is a dead-end), enqueue a path in the opposite direction (entryFromNeighbor will probably
             // never be extended from this point).
-            int numberOfBends;
-            double length;
-            var neigVer = entryFromNeighbor.PreviousVertex;
-            var dirToNeighbor = GetLengthAndNumberOfBendsToNeighborVertex(bestEntry, neigVer, weight, out numberOfBends, out length);
+            VisibilityVertexRectilinear neigVer = entryFromNeighbor.PreviousVertex;
+            Directions dirToNeighbor = GetLengthAndNumberOfBendsToNeighborVertex(bestEntry, neigVer, weight, out int numberOfBends, out double length);
             if ((CombinedCost(length, numberOfBends) < CombinedCost(entryFromNeighbor.Length, entryFromNeighbor.NumberOfBends))
                     || (bestEntry.Vertex.Degree == 1)) {
-                var cost = this.TotalCostFromSourceToVertex(length, numberOfBends) + HeuristicDistanceFromVertexToTarget(neigVer.Point, dirToNeighbor);
+                double cost = TotalCostFromSourceToVertex(length, numberOfBends) + HeuristicDistanceFromVertexToTarget(neigVer.Point, dirToNeighbor);
                 EnqueueEntry(bestEntry, neigVer, length, numberOfBends, cost);
             }
         }
         
         private void UpdateEntryToNeighborVertexIfNeeded(VertexEntry bestEntry, VertexEntry neigEntry, double weight) {
-            int numberOfBends;
-            double length;
-            var dirToNeighbor = GetLengthAndNumberOfBendsToNeighborVertex(bestEntry, neigEntry.Vertex, weight, out numberOfBends, out length);
+            Directions dirToNeighbor = GetLengthAndNumberOfBendsToNeighborVertex(bestEntry, neigEntry.Vertex, weight, out int numberOfBends, out double length);
             if (CombinedCost(length, numberOfBends) < CombinedCost(neigEntry.Length, neigEntry.NumberOfBends)) {
-                var newCost = this.TotalCostFromSourceToVertex(length, numberOfBends) + HeuristicDistanceFromVertexToTarget(neigEntry.Vertex.Point, dirToNeighbor);
+                double newCost = TotalCostFromSourceToVertex(length, numberOfBends) + HeuristicDistanceFromVertexToTarget(neigEntry.Vertex.Point, dirToNeighbor);
                 neigEntry.ResetEntry(bestEntry, length, numberOfBends, newCost);
                 queue.DecreasePriority(neigEntry, newCost);
             }
         }
 
         private void CreateAndEnqueueEntryToNeighborVertex(VertexEntry bestEntry, VisibilityVertexRectilinear neigVer, double weight) {
-            int numberOfBends;
-            double length;
-            var dirToNeighbor = GetLengthAndNumberOfBendsToNeighborVertex(bestEntry, neigVer, weight, out numberOfBends, out length);
-            var cost = this.TotalCostFromSourceToVertex(length, numberOfBends) + HeuristicDistanceFromVertexToTarget(neigVer.Point, dirToNeighbor);
-            if (cost < this.upperBoundOnCost) {
+            Directions dirToNeighbor = GetLengthAndNumberOfBendsToNeighborVertex(bestEntry, neigVer, weight, out int numberOfBends, out double length);
+            double cost = TotalCostFromSourceToVertex(length, numberOfBends) + HeuristicDistanceFromVertexToTarget(neigVer.Point, dirToNeighbor);
+            if (cost < upperBoundOnCost) {
                 if (neigVer.VertexEntries == null) {
-                    this.visitedVertices.Add(neigVer);
+                    visitedVertices.Add(neigVer);
                 }
                 EnqueueEntry(bestEntry, neigVer, length, numberOfBends, cost);
             }
         }
 
         private void EnqueueEntry(VertexEntry bestEntry, VisibilityVertexRectilinear neigVer, double length, int numberOfBends, double cost) {
-            var entry = new VertexEntry(neigVer, bestEntry, length, numberOfBends, cost);
+            VertexEntry entry = new VertexEntry(neigVer, bestEntry, length, numberOfBends, cost);
             neigVer.SetVertexEntry(entry);
-            this.queue.Enqueue(entry, entry.Cost);
+            queue.Enqueue(entry, entry.Cost);
         }
 
         private static Directions GetLengthAndNumberOfBendsToNeighborVertex(VertexEntry prevEntry, 
@@ -453,32 +432,30 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             return directionToVertex;
         }
 
-        internal static double ManhattanDistance(Point a, Point b) {
-            return Math.Abs(b.X - a.X) + Math.Abs(b.Y - a.Y);
-        }
+        internal static double ManhattanDistance(Point a, Point b) => Math.Abs(b.X - a.X) + Math.Abs(b.Y - a.Y);
 
         internal VertexEntry GetPathWithCost(VertexEntry[] sourceVertexEntries, VisibilityVertexRectilinear source, double adjustmentToSourceCost,
                                              VertexEntry[] targetVertexEntries, VisibilityVertexRectilinear target, double adjustmentToTargetCost, 
                                              double priorBestCost) {
-            this.upperBoundOnCost = priorBestCost;
-            this.sourceCostAdjustment = adjustmentToSourceCost;
-            this.targetCostAdjustment = adjustmentToTargetCost;
+            upperBoundOnCost = priorBestCost;
+            sourceCostAdjustment = adjustmentToSourceCost;
+            targetCostAdjustment = adjustmentToTargetCost;
 
             DevTracePrintSourceAndTarget(source, target);
             if (!InitPath(sourceVertexEntries, source, target)) {
-                this.DevTraceShowPath(source, null);
+                DevTraceShowPath(source, null);
                 return null;
             }
 #if TEST_MSAGL
-            this.DevTraceShowAllPartialPaths(source, queue.Peek());
+            DevTraceShowAllPartialPaths(source, queue.Peek());
 #endif // TEST_MSAGL
 
             while (queue.Count > 0) {
-                this.TestPreDequeue();
-                var bestEntry = queue.Dequeue();
-                var bestVertex = bestEntry.Vertex;
+                TestPreDequeue();
+                VertexEntry bestEntry = queue.Dequeue();
+                VisibilityVertexRectilinear bestVertex = bestEntry.Vertex;
                 if (bestVertex == Target) {
-                    this.DevTraceShowPath(source, bestEntry);
+                    DevTraceShowPath(source, bestEntry);
                     if (targetVertexEntries == null) {
                         Cleanup();
                         return bestEntry;
@@ -487,13 +464,13 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                     // We'll never get a duplicate entry direction here; we either relaxed the cost via UpdateEntryToNeighborIfNeeded
                     // before we dequeued it, or it was closed.  So, we simply remove the direction from the valid target entry directions
                     // and if we get to none, we're done.  We return a null path until the final stage.
-                    this.EntryDirectionsToTarget &= ~bestEntry.Direction;
-                    if (this.EntryDirectionsToTarget == Directions. None) {
-                        this.Target.VertexEntries.CopyTo(targetVertexEntries, 0); 
+                    EntryDirectionsToTarget &= ~bestEntry.Direction;
+                    if (EntryDirectionsToTarget == Directions. None) {
+                        Target.VertexEntries.CopyTo(targetVertexEntries, 0); 
                         Cleanup();
                         return null;
                     }
-                    this.upperBoundOnCost = Math.Min(this.MultistageAdjustedCostBound(bestEntry.Cost), this.upperBoundOnCost);
+                    upperBoundOnCost = Math.Min(MultistageAdjustedCostBound(bestEntry.Cost), upperBoundOnCost);
                     continue;
                 }
 
@@ -503,25 +480,25 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                 bestEntry.IsClosed = true;
 
                 // PerfNote: Array.ForEach is optimized, but don't use .Where.
-                foreach (var bendNeighbor in this.nextNeighbors) {
+                foreach (NextNeighbor bendNeighbor in nextNeighbors) {
                     bendNeighbor.Clear();
                 }
-                var preferredBendDir = Right(bestEntry.Direction);
-                this.ExtendPathAlongInEdges(bestEntry, bestVertex.InEdges, preferredBendDir);
-                this.ExtendPathAlongOutEdges(bestEntry, bestVertex.OutEdges, preferredBendDir);
-                foreach (var bendNeighbor in this.nextNeighbors) {
+                Directions preferredBendDir = Right(bestEntry.Direction);
+                ExtendPathAlongInEdges(bestEntry, bestVertex.InEdges, preferredBendDir);
+                ExtendPathAlongOutEdges(bestEntry, bestVertex.OutEdges, preferredBendDir);
+                foreach (NextNeighbor bendNeighbor in nextNeighbors) {
                     if (bendNeighbor.Vertex != null) {
-                        this.ExtendPathToNeighborVertex(bestEntry, bendNeighbor.Vertex, bendNeighbor.Weight);
+                        ExtendPathToNeighborVertex(bestEntry, bendNeighbor.Vertex, bendNeighbor.Weight);
                     }
                 }
-                this.DevTraceShowAllPartialPaths(source, bestEntry);
+                DevTraceShowAllPartialPaths(source, bestEntry);
             }
 
             // Either there is no path to the target, or we have abandoned the path due to exceeding priorBestCost.
-            if ((targetVertexEntries != null) && (this.Target.VertexEntries != null)) {
-                this.Target.VertexEntries.CopyTo(targetVertexEntries, 0);
+            if ((targetVertexEntries != null) && (Target.VertexEntries != null)) {
+                Target.VertexEntries.CopyTo(targetVertexEntries, 0);
             }
-            this.DevTraceShowPath(source, null);
+            DevTraceShowPath(source, null);
             Cleanup();
             return null;
         }
@@ -530,14 +507,14 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             // Iteration is faster than foreach and much faster than .Where.
             int count = edges.Count;
             for (int ii = 0; ii < count; ++ii) {
-                var edge = edges[ii];
+                VisibilityEdge edge = edges[ii];
                 ExtendPathAlongEdge(bestEntry, edge, true, preferredBendDir);
             }
         }
 
         private void ExtendPathAlongOutEdges(VertexEntry bestEntry, RbTree<VisibilityEdge> edges, Directions preferredBendDir) {
             // Avoid GetEnumerator overhead.
-            var outEdgeNode = edges.IsEmpty() ? null : edges.TreeMinimum();
+            RBNode<VisibilityEdge> outEdgeNode = edges.IsEmpty() ? null : edges.TreeMinimum();
             for (; outEdgeNode != null; outEdgeNode = edges.Next(outEdgeNode)) {
                 ExtendPathAlongEdge(bestEntry, outEdgeNode.Item, false, preferredBendDir);
             }
@@ -549,60 +526,60 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             }
 
             // This is after the initial source vertex so PreviousEntry won't be null.
-            var neigVer = (VisibilityVertexRectilinear)(isInEdges ? edge.Source : edge.Target);
+            VisibilityVertexRectilinear neigVer = (VisibilityVertexRectilinear)(isInEdges ? edge.Source : edge.Target);
             if (neigVer == bestEntry.PreviousVertex) {
                 // For multistage paths, the source may be a waypoint outside the graph boundaries that is collinear
                 // with both the previous and next points in the path; in that case it may have only one degree.
                 // For other cases, we just ignore it and the path will be abandoned.
-                if ((bestEntry.Vertex.Degree > 1) || (bestEntry.Vertex != this.Source)) {
+                if ((bestEntry.Vertex.Degree > 1) || (bestEntry.Vertex != Source)) {
                     return;
                 }
-                this.ExtendPathToNeighborVertex(bestEntry, neigVer, edge.Weight);
+                ExtendPathToNeighborVertex(bestEntry, neigVer, edge.Weight);
                 return;
             }
 
             // Enqueue in reverse order of preference per comments on NextNeighbor class.
-            var neigDir = CompassVector.PureDirectionFromPointToPoint(bestEntry.Vertex.Point, neigVer.Point);
-            var nextNeighbor = this.nextNeighbors[2];
+            Directions neigDir = CompassVector.PureDirectionFromPointToPoint(bestEntry.Vertex.Point, neigVer.Point);
+            NextNeighbor nextNeighbor = nextNeighbors[2];
             if (neigDir != bestEntry.Direction) {
-                nextNeighbor = this.nextNeighbors[(neigDir == preferredBendDir) ? 1 : 0];
+                nextNeighbor = nextNeighbors[(neigDir == preferredBendDir) ? 1 : 0];
             }
             Debug.Assert(nextNeighbor.Vertex == null, "bend neighbor already exists");
             nextNeighbor.Set(neigVer, edge.Weight);
         }
 
         private void EnqueueInitialVerticesFromSource(double cost) {
-            var bestEntry = new VertexEntry(this.Source, null, 0, 0, cost) {
+            VertexEntry bestEntry = new VertexEntry(Source, null, 0, 0, cost) {
                 IsClosed = true
             };
 
             // This routine is only called once so don't worry about optimizing foreach.where
-            foreach (var edge in this.Source.OutEdges.Where(IsPassable)) {
-                this.ExtendPathToNeighborVertex(bestEntry, (VisibilityVertexRectilinear)edge.Target, edge.Weight);
+            foreach (VisibilityEdge edge in Source.OutEdges.Where(IsPassable)) {
+                ExtendPathToNeighborVertex(bestEntry, (VisibilityVertexRectilinear)edge.Target, edge.Weight);
             }
-            foreach (var edge in this.Source.InEdges.Where(IsPassable)) {
-                this.ExtendPathToNeighborVertex(bestEntry, (VisibilityVertexRectilinear)edge.Source, edge.Weight);
+            foreach (VisibilityEdge edge in Source.InEdges.Where(IsPassable)) {
+                ExtendPathToNeighborVertex(bestEntry, (VisibilityVertexRectilinear)edge.Source, edge.Weight);
             }
         }
 
         private void EnqueueInitialVerticesFromSourceEntries(VertexEntry[] sourceEntries) {
-            foreach (var entry in sourceEntries) {
+            foreach (VertexEntry entry in sourceEntries) {
                 if (entry != null) {
-                    this.queue.Enqueue(entry, entry.Cost);
+                    queue.Enqueue(entry, entry.Cost);
                 }
             }
         }
 
         private void ExtendPathToNeighborVertex(VertexEntry bestEntry, VisibilityVertexRectilinear neigVer, double weight) {
-            var dirToNeighbor = CompassVector.PureDirectionFromPointToPoint(bestEntry.Vertex.Point, neigVer.Point);
+            Directions dirToNeighbor = CompassVector.PureDirectionFromPointToPoint(bestEntry.Vertex.Point, neigVer.Point);
 
-            var neigEntry = (neigVer.VertexEntries != null) ? neigVer.VertexEntries[CompassVector.ToIndex(dirToNeighbor)] : null;
+            VertexEntry neigEntry = (neigVer.VertexEntries != null) ? neigVer.VertexEntries[CompassVector.ToIndex(dirToNeighbor)] : null;
             if (neigEntry == null) {
-                if (!this.CreateAndEnqueueReversedEntryToNeighborVertex(bestEntry, neigVer, weight)) {
-                    this.CreateAndEnqueueEntryToNeighborVertex(bestEntry, neigVer, weight);
+                if (!CreateAndEnqueueReversedEntryToNeighborVertex(bestEntry, neigVer, weight)) {
+                    CreateAndEnqueueEntryToNeighborVertex(bestEntry, neigVer, weight);
                 }
             } else if (!neigEntry.IsClosed) {
-                this.UpdateEntryToNeighborVertexIfNeeded(bestEntry, neigEntry, weight);
+                UpdateEntryToNeighborVertexIfNeeded(bestEntry, neigEntry, weight);
             }
         }
 
@@ -615,30 +592,28 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             // the target.  So, if we score better going in the opposite direction, enqueue bestEntry->neigVer; ignore
             // neigVer->bestEntry as it probably won't be extended again.
             if (bestEntry.Vertex.VertexEntries != null) {
-                var dirFromNeighbor = CompassVector.PureDirectionFromPointToPoint(neigVer.Point, bestEntry.Vertex.Point);
-                var entryFromNeighbor = bestEntry.Vertex.VertexEntries[CompassVector.ToIndex(dirFromNeighbor)];
+                Directions dirFromNeighbor = CompassVector.PureDirectionFromPointToPoint(neigVer.Point, bestEntry.Vertex.Point);
+                VertexEntry entryFromNeighbor = bestEntry.Vertex.VertexEntries[CompassVector.ToIndex(dirFromNeighbor)];
                 if (entryFromNeighbor != null) {
                     Debug.Assert(entryFromNeighbor.PreviousVertex == neigVer, "mismatch in turnback PreviousEntry");
                     Debug.Assert(entryFromNeighbor.PreviousEntry.IsClosed, "turnback PreviousEntry should be closed");
-                    this.QueueReversedEntryToNeighborVertexIfNeeded(bestEntry, entryFromNeighbor, weight);
+                    QueueReversedEntryToNeighborVertexIfNeeded(bestEntry, entryFromNeighbor, weight);
                     return true;
                 }
             }
             return false;
         }
 
-        private static bool IsPassable(VisibilityEdge edge) {
-            return edge.IsPassable == null || edge.IsPassable();
-        }
+        private static bool IsPassable(VisibilityEdge edge) => edge.IsPassable == null || edge.IsPassable();
 
         private void Cleanup()
         {
-            foreach (var v in this.visitedVertices) {
+            foreach (VisibilityVertexRectilinear v in visitedVertices) {
                 v.RemoveVertexEntries();
             }
-            this.visitedVertices.Clear();
-            this.queue = null;
-            this.TestClearIterations();
+            visitedVertices.Clear();
+            queue = null;
+            TestClearIterations();
         }
 
         #region DevTrace
@@ -648,7 +623,6 @@ namespace Microsoft.AGL.Routing.Rectilinear {
 #endif // DEVTRACE
 
         [Conditional("DEVTRACE")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         void DevTraceShowAllPartialPaths(VisibilityVertex source, VertexEntry mostRecentlyExtendedPath) { 
 #if DEVTRACE
             if (ssstTrace.IsLevel(3))
@@ -659,7 +633,6 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         }
 
         [Conditional("DEVTRACE")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         private void DevTraceShowPath(VisibilityVertex source, VertexEntry lastEntry) {
 #if DEVTRACE
             if (ssstTrace.IsLevel(1)) {
@@ -674,7 +647,6 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         }
 
         [Conditional("DEVTRACE")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         private void DevTracePrintSourceAndTarget(VisibilityVertex source, VisibilityVertex target) {
 #if DEVTRACE
             if (ssstTrace.IsLevel(2))
@@ -689,7 +661,6 @@ namespace Microsoft.AGL.Routing.Rectilinear {
 
 #if TEST_MSAGL
         [Conditional("DEVTRACE")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         private static void DevTraceDisplay(IEnumerable<DebugCurve> debugCurves)
         {
 #if DEVTRACE
@@ -705,21 +676,19 @@ namespace Microsoft.AGL.Routing.Rectilinear {
 #if TEST_MSAGL
         private int currentIterations;
         private static int totalIterations;
-        private UInt64 lastDequeueTimestamp;
+        private ulong lastDequeueTimestamp;
 #endif // TEST_MSAGL
 
         [Conditional("TEST_MSAGL")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         private void TestPreDequeue() {
 #if TEST_MSAGL
             ++currentIterations;
             ++totalIterations;
-            this.lastDequeueTimestamp = this.queue.PeekTimestamp();
+            lastDequeueTimestamp = queue.PeekTimestamp();
 #endif // TEST_MSAGL
         }
 
         [Conditional("TEST_MSAGL")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         private void TestClearIterations() {
 #if TEST_MSAGL
             currentIterations = 0;

@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace MermaidRecognition.State;
+namespace MermaidRecognition.Kinds.State;
 
 /// <summary>
 /// Extracts state identifiers, descriptions, and pseudo-state types from state declaration lines.

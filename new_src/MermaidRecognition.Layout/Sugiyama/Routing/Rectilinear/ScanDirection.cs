@@ -33,8 +33,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             OppositeDirection = CompassVector.OppositeDir(directionAlongScanLine);
         }
 
-        internal bool IsHorizontal { get { return Directions.East == Direction; } }
-        internal bool IsVertical { get { return Directions.North == Direction; } }
+        internal bool IsHorizontal => Directions.East == Direction;
+        internal bool IsVertical => Directions.North == Direction;
 
         // Compare in perpendicular direction first, then parallel direction.
         internal int Compare(Point lhs, Point rhs) {
@@ -42,68 +42,40 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             return (0 != cmp) ? cmp : CompareScanCoord(lhs, rhs);
         }
 
-        internal int CompareScanCoord(Point lhs, Point rhs) {
-            return PointComparer.Compare((lhs - rhs) * DirectionAsPoint, 0.0);
-        }
-        internal int ComparePerpCoord(Point lhs, Point rhs) {
-            return PointComparer.Compare((lhs - rhs) * PerpDirectionAsPoint, 0.0);
-        }
+        internal int CompareScanCoord(Point lhs, Point rhs) => PointComparer.Compare((lhs - rhs) * DirectionAsPoint, 0.0);
+        internal int ComparePerpCoord(Point lhs, Point rhs) => PointComparer.Compare((lhs - rhs) * PerpDirectionAsPoint, 0.0);
 
-        internal bool IsEqualScanCoord(Point first, Point second) {
-            return 0 == CompareScanCoord(first, second);
-        }
-        internal bool IsEqualPerpCoord(Point first, Point second) {
-            return 0 == ComparePerpCoord(first, second);
-        }
+        internal bool IsEqualScanCoord(Point first, Point second) => 0 == CompareScanCoord(first, second);
+        internal bool IsEqualPerpCoord(Point first, Point second) => 0 == ComparePerpCoord(first, second);
 
-        internal bool IsFlat(SegmentBase seg) {
-            return IsFlat(seg.Start, seg.End);
-        }
-        internal bool IsFlat(Point start, Point end) {
+        internal bool IsFlat(SegmentBase seg) => IsFlat(seg.Start, seg.End);
+        internal bool IsFlat(Point start, Point end) =>
             // Return true if there is no change in the perpendicular direction.
-            return PointComparer.Equal((end - start) * PerpDirectionAsPoint, 0.0);
-        }
-        internal bool IsPerpendicular(SegmentBase seg) {
-            return IsPerpendicular(seg.Start, seg.End);
-        }
-        internal bool IsPerpendicular(Point start, Point end) {
+            PointComparer.Equal((end - start) * PerpDirectionAsPoint, 0.0);
+        internal bool IsPerpendicular(SegmentBase seg) => IsPerpendicular(seg.Start, seg.End);
+        internal bool IsPerpendicular(Point start, Point end) =>
             // Return true if there is no change in the primary direction.
-            return PointComparer.Equal((end - start) * DirectionAsPoint, 0.0);
-        }
+            PointComparer.Equal((end - start) * DirectionAsPoint, 0.0);
 
-        internal Point Mask(Point point) {
-            return new Point(point.X * DirectionAsPoint.X, point.Y * DirectionAsPoint.Y);
-        }
-        internal Point PerpMask(Point point) {
-            return new Point(point.X * PerpDirectionAsPoint.X, point.Y * PerpDirectionAsPoint.Y);
-        }
+        internal Point Mask(Point point) => new Point(point.X * DirectionAsPoint.X, point.Y * DirectionAsPoint.Y);
+        internal Point PerpMask(Point point) => new Point(point.X * PerpDirectionAsPoint.X, point.Y * PerpDirectionAsPoint.Y);
 
-        internal double Coord(Point point) {
-            return point * DirectionAsPoint;
-        }
-        internal double PerpCoord(Point point) {
-            return point * PerpDirectionAsPoint;
-        }
+        internal double Coord(Point point) => point * DirectionAsPoint;
+        internal double PerpCoord(Point point) => point * PerpDirectionAsPoint;
 
-        internal Point Min(Point first, Point second) {
-            return (Compare(first, second) <= 0) ? first : second;
-        }
-        internal Point Max(Point first, Point second) {
-            return (Compare(first, second) >= 0) ? first : second;
-        }
+        internal Point Min(Point first, Point second) => (Compare(first, second) <= 0) ? first : second;
+        internal Point Max(Point first, Point second) => (Compare(first, second) >= 0) ? first : second;
 
-// ReSharper disable InconsistentNaming
+        // ReSharper disable InconsistentNaming
         private static readonly ScanDirection horizontalInstance = new ScanDirection(Directions.East);
         private static readonly ScanDirection verticalInstance = new ScanDirection(Directions.North);
-// ReSharper restore InconsistentNaming
-        internal static ScanDirection HorizontalInstance { get { return horizontalInstance; } }
-        internal static ScanDirection VerticalInstance { get { return verticalInstance; } }
-        internal ScanDirection PerpendicularInstance { get { return IsHorizontal ? VerticalInstance : HorizontalInstance; } }
-        static internal ScanDirection GetInstance(Directions dir) { return StaticGraphUtility.IsVertical(dir) ? VerticalInstance : HorizontalInstance; }
+        // ReSharper restore InconsistentNaming
+        internal static ScanDirection HorizontalInstance => horizontalInstance;
+        internal static ScanDirection VerticalInstance => verticalInstance;
+        internal ScanDirection PerpendicularInstance => IsHorizontal ? VerticalInstance : HorizontalInstance;
+        static internal ScanDirection GetInstance(Directions dir) => StaticGraphUtility.IsVertical(dir) ? VerticalInstance : HorizontalInstance;
 
         /// <summary/>
-        public override string ToString() {
-            return Direction.ToString();
-        }
+        public override string ToString() => Direction.ToString();
     }
 }

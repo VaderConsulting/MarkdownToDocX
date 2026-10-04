@@ -1,4 +1,4 @@
-namespace MermaidRecognition.Flowchart;
+namespace MermaidRecognition.Kinds.Flowchart;
 
 /// <summary>
 /// Normalises flowchart labels when bracket contents use Mermaid quoted delimiter syntax.

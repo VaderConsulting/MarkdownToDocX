@@ -99,9 +99,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
         /// <param name="epsilon"></param>
         /// <returns></returns>
         public static double[] SolveConjugateGradient(SparseMatrix A, double[] b, double[] x, int iMax,
-                                                      double epsilon) {
-            return SolveConjugateGradient(A, new Vector(b), new Vector((double[]) x.Clone()), iMax, epsilon).array;
-        }
+                                                      double epsilon) => SolveConjugateGradient(A, new Vector(b), new Vector((double[])x.Clone()), iMax, epsilon).array;
 
         /// <summary>
         ///     Preconditioned Conjugate Gradient method, where the preconditioner M is the diagonal of A (Jacobi Preconditioner), <seealso cref="SolvePrecondConjugateGradient(MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval.ConjugateGradient.SparseMatrix,MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval.ConjugateGradient.Vector,MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval.ConjugateGradient.Vector,int,double)"/>
@@ -113,24 +111,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
         /// <param name="epsilon"></param>
         /// <returns></returns>
         public static double[] SolvePrecondConjugateGradient(SparseMatrix A, double[] b, double[] x, int iMax,
-                                                             double epsilon) {
-            return
-                SolvePrecondConjugateGradient(A, new Vector(b), new Vector((double[]) x.Clone()), iMax, epsilon).array;
-        }
+                                                             double epsilon) => SolvePrecondConjugateGradient(A, new Vector(b), new Vector((double[])x.Clone()), iMax, epsilon).array;
 
         /// <summary>
         /// </summary>
         public static void TestConjugateGradientMethod() {
             //matrix A={{4,1}{1,3}}
 
-            var values = new double[4] {4, 1, 1, 3};
-            var col_ind = new int[4] {0, 1, 0, 1};
-            var row_ptr = new int[3] {0, 2, 4};
+            double[] values = new double[4] {4, 1, 1, 3};
+            int[] col_ind = new int[4] {0, 1, 0, 1};
+            int[] row_ptr = new int[3] {0, 2, 4};
 
-            var b = new double[2] {1, 2};
+            double[] b = new double[2] {1, 2};
 
-            var xStart = new double[2] {2, 1};
-            var A = new SparseMatrix(values, col_ind, row_ptr, 2);
+            double[] xStart = new double[2] {2, 1};
+            SparseMatrix A = new SparseMatrix(values, col_ind, row_ptr, 2);
 
             double[] res = SolveConjugateGradient(A, b, xStart, 1000, 1E-4);
             Console.WriteLine("Solution: x: {0}, y={1}", res[0], res[1]);
@@ -141,7 +136,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
         /// <summary>
         /// </summary>
         public static void TestConjugateGradientMethod2() {
-            var values = new double[28] {
+            double[] values = new double[28] {
                 4, 1,
                 1, 16, 1,
                 1, 64, 1,
@@ -153,7 +148,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
                 1, 262144, 1,
                 1, 1048576
             };
-            var colInd = new int[28] {
+            int[] colInd = new int[28] {
                 0, 1,
                 0, 1, 2,
                 1, 2, 3,
@@ -165,11 +160,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
                 7, 8, 9,
                 8, 9
             };
-            var rowPtr = new int[11] {0, 2, 5, 8, 11, 14, 17, 20, 23, 26, 28};
+            int[] rowPtr = new int[11] {0, 2, 5, 8, 11, 14, 17, 20, 23, 26, 28};
 
-            var A = new SparseMatrix(values, colInd, rowPtr, rowPtr.Length - 1);
+            SparseMatrix A = new SparseMatrix(values, colInd, rowPtr, rowPtr.Length - 1);
 
-            var b = new double[10] {5, 18, 66, 258, 1026, 4098, 16386, 65538, 262146, 1048577};
+            double[] b = new double[10] {5, 18, 66, 258, 1026, 4098, 16386, 65538, 262146, 1048577};
 
             double[] result1 = SolvePrecondConjugateGradient(A, b, new double[10], 1000, 1E-6);
             string res = result1.Aggregate("", (s, t) => string.Format("{0},\t{1}", s, t));

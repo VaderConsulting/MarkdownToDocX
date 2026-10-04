@@ -51,18 +51,15 @@ namespace Microsoft.AGL.Core.ProjectionSolver
         // The lowest violation in the cache.
         internal double LowViolation { get; private set; }
 
-        internal bool IsFull
-        {
-            get { return this.numConstraints == MaxConstraints; }
-        }
+        internal bool IsFull => numConstraints == MaxConstraints;
 
         internal void Clear()
         {
             LowViolation = 0.0;
-            this.numConstraints = 0;
-            if (null == this.constraints)
+            numConstraints = 0;
+            if (null == constraints)
             {
-                this.constraints = new Constraint[MaxConstraints];
+                constraints = new Constraint[MaxConstraints];
             }
         }
 
@@ -87,10 +84,10 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             // Iterate in reverse to remove constraints belonging to LastModifiedBlock.
             // Note:  Enumerators and .Where are not used because they are much slower.
             LowViolation = double.MaxValue;
-            bool fRet = this.numConstraints > 0;
-            for (int ii = this.numConstraints - 1; ii >= 0; --ii)
+            bool fRet = numConstraints > 0;
+            for (int ii = numConstraints - 1; ii >= 0; --ii)
             {
-                var constraint = this.constraints[ii];
+                Constraint constraint = constraints[ii];
 
                 // Also remove any constraint that may have been activated by MergeBlocks or marked unsatisfiable
                 // by Block.Expand.
@@ -98,11 +95,11 @@ namespace Microsoft.AGL.Core.ProjectionSolver
                 {
                     // If there are any items after this one, then they are ones we want to keep,
                     // so swap in the last one in the array before decrementing the count.
-                    if (ii < (this.numConstraints - 1))
+                    if (ii < (numConstraints - 1))
                     {
-                        this.constraints[ii] = this.constraints[this.numConstraints - 1];
+                        constraints[ii] = constraints[numConstraints - 1];
                     }
-                    --this.numConstraints;
+                    --numConstraints;
                 }
                 else
                 {
@@ -120,7 +117,7 @@ namespace Microsoft.AGL.Core.ProjectionSolver
                     }
                 }
             }
-            if (0 == this.numConstraints)
+            if (0 == numConstraints)
             {
                 LowViolation = 0.0;
             }
@@ -131,9 +128,9 @@ namespace Microsoft.AGL.Core.ProjectionSolver
         internal Constraint FindIfGreater(double targetViolation)
         {
             Constraint maxViolatedConstraint = null;
-            for (int ii = 0; ii < this.numConstraints; ++ii)
+            for (int ii = 0; ii < numConstraints; ++ii)
             {
-                var constraint = this.constraints[ii];
+                Constraint constraint = constraints[ii];
 #if Inline_Violation
                 double violation = constraint.Violation;      // Inline_Violation
 #else  // Inline_Violation
@@ -163,9 +160,9 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             double lowViolation = insertViolation;
             double nextLowViolation = insertViolation;
 
-            for (int ii = 0; ii < this.numConstraints; ++ii)
+            for (int ii = 0; ii < numConstraints; ++ii)
             {
-                var constraint = this.constraints[ii];
+                Constraint constraint = constraints[ii];
 
 #if Inline_Violation
                 double cacheViolation = constraint.Violation;      // Inline_Violation
@@ -194,17 +191,17 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             if (!IsFull)
             {
                 // Add to the cache.
-                this.constraints[this.numConstraints++] = constraintToInsert;
+                constraints[numConstraints++] = constraintToInsert;
                 if (IsFull)
                 {
-                    this.LowViolation = lowViolation;
+                    LowViolation = lowViolation;
                 }
             }
             else
             {
                 // Replace in the cache.
-                this.constraints[indexOfLowestViolation] = constraintToInsert;
-                this.LowViolation = nextLowViolation;
+                constraints[indexOfLowestViolation] = constraintToInsert;
+                LowViolation = nextLowViolation;
             }
 
 #if VERIFY_MIN_CONSTRAINT

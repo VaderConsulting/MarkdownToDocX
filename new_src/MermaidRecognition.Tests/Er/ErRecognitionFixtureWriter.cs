@@ -7,6 +7,7 @@ namespace MermaidRecognition.Tests.Er;
 public sealed class ErRecognitionFixtureWriter
 {
     [Test]
+    [Explicit("Regenerates baseline fixtures; select this test explicitly to update them.")]
     public void Write_All_Er_Fixtures()
     {
         string BaseDir = RecognitionFixturePaths.GetErFixtureDirectory();

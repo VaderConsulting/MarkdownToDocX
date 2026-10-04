@@ -1,13 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using MermaidRecognition.Layout.Sugiyama.Core.DataStructures;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
 using MermaidRecognition.Layout.Sugiyama.Miscellaneous;
 using MermaidRecognition.Layout.Sugiyama.Layout.Incremental;
 
-namespace MermaidRecognition.Layout.Sugiyama.Prototype.MultiScale
+namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.MultiScale
 {
     class MultiScaleLayout
     {
@@ -26,7 +27,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Prototype.MultiScale
             }
             GeometryGraph G = graph;
             // build stack of successively more abridged graphs
-            var GraphStack = new Stack<GeometryGraph>();
+            Stack<GeometryGraph> GraphStack = new Stack<GeometryGraph>();
             while (G.Nodes.Count > 3)
             {
                 GraphStack.Push(G);
@@ -50,17 +51,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Prototype.MultiScale
             double totalGraphCount = GraphStack.Count + 1;
             while (GraphStack.Count > 0)
             {
-                var toCenter = new List<Node>();
-                foreach (var u in G.Nodes)
+                List<Node> toCenter = new List<Node>();
+                foreach (Node u in G.Nodes)
                 {
-                    var v = u.UserData as Node;
-                    if (v != null)
+                    if (u.UserData is Node v)
                     {
                         v.Center = u.Center;
                     }
                     else
                     {
-                        var e = u.UserData as Edge;
+                        Edge? e = u.UserData as Edge;
                         e.Source.Center = e.Target.Center = u.Center;
                         toCenter.Add(e.Source);
                         toCenter.Add(e.Target);
@@ -77,14 +77,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Prototype.MultiScale
         /// <param name="u">node to center</param>
         private static void CenterNode(Node u)
         {
-            var c = u.Center;
+            Point c = u.Center;
             int count = 1;
-            foreach (var e in u.InEdges)
+            foreach (Edge e in u.InEdges)
             {
                 c += e.Source.Center;
                 ++count;
             }
-            foreach (var e in u.OutEdges)
+            foreach (Edge e in u.OutEdges)
             {
                 c += e.Target.Center;
                 ++count;
@@ -102,7 +102,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Prototype.MultiScale
         /// 1 is at the top, 0 at the bottom, controls repulsive force strength and ideal edge length</param>
         private void SimpleLayout(GeometryGraph graph, double level, double edgeLengthMultiplier)
         {
-            var settings = new FastIncrementalLayoutSettings
+            FastIncrementalLayoutSettings settings = new FastIncrementalLayoutSettings
             {
                 MaxIterations = 10,
                 MinorIterations = 3,
@@ -111,15 +111,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Prototype.MultiScale
                     Math.Log(edgeLengthMultiplier * level * 500 + Math.E),
                 InitialStepSize = 0.6
             };
-            foreach (var e in graph.Edges)
+            foreach (Edge e in graph.Edges)
                 e.Length *= Math.Log(level * 500 + Math.E);
             settings.InitializeLayout(graph, settings.MinConstraintLevel);
 
             do
             {
-#pragma warning disable 618
                 LayoutHelpers.CalculateLayout(graph, settings, null);
-#pragma warning restore 618
             } while (settings.Iterations < settings.MaxIterations);
         }
         /// <summary>
@@ -136,24 +134,24 @@ namespace MermaidRecognition.Layout.Sugiyama.Prototype.MultiScale
         private GeometryGraph CreateAbridgedGraph(GeometryGraph graph, double edgeLengthOffset, double edgeLengthMultiplier)
         {
             LayoutAlgorithmHelpers.SetEdgeLengthsProportionalToSymmetricDifference(graph, edgeLengthOffset, edgeLengthMultiplier);
-            var g2 = new GeometryGraph();
-            var nodes = new Set<Node>(graph.Nodes);
-            var rand = new Random(1);
+            GeometryGraph g2 = new GeometryGraph();
+            Set<Node> nodes = new Set<Node>(graph.Nodes);
+            Random rand = new Random(1);
             // edges sorted by increasing weight, edges with the same weight shuffled
-            var edges = (from e in graph.Edges
+            List<Edge> edges = (from e in graph.Edges
                          let r = rand.Next()
                          orderby e.Length, r
                          select e).ToList();
             // mapping from nodes in graph to nodes in g2
             // each node in g2 may represent either 1 or 2 nodes from graph
-            var nodeMap = new Dictionary<Node, Node>();
+            Dictionary<Node, Node> nodeMap = new Dictionary<Node, Node>();
 
             // populate g2 with nodes representing pairs of nodes, paired across the shortest edges first
-            foreach (var e in edges)
+            foreach (Edge? e in edges)
             {
                 if (nodes.Contains(e.Source) && nodes.Contains(e.Target))
                 {
-                    var pairNode = new Node
+                    Node pairNode = new Node
                     {
                         UserData = e
                     };
@@ -165,9 +163,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Prototype.MultiScale
                 }
             }
             // populate g2 with remaining singleton nodes from graph
-            foreach (var u in nodes)
+            foreach (Node u in nodes)
             {
-                var v = new Node
+                Node v = new Node
                 {
                     UserData = u
                 };
@@ -175,17 +173,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Prototype.MultiScale
                 nodeMap[u] = v;
             }
             // populate g2 with edges - no duplicates, reverse duplicates or self edges allowed
-            var neighbours = new Set<KeyValuePair<Node, Node>>();
-            foreach (var e in edges)
+            Set<KeyValuePair<Node, Node>> neighbours = new Set<KeyValuePair<Node, Node>>();
+            foreach (Edge? e in edges)
             {
                 Node u = nodeMap[e.Source], v = nodeMap[e.Target];
-                var pair = new KeyValuePair<Node, Node>(u, v);
-                var raip = new KeyValuePair<Node, Node>(v, u);
+                KeyValuePair<Node, Node> pair = new KeyValuePair<Node, Node>(u, v);
+                KeyValuePair<Node, Node> raip = new KeyValuePair<Node, Node>(v, u);
                 if (pair.Key != pair.Value
                     && !neighbours.Contains(pair)
                     && !neighbours.Contains(raip))
                 {
-                    var e2 = new Edge(u, v) { Length = e.Length };
+                    Edge e2 = new Edge(u, v) { Length = e.Length };
                     neighbours.Insert(pair);
                     g2.Edges.Add(e2);
                 }

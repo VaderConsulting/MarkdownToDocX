@@ -1,4 +1,6 @@
-namespace MermaidRecognition.KindRecognition;
+using MermaidRecognition.Core;
+
+namespace MermaidRecognition.Kinds.LinePattern;
 
 /// <summary>
 /// L1 recogniser for Mermaid-only diagram kinds (no Naiad native render path).

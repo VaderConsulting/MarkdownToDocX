@@ -251,7 +251,7 @@ public sealed class FlowchartRasterMarkerTests
             RegexOptions.CultureInvariant);
         Assert.IsTrue(ArrowMatches.Count >= 2, "Expected inlined arrowheads for Success→End and Error→End.");
 
-        List<double> TipXValues = new List<double>();
+        List<double> TipXValues = [];
         for (int Index = 0; Index < ArrowMatches.Count; Index++)
         {
             Match ArrowMatch = ArrowMatches[Index];

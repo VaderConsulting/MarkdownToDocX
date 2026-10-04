@@ -8,10 +8,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         LinearSystem2() { }
         static double eps = 1.0E-8;
 
-        internal static double Eps {
-            get { return LinearSystem2.eps; }
-         //   set { LinearSystem2.eps = value; }
-        }
+        internal static double Eps => LinearSystem2.eps;
 
         internal static bool Solve(double a00, double a01, double b0, double a10, double a11, double b1, out double x, out double y) {
             double d = a00 * a11 - a10 * a01;

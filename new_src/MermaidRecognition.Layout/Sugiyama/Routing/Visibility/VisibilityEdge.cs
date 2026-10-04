@@ -31,46 +31,34 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         /// </summary>
         internal Func<bool> IsPassable { get; set; }
 
-    
+
         /// <summary>
         /// edge source point
         /// </summary>
-        public Point SourcePoint {
-            get { return Source.Point; }
-        }
+        public Point SourcePoint => Source.Point;
         /// <summary>
         /// edge target point
         /// </summary>
-        public Point TargetPoint {
-            get { return Target.Point; }
-        }
+        public Point TargetPoint => Target.Point;
 
 
         internal VisibilityVertex Source { get; set; }
 
         internal VisibilityVertex Target { get; set; }
 
-        internal double Length {
-            get { return (SourcePoint-TargetPoint).Length*LengthMultiplier; }
-        }
+        internal double Length => (SourcePoint - TargetPoint).Length * LengthMultiplier;
 
-      
+
 
 
         /// <summary>
         /// Rounded representation; DebuggerDisplay shows the unrounded form.
         /// </summary>
         /// <returns></returns>
-        public override string ToString() {
-            return String.Format(CultureInfo.InvariantCulture, "{0}->{1} ({2})", Source, Target, Weight.ToString("0.0###", CultureInfo.InvariantCulture));
-        }
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "{0}->{1} ({2})", Source, Target, Weight.ToString("0.0###", CultureInfo.InvariantCulture));
 
-        internal VisibilityEdge ReversedClone() {
-            return new VisibilityEdge(Target, Source);
-        }
+        internal VisibilityEdge ReversedClone() => new VisibilityEdge(Target, Source);
 
-        internal VisibilityEdge Clone() {
-            return new VisibilityEdge(Source, Target);
-        }
+        internal VisibilityEdge Clone() => new VisibilityEdge(Source, Target);
     }
 }

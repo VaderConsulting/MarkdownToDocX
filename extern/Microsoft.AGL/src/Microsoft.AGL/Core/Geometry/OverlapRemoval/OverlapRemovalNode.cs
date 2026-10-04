@@ -10,7 +10,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Microsoft.AGL.Core.Geometry
+namespace Microsoft.AGL.Core.Geometry.OverlapRemoval
 {
     /// <summary>
     /// A node essentially wraps the coordinates of a Variable for the Open and Close Events for
@@ -20,7 +20,6 @@ namespace Microsoft.AGL.Core.Geometry
     /// transitive; if there is a second non-overlapping node, then the first non-overlapping
     /// node will have a constraint on it).
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1036:OverrideMethodsOnComparableTypes")]
     public class OverlapRemovalNode : IComparable<OverlapRemovalNode>, IComparable
     {
         /// <summary>
@@ -28,18 +27,12 @@ namespace Microsoft.AGL.Core.Geometry
         /// (except in VERIFY/VERBOSE where it uses ToString()).  When Solve() is complete, the caller
         /// should copy the Node.Position property into whatever property the class specialization for this has.
         /// </summary>
-        public Object UserData { get; set; }
+        public object UserData { get; set; }
 
         /// <summary>
         /// The string representing the user data object, or a null indicator string.
         /// </summary>
-        protected string UserDataString
-        {
-            get
-            {
-                return (null == this.UserData) ? "-0-" : this.UserData.ToString();
-            }
-        }
+        protected string UserDataString => (null == UserData) ? "-0-" : UserData.ToString();
 
         /// <summary>
         /// The Variable representing this Node (or Cluster border) in the ProjectionSolver passed to
@@ -84,37 +77,25 @@ namespace Microsoft.AGL.Core.Geometry
         /// The opening border of the Node along the primary axis; Left if horizontal,
         /// Top if Vertical.
         /// </summary>
-        public double Open
-        {
-            get { return Position - (Size / 2); }
-        }
+        public double Open => Position - (Size / 2);
 
         /// <summary>
         /// The closing border of the Node along the primary axis; Right if horizontal,
         /// Bottom if Vertical.
         /// </summary>
-        public double Close
-        {
-            get { return Position + (Size / 2); }
-        }
+        public double Close => Position + (Size / 2);
 
         /// <summary>
         /// The opening border of the Node along the secondary (Perpendicular) axis; Top if horizontal,
         /// Bottom if Vertical.
         /// </summary>
-        public double OpenP
-        {
-            get { return PositionP - (SizeP / 2); }
-        }
+        public double OpenP => PositionP - (SizeP / 2);
 
         /// <summary>
         /// The closing border of the Node along the secondary (Perpendicular) axis; Bottom if horizontal,
         /// Right if Vertical.
         /// </summary>
-        public double CloseP
-        {
-            get { return PositionP + (SizeP / 2); }
-        }
+        public double CloseP => PositionP + (SizeP / 2);
 
         /// <summary>
         /// The weight of the node along the primary axis.
@@ -157,13 +138,13 @@ namespace Microsoft.AGL.Core.Geometry
 #endif // DEBUG
                         );
             }
-            this.Id = id;
-            this.UserData = userData;
-            this.Position = position;
-            this.PositionP = positionP;
-            this.Size = size;
-            this.SizeP = sizeP;
-            this.Weight = weight;
+            Id = id;
+            UserData = userData;
+            Position = position;
+            PositionP = positionP;
+            Size = size;
+            SizeP = sizeP;
+            Weight = weight;
         }
 
         // This is the constructor for the "fake nodes" of a Cluster and its Borders.
@@ -174,19 +155,15 @@ namespace Microsoft.AGL.Core.Geometry
         {
         }
 
-        internal static double Overlap(OverlapRemovalNode n1, OverlapRemovalNode n2, double padding)
-        {
+        internal static double Overlap(OverlapRemovalNode n1, OverlapRemovalNode n2, double padding) =>
             // Returns > 0 if the nodes overlap (combined sizes/2 plus required padding between
             // nodes is greater than the distance between the nodes).
-            return ((n1.Size + n2.Size) / 2) + padding - Math.Abs(n1.Position - n2.Position);
-        }
+            ((n1.Size + n2.Size) / 2) + padding - Math.Abs(n1.Position - n2.Position);
 
-        internal static double OverlapP(OverlapRemovalNode n1, OverlapRemovalNode n2, double paddingP)
-        {
+        internal static double OverlapP(OverlapRemovalNode n1, OverlapRemovalNode n2, double paddingP) =>
             // Returns > 0 if the nodes overlap (combined sizes/2 plus required padding between
             // nodes is greater than the distance between the nodes).
-            return ((n1.SizeP + n2.SizeP) / 2) + paddingP - Math.Abs(n1.PositionP - n2.PositionP);
-        }
+            ((n1.SizeP + n2.SizeP) / 2) + paddingP - Math.Abs(n1.PositionP - n2.PositionP);
 
         /// <summary>
         /// Create the backing Variable for this Node in the solver.
@@ -197,15 +174,15 @@ namespace Microsoft.AGL.Core.Geometry
             ValidateArg.IsNotNull(solver, "solver");
             // Due to multiple hierarchies, we must check to see if the variable has been created yet;
             // we share one Node (and its single Variable) across all clusters it's a member of.
-            if (null == this.Variable)
+            if (null == Variable)
             {
-                this.Variable = solver.AddVariable(this /* userData */, this.Position, this.Weight);
+                Variable = solver.AddVariable(this /* userData */, Position, Weight);
             }
             else
             {
                 // Make sure the position is updated as the caller may have called this before and then we recalculated
                 // the position at some point (e.g. for Cluster boundary nodes).
-                UpdateDesiredPosition(this.Position);
+                UpdateDesiredPosition(Position);
             }
         }
 
@@ -214,12 +191,12 @@ namespace Microsoft.AGL.Core.Geometry
         {
             // If the Variable is null then we were already updated from an earlier cluster in
             // another hierarchy.
-            if (null != this.Variable)
+            if (null != Variable)
             {
-                this.Position = this.Variable.ActualPos;
+                Position = Variable.ActualPos;
 
                 // Currently we don't use this anymore.
-                this.Variable = null;
+                Variable = null;
             }
         }
 
@@ -227,20 +204,17 @@ namespace Microsoft.AGL.Core.Geometry
         // constraint-generation position (outer edge) to the pre-Solve position (central edge).
         internal void UpdateDesiredPosition(double newPosition)
         {
-            this.Position = newPosition;
-            this.Variable.DesiredPos = newPosition;
+            Position = newPosition;
+            Variable.DesiredPos = newPosition;
         }
 
         /// <summary>
         /// Generate a string representation of the Node.
         /// </summary>
         /// <returns>A string representation of the Node.</returns>
-        public override string ToString()
-        {
-            return string.Format(System.Globalization.CultureInfo.InvariantCulture,
+        public override string ToString() => string.Format(System.Globalization.CultureInfo.InvariantCulture,
                                 "Nod '{0}': id {1} p {2:F5} s {3:F5} pP {4:F5} sP {5:F5}",
-                                this.UserDataString, this.Id, this.Position, this.Size, this.PositionP, this.SizeP);
-        }
+                                UserDataString, Id, Position, Size, PositionP, SizeP);
 
         #region IComparable<Node> Members
         /// <summary>
@@ -248,14 +222,13 @@ namespace Microsoft.AGL.Core.Geometry
         /// </summary>
         /// <param name="other">The object being compared to.</param>
         /// <returns>-1 if 'this' is "less"; +1 if 'this' is "greater"; 0 if 'this' and rhs are equal.</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1307:SpecifyStringComparison", MessageId = "System.String.CompareTo(System.String)")]
         public int CompareTo(OverlapRemovalNode other)
         {
             ValidateArg.IsNotNull(other, "other");
-            int cmp = this.Position.CompareTo(other.Position);
+            int cmp = Position.CompareTo(other.Position);
             if (0 == cmp)
             {
-                cmp = this.Id.CompareTo(other.Id);
+                cmp = Id.CompareTo(other.Id);
             }
             return cmp;
         }
@@ -267,11 +240,9 @@ namespace Microsoft.AGL.Core.Geometry
         /// </summary>
         /// <param name="obj">The object being compared to.</param>
         /// <returns>-1 if 'this' is "less"; +1 if 'this' is "greater"; 0 if 'this' and rhs are equal.</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1307:SpecifyStringComparison", MessageId = "System.String.CompareTo(System.String)")]
         public int CompareTo(object obj)
         {
-            var rhs = obj as OverlapRemovalNode;
-            if (null == rhs)
+            if (obj is not OverlapRemovalNode rhs)
             {
                 throw new InvalidOperationException(
 #if DEBUG
@@ -279,7 +250,7 @@ namespace Microsoft.AGL.Core.Geometry
 #endif // DEBUG
 );
             }
-            return this.CompareTo(rhs);
+            return CompareTo(rhs);
         }
         #endregion // IComparable<Node> Members
 
@@ -327,7 +298,6 @@ namespace Microsoft.AGL.Core.Geometry
         /// <param name="lhs">Left-hand side of the comparison.</param>
         /// <param name="rhs">Right-hand side of the comparison.</param>
         /// <returns>-1 if lhs is less than rhs; +1 if lhs is greater than rhs; else 0.</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1307:SpecifyStringComparison", MessageId = "System.String.CompareTo(System.String)")]
         public int Compare(OverlapRemovalNode lhs, OverlapRemovalNode rhs)
         {
             ValidateArg.IsNotNull(lhs, "lhs");

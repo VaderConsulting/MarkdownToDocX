@@ -1,7 +1,8 @@
 using System.Text.RegularExpressions;
+
 using MermaidRecognition.Contract;
 
-namespace MermaidRecognition.Class;
+namespace MermaidRecognition.Kinds.Class;
 
 /// <summary>
 /// Parses Mermaid class diagram <c>note</c> directives.
@@ -53,7 +54,7 @@ public static class ClassNoteParser
 
     static List<string> ExtractQuotedStrings(string Text)
     {
-        List<string> Results = new List<string>();
+        List<string> Results = [];
         int Index = 0;
         while (Index < Text.Length)
         {

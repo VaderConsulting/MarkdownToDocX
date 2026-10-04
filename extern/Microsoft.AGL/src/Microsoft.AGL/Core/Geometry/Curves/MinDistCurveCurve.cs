@@ -14,16 +14,15 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
     //This will converge if the curves have 2nd order continuity 
     //and we are starting parameters are reasonable.  
     //It is not a good method for situations that are not well behaved, but it is really simple.
-/// <summary>
-/// Implements the minimal distance between curves functionality
-/// </summary>
+    /// <summary>
+    /// Implements the minimal distance between curves functionality
+    /// </summary>
 #if TEST_MSAGL
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Dist")]
-    public 
+    public
 #else
     internal
 #endif
-        class MinDistCurveCurve {
+    class MinDistCurveCurve {
 
         ICurve curveA;
         ICurve curveB;
@@ -32,21 +31,17 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         double bMin; double bMax;
         double aGuess; double bGuess;
         double aSolution;
-        internal double ASolution {
-            get { return aSolution; }
-        }
+        internal double ASolution => aSolution;
         double bSolution;
-        internal double BSolution {
-            get { return bSolution; }
-        }
+        internal double BSolution => bSolution;
 
         Point aPoint;
-        internal Point APoint { get { return aPoint; } }
+        internal Point APoint => aPoint;
 
         Point bPoint;
-        internal Point BPoint { get { return bPoint; } }
+        internal Point BPoint => bPoint;
         bool status;
-        internal bool Status { get { return status; } }
+        internal bool Status => status;
         double si;
         double ti;
 
@@ -80,51 +75,30 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
                 double upperBound1,
                 double guess0,
                 double guess1) {
-            this.curveA = curveAPar;
-            this.curveB = curveBPar;
-            this.aMin = lowBound0;
-            this.bMin = lowBound1;
-            this.aMax = upperBound0;
-            this.bMax = upperBound1;
-            this.aGuess = guess0;
-            this.bGuess = guess1;
-            this.si = guess0;
-            this.ti = guess1;
+            curveA = curveAPar;
+            curveB = curveBPar;
+            aMin = lowBound0;
+            bMin = lowBound1;
+            aMax = upperBound0;
+            bMax = upperBound1;
+            aGuess = guess0;
+            bGuess = guess1;
+            si = guess0;
+            ti = guess1;
         }
 
 
         //we ignore the mulitplier 2 here fore efficiency reasons
-        double Fs {
-            get {
-                return /*2**/a_b * ad;
-            }
-        }
+        double Fs => a_b * ad;
 
-        double Fss {
-            get {
-                return /*2**/(a_b * add + ad * ad);
-            }
-        }
+        double Fss => (a_b * add + ad * ad);
 
-        double Fst //equals to Fts
-        {
-            get {
-                return - /*2**/bd * ad;
-            }
-        }
+        double Fst => - /*2**/bd * ad; //equals to Fts
 
-        double Ftt {
-            get {
-                return /*2**/(-a_b * bdd + bd * bd);
-            }
-        }
+        double Ftt => (-a_b * bdd + bd * bd);
 
 
-        double Ft {
-            get {
-                return -/*2**/a_b * bd;
-            }
-        }
+        double Ft => -/*2**/a_b * bd;
 
 
 
@@ -136,9 +110,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="y"></param>
         /// <param name="u"></param>
         /// <param name="w"></param>
-        internal static double Delta(double x, double y, double u, double w) {
-            return x * w - u * y;
-        }
+        internal static double Delta(double x, double y, double u, double w) => x * w - u * y;
         //Fs + Fss*ds + Fst*dt = 0
         //Ft + Fst*ds + Ftt*dt = 0
         internal void Solve() {

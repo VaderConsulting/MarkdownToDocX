@@ -7,7 +7,8 @@
 using Microsoft.AGL.Core.GraphAlgorithms;
 using Microsoft.AGL.Core.Layout;
 
-namespace Microsoft.AGL.Layout.Layered {
+namespace Microsoft.AGL.Layout.Layered.Layering
+{
     /// <summary>
     /// Layering the DAG by longest path
     /// </summary>
@@ -35,9 +36,7 @@ namespace Microsoft.AGL.Layout.Layered {
 
         }
 
-        internal LongestPathLayering(BasicGraph<IntEdge> graph){
-            this.graph=graph;
-        }
-        
+        internal LongestPathLayering(BasicGraph<IntEdge> graph) => this.graph = graph;
+
     }
 }

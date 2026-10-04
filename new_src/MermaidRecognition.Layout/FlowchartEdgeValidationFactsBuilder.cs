@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Render;
 
 namespace MermaidRecognition.Layout;
@@ -204,7 +205,7 @@ public static class FlowchartEdgeValidationFactsBuilder
 
             if (!BranchesBySource.ContainsKey(Edge.SourceId))
             {
-                BranchesBySource[Edge.SourceId] = new List<(EdgeContract Edge, List<(double X, double Y)> Points)>();
+                BranchesBySource[Edge.SourceId] = [];
             }
 
             BranchesBySource[Edge.SourceId].Add((Edge, LayoutPoints));
@@ -867,10 +868,7 @@ public static class FlowchartEdgeValidationFactsBuilder
         return Math.Abs(CrossProduct) <= ENDPOINT_TOLERANCE_PX;
     }
 
-    private static double Orient(double Px, double Py, double Qx, double Qy, double Rx, double Ry)
-    {
-        return ((Qy - Py) * (Rx - Qx)) - ((Qx - Px) * (Ry - Qy));
-    }
+    private static double Orient(double Px, double Py, double Qx, double Qy, double Rx, double Ry) => ((Qy - Py) * (Rx - Qx)) - ((Qx - Px) * (Ry - Qy));
 
     private static double DistanceToCentre(double PointX, double PointY, FlowchartLayoutNodeBounds Bounds)
     {

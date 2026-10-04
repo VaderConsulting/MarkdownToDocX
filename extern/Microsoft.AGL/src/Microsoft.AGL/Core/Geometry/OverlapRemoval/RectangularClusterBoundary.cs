@@ -1,7 +1,9 @@
 using System.Diagnostics;
+
 using Microsoft.AGL.Core.Geometry.Curves;
 
-namespace Microsoft.AGL.Core.Geometry {
+namespace Microsoft.AGL.Core.Geometry.OverlapRemoval
+{
     /// <summary>
     /// Clusters can (optionally) have a rectangular border which is respected by overlap avoidance.
     /// Currently, this is controlled by FastIncrementalLayoutSettings.RectangularClusters.
@@ -14,40 +16,32 @@ namespace Microsoft.AGL.Core.Geometry {
         /// Set margins to zero which also initializes other members.
         /// </summary>
         public RectangularClusterBoundary() {
-            this.LeftBorderInfo = new BorderInfo(0.0);
-            this.RightBorderInfo = new BorderInfo(0.0);
-            this.TopBorderInfo = new BorderInfo(0.0);
-            this.BottomBorderInfo = new BorderInfo(0.0);
+            LeftBorderInfo = new BorderInfo(0.0);
+            RightBorderInfo = new BorderInfo(0.0);
+            TopBorderInfo = new BorderInfo(0.0);
+            BottomBorderInfo = new BorderInfo(0.0);
         }
         internal Rectangle rectangle;                   // Used only for RectangularHull
         internal OverlapRemovalCluster olapCluster;    // For use with RectangularHull only, and only valid during verletIntegration()
         /// <summary>
         /// Left margin of this cluster (additional space inside the cluster border).
         /// </summary>
-        public double LeftMargin {
-            get { return this.LeftBorderInfo.InnerMargin; }
-            set { this.LeftBorderInfo = new BorderInfo(value, this.LeftBorderInfo.FixedPosition, this.LeftBorderInfo.Weight); }
+        public double LeftMargin { get => LeftBorderInfo.InnerMargin; set => LeftBorderInfo = new BorderInfo(value, LeftBorderInfo.FixedPosition, LeftBorderInfo.Weight);
         }
         /// <summary>
         /// Right margin of this cluster (additional space inside the cluster border).
         /// </summary>
-        public double RightMargin {
-            get { return this.RightBorderInfo.InnerMargin; }
-            set { this.RightBorderInfo = new BorderInfo(value, this.RightBorderInfo.FixedPosition, this.RightBorderInfo.Weight); }
+        public double RightMargin { get => RightBorderInfo.InnerMargin; set => RightBorderInfo = new BorderInfo(value, RightBorderInfo.FixedPosition, RightBorderInfo.Weight);
         }
         /// <summary>
         /// Top margin of this cluster (additional space inside the cluster border).
         /// </summary>
-        public double TopMargin {
-            get { return this.TopBorderInfo.InnerMargin; }
-            set { this.TopBorderInfo = new BorderInfo(value, this.TopBorderInfo.FixedPosition, this.TopBorderInfo.Weight); }
+        public double TopMargin { get => TopBorderInfo.InnerMargin; set => TopBorderInfo = new BorderInfo(value, TopBorderInfo.FixedPosition, TopBorderInfo.Weight);
         }
         /// <summary>
         /// Bottom margin of this cluster (additional space inside the cluster border).
         /// </summary>
-        public double BottomMargin {
-            get { return this.BottomBorderInfo.InnerMargin; }
-            set { this.BottomBorderInfo = new BorderInfo(value, this.BottomBorderInfo.FixedPosition, this.BottomBorderInfo.Weight); }
+        public double BottomMargin { get => BottomBorderInfo.InnerMargin; set => BottomBorderInfo = new BorderInfo(value, BottomBorderInfo.FixedPosition, BottomBorderInfo.Weight);
         }
 
         /// <summary>
@@ -84,14 +78,7 @@ namespace Microsoft.AGL.Core.Geometry {
         /// </summary>
         public bool GenerateFixedConstraintsDefault
         {
-            get
-            {
-                return generateFixedConstraintsDefault;
-            }
-            set
-            {
-                GenerateFixedConstraints = generateFixedConstraintsDefault = value;
-            }
+            get => generateFixedConstraintsDefault; set => GenerateFixedConstraints = generateFixedConstraintsDefault = value;
         }
 
         /// <summary>
@@ -115,14 +102,7 @@ namespace Microsoft.AGL.Core.Geometry {
         /// <summary>
         /// Will only return something useful if FastIncrementalLayoutSettings.AvoidOverlaps is true.
         /// </summary>
-        public Rectangle Rect {
-            get {
-                return rectangle;
-            }
-            set
-            {
-                rectangle = value;
-            }
+        public Rectangle Rect { get => rectangle; set => rectangle = value;
         }
 
         /// <summary>
@@ -132,8 +112,8 @@ namespace Microsoft.AGL.Core.Geometry {
         {
             get
             {
-                var outer = Rect;
-                var inner = new Rectangle(outer.Left + LeftMargin, outer.Bottom + BottomMargin,
+                Rectangle outer = Rect;
+                Rectangle inner = new Rectangle(outer.Left + LeftMargin, outer.Bottom + BottomMargin,
                                           outer.Right - RightMargin, outer.Top - TopMargin);
                 return inner;
             }
@@ -148,67 +128,35 @@ namespace Microsoft.AGL.Core.Geometry {
         }
 
         Margin defaultMargin;
-        internal bool DefaultMarginIsSet {
-            get { return defaultMargin!=null; }
-        }
+        internal bool DefaultMarginIsSet => defaultMargin != null;
 
         /// <summary>
         /// The default margin stored by StoreDefaultMargin
         /// </summary>
-        public double DefaultLeftMargin
-        {
-            get
-            {
-                return defaultMargin.Left;
-            }
-        }
+        public double DefaultLeftMargin => defaultMargin.Left;
         /// <summary>
         /// The default margin stored by StoreDefaultMargin
         /// </summary>
-        public double DefaultTopMargin
-        {
-            get
-            {
-                return defaultMargin.Top;
-            }
-        }
+        public double DefaultTopMargin => defaultMargin.Top;
 
         /// <summary>
         /// The default margin stored by StoreDefaultMargin
         /// </summary>
-        public double DefaultRightMargin
-        {
-            get
-            {
-                return defaultMargin.Right;
-            }
-        }
+        public double DefaultRightMargin => defaultMargin.Right;
         /// <summary>
         /// The default margin stored by StoreDefaultMargin
         /// </summary>
-        public double DefaultBottomMargin
-        {
-            get
-            {
-                return defaultMargin.Bottom;
-            }
-        }
+        public double DefaultBottomMargin => defaultMargin.Bottom;
 
         /// <summary>
         /// store a the current margin as the default which we can revert to later with the RestoreDefaultMargin
         /// </summary>
-        public void StoreDefaultMargin()
-        {
-            defaultMargin = new Margin { Left = LeftMargin, Right = RightMargin, Bottom = BottomMargin, Top = TopMargin };
-        }
+        public void StoreDefaultMargin() => defaultMargin = new Margin { Left = LeftMargin, Right = RightMargin, Bottom = BottomMargin, Top = TopMargin };
 
         /// <summary>
         /// store a default margin which we can revert to later with the RestoreDefaultMargin
         /// </summary>
-        public void StoreDefaultMargin(double left, double right, double bottom, double top)
-        {
-            defaultMargin = new Margin { Left = left, Right = right, Bottom = bottom, Top = top };
-        }
+        public void StoreDefaultMargin(double left, double right, double bottom, double top) => defaultMargin = new Margin { Left = left, Right = right, Bottom = bottom, Top = top };
 
         /// <summary>
         /// revert to a previously stored default margin
@@ -224,16 +172,13 @@ namespace Microsoft.AGL.Core.Geometry {
             }
         }
 
-        
+
         /// <summary>
         /// Move the bounding box by delta
         /// </summary>
         /// <param name="delta"></param>
-        public void TranslateRectangle(Point delta)
-        {
-            rectangle = new Rectangle(rectangle.Left + delta.X, rectangle.Bottom + delta.Y, new Point(rectangle.Width, rectangle.Height));
-        }
-        
+        public void TranslateRectangle(Point delta) => rectangle = new Rectangle(rectangle.Left + delta.X, rectangle.Bottom + delta.Y, new Point(rectangle.Width, rectangle.Height));
+
         /// <summary>
         /// Radius on the X axis
         /// </summary>
@@ -268,9 +213,7 @@ namespace Microsoft.AGL.Core.Geometry {
         /// <summary>
         /// Locks all four borders at their current positions
         /// </summary>
-        public void Lock() {
-            Lock(rectangle.Left, rectangle.Right, rectangle.Top, rectangle.Bottom);
-        }
+        public void Lock() => Lock(rectangle.Left, rectangle.Right, rectangle.Top, rectangle.Bottom);
         /// <summary>
         /// boundary can shrink no more than this
         /// </summary>

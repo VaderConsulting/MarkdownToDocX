@@ -4,12 +4,9 @@ namespace MDConverter.Model;
 
 public sealed class QuoteBlock : BlockNode
 {
-    private readonly List<BlockNode> _Blocks = new List<BlockNode>();
+    private readonly List<BlockNode> _Blocks = [];
 
-    public IReadOnlyList<BlockNode> Blocks
-    {
-        get { return _Blocks; }
-    }
+    public IReadOnlyList<BlockNode> Blocks => _Blocks;
 
     public void AddBlock(BlockNode Block)
     {

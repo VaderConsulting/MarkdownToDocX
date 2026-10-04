@@ -10,7 +10,6 @@ namespace Microsoft.AGL.Core.DataStructures {
     /// A generic version priority queue based on the binary heap algorithm where
     /// the priority of each element is passed as a parameter.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1710:IdentifiersShouldHaveCorrectSuffix"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1711:IdentifiersShouldNotHaveIncorrectSuffix")]
     public class GenericBinaryHeapPriorityQueue<T> : IEnumerable<T> {
 
         const int InitialHeapCapacity = 16;
@@ -39,22 +38,20 @@ namespace Microsoft.AGL.Core.DataStructures {
         /// it is a mapping from queue elements and their correspondent HeapElements
         /// </summary>
         readonly Dictionary<T, GenericHeapElement<T>> cache;
-        internal int Count { get { return heapSize; } }
+        internal int Count => heapSize;
         int heapSize;
 
-        internal bool ContainsElement(T key) {
-            return cache.ContainsKey(key);
-        }
+        internal bool ContainsElement(T key) => cache.ContainsKey(key);
 
 
         internal GenericBinaryHeapPriorityQueue() {
-            cache = new Dictionary<T, GenericHeapElement<T>>();
+            cache = [];
             A = new GenericHeapElement<T>[InitialHeapCapacity + 1];
         }
 
 
         void SwapWithParent(int i) {
-            var parent = A[i >> 1];
+            GenericHeapElement<T> parent = A[i >> 1];
 
             PutAtI(i >> 1, A[i]);
             PutAtI(i, parent);
@@ -64,7 +61,7 @@ namespace Microsoft.AGL.Core.DataStructures {
 
         internal void Enqueue(T element, double priority) {
             if (heapSize == A.Length - 1) {
-                var newA = new GenericHeapElement<T>[A.Length * 2];
+                GenericHeapElement<T>[] newA = new GenericHeapElement<T>[A.Length * 2];
                 Array.Copy(A, 1, newA, 1, heapSize);
                 A = newA;
             }
@@ -80,9 +77,7 @@ namespace Microsoft.AGL.Core.DataStructures {
             }          
         }
 
-        internal bool IsEmpty() {
-            return heapSize == 0;
-        }
+        internal bool IsEmpty() => heapSize == 0;
 
         void PutAtI(int i, GenericHeapElement<T> h) {
             A[i] = h;
@@ -102,7 +97,7 @@ namespace Microsoft.AGL.Core.DataStructures {
             if (heapSize == 0)
                 throw new InvalidOperationException();
 
-            var ret = A[1].v;
+            T ret = A[1].v;
 
             MoveQueueOneStepForward(ret);
 
@@ -113,7 +108,7 @@ namespace Microsoft.AGL.Core.DataStructures {
         internal T Dequeue(out double priority) {
             if (heapSize == 0) throw new InvalidOperationException();
 
-            var ret = A[1].v;
+            T ret = A[1].v;
             priority = A[1].priority;
             MoveQueueOneStepForward(ret);
             return ret;
@@ -150,13 +145,11 @@ namespace Microsoft.AGL.Core.DataStructures {
         /// <summary>
         /// sets the object priority to c
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         internal void DecreasePriority(T element, double newPriority)
         {
-            GenericHeapElement<T> h;
             //ignore the element if it is not in the queue
-            if (!cache.TryGetValue(element, out h)) return;
-                
+            if (!cache.TryGetValue(element, out GenericHeapElement<T> h)) return;
+
             //var h = cache[element];
             h.priority = newPriority;
             int i = h.indexToA;
@@ -171,7 +164,6 @@ namespace Microsoft.AGL.Core.DataStructures {
 
         ///<summary>
         ///</summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1000:DoNotDeclareStaticMembersOnGenericTypes"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         //        public static void Test() {
         //            Timer nm = new Timer();
         //            var bound = 1000000;
@@ -213,9 +205,8 @@ namespace Microsoft.AGL.Core.DataStructures {
         //            Console.WriteLine(nm.Duration);
         //}
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         public static void Test() {
-            var q = new GenericBinaryHeapPriorityQueue<int>();
+            GenericBinaryHeapPriorityQueue<int> q = new GenericBinaryHeapPriorityQueue<int>();
             q.Enqueue(2, 2);
             q.Enqueue(1, 1);
             q.Enqueue(9, 9);
@@ -268,7 +259,7 @@ namespace Microsoft.AGL.Core.DataStructures {
         /// <returns></returns>
         public override string ToString() {
             StringBuilder sb=new StringBuilder();
-            foreach (var i in this)
+            foreach (T i in this)
                 sb.Append(i + ",");
             return sb.ToString();
         }

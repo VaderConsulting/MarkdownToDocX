@@ -1,4 +1,4 @@
-namespace MermaidRecognition.Flowchart;
+namespace MermaidRecognition.Kinds.Flowchart;
 
 /// <summary>
 /// Mermaid-style flowchart diagram database (parse-time mutations only). Mirrors <c>flowDb.ts</c> responsibilities.
@@ -8,7 +8,7 @@ public sealed class FlowchartDb
     private readonly Dictionary<string, FlowchartNodeRecord> _NodesById =
         new Dictionary<string, FlowchartNodeRecord>(StringComparer.Ordinal);
 
-    private readonly List<FlowchartEdgeRecord> _Edges = new List<FlowchartEdgeRecord>();
+    private readonly List<FlowchartEdgeRecord> _Edges = [];
 
     private readonly Dictionary<string, FlowchartSubgraphRecord> _SubgraphById =
         new Dictionary<string, FlowchartSubgraphRecord>(StringComparer.Ordinal);
@@ -18,11 +18,11 @@ public sealed class FlowchartDb
     private readonly Dictionary<string, string> _ParentSubgraphByNodeId =
         new Dictionary<string, string>(StringComparer.Ordinal);
 
-    private readonly List<MermaidDiagnostic> _Diagnostics = new List<MermaidDiagnostic>();
+    private readonly List<MermaidDiagnostic> _Diagnostics = [];
 
-    private readonly List<LinkStyleDirective> _LinkStyles = new List<LinkStyleDirective>();
+    private readonly List<LinkStyleDirective> _LinkStyles = [];
 
-    private readonly List<InteractionDirective> _Interactions = new List<InteractionDirective>();
+    private readonly List<InteractionDirective> _Interactions = [];
 
     private readonly Dictionary<string, ClassDefContract> _ClassDefsById =
         new Dictionary<string, ClassDefContract>(StringComparer.Ordinal);
@@ -37,106 +37,36 @@ public sealed class FlowchartDb
 
     public string Header
     {
-        get
-        {
-            return _Header;
-        }
-        set
-        {
-            _Header = value;
-        }
+        get => _Header; set => _Header = value;
     }
 
     public FlowchartDirection Direction
     {
-        get
-        {
-            return _Direction;
-        }
-        set
-        {
-            _Direction = value;
-        }
+        get => _Direction; set => _Direction = value;
     }
 
-    public IReadOnlyDictionary<string, FlowchartNodeRecord> NodesById
-    {
-        get
-        {
-            return _NodesById;
-        }
-    }
+    public IReadOnlyDictionary<string, FlowchartNodeRecord> NodesById => _NodesById;
 
-    public IReadOnlyList<FlowchartEdgeRecord> Edges
-    {
-        get
-        {
-            return _Edges;
-        }
-    }
+    public IReadOnlyList<FlowchartEdgeRecord> Edges => _Edges;
 
-    public List<MermaidDiagnostic> DiagnosticsMutable
-    {
-        get
-        {
-            return _Diagnostics;
-        }
-    }
+    public List<MermaidDiagnostic> DiagnosticsMutable => _Diagnostics;
 
-    public List<LinkStyleDirective> LinkStylesMutable
-    {
-        get
-        {
-            return _LinkStyles;
-        }
-    }
+    public List<LinkStyleDirective> LinkStylesMutable => _LinkStyles;
 
-    public List<InteractionDirective> InteractionsMutable
-    {
-        get
-        {
-            return _Interactions;
-        }
-    }
+    public List<InteractionDirective> InteractionsMutable => _Interactions;
 
-    public IReadOnlyDictionary<string, FlowchartSubgraphRecord> SubgraphsById
-    {
-        get
-        {
-            return _SubgraphById;
-        }
-    }
+    public IReadOnlyDictionary<string, FlowchartSubgraphRecord> SubgraphsById => _SubgraphById;
 
-    public IReadOnlyDictionary<string, ClassDefContract> ClassDefsById
-    {
-        get
-        {
-            return _ClassDefsById;
-        }
-    }
+    public IReadOnlyDictionary<string, ClassDefContract> ClassDefsById => _ClassDefsById;
 
     public string? AccessibilityTitle
     {
-        get
-        {
-            return _AccessibilityTitle;
-        }
-        set
-        {
-            _AccessibilityTitle = value;
-        }
+        get => _AccessibilityTitle; set => _AccessibilityTitle = value;
     }
 
     public string? AccessibilityDescription
     {
-        get
-        {
-            return _AccessibilityDescription;
-        }
-        set
-        {
-            _AccessibilityDescription = value;
-        }
+        get => _AccessibilityDescription; set => _AccessibilityDescription = value;
     }
 
     public FlowchartNodeRecord GetOrCreateNode(string NodeId)
@@ -146,9 +76,11 @@ public sealed class FlowchartDb
             return Existing;
         }
 
-        FlowchartNodeRecord Created = new FlowchartNodeRecord();
-        Created.Id = NodeId;
-        Created.Label = NodeId;
+        FlowchartNodeRecord Created = new FlowchartNodeRecord
+        {
+            Id = NodeId,
+            Label = NodeId
+        };
         _NodesById[NodeId] = Created;
         return Created;
     }
@@ -210,17 +142,19 @@ public sealed class FlowchartDb
                     UsedUserIds.Add(UserId);
                 }
 
-                FlowchartEdgeRecord Edge = new FlowchartEdgeRecord();
-                Edge.SourceId = StartId;
-                Edge.TargetId = EndId;
-                Edge.CreationIndex = _Edges.Count;
-                Edge.MinLength = Token.MinLength;
-                Edge.Stroke = Token.Stroke;
-                Edge.MarkerStart = Token.MarkerStart;
-                Edge.MarkerEnd = Token.MarkerEnd;
-                Edge.Label = string.IsNullOrEmpty(Token.Label)
-                    ? Token.Label
-                    : FlowchartLabelNormalizer.Normalize(Token.Label);
+                FlowchartEdgeRecord Edge = new FlowchartEdgeRecord
+                {
+                    SourceId = StartId,
+                    TargetId = EndId,
+                    CreationIndex = _Edges.Count,
+                    MinLength = Token.MinLength,
+                    Stroke = Token.Stroke,
+                    MarkerStart = Token.MarkerStart,
+                    MarkerEnd = Token.MarkerEnd,
+                    Label = string.IsNullOrEmpty(Token.Label)
+                        ? Token.Label
+                        : FlowchartLabelNormalizer.Normalize(Token.Label)
+                };
                 Edge.Id = EdgeId ?? GenerateEdgeId(StartId, EndId, Edge.CreationIndex);
                 Edge.IsUserDefinedId = IsUserDefined;
                 Edge.ExpansionTrace = new EdgeExpansionTrace(
@@ -238,9 +172,11 @@ public sealed class FlowchartDb
 
     public void PushSubgraph(string SubgraphId, string? Title)
     {
-        FlowchartSubgraphRecord Subgraph = new FlowchartSubgraphRecord();
-        Subgraph.Id = SubgraphId;
-        Subgraph.Title = Title;
+        FlowchartSubgraphRecord Subgraph = new FlowchartSubgraphRecord
+        {
+            Id = SubgraphId,
+            Title = Title
+        };
         if (_SubgraphStack.Count > 0)
         {
             FlowchartSubgraphRecord Parent = _SubgraphStack.Peek();
@@ -377,8 +313,10 @@ public sealed class FlowchartDb
     {
         if (!_ClassDefsById.TryGetValue(ClassId, out ClassDefContract? Existing))
         {
-            Existing = new ClassDefContract();
-            Existing.ClassId = ClassId;
+            Existing = new ClassDefContract
+            {
+                ClassId = ClassId
+            };
             _ClassDefsById[ClassId] = Existing;
         }
 
@@ -475,8 +413,5 @@ public sealed class FlowchartDb
         return null;
     }
 
-    static string GenerateEdgeId(string SourceId, string TargetId, int CreationIndex)
-    {
-        return "L-" + SourceId + "-" + TargetId + "-" + CreationIndex.ToString();
-    }
+    static string GenerateEdgeId(string SourceId, string TargetId, int CreationIndex) => "L-" + SourceId + "-" + TargetId + "-" + CreationIndex.ToString();
 }

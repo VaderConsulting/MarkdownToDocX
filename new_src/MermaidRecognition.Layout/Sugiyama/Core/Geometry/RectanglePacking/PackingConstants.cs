@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
+namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RectanglePacking
 {
     /// <summary>
     /// Constants used by OptimalRectanglePacking

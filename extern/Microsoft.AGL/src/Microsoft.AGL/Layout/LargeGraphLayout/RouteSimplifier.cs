@@ -1,10 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using Microsoft.AGL.Core.DataStructures;
 using Microsoft.AGL.Core.Geometry;
 using Microsoft.AGL.Core.Geometry.Curves;
+using Microsoft.AGL.Core.Geometry.RTree;
 using Microsoft.AGL.Core.Layout;
 using Microsoft.AGL.Routing.Visibility;
 using SymmetricSegment = Microsoft.AGL.Core.DataStructures.SymmetricTuple<Microsoft.AGL.Core.Geometry.Point>;
@@ -18,34 +19,34 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
         internal RouteSimplifier(LgPathRouter pathRouter, IEnumerable<LgNodeInfo> nodes, Set<Point> fixedPoints) {
             _pathRouter = pathRouter;
             _fixedPoints = fixedPoints;
-            foreach (var node in nodes)
+            foreach (LgNodeInfo node in nodes)
                 _nodesTree.Add(node.BoundaryOnLayer.BoundingBox, node);
 
 
-            foreach (var e in pathRouter.VisGraph.Edges) {
-                var ss= new SymmetricSegment(e.SourcePoint, e.TargetPoint);
+            foreach (VisibilityEdge e in pathRouter.VisGraph.Edges) {
+                SymmetricSegment ss = new SymmetricSegment(e.SourcePoint, e.TargetPoint);
                 _symmetricSegmentsTree.Add(new Rectangle(ss.A, ss.B), ss);
             }
         }
 
         Set<LgNodeInfo> IntersectedByLineSegNodeInfos(Point p1, Point p2) {
-            var nodes = _nodesTree.GetAllIntersecting(new Rectangle(p1, p2));
+            LgNodeInfo[] nodes = _nodesTree.GetAllIntersecting(new Rectangle(p1, p2));
             return
                 new Set<LgNodeInfo>(nodes.Where(node => Curve.CurvesIntersect(node.BoundaryOnLayer, new LineSegment(p1, p2))));
         }
 
         internal bool Run() {
             // it is critical to enumerate to an array here, because the quiery will change during the foreach loop below
-            var candidates =
+            VisibilityVertex[] candidates =
                 new List<VisibilityVertex>(_pathRouter.GetAllVertices().Where(v => (!_fixedPoints.Contains(v.Point)) &&
                                                                                  v.Degree == 2 && (!v.IsTerminal))).ToArray();
             bool ret = false;
-            foreach (var v in candidates) {
-                var neighb = GetNeighbors(v);
+            foreach (VisibilityVertex v in candidates) {
+                List<VisibilityVertex> neighb = GetNeighbors(v);
                 if (neighb.Count != 2) continue;
                 Debug.Assert(neighb.Count==2);
-                var v0 = neighb[0];
-                var v1 = neighb[1];
+                VisibilityVertex v0 = neighb[0];
+                VisibilityVertex v1 = neighb[1];
                 if (AngleIsTooSmallAfterShortcut(v0, v, v1)) continue;
                 if (ShortcutIntersectsNewVerticesOrCuttingInsideNodes(v0, v, v1)) continue;
                 if (!KeepsPlanarity(v0.Point, v1.Point)) continue;
@@ -62,36 +63,32 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
             Debug.Assert(_pathRouter.VisGraph.ContainsVertex(a));
             Debug.Assert(_pathRouter.VisGraph.ContainsVertex(b));
             _pathRouter.VisGraph.AddEdge(a, b);
-            var ss = new SymmetricSegment(a, b);
+            SymmetricSegment ss = new SymmetricSegment(a, b);
             _symmetricSegmentsTree.Add(new Rectangle(a, b), ss);
         }
 
         void RemoveAction(Point a, Point b) {
 #if DEBUG
-            VisibilityEdge ve;
-            Debug.Assert(_pathRouter.FindVertex(a).TryGetEdge(_pathRouter.FindVertex(b), out ve));
+            Debug.Assert(_pathRouter.FindVertex(a).TryGetEdge(_pathRouter.FindVertex(b), out VisibilityEdge ve));
 #endif
             _pathRouter.RemoveEdge(a, b);
-            var ss=new SymmetricSegment(a, b);
+            SymmetricSegment ss =new SymmetricSegment(a, b);
             _symmetricSegmentsTree.Remove(new Rectangle(ss.A, ss.B), ss);
         }
 
         Set<SymmetricSegment> GetSymmetricSegmentsIntersectedBySeg(Point a, Point b) {
-            var rect = new Rectangle(a, b);
+            Rectangle rect = new Rectangle(a, b);
             return new Set<SymmetricSegment>(_symmetricSegmentsTree.GetAllIntersecting(rect).Where(ss =>
                 SymmetricSegmentIntersects(ss, a, b)));            
         }
 
         static bool SymmetricSegmentIntersects(SymmetricSegment ss, Point a, Point b) {
-            double t0, t1;
-            var dist = LineSegment.MinDistBetweenLineSegments(ss.A, ss.B, a, b, out t0, out t1);
+            double dist = LineSegment.MinDistBetweenLineSegments(ss.A, ss.B, a, b, out double t0, out double t1);
             return dist <0.001 && ((0.01 < t0 && t0 < 0.99) || (0.01 < t1 && t1 < 0.99));
 
         }
 
-        bool KeepsPlanarity(Point a, Point b) {
-            return ! GetSymmetricSegmentsIntersectedBySeg(a, b).Any();
-        }
+        bool KeepsPlanarity(Point a, Point b) => !GetSymmetricSegmentsIntersectedBySeg(a, b).Any();
 
         static bool AngleIsTooSmall(double t) {
             const double minAngle = 2 * Math.PI / 17; // make it slightly more than 20 degrees
@@ -100,21 +97,19 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
         }
 
 
-        bool AngleIsTooSmallAfterShortcut(VisibilityVertex v1, VisibilityVertex v2, VisibilityVertex v3) {
-            return AngleIsTooSmallAfterShortcutAtVertex(v1, v2, v3) || AngleIsTooSmallAfterShortcutAtVertex(v3, v2, v1);
-        }
+        bool AngleIsTooSmallAfterShortcut(VisibilityVertex v1, VisibilityVertex v2, VisibilityVertex v3) => AngleIsTooSmallAfterShortcutAtVertex(v1, v2, v3) || AngleIsTooSmallAfterShortcutAtVertex(v3, v2, v1);
 
         bool AngleIsTooSmallAfterShortcutAtVertex(VisibilityVertex v1, VisibilityVertex v2, VisibilityVertex v3) {
-            foreach (var edge in v1.OutEdges) {
-                var t = edge.Target;
+            foreach (VisibilityEdge edge in v1.OutEdges) {
+                VisibilityVertex t = edge.Target;
                 if (t == v3 || t == v2) continue;
                 //LayoutAlgorithmSettings.ShowDebugCurves(new DebugCurve(1, "red", new LineSegment(v3.Point, v1.Point)),
                 //new DebugCurve(1, "blue", new LineSegment(v1.Point, t.Point)));
                 if (AngleIsTooSmall(Point.Angle(v3.Point, v1.Point, t.Point))) return true;
             }
 
-            foreach (var edge in v1.InEdges) {
-                var t = edge.Source;
+            foreach (VisibilityEdge edge in v1.InEdges) {
+                VisibilityVertex t = edge.Source;
                 if (t == v3 || t == v2) continue;
 
                 if (AngleIsTooSmall(Point.Angle(v3.Point, v1.Point, t.Point))) return true;
@@ -133,15 +128,13 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
             return !oldIntersected.Contains(newIntersected);
         }
 
-        bool CuttingInsideOfNodes(Set<LgNodeInfo> newIntersected, Point a, Point b) {
-            return newIntersected.Any(v => GettingTooCloseToNode(v, a, b));
-        }
+        bool CuttingInsideOfNodes(Set<LgNodeInfo> newIntersected, Point a, Point b) => newIntersected.Any(v => GettingTooCloseToNode(v, a, b));
 
-        bool GettingTooCloseToNode(LgNodeInfo lgNodeInfo, Point a, Point b) {            
-            var center = lgNodeInfo.Center;
+        bool GettingTooCloseToNode(LgNodeInfo lgNodeInfo, Point a, Point b) {
+            Point center = lgNodeInfo.Center;
             if (a == center || b == center) return false;
-            var closestPoint = Point.ClosestPointAtLineSegment(center, a, b);
-            var where = Curve.PointRelativeToCurveLocation(closestPoint, lgNodeInfo.BoundaryOnLayer);
+            Point closestPoint = Point.ClosestPointAtLineSegment(center, a, b);
+            PointLocation where = Curve.PointRelativeToCurveLocation(closestPoint, lgNodeInfo.BoundaryOnLayer);
             return where == PointLocation.Inside;
             /*
             LayoutAlgorithmSettings.ShowDebugCurves(
@@ -153,7 +146,7 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
         }
 
         List<VisibilityVertex> GetNeighbors(VisibilityVertex v) {
-            var neighbors = new List<VisibilityVertex>();
+            List<VisibilityVertex> neighbors = new List<VisibilityVertex>();
             neighbors.AddRange(v.InEdges.Select(e => e.Source));
             neighbors.AddRange(v.OutEdges.Select(e => e.Target));
             return neighbors;

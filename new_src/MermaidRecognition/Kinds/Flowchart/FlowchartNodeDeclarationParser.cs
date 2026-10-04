@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace MermaidRecognition.Flowchart;
+namespace MermaidRecognition.Kinds.Flowchart;
 
 /// <summary>
 /// Parses flowchart vertex suffixes (bracket shapes, <c>@{ ... }</c> metadata) and merges into <see cref="FlowchartDb"/>.
@@ -17,7 +17,7 @@ public static class FlowchartNodeDeclarationParser
     /// </summary>
     public static List<string> SplitNodeSetTokens(string NodeSetText)
     {
-        List<string> Tokens = new List<string>();
+        List<string> Tokens = [];
         StringBuilder Current = new StringBuilder();
         int BracketDepth = 0;
         int ParenDepth = 0;
@@ -222,14 +222,11 @@ public static class FlowchartNodeDeclarationParser
     /// <summary>
     /// Splits a metadata block body into key/value entries.
     /// </summary>
-    public static IEnumerable<string> SplitMetadataEntries(string MetadataBody)
-    {
-        return SplitMetadataEntriesCore(MetadataBody);
-    }
+    public static IEnumerable<string> SplitMetadataEntries(string MetadataBody) => SplitMetadataEntriesCore(MetadataBody);
 
     static IEnumerable<string> SplitMetadataEntriesCore(string MetadataBody)
     {
-        List<string> Entries = new List<string>();
+        List<string> Entries = [];
         if (MetadataBody.Contains('\n', StringComparison.Ordinal))
         {
             foreach (string Line in MetadataBody.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))

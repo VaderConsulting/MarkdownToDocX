@@ -3,12 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 
 using MermaidRecognition.Layout.Sugiyama.Core;
-using MermaidRecognition.Layout.Sugiyama.Core.DataStructures;
+using MermaidRecognition.Layout.Sugiyama.Core.DataStructures.RBTree;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves;
 
 namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1812:AvoidUninstantiatedInternalClasses")]
     internal class InteractiveTangentVisibilityGraphCalculator : AlgorithmBase {
         /// <summary>
         /// the list of obstacles
@@ -42,14 +41,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         }
 
         void CalculateAndAddEdges() {
-            foreach (Polygon p in this.addedPolygons) {
+            foreach (Polygon p in addedPolygons) {
                 CalculateVisibleTangentsFromPolygon(p);
                 ProgressStep();
             }
         }
 
         private void CalculateVisibleTangentsFromPolygon(Polygon polygon) {
-            this.currentPolygon = polygon;
+            currentPolygon = polygon;
             AllocateDataStructures();
             OrganizeTangents();
             InitActiveDiagonals();
@@ -57,9 +56,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         }
         
         private void AllocateDataStructures() {
-            tangents = new List<Tangent>();
-            diagonals = new List<Diagonal>();
-            activeDiagonalTree = new RbTree<Diagonal>(this.activeDiagonalComparer);
+            tangents = [];
+            diagonals = [];
+            activeDiagonalTree = new RbTree<Diagonal>(activeDiagonalComparer);
         }
       
         private void Sweep() {
@@ -74,8 +73,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
                         RemoveDiagonalFromActiveNodes(t.Diagonal);
                 } else {
                     if (t.IsLow) {
-                        this.activeDiagonalComparer.PointOnTangentAndInsertedDiagonal = t.End.Point;
-                        this.InsertActiveDiagonal(new Diagonal(t, t.Comp));
+                        activeDiagonalComparer.PointOnTangentAndInsertedDiagonal = t.End.Point;
+                        InsertActiveDiagonal(new Diagonal(t, t.Comp));
                         if (t.Diagonal.RbNode == activeDiagonalTree.TreeMinimum())
                             AddVisibleEdge(t);
                     }
@@ -99,9 +98,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
 
 
 
-        private void AddVisibleEdge(Tangent t) {
-            VisibilityGraph.AddEdge(visibilityGraph.GetVertex(t.Start), visibilityGraph.GetVertex(t.End));
-        }
+        private void AddVisibleEdge(Tangent t) => VisibilityGraph.AddEdge(visibilityGraph.GetVertex(t.Start), visibilityGraph.GetVertex(t.End));
 
         /// <summary>
         /// this function will also add the first tangent to the visible edges if needed
@@ -109,20 +106,20 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         private void InitActiveDiagonals() {
             if (tangents.Count == 0)
                 return;
-            Tangent firstTangent = this.tangents[0];
+            Tangent firstTangent = tangents[0];
             Point firstTangentStart = firstTangent.Start.Point;
             Point firstTangentEnd = firstTangent.End.Point;
 
             foreach (Diagonal diagonal in diagonals) {
                 if (RayIntersectDiagonal(firstTangentStart, firstTangentEnd, diagonal)) {
-                    this.activeDiagonalComparer.PointOnTangentAndInsertedDiagonal =
+                    activeDiagonalComparer.PointOnTangentAndInsertedDiagonal =
                         ActiveDiagonalComparerWithRay.IntersectDiagonalWithRay(firstTangentStart, firstTangentEnd, diagonal);
 
                     InsertActiveDiagonal(diagonal);
                 }
             }
 
-            if (firstTangent.Diagonal.RbNode == this.activeDiagonalTree.TreeMinimum())
+            if (firstTangent.Diagonal.RbNode == activeDiagonalTree.TreeMinimum())
                 AddVisibleEdge(firstTangent);
 
             if (firstTangent.IsLow == false) { //remove the diagonal of the top tangent from active edges 
@@ -133,9 +130,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         }
 #if DEBUG && TEST_MSAGL
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         private void AddPolylinesForShow(List<ICurve> curves) {
-            foreach (Polygon p in this.AllObstacles)
+            foreach (Polygon p in AllObstacles)
                 curves.Add(p.Polyline);
         }
 #endif
@@ -176,9 +172,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         /// <param name="e0"></param>
         /// <param name="e1"></param>
         /// <returns></returns>
-        int TangentComparison(Tangent e0, Tangent e1) {
-            return StemStartPointComparer.CompareVectorsByAngleToXAxis(e0.End.Point - e0.Start.Point, e1.End.Point - e1.Start.Point);
-        }
+        int TangentComparison(Tangent e0, Tangent e1) => StemStartPointComparer.CompareVectorsByAngleToXAxis(e0.End.Point - e0.Start.Point, e1.End.Point - e1.Start.Point);
 
         IEnumerable<Polygon> AllObstacles {
             get {
@@ -191,37 +185,41 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
 
         private void OrganizeTangents() {
             foreach (Polygon q in AllObstacles)
-                if (q != this.currentPolygon)
+                if (q != currentPolygon)
                     ProcessPolygonQ(q);
     
-            this.tangents.Sort(new Comparison<Tangent>(TangentComparison));
+            tangents.Sort(new Comparison<Tangent>(TangentComparison));
         }
 
         private void ProcessPolygonQ(Polygon q) {
             TangentPair tangentPair = new TangentPair(currentPolygon, q);
-            if (this.useLeftPTangents)
+            if (useLeftPTangents)
                 tangentPair.CalculateLeftTangents();
             else
                 tangentPair.CalculateRightTangents();
             Tuple<int, int> couple = useLeftPTangents ? tangentPair.leftPLeftQ : tangentPair.rightPLeftQ;
 
-            Tangent t0 = new Tangent(currentPolygon[couple.Item1], q[couple.Item2]);
-            t0.IsLow = true;
-            t0.SeparatingPolygons = !this.useLeftPTangents;
+            Tangent t0 = new Tangent(currentPolygon[couple.Item1], q[couple.Item2])
+            {
+                IsLow = true,
+                SeparatingPolygons = !useLeftPTangents
+            };
             couple = useLeftPTangents ? tangentPair.leftPRightQ : tangentPair.rightPRightQ;
-            Tangent t1 = new Tangent(currentPolygon[couple.Item1], q[couple.Item2]);
-            t1.IsLow = false;
-            t1.SeparatingPolygons = this.useLeftPTangents;
+            Tangent t1 = new Tangent(currentPolygon[couple.Item1], q[couple.Item2])
+            {
+                IsLow = false,
+                SeparatingPolygons = useLeftPTangents
+            };
             t0.Comp = t1;
             t1.Comp = t0;
 
-            this.tangents.Add(t0);
-            this.tangents.Add(t1);
-            this.diagonals.Add(new Diagonal(t0, t1));
+            tangents.Add(t0);
+            tangents.Add(t1);
+            diagonals.Add(new Diagonal(t0, t1));
         }
 
         public InteractiveTangentVisibilityGraphCalculator(ICollection<Polygon> holes, IEnumerable<Polygon> addedPolygons, VisibilityGraph visibilityGraph) {
-            this.polygons = holes;
+            polygons = holes;
             this.visibilityGraph = visibilityGraph;
             this.addedPolygons = addedPolygons;
         }

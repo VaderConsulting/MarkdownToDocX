@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using MermaidRecognition.Flowchart;
+
+using MermaidRecognition.Kinds.Flowchart;
 
 namespace MermaidRecognition.Layout;
 
@@ -23,7 +24,7 @@ public static class FlowchartDirectionRemapper
             return new List<FlowchartLayoutNodeBounds>(Source);
         }
 
-        List<WorkingBounds> Working = new List<WorkingBounds>();
+        List<WorkingBounds> Working = [];
         foreach (FlowchartLayoutNodeBounds Bounds in Source)
         {
             double CenterX = Bounds.CenterX;
@@ -72,7 +73,7 @@ public static class FlowchartDirectionRemapper
             }
         }
 
-        List<FlowchartLayoutNodeBounds> Remapped = new List<FlowchartLayoutNodeBounds>();
+        List<FlowchartLayoutNodeBounds> Remapped = [];
         foreach (WorkingBounds Entry in Working)
         {
             Remapped.Add(new FlowchartLayoutNodeBounds

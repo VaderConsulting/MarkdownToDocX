@@ -9,15 +9,15 @@ public sealed class FlowchartCorridorPathTests
     [Test]
     public void BuildCorridorRoutePathData_UsesCurveBasisNotLinearPolyline()
     {
-        List<(double X, double Y)> Points = new List<(double X, double Y)>
-        {
+        List<(double X, double Y)> Points =
+        [
             (10.0, 100.0),
             (10.0, 90.0),
             (10.0, 50.0),
             (80.0, 50.0),
             (80.0, 40.0),
             (80.0, 30.0)
-        };
+        ];
 
         string PathData = FlowchartCurvePathBuilder.BuildCorridorRoutePathData(Points);
 

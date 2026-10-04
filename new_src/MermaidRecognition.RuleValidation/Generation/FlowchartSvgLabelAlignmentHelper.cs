@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Layout;
 using MermaidRecognition.Render;
 using MermaidRecognition.RuleValidation.Models;
@@ -130,7 +131,7 @@ public static class FlowchartSvgLabelAlignmentHelper
                 : null;
             string? RouteClass = TryResolveRouteClassName(EdgeContract, RouteClassByEdgeKey) ?? Edge.RouteClass;
 
-            List<(double X, double Y)> LayoutPoints = new List<(double X, double Y)>();
+            List<(double X, double Y)> LayoutPoints = [];
             if (!FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
                     EdgeContract,
                     Contract,
@@ -441,7 +442,7 @@ public static class FlowchartSvgLabelAlignmentHelper
         string Svg,
         FlowchartRenderOptions Options)
     {
-        List<RenderedTextElement> Elements = new List<RenderedTextElement>();
+        List<RenderedTextElement> Elements = [];
         MatchCollection Matches = Regex.Matches(
             Svg,
             @"<text([^>]*)>(.*?)</text>",
@@ -537,7 +538,7 @@ public static class FlowchartSvgLabelAlignmentHelper
         List<string> LineMarkupLines = ExtractRenderedLineMarkup(InnerMarkup);
         IEnumerable<string> WidthLines = LineMarkupLines.Count > 0
             ? LineMarkupLines
-            : new List<string> { InnerMarkup };
+            : [InnerMarkup];
         foreach (string LineMarkup in WidthLines)
         {
             double LineWidthPx = FlowchartRichLabelSvgWriter.EstimateLineWidthPx(LineMarkup, FontSizePx);
@@ -567,7 +568,7 @@ public static class FlowchartSvgLabelAlignmentHelper
 
     private static List<string> ExtractRenderedLineMarkup(string InnerMarkup)
     {
-        List<string> Lines = new List<string>();
+        List<string> Lines = [];
         MatchCollection LineTspans = Regex.Matches(
             InnerMarkup,
             @"<tspan[^>]*\bx=""[^""]+""[^>]*\bdy=""[^""]*""[^>]*>(.*?)</tspan>",
@@ -581,14 +582,11 @@ public static class FlowchartSvgLabelAlignmentHelper
         return Lines;
     }
 
-    private static string StripSvgTextMarkup(string Markup)
-    {
-        return Regex.Replace(Markup, "<[^>]+>", string.Empty, RegexOptions.Singleline)
+    private static string StripSvgTextMarkup(string Markup) => Regex.Replace(Markup, "<[^>]+>", string.Empty, RegexOptions.Singleline)
             .Replace("&lt;", "<", StringComparison.Ordinal)
             .Replace("&gt;", ">", StringComparison.Ordinal)
             .Replace("&amp;", "&", StringComparison.Ordinal)
             .Trim();
-    }
 
     private static double ParseCssPx(string Value)
     {
@@ -601,16 +599,10 @@ public static class FlowchartSvgLabelAlignmentHelper
         return double.Parse(Normalised, CultureInfo.InvariantCulture);
     }
 
-    private static bool TextMatchesLabel(string RenderedPlainText, string SearchToken)
-    {
-        return NormaliseWhitespaceForMatching(RenderedPlainText)
+    private static bool TextMatchesLabel(string RenderedPlainText, string SearchToken) => NormaliseWhitespaceForMatching(RenderedPlainText)
             .Contains(NormaliseWhitespaceForMatching(SearchToken), StringComparison.Ordinal);
-    }
 
-    private static string NormaliseWhitespaceForMatching(string Text)
-    {
-        return Regex.Replace(Text, @"\s+", string.Empty);
-    }
+    private static string NormaliseWhitespaceForMatching(string Text) => Regex.Replace(Text, @"\s+", string.Empty);
 
     private static string BuildLabelSearchToken(string Label)
     {

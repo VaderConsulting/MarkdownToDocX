@@ -1,4 +1,5 @@
 using MermaidRecognition.Contract;
+using MermaidRecognition.Core;
 using MermaidRecognition.Diagnostics;
 
 namespace MermaidRecognition.Render;

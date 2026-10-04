@@ -1,4 +1,4 @@
-namespace MermaidRecognition.Class;
+namespace MermaidRecognition.Kinds.Class;
 
 /// <summary>
 /// Parse-time class diagram namespace / group.
@@ -9,61 +9,28 @@ public sealed class ClassNamespaceRecord
 
     public string Id
     {
-        get
-        {
-            return _Id;
-        }
-        set
-        {
-            _Id = value;
-        }
+        get => _Id; set => _Id = value;
     }
 
     private string? _Title;
 
     public string? Title
     {
-        get
-        {
-            return _Title;
-        }
-        set
-        {
-            _Title = value;
-        }
+        get => _Title; set => _Title = value;
     }
 
     private string? _ParentNamespaceId;
 
     public string? ParentNamespaceId
     {
-        get
-        {
-            return _ParentNamespaceId;
-        }
-        set
-        {
-            _ParentNamespaceId = value;
-        }
+        get => _ParentNamespaceId; set => _ParentNamespaceId = value;
     }
 
-    private readonly List<string> _ChildNodeIds = new List<string>();
+    private readonly List<string> _ChildNodeIds = [];
 
-    public List<string> ChildNodeIdsMutable
-    {
-        get
-        {
-            return _ChildNodeIds;
-        }
-    }
+    public List<string> ChildNodeIdsMutable => _ChildNodeIds;
 
-    private readonly List<string> _ChildNamespaceIds = new List<string>();
+    private readonly List<string> _ChildNamespaceIds = [];
 
-    public List<string> ChildNamespaceIdsMutable
-    {
-        get
-        {
-            return _ChildNamespaceIds;
-        }
-    }
+    public List<string> ChildNamespaceIdsMutable => _ChildNamespaceIds;
 }

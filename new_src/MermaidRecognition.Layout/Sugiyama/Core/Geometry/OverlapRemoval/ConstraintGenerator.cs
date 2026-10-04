@@ -11,7 +11,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
-namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
+namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.OverlapRemoval
 {
     /// <summary>
     /// ConstraintGenerator is the driving class for overlap removal.  The caller
@@ -36,17 +36,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
         /// Read-only enumeration of the ClusterHierarchies; new cluster hierarchies are created
         /// by calling AddCluster 
         /// </summary>
-        public IEnumerable<OverlapRemovalCluster> ClusterHierarchies
-        {
-            get { return this.clusterHierarchies; }
-        }
-         readonly List<OverlapRemovalCluster> clusterHierarchies = new List<OverlapRemovalCluster>();
+        public IEnumerable<OverlapRemovalCluster> ClusterHierarchies => clusterHierarchies;
+        readonly List<OverlapRemovalCluster> clusterHierarchies = [];
 
         /// <summary>
         /// The initial, default ClusterHierarchy; a "flat" graph (with no user-defined clusters)
         /// lives entirely in this cluster.
         /// </summary>
-        public OverlapRemovalCluster DefaultClusterHierarchy { get { return this.clusterHierarchies[0]; } }
+        public OverlapRemovalCluster DefaultClusterHierarchy => clusterHierarchies[0];
 
         // This is the padding in the relevant direction, and the perpendicular padding that is
         // used if we are doing horizontal constraints (for the "amount of movement" comparisons).
@@ -75,13 +72,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
         /// Default padding value that is used (in both axes) if no padding is specified when
         /// calling the ConstraintGenerator constructor.
         /// </summary>
-        public static double DefaultPadding { get { return 7.0; } }
+        public static double DefaultPadding => 7.0;
 
         // An identifier to avoid duplicates in the ScanLine tree (otherwise the first
         // one encountered gets all the neighbours).  This sequence is shared with Clusters,
         // which are derived from Node; each Cluster consumes 3 IDs, one for the cluster
         // itself and one for each of its fake border nodes.
-         uint nextNodeId;
+        uint nextNodeId;
 
         /// <summary>
         /// As passed to ctor; if this is true, we are doing horizontal (x) constraint generation,
@@ -106,15 +103,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
         public ConstraintGenerator(bool isHorizontal, double padding, double paddingP, double clusterPadding, double clusterPaddingP)
         {
             ValidateArg.IsPositive(padding, "padding");
-            this.IsHorizontal = isHorizontal;
-            this.Padding = padding;
-            this.PaddingP = paddingP;
-            this.ClusterPadding = clusterPadding;
-            this.ClusterPaddingP = clusterPaddingP;
+            IsHorizontal = isHorizontal;
+            Padding = padding;
+            PaddingP = paddingP;
+            ClusterPadding = clusterPadding;
+            ClusterPaddingP = clusterPaddingP;
 
             // Create the DefaultClusterHierarchy.
-            this.clusterHierarchies.Add(new OverlapRemovalCluster(0, null /* parentCluster */, 0 /* default userData is 0 id */, Padding, PaddingP));
-            this.nextNodeId += OverlapRemovalCluster.NumInternalNodes;
+            clusterHierarchies.Add(new OverlapRemovalCluster(0, null /* parentCluster */, 0 /* default userData is 0 id */, Padding, PaddingP));
+            nextNodeId += OverlapRemovalCluster.NumInternalNodes;
         }
 
         /// <summary>
@@ -149,7 +146,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
             // It might be worthwhile to add a check to avoid constraint generation in the case that there cannot
             // be such an overlap on a line, or if the nodes are separated by some amount of distance.
             Debug.Assert(null != initialCluster, "initialCluster must not be null");
-            var nodNew = new OverlapRemovalNode(this.nextNodeId++, userData, position, positionP, size, sizeP, weight);
+            OverlapRemovalNode nodNew = new OverlapRemovalNode(nextNodeId++, userData, position, positionP, size, sizeP, weight);
             initialCluster.AddNode(nodNew);
             return nodNew;
         }
@@ -169,11 +166,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
         /// 
         public OverlapRemovalCluster AddCluster(OverlapRemovalCluster parentCluster, object userData,
                             BorderInfo openBorderInfo, BorderInfo closeBorderInfo,
-                            BorderInfo openBorderInfoP, BorderInfo closeBorderInfoP)
-        {
-            return AddCluster(parentCluster, userData, 0.0 /*minSize*/, 0.0 /*minSizeP*/,
+                            BorderInfo openBorderInfoP, BorderInfo closeBorderInfoP) => AddCluster(parentCluster, userData, 0.0 /*minSize*/, 0.0 /*minSizeP*/,
                             openBorderInfo, closeBorderInfo, openBorderInfoP, closeBorderInfoP);
-        }
 
         /// <summary>
         /// Creates a new cluster with a minimum size within the specified parent cluster.  Clusters allow creating a subset of
@@ -195,13 +189,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
                             BorderInfo openBorderInfo, BorderInfo closeBorderInfo,
                             BorderInfo openBorderInfoP, BorderInfo closeBorderInfoP)
         {
-            var newCluster = new OverlapRemovalCluster(this.nextNodeId, parentCluster, userData, minimumSize, minimumSizeP,
-                            this.Padding, this.PaddingP, this.ClusterPadding, this.ClusterPaddingP,
+            OverlapRemovalCluster newCluster = new OverlapRemovalCluster(nextNodeId, parentCluster, userData, minimumSize, minimumSizeP,
+                            Padding, PaddingP, ClusterPadding, ClusterPaddingP,
                             openBorderInfo, closeBorderInfo, openBorderInfoP, closeBorderInfoP);
-            this.nextNodeId += OverlapRemovalCluster.NumInternalNodes;
+            nextNodeId += OverlapRemovalCluster.NumInternalNodes;
             if (null == parentCluster)
             {
-                this.clusterHierarchies.Add(newCluster);
+                clusterHierarchies.Add(newCluster);
             }
             else
             {
@@ -219,12 +213,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
         ///                             new hierarchy, otherwise must be non-NULL (perhaps DefaultClusterHierarchy).</param>
         /// <param name="userData">An object that is passed through.</param>
         /// <returns>The new Cluster.</returns>
-        public OverlapRemovalCluster AddCluster(OverlapRemovalCluster parentCluster, object userData)
-        {
-            return AddCluster(parentCluster, userData,
+        public OverlapRemovalCluster AddCluster(OverlapRemovalCluster parentCluster, object userData) => AddCluster(parentCluster, userData,
                             new BorderInfo(0.0), new BorderInfo(0.0),
                             new BorderInfo(0.0), new BorderInfo(0.0)); // 0.0 margins 
-        }
 
         /// <summary>
         /// Add a Cluster with default border information and specified minimum sizes.
@@ -236,12 +227,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
         /// <param name="minimumSizeP">Minimum cluster size along the perpendicular axis.</param>
         /// <returns>The new Cluster.</returns>
         public OverlapRemovalCluster AddCluster(OverlapRemovalCluster parentCluster, object userData,
-                                              double minimumSize, double minimumSizeP)
-        {
-            return AddCluster(parentCluster, userData, minimumSize, minimumSizeP,
+                                              double minimumSize, double minimumSizeP) => AddCluster(parentCluster, userData, minimumSize, minimumSizeP,
                             new BorderInfo(0.0), new BorderInfo(0.0),
                             new BorderInfo(0.0), new BorderInfo(0.0)); // 0.0 margins 
-        }
 
         /// <summary>
         /// Add a node to a cluster in another hierarchy (a node can be in only one cluster per hierarchy).
@@ -251,7 +239,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
         // @@DCR:  Keep a node->hierarchyParentsList hash and use cluster.parentCluster to traverse to the hierarchy root
         //            to verify the node is in one cluster per hierarchy.  This will require that the function be
         //            non-static, hence the rule suppression.
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         public void AddNodeToCluster(OverlapRemovalCluster cluster, OverlapRemovalNode node)
         {
             // Node derives from Cluster so make sure we don't have this - the only way to create
@@ -281,9 +268,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
             {
                 parameters = new OverlapRemovalParameters();
             }
-            foreach (OverlapRemovalCluster cluster in this.clusterHierarchies)
+            foreach (OverlapRemovalCluster cluster in clusterHierarchies)
             {
-                cluster.Generate(solver, parameters, this.IsHorizontal);
+                cluster.Generate(solver, parameters, IsHorizontal);
             }
 
             // For Clusters we reposition their "fake border" variables between the constraint-generation
@@ -316,7 +303,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
                 Generate(solver, parameters);
             }
             ProjectionSolver.Solution solverSolution = solver.Solve(parameters.SolverParameters);
-            foreach (OverlapRemovalCluster cluster in this.clusterHierarchies)
+            foreach (OverlapRemovalCluster cluster in clusterHierarchies)
             {
                 cluster.UpdateFromVariable();   // "recursively" processes all child clusters
             }

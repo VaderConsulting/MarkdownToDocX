@@ -10,9 +10,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
         Point intersectionPoint;
         PolylinePoint endVertex;
 
-        internal PolylinePoint EndVertex {
-            get { return endVertex; }
-            set { endVertex = value; }
+        internal PolylinePoint EndVertex { get => endVertex; set => endVertex = value;
         }
 
         internal RightIntersectionEvent(ConeRightSide coneRightSide,
@@ -22,12 +20,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
             this.endVertex = endVertex;
         }
 
-        internal override Point Site {
-            get { return intersectionPoint; }
-        }
+        internal override Point Site => intersectionPoint;
 
-        public override string ToString() {
-            return "RightIntersectionEvent "+ intersectionPoint;
-        }
+        public override string ToString() => "RightIntersectionEvent " + intersectionPoint;
     }
 }

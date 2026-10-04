@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+
 using Microsoft.AGL.Core.Layout;
 
 namespace Microsoft.AGL.Core.Geometry.Curves {
@@ -15,9 +16,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="radiusInYDirection"></param>
         /// <param name="center"></param>
         /// <returns></returns>
-        static public ICurve CreateEllipse(double radiusInXDirection, double radiusInYDirection, Point center) {
-            return new Ellipse(radiusInXDirection, radiusInYDirection, center);
-        }
+        static public ICurve CreateEllipse(double radiusInXDirection, double radiusInYDirection, Point center) => new Ellipse(radiusInXDirection, radiusInYDirection, center);
 
         /// <summary>
         /// Creates an ellipse by the length of axes and the center
@@ -25,9 +24,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="radius"></param>
         /// <param name="center"></param>
         /// <returns></returns>
-        static public ICurve CreateCircle(double radius, Point center) {
-            return new Ellipse(radius, radius, center);
-        }
+        static public ICurve CreateCircle(double radius, Point center) => new Ellipse(radius, radius, center);
 
         /// <summary>
         /// Create a rectangle with smoothed corners
@@ -39,7 +36,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="center">the rectangle center</param>
         /// <returns></returns>
         static public ICurve CreateRectangleWithRoundedCorners(double width, double height, double radiusInXDirection, double radiusInYDirection, Point center) {
-            var box = new Rectangle(center.X - width/2, center.Y - height/2, center.X + width/2, center.Y + height/2);
+            Rectangle box = new Rectangle(center.X - width/2, center.Y - height/2, center.X + width/2, center.Y + height/2);
             return new RoundedRect(box, radiusInXDirection, radiusInYDirection);
         }
 
@@ -136,10 +133,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// </summary>
         /// <param name="rectangle"></param>
         /// <returns></returns>
-        static public ICurve CreateRectangle(Rectangle rectangle)
-        {
-            return CreateRectangle(rectangle.Width, rectangle.Height, rectangle.Center);
-        }
+        static public ICurve CreateRectangle(Rectangle rectangle) => CreateRectangle(rectangle.Width, rectangle.Height, rectangle.Center);
 
         /// <summary>
         /// Creates a curve resembling a house large enough to inscribe within it a rectangle of the 
@@ -223,9 +217,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="height">the bounding rectangle height</param>
         /// <param name="center">the bounding rectangle center</param>
         /// <returns></returns>
-        static public ICurve CreateInteriorDiamond(double width, double height, Point center) {
-            return CreateDiamond(width / 2, height / 2, center);
-        }
+        static public ICurve CreateInteriorDiamond(double width, double height, Point center) => CreateDiamond(width / 2, height / 2, center);
 
         // This adds the padding to the edges around the inscribed rectangle of an octagon.
         static double octagonPad = 1.0 / 4;
@@ -286,7 +278,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
             for (int i = 0; i < 6; i++)
                 ps[i] += center;
 
-            var poly = new Polyline(ps) {Closed = true};            
+            Polyline poly = new Polyline(ps) {Closed = true};            
             return poly;
         }
 
@@ -297,9 +289,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="height">the bounding rectangle height</param>
         /// <param name="center">the bounding rectangle center</param>
         /// <returns></returns>
-        public static ICurve CreateInteriorOctagon(double width, double height, Point center) {
-            return CreateOctagon(width / (1.0 + octagonPad), height / (1.0 + octagonPad), center);
-        }
+        public static ICurve CreateInteriorOctagon(double width, double height, Point center) => CreateOctagon(width / (1.0 + octagonPad), height / (1.0 + octagonPad), center);
 
         /// <summary>
         /// testing, don't use
@@ -355,9 +345,9 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <returns></returns>
         public static ICurve RotateCurveAroundCenterByRadian(ICurve curve, Point center, double angle) {
             ValidateArg.IsNotNull(curve, "curve");
-            var c = Math.Cos(angle);
-            var s = Math.Sin(angle);
-            var transform = new PlaneTransformation(1, 0, center.X, 0, 1, center.Y) * new PlaneTransformation(c, -s, 0, s, c, 0) * new PlaneTransformation(1, 0, -center.X, 0, 1, -center.Y);
+            double c = Math.Cos(angle);
+            double s = Math.Sin(angle);
+            PlaneTransformation transform = new PlaneTransformation(1, 0, center.X, 0, 1, center.Y) * new PlaneTransformation(c, -s, 0, s, c, 0) * new PlaneTransformation(1, 0, -center.X, 0, 1, -center.Y);
             return curve.Transform(transform);
         }
 
@@ -368,9 +358,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="center"></param>
         /// <param name="degree"></param>
         /// <returns></returns>
-        public static ICurve RotateCurveAroundCenterByDegree(ICurve curve, Point center, double degree) {
-            return RotateCurveAroundCenterByRadian(curve, center, degree * (Math.PI / 180.0));
-        }
+        public static ICurve RotateCurveAroundCenterByDegree(ICurve curve, Point center, double degree) => RotateCurveAroundCenterByRadian(curve, center, degree * (Math.PI / 180.0));
 
         ///<summary>
         ///</summary>
@@ -379,15 +367,15 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         ///<returns></returns>
         public static ICurve CreateStar(double width, Point center) {
             const double a = Math.PI*2/5;
-            var r2 = width/(2*Math.Sin(a));
-            var r = r2/2;
+            double r2 = width/(2*Math.Sin(a));
+            double r = r2/2;
             return new Polyline(StarPoints(r, r2, center, a)) {Closed = true};
 
         }
 
         static IEnumerable<Point> StarPoints(double r, double r2, Point center, double a) {
-            var ang = Math.PI/2;
-            var anghalf = a/2;
+            double ang = Math.PI/2;
+            double anghalf = a/2;
             for (int i = 0; i < 5; i++) {
                 yield return center + r2*new Point(Math.Cos(ang), Math.Sin(ang));
                 yield return center + r * new Point(Math.Cos(ang+anghalf), Math.Sin(ang+anghalf));
@@ -396,7 +384,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         }
 
         internal static Polyline CreateRegularPolygon(int n, Point center, double rad) {
-            var pt = new Point[n];
+            Point[] pt = new Point[n];
             double a = 2*Math.PI/n;
             for (int i = 0; i < n; i++)
                 pt[i] = rad * (new Point(Math.Cos(i*a), Math.Sin(i*a))) + center;

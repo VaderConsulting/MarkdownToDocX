@@ -1,7 +1,9 @@
 using System.Text.RegularExpressions;
-using MermaidRecognition.Contract;
 
-namespace MermaidRecognition.KindRecognition;
+using MermaidRecognition.Contract;
+using MermaidRecognition.Core;
+
+namespace MermaidRecognition.Kinds.LinePattern;
 
 /// <summary>
 /// L1 recogniser: init/config, header, and line-type catalogue stubs (Mermaid-aligned patterns).
@@ -28,8 +30,10 @@ public sealed class LinePatternKindRecognizer : IKindRecognizer
     /// <inheritdoc />
     public DiagramContract Parse(string Source, DiagramDetectionResult Detection)
     {
-        DiagramContract Contract = new DiagramContract();
-        Contract.Kind = _ProgrammeKindId;
+        DiagramContract Contract = new DiagramContract
+        {
+            Kind = _ProgrammeKindId
+        };
 
         MermaidConfigurationPipeline.ParseLeadingInitDirectives(Source, Contract.Configuration);
 
@@ -113,10 +117,12 @@ public sealed class LinePatternKindRecognizer : IKindRecognizer
 
     static void AddStatement(DiagramContract Contract, int LineNumber, string LineTypeId, string RawLine)
     {
-        SourceStatementContract Statement = new SourceStatementContract();
-        Statement.LineNumber = LineNumber;
-        Statement.LineTypeId = LineTypeId;
-        Statement.RawLine = RawLine;
+        SourceStatementContract Statement = new SourceStatementContract
+        {
+            LineNumber = LineNumber,
+            LineTypeId = LineTypeId,
+            RawLine = RawLine
+        };
         Contract.SourceStatementsMutable.Add(Statement);
     }
 

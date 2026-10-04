@@ -1,20 +1,20 @@
 using System;
 using System.Collections.Generic;
+
 using Microsoft.AGL.Core.Layout;
 
-namespace Microsoft.AGL.DebugHelpers {
+namespace Microsoft.AGL.DebugHelpers.Persistence
+{
     /// <summary>
     /// this class is needed for temporarily holding the list of integers representing cluster childs,
     /// and the list of node Id's representing cluster child nodes
     /// </summary>
     public class ClusterWithChildLists {
-        internal List<string> ChildClusters = new List<string>();
-        internal List<string> ChildNodes = new List<string>();
+        internal List<string> ChildClusters = [];
+        internal List<string> ChildNodes = [];
         internal Cluster Cluster;
-        internal ClusterWithChildLists(Cluster cl) {
-            Cluster = cl;
-        }
-        internal void AddCluster(string clusterIndex){ChildClusters.Add(clusterIndex);}
-        internal void AddNode(string nodeId) { ChildNodes.Add(nodeId); }
+        internal ClusterWithChildLists(Cluster cl) => Cluster = cl;
+        internal void AddCluster(string clusterIndex) => ChildClusters.Add(clusterIndex);
+        internal void AddNode(string nodeId) => ChildNodes.Add(nodeId);
     }
 }

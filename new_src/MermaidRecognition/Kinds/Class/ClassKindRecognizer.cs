@@ -1,6 +1,8 @@
 using System.Text.RegularExpressions;
 
-namespace MermaidRecognition.Class;
+using MermaidRecognition.Core;
+
+namespace MermaidRecognition.Kinds.Class;
 
 /// <summary>
 /// Class diagram L2 recognition (vendored <c>classDiagram.jison</c>).
@@ -33,15 +35,14 @@ public sealed class ClassKindRecognizer : IKindRecognizer
     private static readonly Regex AccDescrRegex = new(@"^\s*accDescr(\s*:|\s*\{)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     /// <inheritdoc />
-    public DiagramContract Parse(string Source, DiagramDetectionResult Detection)
-    {
-        return ParseLines(Source, Detection.ProgrammeKindId, "classDiagram");
-    }
+    public DiagramContract Parse(string Source, DiagramDetectionResult Detection) => ParseLines(Source, Detection.ProgrammeKindId, "classDiagram");
 
     internal static DiagramContract ParseLines(string Source, string Kind, string LineTypePrefix)
     {
-        DiagramContract Contract = new DiagramContract();
-        Contract.Kind = Kind;
+        DiagramContract Contract = new DiagramContract
+        {
+            Kind = Kind
+        };
         ApplyInit(Source, Contract);
 
         string Body = StripLeadingInitBlocks(Source);
@@ -202,10 +203,12 @@ public sealed class ClassKindRecognizer : IKindRecognizer
 
     static void AddStatement(DiagramContract Contract, int LineNumber, string LineTypeId, string RawLine)
     {
-        SourceStatementContract Statement = new SourceStatementContract();
-        Statement.LineNumber = LineNumber;
-        Statement.LineTypeId = LineTypeId;
-        Statement.RawLine = RawLine;
+        SourceStatementContract Statement = new SourceStatementContract
+        {
+            LineNumber = LineNumber,
+            LineTypeId = LineTypeId,
+            RawLine = RawLine
+        };
         Contract.SourceStatementsMutable.Add(Statement);
     }
 

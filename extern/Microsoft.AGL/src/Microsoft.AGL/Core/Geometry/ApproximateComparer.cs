@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Microsoft.AGL.Core.Geometry {
@@ -9,31 +9,22 @@ namespace Microsoft.AGL.Core.Geometry {
         /// <summary>
         /// return true if the points are close enough
         /// </summary>
-        public static bool Close(Point pointA, Point pointB, double tolerance) {
-            return (pointA - pointB).Length <= tolerance;
-        }
+        public static bool Close(Point pointA, Point pointB, double tolerance) => (pointA - pointB).Length <= tolerance;
 
         /// <summary>
         /// return true if the points are close enough
         /// </summary>
-        public static bool Close(Point pointA, Point pointB) {
-            return Close(pointA, pointB, DistanceEpsilon);
-        }
+        public static bool Close(Point pointA, Point pointB) => Close(pointA, pointB, DistanceEpsilon);
 
         /// <summary>
         /// return true if the numbers are close enough
         /// </summary>
-        [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "a"), SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "b")]
-        public static bool Close(double a, double b) {
-            return Math.Abs(a - b) <= DistanceEpsilon;
-        }
+        public static bool Close(double a, double b) => Math.Abs(a - b) <= DistanceEpsilon;
 
         /// <summary>
         /// return true if the two rects are nearly identical (ignoring precision errors smaller than DistanceEpsilon)
         /// </summary>
-        public static bool Close(Rectangle rect1, Rectangle rect2, double tolerance) {
-            return Close(rect1.LeftBottom, rect2.LeftBottom, tolerance) && Close(rect1.RightTop, rect2.RightTop, tolerance);
-        }
+        public static bool Close(Rectangle rect1, Rectangle rect2, double tolerance) => Close(rect1.LeftBottom, rect2.LeftBottom, tolerance) && Close(rect1.RightTop, rect2.RightTop, tolerance);
 
         /// <summary>
         /// return true if the two rects are nearly identical (ignoring precision errors smaller than DistanceEpsilon)
@@ -41,9 +32,7 @@ namespace Microsoft.AGL.Core.Geometry {
         /// <param name="rect1">first Rectangle</param>
         /// <param name="rect2">second Rectangle</param>
         /// <returns></returns>
-        public static bool Close(Rectangle rect1, Rectangle rect2) {
-            return Close(rect1, rect2, DistanceEpsilon);
-        }
+        public static bool Close(Rectangle rect1, Rectangle rect2) => Close(rect1, rect2, DistanceEpsilon);
 
         /// <summary>
         /// The usual Compare operation, but within Curve.DistanceEpsilon.
@@ -68,9 +57,7 @@ namespace Microsoft.AGL.Core.Geometry {
         /// <param name="numberA"></param>
         /// <param name="numberB"></param>
         /// <returns></returns>
-        public static bool Greater(double numberA, double numberB) {
-            return Compare(numberA, numberB) > 0;
-        }
+        public static bool Greater(double numberA, double numberB) => Compare(numberA, numberB) > 0;
 
         /// <summary>
         /// The usual >= operation, but within Curve.DistanceEpsilon.
@@ -78,9 +65,7 @@ namespace Microsoft.AGL.Core.Geometry {
         /// <param name="numberA"></param>
         /// <param name="numberB"></param>
         /// <returns></returns>
-        public static bool GreaterOrEqual(double numberA, double numberB) {
-            return Compare(numberA, numberB) >= 0;
-        }
+        public static bool GreaterOrEqual(double numberA, double numberB) => Compare(numberA, numberB) >= 0;
 
         /// <summary>
         /// The usual less operation, but within Curve.DistanceEpsilon.
@@ -88,9 +73,7 @@ namespace Microsoft.AGL.Core.Geometry {
         /// <param name="numberA"></param>
         /// <param name="numberB"></param>
         /// <returns></returns>
-        public static bool Less(double numberA, double numberB) {
-            return Compare(numberA, numberB) < 0;
-        }
+        public static bool Less(double numberA, double numberB) => Compare(numberA, numberB) < 0;
 
         /// <summary>
         /// The usual less operation, but within Curve.DistanceEpsilon.
@@ -98,9 +81,7 @@ namespace Microsoft.AGL.Core.Geometry {
         /// <param name="numberA"></param>
         /// <param name="numberB"></param>
         /// <returns></returns>
-        public static bool LessOrEqual(double numberA, double numberB) {
-            return Compare(numberA, numberB) <= 0;
-        }
+        public static bool LessOrEqual(double numberA, double numberB) => Compare(numberA, numberB) <= 0;
 
         /// <summary>
         /// returns true if two intersections points are close enough
@@ -134,65 +115,46 @@ namespace Microsoft.AGL.Core.Geometry {
         /// <summary>
         /// The square of the distance epsilon for two points considered to be the same
         /// </summary>
-        internal static double SquareOfDistanceEpsilon {
-            get { return squareOfDistanceEpsilon; }
-        }
+        internal static double SquareOfDistanceEpsilon => squareOfDistanceEpsilon;
 
         /// <summary>
         /// The digits of precision for the distance for two points considered to be the same
         /// </summary>
-        internal static int DistanceEpsilonPrecision {
-            get { return 6; }
-        }
+        internal static int DistanceEpsilonPrecision => 6;
 
-         static double distXEps = 0.0001;
+        static double distXEps = 0.0001;
 
         /// <summary>
         /// The distance for two intersection points considered to be the same
         /// </summary>
-        public static double IntersectionEpsilon {
-            get { return distXEps; }
-            set { distXEps = value; }
+        public static double IntersectionEpsilon { get => distXEps; set => distXEps = value;
         }
 
-         static double tolerance = 1.0E-8;
+        static double tolerance = 1.0E-8;
 
         /// <summary>
         /// The distance where to real numbers are considered the same
         /// </summary>
-        public static double Tolerance {
-            get { return tolerance; }
-            set { tolerance = value; }
+        public static double Tolerance { get => tolerance; set => tolerance = value;
         }
 
-         static double userDefinedTolerance = tolerance;
+        static double userDefinedTolerance = tolerance;
 
         /// <summary>
         /// A tolerance that is settable by users of MSAGL to adjust performance.
         /// </summary>
-        public static double UserDefinedTolerance {
-            get { return userDefinedTolerance; }
-            set { userDefinedTolerance = value; }
+        public static double UserDefinedTolerance { get => userDefinedTolerance; set => userDefinedTolerance = value;
         }
 
         /// <summary>
         /// point coordinates will be rounded to NumberOfDigitsToRound for comparison
         /// </summary>
-        static internal int NumberOfDigitsToRound {
-            get { return DistanceEpsilonPrecision; }
-        }
+        static internal int NumberOfDigitsToRound => DistanceEpsilonPrecision;
 
-        static internal Point Round(Point point) {
-            return new Point(Round(point.X), Round(point.Y));
-        }
+        static internal Point Round(Point point) => new Point(Round(point.X), Round(point.Y));
 
-        static internal Point Round(Point point, int numberDigitsToRound)
-        {
-            return new Point(Math.Round(point.X, numberDigitsToRound), Math.Round(point.Y, numberDigitsToRound));
-        }
+        static internal Point Round(Point point, int numberDigitsToRound) => new Point(Math.Round(point.X, numberDigitsToRound), Math.Round(point.Y, numberDigitsToRound));
 
-        static internal double Round(double value) {
-            return Math.Round(value, NumberOfDigitsToRound);
-        }
+        static internal double Round(double value) => Math.Round(value, NumberOfDigitsToRound);
     }
 }

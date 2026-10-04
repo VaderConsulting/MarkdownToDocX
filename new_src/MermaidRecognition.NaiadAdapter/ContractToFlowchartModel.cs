@@ -18,11 +18,13 @@ public static class ContractToFlowchartModel
                 "ContractToFlowchartModel only supports flowchart diagrams; got kind \"" + Contract.Kind + "\".");
         }
 
-        FlowchartModel Model = new FlowchartModel();
-        Model.Title = Contract.Accessibility.Title;
-        Model.AccessibilityTitle = Contract.Accessibility.Title;
-        Model.AccessibilityDescription = Contract.Accessibility.Description;
-        Model.Direction = MapDirection(Contract.Direction);
+        FlowchartModel Model = new FlowchartModel
+        {
+            Title = Contract.Accessibility.Title,
+            AccessibilityTitle = Contract.Accessibility.Title,
+            AccessibilityDescription = Contract.Accessibility.Description,
+            Direction = MapDirection(Contract.Direction)
+        };
 
         foreach (KeyValuePair<string, string> ConfigEntry in Contract.Configuration.EffectiveValues)
         {
@@ -154,9 +156,7 @@ public static class ContractToFlowchartModel
         return Target;
     }
 
-    static bool HasInlineStyle(RecognitionStyle Source)
-    {
-        return Source.Fill is not null
+    static bool HasInlineStyle(RecognitionStyle Source) => Source.Fill is not null
             || Source.Stroke is not null
             || Source.StrokeWidth.HasValue
             || Source.StrokeDasharray is not null
@@ -164,7 +164,6 @@ public static class ContractToFlowchartModel
             || Source.FontSize.HasValue
             || Source.FontWeight is not null
             || Source.TextColor is not null;
-    }
 
     static void ApplyRecognitionStyle(RecognitionStyle Source, Style Target)
     {
@@ -214,9 +213,9 @@ public static class ContractToFlowchartModel
         Subgraph Target = new Subgraph
         {
             Id = Group.Id,
-            Title = Group.Title
+            Title = Group.Title,
+            Direction = MapDirection(Group.Direction)
         };
-        Target.Direction = MapDirection(Group.Direction);
 
         foreach (string NodeId in Group.ChildNodeIds)
         {

@@ -1,8 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+
 using Microsoft.AGL.Core.DataStructures;
+using Microsoft.AGL.Core.DataStructures.RBTree;
 using Microsoft.AGL.Core.Geometry;
 using Microsoft.AGL.Core.Geometry.Curves;
 
@@ -26,8 +28,8 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
         CdtTriangle piercedTriangle;
         RBNode<CdtFrontElement> piercedToTheLeftFrontElemNode;
         RBNode<CdtFrontElement> piercedToTheRightFrontElemNode;
-        List<CdtFrontElement> elementsToBeRemovedFromFront = new List<CdtFrontElement>();
-        List<CdtTriangle> removedTriangles = new List<CdtTriangle>();
+        List<CdtFrontElement> elementsToBeRemovedFromFront = [];
+        List<CdtTriangle> removedTriangles = [];
 
         public EdgeTracer(CdtEdge edge, Set<CdtTriangle> triangles, RbTree<CdtFrontElement> front, List<CdtSite> leftPolygon, List<CdtSite> rightPolygon) {
             this.edge = edge;
@@ -57,13 +59,13 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
 
             FindMoreRemovedFromFrontElements();
 
-            foreach (var elem in elementsToBeRemovedFromFront)
+            foreach (CdtFrontElement elem in elementsToBeRemovedFromFront)
                 front.Remove(elem);
         }
 
         void ProcessLeftFrontPiercedElement() {
-                       // CdtSweeper.ShowFront(triangles, front,new []{new LineSegment(a.Point, b.Point),new LineSegment(piercedToTheLeftFrontElemNode.Item.Edge.lowerSite.Point,piercedToTheLeftFrontElemNode.Item.Edge.upperSite.Point)},null);
-            var v = piercedToTheLeftFrontElemNode;
+            // CdtSweeper.ShowFront(triangles, front,new []{new LineSegment(a.Point, b.Point),new LineSegment(piercedToTheLeftFrontElemNode.Item.Edge.lowerSite.Point,piercedToTheLeftFrontElemNode.Item.Edge.upperSite.Point)},null);
+            RBNode<CdtFrontElement> v = piercedToTheLeftFrontElemNode;
 
             do {
                 elementsToBeRemovedFromFront.Add(v.Item);
@@ -81,13 +83,13 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
         }
 
         void FindPiercedTriangle(RBNode<CdtFrontElement> v) {
-            var e = v.Item.Edge;
-            var t = e.CcwTriangle ?? e.CwTriangle;
-            var eIndex = t.Edges.Index(e);
+            CdtEdge e = v.Item.Edge;
+            CdtTriangle t = e.CcwTriangle ?? e.CwTriangle;
+            int eIndex = t.Edges.Index(e);
             for (int i = 1; i <= 2; i++) {
-                var ei = t.Edges[i + eIndex];
-                var signedArea0 = ApproximateComparer.Sign(Point.SignedDoubledTriangleArea(ei.lowerSite.Point, a.Point, b.Point));
-                var signedArea1 = ApproximateComparer.Sign(Point.SignedDoubledTriangleArea(ei.upperSite.Point, a.Point, b.Point));
+                CdtEdge ei = t.Edges[i + eIndex];
+                int signedArea0 = ApproximateComparer.Sign(Point.SignedDoubledTriangleArea(ei.lowerSite.Point, a.Point, b.Point));
+                int signedArea1 = ApproximateComparer.Sign(Point.SignedDoubledTriangleArea(ei.upperSite.Point, a.Point, b.Point));
                 if (signedArea1 * signedArea0 <= 0) {
                     piercedTriangle = t;
                     piercedEdge = ei;
@@ -97,11 +99,11 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
         }
 
         void FindMoreRemovedFromFrontElements() {
-            foreach (var triangle in removedTriangles) {
-                foreach (var e in triangle.Edges) {
+            foreach (CdtTriangle triangle in removedTriangles) {
+                foreach (CdtEdge e in triangle.Edges) {
                     if (e.CcwTriangle == null && e.CwTriangle == null) {
-                        var site = e.upperSite.Point.X < e.lowerSite.Point.X ? e.upperSite : e.lowerSite;
-                        var frontNode = CdtSweeper.FindNodeInFrontBySite(front, site);
+                        CdtSite site = e.upperSite.Point.X < e.lowerSite.Point.X ? e.upperSite : e.lowerSite;
+                        RBNode<CdtFrontElement> frontNode = CdtSweeper.FindNodeInFrontBySite(front, site);
                         if (frontNode.Item.Edge == e)
                             elementsToBeRemovedFromFront.Add(frontNode.Item);
                     }
@@ -127,12 +129,12 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
         }
 
         void PrepareNextStateAfterPiercedEdge() {
-            var t = piercedEdge.CwTriangle ?? piercedEdge.CcwTriangle;
-            var eIndex = t.Edges.Index(piercedEdge);
+            CdtTriangle t = piercedEdge.CwTriangle ?? piercedEdge.CcwTriangle;
+            int eIndex = t.Edges.Index(piercedEdge);
             for (int i = 1; i <= 2; i++) {
-                var e = t.Edges[i + eIndex];
-                var signedArea0 = ApproximateComparer.Sign(Point.SignedDoubledTriangleArea(e.lowerSite.Point, a.Point, b.Point));
-                var signedArea1 = ApproximateComparer.Sign(Point.SignedDoubledTriangleArea(e.upperSite.Point, a.Point, b.Point));
+                CdtEdge e = t.Edges[i + eIndex];
+                int signedArea0 = ApproximateComparer.Sign(Point.SignedDoubledTriangleArea(e.lowerSite.Point, a.Point, b.Point));
+                int signedArea1 = ApproximateComparer.Sign(Point.SignedDoubledTriangleArea(e.upperSite.Point, a.Point, b.Point));
                 if (signedArea1 * signedArea0 <= 0) {
                     if (e.CwTriangle != null && e.CcwTriangle != null) {
                         piercedTriangle = t;
@@ -142,8 +144,8 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
                     //e has to belong to the front, and its triangle has to be removed
                     piercedTriangle = null;
                     piercedEdge = null;
-                    var leftSite = e.upperSite.Point.X < e.lowerSite.Point.X ? e.upperSite : e.lowerSite;
-                    var frontElem = CdtSweeper.FindNodeInFrontBySite(front, leftSite);
+                    CdtSite leftSite = e.upperSite.Point.X < e.lowerSite.Point.X ? e.upperSite : e.lowerSite;
+                    RBNode<CdtFrontElement> frontElem = CdtSweeper.FindNodeInFrontBySite(front, leftSite);
                     Debug.Assert(frontElem != null);
                     if (leftSite.Point.X < a.Point.X)
                         piercedToTheLeftFrontElemNode = frontElem;
@@ -158,7 +160,7 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
 
         void RemovePiercedTriangle(CdtTriangle t) {
             triangles.Remove(t);
-            foreach (var e in t.Edges)
+            foreach (CdtEdge e in t.Edges)
                 if (e.CwTriangle == t)
                     e.CwTriangle = null;
                 else e.CcwTriangle = null;
@@ -167,7 +169,7 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
 
 
         void ProcessRightFrontPiercedElement() {
-            var v = piercedToTheRightFrontElemNode;
+            RBNode<CdtFrontElement> v = piercedToTheRightFrontElemNode;
 
             do {
                 elementsToBeRemovedFromFront.Add(v.Item);
@@ -184,9 +186,7 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
             piercedToTheRightFrontElemNode = null;
         }
 
-        void AddSiteToLeftPolygon(CdtSite site) {
-            AddSiteToPolygonWithCheck(site, leftPolygon);
-        }
+        void AddSiteToLeftPolygon(CdtSite site) => AddSiteToPolygonWithCheck(site, leftPolygon);
 
         void AddSiteToPolygonWithCheck(CdtSite site, List<CdtSite> list) {
             if (site == b) return;
@@ -196,35 +196,33 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
 
         }
 
-        void AddSiteToRightPolygon(CdtSite site) {
-            AddSiteToPolygonWithCheck(site, rightPolygon);
-        }
+        void AddSiteToRightPolygon(CdtSite site) => AddSiteToPolygonWithCheck(site, rightPolygon);
 
         bool BIsReached() {
-            var node = piercedToTheLeftFrontElemNode ?? piercedToTheRightFrontElemNode;
+            RBNode<CdtFrontElement> node = piercedToTheLeftFrontElemNode ?? piercedToTheRightFrontElemNode;
             if (node != null)
                 return node.Item.Edge.IsAdjacent(b);
             return piercedEdge.IsAdjacent(b);
         }
 
         void Init() {
-//            if (CdtSweeper.D)
-//                CdtSweeper.ShowFront(triangles, front, new[] {new LineSegment(a.Point, b.Point)},null);
-                                     //new[] {new LineSegment(piercedEdge.upperSite.Point, piercedEdge.lowerSite.Point)});
-            var frontElemNodeRightOfA = CdtSweeper.FindNodeInFrontBySite(front, a);
-            var frontElemNodeLeftOfA = front.Previous(frontElemNodeRightOfA);
+            //            if (CdtSweeper.D)
+            //                CdtSweeper.ShowFront(triangles, front, new[] {new LineSegment(a.Point, b.Point)},null);
+            //new[] {new LineSegment(piercedEdge.upperSite.Point, piercedEdge.lowerSite.Point)});
+            RBNode<CdtFrontElement> frontElemNodeRightOfA = CdtSweeper.FindNodeInFrontBySite(front, a);
+            RBNode<CdtFrontElement> frontElemNodeLeftOfA = front.Previous(frontElemNodeRightOfA);
             if (Point.PointToTheLeftOfLine(b.Point, frontElemNodeLeftOfA.Item.LeftSite.Point, frontElemNodeLeftOfA.Item.RightSite.Point))
                 piercedToTheLeftFrontElemNode = frontElemNodeLeftOfA;
             else if (Point.PointToTheRightOfLine(b.Point, frontElemNodeRightOfA.Item.RightSite.Point, frontElemNodeRightOfA.Item.LeftSite.Point))
                 piercedToTheRightFrontElemNode = frontElemNodeRightOfA;
             else {
-                foreach (var e in a.Edges) {
-                    var t = e.CcwTriangle;
+                foreach (CdtEdge e in a.Edges) {
+                    CdtTriangle t = e.CcwTriangle;
                     if (t == null) continue;
                     if (Point.PointToTheLeftOfLine(b.Point, e.lowerSite.Point, e.upperSite.Point))
                         continue;
-                    var eIndex = t.Edges.Index(e);
-                    var site = t.Sites[eIndex + 2];
+                    int eIndex = t.Edges.Index(e);
+                    CdtSite site = t.Sites[eIndex + 2];
                     if (Point.PointToTheLeftOfLineOrOnLine(b.Point, site.Point, e.upperSite.Point)) {
                         piercedEdge = t.Edges[eIndex + 1];
                         piercedTriangle = t;

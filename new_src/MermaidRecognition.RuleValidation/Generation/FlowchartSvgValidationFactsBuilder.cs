@@ -2,8 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Layout;
 using MermaidRecognition.Render;
 using MermaidRecognition.RuleValidation.Models;
@@ -81,9 +82,7 @@ public static class FlowchartSvgValidationFactsBuilder
     private static bool EvaluateStartMarker(
         EdgeActualResult Edge,
         bool CirclesSatisfied,
-        bool CrossesSatisfied)
-    {
-        return Edge.ArrowStart switch
+        bool CrossesSatisfied) => Edge.ArrowStart switch
         {
             "Circle" => CirclesSatisfied,
             "Cross" => CrossesSatisfied,
@@ -91,15 +90,12 @@ public static class FlowchartSvgValidationFactsBuilder
             "None" => true,
             _ => true
         };
-    }
 
     private static bool EvaluateEndMarker(
         EdgeActualResult Edge,
         bool CirclesSatisfied,
         bool CrossesSatisfied,
-        bool ArrowsSatisfied)
-    {
-        return Edge.ArrowEnd switch
+        bool ArrowsSatisfied) => Edge.ArrowEnd switch
         {
             "Circle" => CirclesSatisfied,
             "Cross" => CrossesSatisfied,
@@ -107,7 +103,6 @@ public static class FlowchartSvgValidationFactsBuilder
             "None" => true,
             _ => ArrowsSatisfied
         };
-    }
 
     private static bool ReadRenderedMarkerFact(EdgeActualResult Edge, string FactKey)
     {

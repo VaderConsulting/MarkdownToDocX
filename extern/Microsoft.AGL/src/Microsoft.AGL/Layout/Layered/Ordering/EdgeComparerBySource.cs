@@ -1,12 +1,10 @@
-﻿using System.Collections.Generic;
-using Microsoft.AGL.Core;
+using System.Collections.Generic;
 
-namespace Microsoft.AGL.Layout.Layered {
+namespace Microsoft.AGL.Layout.Layered
+{
     internal class EdgeComparerBySource : IComparer<LayerEdge> {
         int[] X;
-        internal EdgeComparerBySource(int[] X) {
-            this.X = X;
-        }
+        internal EdgeComparerBySource(int[] X) => this.X = X;
 
 #if SHARPKIT //http://code.google.com/p/sharpkit/issues/detail?id=203
         //SharpKit/Colin - https://code.google.com/p/sharpkit/issues/detail?id=290

@@ -15,11 +15,9 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
         internal PathEdge Prev { get; set; }
         internal double Width { get; set; }
         internal Path Path { get; set; }
-        
+
 #if TEST_MSAGL
-        public override string ToString() {
-            return Source + " " + Target;
-        }
+        public override string ToString() => Source + " " + Target;
 #endif
 
 
@@ -36,11 +34,14 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
         /// [VisibilityEdge.SourcePoint, VisibilityEdge.TargetPoint] in to the direction of the VisibilityEdge.Perpendicular.
         /// Offset holder is the same for the maximal parallel sequence of connected PathEdges
         /// </summary>
-        internal LongestNudgedSegment LongestNudgedSegment {
-            get { return longestNudgedSegment; }
-            set { 
+        internal LongestNudgedSegment LongestNudgedSegment
+        {
+            get => longestNudgedSegment;
+            set
+            {
                 longestNudgedSegment = value;
-                if (longestNudgedSegment != null){
+                if (longestNudgedSegment != null)
+                {
                     longestNudgedSegment.AddEdge(this);
                     AxisEdge.AddLongestNudgedSegment(longestNudgedSegment);
                 }
@@ -53,27 +54,19 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
         /// </summary>
         internal bool IsFixed { get; set; }
 
-        
-        internal Point Source {
-            get { return !Reversed? AxisEdge.SourcePoint: AxisEdge.TargetPoint; }
-        }
 
-        
-        internal Point Target {
-            get { return Reversed ? AxisEdge.SourcePoint : AxisEdge.TargetPoint; }
-        }
+        internal Point Source => !Reversed ? AxisEdge.SourcePoint : AxisEdge.TargetPoint;
 
-       
-        static internal bool VectorsAreParallel(Point a, Point b) {
-            return ApproximateComparer.Close(a.X * b.Y - a.Y * b.X, 0);
-        }
 
-        public static bool EdgesAreParallel(PathEdge edge, PathEdge pathEdge) {
-            return VectorsAreParallel(edge.AxisEdge.TargetPoint-edge.AxisEdge.SourcePoint,
-                                      pathEdge.AxisEdge.TargetPoint-pathEdge.AxisEdge.SourcePoint);
-        }
+        internal Point Target => Reversed ? AxisEdge.SourcePoint : AxisEdge.TargetPoint;
 
-        internal Directions Direction { get { return Reversed ? CompassVector.OppositeDir(AxisEdge.Direction) : AxisEdge.Direction;} }
+
+        static internal bool VectorsAreParallel(Point a, Point b) => ApproximateComparer.Close(a.X * b.Y - a.Y * b.X, 0);
+
+        public static bool EdgesAreParallel(PathEdge edge, PathEdge pathEdge) => VectorsAreParallel(edge.AxisEdge.TargetPoint - edge.AxisEdge.SourcePoint,
+                                      pathEdge.AxisEdge.TargetPoint - pathEdge.AxisEdge.SourcePoint);
+
+        internal Directions Direction => Reversed ? CompassVector.OppositeDir(AxisEdge.Direction) : AxisEdge.Direction;
         /// <summary>
         /// if set to true then in the path the edge is reversed
         /// </summary>
@@ -84,9 +77,7 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
         /// <summary>
         /// the index of the edge in the order
         /// </summary>
-        internal int Index {
-            get { return index; }
-            set { index = value; }
+        internal int Index { get => index; set => index = value;
         }
     }
 }

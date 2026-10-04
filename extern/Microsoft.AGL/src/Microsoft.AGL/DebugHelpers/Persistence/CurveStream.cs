@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using Microsoft.AGL.DebugHelpers.Persistence;
 
-namespace Microsoft.AGL.DebugHelpers {
+namespace Microsoft.AGL.DebugHelpers.Persistence
+{
     internal class CurveStream {
         string data;
         CurveStreamElement[] curveStreamElements;
@@ -16,25 +16,23 @@ namespace Microsoft.AGL.DebugHelpers {
 
         void Init() {
             data=data.Trim();
-            var blocks = data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            string[] blocks = data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
             curveStreamElements = RefineBlocks(blocks).ToArray();
 
         }
 
         static IEnumerable<CurveStreamElement> RefineBlocks(string[] blocks) {
             foreach (string block in blocks) {
-                var ch = block[0];
-                if (Char.IsLetter(ch)) {
+                char ch = block[0];
+                if (char.IsLetter(ch)) {
                     yield return new CharStreamElement(ch);
                     if (block.Length > 1) {
-                        double res;
-                        if (Double.TryParse(block.Substring(1), out res))
+                        if (double.TryParse(block.Substring(1), out double res))
                             yield return new DoubleStreamElement(res);
                         else yield return null;
                     }
                 } else {
-                    double res;
-                    if (Double.TryParse(block, out res))
+                    if (double.TryParse(block, out double res))
                         yield return new DoubleStreamElement(res);
                     else yield return null;
                 }

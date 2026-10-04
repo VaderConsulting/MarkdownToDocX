@@ -18,9 +18,7 @@ namespace Microsoft.AGL.Layout.Layered {
             groupSplitThreshold=groupSplitThresholdPar;
         }
 
-        ParallelogramNode Calculate(){
-            return Calc(initialNodes);
-        }
+        ParallelogramNode Calculate() => Calc(initialNodes);
 
         ParallelogramNode Calc(List<ParallelogramNode> nodes) {
 
@@ -71,8 +69,8 @@ namespace Microsoft.AGL.Layout.Layered {
             }
 
             //We have two seeds at hand. Build two groups.
-            List<ParallelogramNode> gr0 = new List<ParallelogramNode>();
-            List<ParallelogramNode> gr1 = new List<ParallelogramNode>();
+            List<ParallelogramNode> gr0 = [];
+            List<ParallelogramNode> gr1 = [];
 
             gr0.Add(nodes[seed0]);
             gr1.Add(nodes[seed1]);
@@ -109,12 +107,14 @@ namespace Microsoft.AGL.Layout.Layered {
 
             }
 
-            ParallelogramBinaryTreeNode ret = new ParallelogramBinaryTreeNode();
-            ret.Parallelogram = new Parallelogram(box0, box1);
-        
-            ret.LeftSon = Calc(gr0);
-            ret.RightSon = Calc(gr1);
-         
+            ParallelogramBinaryTreeNode ret = new ParallelogramBinaryTreeNode
+            {
+                Parallelogram = new Parallelogram(box0, box1),
+
+                LeftSon = Calc(gr0),
+                RightSon = Calc(gr1)
+            };
+
             return ret;
 
         }

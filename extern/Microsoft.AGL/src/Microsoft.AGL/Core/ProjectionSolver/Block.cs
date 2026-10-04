@@ -63,8 +63,8 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             internal readonly bool IsForward;
             internal ConstraintDirectionPair(Constraint constraint, bool isLeftToRight)
             {
-                this.Constraint = constraint;
-                this.IsForward = isLeftToRight;
+                Constraint = constraint;
+                IsForward = isLeftToRight;
             }
         }
         List<ConstraintDirectionPair> constraintPath;
@@ -90,7 +90,7 @@ namespace Microsoft.AGL.Core.ProjectionSolver
 #endif // VERIFY || VERBOSE
 )
         {
-            this.Variables = new List<Variable>();
+            Variables = [];
 
             // On initialization, each variable is put into its own block.  If this was called from Block.Split
             // initialVariable will be null.
@@ -109,18 +109,17 @@ namespace Microsoft.AGL.Core.ProjectionSolver
         /// Generate a string representation of the Block.
         /// </summary>
         /// <returns>A string representation of the Block.</returns>
-        public override string ToString()
-        {
+        public override string ToString() =>
 #if VERIFY || VERBOSE
             return string.Format(CultureInfo.InvariantCulture,
                                 "[Block ({0}): nvars = {1} refpos = {2:F5} scale = {3:F5}]",
                                 Id, this.Variables.Count, ReferencePos, Scale);
 #else  // VERIFY || VERBOSE
-            return string.Format(CultureInfo.InvariantCulture,
+            string.Format(CultureInfo.InvariantCulture,
                                 "[Block: nvars = {0} refpos = {1:F5} scale = {2:F5}]",
-                                this.Variables.Count, ReferencePos, Scale);
+                                Variables.Count, ReferencePos, Scale);
 #endif // VERIFY || VERBOSE
-        }
+
 
 #if COMPARE_RECURSIVE_DFDV
         double Recursive_DfDv(Variable varToEval, Constraint currentConstraint, int level) {
@@ -171,7 +170,7 @@ namespace Microsoft.AGL.Core.ProjectionSolver
         void DebugVerifyFinalDfDvValue(double dfdv, string message)
         {
             // Account for rounding.
-            double divisor = Math.Max(this.sumAd, Math.Max(this.sumAb, this.sumA2));
+            double divisor = Math.Max(sumAd, Math.Max(sumAb, sumA2));
             Debug.Assert((Math.Abs(dfdv) / divisor) < 0.001, message);
         }
 
@@ -184,7 +183,7 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             var recursiveDfDv = Recursive_DfDv(initialVarToEval, null, 0);
 #endif // COMPARE_RECURSIVE_DFDV
 #if DEBUG
-            Debug.Assert(0 != this.idDfDv, "idDfDv should not be 0");
+            Debug.Assert(0 != idDfDv, "idDfDv should not be 0");
 #endif // DEBUG
 #if VERBOSE
             Console.WriteLine("ComputeDfDv initialVarToEval: [{0}]", initialVarToEval);
@@ -206,14 +205,14 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             //    Do the iterations of ComputeDvDv
             //    If we find the target, then traverse the parent chain to populate the list bottom-up
 
-            Debug.Assert(0 == this.allConstraints.DfDvStack.Count, "Leftovers in ComputeDfDvStack");
-            this.allConstraints.DfDvStack.Clear();
+            Debug.Assert(0 == allConstraints.DfDvStack.Count, "Leftovers in ComputeDfDvStack");
+            allConstraints.DfDvStack.Clear();
 
             // Variables for initializing the first node.
-            var dummyConstraint = new Constraint(initialVarToEval);
+            Constraint dummyConstraint = new Constraint(initialVarToEval);
             dfDvDummyParentNode = new DfDvNode(dummyConstraint);
-            var firstNode = GetDfDvNode(dfDvDummyParentNode, dummyConstraint, initialVarToEval, null /*no "done" var yet*/);
-            this.allConstraints.DfDvStack.Push(firstNode);
+            DfDvNode firstNode = GetDfDvNode(dfDvDummyParentNode, dummyConstraint, initialVarToEval, null /*no "done" var yet*/);
+            allConstraints.DfDvStack.Push(firstNode);
 
             // Iteratively recurse, processing all children of a constraint before the constraint itself.
             // Loop termination is by testing for completion based on node==firstNode which is faster than 
@@ -221,8 +220,8 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             for (; ; )
             {
                 // Leave the node on the stack until we've processed all of its children.
-                var node = this.allConstraints.DfDvStack.Peek();
-                int prevStackCount = this.allConstraints.DfDvStack.Count;
+                DfDvNode node = allConstraints.DfDvStack.Peek();
+                int prevStackCount = allConstraints.DfDvStack.Count;
 
 #if VERBOSE
                 Console.WriteLine("ComputeDfDv peeking at node {0}: varDoneEval {1}, {2}Constraint: {3}",
@@ -232,7 +231,7 @@ namespace Microsoft.AGL.Core.ProjectionSolver
                 if (!node.ChildrenHaveBeenPushed)
                 {
                     node.ChildrenHaveBeenPushed = true;
-                    foreach (var constraint in node.VariableToEval.LeftConstraints)
+                    foreach (Constraint constraint in node.VariableToEval.LeftConstraints)
                     {
                         // Direct violations (a -> b -> a) are not caught by the constraint-based cycle detection
                         // because VariableDoneEval prevents them from being entered (b -> a is not entered because a is
@@ -244,7 +243,7 @@ namespace Microsoft.AGL.Core.ProjectionSolver
                         if (constraint.IsActive && (constraint.Right != node.VariableDoneEval))
                         {
                             // variableToEval is now considered "done"
-                            var childNode = GetDfDvNode(node, constraint, constraint.Right, node.VariableToEval);
+                            DfDvNode childNode = GetDfDvNode(node, constraint, constraint.Right, node.VariableToEval);
 
                             // If the node has no constraints other than the one we're now processing, it's a leaf
                             // and we don't need the overhead of pushing to and popping from the stack.
@@ -259,14 +258,14 @@ namespace Microsoft.AGL.Core.ProjectionSolver
                         }
                     }
 
-                    foreach (var constraint in node.VariableToEval.RightConstraints)
+                    foreach (Constraint constraint in node.VariableToEval.RightConstraints)
                     {
                         // See comments in .LeftConstraints.
                         Debug.Assert(!constraint.IsActive || !(!node.IsLeftToRight && (constraint.Left == node.VariableDoneEval)),
                                 "this cycle should not happen");
                         if (constraint.IsActive && (constraint.Left != node.VariableDoneEval))
                         {
-                            var childNode = GetDfDvNode(node, constraint, constraint.Left, node.VariableToEval);
+                            DfDvNode childNode = GetDfDvNode(node, constraint, constraint.Left, node.VariableToEval);
                             if (1 == constraint.Left.ActiveConstraintCount)
                             {
                                 ProcessDfDvLeafNodeDirectly(childNode);
@@ -279,7 +278,7 @@ namespace Microsoft.AGL.Core.ProjectionSolver
                     }
 
                     // If we just pushed one or more nodes, loop back up and "recurse" into them.
-                    if (this.allConstraints.DfDvStack.Count > prevStackCount)
+                    if (allConstraints.DfDvStack.Count > prevStackCount)
                     {
                         continue;
                     }
@@ -291,12 +290,12 @@ namespace Microsoft.AGL.Core.ProjectionSolver
 #if VERBOSE
                 Console.WriteLine("ComputeDfDv: Node has no children or all have been processed");
 #endif // VERBOSE
-                Debug.Assert(this.allConstraints.DfDvStack.Peek() == node, "DfDvStack.Peek() should be 'node'");
-                this.allConstraints.DfDvStack.Pop();
+                Debug.Assert(allConstraints.DfDvStack.Peek() == node, "DfDvStack.Peek() should be 'node'");
+                allConstraints.DfDvStack.Pop();
                 ProcessDfDvLeafNode(node);
                 if (node == firstNode)
                 {
-                    Debug.Assert(0 == this.allConstraints.DfDvStack.Count, "Leftovers in DfDvStack on completion of loop");
+                    Debug.Assert(0 == allConstraints.DfDvStack.Count, "Leftovers in DfDvStack on completion of loop");
                     break;
                 }
             } // endwhile stack is not empty
@@ -316,7 +315,7 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             ////
             // The dummyConstraint "rolls up" to its parent which is itself, thus it will be twice the leftover.
             DebugVerifyFinalDfDvValue(dummyConstraint.Lagrangian / 2.0,
-                    String.Format(CultureInfo.InvariantCulture, "nonzero final ComputeDfDv value ({0})", dummyConstraint.Lagrangian));
+                    string.Format(CultureInfo.InvariantCulture, "nonzero final ComputeDfDv value ({0})", dummyConstraint.Lagrangian));
 #if COMPARE_RECURSIVE_DFDV
             DebugVerifyFinalDfDvValue((dummyConstraint.Lagrangian / 2.0) - recursiveDfDv,
                     String.Format(CultureInfo.InvariantCulture, "Unequal DfDv values; Recursive = {0}, iterative = {1}", recursiveDfDv, dummyConstraint.Lagrangian));
@@ -372,14 +371,14 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             Debug_CheckForViolatedActiveConstraint(node.ConstraintToEval);
 
             // We're done with this node.
-            this.allConstraints.RecycleDfDvNode(node);
+            allConstraints.RecycleDfDvNode(node);
         }
 
         [Conditional("DEBUG")]
         void Debug_CheckForViolatedActiveConstraint(Constraint constraint)
         {
             // Test is: Test_Unsatisfiable_Direct_Inequality(); it should not encounter this.
-            if (constraint.Violation > this.allConstraints.SolverParameters.GapTolerance)
+            if (constraint.Violation > allConstraints.SolverParameters.GapTolerance)
             {
 #if VERBOSE
                 Console.WriteLine("Violated active constraint encountered: {0}", constraint);
@@ -400,13 +399,13 @@ namespace Microsoft.AGL.Core.ProjectionSolver
 
         DfDvNode GetDfDvNode(DfDvNode parent, Constraint constraintToEval, Variable variableToEval, Variable variableDoneEval)
         {
-            DfDvNode node = (this.allConstraints.DfDvRecycleStack.Count > 0)
-                            ? this.allConstraints.DfDvRecycleStack.Pop().Set(parent, constraintToEval, variableToEval, variableDoneEval)
+            DfDvNode node = (allConstraints.DfDvRecycleStack.Count > 0)
+                            ? allConstraints.DfDvRecycleStack.Pop().Set(parent, constraintToEval, variableToEval, variableDoneEval)
                             : new DfDvNode(parent, constraintToEval, variableToEval, variableDoneEval);
             node.Depth = node.Parent.Depth + 1;
-            if (this.allConstraints.MaxConstraintTreeDepth < node.Depth)
+            if (allConstraints.MaxConstraintTreeDepth < node.Depth)
             {
-                this.allConstraints.MaxConstraintTreeDepth = node.Depth;
+                allConstraints.MaxConstraintTreeDepth = node.Depth;
             }
             return node;
         }
@@ -423,20 +422,18 @@ namespace Microsoft.AGL.Core.ProjectionSolver
         }
 
         [Conditional("DEBUG")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         private void Debug_CycleCheck(Constraint constraint)
         {
 #if DEBUG
-            Debug.Assert(this.idDfDv != constraint.IdDfDv, "Cycle detected someplace other than null minLagrangian");
+            Debug.Assert(idDfDv != constraint.IdDfDv, "Cycle detected someplace other than null minLagrangian");
 #endif // DEBUG
         }
 
         [Conditional("DEBUG")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         private void Debug_MarkForCycleCheck(Constraint constraint)
         {
 #if DEBUG
-            constraint.IdDfDv = this.idDfDv;
+            constraint.IdDfDv = idDfDv;
 #endif // DEBUG
         }
 
@@ -451,25 +448,24 @@ namespace Microsoft.AGL.Core.ProjectionSolver
         void PushOnDfDvStack(DfDvNode node)
         {
             Debug_MarkForCycleCheck(node.ConstraintToEval);
-            this.allConstraints.DfDvStack.Push(node);
+            allConstraints.DfDvStack.Push(node);
         }
 
         void CheckForConstraintPathTarget(DfDvNode node)
         {
-            if (this.pathTargetVariable == node.VariableToEval)
+            if (pathTargetVariable == node.VariableToEval)
             {
                 // Add every variable from pathTargetVariable up the callchain up to but not including initialVarToEval.
-                while (node.Parent != this.dfDvDummyParentNode)
+                while (node.Parent != dfDvDummyParentNode)
                 {
-                    this.constraintPath.Add(new ConstraintDirectionPair(node.ConstraintToEval, node.IsLeftToRight));
+                    constraintPath.Add(new ConstraintDirectionPair(node.ConstraintToEval, node.IsLeftToRight));
                     node = node.Parent;
                 }
-                this.pathTargetVariable = null;         // Path is complete
+                pathTargetVariable = null;         // Path is complete
             }
         }
 
         [Conditional("DEBUG")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         void Debug_ClearDfDv(bool forceFull)
         {
 #if DEBUG
@@ -479,17 +475,17 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             // Clear the Lagrangian multiplier of all active constraints in this block; i.e. for all
             // Left-starting active constraints, and since inactive constraints don't care about the
             // Lagrangian, save the test and just clear all of them.
-            if (forceFull || (int.MaxValue == this.idDfDv))
+            if (forceFull || (int.MaxValue == idDfDv))
             {
                 // To reduce the times we go through the variable list, use an ID that grows and only
                 // pass through the list when it hits the maximum value and wraps.  0 is not a valid
                 // value, so Constraints in their initial state don't trigger false positives.
-                this.idDfDv = 1;
-                int numVariables = this.Variables.Count;          // cache for perf
+                idDfDv = 1;
+                int numVariables = Variables.Count;          // cache for perf
                 for (int ii = 0; ii < numVariables; ++ii)
                 {
-                    var variable = this.Variables[ii];
-                    foreach (var constraint in variable.LeftConstraints)
+                    Variable variable = Variables[ii];
+                    foreach (Constraint constraint in variable.LeftConstraints)
                     {
                         constraint.ClearDfDv();
                     }
@@ -497,7 +493,7 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             }
             else
             {
-                ++this.idDfDv;
+                ++idDfDv;
 #if VERIFY || VERBOSE
                 // We removed FULL_CLEAR_DFDV for VERIFY mode because we now have cycle detection,
                 // but in VERIFY we'll zero out the Lagrangian values to cause VERIFY output to differ from RELEASE
@@ -575,12 +571,12 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             // to violatedConstraint.Right, and find the constraint on that path with the lowest Langragian
             // multiplier. The ActiveConstraints form a spanning tree so there will be no more than
             // one path. violatedConstraint is not yet active so it will not appear in this list.
-            if (null == this.constraintPath)
+            if (null == constraintPath)
             {
-                this.constraintPath = new List<ConstraintDirectionPair>();
+                constraintPath = [];
             }
-            this.constraintPath.Clear();
-            this.pathTargetVariable = violatedConstraint.Right;
+            constraintPath.Clear();
+            pathTargetVariable = violatedConstraint.Right;
 
 #if VERBOSE
             Console.WriteLine("Before Block.Expand ComputeDfDv: {0}", this);
@@ -596,14 +592,14 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             // Now find the forward non-equality constraint on the path that has the minimal Lagrangina.
             // Both variables of the constraint are in the same block so a path should always be found.
             Constraint minLagrangianConstraint = null;
-            if (this.constraintPath.Count > 0)
+            if (constraintPath.Count > 0)
             {
                 // We found an existing path so must remove an edge from our active list so that all 
                 // connected variables from its varRight onward can move to the right; this will
                 // make the "active" status false for that edge.  The active non-Equality constraint
                 // with the minimal Lagrangian *that points rightward* is our split point (do *not*
                 // split Equality constraints).
-                foreach (ConstraintDirectionPair pathItem in this.constraintPath)
+                foreach (ConstraintDirectionPair pathItem in constraintPath)
                 {
 #if VERBOSE
                     Console.WriteLine("ConstraintPath: {0} ({1})", pathItem.Constraint, pathItem.IsForward ? "forward" : "backward");
@@ -623,19 +619,19 @@ namespace Microsoft.AGL.Core.ProjectionSolver
                 if (null != minLagrangianConstraint)
                 {
                     // Deactivate this constraint as we are splitting on it.
-                    this.allConstraints.DeactivateConstraint(minLagrangianConstraint);
+                    allConstraints.DeactivateConstraint(minLagrangianConstraint);
                 }
             }
 
-            this.constraintPath.Clear();
-            this.pathTargetVariable = null;
+            constraintPath.Clear();
+            pathTargetVariable = null;
 
             if (null == minLagrangianConstraint)
             {
                 // If no forward non-equality edge was found, violatedConstraint would have created a cycle.
                 Debug.Assert(!violatedConstraint.IsUnsatisfiable, "An already-unsatisfiable constraint should not have been attempted");
                 violatedConstraint.IsUnsatisfiable = true;
-                ++this.allConstraints.NumberOfUnsatisfiableConstraints;
+                ++allConstraints.NumberOfUnsatisfiableConstraints;
 #if VERBOSE
                 Console.WriteLine("  -- Expand: No forward non-equality edge (minLagrangianConstraint) found, therefore the constraint is unsatisfiable -- ");
                 Console.WriteLine("     Unsatisfiable constraint: {0}", violatedConstraint);
@@ -651,7 +647,7 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             // violatedConstraint.Right and those to its right, but also those to its left that are connected
             // to it by active constraints - because the definition of an active constraint is that the
             // gap matches exactly with the actual position, so all will move as a unit.
-            var lstConnectedVars = new List<Variable>();
+            List<Variable> lstConnectedVars = new List<Variable>();
 
             // We consider .Left "already evaluated" because we don't want the path evaluation to back
             // up to it (because we're splitting .Right off from it by deactivating the constraint).
@@ -664,14 +660,14 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             }
 
             // Now make the (no-longer-) violated constraint active.
-            this.allConstraints.ActivateConstraint(violatedConstraint);
+            allConstraints.ActivateConstraint(violatedConstraint);
 
             // Clear the DfDv values.  For DEBUG, the new constraint came in from outside this block 
             // so this will make sure it doesn't have a stale cycle-detection flag.
             violatedConstraint.ClearDfDv();
 
             // Update this block's reference position.
-            this.UpdateReferencePos();
+            UpdateReferencePos();
 
 #if VERBOSE
             Console.WriteLine("Block.Expand result: {0}", this);
@@ -689,7 +685,7 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             if (isQpsc)
             {
                 // In the Qpsc case, we've modified current positions in PreProject() so need to update them here.
-                this.UpdateReferencePos();
+                UpdateReferencePos();
             }
 #if EX_VERIFY
             else
@@ -701,7 +697,7 @@ namespace Microsoft.AGL.Core.ProjectionSolver
 #endif // EX_VERIFY
 
             // If there is only one variable there's nothing to split.
-            if (this.Variables.Count < 2)
+            if (Variables.Count < 2)
             {
                 return null;
             }
@@ -721,7 +717,7 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             Console.WriteLine("Before Block.Split ComputeDfDv: {0}", this);
 #endif // VERBOSE
 
-            ComputeDfDv(this.Variables[0]);
+            ComputeDfDv(Variables[0]);
 
 #if VERBOSE
             Console.WriteLine("After Block.Split ComputeDfDv: {0}", this);
@@ -730,16 +726,16 @@ namespace Microsoft.AGL.Core.ProjectionSolver
 
             // We only split the block if it has a non-equality constraint with a Lagrangian that is more than a
             // rounding error below 0.0.
-            double minLagrangian = this.allConstraints.SolverParameters.Advanced.MinSplitLagrangianThreshold;
-            var numVars = this.Variables.Count;             // cache for perf
-            for (var ii = 0; ii < numVars; ++ii)
+            double minLagrangian = allConstraints.SolverParameters.Advanced.MinSplitLagrangianThreshold;
+            int numVars = Variables.Count;             // cache for perf
+            for (int ii = 0; ii < numVars; ++ii)
             {
-                foreach (var constraint in this.Variables[ii].LeftConstraints)      // Array.Foreach is optimized.
+                foreach (Constraint constraint in Variables[ii].LeftConstraints)      // Array.Foreach is optimized.
                 {
                     if (constraint.IsActive && !constraint.IsEquality && (constraint.Lagrangian < minLagrangian))
                     {
 #if DEBUG
-                        Debug.Assert(constraint.IdDfDv == this.idDfDv, "stale constraint.Lagrangian");
+                        Debug.Assert(constraint.IdDfDv == idDfDv, "stale constraint.Lagrangian");
 #endif // DEBUG
                         minLagrangianConstraint = constraint;
                         minLagrangian = constraint.Lagrangian;
@@ -757,7 +753,7 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             DumpSplitConstraint("Splitting block at Constraint", minLagrangianConstraint);
 #endif // VERBOSE
 
-            return this.SplitOnConstraint(minLagrangianConstraint
+            return SplitOnConstraint(minLagrangianConstraint
 #if VERIFY || VERBOSE
                                         , ref blockId
 #endif // VERIFY || VERBOSE
@@ -774,8 +770,8 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             // variables to its right to a new block.  As mentioned above, all variables and associated
             // constraints in the block are active, and the block split and recalc of reference positions
             // doesn't change the actual positions of any variables.
-            this.allConstraints.DeactivateConstraint(constraintToSplit);
-            var newSplitBlock = new Block(null, this.allConstraints
+            allConstraints.DeactivateConstraint(constraintToSplit);
+            Block newSplitBlock = new Block(null, allConstraints
 #if VERIFY || VERBOSE
                                         , ref blockId
 #endif // VERIFY || VERBOSE
@@ -791,18 +787,18 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             // also the .Right of a constraint of a variable to the left of varRight.
             // minLagrangianConstraint.Left is "already evaluated" because we don't want the path evaluation to
             // back up to it (because we're splitting minLagrangianConstraint by deactivating it).
-            this.DebugVerifyBlockConnectivity();
-            this.TransferConnectedVariables(newSplitBlock, constraintToSplit.Right, constraintToSplit.Left);
+            DebugVerifyBlockConnectivity();
+            TransferConnectedVariables(newSplitBlock, constraintToSplit.Right, constraintToSplit.Left);
             if (newSplitBlock.Variables.Count > 0)
             {
                 // We may have removed the first variable so fully recalculate the reference position.
-                this.UpdateReferencePos();
+                UpdateReferencePos();
 
                 // The new block's sums were not updated as its variables were added directly to its
                 // variables list, so fully recalculate.
                 newSplitBlock.UpdateReferencePos();
 
-                this.DebugVerifyBlockConnectivity();
+                DebugVerifyBlockConnectivity();
                 newSplitBlock.DebugVerifyBlockConnectivity();
 
 #if VERBOSE
@@ -833,13 +829,13 @@ namespace Microsoft.AGL.Core.ProjectionSolver
         {
             // This ensures that splitting a block does not split the variables of a constraint across
             // blocks, which was occurring in the cyclic case.
-            foreach (var v in Variables)
+            foreach (Variable v in Variables)
             {
-                foreach (var c in v.LeftConstraints)
+                foreach (Constraint c in v.LeftConstraints)
                 {
                     Debug.Assert(!c.IsActive || (c.Left.Block == c.Right.Block), "LeftConstraint outside of Block");
                 }
-                foreach (var c in v.RightConstraints)
+                foreach (Constraint c in v.RightConstraints)
                 {
                     Debug.Assert(!c.IsActive || (c.Left.Block == c.Right.Block), "RightConstraint outside of Block");
                 }
@@ -847,7 +843,6 @@ namespace Microsoft.AGL.Core.ProjectionSolver
         }
 
         [Conditional("DEBUG")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         internal void DebugVerifyReferencePos()
         {
 #if DEBUG && EX_VERIFY
@@ -877,18 +872,18 @@ namespace Microsoft.AGL.Core.ProjectionSolver
         {
             // Don't recalculate position yet; that will be done after all Block.AddVariable calls and then
             // block-merge processing are done.
-            this.Variables.Add(variable);
+            Variables.Add(variable);
             variable.Block = this;
 
-            if (1 == this.Variables.Count)
+            if (1 == Variables.Count)
             {
                 // The block's information is set to that of the initial variable's "actual" state; we won't
                 // call UpdateReferencePosFromSums.
-                this.Scale = variable.Scale;
-                this.ReferencePos = variable.ActualPos;
-                this.sumAd = variable.ActualPos * variable.Weight;
-                this.sumAb = 0;
-                this.sumA2 = variable.Weight;
+                Scale = variable.Scale;
+                ReferencePos = variable.ActualPos;
+                sumAd = variable.ActualPos * variable.Weight;
+                sumAb = 0;
+                sumA2 = variable.Weight;
                 variable.OffsetInBlock = 0.0;
             }
             else
@@ -903,19 +898,19 @@ namespace Microsoft.AGL.Core.ProjectionSolver
         {
             // Make sure we're using the first variable's scale, in case the previous first-variable
             // has been removed.
-            this.Scale = this.Variables[0].Scale;
+            Scale = Variables[0].Scale;
 
             // Note:  This does not keep the variables at their current positions; rather, it pulls them
             // closer to their desired positions (this is easily seen by running through the math for a
             // single variable).  However the relative positions are preserved.  This helps the solution
             // remain minimal.
-            this.sumAd = 0.0;
-            this.sumAb = 0.0;
-            this.sumA2 = 0.0;
-            var numVars = this.Variables.Count;           // cache for perf
-            for (var ii = 0; ii < numVars; ++ii)
+            sumAd = 0.0;
+            sumAb = 0.0;
+            sumA2 = 0.0;
+            int numVars = Variables.Count;           // cache for perf
+            for (int ii = 0; ii < numVars; ++ii)
             {
-                AddVariableToBlockSums(this.Variables[ii]);
+                AddVariableToBlockSums(Variables[ii]);
             }
             UpdateReferencePosFromSums();
         }
@@ -923,18 +918,18 @@ namespace Microsoft.AGL.Core.ProjectionSolver
         void AddVariableToBlockSums(Variable variable)
         {
             // a and b are from the scaling paper - with calculations modified for weights.
-            var a = this.Scale / variable.Scale;
-            var b = variable.OffsetInBlock / variable.Scale;
-            var aw = a * variable.Weight;
-            this.sumAd += aw * variable.DesiredPos;
-            this.sumAb += aw * b;
-            this.sumA2 += aw * a;
+            double a = Scale / variable.Scale;
+            double b = variable.OffsetInBlock / variable.Scale;
+            double aw = a * variable.Weight;
+            sumAd += aw * variable.DesiredPos;
+            sumAb += aw * b;
+            sumA2 += aw * a;
         }
 
         internal void UpdateReferencePosFromSums()
         {
             // This is called from Solver.MergeBlocks as well as internally.
-            if (double.IsInfinity(this.sumAd) || double.IsInfinity(this.sumAb) || double.IsInfinity(this.sumA2))
+            if (double.IsInfinity(sumAd) || double.IsInfinity(sumAb) || double.IsInfinity(sumA2))
             {
                 throw new OverflowException(
 #if DEBUG
@@ -942,17 +937,17 @@ namespace Microsoft.AGL.Core.ProjectionSolver
 #endif // DEBUG
                 );
             }
-            this.ReferencePos = (sumAd - sumAb) / sumA2;
+            ReferencePos = (sumAd - sumAb) / sumA2;
             UpdateVariablePositions();
         }
 
         void UpdateVariablePositions()
         {
-            double scaledReferencePos = this.Scale * this.ReferencePos;
-            int numVars = this.Variables.Count;         // iteration is faster than foreach for List
+            double scaledReferencePos = Scale * ReferencePos;
+            int numVars = Variables.Count;         // iteration is faster than foreach for List
             for (int ii = 0; ii < numVars; ++ii)
             {
-                var v = this.Variables[ii];
+                Variable v = Variables[ii];
 
                 // The derivation on this is from the paper:  a_i * YB + b_i
                 //      a_i == this.Scale / v.Scale
@@ -986,28 +981,28 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             // Get all the vars at and to the right of 'var', including backtracking to get all
             // variables that are connected from the left.  This is just like ComputeDfDv except
             // that in this case we start with the variableDoneEval being the Left variable.
-            Debug.Assert(0 == this.allConstraints.DfDvStack.Count, "Leftovers in ComputeDfDvStack");
-            this.allConstraints.DfDvStack.Clear();
+            Debug.Assert(0 == allConstraints.DfDvStack.Count, "Leftovers in ComputeDfDvStack");
+            allConstraints.DfDvStack.Clear();
             Debug.Assert(0 == lstVars.Count, "Leftovers in lstVars");
 
             // Variables for initializing the first node.
-            var dummyConstraint = new Constraint(initialVarToEval);
+            Constraint dummyConstraint = new Constraint(initialVarToEval);
             dfDvDummyParentNode = new DfDvNode(dummyConstraint);
-            this.allConstraints.DfDvStack.Push(GetDfDvNode(dfDvDummyParentNode, dummyConstraint, initialVarToEval, initialVarDoneEval));
+            allConstraints.DfDvStack.Push(GetDfDvNode(dfDvDummyParentNode, dummyConstraint, initialVarToEval, initialVarDoneEval));
             lstVars.Add(initialVarToEval);
 
             // Do a pre-order tree traversal (process the constraint before its children), for consistency
             // with prior behaviour.
-            while (this.allConstraints.DfDvStack.Count > 0)
+            while (allConstraints.DfDvStack.Count > 0)
             {
                 // Leave the node on the stack until we've processed all of its children.
-                var node = this.allConstraints.DfDvStack.Peek();
-                int prevStackCount = this.allConstraints.DfDvStack.Count;
+                DfDvNode node = allConstraints.DfDvStack.Peek();
+                int prevStackCount = allConstraints.DfDvStack.Count;
 
                 if (!node.ChildrenHaveBeenPushed)
                 {
                     node.ChildrenHaveBeenPushed = true;
-                    foreach (var constraint in node.VariableToEval.LeftConstraints)
+                    foreach (Constraint constraint in node.VariableToEval.LeftConstraints)
                     {
                         if (constraint.IsActive && (constraint.Right != node.VariableDoneEval))
                         {
@@ -1027,7 +1022,7 @@ namespace Microsoft.AGL.Core.ProjectionSolver
                         }
                     }
 
-                    foreach (var constraint in node.VariableToEval.RightConstraints)
+                    foreach (Constraint constraint in node.VariableToEval.RightConstraints)
                     {
                         if (constraint.IsActive && (constraint.Left != node.VariableDoneEval))
                         {
@@ -1047,14 +1042,14 @@ namespace Microsoft.AGL.Core.ProjectionSolver
                 } // endif !node.ChildrenHaveBeenPushed
 
                 // If we just pushed one or more nodes, loop back up and "recurse" into them.
-                if (this.allConstraints.DfDvStack.Count > prevStackCount)
+                if (allConstraints.DfDvStack.Count > prevStackCount)
                 {
                     continue;
                 }
 
                 // We are at a non-leaf node and have "recursed" through all its descendents, so we're done with it.
-                Debug.Assert(this.allConstraints.DfDvStack.Peek() == node, "DfDvStack.Peek() should be 'node'");
-                this.allConstraints.RecycleDfDvNode(this.allConstraints.DfDvStack.Pop());
+                Debug.Assert(allConstraints.DfDvStack.Peek() == node, "DfDvStack.Peek() should be 'node'");
+                allConstraints.RecycleDfDvNode(allConstraints.DfDvStack.Pop());
             } // endwhile stack is not empty
         }
 
@@ -1075,34 +1070,34 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             }
 
             // Now iterate from the end and swap in the last one we'll keep over the ones we'll remove.
-            int lastKeepIndex = this.Variables.Count - 1;
-            for (int currentIndex = this.Variables.Count - 1; currentIndex >= 0; --currentIndex)
+            int lastKeepIndex = Variables.Count - 1;
+            for (int currentIndex = Variables.Count - 1; currentIndex >= 0; --currentIndex)
             {
-                Variable currentVariable = this.Variables[currentIndex];
+                Variable currentVariable = Variables[currentIndex];
                 if (currentVariable.Block == newSplitBlock)
                 {
                     if (currentIndex < lastKeepIndex)
                     {
                         // Swap in the one from the end.
-                        this.Variables[currentIndex] = this.Variables[lastKeepIndex];
+                        Variables[currentIndex] = Variables[lastKeepIndex];
                     }
                     --lastKeepIndex;
                 }
             } // end for each var to keep
 
             // Now remove the end slots we're not keeping.  lastKeepIndex is -1 if we are removing all variables.
-            Debug.Assert(numVarsToMove == this.Variables.Count - lastKeepIndex - 1, "variable should not be found twice (probable cycle-detection problem");
-            this.Variables.RemoveRange(lastKeepIndex + 1, this.Variables.Count - lastKeepIndex - 1);
+            Debug.Assert(numVarsToMove == Variables.Count - lastKeepIndex - 1, "variable should not be found twice (probable cycle-detection problem");
+            Variables.RemoveRange(lastKeepIndex + 1, Variables.Count - lastKeepIndex - 1);
 
-            if (0 == this.Variables.Count)
+            if (0 == Variables.Count)
             {
                 // This is probably due to unsatisfiable constraints; we've transferred all the variables,
                 // so just don't split at all; move the variables back into the current block rather than
                 // leaving an empty block in the list.  Caller will detect the empty newSplitBlock and ignore it.
                 for (int moveIndex = 0; moveIndex < numVarsToMove; ++moveIndex)
                 {
-                    var variableToMove = newSplitBlock.Variables[moveIndex];
-                    this.Variables.Add(variableToMove);
+                    Variable variableToMove = newSplitBlock.Variables[moveIndex];
+                    Variables.Add(variableToMove);
                     variableToMove.Block = this;
                 }
                 newSplitBlock.Variables.Clear();
@@ -1110,15 +1105,14 @@ namespace Microsoft.AGL.Core.ProjectionSolver
         } // end TransferConnectedVariables()
 
         [Conditional("DEBUG")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         internal void Debug_PostMerge(Block blockFrom)
         {
 #if DEBUG
             // If blockFrom's DfDv-cycle detection value was higher than ours, we need to set ours to
             // that value, to avoid running into stale values.
-            if (blockFrom.idDfDv > this.idDfDv)
+            if (blockFrom.idDfDv > idDfDv)
             {
-                this.idDfDv = blockFrom.idDfDv;
+                idDfDv = blockFrom.idDfDv;
             }
 #endif // DEBUG
         }

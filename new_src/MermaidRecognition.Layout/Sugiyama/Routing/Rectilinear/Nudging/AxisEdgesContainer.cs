@@ -9,7 +9,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging{
     /// keeps a list of active overlapping AxisEdges discovered during the sweep
     ///  </summary>
     internal class AxisEdgesContainer:IEnumerable<AxisEdge>{
-        readonly Set<AxisEdge> edges = new Set<AxisEdge>();
+        readonly Set<AxisEdge> edges = [];
         /// <summary>
         /// it is not necessarely the upper point but some point above the source
         /// </summary>
@@ -22,9 +22,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging{
             edges.Insert(edge);
         }
 
-        internal AxisEdgesContainer(Point source){
-            Source = source;
-        }
+        internal AxisEdgesContainer(Point source) => Source = source;
 
         public Point Source { get; set; }
 
@@ -35,9 +33,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging{
         /// A <see cref="T:System.Collections.Generic.IEnumerator`1"/> that can be used to iterate through the collection.
         /// </returns>
         /// <filterpriority>1</filterpriority>
-        public IEnumerator<AxisEdge> GetEnumerator(){
-            return edges.GetEnumerator();
-        }
+        public IEnumerator<AxisEdge> GetEnumerator() => edges.GetEnumerator();
 
         /// <summary>
         /// Returns an enumerator that iterates through a collection.
@@ -46,17 +42,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging{
         /// An <see cref="T:System.Collections.IEnumerator"/> object that can be used to iterate through the collection.
         /// </returns>
         /// <filterpriority>2</filterpriority>
-        IEnumerator IEnumerable.GetEnumerator(){
-            return GetEnumerator();
-        }
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
         internal void RemoveAxis(AxisEdge edge){
             Debug.Assert(edges.Contains(edge));
             edges.Remove(edge);
         }
 
-        internal bool IsEmpty(){
-            return edges.Count == 0;
-        }
+        internal bool IsEmpty() => edges.Count == 0;
     }
 }

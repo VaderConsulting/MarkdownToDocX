@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
-namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
+namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RectanglePacking
 {
     /// <summary>
     /// Greedily pack rectangles (without rotation) into a given aspect ratio
@@ -24,31 +24,24 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
         /// <param name="rectangles"></param>
         /// <param name="wrapWidth"></param>
         /// <param name="rectanglesPresorted">If the rectangles are already sorted into the order to pack, then specify true</param>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1026:DefaultParametersShouldNotBeUsed"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures")]
         public RectanglePacking(IEnumerable<RectangleToPack<TData>> rectangles, double wrapWidth, bool rectanglesPresorted = false)
         {
-            this.rectanglesByDescendingHeight = rectanglesPresorted ? rectangles : SortRectangles(rectangles);
+            rectanglesByDescendingHeight = rectanglesPresorted ? rectangles : SortRectangles(rectangles);
             this.wrapWidth = wrapWidth;
         }
+
         /// <summary>
         /// Sort rectangles by height
         /// </summary>
         /// <param name="rectangles"></param>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1000:DoNotDeclareStaticMembersOnGenericTypes"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures")]
-        public static IEnumerable<RectangleToPack<TData>> SortRectangles(IEnumerable<RectangleToPack<TData>> rectangles)
-        {
-            return from r in rectangles orderby r.Rectangle.Height descending, r.Rectangle.Width select r;
-        }
+        public static IEnumerable<RectangleToPack<TData>> SortRectangles(IEnumerable<RectangleToPack<TData>> rectangles) => from r in rectangles orderby r.Rectangle.Height descending, r.Rectangle.Width select r;
 
         /// <summary>
         /// Pack rectangles tallest to shortest, left to right until wrapWidth is reached, 
         /// then wrap to right-most rectangle still with vertical space to fit the next rectangle
         /// </summary>
-        protected override void RunInternal()
-        {
-            this.Pack(rectanglesByDescendingHeight.GetEnumerator());
-        }
+        protected override void RunInternal() => Pack(rectanglesByDescendingHeight.GetEnumerator());
 
         /// <summary>
         /// Traverses the rectangleEnumerator and places rectangles at the next available slot beneath the current parent,
@@ -56,20 +49,20 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
         /// a stack, when there is no room for the rectangle we pop the stack for a new parent and try again.
         /// </summary>
         /// <param name="rectangleEnumerator">rectangles to pack</param>
-         void Pack(IEnumerator<RectangleToPack<TData>> rectangleEnumerator)
+        void Pack(IEnumerator<RectangleToPack<TData>> rectangleEnumerator)
         {
             PackedHeight = PackedWidth = 0;
 
             // get next rectangle
-            var stack = new Stack<RectangleToPack<TData>>();
+            Stack<RectangleToPack<TData>> stack = new Stack<RectangleToPack<TData>>();
             bool wrap = false;
             double verticalPosition = 0;
             double packedWidth = 0;
             double packedHeight = 0;
             while (wrap || rectangleEnumerator.MoveNext())
             {
-                var current = rectangleEnumerator.Current;
-                var parent = stack.Count > 0 ? stack.Peek() : null;
+                RectangleToPack<TData> current = rectangleEnumerator.Current;
+                RectangleToPack<TData>? parent = stack.Count > 0 ? stack.Peek() : null;
                 Rectangle r = current.Rectangle;
                 if (parent == null ||
                     parent.Rectangle.Right + r.Width <= wrapWidth &&
@@ -91,8 +84,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
                     wrap = true;
                 }
             }
-            this.PackedWidth = packedWidth;
-            this.PackedHeight = packedHeight;
+            PackedWidth = packedWidth;
+            PackedHeight = packedHeight;
         }
     }
 }

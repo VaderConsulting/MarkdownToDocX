@@ -1,5 +1,6 @@
 using System;
-namespace Microsoft.AGL.Core.DataStructures {
+namespace Microsoft.AGL.Core.DataStructures.RBTree
+{
     
 
 #if TEST_MSAGL
@@ -10,20 +11,18 @@ namespace Microsoft.AGL.Core.DataStructures {
         internal RBColor color;
         internal T Item;
         internal RBNode<T> parent, left, right;
-        internal RBNode(RBColor color) { this.color = color; }
+        internal RBNode(RBColor color) => this.color = color;
         internal RBNode(RBColor color, T item, RBNode<T> p, RBNode<T> left, RBNode<T> right) {
             this.color = color;
-            this.parent = p;
+            parent = p;
             this.left = left;
             this.right = right;
-            this.Item = item;
+            Item = item;
         }
 
         /// <summary>
         /// </summary>
         /// <returns></returns>
-        public override string ToString() {
-            return Item.ToString();
-        }
+        public override string ToString() => Item.ToString();
     }
 }

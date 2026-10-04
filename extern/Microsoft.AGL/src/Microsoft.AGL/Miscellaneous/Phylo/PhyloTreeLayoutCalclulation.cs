@@ -1,12 +1,14 @@
 using System;
 using System.Collections.Generic;
+
 using Microsoft.AGL.Core.Geometry;
 using Microsoft.AGL.Core.GraphAlgorithms;
 using Microsoft.AGL.Core.Layout;
 using Microsoft.AGL.Layout.Layered;
 using Microsoft.AGL.Core;
 
-namespace Microsoft.AGL.Prototype.Phylo {
+namespace Microsoft.AGL.Miscellaneous.Phylo
+{
     internal class PhyloTreeLayoutCalclulation : AlgorithmBase{
         Anchor[] anchors;
         ProperLayeredGraph properLayeredGraph;
@@ -14,13 +16,13 @@ namespace Microsoft.AGL.Prototype.Phylo {
         PhyloTree tree;
         BasicGraph<Node, IntEdge> intGraph;
         LayerArrays layerArrays;
-        SortedDictionary<int, double> gridLayerOffsets = new SortedDictionary<int, double>();
+        SortedDictionary<int, double> gridLayerOffsets = [];
         double[] layerOffsets;
         double cellSize;
-        Dictionary<Node, double> nodeOffsets = new Dictionary<Node, double>();
-        Dictionary<Node, int> nodesToIndices = new Dictionary<Node, int>();
+        Dictionary<Node, double> nodeOffsets = [];
+        Dictionary<Node, int> nodesToIndices = [];
         int[] originalNodeToGridLayerIndices;
-        Dictionary<int, int> gridLayerToLayer=new Dictionary<int,int>();
+        Dictionary<int, int> gridLayerToLayer=[];
 
         ///// <summary>
         ///// the layout responsible for the algorithm parameters
@@ -29,9 +31,9 @@ namespace Microsoft.AGL.Prototype.Phylo {
 
         internal PhyloTreeLayoutCalclulation(PhyloTree phyloTreeP, SugiyamaLayoutSettings settings, BasicGraph<Node, IntEdge> intGraphP, Database dataBase) {
             this.dataBase = dataBase;
-            this.tree = phyloTreeP;
-            this.LayoutSettings = settings;
-            this.intGraph = intGraphP;
+            tree = phyloTreeP;
+            LayoutSettings = settings;
+            intGraph = intGraphP;
             originalNodeToGridLayerIndices = new int[intGraph.Nodes.Count];
         }
 
@@ -51,8 +53,8 @@ namespace Microsoft.AGL.Prototype.Phylo {
         }
 
         private void StretchIfNeeded() {
-            if (this.LayoutSettings.AspectRatio != 0) {
-                double aspectRatio = this.tree.Width / this.tree.Height;
+            if (LayoutSettings.AspectRatio != 0) {
+                double aspectRatio = tree.Width / tree.Height;
                 StretchToDesiredAspectRatio(aspectRatio, LayoutSettings.AspectRatio);
             }
         }
@@ -64,63 +66,59 @@ namespace Microsoft.AGL.Prototype.Phylo {
                 StretchInXDirection(desiredAR / aspectRatio);
         }
         private void StretchInYDirection(double scaleFactor) {
-            double center = (this.tree.BoundingBox.Top + this.tree.BoundingBox.Bottom) / 2;
-            foreach (Anchor a in this.dataBase.Anchors) {
+            double center = (tree.BoundingBox.Top + tree.BoundingBox.Bottom) / 2;
+            foreach (Anchor a in dataBase.Anchors) {
                 a.BottomAnchor *= scaleFactor;
                 a.TopAnchor *= scaleFactor;
                 a.Y = center + scaleFactor * (a.Y - center);
             }
-            double h = this.tree.Height * scaleFactor;
-            this.tree.BoundingBox = new Rectangle(this.tree.BoundingBox.Left, center + h / 2, this.tree.BoundingBox.Right, center - h / 2);
+            double h = tree.Height * scaleFactor;
+            tree.BoundingBox = new Rectangle(tree.BoundingBox.Left, center + h / 2, tree.BoundingBox.Right, center - h / 2);
 
         }
        
         private void StretchInXDirection(double scaleFactor) {
-            double center = (this.tree.BoundingBox.Left + this.tree.BoundingBox.Right) / 2;
-            foreach (Anchor a in this.dataBase.Anchors) {
+            double center = (tree.BoundingBox.Left + tree.BoundingBox.Right) / 2;
+            foreach (Anchor a in dataBase.Anchors) {
                 a.LeftAnchor *= scaleFactor;
                 a.RightAnchor *= scaleFactor;
                 a.X = center + scaleFactor * (a.X - center);
             }
-            double w = this.tree.Width * scaleFactor;
-            this.tree.BoundingBox =
+            double w = tree.Width * scaleFactor;
+            tree.BoundingBox =
                 new Rectangle(center - w / 2, tree.BoundingBox.Top,
-                center + w / 2, this.tree.BoundingBox.Bottom);
+                center + w / 2, tree.BoundingBox.Bottom);
         }
 
         private void DefineCellSize() {
 
             double min = double.MaxValue;
-            foreach (PhyloEdge e in this.tree.Edges) 
+            foreach (PhyloEdge e in tree.Edges) 
                 min = Math.Min(min, e.Length);
 
-            this.cellSize=0.3*min;
+            cellSize=0.3*min;
 
         }
 
         private void CalculateOriginalNodeToGridLayerIndices() {
             InitNodesToIndices();
             FillNodeOffsets();
-            foreach (KeyValuePair<Node, double> kv in this.nodeOffsets) {
-                int nodeIndex = this.nodesToIndices[kv.Key];
+            foreach (KeyValuePair<Node, double> kv in nodeOffsets) {
+                int nodeIndex = nodesToIndices[kv.Key];
                 int gridLayerIndex=originalNodeToGridLayerIndices[nodeIndex] = GetGridLayerIndex(kv.Value);
                 if (!gridLayerOffsets.ContainsKey(gridLayerIndex))
                     gridLayerOffsets[gridLayerIndex] = kv.Value;
             }
         }
 
-        private int GetGridLayerIndex(double len) {
-            return (int)(len / this.cellSize + 0.5);
-        }
+        private int GetGridLayerIndex(double len) => (int)(len / cellSize + 0.5);
 
         private void InitNodesToIndices() {
-            for (int i = 0; i < this.intGraph.Nodes.Count; i++)
+            for (int i = 0; i < intGraph.Nodes.Count; i++)
                 nodesToIndices[intGraph.Nodes[i]] = i;
         }
 
-        private void FillNodeOffsets() {
-            FillNodeOffsets(0.0, tree.Root);
-        }
+        private void FillNodeOffsets() => FillNodeOffsets(0.0, tree.Root);
 
         private void FillNodeOffsets(double p, Node node) {
             nodeOffsets[node] = p;
@@ -210,13 +208,9 @@ namespace Microsoft.AGL.Prototype.Phylo {
             return ret;
         }
 
-        private double NodeY(int layer, int node) {
-            return - (IsOriginal(node) ? nodeOffsets[intGraph.Nodes[node]] : layerOffsets[layer]);
-        }
+        private double NodeY(int layer, int node) => -(IsOriginal(node) ? nodeOffsets[intGraph.Nodes[node]] : layerOffsets[layer]);
 
-        private bool IsOriginal(int node) {
-            return node < intGraph.NodeCount;
-        }
+        private bool IsOriginal(int node) => node < intGraph.NodeCount;
 
         private void CalculateAnchorsY(int node, double m, double y) {
             //go over original nodes
@@ -274,20 +268,12 @@ namespace Microsoft.AGL.Prototype.Phylo {
         /// <summary>
         /// the width of dummy nodes
         /// </summary>
-        static double VirtualNodeWidth {
-            get {
-                return 1;
-            }
-        }
+        static double VirtualNodeWidth => 1;
 
         /// <summary>
         /// the height of dummy nodes
         /// </summary>
-        double VirtualNodeHeight {
-            get {
-                return LayoutSettings.MinNodeHeight * 1.5f / 8;
-            }
-        }
+        double VirtualNodeHeight => LayoutSettings.MinNodeHeight * 1.5f / 8;
 
 
         void CalcAnchorsForOriginalNode(int i) {
@@ -318,8 +304,8 @@ namespace Microsoft.AGL.Prototype.Phylo {
             if (bottomAnchor < hh)
                 bottomAnchor = hh;
 
-            anchors[i] = new Anchor(leftAnchor, rightAnchor, topAnchor, bottomAnchor, this.intGraph.Nodes[i], LayoutSettings.LabelCornersPreserveCoefficient)
-                         {Padding = this.intGraph.Nodes[i].Padding};
+            anchors[i] = new Anchor(leftAnchor, rightAnchor, topAnchor, bottomAnchor, intGraph.Nodes[i], LayoutSettings.LabelCornersPreserveCoefficient)
+                         {Padding = intGraph.Nodes[i].Padding};
 #if TEST_MSAGL
             //anchors[i].Id = this.intGraph.Nodes[i].Id;
 #endif
@@ -364,20 +350,18 @@ namespace Microsoft.AGL.Prototype.Phylo {
         }
 
         private  void RouteSplines() {
-            Layout.Layered.Routing routing = new Layout.Layered.Routing(LayoutSettings, this.tree, dataBase, this.layerArrays, this.properLayeredGraph, null);
+            Layout.Layered.Routing routing = new Layout.Layered.Routing(LayoutSettings, tree, dataBase, layerArrays, properLayeredGraph, null);
             routing.Run();
         }
 
-        private  void RunXCoordinateAssignmentsByBrandes() {
-            XCoordsWithAlignment.CalculateXCoordinates(this.layerArrays, this.properLayeredGraph, this.tree.Nodes.Count, this.dataBase.Anchors, this.LayoutSettings.NodeSeparation);
-        }
+        private void RunXCoordinateAssignmentsByBrandes() => XCoordsWithAlignment.CalculateXCoordinates(layerArrays, properLayeredGraph, tree.Nodes.Count, dataBase.Anchors, LayoutSettings.NodeSeparation);
 
         private  void CreateLayerArraysAndProperLayeredGraph() {
-            int numberOfLayers = this.gridLayerOffsets.Count;
-            this.layerOffsets=new double[numberOfLayers];
+            int numberOfLayers = gridLayerOffsets.Count;
+            layerOffsets=new double[numberOfLayers];
             int i = numberOfLayers-1;
 
-            foreach (KeyValuePair<int, double> kv in this.gridLayerOffsets) {
+            foreach (KeyValuePair<int, double> kv in gridLayerOffsets) {
                 layerOffsets[i] = kv.Value;
                 gridLayerToLayer[kv.Key] = i--;
             }
@@ -395,11 +379,11 @@ namespace Microsoft.AGL.Prototype.Phylo {
 
             List<int>[] layers = new List<int>[numberOfLayers];
             for (i = 0; i < numberOfLayers; i++)
-                layers[i] = new List<int>();
+                layers[i] = [];
 
             WalkTreeAndInsertLayerEdges(layering, layers);
 
-            this.layerArrays = new LayerArrays(layering);
+            layerArrays = new LayerArrays(layering);
 
             int[][]ll=layerArrays.Layers=new int[numberOfLayers][];
 
@@ -408,28 +392,24 @@ namespace Microsoft.AGL.Prototype.Phylo {
                 ll[i++] = layer.ToArray();
             }
 
-            this.properLayeredGraph = new ProperLayeredGraph(intGraph);
+            properLayeredGraph = new ProperLayeredGraph(intGraph);
         }
 
     
         private int CountTotalNodesIncludingVirtual(int node) {
             int ret = 1;
-            foreach (IntEdge edge in this.intGraph.OutEdges(node)) 
+            foreach (IntEdge edge in intGraph.OutEdges(node)) 
                 ret += NumberOfVirtualNodesOnEdge(edge) + CountTotalNodesIncludingVirtual(edge.Target);
             
             return ret;
         }
 
-        private int NumberOfVirtualNodesOnEdge(IntEdge edge) {
-            return OriginalNodeLayer(edge.Source) - OriginalNodeLayer(edge.Target) - 1;
-        }
+        private int NumberOfVirtualNodesOnEdge(IntEdge edge) => OriginalNodeLayer(edge.Source) - OriginalNodeLayer(edge.Target) - 1;
 
-        private int OriginalNodeLayer(int node) {
-            return gridLayerToLayer[originalNodeToGridLayerIndices[node]];
-        }
+        private int OriginalNodeLayer(int node) => gridLayerToLayer[originalNodeToGridLayerIndices[node]];
 
         private void WalkTreeAndInsertLayerEdges(int[] layering, List<int>[] layers) {
-            int virtualNode = this.intGraph.NodeCount;
+            int virtualNode = intGraph.NodeCount;
             int root = nodesToIndices[tree.Root];
             int l;
             layering[root] = l = OriginalNodeLayer(root);
@@ -438,7 +418,7 @@ namespace Microsoft.AGL.Prototype.Phylo {
         }
 
         private void WalkTreeAndInsertLayerEdges(int[] layering, List<int>[] layers, int node, ref int virtualNode) {
-            foreach (IntEdge edge in this.intGraph.OutEdges(node)) 
+            foreach (IntEdge edge in intGraph.OutEdges(node)) 
                 InsertLayerEdgesForEdge(edge, layering, ref virtualNode, layers);
         }
 
@@ -474,7 +454,7 @@ namespace Microsoft.AGL.Prototype.Phylo {
         }
 
         void ProcessPositionedAnchors() {
-            for (int i = 0; i < this.tree.Nodes.Count; i++)
+            for (int i = 0; i < tree.Nodes.Count; i++)
                 intGraph.Nodes[i].Center=anchors[i].Origin;
         }
 
@@ -492,12 +472,12 @@ namespace Microsoft.AGL.Prototype.Phylo {
 
                 double m = Math.Max(box.Width, box.Height);
 
-                double delta = this.tree.Margins / 100.0 * m;
+                double delta = tree.Margins / 100.0 * m;
 
                 Point del = new Point(-delta, delta);
                 box.Add(box.LeftTop + del);
                 box.Add(box.RightBottom - del);
-                this.tree.BoundingBox = box;
+                tree.BoundingBox = box;
             }
         }
 

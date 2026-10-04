@@ -17,7 +17,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
 
         internal void Enqueue(T element) {
             if (heapSize == A.Length - 1) {
-                var newA = new T[A.Length*2];
+                T[] newA = new T[A.Length*2];
                 Array.Copy(A, 1, newA, 1, heapSize);
                 A = newA;
             }
@@ -100,13 +100,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
             }
         }
 
-        internal int Count {
-            get { return heapSize; }
-        }
+        internal int Count => heapSize;
 
-        internal bool Less(T a, T b) {
-            return comparer.Compare(a, b) < 0;
-        }
+        internal bool Less(T a, T b) => comparer.Compare(a, b) < 0;
 
         IComparer<T> comparer;
 
@@ -124,10 +120,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
 
         string Print(int i) {
             if (2*i + 1 <= heapSize)
-                return String.Format(CultureInfo.InvariantCulture, "({0}->{1},{2})", A[i], A[i*2], A[i*2 + 1]) +
+                return string.Format(CultureInfo.InvariantCulture, "({0}->{1},{2})", A[i], A[i*2], A[i*2 + 1]) +
                        Print(i*2) + Print(i*2 + 1);
             if (2*i == heapSize)
-                return String.Format(CultureInfo.InvariantCulture, "({0}->{1}", A[i], A[i*2]);
+                return string.Format(CultureInfo.InvariantCulture, "({0}->{1}", A[i], A[i*2]);
             if (i == heapSize && i == 1)
                 return " " + A[i].ToString() + " ";
             return "";
@@ -135,9 +131,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
 #endif
 
 
-        public T GetMinimum() {
-            return A[1];
-        }
+        public T GetMinimum() => A[1];
 
 #if TEST_MSAGL
         //internal void UpdateMinimum() {

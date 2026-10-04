@@ -1,18 +1,17 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using Microsoft.AGL.Core.DataStructures;
-using Microsoft.AGL.Core.Geometry;
 using Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.StressEnergy;
 #if DEBUG
 using Microsoft.AGL.Core.Geometry.Curves;
 using Microsoft.AGL.DebugHelpers;
 #endif
-using Microsoft.AGL.Routing;
 using Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation;
 using Point = Microsoft.AGL.Core.Geometry.Point;
 using Rectangle = Microsoft.AGL.Core.Geometry.Rectangle;
+using Microsoft.AGL.Core.Geometry.RTree;
 
 namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval {
     /// <summary>
@@ -32,7 +31,7 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval {
         /// <summary>
         /// 
         /// </summary>
-        public List<int> crossingsOverTime = new List<int>();
+        public List<int> crossingsOverTime = [];
 #endif
 
          OverlapRemovalSettings settings;
@@ -40,9 +39,11 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval {
         /// <summary>
         ///     Overlap Removal Parameters
         /// </summary>
-        public OverlapRemovalSettings Settings {
-            get { return settings; }
-            set {
+        public OverlapRemovalSettings Settings
+        {
+            get => settings;
+            set
+            {
                 settings = value;
                 if (StressSolver != null && value != null)
                     StressSolver.Settings = value.StressSettings;
@@ -69,32 +70,30 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval {
         /// <summary>
         /// Current Node Positions
         /// </summary>
-        public Point[] NodePositions {
-            get { return nodePositions; }
-        }
+        public Point[] NodePositions => nodePositions;
 
         /// <summary>
         /// Current Node Boxes
         /// </summary>
-        public Size[] NodeSizes {
-            get { return nodeSizes; }
-        }
+        public Size[] NodeSizes => nodeSizes;
 
-         StressMajorization stressSolver;
+        StressMajorization stressSolver;
 
         /// <summary>
         ///     Solver for Stress Majorization
         /// </summary>
-        public StressMajorization StressSolver {
-            get { return stressSolver; }
-            set {
+        public StressMajorization StressSolver
+        {
+            get => stressSolver;
+            set
+            {
                 stressSolver = value;
                 if (Settings != null && stressSolver != null)
                     stressSolver.Settings = Settings.StressSettings;
             }
         }
 
-         
+
         /// <summary>
         ///     Graph for Overlap Removal.
         /// </summary>
@@ -105,25 +104,19 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval {
             }
         }
 
-         void InitializeSettings() {
-            Settings = new OverlapRemovalSettings();
-        }
+        void InitializeSettings() => Settings = new OverlapRemovalSettings();
 
 
         /// <summary>
         /// Constructor
         /// </summary>
         /// <param name="settings"></param>
-        public ProximityOverlapRemoval(OverlapRemovalSettings settings) {
-            Settings = settings;
-        }
+        public ProximityOverlapRemoval(OverlapRemovalSettings settings) => Settings = settings;
 
         /// <summary>
         ///     Constructor
         /// </summary>
-        public ProximityOverlapRemoval() {
-            InitializeSettings();
-        }
+        public ProximityOverlapRemoval() => InitializeSettings();
 
         /// <summary>
         ///     Constructor
@@ -145,9 +138,9 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval {
             majorizer.NodeVotings = new List<NodeVoting>(nodes.Length);
 
             for (int i = 0; i < nodes.Length; i++) {
-                var nodeVote = new NodeVoting(i);
+                NodeVoting nodeVote = new NodeVoting(i);
                 //add second block for separate weighting of the overlap distances
-                var voteBlock = new VoteBlock(new List<Vote>(), 100);
+                VoteBlock voteBlock = new VoteBlock([], 100);
 //                nodeVote.VotingBlocks[0].BlockWeight = 0;
                 nodeVote.VotingBlocks.Add(voteBlock);
                 majorizer.NodeVotings.Add(nodeVote);
@@ -180,7 +173,7 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval {
         /// <param name="epsilon"></param>
         /// <param name="randomizeAll"></param>
         public static void RandomizePoints(Point[] points, Random random, double epsilon, bool randomizeAll) {
-            var pointSet = new HashSet<Point>();
+            HashSet<Point> pointSet = new HashSet<Point>();
             for (int i = 0; i < points.Length; i++) {
                 Point p = points[i];
                 if (pointSet.Contains(p) || randomizeAll) {
@@ -206,25 +199,24 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval {
         public static int GetProximityEdgesWithDistance(Node[] originalGraph, Cdt cdt,
                                                         Size[] targetSizes,
                                                         out List<Tuple<int, int, double, double>> desiredEdgeDistances) {
-            desiredEdgeDistances = new List<Tuple<int, int, double, double>>();
+            desiredEdgeDistances = [];
             int numberOverlappingPairs = 0;
-            var edgeSet = new HashSet<CdtEdge>();
+            HashSet<CdtEdge> edgeSet = new HashSet<CdtEdge>();
             //add edges
             foreach (CdtTriangle triangle in cdt.GetTriangles()) {
                 foreach (CdtEdge triangleEdge in triangle.Edges) {
                     CdtSite site1 = triangleEdge.upperSite;
                     CdtSite site2 = triangleEdge.lowerSite;
-                    var nodeId1 = (int) site1.Owner;
-                    var nodeId2 = (int) site2.Owner;
+                    int nodeId1 = (int) site1.Owner;
+                    int nodeId2 = (int) site2.Owner;
                     if (edgeSet.Contains(triangleEdge)) continue; //edge already included 
                     edgeSet.Add(triangleEdge);
 
                     Point point1 = site1.Point;
                     Point point2 = site2.Point;
 
-                    double t;
                     double distance = GetIdealDistanceBetweenNodes(nodeId1, nodeId2, point1, point2, targetSizes,
-                                                                   out t);
+                                                                   out double t);
                     if (t > 1)
                         numberOverlappingPairs++;
                     int nodeIdSmall = nodeId1;
@@ -233,7 +225,7 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval {
                         nodeIdSmall = nodeId2;
                         nodeIdBig = nodeId1;
                     }
-                    var tuple = new Tuple<int, int, double, double>(nodeIdSmall, nodeIdBig, distance, t);
+                    Tuple<int, int, double, double> tuple = new Tuple<int, int, double, double>(nodeIdSmall, nodeIdBig, distance, t);
                     desiredEdgeDistances.Add(tuple);
                 }
             }
@@ -252,9 +244,7 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval {
         /// <param name="tRes"></param>
         /// <returns></returns>
         public static double GetOverlapFactorBetweenNodes(int nodeId1, int nodeId2, Point point1, Point point2,
-                                                          Size[] nodeBoxes, out double tRes) {
-            return GetIdealDistanceBetweenNodes(nodeId1, nodeId2, point1, point2, nodeBoxes, out tRes);
-        }
+                                                          Size[] nodeBoxes, out double tRes) => GetIdealDistanceBetweenNodes(nodeId1, nodeId2, point1, point2, nodeBoxes, out tRes);
 
         /// <summary>
         /// 
@@ -330,14 +320,14 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval {
             trajectories = new List<Polyline>(_nodes.Length);
             //add starting positions
             for (int i = 0; i < nodePositions.Length; i++) {
-                var poly = new Polyline();
+                Polyline poly = new Polyline();
                 poly.AddPoint(nodePositions[i]);
                 trajectories.Add(poly);
             }
 #endif
 
 #if !SILVERLIGHT && !SHARPKIT
-            var stopWatch = new Stopwatch();
+            Stopwatch stopWatch = new Stopwatch();
             stopWatch.Start();
 #endif
             bool scanlinePhase = false;
@@ -364,7 +354,7 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval {
             PrintTimeSpan(stopWatch);
 #endif
             double nodeBoxArea = nodeSizes.Sum(r => r.Width*r.Height);
-            var boundingBox = GetCommonRectangle(nodeSizes, nodePositions);
+            Rectangle boundingBox = GetCommonRectangle(nodeSizes, nodePositions);
             double boundingBoxArea = boundingBox.Width*boundingBox.Height;
             Console.WriteLine("Needed maxIterat: {0}", iter);
             Console.WriteLine("BBox Area Ratio: {0}", boundingBoxArea/nodeBoxArea);
@@ -385,7 +375,7 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval {
         }
 
         Rectangle GetCommonRectangle(Size[] sizes, Point[] points) {
-            var rect = Rectangle.CreateAnEmptyBox();
+            Rectangle rect = Rectangle.CreateAnEmptyBox();
             Debug.Assert(sizes.Length==points.Length);
             for (int i = 0; i < sizes.Length; i++)
                 rect.Add(sizes[i], points[i]);
@@ -395,12 +385,11 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval {
         bool DoSingleIteration(int currentIteration, ref bool scanlinePhase) {
             List<Tuple<Point, object>> sites =
                 nodePositions.Select((p, index) => new Tuple<Point, object>(p, index)).ToList();
-            var triangulation = new Cdt(sites);
+            Cdt triangulation = new Cdt(sites);
             triangulation.Run();
 
-            List<Tuple<int, int, double, double>> proximityEdgesWithDistance;
             int numCrossings = GetProximityEdgesWithDistance(_nodes, triangulation, nodeSizes,
-                                                             out proximityEdgesWithDistance);
+                                                             out List<Tuple<int, int, double, double>> proximityEdgesWithDistance);
 
             if (scanlinePhase || numCrossings == 0) {
                 scanlinePhase = true;
@@ -514,16 +503,16 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval {
                                                        Point[] finalGridVectors) {
 #if DEBUG && ! SILVERLIGHT && !SHARPKIT
             if (DebugMode && currentIteration%1 == 0) {
-                List<DebugCurve> curveList = new List<DebugCurve>();
-                var nodeBoxes = new Rectangle[nodeSizes.Length];
+                List<DebugCurve> curveList = [];
+                Rectangle[] nodeBoxes = new Rectangle[nodeSizes.Length];
                 for(int i=0;i<nodeBoxes.Length;i++)
                     nodeBoxes[i]=new Rectangle(nodeSizes[i], nodePositions[i]);
-                var nodeCurves =
+                IEnumerable<DebugCurve> nodeCurves =
                     nodeBoxes.Select(
                         v =>
                         new DebugCurve(220, 1, "black", Curve.PolylineAroundClosedCurve(CurveFactory.CreateRectangle(v))));
                 curveList.AddRange(nodeCurves);
-                var vectors = nodePositions.Select(
+                List<DebugCurve> vectors = nodePositions.Select(
                     (p, i) =>
                     new DebugCurve(220, 2, "red", new Polyline(p, newPositions[i]))).ToList();
 
@@ -536,7 +525,7 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval {
                 }
                 curveList.AddRange(vectors);
                 if (finalGridVectors != null) {
-                    var gridFlowVectors = nodePositions.Select((p, i) =>
+                    List<DebugCurve> gridFlowVectors = nodePositions.Select((p, i) =>
                                                                new DebugCurve(220, 2, "blue",
                                                                               new Polyline(p, p + finalGridVectors[i])))
                                                        .ToList();
@@ -561,7 +550,7 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval {
             // Get the elapsed time as a TimeSpan value.
             TimeSpan ts = stopWatch.Elapsed;
             // Format and display the TimeSpan value.
-            string elapsedTime = String.Format("{0:00}:{1:00}:{2:00}.{3:00}",
+            string elapsedTime = string.Format("{0:00}:{1:00}:{2:00}.{3:00}",
                                                ts.Hours, ts.Minutes, ts.Seconds,
                                                ts.Milliseconds/10);
             Console.WriteLine(elapsedTime, "RunTime");
@@ -573,10 +562,10 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval {
         /// Scale the graph, such that the average edge length corresponds to a predefined size.
         /// </summary>
          void DoInitialScaling() {
-            var edges = _nodes.SelectMany(n => n.OutEdges).ToArray();
+            Edge[] edges = _nodes.SelectMany(n => n.OutEdges).ToArray();
             if (edges.Length == 0) return;
 
-            var avgEdgeLength = AvgEdgeLength(edges);
+            double avgEdgeLength = AvgEdgeLength(edges);
 
             double goalLength;
             if (Settings.InitialScaling == InitialScaling.Inch72Pixel)
@@ -632,9 +621,9 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval {
         }
 
          int CreateProximityEdgesWithRTree(List<Tuple<int, int, double, double>> proximityEdges) {
-            var edgeSet = new HashSet<Tuple<int, int>>();
+            HashSet<Tuple<int, int>> edgeSet = new HashSet<Tuple<int, int>>();
 
-            foreach (var proximityEdge in proximityEdges) {
+            foreach (Tuple<int, int, double, double> proximityEdge in proximityEdges) {
                 edgeSet.Add(Tuple.Create(proximityEdge.Item1, proximityEdge.Item2));
             }
             RectangleNode<int> rootNode =
@@ -644,7 +633,6 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval {
              RectangleNodeUtils.CrossRectangleNodes<int, int>(rootNode, rootNode,
                  (a, b) => {
                      if (a == b) return;
-                     double t;
                      double dist = GetOverlapFactorBetweenNodes
                          (
                              a, b,
@@ -652,7 +640,7 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval {
                                  ],
                              nodePositions[b
                                  ],
-                             nodeSizes, out t);
+                             nodeSizes, out double t);
                      int smallId = a;
                      int bigId = b;
                      if (smallId > bigId) {
@@ -688,8 +676,8 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval {
 
          static Size[] GetNodeSizesByPaddingWithHalfSeparation(Node[] nodes, double nodeSeparation) {
             if (nodes == null) return null;
-            var nodeSizes = new Size[nodes.Length];
-             var halfSep = nodeSeparation/2;
+            Size[] nodeSizes = new Size[nodes.Length];
+            double halfSep = nodeSeparation/2;
              for (int i = 0; i < nodes.Length; i++) {
                  nodeSizes[i] = nodes[i].BoundingBox.Size;
                  nodeSizes[i].Pad(halfSep);
@@ -701,25 +689,25 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval {
          static void AddStressFromProximityEdges(StressMajorization stressSolver,
                                                         List<Tuple<int, int, double, double>> proximityEdgesWithDistance) {
             //set to check whether we already added forces between two nodes
-            var nodePairs = new HashSet<Tuple<int, int>>();
+            HashSet<Tuple<int, int>> nodePairs = new HashSet<Tuple<int, int>>();
 
             // set the corresponding forces/votings
-            foreach (var tuple in proximityEdgesWithDistance) {
+            foreach (Tuple<int, int, double, double> tuple in proximityEdgesWithDistance) {
                 int nodeId1 = tuple.Item1;
                 int nodeId2 = tuple.Item2;
                 if (nodeId1 > nodeId2) {
                     nodeId1 = tuple.Item2;
                     nodeId2 = tuple.Item1;
                 }
-                var tup = new Tuple<int, int>(nodeId1, nodeId2);
+                Tuple<int, int> tup = new Tuple<int, int>(nodeId1, nodeId2);
                 if (nodePairs.Contains(tup))
                     continue;
                 nodePairs.Add(tup);
 
                 double distance = tuple.Item3;
                 double weight = 1/(distance*distance);
-                var voteFromNode1 = new Vote(nodeId1, distance, weight); // vote from node1 for node2
-                var voteFromNode2 = new Vote(nodeId2, distance, weight); // vote from node2 for node1
+                Vote voteFromNode1 = new Vote(nodeId1, distance, weight); // vote from node1 for node2
+                Vote voteFromNode2 = new Vote(nodeId2, distance, weight); // vote from node2 for node1
 
                 if (tuple.Item4 <= 1) {
                     //nodes do not overlap
@@ -745,15 +733,13 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval {
         /// <param name="geometryGraph"></param>
         /// <param name="nodeSeparation"></param>
         public static void RemoveOverlaps(GeometryGraph geometryGraph, double nodeSeparation) {
-            var prism = new ProximityOverlapRemoval(geometryGraph) {Settings = {NodeSeparation = nodeSeparation}};
+            ProximityOverlapRemoval prism = new ProximityOverlapRemoval(geometryGraph) {Settings = {NodeSeparation = nodeSeparation}};
             prism.RemoveOverlaps();
             
         }
 
 
-        void IOverlapRemoval.Settings(OverlapRemovalSettings settingsPar) {
-            Settings = settingsPar;
-        }
+        void IOverlapRemoval.Settings(OverlapRemovalSettings settingsPar) => Settings = settingsPar;
 
         /// <summary>
         /// 
@@ -768,16 +754,12 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval {
         /// Number of iterations of the last run.
         /// </summary>
         /// <returns></returns>
-        public int GetLastRunIterations() {
-            return LastRunIterations;
-        }
+        public int GetLastRunIterations() => LastRunIterations;
 
         /// <summary>
         /// CpuTime of the last run.
         /// </summary>
         /// <returns></returns>
-        public TimeSpan GetLastRunCpuTime() {
-            return lastCpuTime;
-        }
+        public TimeSpan GetLastRunCpuTime() => lastCpuTime;
     }
 }

@@ -8,7 +8,6 @@ namespace Microsoft.AGL.Core.ProjectionSolver {
         /// </summary>
         /// <param name="id1">app id for the first variable</param>
         /// <param name="id2">app id for the second variable</param>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704")]
         void AddGoalTwoVariablesAreClose(int id1, int id2);
 
         /// <summary>
@@ -17,7 +16,6 @@ namespace Microsoft.AGL.Core.ProjectionSolver {
         /// <param name="id1">app id for the first variable</param>
         /// <param name="id2">app id for the second variable</param>
         /// <param name="weight">the weight of the corresponding term in the goal function</param>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704")]
         void AddGoalTwoVariablesAreClose(int id1, int id2, double weight);
 
         /// <summary>
@@ -43,7 +41,6 @@ namespace Microsoft.AGL.Core.ProjectionSolver {
         /// <param name="id">app id for the variable</param>
         /// <param name="position">desired position</param> 
         /// <param name="weight">the weight of the corresponding term in the goal function</param>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704")]
         void AddVariableWithIdealPosition(int id, double position, double weight);
 
         /// <summary>
@@ -51,7 +48,6 @@ namespace Microsoft.AGL.Core.ProjectionSolver {
         /// </summary>
         /// <param name="id">app id for the variable</param>
         /// <param name="position">desired position</param> 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704")]
         void AddVariableWithIdealPosition(int id, double position);
 
         /// <summary>
@@ -59,7 +55,6 @@ namespace Microsoft.AGL.Core.ProjectionSolver {
         /// </summary>
         /// <param name="id">app id of the variable</param>
         /// <returns>solved position</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704")]
         double GetVariableResolvedPosition(int id);
 
         /// <summary>
@@ -87,7 +82,6 @@ namespace Microsoft.AGL.Core.ProjectionSolver {
         /// <param name="executionLimitExceeded">if true, one or more limits such as iteration count 
         ///         or timeout were exceeded</param>
         /// <returns>Pass or fail</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1021:AvoidOutParameters", MessageId = "1#")]
         bool Solve(object parameters, out bool executionLimitExceeded);
 
         /// <summary>
@@ -101,7 +95,6 @@ namespace Microsoft.AGL.Core.ProjectionSolver {
         /// </summary>
         /// <param name="id">app id for variable</param>
         /// <param name="position">desired position</param>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704")]
         void AddFixedVariable(int id, double position);
 
         /// <summary>
@@ -109,14 +102,13 @@ namespace Microsoft.AGL.Core.ProjectionSolver {
         /// </summary>
         /// <param name="v"></param>
         /// <returns>Whether or not the app id was found</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704")]
         bool ContainsVariable(int v);
+
         /// <summary>
         /// gets the variable ideal position that has been set at the beginning
         /// </summary>
         /// <param name="v"></param>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704")]
         double GetVariableIdealPosition(int v);
     }
 }

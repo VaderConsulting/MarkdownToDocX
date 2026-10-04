@@ -18,28 +18,25 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// <summary>
         /// maps middles of multiple strings to their buckets
         /// </summary>
-        Set<int> multipleMiddles = new Set<int>();
+        Set<int> multipleMiddles = [];
 #if TEST_MSAGL
         /// <summary>
         /// The layer to visualize. Is set to zero after each display
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1051:DoNotDeclareVisibleInstanceFields")]
         public int[] nodesToShow; //set it to the layer index to display. The 
-     /// <summary>
-     /// 
-     /// </summary>
+        /// <summary>
+        /// 
+        /// </summary>
         public
 #else
         internal
 #endif
- Set<int> MultipleMiddles {
-            get { return multipleMiddles; }
-        }
+ Set<int> MultipleMiddles => multipleMiddles;
 
         /// <summary>
         /// This table keeps multi edges
         /// </summary>
-        Dictionary<IntPair, List<IntEdge>> multiedges = new Dictionary<IntPair, List<IntEdge>>();
+        Dictionary<IntPair, List<IntEdge>> multiedges = [];
 
         internal IEnumerable<IntEdge> AllIntEdges {
             get {
@@ -58,15 +55,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// </summary>
 
 #if TEST_MSAGL
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
         public
 #else
         internal
 #endif
 
- Anchor[] Anchors {
-            get { return anchors; }
-            set { anchors = value; }
+Anchor[] Anchors { get => anchors; set => anchors = value;
         }
 
         internal void AddFeedbackSet(IEnumerable<IEdge> edges) {
@@ -100,28 +94,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// <summary>
         /// 
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Multiedges")]
         public
 #else
         internal
 #endif
- Dictionary<IntPair, List<IntEdge>> Multiedges {
-            get {
-                return this.multiedges;
-            }
-        }
+Dictionary<IntPair, List<IntEdge>> Multiedges => multiedges;
 
 
-        internal List<IntEdge> GetMultiedge(int source, int target) {
-            return GetMultiedge(new IntPair(source, target));
-        }
+        internal List<IntEdge> GetMultiedge(int source, int target) => GetMultiedge(new IntPair(source, target));
 
 
         internal List<IntEdge> GetMultiedge(IntPair ip) {
             if (multiedges.ContainsKey(ip))
                 return multiedges[ip];
 
-            return new List<IntEdge>();
+            return [];
         }
 
 
@@ -129,15 +116,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             IntPair ip = new IntPair(edge.Source, edge.Target);
             List<IntEdge> o;
             if (multiedges.ContainsKey(ip) == false)
-                multiedges[ip] = o = new List<IntEdge>();
+                multiedges[ip] = o = [];
             else
                 o = multiedges[ip];
 
             o.Add(edge);
         }
 
-        internal IEnumerable<IntEdge> SkeletonEdges() {
-            return from kv in Multiedges where kv.Key.x != kv.Key.y select kv.Value[0];
-        }
-        }
+        internal IEnumerable<IntEdge> SkeletonEdges() => from kv in Multiedges where kv.Key.x != kv.Key.y select kv.Value[0];
+    }
 }

@@ -7,6 +7,7 @@ namespace MermaidRecognition.Tests.MermaidOnly;
 public sealed class MermaidOnlyRecognitionFixtureWriter
 {
     [Test]
+    [Explicit("Regenerates baseline fixtures; select this test explicitly to update them.")]
     public void Write_All_MermaidOnly_Fixtures()
     {
         string BaseDir = RecognitionFixturePaths.GetKindFixtureDirectory("MermaidOnlyRecognition");

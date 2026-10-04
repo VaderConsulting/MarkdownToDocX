@@ -39,10 +39,8 @@ namespace Microsoft.AGL.Layout.Layered {
         
         Dictionary<int, int>[] outCrossingCount;
 
-        
-        bool HeadOfTheCoin() {
-            return random.Next(2) == 0;
-        }
+
+        bool HeadOfTheCoin() => random.Next(2) == 0;
 
 
         void AdjacentExchangeWithBalancingVirtOrigNodes() {
@@ -155,7 +153,7 @@ namespace Microsoft.AGL.Layout.Layered {
         /// </summary>
         /// <param name="layer"></param>
         void InitPsArraysForLayer(int[] layer) {
-            this.ProgressStep();
+            ProgressStep();
 
             foreach (int l in layer) {
                 foreach (int p in properLayeredGraph.Pred(l)) {
@@ -214,7 +212,7 @@ namespace Microsoft.AGL.Layout.Layered {
         }
 
         bool AdjExchangeLayer(int i) {
-            this.ProgressStep();
+            ProgressStep();
 
             int[] layer = layers[i];
             bool gain = ExchangeWithGainWithNoDisturbance(layer);
@@ -228,7 +226,7 @@ namespace Microsoft.AGL.Layout.Layered {
         }
 
         bool AdjExchangeLayerWithBalance(int i) {
-            this.ProgressStep();
+            ProgressStep();
             int[] layer = layers[i];
             bool gain = ExchangeWithGainWithNoDisturbanceWithBalance(layer);
 
@@ -431,16 +429,12 @@ namespace Microsoft.AGL.Layout.Layered {
         }
 
         int SwapGain(int u, int v) {
-            int cuv;
-            int cvu;
-            CalcPair(u, v, out cuv, out cvu);
+            CalcPair(u, v, out int cuv, out int cvu);
             return cuv - cvu;
         }
 
         int SwapGainWithBalance(int u, int v) {
-            int cuv;
-            int cvu;
-            CalcPair(u, v, out cuv, out cvu);
+            CalcPair(u, v, out int cuv, out int cvu);
             int gain = cuv - cvu;
             if (gain != 0 && UvAreOfSameKind(u, v))
                 return gain;
@@ -448,9 +442,7 @@ namespace Microsoft.AGL.Layout.Layered {
             return SwapGroupGain(u, v);
         }
 
-        bool UvAreOfSameKind(int u, int v) {
-            return u < startOfVirtNodes && v < startOfVirtNodes || u >= startOfVirtNodes && v >= startOfVirtNodes;
-        }
+        bool UvAreOfSameKind(int u, int v) => u < startOfVirtNodes && v < startOfVirtNodes || u >= startOfVirtNodes && v >= startOfVirtNodes;
 
         int SwapGroupGain(int u, int v) {
             int layerIndex = layerArrays.Y[u];
@@ -486,9 +478,7 @@ namespace Microsoft.AGL.Layout.Layered {
             return -1;
         }
 
-        bool NeighborsForbidTheSwap(int u, int v) {
-            return UpperNeighborsForbidTheSwap(u, v) || LowerNeighborsForbidTheSwap(u, v);
-        }
+        bool NeighborsForbidTheSwap(int u, int v) => UpperNeighborsForbidTheSwap(u, v) || LowerNeighborsForbidTheSwap(u, v);
 
         bool LowerNeighborsForbidTheSwap(int u, int v) {
             int uCount, vCount;
@@ -521,13 +511,9 @@ namespace Microsoft.AGL.Layout.Layered {
             return leftGroupSize - rightGroupSize;
         }
 
-        bool IsOriginal(int v) {
-            return v < startOfVirtNodes;
-        }
+        bool IsOriginal(int v) => v < startOfVirtNodes;
 
-        bool IsVirtual(int v) {
-            return v >= startOfVirtNodes;
-        }
+        bool IsVirtual(int v) => v >= startOfVirtNodes;
 
 
         Func<int, bool> GetKindDelegate(int v) {

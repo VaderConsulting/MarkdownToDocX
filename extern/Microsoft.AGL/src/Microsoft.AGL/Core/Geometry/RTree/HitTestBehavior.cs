@@ -1,4 +1,5 @@
-namespace Microsoft.AGL.Core.Geometry {
+namespace Microsoft.AGL.Core.Geometry.RTree
+{
     ///<summary>
     ///continue or stop the hit tree traversal
     ///</summary>

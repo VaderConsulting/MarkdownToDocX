@@ -1,4 +1,4 @@
-namespace MermaidRecognition.Flowchart;
+namespace MermaidRecognition.Kinds.Flowchart;
 
 /// <summary>
 /// Parse-time subgraph / cluster.
@@ -9,85 +9,39 @@ public sealed class FlowchartSubgraphRecord
 
     public string Id
     {
-        get
-        {
-            return _Id;
-        }
-        set
-        {
-            _Id = value;
-        }
+        get => _Id; set => _Id = value;
     }
 
     private string? _Title;
 
     public string? Title
     {
-        get
-        {
-            return _Title;
-        }
-        set
-        {
-            _Title = value;
-        }
+        get => _Title; set => _Title = value;
     }
 
     private string? _ParentSubgraphId;
 
     public string? ParentSubgraphId
     {
-        get
-        {
-            return _ParentSubgraphId;
-        }
-        set
-        {
-            _ParentSubgraphId = value;
-        }
+        get => _ParentSubgraphId; set => _ParentSubgraphId = value;
     }
 
     private FlowchartDirection? _DeclaredDirection;
 
     public FlowchartDirection? DeclaredDirection
     {
-        get
-        {
-            return _DeclaredDirection;
-        }
-        set
-        {
-            _DeclaredDirection = value;
-        }
+        get => _DeclaredDirection; set => _DeclaredDirection = value;
     }
 
-    private readonly List<string> _NodeIds = new List<string>();
+    private readonly List<string> _NodeIds = [];
 
-    public List<string> NodeIdsMutable
-    {
-        get
-        {
-            return _NodeIds;
-        }
-    }
+    public List<string> NodeIdsMutable => _NodeIds;
 
-    private readonly List<string> _ChildSubgraphIds = new List<string>();
+    private readonly List<string> _ChildSubgraphIds = [];
 
-    public List<string> ChildSubgraphIdsMutable
-    {
-        get
-        {
-            return _ChildSubgraphIds;
-        }
-    }
+    public List<string> ChildSubgraphIdsMutable => _ChildSubgraphIds;
 
-    private readonly List<string> _Classes = new List<string>();
+    private readonly List<string> _Classes = [];
 
-    public List<string> ClassesMutable
-    {
-        get
-        {
-            return _Classes;
-        }
-    }
+    public List<string> ClassesMutable => _Classes;
 }

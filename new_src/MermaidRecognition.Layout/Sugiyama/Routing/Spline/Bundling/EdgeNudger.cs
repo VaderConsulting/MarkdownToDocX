@@ -29,9 +29,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
 
-        bool CreateUnderlyingPolylines {
-            get { return bundlingSettings.CreateUnderlyingPolyline; }
-        }
+        bool CreateUnderlyingPolylines => bundlingSettings.CreateUnderlyingPolyline;
 
 
         protected override void RunInternal() {
@@ -40,9 +38,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             FinalizePaths();
         }
 
-        void InitRadii() {
-            new HubRadiiCalculator(metroGraphData, bundlingSettings).CreateNodeRadii();
-        }
+        void InitRadii() => new HubRadiiCalculator(metroGraphData, bundlingSettings).CreateNodeRadii();
 
         /// <summary>
         /// bundle-map ordering
@@ -65,7 +61,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         void CreateBundleBases() {
-            var bbCalc = new BundleBasesCalculator(metroOrdering, metroGraphData, bundlingSettings);
+            BundleBasesCalculator bbCalc = new BundleBasesCalculator(metroOrdering, metroGraphData, bundlingSettings);
             bbCalc.Run();
         }
 
@@ -76,11 +72,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         void CreateCurveLine(Metroline line, EdgeGeometry edge) {
-            var c = new Curve();
+            Curve c = new Curve();
             Point start = FindCurveStart(metroGraphData, metroOrdering, line);
             Point currentEnd = start;
-            var hubSegsOfLine = HubSegsOfLine(metroGraphData, metroOrdering, line);
-            foreach (var seg in hubSegsOfLine) {
+            IEnumerable<ICurve> hubSegsOfLine = HubSegsOfLine(metroGraphData, metroOrdering, line);
+            foreach (ICurve seg in hubSegsOfLine) {
                 if (seg == null) continue;
                 c.AddSegment(new LineSegment(currentEnd, seg.Start));
                 c.AddSegment(seg);
@@ -110,12 +106,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             return bb.Points[index];
         }
 
-        internal static SmoothedPolyline BuildUnderlyingPolyline(Point start, Point end, IEnumerable<ICurve> cubicSegsOfLine) {
-            return null;
-            /*SmoothedPolyline sp = GetVanilaSmoothedPolyline(cubicSegsOfLine, start, end);
+        internal static SmoothedPolyline BuildUnderlyingPolyline(Point start, Point end, IEnumerable<ICurve> cubicSegsOfLine) => null;/*SmoothedPolyline sp = GetVanilaSmoothedPolyline(cubicSegsOfLine, start, end);
             FleshOutSites(sp.HeadSite, cubicSegsOfLine);
             return sp;*/
-        }
 
         static IEnumerable<ICurve> HubSegsOfLine(MetroGraphData metroGraphData, IMetroMapOrderingAlgorithm metroOrdering, Metroline line) {
             for (PolylinePoint i = line.Polyline.StartPoint.Next; i.Next != null; i = i.Next)
@@ -128,9 +121,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             BundleBase h0 = v.BundleBases[u];
             int j0 = metroOrdering.GetLineIndexInOrder(u, v, line);
             if (h0.OrientedHubSegments[j0] == null || h0.OrientedHubSegments[j0].Segment == null) {
-                var w = metroGraphData.PointToStations[i.Next.Point];
-                var otherBase = v.BundleBases[w];
-                var j1 = metroOrdering.GetLineIndexInOrder(w, v, line);
+                Station w = metroGraphData.PointToStations[i.Next.Point];
+                BundleBase otherBase = v.BundleBases[w];
+                int j1 = metroOrdering.GetLineIndexInOrder(w, v, line);
                 return new LineSegment(h0.Points[j0], otherBase.Points[j1]);
             }
 
@@ -138,7 +131,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         void CreateSegmentsInsideHubs() {
-            foreach (var metroline in metroGraphData.Metrolines)
+            foreach (Metroline metroline in metroGraphData.Metrolines)
                 CreateOrientedSegsOnLine(metroline);
 
             if (bundlingSettings.UseCubicBezierSegmentsInsideOfHubs)
@@ -158,7 +151,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             BundleBase h1 = v.BundleBases[w];
             int j0 = metroOrdering.GetLineIndexInOrder(u, v, line);
             int j1 = metroOrdering.GetLineIndexInOrder(w, v, line);
-            var seg = bundlingSettings.UseCubicBezierSegmentsInsideOfHubs ?
+            ICurve seg = bundlingSettings.UseCubicBezierSegmentsInsideOfHubs ?
                 StandardBezier(h0.Points[j0], h0.Tangents[j0], h1.Points[j1], h1.Tangents[j1]) :
                 BiArc(h0.Points[j0], h0.Tangents[j0], h1.Points[j1], h1.Tangents[j1]);
 
@@ -169,45 +162,35 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         #region Debug show
 
 #if DEBUG && TEST_MSAGL
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         static internal void ShowHubs(MetroGraphData metroGraphData, IMetroMapOrderingAlgorithm metroMapOrdering, Station station) {
-            var ttt = GetAllDebugCurves(metroMapOrdering, metroGraphData);
+            IEnumerable<DebugCurve> ttt = GetAllDebugCurves(metroMapOrdering, metroGraphData);
             if (station != null)
                 ttt = ttt.Concat(new[] { new DebugCurve(255, 3, "pink", CurveFactory.CreateDiamond(20, 20, station.Position)) });
             LayoutAlgorithmSettings.ShowDebugCurvesEnumeration(ttt);
         }
 
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
-        static internal IEnumerable<DebugCurve> GetAllDebugCurves(IMetroMapOrderingAlgorithm metroMapOrdering, MetroGraphData metroGraphData) {
-            return GraphNodes(metroGraphData).Concat(VertexDebugCurves(metroMapOrdering, metroGraphData)).Concat(DebugEdges(metroGraphData));
-        }
+        static internal IEnumerable<DebugCurve> GetAllDebugCurves(IMetroMapOrderingAlgorithm metroMapOrdering, MetroGraphData metroGraphData) => GraphNodes(metroGraphData).Concat(VertexDebugCurves(metroMapOrdering, metroGraphData)).Concat(DebugEdges(metroGraphData));
 
-        static IEnumerable<DebugCurve> DebugEdges(MetroGraphData metroGraphData1) {
-            return metroGraphData1.Edges.Select(e => new DebugCurve(40, 0.1, "gray", e.Curve));
-        }
+        static IEnumerable<DebugCurve> DebugEdges(MetroGraphData metroGraphData1) => metroGraphData1.Edges.Select(e => new DebugCurve(40, 0.1, "gray", e.Curve));
 
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
-        static IEnumerable<DebugCurve> VertexDebugCurves(IMetroMapOrderingAlgorithm metroMapOrdering, MetroGraphData metroGraphData) {
-            return DebugCircles(metroGraphData).Concat(DebugHubBases(metroGraphData)).
+        static IEnumerable<DebugCurve> VertexDebugCurves(IMetroMapOrderingAlgorithm metroMapOrdering, MetroGraphData metroGraphData) => DebugCircles(metroGraphData).Concat(DebugHubBases(metroGraphData)).
                 Concat(DebugSegs(metroGraphData, metroMapOrdering)).
                 Concat(BetweenHubs(metroMapOrdering, metroGraphData));
-        }
 
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         static IEnumerable<DebugCurve> BetweenHubs(IMetroMapOrderingAlgorithm metroMapOrdering, MetroGraphData metroGraphData) {
             foreach (Metroline ml in metroGraphData.Metrolines) {
                 List<Tuple<Point, Point>> segs = GetInterestingSegs(metroGraphData, metroMapOrdering, ml);
                 string color = GetMonotoneColor(ml.Polyline.Start, ml.Polyline.End, segs);
-                foreach (var seg in segs)
+                foreach (Tuple<Point, Point> seg in segs)
                     yield return new DebugCurve(100, ml.Width, color, new LineSegment(seg.Item1, seg.Item2));
             }
         }
 
         static List<Tuple<Point, Point>> GetInterestingSegs(MetroGraphData metroGraphData, IMetroMapOrderingAlgorithm metroMapOrdering, Metroline line) {
-            var ret = new List<Tuple<Point, Point>>();
+            List<Tuple<Point, Point>> ret = new List<Tuple<Point, Point>>();
             Point start = FindCurveStart(metroGraphData, metroMapOrdering, line);
-            var cubicSegs = HubSegsOfLine(metroGraphData, metroMapOrdering, line);
-            foreach (var seg in cubicSegs) {
+            IEnumerable<ICurve> cubicSegs = HubSegsOfLine(metroGraphData, metroMapOrdering, line);
+            foreach (ICurve seg in cubicSegs) {
                 if (seg == null) continue;
                 ret.Add(new Tuple<Point, Point>(start, seg.Start));
                 start = seg.End;
@@ -217,18 +200,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             return ret;
         }
 
-        static string GetMonotoneColor(Point start, Point end, List<Tuple<Point, Point>> segs) {
-            return "green";
-            //            Point dir = end - start;
-            //            bool monotone = segs.All(seg => (seg.Second - seg.First)*dir >= 0);
-            //            return monotone ? "green" : "magenta";
-        }
+        static string GetMonotoneColor(Point start, Point end, List<Tuple<Point, Point>> segs) => "green";//            Point dir = end - start;//            bool monotone = segs.All(seg => (seg.Second - seg.First)*dir >= 0);//            return monotone ? "green" : "magenta";
 
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         static IEnumerable<DebugCurve> DebugHubBases(MetroGraphData metroGraphData) {
-            List<DebugCurve> dc = new List<DebugCurve>();
-            foreach (var s in metroGraphData.Stations)
-                foreach (var h in s.BundleBases.Values) {
+            List<DebugCurve> dc = [];
+            foreach (Station s in metroGraphData.Stations)
+                foreach (BundleBase h in s.BundleBases.Values) {
                     dc.Add(new DebugCurve(100, 1, "red", new LineSegment(h.LeftPoint, h.RightPoint)));
                 }
 
@@ -238,25 +215,20 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             //        h => new DebugCurve(100, 0.01, "red", new LineSegment(h.Points[0], h.Points.Last())));
         }
 
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
-        static IEnumerable<DebugCurve> DebugCircles(MetroGraphData metroGraphData) {
-            return
-                metroGraphData.Stations.Select(
+        static IEnumerable<DebugCurve> DebugCircles(MetroGraphData metroGraphData) => metroGraphData.Stations.Select(
                     station => new DebugCurve(100, 0.1, "blue", CurveFactory.CreateCircle(station.Radius, station.Position)));
-        }
 
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         static IEnumerable<DebugCurve> DebugSegs(MetroGraphData metroGraphData, IMetroMapOrderingAlgorithm metroMapOrdering) {
 
-            var ls = new List<ICurve>();
-            foreach (var s in metroGraphData.VirtualNodes()) {
-                foreach (var b in s.BundleBases.Values) {
-                    foreach (var h in b.OrientedHubSegments) {
+            List<ICurve> ls = new List<ICurve>();
+            foreach (Station s in metroGraphData.VirtualNodes()) {
+                foreach (BundleBase b in s.BundleBases.Values) {
+                    foreach (OrientedHubSegment h in b.OrientedHubSegments) {
                         if (h == null) continue;
                         if (h.Segment == null) {
-                            var uBase = h.Other.BundleBase;
-                            var i = h.Index;
-                            var j = h.Other.Index;
+                            BundleBase uBase = h.Other.BundleBase;
+                            int i = h.Index;
+                            int j = h.Other.Index;
                             ls.Add(new LineSegment(b.Points[i], uBase.Points[j]));
                         }
                         else {
@@ -269,9 +241,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             return ls.Select(s => new DebugCurve(100, 0.01, "green", s));
         }
 
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         static IEnumerable<DebugCurve> GraphNodes(MetroGraphData metroGraphData) {
-            var nodes =
+            Set<ICurve> nodes =
                 new Set<ICurve>(
                     metroGraphData.Edges.Select(e => e.SourcePort.Curve).Concat(
                         metroGraphData.Edges.Select(e => e.TargetPort.Curve)));
@@ -294,17 +265,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         internal static ICurve BiArc(Point p0, Point ts, Point p4, Point te) {
             Debug.Assert(ApproximateComparer.Close(ts.LengthSquared, 1));
             Debug.Assert(ApproximateComparer.Close(te.LengthSquared, 1));
-            var v = p0 - p4;
+            Point v = p0 - p4;
             if (v.Length < ApproximateComparer.DistanceEpsilon)
                 return null;
 
-            var vtse = v * (ts - te);
-            var tste = -ts * te;
+            double vtse = v * (ts - te);
+            double tste = -ts * te;
 
             //solving a quadratic equation
-            var a = 2 * (tste - 1);
-            var b = 2 * vtse;
-            var c = v * v;
+            double a = 2 * (tste - 1);
+            double b = 2 * vtse;
+            double c = v * v;
             double al;
             if (Math.Abs(a) < ApproximateComparer.DistanceEpsilon) { //we have b*al+c=0
                 if (Math.Abs(b) > ApproximateComparer.DistanceEpsilon) {
@@ -315,7 +286,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 }
             }
             else {
-                var d = b * b - 4 * a * c;
+                double d = b * b - 4 * a * c;
                 Debug.Assert(d >= -ApproximateComparer.Tolerance);
                 if (d < 0)
                     d = 0;
@@ -325,16 +296,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                     al = (-b - d) / (2 * a);
             }
 
-            var p1 = p0 + al * ts;
-            var p3 = p4 + al * te;
-            var p2 = 0.5 * (p1 + p3);
-            var curve = new Curve();
+            Point p1 = p0 + al * ts;
+            Point p3 = p4 + al * te;
+            Point p2 = 0.5 * (p1 + p3);
+            Curve curve = new Curve();
             curve.AddSegs(ArcOn(p0, p1, p2), ArcOn(p2, p3, p4));
 
             //bad input for BiArc. we shouldn't allow such cases during bundle bases construction
             if (ts * (p4 - p0) <= 0 && ts * te <= 0) {
                 //switch to Bezier
-                var curve2 = StandardBezier(p0, ts, p4, te);
+                CubicBezierSegment curve2 = StandardBezier(p0, ts, p4, te);
 #if DEBUG && TEST_MSAGL
                 /*List<DebugCurve> dc = new List<DebugCurve>();
                 dc.Add(new DebugCurve(curve));
@@ -357,26 +328,25 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         /// <param name="c">belongs to the arc, the tangent point of bc</param>
         /// <returns></returns>
         internal static ICurve ArcOn(Point a, Point b, Point c) {
-            Point center;
-            if (Math.Abs(Point.SignedDoubledTriangleArea(a, b, c)) < 0.0001 || !FindArcCenter(a, b, c, out center))
+            if (Math.Abs(Point.SignedDoubledTriangleArea(a, b, c)) < 0.0001 || !FindArcCenter(a, b, c, out Point center))
                 return new LineSegment(a, c);
 
-            var radius = (a - center).Length;
-            var chordLength = (a - b).Length;
+            double radius = (a - center).Length;
+            double chordLength = (a - b).Length;
             if (chordLength / radius < 0.0001)//to avoid a floating point error
                 return new LineSegment(a, c);
-            var cenA = a - center;
-            var aAngle = Math.Atan2(cenA.Y, cenA.X);
-            var cenC = c - center;
-            var cAngle = Math.Atan2(cenC.Y, cenC.X);
-            var delac = cAngle - aAngle;
+            Point cenA = a - center;
+            double aAngle = Math.Atan2(cenA.Y, cenA.X);
+            Point cenC = c - center;
+            double cAngle = Math.Atan2(cenC.Y, cenC.X);
+            double delac = cAngle - aAngle;
             if (delac < 0) {
                 delac += 2 * Math.PI;
                 cAngle += 2 * Math.PI;
             }
             if (delac <= Math.PI) {
                 //going ccw
-                var el = new Ellipse(aAngle, cAngle, new Point(radius, 0), new Point(0, radius), center);
+                Ellipse el = new Ellipse(aAngle, cAngle, new Point(radius, 0), new Point(0, radius), center);
                 return el;
             }
 
@@ -399,8 +369,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         static bool FindArcCenter(Point a, Point b, Point c, out Point center) {
-            var perp0 = (b - a).Rotate90Cw();
-            var perp1 = (b - c).Rotate90Cw();
+            Point perp0 = (b - a).Rotate90Cw();
+            Point perp1 = (b - c).Rotate90Cw();
             return Point.LineLineIntersection(a, a + perp0, c, c + perp1, out center);
         }
 
@@ -420,7 +390,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             while (progress && steps++ < maxSteps) {
                 progress = false;
                 foreach (Station s in metroGraphData.Stations)
-                    foreach (var segmentHub in s.BundleBases.Values)
+                    foreach (BundleBase segmentHub in s.BundleBases.Values)
                         progress |= FanEdgesOfHubSegment(segmentHub);
             }
         }
@@ -439,8 +409,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             OrientedHubSegment lSeg = bundleHub.OrientedHubSegments[i];
             OrientedHubSegment rSeg = bundleHub.OrientedHubSegments[i + 1];
             if (lSeg == null) return false;
-            Point x;
-            if (LineSegment.Intersect(lSeg.Segment.Start, lSeg.Segment.End, rSeg.Segment.Start, rSeg.Segment.End, out x))
+            if (LineSegment.Intersect(lSeg.Segment.Start, lSeg.Segment.End, rSeg.Segment.Start, rSeg.Segment.End, out Point x))
                 return false; //it doesn not make sense to push these segs apart
             if (Point.GetTriangleOrientation(lSeg[0], lSeg[0.5], lSeg[1]) !=
                 Point.GetTriangleOrientation(rSeg[0], rSeg[0.5], rSeg[1]))
@@ -563,9 +532,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             return 0;
         }
 
-        double BaseLength(OrientedHubSegment seg) {
-            return (seg[0] - seg[1]).LengthSquared;
-        }
+        double BaseLength(OrientedHubSegment seg) => (seg[0] - seg[1]).LengthSquared;
 
 
         #endregion

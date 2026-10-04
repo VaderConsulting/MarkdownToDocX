@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Render;
 
 namespace MermaidRecognition.Layout;
@@ -25,7 +26,7 @@ public static class FlowchartFanInPortAllocator
         FlowchartDirection Direction,
         out List<(double X, double Y)> LayoutPoints)
     {
-        LayoutPoints = new List<(double X, double Y)>();
+        LayoutPoints = [];
 
         if (IsDecisionShape(TargetShape))
         {
@@ -92,7 +93,7 @@ public static class FlowchartFanInPortAllocator
         if (UseParallelBranchColumnFanIn)
         {
             bool RightToLeft = Direction == FlowchartDirection.RightToLeft;
-            List<FlowchartLayoutNodeBounds> SourceBoundsList = new List<FlowchartLayoutNodeBounds>();
+            List<FlowchartLayoutNodeBounds> SourceBoundsList = [];
             foreach (EdgeContract IncomingEdge in Incoming)
             {
                 if (BoundsById.TryGetValue(IncomingEdge.SourceId, out FlowchartLayoutNodeBounds ColumnSourceBounds))
@@ -370,21 +371,18 @@ public static class FlowchartFanInPortAllocator
     private static void SortIncomingBySourceCrossAxisDescending(
         List<EdgeContract> Incoming,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
-        bool HorizontalFlow)
-    {
-        Incoming.Sort((Left, Right) =>
-        {
-            double LeftCross = GetCrossAxis(Left.SourceId, BoundsById, HorizontalFlow);
-            double RightCross = GetCrossAxis(Right.SourceId, BoundsById, HorizontalFlow);
-            int CrossCompare = RightCross.CompareTo(LeftCross);
-            if (CrossCompare != 0)
-            {
-                return CrossCompare;
-            }
+        bool HorizontalFlow) => Incoming.Sort((Left, Right) =>
+                                     {
+                                         double LeftCross = GetCrossAxis(Left.SourceId, BoundsById, HorizontalFlow);
+                                         double RightCross = GetCrossAxis(Right.SourceId, BoundsById, HorizontalFlow);
+                                         int CrossCompare = RightCross.CompareTo(LeftCross);
+                                         if (CrossCompare != 0)
+                                         {
+                                             return CrossCompare;
+                                         }
 
-            return Left.CreationIndex.CompareTo(Right.CreationIndex);
-        });
-    }
+                                         return Left.CreationIndex.CompareTo(Right.CreationIndex);
+                                     });
 
     private static (double X, double Y) ResolveVerticalHubFanInSourceAttach(
         FlowchartLayoutNodeBounds SourceBounds,
@@ -430,21 +428,18 @@ public static class FlowchartFanInPortAllocator
     private static void SortOutgoingByTargetCrossAxisAscending(
         List<EdgeContract> Outgoing,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
-        bool HorizontalFlow)
-    {
-        Outgoing.Sort((Left, Right) =>
-        {
-            double LeftCross = GetCrossAxis(Left.TargetId, BoundsById, HorizontalFlow);
-            double RightCross = GetCrossAxis(Right.TargetId, BoundsById, HorizontalFlow);
-            int CrossCompare = LeftCross.CompareTo(RightCross);
-            if (CrossCompare != 0)
-            {
-                return CrossCompare;
-            }
+        bool HorizontalFlow) => Outgoing.Sort((Left, Right) =>
+                                     {
+                                         double LeftCross = GetCrossAxis(Left.TargetId, BoundsById, HorizontalFlow);
+                                         double RightCross = GetCrossAxis(Right.TargetId, BoundsById, HorizontalFlow);
+                                         int CrossCompare = LeftCross.CompareTo(RightCross);
+                                         if (CrossCompare != 0)
+                                         {
+                                             return CrossCompare;
+                                         }
 
-            return Left.CreationIndex.CompareTo(Right.CreationIndex);
-        });
-    }
+                                         return Left.CreationIndex.CompareTo(Right.CreationIndex);
+                                     });
 
     private static bool TryIsVerticalHubFanOut(
         List<EdgeContract> Outgoing,
@@ -494,7 +489,7 @@ public static class FlowchartFanInPortAllocator
 
     private static List<EdgeContract> GetVisibleEdgesFromSource(DiagramContract Contract, string SourceId)
     {
-        List<EdgeContract> Edges = new List<EdgeContract>();
+        List<EdgeContract> Edges = [];
         foreach (EdgeContract Candidate in Contract.Edges)
         {
             if (string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
@@ -514,21 +509,18 @@ public static class FlowchartFanInPortAllocator
     private static void SortIncomingBySourceCrossAxis(
         List<EdgeContract> Incoming,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
-        bool HorizontalFlow)
-    {
-        Incoming.Sort((Left, Right) =>
-        {
-            double LeftCross = GetCrossAxis(Left.SourceId, BoundsById, HorizontalFlow);
-            double RightCross = GetCrossAxis(Right.SourceId, BoundsById, HorizontalFlow);
-            int CrossCompare = LeftCross.CompareTo(RightCross);
-            if (CrossCompare != 0)
-            {
-                return CrossCompare;
-            }
+        bool HorizontalFlow) => Incoming.Sort((Left, Right) =>
+                                     {
+                                         double LeftCross = GetCrossAxis(Left.SourceId, BoundsById, HorizontalFlow);
+                                         double RightCross = GetCrossAxis(Right.SourceId, BoundsById, HorizontalFlow);
+                                         int CrossCompare = LeftCross.CompareTo(RightCross);
+                                         if (CrossCompare != 0)
+                                         {
+                                             return CrossCompare;
+                                         }
 
-            return Left.CreationIndex.CompareTo(Right.CreationIndex);
-        });
-    }
+                                         return Left.CreationIndex.CompareTo(Right.CreationIndex);
+                                     });
 
     private static double GetCrossAxis(
         string NodeId,
@@ -550,7 +542,7 @@ public static class FlowchartFanInPortAllocator
 
     private static List<EdgeContract> GetVisibleEdgesToTarget(DiagramContract Contract, string TargetId)
     {
-        List<EdgeContract> Edges = new List<EdgeContract>();
+        List<EdgeContract> Edges = [];
         foreach (EdgeContract Candidate in Contract.Edges)
         {
             if (string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))

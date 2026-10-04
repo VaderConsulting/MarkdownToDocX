@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.AGL.Core.DataStructures;
 using Microsoft.AGL.Core.Geometry;
+using Microsoft.AGL.Core.Geometry.RTree;
 using Microsoft.AGL.Core.Layout;
 using Microsoft.AGL.DebugHelpers;
 
@@ -13,7 +14,7 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing {
     /// </summary>
     public class BumperPusher {
         readonly double separation;
-        readonly Set<Node> fixedNodes = new Set<Node>();
+        readonly Set<Node> fixedNodes = [];
         readonly RTree<Node> rtree;
         Node[] pushingNodes;
 
@@ -32,10 +33,10 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing {
             this.pushingNodes = pushingNodes;
         }
 
-        internal IEnumerable<Node> FixedNodes { get { return fixedNodes; } }
+        internal IEnumerable<Node> FixedNodes => fixedNodes;
 
         Rectangle GetPaddedBoxOfNode(Node n) {
-            var ret= n.BoundaryCurve.BoundingBox;
+            Rectangle ret = n.BoundaryCurve.BoundingBox;
             ret.Pad(separation/2);
             return ret;
         }
@@ -48,11 +49,11 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing {
             fixedNodes.Clear();
             fixedNodes.InsertRange(pushingNodes);
 
-            var q = new Queue<Node>(pushingNodes);
-            var ret = new List<Node>();
+            Queue<Node> q = new Queue<Node>(pushingNodes);
+            List<Node> ret = new List<Node>();
             while (q.Count > 0) {
-                var n = q.Dequeue();
-                foreach (var node in PushByNodeAndReportPushedAsFixed(n)) {
+                Node n = q.Dequeue();
+                foreach (Node node in PushByNodeAndReportPushedAsFixed(n)) {
                     q.Enqueue(node);
                     fixedNodes.Insert(node);
                     ret.Add(node);                    
@@ -62,9 +63,9 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing {
         }
 
         IEnumerable<Node> PushByNodeAndReportPushedAsFixed(Node pushingNode) {
-            var ret = new List<Node>();
-            var pushingNodeBox = GetPaddedBoxOfNode(pushingNode);
-            foreach (var rectNode in rtree.GetAllLeavesIntersectingRectangle(pushingNodeBox)) {
+            List<Node> ret = new List<Node>();
+            Rectangle pushingNodeBox = GetPaddedBoxOfNode(pushingNode);
+            foreach (RectangleNode<Node> rectNode in rtree.GetAllLeavesIntersectingRectangle(pushingNodeBox)) {
                 if (fixedNodes.Contains(rectNode.UserData)) continue;
                 if (PushNodeAndUpdateRTree(pushingNode, rectNode))
                     ret.Add(rectNode.UserData);
@@ -73,14 +74,14 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing {
         }
 
         bool PushNodeAndUpdateRTree(Node pushingNode, RectangleNode<Node> pushed) {
-            var del = pushed.UserData.Center - pushingNode.Center;
-            var w = pushingNode.Width / 2 + pushed.UserData.Width / 2;
-            var h = pushingNode.Height / 2 + pushed.UserData.Height / 2;
-            var absDelXBetweenCenters = Math.Abs(del.X);
-            var absDelYBetweenCenters = Math.Abs(del.Y);
+            Point del = pushed.UserData.Center - pushingNode.Center;
+            double w = pushingNode.Width / 2 + pushed.UserData.Width / 2;
+            double h = pushingNode.Height / 2 + pushed.UserData.Height / 2;
+            double absDelXBetweenCenters = Math.Abs(del.X);
+            double absDelYBetweenCenters = Math.Abs(del.Y);
 
-            var xSep = absDelXBetweenCenters - w;
-            var ySep = absDelYBetweenCenters - h;
+            double xSep = absDelXBetweenCenters - w;
+            double ySep = absDelYBetweenCenters - h;
             if (xSep >= separation || ySep >= separation)
                 return false;
             if (absDelXBetweenCenters >= absDelYBetweenCenters) {
@@ -97,25 +98,24 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing {
         
 
         void PushByX(double del, RectangleNode<Node> pushed) {
-            var delPoint = new Point(del, 0);
+            Point delPoint = new Point(del, 0);
             PushByPoint(pushed, delPoint);
         }
 
         static void PushByPoint(RectangleNode<Node> pushed, Point delPoint) {
             pushed.UserData.Center += delPoint;
-            var cluster = pushed.UserData as Cluster;
-            if (cluster != null)
+            if (pushed.UserData is Cluster cluster)
                 cluster.DeepContentsTranslation(delPoint, true);
         }
 
         void PushByY(double del, RectangleNode<Node> pushed) {
-            var delPoint = new Point(0, del);
+            Point delPoint = new Point(0, del);
             PushByPoint(pushed, delPoint);
         }
 
         void UpdateBoundingBoxesOfPushedAndUpParents(RectangleNode<Node> pushed) {
             pushed.Rectangle = GetPaddedBoxOfNode(pushed.UserData);
-            var parent = pushed.Parent;
+            RectangleNode<Node> parent = pushed.Parent;
             while (parent != null) {
                 parent.Rectangle = new Rectangle(parent.Left.Rectangle, parent.Right.Rectangle);
                 parent = parent.Parent;
@@ -135,7 +135,7 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing {
         }
 
         RectangleNode<Node> FindClusterNode(Node cluster, Rectangle previousBox) {
-            var node = rtree.RootNode;
+            RectangleNode<Node> node = rtree.RootNode;
             return FindClusterNodeRecurse(node, cluster, previousBox);
         }
 
@@ -156,8 +156,6 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing {
         /// 
         /// </summary>
         /// <returns></returns>
-        public Node FirstPushingNode() {
-            return pushingNodes[0];
-        }
+        public Node FirstPushingNode() => pushingNodes[0];
     }
 }

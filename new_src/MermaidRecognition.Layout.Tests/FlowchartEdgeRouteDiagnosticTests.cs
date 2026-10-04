@@ -1,8 +1,11 @@
 using System.Linq;
 using System.Text;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Core;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Render;
+
 using NUnit.Framework;
 
 namespace MermaidRecognition.Layout.Tests;
@@ -117,12 +120,12 @@ public sealed class FlowchartEdgeRouteDiagnosticTests
         EdgeContract ValidateRejectEdge = Contract.Edges.First(
             Edge => Edge.SourceId == "Validate" && Edge.TargetId == "Reject");
 
-        List<(double X, double Y)> BadDiagonalRoute = new List<(double X, double Y)>
-        {
+        List<(double X, double Y)> BadDiagonalRoute =
+        [
             (344.8, 1570.1),
             (308.3, 1028.3),
             (4.4, 486.9)
-        };
+        ];
 
         List<FlowchartEdgeRouteDiagnosticFinding> Findings = FlowchartEdgeRouteDiagnosticAnalyzer.AnalyzeEdgeRoute(
             ValidateRejectEdge,
@@ -154,13 +157,13 @@ public sealed class FlowchartEdgeRouteDiagnosticTests
         FlowchartLayoutNodeBounds SourceBounds = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "A");
         FlowchartLayoutNodeBounds TargetBounds = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "B");
 
-        List<(double X, double Y)> DetourRoute = new List<(double X, double Y)>
-        {
+        List<(double X, double Y)> DetourRoute =
+        [
             (SourceBounds.CenterX, SourceBounds.CenterY - (SourceBounds.Height / 2.0) - 2.0),
             (SourceBounds.CenterX + 80.0, SourceBounds.CenterY - 40.0),
             (TargetBounds.CenterX + 80.0, TargetBounds.CenterY + 40.0),
             (TargetBounds.CenterX, TargetBounds.CenterY + (TargetBounds.Height / 2.0) + 2.0)
-        };
+        ];
 
         List<FlowchartEdgeRouteDiagnosticFinding> Findings = FlowchartEdgeRouteDiagnosticAnalyzer.AnalyzeEdgeRoute(
             Edge,
@@ -188,11 +191,11 @@ public sealed class FlowchartEdgeRouteDiagnosticTests
             Candidate => Candidate.SourceId == "Render" && Candidate.TargetId == "Word");
         FlowchartLayoutNodeBounds ParseBounds = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "Parse");
 
-        List<(double X, double Y)> ThroughBodyRoute = new List<(double X, double Y)>
-        {
+        List<(double X, double Y)> ThroughBodyRoute =
+        [
             (ParseBounds.CenterX - 120.0, ParseBounds.CenterY),
             (ParseBounds.CenterX + 120.0, ParseBounds.CenterY)
-        };
+        ];
 
         List<FlowchartEdgeRouteDiagnosticFinding> Findings = FlowchartEdgeRouteDiagnosticAnalyzer.AnalyzeEdgeRoute(
             Edge,

@@ -19,9 +19,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Routing {
         /// defines the way edges are routed
         /// 
         ///</summary>
-        public EdgeRoutingMode EdgeRoutingMode {
-            get { return edgeRoutingMode; }
-            set { edgeRoutingMode = value; }
+        public EdgeRoutingMode EdgeRoutingMode { get => edgeRoutingMode; set => edgeRoutingMode = value;
         }
 
         double coneAngle = 30*Math.PI/180;
@@ -29,9 +27,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Routing {
         ///<summary>
         /// the angle in degrees of the cones in the routing fith the spanner
         ///</summary>
-        public double ConeAngle {
-            get { return coneAngle; }
-            set { coneAngle = value; }
+        public double ConeAngle { get => coneAngle; set => coneAngle = value;
         }
 
         double padding = 3;
@@ -39,9 +35,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Routing {
         /// <summary>
         /// Amount of space to leave around nodes
         /// </summary>
-        public double Padding {
-            get { return padding; }
-            set { padding = value; }
+        public double Padding { get => padding; set => padding = value;
         }
 
         double polylinePadding = 1.5;
@@ -49,9 +43,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Routing {
         /// <summary>
         /// Additional amount of padding to leave around nodes when routing with polylines
         /// </summary>
-        public double PolylinePadding {
-            get { return polylinePadding; }
-            set { polylinePadding = value; }
+        public double PolylinePadding { get => polylinePadding; set => polylinePadding = value;
         }
 
         /// <summary>
@@ -80,9 +72,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Routing {
         /// <summary>
         /// this is a cone angle to find a relatively close point on the parent boundary
         /// </summary>
-        public double RoutingToParentConeAngle {
-            get { return routingToParentConeAngle; }
-            set { routingToParentConeAngle = value; }
+        public double RoutingToParentConeAngle { get => routingToParentConeAngle; set => routingToParentConeAngle = value;
         }
 
         int simpleSelfLoopsForParentEdgesThreshold = 200;
@@ -91,21 +81,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Routing {
         /// if the number of the nodes participating in the routing of the parent edges is less than the threshold 
         /// then the parent edges are routed avoiding the nodes
         /// </summary>
-        public int SimpleSelfLoopsForParentEdgesThreshold {
-            get { return simpleSelfLoopsForParentEdgesThreshold; }
-            set { simpleSelfLoopsForParentEdgesThreshold = value; }
+        public int SimpleSelfLoopsForParentEdgesThreshold { get => simpleSelfLoopsForParentEdgesThreshold; set => simpleSelfLoopsForParentEdgesThreshold = value;
         }
 
-       
+
         int incrementalRoutingThreshold = 5000000; //debugging
         bool routeMultiEdgesAsBundles = true;
 
         /// <summary>
         /// defines the size of the changed graph that could be routed fast with the standard spline routing when dragging
         /// </summary>
-        public int IncrementalRoutingThreshold {
-            get { return incrementalRoutingThreshold; }
-            set { incrementalRoutingThreshold = value; }
+        public int IncrementalRoutingThreshold { get => incrementalRoutingThreshold; set => incrementalRoutingThreshold = value;
         }
         /// <summary>
         /// if set to true the original spline is kept under the corresponding EdgeGeometry
@@ -116,9 +102,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Routing {
         /// if set to true routes multi edges as ordered bundles, when routing in a spline mode
         /// </summary>
         /// <exception cref="NotImplementedException"></exception>
-        public bool RouteMultiEdgesAsBundles {
-            get { return routeMultiEdgesAsBundles; }
-            set { routeMultiEdgesAsBundles = value; }
+        public bool RouteMultiEdgesAsBundles { get => routeMultiEdgesAsBundles; set => routeMultiEdgesAsBundles = value;
         }
     }
 }

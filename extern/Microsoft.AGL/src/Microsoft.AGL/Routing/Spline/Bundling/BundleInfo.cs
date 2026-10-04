@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using Microsoft.AGL.Core.DataStructures;
 using Microsoft.AGL.Core.Geometry;
@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System;
 using Microsoft.AGL.DebugHelpers;
 using Microsoft.AGL.Core.Layout;
+using Microsoft.AGL.Core.Geometry.RTree;
 
 namespace Microsoft.AGL.Routing.Spline.Bundling {
     internal class BundleInfo {
@@ -62,11 +63,11 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             Point targetPos = TargetBase.Position;
             Point sourcePos = SourceBase.Position;
 
-            var dir = (targetPos - sourcePos).Normalize();
-            var perp = dir.Rotate90Ccw();
-            var middle = 0.5 * (targetPos + sourcePos);
-            var a = middle + longEnoughSideLength * dir;
-            var b = middle - longEnoughSideLength * dir; // [a,b] is a long enough segment
+            Point dir = (targetPos - sourcePos).Normalize();
+            Point perp = dir.Rotate90Ccw();
+            Point middle = 0.5 * (targetPos + sourcePos);
+            Point a = middle + longEnoughSideLength * dir;
+            Point b = middle - longEnoughSideLength * dir; // [a,b] is a long enough segment
 
             //we are already fine
             if (SetRLParamsIfWidthIsFeasible(TotalRequiredWidth * perp / 2, a, b)) {
@@ -75,9 +76,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             }
 
             //find the segment using binary search
-            var uw = TotalRequiredWidth;
-            var lw = 0.0;
-            var mw = uw / 2;
+            double uw = TotalRequiredWidth;
+            double lw = 0.0;
+            double mw = uw / 2;
             while (uw - lw > FeasibleWidthEpsilon) {
                 if (SetRLParamsIfWidthIsFeasible(mw * perp / 2, a, b))
                     lw = mw;
@@ -101,19 +102,16 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             SetInitialMidParams();
         }
 
-        bool SetRLParamsIfWidthIsFeasible(Point perp, Point a, Point b) {
-            return SetRLParamsIfWidthIsFeasible(perp, -perp, a, b);
-        }
+        bool SetRLParamsIfWidthIsFeasible(Point perp, Point a, Point b) => SetRLParamsIfWidthIsFeasible(perp, -perp, a, b);
 
         bool SetRLParamsIfWidthIsFeasible(Point perpL, Point perpR, Point a, Point b) {
-            double sourceRParam, targetRParam, sourceLParam, targetLParam;
-            var ls = TrimSegWithBoundaryCurves(new LineSegment(a + perpL, b + perpL), out sourceLParam, out targetRParam);
+            LineSegment ls = TrimSegWithBoundaryCurves(new LineSegment(a + perpL, b + perpL), out double sourceLParam, out double targetRParam);
             if (ls == null)
                 return false;
             if (tightObstaclesInTheBoundingBox.Any(t => Intersections.LineSegmentIntersectPolyline(ls.Start, ls.End, t)))
                 return false;
 
-            ls = TrimSegWithBoundaryCurves(new LineSegment(a + perpR, b + perpR), out sourceRParam, out targetLParam);
+            ls = TrimSegWithBoundaryCurves(new LineSegment(a + perpR, b + perpR), out double sourceRParam, out double targetLParam);
             if (ls == null)
                 return false;
             if (tightObstaclesInTheBoundingBox.Any(t => Intersections.LineSegmentIntersectPolyline(ls.Start, ls.End, t)))
@@ -145,8 +143,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         }
 
         void SetInitialMidParams() {
-            double sourceParam, targetParam;
-            var ls = TrimSegWithBoundaryCurves(new LineSegment(TargetBase.CurveCenter, SourceBase.CurveCenter), out sourceParam, out targetParam);
+            LineSegment ls = TrimSegWithBoundaryCurves(new LineSegment(TargetBase.CurveCenter, SourceBase.CurveCenter), out double sourceParam, out double targetParam);
             if (ls != null) {
                 SourceBase.InitialMidParameter = sourceParam;
                 TargetBase.InitialMidParameter = targetParam;
@@ -159,7 +156,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         LineSegment TrimSegWithBoundaryCurves(LineSegment ls, out double sourcePar, out double targetPar) {
             //ls goes from target to source
-            var inters = Curve.GetAllIntersections(ls, SourceBase.Curve, true);
+            IList<IntersectionInfo> inters = Curve.GetAllIntersections(ls, SourceBase.Curve, true);
             if (inters.Count == 0) {
                 sourcePar = targetPar = 0;
                 return null;
@@ -300,8 +297,6 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             return true;
         }
 
-        bool LineIsLegal(Point a, Point b) {
-            return tightObstaclesInTheBoundingBox.All(t => !Intersections.LineSegmentIntersectPolyline(a, b, t));
-        }
+        bool LineIsLegal(Point a, Point b) => tightObstaclesInTheBoundingBox.All(t => !Intersections.LineSegmentIntersectPolyline(a, b, t));
     }
 }

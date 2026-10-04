@@ -14,7 +14,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="touch"></param>
         /// <param name="direction"></param>
         internal CurveTangent(Point touch, Point direction) {
-            this.touchPoint = touch;
+            touchPoint = touch;
             this.direction = direction;
         }
     }

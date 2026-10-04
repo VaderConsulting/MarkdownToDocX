@@ -2,7 +2,7 @@ using System;
 using System.Linq;
 using System.Diagnostics;
 
-namespace Microsoft.AGL.Core.Geometry
+namespace Microsoft.AGL.Core.Geometry.MinEnclosingDisc
 {
     /// <summary>
     /// Disc for use in Minimum Enclosing Disc computation
@@ -16,22 +16,16 @@ namespace Microsoft.AGL.Core.Geometry
         /// <summary>
         /// disc centre
         /// </summary>
-        public Point Center
-        {
-            get { return c; }
-        }
+        public Point Center => c;
         /// <summary>
         /// radius
         /// </summary>
-         double r;
+        double r;
         /// <summary>
         /// Radius of disc
         /// </summary>
-        public double Radius
-        {
-            get { return r; }
-        }
-         double r2;
+        public double Radius => r;
+        double r2;
         /// <summary>
         /// squared distance from the centre of this disc to point
         /// </summary>
@@ -47,10 +41,7 @@ namespace Microsoft.AGL.Core.Geometry
         /// </summary>
         /// <param name="point"></param>
         /// <returns></returns>
-        public bool Contains(Point point)
-        {
-            return Distance2(point) - 1e-7 <= r2;
-        }
+        public bool Contains(Point point) => Distance2(point) - 1e-7 <= r2;
         /// <summary>
         /// test if all specified points (apart from the except list) are contained in this disc
         /// </summary>
@@ -75,7 +66,7 @@ namespace Microsoft.AGL.Core.Geometry
         /// <param name="center">center of disc</param>
         public Disc(Point center)
         {
-            this.c = center;
+            c = center;
             r2 = r = 0;
         }
         /// <summary>
@@ -83,10 +74,7 @@ namespace Microsoft.AGL.Core.Geometry
         /// </summary>
         /// <param name="startPoint"></param>
         /// <param name="endPoint"></param>
-         static Point midPoint(Point startPoint, Point endPoint)
-        {
-            return new Point((endPoint.X + startPoint.X) / 2.0, (endPoint.Y + startPoint.Y) / 2.0);
-        }
+        static Point midPoint(Point startPoint, Point endPoint) => new Point((endPoint.X + startPoint.X) / 2.0, (endPoint.Y + startPoint.Y) / 2.0);
         /// <summary>
         /// Create the smallest possible disc with the specified points on the boundary
         /// </summary>
@@ -125,8 +113,10 @@ namespace Microsoft.AGL.Core.Geometry
             ma = (p2.Y - p1.Y) / (p2.X - p1.X);
             mb = (p3.Y - p2.Y) / (p3.X - p2.X);
             Debug.Assert(mb != ma); // collinear points not allowed
-            Point c = new Point();
-            c.X = ma * mb * (p1.Y - p3.Y) + mb * (p1.X + p2.X) - ma * (p2.X + p3.X);
+            Point c = new Point
+            {
+                X = ma * mb * (p1.Y - p3.Y) + mb * (p1.X + p2.X) - ma * (p2.X + p3.X)
+            };
             c.X /= 2.0 * (mb - ma);
             if (Math.Abs(ma) > Math.Abs(mb))
             {
@@ -138,6 +128,7 @@ namespace Microsoft.AGL.Core.Geometry
             }
             return c;
         }
+
         /// <summary>
         /// if the area of the triangle formed by the 3 points is 0 then the points are collinear
         /// </summary>
@@ -145,18 +136,14 @@ namespace Microsoft.AGL.Core.Geometry
         /// <param name="p2"></param>
         /// <param name="p3"></param>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "p")]
-        public static bool Collinear(Point p1, Point p2, Point p3)
-        {
-            return p1.X * (p2.Y - p3.Y) + p2.X * (p3.Y - p1.Y) + p3.X * (p1.Y - p2.Y) == 0;
-        }
+        public static bool Collinear(Point p1, Point p2, Point p3) => p1.X * (p2.Y - p3.Y) + p2.X * (p3.Y - p1.Y) + p3.X * (p1.Y - p2.Y) == 0;
+
         /// <summary>
         /// Create a disc with the specified points on the boundary
         /// </summary>
         /// <param name="p1"></param>
         /// <param name="p2"></param>
         /// <param name="p3"></param>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "p")]
         public Disc(Point p1, Point p2, Point p3)
         {
             if (Collinear(p1, p2, p3))

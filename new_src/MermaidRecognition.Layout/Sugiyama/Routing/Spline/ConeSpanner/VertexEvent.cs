@@ -5,16 +5,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
     abstract internal class VertexEvent: SweepEvent {
         PolylinePoint vertex;
 
-        internal PolylinePoint Vertex {
-            get { return vertex; }
-            set { vertex = value; }
+        internal PolylinePoint Vertex { get => vertex; set => vertex = value;
         }
 
-        internal override Point Site {
-            get { return vertex.Point; }
-        }
+        internal override Point Site => vertex.Point;
 
-        internal VertexEvent(PolylinePoint p) { vertex = p; }
-        internal Polyline Polyline { get { return vertex.Polyline; } }
+        internal VertexEvent(PolylinePoint p) => vertex = p;
+        internal Polyline Polyline => vertex.Polyline;
     }
 }

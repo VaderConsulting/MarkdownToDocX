@@ -24,9 +24,7 @@ public static class FlowchartPerpendicularAttachValidator
         FlowchartLayoutNodeBounds SourceBounds,
         FlowchartLayoutNodeBounds TargetBounds,
         bool AllowDiagonalCrossEdge,
-        out string FailureMessage)
-    {
-        return TryValidateGuidePoints(
+        out string FailureMessage) => TryValidateGuidePoints(
             Points,
             SourceBounds,
             null,
@@ -34,7 +32,6 @@ public static class FlowchartPerpendicularAttachValidator
             null,
             AllowDiagonalCrossEdge,
             out FailureMessage);
-    }
 
     /// <summary>
     /// Returns true when terminal segments are perpendicular to the joined face and meet minimum stub length.

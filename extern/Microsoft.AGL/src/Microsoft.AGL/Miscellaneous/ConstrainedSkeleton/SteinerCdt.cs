@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using Microsoft.AGL.Core.DataStructures;
 using Microsoft.AGL.Core.Geometry;
 using Microsoft.AGL.Core.Geometry.Curves;
+using Microsoft.AGL.Core.Geometry.RTree;
 using Microsoft.AGL.Core.Layout;
 using Microsoft.AGL.DebugHelpers;
 using Microsoft.AGL.Routing.Visibility;
@@ -16,11 +17,11 @@ using  SymmetricSegment = Microsoft.AGL.Core.DataStructures.SymmetricTuple<Micro
 
 namespace Microsoft.AGL.Miscellaneous.ConstrainedSkeleton {
     internal class SteinerCdt {
-         Dictionary<Point, int> _pointsToIndices = new Dictionary<Point, int>();
-        readonly List<Point> _pointList = new List<Point>();
-        readonly Set<SymmetricTuple<int>> _segments = new Set<SymmetricTuple<int>>();
+         Dictionary<Point, int> _pointsToIndices = [];
+        readonly List<Point> _pointList = [];
+        readonly Set<SymmetricTuple<int>> _segments = [];
 
-        readonly Dictionary<int, VisibilityVertex> _outPoints = new Dictionary<int, VisibilityVertex>();
+        readonly Dictionary<int, VisibilityVertex> _outPoints = [];
         readonly VisibilityGraph _visGraph;
         readonly IEnumerable<LgNodeInfo> _nodeInfos;
         Rectangle _boundingBox;
@@ -32,8 +33,8 @@ namespace Microsoft.AGL.Miscellaneous.ConstrainedSkeleton {
         }
 
         void MakeSureThatNodeBoundariesAreInVisGraph(IEnumerable<LgNodeInfo> nodeInfos) {
-            foreach (var nodeInfo in nodeInfos)
-                foreach (var polypoint in nodeInfo.BoundaryOnLayer.PolylinePoints)
+            foreach (LgNodeInfo nodeInfo in nodeInfos)
+                foreach (PolylinePoint polypoint in nodeInfo.BoundaryOnLayer.PolylinePoints)
                     _visGraph.AddVertex(polypoint.Point);
         }
 
@@ -47,7 +48,7 @@ namespace Microsoft.AGL.Miscellaneous.ConstrainedSkeleton {
             Debug.Assert(TopologyForCallingTriangleIsCorrect());
             Console.WriteLine("\nWriting Cdt input");
 
-            using (var file = new StreamWriter(path)) {
+            using (StreamWriter file = new StreamWriter(path)) {
                 WritePoints(file);
                 WriteSegments(file);
                 WriteHoles(file);
@@ -58,8 +59,8 @@ namespace Microsoft.AGL.Miscellaneous.ConstrainedSkeleton {
             file.WriteLine("# holes");
             file.WriteLine(_nodeInfos.Count());
             int j = 0;
-            foreach (var ni in _nodeInfos) {
-                var c = ni.Center;
+            foreach (LgNodeInfo ni in _nodeInfos) {
+                Point c = ni.Center;
                 file.WriteLine((j + 1) + " " + c.X + " " + c.Y);
                 j++;
             }
@@ -69,7 +70,7 @@ namespace Microsoft.AGL.Miscellaneous.ConstrainedSkeleton {
             file.WriteLine("# segments");
             file.WriteLine(_segments.Count + " 0");
             int i = 1;
-            foreach (var seg in _segments) {
+            foreach (SymmetricTuple<int> seg in _segments) {
                 file.WriteLine(i + " " + (seg.A + 1) + " " + (seg.B + 1));
                 i++;
             }
@@ -78,7 +79,7 @@ namespace Microsoft.AGL.Miscellaneous.ConstrainedSkeleton {
         void WritePoints(StreamWriter file) {
             file.WriteLine("# vertices");
             file.WriteLine(_pointsToIndices.Count + " 2 0 0");
-            foreach (var tuple in _pointsToIndices) {
+            foreach (KeyValuePair<Point, int> tuple in _pointsToIndices) {
                 file.WriteLine(tuple.Value + 1 + " " + tuple.Key.X + " " + tuple.Key.Y);
             }
         }
@@ -119,25 +120,25 @@ namespace Microsoft.AGL.Miscellaneous.ConstrainedSkeleton {
 
         public void LoadOutputFileNode(string path) {
             int oldPoints = _pointList.Count;
-            using (var file = new StreamReader(path)) {
+            using (StreamReader file = new StreamReader(path)) {
                 string line = file.ReadLine();
                 if (line == null) throw new InvalidOperationException("unexpected end of file");
                 Regex.Split(line, @"\s{2,}");
 
-                int numVertices = Int32.Parse(line.Split(' ').First());
+                int numVertices = int.Parse(line.Split(' ').First());
 
                 for (int i = 0; i < numVertices; i++) {
                     line = file.ReadLine();
                     if (line == null) break;
 
                     line = line.TrimStart(' ');
-                    var lineParsed = Regex.Split(line, @"\s{2,}");
-                    int ind = Int32.Parse(lineParsed[0]) - 1;
+                    string[] lineParsed = Regex.Split(line, @"\s{2,}");
+                    int ind = int.Parse(lineParsed[0]) - 1;
                     if (ind < oldPoints)
                         _outPoints[ind] = _visGraph.FindVertex(_pointList[ind]);
                     else {
-                        double x = Double.Parse(lineParsed[1]);
-                        double y = Double.Parse(lineParsed[2]);
+                        double x = double.Parse(lineParsed[1]);
+                        double y = double.Parse(lineParsed[2]);
                         _outPoints[ind] = _visGraph.AddVertex(new Point(x, y));
                     }
                 }
@@ -147,26 +148,26 @@ namespace Microsoft.AGL.Miscellaneous.ConstrainedSkeleton {
 
         public void LoadOutputFileSides(string path) {
             _visGraph.ClearEdges();
-            using (var file = new StreamReader(path)) {
-                var line = file.ReadLine();
+            using (StreamReader file = new StreamReader(path)) {
+                string line = file.ReadLine();
                 if (line==null) throw new Exception("unexpected end of file");
                 line = line.TrimStart(' ');
 
-                int numTriangles = Int32.Parse(line.Split(' ').First());
+                int numTriangles = int.Parse(line.Split(' ').First());
 
                 for (int i = 0; i < numTriangles; i++) {
                     line = file.ReadLine();
                     if (line == null) break;
 
                     line = line.TrimStart(' ');
-                    var lineParsed = Regex.Split(line, @"\s{2,}");
-                    int id0 = Int32.Parse(lineParsed[1]) - 1;
-                    int id1 = Int32.Parse(lineParsed[2]) - 1;
-                    int id2 = Int32.Parse(lineParsed[3]) - 1;
+                    string[] lineParsed = Regex.Split(line, @"\s{2,}");
+                    int id0 = int.Parse(lineParsed[1]) - 1;
+                    int id1 = int.Parse(lineParsed[2]) - 1;
+                    int id2 = int.Parse(lineParsed[3]) - 1;
 
-                    var v0 = _outPoints[id0];
-                    var v1 = _outPoints[id1];
-                    var v2 = _outPoints[id2];
+                    VisibilityVertex v0 = _outPoints[id0];
+                    VisibilityVertex v1 = _outPoints[id1];
+                    VisibilityVertex v2 = _outPoints[id2];
                     AddVisEdge(v0, v1);
                     AddVisEdge(v1, v2);
                     AddVisEdge(v2, v0);
@@ -197,14 +198,14 @@ namespace Microsoft.AGL.Miscellaneous.ConstrainedSkeleton {
         }
 
         void IndexNodeInfos() {
-            foreach (var ni in _nodeInfos) {
+            foreach (LgNodeInfo ni in _nodeInfos) {
                 AddNodeBoundaryToPointIndices(ni);
             }
         }
 
         void IndexVisGraphVertices() {
             if (_visGraph == null) return;
-            foreach (var v in _visGraph.Vertices()) {
+            foreach (VisibilityVertex v in _visGraph.Vertices()) {
                 _pointsToIndices[v.Point] = _pointsToIndices.Count;
                 _pointList.Add(v.Point);
             }
@@ -212,7 +213,7 @@ namespace Microsoft.AGL.Miscellaneous.ConstrainedSkeleton {
 
         void CreateAndIndexBoundingBox() {
            _boundingBox = Rectangle.CreateAnEmptyBox();
-            foreach(var p in _pointsToIndices.Keys) _boundingBox.Add(p);
+            foreach(Point p in _pointsToIndices.Keys) _boundingBox.Add(p);
             _boundingBox.Pad(1);
             IndexAPoint(_boundingBox.LeftBottom);
             IndexAPoint(_boundingBox.RightBottom);
@@ -222,7 +223,7 @@ namespace Microsoft.AGL.Miscellaneous.ConstrainedSkeleton {
         }
 
         void AddNodeBoundaryToPointIndices(LgNodeInfo ni) {
-            foreach (var polylinePoint in ni.BoundaryOnLayer.PolylinePoints)
+            foreach (PolylinePoint polylinePoint in ni.BoundaryOnLayer.PolylinePoints)
                 IndexAPoint(polylinePoint.Point);
         }
 
@@ -236,13 +237,13 @@ namespace Microsoft.AGL.Miscellaneous.ConstrainedSkeleton {
 
         bool TopologyForCallingTriangleIsCorrect() {
             Point[] indexToPoints = new Point[_pointsToIndices.Count];
-            foreach (var pp in _pointsToIndices) {
+            foreach (KeyValuePair<Point, int> pp in _pointsToIndices) {
                 indexToPoints[pp.Value] = pp.Key;
             }
 
-            var tree =
+            RTree<Point> tree =
                 new RTree<Point>(_pointsToIndices.Keys.Select(p => new KeyValuePair<Rectangle, Point>(new Rectangle(p), p)));
-            var badSegs = (from e in _segments let overlaps = GetPointsOverlappingSeg(e, tree, indexToPoints) where overlaps.Count > 2 select e).ToList();
+            List<SymmetricTuple<int>> badSegs = (from e in _segments let overlaps = GetPointsOverlappingSeg(e, tree, indexToPoints) where overlaps.Count > 2 select e).ToList();
 
 #if TEST_MSAGL
             if (badSegs.Any())
@@ -254,11 +255,11 @@ namespace Microsoft.AGL.Miscellaneous.ConstrainedSkeleton {
         
         private void ShowInputSegments(List<SymmetricTuple<int>> badSegs, Point[] indexToPoints) {
 #if TEST_MSAGL
-            var l = new List<DebugCurve>();
-            foreach (var seg in _segments) {
-                var p1 = indexToPoints[seg.A];
-                var p2 = indexToPoints[seg.B];
-                var ls = new LineSegment(p1, p2);
+            List<DebugCurve> l = new List<DebugCurve>();
+            foreach (SymmetricTuple<int> seg in _segments) {
+                Point p1 = indexToPoints[seg.A];
+                Point p2 = indexToPoints[seg.B];
+                LineSegment ls = new LineSegment(p1, p2);
 
                 string color = badSegs.Contains(seg) ? "red" : "black";
                 double width = badSegs.Contains(seg) ? 3 : 1;
@@ -291,18 +292,17 @@ namespace Microsoft.AGL.Miscellaneous.ConstrainedSkeleton {
         List<Point> GetPointsOverlappingSeg(SymmetricTuple<int> seg, RTree<Point> tree, Point[] indexToPoints) {
             Point p0 = indexToPoints[seg.A];
             Point p1 = indexToPoints[seg.B];
-            var rect = new Rectangle(p0, p1);
+            Rectangle rect = new Rectangle(p0, p1);
             rect.Pad(1e-5);
 
             Point[] vts = tree.GetAllIntersecting(rect).ToArray();
 
-            double t;
-            var vtsOverlapping = vts.Where(p => Point.DistToLineSegment(p, p0, p1, out t) < 1e-5).ToList();
+            List<Point> vtsOverlapping = vts.Where(p => Point.DistToLineSegment(p, p0, p1, out double t) < 1e-5).ToList();
 
             vtsOverlapping = vtsOverlapping.OrderBy(p => (p - p0).Length).ToList();
             if (vtsOverlapping.Count > 2) {
                 Console.WriteLine("overlapping points");
-                foreach (var v in vtsOverlapping)
+                foreach (Point v in vtsOverlapping)
                     Console.WriteLine(v);
             }
             return vtsOverlapping;
@@ -311,13 +311,13 @@ namespace Microsoft.AGL.Miscellaneous.ConstrainedSkeleton {
         void InitSegments() {
             _segments.Clear();
             InitSegsOfVisGraph();
-            foreach (var lgNodeInfo in _nodeInfos)
+            foreach (LgNodeInfo lgNodeInfo in _nodeInfos)
                 InitSegsOfPolyline(lgNodeInfo.BoundaryOnLayer);
             InitSegments(_boundingBox .LeftTop, _boundingBox .RightTop, _boundingBox .RightBottom, _boundingBox .LeftBottom);
         }
 
         void InitSegsOfPolyline(Polyline polyline) {
-            var pp = polyline.StartPoint;
+            PolylinePoint pp = polyline.StartPoint;
             int startId = _pointsToIndices[pp.Point];
             int id = startId;
             do {
@@ -339,9 +339,9 @@ namespace Microsoft.AGL.Miscellaneous.ConstrainedSkeleton {
 
         void InitSegsOfVisGraph() {
             if (_visGraph == null) return;
-            foreach (var v in _visGraph.Vertices()) {
+            foreach (VisibilityVertex v in _visGraph.Vertices()) {
                 int vId = _pointsToIndices[v.Point];
-                foreach (var e in v.OutEdges)
+                foreach (VisibilityEdge e in v.OutEdges)
                     _segments.Insert(new SymmetricTuple<int>(vId, _pointsToIndices[e.Target.Point]));
             }
         }

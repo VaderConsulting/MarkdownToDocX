@@ -15,48 +15,42 @@ namespace Microsoft.AGL.Routing.Rectilinear {
 
     internal class TransientGraphUtility {
         // Vertices added to the graph for routing.
-        internal List<VisibilityVertexRectilinear> AddedVertices = new List<VisibilityVertexRectilinear>();
+        internal List<VisibilityVertexRectilinear> AddedVertices = [];
 
         // Edges added to the graph for routing.
-        internal List<TollFreeVisibilityEdge> AddedEdges = new List<TollFreeVisibilityEdge>();
+        internal List<TollFreeVisibilityEdge> AddedEdges = [];
 
         // Edges joining two non-transient vertices; these must be replaced.
-        readonly List<VisibilityEdge> edgesToRestore = new List<VisibilityEdge>();
+        readonly List<VisibilityEdge> edgesToRestore = [];
 
         internal bool LimitPortVisibilitySpliceToEndpointBoundingBox { get; set; }
 
         // Owned by creator of this class.
         VisibilityGraphGenerator GraphGenerator { get; set; }
-        internal ObstacleTree ObstacleTree { get { return GraphGenerator.ObstacleTree; } }
-        internal VisibilityGraph VisGraph { get { return GraphGenerator.VisibilityGraph; } }
-        private bool IsSparseVg { get { return this.GraphGenerator is SparseVisibilityGraphGenerator; } }
+        internal ObstacleTree ObstacleTree => GraphGenerator.ObstacleTree;
+        internal VisibilityGraph VisGraph => GraphGenerator.VisibilityGraph;
+        private bool IsSparseVg => GraphGenerator is SparseVisibilityGraphGenerator;
 
-        internal TransientGraphUtility(VisibilityGraphGenerator graphGen) {
-            GraphGenerator = graphGen;
-        }
+        internal TransientGraphUtility(VisibilityGraphGenerator graphGen) => GraphGenerator = graphGen;
 
         internal VisibilityVertex AddVertex(Point location) {
-            var vertex = this.VisGraph.AddVertex(location);
+            VisibilityVertex vertex = VisGraph.AddVertex(location);
             AddedVertices.Add((VisibilityVertexRectilinear)vertex);
             return vertex;
         }
 
         internal VisibilityVertex FindOrAddVertex(Point location) {
-            var vertex = VisGraph.FindVertex(location);
+            VisibilityVertex vertex = VisGraph.FindVertex(location);
             return vertex ?? AddVertex(location);
         }
 
-        internal VisibilityEdge FindOrAddEdge(VisibilityVertex sourceVertex, VisibilityVertex targetVertex)
-        {
-            return FindOrAddEdge(sourceVertex, targetVertex, ScanSegment.NormalWeight);
-        }
+        internal VisibilityEdge FindOrAddEdge(VisibilityVertex sourceVertex, VisibilityVertex targetVertex) => FindOrAddEdge(sourceVertex, targetVertex, ScanSegment.NormalWeight);
 
         internal VisibilityEdge FindOrAddEdge(VisibilityVertex sourceVertex, VisibilityVertex targetVertex, double weight) {
             // Since we're adding transient edges into the graph, we're not doing full intersection
             // evaluation; thus there may already be an edge from the source vertex in the direction
             // of the target vertex, but ending before or after the target vertex.
             Directions dirToTarget = PointComparer.GetPureDirection(sourceVertex, targetVertex);
-            VisibilityVertex bracketSource, bracketTarget;
 
             // Is there an edge in the chain from sourceVertex in the direction of targetVertex
             // that brackets targetvertex?
@@ -65,16 +59,16 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             // will be set to the vertex at <end> (if there are any edges in that direction at all).
             VisibilityVertex splitVertex = targetVertex;
             if (!FindBracketingVertices(sourceVertex, targetVertex.Point, dirToTarget
-                                    , out bracketSource, out bracketTarget)) {
+                                    , out VisibilityVertex bracketSource, out VisibilityVertex bracketTarget)) {
                 // No bracketing of targetVertex from sourceVertex but bracketSource has been updated.
                 // Is there a bracket of bracketSource from the targetVertex direction?
                 //                      3   <end> ..2.. <- ..1..   <targetVertex>
                 // Yes if bracketSource is at the x above 1 or 2, No if it is at 3.  If false, bracketTarget
                 // will be set to the vertex at <end> (if there are any edges in that direction at all).
                 // If true, then bracketSource and splitVertex must be updated.
-                VisibilityVertex tempSource;
                 if (FindBracketingVertices(targetVertex, sourceVertex.Point, CompassVector.OppositeDir(dirToTarget)
-                                        , out bracketTarget, out tempSource)) {
+                                        , out bracketTarget, out VisibilityVertex tempSource))
+                {
                     Debug.Assert(bracketSource == sourceVertex, "Mismatched bracketing detection");
                     bracketSource = tempSource;
                     splitVertex = sourceVertex;
@@ -83,9 +77,9 @@ namespace Microsoft.AGL.Routing.Rectilinear {
 
             // If null != edge then targetVertex is between bracketSource and bracketTarget and SplitEdge returns the 
             // first half-edge (and weight is ignored as the split uses the edge weight).
-            var edge = VisGraph.FindEdge(bracketSource.Point, bracketTarget.Point);
+            VisibilityEdge edge = VisGraph.FindEdge(bracketSource.Point, bracketTarget.Point);
             edge = (null != edge)
-                    ? this.SplitEdge(edge, splitVertex)
+                    ? SplitEdge(edge, splitVertex)
                     : CreateEdge(bracketSource, bracketTarget, weight);
             DevTrace_VerifyEdge(edge);
             return edge;
@@ -115,8 +109,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         }
 
         [Conditional("DEVTRACE")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
-// ReSharper disable InconsistentNaming
+        // ReSharper disable InconsistentNaming
         void DevTrace_VerifyEdge(VisibilityEdge edge) {
 #if DEVTRACE
             if (transGraphVerify.IsLevel(1)) {
@@ -131,7 +124,6 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         }
 
         [Conditional("DEVTRACE")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         void DevTrace_VerifyVertex(VisibilityVertex vertex) {
 #if DEVTRACE
             if (transGraphVerify.IsLevel(1)) {
@@ -161,7 +153,6 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         }
 
         [Conditional("DEVTRACE")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         internal void DevTrace_VerifyAllVertices(VisibilityGraph vg) {
 #if DEVTRACE
             if (transGraphVerify.IsLevel(4)) {
@@ -173,7 +164,6 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         }
 
         [Conditional("DEVTRACE")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         internal void DevTrace_VerifyAllEdgeIntersections(VisibilityGraph visibilityGraph) {
 #if DEVTRACE
             // By design, edges cross at non-vertices in SparseVg.
@@ -215,9 +205,9 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                 target = first;
             }
 
-            var edge = new TollFreeVisibilityEdge(source, target, weight);
+            TollFreeVisibilityEdge edge = new TollFreeVisibilityEdge(source, target, weight);
             VisibilityGraph.AddEdge(edge);
-            this.AddedEdges.Add(edge);
+            AddedEdges.Add(edge);
             return edge;
         }
 
@@ -228,41 +218,39 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         }
 
         private void RemoveAddedVertices() {
-            foreach (var vertex in this.AddedVertices) {
+            foreach (VisibilityVertexRectilinear vertex in AddedVertices) {
                 // Removing all transient vertices will remove all associated transient edges as well.
-                if (null != this.VisGraph.FindVertex(vertex.Point))
+                if (null != VisGraph.FindVertex(vertex.Point))
                 {
-                    this.VisGraph.RemoveVertex(vertex);
+                    VisGraph.RemoveVertex(vertex);
                 }
             }
-            this.AddedVertices.Clear();
+            AddedVertices.Clear();
         }
 
         private void RemoveAddedEdges() {
-            foreach (var edge in this.AddedEdges) {
+            foreach (TollFreeVisibilityEdge edge in AddedEdges) {
                 // If either vertex was removed, so was the edge, so just check source.
-                if (null != this.VisGraph.FindVertex(edge.SourcePoint)) {
+                if (null != VisGraph.FindVertex(edge.SourcePoint)) {
                     VisibilityGraph.RemoveEdge(edge);
                 }
             }
-            this.AddedEdges.Clear();
+            AddedEdges.Clear();
         }
 
         private void RestoreRemovedEdges() {
-            foreach (var edge in this.edgesToRestore) {
+            foreach (VisibilityEdge edge in edgesToRestore) {
                 // We should only put TransientVisibilityEdges in this list, and should never encounter
                 // a non-transient edge in the graph after we've replaced it with a transient one, so 
                 // the edge should not be in the graph until we re-insert it.
                 Debug.Assert(!(edge is TollFreeVisibilityEdge), "Unexpected Transient edge");
                 VisibilityGraph.AddEdge(edge);
-                this.DevTrace_VerifyEdge(edge);
+                DevTrace_VerifyEdge(edge);
             }
-            this.edgesToRestore.Clear();
+            edgesToRestore.Clear();
         }
 
-        internal VisibilityEdge FindNextEdge(VisibilityVertex vertex, Directions dir) {
-            return StaticGraphUtility.FindNextEdge(VisGraph, vertex, dir);
-        }
+        internal VisibilityEdge FindNextEdge(VisibilityVertex vertex, Directions dir) => StaticGraphUtility.FindNextEdge(VisGraph, vertex, dir);
 
         internal VisibilityEdge FindPerpendicularOrContainingEdge(VisibilityVertex startVertex
                             , Directions dir, Point pointLocation) {
@@ -378,9 +366,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             return targetVertex;
         }
 
-        internal VisibilityEdge SplitEdge(VisibilityEdge edge, Point splitPoint) {
-            return SplitEdge(edge, FindOrAddVertex(splitPoint));
-        }
+        internal VisibilityEdge SplitEdge(VisibilityEdge edge, Point splitPoint) => SplitEdge(edge, FindOrAddVertex(splitPoint));
 
         internal VisibilityEdge SplitEdge(VisibilityEdge edge, VisibilityVertex splitVertex) {
             // If the edge is NULL it means we could not find an appropriate one, so do nothing.
@@ -414,7 +400,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             // To avoid this we add the edges in each direction from splitVertex with FindOrAddEdge.  If we've
             // come here from a previous call to FindOrAddEdge, then that call has found the bracketing vertices, 
             // which are the endpoints of 'edge', and we've removed 'edge', so we will not call SplitEdge again.
-            if ((this.IsSparseVg || (edge.Weight == ScanSegment.OverlappedWeight)) && (splitVertex.Degree > 0)) {
+            if ((IsSparseVg || (edge.Weight == ScanSegment.OverlappedWeight)) && (splitVertex.Degree > 0)) {
                 FindOrAddEdge(splitVertex, edge.Source, edge.Weight);
                 return FindOrAddEdge(splitVertex, edge.Target, edge.Weight);
             }
@@ -427,7 +413,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
 
         internal void ExtendEdgeChain(VisibilityVertex startVertex, Rectangle limitRect, LineSegment maxVisibilitySegment,
                                     PointAndCrossingsList pacList, bool isOverlapped) {
-            var dir = PointComparer.GetDirections(maxVisibilitySegment.Start, maxVisibilitySegment.End);
+            Directions dir = PointComparer.GetDirections(maxVisibilitySegment.Start, maxVisibilitySegment.End);
             if (dir == Directions. None) {
                 return;
             }
@@ -453,7 +439,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             // If maxDesiredSplicePoint is shorter, create a new shorter segment.  We have to pass both segments
             // through to the worker function so it knows whether it can go past maxDesiredSegment (which may be limited
             // by limitRect).
-            var maxDesiredSegment = maxVisibilitySegment;
+            LineSegment maxDesiredSegment = maxVisibilitySegment;
             if (PointComparer.GetDirections(maxDesiredSplicePoint, maxDesiredSegment.End) == dir) {
                 maxDesiredSegment = new LineSegment(maxDesiredSegment.Start, maxDesiredSplicePoint);
             }
@@ -493,8 +479,8 @@ namespace Microsoft.AGL.Routing.Rectilinear {
 
             // Store this off before ExtendSpliceWorker, which overwrites it.
             Directions spliceTargetDir = CompassVector.OppositeDir(spliceSourceDir);
-            VisibilityVertex spliceTarget;
-            if (ExtendSpliceWorker(spliceSource, extendDir, spliceTargetDir, maxDesiredSegment, maxVisibilitySegment, isOverlapped, out spliceTarget)) {
+            if (ExtendSpliceWorker(spliceSource, extendDir, spliceTargetDir, maxDesiredSegment, maxVisibilitySegment, isOverlapped, out VisibilityVertex spliceTarget))
+            {
                 // We ended on the source side and may have dead-ends on the target side so reverse sides.
                 ExtendSpliceWorker(spliceTarget, extendDir, spliceSourceDir, maxDesiredSegment, maxVisibilitySegment, isOverlapped, out spliceTarget);
             }
@@ -507,9 +493,9 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                 return;
             }
             crossingList.Reset();
-            var start = maxSegment.Start;
-            var end = maxSegment.End;
-            var dir = PointComparer.GetPureDirection(start, end);
+            Point start = maxSegment.Start;
+            Point end = maxSegment.End;
+            Directions dir = PointComparer.GetPureDirection(start, end);
 
             // Make sure we are going in the ascending direction.
             if (!StaticGraphUtility.IsAscending(dir)) {
@@ -523,7 +509,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             startVertex = TraverseToFirstVertexAtOrAbove(startVertex, start, CompassVector.OppositeDir(dir));
 
             // Splice into the Vertices between and including the start/end points.
-            for (var currentVertex = startVertex; null != currentVertex; currentVertex = StaticGraphUtility.FindNextVertex(currentVertex, dir)) {
+            for (VisibilityVertex currentVertex = startVertex; null != currentVertex; currentVertex = StaticGraphUtility.FindNextVertex(currentVertex, dir)) {
                 bool isFinalVertex = (PointComparer.Compare(currentVertex.Point, end) >= 0);
                 while (crossingList.CurrentIsBeforeOrAt(currentVertex.Point)) {
                     PointAndCrossings pac = crossingList.Pop();
@@ -551,11 +537,11 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         }
 
         private static VisibilityVertex TraverseToFirstVertexAtOrAbove(VisibilityVertex startVertex, Point start, Directions dir) {
-            var returnVertex = startVertex;
-            var oppositeDir = CompassVector.OppositeDir(dir);
+            VisibilityVertex returnVertex = startVertex;
+            Directions oppositeDir = CompassVector.OppositeDir(dir);
 
             for ( ; ; ) {
-                var nextVertex = StaticGraphUtility.FindNextVertex(returnVertex, dir);
+                VisibilityVertex nextVertex = StaticGraphUtility.FindNextVertex(returnVertex, dir);
 
                 // This returns Directions. None on a match.
                 if ((null == nextVertex) || (PointComparer.GetDirections(nextVertex.Point, start) == oppositeDir)) {
@@ -569,17 +555,17 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         private void SpliceGroupBoundaryCrossing(VisibilityVertex currentVertex, PointAndCrossings pac, Directions dirToInside) {
             GroupBoundaryCrossing[] crossings = PointAndCrossingsList.ToCrossingArray(pac.Crossings, dirToInside);
             if (null != crossings) {
-                var outerVertex = VisGraph.FindVertex(pac.Location) ?? AddVertex(pac.Location);
+                VisibilityVertex outerVertex = VisGraph.FindVertex(pac.Location) ?? AddVertex(pac.Location);
                 if (currentVertex.Point != outerVertex.Point) {
                     FindOrAddEdge(currentVertex, outerVertex);
                 }
-                var interiorPoint = crossings[0].GetInteriorVertexPoint(pac.Location);
-                var interiorVertex = VisGraph.FindVertex(interiorPoint) ?? AddVertex(interiorPoint);
+                Point interiorPoint = crossings[0].GetInteriorVertexPoint(pac.Location);
+                VisibilityVertex interiorVertex = VisGraph.FindVertex(interiorPoint) ?? AddVertex(interiorPoint);
                 
                 // FindOrAddEdge splits an existing edge so may not return the portion bracketed by outerVertex and interiorVertex.
                 FindOrAddEdge(outerVertex, interiorVertex);
-                var edge = VisGraph.FindEdge(outerVertex.Point, interiorVertex.Point);
-                var crossingsArray = crossings.Select(c => c.Group.InputShape).ToArray();
+                VisibilityEdge edge = VisGraph.FindEdge(outerVertex.Point, interiorVertex.Point);
+                Shape[] crossingsArray = crossings.Select(c => c.Group.InputShape).ToArray();
                 edge.IsPassable = delegate { return crossingsArray.Any(s => s.IsTransparent); };
             }
         }
@@ -618,7 +604,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                 if (null == spliceTarget) {
                     // This may be because spliceSource was created just for Group boundaries.  If so,
                     // skip to the next nextExtendVertex location.
-                    if (this.IsSkippableSpliceSourceWithNullSpliceTarget(spliceSource, extendDir)) {
+                    if (IsSkippableSpliceSourceWithNullSpliceTarget(spliceSource, extendDir)) {
                         continue;
                     }
 
@@ -632,7 +618,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                 // We might be walking through a point where a previous chain dead-ended.
                 VisibilityVertex nextExtendVertex = VisGraph.FindVertex(nextExtendPoint);
                 if (null != nextExtendVertex) {
-                    if ((null == spliceTarget) || (null != this.VisGraph.FindEdge(extendVertex.Point, nextExtendPoint))) {
+                    if ((null == spliceTarget) || (null != VisGraph.FindEdge(extendVertex.Point, nextExtendPoint))) {
                         // We are probably along a ScanSegment so visibility in this direction has already been determined.
                         // Stop and don't try to continue extension from the opposite side.  If we continue splicing here
                         // it might go across an obstacle.
@@ -655,7 +641,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                                 || spliceTargetDir == PointComparer.GetPureDirection(nextExtendPoint, spliceTarget.Point)
                                , "spliceTarget is not to spliceTargetDir of nextExtendVertex"
                                , ObstacleTree, VisGraph);
-                    nextExtendVertex = this.AddVertex(nextExtendPoint);
+                    nextExtendVertex = AddVertex(nextExtendPoint);
                 }
                 FindOrAddEdge(extendVertex, nextExtendVertex, isOverlapped ? ScanSegment.OverlappedWeight : ScanSegment.NormalWeight);
 
@@ -665,7 +651,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                 // on the target side so must not create a vertex as it would be inside an obstacle.
                 FindOrAddEdge(spliceSource, nextExtendVertex, isOverlapped ? ScanSegment.OverlappedWeight : ScanSegment.NormalWeight);
                 if (isOverlapped) {
-                    isOverlapped = this.SeeIfSpliceIsStillOverlapped(extendDir, nextExtendVertex);
+                    isOverlapped = SeeIfSpliceIsStillOverlapped(extendDir, nextExtendVertex);
                 }
                 extendVertex = nextExtendVertex;
 
@@ -686,8 +672,8 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                 return;
             }
 #if DEBUG
-            StaticGraphUtility.Assert(!this.ObstacleTree.SegmentCrossesANonGroupObstacle(extendVertex.Point, nextExtendVertex.Point)
-                    , "extendDir edge crosses an obstacle", this.ObstacleTree, this.VisGraph);
+            StaticGraphUtility.Assert(!ObstacleTree.SegmentCrossesANonGroupObstacle(extendVertex.Point, nextExtendVertex.Point)
+                    , "extendDir edge crosses an obstacle", ObstacleTree, VisGraph);
 #endif // DEBUG
 
             if (spliceSource == null) {
@@ -697,22 +683,22 @@ namespace Microsoft.AGL.Routing.Rectilinear {
 
             // Verify lateral splices as well.
             if ((null == spliceTarget)
-                    || (null == this.VisGraph.FindEdge(spliceSource.Point, spliceTarget.Point) 
-                            && (null == this.VisGraph.FindEdge(spliceSource.Point, nextExtendVertex.Point)))) {
+                    || (null == VisGraph.FindEdge(spliceSource.Point, spliceTarget.Point) 
+                            && (null == VisGraph.FindEdge(spliceSource.Point, nextExtendVertex.Point)))) {
                 // If targetVertex isn't null and the proposed edge from nextExtendVertex -> targetVertex
                 // edge doesn't already exist, then we assert that we're not creating a new edge that
                 // crosses the obstacle bounds (a bounds-crossing edge may already exist, from a port
                 // within the obstacle; in that case nextExtendPoint splits that edge).  As above, don't
                 // splice laterally across groups.
-                StaticGraphUtility.Assert(!this.ObstacleTree.SegmentCrossesAnObstacle(spliceSource.Point, nextExtendVertex.Point)
-                        , "spliceSource->extendVertex edge crosses an obstacle", this.ObstacleTree, this.VisGraph);
+                StaticGraphUtility.Assert(!ObstacleTree.SegmentCrossesAnObstacle(spliceSource.Point, nextExtendVertex.Point)
+                        , "spliceSource->extendVertex edge crosses an obstacle", ObstacleTree, VisGraph);
 
                 // Above we moved spliceTarget over when nextExtendVertex existed, so account
                 // for that here.
                 StaticGraphUtility.Assert((null == spliceTarget)
-                        || (null != this.VisGraph.FindEdge(nextExtendVertex.Point, spliceTarget.Point))
-                                || !this.ObstacleTree.SegmentCrossesAnObstacle(nextExtendVertex.Point, spliceTarget.Point)
-                        , "extendVertex->spliceTarget edge crosses an obstacle", this.ObstacleTree, this.VisGraph);
+                        || (null != VisGraph.FindEdge(nextExtendVertex.Point, spliceTarget.Point))
+                                || !ObstacleTree.SegmentCrossesAnObstacle(nextExtendVertex.Point, spliceTarget.Point)
+                        , "extendVertex->spliceTarget edge crosses an obstacle", ObstacleTree, VisGraph);
             }
         }
 
@@ -728,7 +714,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                     if (null == nextSpliceSource) {
                         return false;
                     }
-                    var nextSpliceSourceExtend = StaticGraphUtility.FindNextVertex(nextSpliceSource, extendDir);
+                    VisibilityVertex nextSpliceSourceExtend = StaticGraphUtility.FindNextVertex(nextSpliceSource, extendDir);
                     if (null != nextSpliceSourceExtend) {
                         nextSpliceSource = nextSpliceSourceExtend;
                         break;
@@ -745,7 +731,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             // have the closest vertex on the Source side of the extension line as spliceSource.
             Directions prevDir = PointComparer.GetPureDirection(spliceSource.Point, nextExtendPoint);
             Directions nextDir = prevDir;
-            var spliceTarget = spliceSource;
+            VisibilityVertex spliceTarget = spliceSource;
             while (nextDir == prevDir) {
                 spliceSource = spliceTarget;
                 spliceTarget = StaticGraphUtility.FindNextVertex(spliceSource, spliceTargetDir);
@@ -767,21 +753,21 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         {
             // If we've spliced out of overlapped space into free space, we may be able to turn off the 
             // overlapped state if we have a perpendicular non-overlapped edge.
-            var edge = this.FindNextEdge(nextExtendVertex, CompassVector.RotateLeft(extendDir));
-            var maybeFreeSpace = (null == edge) ? false : (ScanSegment.NormalWeight == edge.Weight);
+            VisibilityEdge edge = FindNextEdge(nextExtendVertex, CompassVector.RotateLeft(extendDir));
+            bool maybeFreeSpace = (null == edge) ? false : (ScanSegment.NormalWeight == edge.Weight);
             if (!maybeFreeSpace)
             {
-                edge = this.FindNextEdge(nextExtendVertex, CompassVector.RotateRight(extendDir));
+                edge = FindNextEdge(nextExtendVertex, CompassVector.RotateRight(extendDir));
                 maybeFreeSpace = (null == edge) ? false : (ScanSegment.NormalWeight == edge.Weight);
             }
-            return !maybeFreeSpace || this.ObstacleTree.PointIsInsideAnObstacle(nextExtendVertex.Point, extendDir);
+            return !maybeFreeSpace || ObstacleTree.PointIsInsideAnObstacle(nextExtendVertex.Point, extendDir);
         }
 
         bool IsSkippableSpliceSourceWithNullSpliceTarget(VisibilityVertex spliceSource, Directions extendDir) {
             if (IsSkippableSpliceSourceEdgeWithNullTarget(StaticGraphUtility.FindNextEdge(VisGraph, spliceSource, extendDir))) {
                 return true;
             }
-            var spliceSourceEdge = StaticGraphUtility.FindNextEdge(this.VisGraph, spliceSource, CompassVector.OppositeDir(extendDir));
+            VisibilityEdge spliceSourceEdge = StaticGraphUtility.FindNextEdge(VisGraph, spliceSource, CompassVector.OppositeDir(extendDir));
 
             // Since target is null, if this is a reflection, it is bouncing off an outer side of a group or 
             // obstacle at spliceSource.  In that case, we don't want to splice from it because then we could
@@ -789,27 +775,18 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             return (IsSkippableSpliceSourceEdgeWithNullTarget(spliceSourceEdge) || IsReflectionEdge(spliceSourceEdge));
         }
 
-        static bool IsSkippableSpliceSourceEdgeWithNullTarget(VisibilityEdge spliceSourceEdge) {
-            return (null != spliceSourceEdge)
-                && (null != spliceSourceEdge.IsPassable) 
+        static bool IsSkippableSpliceSourceEdgeWithNullTarget(VisibilityEdge spliceSourceEdge) => (null != spliceSourceEdge)
+                && (null != spliceSourceEdge.IsPassable)
                 && (PointComparer.Equal(spliceSourceEdge.Length, GroupBoundaryCrossing.BoundaryWidth));
-        }
 
-        static bool IsReflectionEdge(VisibilityEdge edge) {
-            return (null != edge) && (edge.Weight == ScanSegment.ReflectionWeight);
-        }
+        static bool IsReflectionEdge(VisibilityEdge edge) => (null != edge) && (edge.Weight == ScanSegment.ReflectionWeight);
 
-        static bool IsPointPastSegmentEnd(LineSegment maxSegment, Point point) {
-            return PointComparer.GetDirections(maxSegment.Start, maxSegment.End) == PointComparer.GetDirections(maxSegment.End, point);
-        }
+        static bool IsPointPastSegmentEnd(LineSegment maxSegment, Point point) => PointComparer.GetDirections(maxSegment.Start, maxSegment.End) == PointComparer.GetDirections(maxSegment.End, point);
 
         /// <summary>
         /// </summary>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1305:SpecifyIFormatProvider", MessageId = "System.String.Format(System.String,System.Object,System.Object)")]
-        public override string ToString() {
-            return string.Format("{0} {1}", AddedVertices.Count, edgesToRestore.Count);
-        }
+        public override string ToString() => string.Format("{0} {1}", AddedVertices.Count, edgesToRestore.Count);
 
         #region DevTrace
 #if DEVTRACE
@@ -818,8 +795,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
 #endif // DEVTRACE
 
         [Conditional("DEVTRACE")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
-// ReSharper disable UnusedMember.Local
+        // ReSharper disable UnusedMember.Local
         void DevTraceInfo(int verboseLevel, string format, params object[] args) {
 // ReSharper restore UnusedMember.Local
 #if DEVTRACE

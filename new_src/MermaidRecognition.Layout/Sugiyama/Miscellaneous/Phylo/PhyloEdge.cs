@@ -1,6 +1,7 @@
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
 
-namespace MermaidRecognition.Layout.Sugiyama.Prototype.Phylo {
+namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Phylo
+{
     /// <summary>
     /// Phylogenetic edge: an edge with a specified length
     /// </summary>

@@ -7,6 +7,7 @@ namespace MermaidRecognition.Tests.Pie;
 public sealed class PieRecognitionFixtureWriter
 {
     [Test]
+    [Explicit("Regenerates baseline fixtures; select this test explicitly to update them.")]
     public void Write_All_Pie_Fixtures()
     {
         string BaseDir = RecognitionFixturePaths.GetPieFixtureDirectory();

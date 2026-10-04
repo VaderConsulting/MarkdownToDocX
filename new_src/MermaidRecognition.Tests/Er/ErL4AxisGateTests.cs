@@ -16,7 +16,7 @@ public sealed class ErL4AxisGateTests
         Assert.That(File.Exists(MmdPath), Is.True);
 
         DiagramContract Contract = MermaidRecognizer.Parse(File.ReadAllText(MmdPath));
-        Assert.That(Contract.Configuration.RawDirectiveValues.TryGetValue("theme", out string Theme), Is.True);
+        Assert.That(Contract.Configuration.RawDirectiveValues.TryGetValue("theme", out string? Theme), Is.True);
         Assert.That(Theme, Is.EqualTo("base"));
     }
 
@@ -202,7 +202,7 @@ public sealed class ErL4AxisGateTests
     static bool TryGetErMarker(EdgeContract Edge, string Key, out string Value)
     {
         Value = string.Empty;
-        if (!Edge.Metadata.TryGetValue(Key, out MermaidMetadataValue MetadataValue)
+        if (!Edge.Metadata.TryGetValue(Key, out MermaidMetadataValue? MetadataValue)
             || MetadataValue is not RawMetadata RawMetadata)
         {
             return false;

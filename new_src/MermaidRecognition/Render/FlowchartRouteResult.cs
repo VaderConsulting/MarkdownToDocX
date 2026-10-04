@@ -5,21 +5,9 @@ namespace MermaidRecognition.Render;
 /// </summary>
 public sealed class FlowchartRouteResult
 {
-    private readonly List<FlowchartEdgeRoute> _Routes = new List<FlowchartEdgeRoute>();
+    private readonly List<FlowchartEdgeRoute> _Routes = [];
 
-    public IReadOnlyList<FlowchartEdgeRoute> Routes
-    {
-        get
-        {
-            return _Routes;
-        }
-    }
+    public IReadOnlyList<FlowchartEdgeRoute> Routes => _Routes;
 
-    public List<FlowchartEdgeRoute> RoutesMutable
-    {
-        get
-        {
-            return _Routes;
-        }
-    }
+    public List<FlowchartEdgeRoute> RoutesMutable => _Routes;
 }

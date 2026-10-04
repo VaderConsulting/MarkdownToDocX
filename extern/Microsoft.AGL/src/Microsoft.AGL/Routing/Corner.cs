@@ -2,9 +2,7 @@ using Microsoft.AGL.Core.Geometry;
 
 namespace Microsoft.AGL.Routing {
     internal class Corner {
-        protected bool Equals(Corner other) {
-            return b == other.b && ((a == other.a && c == other.c) || (a == other.c && c == other.a));
-        }
+        protected bool Equals(Corner other) => b == other.b && ((a == other.a && c == other.c) || (a == other.c && c == other.a));
 
         public override int GetHashCode() {
 #if !SHARPKIT //https://code.google.com/p/sharpkit/issues/detail?id=372; SharpKit/Colin: unchecked is not supported
@@ -40,7 +38,7 @@ namespace Microsoft.AGL.Routing {
         public override bool Equals(object obj) {
             if (ReferenceEquals(null, obj)) return false;
             if (ReferenceEquals(this, obj)) return true;
-            var corner = obj as Corner;
+            Corner corner = obj as Corner;
             if (ReferenceEquals(corner,null)) 
                 return false;
             return Equals(corner);

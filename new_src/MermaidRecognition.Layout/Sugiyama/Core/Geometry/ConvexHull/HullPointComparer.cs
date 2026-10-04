@@ -13,9 +13,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <returns></returns>
 #if SHARPKIT //http://code.google.com/p/sharpkit/issues/detail?id=203
         //SharpKit/Colin - https://code.google.com/p/sharpkit/issues/detail?id=332
-        public int Compare(HullPoint i, HullPoint j) {
+        public int Compare(HullPoint? i, HullPoint? j) {
+            if (i is null) return j is null ? 0 : -1; if (j is null) return 1;
 #else
-        int IComparer<HullPoint>.Compare(HullPoint i, HullPoint j) {
+        int IComparer<HullPoint>.Compare(HullPoint? i, HullPoint? j) {
+            if (i is null) return j is null ? 0 : -1; if (j is null) return 1;
 #endif
             if (i == j)
                 return 0;
@@ -30,9 +32,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
                 case TriangleOrientation.Clockwise:
                     return 1;
                 case TriangleOrientation.Collinear: {
-                    //because of the double point error pi and pj can be on different sizes of the pivot on the horizontal line passing through the pivot, or rather just above it
-                    var piDelX = i.Point.X - pivot.X;
-                    var pjDelX = j.Point.X - pivot.X;
+                        //because of the double point error pi and pj can be on different sizes of the pivot on the horizontal line passing through the pivot, or rather just above it
+                    double piDelX = i.Point.X - pivot.X;
+                    double pjDelX = j.Point.X - pivot.X;
                     if (piDelX > ApproximateComparer.DistanceEpsilon && pjDelX < -ApproximateComparer.DistanceEpsilon) {
                         return -1;
                     }
@@ -40,11 +42,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
                         return 1;
                     }
 
-                    //here i and j cannot be on the different sides of the pivot because of the choice of the pivot
-                    //delete the one that is closer to the pivot.
-                    var pi = i.Point - pivot;
-                    var pj = j.Point - pivot;
-                    var iMinJ = pi.L1 - pj.L1;
+                        //here i and j cannot be on the different sides of the pivot because of the choice of the pivot
+                        //delete the one that is closer to the pivot.
+                        Point pi = i.Point - pivot;
+                        Point pj = j.Point - pivot;
+                    double iMinJ = pi.L1 - pj.L1;
                     if (iMinJ < 0) {
                         i.Deleted = true;
                         return -1;
@@ -67,10 +69,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
             throw new InvalidOperationException();
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
-        internal HullPointComparer(Point pivotPoint) {
-            this.pivot = pivotPoint;
-        }
-        
+        internal HullPointComparer(Point pivotPoint) => pivot = pivotPoint;
+
     }
 }

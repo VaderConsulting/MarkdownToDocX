@@ -97,9 +97,11 @@ public static class FlowchartNodeSizeEstimator
             Height = SquareSide;
         }
 
-        FlowchartNodeDimensions Dimensions = new FlowchartNodeDimensions();
-        Dimensions.Width = Math.Max(1.0, Width);
-        Dimensions.Height = Math.Max(1.0, Height);
+        FlowchartNodeDimensions Dimensions = new FlowchartNodeDimensions
+        {
+            Width = Math.Max(1.0, Width),
+            Height = Math.Max(1.0, Height)
+        };
         string TextForMeasure = IconPattern.Replace(NormalisedLabel, string.Empty).Trim();
         TextForMeasure = TextForMeasure.Replace("<br/>", "\n", StringComparison.OrdinalIgnoreCase);
         if (FlowchartRichLabelSvgWriter.ContainsIntentionalRichMarkup(NormalisedLabel))
@@ -119,10 +121,7 @@ public static class FlowchartNodeSizeEstimator
     /// </summary>
     public static FlowchartLabelDimensions MeasureWrappedLabel(
         string RawLabel,
-        FlowchartRenderOptions Options)
-    {
-        return MeasureWrappedLabel(RawLabel, Options, Options.FontSizePx);
-    }
+        FlowchartRenderOptions Options) => MeasureWrappedLabel(RawLabel, Options, Options.FontSizePx);
 
     /// <summary>
     /// Measures wrapped label text using an explicit font size (for edge labels).
@@ -175,33 +174,18 @@ public static class FlowchartNodeSizeEstimator
         };
     }
 
-    private static bool IsCircleShape(string Shape)
-    {
-        return string.Equals(Shape, "circle", StringComparison.OrdinalIgnoreCase)
+    private static bool IsCircleShape(string Shape) => string.Equals(Shape, "circle", StringComparison.OrdinalIgnoreCase)
             || string.Equals(Shape, "doublecircle", StringComparison.OrdinalIgnoreCase);
-    }
 
-    private static bool IsDiamondShape(string Shape)
-    {
-        return string.Equals(Shape, "diamond", StringComparison.OrdinalIgnoreCase)
+    private static bool IsDiamondShape(string Shape) => string.Equals(Shape, "diamond", StringComparison.OrdinalIgnoreCase)
             || string.Equals(Shape, "rhombus", StringComparison.OrdinalIgnoreCase);
-    }
 
-    private static bool IsHexagonShape(string Shape)
-    {
-        return string.Equals(Shape, "hexagon", StringComparison.OrdinalIgnoreCase);
-    }
+    private static bool IsHexagonShape(string Shape) => string.Equals(Shape, "hexagon", StringComparison.OrdinalIgnoreCase);
 
-    private static bool IsStadiumShape(string Shape)
-    {
-        return string.Equals(Shape, "stadium", StringComparison.OrdinalIgnoreCase)
+    private static bool IsStadiumShape(string Shape) => string.Equals(Shape, "stadium", StringComparison.OrdinalIgnoreCase)
             || string.Equals(Shape, "rounded", StringComparison.OrdinalIgnoreCase);
-    }
 
-    private static bool IsMarkdownListLabel(string TextForMeasure)
-    {
-        return FlowchartRichLabelSvgWriter.IsMarkdownListLabel(TextForMeasure);
-    }
+    private static bool IsMarkdownListLabel(string TextForMeasure) => FlowchartRichLabelSvgWriter.IsMarkdownListLabel(TextForMeasure);
 
     private static string NormaliseHtmlLineBreaks(string Label)
     {
@@ -226,7 +210,7 @@ public static class FlowchartNodeSizeEstimator
         double MaxChars = Math.Max(1.0, MaxWidthPx / (FontSizePx * 0.62));
         int MaxCharsPerLine = (int)Math.Floor(MaxChars);
 
-        List<string> Lines = new List<string>();
+        List<string> Lines = [];
         for (int ParagraphIndex = 0; ParagraphIndex < Paragraphs.Length; ParagraphIndex++)
         {
             string Paragraph = Paragraphs[ParagraphIndex].Trim();

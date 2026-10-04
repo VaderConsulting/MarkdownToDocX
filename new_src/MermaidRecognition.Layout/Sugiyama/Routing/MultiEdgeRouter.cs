@@ -2,13 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+
 using MermaidRecognition.Layout.Sugiyama.Core.DataStructures;
-using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves;
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
 using MermaidRecognition.Layout.Sugiyama.Core.Routing;
 using MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling;
 using MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms;
+using MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms.CycleRemoval;
+using MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree;
+using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 
 namespace MermaidRecognition.Layout.Sugiyama.Routing {
     internal class MultiEdgeRouter {
@@ -30,7 +33,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
 
         internal void Run() {
             foreach (GeometryGraph graph in GetGeometryGraphs()) {
-                var br = new BundleRouter(graph, new SdShortestPath(transparentShapeSetter, null, null),
+                BundleRouter br = new BundleRouter(graph, new SdShortestPath(transparentShapeSetter, null, null),
                     interactiveEdgeRouter.VisibilityGraph, bundlingSettings, interactiveEdgeRouter.LoosePadding, interactiveEdgeRouter.TightHierarchy,
                     interactiveEdgeRouter.LooseHierarchy, null, null, null);
 
@@ -44,36 +47,35 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         }
 
         GeometryGraph CreateGeometryGraph(PreGraph preGraph) {
-            var graph = new GeometryGraph();
-            var nodeDictionary = new Dictionary<ICurve, Node>();
-            foreach (var curve in preGraph.nodeBoundaries) {
-                var node = new Node(curve);
+            GeometryGraph graph = new GeometryGraph();
+            Dictionary<ICurve, Node> nodeDictionary = new Dictionary<ICurve, Node>();
+            foreach (ICurve curve in preGraph.nodeBoundaries) {
+                Node node = new Node(curve);
                 nodeDictionary[curve] = node;
                 graph.Nodes.Add(node);
             }
-            foreach (var eg in preGraph.edgeGeometries)
+            foreach (EdgeGeometry eg in preGraph.edgeGeometries)
                 AddEdgeGeometryToGraph(eg, graph, nodeDictionary);
 
             return graph;
         }
 
         void AddEdgeGeometryToGraph(EdgeGeometry eg, GeometryGraph graph, Dictionary<ICurve, Node> nodeDictionary) {
-            var sourceNode = GetOrCreateNode(eg.SourcePort, nodeDictionary);
-            var targetNode = GetOrCreateNode(eg.TargetPort, nodeDictionary);
-            var edge = new Edge(sourceNode, targetNode) { EdgeGeometry = eg };
+            Node sourceNode = GetOrCreateNode(eg.SourcePort, nodeDictionary);
+            Node targetNode = GetOrCreateNode(eg.TargetPort, nodeDictionary);
+            Edge edge = new Edge(sourceNode, targetNode) { EdgeGeometry = eg };
             graph.Edges.Add(edge);
         }
 
         private Node GetOrCreateNode(Port port, Dictionary<ICurve, Node> nodeDictionary) {
-            var curve = GetPortCurve(port);
-            Node node;
-            if (!nodeDictionary.TryGetValue(curve, out node))
+            ICurve curve = GetPortCurve(port);
+            if (!nodeDictionary.TryGetValue(curve, out Node? node))
                 nodeDictionary[curve] = node = new Node(curve);
             return node;
         }
 
         private ICurve GetPortCurve(Port port) {
-            var curve = nodeTree.FirstHitNode(port.Location,
+            ICurve? curve = nodeTree.FirstHitNode(port.Location,
                 (point, c) => Curve.PointRelativeToCurveLocation(point, c) != PointLocation.Outside ? HitTestBehavior.Stop : HitTestBehavior.Continue).UserData;
             return curve;
         }
@@ -96,11 +98,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
             BasicGraph<IntPair> intersectionGraph = GetIntersectionGraphOfPreGraphs(preGraphs);
             if (intersectionGraph == null)
                 return;
-            var connectedComponents = ConnectedComponentCalculator<IntPair>.GetComponents(intersectionGraph);
-            var newPreGraphList = new List<PreGraph>();
-            foreach (var component in connectedComponents) {
+            IEnumerable<IEnumerable<int>> connectedComponents = ConnectedComponentCalculator<IntPair>.GetComponents(intersectionGraph);
+            List<PreGraph> newPreGraphList = new List<PreGraph>();
+            foreach (IEnumerable<int> component in connectedComponents) {
                 PreGraph preGraph = null;
-                foreach (var i in component) {
+                foreach (int i in component) {
                     if (preGraph == null) {
                         preGraph = preGraphs[i];
                         newPreGraphList.Add(preGraph);
@@ -109,44 +111,42 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
                 }
             }
             preGraphs = newPreGraphList;
-            foreach (var pg in preGraphs)
+            foreach (PreGraph pg in preGraphs)
                 AddIntersectingNodes(pg);
         }
 
         private void AddIntersectingNodes(PreGraph pg) {
-            var rect = pg.boundingBox;
-            foreach (var curve in nodeTree.GetNodeItemsIntersectingRectangle(rect))
+            Rectangle rect = pg.boundingBox;
+            foreach (ICurve curve in nodeTree.GetNodeItemsIntersectingRectangle(rect))
                 pg.AddNodeBoundary(curve);
         }
 
         static BasicGraph<IntPair> GetIntersectionGraphOfPreGraphs(List<PreGraph> preGraphs) {
-            var intersectingPairs = EnumeratePairsOfIntersectedPreGraphs(preGraphs);
+            IEnumerable<IntPair> intersectingPairs = EnumeratePairsOfIntersectedPreGraphs(preGraphs);
             if (intersectingPairs.Any())
                 return new BasicGraph<IntPair>(intersectingPairs, preGraphs.Count);
             return null;
         }
 
         static IEnumerable<IntPair> EnumeratePairsOfIntersectedPreGraphs(List<PreGraph> preGraphs) {
-            var rn = RectangleNode<int>.CreateRectangleNodeOnData(Enumerable.Range(0, preGraphs.Count), i => preGraphs[i].boundingBox);
-            var list = new List<IntPair>();
+            RectangleNode<int> rn = RectangleNode<int>.CreateRectangleNodeOnData(Enumerable.Range(0, preGraphs.Count), i => preGraphs[i].boundingBox);
+            List<IntPair> list = new List<IntPair>();
             RectangleNodeUtils.CrossRectangleNodes<int>(rn, rn, (a, b) => list.Add(new IntPair(a, b)));
             return list;
         }
 
-        List<PreGraph> CreateInitialPregraphs() {
-            return new List<PreGraph>(multiEdgeGeometries.Select(CreatePregraphFromSetOfEdgeGeometries));
-        }
+        List<PreGraph> CreateInitialPregraphs() => new List<PreGraph>(multiEdgeGeometries.Select(CreatePregraphFromSetOfEdgeGeometries));
 
         private PreGraph CreatePregraphFromSetOfEdgeGeometries(EdgeGeometry[] egs) {
-            var nodeBoundaries = new Set<ICurve>();
-            var eg = egs[0];
-            var c = GetPortCurve(eg.SourcePort);
-            var rect = c.BoundingBox;
+            Set<ICurve> nodeBoundaries = new Set<ICurve>();
+            EdgeGeometry eg = egs[0];
+            ICurve c = GetPortCurve(eg.SourcePort);
+            Rectangle rect = c.BoundingBox;
             nodeBoundaries.Insert(c);
             nodeBoundaries.Insert(eg.TargetPort.Curve);
             rect.Add(eg.TargetPort.Curve.BoundingBox);
-            var overlapped = nodeTree.GetNodeItemsIntersectingRectangle(rect);
-            foreach (var nodeBoundary in overlapped)
+            IEnumerable<ICurve> overlapped = nodeTree.GetNodeItemsIntersectingRectangle(rect);
+            foreach (ICurve nodeBoundary in overlapped)
                 nodeBoundaries.Insert(nodeBoundary);
 
             return new PreGraph(egs, nodeBoundaries);

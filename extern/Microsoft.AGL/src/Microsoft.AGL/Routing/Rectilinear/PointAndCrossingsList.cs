@@ -18,15 +18,11 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         internal List<PointAndCrossings> ListOfPointsAndCrossings { get; private set; }
         int index;
 
-        internal int Count { get { return ListOfPointsAndCrossings.Count; } }
+        internal int Count => ListOfPointsAndCrossings.Count;
 
-        internal PointAndCrossingsList() {
-            ListOfPointsAndCrossings = new List<PointAndCrossings>();
-        }
-        
-        internal void Add(Point intersect, List<GroupBoundaryCrossing> crossings) {
-            ListOfPointsAndCrossings.Add(new PointAndCrossings(intersect, crossings));
-        }
+        internal PointAndCrossingsList() => ListOfPointsAndCrossings = [];
+
+        internal void Add(Point intersect, List<GroupBoundaryCrossing> crossings) => ListOfPointsAndCrossings.Add(new PointAndCrossings(intersect, crossings));
 
         internal PointAndCrossings Pop() {
             // Next should only be called after CurrentIsBeforeOrAt returns true.
@@ -41,41 +37,39 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             return PointComparer.Compare(ListOfPointsAndCrossings[index].Location, comparand) <= 0;
         }
 
-        internal PointAndCrossings First { get { return this.ListOfPointsAndCrossings[0]; } }
-        internal PointAndCrossings Last { get { return this.ListOfPointsAndCrossings[this.ListOfPointsAndCrossings.Count - 1]; } }
+        internal PointAndCrossings First => ListOfPointsAndCrossings[0];
+        internal PointAndCrossings Last => ListOfPointsAndCrossings[ListOfPointsAndCrossings.Count - 1];
 
-        internal void Reset() {
-            index = 0;
-        }
+        internal void Reset() => index = 0;
 
         internal void MergeFrom(PointAndCrossingsList other) {
             Reset();
             if ((null == other) || (0 == other.ListOfPointsAndCrossings.Count)) {
                 return;
             }
-            if (0 == this.ListOfPointsAndCrossings.Count) {
-                this.ListOfPointsAndCrossings.AddRange(other.ListOfPointsAndCrossings);
+            if (0 == ListOfPointsAndCrossings.Count) {
+                ListOfPointsAndCrossings.AddRange(other.ListOfPointsAndCrossings);
             }
-            if (null == this.ListOfPointsAndCrossings) {
-                this.ListOfPointsAndCrossings = new List<PointAndCrossings>(other.ListOfPointsAndCrossings);
+            if (null == ListOfPointsAndCrossings) {
+                ListOfPointsAndCrossings = new List<PointAndCrossings>(other.ListOfPointsAndCrossings);
                 return;
             }
 
             // Do the usual sorted-list merge.
-            int thisIndex = 0, thisMax = this.ListOfPointsAndCrossings.Count;
+            int thisIndex = 0, thisMax = ListOfPointsAndCrossings.Count;
             int otherIndex = 0, otherMax = other.ListOfPointsAndCrossings.Count;
-            var newCrossingsList = new List<PointAndCrossings>(this.ListOfPointsAndCrossings.Count);
+            List<PointAndCrossings> newCrossingsList = new List<PointAndCrossings>(ListOfPointsAndCrossings.Count);
             while ((thisIndex < thisMax) || (otherIndex < otherMax)) {
                 if (thisIndex >= thisMax) {
                     newCrossingsList.Add(other.ListOfPointsAndCrossings[otherIndex++]);
                     continue;
                 }
                 if (otherIndex >= otherMax) {
-                    newCrossingsList.Add(this.ListOfPointsAndCrossings[thisIndex++]);
+                    newCrossingsList.Add(ListOfPointsAndCrossings[thisIndex++]);
                     continue;
                 }
 
-                PointAndCrossings thisPac = this.ListOfPointsAndCrossings[thisIndex];
+                PointAndCrossings thisPac = ListOfPointsAndCrossings[thisIndex];
                 PointAndCrossings otherPac = other.ListOfPointsAndCrossings[otherIndex];
                 int cmp = PointComparer.Compare(thisPac.Location, otherPac.Location);
                 if (0 == cmp) {
@@ -93,7 +87,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                     ++otherIndex;
                 }
             }
-            this.ListOfPointsAndCrossings = newCrossingsList;
+            ListOfPointsAndCrossings = newCrossingsList;
         }
 
         internal void Trim(Point start, Point end) {
@@ -113,7 +107,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             // First find the number in each (opposite) direction, then create the arrays. 
             // We expect a very small number of groups to share a boundary point so this is not optimized.
             int numInDir = 0;
-            var crossingsCount = crossings.Count;       // cache for perf
+            int crossingsCount = crossings.Count;       // cache for perf
             for (int ii = 0; ii < crossingsCount; ++ii) {
                 if (crossings[ii].DirectionToInside == dirToInside) {
                     ++numInDir;
@@ -123,7 +117,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                 return null;
             }
 
-            var vector = new GroupBoundaryCrossing[numInDir];
+            GroupBoundaryCrossing[] vector = new GroupBoundaryCrossing[numInDir];
             int jj = 0;
             for (int ii = 0; ii < crossingsCount; ++ii) {
                 if (crossings[ii].DirectionToInside == dirToInside) {
@@ -136,9 +130,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         /// <summary>
         /// </summary>
         /// <returns></returns>
-        public override string ToString() {
-            return string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0} [{1}]",
+        public override string ToString() => string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0} [{1}]",
                                 ListOfPointsAndCrossings.Count, index);
-        }
     }
 }

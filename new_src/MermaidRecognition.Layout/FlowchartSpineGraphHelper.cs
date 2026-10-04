@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Render;
 
 namespace MermaidRecognition.Layout;
@@ -92,10 +93,7 @@ public static class FlowchartSpineGraphHelper
     /// </summary>
     public static bool IsOnSpineColumn(
         FlowchartLayoutNodeBounds NodeBounds,
-        FlowchartSpineLayoutContext Context)
-    {
-        return Math.Abs(NodeBounds.CenterX - Context.SpineCrossAxis) <= SPINE_COLUMN_TOLERANCE_PX;
-    }
+        FlowchartSpineLayoutContext Context) => Math.Abs(NodeBounds.CenterX - Context.SpineCrossAxis) <= SPINE_COLUMN_TOLERANCE_PX;
 
     /// <summary>
     /// Returns true when the node centre sits in the far-left or far-right margin lane.
@@ -257,11 +255,8 @@ public static class FlowchartSpineGraphHelper
     public static bool IsDecisionFanOutSource(
         DiagramContract Contract,
         string SourceNodeId,
-        string? SourceShape)
-    {
-        return IsDecisionShape(SourceShape)
+        string? SourceShape) => IsDecisionShape(SourceShape)
             && CountVisibleOutgoing(Contract, SourceNodeId) >= 2;
-    }
 
     private static bool ShouldApplySpineColumnLayout(
         DiagramContract Contract,
@@ -376,7 +371,7 @@ public static class FlowchartSpineGraphHelper
 
     private static string ResolvePrimarySinkId(DiagramContract Contract)
     {
-        List<string> SinkCandidates = new List<string>();
+        List<string> SinkCandidates = [];
         foreach (NodeContract Node in Contract.Nodes)
         {
             if (CountVisibleOutgoing(Contract, Node.Id) == 0)
@@ -397,7 +392,7 @@ public static class FlowchartSpineGraphHelper
 
     private static List<EdgeContract> GetVisibleOutgoingEdges(DiagramContract Contract, string SourceNodeId)
     {
-        List<EdgeContract> OutgoingEdges = new List<EdgeContract>();
+        List<EdgeContract> OutgoingEdges = [];
         foreach (EdgeContract Edge in Contract.Edges)
         {
             if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
@@ -563,7 +558,7 @@ public static class FlowchartSpineGraphHelper
             TargetIds.Add(Edge.TargetId);
         }
 
-        List<string> RootNodeIds = new List<string>();
+        List<string> RootNodeIds = [];
         foreach (string NodeId in NodeIds)
         {
             if (!TargetIds.Contains(NodeId))

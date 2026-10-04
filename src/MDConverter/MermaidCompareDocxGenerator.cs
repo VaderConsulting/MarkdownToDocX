@@ -157,10 +157,7 @@ public static class MermaidCompareDocxGenerator
         return Svg;
     }
 
-    private static string NormalizeMermaidBody(string MermaidSource)
-    {
-        return (MermaidSource ?? string.Empty).Replace("\r\n", "\n").Replace('\r', '\n').TrimEnd('\n');
-    }
+    private static string NormalizeMermaidBody(string MermaidSource) => (MermaidSource ?? string.Empty).Replace("\r\n", "\n").Replace('\r', '\n').TrimEnd('\n');
 
     private static string Slugify(string Title)
     {

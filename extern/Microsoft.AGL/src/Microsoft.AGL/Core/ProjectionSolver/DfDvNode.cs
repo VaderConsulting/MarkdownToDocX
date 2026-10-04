@@ -27,45 +27,39 @@ namespace Microsoft.AGL.Core.ProjectionSolver
 
         internal bool ChildrenHaveBeenPushed { get; set; }
 
-        internal DfDvNode(DfDvNode parent, Constraint constraintToEval, Variable variableToEval, Variable variableDoneEval)
-        {
-            Set(parent, constraintToEval, variableToEval, variableDoneEval);
-        }
+        internal DfDvNode(DfDvNode parent, Constraint constraintToEval, Variable variableToEval, Variable variableDoneEval) => Set(parent, constraintToEval, variableToEval, variableDoneEval);
 
         // For DummyParentNode only.
         internal DfDvNode(Constraint dummyConstraint)
         {
-            this.ConstraintToEval = dummyConstraint;
-            this.Depth = -1;        // The first real node adds 1, so it starts at 0.
+            ConstraintToEval = dummyConstraint;
+            Depth = -1;        // The first real node adds 1, so it starts at 0.
         }
 
         internal DfDvNode Set(DfDvNode parent, Constraint constraintToEval, Variable variableToEval, Variable variableDoneEval)
         {
-            this.Parent = parent;
-            this.ConstraintToEval = constraintToEval;
-            this.VariableToEval = variableToEval;
-            this.VariableDoneEval = variableDoneEval;
-            this.Depth = 0;
-            this.ChildrenHaveBeenPushed = false;
+            Parent = parent;
+            ConstraintToEval = constraintToEval;
+            VariableToEval = variableToEval;
+            VariableDoneEval = variableDoneEval;
+            Depth = 0;
+            ChildrenHaveBeenPushed = false;
 
             constraintToEval.Lagrangian = 0.0;
             return this;
         }
 
-        internal bool IsLeftToRight { get { return this.VariableToEval == this.ConstraintToEval.Right; } }
+        internal bool IsLeftToRight => VariableToEval == ConstraintToEval.Right;
 
         /// <summary>
         /// </summary>
-        public override string ToString()
-        {
-            return string.Format(CultureInfo.InvariantCulture, "{0} {1}{2} - {3}{4} ({5})",
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "{0} {1}{2} - {3}{4} ({5})",
 #if VERIFY || VERBOSE
                             this.ConstraintToEval.Id,
 #else
                             "",
 #endif
-                            IsLeftToRight ? "" : "*", this.ConstraintToEval.Left.Name,
-                            IsLeftToRight ? "*" : "", this.ConstraintToEval.Right.Name, Depth);
-        }
+                            IsLeftToRight ? "" : "*", ConstraintToEval.Left.Name,
+                            IsLeftToRight ? "*" : "", ConstraintToEval.Right.Name, Depth);
     }
 }

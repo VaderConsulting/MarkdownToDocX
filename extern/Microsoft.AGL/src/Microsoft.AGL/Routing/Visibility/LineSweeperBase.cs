@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+
 using Microsoft.AGL.Core.DataStructures;
+using Microsoft.AGL.Core.DataStructures.RBTree;
 using Microsoft.AGL.Core.Geometry;
 using Microsoft.AGL.Core.Geometry.Curves;
 using Microsoft.AGL.Routing.Spline.ConeSpanner;
-using Microsoft.AGL.Core;
 
 namespace Microsoft.AGL.Routing.Visibility {
     internal class LineSweeperBase : IComparer<SweepEvent> {
@@ -28,54 +29,44 @@ namespace Microsoft.AGL.Routing.Visibility {
             RightObstacleSideTree = new RbTree<SegmentBase>(ObstacleSideComparer);
         }
 
-        protected internal BinaryHeapWithComparer<SweepEvent> EventQueue {
-            get { return eventQueue; }
-            set { eventQueue = value; }
+        protected internal BinaryHeapWithComparer<SweepEvent> EventQueue { get => eventQueue; set => eventQueue = value;
         }
         public Point SweepDirection { get; set; }
         /// <summary>
         /// sweep direction rotated by 90 degrees clockwise
         /// </summary>
-        protected Point DirectionPerp {
-            get { return directionPerp; }
-            set { directionPerp = value; }
+        protected Point DirectionPerp { get => directionPerp; set => directionPerp = value;
         }
 
         protected double PreviousZ=double.NegativeInfinity;
         double z;
-        public double Z {
-            get { return z; }
-            set {
+        public double Z
+        {
+            get => z;
+            set
+            {
                 if (value > z + ApproximateComparer.Tolerance)
                     PreviousZ = z;
 #if DEBUGGLEE
                 Debug.Assert(PreviousZ<=value); 
 #endif
                 z = value;
-         //       Debug.Assert(TreesAreCorrect());
+                //       Debug.Assert(TreesAreCorrect());
             }
         }
 
-       // protected virtual bool TreesAreCorrect() { return true; }
+        // protected virtual bool TreesAreCorrect() { return true; }
 
         protected internal IEnumerable<Polyline> Obstacles { get; set; }
 
 
-        protected double GetZ(SweepEvent eve) {
-            return SweepDirection * eve.Site;
-        }
+        protected double GetZ(SweepEvent eve) => SweepDirection * eve.Site;
 
-        protected double GetZ(Point point) {
-            return SweepDirection * point;
-        }
+        protected double GetZ(Point point) => SweepDirection * point;
 
-        protected bool SegmentIsNotHorizontal(Point a, Point b) {
-            return Math.Abs((a - b) * SweepDirection) > ApproximateComparer.DistanceEpsilon;
-        }
+        protected bool SegmentIsNotHorizontal(Point a, Point b) => Math.Abs((a - b) * SweepDirection) > ApproximateComparer.DistanceEpsilon;
 
-        protected bool SegmentIsHorizontal(Point a, Point b) {
-            return Math.Abs((a - b) * SweepDirection) <= ApproximateComparer.DistanceEpsilon;
-        }
+        protected bool SegmentIsHorizontal(Point a, Point b) => Math.Abs((a - b) * SweepDirection) <= ApproximateComparer.DistanceEpsilon;
 
         protected void RemoveLeftSide(LeftObstacleSide side) {
             ObstacleSideComparer.SetOperand(side);
@@ -98,14 +89,14 @@ namespace Microsoft.AGL.Routing.Visibility {
         }
 
         protected RightObstacleSide FindFirstObstacleSideToTheLeftOfPoint(Point point) {
-            var node =
+            RBNode<SegmentBase> node =
                 RightObstacleSideTree.FindLast(
                     s => Point.PointToTheRightOfLineOrOnLine(point, s.Start, s.End));
             return node == null ? null : (RightObstacleSide)(node.Item);
         }
 
         protected LeftObstacleSide FindFirstObstacleSideToToTheRightOfPoint(Point point) {
-            var node =
+            RBNode<SegmentBase> node =
                 LeftObstacleSideTree.FindFirst(
                     s => !Point.PointToTheRightOfLineOrOnLine(point, s.Start, s.End));
             return node == null ? null : (LeftObstacleSide)node.Item;
@@ -117,10 +108,10 @@ namespace Microsoft.AGL.Routing.Visibility {
         }
 
         protected void InitQueueOfEvents() {
-            foreach (var obstacle in Obstacles)
+            foreach (Polyline obstacle in Obstacles)
                 EnqueueLowestPointsOnObstacles(obstacle);
             if (Ports != null)
-                foreach (var point in Ports)
+                foreach (Point point in Ports)
                     EnqueueEvent(new PortObstacleEvent(point));
         }
 
@@ -155,13 +146,11 @@ namespace Microsoft.AGL.Routing.Visibility {
             return ComparePoints(ref aSite, ref bSite);
         }
 
-        bool Less(Point a, Point b) {
-            return ComparePoints(ref a, ref b) < 0;
-        }
+        bool Less(Point a, Point b) => ComparePoints(ref a, ref b) < 0;
 
         int ComparePoints(ref Point aSite, ref Point bSite) {
-            var aProjection = SweepDirection * aSite;
-            var bProjection = SweepDirection * bSite;
+            double aProjection = SweepDirection * aSite;
+            double bProjection = SweepDirection * bSite;
             if (aProjection < bProjection)
                 return -1;
             if (aProjection > bProjection)

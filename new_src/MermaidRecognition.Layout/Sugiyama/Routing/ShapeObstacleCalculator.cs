@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+
 using MermaidRecognition.Layout.Sugiyama.Core.DataStructures;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves;
+using MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree;
 using MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms;
 using MermaidRecognition.Layout.Sugiyama.Routing.Visibility;
 
@@ -45,7 +47,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         }
 
         void FillTheMapOfShapeToTightLooseCouples() {
-            var childrenShapeHierarchy =
+            RectangleNode<Shape> childrenShapeHierarchy =
                 RectangleNode<Shape>.CreateRectangleNodeOnEnumeration(
                     MainShape.Children.Select(s => new RectangleNode<Shape>(s, s.BoundingBox)));
             RectangleNodeUtils.CrossRectangleNodes(childrenShapeHierarchy, coupleHierarchy,
@@ -67,16 +69,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         /// <param name="shape"></param>
         /// <param name="tightPolyline"></param>
         /// <returns></returns>
-        static bool ShapeIsInsideOfPoly(Shape shape, Polyline tightPolyline) {
-            return Curve.PointRelativeToCurveLocation(shape.BoundaryCurve.Start, tightPolyline) == PointLocation.Inside;
-        }
+        static bool ShapeIsInsideOfPoly(Shape shape, Polyline tightPolyline) => Curve.PointRelativeToCurveLocation(shape.BoundaryCurve.Start, tightPolyline) == PointLocation.Inside;
 
         void CreateTigthLooseCouples() {
-            var couples = new List<TightLooseCouple>();
+            List<TightLooseCouple> couples = new List<TightLooseCouple>();
 
-            foreach (var tightPolyline in tightHierarchy.GetAllLeaves()) {
-                var distance = InteractiveObstacleCalculator.FindMaxPaddingForTightPolyline(tightHierarchy, tightPolyline, LoosePadding);
-                var loosePoly = InteractiveObstacleCalculator.LoosePolylineWithFewCorners(tightPolyline, distance);
+            foreach (Polyline tightPolyline in tightHierarchy.GetAllLeaves()) {
+                double distance = InteractiveObstacleCalculator.FindMaxPaddingForTightPolyline(tightHierarchy, tightPolyline, LoosePadding);
+                Polyline loosePoly = InteractiveObstacleCalculator.LoosePolylineWithFewCorners(tightPolyline, distance);
                 couples.Add(new TightLooseCouple(tightPolyline, new Shape(loosePoly), distance));
             }
             coupleHierarchy = RectangleNode<TightLooseCouple>.
@@ -84,15 +84,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         }
 
         void CreateTightObstacles() {
-            var tightObstacles = new Set<Polyline>(MainShape.Children.Select(InitialTightPolyline));
+            Set<Polyline> tightObstacles = new Set<Polyline>(MainShape.Children.Select(InitialTightPolyline));
             int initialNumberOfTightObstacles = tightObstacles.Count;
             tightHierarchy = InteractiveObstacleCalculator.RemovePossibleOverlapsInTightPolylinesAndCalculateHierarchy(tightObstacles);
             OverlapsDetected = initialNumberOfTightObstacles > tightObstacles.Count;
         }
 
         Polyline InitialTightPolyline(Shape shape) {
-            var poly = InteractiveObstacleCalculator.PaddedPolylineBoundaryOfNode(shape.BoundaryCurve, TightPadding);
-            var stickingPointsArray = LoosePolylinesUnderShape(shape).SelectMany(l => l).Where(
+            Polyline poly = InteractiveObstacleCalculator.PaddedPolylineBoundaryOfNode(shape.BoundaryCurve, TightPadding);
+            Point[] stickingPointsArray = LoosePolylinesUnderShape(shape).SelectMany(l => l).Where(
                 p => Curve.PointRelativeToCurveLocation(p, poly) == PointLocation.Outside).ToArray();
             if (stickingPointsArray.Length <= 0) return poly;
             return new Polyline(
@@ -101,8 +101,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
                 };
         }
 
-        IEnumerable<Polyline> LoosePolylinesUnderShape(Shape shape) {
-            return shape.Children.Select(child => (Polyline)(ShapesToTightLooseCouples[child].LooseShape.BoundaryCurve));
-        }
+        IEnumerable<Polyline> LoosePolylinesUnderShape(Shape shape) => shape.Children.Select(child => (Polyline)(ShapesToTightLooseCouples[child].LooseShape.BoundaryCurve));
     }
 }

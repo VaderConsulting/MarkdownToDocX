@@ -30,7 +30,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// writes a message to the log file
         /// </summary>
         /// <param name="message"></param>
-        [SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         public void Write(string message) {
             if (sw == null) sw = new StreamWriter("msaglLogFile");
             sw.Write(message);

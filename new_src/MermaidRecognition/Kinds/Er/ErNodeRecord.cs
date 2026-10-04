@@ -1,7 +1,7 @@
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 
-namespace MermaidRecognition.Er;
+namespace MermaidRecognition.Kinds.Er;
 
 /// <summary>
 /// Parse-time ER entity node with attribute declarations.
@@ -12,57 +12,25 @@ public sealed class ErNodeRecord
 
     public string Id
     {
-        get
-        {
-            return _Id;
-        }
-        set
-        {
-            _Id = value;
-        }
+        get => _Id; set => _Id = value;
     }
 
     private string _Label = string.Empty;
 
     public string Label
     {
-        get
-        {
-            return _Label;
-        }
-        set
-        {
-            _Label = value;
-        }
+        get => _Label; set => _Label = value;
     }
 
-    private readonly List<MermaidDeclaration> _Declarations = new List<MermaidDeclaration>();
+    private readonly List<MermaidDeclaration> _Declarations = [];
 
-    public List<MermaidDeclaration> DeclarationsMutable
-    {
-        get
-        {
-            return _Declarations;
-        }
-    }
+    public List<MermaidDeclaration> DeclarationsMutable => _Declarations;
 
-    private readonly List<string> _Classes = new List<string>();
+    private readonly List<string> _Classes = [];
 
-    public List<string> ClassesMutable
-    {
-        get
-        {
-            return _Classes;
-        }
-    }
+    public List<string> ClassesMutable => _Classes;
 
     private readonly RecognitionStyle _InlineStyle = new RecognitionStyle();
 
-    public RecognitionStyle InlineStyle
-    {
-        get
-        {
-            return _InlineStyle;
-        }
-    }
+    public RecognitionStyle InlineStyle => _InlineStyle;
 }

@@ -16,7 +16,7 @@ public sealed class ImageOptions
     /// </summary>
     public double MaxWidthCm
     {
-        get { return _MaxWidthCm; }
+        get => _MaxWidthCm;
         set { _MaxWidthCm = value; HasMaxWidthCm = true; }
     }
 
@@ -25,7 +25,7 @@ public sealed class ImageOptions
     /// </summary>
     public bool ScaleDownOnly
     {
-        get { return _ScaleDownOnly; }
+        get => _ScaleDownOnly;
         set { _ScaleDownOnly = value; HasScaleDownOnly = true; }
     }
 

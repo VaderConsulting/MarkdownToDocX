@@ -12,39 +12,29 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
     internal class ParallelogramLeaf : ParallelogramNodeOverICurve {
         double low;
 
-        internal double Low {
-            get {
-                return low;
-            }
-            set {
-                low = value;
-            }
+        internal double Low { get => low; set => low = value;
         }
         double high;
 
-        internal double High {
-            get {
-                return high;
-            }
-            set {
-                high = value;
-            }
+        internal double High { get => high; set => high = value;
         }
 
         internal ParallelogramLeaf(double low, double high, Parallelogram box, ICurve seg, double leafBoxesOffset)
             : base(seg, leafBoxesOffset) {
             this.low = low;
             this.high = high;
-            this.Parallelogram = box;
+            Parallelogram = box;
         }
 
 
 
         LineSegment chord;
 
-        internal LineSegment Chord {
-            get { return chord; }
-            set {
+        internal LineSegment Chord
+        {
+            get => chord;
+            set
+            {
                 chord = value;
                 if (!ApproximateComparer.Close(Seg[low], chord.Start))
                     throw new InvalidOperationException();

@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text;
 
-namespace MermaidRecognition.Flowchart;
+namespace MermaidRecognition.Kinds.Flowchart;
 
 /// <summary>
 /// Decodes Mermaid flowchart entity codes (for example <c>#quot;</c>, <c>#42;</c>) in label text.

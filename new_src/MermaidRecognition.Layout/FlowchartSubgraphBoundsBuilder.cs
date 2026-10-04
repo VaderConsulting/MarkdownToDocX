@@ -35,10 +35,7 @@ public static class FlowchartSubgraphBoundsBuilder
     /// </summary>
     public static List<FlowchartSubgraphLayoutRect> BuildOrderedRects(
         DiagramContract Contract,
-        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById)
-    {
-        return BuildOrderedRects(Contract, BoundsById, FlowchartSubgraphBoundsRequest.LegacyDefault);
-    }
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById) => BuildOrderedRects(Contract, BoundsById, FlowchartSubgraphBoundsRequest.LegacyDefault);
 
     /// <summary>
     /// Builds layout-space cluster rectangles for all groups, innermost first.
@@ -55,7 +52,7 @@ public static class FlowchartSubgraphBoundsBuilder
             GroupById[Group.Id] = Group;
         }
 
-        List<FlowchartSubgraphLayoutRect> Ordered = new List<FlowchartSubgraphLayoutRect>();
+        List<FlowchartSubgraphLayoutRect> Ordered = [];
         HashSet<string> Visited = new HashSet<string>(StringComparer.Ordinal);
         foreach (GroupContract Group in Contract.Groups)
         {
@@ -318,13 +315,15 @@ public static class FlowchartSubgraphBoundsBuilder
             return null;
         }
 
-        FlowchartSubgraphLayoutRect Result = new FlowchartSubgraphLayoutRect();
-        Result.GroupId = Group.Id;
-        Result.Left = MinLeft - PADDING_PX;
-        Result.Bottom = MinBottom - PADDING_PX - VERTICAL_CONTENT_SLACK_PX;
-        Result.Right = MaxRight + PADDING_PX;
-        Result.Top = MaxTop + PADDING_PX + TITLE_BAND_PX;
-        Result.Title = string.IsNullOrWhiteSpace(Group.Title) ? Group.Id : Group.Title;
+        FlowchartSubgraphLayoutRect Result = new FlowchartSubgraphLayoutRect
+        {
+            GroupId = Group.Id,
+            Left = MinLeft - PADDING_PX,
+            Bottom = MinBottom - PADDING_PX - VERTICAL_CONTENT_SLACK_PX,
+            Right = MaxRight + PADDING_PX,
+            Top = MaxTop + PADDING_PX + TITLE_BAND_PX,
+            Title = string.IsNullOrWhiteSpace(Group.Title) ? Group.Id : Group.Title
+        };
         return Result;
     }
 
@@ -372,9 +371,7 @@ public static class FlowchartSubgraphBoundsBuilder
         ref double MinX,
         ref double MinY,
         ref double MaxX,
-        ref double MaxY)
-    {
-        IncludeBounds(
+        ref double MaxY) => IncludeBounds(
             NodeBounds.CenterX - (NodeBounds.Width / 2.0),
             NodeBounds.CenterY - (NodeBounds.Height / 2.0),
             NodeBounds.CenterX + (NodeBounds.Width / 2.0),
@@ -384,7 +381,6 @@ public static class FlowchartSubgraphBoundsBuilder
             ref MinY,
             ref MaxX,
             ref MaxY);
-    }
 
     private static void IncludeBounds(
         double Left,

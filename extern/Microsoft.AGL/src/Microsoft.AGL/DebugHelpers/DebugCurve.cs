@@ -21,9 +21,7 @@ namespace Microsoft.AGL.DebugHelpers {
 
         ///<summary>
         ///</summary>
-        public double Width {
-            get { return width; }
-            set { width = value; }
+        public double Width { get => width; set => width = value;
         }
 
         ///<summary>
@@ -34,9 +32,7 @@ namespace Microsoft.AGL.DebugHelpers {
         ///<param name="color"></param>
         ///<param name="id"></param>
         public DebugCurve(byte transparency, double width, string color, ICurve curve, object id)
-            : this(width, color, curve, id) {
-            Transparency = transparency;            
-        }
+            : this(width, color, curve, id) => Transparency = transparency;
 
         ///<summary>
         ///</summary>
@@ -58,10 +54,7 @@ namespace Microsoft.AGL.DebugHelpers {
         ///<param name="curve"></param>
         ///<param name="color"></param>
         public DebugCurve(byte transparency, double width, string color, ICurve curve)
-            : this(width, color, curve, null)
-        {
-            Transparency = transparency;
-        }
+            : this(width, color, curve, null) => Transparency = transparency;
         /// <summary>
         /// </summary>
         /// <param name="transparency"></param>
@@ -70,9 +63,7 @@ namespace Microsoft.AGL.DebugHelpers {
         /// <param name="fillColor"></param>
         /// <param name="curve"></param>
         public DebugCurve(byte transparency, double width, string color, string fillColor, ICurve curve)
-            : this(width, color, fillColor, curve, null) {
-           Transparency = transparency;
-        }
+            : this(width, color, fillColor, curve, null) => Transparency = transparency;
 
         ///<summary>
         ///</summary>
@@ -103,9 +94,7 @@ namespace Microsoft.AGL.DebugHelpers {
         /// <param name="fillColor"></param>
         /// <param name="curve"></param>
         /// <param name="id"></param>
-        public DebugCurve(double width, string color,string fillColor, ICurve curve, object id): this(width, color, curve, null) {
-            FillColor = fillColor;
-        }
+        public DebugCurve(double width, string color, string fillColor, ICurve curve, object id) : this(width, color, curve, null) => FillColor = fillColor;
 
         ///<summary>
         ///</summary>
@@ -145,7 +134,6 @@ namespace Microsoft.AGL.DebugHelpers {
         /// <summary>
         /// color strings for debugging
         /// </summary>
-        [SuppressMessage("Microsoft.Security", "CA2105:ArrayFieldsShouldNotBeReadOnly")]
         public static readonly string[] Colors = {
                                 "DeepSkyBlue", "IndianRed", "Orange", "Gold", "DarkRed", "Plum",
                                                        "Red", "Violet", "Indigo", "Yellow", "OrangeRed", "Tomato", "Purple"

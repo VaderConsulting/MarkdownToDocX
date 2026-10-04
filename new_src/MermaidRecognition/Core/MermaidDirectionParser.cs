@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace MermaidRecognition;
+namespace MermaidRecognition.Core;
 
 /// <summary>
 /// Parses Mermaid layout direction directives shared across diagram kinds.

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
@@ -19,30 +19,30 @@ namespace Microsoft.AGL.Routing
         /// <returns>the set of obstacles with correct cluster hierarchy and ports</returns>
         public static IEnumerable<Shape> GetShapes(GeometryGraph graph)
         {
-            var nodesToShapes = new Dictionary<Node, Shape>();
-            var interestingNodes = graph.Nodes.Where(n => !n.UnderCollapsedCluster()).ToArray();
-            foreach (var v in interestingNodes)
+            Dictionary<Node, Shape> nodesToShapes = new Dictionary<Node, Shape>();
+            Node[] interestingNodes = graph.Nodes.Where(n => !n.UnderCollapsedCluster()).ToArray();
+            foreach (Node v in interestingNodes)
                 nodesToShapes[v] = CreateShapeWithCenterPort(v);
-            foreach (var c in graph.RootCluster.AllClustersDepthFirst()) {
+            foreach (Cluster c in graph.RootCluster.AllClustersDepthFirst()) {
                 if (!c.IsCollapsed)
-                    foreach (var v in c.Nodes)
+                    foreach (Node v in c.Nodes)
                         if (!nodesToShapes.ContainsKey(v))
                             nodesToShapes[v] = CreateShapeWithCenterPort(v);
 
 
                 if (c == graph.RootCluster) continue;
-                var parent = nodesToShapes[c] = CreateShapeWithClusterBoundaryPort(c);
+                Shape parent = nodesToShapes[c] = CreateShapeWithClusterBoundaryPort(c);
                 if (c.IsCollapsed) continue;
-                foreach (var v in c.Nodes)
+                foreach (Node v in c.Nodes)
                     parent.AddChild(nodesToShapes[v]);
-                foreach (var d in c.Clusters)
+                foreach (Cluster d in c.Clusters)
                     parent.AddChild(nodesToShapes[d]);
             }
 
-            foreach (var edge in graph.Edges) {
-                Shape shape;
-                if (nodesToShapes.TryGetValue(edge.Source, out shape)) {
-                    if(edge.SourcePort!=null)
+            foreach (Edge edge in graph.Edges) {
+                if (nodesToShapes.TryGetValue(edge.Source, out Shape shape))
+                {
+                    if (edge.SourcePort != null)
                         shape.Ports.Insert(edge.SourcePort);
                 }
                 if (nodesToShapes.TryGetValue(edge.Target, out shape)) {
@@ -65,14 +65,14 @@ namespace Microsoft.AGL.Routing
         static Shape CreateShapeWithCenterPort(Node node)
         {
             // Debug.Assert(ApproximateComparer.Close(node.BoundaryCurve.BoundingBox, node.BoundingBox), "node's curve doesn't fit its bounds!");
-            var shape = new RelativeShape(() => node.BoundaryCurve);
-            var port = new RelativeFloatingPort(() => node.BoundaryCurve, () => node.Center);
+            RelativeShape shape = new RelativeShape(() => node.BoundaryCurve);
+            RelativeFloatingPort port = new RelativeFloatingPort(() => node.BoundaryCurve, () => node.Center);
             shape.Ports.Insert(port);
-            foreach (var e in node.InEdges)
+            foreach (Edge e in node.InEdges)
                 FixPortAtTarget(shape, port, e);
-            foreach (var e in node.OutEdges)
+            foreach (Edge e in node.OutEdges)
                 FixPortAtSource(shape, port, e);
-            foreach (var e in node.SelfEdges) {
+            foreach (Edge e in node.SelfEdges) {
                FixPortAtSource(shape, port, e);
                FixPortAtTarget(shape, port, e);
             }
@@ -89,14 +89,14 @@ namespace Microsoft.AGL.Routing
         static Shape CreateShapeWithClusterBoundaryPort(Node node) {
             // Debug.Assert(ApproximateComparer.Close(node.BoundaryCurve.BoundingBox, node.BoundingBox), "node's curve doesn't fit its bounds!");
             Debug.Assert(node is Cluster);
-            var shape = new RelativeShape(() => node.BoundaryCurve);
-            var port = new ClusterBoundaryPort(()=>node.BoundaryCurve, ()=>node.Center);
+            RelativeShape shape = new RelativeShape(() => node.BoundaryCurve);
+            ClusterBoundaryPort port = new ClusterBoundaryPort(()=>node.BoundaryCurve, ()=>node.Center);
             shape.Ports.Insert(port);
-            foreach (var e in node.InEdges)
+            foreach (Edge e in node.InEdges)
                 FixPortAtTarget(shape, port, e);
-            foreach (var e in node.OutEdges)
+            foreach (Edge e in node.OutEdges)
                 FixPortAtSource(shape, port, e);
-            foreach (var e in node.SelfEdges) {
+            foreach (Edge e in node.SelfEdges) {
                 FixPortAtSource(shape, port, e);
                 FixPortAtTarget(shape, port, e);
             }

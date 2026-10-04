@@ -7,16 +7,18 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using Microsoft.AGL.Core.DataStructures;
+
 using Microsoft.AGL.Core.Geometry;
 
 namespace Microsoft.AGL.Routing.Rectilinear {
     using DebugHelpers;
 
+    using Microsoft.AGL.Core.DataStructures.RBTree;
+
     internal class ScanSegmentTree : IComparer<ScanSegment> {
         internal ScanDirection ScanDirection { get; private set; }
         private readonly RbTree<ScanSegment> segmentTree;
-        internal int Count { get { return this.segmentTree.Count; } }
+        internal int Count => segmentTree.Count;
 
         // Temporary variables for lookup.
         private readonly ScanSegment lookupSegment = new ScanSegment(new Point(0, 0), new Point(0, 1));  // dummy values avoid AF; will be overwritten
@@ -25,12 +27,12 @@ namespace Microsoft.AGL.Routing.Rectilinear {
 
         internal ScanSegmentTree(ScanDirection scanDir) {
             ScanDirection = scanDir;
-            this.segmentTree = new RbTree<ScanSegment>(this);
-            this.findIntersectorPred = new Func<ScanSegment, bool>(this.CompareIntersector);
-            this.findPointPred = new Func<ScanSegment, bool>(this.CompareToPoint);
+            segmentTree = new RbTree<ScanSegment>(this);
+            findIntersectorPred = new Func<ScanSegment, bool>(CompareIntersector);
+            findPointPred = new Func<ScanSegment, bool>(CompareToPoint);
         }
 
-        internal IEnumerable<ScanSegment> Segments { get { return this.segmentTree; } }
+        internal IEnumerable<ScanSegment> Segments => segmentTree;
 
         // If the seg is already in the tree it returns that instance, else it inserts the new
         // seg and returns that.
@@ -39,16 +41,15 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             // RBNode returned by insert(); instead we must do find() on each call.  But we can
             // use the returned node to get predecessor/successor.
             AssertValidSegmentForInsertion(seg);
-            var node = this.segmentTree.Find(seg);
+            RBNode<ScanSegment> node = segmentTree.Find(seg);
             if (null != node) {
                 Debug.Assert(seg.IsOverlapped == node.Item.IsOverlapped, "Existing node found with different isOverlapped");
                 return node;
             }
-            return this.segmentTree.Insert(seg);
+            return segmentTree.Insert(seg);
         }
 
         [Conditional("DEBUG")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         void AssertValidSegmentForInsertion(ScanSegment seg) {
             Debug.Assert((seg.End.X >= seg.Start.X) && (seg.End.Y >= seg.Start.Y), "Reversed direction in ScanSegment");
             Debug.Assert(ScanDirection.IsFlat(seg.Start, seg.End), "non-flat segment cannot be inserted");
@@ -56,14 +57,14 @@ namespace Microsoft.AGL.Routing.Rectilinear {
 
         internal void Remove(ScanSegment seg) {
             Debug.Assert(seg.IsVertical == ScanDirection.IsVertical, "seg.IsVertical != ScanDirection.IsVertical");
-            this.segmentTree.Remove(seg);
+            segmentTree.Remove(seg);
         }
 
         internal ScanSegment Find(Point start, Point end) {
             Debug.Assert(PointComparer.Equal(start, end) || !ScanDirection.IsPerpendicular(start, end)
                         , "perpendicular segment passed");
-            this.lookupSegment.Update(start, end);
-            RBNode<ScanSegment> node = this.segmentTree.Find(this.lookupSegment);
+            lookupSegment.Update(start, end);
+            RBNode<ScanSegment> node = segmentTree.Find(lookupSegment);
             if ((null != node) && PointComparer.Equal(node.Item.End, end)) {
                 return node.Item;
             }
@@ -72,7 +73,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
 
         // Find the lowest perpendicular scanseg that intersects the segment endpoints.
         internal ScanSegment FindLowestIntersector(Point start, Point end) {
-            var node = FindLowestIntersectorNode(start, end);
+            RBNode<ScanSegment> node = FindLowestIntersectorNode(start, end);
             return (null != node) ? node.Item : null;
         }
 
@@ -80,8 +81,8 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             Debug.Assert(ScanDirection.IsPerpendicular(start, end), "non-perpendicular segment passed");
 
             // Find the last segment that starts at or before 'start'.
-            this.lookupSegment.Update(start, start);
-            RBNode<ScanSegment> node = this.segmentTree.FindLast(this.findIntersectorPred);
+            lookupSegment.Update(start, start);
+            RBNode<ScanSegment> node = segmentTree.FindLast(findIntersectorPred);
 
             // We have a segment that intersects start/end, or one that ends before 'start' and thus we
             // must iterate to find the lowest bisector.  TODOperf: see how much that iteration costs us
@@ -92,13 +93,13 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                 }
             }
             else {
-                this.lookupSegment.Update(start, end);
-                while ((null != node) && !node.Item.IntersectsSegment(this.lookupSegment)) {
+                lookupSegment.Update(start, end);
+                while ((null != node) && !node.Item.IntersectsSegment(lookupSegment)) {
                     // If the node segment starts after 'end', no intersection was found.
                     if (ScanDirection.Compare(node.Item.Start, end) > 0) {
                         return null;
                     }
-                    node = this.segmentTree.Next(node);
+                    node = segmentTree.Next(node);
                 }
             }
             return node;
@@ -109,8 +110,8 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             Debug.Assert(ScanDirection.IsPerpendicular(start, end), "non-perpendicular segment passed");
 
             // Find the last segment that starts at or before 'end'.
-            this.lookupSegment.Update(end, end);
-            RBNode<ScanSegment> node = this.segmentTree.FindLast(this.findIntersectorPred);
+            lookupSegment.Update(end, end);
+            RBNode<ScanSegment> node = segmentTree.FindLast(findIntersectorPred);
 
             // Now we either have a segment that intersects start/end, or one that ends before 
             // 'end' and need to iterate to find the highest bisector.
@@ -120,29 +121,26 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                 }
             }
             else {
-                this.lookupSegment.Update(start, end);
-                while ((null != node) && !node.Item.IntersectsSegment(this.lookupSegment)) {
+                lookupSegment.Update(start, end);
+                while ((null != node) && !node.Item.IntersectsSegment(lookupSegment)) {
                     // If the node segment ends before 'start', no intersection was found.
                     if (ScanDirection.Compare(node.Item.End, start) < 0) {
                         return null;
                     }
-                    node = this.segmentTree.Previous(node);
+                    node = segmentTree.Previous(node);
                 }
             }
             return (null != node) ? node.Item : null;
         }
 
-        bool CompareIntersector(ScanSegment seg) {
+        bool CompareIntersector(ScanSegment seg) =>
             // We're looking for the last segment that starts before LookupSegment.Start.
-            return (ScanDirection.Compare(seg.Start, this.lookupSegment.Start) <= 0);
-        }
+            (ScanDirection.Compare(seg.Start, lookupSegment.Start) <= 0);
 
-        internal ScanSegment FindSegmentContainingPoint(Point location, bool allowUnfound) {
-            return FindSegmentOverlappingPoints(location, location, allowUnfound);
-        }
+        internal ScanSegment FindSegmentContainingPoint(Point location, bool allowUnfound) => FindSegmentOverlappingPoints(location, location, allowUnfound);
         internal ScanSegment FindSegmentOverlappingPoints(Point start, Point end, bool allowUnfound) {
-            this.lookupSegment.Update(start, end);
-            RBNode<ScanSegment> node = this.segmentTree.FindFirst(this.findPointPred);
+            lookupSegment.Update(start, end);
+            RBNode<ScanSegment> node = segmentTree.FindFirst(findPointPred);
 
             // If we had any segments in the tree that end after 'start', node has the first one.
             // Now we need to that it starts before 'end'.  ScanSegment.CompareToPointPositionFullLength
@@ -162,12 +160,11 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             return null;
         }
 
-        bool CompareToPoint(ScanSegment treeSeg) {
+        bool CompareToPoint(ScanSegment treeSeg) =>
             // Test if treeSeg overlaps the LookupSegment.Start point.  We're using FindFirst,
             // so we'll just return false for everything that ends before the point and true for anything
             // that ends at or after it, then the caller will verify overlap.
-            return (ScanDirection.Compare(treeSeg.End, this.lookupSegment.Start) >= 0);
-        }
+            (ScanDirection.Compare(treeSeg.End, lookupSegment.Start) >= 0);
 
         RBNode<ScanSegment> MergeAndRemoveNextNode(ScanSegment currentSegment, RBNode<ScanSegment> nextSegNode) {
             // Merge at the ends only - if we're here, start will be the same or greater.
@@ -177,20 +174,20 @@ namespace Microsoft.AGL.Routing.Rectilinear {
 
             // Removing the node can revise the tree's RBNodes internally so re-get the current segment.
             currentSegment.MergeGroupBoundaryCrossingList(nextSegNode.Item.GroupBoundaryPointAndCrossingsList);
-            this.segmentTree.DeleteNodeInternal(nextSegNode);
-            return this.segmentTree.Find(currentSegment);
+            segmentTree.DeleteNodeInternal(nextSegNode);
+            return segmentTree.Find(currentSegment);
         }
 
         internal void MergeSegments() {
             // As described in the doc, hintScanSegment handles all the non-overlapped non-reflection cases.
             DevTraceInfo(1, "{0} ScanSegmentTree MergeSegments, count = {1}"
-                            , ScanDirection.IsHorizontal ? "Horizontal" : "Vertical", this.segmentTree.Count);
-            if (this.segmentTree.Count < 2) {
+                            , ScanDirection.IsHorizontal ? "Horizontal" : "Vertical", segmentTree.Count);
+            if (segmentTree.Count < 2) {
                 return;
             }
-            RBNode<ScanSegment> currentSegNode = this.segmentTree.TreeMinimum();
-            RBNode<ScanSegment> nextSegNode = this.segmentTree.Next(currentSegNode);
-            for ( ; null != nextSegNode; nextSegNode = this.segmentTree.Next(currentSegNode)) {
+            RBNode<ScanSegment> currentSegNode = segmentTree.TreeMinimum();
+            RBNode<ScanSegment> nextSegNode = segmentTree.Next(currentSegNode);
+            for ( ; null != nextSegNode; nextSegNode = segmentTree.Next(currentSegNode)) {
                 DevTraceInfo(2, "Current {0}  Next {1}", currentSegNode.Item, nextSegNode.Item);
                 int cmp = ScanDirection.Compare(nextSegNode.Item.Start, currentSegNode.Item.End);
                 switch (cmp) {
@@ -261,12 +258,12 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                                     // re-find currentSegNode (there may be more segments between nextSegment.Start and currentSegment.End).
                                     ScanSegment nextSegment = nextSegNode.Item;
                                     ScanSegment currentSegment = currentSegNode.Item;
-                                    this.segmentTree.DeleteNodeInternal(nextSegNode);
+                                    segmentTree.DeleteNodeInternal(nextSegNode);
                                     nextSegment.Update(currentSegment.End, nextSegment.End);
-                                    this.segmentTree.Insert(nextSegment);
+                                    segmentTree.Insert(nextSegment);
                                     nextSegment.TrimGroupBoundaryCrossingList();
                                     DevTraceInfo(2, "  (trimming isOverlapped nextSegNode to {0})", nextSegment);
-                                    currentSegNode = this.segmentTree.Find(currentSegment);
+                                    currentSegNode = segmentTree.Find(currentSegment);
                                 }
                             }
                             break;
@@ -341,7 +338,6 @@ namespace Microsoft.AGL.Routing.Rectilinear {
 #endif // DEVTRACE
 
         [Conditional("DEVTRACE")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         void DevTraceInfo(int verboseLevel, string format, params object[] args) {
 #if DEVTRACE
             this.scanSegmentTrace.WriteLineIf(DevTrace.Level.Info, verboseLevel, format, args);
@@ -349,7 +345,6 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         }
 
         [Conditional("DEVTRACE")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         internal void DevTraceVerifyVisibility() {
 #if DEVTRACE
             if (this.scanSegmentVerify.IsLevel(1)) {

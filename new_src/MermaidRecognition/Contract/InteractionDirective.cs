@@ -21,52 +21,22 @@ public sealed class InteractionDirective
 
     private readonly string _TargetId;
 
-    public string TargetId
-    {
-        get
-        {
-            return _TargetId;
-        }
-    }
+    public string TargetId => _TargetId;
 
     private readonly string? _Callback;
 
-    public string? Callback
-    {
-        get
-        {
-            return _Callback;
-        }
-    }
+    public string? Callback => _Callback;
 
     private readonly string? _Url;
 
-    public string? Url
-    {
-        get
-        {
-            return _Url;
-        }
-    }
+    public string? Url => _Url;
 
     private readonly string? _Tooltip;
 
-    public string? Tooltip
-    {
-        get
-        {
-            return _Tooltip;
-        }
-    }
+    public string? Tooltip => _Tooltip;
 
     private readonly string? _TargetWindow;
 
-    public string? TargetWindow
-    {
-        get
-        {
-            return _TargetWindow;
-        }
-    }
+    public string? TargetWindow => _TargetWindow;
 }
 

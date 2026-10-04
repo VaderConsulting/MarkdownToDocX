@@ -1,21 +1,21 @@
 using System.Collections.Generic;
+
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
 
-namespace MermaidRecognition.Layout.Sugiyama.Prototype.Phylo {
+namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Phylo
+{
     /// <summary>
     /// Implements a phylogenetic tree
     /// </summary>
     public class PhyloTree : GeometryGraph {
         Node root;
+
         //used in the other solution
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
-        internal Node Root {
-            get { return root != null ? root : root = GetRoot(); }
-        }
+        internal Node Root => root != null ? root : root = GetRoot();
 
         private Node GetRoot() {
             Node ret = null;
-            foreach (Node n in this.Nodes) {
+            foreach (Node n in Nodes) {
                 ret = n; break;
             }
 
@@ -33,14 +33,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Prototype.Phylo {
         /// </summary>
         public IEnumerable<Node> Leaves {
             get {
-                foreach (Node node in this.Nodes)
+                foreach (Node node in Nodes)
                     if (NodeIsALeaf(node))
                         yield return node;
             }
         }
 
-        static private bool NodeIsALeaf(Node node) {
-            return !node.OutEdges.GetEnumerator().MoveNext();
-        }
+        static private bool NodeIsALeaf(Node node) => !node.OutEdges.GetEnumerator().MoveNext();
     }
 }

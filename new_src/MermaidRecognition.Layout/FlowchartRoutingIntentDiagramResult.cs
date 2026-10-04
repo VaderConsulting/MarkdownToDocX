@@ -11,21 +11,14 @@ public sealed class FlowchartRoutingIntentDiagramResult
 
     private string _Direction = string.Empty;
 
-    private List<FlowchartEdgeRoutingIntentRecord> _Edges = new List<FlowchartEdgeRoutingIntentRecord>();
+    private List<FlowchartEdgeRoutingIntentRecord> _Edges = [];
 
     /// <summary>
     /// Diagram identifier from the torture-test fixture or generated sequence.
     /// </summary>
     public string DiagramId
     {
-        get
-        {
-            return _DiagramId;
-        }
-        set
-        {
-            _DiagramId = value;
-        }
+        get => _DiagramId; set => _DiagramId = value;
     }
 
     /// <summary>
@@ -33,14 +26,7 @@ public sealed class FlowchartRoutingIntentDiagramResult
     /// </summary>
     public string Direction
     {
-        get
-        {
-            return _Direction;
-        }
-        set
-        {
-            _Direction = value;
-        }
+        get => _Direction; set => _Direction = value;
     }
 
     /// <summary>
@@ -48,13 +34,6 @@ public sealed class FlowchartRoutingIntentDiagramResult
     /// </summary>
     public List<FlowchartEdgeRoutingIntentRecord> Edges
     {
-        get
-        {
-            return _Edges;
-        }
-        set
-        {
-            _Edges = value ?? new List<FlowchartEdgeRoutingIntentRecord>();
-        }
+        get => _Edges; set => _Edges = value ?? [];
     }
 }

@@ -9,11 +9,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         // when subtracting two numbers that are close.
 // ReSharper disable InconsistentNaming
         private static readonly double differenceEpsilon = ApproximateComparer.DistanceEpsilon / 2;
-// ReSharper restore InconsistentNaming
+        // ReSharper restore InconsistentNaming
 
-        static internal double DifferenceEpsilon {
-            get { return differenceEpsilon; }
-        }
+        static internal double DifferenceEpsilon => differenceEpsilon;
 
         /// <summary>
         /// Determines whether the specified Points, which are assumed to have been Round()ed,
@@ -22,9 +20,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         /// <param name="a">The first object of type Point to compare.</param>
         /// <param name="b">The second object of type Point to compare.</param>
         /// <returns>True if the inputs are close enough to be considered equal, else false</returns>
-        public static bool Equal(Point a, Point b) {
-            return Equal(a.X, b.X) && Equal(a.Y, b.Y);
-        }
+        public static bool Equal(Point a, Point b) => Equal(a.X, b.X) && Equal(a.Y, b.Y);
 
         /// <summary>
         /// Determines whether the specified double values, which are assumed to have been Round()ed,
@@ -33,9 +29,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         /// <param name="x">The first double value to compare.</param>
         /// <param name="y">The second double value to compare.</param>
         /// <returns>True if the inputs are close enough to be considered equal, else false</returns>
-        public static bool Equal(double x, double y) {
-            return (0 == Compare(x, y));
-        }
+        public static bool Equal(double x, double y) => (0 == Compare(x, y));
 
         /// <summary>
         /// The usual Compare operation, with inputs that are assumed to have been Round()ed.
@@ -97,9 +91,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         /// <param name="a"></param>
         /// <param name="b"></param>
         /// <returns></returns>
-        public static bool Less(double a, double b) {
-            return Compare(a, b) < 0;
-        }
+        public static bool Less(double a, double b) => Compare(a, b) < 0;
 
         [Conditional("DEBUG")]
 // ReSharper disable InconsistentNaming
@@ -140,9 +132,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             Assert_Rounded(b);
             return CompassVector.IsPureDirection(GetDirections(a, b));
         }
-        internal static bool IsPureDirection(Directions dir) {
-            return CompassVector.IsPureDirection(dir);
-        }
+        internal static bool IsPureDirection(Directions dir) => CompassVector.IsPureDirection(dir);
 
         internal static bool IsPureLower(Point a, Point b) {
             Assert_Rounded(a);

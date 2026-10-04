@@ -1,0 +1,61 @@
+Build started 4/10/2026 9:22:48 PM.
+Test run for C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\tests\MDConverter.Tests\bin\Debug\net10.0\MDConverter.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+Test Parallelization enabled for C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\tests\MDConverter.Tests\bin\Debug\net10.0\MDConverter.Tests.dll (Workers: 12, Scope: MethodLevel)
+  Passed ConvertFile_FailurePreservesDestinationAndRemovesTemporaryFile (False) [20 ms]
+  Passed ConvertFile_FailurePreservesDestinationAndRemovesTemporaryFile (True) [49 ms]
+  Passed ConvertFile_LockedDestinationRemainsIntact [163 ms]
+  Passed GeneratedDocx_UsesNativeDecimalAndBulletNumbering [160 ms]
+  Failed Template_PreservesPageSettingsAndHeaderFooterReferences [177 ms]
+  Error Message:
+   Test method MDConverter.Tests.ConversionRegressionTests.Template_PreservesPageSettingsAndHeaderFooterReferences threw exception:
+System.InvalidCastException: Unable to cast object of type 'DocumentFormat.OpenXml.Wordprocessing.Paragraph' to type 'DocumentFormat.OpenXml.Wordprocessing.SectionProperties'.
+  Stack Trace:
+     at MDConverter.Tests.ConversionRegressionTests.<>c.<Template_PreservesPageSettingsAndHeaderFooterReferences>b__3_0(String Directory) in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\tests\MDConverter.Tests\ConversionRegressionTests.cs:line 95
+   at MDConverter.Tests.ConversionRegressionTests.WithDirectory(Action`1 Action) in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\tests\MDConverter.Tests\ConversionRegressionTests.cs:line 176
+   at MDConverter.Tests.ConversionRegressionTests.Template_PreservesPageSettingsAndHeaderFooterReferences() in C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\tests\MDConverter.Tests\ConversionRegressionTests.cs:line 70
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+
+  Passed InternalLinks_ResolveForwardDuplicateUnicodeAndNestedHeadings (False) [187 ms]
+  Passed FormattedLinks_PreserveTextTargetAndFormattingWithoutAffectingSiblings [187 ms]
+  Passed DisabledExternalLinks_PreserveNestedFormattedText [183 ms]
+  Passed ConvertFile_ReplacesDestinationOnlyAfterSuccessfulConversion [188 ms]
+  Passed InternalLinks_ResolveForwardDuplicateUnicodeAndNestedHeadings (True) [189 ms]
+  Passed Naiad_BlockWithDirectedEdge_RendersNodeLabelsInSvg [82 ms]
+  Passed Mermaid_Render_MindmapRootCircleSyntax_ExposesInnerLabel [63 ms]
+  Passed GeneratedDocx_WritesHyperlinksImagesTablesCodeAndHorizontalRules [250 ms]
+  Passed ExpandSvgFlowchartMarkers_ExtendsConnectorToTargetBoundary [122 ms]
+  Passed ExpandSvgFlowchartMarkers_StadiumMerge_ArrowTipsTouchStadiumOutline [67 ms]
+  Passed ExpandSvgFlowchartMarkers_BranchingEdges_ArrowheadAlignedWithLastSegment [38 ms]
+  Passed ExpandSvgFlowchartMarkers_F53FullDiagram_StadiumMergeArrowsTouchEnd [68 ms]
+  Passed ExpandSvgFlowchartMarkers_StadiumMerge_ArrowheadsUseIncomingPathDirection [5 ms]
+  Passed ExpandSvgFlowchartMarkers_StadiumMerge_DoesNotExtendThroughTarget [5 ms]
+  Passed ExpandSvgFlowchartMarkers_F35MultiIncoming_ArrowTipsTouchDiamondOutline [7 ms]
+  Passed ExpandSvgFlowchartMarkers_F40CrossSubgraph_CrossBoundaryPathsUseCurves [32 ms]
+  Passed ExpandSvgFlowchartMarkers_LinkStyleDefault_InlinesOrangeArrowheads [30 ms]
+  Passed GeneratedDocx_F72Accessibility_SetsPictureTitleAndDescription [325 ms]
+  Passed GeneratedDocx_RendersMindmapRootKwIndentedKanbanAndBlockEdges [542 ms]
+  Passed GeneratedDocx_RendersMermaidFencesAsEmbeddedSvgImages [708 ms]
+  Passed GeneratedDocx_RendersSupportedMermaidExampleSyntax [737 ms]
+  Passed CommonMarkSpecExamples_ConvertToValidDocxPackages [1 s]
+  Passed TryRasterizeSvgToPng_LinkStyleDefault_ArrowPixelsMatchEdgeStroke [2 s]
+  Passed TryRasterizeSvgToPng_F77Recognition_PreservesLaneClassColours [2 s]
+  Passed TryRasterizeSvgToPng_F53Legacy_PreservesStyledNodeFillPixels [3 s]
+  Passed TryRasterizeSvgToPng_F53Recognition_PreservesStyledNodeFillPixels [3 s]
+
+Total tests: 31
+     Passed: 30
+     Failed: 1
+ Total time: 4.6562 Seconds
+Test Run Failed.
+     1>Project "C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\tests\MDConverter.Tests\MDConverter.Tests.csproj" on node 1 (VSTest target(s)).
+     1>_VSTestConsole:
+         MSB4181: The "VSTestTask" task returned false but did not log an error.
+     1>Done Building Project "C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\tests\MDConverter.Tests\MDConverter.Tests.csproj" (VSTest target(s)) -- FAILED.
+
+Build FAILED.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:05.36

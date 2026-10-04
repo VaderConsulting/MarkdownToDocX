@@ -5,17 +5,13 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 
 namespace Microsoft.AGL.Core.Geometry.Curves {
-#pragma warning disable 1587
     /// <summary>
     /// Curve: keeps a sequence of connected ICurves
     /// </summary>
-#pragma warning restore 1587
 #if TEST_MSAGL
-    
+
 #endif
-#pragma warning disable 1591
     public partial class Curve : ICurve {
-#pragma warning restore 1591
         ParallelogramInternalTreeNode pBNode;
         //the parameter domain is [0,n] where n is the number of segments
         readonly List<ICurve> segs;
@@ -54,13 +50,11 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="epsilon">the maximal allowed distance between the curve and its inerpolation</param>
         /// <returns></returns>
         public static IList<LineSegment> Interpolate(double startParameter, Point start, double endParameter, Point end,
-            ICurve curve, double epsilon) {
-            return Interpolate(startParameter, ref start, endParameter, ref end, curve, epsilon);
-        }
+            ICurve curve, double epsilon) => Interpolate(startParameter, ref start, endParameter, ref end, curve, epsilon);
 
         internal static List<LineSegment> Interpolate(double a, ref Point ap, double b, ref Point bp, ICurve s,
             double eps) {
-            var r = new List<LineSegment>();
+            List<LineSegment> r = new List<LineSegment>();
             if (IsCloseToLineSeg(a, ref ap, b, ref bp, s, eps))
                 r.Add(new LineSegment(ap, bp));
             else {
@@ -104,7 +98,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// </summary>
         /// <returns></returns>
         public ICurve Reverse() {
-            var ret = new Curve(segs.Count);
+            Curve ret = new Curve(segs.Count);
             for (int i = segs.Count - 1; i >= 0; i--)
                 ret.AddSegment(segs[i].Reverse());
             return ret;
@@ -113,16 +107,12 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <summary>
         /// Constructs the curve
         /// </summary>
-        public Curve() {
-            segs = new List<ICurve>();
-        }
+        public Curve() => segs = [];
 
         /// <summary>
         /// Constructs a curve with an initial segment capacity.
         /// </summary>
-        public Curve(int segmentCapacity) {
-            segs = new List<ICurve>(segmentCapacity);
-        }
+        public Curve(int segmentCapacity) => segs = new List<ICurve>(segmentCapacity);
 
         internal Curve(List<ICurve> segs) {
             this.segs = segs;
@@ -135,16 +125,12 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <summary>
         /// this[ParStart]
         /// </summary>
-        public Point Start {
-            get { return segs[0].Start; }
-        }
+        public Point Start => segs[0].Start;
 
         /// <summary>
         /// this[ParEnd]
         /// </summary>
-        public Point End {
-            get { return segs[segs.Count - 1].End; }
-        }
+        public Point End => segs[segs.Count - 1].End;
 
         /// <summary>
         /// Returns the trim curve
@@ -155,20 +141,18 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         public ICurve Trim(double start, double end) {
             AdjustStartEndEndParametersToDomain(ref start, ref end);
 
-            int sseg;
-            double spar;
 
-            GetSegmentAndParameter(start, out spar, out sseg);
+            GetSegmentAndParameter(start, out double spar, out
+            int sseg);
 
-            int eseg;
-            double epar;
 
-            GetSegmentAndParameter(end, out epar, out eseg);
+            GetSegmentAndParameter(end, out double epar, out
+            int eseg);
 
             if (sseg == eseg)
                 return Segments[sseg].Trim(spar, epar);
 
-            var c = new Curve(eseg-sseg+1);
+            Curve c = new Curve(eseg-sseg+1);
 
             if (spar < Segments[sseg].ParEnd)
                 c = c.AddSegment(Segments[sseg].Trim(spar, Segments[sseg].ParEnd));
@@ -210,7 +194,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
                 return Trim(start, end) as Curve;
 
             Debug.Assert(ApproximateComparer.Close(Start, End), "Curve must be closed to wrap");
-            var c = new Curve();
+            Curve c = new Curve();
             c.AddSegment(Trim(start, ParEnd) as Curve);
             c.AddSegment(Trim(ParStart, end) as Curve);
             return c;
@@ -230,14 +214,16 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
                 throw new InvalidOperationException(); //discontinuous curve
 #endif
             ParStart = 0;
-            var c = curve as Curve;
-            if (c == null) {
+            if (curve is not Curve c)
+            {
                 segs.Add(curve);
                 ParEnd += curve.ParEnd - curve.ParStart;
             }
-            else {
+            else
+            {
                 IncreaseSegmentCapacity(c.Segments.Count);
-                foreach (ICurve cc in c.Segments) {
+                foreach (ICurve cc in c.Segments)
+                {
                     segs.Add(cc);
                     ParEnd += cc.ParEnd - cc.ParStart;
                 }
@@ -281,9 +267,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <summary>
         /// Returns the list of the curve segments
         /// </summary>
-        public IList<ICurve> Segments {
-            get { return segs; }
-        }
+        public IList<ICurve> Segments => segs;
 
         /// <summary>
         /// A tree of ParallelogramNodes covering the curve. 
@@ -297,7 +281,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
                         return pBNode;
 
                     pBNode = new ParallelogramInternalTreeNode(this, ParallelogramNodeOverICurve.DefaultLeafBoxesOffset);
-                    var parallelograms = new List<Parallelogram>();
+                    List<Parallelogram> parallelograms = new List<Parallelogram>();
                     foreach (ICurve curveSeg in segs) {
                         ParallelogramNodeOverICurve pBoxNode = curveSeg.ParallelogramNodeOverICurve;
 
@@ -374,8 +358,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
 //            }
 #endif
 
-            var lineSeg = curve0 as LineSegment;
-            if (lineSeg != null)
+            if (curve0 is LineSegment lineSeg)
                 return GetAllIntersectionsOfLineAndICurve(lineSeg, curve1, liftIntersections);
 
             return GetAllIntersectionsInternal(curve0, curve1, liftIntersections);
@@ -386,7 +369,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
             bool liftIntersections) {
             //recurse down to find all PBLeaf pairs which intesect and try to cross their segments
 
-            var intersections = new List<IntersectionInfo>();
+            List<IntersectionInfo> intersections = new List<IntersectionInfo>();
             CurveCurveXWithParallelogramNodes(curve0.ParallelogramNodeOverICurve, curve1.ParallelogramNodeOverICurve,
                                               ref intersections);
 
@@ -401,51 +384,47 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
 
         static IList<IntersectionInfo> GetAllIntersectionsOfLineAndICurve(LineSegment lineSeg, ICurve iCurve,
             bool liftIntersections) {
-            var poly = iCurve as Polyline;
-            if (poly != null)
+            if (iCurve is Polyline poly)
                 return GetAllIntersectionsOfLineAndPolyline(lineSeg, poly);
 
-            var curve = iCurve as Curve;
-            if (curve != null)
+            if (iCurve is Curve curve)
                 return GetAllIntersectionsOfLineAndCurve(lineSeg, curve, liftIntersections);
 
-            var roundedRect = iCurve as RoundedRect;
-            if (roundedRect != null)
+            if (iCurve is RoundedRect roundedRect)
                 return GetAllIntersectionsOfLineAndRoundedRect(lineSeg, roundedRect, liftIntersections);
 
-            var ellipse = iCurve as Ellipse;
-            if (ellipse != null && ellipse.IsArc())
+            if (iCurve is Ellipse ellipse && ellipse.IsArc())
                 return GetAllIntersectionsOfLineAndArc(lineSeg, ellipse);
 
             return GetAllIntersectionsInternal(lineSeg, iCurve, liftIntersections);
         }
 
         static IList<IntersectionInfo> GetAllIntersectionsOfLineAndRoundedRect(LineSegment lineSeg, RoundedRect roundedRect, bool liftIntersections) {
-            var ret = GetAllIntersectionsOfLineAndCurve(lineSeg, roundedRect.Curve, liftIntersections);
+            IList<IntersectionInfo> ret = GetAllIntersectionsOfLineAndCurve(lineSeg, roundedRect.Curve, liftIntersections);
             if(liftIntersections)
-                foreach (var intersectionInfo in ret) {
+                foreach (IntersectionInfo intersectionInfo in ret) {
                     intersectionInfo.Segment1 = roundedRect;
                 }
             return ret;
         }
 
         static IList<IntersectionInfo> GetAllIntersectionsOfLineAndCurve(LineSegment lineSeg, Curve curve, bool liftIntersections) {
-            var ret = new List<IntersectionInfo>();
-            var lineParallelogram = lineSeg.ParallelogramNodeOverICurve;
-            var curveParallelogramRoot = curve.ParallelogramNodeOverICurve;
+            List<IntersectionInfo> ret = new List<IntersectionInfo>();
+            ParallelogramNodeOverICurve lineParallelogram = lineSeg.ParallelogramNodeOverICurve;
+            ParallelogramNodeOverICurve curveParallelogramRoot = curve.ParallelogramNodeOverICurve;
             if (Parallelogram.Intersect(lineParallelogram.Parallelogram, curveParallelogramRoot.Parallelogram) == false)
                 return ret;
-            var parOffset = 0.0;
-            foreach (var seg in curve.Segments) {
-                var iiList = GetAllIntersections(lineSeg, seg, false);
+            double parOffset = 0.0;
+            foreach (ICurve seg in curve.Segments) {
+                IList<IntersectionInfo> iiList = GetAllIntersections(lineSeg, seg, false);
                 if(liftIntersections) {
-                    foreach (var intersectionInfo in iiList) {
+                    foreach (IntersectionInfo intersectionInfo in iiList) {
                         intersectionInfo.Par1 += parOffset-seg.ParStart;
                         intersectionInfo.Segment1 = curve;
                     }
                     parOffset += seg.ParEnd - seg.ParStart;
                 }
-                foreach (var intersectionInfo in iiList) {
+                foreach (IntersectionInfo intersectionInfo in iiList) {
                     if(! AlreadyInside(ret, intersectionInfo))
                         ret.Add(intersectionInfo);
                 }
@@ -456,7 +435,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
 
         static bool AlreadyInside(List<IntersectionInfo> ret, IntersectionInfo intersectionInfo) {
             for(int i=0;i<ret.Count;i++) {
-                var ii = ret[i];
+                IntersectionInfo ii = ret[i];
                 if (ApproximateComparer.CloseIntersections(ii.IntersectionPoint, intersectionInfo.IntersectionPoint))
                     return true;
             }
@@ -465,7 +444,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
 
         static IList<IntersectionInfo> GetAllIntersectionsOfLineAndArc(LineSegment lineSeg, Ellipse ellipse) {
             Point lineDir = lineSeg.End - lineSeg.Start;
-            var ret = new List<IntersectionInfo>();
+            List<IntersectionInfo> ret = new List<IntersectionInfo>();
             double segLength = lineDir.Length;
             if (segLength < ApproximateComparer.DistanceEpsilon) {
                 if (ApproximateComparer.Close((lineSeg.Start - ellipse.Center).Length, ellipse.AxisA.Length)) {
@@ -528,7 +507,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         }
 
         static IList<IntersectionInfo> GetAllIntersectionsOfLineAndPolyline(LineSegment lineSeg, Polyline poly) {
-            var ret = new List<IntersectionInfo>();
+            List<IntersectionInfo> ret = new List<IntersectionInfo>();
             double offset = 0.0;
             double par0, par1;
             Point x;
@@ -588,8 +567,8 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
             if (!Parallelogram.Intersect(n0.Parallelogram, n1.Parallelogram))
                 //Console.WriteLine("Boxes {0} and {1} do not intersect", n0.Box, n1.Box);
                 return null;
-            var n0Pb = n0 as ParallelogramInternalTreeNode;
-            var n1Pb = n1 as ParallelogramInternalTreeNode;
+            ParallelogramInternalTreeNode n0Pb = n0 as ParallelogramInternalTreeNode;
+            ParallelogramInternalTreeNode n1Pb = n1 as ParallelogramInternalTreeNode;
             if (n0Pb != null && n1Pb != null)
                 foreach (ParallelogramNodeOverICurve n00 in n0Pb.Children)
                     foreach (ParallelogramNodeOverICurve n11 in n1Pb.Children) {
@@ -620,8 +599,8 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
                 return;
             //if(Routing.debug)
             // Testing.InternalTest.Show(n0, n1, n0.Seg, n1.Seg); 
-            var n0Pb = n0 as ParallelogramInternalTreeNode;
-            var n1Pb = n1 as ParallelogramInternalTreeNode;
+            ParallelogramInternalTreeNode n0Pb = n0 as ParallelogramInternalTreeNode;
+            ParallelogramInternalTreeNode n1Pb = n1 as ParallelogramInternalTreeNode;
             if (n0Pb != null && n1Pb != null)
                 foreach (ParallelogramNodeOverICurve n00 in n0Pb.Children)
                     foreach (ParallelogramNodeOverICurve n11 in n1Pb.Children)
@@ -637,8 +616,8 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
 
         static IntersectionInfo CrossOverIntervalsOne(ParallelogramNodeOverICurve n0, ParallelogramNodeOverICurve n1) {
             //both are leafs 
-            var l0 = n0 as ParallelogramLeaf;
-            var l1 = n1 as ParallelogramLeaf;
+            ParallelogramLeaf l0 = n0 as ParallelogramLeaf;
+            ParallelogramLeaf l1 = n1 as ParallelogramLeaf;
             double d0 = (l0.High - l0.Low)/2;
             double d1 = (l1.High - l1.Low)/2;
 
@@ -688,8 +667,8 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         static List<IntersectionInfo> CrossOverIntervals(ParallelogramNodeOverICurve n0, ParallelogramNodeOverICurve n1,
             List<IntersectionInfo> intersections) {
             //both are leafs 
-            var l0 = n0 as ParallelogramLeaf;
-            var l1 = n1 as ParallelogramLeaf;
+            ParallelogramLeaf l0 = n0 as ParallelogramLeaf;
+            ParallelogramLeaf l1 = n1 as ParallelogramLeaf;
             double d0 = (l0.High - l0.Low)/2;
             double d1 = (l1.High - l1.Low)/2;
             bool found = false;
@@ -770,7 +749,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
 
             bool oldIntersection = OldIntersection(intersections, ref x);
             if (!oldIntersection) {
-                var xx = new IntersectionInfo(aSol, bSol, x, n0.Seg, n1.Seg);
+                IntersectionInfo xx = new IntersectionInfo(aSol, bSol, x, n0.Seg, n1.Seg);
                 intersections.Add(xx);
             }
 
@@ -853,34 +832,30 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
             return new IntersectionInfo(par0, par1, xx.IntersectionPoint, seg0, seg1);
         }
 
-        internal static IntersectionInfo LiftIntersectionToCurves(ICurve c0, ICurve c1, IntersectionInfo xx) {
-            return LiftIntersectionToCurves(c0, c1, xx.Par0, xx.Par1, xx.IntersectionPoint, xx.Segment0, xx.Segment1);
-        }
+        internal static IntersectionInfo LiftIntersectionToCurves(ICurve c0, ICurve c1, IntersectionInfo xx) => LiftIntersectionToCurves(c0, c1, xx.Par0, xx.Par1, xx.IntersectionPoint, xx.Segment0, xx.Segment1);
 
         internal static double LiftParameterToCurve(ICurve curve, double par, ICurve seg) {
             if (curve == seg)
                 return par;
 
-            var c = curve as Curve;
 
-            if (c != null) {
+            if (curve is Curve c)
+            {
                 double offset = 0;
-                foreach (ICurve s in c.Segments) {
+                foreach (ICurve s in c.Segments)
+                {
                     if (s == seg)
                         return par + offset;
                     offset += ParamSpan(s);
                 }
             }
-            var roundedRect = curve as RoundedRect;
-            if (roundedRect != null)
+            if (curve is RoundedRect roundedRect)
                 return LiftParameterToCurve(roundedRect.Curve, par, seg);
 
             throw new InvalidOperationException(); //"bug in LiftParameterToCurve");
         }
 
-        static double ParamSpan(ICurve s) {
-            return s.ParEnd - s.ParStart;
-        }
+        static double ParamSpan(ICurve s) => s.ParEnd - s.ParStart;
 
         static IntersectionInfo GoDeeperOne(ParallelogramLeaf l0, ParallelogramLeaf l1) {
             double eps = ApproximateComparer.DistanceEpsilon;
@@ -917,9 +892,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
                     LineSegment ls0 = l0.Seg is LineSegment ? l0.Seg as LineSegment : new LineSegment(l0Low, l0High);
                     LineSegment ls1 = l1.Seg is LineSegment ? l1.Seg as LineSegment : new LineSegment(l1Low, l1High);
 
-                    double asol, bsol;
-                    Point x;
-                    bool r = CrossWithinIntervalsWithGuess(ls0, ls1, 0, 1, 0, 1, 0.5, 0.5, out asol, out bsol, out x);
+                    bool r = CrossWithinIntervalsWithGuess(ls0, ls1, 0, 1, 0, 1, 0.5, 0.5, out double asol, out double bsol, out Point x);
                     if (r) {
                         AdjustParameters(l0, ls0, l1, ls1, x, ref asol, ref bsol);
                         return CreateIntersectionOne(l0, l1, asol, bsol, x);
@@ -965,9 +938,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
                         LineSegment ls0 = l0.Seg is LineSegment ? l0.Seg as LineSegment : new LineSegment(l0Low, l0High);
                         LineSegment ls1 = l1.Seg is LineSegment ? l1.Seg as LineSegment : new LineSegment(l1Low, l1High);
 
-                        double asol, bsol;
-                        Point x;
-                        bool r = CrossWithinIntervalsWithGuess(ls0, ls1, 0, 1, 0, 1, 0.5, 0.5, out asol, out bsol, out x);
+                        bool r = CrossWithinIntervalsWithGuess(ls0, ls1, 0, 1, 0, 1, 0.5, 0.5, out double asol, out double bsol, out Point x);
                         if (r) {
                             AdjustParameters(l0, ls0, l1, ls1, x, ref asol, ref bsol);
                             AddIntersection(l0, l1, intersections, asol, bsol, x);
@@ -1068,9 +1039,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <summary>
         /// The distance between the start and end point of a curve segment for which we consider the segment as a line segment
         /// </summary>
-        public static double LineSegmentThreshold {
-            get { return lineSegThreshold; }
-            set { lineSegThreshold = value; }
+        public static double LineSegmentThreshold { get => lineSegThreshold; set => lineSegThreshold = value;
         }
 
         /// <summary>
@@ -1079,9 +1048,6 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="t"></param>
         /// <param name="par"></param>
         /// <param name="segment"></param>
-        [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "t"),
-         SuppressMessage("Microsoft.Design", "CA1021:AvoidOutParameters", MessageId = "2#"),
-         SuppressMessage("Microsoft.Design", "CA1021:AvoidOutParameters", MessageId = "1#")]
         public void GetSegmentAndParameter(double t, out double par, out ICurve segment) {
             double u = ParStart; //u is the sum of param domains
             foreach (ICurve sg in segs) {
@@ -1120,7 +1086,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
 
             for (int i = 0; i < segs.Count; i++)
             {
-                var sg = segs[i];
+                ICurve sg = segs[i];
                 double domLen = sg.ParEnd - sg.ParStart;
                 if (t >= u && (t <= u + domLen || (i == segs.Count-1 && ApproximateComparer.Compare(t,u+domLen)<=0) ))
                 {
@@ -1154,10 +1120,8 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <returns></returns>
         public Point this[double t] {
             get {
-                double par;
-                ICurve seg;
 
-                GetSegmentAndParameter(t, out par, out seg);
+                GetSegmentAndParameter(t, out double par, out ICurve seg);
 
                 return seg[par];
             }
@@ -1169,10 +1133,8 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="t">the parameter where the derivative is calculated</param>
         /// <returns></returns>
         public Point Derivative(double t) {
-            double par;
-            ICurve seg;
 
-            GetSegmentAndParameter(t, out par, out seg);
+            GetSegmentAndParameter(t, out double par, out ICurve seg);
             return seg.Derivative(par);
         }
 
@@ -1182,10 +1144,8 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="t"></param>
         /// <returns></returns>
         public Point SecondDerivative(double t) {
-            double par;
-            ICurve seg;
 
-            GetSegmentAndParameter(t, out par, out seg);
+            GetSegmentAndParameter(t, out double par, out ICurve seg);
             return seg.SecondDerivative(par);
         }
 
@@ -1195,10 +1155,8 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="t">the parameter of the derivative</param>
         /// <returns></returns>
         public Point ThirdDerivative(double t) {
-            double par;
-            ICurve seg;
 
-            GetSegmentAndParameter(t, out par, out seg);
+            GetSegmentAndParameter(t, out double par, out ICurve seg);
             return seg.ThirdDerivative(par);
         }
 
@@ -1228,8 +1186,6 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
                                      out bSolution, out x))
                     return true;
             //it also handles the case of almost parallel segments
-            Point aPoint;
-            Point bPoint;
             r = MinDistWithinIntervals(a,
                                        b,
                                        amin,
@@ -1237,7 +1193,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
                                        bmax,
                                        aGuess, bGuess,
                                        out aSolution,
-                                       out bSolution, out aPoint, out bPoint);
+                                       out bSolution, out Point aPoint, out Point bPoint);
 
 
             x = 0.5*(aPoint + bPoint);
@@ -1291,7 +1247,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="curve">a closed curve</param>
         /// <returns>the point position characteristic</returns>
         public static PointLocation PointRelativeToCurveLocation(Point point, ICurve curve) {
-              System.Diagnostics.Debug.Assert(!Double.IsNaN(point.X) && !Double.IsNaN(point.Y));
+              System.Diagnostics.Debug.Assert(!double.IsNaN(point.X) && !double.IsNaN(point.Y));
             ValidateArg.IsNotNull(curve, "curve");
             if (!curve.BoundingBox.Contains(point))
                 return PointLocation.Outside;
@@ -1301,8 +1257,8 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
             const double degree = Math.PI/180.0;
             int inside = 0;
             for (int i = 13; i < 360; i += 13) {
-                var lineDir = new Point(Math.Cos(i*degree), Math.Sin(i*degree));
-                var ls = new LineSegment(point, point + l*lineDir);
+                Point lineDir = new Point(Math.Cos(i*degree), Math.Sin(i*degree));
+                LineSegment ls = new LineSegment(point, point + l*lineDir);
 
                 IList<IntersectionInfo> intersections = GetAllIntersections(ls, curve, true);
 
@@ -1337,10 +1293,9 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         static bool AllIntersectionsAreGood(IList<IntersectionInfo> intersections, ICurve polygon) {
             // If this isn't a Curve, try a Polyline.
             //TODO: fix this to avoid the cast
-            var polyCurve = polygon as Curve;
+            Curve polyCurve = polygon as Curve;
             if (null == polyCurve) {
-                var polyLine = polygon as Polyline;
-                if (null != polyLine)
+                if (polygon is Polyline polyLine)
                     polyCurve = polyLine.ToCurve();
             }
             if (null != polyCurve)
@@ -1421,7 +1376,6 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="polyline"></param>
         /// <param name="onlyFromInsideCuts">consider a cut good only if the segment cuts the polygon from inside</param>
         /// <returns></returns>
-        [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "polyline")]
         public static bool RealCut(IntersectionInfo xx, Curve polyline, bool onlyFromInsideCuts) {
             ValidateArg.IsNotNull(xx, "xx");
             ValidateArg.IsNotNull(polyline, "polyline");
@@ -1482,7 +1436,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         internal static bool MinDistWithinIntervals(
             ICurve a, ICurve b, double aMin, double aMax, double bMin, double bMax,
             double aGuess, double bGuess, out double aSolution, out double bSolution, out Point aPoint, out Point bPoint) {
-            var md = new MinDistCurveCurve(a, b, aMin, aMax, bMin, bMax, aGuess, bGuess);
+            MinDistCurveCurve md = new MinDistCurveCurve(a, b, aMin, aMax, bMin, bMax, aGuess, bGuess);
             md.Solve();
             aSolution = md.ASolution;
             aPoint = md.APoint;
@@ -1531,9 +1485,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="offset"></param>
         /// <param name="dir"></param>
         /// <returns></returns>
-        public ICurve OffsetCurve(double offset, Point dir) {
-            return null;
-        }
+        public ICurve OffsetCurve(double offset, Point dir) => null;
 
         /// <summary>
         /// The bounding rectangle of the curve
@@ -1579,7 +1531,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// </summary>
         /// <returns>the cloned curve</returns>
         public ICurve Clone() {
-            var c = new Curve(Segments.Count);
+            Curve c = new Curve(Segments.Count);
             foreach (ICurve seg in Segments)
                 c.AddSegment(seg.Clone());
             return c;
@@ -1595,9 +1547,9 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="length"></param>
         /// <returns></returns>
         public double GetParameterAtLength(double length) {
-            var parSpan = 0.0;
-            foreach (var seg in Segments) {
-                var segL = seg.Length;
+            double parSpan = 0.0;
+            foreach (ICurve seg in Segments) {
+                double segL = seg.Length;
                 if (segL >= length)
                     return parSpan+seg.GetParameterAtLength(length);
 
@@ -1617,7 +1569,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <returns></returns>
         public double ClosestParameterWithinBounds(Point targetPoint, double low, double high) {
             double par = 0;
-            double dist = Double.MaxValue;
+            double dist = double.MaxValue;
             double offset = 0;
             foreach (ICurve seg in Segments) {
                 if (offset > high)
@@ -1649,7 +1601,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <returns></returns>
         public double ClosestParameter(Point targetPoint) {
             double par = 0;
-            double dist = Double.MaxValue;
+            double dist = double.MaxValue;
             double offset = 0;
             foreach (ICurve c in Segments) {
                 double t = c.ClosestParameter(targetPoint);
@@ -1693,11 +1645,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="y0"></param>
         /// <param name="x1"></param>
         /// <param name="y1"></param>
-        [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "x"),
-         SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "y")]
-        public static void AddLineSegment(Curve curve, double x0, double y0, double x1, double y1) {
-            AddLineSegment(curve, new Point(x0, y0), new Point(x1, y1));
-        }
+        public static void AddLineSegment(Curve curve, double x0, double y0, double x1, double y1) => AddLineSegment(curve, new Point(x0, y0), new Point(x1, y1));
 
         /// <summary>
         /// adds a line segment to the curve
@@ -1705,9 +1653,6 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="c"></param>
         /// <param name="x"></param>
         /// <param name="y"></param>
-        [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "y"),
-         SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "x"),
-         SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "c")]
         public static void ContinueWithLineSegment(Curve c, double x, double y) {
             ValidateArg.IsNotNull(c, "c");
             AddLineSegment(c, c.End, new Point(x, y));
@@ -1718,9 +1663,6 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// </summary>
         /// <param name="c"></param>
         /// <param name="x"></param>
-        [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "x"),
-         SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "c"),
-         SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Seg")]
         public static void ContinueWithLineSegment(Curve c, Point x) {
             ValidateArg.IsNotNull(c, "c");
             AddLineSegment(c, c.End, x);
@@ -1799,7 +1741,6 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="location"></param>
         /// <param name="pointOnCurve"></param>
         /// <returns></returns>
-        [SuppressMessage("Microsoft.Design", "CA1021:AvoidOutParameters", MessageId = "2#")]
         public static double ClosestParameterWithPoint(ICurve curve, Point location, out Point pointOnCurve) {
             ValidateArg.IsNotNull(curve, "curve");
             double t = curve.ClosestParameter(location);
@@ -1908,9 +1849,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="t"></param>
         /// <returns></returns>
         public double Curvature(double t) {
-            ICurve seg;
-            double par;
-            GetSegmentAndParameter(t, out par, out seg);
+            GetSegmentAndParameter(t, out double par, out ICurve seg);
             return seg.Curvature(par);
         }
 
@@ -1919,27 +1858,21 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        public double CurvatureDerivative(double t) {
-            throw new NotImplementedException();
-        }
+        public double CurvatureDerivative(double t) => throw new NotImplementedException();
 
         /// <summary>
         /// 
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        public double CurvatureSecondDerivative(double t) {
-            throw new NotImplementedException();
-        }
+        public double CurvatureSecondDerivative(double t) => throw new NotImplementedException();
 
         #endregion
 
         ///<summary>
         ///</summary>
         ///<returns>True if the curves intersect each other.</returns>
-        public static bool CurvesIntersect(ICurve curve1, ICurve curve2) {
-            return curve1 == curve2 || (CurveCurveIntersectionOne(curve1, curve2, false) != null);
-        }
+        public static bool CurvesIntersect(ICurve curve1, ICurve curve2) => curve1 == curve2 || (CurveCurveIntersectionOne(curve1, curve2, false) != null);
 
         internal static CubicBezierSegment CreateBezierSeg(double kPrev, double kNext, Site a, Site b, Site c) {
             Point s = kPrev*a.Point + (1 - kPrev)*b.Point;
@@ -1965,9 +1898,9 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         internal static ICurve TrimEdgeSplineWithNodeBoundaries(ICurve sourceBoundary,
             ICurve targetBoundary, ICurve spline,
             bool narrowestInterval) {
-            
-            var start = spline.ParStart;
-            var end = spline.ParEnd;
+
+            double start = spline.ParStart;
+            double end = spline.ParEnd;
             if (sourceBoundary != null)
                 FindNewStart(spline, ref start, sourceBoundary, narrowestInterval);
             if (targetBoundary != null)
@@ -2027,21 +1960,20 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <returns></returns>
         public static Polyline PolylineAroundClosedCurve(ICurve curve) {
             Polyline ret;
-            var ellipse = curve as Ellipse;
-            if (ellipse != null)
+            if (curve is Ellipse ellipse)
                 ret = RefineEllipse(ellipse);
-            else {
-                var poly = curve as Polyline;
-                if (poly != null)
+            else
+            {
+                if (curve is Polyline poly)
                     return poly;
-                var c = curve as Curve;
-                if (c != null && AllSegsAreLines(c)) {
+                if (curve is Curve c && AllSegsAreLines(c))
+                {
                     ret = new Polyline();
                     foreach (LineSegment ls in c.Segments)
                         ret.AddPoint(ls.Start);
                     ret.Closed = true;
                     if (!ret.IsClockwise())
-                        ret = (Polyline) ret.Reverse();
+                        ret = (Polyline)ret.Reverse();
                 }
                 else
                     ret = StandardRectBoundary(curve);
@@ -2063,7 +1995,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <returns></returns>
         static Polyline RefineEllipse(Ellipse ellipse) {
             Polyline rect = StandardRectBoundary(ellipse);
-            var dict = new SortedDictionary<double, Point>();
+            SortedDictionary<double, Point> dict = new SortedDictionary<double, Point>();
             double a = Math.PI/4;
             double w = ellipse.BoundingBox.Width;
             double h = ellipse.BoundingBox.Height;
@@ -2073,7 +2005,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
                 Point p = ellipse[t]; //point on the ellipse
                 Point tan = l*(ellipse.Derivative(t).Normalize()); //make it long enough
 
-                var ls = new LineSegment(p - tan, p + tan);
+                LineSegment ls = new LineSegment(p - tan, p + tan);
                 //System.Diagnostics.Debug.Assert(ls.Start.X > -10000);
                 foreach (IntersectionInfo ix in GetAllIntersections(rect, ls, true))
                     dict[ix.Par0] = ix.IntersectionPoint;
@@ -2093,7 +2025,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// </summary>
         /// <returns></returns>
         public static Polyline PolyFromBox(Rectangle rectangle) {
-            var p = new Polyline();
+            Polyline p = new Polyline();
             p.AddPoint(rectangle.LeftTop);
             p.AddPoint(rectangle.RightTop);
             p.AddPoint(rectangle.RightBottom);
@@ -2107,7 +2039,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// </summary>
         internal static Curve CreateLineCurve(List<Point> route) {
             ValidateArg.IsNotNull(route, "route");
-            var curve = new Curve(route.Count);
+            Curve curve = new Curve(route.Count);
             for (int i = 0; i + 1 < route.Count; i++) curve.AddSegment(new LineSegment(route[i], route[i + 1]));
             return curve;
         }

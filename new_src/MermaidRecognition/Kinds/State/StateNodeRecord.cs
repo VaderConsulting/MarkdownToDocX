@@ -1,6 +1,6 @@
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 
-namespace MermaidRecognition.State;
+namespace MermaidRecognition.Kinds.State;
 
 /// <summary>
 /// Parse-time state node record.
@@ -11,75 +11,35 @@ public sealed class StateNodeRecord
 
     public string Id
     {
-        get
-        {
-            return _Id;
-        }
-        set
-        {
-            _Id = value;
-        }
+        get => _Id; set => _Id = value;
     }
 
     private string? _Label;
 
     public string? Label
     {
-        get
-        {
-            return _Label;
-        }
-        set
-        {
-            _Label = value;
-        }
+        get => _Label; set => _Label = value;
     }
 
     private string? _StateType;
 
     public string? StateType
     {
-        get
-        {
-            return _StateType;
-        }
-        set
-        {
-            _StateType = value;
-        }
+        get => _StateType; set => _StateType = value;
     }
 
     private string? _ParentGroupId;
 
     public string? ParentGroupId
     {
-        get
-        {
-            return _ParentGroupId;
-        }
-        set
-        {
-            _ParentGroupId = value;
-        }
+        get => _ParentGroupId; set => _ParentGroupId = value;
     }
 
-    private readonly List<string> _Classes = new List<string>();
+    private readonly List<string> _Classes = [];
 
-    public List<string> ClassesMutable
-    {
-        get
-        {
-            return _Classes;
-        }
-    }
+    public List<string> ClassesMutable => _Classes;
 
     private readonly RecognitionStyle _InlineStyle = new RecognitionStyle();
 
-    public RecognitionStyle InlineStyle
-    {
-        get
-        {
-            return _InlineStyle;
-        }
-    }
+    public RecognitionStyle InlineStyle => _InlineStyle;
 }

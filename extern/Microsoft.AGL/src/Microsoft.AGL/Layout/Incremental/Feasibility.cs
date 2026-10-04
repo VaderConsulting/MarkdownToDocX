@@ -48,21 +48,25 @@ namespace Microsoft.AGL.Layout.Incremental
                 //{
                 //    RemoveOverlapsOnEqualityConstraints(dblVpad, dblHpad, horizontalConstraints, verticalConstraints);
                 //}
-                var hsSolver = new AxisSolver(true, nodes, clusterHierarchies,
-                                             level >= 2 && settings.AvoidOverlaps, level, clusterSettings);
-                hsSolver.structuralConstraints = horizontalConstraints;
-                hsSolver.OverlapRemovalParameters = new Core.Geometry.OverlapRemovalParameters
+                AxisSolver hsSolver = new AxisSolver(true, nodes, clusterHierarchies,
+                                             level >= 2 && settings.AvoidOverlaps, level, clusterSettings)
                 {
-                    AllowDeferToVertical = true,
-                    ConsiderProportionalOverlap = settings.IdealEdgeLength.EdgeDirectionConstraints != Core.Geometry.Directions.None
+                    structuralConstraints = horizontalConstraints,
+                    OverlapRemovalParameters = new Core.Geometry.OverlapRemoval.OverlapRemovalParameters
+                    {
+                        AllowDeferToVertical = true,
+                        ConsiderProportionalOverlap = settings.IdealEdgeLength.EdgeDirectionConstraints != Core.Geometry.Directions.None
+                    }
                 };
                 hsSolver.Initialize(dblHpad, dblVpad, dblCHpad, dblCVpad, v => v.Center);
                 hsSolver.SetDesiredPositions();
                 hsSolver.Solve();
                 ResetPositions(nodes);
-                var vsSolver = new AxisSolver(false, nodes, clusterHierarchies,
-                                             level >= 2 && settings.AvoidOverlaps, level, clusterSettings);
-                vsSolver.structuralConstraints = verticalConstraints;
+                AxisSolver vsSolver = new AxisSolver(false, nodes, clusterHierarchies,
+                                             level >= 2 && settings.AvoidOverlaps, level, clusterSettings)
+                {
+                    structuralConstraints = verticalConstraints
+                };
                 vsSolver.Initialize(dblHpad, dblVpad, dblCHpad, dblCVpad, v => v.Center);
                 vsSolver.SetDesiredPositions();
                 vsSolver.Solve();
@@ -93,7 +97,7 @@ namespace Microsoft.AGL.Layout.Incremental
         //               from c in verticalEqualityConstraints
         //               select (FiNode)c.TopNode.AlgorithmData).AsEnumerable();
         //    var hSolver = new AxisSolver(true, vvs, null, true, 2);
-        //    hSolver.OverlapRemovalParameters = new Core.Geometry.OverlapRemovalParameters
+        //    hSolver.OverlapRemovalParameters = new Core.Geometry.OverlapRemoval.OverlapRemovalParameters
         //    {
         //        AllowDeferToVertical = false
         //    };

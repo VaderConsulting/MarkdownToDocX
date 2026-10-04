@@ -14,44 +14,41 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
     // directions at those intersection points.
     internal class GroupBoundaryCrossingMap {
         // Note:  Like VisibilityGraph, this does not use PointComparer but assumes already-rounded key values.
-        readonly Dictionary<Point, List<GroupBoundaryCrossing>> pointCrossingMap = new Dictionary<Point, List<GroupBoundaryCrossing>>();
+        readonly Dictionary<Point, List<GroupBoundaryCrossing>> pointCrossingMap = [];
 
-        internal int Count { get { return pointCrossingMap.Count; } }
+        internal int Count => pointCrossingMap.Count;
 
         internal GroupBoundaryCrossing AddIntersection(Point intersection, Obstacle group, Directions dirToInside) {
-            List<GroupBoundaryCrossing> crossings;
-            if (!pointCrossingMap.TryGetValue(intersection, out crossings)) {
-                crossings = new List<GroupBoundaryCrossing>();
+            if (!pointCrossingMap.TryGetValue(intersection, out List<GroupBoundaryCrossing>? crossings))
+            {
+                crossings = [];
                 pointCrossingMap[intersection] = crossings;
             }
 
             // We may hit the same point on neighbor traversal in multiple directions.  We will have more than one item
             // in this list only if there are multiple group boundaries at this point, which should be unusual.
-            var crossingsCount = crossings.Count;       // cache for perf
+            int crossingsCount = crossings.Count;       // cache for perf
             for (int ii = 0; ii < crossingsCount; ++ii) {
-                var crossing = crossings[ii];
+                GroupBoundaryCrossing crossing = crossings[ii];
                 if (crossing.Group == group) {
                     // At a given location for a given group, there is only one valid dirToInside.
                     Debug.Assert(dirToInside == crossing.DirectionToInside, "Mismatched dirToInside");
                     return crossing;
                 }
             }
-            var newCrossing = new GroupBoundaryCrossing(group, dirToInside);
+            GroupBoundaryCrossing newCrossing = new GroupBoundaryCrossing(group, dirToInside);
             crossings.Add(newCrossing);
             return newCrossing;
         }
 
         internal List<GroupBoundaryCrossing> GetCrossings(Point intersection) {
-            List<GroupBoundaryCrossing> crossings;
-            pointCrossingMap.TryGetValue(intersection, out crossings);
+            pointCrossingMap.TryGetValue(intersection, out List<GroupBoundaryCrossing>? crossings);
             return crossings;
         }
 
-        internal void Clear() {
-            pointCrossingMap.Clear();
-        }
+        internal void Clear() => pointCrossingMap.Clear();
 
-        readonly List<Point> pointList = new List<Point>();
+        readonly List<Point> pointList = [];
 
         internal PointAndCrossingsList GetOrderedListBetween(Point start, Point end) {
             if (0 == pointCrossingMap.Count) {
@@ -66,15 +63,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 
             // Start and end are inclusive.
             pointList.Clear();
-            foreach (var intersection in pointCrossingMap.Keys) {
+            foreach (Point intersection in pointCrossingMap.Keys) {
                 if ((PointComparer.Compare(intersection, start) >= 0) && (PointComparer.Compare(intersection, end) <= 0)) {
                     pointList.Add(intersection);
                 }
             }
 
             pointList.Sort();
-            var pointAndCrossingList = new PointAndCrossingsList();
-            var numCrossings = pointList.Count;
+            PointAndCrossingsList pointAndCrossingList = new PointAndCrossingsList();
+            int numCrossings = pointList.Count;
             for (int ii = 0; ii < numCrossings; ++ii) {
                 Point intersect = pointList[ii];
                 pointAndCrossingList.Add(intersect, pointCrossingMap[intersect]);
@@ -85,8 +82,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         /// <summary>
         /// </summary>
         /// <returns></returns>
-        public override string ToString() {
-            return string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0}", pointCrossingMap.Count);
-        }
+        public override string ToString() => string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0}", pointCrossingMap.Count);
     }
 }

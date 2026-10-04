@@ -16,21 +16,17 @@ namespace Microsoft.AGL.Core.Geometry {
         /// <summary>
         /// used to calculate the first control points: the formula is kPrev * a + (1 - kPrev) * b
         /// </summary>
-        public double PreviousBezierSegmentFitCoefficient {
-            get { return previouisBezierCoefficient; }
-            set { previouisBezierCoefficient = value; }
+        public double PreviousBezierSegmentFitCoefficient { get => previouisBezierCoefficient; set => previouisBezierCoefficient = value;
         }
         /// <summary>
         /// the coeffiecient used to calculate the third and the fourth control points of the 
         /// Bezier segment for the fillet at the site
         /// </summary>
-         double nextBezierCoefficient = 0.5;
+        double nextBezierCoefficient = 0.5;
         /// <summary>
         /// the coefficient tells how tight the segment fits to the segment after the site; the formula is kNext * c + (1 - kNext) * b
         /// </summary>
-        public double NextBezierSegmentFitCoefficient {
-            get { return nextBezierCoefficient; }
-            set { nextBezierCoefficient = value; }
+        public double NextBezierSegmentFitCoefficient { get => nextBezierCoefficient; set => nextBezierCoefficient = value;
         }
 
         double previousTangentCoefficient=1.0/3;
@@ -38,9 +34,7 @@ namespace Microsoft.AGL.Core.Geometry {
         ///<summary>
         ///used to calculate the second control point
         ///</summary>
-        public double PreviousTangentCoefficient {
-            get { return previousTangentCoefficient; }
-            set { previousTangentCoefficient = value; }
+        public double PreviousTangentCoefficient { get => previousTangentCoefficient; set => previousTangentCoefficient = value;
         }
         double nextTangentCoefficient = 1.0 / 3;
 
@@ -48,49 +42,39 @@ namespace Microsoft.AGL.Core.Geometry {
         ///used to calculate the third control point
         ///</summary>
         public double NextTangentCoefficient
-        {
-            get { return nextTangentCoefficient; }
-            set { nextTangentCoefficient = value; }
+        { get => nextTangentCoefficient; set => nextTangentCoefficient = value;
         }
 
         //   internal double par;
-         Point point;
+        Point point;
 
         /// <summary>
         /// gets the site point
         /// </summary>
-        public Point Point {
-            get { return point; }
-            set { point = value; }
+        public Point Point { get => point; set => point = value;
         }
 
-         Site prev;
+        Site prev;
 /// <summary>
 /// gets the previous site
 /// </summary>
 		public Site Previous
-		{
-            get { return prev; }
-            set { prev = value; }
+        { get => prev; set => prev = value;
         }
 
-         Site next;
+        Site next;
 /// <summary>
 /// gets the next site
 /// </summary>
 		public Site Next
-		{
-            get { return next; }
-            set { next = value; }
+        { get => next; set => next = value;
         }
         internal Site() { }
         /// <summary>
         /// the constructor
         /// </summary>
         /// <param name="sitePoint"></param>
-        public Site(Point sitePoint) {
-            point = sitePoint;
-        }
+        public Site(Point sitePoint) => point = sitePoint;
         /// <summary>
         /// a constructor
         /// </summary>
@@ -123,25 +107,25 @@ namespace Microsoft.AGL.Core.Geometry {
         
         internal double Turn {
             get {
-                if (this.Next == null || this.Previous == null)
+                if (Next == null || Previous == null)
                     return 0;
                 return Point.SignedDoubledTriangleArea(Previous.Point, Point, Next.Point);
             }
         }
 
         internal Site Clone() {
-            Site s = new Site();
-            s.PreviousBezierSegmentFitCoefficient = PreviousBezierSegmentFitCoefficient;
-            s.Point = Point;
+            Site s = new Site
+            {
+                PreviousBezierSegmentFitCoefficient = PreviousBezierSegmentFitCoefficient,
+                Point = Point
+            };
             return s;
         }
-/// <summary>
-/// 
-/// </summary>
-/// <returns></returns>
-        public override string ToString() {
-            return Point.ToString();
-        }
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
+        public override string ToString() => Point.ToString();
 
     }
 }

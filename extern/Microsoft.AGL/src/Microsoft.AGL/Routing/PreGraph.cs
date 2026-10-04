@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -18,7 +18,7 @@ namespace Microsoft.AGL.Routing {
             edgeGeometries = new List<EdgeGeometry>(egs);
             this.nodeBoundaries = new Set<ICurve>(nodeBoundaries);
             boundingBox = Rectangle.CreateAnEmptyBox();
-            foreach (var curve in nodeBoundaries)
+            foreach (ICurve curve in nodeBoundaries)
                 boundingBox.Add(curve.BoundingBox);
         }
 

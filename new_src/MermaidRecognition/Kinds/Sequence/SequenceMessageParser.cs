@@ -1,4 +1,4 @@
-namespace MermaidRecognition.Sequence;
+namespace MermaidRecognition.Kinds.Sequence;
 
 /// <summary>
 /// Parsed sequence message from a source line.
@@ -9,84 +9,42 @@ public sealed class SequenceMessageParseResult
 
     public string SourceId
     {
-        get
-        {
-            return _SourceId;
-        }
-        set
-        {
-            _SourceId = value;
-        }
+        get => _SourceId; set => _SourceId = value;
     }
 
     private string _TargetId = string.Empty;
 
     public string TargetId
     {
-        get
-        {
-            return _TargetId;
-        }
-        set
-        {
-            _TargetId = value;
-        }
+        get => _TargetId; set => _TargetId = value;
     }
 
     private string? _Label;
 
     public string? Label
     {
-        get
-        {
-            return _Label;
-        }
-        set
-        {
-            _Label = value;
-        }
+        get => _Label; set => _Label = value;
     }
 
     private string _ArrowToken = string.Empty;
 
     public string ArrowToken
     {
-        get
-        {
-            return _ArrowToken;
-        }
-        set
-        {
-            _ArrowToken = value;
-        }
+        get => _ArrowToken; set => _ArrowToken = value;
     }
 
     private string? _ActivateTargetId;
 
     public string? ActivateTargetId
     {
-        get
-        {
-            return _ActivateTargetId;
-        }
-        set
-        {
-            _ActivateTargetId = value;
-        }
+        get => _ActivateTargetId; set => _ActivateTargetId = value;
     }
 
     private string? _DeactivateSourceId;
 
     public string? DeactivateSourceId
     {
-        get
-        {
-            return _DeactivateSourceId;
-        }
-        set
-        {
-            _DeactivateSourceId = value;
-        }
+        get => _DeactivateSourceId; set => _DeactivateSourceId = value;
     }
 }
 

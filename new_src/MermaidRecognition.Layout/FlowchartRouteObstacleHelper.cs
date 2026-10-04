@@ -36,9 +36,7 @@ public static class FlowchartRouteObstacleHelper
     public static bool CentreChordIntersectsSpineCorridor(
         FlowchartLayoutNodeBounds SourceBounds,
         FlowchartLayoutNodeBounds TargetBounds,
-        FlowchartSpineCorridorBounds Corridor)
-    {
-        return SegmentIntersectsRectangleInterior(
+        FlowchartSpineCorridorBounds Corridor) => SegmentIntersectsRectangleInterior(
             SourceBounds.CenterX,
             SourceBounds.CenterY,
             TargetBounds.CenterX,
@@ -47,7 +45,6 @@ public static class FlowchartRouteObstacleHelper
             Corridor.Top,
             Corridor.Right,
             Corridor.Bottom);
-    }
 
     /// <summary>
     /// Returns true when a horizontal chord between two attach points intersects an unrelated node body.
@@ -213,13 +210,10 @@ public static class FlowchartRouteObstacleHelper
         double RectangleLeft,
         double RectangleTop,
         double RectangleRight,
-        double RectangleBottom)
-    {
-        return PointX >= RectangleLeft
+        double RectangleBottom) => PointX >= RectangleLeft
             && PointX <= RectangleRight
             && PointY <= RectangleTop
             && PointY >= RectangleBottom;
-    }
 
     private static bool LineIntersectsLine(
         double Line1StartX,

@@ -29,7 +29,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         internal bool BundleAvoidsObstacles(Station v, Station u, Point vPosition, Point uPosition, double upperBound,
             out List<Tuple<Point, Point>> closestDist) {
 
-            closestDist = new List<Tuple<Point, Point>>();
+            closestDist = [];
             //return true;
 
             Set<Polyline> obstaclesToIgnore = metroGraphData.looseIntersections.ObstaclesToIgnoreForBundle(v, u);
@@ -38,7 +38,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
             //Polyline bundle = Intersections.Create4gon(vPosition, uPosition, upperBound, upperBound);
 
-            foreach (var item in closeObstacles) {
+            foreach (KeyValuePair<Polyline, Tuple<Point, Point>> item in closeObstacles) {
                 Tuple<Point, Point> dist = item.Value;
 
                 //TODO: get rif od this call!
@@ -54,12 +54,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         internal bool HubAvoidsObstacles(Station v, Point vPosition, double upperBound,
             out List<double> closestDist) {
 
-            closestDist = new List<double>();
+            closestDist = [];
             Set<Polyline> obstaclesToIgnore = metroGraphData.looseIntersections.ObstaclesToIgnoreForHub(v);
             Dictionary<Polyline, double> closeObstacles = FindCloseObstaclesForHub(v.CdtTriangle, v.Position, vPosition, obstaclesToIgnore, upperBound);
             if (closeObstacles == null) return false;
 
-            foreach (var item in closeObstacles) {
+            foreach (KeyValuePair<Polyline, double> item in closeObstacles) {
                 double dist = item.Value;
 
                 closestDist.Add(dist);
@@ -74,29 +74,27 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         Dictionary<Polyline, Tuple<Point, Point>> FindCloseObstaclesForBundle(CdtTriangle startTriangle, Point start,
                                                                               Point end, Set<Polyline> obstaclesToIgnore,
                                                                               double upperBound) {
-            var obstacles = new Dictionary<Polyline, Tuple<Point, Point>>();
-            List<CdtTriangle> list;
-            if (!ThreadLineSegmentThroughTriangles(startTriangle, start, end, obstaclesToIgnore, out list))
+            Dictionary<Polyline, Tuple<Point, Point>> obstacles = new Dictionary<Polyline, Tuple<Point, Point>>();
+            if (!ThreadLineSegmentThroughTriangles(startTriangle, start, end, obstaclesToIgnore, out List<CdtTriangle>? list))
                 return null;
 
             if (!ComputeForcesForBundles && !bundlingSettings.HighestQuality)
                 return obstacles;
 
-            var checkedSites = new HashSet<CdtSite>();
+            HashSet<CdtSite> checkedSites = new HashSet<CdtSite>();
 
-            foreach (var t in list) {
-                foreach (var s in t.Sites) {
+            foreach (CdtTriangle t in list) {
+                foreach (CdtSite s in t.Sites) {
                     if (!checkedSites.Add(s)) continue;
 
-                    var poly = (Polyline) s.Owner;
+                    Polyline poly = (Polyline) s.Owner;
                     if (obstaclesToIgnore.Contains(poly)) continue;
 
                     PolylinePoint pp = FindPolylinePoint(poly, s.Point);
-                    double par11, par12, par21, par22;
                     double d12 = LineSegment.MinDistBetweenLineSegments(pp.Point, pp.NextOnPolyline.Point, start, end,
-                                                                  out par11, out par12);
+                                                                  out double par11, out double par12);
                     double d22 = LineSegment.MinDistBetweenLineSegments(pp.Point, pp.PrevOnPolyline.Point, start, end,
-                                                                  out par21, out par22);
+                                                                  out double par21, out double par22);
                     Point r1, r2;
                     double dist;
                     if (d12 < d22) {
@@ -113,8 +111,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                     }
                     //if (dist > upperBound) continue;
 
-                    Tuple<Point, Point> currentValue;
-                    if (!obstacles.TryGetValue(poly, out currentValue))
+                    if (!obstacles.TryGetValue(poly, out Tuple<Point, Point>? currentValue))
                         obstacles.Add(poly, new Tuple<Point, Point>(r1, r2));
                 }
             }
@@ -123,19 +120,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         Dictionary<Polyline, double> FindCloseObstaclesForHub(CdtTriangle startTriangle, Point start, Point end, Set<Polyline> obstaclesToIgnore, double upperBound) {
-            var obstacles = new Dictionary<Polyline, double>();
-            List<CdtTriangle> nearestTriangles;
-            if (!ThreadLineSegmentThroughTriangles(startTriangle, start, end, obstaclesToIgnore, out nearestTriangles))
+            Dictionary<Polyline, double> obstacles = new Dictionary<Polyline, double>();
+            if (!ThreadLineSegmentThroughTriangles(startTriangle, start, end, obstaclesToIgnore, out List<CdtTriangle>? nearestTriangles))
                 return null;
 
-            var checkedSites = new HashSet<CdtSite>();
+            HashSet<CdtSite> checkedSites = new HashSet<CdtSite>();
 
-            foreach (var t in nearestTriangles) {
-                foreach (var s in t.Sites) {
+            foreach (CdtTriangle t in nearestTriangles) {
+                foreach (CdtSite s in t.Sites) {
                     CheckSite(end, obstaclesToIgnore, checkedSites, s, upperBound, obstacles);
 
-                    var edge = t.OppositeEdge(s);
-                    var ot = edge.GetOtherTriangle(t);
+                    CdtEdge edge = t.OppositeEdge(s);
+                    CdtTriangle ot = edge.GetOtherTriangle(t);
                     if (ot != null) {
                         CheckSite(end, obstaclesToIgnore, checkedSites, ot.OppositeSite(edge), upperBound, obstacles);
                     }
@@ -148,22 +144,22 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         void CheckSite(Point end, Set<Polyline> obstaclesToIgnore, HashSet<CdtSite> checkedSites, CdtSite s, double upperBound, Dictionary<Polyline, double> obstacles) {
             if (!checkedSites.Add(s)) return;
 
-            var poly = (Polyline)s.Owner;
+            Polyline poly = (Polyline)s.Owner;
             if (obstaclesToIgnore.Contains(poly)) return;
 
             //distance to the obstacle
             PolylinePoint pp = FindPolylinePoint(poly, s.Point);
-            double par;
-            double d12 = Point.DistToLineSegment(end, pp.Point, pp.NextOnPolyline.Point, out par);
+            double d12 = Point.DistToLineSegment(end, pp.Point, pp.NextOnPolyline.Point, out double par);
             double d22 = Point.DistToLineSegment(end, pp.Point, pp.PrevOnPolyline.Point, out par);
             double dist = Math.Min(d12, d22);
             if (dist > upperBound) return;
 
-            double currentValue;
-            if (!obstacles.TryGetValue(poly, out currentValue)) {
+            if (!obstacles.TryGetValue(poly, out double currentValue))
+            {
                 obstacles.Add(poly, dist);
             }
-            else if (currentValue > dist) {
+            else if (currentValue > dist)
+            {
                 obstacles[poly] = dist;
             }
         }
@@ -174,22 +170,22 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         bool ThreadLineSegmentThroughTriangles(CdtTriangle currentTriangle, Point start, Point end, Set<Polyline> obstaclesToIgnore,
             out List<CdtTriangle> triangles) {
             Debug.Assert(Cdt.PointIsInsideOfTriangle(start, currentTriangle));
-            triangles = new List<CdtTriangle>();
+            triangles = [];
 
             if (Cdt.PointIsInsideOfTriangle(end, currentTriangle)) {
                 triangles.Add(currentTriangle);
                 return true;
             }
 
-            var threader = new CdtThreader(currentTriangle, start, end);
+            CdtThreader threader = new CdtThreader(currentTriangle, start, end);
             triangles.Add(currentTriangle);
 
             while (threader.MoveNext()) {
                 triangles.Add(threader.CurrentTriangle);
-                var piercedEdge = threader.CurrentPiercedEdge;
+                CdtEdge? piercedEdge = threader.CurrentPiercedEdge;
                 if (piercedEdge.Constrained) {
                     Debug.Assert(piercedEdge.lowerSite.Owner == piercedEdge.upperSite.Owner);
-                    var poly = (Polyline) piercedEdge.lowerSite.Owner;
+                    Polyline poly = (Polyline) piercedEdge.lowerSite.Owner;
                     if (!obstaclesToIgnore.Contains(poly)) return false;
                 }                
             }
@@ -219,7 +215,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         static internal int GetHyperplaneSign(Point start, Point end, CdtSite cdtSite) {
-            var area = Point.SignedDoubledTriangleArea(start, cdtSite.Point, end);
+            double area = Point.SignedDoubledTriangleArea(start, cdtSite.Point, end);
             if (area > ApproximateComparer.DistanceEpsilon) return 1;
             if (area < -ApproximateComparer.DistanceEpsilon) return -1;
             return 0;
@@ -228,7 +224,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         internal static PointLocation PointLocationInsideTriangle(Point p, CdtTriangle triangle) {
             bool seenBoundary=false;
             for (int i = 0; i < 3; i++) {
-                var area = Point.SignedDoubledTriangleArea(p, triangle.Sites[i].Point, triangle.Sites[i + 1].Point);
+                double area = Point.SignedDoubledTriangleArea(p, triangle.Sites[i].Point, triangle.Sites[i + 1].Point);
                 if (area < -ApproximateComparer.DistanceEpsilon)
                     return PointLocation.Outside;
                 if (area < ApproximateComparer.DistanceEpsilon)
@@ -240,7 +236,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
         
         static PolylinePoint FindPolylinePoint(Polyline poly, Point point) {
-            foreach (var ppp in poly.PolylinePoints)
+            foreach (PolylinePoint ppp in poly.PolylinePoints)
                 if (ppp.Point == point)
                     return ppp;
 
@@ -252,9 +248,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         /// otherwise it calulates distances to the closest obstacles
         /// </summary>
         internal bool EdgeIsLegal(Station v, Station u, Point vPosition, Point uPosition) {
-            List<CdtTriangle> list;
             Set<Polyline> obstaclesToIgnore = metroGraphData.looseIntersections.ObstaclesToIgnoreForBundle(v, u);
-            return ThreadLineSegmentThroughTriangles(v.CdtTriangle, vPosition, uPosition, obstaclesToIgnore, out list);
+            return ThreadLineSegmentThroughTriangles(v.CdtTriangle, vPosition, uPosition, obstaclesToIgnore, out List<CdtTriangle>? list);
         }
 
         /// <summary>
@@ -262,7 +257,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         /// otherwise it calulates distances to the closest obstacles
         /// </summary>
         internal bool EdgeIsLegal(Station v, Station u, Point vPosition, Point uPosition, Set<Polyline> obstaclesToIgnore) {
-            var start = v.Position;
+            Point start = v.Position;
 
             CdtTriangle currentTriangle = v.CdtTriangle;
             Debug.Assert(Cdt.PointIsInsideOfTriangle(start, currentTriangle));
@@ -272,13 +267,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 return true;
             }
 
-            var threader = new CdtThreader(currentTriangle, start, end);
+            CdtThreader threader = new CdtThreader(currentTriangle, start, end);
             
             while (threader.MoveNext()) {
-                var piercedEdge = threader.CurrentPiercedEdge;
+                CdtEdge? piercedEdge = threader.CurrentPiercedEdge;
                 if (piercedEdge.Constrained) {
                     Debug.Assert(piercedEdge.lowerSite.Owner == piercedEdge.upperSite.Owner);
-                    var poly = (Polyline)piercedEdge.lowerSite.Owner;
+                    Polyline poly = (Polyline)piercedEdge.lowerSite.Owner;
                     if (!obstaclesToIgnore.Contains(poly)) return false;
                 }
             }

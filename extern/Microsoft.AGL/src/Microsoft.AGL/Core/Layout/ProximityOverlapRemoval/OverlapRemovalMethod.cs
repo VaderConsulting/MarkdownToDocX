@@ -1,4 +1,5 @@
-namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MinimumSpanningTree {
+namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval
+{
     /// <summary>
     /// Enum containing the different overlap removal methods.
     /// </summary>

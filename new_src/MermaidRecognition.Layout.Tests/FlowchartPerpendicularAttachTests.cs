@@ -1,7 +1,9 @@
 using System.Collections.Generic;
 using System.Linq;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Core;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Layout;
 using MermaidRecognition.Render;
 
@@ -16,13 +18,13 @@ public sealed class FlowchartPerpendicularAttachTests
     [Test]
     public void BuildCurveBasisPathData_EmitsSmoothTerminalApproachIntoBoundary()
     {
-        List<(double X, double Y)> Points = new List<(double X, double Y)>
-        {
+        List<(double X, double Y)> Points =
+        [
             (0.0, 0.0),
             (0.0, 10.0),
             (50.0, 10.0),
             (50.0, 20.0)
-        };
+        ];
 
         string PathData = FlowchartCurvePathBuilder.BuildCurveBasisPathData(Points);
         Assert.That(PathData, Does.StartWith("M0,0L0,10"));
@@ -33,13 +35,13 @@ public sealed class FlowchartPerpendicularAttachTests
     [Test]
     public void BuildCurveBasisPathData_FirstControlPointExtendsAlongSourceStubTangent()
     {
-        List<(double X, double Y)> Points = new List<(double X, double Y)>
-        {
+        List<(double X, double Y)> Points =
+        [
             (0.0, 0.0),
             (0.0, 10.0),
             (30.0, 40.0),
             (30.0, 50.0)
-        };
+        ];
 
         string PathData = FlowchartCurvePathBuilder.BuildCurveBasisPathData(Points);
         Assert.That(PathData, Does.Match(@"M0,0L0,10C0,12[\d\.]* "));
@@ -48,14 +50,14 @@ public sealed class FlowchartPerpendicularAttachTests
     [Test]
     public void BuildCurveBasisPathData_FivePointRoute_CurvesThroughTargetStubWithSmoothTerminal()
     {
-        List<(double X, double Y)> Points = new List<(double X, double Y)>
-        {
+        List<(double X, double Y)> Points =
+        [
             (0.0, 0.0),
             (0.0, 10.0),
             (20.0, 30.0),
             (40.0, 50.0),
             (40.0, 60.0)
-        };
+        ];
 
         string PathData = FlowchartCurvePathBuilder.BuildCurveBasisPathData(Points);
         Assert.That(PathData, Does.Contain("C"));
@@ -67,15 +69,15 @@ public sealed class FlowchartPerpendicularAttachTests
     [Test]
     public void BuildCurveBasisPathData_SixPointRoute_IncludesMultipleCurveSegmentsBeforeTerminal()
     {
-        List<(double X, double Y)> Points = new List<(double X, double Y)>
-        {
+        List<(double X, double Y)> Points =
+        [
             (0.0, 0.0),
             (0.0, 10.0),
             (10.0, 30.0),
             (40.0, 30.0),
             (40.0, 50.0),
             (40.0, 60.0)
-        };
+        ];
 
         string PathData = FlowchartCurvePathBuilder.BuildCurveBasisPathData(Points);
         int CurveSegmentCount = PathData.Split('C').Length - 1;
@@ -116,11 +118,11 @@ public sealed class FlowchartPerpendicularAttachTests
             Height = 40.0
         };
 
-        List<(double X, double Y)> LayoutPoints = new List<(double X, double Y)>
-        {
+        List<(double X, double Y)> LayoutPoints =
+        [
             (100.0, 180.0),
             (100.0, 100.0)
-        };
+        ];
 
         (double LabelX, double LabelY) = FlowchartEdgeLabelPlacementHelper.ComputeSpineMidspanEdgeLabelPosition(
             SourceBounds,
@@ -135,13 +137,13 @@ public sealed class FlowchartPerpendicularAttachTests
     [Test]
     public void ComputeOffsetLabelPosition_UsesHalfPolylineDistance()
     {
-        List<(double X, double Y)> GuidePoints = new List<(double X, double Y)>
-        {
+        List<(double X, double Y)> GuidePoints =
+        [
             (0.0, 0.0),
             (0.0, 10.0),
             (20.0, 30.0),
             (40.0, 50.0)
-        };
+        ];
 
         (double LabelX, double LabelY) = FlowchartEdgeLabelPlacementHelper.ComputeOffsetLabelPosition(GuidePoints);
         (double ExpectedX, double ExpectedY) = FlowchartEdgeLabelPlacementHelper.ComputePolylineHalfDistancePosition(GuidePoints);
@@ -156,12 +158,12 @@ public sealed class FlowchartPerpendicularAttachTests
         FlowchartLayoutNodeBounds Diamond = BuildBounds("D", 100.0, 100.0, 80.0, 80.0);
         FlowchartLayoutNodeBounds Target = BuildBounds("T", 40.0, 40.0, 80.0, 40.0);
         double Half = 40.0;
-        List<(double X, double Y)> Points = new List<(double X, double Y)>
-        {
+        List<(double X, double Y)> Points =
+        [
             (100.0 - (Half / 2.0), 100.0 + (Half / 2.0)),
             (60.0, 60.0),
             (40.0, 60.0)
-        };
+        ];
 
         List<(double X, double Y)> Expanded = FlowchartEdgeTerminalStubExpander.Apply(
             Points,
@@ -181,14 +183,14 @@ public sealed class FlowchartPerpendicularAttachTests
     public void TryValidateGuidePoints_WhenVerticalStubOnHorizontalFace_ReturnsTrue()
     {
         FlowchartLayoutNodeBounds Source = BuildBounds("A", 100.0, 200.0, 80.0, 40.0);
-        List<(double X, double Y)> Points = new List<(double X, double Y)>
-        {
+        List<(double X, double Y)> Points =
+        [
             (100.0, 180.0),
             (100.0, 168.0),
             (200.0, 168.0),
             (200.0, 228.0),
             (200.0, 220.0)
-        };
+        ];
 
         bool Valid = FlowchartPerpendicularAttachValidator.TryValidateGuidePoints(
             Points,
@@ -206,12 +208,12 @@ public sealed class FlowchartPerpendicularAttachTests
     public void TryValidateGuidePoints_WhenDiagonalStubOnHorizontalFace_ReturnsFalse()
     {
         FlowchartLayoutNodeBounds Source = BuildBounds("A", 100.0, 200.0, 80.0, 40.0);
-        List<(double X, double Y)> Points = new List<(double X, double Y)>
-        {
+        List<(double X, double Y)> Points =
+        [
             (100.0, 180.0),
             (140.0, 140.0),
             (200.0, 220.0)
-        };
+        ];
 
         bool Valid = FlowchartPerpendicularAttachValidator.TryValidateGuidePoints(
             Points,
@@ -225,15 +227,12 @@ public sealed class FlowchartPerpendicularAttachTests
     }
 
     [Test]
-    public void ValidateAllVisibleEdges_F08_SimpleChain_Passes()
-    {
-        AssertAllVisibleEdgesPerpendicular(
+    public void ValidateAllVisibleEdges_F08_SimpleChain_Passes() => AssertAllVisibleEdgesPerpendicular(
             """
             flowchart LR
             A[One] --> B[Two]
             """,
             "F08");
-    }
 
     [Test]
     public void RenderToSvg_F29_SpineStraight_BranchesCurvedWithStraightTerminals()
@@ -432,9 +431,7 @@ public sealed class FlowchartPerpendicularAttachTests
     }
 
     [Test]
-    public void ValidateAllVisibleEdges_F29_BinaryDecision_Passes()
-    {
-        AssertAllVisibleEdgesPerpendicular(
+    public void ValidateAllVisibleEdges_F29_BinaryDecision_Passes() => AssertAllVisibleEdgesPerpendicular(
             """
             flowchart TD
             Start([Start]) --> Check{Valid?}
@@ -442,12 +439,9 @@ public sealed class FlowchartPerpendicularAttachTests
             Check -->|No| Fail[Reject]
             """,
             "F29");
-    }
 
     [Test]
-    public void ValidateAllVisibleEdges_F30_MultiWayDecision_Passes()
-    {
-        AssertAllVisibleEdgesPerpendicular(
+    public void ValidateAllVisibleEdges_F30_MultiWayDecision_Passes() => AssertAllVisibleEdgesPerpendicular(
             """
             flowchart TD
             A[Christmas] -->|Get money| B(Go shopping)
@@ -457,12 +451,9 @@ public sealed class FlowchartPerpendicularAttachTests
             C -->|Three| F[Other gift]
             """,
             "F30");
-    }
 
     [Test]
-    public void ValidateAllVisibleEdges_F32_FanIn_Passes()
-    {
-        AssertAllVisibleEdgesPerpendicular(
+    public void ValidateAllVisibleEdges_F32_FanIn_Passes() => AssertAllVisibleEdgesPerpendicular(
             """
             flowchart TB
             W1[Worker 1] --> Agg[Aggregate]
@@ -470,12 +461,9 @@ public sealed class FlowchartPerpendicularAttachTests
             W3[Worker 3] --> Agg
             """,
             "F32");
-    }
 
     [Test]
-    public void ValidateAllVisibleEdges_F33_ParallelWorkers_Passes()
-    {
-        AssertAllVisibleEdgesPerpendicular(
+    public void ValidateAllVisibleEdges_F33_ParallelWorkers_Passes() => AssertAllVisibleEdgesPerpendicular(
             """
             flowchart LR
             A[Ingress] --> B[Enqueue]
@@ -486,12 +474,9 @@ public sealed class FlowchartPerpendicularAttachTests
             E --> F[Out]
             """,
             "F33");
-    }
 
     [Test]
-    public void ValidateAllVisibleEdges_F34_RetryLoop_Passes()
-    {
-        AssertAllVisibleEdgesPerpendicular(
+    public void ValidateAllVisibleEdges_F34_RetryLoop_Passes() => AssertAllVisibleEdgesPerpendicular(
             """
             flowchart LR
             A[Receive] --> B{OK?}
@@ -500,12 +485,9 @@ public sealed class FlowchartPerpendicularAttachTests
             D --> A
             """,
             "F34");
-    }
 
     [Test]
-    public void ValidateAllVisibleEdges_F35_DiamondFanIn_Passes()
-    {
-        AssertAllVisibleEdgesPerpendicular(
+    public void ValidateAllVisibleEdges_F35_DiamondFanIn_Passes() => AssertAllVisibleEdgesPerpendicular(
             """
             flowchart TB
             A[Path A] --> D{Merge?}
@@ -515,12 +497,9 @@ public sealed class FlowchartPerpendicularAttachTests
             D -->|no| F[Stop]
             """,
             "F35");
-    }
 
     [Test]
-    public void ValidateAllVisibleEdges_F125_NodesFirstDiamondFanIn_Passes()
-    {
-        AssertAllVisibleEdgesPerpendicular(
+    public void ValidateAllVisibleEdges_F125_NodesFirstDiamondFanIn_Passes() => AssertAllVisibleEdgesPerpendicular(
             """
             flowchart TB
             PA[Path A]
@@ -536,12 +515,9 @@ public sealed class FlowchartPerpendicularAttachTests
             D -->|no| F
             """,
             "F125");
-    }
 
     [Test]
-    public void ValidateAllVisibleEdges_F37_CrossSubgraph_Passes()
-    {
-        AssertAllVisibleEdgesPerpendicular(
+    public void ValidateAllVisibleEdges_F37_CrossSubgraph_Passes() => AssertAllVisibleEdgesPerpendicular(
             """
             flowchart LR
             subgraph Box["Vertical stack inside horizontal diagram"]
@@ -552,24 +528,17 @@ public sealed class FlowchartPerpendicularAttachTests
             S3 --> End[End]
             """,
             "F37");
-    }
 
     [Test]
-    public void ValidateAllVisibleEdges_F61_GroupedTwoByTwo_AllowsDiagonalCrossEdges()
-    {
-        AssertAllVisibleEdgesPerpendicular(
+    public void ValidateAllVisibleEdges_F61_GroupedTwoByTwo_AllowsDiagonalCrossEdges() => AssertAllVisibleEdgesPerpendicular(
             """
             flowchart TB
             A & B --> C & D
             """,
             "F61");
-    }
 
     [TestCaseSource(nameof(CatalogueFixtureMermaidBlocks))]
-    public void ValidateAllVisibleEdges_CatalogueBatch_Passes(string FixtureId, string Mermaid)
-    {
-        AssertAllVisibleEdgesPerpendicular(Mermaid, FixtureId);
-    }
+    public void ValidateAllVisibleEdges_CatalogueBatch_Passes(string FixtureId, string Mermaid) => AssertAllVisibleEdgesPerpendicular(Mermaid, FixtureId);
 
     private static IEnumerable<TestCaseData> CatalogueFixtureMermaidBlocks()
     {
@@ -616,7 +585,7 @@ public sealed class FlowchartPerpendicularAttachTests
         Dictionary<string, NodeContract> NodeById = Contract.Nodes
             .ToDictionary(Node => Node.Id, Node => Node);
 
-        List<string> Failures = new List<string>();
+        List<string> Failures = [];
 
         foreach (EdgeContract Edge in Contract.Edges)
         {
@@ -690,9 +659,7 @@ public sealed class FlowchartPerpendicularAttachTests
         double CenterX,
         double CenterY,
         double Width,
-        double Height)
-    {
-        return new FlowchartLayoutNodeBounds
+        double Height) => new FlowchartLayoutNodeBounds
         {
             NodeId = NodeId,
             CenterX = CenterX,
@@ -700,5 +667,4 @@ public sealed class FlowchartPerpendicularAttachTests
             Width = Width,
             Height = Height
         };
-    }
 }

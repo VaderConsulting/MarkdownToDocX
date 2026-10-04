@@ -1,9 +1,11 @@
 using System.Text;
 using System.Text.RegularExpressions;
-using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
 
-namespace MermaidRecognition.Class;
+using MermaidRecognition.Contract;
+using MermaidRecognition.Core;
+using MermaidRecognition.Kinds.Flowchart;
+
+namespace MermaidRecognition.Kinds.Class;
 
 /// <summary>
 /// Maps classified class diagram source statements into <see cref="DiagramContract"/> entities (L3 G4/G5/G6/G9).
@@ -240,10 +242,7 @@ public static class ClassContractMapper
         MapToContract(Database, Contract);
     }
 
-    static IEnumerable<string> SplitTargetIds(string TargetList)
-    {
-        return TargetList.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-    }
+    static IEnumerable<string> SplitTargetIds(string TargetList) => TargetList.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
     static void ProcessClassLine(
         ClassDb Database,
@@ -287,10 +286,12 @@ public static class ClassContractMapper
         foreach (KeyValuePair<string, ClassNodeRecord> Entry in Database.ClassesById)
         {
             ClassNodeRecord Source = Entry.Value;
-            NodeContract Node = new NodeContract();
-            Node.Id = Source.Id;
-            Node.Label = Source.Label;
-            Node.ParentGroupId = Source.ParentNamespaceId;
+            NodeContract Node = new NodeContract
+            {
+                Id = Source.Id,
+                Label = Source.Label,
+                ParentGroupId = Source.ParentNamespaceId
+            };
             foreach (MermaidDeclaration Declaration in Source.DeclarationsMutable)
             {
                 Node.DeclarationsMutable.Add(Declaration);
@@ -308,10 +309,12 @@ public static class ClassContractMapper
         foreach (KeyValuePair<string, ClassNamespaceRecord> Entry in Database.NamespacesById)
         {
             ClassNamespaceRecord Source = Entry.Value;
-            GroupContract Group = new GroupContract();
-            Group.Id = Source.Id;
-            Group.Title = Source.Title;
-            Group.ParentGroupId = Source.ParentNamespaceId;
+            GroupContract Group = new GroupContract
+            {
+                Id = Source.Id,
+                Title = Source.Title,
+                ParentGroupId = Source.ParentNamespaceId
+            };
             foreach (string NodeId in Source.ChildNodeIdsMutable)
             {
                 Group.ChildNodeIdsMutable.Add(NodeId);
@@ -327,12 +330,14 @@ public static class ClassContractMapper
 
         foreach (ClassEdgeRecord Source in Database.Edges)
         {
-            EdgeContract Edge = new EdgeContract();
-            Edge.SourceId = Source.SourceId;
-            Edge.TargetId = Source.TargetId;
-            Edge.CreationIndex = Source.CreationIndex;
-            Edge.Id = GenerateEdgeId(Source.SourceId, Source.TargetId, Source.CreationIndex);
-            Edge.Label = Source.RelationLabel;
+            EdgeContract Edge = new EdgeContract
+            {
+                SourceId = Source.SourceId,
+                TargetId = Source.TargetId,
+                CreationIndex = Source.CreationIndex,
+                Id = GenerateEdgeId(Source.SourceId, Source.TargetId, Source.CreationIndex),
+                Label = Source.RelationLabel
+            };
             Edge.MetadataMutable["classRelation"] = new RawMetadata("classRelation", Source.RelationToken);
             if (Source.SourceCardinality is not null)
             {
@@ -349,8 +354,10 @@ public static class ClassContractMapper
 
         foreach (KeyValuePair<string, ClassDefContract> Entry in Database.ClassDefsById)
         {
-            ClassDefContract Copy = new ClassDefContract();
-            Copy.ClassId = Entry.Value.ClassId;
+            ClassDefContract Copy = new ClassDefContract
+            {
+                ClassId = Entry.Value.ClassId
+            };
             RecognitionStyleMerge.Apply(Entry.Value.Style, Copy.Style);
             Contract.ClassDefsMutable.Add(Copy);
         }
@@ -369,10 +376,7 @@ public static class ClassContractMapper
         }
     }
 
-    static string GenerateEdgeId(string SourceId, string TargetId, int CreationIndex)
-    {
-        return "L-" + SourceId + "-" + TargetId + "-" + CreationIndex.ToString();
-    }
+    static string GenerateEdgeId(string SourceId, string TargetId, int CreationIndex) => "L-" + SourceId + "-" + TargetId + "-" + CreationIndex.ToString();
 
     enum AccDescrParseState
     {

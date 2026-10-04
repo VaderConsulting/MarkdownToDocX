@@ -2,12 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+
 using MermaidRecognition.Layout.Sugiyama.Core.DataStructures;
 using MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms;
+using MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms.CycleRemoval;
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
 using MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver;
 
-namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
+namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
+{
     internal class ConstrainedOrdering {
         readonly GeometryGraph geometryGraph;
         readonly BasicGraph<Node, IntEdge> intGraph;
@@ -22,7 +25,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         double[][] xPositionsClone;
         int[][] yetBestLayers;
 
-        readonly List<IntEdge> verticalEdges = new List<IntEdge>();
+        readonly List<IntEdge> verticalEdges = [];
 
         readonly AdjacentSwapsWithConstraints adjSwapper;
 
@@ -41,13 +44,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             }
         }
 
-        double NodeSeparation() {
-            return settings.NodeSeparation;
-        }
+        double NodeSeparation() => settings.NodeSeparation;
 
-        double GetNodeWidth(int p) {
-            return database.anchors[p].Width;
-        }
+        double GetNodeWidth(int p) => database.anchors[p].Width;
 
         internal ConstrainedOrdering(
             GeometryGraph geomGraph,
@@ -85,50 +84,36 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         bool LayersAreDoubled { get; set; }
 
-        bool NeedToInsertLayers(int[] layering) {
-            return ExistsShortLabeledEdge(layering, intGraph.Edges) ||
+        bool NeedToInsertLayers(int[] layering) => ExistsShortLabeledEdge(layering, intGraph.Edges) ||
                    ExistsShortMultiEdge(layering, database.Multiedges);
-        }
 
-        static bool ExistsShortMultiEdge(int[] layering, Dictionary<IntPair, List<IntEdge>> multiedges) {
-            return multiedges.Any(multiedge => multiedge.Value.Count > 2 && layering[multiedge.Key.x] == 1 + layering[multiedge.Key.y]);
-        }
+        static bool ExistsShortMultiEdge(int[] layering, Dictionary<IntPair, List<IntEdge>> multiedges) => multiedges.Any(multiedge => multiedge.Value.Count > 2 && layering[multiedge.Key.x] == 1 + layering[multiedge.Key.y]);
 
         internal void Calculate() {
             AllocateXPositions();
-            var originalGraph = intGraph.Nodes[0].GeometryParent as GeometryGraph;
+            GeometryGraph? originalGraph = intGraph.Nodes[0].GeometryParent as GeometryGraph;
             LayeredLayoutEngine.CalculateAnchorSizes(database, out database.anchors, ProperLayeredGraph, originalGraph, intGraph, settings);
             LayeredLayoutEngine.CalcInitialYAnchorLocations(LayerArrays, 500, geometryGraph, database, intGraph, settings, LayersAreDoubled);
             Order();
         }
 
-        
-        ConstrainedOrderMeasure CreateMeasure() {
-            return new ConstrainedOrderMeasure(Ordering.GetCrossingsTotal(ProperLayeredGraph, LayerArrays));
-        }
 
-        double GetDeviationFromConstraints() {
-            return horizontalConstraints.VerticalInts.Sum(c => VerticalDeviationOfCouple(c)) +
+        ConstrainedOrderMeasure CreateMeasure() => new ConstrainedOrderMeasure(Ordering.GetCrossingsTotal(ProperLayeredGraph, LayerArrays));
+
+        double GetDeviationFromConstraints() => horizontalConstraints.VerticalInts.Sum(c => VerticalDeviationOfCouple(c)) +
                    horizontalConstraints.LeftRighInts.Sum(c => LeftRightConstraintDeviation(c));
-        }
 
         double LeftRightConstraintDeviation(Tuple<int, int> couple) {
-            var l = XPosition(couple.Item1);
-            var r = XPosition(couple.Item2);
+            double l = XPosition(couple.Item1);
+            double r = XPosition(couple.Item2);
             return Math.Max(0, l - r);
         }
 
-        double VerticalDeviationOfCouple(Tuple<int, int> couple) {
-            return Math.Abs(XPosition(couple.Item1) - XPosition(couple.Item2));
-        }
+        double VerticalDeviationOfCouple(Tuple<int, int> couple) => Math.Abs(XPosition(couple.Item1) - XPosition(couple.Item2));
 
-        bool HasCrossWeights() {
-            return ProperLayeredGraph.Edges.Any(le => le.CrossingWeight != 1);
-        }
+        bool HasCrossWeights() => ProperLayeredGraph.Edges.Any(le => le.CrossingWeight != 1);
 
-        static bool ExistsShortLabeledEdge(int[] layering, IEnumerable<IntEdge> edges) {
-            return edges.Any(edge => layering[edge.Source] == layering[edge.Target] + 1 && edge.Edge.Label != null);
-        }
+        static bool ExistsShortLabeledEdge(int[] layering, IEnumerable<IntEdge> edges) => edges.Any(edge => layering[edge.Source] == layering[edge.Target] + 1 && edge.Edge.Label != null);
 
         void AllocateXPositions() {
             xPositions = new double[NumberOfLayers][];
@@ -136,11 +121,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                 xPositions[i] = new double[LayerArrays.Layers[i].Length];
         }
 
-        double BlockWidth(int blockRoot) {
-            return GetNodeWidth(blockRoot) +
+        double BlockWidth(int blockRoot) => GetNodeWidth(blockRoot) +
                    horizontalConstraints.BlockRootToBlock[blockRoot].Sum(
                        l => GetNodeWidth(l) + settings.NodeSeparation);
-        }
 
         void Order() {
             CreateInitialOrderInLayers();
@@ -221,7 +204,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
         void AddGoalsToKeepFlatEdgesShort(ISolverShell solver) {
-            foreach (var layerInfo in layerInfos)
+            foreach (LayerInfo layerInfo in layerInfos)
                 AddGoalToKeepFlatEdgesShortOnBlockLevel(layerInfo, solver);
         }
 
@@ -231,25 +214,25 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
         void AddGoalsToKeepProperEdgesShort(ISolverShell solver) {
-            foreach (var edge in ProperLayeredGraph.Edges)
+            foreach (LayerEdge edge in ProperLayeredGraph.Edges)
                 solver.AddGoalTwoVariablesAreClose(edge.Source, edge.Target, PositionOverBaricenterWeight);
 
         }
 
         void PutVerticalConstraintsIntoSolver(ISolverShell solver) {
-            foreach (var pair in horizontalConstraints.VerticalInts) {
+            foreach (Tuple<int, int> pair in horizontalConstraints.VerticalInts) {
                 solver.AddGoalTwoVariablesAreClose(pair.Item1, pair.Item2, ConstrainedVarWeight);
             }
         }
 
         void PutLeftRightConstraintsIntoSolver(ISolverShell solver) {
-            foreach (var pair in horizontalConstraints.LeftRighInts) {
+            foreach (Tuple<int, int> pair in horizontalConstraints.LeftRighInts) {
                 solver.AddLeftRightSeparationConstraint(pair.Item1, pair.Item2, SimpleGapBetweenTwoNodes(pair.Item1, pair.Item2));
             }
         }
 
         void PutLayerNodeSeparationsIntoSolver(ISolverShell solver) {
-            foreach (var layer in LayerArrays.Layers) {
+            foreach (int[] layer in LayerArrays.Layers) {
                 for (int i = 0; i < layer.Length - 1; i++) {
                     int l = layer[i];
                     int r = layer[i + 1];
@@ -258,9 +241,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             }
         }
 
-        void ImproveWithAdjacentSwaps() {
-            adjSwapper.DoSwaps();
-        }
+        void ImproveWithAdjacentSwaps() => adjSwapper.DoSwaps();
 
         void TryPushingOutStrangersFromHorizontalBlocks() {
 
@@ -277,9 +258,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         void FillLayersWithVerticalComponentsOrder(int[] order, Dictionary<int, int> nodesToVerticalComponentsRoots) {
             Dictionary<int, List<int>> componentRootsToComponents = CreateComponentRootsToComponentsMap(nodesToVerticalComponentsRoots);
-            var alreadyInLayers = new bool[LayerArrays.Y.Length];
-            var runninglayerCounts = new int[LayerArrays.Layers.Length];
-            foreach (var vertCompRoot in order)
+            bool[] alreadyInLayers = new bool[LayerArrays.Y.Length];
+            int[] runninglayerCounts = new int[LayerArrays.Layers.Length];
+            foreach (int vertCompRoot in order)
                 PutVerticalComponentIntoLayers(EnumerateVertComponent(componentRootsToComponents, vertCompRoot), runninglayerCounts, alreadyInLayers);
             for (int i = 0; i < ProperLayeredGraph.NodeCount; i++)
                 if (alreadyInLayers[i] == false)
@@ -288,18 +269,19 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
         IEnumerable<int> EnumerateVertComponent(Dictionary<int, List<int>> componentRootsToComponents, int vertCompRoot) {
-            List<int> compList;
-            if (componentRootsToComponents.TryGetValue(vertCompRoot, out compList)) {
-                foreach (var i in compList)
+            if (componentRootsToComponents.TryGetValue(vertCompRoot, out List<int>? compList))
+            {
+                foreach (int i in compList)
                     yield return i;
-            } else
+            }
+            else
                 yield return vertCompRoot;
 
         }
 
 
         void PutVerticalComponentIntoLayers(IEnumerable<int> vertComponent, int[] runningLayerCounts, bool[] alreadyInLayers) {
-            foreach (var i in vertComponent)
+            foreach (int i in vertComponent)
                 AddVertToLayers(i, runningLayerCounts, alreadyInLayers);
         }
 
@@ -309,13 +291,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             int layerIndex = LayerArrays.Y[i];
 
             int xIndex = runningLayerCounts[layerIndex];
-            var layer = LayerArrays.Layers[layerIndex];
+            int[] layer = LayerArrays.Layers[layerIndex];
 
             layer[xIndex++] = i;
             alreadyInLayers[i] = true;
-            List<int> block;
-            if (horizontalConstraints.BlockRootToBlock.TryGetValue(i, out block))
-                foreach (var v in block) {
+            if (horizontalConstraints.BlockRootToBlock.TryGetValue(i, out List<int>? block))
+                foreach (int v in block)
+                {
                     if (alreadyInLayers[v]) continue;
                     layer[xIndex++] = v;
                     alreadyInLayers[v] = true;
@@ -324,13 +306,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
         static Dictionary<int, List<int>> CreateComponentRootsToComponentsMap(Dictionary<int, int> nodesToVerticalComponentsRoots) {
-            var d = new Dictionary<int, List<int>>();
-            foreach (var kv in nodesToVerticalComponentsRoots) {
+            Dictionary<int, List<int>> d = new Dictionary<int, List<int>>();
+            foreach (KeyValuePair<int, int> kv in nodesToVerticalComponentsRoots) {
                 int i = kv.Key;
-                var root = kv.Value;
-                List<int> component;
-                if (!d.TryGetValue(root, out component)) {
-                    d[root] = component = new List<int>();
+                int root = kv.Value;
+                if (!d.TryGetValue(root, out List<int>? component))
+                {
+                    d[root] = component = [];
                 }
                 component.Add(i);
             }
@@ -338,17 +320,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
         IEnumerable<IntPair> LiftLeftRightRelationsToComponentRoots(Dictionary<int, int> nodesToVerticalComponentsRoots) {
-            foreach (var pair in horizontalConstraints.LeftRighInts)
+            foreach (Tuple<int, int> pair in horizontalConstraints.LeftRighInts)
                 yield return new IntPair(GetFromDictionaryOrIdentical(nodesToVerticalComponentsRoots, pair.Item1),
                     GetFromDictionaryOrIdentical(nodesToVerticalComponentsRoots, pair.Item2));
-            foreach (var pair in horizontalConstraints.LeftRightIntNeibs)
+            foreach (Tuple<int, int> pair in horizontalConstraints.LeftRightIntNeibs)
                 yield return new IntPair(GetFromDictionaryOrIdentical(nodesToVerticalComponentsRoots, pair.Item1),
                     GetFromDictionaryOrIdentical(nodesToVerticalComponentsRoots, pair.Item2));
         }
 
         static int GetFromDictionaryOrIdentical(Dictionary<int, int> d, int key) {
-            int i;
-            if (d.TryGetValue(key, out i))
+            if (d.TryGetValue(key, out int i))
                 return i;
             return key;
         }
@@ -358,15 +339,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// </summary>
         /// <returns></returns>
         Dictionary<int, int> CreateVerticalComponents() {
-            var vertGraph = new BasicGraph<IntEdge>(from pair in horizontalConstraints.VerticalInts select new IntEdge(pair.Item1, pair.Item2));
-            var verticalComponents = ConnectedComponentCalculator<IntEdge>.GetComponents(vertGraph);
-            var nodesToComponentRoots = new Dictionary<int, int>();
-            foreach (var component in verticalComponents) {
-                var ca = component.ToArray();
+            BasicGraph<IntEdge> vertGraph = new BasicGraph<IntEdge>(from pair in horizontalConstraints.VerticalInts select new IntEdge(pair.Item1, pair.Item2));
+            IEnumerable<IEnumerable<int>> verticalComponents = ConnectedComponentCalculator<IntEdge>.GetComponents(vertGraph);
+            Dictionary<int, int> nodesToComponentRoots = new Dictionary<int, int>();
+            foreach (IEnumerable<int> component in verticalComponents) {
+                int[] ca = component.ToArray();
                 if (ca.Length == 1)
                     continue;
                 int componentRoot = -1;
-                foreach (var j in component) {
+                foreach (int j in component) {
                     if (componentRoot == -1)
                         componentRoot = j;
                     nodesToComponentRoots[j] = componentRoot;
@@ -375,15 +356,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             return nodesToComponentRoots;
         }
 
-        void RestoreState() {
-            LayerArrays.UpdateLayers(yetBestLayers);
-        }
+        void RestoreState() => LayerArrays.UpdateLayers(yetBestLayers);
 
 #if TEST_MSAGL
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledCode")]
-        void Show() {
-            SugiyamaLayoutSettings.ShowDatabase(database);
-        }
+        void Show() => SugiyamaLayoutSettings.ShowDatabase(database);
 #endif
 
         void AverageXPositions() {
@@ -405,6 +381,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             xPositionsClone = xPositionsSaved;
         }
 
+        [System.Diagnostics.CodeAnalysis.MemberNotNull(nameof(xPositionsClone))]
         void AllocateXPositionsClone() {
             xPositionsClone = new double[xPositions.Length][];
             for (int i = 0; i < xPositions.Length; i++)
@@ -419,9 +396,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
 
-        double XPosition(int node) {
-            return database.Anchors[node].X;
-        }
+        double XPosition(int node) => database.Anchors[node].X;
 
         double GetBaricenterBelow(int v) {
             int outEdgesCount = ProperLayeredGraph.OutEdgesCount(v);
@@ -431,7 +406,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
 #if TEST_MSAGL
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1303:Do not pass literals as localized parameters", MessageId = "System.Console.Write(System.String)"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledCode")]
         static void PrintPositions(double[] positions) {
             for (int j = 0; j < positions.Length; j++)
                 Console.Write(" " + positions[j]);
@@ -442,7 +416,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         void SortLayerBasedOnSolution(int[] layer, ISolverShell solver) {
             int length = layer.Length;
-            var positions = new double[length];
+            double[] positions = new double[length];
             int k = 0;
             foreach (int v in layer)
                 positions[k++] = solver.GetVariableResolvedPosition(v);
@@ -460,8 +434,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             int layerIndex = LayerArrays.Y[l];
             int li = LayerArrays.X[l];
             int ri = LayerArrays.X[r];
-            var layerXPositions = xPositionsClone[layerIndex];
-            var gap = layerXPositions[ri] - layerXPositions[li];
+            double[] layerXPositions = xPositionsClone[layerIndex];
+            double gap = layerXPositions[ri] - layerXPositions[li];
             Debug.Assert(gap > 0);
             return gap;
         }
@@ -469,7 +443,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
     
         void AddSeparationConstraintsForFlatEdges(LayerInfo layerInfo, ISolverShell solver) {
             if (layerInfo != null) {
-                foreach (var p in layerInfo.flatEdges) {
+                foreach (Tuple<int, int> p in layerInfo.flatEdges) {
                     int left, right;
                     if (LayerArrays.X[p.Item1] < LayerArrays.X[p.Item2]) {
                         left = p.Item1;
@@ -498,18 +472,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                                                         Dictionary<int, List<int>> blockRootToList) {
             foreach (int i in collapsedSortedLayer) {
                 yield return i;
-                List<int> list;
-                if (blockRootToList !=null &&  blockRootToList.TryGetValue(i, out list))
+                if (blockRootToList != null && blockRootToList.TryGetValue(i, out List<int>? list))
                     foreach (int j in list)
                         yield return j;
             }
         }
 
 
-        static int NodeToBlockRootSoftOnLayerInfo(LayerInfo layerInfo, int node) {
-            int root;
-            return layerInfo.nodeToBlockRoot.TryGetValue(node, out root) ? root : node;
-        }
+        static int NodeToBlockRootSoftOnLayerInfo(LayerInfo layerInfo, int node) => layerInfo.nodeToBlockRoot.TryGetValue(node, out int root) ? root : node;
 
 
         //at the moment we only are looking for the order of nodes in the layer
@@ -540,13 +510,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
             AddGoalToKeepFlatEdgesShortOnBlockLevel(layerInfo, solver);
 
-            foreach (var p in layerInfo.leftRight)
+            foreach (Tuple<int, int> p in layerInfo.leftRight)
                 solver.AddLeftRightSeparationConstraint(p.Item1, p.Item2, GetGapBetweenBlockRoots(p.Item1, p.Item2));
         }
 
         static void AddGoalToKeepFlatEdgesShortOnBlockLevel(LayerInfo layerInfo, ISolverShell solver) {
             if (layerInfo != null)
-                foreach (var couple in layerInfo.flatEdges) {
+                foreach (Tuple<int, int> couple in layerInfo.flatEdges) {
                     int sourceBlockRoot = NodeToBlockRootSoftOnLayerInfo(layerInfo, couple.Item1);
                     int targetBlockRoot = NodeToBlockRootSoftOnLayerInfo(layerInfo, couple.Item2);
                     if (sourceBlockRoot != targetBlockRoot)
@@ -554,10 +524,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                 }
         }
 
-        bool IsConnectedToPrevLayer(int v, SweepMode sweepMode) {
-            return sweepMode == SweepMode.ComingFromAbove && ProperLayeredGraph.InEdgesCount(v) > 0 ||
+        bool IsConnectedToPrevLayer(int v, SweepMode sweepMode) => sweepMode == SweepMode.ComingFromAbove && ProperLayeredGraph.InEdgesCount(v) > 0 ||
                    sweepMode == SweepMode.ComingFromBelow && ProperLayeredGraph.OutEdgesCount(v) > 0;
-        }
 
         double FixedNodePosition(int v, SweepMode sweepMode) {
             Debug.Assert(sweepMode != SweepMode.Starting);
@@ -620,10 +588,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             return layerInfo.constrainedFromAbove.ContainsKey(v);
         }
 
-        internal static bool BelongsToNeighbBlock(int p, LayerInfo layerInfo) {
-            return layerInfo != null && (layerInfo.nodeToBlockRoot.ContainsKey(p) || layerInfo.neigBlocks.ContainsKey(p));
-            //p is a root of the block
-        }
+        internal static bool BelongsToNeighbBlock(int p, LayerInfo layerInfo) => layerInfo != null && (layerInfo.nodeToBlockRoot.ContainsKey(p) || layerInfo.neigBlocks.ContainsKey(p));//p is a root of the block
 
         double GetGapBetweenBlockRoots(int leftBlockRoot, int rightBlockRoot) {
             double lw = GetBlockWidth(leftBlockRoot);
@@ -652,13 +617,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             return SimpleGapBetweenTwoNodes(leftNode, rightNode);
         }
 
-        static bool NodesAreConstrainedBelow(int leftNode, int rightNode, LayerInfo layerInfo) {
-            return NodeIsConstrainedBelow(leftNode, layerInfo) && NodeIsConstrainedBelow(rightNode, layerInfo);
-        }
+        static bool NodesAreConstrainedBelow(int leftNode, int rightNode, LayerInfo layerInfo) => NodeIsConstrainedBelow(leftNode, layerInfo) && NodeIsConstrainedBelow(rightNode, layerInfo);
 
-        static bool NodesAreConstrainedAbove(int leftNode, int rightNode, LayerInfo layerInfo) {
-            return NodeIsConstrainedAbove(leftNode, layerInfo) && NodeIsConstrainedAbove(rightNode, layerInfo);
-        }
+        static bool NodesAreConstrainedAbove(int leftNode, int rightNode, LayerInfo layerInfo) => NodeIsConstrainedAbove(leftNode, layerInfo) && NodeIsConstrainedAbove(rightNode, layerInfo);
 
         static bool NodeIsConstrained(int v, SweepMode sweepMode, LayerInfo layerInfo) {
             if (sweepMode == SweepMode.Starting)
@@ -691,14 +652,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             return Math.Max(gap, SimpleGapBetweenTwoNodes(leftNode, rightNode));
         }
 
-        double SimpleGapBetweenTwoNodes(int leftNode, int rightNode) {
-            return database.anchors[leftNode].RightAnchor +
+        double SimpleGapBetweenTwoNodes(int leftNode, int rightNode) => database.anchors[leftNode].RightAnchor +
                    NodeSeparation() + database.anchors[rightNode].LeftAnchor;
-        }
 
-        internal static ISolverShell CreateSolver() {
-            return new SolverShell();
-        }
+        internal static ISolverShell CreateSolver() => new SolverShell();
 
         void PrepareProperLayeredGraphAndFillLayerInfos() {
             layerInfos = new LayerInfo[NumberOfLayers];
@@ -714,8 +671,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         void FillBlockRootToVertConstrainedNode() {
             foreach (LayerInfo layerInfo in layerInfos)
                 foreach (int v in VertConstrainedNodesOfLayer(layerInfo)) {
-                    int blockRoot;
-                    if (TryGetBlockRoot(v, out blockRoot, layerInfo))
+                    if (TryGetBlockRoot(v, out int blockRoot, layerInfo))
                         layerInfo.blockRootToVertConstrainedNodeOfBlock[blockRoot] = v;
                 }
         }
@@ -741,10 +697,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
 
         void CreateExtendedLayerArrays() {
-            var layeringExt = new int[numberOfNodesOfProperGraph];
+            int[] layeringExt = new int[numberOfNodesOfProperGraph];
             Array.Copy(initialLayering, layeringExt, initialLayering.Length);
             foreach (IntEdge edge in ProperLayeredGraph.BaseGraph.Edges) {
-                var ledges = (LayerEdge[])edge.LayerEdges;
+                LayerEdge[] ledges = (LayerEdge[])edge.LayerEdges;
                 if (ledges != null && ledges.Length > 1) {
                     int layerIndex = initialLayering[edge.Source] - 1;
                     for (int i = 0; i < ledges.Length - 1; i++)
@@ -756,14 +712,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         void CreateProperLayeredGraph() {
             IEnumerable<IntEdge> edges = CreatePathEdgesOnIntGraph();
-            var nodeCount = Math.Max(intGraph.NodeCount, BasicGraph<Node, IntEdge>.VertexCount(edges));
-            var baseGraph = new BasicGraph<Node, IntEdge>(edges, nodeCount) { Nodes = intGraph.Nodes };
+            int nodeCount = Math.Max(intGraph.NodeCount, BasicGraph<Node, IntEdge>.VertexCount(edges));
+            BasicGraph<Node, IntEdge> baseGraph = new BasicGraph<Node, IntEdge>(edges, nodeCount) { Nodes = intGraph.Nodes };
             ProperLayeredGraph = new ProperLayeredGraph(baseGraph);
         }
 
         IEnumerable<IntEdge> CreatePathEdgesOnIntGraph() {
             numberOfNodesOfProperGraph = intGraph.NodeCount;
-            var ret = new List<IntEdge>();
+            List<IntEdge> ret = new List<IntEdge>();
             foreach (IntEdge ie in intGraph.Edges) {
                 if (initialLayering[ie.Source] > initialLayering[ie.Target]) {
                     CreateLayerEdgesUnderIntEdge(ie);
@@ -805,7 +761,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                 }
             }
 
-            foreach (var p in horizontalConstraints.VerticalInts)
+            foreach (Tuple<int, int> p in horizontalConstraints.VerticalInts)
                 RegisterAboveBelowOnConstrainedUpperLower(p.Item1, p.Item2);
         }
 
@@ -827,7 +783,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
         void FillLeftRightPairs() {
-            foreach (var p in horizontalConstraints.LeftRighInts) {
+            foreach (Tuple<int, int> p in horizontalConstraints.LeftRighInts) {
                 LayerInfo layerInfo = GetOrCreateLayerInfo(initialLayering[p.Item1]);
                 layerInfo.leftRight.Insert(p);
             }
@@ -844,7 +800,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
         void FillBlockRootToBlock() {
-            foreach (var p in horizontalConstraints.BlockRootToBlock) {
+            foreach (KeyValuePair<int, List<int>> p in horizontalConstraints.BlockRootToBlock) {
                 LayerInfo layerInfo = GetOrCreateLayerInfo(initialLayering[p.Key]);
                 layerInfo.neigBlocks[p.Key] = p.Value;
                 foreach (int i in p.Value)

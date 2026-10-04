@@ -40,7 +40,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             return ApproximateComparer.Round(intersect);
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA1801:ReviewUnusedParameters", MessageId = "origin")]
         static internal Point RawIntersection(IntersectionInfo xx, Point origin) {
             // If this fires, then you didn't pass the LineSegment as the first argument to GetAllIntersections.
             Debug.Assert(xx.Segment0 is LineSegment, "LineSegment was not first arg to GetAllIntersections");
@@ -56,7 +55,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             // This may legitimately be rounding-error'd in the same way as xx.IntersectionPoint (and the
             // caller addresses this later).  The purpose of the assert is to verify that the LineSegment
             // interception is not outside the bbox in the perpendicular direction.
-            var lineSeg = (LineSegment)xx.Segment0;
+            LineSegment lineSeg = (LineSegment)xx.Segment0;
             if (StaticGraphUtility.IsVertical(PointComparer.GetDirections(lineSeg.Start, lineSeg.End))) {
                 Debug.Assert(PointComparer.Equal(point.X, origin.X), "segment0 obstacle intersection is off the vertical line");
             }

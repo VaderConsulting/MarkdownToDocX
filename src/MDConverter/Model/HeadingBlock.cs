@@ -5,7 +5,7 @@ namespace MDConverter.Model;
 /// <summary>Heading with level 1-6; contains inlines.</summary>
 public sealed class HeadingBlock : BlockNode
 {
-    private readonly List<InlineNode> _Inlines = new List<InlineNode>();
+    private readonly List<InlineNode> _Inlines = [];
 
     public int Level { get; }
 

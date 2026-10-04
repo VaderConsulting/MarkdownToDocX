@@ -1,5 +1,6 @@
-using MermaidRecognition;
+using MermaidRecognition.Core;
 using MermaidRecognition.NaiadAdapter;
+
 using MermaidSharp;
 using MermaidSharp.Diagrams.Flowchart;
 using MermaidSharp.Models;
@@ -56,19 +57,13 @@ public sealed class F81TrapezoidBracketRenderTests
             "[\\Wide bottom/] uses the trapezoid shape (wider at the top)");
     }
 
-    static double GetHorizontalSpanAtTopEdge(string PathData)
-    {
-        return GetHorizontalSpanAtExtremeY(PathData, UseMaxY: false);
-    }
+    static double GetHorizontalSpanAtTopEdge(string PathData) => GetHorizontalSpanAtExtremeY(PathData, UseMaxY: false);
 
-    static double GetHorizontalSpanAtBottomEdge(string PathData)
-    {
-        return GetHorizontalSpanAtExtremeY(PathData, UseMaxY: true);
-    }
+    static double GetHorizontalSpanAtBottomEdge(string PathData) => GetHorizontalSpanAtExtremeY(PathData, UseMaxY: true);
 
     static double GetHorizontalSpanAtExtremeY(string PathData, bool UseMaxY)
     {
-        List<(double X, double Y)> Points = new List<(double X, double Y)>();
+        List<(double X, double Y)> Points = [];
         foreach (System.Text.RegularExpressions.Match Match in System.Text.RegularExpressions.Regex.Matches(
                      PathData,
                      @"([ML])\s*([-\d.]+)\s*,\s*([-\d.]+)"))

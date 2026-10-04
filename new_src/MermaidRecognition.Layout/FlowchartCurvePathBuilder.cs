@@ -2,7 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
-using MermaidRecognition.Flowchart;
+
+using MermaidRecognition.Kinds.Flowchart;
 
 namespace MermaidRecognition.Layout;
 
@@ -88,7 +89,7 @@ public static class FlowchartCurvePathBuilder
                 return false;
             }
 
-            List<(double X, double Y)> TailPoints = new List<(double X, double Y)>();
+            List<(double X, double Y)> TailPoints = [];
             for (int Index = 1; Index < GuidePoints.Count; Index++)
             {
                 TailPoints.Add(GuidePoints[Index]);
@@ -192,7 +193,7 @@ public static class FlowchartCurvePathBuilder
         Builder.Append(',');
         Builder.Append(FormatCoordinate(Points[1].Y));
 
-        List<(double X, double Y)> BodyPoints = new List<(double X, double Y)>();
+        List<(double X, double Y)> BodyPoints = [];
         int CurveEndIndex = ResolveCorridorCurveEndIndex(Points);
         for (int Index = 1; Index <= CurveEndIndex; Index++)
         {
@@ -330,12 +331,12 @@ public static class FlowchartCurvePathBuilder
             Builder.Append(',');
             Builder.Append(FormatCoordinate(Points[1].Y));
 
-            List<(double X, double Y)> BranchCurvePoints = new List<(double X, double Y)>
-            {
+            List<(double X, double Y)> BranchCurvePoints =
+            [
                 Points[1],
                 Points[2],
                 Points[3]
-            };
+            ];
             string BranchBody = BuildPureD3CurveBasisPathData(BranchCurvePoints);
             int CubicIndex = BranchBody.IndexOf('C', StringComparison.Ordinal);
             if (CubicIndex >= 0)
@@ -1079,8 +1080,5 @@ public static class FlowchartCurvePathBuilder
         return Builder.ToString();
     }
 
-    private static string FormatCoordinate(double Value)
-    {
-        return Value.ToString(CultureInfo.InvariantCulture);
-    }
+    private static string FormatCoordinate(double Value) => Value.ToString(CultureInfo.InvariantCulture);
 }

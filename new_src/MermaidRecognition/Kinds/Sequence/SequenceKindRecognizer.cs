@@ -1,6 +1,8 @@
 using System.Text.RegularExpressions;
 
-namespace MermaidRecognition.Sequence;
+using MermaidRecognition.Core;
+
+namespace MermaidRecognition.Kinds.Sequence;
 
 /// <summary>
 /// Sequence diagram recognition (vendored <c>sequenceDetector.ts</c> / <c>sequenceDiagram.jison</c>).
@@ -66,8 +68,10 @@ public sealed class SequenceKindRecognizer : IKindRecognizer
     /// <inheritdoc />
     public DiagramContract Parse(string Source, DiagramDetectionResult Detection)
     {
-        DiagramContract Contract = new DiagramContract();
-        Contract.Kind = Detection.ProgrammeKindId;
+        DiagramContract Contract = new DiagramContract
+        {
+            Kind = Detection.ProgrammeKindId
+        };
 
         MermaidConfigurationPipeline.ParseLeadingInitDirectives(Source, Contract.Configuration);
 
@@ -200,10 +204,12 @@ public sealed class SequenceKindRecognizer : IKindRecognizer
 
     static void AddStatement(DiagramContract Contract, int LineNumber, string LineTypeId, string RawLine)
     {
-        SourceStatementContract Statement = new SourceStatementContract();
-        Statement.LineNumber = LineNumber;
-        Statement.LineTypeId = LineTypeId;
-        Statement.RawLine = RawLine;
+        SourceStatementContract Statement = new SourceStatementContract
+        {
+            LineNumber = LineNumber,
+            LineTypeId = LineTypeId,
+            RawLine = RawLine
+        };
         Contract.SourceStatementsMutable.Add(Statement);
     }
 

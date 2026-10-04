@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.AGL.Core.DataStructures;
@@ -17,7 +17,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
     internal class Metroline {
 #endif
         internal double Width;
-        internal int Count { get { return Polyline.Count; } }
+        internal int Count => Polyline.Count;
         internal double Length { get; set; }
 
         internal double IdealLength { get; set; }
@@ -28,12 +28,12 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         internal Metroline(Polyline polyline, double width, Func<Tuple<Polyline, Polyline>> sourceAndTargetLoosePolys, int index) {
             Width = width;
             Polyline = polyline;
-            this.sourceAndTargetLoosePolylines = sourceAndTargetLoosePolys;
+            sourceAndTargetLoosePolylines = sourceAndTargetLoosePolys;
         }
 
         internal void UpdateLengths() {
-            var l = 0.0;
-            for (var p = Polyline.StartPoint; p.Next != null; p = p.Next) {
+            double l = 0.0;
+            for (PolylinePoint p = Polyline.StartPoint; p.Next != null; p = p.Next) {
                 l += (p.Next.Point - p.Point).Length;
             }
             Length = l;

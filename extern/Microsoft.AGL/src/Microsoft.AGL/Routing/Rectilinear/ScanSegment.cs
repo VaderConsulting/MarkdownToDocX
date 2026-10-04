@@ -36,21 +36,13 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             GroupBoundaryPointAndCrossingsList = gbcList;
         }
 
-        internal override Point Start {
-            get { return startPoint; }
-        }
+        internal override Point Start => startPoint;
 
-        internal override Point End {
-            get { return endPoint; }
-        }
+        internal override Point End => endPoint;
 
-        internal bool IsVertical {
-            get { return IsVerticalSegment(Start, End); }
-        }
+        internal bool IsVertical => IsVerticalSegment(Start, End);
 
-        internal ScanDirection ScanDirection {
-            get { return IsVertical ? ScanDirection.VerticalInstance : ScanDirection.HorizontalInstance; }
-        }
+        internal ScanDirection ScanDirection => IsVertical ? ScanDirection.VerticalInstance : ScanDirection.HorizontalInstance;
 
         // For fast intersection calculation and ScanSegment splicing.
         internal VisibilityVertex LowestVisibilityVertex { get; private set; }
@@ -58,19 +50,13 @@ namespace Microsoft.AGL.Routing.Rectilinear {
 
         // For overlaps, we will need to create a VisibilityVertex at the junction of overlapped/nonoverlapped
         // segments, but we don't want to create this for non-overlapped situations.
-        internal bool IsOverlapped {
-            get { return OverlappedWeight == this.Weight; }
-        }
-        internal bool IsReflection {
-            get { return ReflectionWeight == this.Weight; }
-        }
+        internal bool IsOverlapped => OverlappedWeight == Weight;
+        internal bool IsReflection => ReflectionWeight == Weight;
 
         internal bool NeedStartOverlapVertex { get; set; }
         internal bool NeedEndOverlapVertex { get; set; }
 
-        internal static bool IsVerticalSegment(Point start, Point end) {
-            return start.X == end.X;
-        }
+        internal static bool IsVerticalSegment(Point start, Point end) => start.X == end.X;
 
         // For group boundary crossings.
 
@@ -139,7 +125,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                     , "Duplicate outEdge from Source vertex");
             Debug.Assert(null == StaticGraphUtility.FindNextVertex(target, StaticGraphUtility.EdgeDirection(target, source))
                     , "Duplicate inEdge to Target vertex");
-            var edge = new VisibilityEdge(source, target, this.Weight);
+            VisibilityEdge edge = new VisibilityEdge(source, target, Weight);
             VisibilityGraph.AddEdge(edge);
             return edge;
         }
@@ -253,81 +239,67 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             return true;
         }
 
-        internal Point GetIntersection(ScanSegment seg) {
-            return StaticGraphUtility.SegmentIntersection(this, seg);
-        }
+        internal Point GetIntersection(ScanSegment seg) => StaticGraphUtility.SegmentIntersection(this, seg);
 
-        internal bool IntersectsSegment(ScanSegment seg) {
-            return StaticGraphUtility.SegmentsIntersect(this, seg);
-        }
+        internal bool IntersectsSegment(ScanSegment seg) => StaticGraphUtility.SegmentsIntersect(this, seg);
 
         /// <summary>
         /// </summary>
         /// <returns></returns>
-        public override string ToString() {
-            return "[" + Start + " -> " + End + (IsOverlapped ? " olap" : " free") + "]";
-        }
+        public override string ToString() => "[" + Start + " -> " + End + (IsOverlapped ? " olap" : " free") + "]";
 
         #region SparseVisibilityGraphGenerator utilities
-        
-        internal bool ContainsPoint(Point test) {
+
+        internal bool ContainsPoint(Point test) =>
             // This may be off the line so do not use GetPureDirections. 
-            return PointComparer.Equal(this.Start, test)
-                    || PointComparer.Equal(this.End, test)
-                    || (PointComparer.GetDirections(this.Start, test) == PointComparer.GetDirections(test, this.End));
-        }
+            PointComparer.Equal(Start, test)
+                    || PointComparer.Equal(End, test)
+                    || (PointComparer.GetDirections(Start, test) == PointComparer.GetDirections(test, End));
 
         private Set<double> sparsePerpendicularCoords;
 
-        internal bool HasSparsePerpendicularCoords {
-            get {
-                return (this.sparsePerpendicularCoords == null) ? false : (this.sparsePerpendicularCoords.Count > 0);
-            }
-        }
+        internal bool HasSparsePerpendicularCoords => (sparsePerpendicularCoords == null) ? false : (sparsePerpendicularCoords.Count > 0);
 
-        private Point CreatePointFromPerpCoord(double perpCoord) {
-            return this.IsVertical ? new Point(this.Start.X, perpCoord) : new Point(perpCoord, this.Start.Y);
-        }
+        private Point CreatePointFromPerpCoord(double perpCoord) => IsVertical ? new Point(Start.X, perpCoord) : new Point(perpCoord, Start.Y);
 
         internal void AddSparseVertexCoord(double perpCoord) {
-            Debug.Assert(this.ContainsPoint(this.CreatePointFromPerpCoord(perpCoord)), "vertexLocation is not on Segment");
-            if (this.sparsePerpendicularCoords == null) {
-                this.sparsePerpendicularCoords = new Set<double>();
+            Debug.Assert(ContainsPoint(CreatePointFromPerpCoord(perpCoord)), "vertexLocation is not on Segment");
+            if (sparsePerpendicularCoords == null) {
+                sparsePerpendicularCoords = [];
             }
-            this.sparsePerpendicularCoords.Insert(perpCoord);
+            sparsePerpendicularCoords.Insert(perpCoord);
         }
 
         internal bool AddSparseEndpoint(double coord) {
             // This is called after AddSparseVertexCoord so this.sparsePerpendicularCoords is already instantiated.
-            if (!this.sparsePerpendicularCoords.Contains(coord)) {
-                this.sparsePerpendicularCoords.Insert(coord);
+            if (!sparsePerpendicularCoords.Contains(coord)) {
+                sparsePerpendicularCoords.Insert(coord);
                 return true;
             }
             return false;
         }
 
         internal void CreateSparseVerticesAndEdges(VisibilityGraph vg) {
-            if (this.sparsePerpendicularCoords == null) {
+            if (sparsePerpendicularCoords == null) {
                 return;
             }
 
             AppendGroupCrossingsThroughPoint(vg, Start);
-            foreach (var perpCoord in this.sparsePerpendicularCoords.OrderBy(d => d)) {
-                var vertexLocation = this.CreatePointFromPerpCoord(perpCoord);
-                Debug.Assert(this.ContainsPoint(vertexLocation), "vertexLocation is not on Segment");
-                this.AppendVisibilityVertex(vg, vg.FindVertex(vertexLocation) ?? vg.AddVertex(vertexLocation));
+            foreach (double perpCoord in sparsePerpendicularCoords.OrderBy(d => d)) {
+                Point vertexLocation = CreatePointFromPerpCoord(perpCoord);
+                Debug.Assert(ContainsPoint(vertexLocation), "vertexLocation is not on Segment");
+                AppendVisibilityVertex(vg, vg.FindVertex(vertexLocation) ?? vg.AddVertex(vertexLocation));
             }
             AppendGroupCrossingsThroughPoint(vg, End);
             GroupBoundaryPointAndCrossingsList = null;
 
-            this.sparsePerpendicularCoords.Clear();
-            this.sparsePerpendicularCoords = null;
+            sparsePerpendicularCoords.Clear();
+            sparsePerpendicularCoords = null;
         }
 
-        internal bool HasVisibility() {
+        internal bool HasVisibility() =>
             // Skip this only if it has no visibility vertex.
-            return (null != this.LowestVisibilityVertex);
-        }
+            (null != LowestVisibilityVertex);
 
         #endregion // SparseVisibilityGraphGenerator utilities
 
@@ -398,7 +370,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                 // We may have a case where point xx.xxxxx8 has added an ascending-direction crossing, and now we're on
                 // xx.xxxxx9 adding a descending-direction crossing.  In that case there should already be a VisibilityEdge 
                 // in the direction we want.
-                if (PointComparer.Equal(this.HighestVisibilityVertex.Point, highVertex.Point)) {
+                if (PointComparer.Equal(HighestVisibilityVertex.Point, highVertex.Point)) {
                     edge = vg.FindEdge(lowVertex.Point, highVertex.Point);
                     Debug.Assert(edge != null, "Inconsistent forward-backward sequencing in HighVisibilityVertex");
                 } else {
@@ -409,8 +381,8 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                 edge = AddVisibilityEdge(lowVertex, highVertex);
             }
 
-            var crossingsArray = crossings.Select(c => c.Group.InputShape).ToArray();
-            var prevIsPassable = edge.IsPassable;
+            Shape[] crossingsArray = crossings.Select(c => c.Group.InputShape).ToArray();
+            Func<bool> prevIsPassable = edge.IsPassable;
             if (prevIsPassable == null) {
                 edge.IsPassable = delegate { return crossingsArray.Any(s => s.IsTransparent); };
             } else {
@@ -427,14 +399,14 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         private void AddLowCrossings(VisibilityGraph vg, VisibilityVertex crossingVertex, GroupBoundaryCrossing[] crossings) {
             if (null != crossings) {
                 VisibilityVertex interiorVertex = GetCrossingInteriorVertex(vg, crossingVertex, crossings[0]);
-                this.AddCrossingEdge(vg, interiorVertex, crossingVertex, crossings); // low-to-high
+                AddCrossingEdge(vg, interiorVertex, crossingVertex, crossings); // low-to-high
             }
         }
 
         private void AddHighCrossings(VisibilityGraph vg, VisibilityVertex crossingVertex, GroupBoundaryCrossing[] crossings) {
             if (null != crossings) {
                 VisibilityVertex interiorVertex = GetCrossingInteriorVertex(vg, crossingVertex, crossings[0]);
-                this.AddCrossingEdge(vg, crossingVertex, interiorVertex, crossings); // low-to-high
+                AddCrossingEdge(vg, crossingVertex, interiorVertex, crossings); // low-to-high
             }
         }
         #endregion // Group utilities

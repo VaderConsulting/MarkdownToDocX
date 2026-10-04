@@ -1,5 +1,5 @@
 using MermaidRecognition.Contract;
-using MermaidRecognition.Er;
+using MermaidRecognition.Kinds.Er;
 
 namespace MermaidRecognition.Tests.Er;
 

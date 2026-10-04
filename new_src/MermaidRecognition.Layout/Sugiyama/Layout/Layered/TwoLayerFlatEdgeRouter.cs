@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using MermaidRecognition.Layout.Sugiyama.Core;
 using MermaidRecognition.Layout.Sugiyama.Core.DataStructures;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
@@ -15,7 +16,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         readonly int[] bottomLayer;
         InteractiveEdgeRouter interactiveEdgeRouter;
         double[] labelCenters;
-        Dictionary<Label, ICurve> labelsToLabelObstacles = new Dictionary<Label, ICurve>();
+        Dictionary<Label, ICurve> labelsToLabelObstacles = [];
         IntPair[] pairArray;
         readonly Routing routing;
         readonly int[] topLayer;
@@ -30,26 +31,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             InitLabelsInfo();
         }
 
-        Database Database {
-            get { return routing.Database; }
-        }
+        Database Database => routing.Database;
 
-        int[] Layering {
-            get { return routing.LayerArrays.Y; }
-        }
+        int[] Layering => routing.LayerArrays.Y;
 
-        BasicGraph<IntEdge> IntGraph {
-            get { return routing.IntGraph; }
-        }
+        BasicGraph<IntEdge> IntGraph => routing.IntGraph;
 
-        LayerArrays LayerArrays {
-            get { return routing.LayerArrays; }
-        }
+        LayerArrays LayerArrays => routing.LayerArrays;
 
 
-        double PaddingForEdges {
-            get { return settings.LayerSeparation / 8; }
-        }
+        double PaddingForEdges => settings.LayerSeparation / 8;
 
         void InitLabelsInfo() {
             pairArray = new Set<IntPair>(from v in bottomLayer
@@ -76,7 +67,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
         void InitLabelsToLabelObstacles() {
-            labelsToLabelObstacles = new Dictionary<Label, ICurve>();
+            labelsToLabelObstacles = [];
             IEnumerable<Label> labels = from p in pairArray from label in PairLabels(p) select label;
             foreach (Label label in labels)
                 labelsToLabelObstacles[label] = CreatObstaceOnLabel(label);
@@ -90,12 +81,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             return 0;
         }
 
-        IEnumerable<Label> PairLabels(IntPair intPair) {
-            return from edge in Database.GetMultiedge(intPair)
-                   let label = edge.Edge.Label
-                   where label != null
-                   select label;
-        }
+        IEnumerable<Label> PairLabels(IntPair intPair) => from edge in Database.GetMultiedge(intPair)
+                                                          let label = edge.Edge.Label
+                                                          where label != null
+                                                          select label;
 
         /// <summary>
         /// Executes the algorithm.
@@ -106,27 +95,23 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                 interactiveEdgeRouter = new InteractiveEdgeRouter(GetObstacles(), PaddingForEdges, PaddingForEdges/3, Math.PI/6);
                 foreach (IntEdge intEdge in IntEdges())
                 {
-                    this.ProgressStep();
+                    ProgressStep();
                     RouteEdge(intEdge);
                 }
             }
         }
 
-        IEnumerable<ICurve> GetObstacles() {
-            return (from v in topLayer.Concat(bottomLayer)
-                    where v < routing.OriginalGraph.Nodes.Count
-                    select routing.IntGraph.Nodes[v].BoundaryCurve).Concat(LabelCurves());
-        }
+        IEnumerable<ICurve> GetObstacles() => (from v in topLayer.Concat(bottomLayer)
+                                               where v < routing.OriginalGraph.Nodes.Count
+                                               select routing.IntGraph.Nodes[v].BoundaryCurve).Concat(LabelCurves());
 
-        IEnumerable<ICurve> LabelCurves() {
-            return from edge in IntEdges()
-                   let label = edge.Edge.Label
-                   where label != null
-                   select CreatObstaceOnLabel(label);
-        }
+        IEnumerable<ICurve> LabelCurves() => from edge in IntEdges()
+                                             let label = edge.Edge.Label
+                                             where label != null
+                                             select CreatObstaceOnLabel(label);
 
         static ICurve CreatObstaceOnLabel(Label label) {
-            var c = new Curve();
+            Curve c = new Curve();
             double obstacleBottom = label.Center.Y - label.Height/4;
             c.AddSegment(new LineSegment(new Point(label.BoundingBox.Left, obstacleBottom),
                                          new Point(label.BoundingBox.Right, obstacleBottom)));
@@ -136,9 +121,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             return c;
         }
 
-        IEnumerable<IntEdge> IntEdges() {
-            return from pair in pairArray from edge in Database.GetMultiedge(pair) select edge;
-        }
+        IEnumerable<IntEdge> IntEdges() => from pair in pairArray from edge in Database.GetMultiedge(pair) select edge;
 
         void RouteEdge(IntEdge edge) {
             if (edge.HasLabel)
@@ -151,20 +134,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             //we allow here for the edge to cross its own label
             Node sourceNode = routing.IntGraph.Nodes[intEdge.Source];
             Node targetNode = routing.IntGraph.Nodes[intEdge.Target];
-            var sourcePort = new FloatingPort(sourceNode.BoundaryCurve, sourceNode.Center);
-            var targetPort = new FloatingPort(targetNode.BoundaryCurve, targetNode.Center);
+            FloatingPort sourcePort = new FloatingPort(sourceNode.BoundaryCurve, sourceNode.Center);
+            FloatingPort targetPort = new FloatingPort(targetNode.BoundaryCurve, targetNode.Center);
             ICurve labelObstacle = labelsToLabelObstacles[label];
-            var labelPort = new FloatingPort(labelObstacle, label.Center);
-            SmoothedPolyline poly0;
-            interactiveEdgeRouter.RouteSplineFromPortToPortWhenTheWholeGraphIsReady(sourcePort, labelPort, true, out poly0);
-            SmoothedPolyline poly1;
-            interactiveEdgeRouter.RouteSplineFromPortToPortWhenTheWholeGraphIsReady(labelPort, targetPort, true, out poly1);
+            FloatingPort labelPort = new FloatingPort(labelObstacle, label.Center);
+            interactiveEdgeRouter.RouteSplineFromPortToPortWhenTheWholeGraphIsReady(sourcePort, labelPort, true, out SmoothedPolyline? poly0);
+            interactiveEdgeRouter.RouteSplineFromPortToPortWhenTheWholeGraphIsReady(labelPort, targetPort, true, out SmoothedPolyline? poly1);
             Site site = poly1.HeadSite.Next;
 
             Site lastSite = poly0.LastSite;
             lastSite.Next = site;
             site.Previous = lastSite;
-            var eg = intEdge.Edge.EdgeGeometry;
+            EdgeGeometry eg = intEdge.Edge.EdgeGeometry;
             eg.SetSmoothedPolylineAndCurve(poly0);
             Arrowheads.TrimSplineAndCalculateArrowheads(eg,  intEdge.Edge.Source.BoundaryCurve,
                                                              intEdge.Edge.Target.BoundaryCurve, eg.Curve, false, 
@@ -174,11 +155,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         void RouteEdgeWithNoLabel(IntEdge intEdge) {
             Node sourceNode = routing.IntGraph.Nodes[intEdge.Source];
             Node targetNode = routing.IntGraph.Nodes[intEdge.Target];
-            var sourcePort = new FloatingPort(sourceNode.BoundaryCurve, sourceNode.Center);
-            var targetPort = new FloatingPort(targetNode.BoundaryCurve, targetNode.Center);
-            var eg = intEdge.Edge.EdgeGeometry;
-            SmoothedPolyline sp;
-            eg.Curve = interactiveEdgeRouter.RouteSplineFromPortToPortWhenTheWholeGraphIsReady(sourcePort, targetPort, true, out sp);
+            FloatingPort sourcePort = new FloatingPort(sourceNode.BoundaryCurve, sourceNode.Center);
+            FloatingPort targetPort = new FloatingPort(targetNode.BoundaryCurve, targetNode.Center);
+            EdgeGeometry eg = intEdge.Edge.EdgeGeometry;
+            eg.Curve = interactiveEdgeRouter.RouteSplineFromPortToPortWhenTheWholeGraphIsReady(sourcePort, targetPort, true, out SmoothedPolyline? sp);
             Arrowheads.TrimSplineAndCalculateArrowheads(eg,  intEdge.Edge.Source.BoundaryCurve,
                                                              intEdge.Edge.Target.BoundaryCurve, eg.Curve, false, 
                                                              settings.EdgeRoutingSettings.KeepOriginalSpline);
@@ -213,12 +193,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             }
         }
 
-        double GetLabelWeight(IntPair intPair) {
-            return Database.GetMultiedge(intPair).Count;
-        }
+        double GetLabelWeight(IntPair intPair) => Database.GetMultiedge(intPair).Count;
 
-        void SortLabelsByX() {
-            Array.Sort(labelCenters, pairArray);
-        }
+        void SortLabelsByX() => Array.Sort(labelCenters, pairArray);
     }
 }

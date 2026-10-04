@@ -22,7 +22,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         double nodeSep;
         object[] lowMedians;
         object[] upperMedians; //each element or int or IntPair
-        Set<IntPair> markedEdges = new Set<IntPair>();
+        Set<IntPair> markedEdges = [];
         int h;//number of layers
 
         //We pretend, when calculating the alignment, that we traverse layers from left to right and from bottom to top.
@@ -37,7 +37,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// </summary>
         bool BT;
 
-        int EnumRightUp { get { return (LR ? 0 : 1) + 2 * (BT ? 0 : 1); } }
+        int EnumRightUp => (LR ? 0 : 1) + 2 * (BT ? 0 : 1);
 
 
         /// <summary>
@@ -45,16 +45,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// </summary>
         /// <param name="v"></param>
         /// <returns></returns>
-        bool IsVirtual(int v) { return v >= nOfOriginalVertices; }
+        bool IsVirtual(int v) => v >= nOfOriginalVertices;
 
 
         //four arrays for four different direction combinations
         double[][] xCoords = new double[4][];
         double[] x;
 
-        int Source(LayerEdge edge) { return BT ? edge.Source : edge.Target; }
+        int Source(LayerEdge edge) => BT ? edge.Source : edge.Target;
 
-        int Target(LayerEdge edge) { return BT ? edge.Target : edge.Source; }
+        int Target(LayerEdge edge) => BT ? edge.Target : edge.Source;
 
         /// <summary>
         /// 
@@ -107,24 +107,24 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                 FillUpperMediansForNode(i);
         }
 
-        int CompareByX(int a, int b) { return this.la.X[a] - this.la.X[b]; }
+        int CompareByX(int a, int b) => la.X[a] - la.X[b];
 
         private void FillUpperMediansForNode(int i) {
-            int count = this.graph.InEdgesCount(i);
+            int count = graph.InEdgesCount(i);
             if (count > 0) {
                 int[] predecessors = new int[count];
                 count = 0;
-                foreach (LayerEdge e in this.graph.InEdges(i))
+                foreach (LayerEdge e in graph.InEdges(i))
                     predecessors[count++] = e.Source;
 
                 Array.Sort(predecessors, new System.Comparison<int>(CompareByX));
                 int m = count / 2;
                 if (m * 2 == count) {
-                    this.upperMedians[i] = new IntPair(predecessors[m - 1], predecessors[m]);
+                    upperMedians[i] = new IntPair(predecessors[m - 1], predecessors[m]);
                 } else
-                    this.upperMedians[i] = predecessors[m];
+                    upperMedians[i] = predecessors[m];
             } else
-                this.upperMedians[i] = -1;
+                upperMedians[i] = -1;
           
         }
 
@@ -135,21 +135,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
         private void FillLowMediansForNode(int i) {
-            int count = this.graph.OutEdgesCount(i);
+            int count = graph.OutEdgesCount(i);
             if (count > 0) {
                 int[] successors = new int[count];
                 count = 0;
-                foreach (LayerEdge e in this.graph.OutEdges(i))
+                foreach (LayerEdge e in graph.OutEdges(i))
                     successors[count++] = e.Target;
 
                 Array.Sort(successors, new System.Comparison<int>(CompareByX));
                 int m = count / 2;
                 if (m * 2 == count) {
-                    this.lowMedians[i] = new IntPair(successors[m - 1], successors[m]);
+                    lowMedians[i] = new IntPair(successors[m - 1], successors[m]);
                 } else
-                    this.lowMedians[i] = successors[m];
+                    lowMedians[i] = successors[m];
             } else
-                this.lowMedians[i] = -1;
+                lowMedians[i] = -1;
         }
 
 
@@ -159,7 +159,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             double[] a = new double[4];
             double[] b = new double[4];
 
-            double leastWidth = Double.MaxValue;
+            double leastWidth = double.MaxValue;
             for (int i = 0; i < 4; i++) {
                 AssignmentBounds(i, out a[i], out b[i]);
                 double w = b[i] - a[i];
@@ -199,9 +199,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         }
 
-        static bool IsLeftMostAssignment(int i) {
-            return i == 0 || i == 2;
-        }
+        static bool IsLeftMostAssignment(int i) => i == 0 || i == 2;
 
         void AssignmentBounds(int i, out double a, out double b) {
             if (nOfVertices == 0) {
@@ -285,15 +283,20 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
 
         IEnumerable<int> UpperEdgeMedians(int target) {
-            object medians = this.BT ? upperMedians[target] : lowMedians[target];
-            IntPair ip = medians as IntPair;
-            if (ip != null) {
-                if (this.LR) {
+            object medians = BT ? upperMedians[target] : lowMedians[target];
+            if (medians is IntPair ip)
+            {
+                if (LR)
+                {
                     yield return ip.First; yield return ip.Second;
-                } else {
+                }
+                else
+                {
                     yield return ip.Second; yield return ip.First;
                 }
-            } else {
+            }
+            else
+            {
                 int i = (int)medians;
                 if (i >= 0)
                     yield return i;
@@ -319,7 +322,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             }
         }
 
-       
+
 
 
         /// <summary>
@@ -327,14 +330,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// </summary>
         /// <param name="i"></param>
         /// <returns></returns>
-        int NextUpper(int i) { return BT ? i + 1 : i - 1; }
+        int NextUpper(int i) => BT ? i + 1 : i - 1;
 
         /// <summary>
         /// parameterized next lower
         /// </summary>
         /// <param name="i"></param>
         /// <returns></returns>
-        int NextLower(int i) { return BT ? i - 1 : i + 1; }
+        int NextLower(int i) => BT ? i - 1 : i + 1;
 
         /// <summary>
         /// parameterize highest of two numbers
@@ -342,14 +345,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// <param name="i"></param>
         /// <param name="j"></param>
         /// <returns></returns>
-        int UpperOf(int i, int j) { return BT ? Math.Max(i, j) : Math.Min(i, j); }
+        int UpperOf(int i, int j) => BT ? Math.Max(i, j) : Math.Min(i, j);
         /// <summary>
         /// parameterized lowest of a pair
         /// </summary>
         /// <param name="i"></param>
         /// <param name="j"></param>
         /// <returns></returns>
-        int LowerOf(int i, int j) { return BT ? Math.Min(i, j) : Math.Max(i, j); }
+        int LowerOf(int i, int j) => BT ? Math.Min(i, j) : Math.Max(i, j);
 
 
         /// <summary>
@@ -358,15 +361,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// <param name="i"></param>
         /// <param name="j"></param>
         /// <returns></returns>
-        bool IsBelow(int i, int j) { return BT ? i < j : j < i; }
+        bool IsBelow(int i, int j) => BT ? i < j : j < i;
         /// <summary>
         /// returns the "parameterized" left of the two positions
         /// </summary>
         /// <param name="pos0"></param>
         /// <param name="pos1"></param>
         /// <returns></returns>
-        int LeftMost(int pos0, int pos1) { return LR ? Math.Min(pos0, pos1) : Math.Max(pos0, pos1); }
-        double LeftMost(double pos0, double pos1) { return LR ? Math.Min(pos0, pos1) : Math.Max(pos0, pos1); }
+        int LeftMost(int pos0, int pos1) => LR ? Math.Min(pos0, pos1) : Math.Max(pos0, pos1);
+        double LeftMost(double pos0, double pos1) => LR ? Math.Min(pos0, pos1) : Math.Max(pos0, pos1);
 
         /// <summary>
         /// returns the "parameterized" right of the two positions
@@ -374,14 +377,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// <param name="pos0"></param>
         /// <param name="pos1"></param>
         /// <returns></returns>
-        int RightMost(int pos0, int pos1) { return LR ? Math.Max(pos0, pos1) : Math.Min(pos0, pos1); }
+        int RightMost(int pos0, int pos1) => LR ? Math.Max(pos0, pos1) : Math.Min(pos0, pos1);
         /// <summary>
         /// returns the "parameterized" right of the two positions
         /// </summary>
         /// <param name="pos0"></param>
         /// <param name="pos1"></param>
         /// <returns></returns>
-        double RightMost(double pos0, double pos1) { return LR ? Math.Max(pos0, pos1) : Math.Min(pos0, pos1); }
+        double RightMost(double pos0, double pos1) => LR ? Math.Max(pos0, pos1) : Math.Min(pos0, pos1);
 
         /// <summary>
         /// Return true if i is to the left or equal to pos in a "parameterized" fasion
@@ -389,7 +392,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// <param name="i"></param>
         /// <param name="pos"></param>
         /// <returns></returns>
-        bool IsNotRightFrom(int i, int pos) { return LR ? i <= pos : pos <= i; }
+        bool IsNotRightFrom(int i, int pos) => LR ? i <= pos : pos <= i;
 
         /// <summary>
         /// Parameterized left relation
@@ -397,29 +400,29 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// <param name="i"></param>
         /// <param name="j"></param>
         /// <returns></returns>
-        bool IsLeftFrom(int i, int j) { return LR ? i < j : j < i; }
+        bool IsLeftFrom(int i, int j) => LR ? i < j : j < i;
 
         /// <summary>
         /// parameterized next right
         /// </summary>
         /// <param name="i"></param>
         /// <returns></returns>
-        int NextRight(int i) { return LR ? i + 1 : i - 1; }
+        int NextRight(int i) => LR ? i + 1 : i - 1;
 
         /// <summary>
         /// parameterized next left
         /// </summary>
         /// <param name="i"></param>
         /// <returns></returns>
-        int NextLeft(int i) { return LR ? i - 1 : i + 1; }
+        int NextLeft(int i) => LR ? i - 1 : i + 1;
 
         ///// <summary>
         ///// Eliminates conflicts with at least one inner edge inside of one layer
         ///// </summary>
         ///// <param name="i"></param>
         void ConflictsWithAtLeastOneInnerEdgeForALayer(int layerIndex) {
-            if (layerIndex >= 0 && layerIndex < this.la.Layers.Length) {
-                int[] lowerLayer = this.la.Layers[layerIndex];
+            if (layerIndex >= 0 && layerIndex < la.Layers.Length) {
+                int[] lowerLayer = la.Layers[layerIndex];
                 LayerEdge innerEdge = null;
 
                 //start looking for the first inner edge from the left of lowerLayer
@@ -480,10 +483,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             }
         }
 
-        LayerEdge InEdgeOfVirtualNode(int v) { return (this.BT ? graph.InEdgeOfVirtualNode(v) : graph.OutEdgeOfVirtualNode(v)); }
-      
+        LayerEdge InEdgeOfVirtualNode(int v) => (BT ? graph.InEdgeOfVirtualNode(v) : graph.OutEdgeOfVirtualNode(v));
 
-        IEnumerable<LayerEdge> InEdges(int v) { return this.BT ? graph.InEdges(v) : graph.OutEdges(v); }
+
+        IEnumerable<LayerEdge> InEdges(int v) => BT ? graph.InEdges(v) : graph.OutEdges(v);
         ///// <summary>
         ///// This function marks conflicting edges with targets positioned between innerEdge and newInnerEdge targets.
         ///// </summary>
@@ -534,13 +537,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             return null;
         }
 
-        private int NumberOfInEdges(int v) {
-            return this.BT ? graph.InEdgesCount(v) : graph.OutEdgesCount(v);
-        }
+        private int NumberOfInEdges(int v) => BT ? graph.InEdgesCount(v) : graph.OutEdgesCount(v);
 
-        int Pos(int v) {
-            return la.X[v];
-        }
+        int Pos(int v) => la.X[v];
 
 
 
@@ -554,13 +553,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
 
-        bool IsInnerEdge(LayerEdge e) {
-            return IsVirtual(e.Source) && IsVirtual(e.Target);
-        }
+        bool IsInnerEdge(LayerEdge e) => IsVirtual(e.Source) && IsVirtual(e.Target);
 
-        private void RemoveMarksFromEdges() {
-            markedEdges.Clear();
-        }
+        private void RemoveMarksFromEdges() => markedEdges.Clear();
 
         ///// <summary>
         ///// private constructor
@@ -571,17 +566,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         ///// <param name="nOfOriginalVs"></param>
         XCoordsWithAlignment(LayerArrays layerArrays, ProperLayeredGraph layeredGraph, 
             int nOfOriginalVs, Anchor[] anchorsP, double ns) {
-            this.la = layerArrays;
-            this.graph = layeredGraph;
-            this.nOfOriginalVertices = nOfOriginalVs;
-            this.nOfVertices = graph.NodeCount;
-            this.h = la.Layers.Length;
-            this.root = new int[nOfVertices];
-            this.align = new int[nOfVertices];
+            la = layerArrays;
+            graph = layeredGraph;
+            nOfOriginalVertices = nOfOriginalVs;
+            nOfVertices = graph.NodeCount;
+            h = la.Layers.Length;
+            root = new int[nOfVertices];
+            align = new int[nOfVertices];
             // this.sink = new int[nOfVertices];
             // this.shift = new double[nOfVertices];
-            this.anchors = anchorsP;
-            this.nodeSep = ns;
+            anchors = anchorsP;
+            nodeSep = ns;
         }
 
         /// <summary>
@@ -593,7 +588,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
         void AssignCoordinatesByLongestPath() {
-            this.x = this.xCoords[this.EnumRightUp] = new double[this.nOfVertices];
+            x = xCoords[EnumRightUp] = new double[nOfVertices];
             /*
              * We create a graph of blocks or rather of block roots. There is an edge
              * from u-block to v-block  if some of elements of u-block is to the left of v 
@@ -601,14 +596,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
              * taking into account separation between the blocks.
              */
             //create the graph first
-            List<IntEdge> edges = new List<IntEdge>();
+            List<IntEdge> edges = [];
             for (int v = 0; v < nOfVertices; v++) {
                 if (v == root[v])//v is a root
                 {
                     int w = v;//w will be running over the block
                     do {
-                        int rightNeighbor;
-                        if (TryToGetRightNeighbor(w, out rightNeighbor))
+                        if (TryToGetRightNeighbor(w, out int rightNeighbor))
                             edges.Add(new IntEdge(v, root[rightNeighbor]));
                         w = align[w];
                     }
@@ -628,12 +622,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                     bool vIsLeftMost = true;
                     int w = v;//w is running over the block
                     do {
-                        int wLeftNeighbor;
-                        if (TryToGetLeftNeighbor(w, out wLeftNeighbor)) {
-                            if (vIsLeftMost) {
+                        if (TryToGetLeftNeighbor(w, out int wLeftNeighbor))
+                        {
+                            if (vIsLeftMost)
+                            {
                                 vx = x[root[wLeftNeighbor]] + DeltaBetweenVertices(wLeftNeighbor, w);
                                 vIsLeftMost = false;
-                            } else
+                            }
+                            else
                                 vx = RightMost(vx, x[root[wLeftNeighbor]] + DeltaBetweenVertices(wLeftNeighbor, w));
                         }
                         w = align[w];
@@ -652,8 +648,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                         double xLeftMost = RightMost(-infinity, infinity);
                         double xl = xLeftMost;
                         do {
-                            int wRightNeigbor;
-                            if (TryToGetRightNeighbor(w, out wRightNeigbor))
+                            if (TryToGetRightNeighbor(w, out int wRightNeigbor))
                                 xLeftMost = LeftMost(xLeftMost,
                                     x[root[wRightNeigbor]] - DeltaBetweenVertices(w, wRightNeigbor));
 
@@ -667,7 +662,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
             }
 
-            for (int v = 0; v < this.nOfVertices; v++) {
+            for (int v = 0; v < nOfVertices; v++) {
                 if (v != root[v])
                     x[v] = x[root[v]];
             }
@@ -722,11 +717,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             for (int v = 0; v < nOfVertices; v++)
                 root[v] = align[v] = v;
 
-            int lowBound = this.LowerOf(0, h - 1);
+            int lowBound = LowerOf(0, h - 1);
 
             //i points to the last layer before the highest one
 
-            for (int i = NextLower(this.UpperOf(0, h - 1)); !IsBelow(i, lowBound); i = NextLower(i)) {
+            for (int i = NextLower(UpperOf(0, h - 1)); !IsBelow(i, lowBound); i = NextLower(i)) {
                 int[] layer = la.Layers[i];
 
                 int r = LeftMost(-1, la.Layers[NextUpper(i)].Length);
@@ -782,9 +777,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                 return markedEdges.Contains(new IntPair(source, target));
         }
 
-        private void MarkEdge(LayerEdge ie) {
-            this.markedEdges.Insert(new IntPair(ie.Source, ie.Target));
-        }
+        private void MarkEdge(LayerEdge ie) => markedEdges.Insert(new IntPair(ie.Source, ie.Target));
 
 
         #region debug routines
@@ -833,7 +826,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// Assigning xcoords starting from roots
         /// </summary>
 
-        const double infinity = Double.MaxValue;
+        const double infinity = double.MaxValue;
 
         /// <summary>
         /// Calculates the minimum separation between two neighboring vertices: if u is to the left of v on the same layer return positive

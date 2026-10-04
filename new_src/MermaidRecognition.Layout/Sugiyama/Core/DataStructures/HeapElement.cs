@@ -4,7 +4,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
         internal double priority;
         internal int v;//value
         internal HeapElem(int index, double priority, int v) {
-            this.indexToA = index;
+            indexToA = index;
             this.priority = priority;
             this.v = v;
         }

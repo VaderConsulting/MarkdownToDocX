@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace MermaidRecognition;
+namespace MermaidRecognition.Core;
 
 /// <summary>
 /// Strips Mermaid front matter, directives, and line comments before diagram detection
@@ -101,7 +101,7 @@ public static class RecognitionSourcePreprocessor
 
         string Normalized = Source.Replace("\r\n", "\n").Replace('\r', '\n');
         string[] Lines = Normalized.Split('\n');
-        List<string> KeptLines = new List<string>();
+        List<string> KeptLines = [];
         bool InAccDescrBlock = false;
 
         for (int LineIndex = 0; LineIndex < Lines.Length; LineIndex++)

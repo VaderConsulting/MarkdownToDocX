@@ -3,6 +3,7 @@ using Microsoft.AGL.Core.DataStructures;
 using Microsoft.AGL.Core.Geometry;
 using Microsoft.AGL.Routing.Visibility;
 using System.Diagnostics;
+using Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation;
 
 namespace Microsoft.AGL.Routing.Spline.Bundling {
     [DebuggerDisplay("({SourcePoint.X},{SourcePoint.Y})->({TargetPoint.X},{TargetPoint.Y})")]
@@ -18,31 +19,19 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             Target = target;
         }
 
-        internal Point TargetPoint {
-            get { return Target.Point; }
-        }
+        internal Point TargetPoint => Target.Point;
 
-        internal Point SourcePoint {
-            get { return Source.Point; }
-        }
+        internal Point SourcePoint => Source.Point;
 
-        internal bool IsOccupied {
-            get { return numberOfPassedPaths > 0; }
-        }
+        internal bool IsOccupied => numberOfPassedPaths > 0;
 
         internal Set<CdtEdge> CrossedCdtEdges { get; set; }
 
-        internal bool IsPassable {
-            get {
-                return Target.IsTargetOfRouting || Source.IsSourceOfRouting ||
+        internal bool IsPassable => Target.IsTargetOfRouting || Source.IsSourceOfRouting ||
                        VisibilityEdge.IsPassable == null ||
                        VisibilityEdge.IsPassable();
-            }
-        }
 
-        internal void AddOccupiedEdge() {
-            numberOfPassedPaths++;
-        }
+        internal void AddOccupiedEdge() => numberOfPassedPaths++;
 
         internal void RemoveOccupiedEdge() {
             numberOfPassedPaths--;

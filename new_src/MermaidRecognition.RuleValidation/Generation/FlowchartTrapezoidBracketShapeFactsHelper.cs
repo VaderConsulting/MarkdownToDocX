@@ -54,7 +54,7 @@ public static class FlowchartTrapezoidBracketShapeFactsHelper
 
     private static List<string> ExtractNodeFillPaths(string Svg)
     {
-        List<string> FillPaths = new List<string>();
+        List<string> FillPaths = [];
         MatchCollection PathMatches = Regex.Matches(
             Svg,
             @"<path d=""([^""]+)"" fill=""([^""]+)""",

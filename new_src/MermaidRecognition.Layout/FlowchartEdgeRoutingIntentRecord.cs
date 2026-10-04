@@ -14,23 +14,16 @@ public sealed class FlowchartEdgeRoutingIntentRecord
 
     private string _TargetNodeId = string.Empty;
 
-    private List<string> _ExpectedBehaviour = new List<string>();
+    private List<string> _ExpectedBehaviour = [];
 
-    private List<string> _InvalidBehaviours = new List<string>();
+    private List<string> _InvalidBehaviours = [];
 
     /// <summary>
     /// Stable edge identifier, typically <c>E001</c> or <c>source-&gt;target</c>.
     /// </summary>
     public string EdgeId
     {
-        get
-        {
-            return _EdgeId;
-        }
-        set
-        {
-            _EdgeId = value;
-        }
+        get => _EdgeId; set => _EdgeId = value;
     }
 
     /// <summary>
@@ -38,14 +31,7 @@ public sealed class FlowchartEdgeRoutingIntentRecord
     /// </summary>
     public string SourceNodeId
     {
-        get
-        {
-            return _SourceNodeId;
-        }
-        set
-        {
-            _SourceNodeId = value;
-        }
+        get => _SourceNodeId; set => _SourceNodeId = value;
     }
 
     /// <summary>
@@ -53,14 +39,7 @@ public sealed class FlowchartEdgeRoutingIntentRecord
     /// </summary>
     public string TargetNodeId
     {
-        get
-        {
-            return _TargetNodeId;
-        }
-        set
-        {
-            _TargetNodeId = value;
-        }
+        get => _TargetNodeId; set => _TargetNodeId = value;
     }
 
     /// <summary>
@@ -113,14 +92,7 @@ public sealed class FlowchartEdgeRoutingIntentRecord
     /// </summary>
     public List<string> ExpectedBehaviour
     {
-        get
-        {
-            return _ExpectedBehaviour;
-        }
-        set
-        {
-            _ExpectedBehaviour = value ?? new List<string>();
-        }
+        get => _ExpectedBehaviour; set => _ExpectedBehaviour = value ?? [];
     }
 
     /// <summary>
@@ -128,14 +100,7 @@ public sealed class FlowchartEdgeRoutingIntentRecord
     /// </summary>
     public List<string> InvalidBehaviours
     {
-        get
-        {
-            return _InvalidBehaviours;
-        }
-        set
-        {
-            _InvalidBehaviours = value ?? new List<string>();
-        }
+        get => _InvalidBehaviours; set => _InvalidBehaviours = value ?? [];
     }
 
     /// <summary>

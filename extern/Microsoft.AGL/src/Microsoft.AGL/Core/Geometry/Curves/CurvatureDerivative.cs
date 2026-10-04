@@ -33,37 +33,27 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        public double Derivative(double t) {
-            return curve.CurvatureSecondDerivative(t);
-        }
+        public double Derivative(double t) => curve.CurvatureSecondDerivative(t);
         /// <summary>
         /// 
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        public double SecondDerivative(double t) {
-            throw new NotImplementedException();
-        }
+        public double SecondDerivative(double t) => throw new NotImplementedException();
         /// <summary>
         /// 
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        public double ThirdDerivative(double t) {
-            throw new NotImplementedException();
-        }
+        public double ThirdDerivative(double t) => throw new NotImplementedException();
         /// <summary>
         /// 
         /// </summary>
-        public double ParStart {
-            get {return start; }
-        }
-/// <summary>
-/// 
-/// </summary>
-        public double ParEnd {
-            get { return end; }
-        }
+        public double ParStart => start;
+        /// <summary>
+        /// 
+        /// </summary>
+        public double ParEnd => end;
 
     }
 }

@@ -1,13 +1,12 @@
 using System.Diagnostics;
-using Microsoft.AGL.Core.Geometry;
-using Microsoft.AGL.Core;
 
-namespace Microsoft.AGL.Layout.Incremental
+using Microsoft.AGL.Core.Geometry;
+
+namespace Microsoft.AGL.Layout.Incremental.Multipole
 {
     /// <summary>
     /// 
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Multipole")]
     public class MultipoleCoefficients
     {
         Complex z0;
@@ -23,7 +22,7 @@ namespace Microsoft.AGL.Layout.Incremental
         {
 #if DET
 #else
-            this.p = precision;
+            p = precision;
             z0 = new Complex(center.X, center.Y);
             a = new Complex[precision];
             for (int k = 0; k < precision; ++k)
@@ -32,19 +31,19 @@ namespace Microsoft.AGL.Layout.Incremental
             }
 #endif
         }
-/// <summary>
-/// 
-/// </summary>
-/// <param name="center"></param>
-/// <param name="m1"></param>
-/// <param name="m2"></param>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "m")]
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="center"></param>
+        /// <param name="m1"></param>
+        /// <param name="m2"></param>
         public MultipoleCoefficients(Point center, MultipoleCoefficients m1, MultipoleCoefficients m2)
         {
             ValidateArg.IsNotNull(m1, "m1");
             ValidateArg.IsNotNull(m2, "m2");
             Debug.Assert(m1.p == m2.p);
-            this.p = m1.p;
+            p = m1.p;
             z0 = new Complex(center.X, center.Y);
             Complex[] m1a = m1.shift(z0), m2a = m2.shift(z0);
             a = new Complex[p];
@@ -62,10 +61,7 @@ namespace Microsoft.AGL.Layout.Incremental
             }
             return f;
         }
-        static double binomial(int n, int k)
-        {
-            return factorial(n) / (factorial(k) * factorial(n - k));
-        }
+        static double binomial(int n, int k) => factorial(n) / (factorial(k) * factorial(n - k));
         Complex sum(int l, Complex z0_minus_z1)
         {
             Complex s = new Complex(0.0);
@@ -114,12 +110,12 @@ namespace Microsoft.AGL.Layout.Incremental
             }
             return ak;
         }
+
         /// <summary>
         /// Compute approximate force at point v due to potential energy moments
         /// </summary>
         /// <param name="v"></param>
         /// <returns>Approximate force at v</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "v")]
         public Point ApproximateForce(Point v)
         {
             Complex z = new Complex(v.X, v.Y);
@@ -136,7 +132,8 @@ namespace Microsoft.AGL.Layout.Incremental
                 z_minus_z0_to_k_plus_1 *= z_minus_z0;
             }
             return new Point(fz.re, -fz.im);
-        }    
+        }
+
         /// <summary>
         /// Force on point u due to point v.
         /// If v and u at the same position it returns a small vector to separate them
@@ -144,7 +141,6 @@ namespace Microsoft.AGL.Layout.Incremental
         /// <param name="u"></param>
         /// <param name="v"></param>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "u"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "v")]
         public static Point Force(Point u, Point v)
         {
             Point duv = v - u;
@@ -169,28 +165,13 @@ namespace Microsoft.AGL.Layout.Incremental
             public Complex(double re)
             {
                 this.re = re;
-                this.im = 0;
+                im = 0;
             }
-            public static Complex operator +(Complex a, Complex b)
-            {
-                return (new Complex(a.re + b.re, a.im + b.im));
-            }
-            public static Complex operator -(Complex a)
-            {
-                return (new Complex(-a.re, -a.im));
-            }
-            public static Complex operator -(Complex a, Complex b)
-            {
-                return (new Complex(a.re - b.re, a.im - b.im));
-            }
-            public static Complex operator *(Complex a, Complex b)
-            {
-                return (new Complex(a.re * b.re - a.im * b.im, a.re * b.im + b.re * a.im));
-            }
-            public static Complex operator *(Complex a, double b)
-            {
-                return (new Complex(a.re * b, b * a.im));
-            }
+            public static Complex operator +(Complex a, Complex b) => (new Complex(a.re + b.re, a.im + b.im));
+            public static Complex operator -(Complex a) => (new Complex(-a.re, -a.im));
+            public static Complex operator -(Complex a, Complex b) => (new Complex(a.re - b.re, a.im - b.im));
+            public static Complex operator *(Complex a, Complex b) => (new Complex(a.re * b.re - a.im * b.im, a.re * b.im + b.re * a.im));
+            public static Complex operator *(Complex a, double b) => (new Complex(a.re * b, b * a.im));
             public static Complex operator /(Complex a, Complex b)
             {
                 double c1, c2, d;

@@ -1,21 +1,22 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves;
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
 
-namespace MermaidRecognition.Layout.Sugiyama.Prototype.LayoutEditing{
+namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing
+{
     /// <summary>
     /// holds the data needed to restore the edge after the editing
     /// </summary>
     public class EdgeRestoreData : RestoreData {
         Point labelCenter;
 
-        [SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals", MessageId = "p")]
         internal EdgeRestoreData(Edge edge) {
             if (edge.UnderlyingPolyline == null) {
-                var asCurve = (edge.Curve as Curve) ?? new Curve(new List<ICurve> {edge.Curve});
+                Curve asCurve = (edge.Curve as Curve) ?? new Curve([edge.Curve]);
                 edge.UnderlyingPolyline =
                     SmoothedPolyline.FromPoints(
                         new[] {edge.Source.Center}.Concat(Polyline.PolylineFromCurve(asCurve)).
@@ -39,15 +40,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Prototype.LayoutEditing{
         /// <summary>
         /// the underlying polyline
         /// </summary>
-        [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Polyline")]
         public SmoothedPolyline UnderlyingPolyline { get; set; }
 
         /// <summary>
         /// the initial center
         /// </summary>
-        public Point LabelCenter {
-            get { return labelCenter; }
-            set { labelCenter = value; }
+        public Point LabelCenter { get => labelCenter; set => labelCenter = value;
         }
 
         /// <summary>

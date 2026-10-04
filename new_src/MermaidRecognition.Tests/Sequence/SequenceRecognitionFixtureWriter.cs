@@ -7,6 +7,7 @@ namespace MermaidRecognition.Tests.Sequence;
 public sealed class SequenceRecognitionFixtureWriter
 {
     [Test]
+    [Explicit("Regenerates baseline fixtures; select this test explicitly to update them.")]
     public void Write_All_Sequence_Fixtures()
     {
         string BaseDir = RecognitionFixturePaths.GetSequenceFixtureDirectory();

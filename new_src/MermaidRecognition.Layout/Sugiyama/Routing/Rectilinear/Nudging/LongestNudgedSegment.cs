@@ -10,35 +10,31 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
     internal class LongestNudgedSegment : SegmentBase {
 
 
-        internal LongestNudgedSegment(int variable) {
-            Id = variable;
-        }
+        internal LongestNudgedSegment(int variable) => Id = variable;
 
-        
+
         /// <summary>
         /// has to be North or East
         /// </summary>
         internal Directions CompassDirection { get; set; }
 
         //the segment can go only North or East independently of the edge directions
-        readonly List<PathEdge> edges = new List<PathEdge>();
+        readonly List<PathEdge> edges = [];
         Point start;
         Point end;
-        internal override Point Start { get { return start; } }
-        internal override Point End { get { return end; } }
+        internal override Point Start => start;
+        internal override Point End => end;
 
 
 
         /// <summary>
         /// the list of edges holding the same offset and direction
         /// </summary>
-        internal List<PathEdge> Edges {
-            get { return edges; }
-        }
+        internal List<PathEdge> Edges => edges;
 
         internal void AddEdge(PathEdge edge) {
             if (Edges.Count == 0) {
-                var dir = (edge.Target - edge.Source).CompassDirection;
+                Directions dir = (edge.Target - edge.Source).CompassDirection;
                 switch (dir) {
                     case Core.Geometry.Directions.South:
                         dir = Core.Geometry.Directions.North;
@@ -87,20 +83,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         /// the segments constraining "this" from the right
         /// </summary>
 
-        internal bool IsFixed {
-            get { return isFixed; }
-            set { isFixed = value; }
+        internal bool IsFixed { get => isFixed; set => isFixed = value;
         }
 
         internal int Id = -1;
-        
+
 
         /// <summary>
         /// the maximal width of the edges 
         /// </summary>
-        public double Width {
-            get { return edges.Max(edge => edge.Width); }
-        }
+        public double Width => edges.Max(edge => edge.Width);
 
 
         internal double GetLeftBound() {
@@ -115,9 +107,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             return Position();
         }
 
-        double Position() {
-            return CompassDirection == Core.Geometry.Directions.North ? Edges[0].Source.X : -Edges[0].Source.Y;
-        }
+        double Position() => CompassDirection == Core.Geometry.Directions.North ? Edges[0].Source.X : -Edges[0].Source.Y;
 
         internal double IdealPosition {get;set;}
     }

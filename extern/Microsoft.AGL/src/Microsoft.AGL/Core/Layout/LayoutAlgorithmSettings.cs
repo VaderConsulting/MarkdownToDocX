@@ -1,7 +1,7 @@
 using System;
 using System.ComponentModel;
 
-using Microsoft.AGL.Core.Geometry;
+using Microsoft.AGL.Core.Geometry.RectanglePacking;
 using Microsoft.AGL.Core.Routing;
 #if TEST_MSAGL
 using Microsoft.AGL.DebugHelpers;
@@ -23,14 +23,11 @@ namespace Microsoft.AGL.Core.Layout {
     
 #endif
     public abstract class LayoutAlgorithmSettings {
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2235:MarkAllNonSerializableFields")]
         EdgeRoutingSettings edgeRoutingSettings = new EdgeRoutingSettings();
         ///<summary>
         /// defines edge routing behaviour
         ///</summary>
-        public EdgeRoutingSettings EdgeRoutingSettings {
-            get { return edgeRoutingSettings; }
-            set { edgeRoutingSettings = value; }
+        public EdgeRoutingSettings EdgeRoutingSettings { get => edgeRoutingSettings; set => edgeRoutingSettings = value;
         }
         #region
 #if REPORTING
@@ -41,9 +38,7 @@ namespace Microsoft.AGL.Core.Layout {
         /// </summary>
         [Description("Controls the reporting facility.")]
         [DefaultValue(false)]
-        public bool Reporting {
-            get { return reporting; }
-            set { reporting = value; }
+        public bool Reporting { get => reporting; set => reporting = value;
         }
 #endif
         #endregion
@@ -55,9 +50,7 @@ namespace Microsoft.AGL.Core.Layout {
         /// <summary>
         /// Used for debugging purposes to display all kind of intermediate curves.
         /// </summary>
-        public static Show Show {
-            get { return show; }
-            set { show = value; }
+        public static Show Show { get => show; set => show = value;
         }
 
         /// <summary>
@@ -77,9 +70,7 @@ namespace Microsoft.AGL.Core.Layout {
         /// <summary>
         /// used for debugging purposes to display anchors and paths that are kept in the DataBase
         /// </summary>
-        public static ShowDatabase ShowDatabase {
-            get { return showDataBase; }
-            set { showDataBase = value; }
+        public static ShowDatabase ShowDatabase { get => showDataBase; set => showDataBase = value;
         }
 
         ///<summary>
@@ -95,9 +86,7 @@ namespace Microsoft.AGL.Core.Layout {
         /// <summary>
         /// Controls the ideal aspect ratio for packing disconnected components
         /// </summary>
-        public double PackingAspectRatio {
-            get { return packingAspectRatio; }
-            set { packingAspectRatio = value; }
+        public double PackingAspectRatio { get => packingAspectRatio; set => packingAspectRatio = value;
         }
 
         PackingMethod packingMethod = PackingMethod.Compact;
@@ -105,9 +94,7 @@ namespace Microsoft.AGL.Core.Layout {
         /// <summary>
         /// the packing method
         /// </summary>
-        public PackingMethod PackingMethod {
-            get { return packingMethod; }
-            set { packingMethod = value; }
+        public PackingMethod PackingMethod { get => packingMethod; set => packingMethod = value;
         }
 
         double nodeSeparation = 10;
@@ -115,9 +102,7 @@ namespace Microsoft.AGL.Core.Layout {
         /// <summary>
         /// When AvoidOverlaps is set, we optionally enforce a little extra space around nodes
         /// </summary>
-        public double NodeSeparation {
-            get { return nodeSeparation; }
-            set { nodeSeparation = value; }
+        public double NodeSeparation { get => nodeSeparation; set => nodeSeparation = value;
         }
 
         double clusterMargin = 10;
@@ -126,11 +111,9 @@ namespace Microsoft.AGL.Core.Layout {
         /// <summary>
         /// When AvoidOverlaps is set, we optionally enforce a little extra space between nodes and cluster boundaries
         /// </summary>
-        public double ClusterMargin {
-            get { return clusterMargin; }
-            set { clusterMargin = value; }
+        public double ClusterMargin { get => clusterMargin; set => clusterMargin = value;
         }
-        
+
 
         /// <summary>
         /// Clones the object

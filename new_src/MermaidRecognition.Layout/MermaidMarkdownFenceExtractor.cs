@@ -37,14 +37,7 @@ public static class MermaidMarkdownFenceExtractor
         /// </summary>
         public string DiagramId
         {
-            get
-            {
-                return _DiagramId;
-            }
-            set
-            {
-                _DiagramId = value;
-            }
+            get => _DiagramId; set => _DiagramId = value;
         }
 
         /// <summary>
@@ -52,14 +45,7 @@ public static class MermaidMarkdownFenceExtractor
         /// </summary>
         public string Source
         {
-            get
-            {
-                return _Source;
-            }
-            set
-            {
-                _Source = value;
-            }
+            get => _Source; set => _Source = value;
         }
 
         /// <summary>
@@ -83,7 +69,7 @@ public static class MermaidMarkdownFenceExtractor
     /// </summary>
     public static List<ExtractedMermaidDiagram> ExtractFlowcharts(string Markdown)
     {
-        List<ExtractedMermaidDiagram> Diagrams = new List<ExtractedMermaidDiagram>();
+        List<ExtractedMermaidDiagram> Diagrams = [];
         if (string.IsNullOrEmpty(Markdown))
         {
             return Diagrams;

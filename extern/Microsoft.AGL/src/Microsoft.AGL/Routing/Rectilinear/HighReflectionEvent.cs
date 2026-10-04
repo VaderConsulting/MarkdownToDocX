@@ -14,8 +14,6 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         internal HighObstacleSide Side { get; private set; }
 
         internal HighReflectionEvent(BasicReflectionEvent previousSite, HighObstacleSide targetSide, Point site)
-            : base (previousSite, targetSide.Obstacle, site) {
-            this.Side = targetSide;
-        }
+            : base(previousSite, targetSide.Obstacle, site) => Side = targetSide;
     }
 }

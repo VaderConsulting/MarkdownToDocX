@@ -12,14 +12,7 @@ public sealed class MermaidDetectorConfig
     /// </summary>
     public string? FlowchartDefaultRenderer
     {
-        get
-        {
-            return _FlowchartDefaultRenderer;
-        }
-        set
-        {
-            _FlowchartDefaultRenderer = value;
-        }
+        get => _FlowchartDefaultRenderer; set => _FlowchartDefaultRenderer = value;
     }
 
     private string? _StateDefaultRenderer;
@@ -29,14 +22,7 @@ public sealed class MermaidDetectorConfig
     /// </summary>
     public string? StateDefaultRenderer
     {
-        get
-        {
-            return _StateDefaultRenderer;
-        }
-        set
-        {
-            _StateDefaultRenderer = value;
-        }
+        get => _StateDefaultRenderer; set => _StateDefaultRenderer = value;
     }
 
     private string? _ClassDefaultRenderer;
@@ -46,13 +32,6 @@ public sealed class MermaidDetectorConfig
     /// </summary>
     public string? ClassDefaultRenderer
     {
-        get
-        {
-            return _ClassDefaultRenderer;
-        }
-        set
-        {
-            _ClassDefaultRenderer = value;
-        }
+        get => _ClassDefaultRenderer; set => _ClassDefaultRenderer = value;
     }
 }

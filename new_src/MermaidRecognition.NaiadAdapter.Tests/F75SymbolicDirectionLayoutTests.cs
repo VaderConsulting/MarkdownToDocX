@@ -1,6 +1,7 @@
-using MermaidRecognition;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Core;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.NaiadAdapter;
+
 using MermaidSharp;
 using MermaidSharp.Diagrams.Flowchart;
 using MermaidSharp.Layout;

@@ -5,8 +5,10 @@ using Microsoft.AGL.Core;
 using Microsoft.AGL.Core.Geometry;
 using Microsoft.AGL.Core.Layout;
 using Microsoft.AGL.Core.Layout.ProximityOverlapRemoval;
-using Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MinimumSpanningTree;
 using System.Threading.Tasks;
+using Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MST;
+using Microsoft.AGL.Core.Geometry.RTree;
+using Microsoft.AGL.Core.Geometry.RectanglePacking;
 
 namespace Microsoft.AGL.Layout.MDS {
     /// <summary>
@@ -49,7 +51,7 @@ namespace Microsoft.AGL.Layout.MDS {
         //    LayoutConnectedComponents(geometryGraph, out x, out y);
 
 
-            
+
         //    int c = 0;
         //    foreach (Node node in group) {
         //        d[c] = Distances.SingleSourceUniformDistances(geometryGraph, node, false);
@@ -57,7 +59,7 @@ namespace Microsoft.AGL.Layout.MDS {
         //    }
         //    double[][] w = MultidimensionalScaling.ExponentialWeightMatrix(d, -2);
         //    MultidimensionalScaling.DistanceScalingSubset(d, x, y, w, 5);
-            
+
         //    double scaleX = ((MdsLayoutSettings)geometryGraph.LayoutAlgorithmSettings).ScaleX;
         //    double scaleY = ((MdsLayoutSettings)geometryGraph.LayoutAlgorithmSettings).ScaleY;
         //    double rotate = ((MdsLayoutSettings)geometryGraph.LayoutAlgorithmSettings).Rotate;
@@ -73,11 +75,9 @@ namespace Microsoft.AGL.Layout.MDS {
         //    SetGraphBoundingBox();
         //}
 
-         void SetGraphBoundingBox() {
-            graph.BoundingBox = graph.PumpTheBoxToTheGraphWithMargins();
-        }
+        void SetGraphBoundingBox() => graph.BoundingBox = graph.PumpTheBoxToTheGraphWithMargins();
 
-        
+
         /// <summary>
         /// Scales a configuration such that the average edge length in the drawing
         /// equals the average of the given edge lengths.
@@ -85,8 +85,8 @@ namespace Microsoft.AGL.Layout.MDS {
         /// <param name="g">A graph.</param>
         /// <param name="x">Coordinates.</param>
         /// <param name="y">Coordinates.</param>
-         static void ScaleToAverageEdgeLength(GeometryGraph g, double[] x, double[] y) {
-            var index = new Dictionary<Node, int>();
+        static void ScaleToAverageEdgeLength(GeometryGraph g, double[] x, double[] y) {
+            Dictionary<Node, int> index = new Dictionary<Node, int>();
             int c=0;
             foreach(Node node in g.Nodes) {
                 index.Add(node, c);
@@ -129,7 +129,7 @@ namespace Microsoft.AGL.Layout.MDS {
             int iter = settings.GetNumberOfIterationsWithMajorization(geometryGraph.Nodes.Count);
             double exponent = settings.Exponent;
 
-            var pivotArray = new int[k];
+            int[] pivotArray = new int[k];
             PivotDistances pivotDistances = new PivotDistances(geometryGraph, false, pivotArray);
             pivotDistances.Run();
             double[][] c = pivotDistances.Result;
@@ -180,7 +180,7 @@ namespace Microsoft.AGL.Layout.MDS {
                 PackGraphs(graphs, settings);
                 Console.WriteLine("done packing");
                 //restore the parents
-                foreach (var node in graphs.SelectMany(g => g.Nodes))
+                foreach (Node node in graphs.SelectMany(g => g.Nodes))
                     node.GeometryParent = graph;
             }
             Console.WriteLine("done with LayoutConnectedComponents");
@@ -191,9 +191,8 @@ namespace Microsoft.AGL.Layout.MDS {
 
             Console.WriteLine("LayoutConnectedGraphWithMds: nodes {0} edges {1}", compGraph.Nodes.Count(), compGraph.Edges.Count());
 
-            double[] x, y;
 
-            LayoutGraphWithMds(compGraph, settings, out x, out y);
+            LayoutGraphWithMds(compGraph, settings, out double[] x, out double[] y);
             if (settings.RotationAngle != 0)
                 Transform.Rotate(x, y, settings.RotationAngle);
 
@@ -233,10 +232,10 @@ namespace Microsoft.AGL.Layout.MDS {
             if (nodes.Count <= 5)
                 return; //we can have only a little bit of white space with a layout with only few nodes
             int repetitions = 10;
-            var scale = 1.0;
-            var delta = 0.5;
-            var tree = BuildNodeTree(nodes);
-            var random = new Random(1);
+            double scale = 1.0;
+            double delta = 0.5;
+            RectangleNode<Node> tree = BuildNodeTree(nodes);
+            Random random = new Random(1);
             do
             {
                 const int minNumberOfHits = 6;
@@ -307,16 +306,14 @@ namespace Microsoft.AGL.Layout.MDS {
             }
         }
         */
-        static RectangleNode<Node> BuildNodeTree(IList<Node> nodes) {
-            return  RectangleNode<Node>.CreateRectangleNodeOnEnumeration(
+        static RectangleNode<Node> BuildNodeTree(IList<Node> nodes) => RectangleNode<Node>.CreateRectangleNodeOnEnumeration(
                 nodes.Select(n => new RectangleNode<Node>(n, n.BoundingBox)));
-        }
 
 
         static Point RandomPointFromBox(Random random, ref Rectangle boundingBox) {
-            var x=random.NextDouble();
-            var y=random.NextDouble();
-            var p= new Point(boundingBox.Left + boundingBox.Width * x, boundingBox.Bottom + boundingBox.Height * y);
+            double x =random.NextDouble();
+            double y =random.NextDouble();
+            Point p = new Point(boundingBox.Left + boundingBox.Width * x, boundingBox.Bottom + boundingBox.Height * y);
             return p;
         }
 
@@ -335,9 +332,9 @@ namespace Microsoft.AGL.Layout.MDS {
                     : (OptimalPacking<GeometryGraph>)
                         new OptimalColumnPacking<GeometryGraph>(rectangles, settings.PackingAspectRatio);
                 packing.Run();
-                foreach (var r in rectangles) {
+                foreach (RectangleToPack<GeometryGraph> r in rectangles) {
                     GeometryGraph component = r.Data;
-                    var delta = r.Rectangle.LeftBottom - component.boundingBox.LeftBottom;
+                    Point delta = r.Rectangle.LeftBottom - component.boundingBox.LeftBottom;
                     component.Translate(delta);
                 }
                 return new Rectangle(0, 0, packing.PackedWidth, packing.PackedHeight);

@@ -31,16 +31,16 @@ namespace Microsoft.AGL.Layout.Layered {
                 Site topSiteP,
                 LayerArrays layerArraysP,
                 ProperLayeredGraph layeredGraphP, GeometryGraph originalGraphP, Anchor[] anchorsP, double layerSeparation) {
-            this.topNode = topNodeP;
-            this.bottomNode = bottomNodeP;
-            this.topSite = topSiteP;
-            this.bottomSite = topSiteP.Next;
-            this.currentTopSite = topSiteP;
-            this.currentBottomSite = topSiteP.Next;
-            this.layerArrays = layerArraysP;
-            this.layeredGraph = layeredGraphP;
-            this.originalGraph = originalGraphP;
-            this.anchors = anchorsP;
+            topNode = topNodeP;
+            bottomNode = bottomNodeP;
+            topSite = topSiteP;
+            bottomSite = topSiteP.Next;
+            currentTopSite = topSiteP;
+            currentBottomSite = topSiteP.Next;
+            layerArrays = layerArraysP;
+            layeredGraph = layeredGraphP;
+            originalGraph = originalGraphP;
+            anchors = anchorsP;
             this.layerSeparation = layerSeparation;
         }
 
@@ -85,7 +85,7 @@ namespace Microsoft.AGL.Layout.Layered {
             Point a = Point.ClosestPointAtLineSegment(corner, start, end);
             Point offsetInTheChannel = corner - a;
             double y = Math.Abs(offsetInTheChannel.Y);
-            double sep = this.layerSeparation / 2.0;
+            double sep = layerSeparation / 2.0;
             if (y > sep) //push the return value closer to the corner
                 offsetInTheChannel *= (sep / (y * 2));
 
@@ -94,7 +94,7 @@ namespace Microsoft.AGL.Layout.Layered {
 
 
         private bool InsertSites() {
-            if (this.random.Next(2) == 0)
+            if (random.Next(2) == 0)
                 return CalculateNewTopSite() | CalculateNewBottomSite();
             else
                 return CalculateNewBottomSite() | CalculateNewTopSite();
@@ -107,7 +107,7 @@ namespace Microsoft.AGL.Layout.Layered {
             Point mainSeg = currentBottomSite.Point - currentTopSite.Point;
             double cotan = AbsCotan(mainSeg);
             Point vOfNewSite = new Point();//to silence the compiler
-            foreach (Point p in this.bottomCorners()) {
+            foreach (Point p in bottomCorners()) {
                 double cornerCotan = AbsCotan(p - currentBottomSite.Point);
                 if (cornerCotan < cotan) {
                     cotan = cornerCotan;
@@ -125,15 +125,13 @@ namespace Microsoft.AGL.Layout.Layered {
 
         }
 
-        private static double AbsCotan(Point mainSeg) {
-            return Math.Abs(mainSeg.X / mainSeg.Y);
-        }
+        private static double AbsCotan(Point mainSeg) => Math.Abs(mainSeg.X / mainSeg.Y);
 
         private bool CalculateNewTopSite() {
             Point mainSeg = currentBottomSite.Point - currentTopSite.Point;
             double cotan = AbsCotan(mainSeg);
             Point vOfNewSite = new Point();//to silence the compiler
-            foreach (Point p in this.topCorners()) {
+            foreach (Point p in topCorners()) {
                 double cornerCotan = AbsCotan(p - currentTopSite.Point);
                 if (cornerCotan < cotan) {
                     cotan = cornerCotan;
@@ -191,41 +189,37 @@ namespace Microsoft.AGL.Layout.Layered {
 
         private void Init() {
             if (IsTopToTheLeftOfBottom()) {
-                this.topCorners = new Points(CornersToTheRightOfTop);
-                this.bottomCorners = new Points(CornersToTheLeftOfBottom);
+                topCorners = new Points(CornersToTheRightOfTop);
+                bottomCorners = new Points(CornersToTheLeftOfBottom);
             } else {
-                this.topCorners = new Points(CornersToTheLeftOfTop);
-                this.bottomCorners = new Points(CornersToTheRightOfBottom);
+                topCorners = new Points(CornersToTheLeftOfTop);
+                bottomCorners = new Points(CornersToTheRightOfBottom);
             }
         }
 
-        private bool IsTopToTheLeftOfBottom() {
-            return (this.topSite.Point.X < this.topSite.Next.Point.X);
-        }
+        private bool IsTopToTheLeftOfBottom() => (topSite.Point.X < topSite.Next.Point.X);
 
         private void InitLeftmostSites() {
             if (IsTopToTheLeftOfBottom()) {
-                this.topCorners = Enumerable.Empty<Point>;
-                this.bottomCorners = new Points(CornersToTheLeftOfBottom);
+                topCorners = Enumerable.Empty<Point>;
+                bottomCorners = new Points(CornersToTheLeftOfBottom);
             } else {
-                this.topCorners = new Points(CornersToTheLeftOfTop);
-                this.bottomCorners = Enumerable.Empty<Point>;
+                topCorners = new Points(CornersToTheLeftOfTop);
+                bottomCorners = Enumerable.Empty<Point>;
             }
         }
 
         private void InitRightmostSites() {
             if (IsTopToTheLeftOfBottom()) {
-                this.topCorners = new Points(CornersToTheRightOfTop);
-                this.bottomCorners = Enumerable.Empty<Point>;
+                topCorners = new Points(CornersToTheRightOfTop);
+                bottomCorners = Enumerable.Empty<Point>;
             } else {
-                this.topCorners = Enumerable.Empty<Point>;
-                this.bottomCorners = new Points(CornersToTheRightOfBottom);
+                topCorners = Enumerable.Empty<Point>;
+                bottomCorners = new Points(CornersToTheRightOfBottom);
             }
         }
 
-        private void MoveBundledSites(LayerEdge fromEdge, LayerEdge toEdge) {
-            MoveBundledEdge(anchors[toEdge.Source].X - anchors[fromEdge.Source].X, anchors[toEdge.Target].X - anchors[fromEdge.Target].X);
-        }
+        private void MoveBundledSites(LayerEdge fromEdge, LayerEdge toEdge) => MoveBundledEdge(anchors[toEdge.Source].X - anchors[fromEdge.Source].X, anchors[toEdge.Target].X - anchors[fromEdge.Target].X);
 
         private void MoveBundledEdge(double upperMove, double downMove) {
             Site site = topSite;
@@ -250,34 +244,32 @@ namespace Microsoft.AGL.Layout.Layered {
                 yield return p;
         }
 
-        Anchor NodeAnchor(int node) {
-            return anchors[node];
-        }
+        Anchor NodeAnchor(int node) => anchors[node];
         IEnumerable<Point> CornersToTheLeftOfBottom() {
-            int bottomPosition = layerArrays.X[this.bottomNode];
-            double leftMost = this.currentTopSite.Point.X;
-            double rightMost = this.currentBottomSite.Point.X;
-            foreach (int node in this.LeftFromTheNode(NodeLayer(bottomNode), bottomPosition,
+            int bottomPosition = layerArrays.X[bottomNode];
+            double leftMost = currentTopSite.Point.X;
+            double rightMost = currentBottomSite.Point.X;
+            foreach (int node in LeftFromTheNode(NodeLayer(bottomNode), bottomPosition,
                 NodeKind.Bottom, leftMost, rightMost))
                 foreach (Point p in NodeCorners(node))
                     if (p.Y > currentBottomSite.Point.Y && PossibleCorner(leftMost, rightMost, p))
                         yield return p;
         }
         IEnumerable<Point> CornersToTheLeftOfTop() {
-            int topPosition = layerArrays.X[this.topNode];
-            double leftMost = this.currentBottomSite.Point.X;
-            double rightMost = this.currentTopSite.Point.X;
-            foreach (int node in this.LeftFromTheNode(NodeLayer(topNode), topPosition, NodeKind.Top, leftMost, rightMost))
+            int topPosition = layerArrays.X[topNode];
+            double leftMost = currentBottomSite.Point.X;
+            double rightMost = currentTopSite.Point.X;
+            foreach (int node in LeftFromTheNode(NodeLayer(topNode), topPosition, NodeKind.Top, leftMost, rightMost))
                 foreach (Point p in NodeCorners(node))
                     if (p.Y < currentTopSite.Point.Y && PossibleCorner(leftMost, rightMost, p))
                         yield return p;
         }
         IEnumerable<Point> CornersToTheRightOfBottom() {
-            int bottomPosition = layerArrays.X[this.bottomNode];
-            double leftMost = this.currentBottomSite.Point.X;
-            double rightMost = this.currentTopSite.Point.X;
+            int bottomPosition = layerArrays.X[bottomNode];
+            double leftMost = currentBottomSite.Point.X;
+            double rightMost = currentTopSite.Point.X;
 
-            foreach (int node in this.RightFromTheNode(NodeLayer(bottomNode), bottomPosition,
+            foreach (int node in RightFromTheNode(NodeLayer(bottomNode), bottomPosition,
                 NodeKind.Bottom, leftMost, rightMost))
                 foreach (Point p in NodeCorners(node))
                     if (p.Y > currentBottomSite.Point.Y && PossibleCorner(leftMost, rightMost, p))
@@ -285,22 +277,18 @@ namespace Microsoft.AGL.Layout.Layered {
 
         }
         IEnumerable<Point> CornersToTheRightOfTop() {
-            int topPosition = layerArrays.X[this.topNode];
-            double leftMost = this.currentTopSite.Point.X;
-            double rightMost = this.currentBottomSite.Point.X;
-            foreach (int node in this.RightFromTheNode(NodeLayer(topNode), topPosition, NodeKind.Top, leftMost, rightMost))
+            int topPosition = layerArrays.X[topNode];
+            double leftMost = currentTopSite.Point.X;
+            double rightMost = currentBottomSite.Point.X;
+            foreach (int node in RightFromTheNode(NodeLayer(topNode), topPosition, NodeKind.Top, leftMost, rightMost))
                 foreach (Point p in NodeCorners(node))
                     if (p.Y < currentTopSite.Point.Y && PossibleCorner(leftMost, rightMost, p))
                         yield return p;
         }
 
-        private static bool PossibleCorner(double leftMost, double rightMost, Point p) {
-            return p.X > leftMost && p.X < rightMost;
-        }
+        private static bool PossibleCorner(double leftMost, double rightMost, Point p) => p.X > leftMost && p.X < rightMost;
 
-        private int[] NodeLayer(int j) {
-            return layerArrays.Layers[layerArrays.Y[j]];
-        }
+        private int[] NodeLayer(int j) => layerArrays.Layers[layerArrays.Y[j]];
 
         //private static bool CounterClockwise(ref Point topPoint, ref Point cornerPoint, ref Point p) {
         //    return Point.GetTriangleOrientation(topPoint, cornerPoint, p) == TriangleOrientation.Counterclockwise;
@@ -310,25 +298,19 @@ namespace Microsoft.AGL.Layout.Layered {
         //    return Point.GetTriangleOrientation(topPoint, cornerPoint, p) == TriangleOrientation.Clockwise;
         //}
 
-        bool IsLabel(int u) {
-            return this.anchors[u].RepresentsLabel;
-        }
+        bool IsLabel(int u) => anchors[u].RepresentsLabel;
 
         private bool NodeUCanBeCrossedByNodeV(int u, int v) {
             if (IsLabel(u) || IsLabel(v))
                 return false;
-            if (this.IsVirtualVertex(u) && this.IsVirtualVertex(v) && AdjacentEdgesIntersect(u, v))
+            if (IsVirtualVertex(u) && IsVirtualVertex(v) && AdjacentEdgesIntersect(u, v))
                 return true;
             return false;
         }
 
-        private bool AdjacentEdgesIntersect(int u, int v) {
-            return Intersect(IncomingEdge(u), IncomingEdge(v)) || Intersect(OutcomingEdge(u), OutcomingEdge(v));
-        }
+        private bool AdjacentEdgesIntersect(int u, int v) => Intersect(IncomingEdge(u), IncomingEdge(v)) || Intersect(OutcomingEdge(u), OutcomingEdge(v));
 
-        private bool Intersect(LayerEdge e, LayerEdge m) {
-            return (layerArrays.X[e.Source] - layerArrays.X[m.Source]) * (layerArrays.X[e.Target] - layerArrays.X[m.Target]) < 0;
-        }
+        private bool Intersect(LayerEdge e, LayerEdge m) => (layerArrays.X[e.Source] - layerArrays.X[m.Source]) * (layerArrays.X[e.Target] - layerArrays.X[m.Target]) < 0;
 
         private LayerEdge IncomingEdge(int u) {
             foreach (LayerEdge le in layeredGraph.InEdges(u))
@@ -343,16 +325,14 @@ namespace Microsoft.AGL.Layout.Layered {
 
             throw new InvalidOperationException();
         }
-        bool IsVirtualVertex(int v) {
-            return v >= this.originalGraph.Nodes.Count;
-        }
+        bool IsVirtualVertex(int v) => v >= originalGraph.Nodes.Count;
 
         IEnumerable<int> RightFromTheNode(int[] layer, int vPosition, NodeKind nodeKind, double leftMostX, double rightMostX) {
             double t = 0, b = 0;
             if (nodeKind == NodeKind.Bottom)
-                b = Single.MaxValue;//we don't have bottom boundaries here since they will be cut off
+                b = float.MaxValue;//we don't have bottom boundaries here since they will be cut off
             else if (nodeKind == NodeKind.Top)
-                t = Single.MaxValue;//we don't have top boundaries here since they will be cut off
+                t = float.MaxValue;//we don't have top boundaries here since they will be cut off
 
             int v = layer[vPosition];
 
@@ -378,9 +358,9 @@ namespace Microsoft.AGL.Layout.Layered {
         IEnumerable<int> LeftFromTheNode(int[] layer, int vPosition, NodeKind nodeKind, double leftMostX, double rightMostX) {
             double t = 0, b = 0;
             if (nodeKind == NodeKind.Bottom)
-                b = Single.MaxValue;//we don't have bottom boundaries here since they will be cut off
+                b = float.MaxValue;//we don't have bottom boundaries here since they will be cut off
             else if (nodeKind == NodeKind.Top)
-                t = Single.MaxValue;//we don't have top boundaries here since they will be cut off
+                t = float.MaxValue;//we don't have top boundaries here since they will be cut off
 
             int v = layer[vPosition];
 

@@ -37,7 +37,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         /// </summary>
         internal void CreateNodeRadii() {
             //set radii to zero
-            foreach (var v in metroGraphData.VirtualNodes()) {
+            foreach (Station v in metroGraphData.VirtualNodes()) {
                 v.Radius = 0;
                 v.cachedIdealRadius = CalculateIdealHubRadiusWithNeighbors(metroGraphData, bundlingSettings, v);
                 ;
@@ -52,7 +52,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             //TimeMeasurer.DebugOutput("Optimized cost of radii: " + Cost());
 
             //ensure radii are not zero
-            foreach (var v in metroGraphData.VirtualNodes()) {
+            foreach (Station v in metroGraphData.VirtualNodes()) {
                 v.Radius = Math.Max(v.Radius, bundlingSettings.MinHubRadius);
             }
         }
@@ -61,16 +61,15 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         /// Grow hubs
         /// </summary>
         bool GrowHubs(bool useHalfEdgesAsIdealR) {
-            var queue = new GenericBinaryHeapPriorityQueue<Station>();
-            foreach (var v in metroGraphData.VirtualNodes()) {
+            GenericBinaryHeapPriorityQueue<Station> queue = new GenericBinaryHeapPriorityQueue<Station>();
+            foreach (Station v in metroGraphData.VirtualNodes()) {
                 queue.Enqueue(v, -CalculatePotential(v, useHalfEdgesAsIdealR));
             }
 
             bool progress = false;
             //choose a hub with the greatest potential
             while (!queue.IsEmpty()) {
-                double hu;
-                Station v = queue.Dequeue(out hu);
+                Station v = queue.Dequeue(out double hu);
                 if (hu >= 0)
                     break;
 
@@ -121,7 +120,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         double Cost() {
             double cost = 0;
-            foreach (var v in metroGraphData.VirtualNodes()) {
+            foreach (Station v in metroGraphData.VirtualNodes()) {
                 double idealR = v.cachedIdealRadius;
                 cost += CostCalculator.RError(idealR, v.Radius, bundlingSettings);
             }
@@ -170,9 +169,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         /// <summary>
         /// Returns the ideal radius of the hub
         /// </summary>
-        internal static double CalculateIdealHubRadiusWithNeighbors(MetroGraphData metroGraphData, BundlingSettings bundlingSettings, Station node) {
-            return CalculateIdealHubRadiusWithNeighbors(metroGraphData, bundlingSettings, node, node.Position);
-        }
+        internal static double CalculateIdealHubRadiusWithNeighbors(MetroGraphData metroGraphData, BundlingSettings bundlingSettings, Station node) => CalculateIdealHubRadiusWithNeighbors(metroGraphData, bundlingSettings, node, node.Position);
 
         /// <summary>
         /// Returns the ideal radius of the hub
@@ -198,7 +195,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         /// </summary>
         static double CalculateIdealHubRadiusWithAdjacentEdges(MetroGraphData metroGraphData, BundlingSettings bundlingSettings, Station node) {
             double r = bundlingSettings.MaxHubRadius;
-            foreach (var adj in node.Neighbors) {
+            foreach (Station adj in node.Neighbors) {
                 r = Math.Min(r, (node.Position - adj.Position).Length / 2);
             }
 

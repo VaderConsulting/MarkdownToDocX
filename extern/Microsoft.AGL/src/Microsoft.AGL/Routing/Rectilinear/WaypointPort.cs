@@ -7,24 +7,18 @@ namespace Microsoft.AGL.Routing.Rectilinear{
     /// keep this class internal, it not a full fledged Port
     /// </summary>
     internal class WaypointPort : FloatingPort{
-/// <summary>
-/// 
-/// </summary>
-/// <param name="location"></param>
-        public WaypointPort(Point location):base(null,location){
-           this.location = location;
-        }
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="location"></param>
+        public WaypointPort(Point location) : base(null, location) => this.location = location;
 
         readonly Point location;
         /// <summary>
         /// 
         /// </summary>
-        public override Point Location {
-            get { return location; }            
-        }
+        public override Point Location => location;
 
-        public override ICurve Curve {
-            get { return null; }
-        }
+        public override ICurve Curve => null;
     }
 }

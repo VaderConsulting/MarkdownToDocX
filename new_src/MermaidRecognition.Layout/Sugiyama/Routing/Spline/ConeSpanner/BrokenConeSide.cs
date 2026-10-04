@@ -11,9 +11,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner{
         /// </summary>
         internal Point start;
 
-        internal override Point Start {
-            get { return start; }
-        }
+        internal override Point Start => start;
 
         /// <summary>
         /// it is the side of the cone that intersects the obstacle side
@@ -22,10 +20,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner{
 
         internal PolylinePoint EndVertex { get; set; }
 
-        internal Point End {
-            get { return EndVertex.Point; }
-        }
-      
+        internal Point End => EndVertex.Point;
+
 
         internal BrokenConeSide(Point start, PolylinePoint end, ConeSide coneSide) {
             this.start = start;
@@ -34,12 +30,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner{
         }
 
 
-        internal override Point Direction {
-            get { return End-Start; }
-        }
+        internal override Point Direction => End - Start;
 
-        public override string ToString() {
-            return "BrokenConeSide: " + Start + "," + End;
-        }
+        public override string ToString() => "BrokenConeSide: " + Start + "," + End;
     }
 }

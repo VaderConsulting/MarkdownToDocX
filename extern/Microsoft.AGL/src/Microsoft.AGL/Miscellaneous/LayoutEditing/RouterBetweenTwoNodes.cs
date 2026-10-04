@@ -1,19 +1,22 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+
 using Microsoft.AGL.Core.Geometry;
 using Microsoft.AGL.Core.Geometry.Curves;
+using Microsoft.AGL.Core.Geometry.RTree;
 using Microsoft.AGL.Core.Layout;
 using Microsoft.AGL.Layout.Layered;
 using Microsoft.AGL.Routing;
 using Microsoft.AGL.Routing.Visibility;
 
-namespace Microsoft.AGL.Prototype.LayoutEditing {
+namespace Microsoft.AGL.Miscellaneous.LayoutEditing
+{
     /// <summary>
     /// the router between nodes
     /// </summary>
     public class RouterBetweenTwoNodes {
-        readonly Dictionary<Point, Polyline> pointsToObstacles = new Dictionary<Point, Polyline>();
+        readonly Dictionary<Point, Polyline> pointsToObstacles = [];
         VisibilityGraph _visGraph;
         ObstacleCalculator obstacleCalculator;
 
@@ -33,9 +36,7 @@ namespace Microsoft.AGL.Prototype.LayoutEditing {
         /// the minimum angle between a node boundary curve and and an edge 
         /// curve at the place where the edge curve intersects the node boundary
         /// </summary>
-        public double EnteringAngleBound {
-            get { return enteringAngleBound; }
-        }
+        public double EnteringAngleBound => enteringAngleBound;
 
 
         double minimalPadding = 1;
@@ -43,9 +44,7 @@ namespace Microsoft.AGL.Prototype.LayoutEditing {
         /// <summary>
         /// the curve should not come to the nodes closer than MinimalPaddin
         /// </summary>
-        public double Padding {
-            get { return minimalPadding; }
-            private set { minimalPadding = value; }
+        public double Padding { get => minimalPadding; private set => minimalPadding = value;
         }
 
 
@@ -54,8 +53,6 @@ namespace Microsoft.AGL.Prototype.LayoutEditing {
         /// </summary>
         public double LoosePadding { get; set; }
 
-
-        [SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
         readonly GeometryGraph graph;
 
         internal Node Target { get; private set; }
@@ -64,33 +61,24 @@ namespace Microsoft.AGL.Prototype.LayoutEditing {
 
         VisibilityVertex targetVisibilityVertex;
 
-        VisibilityVertex TargetVisibilityVertex {
-            get { return targetVisibilityVertex; }
-            //            set { targetVisibilityVertex = value; }
-        }
+        VisibilityVertex TargetVisibilityVertex => targetVisibilityVertex;
 
         internal Node Source { get; private set; }
 
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
-        internal GeometryGraph Graph {
-            get { return graph; }
-        }
+        internal GeometryGraph Graph => graph;
 
         Polyline Polyline { get; set; }
 
         internal static double DistanceFromPointToPolyline(Point p, Polyline poly) {
             double d = double.PositiveInfinity;
-            double u;
             for (PolylinePoint pp = poly.StartPoint; pp.Next != null; pp = pp.Next)
-                d = Math.Min(d, Point.DistToLineSegment(p, pp.Point, pp.Next.Point, out u));
+                d = Math.Min(d, Point.DistToLineSegment(p, pp.Point, pp.Next.Point, out double u));
             return d;
         }
 
         /// <summary>
         /// 
         /// </summary>
-        [SuppressMessage("Microsoft.Naming",
-            "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Polyline")]
         double OffsetForPolylineRelaxing { get; set; }
 
         /// <summary>
@@ -211,11 +199,11 @@ namespace Microsoft.AGL.Prototype.LayoutEditing {
 
         static RelaxedPolylinePoint CreateRelaxedPolylinePoints(Polyline polyline) {
             PolylinePoint p = polyline.StartPoint;
-            var ret = new RelaxedPolylinePoint(p, p.Point);
+            RelaxedPolylinePoint ret = new RelaxedPolylinePoint(p, p.Point);
             RelaxedPolylinePoint currentRelaxed = ret;
             while (p.Next != null) {
                 p = p.Next;
-                var r = new RelaxedPolylinePoint(p, p.Point) { Prev = currentRelaxed };
+                RelaxedPolylinePoint r = new RelaxedPolylinePoint(p, p.Point) { Prev = currentRelaxed };
                 currentRelaxed.Next = r;
                 currentRelaxed = r;
             }
@@ -239,14 +227,10 @@ namespace Microsoft.AGL.Prototype.LayoutEditing {
             return false;
         }
 
-        static void PullCloserRelaxedPoint(RelaxedPolylinePoint relaxedPolylinePoint) {
-            relaxedPolylinePoint.PolylinePoint.Point = 0.2 * relaxedPolylinePoint.OriginalPosition +
+        static void PullCloserRelaxedPoint(RelaxedPolylinePoint relaxedPolylinePoint) => relaxedPolylinePoint.PolylinePoint.Point = 0.2 * relaxedPolylinePoint.OriginalPosition +
                                                        0.8 * relaxedPolylinePoint.PolylinePoint.Point;
-        }
 
-        bool StickingSegmentDoesNotIntersectTightObstacles(RelaxedPolylinePoint relaxedPoint) {
-            return
-                !LineIntersectsTightObstacles(new LineSegment(relaxedPoint.PolylinePoint.Point,
+        bool StickingSegmentDoesNotIntersectTightObstacles(RelaxedPolylinePoint relaxedPoint) => !LineIntersectsTightObstacles(new LineSegment(relaxedPoint.PolylinePoint.Point,
                                                               relaxedPoint.Prev.PolylinePoint.Point)) && (
                                                                                                              (relaxedPoint
                                                                                                                   .Next ==
@@ -265,11 +249,8 @@ namespace Microsoft.AGL.Prototype.LayoutEditing {
                                                                                                                              PolylinePoint
                                                                                                                              .
                                                                                                                              Point))));
-        }
 
-        bool LineIntersectsTightObstacles(LineSegment ls) {
-            return LineIntersectsRectangleNode(ls, obstacleCalculator.RootOfTightHierararchy);
-        }
+        bool LineIntersectsTightObstacles(LineSegment ls) => LineIntersectsRectangleNode(ls, obstacleCalculator.RootOfTightHierararchy);
 
         static bool LineIntersectsRectangleNode(LineSegment ls, RectangleNode<Polyline> rectNode) {
             if (!ls.BoundingBox.Intersects(rectNode.Rectangle))
@@ -299,16 +280,13 @@ namespace Microsoft.AGL.Prototype.LayoutEditing {
         }
 
 #if TEST_MSAGL
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         void ShowPolylineAndObstacles(){
             List<ICurve> ls = CreateListWithObstaclesAndPolyline();
             SugiyamaLayoutSettings.Show(ls.ToArray());
         }
 
-
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         List<ICurve> CreateListWithObstaclesAndPolyline(){
-            var ls = new List<ICurve>();
+            List<ICurve> ls = new List<ICurve>();
             foreach (Polyline poly in obstacleCalculator.TightObstacles)
                 ls.Add(poly);
             foreach (Polyline poly in obstacleCalculator.LooseObstacles)
@@ -321,11 +299,11 @@ namespace Microsoft.AGL.Prototype.LayoutEditing {
 
         void SmoothCorners(SmoothedPolyline edgePolyline) {
             Site a = edgePolyline.HeadSite; //the corner start
-            Site b; //the corner origin
-            Site c; //the corner other end
+                                            //the corner origin
+                                            //the corner other end
             const double mult = 1.5;
 
-            while (Curve.FindCorner(a, out b, out c)) {
+            while (Curve.FindCorner(a, out Site b, out Site c)) {
                 double k = 0.5;
                 CubicBezierSegment seg;
                 double u, v;
@@ -404,7 +382,7 @@ namespace Microsoft.AGL.Prototype.LayoutEditing {
 
 
         LineSegment TryRouteStraightLine() {
-            var ls = new LineSegment(SourcePoint, TargetPoint);
+            LineSegment ls = new LineSegment(SourcePoint, TargetPoint);
             if (obstacleCalculator.ObstaclesIntersectICurve(ls))
                 return null;
             return ls;
@@ -412,8 +390,7 @@ namespace Microsoft.AGL.Prototype.LayoutEditing {
 
         internal Point TargetPoint {
             get {
-                var tp = TargetPort as CurvePort;
-                if (tp != null)
+                if (TargetPort is CurvePort tp)
                     return Target.BoundaryCurve[tp.Parameter];
                 return TargetPort.Location;
             }
@@ -421,21 +398,18 @@ namespace Microsoft.AGL.Prototype.LayoutEditing {
 
         internal Point SourcePoint {
             get {
-                var sp = SourcePort as CurvePort;
-                if (sp != null)
+                if (SourcePort is CurvePort sp)
                     return Source.BoundaryCurve[sp.Parameter];
                 return SourcePort.Location;
             }
         }
 
-
-        [SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         Polyline GetShortestPolyline() {
-            var pathCalc = new SingleSourceSingleTargetShortestPathOnVisibilityGraph(_visGraph, this.sourceVisibilityVertex,
+            SingleSourceSingleTargetShortestPathOnVisibilityGraph pathCalc = new SingleSourceSingleTargetShortestPathOnVisibilityGraph(_visGraph, sourceVisibilityVertex,
                                                                                      TargetVisibilityVertex);
-            var path = pathCalc.GetPath(false);
-            var ret = new Polyline();
-            foreach (var v in path)
+            IEnumerable<VisibilityVertex> path = pathCalc.GetPath(false);
+            Polyline ret = new Polyline();
+            foreach (VisibilityVertex v in path)
                 ret.AddPoint(v.Point);
             return RemoveCollinearPoint(ret);
         }
@@ -450,12 +424,9 @@ namespace Microsoft.AGL.Prototype.LayoutEditing {
             return ret;
         }
 
-        [SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
-        void CalculateTangentVisibilityGraph() {
-            _visGraph = VisibilityGraph.GetVisibilityGraphForShortestPath(
+        void CalculateTangentVisibilityGraph() => _visGraph = VisibilityGraph.GetVisibilityGraphForShortestPath(
                 SourcePoint, TargetPoint, obstacleCalculator.LooseObstacles, out sourceVisibilityVertex,
                 out targetVisibilityVertex);
-        }
 
 
         void CalculateObstacles() {

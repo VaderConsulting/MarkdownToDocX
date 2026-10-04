@@ -4,24 +4,25 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Microsoft.AGL.Core.DataStructures;
 using Microsoft.AGL.Core.GraphAlgorithms;
+using Microsoft.AGL.Core.GraphAlgorithms.CycleRemoval;
 using Microsoft.AGL.Core.Layout;
 
 namespace Microsoft.AGL.Layout.Layered {
     internal class HorizontalConstraintsForSugiyama {
-        readonly Set<Tuple<Node, Node>> leftRightConstraints = new Set<Tuple<Node, Node>>();
-        readonly Set<Tuple<Node, Node>> leftRightNeighbors = new Set<Tuple<Node, Node>>();
+        readonly Set<Tuple<Node, Node>> leftRightConstraints = [];
+        readonly Set<Tuple<Node, Node>> leftRightNeighbors = [];
 
         /// <summary>
         /// node is mapped to the block root
         /// </summary>
-        readonly Dictionary<int, int> nodeToBlockRoot = new Dictionary<int, int>();
+        readonly Dictionary<int, int> nodeToBlockRoot = [];
 
-        readonly Set<Tuple<Node, Node>> upDownVerticalConstraints = new Set<Tuple<Node, Node>>();
+        readonly Set<Tuple<Node, Node>> upDownVerticalConstraints = [];
 
         /// <summary>
         /// The right most node to the left of the  block is called a block root. The root does not belong to its block.
         /// </summary>
-        internal Dictionary<int, List<int>> BlockRootToBlock = new Dictionary<int, List<int>>();
+        internal Dictionary<int, List<int>> BlockRootToBlock = [];
 
         internal Set<Tuple<int, int>> LeftRighInts;
 
@@ -33,26 +34,15 @@ namespace Microsoft.AGL.Layout.Layered {
         internal Set<Tuple<int, int>> VerticalInts;
         Dictionary<Node, int> nodeIdToIndex;
 
-        internal Set<Tuple<Node, Node>> LeftRightNeighbors {
-            get { return leftRightNeighbors; }
-        }
+        internal Set<Tuple<Node, Node>> LeftRightNeighbors => leftRightNeighbors;
 
-        internal Set<Tuple<Node, Node>> UpDownVerticalConstraints {
-            get { return upDownVerticalConstraints; }
-        }
+        internal Set<Tuple<Node, Node>> UpDownVerticalConstraints => upDownVerticalConstraints;
 
-        internal Set<Tuple<Node, Node>> LeftRightConstraints {
-            get { return leftRightConstraints; }
-        }
+        internal Set<Tuple<Node, Node>> LeftRightConstraints => leftRightConstraints;
 
-        internal bool IsEmpty {
-            get {
-                return LeftRightNeighbors.Count == 0 && UpDownVerticalConstraints.Count == 0 &&
+        internal bool IsEmpty => LeftRightNeighbors.Count == 0 && UpDownVerticalConstraints.Count == 0 &&
                        LeftRightConstraints.Count == 0;
-            }
-        }
 
-        [SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         internal void Clear() {}
 
 
@@ -61,14 +51,11 @@ namespace Microsoft.AGL.Layout.Layered {
                 AddSameLayerNeighborsPair(neighbors[i], neighbors[i + 1]);
         }
 
-        internal void AddSameLayerNeighborsPair(Node leftNode, Node rightNode) {
-            LeftRightNeighbors.Insert(new Tuple<Node, Node>(leftNode, rightNode));
-        }
+        internal void AddSameLayerNeighborsPair(Node leftNode, Node rightNode) => LeftRightNeighbors.Insert(new Tuple<Node, Node>(leftNode, rightNode));
 
 
         int NodeToBlockRootSoft(int i) {
-            int blockRoot;
-            if (nodeToBlockRoot.TryGetValue(i, out blockRoot))
+            if (nodeToBlockRoot.TryGetValue(i, out int blockRoot))
                 return blockRoot;
             return i;
         }
@@ -78,7 +65,7 @@ namespace Microsoft.AGL.Layout.Layered {
             BasicGraph<IntPair> graph = BasicGraphFromLeftRightIntNeibs();
             for (int root = 0; root < graph.NodeCount; root++)
                 if (graph.InEdges(root).Count == 0 && !nodeToBlockRoot.ContainsKey(root)) {
-                    var block = new List<int>();
+                    List<int> block = new List<int>();
                     int current = root;
                     for (IList<IntPair> outEdges = graph.OutEdges(current); outEdges.Count > 0;
                          outEdges = graph.OutEdges(current)) {
@@ -92,35 +79,32 @@ namespace Microsoft.AGL.Layout.Layered {
         }
 
 
-/*
-        static void RemoveForks(Set<Tuple<int,int>> couples){
-            var graph = BasicGraphFromIntCouples(couples);
-            for (int i = 0; i < graph.NodeCount; i++) {
-                bool fork=false;
-                foreach (var edge in graph.OutEdges(i)) {
-                    if (fork)
-                        couples.Remove(new Tuple<int, int>(edge.First, edge.Second));
-                    else
-                        fork = true;
+        /*
+                static void RemoveForks(Set<Tuple<int,int>> couples){
+                    var graph = BasicGraphFromIntCouples(couples);
+                    for (int i = 0; i < graph.NodeCount; i++) {
+                        bool fork=false;
+                        foreach (var edge in graph.OutEdges(i)) {
+                            if (fork)
+                                couples.Remove(new Tuple<int, int>(edge.First, edge.Second));
+                            else
+                                fork = true;
+                        }
+                        fork = false;
+                        foreach (var edge in graph.InEdges(i)) {
+                            if (fork)
+                                couples.Remove(new Tuple<int, int>(edge.First, edge.Second));
+                            else
+                                fork = true;
+                        }
+                    }
                 }
-                fork = false;
-                foreach (var edge in graph.InEdges(i)) {
-                    if (fork)
-                        couples.Remove(new Tuple<int, int>(edge.First, edge.Second));
-                    else
-                        fork = true;
-                }
-            }
-        }
-*/
+        */
 
-        BasicGraph<IntPair> BasicGraphFromLeftRightIntNeibs() {
-            return new BasicGraph<IntPair>(from p in LeftRightIntNeibs select new IntPair(p.Item1, p.Item2));
-        }
+        BasicGraph<IntPair> BasicGraphFromLeftRightIntNeibs() => new BasicGraph<IntPair>(from p in LeftRightIntNeibs select new IntPair(p.Item1, p.Item2));
 
         int NodeIndex(Node node) {
-            int index;
-            if (nodeIdToIndex.TryGetValue(node, out index))
+            if (nodeIdToIndex.TryGetValue(node, out int index))
                 return index;
             return -1;
         }

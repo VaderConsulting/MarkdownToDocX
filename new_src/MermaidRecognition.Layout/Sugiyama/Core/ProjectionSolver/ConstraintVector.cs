@@ -17,8 +17,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
     class ConstraintVector
     {
         internal Constraint[] Vector { get; private set; }
-        internal bool IsEmpty { get { return null == Vector; } }
-        internal int Count { get { return IsEmpty ? 0 : Vector.Length; } }
+        internal bool IsEmpty => null == Vector;
+        internal int Count => IsEmpty ? 0 : Vector.Length;
 
         internal void Create(int numConstraints)
         {
@@ -85,14 +85,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
             {
                 return;
             }
-            foreach (var constraint in Vector)
+            foreach (Constraint constraint in Vector)
             {
                 constraint.Reinitialize();
             }
             firstActiveConstraintIndex = Vector.Length;
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic"), Conditional("DEBUG")]
+        [Conditional("DEBUG")]
         internal void Debug_AssertIsFull()
         {
             Debug.Assert(Vector.Length == nextConstraintIndex, "AllConstraints.Vector is not full");
@@ -104,7 +104,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
         {
             for (int ii = 0; ii < Vector.Length; ++ii)
             {
-                var constraint = Vector[ii];
+                Constraint constraint = Vector[ii];
                 Debug.Assert(constraint.VectorIndex == ii, "Inconsistent constraint.VectorIndex");
                 if (constraint.IsActive)
                 {
@@ -128,7 +128,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
 
         internal void RecycleDfDvNode(DfDvNode node) {
             // In the case of long constraint chains make sure this does not end up as big as the number of constraints in the block.
-            if (this.DfDvRecycleStack.Count < 1024) {
+            if (DfDvRecycleStack.Count < 1024) {
                 DfDvRecycleStack.Push(node);
             }
         }
@@ -160,9 +160,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
 
         /// <summary>
         /// </summary>
-        public override string ToString()
-        {
-            return Vector.ToString();
-        }
+        public override string ToString() => Vector.ToString();
     }
 }

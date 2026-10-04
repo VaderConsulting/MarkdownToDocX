@@ -9,9 +9,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
     ///</summary>
     public class ClusterBoundaryPort : RelativeFloatingPort {
         Polyline loosePolyline;
-        internal Polyline LoosePolyline {
-            get { return loosePolyline; }
-            set { loosePolyline = value; }
+        internal Polyline LoosePolyline { get => loosePolyline; set => loosePolyline = value;
         }
 
         ///<summary>

@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Render;
 
 namespace MermaidRecognition.Layout;
@@ -25,7 +26,7 @@ public static class FlowchartEdgeRouteStrategyRegistry
         out List<(double X, double Y)> LayoutPoints,
         out FlowchartEdgeRouteKind RouteKind)
     {
-        LayoutPoints = new List<(double X, double Y)>();
+        LayoutPoints = [];
         RouteKind = FlowchartEdgeRouteKind.Unknown;
 
         if (!BoundsById.TryGetValue(Edge.SourceId, out FlowchartLayoutNodeBounds SourceBounds)

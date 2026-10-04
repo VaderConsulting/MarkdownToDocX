@@ -1,5 +1,5 @@
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 
 namespace MermaidRecognition.Tests.Flowchart;
 
@@ -28,7 +28,7 @@ public sealed class FlowchartL4AxisGateTests
         Assert.That(File.Exists(MmdPath), Is.True);
 
         DiagramContract Contract = FlowchartRecognizer.Parse(File.ReadAllText(MmdPath));
-        Assert.That(Contract.Configuration.RawDirectiveValues.TryGetValue("flowchart.curve", out string Curve), Is.True);
+        Assert.That(Contract.Configuration.RawDirectiveValues.TryGetValue("flowchart.curve", out string? Curve), Is.True);
         Assert.That(Curve, Is.EqualTo("linear"));
         Assert.That(Contract.Edges.Count, Is.EqualTo(2));
     }
@@ -40,11 +40,11 @@ public sealed class FlowchartL4AxisGateTests
         Assert.That(File.Exists(MmdPath), Is.True);
 
         DiagramContract Contract = FlowchartRecognizer.Parse(File.ReadAllText(MmdPath));
-        Assert.That(Contract.Configuration.RawDirectiveValues.TryGetValue("flowchart.nodeSpacing", out string NodeSpacing), Is.True);
+        Assert.That(Contract.Configuration.RawDirectiveValues.TryGetValue("flowchart.nodeSpacing", out string? NodeSpacing), Is.True);
         Assert.That(NodeSpacing, Is.EqualTo("60"));
-        Assert.That(Contract.Configuration.RawDirectiveValues.TryGetValue("flowchart.rankSpacing", out string RankSpacing), Is.True);
+        Assert.That(Contract.Configuration.RawDirectiveValues.TryGetValue("flowchart.rankSpacing", out string? RankSpacing), Is.True);
         Assert.That(RankSpacing, Is.EqualTo("70"));
-        Assert.That(Contract.Configuration.RawDirectiveValues.TryGetValue("flowchart.diagramPadding", out string Padding), Is.True);
+        Assert.That(Contract.Configuration.RawDirectiveValues.TryGetValue("flowchart.diagramPadding", out string? Padding), Is.True);
         Assert.That(Padding, Is.EqualTo("12"));
     }
 
@@ -55,9 +55,9 @@ public sealed class FlowchartL4AxisGateTests
         Assert.That(File.Exists(MmdPath), Is.True);
 
         DiagramContract Contract = FlowchartRecognizer.Parse(File.ReadAllText(MmdPath));
-        Assert.That(Contract.Configuration.RawDirectiveValues.TryGetValue("theme", out string Theme), Is.True);
+        Assert.That(Contract.Configuration.RawDirectiveValues.TryGetValue("theme", out string? Theme), Is.True);
         Assert.That(Theme, Is.EqualTo("forest"));
-        Assert.That(Contract.Configuration.RawDirectiveValues.TryGetValue("flowchart.curve", out string Curve), Is.True);
+        Assert.That(Contract.Configuration.RawDirectiveValues.TryGetValue("flowchart.curve", out string? Curve), Is.True);
         Assert.That(Curve, Is.EqualTo("linear"));
         Assert.That(Contract.Edges.Count, Is.EqualTo(1));
     }

@@ -6,11 +6,12 @@
 
 using System;
 using System.Diagnostics;
-using MermaidRecognition.Layout.Sugiyama.Core.DataStructures;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves;
 using MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner;
 using MermaidRecognition.Layout.Sugiyama.Routing.Visibility;
+using MermaidRecognition.Layout.Sugiyama.Core.DataStructures.RBTree;
+
 
 #if DEBUG
 using System.Linq;
@@ -35,10 +36,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         internal VisibilityGraph VisibilityGraph { get; set; }
 
         protected VisibilityGraphGenerator(bool wantReflections) {
-            this.ScanDirection = ScanDirection.HorizontalInstance;
-            this.eventQueue = new EventQueue();
-            this.HorizontalScanSegments = new ScanSegmentTree(ScanDirection.HorizontalInstance);
-            this.VerticalScanSegments = new ScanSegmentTree(ScanDirection.VerticalInstance);
+            ScanDirection = ScanDirection.HorizontalInstance;
+            eventQueue = new EventQueue();
+            HorizontalScanSegments = new ScanSegmentTree(ScanDirection.HorizontalInstance);
+            VerticalScanSegments = new ScanSegmentTree(ScanDirection.VerticalInstance);
             this.wantReflections = wantReflections;
         }
 
@@ -49,11 +50,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         internal ScanSegmentTree HorizontalScanSegments;
         internal ScanSegmentTree VerticalScanSegments;
 
-        protected ScanSegmentTree ParallelScanSegments        // Parallel to scanline
-            { get { return ScanDirection.IsHorizontal ? HorizontalScanSegments : VerticalScanSegments; } }
+        protected ScanSegmentTree ParallelScanSegments => ScanDirection.IsHorizontal ? HorizontalScanSegments : VerticalScanSegments;        // Parallel to scanline
 
-        protected ScanSegmentTree PerpendicularScanSegments   // Perpendicular to scanline
-            { get { return ScanDirection.IsHorizontal ? VerticalScanSegments : HorizontalScanSegments; } }
+        protected ScanSegmentTree PerpendicularScanSegments => ScanDirection.IsHorizontal ? VerticalScanSegments : HorizontalScanSegments;   // Perpendicular to scanline
 
         // For lookahead points, we record the point of the intersection on the reflecting side, then
         // whenever we load a side, we check for active lookahead lines within this range.  Since we
@@ -82,9 +81,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         protected readonly NeighborSides LowNeighborSides = new NeighborSides();
         protected readonly NeighborSides HighNeighborSides = new NeighborSides();
 
-        internal static VisibilityGraph NewVisibilityGraph() {
-            return new VisibilityGraph { VertexFactory = (point => new VisibilityVertexRectilinear(point)) };
-        }
+        internal static VisibilityGraph NewVisibilityGraph() => new VisibilityGraph { VertexFactory = (point => new VisibilityVertexRectilinear(point)) };
 
         /// <summary>
         /// Generate the visibility graph along which edges will be routed.
@@ -109,10 +106,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             // Validate them here; we need to have enough room to create the sentinels.  We need
             // only the Padding of the adjacent obstacle(s) for correct line spacing outside these
             // extreme obstacles, so don't need to pad the sentinels.
-            if ((ObstacleTree.GraphBox.Left <= (Double.MinValue + SentinelOffset))
-                || (ObstacleTree.GraphBox.Bottom <= (Double.MinValue + SentinelOffset))
-                || (ObstacleTree.GraphBox.Right >= (Double.MaxValue - SentinelOffset))
-                || (ObstacleTree.GraphBox.Top >= (Double.MaxValue - SentinelOffset))
+            if ((ObstacleTree.GraphBox.Left <= (double.MinValue + SentinelOffset))
+                || (ObstacleTree.GraphBox.Bottom <= (double.MinValue + SentinelOffset))
+                || (ObstacleTree.GraphBox.Right >= (double.MaxValue - SentinelOffset))
+                || (ObstacleTree.GraphBox.Top >= (double.MaxValue - SentinelOffset))
                 ) {
                 throw new InvalidOperationException("One or more obstacle boundaries are out of range");
             }
@@ -129,9 +126,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             int scanlineSentinelOrdinal = Obstacle.FirstSentinelOrdinal;
 
             // Low sentinel...
-            var lowerCorner = new Point(ObstacleTree.GraphBox.Left - SentinelOffset, ObstacleTree.GraphBox.Bottom - SentinelOffset);
-            var upperCorner = new Point(ObstacleTree.GraphBox.Left - SentinelOffset, ObstacleTree.GraphBox.Top + SentinelOffset);
-            var sentinel = Obstacle.CreateSentinel(lowerCorner, upperCorner, ScanDirection, scanlineSentinelOrdinal++);
+            Point lowerCorner = new Point(ObstacleTree.GraphBox.Left - SentinelOffset, ObstacleTree.GraphBox.Bottom - SentinelOffset);
+            Point upperCorner = new Point(ObstacleTree.GraphBox.Left - SentinelOffset, ObstacleTree.GraphBox.Top + SentinelOffset);
+            Obstacle sentinel = Obstacle.CreateSentinel(lowerCorner, upperCorner, ScanDirection, scanlineSentinelOrdinal++);
             scanLine.Insert(sentinel.ActiveHighSide, ObstacleTree.GraphBox.LeftBottom);
 
             // High sentinel...
@@ -256,24 +253,19 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         }
 
         void EnqueueBottomVertexEvents() {
-            foreach (var obstacle in ObstacleTree.GetAllPrimaryObstacles()) {
+            foreach (Obstacle obstacle in ObstacleTree.GetAllPrimaryObstacles()) {
                 PolylinePoint bottomVertex = GetOpenVertex(obstacle.VisibilityPolyline);
                 eventQueue.Enqueue(new OpenVertexEvent(obstacle, bottomVertex));
             }
         } // end EnqueueBottomVertexEvents
 
-        internal bool IsFlat(BasicObstacleSide side) {
-            return ScanDirection.IsFlat(side);
-        }
-        internal bool IsPerpendicular(BasicObstacleSide side) {
+        internal bool IsFlat(BasicObstacleSide side) => ScanDirection.IsFlat(side);
+        internal bool IsPerpendicular(BasicObstacleSide side) =>
             // If it's perpendicular we won't generate reflections.
-            return ScanDirection.IsPerpendicular(side);
-        }
+            ScanDirection.IsPerpendicular(side);
 
         // Params are event site (vertex point) and the obstacle side adjacent to that site.
-        protected Point ScanLineIntersectSide(Point site, BasicObstacleSide side) {
-            return ScanLineIntersectSide(site, side, ScanDirection);
-        }
+        protected Point ScanLineIntersectSide(Point site, BasicObstacleSide side) => ScanLineIntersectSide(site, side, ScanDirection);
 
         protected bool SideReflectsUpward(BasicObstacleSide side) {
             // Returns false if vertical.
@@ -299,7 +291,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         // Because the low neighbor intersection is on a high side of its obstacle
         // and vice-versa, then the "side" of a lowNbor is a highSide, and vice versa.
         protected void StoreLookaheadSite(Obstacle initialObstacle, BasicObstacleSide reflectingSide, Point reflectionSite, bool wantExtreme) {
-            if (!this.wantReflections) {
+            if (!wantReflections) {
                 return;
             }
 
@@ -347,9 +339,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         } // end StoreLookaheadSite()
 
         // Load any lookahead scan ray intersections with a side we've just added.
-        protected void LoadReflectionEvents(BasicObstacleSide sideToQueue) {
-            LoadReflectionEvents(sideToQueue, sideToQueue);
-        }
+        protected void LoadReflectionEvents(BasicObstacleSide sideToQueue) => LoadReflectionEvents(sideToQueue, sideToQueue);
 
         // sideWithRange is either the same as sideToQueue, if that side is being loaded by an
         // OpenVertexEvent, or is a different side that is just closing.
@@ -363,8 +353,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 
             // If there is no overlap in the rectangles along the current axis, there is nothing
             // to do.  This reduces (but doesn't prevent) duplicate events being loaded.
-            var bbox1 = new Rectangle(sideToQueue.Start, sideToQueue.End);
-            var bbox2 = new Rectangle(sideWithRange.Start, sideWithRange.End);
+            Rectangle bbox1 = new Rectangle(sideToQueue.Start, sideToQueue.End);
+            Rectangle bbox2 = new Rectangle(sideWithRange.Start, sideWithRange.End);
             if ((ScanDirection.IsHorizontal) ? !bbox1.IntersectsOnX(bbox2) : !bbox1.IntersectsOnY(bbox2)) {
                 return;
             }
@@ -488,7 +478,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
                     // If the neighbor continues the staircase and the parallel segment would hit a non-extreme point
                     // on the neighbor, return true and the Low/HighReflectionEvent handler will add the parallel segment.
                     if ((null != nborSide) && currentEvent.IsStaircaseStep(nborSide.Obstacle)) {
-                        return this.ScanLineCrossesObstacle(currentEvent.Site, nborSide.Obstacle);
+                        return ScanLineCrossesObstacle(currentEvent.Site, nborSide.Obstacle);
                     }
                     DevTraceInfoVgGen(1, "Reflection Lookahead site {0} is not an outgoing staircase step; discontinuing", currentEvent.PreviousSite);
                 }
@@ -531,10 +521,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 
             // Add an event that will be drained when a side spanning the scanline-parallel is loaded
             // as the sweep moves "up".
-            var lowSide = side as LowObstacleSide;
-            if (lowSide != null) {
+            if (side is LowObstacleSide lowSide)
+            {
                 eventQueue.Enqueue(new LowReflectionEvent(previousSite, lowSide, site));
-            } else {
+            }
+            else
+            {
                 eventQueue.Enqueue(new HighReflectionEvent(previousSite, (HighObstacleSide)side, site));
             }
         }
@@ -547,13 +539,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             return node;
         }
 
-        void RemoveSideFromScanLine(RBNode<BasicObstacleSide> sideNode, Point scanPos) {
-            scanLine.Remove(sideNode.Item, scanPos);
-        }
+        void RemoveSideFromScanLine(RBNode<BasicObstacleSide> sideNode, Point scanPos) => scanLine.Remove(sideNode.Item, scanPos);
 
-        int PointCompare(Point lhs, Point rhs) {
-            return ScanDirection.Compare(lhs, rhs);
-        }
+        int PointCompare(Point lhs, Point rhs) => ScanDirection.Compare(lhs, rhs);
 
         internal virtual void Clear() {
             ObstacleTree.Clear();
@@ -563,7 +551,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             VisibilityGraph = null;
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1800:DoNotCastUnnecessarily")]
         private void ProcessEvents() {
             // Note: Sentinel vertices are not in EventQueue so eventcount will go to 0.
             while (eventQueue.Count > 0) {
@@ -597,24 +584,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             Debug.Assert(2 == scanLine.Count, "There are leftovers in the scanline");
         }
 
-        protected virtual void ProcessCustomEvent(SweepEvent evt)
-        {
+        protected virtual void ProcessCustomEvent(SweepEvent evt) =>
             // These are events specific to the derived class; by default there are none.
             Debug.Assert(false, "Unknown event type");
-        }
 
-        protected bool ScanLineCrossesObstacle(Point eventSite, Obstacle obstacle) {
+        protected bool ScanLineCrossesObstacle(Point eventSite, Obstacle obstacle) =>
             // An inner or outer neighbor's side is only an overlap start/stop candidate if its obstacle 
             // brackets the open/close event's Perpendicular Scan coord.
-            return (ScanDirection.ComparePerpCoord(eventSite, obstacle.VisibilityBoundingBox.LeftBottom) > 0)
+            (ScanDirection.ComparePerpCoord(eventSite, obstacle.VisibilityBoundingBox.LeftBottom) > 0)
                 && (ScanDirection.ComparePerpCoord(eventSite, obstacle.VisibilityBoundingBox.RightTop) < 0);
-        }
 
         void FindInitialNeighborSides(RBNode<BasicObstacleSide> sideNode, out RBNode<BasicObstacleSide> lowNborSideNode,
                                       out RBNode<BasicObstacleSide> highNborSideNode)
         {
-            lowNborSideNode = this.scanLine.NextLow(sideNode);
-            highNborSideNode = this.scanLine.NextHigh(sideNode);
+            lowNborSideNode = scanLine.NextLow(sideNode);
+            highNborSideNode = scanLine.NextHigh(sideNode);
         }
 
         // As described in the doc, we stop at the first neighbor of the appropriate side type that we touch 
@@ -636,11 +620,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         protected void FindNeighbors(BasicVertexEvent vertexEvent, RBNode<BasicObstacleSide> sideNode, NeighborSides neighborSides) {
             // vertexEvent.Site is on one of vertexEvent.Obstacle.Active(Low|High)Side, so we must get the 
             // appropriate vertex on whichever one of those Active*Sides is sideNode.
-            var sideReferencePoint = (vertexEvent is OpenVertexEvent) ? sideNode.Item.Start : sideNode.Item.End;
-            RBNode<BasicObstacleSide> initialLowNbor, initialHighNbor;
-            this.FindInitialNeighborSides(sideNode, out initialLowNbor, out initialHighNbor);
-            this.SkipToNeighbor(this.ScanDirection.OppositeDirection, sideNode.Item, sideReferencePoint, initialLowNbor, neighborSides);
-            this.SkipToNeighbor(this.ScanDirection.Direction, sideNode.Item, sideReferencePoint, initialHighNbor, neighborSides);
+            Point sideReferencePoint = (vertexEvent is OpenVertexEvent) ? sideNode.Item.Start : sideNode.Item.End;
+            FindInitialNeighborSides(sideNode, out RBNode<BasicObstacleSide>? initialLowNbor, out RBNode<BasicObstacleSide>? initialHighNbor);
+            SkipToNeighbor(ScanDirection.OppositeDirection, sideNode.Item, sideReferencePoint, initialLowNbor, neighborSides);
+            SkipToNeighbor(ScanDirection.Direction, sideNode.Item, sideReferencePoint, initialHighNbor, neighborSides);
         }
 
         void SkipToNeighbor(Directions nborSearchDir, BasicObstacleSide side, Point sideReferencePoint,
@@ -683,7 +666,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 
         private bool ProcessGroupSideEncounteredOnTraversalToNeighbor(RBNode<BasicObstacleSide> nborNode, Point sideReferencePoint,
                                                                                 Directions nborSearchDir) {
-            if (!this.ScanLineCrossesObstacle(sideReferencePoint, nborNode.Item.Obstacle)) {
+            if (!ScanLineCrossesObstacle(sideReferencePoint, nborNode.Item.Obstacle)) {
                 return false;
             }
 
@@ -692,8 +675,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             // the boundary crossing on or off based on group membership at ShortestPath-time.
             Directions dirToInsideOfGroup = ((nborNode.Item is LowObstacleSide) == StaticGraphUtility.IsAscending(nborSearchDir))
                     ? nborSearchDir : CompassVector.OppositeDir(nborSearchDir);
-            var intersect = this.ScanLineIntersectSide(sideReferencePoint, nborNode.Item);
-            this.CurrentGroupBoundaryCrossingMap.AddIntersection(intersect, nborNode.Item.Obstacle, dirToInsideOfGroup);
+            Point intersect = ScanLineIntersectSide(sideReferencePoint, nborNode.Item);
+            CurrentGroupBoundaryCrossingMap.AddIntersection(intersect, nborNode.Item.Obstacle, dirToInsideOfGroup);
             return true;
         }
 
@@ -702,7 +685,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
                                                 , BasicVertexEvent vertexEvent) {
             CurrentGroupBoundaryCrossingMap.Clear();
             FindNeighbors(vertexEvent, lowSideNode, highSideNode);
-            this.ProcessVertexEvent(lowSideNode, highSideNode, vertexEvent);
+            ProcessVertexEvent(lowSideNode, highSideNode, vertexEvent);
 
             // Clear this again because we don't want Reflections to access stale values.
             CurrentGroupBoundaryCrossingMap.Clear();
@@ -712,7 +695,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
                     RBNode<BasicObstacleSide> highSideNode, BasicVertexEvent vertexEvent);
 
         [Conditional("DEVTRACE")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         // ReSharper disable InconsistentNaming
         protected void DevTrace_DumpScanSegmentsDuringAdd(int verboseLevel) {
             // ReSharper restore InconsistentNaming
@@ -724,7 +706,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         void ProcessEvent(OpenVertexEvent openVertEvent) {
             // First insert the two new lines into the scanline.  Note: Although the lines are clockwise oriented,
             // LowObstacleSide and HighObstacleSide take a parameter to know when to go counterclockwise.
-            var obstacle = openVertEvent.Obstacle;
+            Obstacle obstacle = openVertEvent.Obstacle;
             obstacle.CreateInitialSides(openVertEvent.Vertex, ScanDirection);
             Debug.Assert(!IsFlat(obstacle.ActiveLowSide), "OpenVertexEvent ActiveLowSide should not be flat");
             Debug.Assert(!IsFlat(obstacle.ActiveHighSide), "RemoveCollinearSides should have been called");
@@ -739,18 +721,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             // Get the neighbors.  In the simple, non-overlapped case, we'll generate a segment between them which
             // includes the vertex point (and any flat border of the current obstacle).  These neighbors will
             // never be null; one or both may be the fake sentinel borders at the graphBox limits.
-            this.FindNeighborsAndProcessVertexEvent(lowSideNode, highSideNode, openVertEvent);
+            FindNeighborsAndProcessVertexEvent(lowSideNode, highSideNode, openVertEvent);
 
             // Look for Reflections.  If the ScanSegments we just added generated any
             // ReflectionEvents, then the Active*Side to that side may cover them, or if we're overlapped,
             // the Active*Side of the overlapping obstacle may if there is a non-overlapped segment extension.
 
             // Check the neighbors in both directions.
-            var lowReflector = LowNeighborSides.GroupSideInterveningBeforeLowNeighbor ?? LowNeighborSides.LowNeighborSide;
+            BasicObstacleSide lowReflector = LowNeighborSides.GroupSideInterveningBeforeLowNeighbor ?? LowNeighborSides.LowNeighborSide;
             if (SideReflectsUpward(lowReflector)) {
                 LoadReflectionEvents(obstacle.ActiveLowSide);
             }
-            var highReflector = HighNeighborSides.GroupSideInterveningBeforeHighNeighbor ?? HighNeighborSides.HighNeighborSide;
+            BasicObstacleSide highReflector = HighNeighborSides.GroupSideInterveningBeforeHighNeighbor ?? HighNeighborSides.HighNeighborSide;
             if (SideReflectsUpward(highReflector)) {
                 LoadReflectionEvents(obstacle.ActiveHighSide);
             }
@@ -758,7 +740,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             // If this is a flat side it must absorb any outstanding reflection sites.
             if (obstacle.ActiveHighSide.Start != obstacle.ActiveLowSide.Start) {
                 // Create a temp HighObstacleSide so the "next vertex" moves in the correct direction.
-                var tempSide = new HighObstacleSide(obstacle, openVertEvent.Vertex, ScanDirection);
+                HighObstacleSide tempSide = new HighObstacleSide(obstacle, openVertEvent.Vertex, ScanDirection);
                 lookaheadScan.RemoveSitesForFlatBottom(tempSide.Start, tempSide.End);
             }
 
@@ -774,8 +756,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 
             // This is a vertex on the low side of the obstacle.  Update the ActiveLowSide in the obstacle
             // and scanline (this also checks for Reflection events).
-            var obstacle = lowVertEvent.Obstacle;
-            var lowSide = new LowObstacleSide(obstacle, lowVertEvent.Vertex, ScanDirection);
+            Obstacle obstacle = lowVertEvent.Obstacle;
+            LowObstacleSide lowSide = new LowObstacleSide(obstacle, lowVertEvent.Vertex, ScanDirection);
 
             // If the new lowSide is flat we don't remove it due to potential overlaps; that lets any collinear 
             // OpenVertexEvents know they are overlapped (touching == overlap).  When we get to CloseVertexEvent,
@@ -784,24 +766,23 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             // scanline, we let CloseVertexEvent remove the side (in case there are coincident vertices).
             // That leaves the case of still ascending, where we replace the side in the scanline.
             if (ScanDirection.ComparePerpCoord(lowSide.End, lowSide.Start) > 0) {
-                this.RemoveSideFromScanLine(this.scanLine.Find(obstacle.ActiveLowSide), lowVertEvent.Site);
+                RemoveSideFromScanLine(scanLine.Find(obstacle.ActiveLowSide), lowVertEvent.Site);
                 AddSideToScanLine(lowSide, lowVertEvent.Site);
                 obstacle.ActiveLowSide = lowSide;
                 EnqueueLowBendVertexEvent(lowSide);
             }
         } // end ProcessEvent(LowBendVertexEvent)
 
-        void EnqueueLowBendVertexEvent(BasicObstacleSide lowSide) {
+        void EnqueueLowBendVertexEvent(BasicObstacleSide lowSide) =>
             // We've already ensured the extension is valid so just queue the next event.
             eventQueue.Enqueue(new LowBendVertexEvent(lowSide.Obstacle, lowSide.EndVertex));
-        }
 
         void ProcessEvent(HighBendVertexEvent highVertEvent) {
             // See comments in LowBendVertexEvent; this is mostly the same thing to the other side.
-            var obstacle = highVertEvent.Obstacle;
-            var highSide = new HighObstacleSide(obstacle, highVertEvent.Vertex, ScanDirection);
+            Obstacle obstacle = highVertEvent.Obstacle;
+            HighObstacleSide highSide = new HighObstacleSide(obstacle, highVertEvent.Vertex, ScanDirection);
 
-            this.RemoveSideFromScanLine(this.scanLine.Find(obstacle.ActiveHighSide), highVertEvent.Site);
+            RemoveSideFromScanLine(scanLine.Find(obstacle.ActiveHighSide), highVertEvent.Site);
             RBNode<BasicObstacleSide> highSideNode = AddSideToScanLine(highSide, highVertEvent.Site);
             obstacle.ActiveHighSide = highSide;
             EnqueueHighBendOrCloseVertexEvent(obstacle.ActiveHighSide);
@@ -821,13 +802,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             // two sides.  This could lead to spurious overlaps.  So in this case we drop in an extra lookahead.
             // (This is not an issue for other tilt directions - there is always a reflection chain generated).
             // Test is RectilinearFileTests.Overlap_ExtremeSide_Lookahead.
-            if (this.wantReflections && this.ScanDirection.IsHorizontal 
+            if (wantReflections && ScanDirection.IsHorizontal 
                     && (highSide.Start.X == obstacle.VisibilityBoundingBox.Right)
                     && SideReflectsUpward(highSide)) {
-                var nborSideNode = this.scanLine.NextHigh(highSideNode);
-                if ((nborSideNode.Item is LowObstacleSide) && this.SideReflectsDownward(nborSideNode.Item)) {
-                    if (!obstacle.IsOverlapped || !this.ObstacleTree.PointIsInsideAnObstacle(highSide.Start, this.ScanDirection)) {
-                        this.StoreLookaheadSite(nborSideNode.Item.Obstacle, highSide, highSide.Start, wantExtreme: true);
+                RBNode<BasicObstacleSide> nborSideNode = scanLine.NextHigh(highSideNode);
+                if ((nborSideNode.Item is LowObstacleSide) && SideReflectsDownward(nborSideNode.Item)) {
+                    if (!obstacle.IsOverlapped || !ObstacleTree.PointIsInsideAnObstacle(highSide.Start, ScanDirection)) {
+                        StoreLookaheadSite(nborSideNode.Item.Obstacle, highSide, highSide.Start, wantExtreme: true);
                         LoadReflectionEvents(nborSideNode.Item);
                     }
                 }
@@ -850,7 +831,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         } // end ProcessEvent(HighBendVertexEvent)
 
         void CreateCloseEventSegmentsAndFindNeighbors(CloseVertexEvent closeVertEvent) {
-            var obstacle = closeVertEvent.Obstacle;
+            Obstacle obstacle = closeVertEvent.Obstacle;
             DevTraceIfFlatSide(false /*isObstacleOpen*/, obstacle.ActiveLowSide.End, obstacle.ActiveHighSide.End);
             RBNode<BasicObstacleSide> lowSideNode = scanLine.Find(obstacle.ActiveLowSide);
             RBNode<BasicObstacleSide> highSideNode = scanLine.Find(obstacle.ActiveHighSide);
@@ -862,19 +843,19 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             // we only concern ourselves with the actual Low-vs-High side type for neighbors,
             // not the sides of the obstacle.
             if (1 == scanLine.Compare(obstacle.ActiveLowSide, obstacle.ActiveHighSide)) {
-                var temp = lowSideNode;
+                RBNode<BasicObstacleSide> temp = lowSideNode;
                 lowSideNode = highSideNode;
                 highSideNode = temp;
             }
 
             // As with OpenVertexEvent, the idea here is to find the neighbors and draw the line between them 
             // that includes the event vertex (and any flat top obstacle side), with consideration for overlaps.
-            this.FindNeighborsAndProcessVertexEvent(lowSideNode, highSideNode, closeVertEvent);
+            FindNeighborsAndProcessVertexEvent(lowSideNode, highSideNode, closeVertEvent);
 
             // Inner overlaps: any overlapped sides coming out of the obstacle must have reflection events
             // drained for any that were generated from sides of the closing obstacle if they extend
             // outside the closing obstacle.
-            if (this.wantReflections && obstacle.IsOverlapped) {
+            if (wantReflections && obstacle.IsOverlapped) {
                 for (RBNode<BasicObstacleSide> nextNode = scanLine.NextHigh(lowSideNode);
                         nextNode.Item != highSideNode.Item; nextNode = scanLine.NextHigh(nextNode)) {
                     LoadReflectionEvents(nextNode.Item);
@@ -892,7 +873,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             // This event closes the obstacle.  It removes the ActiveLowSide and ActiveHighSide from the scanline and does
             // not add new sides.  As above, see comments in OpenVertexEvent and its callees for more detailed explanations.
             CreateCloseEventSegmentsAndFindNeighbors(closeVertEvent);
-            
+
             // For reflection, in addition to the delayed lookahead we do in the other *VertexEvents, we need to
             // detect pending reflections up to an already loaded obstacle side.  This may be transitive; using
             // H directions as an example:
@@ -916,9 +897,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             // site that the current CloseVertexEvent just stored on the highNborSide).
             // Fix: Updated this to remove restricted-range as it skips the range that includes the far side of the 
             // current obstacle when called for neighbors that extend across the top vertex.
-            var lowNborSide = (HighObstacleSide)LowNeighborSides.LowNeighbor.Item;
-            var highNborSide = (LowObstacleSide)HighNeighborSides.HighNeighbor.Item;
-            var obstacle = closeVertEvent.Obstacle;
+            HighObstacleSide lowNborSide = (HighObstacleSide)LowNeighborSides.LowNeighbor.Item;
+            LowObstacleSide highNborSide = (LowObstacleSide)HighNeighborSides.HighNeighbor.Item;
+            Obstacle obstacle = closeVertEvent.Obstacle;
             LoadReflectionEvents(lowNborSide);
             LoadReflectionEvents(highNborSide);
 
@@ -928,11 +909,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 
         void ProcessEvent(LowReflectionEvent lowIntEvent) {
             // Unlike LowBendVertexEvent we don't update the ActiveLowSide in the obstacle and scanline.
-            var obstacle = lowIntEvent.Side.Obstacle;
+            Obstacle obstacle = lowIntEvent.Side.Obstacle;
 
             // Add a perpendicular segment from the previous site to the lowNbor intersection, then from
             // the lowNbor intersection to the event site.
-            var lowNborSide = scanLine.NextLow(lowIntEvent.Side).Item as HighObstacleSide;
+            HighObstacleSide? lowNborSide = scanLine.NextLow(lowIntEvent.Side).Item as HighObstacleSide;
             if (AddPerpendicularReflectionSegment(lowIntEvent, lowIntEvent.Side, lowNborSide)) {
                 if (AddParallelReflectionSegment(obstacle, lowNborSide, null /*highNborSide*/, lowIntEvent)) {
                     // We may have just added a reflection that reflects back onto obstacle.ActiveLowSide.
@@ -943,11 +924,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 
         void ProcessEvent(HighReflectionEvent highIntEvent) {
             // Unlike HighBendVertexEvent we don't update the ActiveHighSide in the obstacle and scanline.
-            var obstacle = highIntEvent.Side.Obstacle;
+            Obstacle obstacle = highIntEvent.Side.Obstacle;
 
             // Add a perpendicular segment from the previous site to the highNbor intersection, then from
             // the highNbor intersection to the event site.
-            var highNborSide = scanLine.NextHigh(highIntEvent.Side).Item as LowObstacleSide;
+            LowObstacleSide? highNborSide = scanLine.NextHigh(highIntEvent.Side).Item as LowObstacleSide;
             if (AddPerpendicularReflectionSegment(highIntEvent, highIntEvent.Side, highNborSide)) {
                 if (AddParallelReflectionSegment(obstacle, null /*lowNborSide*/, highNborSide, highIntEvent)) {
                     // We may have just added a reflection that reflects back onto obstacle.ActiveHighSide.
@@ -962,13 +943,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             return new Point(Math.Min(xPos, ObstacleTree.GraphBox.Right), Math.Min(yPos, ObstacleTree.GraphBox.Top));
         }
 
-        internal bool IsInBounds(VisibilityVertex vertex) {
-            return IsInBounds(vertex.Point);
-        }
+        internal bool IsInBounds(VisibilityVertex vertex) => IsInBounds(vertex.Point);
 
-        internal bool IsInBounds(Point p) {
-            return PointComparer.Equal(p, MakeInBoundsLocation(p));
-        }
+        internal bool IsInBounds(Point p) => PointComparer.Equal(p, MakeInBoundsLocation(p));
 
         #region DevTrace
 #if DEVTRACE
@@ -978,7 +955,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 #endif // DEVTRACE
 
         [Conditional("DEVTRACE")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         protected void DevTraceInfoVgGen(int verboseLevel, string format, params object[] args) {
 #if DEVTRACE
             visGraphGenTrace.WriteLineIf(DevTrace.Level.Info, verboseLevel, format, args);
@@ -986,7 +962,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         }
 
         [Conditional("DEVTRACE")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         void DevTraceIfFlatSide(bool isObstacleOpen, Point lowEndpoint, Point highEndpoint) {
 #if DEVTRACE
             if (lowEndpoint != highEndpoint) {
@@ -997,7 +972,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         }
 
         [Conditional("DEVTRACE")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
         void DevTraceScanSegmentDump(int verboseLevel) {
 #if DEVTRACE
             if (scanSegmentDump.IsLevel(verboseLevel)) {

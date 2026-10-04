@@ -18,15 +18,12 @@ namespace Microsoft.AGL.Core.Layout
         /// the parent of the object
         /// </summary>
         public GeometryObject GeometryParent
-        {
-            get { return geometryParent; }
-            set { geometryParent = value; }
+        { get => geometryParent; set => geometryParent = value;
         }
 
         /// <summary>
         /// Storage for any data algorithms may want to store temporarily.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1051:DoNotDeclareVisibleInstanceFields")]
 #if TEST_MSAGL
         [NonSerialized]
 #endif
@@ -44,9 +41,7 @@ namespace Microsoft.AGL.Core.Layout
         /// event signalling that the layout is about to change
         /// </summary>
         virtual public event EventHandler<LayoutChangeEventArgs> BeforeLayoutChangeEvent
-        {
-            add { beforeLayoutChangeEvent += value; }
-            remove { beforeLayoutChangeEvent -= value; }
+        { add => beforeLayoutChangeEvent += value; remove => beforeLayoutChangeEvent -= value;
         }
 
         /// <summary>

@@ -16,11 +16,11 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging
 #endif
         }
 
-        internal Point Start {get{return Points[I];}}
-        internal Point End{ get{return Points[I+1];}}
-    
+        internal Point Start => Points[I];
+        internal Point End => Points[I + 1];
+
         override public bool Equals(object obj) {
-            var other = (SegWithIndex) obj;
+            SegWithIndex other = (SegWithIndex) obj;
             return other.Points== Points&& other.I == I;
         }
 

@@ -1,4 +1,4 @@
-namespace MermaidRecognition;
+namespace MermaidRecognition.Core;
 
 /// <summary>
 /// Parses one detected Mermaid diagram kind into a <see cref="DiagramContract"/>.

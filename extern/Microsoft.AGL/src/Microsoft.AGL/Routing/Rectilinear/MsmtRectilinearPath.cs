@@ -14,17 +14,13 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             internal readonly VisibilityVertex[] waypointVector = new VisibilityVertex[1];
             internal readonly VertexEntry[] entryVector = new VertexEntry[4];
 
-            internal WaypointEntry(VisibilityVertex waypoint) {
-                this.waypointVector[0] = waypoint;
-            }
+            internal WaypointEntry(VisibilityVertex waypoint) => waypointVector[0] = waypoint;
         }
 
         // Temporary for accumulating target entries.
         private readonly VertexEntry[] currentPassTargetEntries = new VertexEntry[4];
 
-        public MsmtRectilinearPath(double bendPenalty) {
-            this.bendPenaltyAsAPercentageOfDistance = bendPenalty;
-        }
+        public MsmtRectilinearPath(double bendPenalty) => bendPenaltyAsAPercentageOfDistance = bendPenalty;
 
         /// <summary>
         /// Get the lowest-cost path from one of one or more sources to one of one or more targets, without waypoints.
@@ -32,9 +28,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         /// <param name="sources">One or more source vertices</param>
         /// <param name="targets">One or more target vertices</param>
         /// <returns>A single enumeration of path points.</returns>
-        internal IEnumerable<Point> GetPath(IEnumerable<VisibilityVertex> sources, IEnumerable<VisibilityVertex> targets) {
-            return SsstRectilinearPath.RestorePath(GetPathStage(null, sources, null, targets));
-        }
+        internal IEnumerable<Point> GetPath(IEnumerable<VisibilityVertex> sources, IEnumerable<VisibilityVertex> targets) => SsstRectilinearPath.RestorePath(GetPathStage(null, sources, null, targets));
 
         /// <summary>
         /// Get the lowest-cost path from one of one or more sources to one of one or more targets, with waypoints.
@@ -45,34 +39,33 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         /// <returns>An enumeration of each stage's enumeration of path points</returns>
         internal IEnumerable<IEnumerable<Point>> GetPath(IEnumerable<VisibilityVertex> sources, IEnumerable<VisibilityVertex> waypoints,
                                             IEnumerable<VisibilityVertex> targets) {
-            var waypointEntries = new List<WaypointEntry>();
+            List<WaypointEntry> waypointEntries = new List<WaypointEntry>();
 
-            var waypointEnum = waypoints.GetEnumerator();
+            IEnumerator<VisibilityVertex> waypointEnum = waypoints.GetEnumerator();
             waypointEnum.MoveNext();
-            var sourceWaypointEntry = new WaypointEntry(waypointEnum.Current);
+            WaypointEntry sourceWaypointEntry = new WaypointEntry(waypointEnum.Current);
             waypointEntries.Add(sourceWaypointEntry);
 
-            VertexEntry lastEntry;
             if (!GetFirstPathStage(sourceWaypointEntry, sources)
                     || !GetWaypointPathStages(waypointEnum, waypointEntries, ref sourceWaypointEntry)
-                    || !GetLastPathStage(sourceWaypointEntry, targets, out lastEntry)) {
+                    || !GetLastPathStage(sourceWaypointEntry, targets, out VertexEntry lastEntry))
+            {
                 return null;
             }
             return RestorePathStages(waypointEntries, lastEntry);
         }
 
-        private bool GetFirstPathStage(WaypointEntry sourceWaypointEntry, IEnumerable<VisibilityVertex> sources) {
+        private bool GetFirstPathStage(WaypointEntry sourceWaypointEntry, IEnumerable<VisibilityVertex> sources) =>
             // Get the first stage: no prior entries to the sources; this target waypoint becomes the first waypoint stage's source.
-            return null != this.GetPathStage(null, sources, sourceWaypointEntry.entryVector, sourceWaypointEntry.waypointVector);
-        }
+            null != GetPathStage(null, sources, sourceWaypointEntry.entryVector, sourceWaypointEntry.waypointVector);
 
         private bool GetWaypointPathStages(IEnumerator<VisibilityVertex> waypointEnum, List<WaypointEntry> waypointEntries, ref WaypointEntry sourceWaypointEntry) {
             // Get the path stages between each waypoint: send the prior entries to source and get the entries to target.
             while (waypointEnum.MoveNext()) {
-                var targetWaypointEntry = new WaypointEntry(waypointEnum.Current);
+                WaypointEntry targetWaypointEntry = new WaypointEntry(waypointEnum.Current);
                 waypointEntries.Add(targetWaypointEntry);
 
-                if (null == this.GetPathStage(sourceWaypointEntry.entryVector, sourceWaypointEntry.waypointVector,
+                if (null == GetPathStage(sourceWaypointEntry.entryVector, sourceWaypointEntry.waypointVector,
                         targetWaypointEntry.entryVector, targetWaypointEntry.waypointVector)) {
                     return false;
                 }
@@ -84,15 +77,15 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         private bool GetLastPathStage(WaypointEntry sourceWaypointEntry, IEnumerable<VisibilityVertex> targets, out VertexEntry lastEntry) {
             // Final stage: no need to get separate entries to the targets.  And because we send null for the
             // target entry vector, this will return the final vertexEntry of the path.
-            lastEntry = this.GetPathStage(sourceWaypointEntry.entryVector, sourceWaypointEntry.waypointVector, null, targets);
+            lastEntry = GetPathStage(sourceWaypointEntry.entryVector, sourceWaypointEntry.waypointVector, null, targets);
             return lastEntry != null;
         }
 
         private static IEnumerable<IEnumerable<Point>> RestorePathStages(List<WaypointEntry> waypointEntries, VertexEntry lastEntry) {
             // Back up to restore the path stages back to each waypoint.
-            var paths = new List<IEnumerable<Point>>();
+            List<IEnumerable<Point>> paths = new List<IEnumerable<Point>>();
             waypointEntries.Reverse();
-            foreach (var waypointEntry in waypointEntries) {
+            foreach (WaypointEntry waypointEntry in waypointEntries) {
                 paths.Add(SsstRectilinearPath.RestorePath(ref lastEntry, waypointEntry.waypointVector[0]));
             }
 
@@ -111,7 +104,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         /// <param name="targetVertexEntries">The VertexEntry array that is in the target at the end of the stage.</param>
         private VertexEntry GetPathStage(VertexEntry[] sourceVertexEntries, IEnumerable<VisibilityVertex> sources,
                                                 VertexEntry[] targetVertexEntries, IEnumerable<VisibilityVertex> targets) {
-            var ssstCalculator = new SsstRectilinearPath();
+            SsstRectilinearPath ssstCalculator = new SsstRectilinearPath();
             VertexEntry bestEntry = null;
 
             // This contains the best (lowest) path cost after normalizing origins to the center of the sources
@@ -127,8 +120,8 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             // as for objects of about size 200 that are about 1000 apart.
             Point sourceCenter = GetBarycenterOfUniquePortLocations(sources);
             Point targetCenter = GetBarycenterOfUniquePortLocations(targets);
-            var distance = SsstRectilinearPath.ManhattanDistance(sourceCenter, targetCenter);
-            ssstCalculator.BendsImportance = Math.Max(0.001, distance * (this.bendPenaltyAsAPercentageOfDistance * 0.01));
+            double distance = SsstRectilinearPath.ManhattanDistance(sourceCenter, targetCenter);
+            ssstCalculator.BendsImportance = Math.Max(0.001, distance * (bendPenaltyAsAPercentageOfDistance * 0.01));
 
             // We'll normalize by adding (a proportion of) the distance (only; not bends) from the current endpoints to
             // their centers. This is similar to routeToCenter, but routing multiple paths like this means we'll always
@@ -136,10 +129,10 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             // if the sources/targets are not collinear with the center (such as an E-R diagram).
             // interiorLengthAdjustment is a way to decrease the cost adjustment slightly to allow a bend if it saves moving
             // a certain proportion of the distance parallel to the object before turning to it.
-            var interiorLengthAdjustment = ssstCalculator.LengthImportance;
+            double interiorLengthAdjustment = ssstCalculator.LengthImportance;
 
             // VertexEntries for the current pass of the current stage, if multistage.
-            var tempTargetEntries = (targetVertexEntries != null) ? this.currentPassTargetEntries : null;
+            VertexEntry[] tempTargetEntries = (targetVertexEntries != null) ? currentPassTargetEntries : null;
 
             // Process closest pairs first, so we can skip longer ones (jump out of SsstRectilinear sooner, often immediately).
             // This means that we'll be consistent on tiebreaking for equal scores with differing bend counts (the shorter
@@ -149,15 +142,15 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                     from VisibilityVertexRectilinear target in targets
                     orderby SsstRectilinearPath.ManhattanDistance(source.Point, target.Point)
                     select new { sourceV = source, targetV = target }) {
-                var source = pair.sourceV;
-                var target = pair.targetV;
+                VisibilityVertexRectilinear source = pair.sourceV;
+                VisibilityVertexRectilinear target = pair.targetV;
                 if (PointComparer.Equal(source.Point, target.Point)) {
                     continue;
                 }
-                var sourceCostAdjustment = SsstRectilinearPath.ManhattanDistance(source.Point, sourceCenter) * interiorLengthAdjustment;
-                var targetCostAdjustment = SsstRectilinearPath.ManhattanDistance(target.Point, targetCenter) * interiorLengthAdjustment;
+                double sourceCostAdjustment = SsstRectilinearPath.ManhattanDistance(source.Point, sourceCenter) * interiorLengthAdjustment;
+                double targetCostAdjustment = SsstRectilinearPath.ManhattanDistance(target.Point, targetCenter) * interiorLengthAdjustment;
 
-                var adjustedBestCost = bestCost;
+                double adjustedBestCost = bestCost;
                 if (targetVertexEntries != null) {
                     Array.Clear(tempTargetEntries, 0, tempTargetEntries.Length);
                     adjustedBestCost = ssstCalculator.MultistageAdjustedCostBound(bestCost);
@@ -174,7 +167,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                 if (lastEntry == null) {
                     continue;
                 }
-                var costRatio = lastEntry.Cost / SsstRectilinearPath.ManhattanDistance(source.Point, target.Point);
+                double costRatio = lastEntry.Cost / SsstRectilinearPath.ManhattanDistance(source.Point, target.Point);
                 if ((lastEntry.Cost < bestCost) || ApproximateComparer.Close(lastEntry.Cost, bestCost) && (costRatio < bestPathCostRatio)) {
                     bestCost = lastEntry.Cost;
                     bestEntry = lastEntry;
@@ -187,7 +180,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         private static void UpdateTargetEntriesForEachDirection(VertexEntry[] targetVertexEntries, VertexEntry[] tempTargetEntries,
                             ref double bestCost, ref VertexEntry bestEntry) {
             for (int ii = 0; ii < tempTargetEntries.Length; ++ii) {
-                var tempEntry = tempTargetEntries[ii];
+                VertexEntry tempEntry = tempTargetEntries[ii];
                 if (tempEntry == null) {
                     continue;
                 }
@@ -204,10 +197,10 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         }
 
         private static Point GetBarycenterOfUniquePortLocations(IEnumerable<VisibilityVertex> vertices) {
-            var center = new Point();
+            Point center = new Point();
             VisibilityVertex prevVertex = null;
             int count = 0;
-            foreach (var vertex in vertices.OrderBy(s => s.Point)) {
+            foreach (VisibilityVertex vertex in vertices.OrderBy(s => s.Point)) {
                 if ((prevVertex != null) && ApproximateComparer.CloseIntersections(vertex.Point, prevVertex.Point)) {
                     continue;
                 }

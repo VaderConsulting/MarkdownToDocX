@@ -9,7 +9,7 @@ internal static class MarkdownInputResolver
         out List<string> MarkdownFiles,
         out string ErrorMessage)
     {
-        MarkdownFiles = new List<string>();
+        MarkdownFiles = [];
         ErrorMessage = string.Empty;
 
         if (InputArguments == null || InputArguments.Count == 0)

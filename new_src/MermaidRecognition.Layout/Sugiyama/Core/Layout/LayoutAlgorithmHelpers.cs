@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using MermaidRecognition.Layout.Sugiyama.Core.DataStructures;
 
 namespace MermaidRecognition.Layout.Sugiyama.Core.Layout
@@ -89,7 +90,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout
             {
                 return;
             }
-            foreach (var e in component.Edges)
+            foreach (Edge e in component.Edges)
             {
                 e.SourcePort = null;
                 e.TargetPort = null;
@@ -115,18 +116,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout
         internal static void SetEdgeLengthsProportionalToSymmetricDifference(GeometryGraph graph, double lengthInitialOffset, double lengthAdjustment)
         {
             ValidateArg.IsNotNull(graph, "graph");
-            var neighbors = new Dictionary<Node, Set<Node>>();
-            foreach (var u in graph.Nodes)
+            Dictionary<Node, Set<Node>> neighbors = new Dictionary<Node, Set<Node>>();
+            foreach (Node u in graph.Nodes)
             {
-                var ns = neighbors[u] = new Set<Node>();
-                foreach (var e in u.OutEdges)
+                Set<Node> ns = neighbors[u] = [];
+                foreach (Edge e in u.OutEdges)
                 {
                     if (!(e.Target is Cluster))
                     {
                         ns.Insert(e.Target);
                     }
                 }
-                foreach (var e in u.InEdges)
+                foreach (Edge e in u.InEdges)
                 {
                     if (!(e.Source is Cluster))
                     {
@@ -134,12 +135,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout
                     }
                 }
             }
-            foreach (var e in graph.Edges)
+            foreach (Edge e in graph.Edges)
             {
                 if (!(e.Source is Cluster || e.Target is Cluster))
                 {
-                    var u = neighbors[e.Source];
-                    var v = neighbors[e.Target];
+                    Set<Node> u = neighbors[e.Source];
+                    Set<Node> v = neighbors[e.Target];
                     double l = u.Union(v).Count() - u.Intersect(v).Count();
 
                     // cap it at 30

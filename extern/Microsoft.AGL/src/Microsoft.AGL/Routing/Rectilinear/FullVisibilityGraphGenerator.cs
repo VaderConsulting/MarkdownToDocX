@@ -5,7 +5,8 @@
 // Copyright Microsoft Corporation.
 
 using System.Diagnostics;
-using Microsoft.AGL.Core.DataStructures;
+
+using Microsoft.AGL.Core.DataStructures.RBTree;
 using Microsoft.AGL.Core.Geometry;
 using Microsoft.AGL.Routing.Spline.ConeSpanner;
 
@@ -48,8 +49,8 @@ namespace Microsoft.AGL.Routing.Rectilinear {
 
         private void IntersectScanSegments()
         {
-            var si = new SegmentIntersector();
-            this.VisibilityGraph = si.Generate(HorizontalScanSegments.Segments, VerticalScanSegments.Segments);
+            SegmentIntersector si = new SegmentIntersector();
+            VisibilityGraph = si.Generate(HorizontalScanSegments.Segments, VerticalScanSegments.Segments);
             si.RemoveSegmentsWithNoVisibility(HorizontalScanSegments, VerticalScanSegments);
             HorizontalScanSegments.DevTraceVerifyVisibility();
             VerticalScanSegments.DevTraceVerifyVisibility();
@@ -101,9 +102,8 @@ namespace Microsoft.AGL.Routing.Rectilinear {
 
             // See if the new segment subsumes or can be subsumed by the last one.  gbcList may be null.
             PointAndCrossingsList gbcList = CurrentGroupBoundaryCrossingMap.GetOrderedListBetween(start, end);
-            bool extendStart, extendEnd;
             bool wasSubsumed = ScanSegment.Subsume(ref hintScanSegment, start, end, weight, gbcList, ScanDirection
-                                        , ParallelScanSegments, out extendStart, out extendEnd);
+                                        , ParallelScanSegments, out bool extendStart, out bool extendEnd);
             if (!wasSubsumed) {
                 Debug.Assert((weight != ScanSegment.ReflectionWeight) || (ParallelScanSegments.Find(start, end) == null),
                             "Reflection segments already in the ScanSegmentTree should should have been detected before calling AddSegment");
@@ -133,10 +133,10 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                         // Try to store both; only one will "take" (for the upward-reflecting side).
                         // The initial Obstacle is the opposite neighbor.
                         if (extendStart) {
-                            this.StoreLookaheadSite(highNborSide.Obstacle, lowNborSide, start, wantExtreme:false);
+                            StoreLookaheadSite(highNborSide.Obstacle, lowNborSide, start, wantExtreme:false);
                         }
                         if (extendEnd) {
-                            this.StoreLookaheadSite(lowNborSide.Obstacle, highNborSide, end, wantExtreme: false);
+                            StoreLookaheadSite(lowNborSide.Obstacle, highNborSide, end, wantExtreme: false);
                         }
                     }
                 }
@@ -159,10 +159,10 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             // For reflections, NeighborSides won't be set, so there won't be an intervening group.  Otherwise,
             // this is on an OpenVertexEvent, so we'll either reflect of the intervening group if any, or neighborSide.
             if (null == interveningGroupSide) {
-                this.StoreLookaheadSite(eventObstacle, neighborSide, siteOnSide, wantExtreme: false);
+                StoreLookaheadSite(eventObstacle, neighborSide, siteOnSide, wantExtreme: false);
             } else {
-                var siteOnGroup = ScanLineIntersectSide(siteOnSide, interveningGroupSide, this.ScanDirection);
-                this.StoreLookaheadSite(eventObstacle, interveningGroupSide, siteOnGroup, wantExtreme: false);
+                Point siteOnGroup = ScanLineIntersectSide(siteOnSide, interveningGroupSide, ScanDirection);
+                StoreLookaheadSite(eventObstacle, interveningGroupSide, siteOnGroup, wantExtreme: false);
             }
         }
 
@@ -282,22 +282,18 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             }
         }
 
-        void CreateScanSegments(Obstacle obstacle, NeighborSides neighborSides, BasicVertexEvent vertexEvent) {
-            this.CreateScanSegments(obstacle, (HighObstacleSide)neighborSides.LowNeighbor.Item
+        void CreateScanSegments(Obstacle obstacle, NeighborSides neighborSides, BasicVertexEvent vertexEvent) => CreateScanSegments(obstacle, (HighObstacleSide)neighborSides.LowNeighbor.Item
                                     , (null == neighborSides.LowOverlapEnd) ? null : neighborSides.LowOverlapEnd.Item
                                     , (null == neighborSides.HighOverlapEnd) ? null : neighborSides.HighOverlapEnd.Item
                                     , (LowObstacleSide)neighborSides.HighNeighbor.Item, vertexEvent);
-        }
 
-        private void CreateScanSegmentFromLowSide(RBNode<BasicObstacleSide> lowSideNode, BasicVertexEvent vertexEvent) {
+        private void CreateScanSegmentFromLowSide(RBNode<BasicObstacleSide> lowSideNode, BasicVertexEvent vertexEvent) =>
             // Create one or more segments from low to high using the neighbors of the LowObstacleSide.
-            this.CreateScanSegments(lowSideNode.Item.Obstacle, this.LowNeighborSides, vertexEvent);
-        }
+            CreateScanSegments(lowSideNode.Item.Obstacle, LowNeighborSides, vertexEvent);
 
-        void CreateScanSegmentFromHighSide(RBNode<BasicObstacleSide> highSideNode, BasicVertexEvent vertexEvent) {
+        void CreateScanSegmentFromHighSide(RBNode<BasicObstacleSide> highSideNode, BasicVertexEvent vertexEvent) =>
             // Create one or more segments from low to high using the neighbors of the HighObstacleSide.
-            this.CreateScanSegments(highSideNode.Item.Obstacle, this.HighNeighborSides, vertexEvent);
-        }
+            CreateScanSegments(highSideNode.Item.Obstacle, HighNeighborSides, vertexEvent);
 
         protected override void ProcessVertexEvent(RBNode<BasicObstacleSide> lowSideNode,
                     RBNode<BasicObstacleSide> highSideNode, BasicVertexEvent vertexEvent) {

@@ -33,17 +33,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core
         /// <summary>
         /// A useful algorithm description: e.g. the stage of layout in progress.
         /// </summary>
-        public string AlgorithmDescription
-        {
-            get { return this.algorithmDescription; }
-        }
+        public string AlgorithmDescription => algorithmDescription;
 
         /// <summary>
         /// The ratio complete of the current stage: should always be between 0 and 1.
         /// </summary>
-        public double RatioComplete
-        {
-            get { return this.ratioComplete; }
-        }
+        public double RatioComplete => ratioComplete;
     }
 }

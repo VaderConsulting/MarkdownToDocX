@@ -98,18 +98,12 @@ public static class FlowchartTrapezoidBracketPathAnalyser
     /// <summary>
     /// Returns the horizontal span of the path at its minimum Y coordinate.
     /// </summary>
-    public static double GetHorizontalSpanAtTopEdge(string PathData)
-    {
-        return GetHorizontalSpanAtExtremeY(PathData, UseMaxY: false);
-    }
+    public static double GetHorizontalSpanAtTopEdge(string PathData) => GetHorizontalSpanAtExtremeY(PathData, UseMaxY: false);
 
     /// <summary>
     /// Returns the horizontal span of the path at its maximum Y coordinate.
     /// </summary>
-    public static double GetHorizontalSpanAtBottomEdge(string PathData)
-    {
-        return GetHorizontalSpanAtExtremeY(PathData, UseMaxY: true);
-    }
+    public static double GetHorizontalSpanAtBottomEdge(string PathData) => GetHorizontalSpanAtExtremeY(PathData, UseMaxY: true);
 
     private static double GetHorizontalSpanAtExtremeY(string PathData, bool UseMaxY)
     {
@@ -166,7 +160,7 @@ public static class FlowchartTrapezoidBracketPathAnalyser
 
     private static List<(double X, double Y)> ExtractMoveLinePoints(string PathData)
     {
-        List<(double X, double Y)> Points = new List<(double X, double Y)>();
+        List<(double X, double Y)> Points = [];
         MatchCollection Matches = Regex.Matches(
             PathData,
             @"([ML])\s*([-\d.]+)\s*,\s*([-\d.]+)",

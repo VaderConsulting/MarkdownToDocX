@@ -6,6 +6,7 @@ using Microsoft.AGL.Core.DataStructures;
 using Microsoft.AGL.Core.Geometry;
 using Microsoft.AGL.Core.Geometry.Curves;
 using Microsoft.AGL.Layout.LargeGraphLayout;
+
 #if TEST_MSAGL
 using Microsoft.AGL.DebugHelpers;
 using System.Diagnostics;
@@ -31,24 +32,21 @@ namespace Microsoft.AGL.Core.Layout {
         /// </summary>
         public GeometryGraph()
         {
-            this.nodes = new NodeCollection(this);
-            this.edges = new EdgeCollection(this);
-            this.rootCluster = new Cluster();
+            nodes = new NodeCollection(this);
+            edges = new EdgeCollection(this);
+            rootCluster = new Cluster();
         }
 
         /// <summary>
         /// The root cluster for this graph. Will never be null.
         /// </summary>
-        public Cluster RootCluster 
-        { 
-            get
-            {
-                return this.rootCluster;
-            }
+        public Cluster RootCluster
+        {
+            get => rootCluster;
             set
             {
                 ValidateArg.IsNotNull(value, "value");
-                this.rootCluster = value;
+                rootCluster = value;
             }
         }
 
@@ -57,9 +55,7 @@ namespace Microsoft.AGL.Core.Layout {
         /// <summary>
         /// Bounding box of the graph
         /// </summary>
-        public override Rectangle BoundingBox {
-            get { return boundingBox; }
-            set { boundingBox = value; }
+        public override Rectangle BoundingBox { get => boundingBox; set => boundingBox = value;
         }
 
         double margins;
@@ -74,104 +70,79 @@ namespace Microsoft.AGL.Core.Layout {
         /// margins width are equal from the left and from the right; they are given in percents
         /// </summary>
         public double Margins
-        {
-            get { return margins; }
-            set { margins = value; }
+        { get => margins; set => margins = value;
         }
 
         /// <summary>
         /// Width of the graph
         /// </summary>
-        public double Width {
-            get { return BoundingBox.RightBottom.X - BoundingBox.LeftTop.X; }
-        }
+        public double Width => BoundingBox.RightBottom.X - BoundingBox.LeftTop.X;
 
         /// <summary>
         /// Height of the graph
         /// </summary>
-        public double Height {
-            get { return BoundingBox.Height; }
-        }
+        public double Height => BoundingBox.Height;
 
         /// <summary>
         /// Left bound of the graph
         /// </summary>
-        public double Left {
-            get { return BoundingBox.Left; }
-        }
+        public double Left => BoundingBox.Left;
 
         /// <summary>
         /// Right bound of the graph
         /// </summary>
-        public double Right {
-            get { return BoundingBox.Right; }
-        }
+        public double Right => BoundingBox.Right;
 
         /// <summary>
         /// Left bottom corner of the graph
         /// </summary>
-        internal Point LeftBottom {
-            get { return new Point(BoundingBox.Left, BoundingBox.Bottom); }
-        }
+        internal Point LeftBottom => new Point(BoundingBox.Left, BoundingBox.Bottom);
 
         /// <summary>
         /// Right top corner of the graph
         /// </summary>
-        internal Point RightTop {
-            get { return new Point(Right, Top); }
-        }
+        internal Point RightTop => new Point(Right, Top);
 
         /// <summary>
         /// Bottom bound of the graph
         /// </summary>
-        public double Bottom {
-            get { return BoundingBox.Bottom; }
-        }
+        public double Bottom => BoundingBox.Bottom;
 
         /// <summary>
         /// Top bound of the graph
         /// </summary>
-        public double Top {
-            get { return BoundingBox.Bottom + BoundingBox.Height; }
-        }
+        public double Top => BoundingBox.Bottom + BoundingBox.Height;
 
         /// <summary>
         /// The nodes in the graph.
         /// </summary>
-        public IList<Node> Nodes {
-            get { return nodes; }
-            set { nodes = value; }
+        public IList<Node> Nodes { get => nodes; set => nodes = value;
         }
 
         /// <summary>
         /// Edges of the graph
         /// </summary>
-        public EdgeCollection Edges {
-            get { return edges; }
-            set { edges =value; }
+        public EdgeCollection Edges { get => edges; set => edges = value;
         }
 
         /// <summary>
         /// Returns a collection of all the labels in the graph.
         /// </summary>
         /// <returns></returns>
-        public ICollection<Label> CollectAllLabels()
-        {
-            return Edges.SelectMany(e => e.Labels).ToList();
-        }
+        public ICollection<Label> CollectAllLabels() => Edges.SelectMany(e => e.Labels).ToList();
 
         /// <summary>
         /// transforms the graph by the given matrix
         /// </summary>
         /// <param name="matrix">the matrix</param>
         public void Transform(PlaneTransformation matrix) {
-            foreach (var node in Nodes)
+            foreach (Node node in Nodes)
                 node.Transform(matrix);
-            foreach (var edge in Edges)
+            foreach (Edge edge in Edges)
                 edge.Transform(matrix);
 #if DEBUG && TEST_MSAGL
             if (DebugCurves != null)
-                foreach (var dc in DebugCurves)
+                foreach (DebugCurve dc in DebugCurves)
                     dc.Curve = dc.Curve.Transform(matrix);
 #endif
             UpdateBoundingBox();
@@ -182,9 +153,9 @@ namespace Microsoft.AGL.Core.Layout {
         /// </summary>
         /// <returns></returns>
         public Rectangle PumpTheBoxToTheGraphWithMargins() {
-            var b = Rectangle.CreateAnEmptyBox();
+            Rectangle b = Rectangle.CreateAnEmptyBox();
             PumpTheBoxToTheGraph(ref b);
-            var del=new Point(Margins, -Margins);
+            Point del =new Point(Margins, -Margins);
             b.RightBottom += del;
             b.LeftTop -= del;
             b.Width = Math.Max(b.Width, MinimalWidth);
@@ -209,12 +180,12 @@ namespace Microsoft.AGL.Core.Layout {
             foreach (Edge e in Edges) {
                 if (e.UnderCollapsedCluster()) continue;
                 if (e.Curve != null) {
-                    var cb = e.Curve.BoundingBox;
+                    Rectangle cb = e.Curve.BoundingBox;
                     cb.Pad(e.LineWidth);
                     b.Add(cb);
                 }
 
-                foreach (var l in e.Labels.Where(lbl => lbl != null))
+                foreach (Label l in e.Labels.Where(lbl => lbl != null))
                     b.Add(l.BoundingBox);
             }
 
@@ -224,7 +195,7 @@ namespace Microsoft.AGL.Core.Layout {
             }
 
 
-            foreach (var c in RootCluster.Clusters) {
+            foreach (Cluster c in RootCluster.Clusters) {
                 if (c.BoundaryCurve == null) {
                     if (c.RectangularBoundary != null)
                         c.BoundaryCurve = c.RectangularBoundary.RectangularHull();
@@ -234,7 +205,7 @@ namespace Microsoft.AGL.Core.Layout {
             }
 #if DEBUG && TEST_MSAGL
             if(DebugCurves!=null)
-                foreach (var debugCurve in DebugCurves.Where(d => d.Curve != null))
+                foreach (DebugCurve debugCurve in DebugCurves.Where(d => d.Curve != null))
                     b.Add(debugCurve.Curve.BoundingBox);
 #endif 
         }
@@ -245,18 +216,18 @@ namespace Microsoft.AGL.Core.Layout {
         /// </summary>
         public void Translate(Point delta)
         {
-            var nodeSet = new Set<Node>(Nodes);
-            foreach (var v in Nodes)
+            Set<Node> nodeSet = new Set<Node>(Nodes);
+            foreach (Node v in Nodes)
                 v.Center += delta;
 
-            foreach (var cluster in RootCluster.AllClustersDepthFirstExcludingSelf()) {
-                foreach (var node in cluster.Nodes.Where(n => !nodeSet.Contains(n)))
+            foreach (Cluster cluster in RootCluster.AllClustersDepthFirstExcludingSelf()) {
+                foreach (Node node in cluster.Nodes.Where(n => !nodeSet.Contains(n)))
                     node.Center += delta;
                 cluster.Center += delta;
                 cluster.RectangularBoundary.TranslateRectangle(delta);                
             }
 
-            foreach (var e in edges)
+            foreach (Edge e in edges)
                 e.Translate(delta);
 
             BoundingBox = new Rectangle(BoundingBox.Left + delta.X, BoundingBox.Bottom + delta.Y, new Point(BoundingBox.Width, BoundingBox.Height));
@@ -265,15 +236,12 @@ namespace Microsoft.AGL.Core.Layout {
         /// <summary>
         /// Updates the bounding box to fit the contents.
         /// </summary>
-        public void UpdateBoundingBox() {
-            this.BoundingBox = PumpTheBoxToTheGraphWithMargins();
-        }
+        public void UpdateBoundingBox() => BoundingBox = PumpTheBoxToTheGraphWithMargins();
 
         /// <summary>
         /// Flatten the list of nodes and clusters
         /// </summary>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public IEnumerable<Node> GetFlattenedNodesAndClusters()
         {
             foreach (Node v in Nodes)
@@ -281,9 +249,9 @@ namespace Microsoft.AGL.Core.Layout {
                 yield return v;
             }
             
-            foreach(Cluster cluster in this.RootCluster.AllClustersDepthFirst())
+            foreach(Cluster cluster in RootCluster.AllClustersDepthFirst())
             {
-                if (cluster != this.RootCluster)
+                if (cluster != RootCluster)
                 {
                     yield return cluster;
                 }
@@ -294,10 +262,7 @@ namespace Microsoft.AGL.Core.Layout {
         /// Finds the first node with the corresponding user data.
         /// </summary>
         /// <returns>The first node with the given user data. Null if no such node exists.</returns>
-        public Node FindNodeByUserData(object userData)
-        {
-            return this.Nodes.FirstOrDefault(n => n.UserData.Equals(userData));
-        }
+        public Node FindNodeByUserData(object userData) => Nodes.FirstOrDefault(n => n.UserData.Equals(userData));
 #if TEST_MSAGL
         ///<summary>
         ///</summary>
@@ -305,24 +270,24 @@ namespace Microsoft.AGL.Core.Layout {
         public void SetDebugIds()
         {
             int id = 0;
-            foreach (var node in RootCluster.AllClustersDepthFirst())
+            foreach (Cluster node in RootCluster.AllClustersDepthFirst())
                 node.DebugId = id++;
 
-            foreach (var node in Nodes)
+            foreach (Node node in Nodes)
                 if (node.DebugId == null)
                     node.DebugId = id++;
         }
 
         internal void CheckClusterConsistency() {
-            foreach (var cluster in RootCluster.AllClustersDepthFirst())
+            foreach (Cluster cluster in RootCluster.AllClustersDepthFirst())
                 CheckClusterConsistency(cluster);
         }
 
         static void CheckClusterConsistency(Cluster cluster) {
             if (cluster.BoundaryCurve == null)
                 return;
-            foreach (var child in cluster.Clusters.Concat(cluster.Nodes)) {
-                var inside=Curve.CurveIsInsideOther(child.BoundaryCurve, cluster.BoundaryCurve);
+            foreach (Node child in cluster.Clusters.Concat(cluster.Nodes)) {
+                bool inside =Curve.CurveIsInsideOther(child.BoundaryCurve, cluster.BoundaryCurve);
 #if TEST_MSAGL && DEBUG
 //                if (!inside)
 //                    LayoutAlgorithmSettings.ShowDebugCurves(new DebugCurve("green", cluster.BoundaryCurve), new DebugCurve("red", child.BoundaryCurve));

@@ -16,14 +16,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
     class BlockVector
     {
         internal List<Block> Vector { get; private set; }
-        internal bool IsEmpty { get { return 0 == Vector.Count; } }
-        internal int Count { get { return Vector.Count; } }
+        internal bool IsEmpty => 0 == Vector.Count;
+        internal int Count => Vector.Count;
         internal Block this[int index] { get { return Vector[index]; } }
 
-        internal BlockVector()
-        {
-            Vector = new List<Block>();
-        }
+        internal BlockVector() => Vector = [];
 
         internal void Add(Block block)
         {
@@ -58,9 +55,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
 
         /// <summary>
         /// </summary>
-        public override string ToString()
-        {
-            return Vector.ToString();
-        }
+        public override string ToString() => Vector.ToString();
     }
 }

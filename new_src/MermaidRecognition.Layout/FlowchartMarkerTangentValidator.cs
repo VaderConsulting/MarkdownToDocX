@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 
 namespace MermaidRecognition.Layout;
 
@@ -58,13 +59,11 @@ public static class FlowchartMarkerTangentValidator
             ? GuidePoints[GuidePoints.Count - 1]
             : GuidePoints[0];
 
-        double ApproachX;
-        double ApproachY;
         if (!FlowchartRenderedPathMarkerHelper.TryResolveEndpointApproachPoint(
                 Samples,
                 AtTargetEnd,
-                out ApproachX,
-                out ApproachY))
+                out double ApproachX,
+                out double ApproachY))
         {
             (ApproachX, ApproachY) = FlowchartCurvePathBuilder.ResolveMarkerApproachPoint(
                 GuidePoints,

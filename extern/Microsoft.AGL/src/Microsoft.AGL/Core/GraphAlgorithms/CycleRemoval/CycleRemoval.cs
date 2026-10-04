@@ -1,7 +1,9 @@
 using System.Collections.Generic;
+
 using Microsoft.AGL.Core.DataStructures;
 
-namespace Microsoft.AGL.Core.GraphAlgorithms {
+namespace Microsoft.AGL.Core.GraphAlgorithms.CycleRemoval
+{
     /// <summary>
     /// Calculates a set of edges to reverse, so called "feedback set", for obtaining a DAG
     /// </summary>
@@ -33,7 +35,7 @@ namespace Microsoft.AGL.Core.GraphAlgorithms {
         }
 
         static IEnumerable<IEdge> GetFeedbackSetWithConstraintsLocal(BasicGraph<TEdge> graph, Set<IntPair> constraints) {
-            var v = new CycleRemovalWithConstraints<TEdge>(graph, constraints);
+            CycleRemovalWithConstraints<TEdge> v = new CycleRemovalWithConstraints<TEdge>(graph, constraints);
             return v.GetFeedbackSet();
         }
 
@@ -65,7 +67,7 @@ namespace Microsoft.AGL.Core.GraphAlgorithms {
         /// <returns></returns>
         static internal IEnumerable<IEdge> GetFeedbackSet(BasicGraph<TEdge> graph) {
             if (graph != null && graph.NodeCount > 0 && graph.Edges.Count > 0) {
-                Set<IEdge> feedbackSet = new Set<IEdge>();
+                Set<IEdge> feedbackSet = [];
                 VertStatus[] status = new VertStatus[graph.NodeCount]; //will be Unvisited at the beginning
 #if SHARPKIT //http://code.google.com/p/sharpkit/issues/detail?id=367 arrays are not default initialised
                 for (int i = 0; i < status.Length; i++)

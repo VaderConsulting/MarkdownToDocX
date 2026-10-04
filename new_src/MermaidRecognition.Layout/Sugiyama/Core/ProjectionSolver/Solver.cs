@@ -29,6 +29,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
 {
     using System.Linq;
 
+    using MermaidRecognition.Layout.Sugiyama;
+
     /// <summary>
     /// A Solver is the driving class that collects Variables and Constraints and then generates a
     /// solution that minimally satisfies the constraints.
@@ -52,7 +54,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
         private int numberOfVariables;
 
         // Also for speed, a separate list of Equality constraints (which we expect to be fairly rare).
-        private readonly List<Constraint> equalityConstraints = new List<Constraint>();
+        private readonly List<Constraint> equalityConstraints = [];
 
         private struct ConstraintListForVariable
         {
@@ -64,15 +66,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
 
             internal ConstraintListForVariable(List<Constraint> constraints, int numberOfLeftConstraints)
             {
-                this.Constraints = constraints;
-                this.NumberOfLeftConstraints = numberOfLeftConstraints;
+                Constraints = constraints;
+                NumberOfLeftConstraints = numberOfLeftConstraints;
             }
         }
 
         // Also for speed, store variables -> constraint list while we load, then convert this into
         // arrays when we call Solve().  The members are List of constraints, and number of Left constraints.
         private Dictionary<Variable, ConstraintListForVariable> loadedVariablesAndConstraintLists
-                            = new Dictionary<Variable, ConstraintListForVariable>();
+                            = [];
 
         // We bundle up the constraints first, so we can use Array rather than List iteration for speed. 
         // To make the code cleaner (not having to check for NULL all over the place) use an empty List/Array
@@ -81,7 +83,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
 
         // For UpdateConstraint(), we want to buffer up the changes so variable values are not changed
         // by doing an immediate Block.Split which updates the Block's ReferencePos.
-        private readonly List<KeyValuePair<Constraint, double>> updatedConstraints = new List<KeyValuePair<Constraint, double>>();
+        private readonly List<KeyValuePair<Constraint, double>> updatedConstraints = [];
 
         // For caching violations to improve GetMaxViolatedConstraint performance.
         private ViolationCache violationCache = new ViolationCache();
@@ -104,7 +106,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
         // Solution results - will be cloned to return to caller.
         private Solution solverSolution = new Solution();
 
-        private bool IsQpsc { get { return this.hasNeighbourPairs || this.solverParams.Advanced.ForceQpsc; } }
+        private bool IsQpsc => hasNeighbourPairs || solverParams.Advanced.ForceQpsc;
 
         // For execution-time limit.
         private Stopwatch timeoutStopwatch;
@@ -117,10 +119,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
         /// <param name="userData">a tag or other user data - can be null</param>
         /// <param name="desiredPos">The position of the variable, such as the coordinate of a node along one axis.</param>
         /// <returns>The created variable</returns>
-        public Variable AddVariable(Object userData, double desiredPos)
-        {
-            return AddVariable(userData, desiredPos, /*weight:*/ 1.0, /*scale:*/ 1.0);
-        }
+        public Variable AddVariable(object userData, double desiredPos) => AddVariable(userData, desiredPos, /*weight:*/ 1.0, /*scale:*/ 1.0);
         /// <summary>
         /// Add a Variable (for example, wrapping a node on one axis of the graph) to the Solver.
         /// </summary>
@@ -128,10 +127,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
         /// <param name="desiredPos">The position of the variable, such as the coordinate of a node along one axis.</param>
         /// <param name="weight">The weight of the variable (makes it less likely to move if the weight is high).</param>
         /// <returns></returns>
-        public Variable AddVariable(Object userData, double desiredPos, double weight)
-        {
-            return AddVariable(userData, desiredPos, weight, /*scale:*/ 1.0);
-        }
+        public Variable AddVariable(object userData, double desiredPos, double weight) => AddVariable(userData, desiredPos, weight, /*scale:*/ 1.0);
 
         /// <summary>
         /// Add a Variable (for example, wrapping a node on one axis of the graph) to the Solver.
@@ -141,13 +137,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
         /// <param name="weight">The weight of the variable (makes it less likely to move if the weight is high).</param>
         /// <param name="scale">The scale of the variable, for improving convergence.</param>
         /// <returns>The created variable</returns>
-        public Variable AddVariable(Object userData, double desiredPos, double weight, double scale)
+        public Variable AddVariable(object userData, double desiredPos, double weight, double scale)
         {
             // @@DCR "Incremental Solving": For now we disallow this; if we support it, we'll need to
             // retain loadedVariablesAndConstraintLists, store up the added Variables (TryGetValue and if that fails add 
             // the existing variable, then iterate through variables with new Constraints and replace the arrays.
             // Also remember to check for emptyConstraintList - don't add to it.
-            if (!this.allConstraints.IsEmpty)
+            if (!allConstraints.IsEmpty)
             {
                 throw new InvalidOperationException(
 #if DEBUG
@@ -156,18 +152,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
                     );
             }
 
-            var varNew = new Variable(this.nextVariableOrdinal++, userData, desiredPos, weight, scale);
-            var block = new Block(varNew, this.allConstraints
+            Variable varNew = new Variable(nextVariableOrdinal++, userData, desiredPos, weight, scale);
+            Block block = new Block(varNew, allConstraints
 #if VERIFY || VERBOSE
                                 , ref this.nextNewBlockOrdinal
 #endif // VERIFY || VERBOSE
                 );
             varNew.Block = block;
-            this.allBlocks.Add(block);
-            ++this.numberOfVariables;
+            allBlocks.Add(block);
+            ++numberOfVariables;
 
             // Initialize the variable in the dictionary with a null list and zero left constraints.
-            this.loadedVariablesAndConstraintLists[varNew] = new ConstraintListForVariable(new List<Constraint>(), 0);
+            loadedVariablesAndConstraintLists[varNew] = new ConstraintListForVariable([], 0);
             return varNew;
         } // end AddVariable()
 
@@ -181,7 +177,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
             // about the internals; this really is updating the blocks after the variables have already
             // been updated one at a time. (This doesn't need to be called if constraints are re-gapped
             // while variable positions are unchanged; Solve() checks for that).
-            foreach (Block block in this.allBlocks.Vector)
+            foreach (Block block in allBlocks.Vector)
             {
                 block.UpdateReferencePos();
             }
@@ -190,21 +186,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
         /// <summary>
         /// This enumerates all Variables created by AddVariable.
         /// </summary>
-        public IEnumerable<Variable> Variables
-        {
-            get
-            {
-                return this.allBlocks.Vector.SelectMany(block => block.Variables);
-            }
-        }
+        public IEnumerable<Variable> Variables => allBlocks.Vector.SelectMany(block => block.Variables);
 
         /// <summary>
         /// The number of variables added to the Solver.
         /// </summary>
-        public int VariableCount
-        {
-            get { return this.numberOfVariables; }
-        }
+        public int VariableCount => numberOfVariables;
 
         /// <summary>
         /// This enumerates all Constraints created by AddConstraint (which in turn may have
@@ -214,10 +201,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
         {
             get
             {
-                if (!this.allConstraints.IsEmpty)
+                if (!allConstraints.IsEmpty)
                 {
                     // Solve() has been called.
-                    foreach (Constraint constraint in this.allConstraints.Vector)
+                    foreach (Constraint constraint in allConstraints.Vector)
                     {
                         yield return constraint;
                     }
@@ -225,9 +212,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
                 else
                 {
                     // Solve() has not yet been called.
-                    foreach (var variable in this.loadedVariablesAndConstraintLists.Keys)
+                    foreach (Variable variable in loadedVariablesAndConstraintLists.Keys)
                     {
-                        ConstraintListForVariable constraintsForVar = this.loadedVariablesAndConstraintLists[variable];
+                        ConstraintListForVariable constraintsForVar = loadedVariablesAndConstraintLists[variable];
                         if (null != constraintsForVar.Constraints)
                         {
                             // Return all variables in the LeftConstraints list for each variable.
@@ -249,10 +236,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
         /// <summary>
         /// The number of constraints added to the Solver.
         /// </summary>
-        public int ConstraintCount
-        {
-            get { return this.numberOfConstraints; }
-        }
+        public int ConstraintCount => numberOfConstraints;
 
         /// <summary>
         /// Add a constraint 'left + gap' is equal to right
@@ -261,10 +245,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
         /// <param name="right"></param>
         /// <param name="gap"></param>
         /// <returns></returns>
-        public Constraint AddEqualityConstraint(Variable left, Variable right, double gap)
-        {
-            return AddConstraint(left, right, gap, true);
-        }
+        public Constraint AddEqualityConstraint(Variable left, Variable right, double gap) => AddConstraint(left, right, gap, true);
 
         /// <summary>
         /// Add a constraint 'left + gap' is less than or equal to 'right'
@@ -274,11 +255,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
         /// <param name="gap">The gap required between the variables.</param>
         /// <param name="isEquality"></param>
         /// <returns>The new constraint.</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2208:InstantiateArgumentExceptionsCorrectly")]
         public Constraint AddConstraint(Variable left, Variable right, double gap, bool isEquality)
         {
             // @@DCR "Incremental Solving": See notes in AddVariable; for now, this is disallowed.
-            if (!this.allConstraints.IsEmpty)
+            if (!allConstraints.IsEmpty)
             {
                 throw new InvalidOperationException(
 #if DEBUG
@@ -302,8 +282,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
             // varLeft's LeftConstraints and varRight's RightConstraints; this is slightly more complicated logic
             // than just having two Lists, but for large numbers of variables, having all constraints in a single
             // list is more memory-efficient.
-            ConstraintListForVariable constraintsForLeftVar = this.loadedVariablesAndConstraintLists[left];
-            ConstraintListForVariable constraintsForRightVar = this.loadedVariablesAndConstraintLists[right];
+            ConstraintListForVariable constraintsForLeftVar = loadedVariablesAndConstraintLists[left];
+            ConstraintListForVariable constraintsForRightVar = loadedVariablesAndConstraintLists[right];
 
 #if NO_DUP_CONSTRAINTS
             // Ignore duplicates.  This is only done on load, and it's not likely we'll have a huge
@@ -325,21 +305,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
             // Now create the new constraint and update the structures.  For varLeft, we must also update the
             // left-variable count and that requires another lookup to update the structure in the Dictionary
             // since it's a value type so a copy was returned by-value from Dictionary lookup.
-            var constraint = new Constraint(left, right, gap, isEquality
+            Constraint constraint = new Constraint(left, right, gap, isEquality
 #if VERIFY || VERBOSE
                                     , this.nextNewConstraintOrdinal++
 #endif // VERIFY || VERBOSE
                 );
 
             // Structure update requires replacing the full structure.
-            this.loadedVariablesAndConstraintLists[left] = new ConstraintListForVariable(
+            loadedVariablesAndConstraintLists[left] = new ConstraintListForVariable(
                             constraintsForLeftVar.Constraints, constraintsForLeftVar.NumberOfLeftConstraints + 1);
             constraintsForLeftVar.Constraints.Add(constraint);
             constraintsForRightVar.Constraints.Add(constraint);
-            ++this.numberOfConstraints;
+            ++numberOfConstraints;
             if (isEquality)
             {
-                this.equalityConstraints.Add(constraint);
+                equalityConstraints.Add(constraint);
             }
             return constraint;
         }
@@ -351,10 +331,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
         /// <param name="right"></param>
         /// <param name="gap">The gap required between the variables.</param>
         /// <returns>The new constraint.</returns>
-        public Constraint AddConstraint(Variable left, Variable right, double gap)
-        {
-            return AddConstraint(left, right, gap, false /*isEquality*/);
-        }
+        public Constraint AddConstraint(Variable left, Variable right, double gap) => AddConstraint(left, right, gap, false /*isEquality*/);
 
         /// <summary>
         /// Register an update to a constraint's gap; this defers the actual update until Solve() is called.
@@ -369,7 +346,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
             // Block.Split here (which updates Block.ReferencePos, upon which Variable.(Scaled)ActualPos relies).
             if (gap != constraint.Gap)
             {
-                this.updatedConstraints.Add(new KeyValuePair<Constraint, double>(constraint, gap));
+                updatedConstraints.Add(new KeyValuePair<Constraint, double>(constraint, gap));
             }
         }
 
@@ -403,7 +380,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
             }
             variable1.AddNeighbor(variable2, relationshipWeight);
             variable2.AddNeighbor(variable1, relationshipWeight);
-            this.hasNeighbourPairs = true;
+            hasNeighbourPairs = true;
         } // end AddNeighborPair()
 
         /// <summary>
@@ -411,10 +388,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
         /// along this axis.  This overload uses default solution parameter values.
         /// </summary>
         /// <returns>A Solution object.</returns>
-        public Solution Solve()
-        {
-            return Solve(null);
-        }
+        public Solution Solve() => Solve(null);
 
         /// <summary>
         /// Sets Variable.ActualPos to the positions of the Variables that minimally satisfy the constraints
@@ -429,21 +403,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
         {
             if (null != solverParameters)
             {
-                this.solverParams = (Parameters)solverParameters.Clone();
+                solverParams = (Parameters)solverParameters.Clone();
             }
 
             // Reset some parameter defaults to per-solver-instance values.
-            if (this.solverParams.OuterProjectIterationsLimit < 0)
+            if (solverParams.OuterProjectIterationsLimit < 0)
             {
                 // If this came in 0, it stays that way, and there is no limit.  Otherwise, set it to a value
                 // reflecting the expectation of convergence roughly log-linearly in the number of variables.
 #if SHARPKIT //https://github.com/SharpKit/SharpKit/issues/4 integer rounding issue
                 this.solverParams.OuterProjectIterationsLimit = 100 * (((int)Math.Log(this.numberOfVariables, 2.0)) + 1);
 #else
-                this.solverParams.OuterProjectIterationsLimit = 100 * ((int)Math.Log(this.numberOfVariables, 2.0) + 1);
+                solverParams.OuterProjectIterationsLimit = 100 * ((int)Math.Log(numberOfVariables, 2.0) + 1);
 #endif
             }
-            if (this.solverParams.InnerProjectIterationsLimit < 0)
+            if (solverParams.InnerProjectIterationsLimit < 0)
             {
                 // If this came in 0, it stays that way, and there is no limit.  Otherwise, assume that for
                 // any pass, each constraint may be violated (most likely this happens only on the first pass),
@@ -452,17 +426,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
 #if SHARPKIT //https://github.com/SharpKit/SharpKit/issues/4 integer rounding issue
                 this.solverParams.InnerProjectIterationsLimit = (this.numberOfConstraints * 2) + (100 * (((int)Math.Log(this.numberOfConstraints, 2.0)) + 1));
 #else
-                this.solverParams.InnerProjectIterationsLimit = (this.numberOfConstraints * 2) + (100 * ((int)Math.Log(this.numberOfConstraints, 2.0) + 1));
+                solverParams.InnerProjectIterationsLimit = (numberOfConstraints * 2) + (100 * ((int)Math.Log(numberOfConstraints, 2.0) + 1));
 #endif
             }
 
             // ReSolving can be done for updated constraints.
-            bool isReSolve = !this.allConstraints.IsEmpty;
+            bool isReSolve = !allConstraints.IsEmpty;
             CheckForUpdatedConstraints();
 
-            this.solverSolution = new Solution { MinInnerProjectIterations = int.MaxValue };
-            this.allConstraints.MaxConstraintTreeDepth = 0;
-            this.allConstraints.SolverParameters = this.solverParams;
+            solverSolution = new Solution { MinInnerProjectIterations = int.MaxValue };
+            allConstraints.MaxConstraintTreeDepth = 0;
+            allConstraints.SolverParameters = solverParams;
 
             //
             // First set up all the internal stuff we'll use for solutions.
@@ -473,12 +447,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
 
             // If no constraints have been loaded, there's nothing to do.  Two distinct variables
             // are required to create a constraint, so this also ensures a minimum number of variables.
-            if (0 == this.numberOfConstraints)
+            if (0 == numberOfConstraints)
             {
                 // For Qpsc, we may have neighbours but no constraints.
-                if (!this.IsQpsc)
+                if (!IsQpsc)
                 {
-                    return (Solution)this.solverSolution.Clone();
+                    return (Solution)solverSolution.Clone();
                 }
             }
             else if (!isReSolve)
@@ -487,7 +461,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
             }
 
             // This is the number of unsatisfiable constraints encountered.
-            this.allConstraints.NumberOfUnsatisfiableConstraints = 0;
+            allConstraints.NumberOfUnsatisfiableConstraints = 0;
 
             // Merge Equality constraints first.  These do not do any constraint-splitting, and thus
             // remain in the same blocks, always satisfied, regardless of whether we're solving the full
@@ -495,31 +469,31 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
             MergeEqualityConstraints();
 
             // Prepare for timeout checking.
-            if (this.solverParams.TimeLimit > 0)
+            if (solverParams.TimeLimit > 0)
             {
-                this.timeoutStopwatch = new Stopwatch();
-                this.timeoutStopwatch.Start();
+                timeoutStopwatch = new Stopwatch();
+                timeoutStopwatch.Start();
             }
 
             //
             // Done with initial setup.  Now if we have neighbour pairs, we do the full SolveQpsc logic
             // complete with Gradient projection.  Otherwise, we have a much simpler Project/Split loop.
             //
-            if (this.IsQpsc)
+            if (IsQpsc)
             {
-                this.SolveQpsc();
+                SolveQpsc();
             }
             else
             {
-                this.SolveByStandaloneProject();
-                this.CalculateStandaloneProjectGoalFunctionValue();
+                SolveByStandaloneProject();
+                CalculateStandaloneProjectGoalFunctionValue();
             }
 
             // We initialized this to int.MaxValue so make sure it's sane if we didn't complete a Project iteration.
-            if (this.solverSolution.MinInnerProjectIterations > this.solverSolution.MaxInnerProjectIterations)
+            if (solverSolution.MinInnerProjectIterations > solverSolution.MaxInnerProjectIterations)
             {
                 // Probably this is 0.
-                this.solverSolution.MinInnerProjectIterations = this.solverSolution.MaxInnerProjectIterations;
+                solverSolution.MinInnerProjectIterations = solverSolution.MaxInnerProjectIterations;
             }
 
 #if CACHE_STATS
@@ -530,7 +504,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
 
             // Done.  Caller will copy each var.ActualPos back to the Nodes.  If we had any unsatisfiable
             // constraints, copy them back out to the caller.
-            this.solverSolution.NumberOfUnsatisfiableConstraints = this.allConstraints.NumberOfUnsatisfiableConstraints;
+            solverSolution.NumberOfUnsatisfiableConstraints = allConstraints.NumberOfUnsatisfiableConstraints;
 #if BLOCK_STATS
             int minBlockVars = this.numberOfVariables;
             int maxBlockVars = 0;
@@ -546,22 +520,22 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
             Console.WriteLine("Num final Blocks: {0}, Min Block Vars: {1}, Max Block Vars: {2}",
                     allBlocks.Count, minBlockVars, maxBlockVars);
 #endif // BLOCK_STATS
-            this.solverSolution.MaxConstraintTreeDepth = this.allConstraints.MaxConstraintTreeDepth;
-            return (Solution)this.solverSolution.Clone();
+            solverSolution.MaxConstraintTreeDepth = allConstraints.MaxConstraintTreeDepth;
+            return (Solution)solverSolution.Clone();
         } // end Solve()
 
         private void CheckForUpdatedConstraints()
         {
-            if (0 == this.updatedConstraints.Count)
+            if (0 == updatedConstraints.Count)
             {
                 return;
             }
-            Debug.Assert(!this.allConstraints.IsEmpty, "Cannot have updated constraints if AllConstraints is empty.");
+            Debug.Assert(!allConstraints.IsEmpty, "Cannot have updated constraints if AllConstraints is empty.");
 
             // For Qpsc, all Block.ReferencePos values are based upon Variable.DesiredPos values, and the latter
             // have been restored from what they were on the last Qpsc iteration to their initial values).
-            bool mustReinitializeBlocks = this.IsQpsc;
-            foreach (KeyValuePair<Constraint, double> kvpUpdate in this.updatedConstraints)
+            bool mustReinitializeBlocks = IsQpsc;
+            foreach (KeyValuePair<Constraint, double> kvpUpdate in updatedConstraints)
             {
                 // Update the constraint, then split its block if it's active, so the next call to Solve()
                 // will start the merge/split cycle again.
@@ -577,11 +551,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
                 // If we have updated one we must reinitialize the block structure.
                 mustReinitializeBlocks = true;
             }
-            this.updatedConstraints.Clear();
+            updatedConstraints.Clear();
 
             if (mustReinitializeBlocks)
             {
-                this.ReinitializeBlocks();
+                ReinitializeBlocks();
             }
         }
 
@@ -597,7 +571,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
                     );
                 if (null != newSplitBlock)
                 {
-                    this.allBlocks.Add(newSplitBlock);
+                    allBlocks.Add(newSplitBlock);
                 }
             } // endif constraint.IsActive
         }
@@ -606,11 +580,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
         {
             // Optimize the lookup in SearchAllConstraints; create an array (which has faster
             // iteration than List).
-            this.allConstraints.Create(this.numberOfConstraints);
+            allConstraints.Create(numberOfConstraints);
 
-            foreach (var variable in this.loadedVariablesAndConstraintLists.Keys)
+            foreach (Variable variable in loadedVariablesAndConstraintLists.Keys)
             {
-                ConstraintListForVariable constraintsForVar = this.loadedVariablesAndConstraintLists[variable];
+                ConstraintListForVariable constraintsForVar = loadedVariablesAndConstraintLists[variable];
                 List<Constraint> constraints = constraintsForVar.Constraints;
                 int numAllConstraints = 0;
                 int numLeftConstraints = 0;
@@ -623,12 +597,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
                 }
 
                 // Create the Variable's Constraint arrays, using the single emptyConstraintList for efficiency.
-                Constraint[] leftConstraints = this.emptyConstraintList;
+                Constraint[] leftConstraints = emptyConstraintList;
                 if (0 != numLeftConstraints)
                 {
                     leftConstraints = new Constraint[numLeftConstraints];
                 }
-                Constraint[] rightConstraints = this.emptyConstraintList;
+                Constraint[] rightConstraints = emptyConstraintList;
                 if (0 != numRightConstraints)
                 {
                     rightConstraints = new Constraint[numRightConstraints];
@@ -659,25 +633,25 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
                 // Done with per-variable constraint loading.  Now load the big list of all constraints.
                 // All constraints are stored in a LeftConstraints array (and duplicated in a RightConstraints
                 // array), so just load the LeftConstraints into AllConstraints. Array.Foreach is optimized.
-                foreach (var constraint in variable.LeftConstraints)
+                foreach (Constraint constraint in variable.LeftConstraints)
                 {
-                    this.allConstraints.Add(constraint);
+                    allConstraints.Add(constraint);
                 }
             }
-            this.allConstraints.Debug_AssertIsFull();
+            allConstraints.Debug_AssertIsFull();
 
             // Done with the dictionary now.
-            this.loadedVariablesAndConstraintLists.Clear();
-            this.loadedVariablesAndConstraintLists = null;
+            loadedVariablesAndConstraintLists.Clear();
+            loadedVariablesAndConstraintLists = null;
 
             // If we don't have many blocks then the caching optimization's overhead may outweigh
             // its benefit. Similarly, after blocks have merged past a certain point it's faster to
             // just enumerate them all.  Initialize this to off.
-            this.violationCacheMinBlockCutoff = int.MaxValue;
-            if (this.solverParams.Advanced.UseViolationCache && (this.solverParams.Advanced.ViolationCacheMinBlocksDivisor > 0))
+            violationCacheMinBlockCutoff = int.MaxValue;
+            if (solverParams.Advanced.UseViolationCache && (solverParams.Advanced.ViolationCacheMinBlocksDivisor > 0))
             {
-                this.violationCacheMinBlockCutoff = Math.Min(this.allBlocks.Count / this.solverParams.Advanced.ViolationCacheMinBlocksDivisor,
-                                                this.solverParams.Advanced.ViolationCacheMinBlocksCount);
+                violationCacheMinBlockCutoff = Math.Min(allBlocks.Count / solverParams.Advanced.ViolationCacheMinBlocksDivisor,
+                                                solverParams.Advanced.ViolationCacheMinBlocksCount);
             }
 #if VERBOSE
             DumpState("Initial");
@@ -697,8 +671,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
                 // Don't check the return of Project; defer the termination check to SplitBlocks.
                 // This also examines limits post-Project; because it happens pre-SplitBlocks it ensures
                 // a feasible stopping state.
-                bool violationsFound;
-                if (!this.RunProject(out violationsFound))
+                if (!RunProject(out bool violationsFound))
                 {
                     return;
                 }
@@ -713,7 +686,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
 
         private bool RunProject(out bool violationsFound)
         {
-            ++this.solverSolution.OuterProjectIterations;
+            ++solverSolution.OuterProjectIterations;
             violationsFound = Project();
 
             // Examine limits post-Project but pre-SplitBlocks to ensure a feasible stopping state.
@@ -722,31 +695,31 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
 
         private bool CheckForLimitsExceeded()
         {
-            if (null != this.timeoutStopwatch)
+            if (null != timeoutStopwatch)
             {
-                if (this.timeoutStopwatch.ElapsedMilliseconds >= this.solverParams.TimeLimit)
+                if (timeoutStopwatch.ElapsedMilliseconds >= solverParams.TimeLimit)
                 {
 #if VERBOSE
                     Console.WriteLine("Solve() aborting due to time limit: max {0}, elapsed {1}",
                                     solverParams.TimeLimit, timeoutStopwatch.ElapsedMilliseconds);
 #endif // VERBOSE
-                    this.solverSolution.TimeLimitExceeded = true;
+                    solverSolution.TimeLimitExceeded = true;
                     return true;
                 }
             }
-            if (this.solverParams.OuterProjectIterationsLimit > 0)
+            if (solverParams.OuterProjectIterationsLimit > 0)
             {
-                if (this.solverSolution.OuterProjectIterations >= this.solverParams.OuterProjectIterationsLimit)
+                if (solverSolution.OuterProjectIterations >= solverParams.OuterProjectIterationsLimit)
                 {
 #if VERBOSE
                     Console.WriteLine("Solve() aborting due to max outer iterations: max {0}",
                                     solverParams.OuterProjectIterationsLimit);
 #endif // VERBOSE
-                    this.solverSolution.OuterProjectIterationsLimitExceeded = true;
+                    solverSolution.OuterProjectIterationsLimitExceeded = true;
                     return true;
                 }
             }
-            if (this.solverSolution.InnerProjectIterationsLimitExceeded)
+            if (solverSolution.InnerProjectIterationsLimitExceeded)
             {
                 return true;
             }
@@ -758,20 +731,20 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
             // Fill in the non-Qpsc Goal function value.  See Qpsc.HasConverged for details; this is a
             // streamlined form of (x'Ax)/2 + bx here, where A has only the diagonals (as there are no
             // neighbours) with 2*wi and b is a vector of -2*wi*di, and x is current position.
-            this.solverSolution.GoalFunctionValue = 0.0;
-            int numBlocks = this.allBlocks.Count;                // cache for perf
+            solverSolution.GoalFunctionValue = 0.0;
+            int numBlocks = allBlocks.Count;                // cache for perf
             for (int ii = 0; ii < numBlocks; ++ii)
             {
-                Block block = this.allBlocks[ii];
+                Block block = allBlocks[ii];
                 int numVars = block.Variables.Count;
                 for (int jj = 0; jj < numVars; ++jj)
                 {
-                    var variable = block.Variables[jj];
+                    Variable variable = block.Variables[jj];
 
                     // (x'Ax)/2
-                    this.solverSolution.GoalFunctionValue += variable.Weight * variable.ActualPos * variable.ActualPos;
+                    solverSolution.GoalFunctionValue += variable.Weight * variable.ActualPos * variable.ActualPos;
                     // +bx
-                    this.solverSolution.GoalFunctionValue -= 2 * variable.Weight * variable.DesiredPos * variable.ActualPos;
+                    solverSolution.GoalFunctionValue -= 2 * variable.Weight * variable.DesiredPos * variable.ActualPos;
                 }
             }
         }
@@ -779,24 +752,24 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
         // Implements the full solve_QPSC from the Ipsep_Cola and Scaling papers.
         private void SolveQpsc()
         {
-            this.solverSolution.AlgorithmUsed = this.solverParams.Advanced.ScaleInQpsc ? SolverAlgorithm.QpscWithScaling : SolverAlgorithm.QpscWithoutScaling;
+            solverSolution.AlgorithmUsed = solverParams.Advanced.ScaleInQpsc ? SolverAlgorithm.QpscWithScaling : SolverAlgorithm.QpscWithoutScaling;
             if (!QpscMakeFeasible())
             {
                 return;
             }
 
             // Initialize the Qpsc state, which also sets the scale for all variables (if we are scaling).
-            var qpsc = new Qpsc(this.solverParams, this.numberOfVariables);
-            foreach (var block in this.allBlocks.Vector)
+            Qpsc qpsc = new Qpsc(solverParams, numberOfVariables);
+            foreach (Block block in allBlocks.Vector)
             {
-                foreach (var variable in block.Variables)
+                foreach (Variable variable in block.Variables)
                 {
                     qpsc.AddVariable(variable);
                 }
             }
             qpsc.VariablesComplete();
-            this.ReinitializeBlocks();
-            this.MergeEqualityConstraints();
+            ReinitializeBlocks();
+            MergeEqualityConstraints();
             VerifyConstraintsAreFeasible();
 
             // Iterations
@@ -824,7 +797,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
 
                 // Examine limits post-Project to ensure a feasible stopping state.  We don't test for 
                 // termination due to "no violations found" here, deferring that to the next iteration's PreProject().
-                if (!this.RunProject(out foundViolation))
+                if (!RunProject(out foundViolation))
                 {
                     break;
                 }
@@ -840,18 +813,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
                 }
             } // end forever
 
-            this.solverSolution.GoalFunctionValue = qpsc.QpscComplete();
+            solverSolution.GoalFunctionValue = qpsc.QpscComplete();
         }
 
-        private bool QpscMakeFeasible()
-        {
+        private bool QpscMakeFeasible() =>
             // Start off with one Project pass so the initial Qpsc state is feasible (not in violation
             // of constraints).  If this takes more than the max allowable time, we're done.
-            bool foundViolation;
-            return this.RunProject(out foundViolation);
-        }
+            RunProject(out bool foundViolation);
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic"), Conditional("DEBUG")]
+        [Conditional("DEBUG")]
         private void VerifyConstraintsAreFeasible()
         {
 #if EX_VERIFY
@@ -874,8 +844,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
             // For Qpsc we want to discard the previous block structure, because it did not consider
             // neighbors, and the gradient may want to pull things in an entirely different way.
             // We must also do this for a re-Solve that updated the gap of an equality constraint.
-            var oldBlocks = this.allBlocks.Vector.ToArray();
-            this.allBlocks.Vector.Clear();
+            Block[] oldBlocks = allBlocks.Vector.ToArray();
+            allBlocks.Vector.Clear();
 #if VERIFY || VERBOSE
             this.nextNewBlockOrdinal = 0;
 #endif // VERIFY || VERBOSE
@@ -885,23 +855,23 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
                 foreach (Variable variable in oldBlock.Variables)
                 {
                     variable.Reinitialize();
-                    var newBlock = new Block(variable, this.allConstraints
+                    Block newBlock = new Block(variable, allConstraints
 #if VERIFY || VERBOSE
                                             , ref this.nextNewBlockOrdinal
 #endif // VERIFY || VERBOSE
                         );
-                    this.allBlocks.Add(newBlock);
+                    allBlocks.Add(newBlock);
                 }
             }
 
-            this.allConstraints.Reinitialize();
-            this.violationCache.Clear();
+            allConstraints.Reinitialize();
+            violationCache.Clear();
         }
 
         private void MergeEqualityConstraints()
         {
             // PerfNote: We only call this routine once so don't worry about List-Enumerator overhead.
-            foreach (var constraint in this.equalityConstraints)
+            foreach (Constraint constraint in equalityConstraints)
             {
                 if (constraint.Left.Block == constraint.Right.Block)
                 {
@@ -912,11 +882,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
                     // will remain retain its current satisfied state and does not need to be activated (which
                     // would potentially lead to cycles; this is consistent with the non-equality constraint
                     // approach of not activating constraints that are not violated).
-                    if (Math.Abs(constraint.Violation) > this.solverParams.GapTolerance)
+                    if (Math.Abs(constraint.Violation) > solverParams.GapTolerance)
                     {
                         // This is an equivalence conflict, such as a + 3 == b; b + 3 == c; a + 9 == c.
                         constraint.IsUnsatisfiable = true;
-                        ++this.allConstraints.NumberOfUnsatisfiableConstraints;
+                        ++allConstraints.NumberOfUnsatisfiableConstraints;
                     }
                     continue;
                 }
@@ -929,7 +899,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
 
         private bool Project()
         {
-            if (0 == this.numberOfConstraints)
+            if (0 == numberOfConstraints)
             {
                 // We are here for the neighbours-only case.
                 return false;
@@ -939,15 +909,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
             // required gap between its two variables vs. their actual relative positions).
             // If there is no violation, we're done (although SplitBlocks may change things so
             // we have to go again).
-            this.violationCache.Clear();
-            this.lastModifiedBlock = null;
-            bool useViolationCache = this.allBlocks.Count > this.violationCacheMinBlockCutoff;
+            violationCache.Clear();
+            lastModifiedBlock = null;
+            bool useViolationCache = allBlocks.Count > violationCacheMinBlockCutoff;
 
             // The first iteration gets the first violated constraint.
             int cIterations = 1;
 
-            double maxViolation;
-            Constraint maxViolatedConstraint = GetMaxViolatedConstraint(out maxViolation, useViolationCache);
+            Constraint maxViolatedConstraint = GetMaxViolatedConstraint(out double maxViolation, useViolationCache);
             if (null == maxViolatedConstraint)
             {
 #if VERBOSE
@@ -978,55 +947,55 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
                     maxViolatedConstraint.Left.Block.Expand(maxViolatedConstraint);
                     if (maxViolatedConstraint.IsUnsatisfiable)
                     {
-                        this.violationCache.Clear();   // We're confusing the lineage of lastModifiedBlock
+                        violationCache.Clear();   // We're confusing the lineage of lastModifiedBlock
                     }
-                    this.lastModifiedBlock = maxViolatedConstraint.Left.Block;
+                    lastModifiedBlock = maxViolatedConstraint.Left.Block;
                 }
                 else
                 {
                     // The variables are in different blocks so merge the blocks.
-                    this.lastModifiedBlock = MergeBlocks(maxViolatedConstraint);
+                    lastModifiedBlock = MergeBlocks(maxViolatedConstraint);
                 }
 #if VERBOSE
                 DumpCost();
 #endif // VERBOSE
 
                 // Note that aborting here does not guarantee a feasible state.
-                if (this.solverParams.InnerProjectIterationsLimit > 0)
+                if (solverParams.InnerProjectIterationsLimit > 0)
                 {
-                    if (cIterations >= this.solverParams.InnerProjectIterationsLimit)
+                    if (cIterations >= solverParams.InnerProjectIterationsLimit)
                     {
 #if VERBOSE
                         Console.WriteLine("PostProject aborting due to max inner iterations: max {0}",
                                         solverParams.InnerProjectIterationsLimit);
 #endif // VERBOSE
-                        this.solverSolution.InnerProjectIterationsLimitExceeded = true;
+                        solverSolution.InnerProjectIterationsLimitExceeded = true;
                         break;
                     }
                 }
 
                 // Now we've potentially changed one or many variables' positions so recalculate the max violation.
-                useViolationCache = this.allBlocks.Count > this.violationCacheMinBlockCutoff;
+                useViolationCache = allBlocks.Count > violationCacheMinBlockCutoff;
                 if (!useViolationCache)
                 {
-                    this.violationCache.Clear();
+                    violationCache.Clear();
                 }
                 ++cIterations;
                 maxViolatedConstraint = GetMaxViolatedConstraint(out maxViolation, useViolationCache);
             } // endwhile violations exist
 
-            this.solverSolution.InnerProjectIterationsTotal += cIterations;
-            if (this.solverSolution.MaxInnerProjectIterations < cIterations)
+            solverSolution.InnerProjectIterationsTotal += cIterations;
+            if (solverSolution.MaxInnerProjectIterations < cIterations)
             {
-                this.solverSolution.MaxInnerProjectIterations = cIterations;
+                solverSolution.MaxInnerProjectIterations = cIterations;
             }
-            if (this.solverSolution.MinInnerProjectIterations > cIterations)
+            if (solverSolution.MinInnerProjectIterations > cIterations)
             {
-                this.solverSolution.MinInnerProjectIterations = cIterations;
+                solverSolution.MinInnerProjectIterations = cIterations;
             }
 
             // If we got here, we had at least one violation.
-            this.allConstraints.Debug_AssertConsistency();
+            allConstraints.Debug_AssertConsistency();
             return true;
         } // end Project()
 
@@ -1058,12 +1027,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
         }
 #endif // VERBOSE
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "ReferencePos")]
         private Block MergeBlocks(Constraint violatedConstraint)
         {
             // Start off evaluating left-to-right.
-            var blockTo = violatedConstraint.Left.Block;
-            var blockFrom = violatedConstraint.Right.Block;
+            Block blockTo = violatedConstraint.Left.Block;
+            Block blockFrom = violatedConstraint.Right.Block;
             Debug.Assert(blockTo != blockFrom, "Merging of constraints in the same block is not allowed");
 
             // The violation amount is the needed distance to move to tightly satisfy the constraint.
@@ -1098,10 +1066,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
             // mentioned above.  This has the side-effect of moving the associated active constraints 
             // as well (because they are carried in the variables' LeftConstraints); violatedConstraint
             // is therefore also moved if it was in blockFrom.
-            var numVars = blockFrom.Variables.Count;                              // iteration is faster than foreach for List<>s
-            for (var ii = 0; ii < numVars; ++ii)
+            int numVars = blockFrom.Variables.Count;                              // iteration is faster than foreach for List<>s
+            for (int ii = 0; ii < numVars; ++ii)
             {
-                var variable = blockFrom.Variables[ii];
+                Variable variable = blockFrom.Variables[ii];
                 variable.OffsetInBlock += distance;
                 blockTo.AddVariable(variable);
             }
@@ -1117,10 +1085,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
 #endif // VERBOSE
 
             // Make the (no-longer-) violated constraint active.
-            this.allConstraints.ActivateConstraint(violatedConstraint);
+            allConstraints.ActivateConstraint(violatedConstraint);
 
             // We have no further use for blockFrom as nobody references it.
-            this.allBlocks.Remove(blockFrom);
+            allBlocks.Remove(blockFrom);
             return blockTo;
         } // end MergeBlocks()
 
@@ -1129,14 +1097,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
             // First enumerate all blocks and accumulate any new ones that we form by splitting off
             // from an existing block.  Then add those to our block list in a second pass (to avoid
             // a "collection modified during enumeration" exception).
-            var newBlocks = new List<Block>();
-            int numBlocks = this.allBlocks.Count;        // Cache for perf
+            List<Block> newBlocks = new List<Block>();
+            int numBlocks = allBlocks.Count;        // Cache for perf
             for (int ii = 0; ii < numBlocks; ++ii)
             {
-                var block = this.allBlocks[ii];
+                Block block = allBlocks[ii];
                 Debug.Assert(0 != block.Variables.Count, "block must have nonzero variable count");
 
-                var newSplitBlock = block.Split(this.IsQpsc
+                Block newSplitBlock = block.Split(IsQpsc
 #if VERIFY || VERBOSE
                                                 , ref this.nextNewBlockOrdinal
 #endif // VERIFY || VERBOSE
@@ -1151,7 +1119,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
             for (int ii = 0; ii < numNewBlocks; ++ii)
             {
                 Block block = newBlocks[ii];
-                this.allBlocks.Add(block);
+                allBlocks.Add(block);
             }
 #if VERBOSE
             if (0 != newBlocks.Count)
@@ -1178,8 +1146,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
             // to keep their constraint minimally satisfied, so any nonzero active-constraint
             // violation is due to rounding error; therefore just look for inactive constraints.
             // Pass maxViolation to subroutines because it is initialized to a limiting value.
-            maxViolation = this.solverParams.GapTolerance;
-            Constraint maxViolatedConstraint = this.SearchViolationCache(maxViolation);
+            maxViolation = solverParams.GapTolerance;
+            Constraint maxViolatedConstraint = SearchViolationCache(maxViolation);
             if (null != maxViolatedConstraint)
             {
                 return maxViolatedConstraint;
@@ -1209,9 +1177,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
             // number of constraints.  Use the Variables as a proxy for the constraint count of the block.
             // @@PERF: the block could keep a constraint count to make ViolationCache cutoff more accurate.
             Constraint maxViolatedConstraint = null;
-            if ((null != this.lastModifiedBlock)
-                    && (this.lastModifiedBlock.Variables.Count < (this.numberOfVariables >> 1))
-                    && this.violationCache.FilterBlock(this.lastModifiedBlock)      // Also removes unsatisfiables
+            if ((null != lastModifiedBlock)
+                    && (lastModifiedBlock.Variables.Count < (numberOfVariables >> 1))
+                    && violationCache.FilterBlock(lastModifiedBlock)      // Also removes unsatisfiables
                 )
             {
 #if CACHE_STATS
@@ -1221,11 +1189,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
                 // First evaluate all (inactive) outgoing constraints for all variables in the block; this gets
                 // both all intra-block constraints and all inter-block constraints where the lastModifiedBlock
                 // is the source.  Then evaluate incoming constraints where the source is outside the block.
-                int numVarsInBlock = this.lastModifiedBlock.Variables.Count;             // cache for perf
+                int numVarsInBlock = lastModifiedBlock.Variables.Count;             // cache for perf
                 for (int variableIndex = 0; variableIndex < numVarsInBlock; ++variableIndex)
                 {
-                    var variable = this.lastModifiedBlock.Variables[variableIndex];
-                    foreach (var constraint in variable.LeftConstraints)           // Array.Foreach is optimized.
+                    Variable variable = lastModifiedBlock.Variables[variableIndex];
+                    foreach (Constraint constraint in variable.LeftConstraints)           // Array.Foreach is optimized.
                     {
                         if (!constraint.IsActive && !constraint.IsUnsatisfiable)
                         {
@@ -1241,9 +1209,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
                             {
                                 // Cache the previous high violation.  Pass the violation as a tiny perf optimization
                                 // to save re-doing the double operations in this inner loop.
-                                if ((null != maxViolatedConstraint) && (maxViolation > this.violationCache.LowViolation))
+                                if ((null != maxViolatedConstraint) && (maxViolation > violationCache.LowViolation))
                                 {
-                                    this.violationCache.Insert(maxViolatedConstraint, maxViolation);
+                                    violationCache.Insert(maxViolatedConstraint, maxViolation);
                                 }
                                 maxViolation = constraint.Violation;
                                 maxViolatedConstraint = constraint;
@@ -1251,9 +1219,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
                         }
                     } // endfor each LeftConstraint
 
-                    foreach (var constraint in variable.RightConstraints)           // Array.Foreach is optimized.
+                    foreach (Constraint constraint in variable.RightConstraints)           // Array.Foreach is optimized.
                     {
-                        if (!constraint.IsActive && !constraint.IsUnsatisfiable && (constraint.Left.Block != this.lastModifiedBlock))
+                        if (!constraint.IsActive && !constraint.IsUnsatisfiable && (constraint.Left.Block != lastModifiedBlock))
                         {
 #if Inline_Violation
                             double violation = constraint.Violation;      // Inline_Violation
@@ -1268,9 +1236,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
                             //if (violation > maxViolation)
                             if (ApproximateComparer.Greater(violation, maxViolation))
                             {
-                                if ((null != maxViolatedConstraint) && (maxViolation > this.violationCache.LowViolation))
+                                if ((null != maxViolatedConstraint) && (maxViolation > violationCache.LowViolation))
                                 {
-                                    this.violationCache.Insert(maxViolatedConstraint, maxViolation);
+                                    violationCache.Insert(maxViolatedConstraint, maxViolation);
                                 }
                                 maxViolation = violation;
                                 maxViolatedConstraint = constraint;
@@ -1282,14 +1250,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
                 // Now see if any of the cached maxvios are greater than we have now.  Don't remove
                 // it here; we'll wait until Expand/Merge set lastModifiedBlock and then the removal
                 // occurs above in ViolationCache.FilterBlock in this block when we come back in.
-                Constraint cachedConstraint = this.violationCache.FindIfGreater(maxViolation);
+                Constraint cachedConstraint = violationCache.FindIfGreater(maxViolation);
                 if (null != cachedConstraint)
                 {
                     // The cache had something more violated than maxViolatedConstraint, but maxViolatedConstraint
                     // may be larger than at least one cache element.
-                    if ((null != maxViolatedConstraint) && (maxViolation > this.violationCache.LowViolation))
+                    if ((null != maxViolatedConstraint) && (maxViolation > violationCache.LowViolation))
                     {
-                        this.violationCache.Insert(maxViolatedConstraint, maxViolation);
+                        violationCache.Insert(maxViolatedConstraint, maxViolation);
                     }
                     maxViolatedConstraint = cachedConstraint;
                 }
@@ -1303,9 +1271,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
             // Iterate all constraints, finding the most-violated and populating the violation cache
             // with the next-highest violations.
             Constraint maxViolatedConstraint = null;
-            this.violationCache.Clear();
+            violationCache.Clear();
 
-            foreach (Constraint constraint in this.allConstraints.Vector)             // Array.Foreach is optimized.
+            foreach (Constraint constraint in allConstraints.Vector)             // Array.Foreach is optimized.
             {
                 // The constraint vector is now organized with all inactive constraints first.
                 if (constraint.IsActive)
@@ -1330,7 +1298,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
                 double cacheInsertViolation = 0.0;
                 if (ApproximateComparer.Greater(violation, maxViolation))
                 {
-                    if (maxViolation > this.violationCache.LowViolation)
+                    if (maxViolation > violationCache.LowViolation)
                     {
                         cacheInsertConstraint = maxViolatedConstraint;
                         cacheInsertViolation = maxViolation;
@@ -1347,16 +1315,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
                     // is null, hence the constraint != maxViolatedConstraint test.
                     if ((null == cacheInsertConstraint)
                             && (constraint != maxViolatedConstraint)
-                            && (!this.violationCache.IsFull || (violation > this.violationCache.LowViolation)))
+                            && (!violationCache.IsFull || (violation > violationCache.LowViolation)))
                     {
                         // Either the cache isn't full or the new constraint is more violated than the lowest cached constraint.
                         cacheInsertConstraint = constraint;
                         cacheInsertViolation = violation;
                     }
 
-                    if ((null != cacheInsertConstraint) && (cacheInsertViolation > this.violationCache.LowViolation))
+                    if ((null != cacheInsertConstraint) && (cacheInsertViolation > violationCache.LowViolation))
                     {
-                        this.violationCache.Insert(cacheInsertConstraint, cacheInsertViolation);
+                        violationCache.Insert(cacheInsertConstraint, cacheInsertViolation);
                     }
                 } // endif useViolationCache
             } // endfor each constraint

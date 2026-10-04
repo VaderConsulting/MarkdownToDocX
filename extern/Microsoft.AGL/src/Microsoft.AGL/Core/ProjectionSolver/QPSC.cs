@@ -139,7 +139,7 @@ namespace Microsoft.AGL.Core.ProjectionSolver
         private readonly MatrixCell[][] matrixQ;            // Sparse matrix A in the Ipsep paper; matrix Q (modified to Q') in the Scaling paper
         private readonly double[] vectorWiDi;               // b (weight * desiredpos) in the Ipsep paper; modified to b' = Sb from the Scaling paper
         private readonly QpscVar[] vectorQpscVars;          // List of variables, for perf (avoid nested block/variable List<> iteration)
-        private readonly List<MatrixCell> newMatrixRow = new List<MatrixCell>();       // current row in AddVariable
+        private readonly List<MatrixCell> newMatrixRow = [];       // current row in AddVariable
 
         //
         // SolveQpsc per-iteration data members:  These change with each iteration.
@@ -163,14 +163,14 @@ namespace Microsoft.AGL.Core.ProjectionSolver
         {
             this.solverParameters = solverParameters;
 
-            this.matrixQ = new MatrixCell[cVariables][];
-            this.vectorWiDi = new double[cVariables];
-            this.vectorQpscVars = new QpscVar[cVariables];
+            matrixQ = new MatrixCell[cVariables][];
+            vectorWiDi = new double[cVariables];
+            vectorQpscVars = new QpscVar[cVariables];
 
-            this.gradientVector = new double[cVariables];
-            this.vectorQg = new double[cVariables];
-            this.vectorPrevY = new double[cVariables];
-            this.vectorCurY = new double[cVariables];
+            gradientVector = new double[cVariables];
+            vectorQg = new double[cVariables];
+            vectorPrevY = new double[cVariables];
+            vectorCurY = new double[cVariables];
         }
 
         //
@@ -190,12 +190,12 @@ namespace Microsoft.AGL.Core.ProjectionSolver
 
         internal void AddVariable(Variable variable)
         {
-            Debug.Assert((null == this.matrixQ[variable.Ordinal]) && (null == this.vectorQpscVars[variable.Ordinal].Variable), "variable.Ordinal already exists");
-            this.isFirstProjectCall = true;
+            Debug.Assert((null == matrixQ[variable.Ordinal]) && (null == vectorQpscVars[variable.Ordinal].Variable), "variable.Ordinal already exists");
+            isFirstProjectCall = true;
 
             // This is the weight times desired position, multiplied by 2.0 per the partial derivative.
             // We'll use this to keep as close as possible to the desired position on each iteration.
-            this.vectorWiDi[variable.Ordinal] = -2.0 * variable.Weight * variable.DesiredPos;
+            vectorWiDi[variable.Ordinal] = -2.0 * variable.Weight * variable.DesiredPos;
 
             // Temporarily hijack vectorPrevY for use as scratch storage, to handle duplicate
             // neighbor pairs (take the highest weight).
@@ -208,10 +208,10 @@ namespace Microsoft.AGL.Core.ProjectionSolver
 #endif // VERIFY
 
             // Sum the weight for cell i,i (the diagonal).
-            this.vectorPrevY[variable.Ordinal] = variable.Weight;
+            vectorPrevY[variable.Ordinal] = variable.Weight;
             if (null != variable.Neighbors)
             {
-                foreach (var neighborWeightPair in variable.Neighbors)
+                foreach (Variable.NeighborAndWeight neighborWeightPair in variable.Neighbors)
                 {
                     // We should already have verified this in AddNeighbourPair.
                     Debug.Assert(neighborWeightPair.Neighbor.Ordinal != variable.Ordinal, "self-neighbors are not allowed");
@@ -224,30 +224,30 @@ namespace Microsoft.AGL.Core.ProjectionSolver
 
                     // Per above comments:
                     //     First the diagonal entries: A[i][i] = wi + Sum(wij for every neighbor j of i).
-                    this.vectorPrevY[variable.Ordinal] += neighborWeightPair.Weight;
+                    vectorPrevY[variable.Ordinal] += neighborWeightPair.Weight;
 
                     //     Then the off diagonal entries: A[i][j] = -Sum(wij for time j is a neighbor of i).
-                    this.vectorPrevY[neighborWeightPair.Neighbor.Ordinal] -= neighborWeightPair.Weight;
+                    vectorPrevY[neighborWeightPair.Neighbor.Ordinal] -= neighborWeightPair.Weight;
                 }
             } // endif null != variable.Neighbors
 
             // Add the sparse row to the matrix (all non-zero slots of vectorPrevY are weights to that neighbor).
-            for (uint ii = 0; ii < this.vectorPrevY.Length; ++ii)
+            for (uint ii = 0; ii < vectorPrevY.Length; ++ii)
             {
-                if (0.0 != this.vectorPrevY[ii])
+                if (0.0 != vectorPrevY[ii])
                 {
                     // The diagonal must be > 0 and off-diagonal < 0.
-                    Debug.Assert((ii == variable.Ordinal) == (this.vectorPrevY[ii] > 0.0), "Diagonal must be > 0.0");
+                    Debug.Assert((ii == variable.Ordinal) == (vectorPrevY[ii] > 0.0), "Diagonal must be > 0.0");
 
                     // All 'A' cells must be 2*(summed weights).
-                    this.newMatrixRow.Add(new MatrixCell(this.vectorPrevY[ii] * 2.0, ii));
-                    this.vectorPrevY[ii] = 0.0;
+                    newMatrixRow.Add(new MatrixCell(vectorPrevY[ii] * 2.0, ii));
+                    vectorPrevY[ii] = 0.0;
                 }
             }
-            this.matrixQ[variable.Ordinal] = this.newMatrixRow.ToArray();
-            this.newMatrixRow.Clear();
+            matrixQ[variable.Ordinal] = newMatrixRow.ToArray();
+            newMatrixRow.Clear();
 
-            this.vectorQpscVars[variable.Ordinal] = new QpscVar(variable);
+            vectorQpscVars[variable.Ordinal] = new QpscVar(variable);
 
             // For the non-Qpsc loop, we consider weights in block reference-position calculation.
             // Here, we have that in vectorWiDi which we use in calculating gradient and alpha, which
@@ -264,10 +264,10 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             DumpVector("WiDi", vectorWiDi);
 #endif // VERBOSE
 
-            foreach (var qvar in this.vectorQpscVars)
+            foreach (QpscVar qvar in vectorQpscVars)
             {
-                var variable = qvar.Variable;
-                foreach (var cell in this.matrixQ[variable.Ordinal])
+                Variable variable = qvar.Variable;
+                foreach (MatrixCell cell in matrixQ[variable.Ordinal])
                 {
                     if (cell.Column == variable.Ordinal)
                     {
@@ -283,11 +283,11 @@ namespace Microsoft.AGL.Core.ProjectionSolver
                             variable.ActualPos /= variable.Scale;
 
                             // This is the b' <- Sb step from the Scaling paper
-                            this.vectorWiDi[variable.Ordinal] *= variable.Scale;
+                            vectorWiDi[variable.Ordinal] *= variable.Scale;
                         }
 
                         // This is needed for block re-initialization.
-                        this.vectorCurY[variable.Ordinal] = variable.ActualPos;
+                        vectorCurY[variable.Ordinal] = variable.ActualPos;
                         variable.DesiredPos = variable.ActualPos;
                     }
                 }
@@ -319,9 +319,9 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             //         if ii == jj, scaledQ[ii][jj] = 1
             //         else         scaledQ[ii][jj] = Q[ii][jj] * var[ii].scale * var[jj].scale
             ////
-            for (int rowNum = 0; rowNum < this.matrixQ.Length; ++rowNum)
+            for (int rowNum = 0; rowNum < matrixQ.Length; ++rowNum)
             {
-                var row = this.matrixQ[rowNum];
+                MatrixCell[] row = matrixQ[rowNum];
                 for (int sparseCol = 0; sparseCol < row.Length; ++sparseCol)
                 {
                     if (row[sparseCol].Column == rowNum)
@@ -331,8 +331,8 @@ namespace Microsoft.AGL.Core.ProjectionSolver
                     else
                     {
                         // Diagonal on left scales rows [SQ], on right scales columns [QS].
-                        row[sparseCol].Value *= this.vectorQpscVars[rowNum].Variable.Scale
-                                                * this.vectorQpscVars[row[sparseCol].Column].Variable.Scale;
+                        row[sparseCol].Value *= vectorQpscVars[rowNum].Variable.Scale
+                                                * vectorQpscVars[row[sparseCol].Column].Variable.Scale;
                     }
                 }
             }
@@ -350,7 +350,7 @@ namespace Microsoft.AGL.Core.ProjectionSolver
         // some things but keep it simple unless that's needed.
         internal bool PreProject()
         {
-            if (this.isFirstProjectCall)
+            if (isFirstProjectCall)
             {
 #if VERBOSE
                 Console.WriteLine("Previous and scale-munged ActualPos:");
@@ -367,9 +367,9 @@ namespace Microsoft.AGL.Core.ProjectionSolver
                 // Due to MergeEqualityConstraints we may have moved some of the variables.  This won't
                 // affect feasibility since QpscMakeFeasible would already have ensured that any unsatisfiable
                 // constraints are so marked.
-                foreach (var qvar in this.vectorQpscVars)
+                foreach (QpscVar qvar in vectorQpscVars)
                 {
-                    this.vectorCurY[qvar.Variable.Ordinal] = qvar.Variable.ActualPos;
+                    vectorCurY[qvar.Variable.Ordinal] = qvar.Variable.ActualPos;
                 }
             }
 
@@ -377,7 +377,7 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             // Compute: g = Q'y + b' (in the Scaling paper terminology)
             //
             // g(radient) = Q'y...
-            MatrixVectorMultiply(this.vectorCurY, this.gradientVector /*result*/);
+            MatrixVectorMultiply(vectorCurY, gradientVector /*result*/);
 
             // If we've minimized the goal function (far enough), we're done.
             // This uses the Q'y value we've just put into gradientVector and tests the goal-function value
@@ -388,17 +388,17 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             }
 
             // ...g = Q'y + b'
-            VectorVectorAdd(this.gradientVector, this.vectorWiDi, this.gradientVector /*result*/);
+            VectorVectorAdd(gradientVector, vectorWiDi, gradientVector /*result*/);
 
             //
             // Compute: alpha = g#g / g#Q'g  (# == transpose)
             //
-            double alphaNumerator = VectorVectorMultiply(this.gradientVector, this.gradientVector);     // Compute numerator of stepsize
+            double alphaNumerator = VectorVectorMultiply(gradientVector, gradientVector);     // Compute numerator of stepsize
             double alphaDenominator = 0.0;
             if (0.0 != alphaNumerator)
             {
-                MatrixVectorMultiply(this.gradientVector, this.vectorQg /*result*/);
-                alphaDenominator = VectorVectorMultiply(this.vectorQg, this.gradientVector);
+                MatrixVectorMultiply(gradientVector, vectorQg /*result*/);
+                alphaDenominator = VectorVectorMultiply(vectorQg, gradientVector);
             }
             if (0.0 == alphaDenominator)
             {
@@ -417,7 +417,7 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             // then calculate the new current position by subtracting the (gradient * alpha)
             // from it and update the Variables' desired position.
             //
-            VectorCopy(this.vectorPrevY /*dest*/, this.vectorCurY /*src*/);
+            VectorCopy(vectorPrevY /*dest*/, vectorCurY /*src*/);
 
 #if VERIFY || VERBOSE
             normAlphaG = 0.0;
@@ -437,10 +437,10 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             Console.WriteLine("PreProject gradient-stepped desired positions:");
 #endif // VERBOSE
             // Use vectorCurY as temp as it is not used again here and is updated at start of PostProject.
-            VectorScaledVectorSubtract(this.vectorPrevY, alpha, this.gradientVector, this.vectorCurY /*d*/);
-            for (var ii = 0; ii < this.vectorCurY.Length; ++ii)
+            VectorScaledVectorSubtract(vectorPrevY, alpha, gradientVector, vectorCurY /*d*/);
+            for (int ii = 0; ii < vectorCurY.Length; ++ii)
             {
-                this.vectorQpscVars[ii].Variable.DesiredPos = this.vectorCurY[ii];
+                vectorQpscVars[ii].Variable.DesiredPos = vectorCurY[ii];
 #if VERBOSE
                 var qvar = vectorQpscVars[ii];
                 Console.WriteLine("{0} curY {1} orig desiredpos = {2}, current desiredpos = {3}, gradient = {4}",
@@ -459,9 +459,9 @@ namespace Microsoft.AGL.Core.ProjectionSolver
 #if VERBOSE
             Console.WriteLine("PostProject current scaled and unscaled ActualPos:");
 #endif // VERBOSE
-            foreach (var qvar in this.vectorQpscVars)
+            foreach (QpscVar qvar in vectorQpscVars)
             {
-                this.vectorCurY[qvar.Variable.Ordinal] = qvar.Variable.ActualPos;
+                vectorCurY[qvar.Variable.Ordinal] = qvar.Variable.ActualPos;
 #if VERBOSE
                 Console.WriteLine("    {0} {1} {2}", qvar.Variable.Ordinal, qvar.Variable.ActualPos, qvar.Variable.ActualPos * qvar.Variable.Scale);
 #endif // VERBOSE
@@ -469,7 +469,7 @@ namespace Microsoft.AGL.Core.ProjectionSolver
 
             // vectorCurY temporarily becomes the p-vector from the Scaling paper since we don't use the "current"
             // position otherwise, until we reset it at the end.
-            VectorVectorSubtract(this.vectorPrevY, this.vectorCurY, this.vectorCurY /*result; p (deltaY)*/);
+            VectorVectorSubtract(vectorPrevY, vectorCurY, vectorCurY /*result; p (deltaY)*/);
 
 #if VERBOSE
             Console.WriteLine("PostProject variable deltas:");
@@ -496,7 +496,7 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             //
             // Compute: Beta = min(g#p / p#Qp, 1)
             //
-            double betaNumerator = VectorVectorMultiply(this.gradientVector, this.vectorCurY /*p*/);  // Compute numerator of stepsize
+            double betaNumerator = VectorVectorMultiply(gradientVector, vectorCurY /*p*/);  // Compute numerator of stepsize
             double beta = 0.0;
 #if VERBOSE
             if (0.0 == betaNumerator) {
@@ -507,10 +507,10 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             {
                 // Calculate Qp first (matrix ops are associative so (AB)C == A(BC), so calculate the rhs first
                 // with MatrixVectorMultiply).  Temporarily hijack vectorQg for this operation.
-                MatrixVectorMultiply(this.vectorCurY /*p*/, this.vectorQg /*result*/);
+                MatrixVectorMultiply(vectorCurY /*p*/, vectorQg /*result*/);
 
                 // Now p#(Qp).
-                double betaDenominator = VectorVectorMultiply(this.vectorQg, this.vectorCurY /*p*/);
+                double betaDenominator = VectorVectorMultiply(vectorQg, vectorCurY /*p*/);
 
                 // Dividing by almost-0 would yield a huge value which we'd cap at 1.0 below.
                 beta = (0.0 == betaDenominator) ? 1.0 : (betaNumerator / betaDenominator);
@@ -537,7 +537,7 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             } // Beta numerator is nonzero
 
             // Update the "Qpsc-local" copy of the current positions for use in the next loop's PreProject().
-            VectorScaledVectorSubtract(this.vectorPrevY, beta, this.vectorCurY /*p*/, this.vectorCurY /*result*/);
+            VectorScaledVectorSubtract(vectorPrevY, beta, vectorCurY /*p*/, vectorCurY /*result*/);
 
 #if VERBOSE
             Console.WriteLine("PostProject variable positions (scaled, unscaled) adjusted for Beta:");
@@ -545,14 +545,14 @@ namespace Microsoft.AGL.Core.ProjectionSolver
                 Console.WriteLine("  {0} {1} {2}", ii, vectorCurY[ii], vectorCurY[ii] * vectorQpscVars[ii].Variable.Scale);
             }
 #endif // VERBOSE
-            this.isFirstProjectCall = false;
+            isFirstProjectCall = false;
             return beta > 0.0;
         } // end PostProject()
 
         internal double QpscComplete()
         {
             // Restore original desired position and unscale the actual position.
-            foreach (QpscVar qvar in this.vectorQpscVars)
+            foreach (QpscVar qvar in vectorQpscVars)
             {
                 qvar.Variable.Weight = qvar.OrigWeight;
                 qvar.Variable.DesiredPos = qvar.OrigDesiredPos;
@@ -571,7 +571,7 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             }
 
             // This was updated to the final function value before HasConverged returned.
-            return this.previousFunctionValue;
+            return previousFunctionValue;
         }
 
         #region Internal workers
@@ -587,7 +587,7 @@ namespace Microsoft.AGL.Core.ProjectionSolver
             // We don't need to do the Ax operation as this is done as part of PreProject which has
             // already put this into gradientVector.
             //
-            double currentFunctionValue = GetFunctionValue(this.vectorCurY);
+            double currentFunctionValue = GetFunctionValue(vectorCurY);
 
 #if VERBOSE
             // (x'Ax)/2 + bx + (w d).d, to test against the Mathematica output.
@@ -606,7 +606,7 @@ namespace Microsoft.AGL.Core.ProjectionSolver
 
             // If this is not our first PreProject call, test for convergence.
             bool fConverged = false;
-            if (!this.isFirstProjectCall)
+            if (!isFirstProjectCall)
             {
 #if VERBOSE
                 // Let's see what |Xprev - Xcur| is...
@@ -620,11 +620,11 @@ namespace Microsoft.AGL.Core.ProjectionSolver
 
                 // Check for convergence.  We are monotonically decreasing so prev should be > cur
                 // with some allowance for rounding error.
-                double diff = (this.previousFunctionValue - currentFunctionValue);
+                double diff = (previousFunctionValue - currentFunctionValue);
                 double quotient = 0.0;
                 if (diff != 0.0)
                 {
-                    double divisor = (0 != this.previousFunctionValue) ? this.previousFunctionValue : currentFunctionValue;
+                    double divisor = (0 != previousFunctionValue) ? previousFunctionValue : currentFunctionValue;
                     quotient = Math.Abs(diff / divisor);
 #if EX_VERIFY
                     Debug.Assert((previousFunctionValue > currentFunctionValue) || (quotient < 0.001),    // account for rounding error
@@ -645,17 +645,17 @@ namespace Microsoft.AGL.Core.ProjectionSolver
                     fConverged = true;
                 }
             } // endif !isFirstProjectCall
-            this.previousFunctionValue = currentFunctionValue;
+            previousFunctionValue = currentFunctionValue;
             return fConverged;
         }
 
         private double GetFunctionValue(double[] positions)
         {
             // (x#Ax)/2...
-            double value = VectorVectorMultiply(this.gradientVector, positions) / 2.0;
+            double value = VectorVectorMultiply(gradientVector, positions) / 2.0;
 
             // (x'Ax)/2 + bx...
-            return value + VectorVectorMultiply(this.vectorWiDi, positions);
+            return value + VectorVectorMultiply(vectorWiDi, positions);
         }
 
         // Returns the dot product of two column vectors (with an "implicit transpose").
@@ -675,11 +675,11 @@ namespace Microsoft.AGL.Core.ProjectionSolver
         {
             // The only matrix we have here is (sparse) matrixQ so it's not a parameter.
             int rowIndex = 0;
-            foreach (var row in this.matrixQ)
+            foreach (MatrixCell[] row in matrixQ)
             {
                 // Do not use LINQ's Sum, it slows end-to-end by over 10%.
                 double sum = 0.0;
-                foreach (var cell in row)
+                foreach (MatrixCell cell in row)
                 {
                     sum += cell.Value * rhs[cell.Column];
                 }

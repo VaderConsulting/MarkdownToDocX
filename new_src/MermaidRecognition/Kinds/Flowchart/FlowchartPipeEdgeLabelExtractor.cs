@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace MermaidRecognition.Flowchart;
+namespace MermaidRecognition.Kinds.Flowchart;
 
 /// <summary>
 /// Extracts Mermaid pipe edge labels (<c>--&gt;|Yes|</c>, <c>---|text|</c>, <c>-.-&gt;|text|</c>) from link text.
@@ -24,16 +24,13 @@ public static class FlowchartPipeEdgeLabelExtractor
     /// <summary>
     /// Removes pipe labels from a link statement line and collects normalised label text.
     /// </summary>
-    public static string StripFromLine(string Line, List<string> Labels)
-    {
-        return LinkWithPipeLabelRegex.Replace(
+    public static string StripFromLine(string Line, List<string> Labels) => LinkWithPipeLabelRegex.Replace(
             Line,
             Match =>
             {
                 Labels.Add(FlowchartLabelNormalizer.Normalize(Match.Groups[2].Value));
                 return Match.Groups[1].Value;
             });
-    }
 
     /// <summary>
     /// When chain splitting leaves a pipe suffix on a link segment, splits arrow text from label text.

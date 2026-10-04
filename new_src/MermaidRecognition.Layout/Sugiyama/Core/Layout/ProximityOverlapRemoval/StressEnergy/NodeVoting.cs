@@ -22,9 +22,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
         /// <param name="votedNodeIndex"></param>
         public NodeVoting(int votedNodeIndex) {
             VotedNodeIndex = votedNodeIndex;
-            VotingBlocks=new List<VoteBlock>();
+            VotingBlocks=[];
 
-            var voteBlock = new VoteBlock(new List<Vote>(), 1); 
+            VoteBlock voteBlock = new VoteBlock([], 1); 
             VotingBlocks.Add(voteBlock);
         }
 

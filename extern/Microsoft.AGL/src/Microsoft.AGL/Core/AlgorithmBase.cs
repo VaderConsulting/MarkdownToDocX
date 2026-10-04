@@ -13,42 +13,41 @@ namespace Microsoft.AGL.Core
         /// </summary>
         public void Run()
         {
-            this.progressRatio = 0;
-            this.localStepCount = 0;
+            progressRatio = 0;
+            localStepCount = 0;
             
-            this.cancelToken = threadStaticCancelToken;
-            this.ThrowIfCanceled();
+            cancelToken = threadStaticCancelToken;
+            ThrowIfCanceled();
 
-            this.ProgressSteps(0); // Initial progress
+            ProgressSteps(0); // Initial progress
 
-            this.RunInternal();
+            RunInternal();
 
-            if (!this.IsCanceled)
+            if (!IsCanceled)
             {
-                this.ProgressComplete();
+                ProgressComplete();
             }
         }
 
         /// <summary>
         /// Runs the algorithm, setting up the cancel token and reverting to the old cancel token before finishing
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1500:VariableNamesShouldNotMatchFieldNames", MessageId = "cancelToken")]
         public void Run(CancelToken cancelToken)
         {
-            this.progressRatio = 0;
-            this.localStepCount = 0;
+            progressRatio = 0;
+            localStepCount = 0;
 
-            CancelToken oldCancelToken = this.SetCancelToken(cancelToken);
+            CancelToken oldCancelToken = SetCancelToken(cancelToken);
 
             try
             {
-                this.ProgressSteps(0); // Initial progress
+                ProgressSteps(0); // Initial progress
 
-                this.RunInternal();
+                RunInternal();
                 
-                if (!this.IsCanceled)
+                if (!IsCanceled)
                 {
-                    this.ProgressComplete();
+                    ProgressComplete();
                 }
             }
             finally
@@ -74,7 +73,7 @@ namespace Microsoft.AGL.Core
         public CancelToken SetCancelToken(CancelToken cancelToken)
         {
             this.cancelToken = cancelToken;
-            this.ThrowIfCanceled();
+            ThrowIfCanceled();
             CancelToken oldCancelToken = threadStaticCancelToken;
             threadStaticCancelToken = cancelToken;
             return oldCancelToken;
@@ -85,28 +84,25 @@ namespace Microsoft.AGL.Core
         /// </summary>
         public void Cancel()
         {
-            if (this.cancelToken != null)
+            if (cancelToken != null)
             {
-                this.cancelToken.Canceled = true;
+                cancelToken.Canceled = true;
             }
         }
 
         /// <summary>
         /// True if the algorithm has been canceled.
         /// </summary>
-        public bool IsCanceled
-        {
-            get { return this.cancelToken != null && this.cancelToken.Canceled; }
-        }
+        public bool IsCanceled => cancelToken != null && cancelToken.Canceled;
 
         /// <summary>
         /// Throws an OperationCanceledException if the current algorithm has been canceled.
         /// </summary>
         protected void ThrowIfCanceled()
         {
-            if (this.cancelToken != null)
+            if (cancelToken != null)
             {
-                this.cancelToken.ThrowIfCanceled();
+                cancelToken.ThrowIfCanceled();
             }
         }
 
@@ -121,11 +117,11 @@ namespace Microsoft.AGL.Core
         /// cache its value in cancelToken
         /// </summary>
         private volatile CancelToken cancelToken;
-        
+
         /// <summary>
         /// the current cancel token
         /// </summary>
-        protected CancelToken CancelToken { get { return cancelToken; } }
+        protected CancelToken CancelToken => cancelToken;
 
         #endregion Cancel
 
@@ -176,7 +172,6 @@ namespace Microsoft.AGL.Core
         /// <summary>
         /// setup to start listening to ProgressStep() invocations from this algorithm.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1026:DefaultParametersShouldNotBeUsed")]
         protected void StartListenToLocalProgress(int expectedSteps, double stageRatio = 1)
         {
             localProgressStepSize = stageRatio / Math.Max(1, expectedSteps); // at least 1, to prevent divide by 0
@@ -238,8 +233,8 @@ namespace Microsoft.AGL.Core
             ThrowIfCanceled();
             if (progressRatio != 1.0)
             {
-                this.progressRatio = 1.0;
-                this.NotifyProgressChanged(this, new ProgressChangedEventArgs(progressRatio));
+                progressRatio = 1.0;
+                NotifyProgressChanged(this, new ProgressChangedEventArgs(progressRatio));
             }
         }
 
@@ -247,10 +242,7 @@ namespace Microsoft.AGL.Core
         /// Checks for cancel, increases progress, and notifies any listeners of progress.
         /// Call whenever the algorithm makes progress.
         /// </summary>
-        protected void ProgressStep()
-        {
-            this.ProgressSteps(1);
-        }
+        protected void ProgressStep() => ProgressSteps(1);
 
         /// <summary>
         /// Checks for cancel, increases progress, and notifies any listeners of progress.
@@ -282,7 +274,7 @@ namespace Microsoft.AGL.Core
                 progressRatio = 1.0;
             }
 
-            this.NotifyProgressChanged(this, new ProgressChangedEventArgs(progressRatio));
+            NotifyProgressChanged(this, new ProgressChangedEventArgs(progressRatio));
         }
 
         /// <summary>

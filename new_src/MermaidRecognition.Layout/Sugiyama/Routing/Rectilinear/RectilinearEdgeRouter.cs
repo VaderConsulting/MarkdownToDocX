@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+
 using MermaidRecognition.Layout.Sugiyama.Core.DataStructures;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves;
@@ -45,18 +46,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         /// If true, route to obstacle centers.  Initially false for greater accuracy with the current 
         /// MultiSourceMultiTarget approach.
         /// </summary>
-        public bool RouteToCenterOfObstacles {
-            get { return PortManager.RouteToCenterOfObstacles; }
-            set { PortManager.RouteToCenterOfObstacles = value; }
+        public bool RouteToCenterOfObstacles { get => PortManager.RouteToCenterOfObstacles; set => PortManager.RouteToCenterOfObstacles = value;
         }
 
         /// <summary>
         /// If true, limits the extension of port visibility splices into the visibility graph to the rectangle defined by
         /// the path endpoints.
         /// </summary>
-        public bool LimitPortVisibilitySpliceToEndpointBoundingBox {
-            get { return this.PortManager.LimitPortVisibilitySpliceToEndpointBoundingBox; }
-            set { this.PortManager.LimitPortVisibilitySpliceToEndpointBoundingBox = value; }
+        public bool LimitPortVisibilitySpliceToEndpointBoundingBox { get => PortManager.LimitPortVisibilitySpliceToEndpointBoundingBox; set => PortManager.LimitPortVisibilitySpliceToEndpointBoundingBox = value;
         }
 
         /// <summary>
@@ -80,57 +77,46 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         /// Remove a routing specification for an EdgeGeometry.
         /// </summary>
         /// <param name="edgeGeometry"></param>
-        public void RemoveEdgeGeometryToRoute(EdgeGeometry edgeGeometry) {
-            EdgeGeometries.Remove(edgeGeometry);
-        }
+        public void RemoveEdgeGeometryToRoute(EdgeGeometry edgeGeometry) => EdgeGeometries.Remove(edgeGeometry);
 
 
         /// <summary>
         /// List all edge routing specifications that are currently active.  We want to hide access to the
         /// List itself so people don't add or remove items directly.
         /// </summary>
-        public IEnumerable<EdgeGeometry> EdgeGeometriesToRoute {
-            get { return EdgeGeometries; }
-        }
+        public IEnumerable<EdgeGeometry> EdgeGeometriesToRoute => EdgeGeometries;
 
         /// <summary>
         /// Remove all EdgeGeometries to route
         /// </summary>
-        public void RemoveAllEdgeGeometriesToRoute() {
+        public void RemoveAllEdgeGeometriesToRoute() =>
             // Don't call RemoveEdgeGeometryToRoute as it will interrupt the EdgeGeometries enumerator.
             EdgeGeometries.Clear();
-        }
 
         /// <summary>
         /// If true, this router uses a sparse visibility graph, which saves memory for large graphs but
         /// may choose suboptimal paths.  Set on constructor.
         /// </summary>
-        public bool UseSparseVisibilityGraph {
-            get { return GraphGenerator is SparseVisibilityGraphGenerator; }
-        }
+        public bool UseSparseVisibilityGraph => GraphGenerator is SparseVisibilityGraphGenerator;
 
         /// <summary>
         /// If true, this router uses obstacle bounding box rectangles in the visibility graph.
         /// Set on constructor.
         /// </summary>
         public bool UseObstacleRectangles { get; private set; }
-        
+
         #region Obstacle API
 
         /// <summary>
         /// The collection of input shapes to route around. Contains all source and target shapes.
         /// as well as any intervening obstacles.
         /// </summary>
-        public IEnumerable<Shape> Obstacles {
-            get { return ShapeToObstacleMap.Values.Select(obs => obs.InputShape); }
-        }
+        public IEnumerable<Shape> Obstacles => ShapeToObstacleMap.Values.Select(obs => obs.InputShape);
 
         /// <summary>
         /// The collection of padded obstacle boundary polylines around the input shapes to route around.
         /// </summary>
-        internal IEnumerable<Polyline> PaddedObstacles {
-            get { return ShapeToObstacleMap.Values.Select(obs => obs.PaddedPolyline); }
-        }
+        internal IEnumerable<Polyline> PaddedObstacles => ShapeToObstacleMap.Values.Select(obs => obs.PaddedPolyline);
 
         /// <summary>
         /// Add obstacles to the router.
@@ -144,8 +130,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 
         private void AddShapes(IEnumerable<Shape> obstacles)
         {
-            foreach (var shape in obstacles) {
-                this.AddObstacleWithoutRebuild(shape);
+            foreach (Shape shape in obstacles) {
+                AddObstacleWithoutRebuild(shape);
             }
         }
 
@@ -164,7 +150,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         /// <param name="obstacles"></param>
         public void UpdateObstacles(IEnumerable<Shape> obstacles) {
             ValidateArg.IsNotNull(obstacles, "obstacles");
-            foreach (var shape in obstacles) {
+            foreach (Shape shape in obstacles) {
                 UpdateObstacleWithoutRebuild(shape);
             }
             RebuildTreeAndGraph();
@@ -185,7 +171,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         /// <param name="obstacles"></param>
         public void RemoveObstacles(IEnumerable<Shape> obstacles) {
             ValidateArg.IsNotNull(obstacles, "obstacles");
-            foreach (var shape in obstacles) {
+            foreach (Shape shape in obstacles) {
                 RemoveObstacleWithoutRebuild(shape);
             }
             RebuildTreeAndGraph();
@@ -202,7 +188,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         }
 
         // utilities
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "BoundaryCurve")]
         void AddObstacleWithoutRebuild(Shape shape)
         {
             ValidateArg.IsNotNull(shape, "shape");
@@ -213,10 +198,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 #endif // DEBUG
                     );
             }
-            this.CreatePaddedObstacle(shape);
+            CreatePaddedObstacle(shape);
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "BoundaryCurve")]
         void UpdateObstacleWithoutRebuild(Shape shape)
         {
             ValidateArg.IsNotNull(shape, "shape");
@@ -234,9 +218,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         }
 
         private void CreatePaddedObstacle(Shape shape) {
-            var obstacle = new Obstacle(shape, this.UseObstacleRectangles, this.Padding);
-            this.ShapeToObstacleMap[shape] = obstacle;
-            this.PortManager.CreateObstaclePorts(obstacle);
+            Obstacle obstacle = new Obstacle(shape, UseObstacleRectangles, Padding);
+            ShapeToObstacleMap[shape] = obstacle;
+            PortManager.CreateObstaclePorts(obstacle);
         }
 
         void RemoveObstacleWithoutRebuild(Shape shape) {
@@ -245,18 +229,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             ShapeToObstacleMap.Remove(shape);
             PortManager.RemoveObstaclePorts(obstacle);
         }
-        
+
         /// <summary>
         /// Remove all obstacles from the graph.
         /// </summary>
-        public void RemoveAllObstacles() {
-            InternalClear(retainObstacles: false);
-        }
+        public void RemoveAllObstacles() => InternalClear(retainObstacles: false);
 
         #endregion // Obstacle API
 
         void RebuildTreeAndGraph() {
-            bool hadTree = (null != this.ObstacleTree.Root);
+            bool hadTree = (null != ObstacleTree.Root);
             bool hadVg = (null != GraphGenerator.VisibilityGraph);
             InternalClear(retainObstacles: true);
 
@@ -282,9 +264,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         /// <summary>
         /// Clears all data set into the router.
         /// </summary>
-        public void Clear() {
-            InternalClear(retainObstacles: false);
-        }
+        public void Clear() => InternalClear(retainObstacles: false);
 
         #region Private data
 
@@ -298,12 +278,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         /// the unpadded inner obstacle boundary and contains a unique ID so we can
         /// handle overlap due to dragging.
         /// </summary>
-        internal readonly Dictionary<Shape, Obstacle> ShapeToObstacleMap = new Dictionary<Shape, Obstacle>();
+        internal readonly Dictionary<Shape, Obstacle> ShapeToObstacleMap = [];
 
         ///<summary>
         /// The list of EdgeGeometries to route
         ///</summary>
-        internal readonly List<EdgeGeometry> EdgeGeometries = new List<EdgeGeometry>();
+        internal readonly List<EdgeGeometry> EdgeGeometries = [];
 
         ///<summary>
         /// Manages the mapping between App-level Ports, their locations, and their containing EdgeGeometries.
@@ -371,11 +351,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             CornerFitRadius = cornerFitRadius;
             BendPenaltyAsAPercentageOfDistance = SsstRectilinearPath.DefaultBendPenaltyAsAPercentageOfDistance;
             if (useSparseVisibilityGraph) {
-                this.GraphGenerator = new SparseVisibilityGraphGenerator();
+                GraphGenerator = new SparseVisibilityGraphGenerator();
             } else {
-                this.GraphGenerator = new FullVisibilityGraphGenerator();
+                GraphGenerator = new FullVisibilityGraphGenerator();
             }
-            this.UseObstacleRectangles = useObstacleRectangles;
+            UseObstacleRectangles = useObstacleRectangles;
             PortManager = new PortManager(GraphGenerator);
             AddShapes(obstacles);
         }
@@ -407,38 +387,29 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             : this(ShapeCreator.GetShapes(graph), padding, cornerFitRadius, useSparseVisibilityGraph, useObstacleRectangles)
         {
             ValidateArg.IsNotNull(graph, "graph");
-            foreach (var edge in graph.Edges)
+            foreach (Edge edge in graph.Edges)
             {
-                this.AddEdgeGeometryToRoute(edge.EdgeGeometry);
+                AddEdgeGeometryToRoute(edge.EdgeGeometry);
             }
         }
 
         /// <summary>
         /// Executes the algorithm.
         /// </summary>
-        protected override void RunInternal()
-        {
-            RouteEdges();
-        }
+        protected override void RunInternal() => RouteEdges();
 
-// ReSharper disable UnusedMember.Local
-// ReSharper disable InconsistentNaming
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic"), Conditional("TEST_MSAGL")]
-        private void Test_ShowVisibilityGraph() {
-            StaticGraphUtility.Test_ShowVisibilityGraph(this.ObstacleTree, VisibilityGraph);
-        }
+        // ReSharper disable UnusedMember.Local
+        // ReSharper disable InconsistentNaming
+        [Conditional("TEST_MSAGL")]
+        private void Test_ShowVisibilityGraph() => StaticGraphUtility.Test_ShowVisibilityGraph(ObstacleTree, VisibilityGraph);
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic"), Conditional("TEST_MSAGL")]
-        private void Test_ShowPathsBeforeNudging(IEnumerable<Path> edgePaths) {
-            StaticGraphUtility.Test_ShowPathsBeforeNudging(this.ObstacleTree, edgePaths);
-        }
+        [Conditional("TEST_MSAGL")]
+        private void Test_ShowPathsBeforeNudging(IEnumerable<Path> edgePaths) => StaticGraphUtility.Test_ShowPathsBeforeNudging(ObstacleTree, edgePaths);
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic"), Conditional("TEST_MSAGL")]
-        private void Test_ShowPathsAfterNudging(IEnumerable<Path> edgePaths) {
-            StaticGraphUtility.Test_ShowPathsAfterNudging(this.ObstacleTree, edgePaths);
-        }
-// ReSharper restore InconsistentNaming
-// ReSharper restore UnusedMember.Local
+        [Conditional("TEST_MSAGL")]
+        private void Test_ShowPathsAfterNudging(IEnumerable<Path> edgePaths) => StaticGraphUtility.Test_ShowPathsAfterNudging(ObstacleTree, edgePaths);
+        // ReSharper restore InconsistentNaming
+        // ReSharper restore UnusedMember.Local
 
         internal Dictionary<EdgeGeometry, IEnumerable<Path>> edgeGeomsToSplittedEdgePaths;
 
@@ -454,36 +425,35 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 
         internal virtual void GeneratePaths() {
             // Split EdgeGeometries with waypoints into a separate Path (containing a separate EdgeGeometry) for each stage.
-            this.edgeGeomsToSplittedEdgePaths = SplitEdgeGeomsWithWaypoints(this.EdgeGeometries);
+            edgeGeomsToSplittedEdgePaths = SplitEdgeGeomsWithWaypoints(EdgeGeometries);
 
             // Create a Path for each EdgeGeometry.  GeneratePaths will map from a Path wrapping an EdgeGeometry with waypoints
             // to the list of split Paths.  Wrapping the EdgeGeometries that do have waypoints with a Path is just to make
             // GeneratePath easier; those Paths are not used because we must do nudging on each stage, otherwise it will
             // nudge the path off the waypoints.
-            var edgePathsForGeomsWithNoWaypoints = new List<Path>(this.EdgeGeometries.Where(eg => !eg.HasWaypoints).Select(eg => new Path(eg)));
-            var edgePathsForGeomsWithWaypoints = new List<Path>(this.edgeGeomsToSplittedEdgePaths.Keys.Select(eg => new Path(eg)));
+            List<Path> edgePathsForGeomsWithNoWaypoints = new List<Path>(EdgeGeometries.Where(eg => !eg.HasWaypoints).Select(eg => new Path(eg)));
+            List<Path> edgePathsForGeomsWithWaypoints = new List<Path>(edgeGeomsToSplittedEdgePaths.Keys.Select(eg => new Path(eg)));
                 
-            this.FillEdgePathsWithShortestPaths(edgePathsForGeomsWithNoWaypoints.Concat(edgePathsForGeomsWithWaypoints));
-            this.NudgePaths(edgePathsForGeomsWithNoWaypoints.Concat(this.edgeGeomsToSplittedEdgePaths.Values.SelectMany(path => path)));
+            FillEdgePathsWithShortestPaths(edgePathsForGeomsWithNoWaypoints.Concat(edgePathsForGeomsWithWaypoints));
+            NudgePaths(edgePathsForGeomsWithNoWaypoints.Concat(edgeGeomsToSplittedEdgePaths.Values.SelectMany(path => path)));
 
-            this.UniteEdgeCurvesBetweenWaypoints();
-            this.RouteSelfEdges();
-            this.FinaliseEdgeGeometries();
+            UniteEdgeCurvesBetweenWaypoints();
+            RouteSelfEdges();
+            FinaliseEdgeGeometries();
         }
 
         void RouteSelfEdges() {
-            foreach (var edge in selfEdges) {
-                SmoothedPolyline sp;
-                edge.Curve = Edge.RouteSelfEdge(edge.SourcePort.Curve, Math.Max(Padding, 2*edge.GetMaxArrowheadLength()), out sp);
+            foreach (EdgeGeometry edge in selfEdges) {
+                edge.Curve = Edge.RouteSelfEdge(edge.SourcePort.Curve, Math.Max(Padding, 2 * edge.GetMaxArrowheadLength()), out SmoothedPolyline? sp);
             }
         }
         
 
         internal virtual void UniteEdgeCurvesBetweenWaypoints() {
-            foreach (var pair in this.edgeGeomsToSplittedEdgePaths) {
+            foreach (KeyValuePair<EdgeGeometry, IEnumerable<Path>> pair in edgeGeomsToSplittedEdgePaths) {
                 EdgeGeometry edgeGeom = pair.Key;
                 IEnumerable<Path> splittedPieces = pair.Value;
-                var polyline = new Polyline(splittedPieces.First().EdgeGeometry.Curve as Polyline);
+                Polyline polyline = new Polyline(splittedPieces.First().EdgeGeometry.Curve as Polyline);
                 foreach (EdgeGeometry piece in splittedPieces.Skip(1).Select(path => path.EdgeGeometry)) {
                     polyline.AddRangeOfPoints((piece.Curve as Polyline).Skip(1));
                 }
@@ -501,7 +471,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 #endif
 
         private static Dictionary<EdgeGeometry, IEnumerable<Path>> SplitEdgeGeomsWithWaypoints(IEnumerable<EdgeGeometry> edgeGeometries) {
-            var ret = new Dictionary<EdgeGeometry, IEnumerable<Path>>();
+            Dictionary<EdgeGeometry, IEnumerable<Path>> ret = new Dictionary<EdgeGeometry, IEnumerable<Path>>();
             foreach (EdgeGeometry edgeGeometry in edgeGeometries.Where(eg => eg.HasWaypoints)) {
                 ret[edgeGeometry] = SplitEdgeGeomWithWaypoints(edgeGeometry, edgeGeometry.Waypoints);
             }
@@ -509,7 +479,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         }
 
         private static IEnumerable<Path> SplitEdgeGeomWithWaypoints(EdgeGeometry edgeGeom, IEnumerable<Point> waypoints) {
-            var ret = new List<Path>();
+            List<Path> ret = new List<Path>();
             IEnumerator<Point> wp0 = waypoints.GetEnumerator();
             wp0.MoveNext();
             ret.Add(new Path(new EdgeGeometry(edgeGeom.SourcePort, new WaypointPort(wp0.Current))));
@@ -526,13 +496,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         }
 
         private void FillEdgePathsWithShortestPaths(IEnumerable<Path> edgePaths) {
-            this.PortManager.BeginRouteEdges();
-            var shortestPathRouter = new MsmtRectilinearPath(this.BendPenaltyAsAPercentageOfDistance);
+            PortManager.BeginRouteEdges();
+            MsmtRectilinearPath shortestPathRouter = new MsmtRectilinearPath(BendPenaltyAsAPercentageOfDistance);
             foreach (Path edgePath in edgePaths) {
-                this.ProgressStep();
+                ProgressStep();
                 AddControlPointsAndGeneratePath(shortestPathRouter, edgePath);
             }
-            this.PortManager.EndRouteEdges();
+            PortManager.EndRouteEdges();
         }
 
         private void AddControlPointsAndGeneratePath(MsmtRectilinearPath shortestPathRouter, Path edgePath) {
@@ -543,26 +513,23 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
                     return;
                 }
             }
-            this.SpliceVisibilityAndGeneratePath(shortestPathRouter, edgePath);
+            SpliceVisibilityAndGeneratePath(shortestPathRouter, edgePath);
         }
 
-        internal virtual void GeneratePathThroughVisibilityIntersection(Path edgePath, Point[] intersectPoints) {
-            edgePath.PathPoints = intersectPoints;
-        }
+        internal virtual void GeneratePathThroughVisibilityIntersection(Path edgePath, Point[] intersectPoints) => edgePath.PathPoints = intersectPoints;
 
         internal virtual void SpliceVisibilityAndGeneratePath(MsmtRectilinearPath shortestPathRouter, Path edgePath) {
-            this.PortManager.AddControlPointsToGraph(edgePath.EdgeGeometry, this.ShapeToObstacleMap);
-            this.PortManager.TransUtil.DevTrace_VerifyAllVertices(this.VisibilityGraph);
-            this.PortManager.TransUtil.DevTrace_VerifyAllEdgeIntersections(this.VisibilityGraph);
-            if (!this.GeneratePath(shortestPathRouter, edgePath)) {
-                this.RetryPathsWithAdditionalGroupsEnabled(shortestPathRouter, edgePath);
+            PortManager.AddControlPointsToGraph(edgePath.EdgeGeometry, ShapeToObstacleMap);
+            PortManager.TransUtil.DevTrace_VerifyAllVertices(VisibilityGraph);
+            PortManager.TransUtil.DevTrace_VerifyAllEdgeIntersections(VisibilityGraph);
+            if (!GeneratePath(shortestPathRouter, edgePath)) {
+                RetryPathsWithAdditionalGroupsEnabled(shortestPathRouter, edgePath);
             }
-            this.PortManager.RemoveControlPointsFromGraph();
+            PortManager.RemoveControlPointsFromGraph();
         }
 
 #if TEST_MSAGL
-// ReSharper disable UnusedMember.Local
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
+        // ReSharper disable UnusedMember.Local
         private void ShowEdgePath(Path path) {
 // ReSharper restore UnusedMember.Local
             List<DebugCurve> dd = Nudger.GetObstacleBoundaries(PaddedObstacles, "black");
@@ -573,10 +540,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 #endif
 
         internal virtual bool GeneratePath(MsmtRectilinearPath shortestPathRouter, Path edgePath, bool lastChance = false) {
-            var sourceVertices = PortManager.FindVertices(edgePath.EdgeGeometry.SourcePort);
-            var targetVertices = PortManager.FindVertices(edgePath.EdgeGeometry.TargetPort);
+            List<VisibilityVertex> sourceVertices = PortManager.FindVertices(edgePath.EdgeGeometry.SourcePort);
+            List<VisibilityVertex> targetVertices = PortManager.FindVertices(edgePath.EdgeGeometry.TargetPort);
             return edgePath.EdgeGeometry.HasWaypoints 
-                    ? this.GetMultiStagePath(edgePath, shortestPathRouter, sourceVertices, targetVertices, lastChance) 
+                    ? GetMultiStagePath(edgePath, shortestPathRouter, sourceVertices, targetVertices, lastChance) 
                     : GetSingleStagePath(edgePath, shortestPathRouter, sourceVertices, targetVertices, lastChance);
         }
 
@@ -591,8 +558,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 
         private bool GetMultiStagePath(Path edgePath, MsmtRectilinearPath shortestPathRouter,
                     List<VisibilityVertex> sourceVertices, List<VisibilityVertex> targetVertices, bool lastChance) {
-            var waypointVertices = PortManager.FindWaypointVertices(edgePath.EdgeGeometry.Waypoints);
-            var paths = shortestPathRouter.GetPath(sourceVertices, waypointVertices, targetVertices);
+            IEnumerable<VisibilityVertex> waypointVertices = PortManager.FindWaypointVertices(edgePath.EdgeGeometry.Waypoints);
+            IEnumerable<IEnumerable<Point>> paths = shortestPathRouter.GetPath(sourceVertices, waypointVertices, targetVertices);
             if (paths == null) {
                 if (!lastChance) {
                     return false;
@@ -600,17 +567,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 
                 // Get each stage individually.  They won't necessarily be ideal but this should be very rare and
                 // with at least one stage being "forced" through obstacles, the path is not good anyway.
-                foreach (var stagePath in this.edgeGeomsToSplittedEdgePaths[edgePath.EdgeGeometry]) {
-                    var stageGeom = stagePath.EdgeGeometry;
-                    GetSingleStagePath(stagePath, shortestPathRouter, this.PortManager.FindVertices(stageGeom.SourcePort),
-                            this.PortManager.FindVertices(stageGeom.TargetPort), lastChance:true);
+                foreach (Path stagePath in edgeGeomsToSplittedEdgePaths[edgePath.EdgeGeometry]) {
+                    EdgeGeometry stageGeom = stagePath.EdgeGeometry;
+                    GetSingleStagePath(stagePath, shortestPathRouter, PortManager.FindVertices(stageGeom.SourcePort),
+                            PortManager.FindVertices(stageGeom.TargetPort), lastChance:true);
                 }
                 return true;
             }
-            
+
             // Record the path for each state.
-            var pathsEnum = paths.GetEnumerator();
-            foreach (var stagePath in this.edgeGeomsToSplittedEdgePaths[edgePath.EdgeGeometry]) {
+            IEnumerator<IEnumerable<Point>> pathsEnum = paths.GetEnumerator();
+            foreach (Path stagePath in edgeGeomsToSplittedEdgePaths[edgePath.EdgeGeometry]) {
                 pathsEnum.MoveNext();
                 stagePath.PathPoints = pathsEnum.Current;
             }
@@ -650,14 +617,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         }
 
 #if TEST_MSAGL && !SILVERLIGHT
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1303:Do not pass literals as localized parameters", MessageId = "System.Console.WriteLine(System.String)")]
         internal static void ShowPointEnum(IEnumerable<Point> p) {
 // ReSharper disable InconsistentNaming
             const double w0 = 0.1;
             const int w1 = 3;
             Point[] arr = p.ToArray();
             double d = (w1 - w0)/(arr.Length - 1);
-            var l = new List<DebugCurve>();
+            List<DebugCurve> l = new List<DebugCurve>();
             for (int i = 0; i < arr.Length - 1; i++) {
                 Console.WriteLine(arr[i]);
                 l.Add(new DebugCurve(100, w0 + i*d, "blue", new LineSegment(arr[i], arr[i + 1])));
@@ -672,9 +638,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 #endif
 
         internal virtual void NudgePaths(IEnumerable<Path> edgePaths) {
-        
+
             // If we adjusted for spatial ancestors, this nudging can get very weird, so refetch in that case.
-            var ancestorSets = this.ObstacleTree.SpatialAncestorsAdjusted ? SplineRouter.GetAncestorSetsMap(Obstacles) : this.AncestorsSets;
+            Dictionary<Shape, Set<Shape>> ancestorSets = ObstacleTree.SpatialAncestorsAdjusted ? SplineRouter.GetAncestorSetsMap(Obstacles) : AncestorsSets;
 
             // Using VisibilityPolyline retains any reflection/staircases on the convex hull borders; using
             // PaddedPolyline removes them.
@@ -746,13 +712,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         }
         */
         private bool removeStaircases = true;
-        readonly List<EdgeGeometry> selfEdges = new List<EdgeGeometry>();
+        readonly List<EdgeGeometry> selfEdges = [];
 
         ///<summary>
         ///</summary>
-        public bool RemoveStaircases {
-            get { return removeStaircases; }
-            set { removeStaircases = value; }
+        public bool RemoveStaircases { get => removeStaircases; set => removeStaircases = value;
         }
 
         internal virtual void FinaliseEdgeGeometries() {
@@ -760,7 +724,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
                 if (null == edgeGeom.Curve) {
                     continue;
                 }
-                var poly = (edgeGeom.Curve as Polyline);
+                Polyline? poly = (edgeGeom.Curve as Polyline);
                 if (poly != null) {
                     edgeGeom.Curve = FitArcsIntoCorners(CornerFitRadius, poly.ToArray());
                 }
@@ -774,24 +738,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             GraphGenerator.GenerateVisibilityGraph();
         }
 
-        private static void CalculateArrowheads(EdgeGeometry edgeGeom)
-        {
-            Arrowheads.TrimSplineAndCalculateArrowheads(edgeGeom, edgeGeom.SourcePort.Curve, edgeGeom.TargetPort.Curve, edgeGeom.Curve, true, false);
-        }
+        private static void CalculateArrowheads(EdgeGeometry edgeGeom) => Arrowheads.TrimSplineAndCalculateArrowheads(edgeGeom, edgeGeom.SourcePort.Curve, edgeGeom.TargetPort.Curve, edgeGeom.Curve, true, false);
 
-        private static ICurve GetSourceBoundary(EdgeGeometry edgeGeom){
-            return edgeGeom.SourcePort.Curve;            
-        }
+        private static ICurve GetSourceBoundary(EdgeGeometry edgeGeom) => edgeGeom.SourcePort.Curve;
 
-        private static ICurve GetTargetBoundary(EdgeGeometry edgeGeom) {
-            return edgeGeom.TargetPort.Curve;
-        }
+        private static ICurve GetTargetBoundary(EdgeGeometry edgeGeom) => edgeGeom.TargetPort.Curve;
 
         #region Private functions
 
-        private ObstacleTree ObstacleTree {
-            get { return this.GraphGenerator.ObstacleTree; }
-        }
+        private ObstacleTree ObstacleTree => GraphGenerator.ObstacleTree;
 
         private void GenerateObstacleTree() {
             if ((null == Obstacles) || !Obstacles.Any()) {
@@ -802,14 +757,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
                     );
             }
 
-            if (null == this.ObstacleTree.Root) {
+            if (null == ObstacleTree.Root) {
                 InitObstacleTree();
             }
         }
 
         internal virtual void InitObstacleTree() {
             AncestorsSets = SplineRouter.GetAncestorSetsMap(Obstacles);
-            this.ObstacleTree.Init(ShapeToObstacleMap.Values, AncestorsSets, ShapeToObstacleMap);
+            ObstacleTree.Init(ShapeToObstacleMap.Values, AncestorsSets, ShapeToObstacleMap);
         }
 
         private void InternalClear(bool retainObstacles) {
@@ -855,8 +810,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 
 #if TEST_MSAGL
         internal void ShowPathWithTakenEdgesAndGraph(IEnumerable<VisibilityVertex> path, Set<VisibilityEdge> takenEdges){
-            var list = new List<VisibilityVertex>(path);
-            var lines = new List<LineSegment>();
+            List<VisibilityVertex> list = new List<VisibilityVertex>(path);
+            List<LineSegment> lines = new List<LineSegment>();
             for (int i = 0; i < list.Count - 1; i++)
                 lines.Add(new LineSegment(list[i].Point, list[i + 1].Point));
 
@@ -865,7 +820,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             const double w1 = 8;
             double delta = (w1 - w0)/(list.Count - 1);
 
-            var dc = new List<DebugCurve>();
+            List<DebugCurve> dc = new List<DebugCurve>();
             foreach (LineSegment line in lines) {
                 dc.Add(new DebugCurve(50, w0, "red", line));
                 w0 += delta;
@@ -880,7 +835,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 
         internal static ICurve FitArcsIntoCorners(double radius, Point[] polyline) {
             IEnumerable<Ellipse> ellipses = GetFittedArcSegs(radius, polyline);
-            var curve = new Curve(polyline.Length);
+            Curve curve = new Curve(polyline.Length);
             Ellipse prevEllipse = null;
             foreach (Ellipse ellipse in ellipses) {
                 bool ellipseIsAlmostCurve = EllipseIsAlmostLineSegment(ellipse);
@@ -912,13 +867,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             return curve;
         }
 
-        static Point CornerPoint(Ellipse ellipse) {
-            return ellipse.Center + ellipse.AxisA + ellipse.AxisB;
-        }
+        static Point CornerPoint(Ellipse ellipse) => ellipse.Center + ellipse.AxisA + ellipse.AxisB;
 
-        private static bool EllipseIsAlmostLineSegment(Ellipse ellipse) {
-            return ellipse.AxisA.LengthSquared < 0.0001 || ellipse.AxisB.LengthSquared<0.0001;
-        }
+        private static bool EllipseIsAlmostLineSegment(Ellipse ellipse) => ellipse.AxisA.LengthSquared < 0.0001 || ellipse.AxisB.LengthSquared < 0.0001;
 
         private static IEnumerable<Ellipse> GetFittedArcSegs(double radius, Point[] polyline) {
             Point leg = polyline[1] - polyline[0];

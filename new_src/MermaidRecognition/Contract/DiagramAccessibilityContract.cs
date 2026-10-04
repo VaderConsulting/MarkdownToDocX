@@ -9,27 +9,13 @@ public sealed class DiagramAccessibilityContract
 
     public string? Title
     {
-        get
-        {
-            return _Title;
-        }
-        set
-        {
-            _Title = value;
-        }
+        get => _Title; set => _Title = value;
     }
 
     private string? _Description;
 
     public string? Description
     {
-        get
-        {
-            return _Description;
-        }
-        set
-        {
-            _Description = value;
-        }
+        get => _Description; set => _Description = value;
     }
 }

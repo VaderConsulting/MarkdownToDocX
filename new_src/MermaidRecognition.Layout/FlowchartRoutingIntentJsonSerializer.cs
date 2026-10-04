@@ -15,10 +15,7 @@ public static class FlowchartRoutingIntentJsonSerializer
     /// <summary>
     /// Serialises one diagram routing-intent result to indented JSON.
     /// </summary>
-    public static string SerializeDiagram(FlowchartRoutingIntentDiagramResult Result)
-    {
-        return JsonSerializer.Serialize(Result, _SerializerOptions);
-    }
+    public static string SerializeDiagram(FlowchartRoutingIntentDiagramResult Result) => JsonSerializer.Serialize(Result, _SerializerOptions);
 
     /// <summary>
     /// Deserialises one diagram routing-intent result from JSON.
@@ -39,10 +36,7 @@ public static class FlowchartRoutingIntentJsonSerializer
     /// <summary>
     /// Serialises a ruleset document to indented JSON.
     /// </summary>
-    public static string SerializeRuleset(FlowchartRoutingIntentRuleset Ruleset)
-    {
-        return JsonSerializer.Serialize(Ruleset, _SerializerOptions);
-    }
+    public static string SerializeRuleset(FlowchartRoutingIntentRuleset Ruleset) => JsonSerializer.Serialize(Ruleset, _SerializerOptions);
 
     /// <summary>
     /// Deserialises a ruleset document from JSON.

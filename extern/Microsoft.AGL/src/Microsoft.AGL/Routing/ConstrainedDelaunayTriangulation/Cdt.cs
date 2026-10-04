@@ -6,10 +6,13 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+
 using Microsoft.AGL.Core;
 using Microsoft.AGL.Core.DataStructures;
 using Microsoft.AGL.Core.Geometry;
 using Microsoft.AGL.Core.Geometry.Curves;
+using Microsoft.AGL.Core.Geometry.RTree;
+
 using SymmetricSegment = Microsoft.AGL.Core.DataStructures.SymmetricTuple<Microsoft.AGL.Core.Geometry.Point>;
 
 namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
@@ -24,7 +27,7 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
         CdtSite P1;
         CdtSite P2;
         CdtSweeper sweeper;
-        internal readonly Dictionary<Point, CdtSite> PointsToSites = new Dictionary<Point, CdtSite>();
+        internal readonly Dictionary<Point, CdtSite> PointsToSites = [];
         List<CdtSite> allInputSites;
 
         ///<summary>
@@ -43,27 +46,25 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
         /// constructor
         /// </summary>
         /// <param name="isolatedSites"></param>
-        public Cdt(IEnumerable<Tuple<Point, object>> isolatedSites) {
-            isolatedSitesWithObject = isolatedSites;
-        }
+        public Cdt(IEnumerable<Tuple<Point, object>> isolatedSites) => isolatedSitesWithObject = isolatedSites;
 
         void FillAllInputSites() {
             //for now suppose that the data is correct: no isolatedSites coincide with obstacles or isolatedSegments, obstacles are mutually disjoint, etc
 
             if (isolatedSitesWithObject != null)
-                foreach (var tuple in isolatedSitesWithObject)
+                foreach (Tuple<Point, object> tuple in isolatedSitesWithObject)
                     AddSite(tuple.Item1, tuple.Item2);
 
             if (isolatedSites != null)
-                foreach (var isolatedSite in isolatedSites)
+                foreach (Point isolatedSite in isolatedSites)
                     AddSite(isolatedSite, null);
 
             if (obstacles != null)
-                foreach (var poly in obstacles)
+                foreach (Polyline poly in obstacles)
                     AddPolylineToAllInputSites(poly);
 
             if (isolatedSegments != null)
-                foreach (var isolatedSegment in isolatedSegments)
+                foreach (SymmetricSegment isolatedSegment in isolatedSegments)
                     AddConstrainedEdge(isolatedSegment.A, isolatedSegment.B, null);
 
             AddP1AndP2();
@@ -72,8 +73,8 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
         }
 
         CdtSite AddSite(Point point, object relatedObject) {
-            CdtSite site;
-            if (PointsToSites.TryGetValue(point, out site)) {
+            if (PointsToSites.TryGetValue(point, out CdtSite site))
+            {
                 site.Owner = relatedObject;//set the owner anyway
                 return site;
             }
@@ -82,18 +83,18 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
         }
 
         void AddP1AndP2() {
-            var box = Rectangle.CreateAnEmptyBox();
-            foreach (var site in PointsToSites.Keys)
+            Rectangle box = Rectangle.CreateAnEmptyBox();
+            foreach (Point site in PointsToSites.Keys)
                 box.Add(site);
 
-            var delx = box.Width / 3;
-            var dely = box.Height / 3;
+            double delx = box.Width / 3;
+            double dely = box.Height / 3;
             P1 = new CdtSite(box.LeftBottom + new Point(-delx, -dely));
             P2 = new CdtSite(box.RightBottom + new Point(delx, -dely));
         }
 
         void AddPolylineToAllInputSites(Polyline poly) {
-            for (var pp = poly.StartPoint; pp.Next != null; pp = pp.Next)
+            for (PolylinePoint pp = poly.StartPoint; pp.Next != null; pp = pp.Next)
                 AddConstrainedEdge(pp.Point, pp.Next.Point, poly);
             if (poly.Closed)
                 AddConstrainedEdge(poly.EndPoint.Point, poly.StartPoint.Point, poly);
@@ -101,7 +102,7 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
 
 
         void AddConstrainedEdge(Point a, Point b, Polyline poly) {
-            var ab = Above(a, b);
+            int ab = Above(a, b);
             Debug.Assert(ab != 0);
             CdtSite upperPoint;
             CdtSite lowerPoint;
@@ -114,20 +115,20 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
                 upperPoint = AddSite(b, poly);
                 lowerPoint = AddSite(a, poly);
             }
-            var edge = CreateEdgeOnOrderedCouple(upperPoint, lowerPoint);
+            CdtEdge edge = CreateEdgeOnOrderedCouple(upperPoint, lowerPoint);
             edge.Constrained = true;
         }
 
 
         static internal CdtEdge GetOrCreateEdge(CdtSite a, CdtSite b) {
             if (Above(a.Point, b.Point) == 1) {
-                var e = a.EdgeBetweenUpperSiteAndLowerSite(b);
+                CdtEdge e = a.EdgeBetweenUpperSiteAndLowerSite(b);
                 if (e != null)
                     return e;
                 return CreateEdgeOnOrderedCouple(a, b);
             }
             else {
-                var e = b.EdgeBetweenUpperSiteAndLowerSite(a);
+                CdtEdge e = b.EdgeBetweenUpperSiteAndLowerSite(a);
                 if (e != null)
                     return e;
                 return CreateEdgeOnOrderedCouple(b, a);
@@ -143,9 +144,7 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
         ///<summary>
         ///</summary>
         ///<returns></returns>
-        public Set<CdtTriangle> GetTriangles() {
-            return sweeper.Triangles;
-        }
+        public Set<CdtTriangle> GetTriangles() => sweeper.Triangles;
 
         /// <summary>
         /// Executes the actual algorithm.
@@ -167,9 +166,7 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
             allInputSites.Sort(OnComparison);
         }
 
-        static int OnComparison(CdtSite a, CdtSite b) {
-            return Above(a.Point, b.Point);
-        }
+        static int OnComparison(CdtSite a, CdtSite b) => Above(a.Point, b.Point);
         /// <summary>
         /// compare first y then -x coordinates
         /// </summary>
@@ -177,7 +174,7 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
         /// <param name="b"></param>
         /// <returns>1 if a is above b, 0 if points are the same and -1 if a is below b</returns>
         static public int Above(Point a, Point b) {
-            var del = a.Y - b.Y;
+            double del = a.Y - b.Y;
             if (del > 0)
                 return 1;
             if (del < 0)
@@ -193,7 +190,7 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
         /// <param name="b"></param>
         /// <returns>1 if a is above b, 0 if points are the same and -1 if a is below b</returns>
         static internal int Above(CdtSite a, CdtSite b) {
-            var del = a.Point.Y - b.Point.Y;
+            double del = a.Point.Y - b.Point.Y;
             if (del > 0)
                 return 1;
             if (del < 0)
@@ -203,8 +200,8 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
         }
 
         internal void RestoreEdgeCapacities() {
-            foreach (var site in allInputSites)
-                foreach (var e in site.Edges)
+            foreach (CdtSite site in allInputSites)
+                foreach (CdtEdge e in site.Edges)
                     if (!e.Constrained) //do not care of constrained edges
                         e.ResidualCapacity = e.Capacity;
         }
@@ -212,11 +209,11 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
         ///<summary>
         ///</summary>
         public void SetInEdges() {
-            foreach (var site in PointsToSites.Values) {
-                var edges = site.Edges;
+            foreach (CdtSite site in PointsToSites.Values) {
+                List<CdtEdge> edges = site.Edges;
                 for (int i = edges.Count - 1; i >= 0; i--) {
-                    var e = edges[i];
-                    var oSite = e.lowerSite;
+                    CdtEdge e = edges[i];
+                    CdtSite oSite = e.lowerSite;
                     Debug.Assert(oSite != site);
                     oSite.AddInEdge(e);
                 }
@@ -227,9 +224,7 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
         ///</summary>
         ///<param name="point"></param>
         ///<returns></returns>
-        public CdtSite FindSite(Point point) {
-            return PointsToSites[point];
-        }
+        public CdtSite FindSite(Point point) => PointsToSites[point];
 
         //        /// <summary>
         //        /// returns CdtEdges crossed by the segment a.Point, b.Point
@@ -275,18 +270,17 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
         //        static bool db { get { return count == 125; }}
 
         internal IEnumerable<CdtEdge> ThreadEdgeThroughTriangles(CdtSite startSite, Point end) {
-            CdtEdge piercedEdge;
-            var triangle = FindFirstPiercedTriangle(startSite, end, out piercedEdge);
+            CdtTriangle triangle = FindFirstPiercedTriangle(startSite, end, out CdtEdge piercedEdge);
             if (triangle == null)
                 yield break;
 
-            var start = startSite.Point;
-            foreach (var cdtEdge in ThreadThroughTriangles(start, end, triangle, piercedEdge))
+            Point start = startSite.Point;
+            foreach (CdtEdge cdtEdge in ThreadThroughTriangles(start, end, triangle, piercedEdge))
                 yield return cdtEdge;
         }
 
         IEnumerable<CdtEdge> ThreadThroughTriangles(Point start, Point end, CdtTriangle triangle, CdtEdge piercedEdge) {
-            var ret = new List<CdtEdge>();
+            List<CdtEdge> ret = new List<CdtEdge>();
             do {
                 if (piercedEdge.upperSite.Owner != piercedEdge.lowerSite.Owner)
                     ret.Add(piercedEdge);
@@ -299,9 +293,9 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
             t = piercedEdge.GetOtherTriangle(t);
             if (t == null)
                 return false;
-            var i = t.Edges.Index(piercedEdge);
+            int i = t.Edges.Index(piercedEdge);
             for (int j = i + 1; j <= i + 2; j++) {
-                var pe = t.Edges[j];
+                CdtEdge pe = t.Edges[j];
                 piercedEdge = PiercedEdgeQuery(pe, start, end, t);
                 if (piercedEdge != null) {
                     //                    CdtSweeper.ShowFront(trs, null, 
@@ -349,8 +343,8 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
 
         internal static bool PointIsInsideOfTriangle(Point point, CdtTriangle t) {
             for (int i = 0; i < 3; i++) {
-                var a = t.Sites[i].Point;
-                var b = t.Sites[i + 1].Point;
+                Point a = t.Sites[i].Point;
+                Point b = t.Sites[i + 1].Point;
                 if (Point.SignedDoubledTriangleArea(point, a, b) < -ApproximateComparer.DistanceEpsilon)
                     return false;
             }
@@ -359,7 +353,7 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
 
         CdtTriangle FindFirstPiercedTriangle(CdtSite startSite, Point target, out CdtEdge piercedEdge) {
             if (startSite != null) {
-                foreach (var t in startSite.Triangles) {
+                foreach (CdtTriangle t in startSite.Triangles) {
                     piercedEdge = GetPiercedEdgeInSiteTriangle(t, startSite, target);
                     if (piercedEdge != null)
                         if (!PointIsInsideOfTriangle(target, t))
@@ -372,30 +366,28 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
         }
 
         CdtEdge GetPiercedEdgeInSiteTriangle(CdtTriangle t, CdtSite site, Point target) {
-            var e = t.OppositeEdge(site);
+            CdtEdge e = t.OppositeEdge(site);
             return PiercedEdgeQuery(e, site.Point, target, t);
         }
 
         internal static bool EdgeIsPierced(CdtEdge e, Point source, Point target, CdtTriangle cdtTriangle) {
-            var area0 = Point.SignedDoubledTriangleArea(e.upperSite.Point, source, target);
-            var area1 = Point.SignedDoubledTriangleArea(e.lowerSite.Point, source, target);
+            double area0 = Point.SignedDoubledTriangleArea(e.upperSite.Point, source, target);
+            double area1 = Point.SignedDoubledTriangleArea(e.lowerSite.Point, source, target);
             if (ApproximateComparer.Sign(area0) * ApproximateComparer.Sign(area1) > 0)
                 return false;
             area0 = Point.SignedDoubledTriangleArea(e.upperSite.Point, e.lowerSite.Point, source);
             area1 = Point.SignedDoubledTriangleArea(e.upperSite.Point, e.lowerSite.Point, target);
             if (ApproximateComparer.Sign(area0) * ApproximateComparer.Sign(area1) > 0)
                 return false;
-            var otherT = e.GetOtherTriangle(cdtTriangle);
+            CdtTriangle otherT = e.GetOtherTriangle(cdtTriangle);
             if (otherT == null)
                 return true;
-            var otherSite = otherT.OppositeSite(e);
+            CdtSite otherSite = otherT.OppositeSite(e);
             area0 = Point.SignedDoubledTriangleArea(e.upperSite.Point, e.lowerSite.Point, otherSite.Point);
             return (ApproximateComparer.Sign(area0) * ApproximateComparer.Sign(area1) >= 0);
         }
 
-        CdtEdge PiercedEdgeQuery(CdtEdge e, Point source, Point target, CdtTriangle cdtTriangle) {
-            return EdgeIsPierced(e, source, target, cdtTriangle) ? e : null;
-        }
+        CdtEdge PiercedEdgeQuery(CdtEdge e, Point source, Point target, CdtTriangle cdtTriangle) => EdgeIsPierced(e, source, target, cdtTriangle) ? e : null;
 
         RectangleNode<CdtTriangle> cdtTree = null;
 

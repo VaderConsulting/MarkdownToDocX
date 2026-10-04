@@ -21,13 +21,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing
         GeometryGraph graph { get; set; }
         readonly double nodeSeparation;
         readonly LayoutAlgorithmSettings layoutSettings;
-        List<BumperPusher> listOfPushers = new List<BumperPusher>();
+        List<BumperPusher> listOfPushers = [];
         readonly GeomNode[] pushingNodesArray;
         /// <summary>
         /// it is smaller graph that needs to be refreshed by the viewer
         /// </summary>
         public GeometryGraph ChangedGraph;
-        Dictionary<EdgeGeometry,LabelFixture> labelFixtures=new Dictionary<EdgeGeometry, LabelFixture>();
+        Dictionary<EdgeGeometry,LabelFixture> labelFixtures=[];
         /// <summary>
         /// 
         /// </summary>
@@ -36,7 +36,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing
         /// <param name="layoutSettings"></param>
         public IncrementalDragger(IEnumerable<GeomNode> pushingNodes, GeometryGraph graph, LayoutAlgorithmSettings layoutSettings) {
             this.graph = graph;
-            this.nodeSeparation = layoutSettings.NodeSeparation;
+            nodeSeparation = layoutSettings.NodeSeparation;
             this.layoutSettings = layoutSettings;
             pushingNodesArray = pushingNodes as GeomNode[] ?? pushingNodes.ToArray();
             Debug.Assert(pushingNodesArray.All(n => DefaultClusterParent(n) == null) ||
@@ -47,14 +47,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing
 
         void InitBumperPushers() {
             if (pushingNodesArray.Length == 0) return;
-            var cluster = DefaultClusterParent(pushingNodesArray[0]);
+            Cluster cluster = DefaultClusterParent(pushingNodesArray[0]);
             if (cluster == null)
                 listOfPushers.Add(new BumperPusher(graph.Nodes, nodeSeparation, pushingNodesArray));
             else {
                 listOfPushers.Add( new BumperPusher(cluster.Nodes.Concat(cluster.Clusters), nodeSeparation,
                                                              pushingNodesArray));
                 do {
-                    var pushingCluster = cluster;
+                    Cluster pushingCluster = cluster;
                     cluster = DefaultClusterParent(cluster);
                     if (cluster == null) break;
                     listOfPushers.Add(new BumperPusher(cluster.Nodes.Concat(cluster.Clusters), nodeSeparation,
@@ -65,20 +65,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing
         }
 
 
-        static Cluster DefaultClusterParent(GeomNode n) {
-            return n.ClusterParents.FirstOrDefault();
-        }
+        static Cluster DefaultClusterParent(GeomNode n) => n.ClusterParents.FirstOrDefault();
 
         void RunPushers() {
             for (int i = 0; i < listOfPushers.Count;i++ ) {
-                var bumperPusher = listOfPushers[i];
+                BumperPusher bumperPusher = listOfPushers[i];
                 bumperPusher.PushNodes();
-                var cluster = DefaultClusterParent(bumperPusher.FirstPushingNode());
+                Cluster cluster = DefaultClusterParent(bumperPusher.FirstPushingNode());
                 if (cluster == null || cluster==graph.RootCluster) break;
-                var box = cluster.BoundaryCurve.BoundingBox;
+                Rectangle box = cluster.BoundaryCurve.BoundingBox;
                 cluster.CalculateBoundsFromChildren(layoutSettings.ClusterMargin);
                 Debug.Assert(cluster.Nodes.All(n => cluster.BoundingBox.Contains(n.BoundingBox)));
-                var newBox = cluster.BoundaryCurve.BoundingBox;
+                Rectangle newBox = cluster.BoundaryCurve.BoundingBox;
                 if (newBox == box) {
                     break;
                 }
@@ -95,10 +93,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing
         /// <param name="delta"></param>
         public void Drag(Point delta) {
             if(delta.Length>0)
-                foreach (var n in pushingNodesArray) {
+                foreach (GeomNode n in pushingNodesArray) {
                     n.Center += delta;
-                    var cl = n as Cluster;
-                    if (cl != null)
+                    if (n is Cluster cl)
                         cl.DeepContentsTranslation(delta, true);
                 }
 
@@ -108,11 +105,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing
 
         void RouteChangedEdges() {
             ChangedGraph = GetChangedFlatGraph();
-            var changedClusteredGraph = LgInteractor.CreateClusteredSubgraphFromFlatGraph(ChangedGraph, graph);
+            GeometryGraph changedClusteredGraph = LgInteractor.CreateClusteredSubgraphFromFlatGraph(ChangedGraph, graph);
 
 
             InitLabelFixtures(changedClusteredGraph);
-            var router = new SplineRouter(changedClusteredGraph, layoutSettings.EdgeRoutingSettings.Padding,
+            SplineRouter router = new SplineRouter(changedClusteredGraph, layoutSettings.EdgeRoutingSettings.Padding,
                                           layoutSettings.EdgeRoutingSettings.PolylinePadding,
                                           layoutSettings.EdgeRoutingSettings.ConeAngle,
                                           layoutSettings.EdgeRoutingSettings.BundlingSettings) {
@@ -126,23 +123,22 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing
         }
 
         void PositionLabels(GeometryGraph changedClusteredGraph) {
-            foreach (var edge in changedClusteredGraph.Edges)
+            foreach (Edge edge in changedClusteredGraph.Edges)
                 PositionEdge(edge);
         }
 
         void PositionEdge(Edge edge) {
-            LabelFixture lf;
-            if (!labelFixtures.TryGetValue(edge.EdgeGeometry, out lf)) return;
-            var curve = edge.Curve;
-            var lenAtLabelAttachment = curve.Length*lf.RelativeLengthOnCurve;
-            var par = curve.GetParameterAtLength(lenAtLabelAttachment);
-            var tang = curve.Derivative(par);
-            var norm = (lf.RightSide ? tang.Rotate90Cw() : tang.Rotate90Ccw()).Normalize()*lf.NormalLength;
+            if (!labelFixtures.TryGetValue(edge.EdgeGeometry, out LabelFixture? lf)) return;
+            ICurve curve = edge.Curve;
+            double lenAtLabelAttachment = curve.Length*lf.RelativeLengthOnCurve;
+            double par = curve.GetParameterAtLength(lenAtLabelAttachment);
+            Point tang = curve.Derivative(par);
+            Point norm = (lf.RightSide ? tang.Rotate90Cw() : tang.Rotate90Ccw()).Normalize()*lf.NormalLength;
             edge.Label.Center = curve[par] + norm;           
         }
 
         void InitLabelFixtures(GeometryGraph changedClusteredGraph) {
-            foreach (var edge in changedClusteredGraph.Edges)
+            foreach (Edge edge in changedClusteredGraph.Edges)
                 InitLabelFixture(edge);
         }
 
@@ -150,13 +146,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing
             if (edge.Label == null) return;
             if (labelFixtures.ContainsKey(edge.EdgeGeometry)) return;
 
-            var attachmentPar = edge.Curve.ClosestParameter(edge.Label.Center);
-            
-            var curve = edge.Curve;
-            var tang = curve.Derivative(attachmentPar);
-            var normal = tang.Rotate90Cw();
-            var fromCurveToLabel = edge.Label.Center - curve[attachmentPar];
-            var fixture = new LabelFixture() {
+            double attachmentPar = edge.Curve.ClosestParameter(edge.Label.Center);
+
+            ICurve curve = edge.Curve;
+            Point tang = curve.Derivative(attachmentPar);
+            Point normal = tang.Rotate90Cw();
+            Point fromCurveToLabel = edge.Label.Center - curve[attachmentPar];
+            LabelFixture fixture = new LabelFixture() {
                 RelativeLengthOnCurve = curve.LengthPartial(0, attachmentPar)/curve.Length,
                 NormalLength = fromCurveToLabel.Length,
                 RightSide = fromCurveToLabel*normal>0
@@ -167,14 +163,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing
 
 
         GeometryGraph GetChangedFlatGraph() {
-            var changedNodes = GetChangedNodes();
-            var changedEdges = GetChangedEdges(changedNodes);
-            foreach (var e in changedEdges) {
+            Set<GeomNode> changedNodes = GetChangedNodes();
+            List<Edge> changedEdges = GetChangedEdges(changedNodes);
+            foreach (Edge e in changedEdges) {
                 changedNodes.Insert(e.Source);
                 changedNodes.Insert(e.Target);
             }
 
-            var changedGraph = new GeometryGraph {
+            GeometryGraph changedGraph = new GeometryGraph {
                 Nodes = new SimpleNodeCollection(changedNodes),
                 Edges = new SimpleEdgeCollection(changedEdges)
             };
@@ -182,15 +178,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing
         }
 
         List<Edge> GetChangedEdges(Set<Node> changedNodes) {
-            var list = new List<Edge>();
-            var box = Rectangle.CreateAnEmptyBox();
-            foreach(var node in changedNodes)
+            List<Edge> list = new List<Edge>();
+            Rectangle box = Rectangle.CreateAnEmptyBox();
+            foreach(GeomNode node in changedNodes)
                 box.Add(node.BoundaryCurve.BoundingBox);
 
 
-            var boxPoly = box.Perimeter();
+            Polyline boxPoly = box.Perimeter();
 
-            foreach (var e in graph.Edges)
+            foreach (Edge e in graph.Edges)
                 if (EdgeNeedsRouting(ref box, e, boxPoly, changedNodes))
                     list.Add(e);
             return list;
@@ -211,8 +207,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing
             return Curve.CurveCurveIntersectionOne(boxPolyline, edge.Curve, false) != null;
         }
 
-        Set<Node> GetChangedNodes() {
-            return new Set<Node>(this.listOfPushers.SelectMany(p => p.FixedNodes));
-        }
+        Set<Node> GetChangedNodes() => new Set<Node>(listOfPushers.SelectMany(p => p.FixedNodes));
     }
 }

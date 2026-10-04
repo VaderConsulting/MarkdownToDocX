@@ -5,9 +5,7 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
     internal class Cone {
         bool removed;
 
-        internal bool Removed {
-            get { return removed; }
-            set { removed = value; }
+        internal bool Removed { get => removed; set => removed = value;
         }
         Point apex;
         readonly IConeSweeper coneSweeper;
@@ -17,43 +15,39 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
             this.coneSweeper = coneSweeper;
         }
 
-        internal Point Apex {
-            get { return apex; }
-            set { apex = value; }
+        internal Point Apex { get => apex; set => apex = value;
         }
 
-        internal Point RightSideDirection {
-            get { return coneSweeper.ConeRightSideDirection; }
-        }
+        internal Point RightSideDirection => coneSweeper.ConeRightSideDirection;
 
-        internal Point LeftSideDirection {
-            get { return coneSweeper.ConeLeftSideDirection; }
-        }
+        internal Point LeftSideDirection => coneSweeper.ConeLeftSideDirection;
 
 
 
         private ConeSide rightSide;
 
-        internal ConeSide RightSide {
-            get { return rightSide; }
-            set { rightSide = value;
-            rightSide.Cone = this;
+        internal ConeSide RightSide
+        {
+            get => rightSide;
+            set
+            {
+                rightSide = value;
+                rightSide.Cone = this;
             }
         }
         private ConeSide leftSide;
 
-        internal ConeSide LeftSide {
-            get { return leftSide; }
-            set { 
+        internal ConeSide LeftSide
+        {
+            get => leftSide;
+            set
+            {
                 leftSide = value;
                 leftSide.Cone = this;
             }
         }
 
-        internal bool PointIsInside(Point p)
-        {
-            return Point.PointToTheRightOfLineOrOnLine(p, Apex, Apex + LeftSideDirection) &&
+        internal bool PointIsInside(Point p) => Point.PointToTheRightOfLineOrOnLine(p, Apex, Apex + LeftSideDirection) &&
             Point.PointToTheLeftOfLineOrOnLine(p, Apex, Apex + RightSideDirection);
-        }
     }
 }

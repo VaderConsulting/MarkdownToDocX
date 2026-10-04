@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
+
 using Microsoft.AGL.Core;
 using Microsoft.AGL.Core.DataStructures;
 using Microsoft.AGL.Core.Geometry.Curves;
@@ -28,44 +29,34 @@ namespace Microsoft.AGL.Layout.Layered {
         /// <summary>
         /// Separation between to neighboring layers
         /// </summary>
-        public double LayerSeparation {
-            get { return yLayerSep; }
-            set { yLayerSep = Math.Max(10, value); }
+        public double LayerSeparation { get => yLayerSep; set => yLayerSep = Math.Max(10, value);
         }
 
-       
+
         /// <summary>
         /// adds a constraint to keep one node to the left of another on the same layer
         /// </summary>
         /// <param name="leftNode"></param>
         /// <param name="rightNode"></param>
-        public void AddLeftRightConstraint(Node leftNode, Node rightNode) {
-            HorizontalConstraints.LeftRightConstraints.Insert(new Tuple<Node, Node>(leftNode, rightNode));
-        }
+        public void AddLeftRightConstraint(Node leftNode, Node rightNode) => HorizontalConstraints.LeftRightConstraints.Insert(new Tuple<Node, Node>(leftNode, rightNode));
 
         /// <summary>
         /// removes a left-right constraint from
         /// </summary>
         /// <param name="leftNode"></param>
         /// <param name="rightNode"></param>
-        public void RemoveLeftRightConstraint(Node leftNode, Node rightNode) {
-            HorizontalConstraints.LeftRightConstraints.Remove(new Tuple<Node, Node>(leftNode, rightNode));
-        }
+        public void RemoveLeftRightConstraint(Node leftNode, Node rightNode) => HorizontalConstraints.LeftRightConstraints.Remove(new Tuple<Node, Node>(leftNode, rightNode));
 
         readonly VerticalConstraintsForSugiyama verticalConstraints = new VerticalConstraintsForSugiyama();
 
         /// <summary>
         /// minLayer, maxLayer, same layer, up-down, up-down vertical and left-right constraints are supported by this class
         /// </summary>
-        internal VerticalConstraintsForSugiyama VerticalConstraints {
-            get { return verticalConstraints; }
-        }
+        internal VerticalConstraintsForSugiyama VerticalConstraints => verticalConstraints;
 
         readonly HorizontalConstraintsForSugiyama horizontalConstraints = new HorizontalConstraintsForSugiyama();
 
-        internal HorizontalConstraintsForSugiyama HorizontalConstraints {
-            get { return horizontalConstraints; }
-        }
+        internal HorizontalConstraintsForSugiyama HorizontalConstraints => horizontalConstraints;
 
 
         /// <summary>
@@ -80,7 +71,6 @@ namespace Microsoft.AGL.Layout.Layered {
         /// <summary>
         /// Pins the nodes of the list to the min layer and 
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1702:CompoundWordsShouldBeCasedCorrectly", MessageId = "ToMin")]
         public void PinNodesToMinLayer(params Node[] nodes) {
             ValidateArg.IsNotNull(nodes, "nodes");
             for (int i = 0; i < nodes.Length; i++)
@@ -101,16 +91,14 @@ namespace Microsoft.AGL.Layout.Layered {
         /// these nodes belong to the same layer and are adjacent positioned from left to right
         /// </summary>
         /// <param name="neighbors"></param>
-        public void AddSameLayerNeighbors(params Node[] neighbors) {
-            AddSameLayerNeighbors(new List<Node>(neighbors));
-        }
+        public void AddSameLayerNeighbors(params Node[] neighbors) => AddSameLayerNeighbors(new List<Node>(neighbors));
 
         /// <summary>
         /// these nodes belong to the same layer and are adjacent positioned from left to right
         /// </summary>
         /// <param name="neighbors"></param>
         public void AddSameLayerNeighbors(IEnumerable<Node> neighbors) {
-            var neibs = new List<Node>(neighbors);
+            List<Node> neibs = new List<Node>(neighbors);
             HorizontalConstraints.AddSameLayerNeighbors(neibs);
             for (int i = 0; i < neibs.Count - 1; i++)
                 VerticalConstraints.SameLayerConstraints.Insert(new Tuple<Node, Node>(neibs[i], neibs[i + 1]));
@@ -140,9 +128,7 @@ namespace Microsoft.AGL.Layout.Layered {
         /// </summary>
         /// <param name="upperNode"></param>
         /// <param name="lowerNode"></param>
-        public void AddUpDownConstraint(Node upperNode, Node lowerNode) {
-            VerticalConstraints.UpDownConstraints.Insert(new Tuple<Node, Node>(upperNode, lowerNode));
-        }
+        public void AddUpDownConstraint(Node upperNode, Node lowerNode) => VerticalConstraints.UpDownConstraints.Insert(new Tuple<Node, Node>(upperNode, lowerNode));
 
         /// <summary>
         /// adds a constraint where the top node center is positioned exactly above the lower node center
@@ -182,9 +168,7 @@ namespace Microsoft.AGL.Layout.Layered {
             )]
         [DefaultValue(1)]
 #endif
-            public int RepetitionCoefficientForOrdering {
-            get { return repetitionCoefficentForOrdering; }
-            set { repetitionCoefficentForOrdering = Math.Max(value, 1); }
+            public int RepetitionCoefficientForOrdering { get => repetitionCoefficentForOrdering; set => repetitionCoefficentForOrdering = Math.Max(value, 1);
         }
 
         int randomSeedForOrdering = 1;
@@ -198,9 +182,7 @@ namespace Microsoft.AGL.Layout.Layered {
         [Description("The seed for the random element inside of the ordering")]
         [DefaultValue(1)]
 #endif
-            public int RandomSeedForOrdering {
-            get { return randomSeedForOrdering; }
-            set { randomSeedForOrdering = value; }
+            public int RandomSeedForOrdering { get => randomSeedForOrdering; set => randomSeedForOrdering = value;
         }
 
         int noGainStepsBound = 5;
@@ -213,9 +195,7 @@ namespace Microsoft.AGL.Layout.Layered {
         [Description("Maximal number of sequential steps without gain in the adjacent swap process")]
         [DefaultValue(5)]
 #endif
-            public int NoGainAdjacentSwapStepsBound {
-            get { return noGainStepsBound; }
-            set { noGainStepsBound = value; }
+            public int NoGainAdjacentSwapStepsBound { get => noGainStepsBound; set => noGainStepsBound = value;
         }
 
         int maxNumberOfPassesInOrdering = 24;
@@ -229,9 +209,7 @@ namespace Microsoft.AGL.Layout.Layered {
         [Description("Maximal number of passes over layers applying the median algorithm in ordering")]
         [DefaultValue(24)]
 #endif
-            public int MaxNumberOfPassesInOrdering {
-            get { return maxNumberOfPassesInOrdering; }
-            set { maxNumberOfPassesInOrdering = value; }
+            public int MaxNumberOfPassesInOrdering { get => maxNumberOfPassesInOrdering; set => maxNumberOfPassesInOrdering = value;
         }
 
 
@@ -244,9 +222,7 @@ namespace Microsoft.AGL.Layout.Layered {
         [Description("The ratio of the group splitting algorithm used in the spatial hierarchy constructions")]
         [DefaultValue(2)]
 #endif
-            public int GroupSplit {
-            get { return groupSplit; }
-            set { groupSplit = value; }
+            public int GroupSplit { get => groupSplit; set => groupSplit = value;
         }
 
         double labelCornersPreserveCoefficient = 0.1;
@@ -261,9 +237,7 @@ namespace Microsoft.AGL.Layout.Layered {
             "0 - allowing a deeper crossing resulting in a smoother edge")]
         [DefaultValue(0.1)]
 #endif
-            public double LabelCornersPreserveCoefficient {
-            get { return labelCornersPreserveCoefficient; }
-            set { labelCornersPreserveCoefficient = value; }
+            public double LabelCornersPreserveCoefficient { get => labelCornersPreserveCoefficient; set => labelCornersPreserveCoefficient = value;
         }
 
         int brandesThreshold = 600;
@@ -280,20 +254,14 @@ namespace Microsoft.AGL.Layout.Layered {
             )]
         [DefaultValue(600)]
 #endif
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming",
-            "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Brandes")]
-        public int BrandesThreshold {
-            get { return brandesThreshold; }
-            set { brandesThreshold = value; }
+        public int BrandesThreshold { get => brandesThreshold; set => brandesThreshold = value;
         }
 
 
         /// <summary>
         /// Constructor
         /// </summary>
-        public SugiyamaLayoutSettings() {
-            this.EdgeRoutingSettings.EdgeRoutingMode = EdgeRoutingMode.SugiyamaSplines;
-        }
+        public SugiyamaLayoutSettings() => EdgeRoutingSettings.EdgeRoutingMode = EdgeRoutingMode.SugiyamaSplines;
 
         /// <summary>
         /// The only function one needs to call to calculate the layout.
@@ -301,12 +269,8 @@ namespace Microsoft.AGL.Layout.Layered {
         /// <param name="msaglGraph">The layout info will be inserted in to the corresponding fields of the graph</param>
         /// <param name="settings">The settings for the algorithm.</param>
         /// <param name="cancelToken"></param>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability",
-            "CA2000:Dispose objects before losing scope"),
-         SuppressMessage("Microsoft.Globalization", "CA1305:SpecifyIFormatProvider",
-             MessageId = "System.String.Format(System.String,System.Object)")]
         internal static LayeredLayoutEngine CalculateLayout(GeometryGraph msaglGraph, SugiyamaLayoutSettings settings, CancelToken cancelToken) {
-            var engine = new LayeredLayoutEngine(msaglGraph, settings);
+            LayeredLayoutEngine engine = new LayeredLayoutEngine(msaglGraph, settings);
 #if USE_PHYLOTREE
            PhyloTree phyloTree = msaglGraph as PhyloTree;
             if (phyloTree != null) {
@@ -322,9 +286,7 @@ namespace Microsoft.AGL.Layout.Layered {
         /// Clones the object
         /// </summary>
         /// <returns></returns>
-        public override LayoutAlgorithmSettings Clone() {
-            return MemberwiseClone() as LayoutAlgorithmSettings;
-        }
+        public override LayoutAlgorithmSettings Clone() => MemberwiseClone() as LayoutAlgorithmSettings;
 
 
         double minimalWidth;
@@ -332,9 +294,7 @@ namespace Microsoft.AGL.Layout.Layered {
         /// <summary>
         /// The resulting layout should be not more narrow than this value. 
         /// </summary>
-        public double MinimalWidth {
-            get { return minimalWidth; }
-            set { minimalWidth = Math.Max(value, 0); }
+        public double MinimalWidth { get => minimalWidth; set => minimalWidth = Math.Max(value, 0);
         }
 
         double minimalHeight;
@@ -342,9 +302,7 @@ namespace Microsoft.AGL.Layout.Layered {
         /// <summary>
         /// The resulting layout should at least as high as this this value
         /// </summary>
-        public double MinimalHeight {
-            get { return minimalHeight; }
-            set { minimalHeight = Math.Max(value, 0); }
+        public double MinimalHeight { get => minimalHeight; set => minimalHeight = Math.Max(value, 0);
         }
 
         double minNodeHeight = 72*0.5/4;
@@ -354,18 +312,14 @@ namespace Microsoft.AGL.Layout.Layered {
         /// <summary>
         /// The minimal node height
         /// </summary>
-        public double MinNodeHeight {
-            get { return minNodeHeight; }
-            set { minNodeHeight = Math.Max(0.4, value); }
+        public double MinNodeHeight { get => minNodeHeight; set => minNodeHeight = Math.Max(0.4, value);
         }
 
 
         /// <summary>
         /// The minimal node width
         /// </summary>
-        public double MinNodeWidth {
-            get { return minNodeWidth; }
-            set { minNodeWidth = Math.Max(0.8, value); }
+        public double MinNodeWidth { get => minNodeWidth; set => minNodeWidth = Math.Max(0.8, value);
         }
 
         PlaneTransformation transformation = PlaneTransformation.UnitTransformation;
@@ -374,9 +328,7 @@ namespace Microsoft.AGL.Layout.Layered {
         /// This transformation is to be applied to the standard top - bottom layout.
         /// However, node boundaries remain unchanged.
         /// </summary>
-        public PlaneTransformation Transformation {
-            get { return transformation; }
-            set { transformation = value; }
+        public PlaneTransformation Transformation { get => transformation; set => transformation = value;
         }
 
         double aspectRatio;
@@ -385,16 +337,12 @@ namespace Microsoft.AGL.Layout.Layered {
         /// The ratio width/height of the final layout. 
         /// The value zero means that the aspect ratio has not been set.
         /// </summary>
-        public double AspectRatio {
-            get { return aspectRatio; }
-            set { aspectRatio = value; }
+        public double AspectRatio { get => aspectRatio; set => aspectRatio = value;
         }
 
-        internal double ActualLayerSeparation(bool layersAreDoubled) {
-            return layersAreDoubled ? LayerSeparation/2.0 : LayerSeparation;
-        }
+        internal double ActualLayerSeparation(bool layersAreDoubled) => layersAreDoubled ? LayerSeparation / 2.0 : LayerSeparation;
 
-        
+
         double maxAspectRatioEccentricity = 5;
 
         /// <summary>
@@ -403,9 +351,7 @@ namespace Microsoft.AGL.Layout.Layered {
         /// before switching to FallbackLayoutSettings
         /// </summary>
         public double MaxAspectRatioEccentricity
-        {
-            get { return maxAspectRatioEccentricity; }
-            set { maxAspectRatioEccentricity = value; }
+        { get => maxAspectRatioEccentricity; set => maxAspectRatioEccentricity = value;
         }
 
         /// <summary>
@@ -416,25 +362,19 @@ namespace Microsoft.AGL.Layout.Layered {
         SnapToGridByY snapToGridByY = SnapToGridByY.None;
         
         public SnapToGridByY SnapToGridByY
-        {
-            get { return snapToGridByY; }
-            set { snapToGridByY = value; }
+        { get => snapToGridByY; set => snapToGridByY = value;
         }
 
         double gridSizeByY = 0;
 
         public double GridSizeByY
-        {
-            get { return gridSizeByY; }
-            set { gridSizeByY = value; }
+        { get => gridSizeByY; set => gridSizeByY = value;
         }
 
         double gridSizeByX = 0;
 
         public double GridSizeByX
-        {
-            get { return gridSizeByX; }
-            set { gridSizeByX = value; }
+        { get => gridSizeByX; set => gridSizeByX = value;
         }
 
     }

@@ -1,4 +1,4 @@
-using MermaidRecognition.Layout.Sugiyama.Core.DataStructures;
+using MermaidRecognition.Layout.Sugiyama.Core.DataStructures.RBTree;
 
 namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangulation {
     internal class CdtFront  {

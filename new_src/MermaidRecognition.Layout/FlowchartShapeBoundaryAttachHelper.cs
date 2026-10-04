@@ -99,18 +99,12 @@ public static class FlowchartShapeBoundaryAttachHelper
     public static bool AreSpineColumnAligned(
         FlowchartLayoutNodeBounds SourceBounds,
         FlowchartLayoutNodeBounds TargetBounds,
-        double TolerancePx = 30.0)
-    {
-        return Math.Abs(SourceBounds.CenterX - TargetBounds.CenterX) <= TolerancePx;
-    }
+        double TolerancePx = 30.0) => Math.Abs(SourceBounds.CenterX - TargetBounds.CenterX) <= TolerancePx;
 
     /// <summary>
     /// Returns true when the source is vertically above the target in TB layout space.
     /// </summary>
     public static bool IsSourceAboveTarget(
         FlowchartLayoutNodeBounds SourceBounds,
-        FlowchartLayoutNodeBounds TargetBounds)
-    {
-        return SourceBounds.CenterY > TargetBounds.CenterY + COLLINEAR_EPSILON_PX;
-    }
+        FlowchartLayoutNodeBounds TargetBounds) => SourceBounds.CenterY > TargetBounds.CenterY + COLLINEAR_EPSILON_PX;
 }

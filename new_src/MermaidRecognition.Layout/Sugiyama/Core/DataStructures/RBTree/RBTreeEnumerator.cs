@@ -1,17 +1,14 @@
 using System;
 using System.Collections.Generic;
 
-namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
+namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures.RBTree
+{
     internal class RBTreeEnumerator<T> : IEnumerator<T> {
         bool initialState;
         RbTree<T> tree;
         RBNode<T> c;
-        public T Current {
-            get { return c.Item; }
-        }
-        public void Reset() {
-            initialState = true;
-        }
+        public T Current => c.Item;
+        public void Reset() => initialState = true;
 
         public bool MoveNext() {
             if (tree.IsEmpty())
@@ -34,17 +31,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
 
         #region IDisposable Members
 
-        public void Dispose() {
-            GC.SuppressFinalize(this);
-        }
+        public void Dispose() => GC.SuppressFinalize(this);
 
         #endregion
 
         #region IEnumerator Members
 
-        object System.Collections.IEnumerator.Current {
-            get { return c.Item; }
-        }
+        object System.Collections.IEnumerator.Current => c.Item;
 
         #endregion
     }

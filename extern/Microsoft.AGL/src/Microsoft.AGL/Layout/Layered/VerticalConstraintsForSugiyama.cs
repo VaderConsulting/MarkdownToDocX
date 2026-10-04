@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.AGL.Core.DataStructures;
 using Microsoft.AGL.Core.GraphAlgorithms;
+using Microsoft.AGL.Core.GraphAlgorithms.CycleRemoval;
 using Microsoft.AGL.Core.Layout;
 
 namespace Microsoft.AGL.Layout.Layered {
@@ -10,60 +11,41 @@ namespace Microsoft.AGL.Layout.Layered {
     /// vertical constraints for Suquiyama scheme
     /// </summary>
     internal class VerticalConstraintsForSugiyama {
-        readonly Set<Node> _maxLayerOfGeomGraph = new Set<Node>();
+        readonly Set<Node> _maxLayerOfGeomGraph = [];
         /// <summary>
         /// nodes that are pinned to the max layer
         /// </summary>
-        internal Set<Node> MaxLayerOfGeomGraph {
-            get { return _maxLayerOfGeomGraph; }
-        }
+        internal Set<Node> MaxLayerOfGeomGraph => _maxLayerOfGeomGraph;
 
-        readonly Set<Node> _minLayerOfGeomGraph = new Set<Node>();
+        readonly Set<Node> _minLayerOfGeomGraph = [];
         /// <summary>
         /// nodes that are pinned to the min layer
         /// </summary>
-        internal Set<Node> MinLayerOfGeomGraph
-        {
-            get { return _minLayerOfGeomGraph; }
-        }
+        internal Set<Node> MinLayerOfGeomGraph => _minLayerOfGeomGraph;
 
-        Set<Tuple<Node, Node>> sameLayerConstraints = new Set<Tuple<Node, Node>>();
+        Set<Tuple<Node, Node>> sameLayerConstraints = [];
+
         /// <summary>
         /// set of couple of nodes belonging to the same layer
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures")]
-        internal Set<Tuple<Node, Node>> SameLayerConstraints
-        {
-            get { return sameLayerConstraints; }
-        }
-        Set<Tuple<Node, Node>> upDownConstraints = new Set<Tuple<Node, Node>>();
+        internal Set<Tuple<Node, Node>> SameLayerConstraints => sameLayerConstraints;
+        Set<Tuple<Node, Node>> upDownConstraints = [];
 
         /// <summary>
         /// set of node couples such that the first node of the couple is above the second one
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures")]
-        internal Set<Tuple<Node, Node>> UpDownConstraints
-        {
-            get { return upDownConstraints; }
-        }
+        internal Set<Tuple<Node, Node>> UpDownConstraints => upDownConstraints;
         /// <summary>
         /// pins a node to max layer
         /// </summary>
         /// <param name="node"></param>
-        internal void PinNodeToMaxLayer(Node node)
-        {
-            MaxLayerOfGeomGraph.Insert(node);
-        }
+        internal void PinNodeToMaxLayer(Node node) => MaxLayerOfGeomGraph.Insert(node);
 
         /// <summary>
         /// unpins a node from max layer
         /// </summary>
         /// <param name="node"></param>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
-        internal void UnpinNodeFromMaxLayer(Node node)
-        {
-            MaxLayerOfGeomGraph.Remove(node);
-        }
+        internal void UnpinNodeFromMaxLayer(Node node) => MaxLayerOfGeomGraph.Remove(node);
 
         /// <summary>
         /// pins a node to min layer
@@ -79,31 +61,23 @@ namespace Microsoft.AGL.Layout.Layered {
         /// unpins a node from min layer
         /// </summary>
         /// <param name="node"></param>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
-        internal void UnpinNodeFromMinLayer(Node node)
-        {
-            MinLayerOfGeomGraph.Remove(node);
-        }
+        internal void UnpinNodeFromMinLayer(Node node) => MinLayerOfGeomGraph.Remove(node);
 
-        internal bool IsEmpty {
-            get { return MaxLayerOfGeomGraph.Count == 0 && MinLayerOfGeomGraph.Count == 0 && SameLayerConstraints.Count == 0 && this.UpDownConstraints.Count == 0; }
-        }
+        internal bool IsEmpty => MaxLayerOfGeomGraph.Count == 0 && MinLayerOfGeomGraph.Count == 0 && SameLayerConstraints.Count == 0 && UpDownConstraints.Count == 0;
 
 
-      
-        
+
+
 
         internal void Clear() {
-            this.MaxLayerOfGeomGraph.Clear(); 
-            this.MinLayerOfGeomGraph.Clear();
-            this.SameLayerConstraints.Clear();
-            this.UpDownConstraints.Clear();
+            MaxLayerOfGeomGraph.Clear(); 
+            MinLayerOfGeomGraph.Clear();
+            SameLayerConstraints.Clear();
+            UpDownConstraints.Clear();
         }
-        Set<IntPair> gluedUpDownIntConstraints = new Set<IntPair>();
+        Set<IntPair> gluedUpDownIntConstraints = [];
 
-        internal Set<IntPair> GluedUpDownIntConstraints {
-            get { return gluedUpDownIntConstraints; }
-            set { gluedUpDownIntConstraints = value; }
+        internal Set<IntPair> GluedUpDownIntConstraints { get => gluedUpDownIntConstraints; set => gluedUpDownIntConstraints = value;
         }
         Dictionary<Node, int> nodeIdToIndex;
         BasicGraph<Node, IntEdge> intGraph;
@@ -116,13 +90,13 @@ namespace Microsoft.AGL.Layout.Layered {
         /// <summary>
         /// Maps each node participating in same layer relation its representative on the layer.
         /// </summary>
-        Dictionary<int, int> sameLayerDictionaryOfRepresentatives = new Dictionary<int, int>();
-        Dictionary<int, IEnumerable<int>> representativeToItsLayer = new Dictionary<int, IEnumerable<int>>();
+        Dictionary<int, int> sameLayerDictionaryOfRepresentatives = [];
+        Dictionary<int, IEnumerable<int>> representativeToItsLayer = [];
         internal IEnumerable<IEdge> GetFeedbackSet(BasicGraph<Node, IntEdge> intGraphPar, Dictionary<Node, int> nodeIdToIndexPar) {
-            this.nodeIdToIndex = nodeIdToIndexPar;
-            this.intGraph = intGraphPar;
-            this.maxRepresentative = -1;
-            this.minRepresentative = -1;
+            nodeIdToIndex = nodeIdToIndexPar;
+            intGraph = intGraphPar;
+            maxRepresentative = -1;
+            minRepresentative = -1;
             CreateIntegerConstraints();
             GlueTogetherSameConstraintsMaxAndMin();
             AddMaxMinConstraintsToGluedConstraints();
@@ -131,23 +105,23 @@ namespace Microsoft.AGL.Layout.Layered {
         }
 
         private void RemoveCyclesFromGluedConstraints() {
-            var feedbackSet= CycleRemoval<IntPair>.
-                GetFeedbackSetWithConstraints(new BasicGraph<IntPair>(GluedUpDownIntConstraints, this.intGraph.NodeCount), null);
+            IEnumerable<IEdge> feedbackSet = CycleRemoval<IntPair>.
+                GetFeedbackSetWithConstraints(new BasicGraph<IntPair>(GluedUpDownIntConstraints, intGraph.NodeCount), null);
             //feedbackSet contains all glued constraints making constraints cyclic
             foreach (IntPair p in feedbackSet)
                 GluedUpDownIntConstraints.Remove(p);
         }
 
         private void AddMaxMinConstraintsToGluedConstraints() {
-            if (this.maxRepresentative != -1)
-                for (int i = 0; i < this.intGraph.NodeCount; i++) {
+            if (maxRepresentative != -1)
+                for (int i = 0; i < intGraph.NodeCount; i++) {
                     int j = NodeToRepr(i);
                     if (j != maxRepresentative)
                         GluedUpDownIntConstraints.Insert(new IntPair(maxRepresentative, j));
                 }
 
-            if (this.minRepresentative != -1)
-                for (int i = 0; i < this.intGraph.NodeCount; i++) {
+            if (minRepresentative != -1)
+                for (int i = 0; i < intGraph.NodeCount; i++) {
                     int j = NodeToRepr(i);
                     if (j != minRepresentative)
                         GluedUpDownIntConstraints.Insert(new IntPair(j, minRepresentative));
@@ -159,48 +133,41 @@ namespace Microsoft.AGL.Layout.Layered {
             GluedUpDownIntConstraints = new Set<IntPair>(from p in UpDownInts select GluedIntPair(p));
         }
 
-        internal IntPair GluedIntPair(Tuple<int, int> p) {
-            return new IntPair(NodeToRepr(p.Item1), NodeToRepr(p.Item2));
-        }
-     
-        private IntPair GluedIntPair(IntEdge p) {
-            return new IntPair(NodeToRepr(p.Source), NodeToRepr(p.Target));
-        }
+        internal IntPair GluedIntPair(Tuple<int, int> p) => new IntPair(NodeToRepr(p.Item1), NodeToRepr(p.Item2));
 
-        internal IntPair GluedIntPair(IntPair p) {
-            return new IntPair(NodeToRepr(p.First), NodeToRepr(p.Second));
-        }
+        private IntPair GluedIntPair(IntEdge p) => new IntPair(NodeToRepr(p.Source), NodeToRepr(p.Target));
+
+        internal IntPair GluedIntPair(IntPair p) => new IntPair(NodeToRepr(p.First), NodeToRepr(p.Second));
 
         internal IntEdge GluedIntEdge(IntEdge intEdge) {
             int sourceRepr = NodeToRepr(intEdge.Source);
             int targetRepr = NodeToRepr(intEdge.Target);
-            IntEdge ie = new IntEdge(sourceRepr, targetRepr);
-            ie.Separation = intEdge.Separation;
-            ie.Weight = 0;
-            ie.Edge = intEdge.Edge;
+            IntEdge ie = new IntEdge(sourceRepr, targetRepr)
+            {
+                Separation = intEdge.Separation,
+                Weight = 0,
+                Edge = intEdge.Edge
+            };
             return ie;
         }
         
 
         internal int NodeToRepr(int node) {
-            int repr;
-            if (this.sameLayerDictionaryOfRepresentatives.TryGetValue(node, out repr))
+            if (sameLayerDictionaryOfRepresentatives.TryGetValue(node, out int repr))
                 return repr;
             return node;
         }
 
         private void CreateDictionaryOfSameLayerRepresentatives() {
             BasicGraph<IntPair> graphOfSameLayers = CreateGraphOfSameLayers();
-            foreach (var comp in ConnectedComponentCalculator<IntPair>.GetComponents(graphOfSameLayers))
+            foreach (IEnumerable<int> comp in ConnectedComponentCalculator<IntPair>.GetComponents(graphOfSameLayers))
                 GlueSameLayerNodesOfALayer(comp);
         }
 
-        private BasicGraph<IntPair> CreateGraphOfSameLayers() {
-            return new BasicGraph<IntPair>(CreateEdgesOfSameLayers(), this.intGraph.NodeCount);
-        }
+        private BasicGraph<IntPair> CreateGraphOfSameLayers() => new BasicGraph<IntPair>(CreateEdgesOfSameLayers(), intGraph.NodeCount);
 
         private IEnumerable<IntPair> CreateEdgesOfSameLayers() {
-            List<IntPair> ret = new List<IntPair>();
+            List<IntPair> ret = [];
             if (maxRepresentative != -1)
                 ret.AddRange(from v in maxLayerInt where v != maxRepresentative select new IntPair(maxRepresentative, v));
             if (minRepresentative != -1)
@@ -217,7 +184,7 @@ namespace Microsoft.AGL.Layout.Layered {
                 int representative = -1;
                 if (ComponentsIsMaxLayer(sameLayerNodes))
                     foreach (int v in sameLayerNodes)
-                        this.sameLayerDictionaryOfRepresentatives[v] = representative = maxRepresentative;
+                        sameLayerDictionaryOfRepresentatives[v] = representative = maxRepresentative;
                 else if (ComponentIsMinLayer(sameLayerNodes))
                     foreach (int v in sameLayerNodes)
                         sameLayerDictionaryOfRepresentatives[v] = representative = minRepresentative;
@@ -228,34 +195,26 @@ namespace Microsoft.AGL.Layout.Layered {
                         sameLayerDictionaryOfRepresentatives[v] = representative;
                     }
                 }
-                this.representativeToItsLayer[representative] = sameLayerNodes;
+                representativeToItsLayer[representative] = sameLayerNodes;
             }
         }
 
-        private bool ComponentIsMinLayer(IEnumerable<int> component) {
-            return component.Contains<int>(this.minRepresentative);
-        }
+        private bool ComponentIsMinLayer(IEnumerable<int> component) => component.Contains<int>(minRepresentative);
 
-        private bool ComponentsIsMaxLayer(IEnumerable<int> component) {
-            return component.Contains<int>(this.maxRepresentative);
-        }
+        private bool ComponentsIsMaxLayer(IEnumerable<int> component) => component.Contains<int>(maxRepresentative);
 
-        List<int> maxLayerInt = new List<int>();
-        List<int> minLayerInt = new List<int>();
-        List<Tuple<int, int>> sameLayerInts = new List<Tuple<int, int>>();
+        List<int> maxLayerInt = [];
+        List<int> minLayerInt = [];
+        List<Tuple<int, int>> sameLayerInts = [];
 
         /// <summary>
         /// contains also pinned max and min pairs
         /// </summary>
-        internal List<Tuple<int, int>> SameLayerInts {
-            get { return sameLayerInts; }
-            set { sameLayerInts = value; }
+        internal List<Tuple<int, int>> SameLayerInts { get => sameLayerInts; set => sameLayerInts = value;
         }
-        List<Tuple<int, int>> upDownInts = new List<Tuple<int, int>>();
+        List<Tuple<int, int>> upDownInts = [];
 
-        internal List<Tuple<int, int>> UpDownInts {
-            get { return upDownInts; }
-            set { upDownInts = value; }
+        internal List<Tuple<int, int>> UpDownInts { get => upDownInts; set => upDownInts = value;
         }
 
         private void CreateIntegerConstraints() {
@@ -265,46 +224,36 @@ namespace Microsoft.AGL.Layout.Layered {
             CreateSameLayerConstraints();
         }
 
-        private void CreateSameLayerConstraints() {
-            this.SameLayerInts = CreateIntConstraintsFromStringCouples(this.SameLayerConstraints);
-        }
+        private void CreateSameLayerConstraints() => SameLayerInts = CreateIntConstraintsFromStringCouples(SameLayerConstraints);
 
-        private void CreateUpDownConstraints() {
-            this.UpDownInts = CreateIntConstraintsFromStringCouples(this.UpDownConstraints);
-        }
+        private void CreateUpDownConstraints() => UpDownInts = CreateIntConstraintsFromStringCouples(UpDownConstraints);
 
-        private List<Tuple<int, int>> CreateIntConstraintsFromStringCouples(Set<Tuple<Node, Node>> set)
-        {
-            return new List<Tuple<int, int>>(from couple in set
-                                              let t = new Tuple<int, int>(NodeIndex(couple.Item1), NodeIndex(couple.Item2))
-                                              where t.Item1 != -1 && t.Item2 != -1
-                                              select t);
-        }
+        private List<Tuple<int, int>> CreateIntConstraintsFromStringCouples(Set<Tuple<Node, Node>> set) => new List<Tuple<int, int>>(from couple in set
+                                                                                                                                     let t = new Tuple<int, int>(NodeIndex(couple.Item1), NodeIndex(couple.Item2))
+                                                                                                                                     where t.Item1 != -1 && t.Item2 != -1
+                                                                                                                                     select t);
 
         private void CreateMinIntConstraints() {
-            this.minLayerInt = CreateIntConstraintsFromExtremeLayer(this.MinLayerOfGeomGraph);
+            minLayerInt = CreateIntConstraintsFromExtremeLayer(MinLayerOfGeomGraph);
             if (minLayerInt.Count > 0)
-                this.minRepresentative = minLayerInt[0];
+                minRepresentative = minLayerInt[0];
         }
 
         private void CreateMaxIntConstraints() {
-            this.maxLayerInt = CreateIntConstraintsFromExtremeLayer(this.MaxLayerOfGeomGraph);
+            maxLayerInt = CreateIntConstraintsFromExtremeLayer(MaxLayerOfGeomGraph);
             if (maxLayerInt.Count > 0)
-                this.maxRepresentative = maxLayerInt[0];
+                maxRepresentative = maxLayerInt[0];
         }
 
-        private List<int> CreateIntConstraintsFromExtremeLayer(Set<Node> setOfNodes) {
-            return new List<int>(from node in setOfNodes let index = NodeIndex(node) where index != -1 select index);   
-        }
+        private List<int> CreateIntConstraintsFromExtremeLayer(Set<Node> setOfNodes) => new List<int>(from node in setOfNodes let index = NodeIndex(node) where index != -1 select index);
         int NodeIndex(Node node) {
-            int index;
-            if (this.nodeIdToIndex.TryGetValue(node, out index))
+            if (nodeIdToIndex.TryGetValue(node, out int index))
                 return index;
             return -1;
         }
         private IEnumerable<IEdge> GetFeedbackSet() {
-            this.gluedIntGraph = CreateGluedGraph();
-            return UnglueIntPairs(CycleRemoval<IntPair>.GetFeedbackSetWithConstraints(gluedIntGraph, this.GluedUpDownIntConstraints));//avoiding lazy evaluation
+            gluedIntGraph = CreateGluedGraph();
+            return UnglueIntPairs(CycleRemoval<IntPair>.GetFeedbackSetWithConstraints(gluedIntGraph, GluedUpDownIntConstraints));//avoiding lazy evaluation
         }
 
         private IEnumerable<IEdge> UnglueIntPairs(IEnumerable<IEdge> gluedEdges) {
@@ -321,21 +270,18 @@ namespace Microsoft.AGL.Layout.Layered {
                         yield return edge;
         }
 
-        private BasicGraph<IntPair> CreateGluedGraph() {
-            return new BasicGraph<IntPair>(new Set<IntPair>(from edge in this.intGraph.Edges select GluedIntPair(edge)), this.intGraph.NodeCount);
-        }
+        private BasicGraph<IntPair> CreateGluedGraph() => new BasicGraph<IntPair>(new Set<IntPair>(from edge in intGraph.Edges select GluedIntPair(edge)), intGraph.NodeCount);
 
 
         IEnumerable<int> UnglueNode(int node) {
-            IEnumerable<int> layer;
-            if (this.representativeToItsLayer.TryGetValue(node, out layer))
+            if (representativeToItsLayer.TryGetValue(node, out IEnumerable<int> layer))
                 return layer;
             return new int[] { node };
         }
 
 
         internal int[] GetGluedNodeCounts() {
-            int[] ret = new int[this.nodeIdToIndex.Count];
+            int[] ret = new int[nodeIdToIndex.Count];
             for (int node = 0; node < ret.Length; node++)
                 ret[NodeToRepr(node)]++;
             return ret;

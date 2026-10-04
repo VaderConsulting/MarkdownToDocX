@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
+
 using MermaidRecognition.Layout.Sugiyama.Core.DataStructures;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves;
 
@@ -17,9 +18,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry{
         /// shows min and max coordinates of corners
         /// </summary>
         /// <returns>string leftbottom, righttop</returns>
-        public override string ToString(){
-            return "(" + LeftBottom + " " + RightTop + ")";
-        }
+        public override string ToString() => "(" + LeftBottom + " " + RightTop + ")";
 
         double left;
         double right;
@@ -31,9 +30,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry{
         /// </summary>
         /// <param name="rectangle"></param>
         /// <returns></returns>
-        public bool Intersects(Rectangle rectangle){
-            return IntersectsOnX(rectangle) && IntersectsOnY(rectangle);
-        }
+        public bool Intersects(Rectangle rectangle) => IntersectsOnX(rectangle) && IntersectsOnY(rectangle);
 
         /// <summary>
         /// intersection (possibly empty) of rectangles
@@ -58,9 +55,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry{
         /// <summary>
         /// the center of the bounding box
         /// </summary>
-        public Point Center{
-            get { return 0.5*(LeftTop + RightBottom); }
-            set{
+        public Point Center
+        {
+            get => 0.5 * (LeftTop + RightBottom);
+            set
+            {
                 Point shift = value - Center;
                 LeftTop += shift;
                 RightBottom += shift;
@@ -107,79 +106,62 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry{
         /// </summary>
         /// <param name="rec"></param>
         /// <returns></returns>
-        public bool Equals(Rectangle rec) {
-            return rec.Left == Left && rec.Right == Right && rec.Top == Top && rec.Bottom == Bottom;
-
-        }
+        public bool Equals(Rectangle rec) => rec.Left == Left && rec.Right == Right && rec.Top == Top && rec.Bottom == Bottom;
 
         /// <summary>
         /// 
         /// </summary>
         /// <returns></returns>
-        public override int GetHashCode(){
-            return base.GetHashCode();
-        }
+        public override int GetHashCode() => base.GetHashCode();
 
         /// <summary>
         /// creates an empty rectangle
         /// </summary>
         /// <returns></returns>
-        public static Rectangle CreateAnEmptyBox(){
-            return new Rectangle(0, 0, new Point(-1, -1));
-        }
+        public static Rectangle CreateAnEmptyBox() => new Rectangle(0, 0, new Point(-1, -1));
 
         /// <summary>
         /// the left of the rectangle
         /// </summary>
-        public double Left{
-            get { return left; }
-            set { left = value; }
+        public double Left { get => left; set => left = value;
         }
 
         /// <summary>
         /// the right of the rectangle
         /// </summary>
-        public double Right{
-            get { return right; }
-            set { right = value; }
+        public double Right { get => right; set => right = value;
         }
 
         /// <summary>
         /// the top of the rectangle
         /// </summary>
-        public double Top{
-            get { return top; }
-            set { top = value; }
+        public double Top { get => top; set => top = value;
         }
 
         /// <summary>
         /// the bottom of the rectangle
         /// </summary>
-        public double Bottom{
-            get { return bottom; }
-            set { bottom = value; }
+        public double Bottom { get => bottom; set => bottom = value;
         }
 
         /// <summary>
         /// the left bottom corner
         /// </summary>
-        public Point LeftBottom{
-            get { return new Point(Left, Bottom); }
-        }
+        public Point LeftBottom => new Point(Left, Bottom);
 
         /// <summary>
         /// the right top corner
         /// </summary>
-        public Point RightTop{
-            get { return new Point(Right, Top); }
-        }
+        public Point RightTop => new Point(Right, Top);
 
         /// <summary>
         /// the left top corner
         /// </summary>
-        public Point LeftTop{
-            get { return new Point(left, top); }
-            set{
+        public Point LeftTop
+        {
+            get => new Point(left, top);
+            set
+            {
                 left = value.X;
                 top = value.Y;
             }
@@ -188,9 +170,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry{
         /// <summary>
         /// the right bottom corner
         /// </summary>
-        public Point RightBottom{
-            get { return new Point(right, bottom); }
-            set{
+        public Point RightBottom
+        {
+            get => new Point(right, bottom);
+            set
+            {
                 right = value.X;
                 Bottom = value.Y;
             }
@@ -237,8 +221,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry{
         /// <param name="y0"></param>
         /// <param name="x1"></param>
         /// <param name="y1"></param>
-        [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "y"),
-         SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "x")]
         public Rectangle(double x0, double y0, double x1, double y1){
             left = right = x0;
             top = bottom = y0;
@@ -252,7 +234,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry{
             : this(0, 0, new Point(-1, -1))
         {
             ValidateArg.IsNotNull(points, "points");
-            foreach (var p in points)
+            foreach (Point p in points)
             {
                 Add(p);
             }
@@ -265,7 +247,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry{
             : this(0, 0, new Point(-1, -1))
         {
             ValidateArg.IsNotNull(rectangles, "rectangles");
-            foreach (var r in rectangles)
+            foreach (Rectangle r in rectangles)
             {
                 Add(r);
             }
@@ -274,11 +256,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry{
         /// <summary>
         /// the width of the rectangle
         /// </summary>
-        public double Width{
-            get { return right - left; }
-            set{
-                double hw = value/2.0f;
-                double cx = (left + right)/2.0f;
+        public double Width
+        {
+            get => right - left;
+            set
+            {
+                double hw = value / 2.0f;
+                double cx = (left + right) / 2.0f;
                 left = cx - hw;
                 right = cx + hw;
             }
@@ -287,9 +271,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry{
         /// <summary>
         /// returns true if the rectangle has negative width
         /// </summary>
-        public bool IsEmpty{
-            get { return Width < 0; }
-        }
+        public bool IsEmpty => Width < 0;
 
         /// <summary>
         /// makes the rectangle empty
@@ -302,11 +284,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry{
         /// <summary>
         /// Height of the rectangle
         /// </summary>
-        public double Height{
-            get { return top - bottom; }
-            set{
-                double hw = value/2.0f;
-                double cx = (top + bottom)/2.0f;
+        public double Height
+        {
+            get => top - bottom;
+            set
+            {
+                double hw = value / 2.0f;
+                double cx = (top + bottom) / 2.0f;
                 top = cx + hw;
                 bottom = cx - hw;
             }
@@ -332,17 +316,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry{
         /// <param name="point"></param>
         /// <param name="padding"></param>
         /// <returns></returns>
-        public bool Contains(Point point, double padding){
-            return left - padding - ApproximateComparer.DistanceEpsilon <= point.X && point.X <= right + padding + ApproximateComparer.DistanceEpsilon &&
-                bottom - padding - ApproximateComparer.DistanceEpsilon <= point.Y && point.Y<=top + padding + ApproximateComparer.DistanceEpsilon;
-        }
+        public bool Contains(Point point, double padding) => left - padding - ApproximateComparer.DistanceEpsilon <= point.X && point.X <= right + padding + ApproximateComparer.DistanceEpsilon &&
+                bottom - padding - ApproximateComparer.DistanceEpsilon <= point.Y && point.Y <= top + padding + ApproximateComparer.DistanceEpsilon;
 
         /// <summary>
         /// Rectangle area
         /// </summary>
-        public double Area{
-            get { return (right - left)*(top - bottom); }
-        }
+        public double Area => (right - left) * (top - bottom);
 
         //internal Rectangle(){}
 
@@ -407,9 +387,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry{
         /// <param name="rectangle0"></param>
         /// <param name="rectangle1"></param>
         /// <returns></returns>
-        public static bool operator ==(Rectangle rectangle0, Rectangle rectangle1) {
-            return rectangle0.Equals(rectangle1);
-        }
+        public static bool operator ==(Rectangle rectangle0, Rectangle rectangle1) => rectangle0.Equals(rectangle1);
 
         /// <summary>
         /// overrides !=
@@ -417,9 +395,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry{
         /// <param name="rectangle0"></param>
         /// <param name="rectangle1"></param>
         /// <returns></returns>
-        public static bool operator !=(Rectangle rectangle0, Rectangle rectangle1) {
-            return !rectangle0.Equals(rectangle1);
-        }
+        public static bool operator !=(Rectangle rectangle0, Rectangle rectangle1) => !rectangle0.Equals(rectangle1);
 
         /// <summary>
         /// Return copy of specified rectangle translated by the specified delta
@@ -438,28 +414,22 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry{
         /// </summary>
         /// <param name="point"></param>
         /// <returns></returns>
-        public bool Contains(Point point){
-            return (ApproximateComparer.Compare(left, point.X) <= 0) && (ApproximateComparer.Compare(right, point.X) >= 0)
+        public bool Contains(Point point) => (ApproximateComparer.Compare(left, point.X) <= 0) && (ApproximateComparer.Compare(right, point.X) >= 0)
                    && (ApproximateComparer.Compare(top, point.Y) >= 0) && (ApproximateComparer.Compare(bottom, point.Y) <= 0);
-        }
 
         /// <summary>
         /// returns true if this rectangle completely contains the specified rectangle
         /// </summary>
         /// <param name="rect"></param>
         /// <returns></returns>
-        public bool Contains(Rectangle rect){
-            return Contains(rect.LeftTop) && Contains(rect.RightBottom);
-        }
+        public bool Contains(Rectangle rect) => Contains(rect.LeftTop) && Contains(rect.RightBottom);
 
 
         /// <summary>
         /// return the length of the diagonal 
         /// </summary>
         /// <returns></returns>
-        public double Diagonal{
-            get { return Math.Sqrt(Width*Width + Height*Height); }
-        }
+        public double Diagonal => Math.Sqrt(Width * Width + Height * Height);
 
         /// <summary>
         /// pad the rectangle horizontally by the given padding
@@ -527,7 +497,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry{
         ///</summary>
         ///<returns></returns>
         public Polyline Perimeter() {
-            var poly = new Polyline();
+            Polyline poly = new Polyline();
             poly.AddPoint(LeftTop);
             poly.AddPoint(RightTop);
             poly.AddPoint(RightBottom);
@@ -544,32 +514,32 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry{
             Height=Height*scale;
         }
 
-        internal Rectangle Clone() {
-            return new Rectangle(LeftTop, RightBottom);
-        }
+        internal Rectangle Clone() => new Rectangle(LeftTop, RightBottom);
 
-       
+
 
         /// <summary>
         /// gets or sets the Size
         /// </summary>
-        public Size Size {
-            get { return new Size(Width, Height); }
-            set {
+        public Size Size
+        {
+            get => new Size(Width, Height);
+            set
+            {
                 Width = value.Width;
                 Height = value.Height;
             }
         }
-/// <summary>
-/// constructor with Size and center
-/// </summary>
-/// <param name="size"></param>
-/// <param name="center"></param>
+        /// <summary>
+        /// constructor with Size and center
+        /// </summary>
+        /// <param name="size"></param>
+        /// <param name="center"></param>
         public Rectangle(Size size, Point center) {
-            var w = size.Width/2;
+            double w = size.Width/2;
             left = center.X - w;
             right = center.X + w;
-            var h = size.Height / 2;
+            double h = size.Height / 2;
             bottom = center.Y - h;
             top = center.Y + h;
         }
@@ -580,8 +550,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry{
         /// <param name="size"></param>
         /// <param name="point"></param>
         public void Add(Size size, Point point) {
-            var w = size.Width / 2;
-            var h = size.Height / 2;
+            double w = size.Width / 2;
+            double h = size.Height / 2;
 
             Add(new Point(point.X - w, point.Y - h));
             Add(new Point(point.X + w, point.Y - h));

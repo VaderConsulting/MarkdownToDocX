@@ -8,9 +8,7 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
         internal CdtEdge Edge;
         internal CdtSite RightSite;
 
-        internal double X {
-            get { return LeftSite.Point.X; }
-        }
+        internal double X => LeftSite.Point.X;
 
         internal CdtFrontElement(CdtSite leftSite, CdtEdge edge) {
             Debug.Assert(edge.upperSite.Point.X != edge.lowerSite.Point.X &&

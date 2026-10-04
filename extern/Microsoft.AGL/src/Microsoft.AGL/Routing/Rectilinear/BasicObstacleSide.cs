@@ -31,9 +31,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                 SlopeInverse = 1.0 / Slope;
             }
         }
-        
-        internal override PolylinePoint EndVertex {
-            get { return endVertex; }
-        }
+
+        internal override PolylinePoint EndVertex => endVertex;
     }
 }

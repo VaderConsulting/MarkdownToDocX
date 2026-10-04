@@ -23,62 +23,26 @@ public sealed class MermaidSourceSpan
 
     private readonly int _StartOffset;
 
-    public int StartOffset
-    {
-        get
-        {
-            return _StartOffset;
-        }
-    }
+    public int StartOffset => _StartOffset;
 
     private readonly int _EndOffset;
 
-    public int EndOffset
-    {
-        get
-        {
-            return _EndOffset;
-        }
-    }
+    public int EndOffset => _EndOffset;
 
     private readonly int _StartLine;
 
-    public int StartLine
-    {
-        get
-        {
-            return _StartLine;
-        }
-    }
+    public int StartLine => _StartLine;
 
     private readonly int _StartColumn;
 
-    public int StartColumn
-    {
-        get
-        {
-            return _StartColumn;
-        }
-    }
+    public int StartColumn => _StartColumn;
 
     private readonly int _EndLine;
 
-    public int EndLine
-    {
-        get
-        {
-            return _EndLine;
-        }
-    }
+    public int EndLine => _EndLine;
 
     private readonly int _EndColumn;
 
-    public int EndColumn
-    {
-        get
-        {
-            return _EndColumn;
-        }
-    }
+    public int EndColumn => _EndColumn;
 }
 

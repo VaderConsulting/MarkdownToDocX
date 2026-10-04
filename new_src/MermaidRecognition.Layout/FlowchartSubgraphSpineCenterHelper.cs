@@ -29,7 +29,7 @@ public static class FlowchartSubgraphSpineCenterHelper
         }
 
         Dictionary<double, List<string>> NodeIdsByColumnX =
-            new Dictionary<double, List<string>>();
+            [];
 
         foreach (string NodeId in MemberNodeIds)
         {
@@ -41,7 +41,7 @@ public static class FlowchartSubgraphSpineCenterHelper
             double ColumnKey = Math.Round(Bounds.CenterX / COLUMN_TOLERANCE_PX) * COLUMN_TOLERANCE_PX;
             if (!NodeIdsByColumnX.TryGetValue(ColumnKey, out List<string>? ColumnNodeIds))
             {
-                ColumnNodeIds = new List<string>();
+                ColumnNodeIds = [];
                 NodeIdsByColumnX[ColumnKey] = ColumnNodeIds;
             }
 
@@ -100,7 +100,7 @@ public static class FlowchartSubgraphSpineCenterHelper
         }
 
         Dictionary<double, List<string>> NodeIdsByRowY =
-            new Dictionary<double, List<string>>();
+            [];
 
         foreach (string NodeId in MemberNodeIds)
         {
@@ -112,7 +112,7 @@ public static class FlowchartSubgraphSpineCenterHelper
             double RowKey = Math.Round(Bounds.CenterY / COLUMN_TOLERANCE_PX) * COLUMN_TOLERANCE_PX;
             if (!NodeIdsByRowY.TryGetValue(RowKey, out List<string>? RowNodeIds))
             {
-                RowNodeIds = new List<string>();
+                RowNodeIds = [];
                 NodeIdsByRowY[RowKey] = RowNodeIds;
             }
 

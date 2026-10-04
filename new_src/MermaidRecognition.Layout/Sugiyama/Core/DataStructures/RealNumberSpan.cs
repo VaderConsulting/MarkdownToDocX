@@ -5,13 +5,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
     /// this class behaves like one dimensional bounding box
     /// </summary>
     public class RealNumberSpan{
-        internal RealNumberSpan(){
-            IsEmpty = true;
-        }
+        internal RealNumberSpan() => IsEmpty = true;
 
-        internal bool Intersects(RealNumberSpan a) {
-            return !(a.Max < Min || a.Min > Max);
-        }
+        internal bool Intersects(RealNumberSpan a) => !(a.Max < Min || a.Min > Max);
 
         internal bool IsEmpty { get; set; }
 
@@ -30,18 +26,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
         /// <summary>
         /// 
         /// </summary>
-        public double Length{
-            get { return Max-Min; }
-        }
+        public double Length => Max - Min;
 #if TEST_MSAGL
         /// <summary>
         /// 
         /// </summary>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1305:SpecifyIFormatProvider", MessageId = "System.String.Format(System.String,System.Object,System.Object)")]
-        public override string ToString() {
-            return IsEmpty ? "empty" : String.Format("{0},{1}", Min, Max);
-        }
+        public override string ToString() => IsEmpty ? "empty" : string.Format("{0},{1}", Min, Max);
 #endif
     }
 }

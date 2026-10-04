@@ -7,6 +7,7 @@ namespace MermaidRecognition.Tests.BacklogKinds;
 public sealed class BacklogKindsFixtureWriter
 {
     [Test]
+    [Explicit("Regenerates baseline fixtures; select this test explicitly to update them.")]
     public void Write_All_Gantt_Fixtures()
     {
         string BaseDir = RecognitionFixturePaths.GetGanttFixtureDirectory();
@@ -111,6 +112,7 @@ public sealed class BacklogKindsFixtureWriter
     }
 
     [Test]
+    [Explicit("Regenerates baseline fixtures; select this test explicitly to update them.")]
     public void Write_All_Mindmap_Fixtures()
     {
         string BaseDir = RecognitionFixturePaths.GetMindmapFixtureDirectory();
@@ -169,6 +171,7 @@ public sealed class BacklogKindsFixtureWriter
     }
 
     [Test]
+    [Explicit("Regenerates baseline fixtures; select this test explicitly to update them.")]
     public void Write_All_GitGraph_Fixtures()
     {
         string BaseDir = RecognitionFixturePaths.GetGitGraphFixtureDirectory();

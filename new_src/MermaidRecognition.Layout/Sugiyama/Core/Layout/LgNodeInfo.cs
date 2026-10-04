@@ -23,43 +23,30 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
 
         public bool Selected;
 
-        public ICurve BoundaryCurve {
-            get { return BoundaryOnLayer; }
-        }
+        public ICurve BoundaryCurve => BoundaryOnLayer;
 
 
         internal LgNodeInfo Parent;
 
-        
-        internal LgNodeInfo(Node geometryNode) {
-            GeometryNode = geometryNode;
-            //OriginalCurveOfGeomNode = geometryNode.BoundaryCurve.Clone();
-        }
+
+        internal LgNodeInfo(Node geometryNode) => GeometryNode = geometryNode;//OriginalCurveOfGeomNode = geometryNode.BoundaryCurve.Clone();
 
         /// <summary>
         /// the center of the node
         /// </summary>
-        public Point Center {
-            get { return GeometryNode.Center; }
-        }
+        public Point Center => GeometryNode.Center;
 
-        
+
         /// <summary>
         /// 
         /// </summary>
-        public Rectangle BoundingBox {
-            get {
-                return BoundaryOnLayer.BoundingBox;
-            }
-        }
+        public Rectangle BoundingBox => BoundaryOnLayer.BoundingBox;
 
         /// <summary>
         /// override the string method
         /// </summary>
         /// <returns></returns>
-        public override string ToString() {
-            return GeometryNode.ToString();
-        }
+        public override string ToString() => GeometryNode.ToString();
 
         public double LabelVisibleFromScale = 0.0;
 

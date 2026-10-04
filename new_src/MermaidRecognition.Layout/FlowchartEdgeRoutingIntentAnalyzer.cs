@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Render;
 
 namespace MermaidRecognition.Layout;
@@ -558,7 +559,7 @@ public static class FlowchartEdgeRoutingIntentAnalyzer
         FlowchartLayoutNodeBounds TargetBounds,
         FlowchartSpineLayoutContext? SpineContext)
     {
-        List<string> ExpectedBehaviour = new List<string>();
+        List<string> ExpectedBehaviour = [];
 
         switch (RouteClass)
         {
@@ -644,13 +645,13 @@ public static class FlowchartEdgeRoutingIntentAnalyzer
         FlowchartEdgeRoute StructuralRoute,
         EdgeContract Edge)
     {
-        List<string> InvalidBehaviours = new List<string>
-        {
+        List<string> InvalidBehaviours =
+        [
             "NodeBodyIntersection",
             "CrossesUnrelatedNode",
             "LabelDetachedFromEdge",
             "LabelCloserToWrongEdge"
-        };
+        ];
 
         switch (RouteClass)
         {

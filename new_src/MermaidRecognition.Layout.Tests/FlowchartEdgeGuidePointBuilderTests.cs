@@ -1,7 +1,8 @@
 using System.Linq;
-using MermaidRecognition;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Core;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Layout;
 
 namespace MermaidRecognition.Layout.Tests;

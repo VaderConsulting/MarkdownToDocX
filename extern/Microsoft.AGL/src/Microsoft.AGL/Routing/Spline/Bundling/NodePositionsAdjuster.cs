@@ -10,6 +10,7 @@ using Microsoft.AGL.Core.Layout;
 using Microsoft.AGL.Core.Routing;
 using Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation;
 using Microsoft.AGL.DebugHelpers;
+using Microsoft.AGL.Core.Geometry.RTree;
 
 namespace Microsoft.AGL.Routing.Spline.Bundling {
     /// <summary>
@@ -42,11 +43,11 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             //TimeMeasurer.DebugOutput("Initial cost = " + CostCalculator.Cost(metroGraphData, bundlingSettings));
             //TimeMeasurer.DebugOutput("Initial cost of forces: " + CostCalculator.CostOfForces(metroGraphData, bundlingSettings));
 
-            var adjuster = new NodePositionsAdjuster(metroGraphData, bundlingSettings);
+            NodePositionsAdjuster adjuster = new NodePositionsAdjuster(metroGraphData, bundlingSettings);
             adjuster.GlueConflictingNodes();
             adjuster.UnglueEdgesFromBundleToSaveInk(true);
 
-            var step = 0;
+            int step = 0;
             int MaxSteps = 10;
             while (++step < MaxSteps) {
 /*#if DEBUG && TEST_MSAGL
@@ -90,10 +91,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         /// </summary>
         bool GlueConflictingNodes() {
 
-            var circlesHierarchy = GetCirclesHierarchy();
+            RectangleNode<Station> circlesHierarchy = GetCirclesHierarchy();
             if (circlesHierarchy == null) return false;
-            var gluingMap = new Dictionary<Station, Station>();
-            var gluedDomain = new Set<Station>();
+            Dictionary<Station, Station> gluingMap = new Dictionary<Station, Station>();
+            Set<Station> gluedDomain = new Set<Station>();
             RectangleNodeUtils.CrossRectangleNodes<Station>(circlesHierarchy, circlesHierarchy,
                                                             (i, j) => TryToGlueNodes(i, j, gluingMap, gluedDomain));
             if (gluingMap.Count == 0)
@@ -103,10 +104,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                 RegenerateEdge(gluingMap, i);
 
             //can it be more efficient?
-            HashSet<Point> affectedPoints = new HashSet<Point>();
-            foreach (var s in gluedDomain) {
+            HashSet<Point> affectedPoints = [];
+            foreach (Station s in gluedDomain) {
                 affectedPoints.Add(s.Position);
-                foreach (var neig in s.Neighbors)
+                foreach (Station neig in s.Neighbors)
                     if (!neig.IsRealNode)
                         affectedPoints.Add(neig.Position);
             }
@@ -119,7 +120,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         }
 
         RectangleNode<Station> GetCirclesHierarchy() {
-            foreach (var v in metroGraphData.VirtualNodes()) {
+            foreach (Station v in metroGraphData.VirtualNodes()) {
                 v.Radius = GetCurrentHubRadius(v);
             }
 
@@ -141,7 +142,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                 double r = metroGraphData.looseIntersections.GetMinimalDistanceToObstacles(node, node.Position, idealR);
                 //double r = idealR;
                 Debug.Assert(r <= idealR);
-                foreach (var adj in node.Neighbors)
+                foreach (Station adj in node.Neighbors)
                     r = Math.Min(r, (node.Position - adj.Position).Length);
                 return r;
             }
@@ -177,8 +178,8 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         /// trying to glue i to j
         /// </summary>
         bool NodeGluingIsAllowed(Station i, Station j, Dictionary<Station, Station> gluingMap) {
-            foreach (var adj in i.Neighbors) {
-                var k = Glued(adj, gluingMap);
+            foreach (Station adj in i.Neighbors) {
+                Station k = Glued(adj, gluingMap);
                 //1. check that we can merge these stations (== no intersections)
                 Set<Polyline> obstaclesToIgnore = metroGraphData.looseIntersections.ObstaclesToIgnoreForBundle(k, i);
                 if (!metroGraphData.cdtIntersections.EdgeIsLegal(k, j, k.Position, j.Position, obstaclesToIgnore))
@@ -201,8 +202,8 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             //ink
             double oldInk = metroGraphData.Ink;
             double newInk = metroGraphData.Ink - (j.Position - i.Position).Length;
-            foreach (var adj in i.Neighbors) {
-                var k = Glued(adj, gluingMap);
+            foreach (Station adj in i.Neighbors) {
+                Station k = Glued(adj, gluingMap);
                 newInk -= (k.Position - i.Position).Length;
                 newInk += (metroGraphData.RealEdgeCount(k, j) == 0 ? (k.Position - j.Position).Length : 0);
             }
@@ -210,7 +211,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             gain += CostCalculator.InkError(oldInk, newInk, bundlingSettings);
 
             //path lengths
-            foreach (var metroInfo in metroGraphData.MetroNodeInfosOfNode(i)) {
+            foreach (MetroNodeInfo metroInfo in metroGraphData.MetroNodeInfosOfNode(i)) {
                 double oldLength = metroInfo.Metroline.Length;
                 double newLength = metroInfo.Metroline.Length;
 
@@ -229,7 +230,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         }
 
         void RegenerateEdge(Dictionary<Station, Station> gluingMap, int edgeIndex) {
-            var poly = metroGraphData.Metrolines[edgeIndex].Polyline;
+            Polyline poly = metroGraphData.Metrolines[edgeIndex].Polyline;
             if (!poly.Any(p => gluingMap.ContainsKey(metroGraphData.PointToStations[p])))
                 return;
 
@@ -239,11 +240,11 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         static IEnumerable<Point> GluedPolyline(Station[] metroline, Dictionary<Station, Station> gluedMap) {
             int i;
-            var ret = new Stack<Station>();
+            Stack<Station> ret = new Stack<Station>();
             ret.Push(metroline[0]);
-            var seenStations = new Set<Station>();
+            Set<Station> seenStations = new Set<Station>();
             for (i = 1; i < metroline.Length - 1; i++) {
-                var station = Glued(metroline[i], gluedMap);
+                Station station = Glued(metroline[i], gluedMap);
                 if (seenStations.Contains(station)) {
                     //we made a cycle - need to cut it out
                     while (ret.Peek() != station)
@@ -259,10 +260,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             return ret.Reverse().Select(n => n.Position);
         }
 
-        static Station Glued(Station i, Dictionary<Station, Station> gluedMap) {
-            Station j;
-            return gluedMap.TryGetValue(i, out j) ? j : i;
-        }
+        static Station Glued(Station i, Dictionary<Station, Station> gluedMap) => gluedMap.TryGetValue(i, out Station j) ? j : i;
 
         #endregion
 
@@ -276,21 +274,21 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         ///  instead of one bundle (a->bcd) we get two bundles (a->b,a->cd) with smaller ink
         /// </summary>
         bool UnglueEdgesFromBundleToSaveInk(bool alwaysExecuteSA) {
-            var segsToPolylines = new Dictionary<PointPair, Set<Metroline>>();
+            Dictionary<PointPair, Set<Metroline>> segsToPolylines = new Dictionary<PointPair, Set<Metroline>>();
             ink = metroGraphData.Ink;
-            polylineLength = new Dictionary<Metroline, double>();
+            polylineLength = [];
             //create polylines
-            foreach (var metroline in metroGraphData.Metrolines) {
+            foreach (Metroline metroline in metroGraphData.Metrolines) {
                 polylineLength[metroline] = metroline.Length;
-                for (var pp = metroline.Polyline.StartPoint; pp.Next != null; pp = pp.Next) {
-                    var segment = new PointPair(pp.Point, pp.Next.Point);
+                for (PolylinePoint pp = metroline.Polyline.StartPoint; pp.Next != null; pp = pp.Next) {
+                    PointPair segment = new PointPair(pp.Point, pp.Next.Point);
                     CollectionUtilities.AddToMap(segsToPolylines, segment, metroline);
                 }
             }
-            var affectedPoints = new HashSet<Point>();
-            var progress = false;
-            foreach (var metroline in metroGraphData.Metrolines) {
-                var obstaclesAllowedToIntersect =
+            HashSet<Point> affectedPoints = new HashSet<Point>();
+            bool progress = false;
+            foreach (Metroline metroline in metroGraphData.Metrolines) {
+                Set<Polyline> obstaclesAllowedToIntersect =
                     metroGraphData.PointToStations[metroline.Polyline.Start].EnterableLoosePolylines*
                     metroGraphData.PointToStations[metroline.Polyline.End].EnterableLoosePolylines;
                 if (TrySeparateOnPolyline(metroline, segsToPolylines, affectedPoints, obstaclesAllowedToIntersect))
@@ -309,10 +307,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         bool TrySeparateOnPolyline(Metroline metroline, Dictionary<PointPair, Set<Metroline>> segsToPolylines,
                                    HashSet<Point> affectedPoints, Set<Polyline> obstaclesAllowedToIntersect) {
             bool progress = false;
-            var relaxing = true;
+            bool relaxing = true;
             while (relaxing) {
                 relaxing = false;
-                for (var p = metroline.Polyline.StartPoint; p.Next != null && p.Next.Next != null; p = p.Next)
+                for (PolylinePoint p = metroline.Polyline.StartPoint; p.Next != null && p.Next.Next != null; p = p.Next)
                     if (TryShortcutPolypoint(p, segsToPolylines, affectedPoints, obstaclesAllowedToIntersect))
                         relaxing = true;
                 if (relaxing) progress = true;
@@ -337,12 +335,12 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         /// allowed iff line (a,c) is legal and inkgain > 0
         /// </summary>
         bool SeparationShortcutAllowed(PolylinePoint pp, Dictionary<PointPair, Set<Metroline>> segsToPolylines, Set<Polyline> obstaclesAllowedToIntersect) {
-            var a = pp.Point;
-            var b = pp.Next.Point;
-            var c = pp.Next.Next.Point;
-            var aStation = metroGraphData.PointToStations[a];
-            var bStation = metroGraphData.PointToStations[b];
-            var cStation = metroGraphData.PointToStations[c];
+            Point a = pp.Point;
+            Point b = pp.Next.Point;
+            Point c = pp.Next.Next.Point;
+            Station aStation = metroGraphData.PointToStations[a];
+            Station bStation = metroGraphData.PointToStations[b];
+            Station cStation = metroGraphData.PointToStations[c];
             //1. intersections
             if (!metroGraphData.cdtIntersections.EdgeIsLegal(aStation, cStation,
                                                              a, c,
@@ -353,15 +351,14 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                 return false;
 
             //2. cost gain
-            var inkgain = GetInkgain(pp, segsToPolylines, a, b, c);
+            double inkgain = GetInkgain(pp, segsToPolylines, a, b, c);
             if (inkgain < 0) return false;
 
             return true;
         }
 
         double GetInkgain(PolylinePoint pp, Dictionary<PointPair, Set<Metroline>> segsToPolylines, Point a, Point b, Point c) {
-            Set<Metroline> abPolylines, bcPolylines, abcPolylines;
-            FindPolylines(pp, segsToPolylines, out abPolylines, out bcPolylines, out abcPolylines);
+            FindPolylines(pp, segsToPolylines, out Set<Metroline> abPolylines, out Set<Metroline> bcPolylines, out Set<Metroline> abcPolylines);
             double gain = 0;
             //ink
             double oldInk = ink;
@@ -376,7 +373,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             gain += CostCalculator.InkError(oldInk, newInk, bundlingSettings);
 
             //path lengths
-            foreach (var metroline in abcPolylines) {
+            foreach (Metroline metroline in abcPolylines) {
                 double oldLength = polylineLength[metroline];
                 double newLength = polylineLength[metroline];
                 newLength -= ab + bc - ac;
@@ -405,12 +402,11 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         }
 
         void RemoveShortcuttedPolypoint(PolylinePoint pp, Dictionary<PointPair, Set<Metroline>> segsToPolylines) {
-            var a = pp.Point;
-            var b = pp.Next.Point;
-            var c = pp.Next.Next.Point;
+            Point a = pp.Point;
+            Point b = pp.Next.Point;
+            Point c = pp.Next.Next.Point;
 
-            Set<Metroline> abPolylines, bcPolylines, abcPolylines;
-            FindPolylines(pp, segsToPolylines, out abPolylines, out bcPolylines, out abcPolylines);
+            FindPolylines(pp, segsToPolylines, out Set<Metroline> abPolylines, out Set<Metroline> bcPolylines, out Set<Metroline> abcPolylines);
 
             double ab = (a - b).Length;
             double bc = (b - c).Length;
@@ -423,11 +419,11 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                 ink += ac;
 
             //fixing edge lengths
-            foreach (var metroline in abcPolylines)
+            foreach (Metroline metroline in abcPolylines)
                 polylineLength[metroline] -= ab + bc - ac;
 
             //fixing polylines
-            foreach (var metroline in abcPolylines) {
+            foreach (Metroline metroline in abcPolylines) {
                 RemovePolypoint(metroline.Polyline.PolylinePoints.First(p => p.Point == b));
                 CollectionUtilities.RemoveFromMap(segsToPolylines, new PointPair(a, b), metroline);
                 CollectionUtilities.RemoveFromMap(segsToPolylines, new PointPair(b, c), metroline);
@@ -460,9 +456,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         /// Fix the situation where a station has two neighbors that are almost in the same directions
         /// </summary>
         bool GlueCollinearNeighbors(int step) {
-            HashSet<Point> affectedPoints = new HashSet<Point>();
+            HashSet<Point> affectedPoints = [];
             bool progress = false;
-            foreach (var node in metroGraphData.Stations)
+            foreach (Station node in metroGraphData.Stations)
                 if (GlueCollinearNeighbors(node, affectedPoints, step)) progress = true;
 
             if (progress) {
@@ -478,15 +474,15 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             if (node.Neighbors.Length <= 1) return false;
 
             //node,adj => new via point
-            Dictionary<Tuple<Station, Station>, Point> gluedEdges = new Dictionary<Tuple<Station, Station>, Point>();
-            var neighbors = node.Neighbors;
+            Dictionary<Tuple<Station, Station>, Point> gluedEdges = [];
+            Station[] neighbors = node.Neighbors;
             for (int i = 0; i < neighbors.Length; i++)
                 TryToGlueEdges(node, neighbors[i], neighbors[(i + 1) % neighbors.Length], gluedEdges, step);
 
             if (gluedEdges.Count == 0)
                 return false;
 
-            foreach (var keyValuePair in gluedEdges) {
+            foreach (KeyValuePair<Tuple<Station, Station>, Point> keyValuePair in gluedEdges) {
                 GlueEdge(keyValuePair);
                 affectedPoints.Add(keyValuePair.Key.Item1.Position);
                 affectedPoints.Add(keyValuePair.Key.Item2.Position);
@@ -498,10 +494,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         void TryToGlueEdges(Station node, Station a, Station b, Dictionary<Tuple<Station, Station>, Point> gluedEdges, int step) {
             Debug.Assert(a != b);
-            var angle = Point.Angle(a.Position, node.Position, b.Position);
+            double angle = Point.Angle(a.Position, node.Position, b.Position);
             if (angle < bundlingSettings.AngleThreshold) {
-                var la = (a.Position - node.Position).Length;
-                var lb = (b.Position - node.Position).Length;
+                double la = (a.Position - node.Position).Length;
+                double lb = (b.Position - node.Position).Length;
                 double ratio = Math.Min(la, lb) / Math.Max(la, lb);
                 if (ratio < 0.05) return;
 
@@ -544,13 +540,13 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             //We need to be sure that segments (node,a) and (a,b) intersect only obstacles enterable for the bundle (node, b)
             if (!metroGraphData.cdtIntersections.EdgeIsLegal(a, b, a.Position, b.Position)) return false;
 
-            var enterableForEdgeNodeB = metroGraphData.looseIntersections.ObstaclesToIgnoreForBundle(node, b);
+            Set<Polyline> enterableForEdgeNodeB = metroGraphData.looseIntersections.ObstaclesToIgnoreForBundle(node, b);
 
-            var crossingsOfEdgeNodeA = InteractiveEdgeRouter.IntersectionsOfLineAndRectangleNodeOverPolyline(new LineSegment(node.Position, a.Position), metroGraphData.LooseTree);
+            List<IntersectionInfo> crossingsOfEdgeNodeA = InteractiveEdgeRouter.IntersectionsOfLineAndRectangleNodeOverPolyline(new LineSegment(node.Position, a.Position), metroGraphData.LooseTree);
             if (!crossingsOfEdgeNodeA.All(ii => enterableForEdgeNodeB.Contains(ii.Segment1)))
                 return false;
 
-            var crossingsOfEdgeab = InteractiveEdgeRouter.IntersectionsOfLineAndRectangleNodeOverPolyline(new LineSegment(a.Position, b.Position), metroGraphData.LooseTree);
+            List<IntersectionInfo> crossingsOfEdgeab = InteractiveEdgeRouter.IntersectionsOfLineAndRectangleNodeOverPolyline(new LineSegment(a.Position, b.Position), metroGraphData.LooseTree);
             if (!crossingsOfEdgeab.All(ii => enterableForEdgeNodeB.Contains(ii.Segment1)))
                 return false;
 
@@ -587,13 +583,13 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             gain += CostCalculator.InkError(oldInk, newInk, bundlingSettings);
 
             //path lengths
-            foreach (var metroline in metroGraphData.GetIjInfo(node, b).Metrolines) {
+            foreach (Metroline metroline in metroGraphData.GetIjInfo(node, b).Metrolines) {
                 double oldLength = metroline.Length;
                 double newLength = metroline.Length - (node.Position - b.Position).Length +
                                    (node.Position - newp).Length + (newp - b.Position).Length;
                 gain += CostCalculator.PathLengthsError(oldLength, newLength, metroline.IdealLength, bundlingSettings);
             }
-            foreach (var metroline in metroGraphData.GetIjInfo(node, a).Metrolines) {
+            foreach (Metroline metroline in metroGraphData.GetIjInfo(node, a).Metrolines) {
                 double oldLength = metroline.Length;
                 double newLength = metroline.Length - (node.Position - a.Position).Length +
                                    (node.Position - newp).Length + (newp - a.Position).Length;
@@ -630,11 +626,11 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         }
 
         void GlueEdge(KeyValuePair<Tuple<Station, Station>, Point> keyValuePair) {
-            var node = keyValuePair.Key.Item1;
-            var a = keyValuePair.Key.Item2;
-            var newp = keyValuePair.Value;
+            Station node = keyValuePair.Key.Item1;
+            Station a = keyValuePair.Key.Item2;
+            Point newp = keyValuePair.Value;
 
-            foreach (var polylinePoint in node.MetroNodeInfos.Select(i => i.PolyPoint)) {
+            foreach (PolylinePoint polylinePoint in node.MetroNodeInfos.Select(i => i.PolyPoint)) {
                 if (polylinePoint.Next != null && polylinePoint.Next.Point == a.Position)
                     SplitPolylinePoint(polylinePoint, newp);
                 else if (polylinePoint.Prev != null && polylinePoint.Prev.Point == a.Position)
@@ -645,7 +641,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         void SplitPolylinePoint(PolylinePoint node, Point pointToInsert) {
             if (node.Point == pointToInsert || node.Next.Point == pointToInsert) return;
 
-            var p = new PolylinePoint(pointToInsert) { Polyline = node.Polyline, Next = node.Next, Prev = node };
+            PolylinePoint p = new PolylinePoint(pointToInsert) { Polyline = node.Polyline, Next = node.Next, Prev = node };
             p.Next.Prev = p;
             p.Prev.Next = p;
         }
@@ -658,9 +654,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         /// split each edge that is too much constrained by the obstacles
         /// </summary>
         bool RelaxConstrainedEdges() {
-            HashSet<Point> affectedPoints = new HashSet<Point>();
+            HashSet<Point> affectedPoints = [];
             bool progress = false;
-            foreach (var edge in metroGraphData.VirtualEdges())
+            foreach (Tuple<Station, Station> edge in metroGraphData.VirtualEdges())
                 if (RelaxConstrainedEdge(edge.Item1, edge.Item2, affectedPoints)) progress = true;
 
             if (progress) {
@@ -676,15 +672,15 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         bool RelaxConstrainedEdge(Station a, Station b, HashSet<Point> affectedPoints) {
             //find conflicting obstacles
             double idealWidth = metroGraphData.GetWidth(a, b, bundlingSettings.EdgeSeparation);
-            List<Tuple<Point, Point>> closestPoints;
-            /*bool res =*/ metroGraphData.cdtIntersections.BundleAvoidsObstacles(a, b, a.Position, b.Position, 0.99 * idealWidth / 2.0, out closestPoints); 
-           // Debug.Assert(res); //todo still unsolved
+            /*bool res =*/
+            metroGraphData.cdtIntersections.BundleAvoidsObstacles(a, b, a.Position, b.Position, 0.99 * idealWidth / 2.0, out List<Tuple<Point, Point>> closestPoints);
+            // Debug.Assert(res); //todo still unsolved
 
             if (closestPoints.Count > 0) {
                 //find closest obstacle
                 double bestDist = -1;
                 Point bestPoint = new Point();
-                foreach (var d in closestPoints) {
+                foreach (Tuple<Point, Point> d in closestPoints) {
                     //should not be too close
                     double distToSegmentEnd = Math.Min((a.Position - d.Item2).Length, (b.Position - d.Item2).Length);
                     double distAB = (a.Position - b.Position).Length;
@@ -707,10 +703,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                 affectedPoints.Add(a.Position);
                 affectedPoints.Add(b.Position);
 
-                foreach (var metroline in metroGraphData.GetIjInfo(a, b).Metrolines) {
+                foreach (Metroline metroline in metroGraphData.GetIjInfo(a, b).Metrolines) {
                     PolylinePoint pp = null;
                     //TODO: replace the cycle!
-                    foreach (var ppp in metroline.Polyline.PolylinePoints)
+                    foreach (PolylinePoint ppp in metroline.Polyline.PolylinePoints)
                         if (ppp.Point == a.Position) {
                             pp = ppp;
                             break;

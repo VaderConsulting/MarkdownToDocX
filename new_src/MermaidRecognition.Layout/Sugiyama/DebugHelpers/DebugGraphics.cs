@@ -3,14 +3,10 @@ using System.Collections.Generic;
 
 namespace MermaidRecognition.Layout.Sugiyama.DebugHelpers {
     class DebugGraphics : IDebugGraphics {
-        List<DebugShape> shapes = new List<DebugShape>();
-        public IList<DebugShape> Shapes {
-            get { return shapes; }
-        }
+        List<DebugShape> shapes = [];
+        public IList<DebugShape> Shapes => shapes;
 
-        public void Clear() {
-            shapes.Clear();
-        }
+        public void Clear() => shapes.Clear();
     }
 }
 #endif

@@ -10,15 +10,17 @@ public static class RecognitionStyleMapper
     /// </summary>
     public static Style ToNaiadStyle(RecognitionStyle Source)
     {
-        Style Target = new Style();
-        Target.Fill = NormalizeCssColor(Source.Fill);
-        Target.Stroke = NormalizeCssColor(Source.Stroke);
-        Target.StrokeWidth = Source.StrokeWidth;
-        Target.StrokeDasharray = Source.StrokeDasharray;
-        Target.FontFamily = Source.FontFamily;
-        Target.FontSize = Source.FontSize;
-        Target.FontWeight = Source.FontWeight;
-        Target.TextColor = NormalizeCssColor(Source.TextColor);
+        Style Target = new Style
+        {
+            Fill = NormalizeCssColor(Source.Fill),
+            Stroke = NormalizeCssColor(Source.Stroke),
+            StrokeWidth = Source.StrokeWidth,
+            StrokeDasharray = Source.StrokeDasharray,
+            FontFamily = Source.FontFamily,
+            FontSize = Source.FontSize,
+            FontWeight = Source.FontWeight,
+            TextColor = NormalizeCssColor(Source.TextColor)
+        };
         return Target;
     }
 

@@ -1,4 +1,4 @@
-﻿using Microsoft.AGL.Core.DataStructures;
+﻿using Microsoft.AGL.Core.DataStructures.RBTree;
 
 namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
     internal class CdtFront  {

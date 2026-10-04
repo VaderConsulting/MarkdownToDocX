@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -17,9 +17,7 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.ConjugateGradient {
         /// constructor
         /// </summary>
         /// <param name="array"></param>
-        public Vector(double[] array) {
-            this.array = array;
-        }
+        public Vector(double[] array) => this.array = array;
 
         /// <summary>
         /// Substracts vector b directly from the current vector (without creating a new vector).
@@ -76,16 +74,14 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.ConjugateGradient {
         /// Creates a copy of the vector
         /// </summary>
         /// <returns></returns>
-        public Vector Clone() {
-           return new Vector((double[]) array.Clone());
-        }
+        public Vector Clone() => new Vector((double[])array.Clone());
 
-      /// <summary>
-      /// Multiplies two vectors of same length.
-      /// </summary>
-      /// <param name="v1"></param>
-      /// <param name="v2"></param>
-      /// <returns>vector product</returns>
+        /// <summary>
+        /// Multiplies two vectors of same length.
+        /// </summary>
+        /// <param name="v1"></param>
+        /// <param name="v2"></param>
+        /// <returns>vector product</returns>
         public static double operator *(Vector v1, Vector v2) {
           double res = 0;
             for (int i = 0; i < v1.array.Length; i++) {

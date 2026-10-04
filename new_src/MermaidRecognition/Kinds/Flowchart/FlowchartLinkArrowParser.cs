@@ -1,4 +1,4 @@
-namespace MermaidRecognition.Flowchart;
+namespace MermaidRecognition.Kinds.Flowchart;
 
 /// <summary>
 /// Parses Mermaid flowchart link arrows (ported from vendored <c>flowDb.destructLink</c>).
@@ -198,9 +198,11 @@ public static class FlowchartLinkArrowParser
             Stroke = "dotted";
         }
 
-        LinkStartFacts Facts = new LinkStartFacts();
-        Facts.Type = Type;
-        Facts.Stroke = Stroke;
+        LinkStartFacts Facts = new LinkStartFacts
+        {
+            Type = Type,
+            Stroke = Stroke
+        };
         return Facts;
     }
 
@@ -209,10 +211,12 @@ public static class FlowchartLinkArrowParser
         string Trimmed = Text.Trim();
         if (Trimmed.Length == 0)
         {
-            LinkEndFacts Empty = new LinkEndFacts();
-            Empty.Type = "arrow_open";
-            Empty.Stroke = "normal";
-            Empty.Length = 1;
+            LinkEndFacts Empty = new LinkEndFacts
+            {
+                Type = "arrow_open",
+                Stroke = "normal",
+                Length = 1
+            };
             return Empty;
         }
 
@@ -268,10 +272,12 @@ public static class FlowchartLinkArrowParser
             Length = DotCount;
         }
 
-        LinkEndFacts Facts = new LinkEndFacts();
-        Facts.Type = Type;
-        Facts.Stroke = Stroke;
-        Facts.Length = Length;
+        LinkEndFacts Facts = new LinkEndFacts
+        {
+            Type = Type,
+            Stroke = Stroke,
+            Length = Length
+        };
         return Facts;
     }
 

@@ -7,7 +7,7 @@ namespace MermaidRecognition.Layout;
 /// </summary>
 public sealed class FlowchartRoutingIntentValidationResult
 {
-    private List<FlowchartRoutingIntentValidationFinding> _Findings = new List<FlowchartRoutingIntentValidationFinding>();
+    private List<FlowchartRoutingIntentValidationFinding> _Findings = [];
 
     /// <summary>
     /// True when no intent-stage validation findings were recorded.
@@ -24,14 +24,7 @@ public sealed class FlowchartRoutingIntentValidationResult
     /// </summary>
     public List<FlowchartRoutingIntentValidationFinding> Findings
     {
-        get
-        {
-            return _Findings;
-        }
-        set
-        {
-            _Findings = value ?? new List<FlowchartRoutingIntentValidationFinding>();
-        }
+        get => _Findings; set => _Findings = value ?? [];
     }
 }
 
@@ -49,14 +42,7 @@ public sealed class FlowchartRoutingIntentValidationFinding
     /// </summary>
     public string EdgeId
     {
-        get
-        {
-            return _EdgeId;
-        }
-        set
-        {
-            _EdgeId = value;
-        }
+        get => _EdgeId; set => _EdgeId = value;
     }
 
     /// <summary>
@@ -64,13 +50,6 @@ public sealed class FlowchartRoutingIntentValidationFinding
     /// </summary>
     public string Message
     {
-        get
-        {
-            return _Message;
-        }
-        set
-        {
-            _Message = value;
-        }
+        get => _Message; set => _Message = value;
     }
 }

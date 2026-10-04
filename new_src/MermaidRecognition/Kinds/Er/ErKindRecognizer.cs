@@ -1,6 +1,8 @@
 using System.Text.RegularExpressions;
 
-namespace MermaidRecognition.Er;
+using MermaidRecognition.Core;
+
+namespace MermaidRecognition.Kinds.Er;
 
 /// <summary>
 /// ER diagram L2 recognition (vendored <c>erDiagram.jison</c>).
@@ -36,8 +38,10 @@ public sealed class ErKindRecognizer : IKindRecognizer
     /// <inheritdoc />
     public DiagramContract Parse(string Source, DiagramDetectionResult Detection)
     {
-        DiagramContract Contract = new DiagramContract();
-        Contract.Kind = Detection.ProgrammeKindId;
+        DiagramContract Contract = new DiagramContract
+        {
+            Kind = Detection.ProgrammeKindId
+        };
         ApplyInit(Source, Contract);
 
         string Body = StripLeadingInitBlocks(Source);
@@ -173,10 +177,12 @@ public sealed class ErKindRecognizer : IKindRecognizer
 
     static void AddStatement(DiagramContract Contract, int LineNumber, string LineTypeId, string RawLine)
     {
-        SourceStatementContract Statement = new SourceStatementContract();
-        Statement.LineNumber = LineNumber;
-        Statement.LineTypeId = LineTypeId;
-        Statement.RawLine = RawLine;
+        SourceStatementContract Statement = new SourceStatementContract
+        {
+            LineNumber = LineNumber,
+            LineTypeId = LineTypeId,
+            RawLine = RawLine
+        };
         Contract.SourceStatementsMutable.Add(Statement);
     }
 

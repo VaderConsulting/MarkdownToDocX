@@ -131,12 +131,9 @@ public static class FlowchartShapePathGenerator
         return Shape.Trim().ToLowerInvariant();
     }
 
-    private static string BuildRectanglePath(double X, double Y, double Width, double Height)
-    {
-        return string.Create(
+    private static string BuildRectanglePath(double X, double Y, double Width, double Height) => string.Create(
             CultureInfo.InvariantCulture,
             $"M{Format(X)},{Format(Y)} H{Format(X + Width)} V{Format(Y + Height)} H{Format(X)} Z");
-    }
 
     private static string BuildRoundedRectanglePath(double X, double Y, double Width, double Height, double Radius)
     {
@@ -156,16 +153,13 @@ public static class FlowchartShapePathGenerator
             """);
     }
 
-    private static string BuildCirclePath(double CentreX, double CentreY, double Radius)
-    {
-        return string.Create(
+    private static string BuildCirclePath(double CentreX, double CentreY, double Radius) => string.Create(
             CultureInfo.InvariantCulture,
             $"""
             M{Format(CentreX)},{Format(CentreY - Radius)}
             A{Format(Radius)},{Format(Radius)} 0 1 1 {Format(CentreX)},{Format(CentreY + Radius)}
             A{Format(Radius)},{Format(Radius)} 0 1 1 {Format(CentreX)},{Format(CentreY - Radius)} Z
             """);
-    }
 
     private static string BuildDiamondPath(double CentreX, double CentreY, double Width, double Height)
     {
@@ -340,10 +334,7 @@ public static class FlowchartShapePathGenerator
             $"M{Format(NotchX)},{Format(NotchY)}L{Format(LeftX)},{Format(TopY)}L{Format(RightX)},{Format(TopY)}L{Format(RightX)},{Format(BottomY)}L{Format(LeftX)},{Format(BottomY)}Z");
     }
 
-    private static string BuildSubroutineFillPath(double X, double Y, double Width, double Height)
-    {
-        return BuildRectanglePath(X, Y, Width, Height);
-    }
+    private static string BuildSubroutineFillPath(double X, double Y, double Width, double Height) => BuildRectanglePath(X, Y, Width, Height);
 
     private static string BuildSubroutineSideBarsPath(double X, double Y, double Width, double Height)
     {
@@ -356,8 +347,5 @@ public static class FlowchartShapePathGenerator
             """);
     }
 
-    private static string Format(double Value)
-    {
-        return Value.ToString("0.##", CultureInfo.InvariantCulture);
-    }
+    private static string Format(double Value) => Value.ToString("0.##", CultureInfo.InvariantCulture);
 }

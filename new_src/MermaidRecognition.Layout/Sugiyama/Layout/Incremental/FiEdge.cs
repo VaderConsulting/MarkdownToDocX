@@ -18,20 +18,20 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         }
         #region IEdge Members
 
-        public int Source {
-            get { return source.index; }
+        public int Source
+        {
+            get => source.index;
             set { }
         }
 
-        public int Target {
-            get { return target.index; }
+        public int Target
+        {
+            get => target.index;
             set { }
         }
 
         #endregion
 
-        internal Point vector() {
-            return source.mNode.Center - target.mNode.Center;
-        }
+        internal Point vector() => source.mNode.Center - target.mNode.Center;
     }
 }

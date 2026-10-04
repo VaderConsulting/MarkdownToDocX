@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 
-namespace Microsoft.AGL.Core.Geometry
+namespace Microsoft.AGL.Core.Geometry.MinEnclosingDisc
 {
     /// <summary>
     /// implementation of the "MoveToFront" method for computing the minimum enclosing disc of a collection of points.
@@ -10,22 +10,21 @@ namespace Microsoft.AGL.Core.Geometry
     public class MoveToFront {
         LinkedList<int> L;
         Point[] ps;
+
         /// <summary>
         /// minimum enclosing disc
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1051:DoNotDeclareVisibleInstanceFields")]
         public Disc disc;
+
         /// <summary>
         /// list of 2 or 3 points lying on the boundary
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1051:DoNotDeclareVisibleInstanceFields")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1002:DoNotExposeGenericLists")]
         public List<int> boundary;
+
         /// <summary>
         /// Constructs the minimum enclosing disc for the specified points
         /// </summary>
         /// <param name="ps"></param>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "ps")]
         public MoveToFront(Point[] ps)
         {
             ValidateArg.IsNotNull(ps, "ps");
@@ -35,7 +34,7 @@ namespace Microsoft.AGL.Core.Geometry
             {
                 L.AddLast(i);
             }
-            MinDisc md = mtf_md(null, new List<int>());
+            MinDisc md = mtf_md(null, []);
             disc = md.disc;
             boundary = md.boundary;
         }
@@ -43,10 +42,10 @@ namespace Microsoft.AGL.Core.Geometry
         {
             public Disc disc;
             public List<int> boundary;
-            [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1805:DoNotInitializeUnnecessarily")]
+
             public MinDisc(Point[] ps, List<int> b)
             {
-                this.boundary = b;
+                boundary = b;
                 Debug.Assert(b.Count <= 3);
                 switch(b.Count) {
                     case 0:

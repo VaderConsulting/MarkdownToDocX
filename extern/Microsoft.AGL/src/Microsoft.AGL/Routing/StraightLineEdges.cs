@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+
 using Microsoft.AGL.Core;
 using Microsoft.AGL.Core.Geometry;
 using Microsoft.AGL.Core.Geometry.Curves;
@@ -32,12 +33,12 @@ namespace Microsoft.AGL.Routing
         /// </summary>
         protected override void RunInternal()
         {
-            this.StartListenToLocalProgress(edges.Count());
+            StartListenToLocalProgress(edges.Count());
             SplineRouter.CreatePortsIfNeeded(edges);
             foreach (Edge edge in edges)
             {
-                RouteEdge(edge, this.padding);
-                this.ProgressStep();
+                RouteEdge(edge, padding);
+                ProgressStep();
             }
         }
 
@@ -52,7 +53,7 @@ namespace Microsoft.AGL.Routing
         {
             ValidateArg.IsNotNull(edge, "edge");
 
-            var eg = edge.EdgeGeometry;
+            EdgeGeometry eg = edge.EdgeGeometry;
 
             if (eg.SourcePort == null)
             {
@@ -85,8 +86,8 @@ namespace Microsoft.AGL.Routing
         }
 
         internal static bool ContainmentLoop(EdgeGeometry eg, double padding) {
-            var sourceCurve = eg.SourcePort.Curve;
-            var targetCurve = eg.TargetPort.Curve;
+            ICurve sourceCurve = eg.SourcePort.Curve;
+            ICurve targetCurve = eg.TargetPort.Curve;
             if (sourceCurve == null || targetCurve == null)
                 return false;
             Rectangle targetBox = sourceCurve.BoundingBox;
@@ -100,10 +101,7 @@ namespace Microsoft.AGL.Routing
             return false;
         }
 
-        private static Curve CreateLoop(Rectangle targetBox, Rectangle sourceBox, bool sourceContainsTarget, double padding)
-        {
-            return sourceContainsTarget ? CreateLoop(targetBox, sourceBox, padding, false) : CreateLoop(sourceBox, targetBox, padding, true);
-        }
+        private static Curve CreateLoop(Rectangle targetBox, Rectangle sourceBox, bool sourceContainsTarget, double padding) => sourceContainsTarget ? CreateLoop(targetBox, sourceBox, padding, false) : CreateLoop(sourceBox, targetBox, padding, true);
 
         /// <summary>
         /// creates a loop from sourceBox center to the closest point on the targetBox boundary
@@ -115,28 +113,28 @@ namespace Microsoft.AGL.Routing
         /// <returns></returns>
         internal static Curve CreateLoop(Rectangle sourceBox, Rectangle targetBox, double howMuchToStickOut, bool reverse)
         {
-            var center=sourceBox.Center;
-            var closestPoint = FindClosestPointOnBoxBoundary(sourceBox.Center, targetBox);
-            var dir = closestPoint - center;
-            var vert=Math.Abs(dir.X)<ApproximateComparer.DistanceEpsilon;
-            var maxWidth=(vert? Math.Min(center.Y-targetBox.Bottom, targetBox.Top-center.Y): Math.Min(center.X-targetBox.Left, targetBox.Right-center.X))/2; //divide over 2 to not miss the rect
-            var width = Math.Min(howMuchToStickOut, maxWidth);
+            Point center =sourceBox.Center;
+            Point closestPoint = FindClosestPointOnBoxBoundary(sourceBox.Center, targetBox);
+            Point dir = closestPoint - center;
+            bool vert =Math.Abs(dir.X)<ApproximateComparer.DistanceEpsilon;
+            double maxWidth =(vert? Math.Min(center.Y-targetBox.Bottom, targetBox.Top-center.Y): Math.Min(center.X-targetBox.Left, targetBox.Right-center.X))/2; //divide over 2 to not miss the rect
+            double width = Math.Min(howMuchToStickOut, maxWidth);
             if (dir.Length <= ApproximateComparer.DistanceEpsilon)
                 dir = new Point(1, 0);
-            var hookDir=dir.Normalize();
-            var hookPerp=hookDir.Rotate(Math.PI/2);
-            var p1 = closestPoint + hookDir * howMuchToStickOut;
-            var p2 = p1 + hookPerp * width;
-            var p3 = closestPoint + hookPerp * width;
-            var end = center + hookPerp * width;
-            
-            var smoothedPoly=reverse?SmoothedPolyline.FromPoints( new []{end, p3, p2, p1, closestPoint, center}): SmoothedPolyline.FromPoints( new []{center, closestPoint, p1, p2, p3, end});
+            Point hookDir =dir.Normalize();
+            Point hookPerp =hookDir.Rotate(Math.PI/2);
+            Point p1 = closestPoint + hookDir * howMuchToStickOut;
+            Point p2 = p1 + hookPerp * width;
+            Point p3 = closestPoint + hookPerp * width;
+            Point end = center + hookPerp * width;
+
+            SmoothedPolyline smoothedPoly =reverse?SmoothedPolyline.FromPoints( new []{end, p3, p2, p1, closestPoint, center}): SmoothedPolyline.FromPoints( new []{center, closestPoint, p1, p2, p3, end});
             return smoothedPoly.CreateCurve();
         }
 
         static Point FindClosestPointOnBoxBoundary(Point c, Rectangle targetBox){
-            var x = c.X - targetBox.Left < targetBox.Right - c.X ? targetBox.Left : targetBox.Right;
-            var y = c.Y - targetBox.Bottom < targetBox.Top - c.Y ? targetBox.Bottom : targetBox.Top;
+            double x = c.X - targetBox.Left < targetBox.Right - c.X ? targetBox.Left : targetBox.Right;
+            double y = c.Y - targetBox.Bottom < targetBox.Top - c.Y ? targetBox.Bottom : targetBox.Top;
             return Math.Abs(x - c.X) < Math.Abs(y - c.Y) ? new Point(x, c.Y) : new Point(c.X, y);
         }
 
@@ -176,7 +174,7 @@ namespace Microsoft.AGL.Routing
 
             if (intersects.Count > 0)
             {
-                var trimmedLine = (LineSegment)line.Trim(intersects[0].Par1, 1.0);
+                LineSegment trimmedLine = (LineSegment)line.Trim(intersects[0].Par1, 1.0);
                 if(trimmedLine != null)
                 {
                     line = trimmedLine;
@@ -202,12 +200,12 @@ namespace Microsoft.AGL.Routing
         public static void CreateSimpleEdgeCurveWithUnderlyingPolyline(Edge edge)
         {
             ValidateArg.IsNotNull(edge, "edge");
-            var a = edge.Source.Center;
-            var b = edge.Target.Center;
+            Point a = edge.Source.Center;
+            Point b = edge.Target.Center;
             if (edge.Source == edge.Target)
             {
-                var dx = 2.0 / 3 * edge.Source.BoundaryCurve.BoundingBox.Width;
-                var dy = edge.Source.BoundingBox.Height / 4;
+                double dx = 2.0 / 3 * edge.Source.BoundaryCurve.BoundingBox.Width;
+                double dy = edge.Source.BoundingBox.Height / 4;
                 edge.UnderlyingPolyline = CreateUnderlyingPolylineForSelfEdge(a, dx, dy);
                 edge.Curve = edge.UnderlyingPolyline.CreateCurve();
             }
@@ -223,16 +221,15 @@ namespace Microsoft.AGL.Routing
             
         }
 
-        [SuppressMessage("Microsoft.Usage", "CA1806:DoNotIgnoreMethodResults", MessageId = "Microsoft.AGL.Core.Geometry.Site")]
         internal static SmoothedPolyline CreateUnderlyingPolylineForSelfEdge(Point p0, double dx, double dy)
         {
-            var p1 = p0 + new Point(0, dy);
-            var p2 = p0 + new Point(dx, dy);
-            var p3 = p0 + new Point(dx, -dy);
-            var p4 = p0 + new Point(0, -dy);
+            Point p1 = p0 + new Point(0, dy);
+            Point p2 = p0 + new Point(dx, dy);
+            Point p3 = p0 + new Point(dx, -dy);
+            Point p4 = p0 + new Point(0, -dy);
 
-            var site = new Site(p0);
-            var polyline = new SmoothedPolyline(site);
+            Site site = new Site(p0);
+            SmoothedPolyline polyline = new SmoothedPolyline(site);
             site = new Site(site, p1);
             site = new Site(site, p2);
             site = new Site(site, p3);
@@ -241,7 +238,6 @@ namespace Microsoft.AGL.Routing
             return polyline;
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA1806:DoNotIgnoreMethodResults", MessageId = "Microsoft.AGL.Site")]
         static internal void SetStraightLineEdgesWithUnderlyingPolylines(GeometryGraph graph) {
             SplineRouter.CreatePortsIfNeeded(graph.Edges);
             foreach (Edge edge in graph.Edges) 

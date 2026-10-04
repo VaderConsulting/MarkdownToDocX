@@ -7,23 +7,11 @@ namespace MermaidRecognition.Layout;
 /// </summary>
 public sealed class FlowchartLayoutResult
 {
-    private readonly List<FlowchartLayoutNodeBounds> _NodeBounds = new List<FlowchartLayoutNodeBounds>();
+    private readonly List<FlowchartLayoutNodeBounds> _NodeBounds = [];
 
-    public IReadOnlyList<FlowchartLayoutNodeBounds> NodeBounds
-    {
-        get
-        {
-            return _NodeBounds;
-        }
-    }
+    public IReadOnlyList<FlowchartLayoutNodeBounds> NodeBounds => _NodeBounds;
 
-    internal List<FlowchartLayoutNodeBounds> NodeBoundsMutable
-    {
-        get
-        {
-            return _NodeBounds;
-        }
-    }
+    internal List<FlowchartLayoutNodeBounds> NodeBoundsMutable => _NodeBounds;
 
     public double GraphWidth { get; init; }
 

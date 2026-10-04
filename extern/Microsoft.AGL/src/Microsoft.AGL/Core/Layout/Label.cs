@@ -16,9 +16,11 @@ namespace Microsoft.AGL.Core.Layout {
         /// <summary>
         /// The center of the label bounding box
         /// </summary>
-        public Point Center {
-            get { return boundingBox.Center; }
-            set {
+        public Point Center
+        {
+            get => boundingBox.Center;
+            set
+            {
                 RaiseLayoutChangeEvent(value);
                 boundingBox.Center = value;
             }
@@ -29,9 +31,11 @@ namespace Microsoft.AGL.Core.Layout {
         /// Label width could be different from the original width if the layer direction 
         /// of the layout is horizontal. This change is used only during the calcualations.
         /// </summary>
-        public double Width {
-            get { return boundingBox.Width; }
-            set {
+        public double Width
+        {
+            get => boundingBox.Width;
+            set
+            {
                 RaiseLayoutChangeEvent(value);
                 boundingBox.Width = value;
             }
@@ -42,9 +46,11 @@ namespace Microsoft.AGL.Core.Layout {
         /// Label height could be different from the original height if the layer direction 
         /// of the layout is horizontal. This change is used only during the calcualations 
         /// </summary>
-        public double Height {
-            get { return boundingBox.Height; }
-            set {
+        public double Height
+        {
+            get => boundingBox.Height;
+            set
+            {
                 RaiseLayoutChangeEvent(value);
                 boundingBox.Height = value;
             }
@@ -75,20 +81,18 @@ namespace Microsoft.AGL.Core.Layout {
         /// <summary>
         /// gets or sets the boundary box of the label
         /// </summary>
-        public override Rectangle BoundingBox {
-            get { return boundingBox; }
-            set {
+        public override Rectangle BoundingBox
+        {
+            get => boundingBox;
+            set
+            {
                 RaiseLayoutChangeEvent(value);
                 boundingBox = value;
             }
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
-        internal Label(GeometryObject parentPar) {
-            GeometryParent = parentPar;
-        }
+        internal Label(GeometryObject parentPar) => GeometryParent = parentPar;
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         internal ICurve CreateBoundary() {
             double w = Width/2;
             double h = Height/2;
@@ -105,9 +109,11 @@ namespace Microsoft.AGL.Core.Layout {
         /// <summary>
         /// the start of the segment showing the connection between the label and the edge
         /// </summary>
-        public Point AttachmentSegmentStart {
-            get { return attachmentSegmentStart; }
-            set {
+        public Point AttachmentSegmentStart
+        {
+            get => attachmentSegmentStart;
+            set
+            {
                 RaiseLayoutChangeEvent(value);
                 attachmentSegmentStart = value;
             }
@@ -118,9 +124,11 @@ namespace Microsoft.AGL.Core.Layout {
         /// <summary>
         /// the point on the edge closest to the label center
         /// </summary>
-        public Point AttachmentSegmentEnd {
-            get { return edgeAttachmentPoint; }
-            set {
+        public Point AttachmentSegmentEnd
+        {
+            get => edgeAttachmentPoint;
+            set
+            {
                 if (value.X == 0)
                     Console.WriteLine();
                 RaiseLayoutChangeEvent(value);
@@ -131,15 +139,12 @@ namespace Microsoft.AGL.Core.Layout {
         /// <summary>
         /// 0 is the start of the edge, 0.5 middle, 1 the end
         /// </summary>
-        public double PlacementOffset {
-            get { return placementOffset; }
-            set { placementOffset = value; }
+        public double PlacementOffset { get => placementOffset; set => placementOffset = value;
         }
 
         /// <summary>
         /// Options for which side of the edge the label should be placed on.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1034:NestedTypesShouldNotBeVisible")]
         public enum PlacementSide {
             /// <summary>
             /// Places the label on any side
@@ -191,7 +196,6 @@ namespace Microsoft.AGL.Core.Layout {
         /// <summary>
         /// The various strategies we have for placing labels along edges
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1034:NestedTypesShouldNotBeVisible")]
         public enum PlacementStrategy {
             /// <summary>
             /// Try to place the label running along the curve path
@@ -214,23 +218,17 @@ namespace Microsoft.AGL.Core.Layout {
         ///<summary>
         /// an array of placement strategies
         ///</summary>
-        public IEnumerable<PlacementStrategy> PlacementStrategyPriority {
-            get { return placementStrategyPriority; }
-            set { placementStrategyPriority = value; }
+        public IEnumerable<PlacementStrategy> PlacementStrategyPriority { get => placementStrategyPriority; set => placementStrategyPriority = value;
         }
 
         /// <summary>
         /// Inner points of the label
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage",
-            "CA2227:CollectionPropertiesShouldBeReadOnly")]
         public IList<Point> InnerPoints { get; set; }
 
         /// <summary>
         /// Outer points of the label
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage",
-            "CA2227:CollectionPropertiesShouldBeReadOnly")]
         public IList<Point> OuterPoints { get; set; }
 
         /// <summary>

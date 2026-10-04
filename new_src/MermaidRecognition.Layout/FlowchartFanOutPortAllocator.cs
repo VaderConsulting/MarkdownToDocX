@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Render;
 
 namespace MermaidRecognition.Layout;
@@ -49,7 +50,7 @@ public static class FlowchartFanOutPortAllocator
         FlowchartDirection Direction,
         out List<(double X, double Y)> LayoutPoints)
     {
-        LayoutPoints = new List<(double X, double Y)>();
+        LayoutPoints = [];
 
         if (IsDecisionShape(SourceShape))
         {
@@ -336,40 +337,34 @@ public static class FlowchartFanOutPortAllocator
     private static void SortOutgoingByTargetCrossAxisAscending(
         List<EdgeContract> Outgoing,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
-        bool HorizontalFlow)
-    {
-        Outgoing.Sort((Left, Right) =>
-        {
-            double LeftCross = GetCrossAxis(Left.TargetId, BoundsById, HorizontalFlow);
-            double RightCross = GetCrossAxis(Right.TargetId, BoundsById, HorizontalFlow);
-            int CrossCompare = LeftCross.CompareTo(RightCross);
-            if (CrossCompare != 0)
-            {
-                return CrossCompare;
-            }
+        bool HorizontalFlow) => Outgoing.Sort((Left, Right) =>
+                                     {
+                                         double LeftCross = GetCrossAxis(Left.TargetId, BoundsById, HorizontalFlow);
+                                         double RightCross = GetCrossAxis(Right.TargetId, BoundsById, HorizontalFlow);
+                                         int CrossCompare = LeftCross.CompareTo(RightCross);
+                                         if (CrossCompare != 0)
+                                         {
+                                             return CrossCompare;
+                                         }
 
-            return Left.CreationIndex.CompareTo(Right.CreationIndex);
-        });
-    }
+                                         return Left.CreationIndex.CompareTo(Right.CreationIndex);
+                                     });
 
     private static void SortOutgoingByTargetCrossAxisDescending(
         List<EdgeContract> Outgoing,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
-        bool HorizontalFlow)
-    {
-        Outgoing.Sort((Left, Right) =>
-        {
-            double LeftCross = GetCrossAxis(Left.TargetId, BoundsById, HorizontalFlow);
-            double RightCross = GetCrossAxis(Right.TargetId, BoundsById, HorizontalFlow);
-            int CrossCompare = RightCross.CompareTo(LeftCross);
-            if (CrossCompare != 0)
-            {
-                return CrossCompare;
-            }
+        bool HorizontalFlow) => Outgoing.Sort((Left, Right) =>
+                                     {
+                                         double LeftCross = GetCrossAxis(Left.TargetId, BoundsById, HorizontalFlow);
+                                         double RightCross = GetCrossAxis(Right.TargetId, BoundsById, HorizontalFlow);
+                                         int CrossCompare = RightCross.CompareTo(LeftCross);
+                                         if (CrossCompare != 0)
+                                         {
+                                             return CrossCompare;
+                                         }
 
-            return Left.CreationIndex.CompareTo(Right.CreationIndex);
-        });
-    }
+                                         return Left.CreationIndex.CompareTo(Right.CreationIndex);
+                                     });
 
     private static double GetCrossAxis(
         string NodeId,
@@ -438,25 +433,22 @@ public static class FlowchartFanOutPortAllocator
     private static void SortIncomingBySourceCrossAxisAscending(
         List<EdgeContract> Incoming,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
-        bool HorizontalFlow)
-    {
-        Incoming.Sort((Left, Right) =>
-        {
-            double LeftCross = GetCrossAxis(Left.SourceId, BoundsById, HorizontalFlow);
-            double RightCross = GetCrossAxis(Right.SourceId, BoundsById, HorizontalFlow);
-            int CrossCompare = LeftCross.CompareTo(RightCross);
-            if (CrossCompare != 0)
-            {
-                return CrossCompare;
-            }
+        bool HorizontalFlow) => Incoming.Sort((Left, Right) =>
+                                     {
+                                         double LeftCross = GetCrossAxis(Left.SourceId, BoundsById, HorizontalFlow);
+                                         double RightCross = GetCrossAxis(Right.SourceId, BoundsById, HorizontalFlow);
+                                         int CrossCompare = LeftCross.CompareTo(RightCross);
+                                         if (CrossCompare != 0)
+                                         {
+                                             return CrossCompare;
+                                         }
 
-            return Left.CreationIndex.CompareTo(Right.CreationIndex);
-        });
-    }
+                                         return Left.CreationIndex.CompareTo(Right.CreationIndex);
+                                     });
 
     private static List<EdgeContract> GetVisibleEdgesToTarget(DiagramContract Contract, string TargetId)
     {
-        List<EdgeContract> Edges = new List<EdgeContract>();
+        List<EdgeContract> Edges = [];
         foreach (EdgeContract Candidate in Contract.Edges)
         {
             if (string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
@@ -475,7 +467,7 @@ public static class FlowchartFanOutPortAllocator
 
     private static List<EdgeContract> GetVisibleEdgesFromSource(DiagramContract Contract, string SourceId)
     {
-        List<EdgeContract> Edges = new List<EdgeContract>();
+        List<EdgeContract> Edges = [];
         foreach (EdgeContract Candidate in Contract.Edges)
         {
             if (string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))

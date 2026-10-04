@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Layout;
 using MermaidRecognition.RuleValidation.Models;
 
@@ -88,7 +89,7 @@ public static class FlowchartSubgraphSiblingSpineHelper
             bool UseRowSpine = !HorizontalFlow
                 && AreSiblingGroupsSideBySideOnCrossAxis(Siblings, BoundsById);
 
-            List<double> CrossCenters = new List<double>();
+            List<double> CrossCenters = [];
             foreach (GroupContract Group in Siblings)
             {
                 if (TryGetGroupCrossCenter(
@@ -226,7 +227,7 @@ public static class FlowchartSubgraphSiblingSpineHelper
             return false;
         }
 
-        List<(double Left, double Right, double Top, double Bottom)> Rects = new List<(double Left, double Right, double Top, double Bottom)>();
+        List<(double Left, double Right, double Top, double Bottom)> Rects = [];
         foreach (GroupContract Group in Siblings)
         {
             bool HasAny = false;
@@ -237,7 +238,7 @@ public static class FlowchartSubgraphSiblingSpineHelper
 
             foreach (string NodeId in Group.ChildNodeIds)
             {
-                if (!BoundsById.TryGetValue(NodeId, out FlowchartLayoutNodeBounds Bounds))
+                if (!BoundsById.TryGetValue(NodeId, out FlowchartLayoutNodeBounds? Bounds))
                 {
                     continue;
                 }
@@ -295,7 +296,7 @@ public static class FlowchartSubgraphSiblingSpineHelper
 
         foreach (string NodeId in MemberNodeIds)
         {
-            if (!BoundsById.TryGetValue(NodeId, out FlowchartLayoutNodeBounds Bounds))
+            if (!BoundsById.TryGetValue(NodeId, out FlowchartLayoutNodeBounds? Bounds))
             {
                 continue;
             }

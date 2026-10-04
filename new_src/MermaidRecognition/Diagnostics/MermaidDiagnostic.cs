@@ -21,52 +21,22 @@ public sealed class MermaidDiagnostic
 
     private readonly MermaidDiagnosticSeverity _Severity;
 
-    public MermaidDiagnosticSeverity Severity
-    {
-        get
-        {
-            return _Severity;
-        }
-    }
+    public MermaidDiagnosticSeverity Severity => _Severity;
 
     private readonly string _Code;
 
-    public string Code
-    {
-        get
-        {
-            return _Code;
-        }
-    }
+    public string Code => _Code;
 
     private readonly string _Message;
 
-    public string Message
-    {
-        get
-        {
-            return _Message;
-        }
-    }
+    public string Message => _Message;
 
     private readonly MermaidSourceSpan? _SourceSpan;
 
-    public MermaidSourceSpan? SourceSpan
-    {
-        get
-        {
-            return _SourceSpan;
-        }
-    }
+    public MermaidSourceSpan? SourceSpan => _SourceSpan;
 
     private readonly string? _AffectedId;
 
-    public string? AffectedId
-    {
-        get
-        {
-            return _AffectedId;
-        }
-    }
+    public string? AffectedId => _AffectedId;
 }
 

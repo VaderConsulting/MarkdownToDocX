@@ -9,20 +9,20 @@ public sealed class CommonMarkSpecFixtureTests
     [TestMethod]
     public void CommonMarkSpecExamples_ConvertToValidDocxPackages()
     {
-        var Examples = LoadSpecExamples();
+        IReadOnlyList<CommonMarkExample> Examples = LoadSpecExamples();
         Assert.IsGreaterThan(500, Examples.Count, "Expected the vendored CommonMark spec fixture to contain the official examples.");
 
-        var Converter = new MarkdownToDocxConverter(new MarkdownToDocxOptions
+        MarkdownToDocxConverter Converter = new MarkdownToDocxConverter(new MarkdownToDocxOptions
         {
             Profile = "strict-commonmark"
         });
 
-        var Failures = new List<string>();
-        foreach (var Example in Examples)
+        List<string> Failures = new List<string>();
+        foreach (CommonMarkExample Example in Examples)
         {
             try
             {
-                var Bytes = Converter.ConvertText(Example.Markdown, AppContext.BaseDirectory);
+                byte[] Bytes = Converter.ConvertText(Example.Markdown, AppContext.BaseDirectory);
                 AssertValidDocxPackage(Bytes, Example.Number);
             }
             catch (Exception Ex)
@@ -43,15 +43,15 @@ public sealed class CommonMarkSpecFixtureTests
 
     private static IReadOnlyList<CommonMarkExample> LoadSpecExamples()
     {
-        var SpecPath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "commonmark-spec.txt");
-        var Lines = File.ReadAllLines(SpecPath);
-        var Examples = new List<CommonMarkExample>();
-        var Section = string.Empty;
-        var ExampleNumber = 0;
+        string SpecPath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "commonmark-spec.txt");
+        string[] Lines = File.ReadAllLines(SpecPath);
+        List<CommonMarkExample> Examples = new List<CommonMarkExample>();
+        string Section = string.Empty;
+        int ExampleNumber = 0;
 
-        for (var I = 0; I < Lines.Length; I++)
+        for (int I = 0; I < Lines.Length; I++)
         {
-            var Line = Lines[I];
+            string Line = Lines[I];
             if (Line.StartsWith("# ", StringComparison.Ordinal))
             {
                 Section = Line.Substring(2).Trim();
@@ -65,7 +65,7 @@ public sealed class CommonMarkSpecFixtureTests
 
             ExampleNumber++;
             I++;
-            var MarkdownLines = new List<string>();
+            List<string> MarkdownLines = new List<string>();
             while (I < Lines.Length && Lines[I] != ".")
             {
                 MarkdownLines.Add(DecodeSpecLine(Lines[I]));
@@ -91,8 +91,8 @@ public sealed class CommonMarkSpecFixtureTests
     private static void AssertValidDocxPackage(byte[] Bytes, int ExampleNumber)
     {
         Assert.IsGreaterThan(0, Bytes.Length, $"Example {ExampleNumber} produced an empty DOCX.");
-        using var Stream = new MemoryStream(Bytes);
-        using var Archive = new ZipArchive(Stream, ZipArchiveMode.Read);
+        using MemoryStream Stream = new MemoryStream(Bytes);
+        using ZipArchive Archive = new ZipArchive(Stream, ZipArchiveMode.Read);
 
         Assert.IsNotNull(Archive.GetEntry("[Content_Types].xml"), $"Example {ExampleNumber} missing content types.");
         Assert.IsNotNull(Archive.GetEntry("_rels/.rels"), $"Example {ExampleNumber} missing package relationships.");

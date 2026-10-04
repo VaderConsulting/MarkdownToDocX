@@ -36,9 +36,9 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
     /// It is a parallelogram with the vertices corner, corner+coeff,corner+coeff+side1 and corner+side1.
     /// Parallelograms are used by GLEE in curve intersections routines.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")
+    [
 #if TEST_MSAGL
-    , Serializable
+Serializable
 #endif
     ] 
     //parallelograms are not stored in dictionaries
@@ -77,27 +77,21 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         }
 #endif
 
-        internal Point Corner {
-            get { return corner; }
-        }
+        internal Point Corner => corner;
 
-        internal Point OtherCorner {
-            get { return otherCorner; }
-        }
+        internal Point OtherCorner => otherCorner;
 
         Point aRot;//a rotated on 90 degrees towards side1
         Point bRot; //side1 rotated on 90 degrees towards coeff
 
         double abRot; //the scalar product coeff*bRot 
         double baRot; //the scalar product side1*aRot;
-/// <summary>
-/// to string 
-/// </summary>
-/// <returns></returns>
-        override public string ToString() {
-            return String.Format(CultureInfo.InvariantCulture, "({0},{1},{2},{3})", Vertex(0), Vertex(VertexId.VertexA),
+        /// <summary>
+        /// to string 
+        /// </summary>
+        /// <returns></returns>
+        override public string ToString() => string.Format(CultureInfo.InvariantCulture, "({0},{1},{2},{3})", Vertex(0), Vertex(VertexId.VertexA),
                                  Vertex(VertexId.OtherCorner), Vertex(VertexId.VertexB));
-        }
 
         /// <summary>
         /// Constructs the parallelogram by the corner and two sides.
@@ -108,14 +102,14 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         public Parallelogram(Point corner, Point sideA, Point sideB) {
 
             this.corner = corner;
-            this.a = sideA;
-            this.b = sideB;
+            a = sideA;
+            b = sideB;
 
-            this.aRot = new Point(-sideA.Y, sideA.X);
+            aRot = new Point(-sideA.Y, sideA.X);
             if (aRot.Length > 0.5)
                 aRot = aRot.Normalize();
 
-            this.bRot = new Point(-sideB.Y, sideB.X);
+            bRot = new Point(-sideB.Y, sideB.X);
             if (bRot.Length > 0.5)
                 bRot = bRot.Normalize();
 
@@ -159,11 +153,11 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         }
 
 
-/// <summary>
-/// return the area of the parallelogram
-/// </summary>
-        public double Area { get { return Math.Abs(a.X * b.Y - a.Y * b.X); } }
-     
+        /// <summary>
+        /// return the area of the parallelogram
+        /// </summary>
+        public double Area => Math.Abs(a.X * b.Y - a.Y * b.X);
+
         /// <summary>
         /// Return the correspoingin vertex of the parallelogram
         /// </summary>
@@ -247,11 +241,9 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
 
         }
 
-        static double mult(ref Point a, ref Point b) {
-            return a.X * b.X + a.Y * b.Y;
-        }
+        static double mult(ref Point a, ref Point b) => a.X * b.X + a.Y * b.Y;
 
-         static bool separByA(ref Parallelogram p0, ref Parallelogram p1) {
+        static bool separByA(ref Parallelogram p0, ref Parallelogram p1) {
 
             double eps = ApproximateComparer.DistanceEpsilon;
             Point t = new Point(p1.corner.X - p0.corner.X, p1.corner.Y - p0.corner.Y);
@@ -411,24 +403,24 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
             PumpMinMax(ref minX, ref maxX, ref minY, ref maxY, ref box1.otherCorner);
             PumpMinMax(ref minX, ref maxX, ref minY, ref maxY, ref box1.bPlusCorner);
 
-            this.corner = new Point(minX, minY);
-            this.a = new Point(0, maxY - minY);
-            this.b = new Point(maxX - minX, 0);
+            corner = new Point(minX, minY);
+            a = new Point(0, maxY - minY);
+            b = new Point(maxX - minX, 0);
 
             aPlusCorner = a + corner;
             otherCorner = b + aPlusCorner;
             bPlusCorner = b + corner;
 
-            this.aRot = new Point(-this.a.Y, this.a.X);
+            aRot = new Point(-a.Y, a.X);
             if (aRot.Length > 0.5)
                 aRot = aRot.Normalize();
 
-            this.bRot = new Point(-this.b.Y, this.b.X);
+            bRot = new Point(-b.Y, b.X);
             if (bRot.Length > 0.5)
                 bRot = bRot.Normalize();
 
-            abRot = this.a * bRot;
-            baRot = this.b * aRot;
+            abRot = a * bRot;
+            baRot = b * aRot;
 
 
             if (abRot < 0) {
@@ -441,7 +433,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
                 aRot = -aRot;
             }
 
-            isSeg = (this.a - this.b).Length < ApproximateComparer.DistanceEpsilon;
+            isSeg = (a - b).Length < ApproximateComparer.DistanceEpsilon;
         }
 
          static void PumpMinMax(ref double minX, ref double maxX, ref double minY, ref double maxY, 

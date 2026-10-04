@@ -1,3 +1,5 @@
+using MermaidRecognition.Core;
+
 namespace MermaidRecognition.Contract;
 
 /// <summary>
@@ -9,224 +11,88 @@ public sealed class DiagramContract
 
     public string? SourceHash
     {
-        get
-        {
-            return _SourceHash;
-        }
-        set
-        {
-            _SourceHash = value;
-        }
+        get => _SourceHash; set => _SourceHash = value;
     }
 
     private string _Kind = string.Empty;
 
     public string Kind
     {
-        get
-        {
-            return _Kind;
-        }
-        set
-        {
-            _Kind = value;
-        }
+        get => _Kind; set => _Kind = value;
     }
 
     private string _Header = string.Empty;
 
     public string Header
     {
-        get
-        {
-            return _Header;
-        }
-        set
-        {
-            _Header = value;
-        }
+        get => _Header; set => _Header = value;
     }
 
     private string? _Direction;
 
     public string? Direction
     {
-        get
-        {
-            return _Direction;
-        }
-        set
-        {
-            _Direction = value;
-        }
+        get => _Direction; set => _Direction = value;
     }
 
     private readonly DiagramConfigContract _Configuration = new DiagramConfigContract();
 
-    public DiagramConfigContract Configuration
-    {
-        get
-        {
-            return _Configuration;
-        }
-    }
+    public DiagramConfigContract Configuration => _Configuration;
 
-    private readonly List<NodeContract> _Nodes = new List<NodeContract>();
+    private readonly List<NodeContract> _Nodes = [];
 
-    public IReadOnlyList<NodeContract> Nodes
-    {
-        get
-        {
-            return _Nodes;
-        }
-    }
+    public IReadOnlyList<NodeContract> Nodes => _Nodes;
 
-    public List<NodeContract> NodesMutable
-    {
-        get
-        {
-            return _Nodes;
-        }
-    }
+    public List<NodeContract> NodesMutable => _Nodes;
 
-    private readonly List<EdgeContract> _Edges = new List<EdgeContract>();
+    private readonly List<EdgeContract> _Edges = [];
 
-    public IReadOnlyList<EdgeContract> Edges
-    {
-        get
-        {
-            return _Edges;
-        }
-    }
+    public IReadOnlyList<EdgeContract> Edges => _Edges;
 
-    public List<EdgeContract> EdgesMutable
-    {
-        get
-        {
-            return _Edges;
-        }
-    }
+    public List<EdgeContract> EdgesMutable => _Edges;
 
-    private readonly List<GroupContract> _Groups = new List<GroupContract>();
+    private readonly List<GroupContract> _Groups = [];
 
-    public IReadOnlyList<GroupContract> Groups
-    {
-        get
-        {
-            return _Groups;
-        }
-    }
+    public IReadOnlyList<GroupContract> Groups => _Groups;
 
-    public List<GroupContract> GroupsMutable
-    {
-        get
-        {
-            return _Groups;
-        }
-    }
+    public List<GroupContract> GroupsMutable => _Groups;
 
-    private readonly List<MermaidDiagnostic> _Diagnostics = new List<MermaidDiagnostic>();
+    private readonly List<MermaidDiagnostic> _Diagnostics = [];
 
-    public IReadOnlyList<MermaidDiagnostic> Diagnostics
-    {
-        get
-        {
-            return _Diagnostics;
-        }
-    }
+    public IReadOnlyList<MermaidDiagnostic> Diagnostics => _Diagnostics;
 
-    public List<MermaidDiagnostic> DiagnosticsMutable
-    {
-        get
-        {
-            return _Diagnostics;
-        }
-    }
+    public List<MermaidDiagnostic> DiagnosticsMutable => _Diagnostics;
 
-    private readonly List<LinkStyleDirective> _LinkStyles = new List<LinkStyleDirective>();
+    private readonly List<LinkStyleDirective> _LinkStyles = [];
 
-    public IReadOnlyList<LinkStyleDirective> LinkStyles
-    {
-        get
-        {
-            return _LinkStyles;
-        }
-    }
+    public IReadOnlyList<LinkStyleDirective> LinkStyles => _LinkStyles;
 
-    public List<LinkStyleDirective> LinkStylesMutable
-    {
-        get
-        {
-            return _LinkStyles;
-        }
-    }
+    public List<LinkStyleDirective> LinkStylesMutable => _LinkStyles;
 
-    private readonly List<InteractionDirective> _Interactions = new List<InteractionDirective>();
+    private readonly List<InteractionDirective> _Interactions = [];
 
-    public IReadOnlyList<InteractionDirective> Interactions
-    {
-        get
-        {
-            return _Interactions;
-        }
-    }
+    public IReadOnlyList<InteractionDirective> Interactions => _Interactions;
 
-    public List<InteractionDirective> InteractionsMutable
-    {
-        get
-        {
-            return _Interactions;
-        }
-    }
+    public List<InteractionDirective> InteractionsMutable => _Interactions;
 
-    private readonly List<ClassDefContract> _ClassDefs = new List<ClassDefContract>();
+    private readonly List<ClassDefContract> _ClassDefs = [];
 
-    public IReadOnlyList<ClassDefContract> ClassDefs
-    {
-        get
-        {
-            return _ClassDefs;
-        }
-    }
+    public IReadOnlyList<ClassDefContract> ClassDefs => _ClassDefs;
 
-    public List<ClassDefContract> ClassDefsMutable
-    {
-        get
-        {
-            return _ClassDefs;
-        }
-    }
+    public List<ClassDefContract> ClassDefsMutable => _ClassDefs;
 
     private readonly DiagramAccessibilityContract _Accessibility = new DiagramAccessibilityContract();
 
-    public DiagramAccessibilityContract Accessibility
-    {
-        get
-        {
-            return _Accessibility;
-        }
-    }
+    public DiagramAccessibilityContract Accessibility => _Accessibility;
 
-    private readonly List<SourceStatementContract> _SourceStatements = new List<SourceStatementContract>();
+    private readonly List<SourceStatementContract> _SourceStatements = [];
 
     /// <summary>
     /// Classified source lines for catalogue gates (§7.4.3); populated for non-graph and L1 kinds.
     /// </summary>
-    public IReadOnlyList<SourceStatementContract> SourceStatements
-    {
-        get
-        {
-            return _SourceStatements;
-        }
-    }
+    public IReadOnlyList<SourceStatementContract> SourceStatements => _SourceStatements;
 
-    public List<SourceStatementContract> SourceStatementsMutable
-    {
-        get
-        {
-            return _SourceStatements;
-        }
-    }
+    public List<SourceStatementContract> SourceStatementsMutable => _SourceStatements;
 
     private MermaidDiagramRemarkStatus _RemarkStatus = MermaidDiagramRemarkStatus.Active;
 
@@ -235,13 +101,6 @@ public sealed class DiagramContract
     /// </summary>
     public MermaidDiagramRemarkStatus RemarkStatus
     {
-        get
-        {
-            return _RemarkStatus;
-        }
-        set
-        {
-            _RemarkStatus = value;
-        }
+        get => _RemarkStatus; set => _RemarkStatus = value;
     }
 }

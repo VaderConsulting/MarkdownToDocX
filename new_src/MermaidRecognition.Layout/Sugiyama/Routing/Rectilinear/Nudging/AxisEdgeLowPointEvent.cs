@@ -12,10 +12,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             AxisEdge = edge;
         }
 
-        internal override Point Site {
-            get { return site; }
-        }
+        internal override Point Site => site;
 
-       
+
     }
 }

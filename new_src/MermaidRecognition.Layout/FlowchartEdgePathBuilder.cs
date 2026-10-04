@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
+
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Render;
 
 namespace MermaidRecognition.Layout;
@@ -67,7 +68,7 @@ public static class FlowchartEdgePathBuilder
         EdgeEndpointMarker MarkerStart = EdgeEndpointMarker.None,
         EdgeEndpointMarker MarkerEnd = EdgeEndpointMarker.None)
     {
-        LayoutPoints = new List<(double X, double Y)>();
+        LayoutPoints = [];
 
         bool RightToLeft = Direction == FlowchartDirection.RightToLeft;
         double SourceHalfWidth = SourceBounds.Width / 2.0;
@@ -120,10 +121,7 @@ public static class FlowchartEdgePathBuilder
         return LayoutPoints.Count >= 2;
     }
 
-    private static double InterpolateRetryLoopCornerY(double FromY, double ToY)
-    {
-        return FromY + ((ToY - FromY) * LR_RETRY_LOOP_CORNER_APPROACH_RATIO);
-    }
+    private static double InterpolateRetryLoopCornerY(double FromY, double ToY) => FromY + ((ToY - FromY) * LR_RETRY_LOOP_CORNER_APPROACH_RATIO);
 
     private static void AddLayoutPointIfDistinct(List<(double X, double Y)> Points, double X, double Y)
     {

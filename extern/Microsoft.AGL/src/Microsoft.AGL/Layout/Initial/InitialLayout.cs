@@ -44,11 +44,13 @@ namespace Microsoft.AGL.Layout.Initial
             ValidateArg.IsNotNull(settings, "settings");
             this.graph = graph;
 
-            this.settings = new FastIncrementalLayoutSettings(settings);
-            this.settings.ApplyForces = true;
-            this.settings.InterComponentForces = true;
-            this.settings.RungeKuttaIntegration = false;
-            this.settings.RespectEdgePorts = false;
+            this.settings = new FastIncrementalLayoutSettings(settings)
+            {
+                ApplyForces = true,
+                InterComponentForces = true,
+                RungeKuttaIntegration = false,
+                RespectEdgePorts = false
+            };
         }
 
         /// <summary>
@@ -63,46 +65,45 @@ namespace Microsoft.AGL.Layout.Initial
             }
             else
             {
-                foreach (var c in graph.RootCluster.AllClustersDepthFirst())
+                foreach (Cluster c in graph.RootCluster.AllClustersDepthFirst())
                 {
                     if (c == graph.RootCluster || c.RectangularBoundary == null) continue;
                     c.RectangularBoundary.GenerateFixedConstraints = false;
                 }
 
-                var components = graph.GetClusteredConnectedComponents().ToList();
+                List<GeometryGraph> components = graph.GetClusteredConnectedComponents().ToList();
 
                 componentCount = components.Count;
 
-                foreach (var component in components)
+                foreach (GeometryGraph component in components)
                 {
                     LayoutComponent(component);
                 }
 
                 graph.BoundingBox = MdsGraphLayout.PackGraphs(components, settings);
-                this.ProgressComplete();
+                ProgressComplete();
 
                 // update positions of original graph elements
-                foreach (var v in graph.Nodes)
+                foreach (Node v in graph.Nodes)
                 {
-                    var copy = v.AlgorithmData as GraphConnectedComponents.AlgorithmDataNodeWrap;
+                    GraphConnectedComponents.AlgorithmDataNodeWrap copy = v.AlgorithmData as GraphConnectedComponents.AlgorithmDataNodeWrap;
                     Debug.Assert(copy != null);
                     v.Center = copy.node.Center;
                 }
 
-                foreach (var e in graph.Edges)
+                foreach (Edge e in graph.Edges)
                 {
-                    var copy = e.AlgorithmData as Edge;
-                    if (copy != null)
+                    if (e.AlgorithmData is Edge copy)
                     {
                         e.EdgeGeometry = copy.EdgeGeometry;
                         e.EdgeGeometry.Curve = copy.Curve;
                     }
                 }
 
-                foreach (var c in graph.RootCluster.AllClustersDepthFirst().Where(c => c != graph.RootCluster))
+                foreach (Cluster c in graph.RootCluster.AllClustersDepthFirst().Where(c => c != graph.RootCluster))
                 {
-                    var copy = c.AlgorithmData as GraphConnectedComponents.AlgorithmDataNodeWrap;
-                    var copyCluster = copy.node as Cluster;
+                    GraphConnectedComponents.AlgorithmDataNodeWrap copy = c.AlgorithmData as GraphConnectedComponents.AlgorithmDataNodeWrap;
+                    Cluster copyCluster = copy.node as Cluster;
                     Debug.Assert(copyCluster != null);
                     c.RectangularBoundary = copyCluster.RectangularBoundary;
                     c.RectangularBoundary.GenerateFixedConstraints = c.RectangularBoundary.GenerateFixedConstraintsDefault;
@@ -129,12 +130,12 @@ namespace Microsoft.AGL.Layout.Initial
                     // subsequent incremental iterations do a better job of untangling when they're pulling it in
                     // rather than pushing it apart.
                     PivotMDS pivotMDS = new PivotMDS(component) { Scale = 2 };
-                    this.RunChildAlgorithm(pivotMDS, 0.5 / componentCount);
+                    RunChildAlgorithm(pivotMDS, 0.5 / componentCount);
                 }
                 FastIncrementalLayout fil = new FastIncrementalLayout(component, settings, settings.MinConstraintLevel, anyCluster => settings);
                 Debug.Assert(settings.Iterations == 0);
 
-                foreach (var level in GetConstraintLevels(component))
+                foreach (int level in GetConstraintLevels(component))
                 {
                     if (level > settings.MaxConstraintLevel)
                     {
@@ -168,12 +169,12 @@ namespace Microsoft.AGL.Layout.Initial
         /// <returns>0, 1 or 2</returns>
         IEnumerable<int> GetConstraintLevels(GeometryGraph component)
         {
-            var keys = (from c in this.settings.StructuralConstraints select c.Level).ToList();
+            List<int> keys = (from c in settings.StructuralConstraints select c.Level).ToList();
             keys.Add(0);
-            if (this.settings.IdealEdgeLength.EdgeDirectionConstraints != Directions.None) { 
+            if (settings.IdealEdgeLength.EdgeDirectionConstraints != Directions.None) { 
                 keys.Add(1); 
             }
-            if (this.settings.AvoidOverlaps && component.Nodes.Count < 2000) { keys.Add(2); }
+            if (settings.AvoidOverlaps && component.Nodes.Count < 2000) { keys.Add(2); }
             return keys.Distinct();
         }
 

@@ -7,7 +7,8 @@
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
 
-namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
+namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.OverlapRemoval
+{
     /// <summary>
     /// Global configuration constants for the OverlapRemoval namespace.
     /// </summary>

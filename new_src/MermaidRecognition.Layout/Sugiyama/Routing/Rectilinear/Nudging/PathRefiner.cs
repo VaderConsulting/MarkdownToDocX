@@ -15,7 +15,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         
         internal static void RefinePaths(IEnumerable<Path> paths, bool mergePaths) {
             AdjustPaths(paths);
-            var pathsToFirstLinkedVertices = CreatePathsToFirstLinkedVerticesMap(paths);
+            Dictionary<Path, LinkedPoint> pathsToFirstLinkedVertices = CreatePathsToFirstLinkedVerticesMap(paths);
             Refine(pathsToFirstLinkedVertices.Values);
             CrossVerticalAndHorizontalSegs(pathsToFirstLinkedVertices.Values);
             ReconstructPathsFromLinkedVertices(pathsToFirstLinkedVertices);
@@ -27,7 +27,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         /// </summary>
         /// <param name="paths"></param>
         static void AdjustPaths(IEnumerable<Path> paths) {
-            foreach (var path in paths)
+            foreach (Path path in paths)
 #if SHARPKIT //https://code.google.com/p/sharpkit/issues/detail?id=369
                 path.PathPoints = AdjustPathPoints(path.PathPoints.Select(p=>p.Clone()).ToArray()).ToArray();
 #else
@@ -39,7 +39,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             Point p = AdjustPoint(points[0]);
             yield return p;
             for(int i=1;i<points.Count();i++) {
-                var np = AdjustPoint(points[i]);
+                Point np = AdjustPoint(points[i]);
                 if (p!=np)
 #if SHARPKIT //https://code.google.com/p/sharpkit/issues/detail?id=368
                 {
@@ -52,16 +52,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             }
         }
         static readonly int DigitsToRound = ApproximateComparer.DistanceEpsilonPrecision;
-        
-        static Point AdjustPoint(Point p0) {
-            return new Point(Math.Round(p0.X,DigitsToRound), Math.Round(p0.Y,DigitsToRound));
-        }
+
+        static Point AdjustPoint(Point p0) => new Point(Math.Round(p0.X, DigitsToRound), Math.Round(p0.Y, DigitsToRound));
 
         static void CrossVerticalAndHorizontalSegs(IEnumerable<LinkedPoint> pathsFirstLinked) {
-            var horizontalPoints = new List<LinkedPoint>();
-            var verticalPoints = new List<LinkedPoint>();
-            foreach (var pnt in pathsFirstLinked)
-                for (var p = pnt; p.Next != null; p = p.Next)
+            List<LinkedPoint> horizontalPoints = new List<LinkedPoint>();
+            List<LinkedPoint> verticalPoints = new List<LinkedPoint>();
+            foreach (LinkedPoint pnt in pathsFirstLinked)
+                for (LinkedPoint p = pnt; p.Next != null; p = p.Next)
                     if (ApproximateComparer.Close(p.Point.X, p.Next.Point.X))
                         verticalPoints.Add(p);
                     else
@@ -73,7 +71,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
 
 
         static void ReconstructPathsFromLinkedVertices(Dictionary<Path, LinkedPoint> pathsToPathLinkedPoints) {
-            foreach (var pair in pathsToPathLinkedPoints)
+            foreach (KeyValuePair<Path, LinkedPoint> pair in pathsToPathLinkedPoints)
                 pair.Key.PathPoints = pair.Value;
         }
 
@@ -89,13 +87,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         /// <param name="pathFirstPoints"></param>
         static void RefineInDirection(Directions direction, IEnumerable<LinkedPoint> pathFirstPoints) {
 
-            PointProjection projectionToDirection, projectionToPerp;
-            GetProjectionsDelegates(direction, out projectionToPerp, out projectionToDirection);
+            GetProjectionsDelegates(direction, out PointProjection? projectionToPerp, out PointProjection? projectionToDirection);
 
-            var linkedPointsInDirection = GetAllLinkedVertsInDirection(projectionToPerp, pathFirstPoints).ToArray();
+            LinkedPoint[] linkedPointsInDirection = GetAllLinkedVertsInDirection(projectionToPerp, pathFirstPoints).ToArray();
 
-            var colliniarBuckets = linkedPointsInDirection.GroupBy(p => projectionToPerp(p.Point));
-            foreach (var pathLinkedPointBucket in colliniarBuckets)
+            IEnumerable<IGrouping<double, LinkedPoint>> colliniarBuckets = linkedPointsInDirection.GroupBy(p => projectionToPerp(p.Point));
+            foreach (IGrouping<double, LinkedPoint> pathLinkedPointBucket in colliniarBuckets)
                 RefineCollinearBucket(pathLinkedPointBucket, projectionToDirection);
         }
 
@@ -114,8 +111,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         static IEnumerable<LinkedPoint> GetAllLinkedVertsInDirection(
             PointProjection projectionToPerp,
             IEnumerable<LinkedPoint> initialVerts) {
-            foreach (var vert in initialVerts)
-                for (var v = vert; v.Next != null; v = v.Next)
+            foreach (LinkedPoint vert in initialVerts)
+                for (LinkedPoint v = vert; v.Next != null; v = v.Next)
                     if ( ApproximateComparer.Close(projectionToPerp(v.Point),projectionToPerp(v.Next.Point)))
                         yield return v;
         }
@@ -129,24 +126,24 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             IEnumerable<LinkedPoint> pathLinkedVertices,
             PointProjection projectionToDirection) {
 
-            var dict = new SortedDictionary<Point, int>(new PointByDelegateComparer(projectionToDirection));
-            foreach (var pathLinkedPoint in pathLinkedVertices) {
+            SortedDictionary<Point, int> dict = new SortedDictionary<Point, int>(new PointByDelegateComparer(projectionToDirection));
+            foreach (LinkedPoint pathLinkedPoint in pathLinkedVertices) {
                 if (!dict.ContainsKey(pathLinkedPoint.Point))
                     dict[pathLinkedPoint.Point] = 0;
                 if (!dict.ContainsKey(pathLinkedPoint.Next.Point))
                     dict[pathLinkedPoint.Next.Point] = 0;
             }
 
-            var arrayOfPoints = new Point[dict.Count];
+            Point[] arrayOfPoints = new Point[dict.Count];
             int i = 0;
-            foreach (var point in dict.Keys)
+            foreach (Point point in dict.Keys)
                 arrayOfPoints[i++] = point;
 
             for (i = 0; i < arrayOfPoints.Length; i++)
                 dict[arrayOfPoints[i]] = i;
 
 
-            foreach (var pathLinkedVertex in pathLinkedVertices) {
+            foreach (LinkedPoint pathLinkedVertex in pathLinkedVertices) {
                 i = dict[pathLinkedVertex.Point];
                 int j = dict[pathLinkedVertex.Next.Point];
                 if (Math.Abs(j - i) > 1)
@@ -163,15 +160,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
 
 
         static Dictionary<Path, LinkedPoint> CreatePathsToFirstLinkedVerticesMap(IEnumerable<Path> edgePaths) {
-            var dict = new Dictionary<Path, LinkedPoint>();
-            foreach (var path in edgePaths)
+            Dictionary<Path, LinkedPoint> dict = new Dictionary<Path, LinkedPoint>();
+            foreach (Path path in edgePaths)
                 dict[path] = CreateLinkedVertexOfEdgePath(path);
             return dict;
         }
 
         static LinkedPoint CreateLinkedVertexOfEdgePath(Path path) {
-            var pathPoint = new LinkedPoint(path.PathPoints.First());
-            var first = pathPoint;
+            LinkedPoint pathPoint = new LinkedPoint(path.PathPoints.First());
+            LinkedPoint first = pathPoint;
 #if SHARPKIT //https://code.google.com/p/sharpkit/issues/detail?id=368
             path.PathPoints.Skip(1).Aggregate(pathPoint, (lp, p) => { lp.Next = new LinkedPoint(p); return lp.Next; });
 #else

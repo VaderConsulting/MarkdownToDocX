@@ -40,10 +40,7 @@ internal sealed class FlowchartTopologyIndex
         return Index;
     }
 
-    public bool TryGetNode(string NodeId, out NodeContract Node)
-    {
-        return _NodesById.TryGetValue(NodeId, out Node!);
-    }
+    public bool TryGetNode(string NodeId, out NodeContract Node) => _NodesById.TryGetValue(NodeId, out Node!);
 
     public IReadOnlyList<EdgeContract> GetOutgoing(string NodeId)
     {
@@ -81,7 +78,7 @@ internal sealed class FlowchartTopologyIndex
             VisitStateByNodeId[Entry.Key] = 0;
         }
 
-        List<string> RootNodeIds = new List<string>();
+        List<string> RootNodeIds = [];
         foreach (KeyValuePair<string, NodeContract> Entry in _NodesById)
         {
             if (!_IncomingByTarget.TryGetValue(Entry.Key, out List<EdgeContract>? IncomingEdges)
@@ -146,18 +143,15 @@ internal sealed class FlowchartTopologyIndex
         return false;
     }
 
-    private static bool EdgesMatch(EdgeContract Left, EdgeContract Right)
-    {
-        return Left.SourceId == Right.SourceId
+    private static bool EdgesMatch(EdgeContract Left, EdgeContract Right) => Left.SourceId == Right.SourceId
             && Left.TargetId == Right.TargetId
             && Left.CreationIndex == Right.CreationIndex;
-    }
 
     private void AddOutgoing(string NodeId, EdgeContract Edge)
     {
         if (!_OutgoingBySource.TryGetValue(NodeId, out List<EdgeContract>? Edges))
         {
-            Edges = new List<EdgeContract>();
+            Edges = [];
             _OutgoingBySource[NodeId] = Edges;
         }
 
@@ -168,7 +162,7 @@ internal sealed class FlowchartTopologyIndex
     {
         if (!_IncomingByTarget.TryGetValue(NodeId, out List<EdgeContract>? Edges))
         {
-            Edges = new List<EdgeContract>();
+            Edges = [];
             _IncomingByTarget[NodeId] = Edges;
         }
 

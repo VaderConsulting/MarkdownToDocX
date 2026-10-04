@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Microsoft.AGL.Core.Geometry;
 using Microsoft.AGL.Core.Layout;
 using Microsoft.AGL.Layout.MDS;
-using Microsoft.AGL.Core;
 
 namespace Microsoft.AGL.Layout.Incremental {
     /// <summary>
@@ -46,7 +46,7 @@ namespace Microsoft.AGL.Layout.Incremental {
             Y = new Point[n];
             int i = 0;
             Point yc = new Point();
-            foreach (var p in targetConfiguration) {
+            foreach (Point p in targetConfiguration) {
                 Y[i++] = p;
                 yc += p;
             }
@@ -100,16 +100,11 @@ namespace Microsoft.AGL.Layout.Incremental {
                 b[i][0] = B[i].X;
                 b[i][1] = B[i].Y;
             }
-            double lambda1;
-            double[] q1;
-            double lambda2;
-            double[] q2;
-            MultidimensionalScaling.SpectralDecomposition(b, out q1, out lambda1, out q2, out lambda2,300,1e-8);
+            MultidimensionalScaling.SpectralDecomposition(b, out double[] q1, out double lambda1, out double[] q2, out double lambda2, 300, 1e-8);
             Q = new Point[] { new Point(q1[0], q1[1]), new Point(q2[0], q2[1]) };
             return new Point(lambda1, lambda2);
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         private static Point eigenSystem3(Point[] A, out Point[] Q) {
             double a = A[0].X, b = A[0].Y, c = A[1].X, d = A[1].Y;
             double T = a + d;
@@ -136,7 +131,6 @@ namespace Microsoft.AGL.Layout.Incremental {
             return new Point(l1, l2);
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         static bool cmpPoint(Point x, Point y) {
             if (Math.Abs(x.X - y.X) > 0.0001) {
                 return false;
@@ -243,10 +237,7 @@ namespace Microsoft.AGL.Layout.Incremental {
                 X[i] = V[i].Center;
             }
 
-            Point[] T;
-            double s;
-            Point t;
-            FindTransform(X, Y, out T, out s, out t);
+            FindTransform(X, Y, out Point[] T, out double s, out Point t);
             //System.Console.WriteLine("X=");
             //printMatrix(X);
             //System.Console.WriteLine("Y=");
@@ -259,16 +250,16 @@ namespace Microsoft.AGL.Layout.Incremental {
             double displacement = 0;
             for (int i = 0; i < n; ++i)
             {
-                var v = V[i];
+                Node v = V[i];
                 v.Center = double.IsNaN(s) ? Y[i] : s * MatrixTimesVector(TT, Y[i]) + t;
                 displacement += (v.Center - X[i]).Length;
             }
             return displacement;
         }
+
         /// <summary>
         /// output an n*2 point matrix in Mathematica format
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1303:Do not pass literals as localized parameters", MessageId = "System.Console.Write(System.String,System.Object,System.Object)"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1303:Do not pass literals as localized parameters", MessageId = "System.Console.Write(System.String)"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1303:Do not pass literals as localized parameters", MessageId = "System.Console.WriteLine(System.String)")]
         public static void PrintMatrix(Point[] points) {
             ValidateArg.IsNotNull(points, "points");
             System.Console.Write("{");
@@ -280,9 +271,8 @@ namespace Microsoft.AGL.Layout.Incremental {
             }
             System.Console.WriteLine("};");
         }
-        private static Point[] Transpose(Point[] X) {
-            return new Point[] { new Point(X[0].X, X[1].X), new Point(X[0].Y, X[1].Y) };
-        }
+        private static Point[] Transpose(Point[] X) => new Point[] { new Point(X[0].X, X[1].X), new Point(X[0].Y, X[1].Y) };
+
         //// <summary>
         //// 
         //// </summary>
@@ -308,21 +298,20 @@ namespace Microsoft.AGL.Layout.Incremental {
         //// <summary>
         //// 
         //// </summary>
-  //      public static void Test() {
-  //          double[,] XX = {{-0.342439, -0.815696}, {-0.772753, -0.807363}, {-0.264356, 
-  //0.847908}, {-0.524064, 0.826169}, {0.615021, -0.762655}};
-  //          List<Microsoft.AGL.Node> vs = new List<Microsoft.AGL.Node>();
-  //          for (int i = 0; i < XX.Length/2; ++i) {
-  //              var v = new Microsoft.AGL.Node();
-  //              v.Center = new Point(XX[i,0], XX[i,1]);
-  //              vs.Add(v);
-  //          }
-  //          ProcrustesCircleConstraint c = new ProcrustesCircleConstraint(vs);
-  //          c.Project();
-  //      }  
+        //      public static void Test() {
+        //          double[,] XX = {{-0.342439, -0.815696}, {-0.772753, -0.807363}, {-0.264356, 
+        //0.847908}, {-0.524064, 0.826169}, {0.615021, -0.762655}};
+        //          List<Microsoft.AGL.Node> vs = new List<Microsoft.AGL.Node>();
+        //          for (int i = 0; i < XX.Length/2; ++i) {
+        //              var v = new Microsoft.AGL.Node();
+        //              v.Center = new Point(XX[i,0], XX[i,1]);
+        //              vs.Add(v);
+        //          }
+        //          ProcrustesCircleConstraint c = new ProcrustesCircleConstraint(vs);
+        //          c.Project();
+        //      }  
         ///<summary>
         ///</summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1814:PreferJaggedArraysOverMultidimensional", MessageId = "Body"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1303:Do not pass literals as localized parameters", MessageId = "System.Console.WriteLine(System.String,System.Object)"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1303:Do not pass literals as localized parameters", MessageId = "System.Console.WriteLine(System.String,System.Object,System.Object)"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1303:Do not pass literals as localized parameters", MessageId = "System.Console.Write(System.String)")]
         public static void Test() {
             double[,] XX = { { 1, 2 }, { -1, 2 }, { -1, -2 }, { 1, -2 } },
                 YY = { { 0.07, 2.62 }, { 0.93, 3.12 }, { 1.93, 1.38 }, { 1.07, 0.88 } };
@@ -336,14 +325,10 @@ namespace Microsoft.AGL.Layout.Incremental {
             Point[] XY = matrixProduct(X, Y);
             System.Console.Write("XY=");
             PrintMatrix(XY);
-            Point[] P, Q;
-            SingularValueDecomposition(XY, out P, out Q);
+            SingularValueDecomposition(XY, out Point[] P, out Point[] Q);
             PrintMatrix(P);
             PrintMatrix(Q);
-            Point[] T;
-            double s;
-            Point t;
-            FindTransform(X, Y, out T, out s, out t);
+            FindTransform(X, Y, out Point[] T, out double s, out Point t);
             PrintMatrix(T);
             System.Console.WriteLine("s={0}", s);
             System.Console.WriteLine("t=({0},{1})", t.X,t.Y);
@@ -352,8 +337,7 @@ namespace Microsoft.AGL.Layout.Incremental {
             out Point[] T, out double s, out Point t) {
             int ni = X.Length;
             Point[] C = matrixProduct(X, Y);
-            Point[] P, Q;
-            SingularValueDecomposition(C, out P, out Q);
+            SingularValueDecomposition(C, out Point[] P, out Point[] Q);
             T = matrixProductNoTranspose(Q, Transpose(P));
             Point[] XYT = matrixProductNoTranspose(C, T);
             Point[] Y2 = matrixProduct(Y, Y);
@@ -368,15 +352,11 @@ namespace Microsoft.AGL.Layout.Incremental {
         /// <summary>
         /// 
         /// </summary>
-        public int Level {
-            get {
-                return 1;
-            }
-        }
+        public int Level => 1;
         /// <summary>
         /// Get the list of nodes involved in the constraint
         /// </summary>
-        public IEnumerable<Node> Nodes { get { return V.AsEnumerable(); } }
+        public IEnumerable<Node> Nodes => V.AsEnumerable();
         #endregion
     }
 }

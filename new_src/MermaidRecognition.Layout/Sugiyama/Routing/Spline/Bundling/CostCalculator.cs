@@ -29,16 +29,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         /// <summary>
         /// Error of ink
         /// </summary>
-        static internal double InkError(double oldInk, double newInk, BundlingSettings bundlingSettings) {
-            return (oldInk - newInk) * bundlingSettings.InkImportance;
-        }
+        static internal double InkError(double oldInk, double newInk, BundlingSettings bundlingSettings) => (oldInk - newInk) * bundlingSettings.InkImportance;
 
         /// <summary>
         /// Error of path lengths
         /// </summary>
-        static internal double PathLengthsError(double oldLength, double newLength, double idealLength, BundlingSettings bundlingSettings) {
-            return (oldLength - newLength) * (bundlingSettings.PathLengthImportance / idealLength);
-        }
+        static internal double PathLengthsError(double oldLength, double newLength, double idealLength, BundlingSettings bundlingSettings) => (oldLength - newLength) * (bundlingSettings.PathLengthImportance / idealLength);
 
         /// <summary>
         /// Error of hubs
@@ -70,7 +66,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             cost += bundlingSettings.InkImportance * metroGraphData.Ink;
 
             //path lengths
-            foreach (var metroline in metroGraphData.Metrolines) {
+            foreach (Metroline metroline in metroGraphData.Metrolines) {
                 cost += bundlingSettings.PathLengthImportance * metroline.Length / metroline.IdealLength;
             }
 
@@ -86,14 +82,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             double cost = 0;
 
             //hubs
-            foreach (var v in metroGraphData.VirtualNodes()) {
+            foreach (Station v in metroGraphData.VirtualNodes()) {
                 cost += v.cachedRadiusCost;
             }
 
             //bundles
-            foreach (var edge in metroGraphData.VirtualEdges()) {
-                var v = edge.Item1;
-                var u = edge.Item2;
+            foreach (Tuple<Station, Station> edge in metroGraphData.VirtualEdges()) {
+                Station v = edge.Item1;
+                Station u = edge.Item2;
                 cost += metroGraphData.GetIjInfo(v, u).cachedBundleCost;
             }
 
@@ -103,9 +99,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         /// <summary>
         /// Gain of 'ink' function
         /// </summary>
-        internal double QGain(Station node, Point newPosition) {
-            return InkGain(node, newPosition) + PathLengthsGain(node, newPosition);
-        }
+        internal double QGain(Station node, Point newPosition) => InkGain(node, newPosition) + PathLengthsGain(node, newPosition);
 
         /// <summary>
         /// Gain of ink
@@ -114,7 +108,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             //ink
             double oldInk = metroGraphData.Ink;
             double newInk = metroGraphData.Ink;
-            foreach (var adj in node.Neighbors) {
+            foreach (Station adj in node.Neighbors) {
                 Point adjPosition = adj.Position;
                 newInk -= (adjPosition - node.Position).Length;
                 newInk += (adjPosition - newPosition).Length;
@@ -128,12 +122,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         internal double PathLengthsGain(Station node, Point newPosition) {
             double gain = 0;
             //edge lengths
-            foreach (var e in metroGraphData.MetroNodeInfosOfNode(node)) {
-                var oldLength = e.Metroline.Length;
-                var newLength = e.Metroline.Length;
+            foreach (MetroNodeInfo e in metroGraphData.MetroNodeInfosOfNode(node)) {
+                double oldLength = e.Metroline.Length;
+                double newLength = e.Metroline.Length;
 
-                var prev = e.PolyPoint.Prev.Point;
-                var next = e.PolyPoint.Next.Point;
+                Point prev = e.PolyPoint.Prev.Point;
+                Point next = e.PolyPoint.Next.Point;
 
                 newLength += (next - newPosition).Length + (prev - newPosition).Length - (next - node.Position).Length - (prev - node.Position).Length;
 
@@ -163,13 +157,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 idealR = HubRadiiCalculator.CalculateIdealHubRadiusWithNeighbors(metroGraphData, bundlingSettings, node, newPosition);
 
 
-            List<Tuple<Polyline, Point>> touchedObstacles;
-            if (!metroGraphData.looseIntersections.HubAvoidsObstacles(node, newPosition, idealR, out touchedObstacles)) {
+            if (!metroGraphData.looseIntersections.HubAvoidsObstacles(node, newPosition, idealR, out List<Tuple<Polyline, Point>>? touchedObstacles))
+            {
                 return Inf;
             }
 
             double cost = 0;
-            foreach (var d in touchedObstacles) {
+            foreach (Tuple<Polyline, Point> d in touchedObstacles) {
                 double dist = (d.Item2 - newPosition).Length;
                 cost += RError(idealR, dist, bundlingSettings);
             }
@@ -185,7 +179,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             double gain = 0;
 
             gain += node.cachedBundleCost;
-            foreach (var adj in node.Neighbors) {
+            foreach (Station adj in node.Neighbors) {
                 double lgain = BundleCost(node, adj, newPosition);
                 if (ApproximateComparer.GreaterOrEqual(lgain, Inf)) return -Inf;
                 gain -= lgain;
@@ -196,15 +190,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
         internal double BundleCost(Station node, Station adj, Point newPosition) {
             double idealWidth = metroGraphData.GetWidth(node, adj, bundlingSettings.EdgeSeparation);
-            List<Tuple<Point, Point>> closestDist;
 
             double cost = 0;
             //find conflicting obstacles
-            if (!metroGraphData.cdtIntersections.BundleAvoidsObstacles(node, adj, newPosition, adj.Position, idealWidth, out closestDist)) {
+            if (!metroGraphData.cdtIntersections.BundleAvoidsObstacles(node, adj, newPosition, adj.Position, idealWidth, out List<Tuple<Point, Point>>? closestDist)) {
                 return Inf;
             }
 
-            foreach (var pair in closestDist) {
+            foreach (Tuple<Point, Point> pair in closestDist) {
                 double dist = (pair.Item1 - pair.Item2).Length;
                 cost += BundleError(idealWidth / 2, dist, bundlingSettings);
             }

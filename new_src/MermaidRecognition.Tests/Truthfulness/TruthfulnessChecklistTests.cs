@@ -3,7 +3,7 @@ namespace MermaidRecognition.Tests.Truthfulness;
 using System.Reflection;
 using MermaidRecognition;
 using MermaidRecognition.Contract;
-using MermaidRecognition.Flowchart;
+using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Render;
 
 /// <summary>

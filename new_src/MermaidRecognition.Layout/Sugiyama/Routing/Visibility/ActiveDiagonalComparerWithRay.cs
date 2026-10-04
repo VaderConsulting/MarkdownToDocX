@@ -1,20 +1,18 @@
 using System.Collections.Generic;
+
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves;
-using MermaidRecognition.Layout.Sugiyama.Core;
 
 namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
       internal class ActiveDiagonalComparerWithRay: IComparer<Diagonal> {
 
           Point pointOnTheRay;
 
-          [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
-          internal Point PointOnTangentAndInsertedDiagonal {
-              get { return pointOnTheRay; }
-              set { pointOnTheRay = value; }
+        internal Point PointOnTangentAndInsertedDiagonal { get => pointOnTheRay; set => pointOnTheRay = value;
           }
 
-          public int Compare(Diagonal x, Diagonal y) {
+        public int Compare(Diagonal? x, Diagonal? y) {
+            if (x is null) return y is null ? 0 : -1; if (y is null) return 1;
               ValidateArg.IsNotNull(x, "x");
               ValidateArg.IsNotNull(y, "y");
               System.Diagnostics.Debug.Assert(BelongsToTheDiagonal(PointOnTangentAndInsertedDiagonal, x.Start, x.End));
@@ -29,21 +27,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
               }
           }
 
-          [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
-          static bool BelongsToTheDiagonal(Point IntersectionOfTheRayAndInsertedEdge, Point start, Point end) {
-              return ApproximateComparer.Close(IntersectionOfTheRayAndInsertedEdge, Point.ClosestPointAtLineSegment(IntersectionOfTheRayAndInsertedEdge, start, end));
-          }
+        static bool BelongsToTheDiagonal(Point IntersectionOfTheRayAndInsertedEdge, Point start, Point end) => ApproximateComparer.Close(IntersectionOfTheRayAndInsertedEdge, Point.ClosestPointAtLineSegment(IntersectionOfTheRayAndInsertedEdge, start, end));
 
-          [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
-          static internal Point IntersectDiagonalWithRay(Point pivot, Point pointOnRay, Diagonal diagonal ) {
+        static internal Point IntersectDiagonalWithRay(Point pivot, Point pointOnRay, Diagonal diagonal ) {
               Point ray=pointOnRay-pivot;
               Point source=diagonal.Start;
               Point target = diagonal.End;
-              //let x(t-s)+s is on the ray, then for some y we x(t-s)+s=y*ray+pivot, or x(t-s)-y*ray=pivot-s
-              double x, y;
-              bool result = LinearSystem2.Solve(target.X - source.X, -ray.X, pivot.X - source.X, target.Y - source.Y, -ray.Y, pivot.Y - source.Y, out x, out y);
-          
-              System.Diagnostics.Debug.Assert(result && -ApproximateComparer.Tolerance <= x && x <= 1 + ApproximateComparer.Tolerance);
+            //let x(t-s)+s is on the ray, then for some y we x(t-s)+s=y*ray+pivot, or x(t-s)-y*ray=pivot-s
+            bool result = LinearSystem2.Solve(target.X - source.X, -ray.X, pivot.X - source.X, target.Y - source.Y, -ray.Y, pivot.Y - source.Y, out double x, out double y);
+
+            System.Diagnostics.Debug.Assert(result && -ApproximateComparer.Tolerance <= x && x <= 1 + ApproximateComparer.Tolerance);
               
               return pivot + y * ray;
           }

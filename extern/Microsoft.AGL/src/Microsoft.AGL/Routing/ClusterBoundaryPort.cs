@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.AGL.Core.Geometry;
 using Microsoft.AGL.Core.Geometry.Curves;
 using Microsoft.AGL.Core.Layout;
@@ -9,9 +9,7 @@ namespace Microsoft.AGL.Routing {
     ///</summary>
     public class ClusterBoundaryPort : RelativeFloatingPort {
         Polyline loosePolyline;
-        internal Polyline LoosePolyline {
-            get { return loosePolyline; }
-            set { loosePolyline = value; }
+        internal Polyline LoosePolyline { get => loosePolyline; set => loosePolyline = value;
         }
 
         ///<summary>
