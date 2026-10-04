@@ -20,7 +20,11 @@ public sealed class ConversionRegressionTests
                                                                                                                  File.WriteAllText(Input, "Hello");
                                                                                                                  byte[] Original = [1, 2, 3, 4];
                                                                                                                  File.WriteAllBytes(Output, Original);
-                                                                                                                 if (CorruptTemplate) File.WriteAllText(Template, "Not a DOCX package");
+                                                                                                                 if (CorruptTemplate)
+                                                                                                                 {
+                                                                                                                     File.WriteAllText(Template, "Not a DOCX package");
+                                                                                                                 }
+
                                                                                                                  MarkdownToDocxConverter Converter = new MarkdownToDocxConverter(new MarkdownToDocxOptions
                                                                                                                  {
                                                                                                                      Docx = new DocxOptions { UseBuiltinTemplate = false, TemplatePath = Template }

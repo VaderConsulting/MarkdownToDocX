@@ -12,7 +12,9 @@ namespace Microsoft.AGL.Core.DataStructures.RBTree
 
         public bool MoveNext() {
             if (tree.IsEmpty())
+            {
                 return false;
+            }
 
             if (initialState == true) {
                 initialState = false;

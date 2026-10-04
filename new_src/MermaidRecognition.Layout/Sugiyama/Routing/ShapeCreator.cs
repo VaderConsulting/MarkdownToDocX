@@ -22,32 +22,57 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing
             Dictionary<Node, Shape> nodesToShapes = new Dictionary<Node, Shape>();
             Node[] interestingNodes = graph.Nodes.Where(n => !n.UnderCollapsedCluster()).ToArray();
             foreach (Node? v in interestingNodes)
+            {
                 nodesToShapes[v] = CreateShapeWithCenterPort(v);
+            }
+
             foreach (Cluster c in graph.RootCluster.AllClustersDepthFirst()) {
                 if (!c.IsCollapsed)
+                {
                     foreach (Node v in c.Nodes)
+                    {
                         if (!nodesToShapes.ContainsKey(v))
+                        {
                             nodesToShapes[v] = CreateShapeWithCenterPort(v);
+                        }
+                    }
+                }
 
+                if (c == graph.RootCluster)
+                {
+                    continue;
+                }
 
-                if (c == graph.RootCluster) continue;
                 Shape parent = nodesToShapes[c] = CreateShapeWithClusterBoundaryPort(c);
-                if (c.IsCollapsed) continue;
+                if (c.IsCollapsed)
+                {
+                    continue;
+                }
+
                 foreach (Node v in c.Nodes)
+                {
                     parent.AddChild(nodesToShapes[v]);
+                }
+
                 foreach (Cluster d in c.Clusters)
+                {
                     parent.AddChild(nodesToShapes[d]);
+                }
             }
 
             foreach (Edge edge in graph.Edges) {
                 if (nodesToShapes.TryGetValue(edge.Source, out Shape? shape))
                 {
                     if (edge.SourcePort != null)
+                    {
                         shape.Ports.Insert(edge.SourcePort);
+                    }
                 }
                 if (nodesToShapes.TryGetValue(edge.Target, out shape)) {
                     if (edge.TargetPort != null)
+                    {
                         shape.Ports.Insert(edge.TargetPort);
+                    }
                 }
                 
             }
@@ -69,9 +94,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing
             RelativeFloatingPort port = new RelativeFloatingPort(() => node.BoundaryCurve, () => node.Center);
             shape.Ports.Insert(port);
             foreach (Edge e in node.InEdges)
+            {
                 FixPortAtTarget(shape, port, e);
+            }
+
             foreach (Edge e in node.OutEdges)
+            {
                 FixPortAtSource(shape, port, e);
+            }
+
             foreach (Edge e in node.SelfEdges) {
                FixPortAtSource(shape, port, e);
                FixPortAtTarget(shape, port, e);
@@ -93,9 +124,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing
             ClusterBoundaryPort port = new ClusterBoundaryPort(()=>node.BoundaryCurve, ()=>node.Center);
             shape.Ports.Insert(port);
             foreach (Edge e in node.InEdges)
+            {
                 FixPortAtTarget(shape, port, e);
+            }
+
             foreach (Edge e in node.OutEdges)
+            {
                 FixPortAtSource(shape, port, e);
+            }
+
             foreach (Edge e in node.SelfEdges) {
                 FixPortAtSource(shape, port, e);
                 FixPortAtTarget(shape, port, e);
@@ -108,16 +145,24 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing
 
         static void FixPortAtSource(Shape shape, Port port, Edge e) {
             if (e.SourcePort == null)
+            {
                 e.SourcePort = port;
+            }
             else
+            {
                 shape.Ports.Insert(e.SourcePort);
+            }
         }
 
         static void FixPortAtTarget(Shape shape, Port port, Edge e) {
             if (e.TargetPort == null)
+            {
                 e.TargetPort = port;
-            else 
+            }
+            else
+            {
                 shape.Ports.Insert(e.TargetPort);
+            }
         }
     }
 }

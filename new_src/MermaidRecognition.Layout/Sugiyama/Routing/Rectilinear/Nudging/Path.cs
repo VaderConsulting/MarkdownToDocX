@@ -37,7 +37,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         internal IEnumerable<PathEdge> PathEdges {
             get {
                 for (PathEdge e = FirstEdge; e != null; e = e.Next)
+                {
                     yield return e;
+                }
             }
         }
 

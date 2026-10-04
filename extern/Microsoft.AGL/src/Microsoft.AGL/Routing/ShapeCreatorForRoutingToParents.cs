@@ -31,11 +31,17 @@ namespace Microsoft.AGL.Routing {
 
         static void BindShapes(Dictionary<Node, Shape> nodesToShapes) {
             foreach (KeyValuePair<Node, Shape> nodeShape in nodesToShapes) {
-                if (nodeShape.Key is not Cluster cluster) continue;
+                if (nodeShape.Key is not Cluster cluster)
+                {
+                    continue;
+                }
+
                 Shape shape =nodeShape.Value;
                 foreach (Node child in Children(cluster) ) {
                     if (nodesToShapes.TryGetValue(child, out Shape childShape))
+                    {
                         shape.AddChild(childShape);
+                    }
                 }
             }
         }
@@ -44,16 +50,26 @@ namespace Microsoft.AGL.Routing {
             Cluster parent=Parent(node);
             do {
                 foreach (Node n in Children(parent))
+                {
                     CreateShapeIfNeeeded(n, nodesToShapes);
+                }
+
                 if (parent == ancestor)
+                {
                     break;
+                }
+
                 parent = Parent(parent);                
             } while (true);
             CreateShapeIfNeeeded(parent, nodesToShapes);
         }
 
         static void CreateShapeIfNeeeded(Node n, Dictionary<Node, Shape> nodesToShapes) {
-            if (nodesToShapes.ContainsKey(n)) return;
+            if (nodesToShapes.ContainsKey(n))
+            {
+                return;
+            }
+
             nodesToShapes[n] = new RelativeShape(() => n.BoundaryCurve)
 #if DEBUG
         {
@@ -76,14 +92,22 @@ namespace Microsoft.AGL.Routing {
 
         internal static bool NumberOfActiveNodesIsUnderThreshold(List<Edge> inParentEdges, List<Edge> outParentEdges, int threshold) {
             Set<Node> usedNodeSet = new Set<Node>();
-            foreach (Edge edge in inParentEdges) 
-                if(SetOfActiveNodesIsLargerThanThreshold((Cluster)edge.Target, edge.Source, usedNodeSet, threshold))
-                   return false;
-            
-            foreach (Edge edge in outParentEdges) 
-                if(SetOfActiveNodesIsLargerThanThreshold((Cluster)edge.Source, edge.Target, usedNodeSet, threshold))
-                  return false;
-            
+            foreach (Edge edge in inParentEdges)
+            {
+                if (SetOfActiveNodesIsLargerThanThreshold((Cluster)edge.Target, edge.Source, usedNodeSet, threshold))
+                {
+                    return false;
+                }
+            }
+
+            foreach (Edge edge in outParentEdges)
+            {
+                if (SetOfActiveNodesIsLargerThanThreshold((Cluster)edge.Source, edge.Target, usedNodeSet, threshold))
+                {
+                    return false;
+                }
+            }
+
             return true;
         }
 
@@ -93,10 +117,15 @@ namespace Microsoft.AGL.Routing {
                 foreach (Node n in Children(parent)) {
                     usedNodeSet.Insert(n);
                     if (usedNodeSet.Count > threshold)
+                    {
                         return true;
+                    }
                 }
                 if (parent == ancestor)
+                {
                     break;
+                }
+
                 parent = Parent(parent);
             } while (true);
             

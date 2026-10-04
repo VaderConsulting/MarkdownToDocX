@@ -28,26 +28,42 @@ namespace Microsoft.AGL.DebugHelpers.Persistence
                     yield return new CharStreamElement(ch);
                     if (block.Length > 1) {
                         if (double.TryParse(block.Substring(1), out double res))
+                        {
                             yield return new DoubleStreamElement(res);
-                        else yield return null;
+                        }
+                        else
+                        {
+                            yield return null;
+                        }
                     }
                 } else {
                     if (double.TryParse(block, out double res))
+                    {
                         yield return new DoubleStreamElement(res);
-                    else yield return null;
+                    }
+                    else
+                    {
+                        yield return null;
+                    }
                 }
             }
         }
 
         internal CurveStreamElement GetNextCurveStreamElement() {
             if (offset >= curveStreamElements.Length)
+            {
                 return null;
+            }
+
             return curveStreamElements[offset++];
         }
 
         internal CurveStreamElement PickNextCurveStreamElement() {
             if (offset >= curveStreamElements.Length)
+            {
                 return null;
+            }
+
             return curveStreamElements[offset];
         }
     }

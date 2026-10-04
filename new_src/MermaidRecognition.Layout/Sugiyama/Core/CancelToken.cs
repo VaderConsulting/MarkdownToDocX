@@ -46,7 +46,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core {
             cancellationTokenSource.Token.ThrowIfCancellationRequested();
 #endif
             if (Canceled)
+            {
                 throw new OperationCanceledException();
+            }
         }
 
 #if PPC

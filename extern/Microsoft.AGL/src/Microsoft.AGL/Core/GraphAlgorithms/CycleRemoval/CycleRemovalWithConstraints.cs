@@ -18,7 +18,9 @@ namespace Microsoft.AGL.Core.GraphAlgorithms.CycleRemoval
         internal IEnumerable<IEdge> GetFeedbackSet() {
             foreach (GraphForCycleRemoval graphForCycleRemoval in CreateGraphsForCycleRemoval()) {
                 foreach (IEdge edge in GetFeedbackEdgeSet(graphForCycleRemoval))
+                {
                     yield return edge;
+                }
             }
         }
         /// <summary>
@@ -50,20 +52,29 @@ namespace Microsoft.AGL.Core.GraphAlgorithms.CycleRemoval
             Dictionary<int, int> S = new Dictionary<int, int>(sl.Count + sr.Count);
             int j=0;
             foreach (int u in sl)
+            {
                 S[u] = j++;
-            for (int i = sr.Count - 1; i >= 0; i--)
-                S[sr[i]] = j++;
+            }
 
+            for (int i = sr.Count - 1; i >= 0; i--)
+            {
+                S[sr[i]] = j++;
+            }
 
             foreach (IntPair pair in graphForCycleRemoval.GetOriginalIntPairs())
+            {
                 if (S[pair.First] > S[pair.Second])
+                {
                     yield return pair;
-
+                }
+            }
         }
 
          IEnumerable<GraphForCycleRemoval> CreateGraphsForCycleRemoval() {
             foreach (IEnumerable<int> componentNodes in ConnectedComponentCalculator<IntPair>.GetComponents(GetCommonGraph()))
+            {
                 yield return CreateGraphForCycleRemoval(componentNodes);
+            }
         }
 
         BasicGraph<IntPair> GetCommonGraph() => new BasicGraph<IntPair>((from edge in graph.Edges select new IntPair(edge.Source, edge.Target)).Concat(constrainedEdges), graph.NodeCount);
@@ -72,9 +83,14 @@ namespace Microsoft.AGL.Core.GraphAlgorithms.CycleRemoval
             GraphForCycleRemoval graphForCycleRemoval = new GraphForCycleRemoval();
             foreach (int i in componentNodes) {
                 foreach (TEdge edge in graph.OutEdges(i))
+                {
                     graphForCycleRemoval.AddEdge(new IntPair(edge.Source,edge.Target));
+                }
+
                 foreach (IntPair intPair in graphOfConstraints.OutEdges(i))
+                {
                     graphForCycleRemoval.AddConstraintEdge(intPair);
+                }
             }
             return graphForCycleRemoval;
         }

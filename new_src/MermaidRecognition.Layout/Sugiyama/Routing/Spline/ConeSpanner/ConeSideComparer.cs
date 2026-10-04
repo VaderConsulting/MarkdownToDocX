@@ -13,7 +13,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
         internal ConeSideComparer(IConeSweeper coneSweeper) => this.coneSweeper = coneSweeper;
 
         public int Compare(ConeSide? a, ConeSide? b) {
-            if (a is null) return b is null ? 0 : -1; if (b is null) return 1;
+            if (a is null)
+            {
+                return b is null ? 0 : -1;
+            }
+
+            if (b is null)
+            {
+                return 1;
+            }
+
             BrokenConeSide? bObst = b as BrokenConeSide;
             if (a is BrokenConeSide aObst) {
                 return bObst != null ? CompareBrokenSides(aObst, bObst) : CompareObstacleSideAndConeSide(b);
@@ -40,9 +49,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
             TriangleOrientation orientation = Point.GetTriangleOrientation(x, coneSide.Start,
                                                                            coneSide.Start + coneSide.Direction);
             if (orientation == TriangleOrientation.Counterclockwise)
+            {
                 return -1;
+            }
+
             if (orientation == TriangleOrientation.Clockwise)
+            {
                 return 1;
+            }
 
             //we have the case where x belongs to the cone side
 
@@ -52,13 +66,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
         int CompareConeSideAndObstacleSide(ConeSide coneSide, BrokenConeSide brokenConeSide) {
             TriangleOrientation orientation = Point.GetTriangleOrientation(x, brokenConeSide.Start, brokenConeSide.End);
             if (orientation == TriangleOrientation.Counterclockwise)
+            {
                 return -1;
+            }
+
             if (orientation == TriangleOrientation.Clockwise)
+            {
                 return 1;
+            }
 
             //we have the case where x belongs to the cone side
 
-      //      lineSweeper.Show(CurveFactory.CreateDiamond(5,5, brokenConeSide.EndVertex.Point));
+            //      lineSweeper.Show(CurveFactory.CreateDiamond(5,5, brokenConeSide.EndVertex.Point));
 
             return coneSide is ConeLeftSide ? 1 : -1;
         }
@@ -73,11 +92,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
 
         int CompareBrokenSides(BrokenConeSide aObst, BrokenConeSide bObst) {
             if (aObst.EndVertex == bObst.EndVertex)
+            {
                 return CompareNotIntersectingSegs(aObst.ConeSide, bObst.ConeSide);
+            }
 
             if (Point.GetTriangleOrientation(x, bObst.Start, bObst.EndVertex.Point) ==
                 TriangleOrientation.Counterclockwise)
+            {
                 return -1;
+            }
+
             return 1;
         }
     }

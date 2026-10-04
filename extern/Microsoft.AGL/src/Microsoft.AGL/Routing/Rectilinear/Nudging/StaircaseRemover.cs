@@ -31,7 +31,9 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
             do {
                 success = false;
                 foreach (Path path in Paths.Where(p=>!crossedOutPaths.Contains(p)))
+                {
                     success |= ProcessPath(path);
+                }
             } while (success);
         }
 
@@ -43,13 +45,20 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
                 return true;
             }
             if (!canHaveStaircase)
+            {
                 crossedOutPaths.Insert(path);
+            }
+
             return false;
         }
 
         bool ProcessPoints(ref Point[] pts, out bool canHaveStaircase) {
             int staircaseStart  = FindStaircaseStart(pts, out canHaveStaircase);
-            if (staircaseStart < 0) return false;
+            if (staircaseStart < 0)
+            {
+                return false;
+            }
+
             pts = RemoveStaircase(pts, staircaseStart);
             return true;
         }
@@ -58,7 +67,10 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
         int FindStaircaseStart(Point[] pts, out bool canHaveStaircase) {
             canHaveStaircase = false;
             if (pts.Length < 5) // At least five points make a staircase
+            {
                 return -1;
+            }
+
             SegWithIndex[] segs = new[] {
                                  new SegWithIndex(pts, 0), new SegWithIndex(pts, 1), new SegWithIndex(pts, 2),
                                  new SegWithIndex(pts, 3)
@@ -74,7 +86,9 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
                 canHaveStaircase = canHaveStaircase || canHaveStaircaseAtI;
                 i++;
                 if (pts.Length < i + 5)// At least five points make a staircase
+                {
                     return -1;
+                }
 
                 segs[segToReplace] = new SegWithIndex(pts, i + 3);
                 segToReplace += 1;
@@ -121,11 +135,16 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
             canHaveStaircaseAtI = false;
             if (CompassVector.DirectionsFromPointToPoint(a, b) != CompassVector.DirectionsFromPointToPoint(c, d) ||
                 CompassVector.DirectionsFromPointToPoint(b, c) != CompassVector.DirectionsFromPointToPoint(d, f))
+            {
                 return false;
+            }
 
             c = GetFlippedPoint(pts, offset);
             if (IntersectObstacleHierarchy(b, c, d))
+            {
                 return false;
+            }
+
             canHaveStaircaseAtI = true;
             return !Crossing(b, c, segsToIgnore);
         }
@@ -152,7 +171,9 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
 
         void RemoveSegs(Point[] pts) {
             for (int i = 0; i < pts.Length-1; i++)
+            {
                 RemoveSeg(new SegWithIndex(pts,i));
+            }
         }
 
         void RemoveSeg(SegWithIndex seg) => segTree.Remove(Rect(seg), seg);
@@ -165,7 +186,9 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
 
         void InitHierarchies() {
             foreach (Path path in Paths)
+            {
                 InsertPathSegs(path);
+            }
         }
 
         void InsertPathSegs(Path path) => InsertSegs((Point[])path.PathPoints);
@@ -173,7 +196,9 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
 
         void InsertSegs(Point[] pts) {
             for (int i = 0; i < pts.Length - 1; i++)
+            {
                 InsSeg(pts, i);
+            }
         }
 
         void InsSeg(Point[] pts, int i) {

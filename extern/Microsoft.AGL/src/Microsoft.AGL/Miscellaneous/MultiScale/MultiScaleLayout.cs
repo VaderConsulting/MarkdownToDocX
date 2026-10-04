@@ -112,7 +112,10 @@ namespace Microsoft.AGL.Miscellaneous.MultiScale
                 InitialStepSize = 0.6
             };
             foreach (Edge e in graph.Edges)
+            {
                 e.Length *= Math.Log(level * 500 + Math.E);
+            }
+
             settings.InitializeLayout(graph, settings.MinConstraintLevel);
 
             do

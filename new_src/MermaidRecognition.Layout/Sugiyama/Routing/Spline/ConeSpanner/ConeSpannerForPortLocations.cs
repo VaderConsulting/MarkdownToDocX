@@ -53,8 +53,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner
             LineSweeperForPortLocations.Sweep(obstacles, direction, coneAngle, visibilityGraph,
                                               PortLocations);
             foreach (VisibilityEdge edge in visibilityGraph.Edges)
+            {
                 VisibilityGraph.AddEdge(edge.SourcePoint, edge.TargetPoint,
                                         ((a, b) => new TollFreeVisibilityEdge(a, b)));
+            }
         }
 
     }

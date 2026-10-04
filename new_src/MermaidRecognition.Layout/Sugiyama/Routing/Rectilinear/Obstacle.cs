@@ -100,7 +100,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             set
             {
                 if (InputShape == null)
+                {
                     throw new InvalidOperationException();
+                }
+
                 InputShape.IsTransparent = value;
             }
         }

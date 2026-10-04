@@ -22,8 +22,16 @@ namespace Microsoft.AGL.Core.Layout
         /// <returns>The linearly interpolated result.  Between minResult and maxResult, inclusive.</returns>
         internal static int LinearInterpolation(int value, int lowerThreshold, int upperThreshold, int minResult, int maxResult)
         {
-            if (value < lowerThreshold) return minResult;
-            if (value > upperThreshold) return maxResult;
+            if (value < lowerThreshold)
+            {
+                return minResult;
+            }
+
+            if (value > upperThreshold)
+            {
+                return maxResult;
+            }
+
             double fraction = (value - lowerThreshold) / (double)(upperThreshold - lowerThreshold);
             return minResult + (int)(fraction * (maxResult - minResult));
         }
@@ -39,8 +47,16 @@ namespace Microsoft.AGL.Core.Layout
         /// <returns>The linearly interpolated result.  Between minResult and maxResult, inclusive.</returns>
         internal static int NegativeLinearInterpolation(int value, int lowerThreshold, int upperThreshold, int minResult, int maxResult)
         {
-            if (value < lowerThreshold) return maxResult;
-            if (value > upperThreshold) return minResult;
+            if (value < lowerThreshold)
+            {
+                return maxResult;
+            }
+
+            if (value > upperThreshold)
+            {
+                return minResult;
+            }
+
             double fraction = (value - lowerThreshold) / (double)(upperThreshold - lowerThreshold);
             return minResult + (int)((1 - fraction) * (maxResult - minResult));
         }
@@ -56,8 +72,16 @@ namespace Microsoft.AGL.Core.Layout
         /// <returns>The linearly interpolated result.  Between minResult and maxResult, inclusive.</returns>
         internal static double LinearInterpolation(double value, double lowerThreshold, double upperThreshold, double minResult, double maxResult)
         {
-            if (value < lowerThreshold) return minResult;
-            if (value > upperThreshold) return maxResult;
+            if (value < lowerThreshold)
+            {
+                return minResult;
+            }
+
+            if (value > upperThreshold)
+            {
+                return maxResult;
+            }
+
             double fraction = (value - lowerThreshold) / (upperThreshold - lowerThreshold);
             return minResult + (fraction * (maxResult - minResult));
         }
@@ -73,8 +97,16 @@ namespace Microsoft.AGL.Core.Layout
         /// <returns>The linearly interpolated result.  Between minResult and maxResult, inclusive.</returns>
         internal static double NegativeLinearInterpolation(double value, double lowerThreshold, double upperThreshold, double minResult, double maxResult)
         {
-            if (value < lowerThreshold) return maxResult;
-            if (value > upperThreshold) return minResult;
+            if (value < lowerThreshold)
+            {
+                return maxResult;
+            }
+
+            if (value > upperThreshold)
+            {
+                return minResult;
+            }
+
             double fraction = (value - lowerThreshold) / (upperThreshold - lowerThreshold);
             return minResult + ((1 - fraction) * (maxResult - minResult));
         }

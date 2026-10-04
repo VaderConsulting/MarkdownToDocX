@@ -17,7 +17,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments 
 
         public byte GetPixelValue(int x, int y) {
             if (!InBounds(x, y))
+            {
                 return 0;
+            }
 
             return _m[x + y*_width];
         }
@@ -44,14 +46,24 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments 
 
         void AdjustLeftTop(ref int left, ref int bottom) {
             if (left < 0)
+            {
                 left = 0;
-            if (bottom < 0)
-                bottom = 0;
-            if (left >= _width)
-                left = _width - 1;
-            if (bottom >= _height)
-                bottom = _height - 1;
+            }
 
+            if (bottom < 0)
+            {
+                bottom = 0;
+            }
+
+            if (left >= _width)
+            {
+                left = _width - 1;
+            }
+
+            if (bottom >= _height)
+            {
+                bottom = _height - 1;
+            }
         }
 
         void Plot(int x, int y) => _m[Offset(x, y)] = 1;
@@ -62,13 +74,19 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments 
                 FillRectangle(a.X, a.Y - insertRectHalfSize, b.X - a.X, 2*insertRectHalfSize);
                 return;
             }
-            if (perp.Y < 0) perp = -perp;
+            if (perp.Y < 0)
+            {
+                perp = -perp;
+            }
+
             PixelPoint pixelInside = a;
             double perpLen = Math.Sqrt(perp*perp);
             // pixel p is inside if and only if (p-a)*perp belongs to the interval [-halfInterval, halfInterval]
             int halfInterval = (int) (perpLen*insertRectHalfSize);
             for (int x = a.X; x <= b.X; x++)
+            {
                 ScanVertLine(x, ref pixelInside, a, b, perp, halfInterval);
+            }
         }
 
         void ScanVertLine(int x, ref PixelPoint pixelInside, PixelPoint a, PixelPoint b, PixelPoint perp,
@@ -85,7 +103,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments 
             do {
                 Plot(x, y);
                 proj -= perp.Y;
-                if (proj < - halfInterval) break;
+                if (proj < - halfInterval)
+                {
+                    break;
+                }
+
                 y--;
             } while (y >= 0);
         }
@@ -98,7 +120,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments 
             do {
                 Plot(x, y);
                 proj += perp.Y;
-                if (proj > halfInterval) break;
+                if (proj > halfInterval)
+                {
+                    break;
+                }
+
                 y++;
             } while (y < _height);
 
@@ -106,13 +132,24 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments 
 
         static void UpdatePixelInsideForXCase(ref PixelPoint pixelInside, PixelPoint a, PixelPoint b, PixelPoint perp,
             int halfInterval, int sign) {
-            if (pixelInside.X == b.X) return;
+            if (pixelInside.X == b.X)
+            {
+                return;
+            }
+
             pixelInside.X++;
             int proj = perp*(pixelInside - a);
-            if (Math.Abs(proj) <= halfInterval) return;
+            if (Math.Abs(proj) <= halfInterval)
+            {
+                return;
+            }
+
             pixelInside.Y += sign;
             proj += sign*perp.Y;
-            if (Math.Abs(proj) <= halfInterval) return;
+            if (Math.Abs(proj) <= halfInterval)
+            {
+                return;
+            }
 
             pixelInside.Y -= 2*sign;
             proj -= 2*sign*perp.Y;
@@ -126,13 +163,19 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments 
                 FillRectangle(a.X - halfDistInPixels, a.Y, 2*halfDistInPixels, b.Y - a.Y);
                 return;
             }
-            if (perp.X < 0) perp = -perp;
+            if (perp.X < 0)
+            {
+                perp = -perp;
+            }
+
             PixelPoint pixelInside = a;
             double perpLen = Math.Sqrt(perp*perp);
             // pixel p is inside if and only if (p-a)*perp belongs to the interval [-halfInterval, halfInterval]
             int halfInterval = (int) (perpLen*halfDistInPixels);
             for (int y = a.Y; y <= b.Y; y++)
+            {
                 ScanHorizontalLine(y, ref pixelInside, a, b, perp, halfInterval);
+            }
         }
 
         void ScanHorizontalLine(int x, ref PixelPoint pixelInside, PixelPoint a, PixelPoint b, PixelPoint perp,
@@ -145,13 +188,24 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments 
 
         void UpdatePixelInsideForYCase(ref PixelPoint pixelInside, PixelPoint a, PixelPoint b, PixelPoint perp,
             int halfInterval, int sign) {
-            if (pixelInside.Y == b.Y) return;
+            if (pixelInside.Y == b.Y)
+            {
+                return;
+            }
+
             pixelInside.Y++;
             int proj = perp*(pixelInside - a);
-            if (Math.Abs(proj) <= halfInterval) return;
+            if (Math.Abs(proj) <= halfInterval)
+            {
+                return;
+            }
+
             pixelInside.X += sign;
             proj += sign*perp.X;
-            if (Math.Abs(proj) <= halfInterval) return;
+            if (Math.Abs(proj) <= halfInterval)
+            {
+                return;
+            }
 
             pixelInside.X -= 2*sign;
             proj -= 2*sign*perp.X;
@@ -166,7 +220,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments 
             do {
                 Plot(x, y);
                 proj += perp.X;
-                if (proj > halfInterval) break;
+                if (proj > halfInterval)
+                {
+                    break;
+                }
+
                 x++;
             } while (x < _width);
         }
@@ -179,7 +237,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments 
             do {
                 Plot(x, y);
                 proj -= perp.X;
-                if (proj < - halfInterval) break;
+                if (proj < - halfInterval)
+                {
+                    break;
+                }
+
                 x--;
             } while (x >= 0);
 
@@ -196,15 +258,23 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments 
                 2*insertRectHalfSizeInPixels);
             if (Math.Abs(dx) > Math.Abs(dy)) {
                 if (dx > 0)
+                {
                     DrawFatSegByX(a, b, insertRectHalfSizeInPixels);
+                }
                 else
+                {
                     DrawFatSegByX(b, a, insertRectHalfSizeInPixels);
+                }
             }
             else {
                 if (dy > 0)
+                {
                     DrawFatSegByY(a, b, insertRectHalfSizeInPixels);
+                }
                 else
+                {
                     DrawFatSegByY(b, a, insertRectHalfSizeInPixels);
+                }
             }
         }
     }

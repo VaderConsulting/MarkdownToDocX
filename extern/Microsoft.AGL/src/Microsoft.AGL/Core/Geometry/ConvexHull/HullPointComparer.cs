@@ -19,11 +19,19 @@ namespace Microsoft.AGL.Core.Geometry
         int IComparer<HullPoint>.Compare(HullPoint i, HullPoint j) {
 #endif
             if (i == j)
+            {
                 return 0;
+            }
+
             if (i == null)
+            {
                 return -1;
+            }
+
             if (j == null)
+            {
                 return 1;
+            }
 
             switch (Point.GetTriangleOrientationWithIntersectionEpsilon(pivot, i.Point, j.Point)) {
                 case TriangleOrientation.Counterclockwise:
@@ -57,11 +65,15 @@ namespace Microsoft.AGL.Core.Geometry
 
                     //points are the same, leave the one with the greatest hash code
                     if (i.GetHashCode() < j.GetHashCode())
-                        i.Deleted = true;
-                    else
-                        j.Deleted = true;
+                        {
+                            i.Deleted = true;
+                        }
+                        else
+                        {
+                            j.Deleted = true;
+                        }
 
-                    return 0;
+                        return 0;
                 }
 
             }

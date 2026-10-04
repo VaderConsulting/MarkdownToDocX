@@ -43,7 +43,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
         /// </summary>
         protected override void RunInternal() {
             for(int i=1;i<listOfSites.Count;i++)
+            {
                 ProcessSite(listOfSites[i]);
+            }
 
             FinalizeTriangulation();
 #if DEBUG&& TEST_MSAGL
@@ -71,10 +73,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
                         PerimeterEdge c =a.Prev;
                        if (Point.GetTriangleOrientationWithNoEpsilon(c.Start.Point, c.End.Point, a.End.Point) == TriangleOrientation.Counterclockwise) {
                            a = ShortcutTwoListElements(c);
-                       } else break;
-                   }
+                       } else
+                        {
+                            break;
+                        }
+                    }
                } else
-                   a = b;
+                {
+                    a = b;
+                }
             } while (a.End != firstSite); 
         }
 
@@ -85,7 +92,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
                 e=e.Next;
                 if (e.Start.Point.X < pivot.Start.Point.X ||
                     e.Start.Point.X == pivot.Start.Point.X && e.Start.Point.Y < pivot.Start.Point.Y)
+                {
                     pivot = e;
+                }
             } while (e != firstPerimeterEdge);
             return pivot;
         }
@@ -103,7 +112,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
                     pe.Prev = prevPe;
                     prevPe.Next = pe;
                 } else
+                {
                     listStart = pe;
+                }
 
                 prevPe = pe;
 
@@ -138,31 +149,52 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
         void RemoveP1AndP2Triangles() {
             Set<CdtTriangle> trianglesToRemove = new Set<CdtTriangle>();
             foreach (CdtTriangle t in triangles)
+            {
                 if (t.Sites.Contains(p_1) || t.Sites.Contains(p_2))
+                {
                     trianglesToRemove.Insert(t);
+                }
+            }
+
             foreach (CdtTriangle t in trianglesToRemove)
+            {
                 RemoveTriangleWithEdges(triangles, t);
+            }
         }
 
        internal static void RemoveTriangleWithEdges(Set<CdtTriangle> cdtTriangles, CdtTriangle t) {
             cdtTriangles.Remove(t);
             foreach (CdtEdge e in t.Edges) {
                 if (e.CwTriangle == t)
+                {
                     e.CwTriangle = null;
-                else e.CcwTriangle = null;
+                }
+                else
+                {
+                    e.CcwTriangle = null;
+                }
+
                 if (e.CwTriangle == null && e.CcwTriangle == null)
+                {
                     e.upperSite.Edges.Remove(e);
+                }
             }
         }
        
         internal static void RemoveTriangleButLeaveEdges(Set<CdtTriangle> cdtTriangles, CdtTriangle t) {
            cdtTriangles.Remove(t);
-           foreach (CdtEdge e in t.Edges) 
-               if (e.CwTriangle == t)
-                   e.CwTriangle = null;
-               else 
-                   e.CcwTriangle = null;                          
-       }
+           foreach (CdtEdge e in t.Edges)
+            {
+                if (e.CwTriangle == t)
+                {
+                    e.CwTriangle = null;
+                }
+                else
+                {
+                    e.CcwTriangle = null;
+                }
+            }
+        }
 
         void ProcessSite(CdtSite site) {
             PointEvent(site);
@@ -170,7 +202,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
             for (int i = 0; i < site.Edges.Count; i++) {
                 CdtEdge edge = site.Edges[i];
                 if (edge.Constrained)
+                {
                     EdgeEvent(edge);
+                }
             }
             // TestThatFrontIsConnected();
         }
@@ -178,16 +212,22 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
       void TestThatFrontIsConnected() {
           CdtFrontElement p = null;
           foreach (CdtFrontElement cdtFrontElement in front) {
-              if(p!=null) 
-                  Debug.Assert(p.RightSite==cdtFrontElement.LeftSite);
-              p = cdtFrontElement;
+              if(p!=null)
+                {
+                    Debug.Assert(p.RightSite==cdtFrontElement.LeftSite);
+                }
+
+                p = cdtFrontElement;
           }
       }
 #endif
       void EdgeEvent(CdtEdge edge) {
             Debug.Assert(edge.Constrained);
             if(EdgeIsProcessed(edge))
+            {
                 return;
+            }
+
             EdgeInserter edgeInserter = new EdgeInserter(edge, Triangles, front, createEdgeDelegate);
             edgeInserter.Run();
             
@@ -201,8 +241,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
 
 
             if (site.Edges != null)
+            {
                 foreach (CdtEdge e in site.Edges)
+                {
                     ls.Add(new DebugCurve(100, 0.001, e.Constrained?"pink":"brown", new LineSegment(e.upperSite.Point, e.lowerSite.Point)));
+                }
+            }
 
             ls.Add(new DebugCurve(100,0.01,"brown", new Ellipse(0.5,0.5,site.Point)));
 
@@ -214,13 +258,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
             }
 
             foreach (ICurve c in redCurves)
+            {
                 ls.Add(new DebugCurve(100, 0.005, "red", c));
-
+            }
 
             foreach (CdtFrontElement frontElement in front)
+            {
                 ls.Add(new DebugCurve(100, 0.005, "green",
                                       new LineSegment(frontElement.Edge.upperSite.Point,
                                                       frontElement.Edge.lowerSite.Point)));
+            }
+
             LayoutAlgorithmSettings.ShowDebugCurvesEnumeration(ls);
         }
         void ShowFront() => ShowFront(Triangles, front, null, null);
@@ -228,17 +276,31 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
         internal static void ShowFront(IEnumerable<CdtTriangle> cdtTriangles, RbTree<CdtFrontElement> cdtFrontElements, IEnumerable<ICurve> redCurves, IEnumerable<ICurve> blueCurves) {
             List<DebugCurve> ls = [];
             if (redCurves != null)
+            {
                 foreach (ICurve c in redCurves)
+                {
                     ls.Add(new DebugCurve(100, 0.5, "red", c));
+                }
+            }
+
             if (blueCurves != null)
+            {
                 foreach (ICurve c in blueCurves)
+                {
                     ls.Add(new DebugCurve(100, 2, "blue", c));
+                }
+            }
 
             if (cdtFrontElements != null)
+            {
                 foreach (CdtFrontElement frontElement in cdtFrontElements)
+                {
                     ls.Add(new DebugCurve(100, 0.001, "green",
                                           new LineSegment(frontElement.Edge.upperSite.Point,
                                                           frontElement.Edge.lowerSite.Point)));
+                }
+            }
+
             foreach (CdtTriangle t in cdtTriangles) {
                 for (int i = 0; i < 3; i++) {
                     CdtEdge e = t.Edges[i];
@@ -250,8 +312,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
 
       static DebugCurve GetDebugCurveOfCdtEdge(CdtEdge e) {
           if(e.CcwTriangle==null || e.CwTriangle==null)
-              return new DebugCurve(255, 4, e.Constrained ? "brown" : "blue", new LineSegment(e.upperSite.Point, e.lowerSite.Point));
-          return new DebugCurve(100, e.Constrained?0.002:0.001, e.Constrained?"pink":"navy", new LineSegment(e.upperSite.Point, e.lowerSite.Point));
+            {
+                return new DebugCurve(255, 4, e.Constrained ? "brown" : "blue", new LineSegment(e.upperSite.Point, e.lowerSite.Point));
+            }
+
+            return new DebugCurve(100, e.Constrained?0.002:0.001, e.Constrained?"pink":"navy", new LineSegment(e.upperSite.Point, e.lowerSite.Point));
       }
 #endif
 //        int count;
@@ -272,7 +337,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
         void TestTriangles() {
             Set<CdtSite> usedSites = new Set<CdtSite>();
             foreach(CdtTriangle t in Triangles)
+            {
                 usedSites.InsertRange(t.Sites);
+            }
+
             foreach (CdtTriangle triangle in Triangles) {
                 TestTriangle(triangle, usedSites);
             }
@@ -293,8 +361,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
 
         static bool SeparatedByConstrainedEdge(CdtTriangle triangle, CdtSite site) {
             for (int i = 0; i < 3; i++)
+            {
                 if (SeparatedByEdge(triangle, i, site))
+                {
                     return true;
+                }
+            }
+
             return false;
         }
 
@@ -397,7 +470,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
 
         void TryTriangulateBasinToTheLeft(RBNode<CdtFrontElement> leftLegNode) {
             if (!DropsSharpEnoughToTheLeft(leftLegNode.Item))
+            {
                 return;
+            }
             //ShowFrontWithSite(leftLegNode.Item.LeftSite);
             Stack<CdtSite> stack = new Stack<CdtSite>();
             stack.Push(leftLegNode.Item.LeftSite);
@@ -406,7 +481,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
                 leftLegNode = FindNodeInFrontBySite(front, site);
                 RBNode<CdtFrontElement> prev = front.Previous(leftLegNode);
                 if (prev == null)
+                {
                     return;
+                }
+
                 if (Point.GetTriangleOrientationWithNoEpsilon(prev.Item.LeftSite.Point, leftLegNode.Item.LeftSite.Point, leftLegNode.Item.RightSite.Point) ==
                     TriangleOrientation.Counterclockwise) {
                     stack.Push(prev.Item.LeftSite);
@@ -417,7 +495,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
                         stack.Push(prev.Item.LeftSite);
                     } else {
                         if (prev.Item.LeftSite.Point.Y <= prev.Item.RightSite.Point.Y)
+                        {
                             return;
+                        }
+
                         stack.Push(prev.Item.LeftSite);
                     }
                 }
@@ -427,7 +508,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
         static bool DropsSharpEnoughToTheLeft(CdtFrontElement frontElement) {
             CdtEdge edge = frontElement.Edge;
             if (frontElement.RightSite != edge.upperSite)
+            {
                 return false;
+            }
+
             Point d = edge.lowerSite.Point - edge.upperSite.Point;
             Debug.Assert(d.X < 0 && d.Y <= 0);
             return d.X >= 0.5 * d.Y;
@@ -437,10 +521,19 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
             CdtEdge leftEdge = null, rightEdge = null;
             foreach (CdtEdge edge in pi.Edges) {
                 if (leftEdge==null && edge.lowerSite == leftSite)
+                {
                     leftEdge = edge;
+                }
+
                 if ( rightEdge==null && edge.lowerSite == rightSite)
+                {
                     rightEdge = edge;
-                if (leftEdge != null && rightEdge != null) break;
+                }
+
+                if (leftEdge != null && rightEdge != null)
+                {
+                    break;
+                }
             }
             Debug.Assert(leftEdge!=null && rightEdge!=null);
             front.Insert(new CdtFrontElement(leftSite, leftEdge));
@@ -469,7 +562,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
 
         void TryTriangulateBasinToTheRight(RBNode<CdtFrontElement> piNode) {           
             if (!DropsSharpEnoughToTheRight(piNode.Item))
+            {
                 return;
+            }
             // ShowFrontWithSite(piNode.Item.LeftSite);
             Stack<CdtSite> stack = new Stack<CdtSite>();
             stack.Push(piNode.Item.LeftSite);
@@ -478,7 +573,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
                 piNode = FindNodeInFrontBySite(front, site);
                 RBNode<CdtFrontElement> next = front.Next(piNode);
                 if (next == null)
+                {
                     return;
+                }
+
                 if (Point.GetTriangleOrientationWithNoEpsilon(piNode.Item.LeftSite.Point, piNode.Item.RightSite.Point, next.Item.RightSite.Point) == TriangleOrientation.Counterclockwise) {
                     ShortcutTwoFrontElements(piNode, next);
                     stack.Push(site);
@@ -487,7 +585,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
                         stack.Push(piNode.Item.RightSite);
                     } else {
                         if (next.Item.LeftSite.Point.Y >= next.Item.RightSite.Point.Y)
+                        {
                             return;
+                        }
+
                         stack.Push(piNode.Item.RightSite);
                     }
                 }
@@ -497,7 +598,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
       static bool DropsSharpEnoughToTheRight(CdtFrontElement frontElement) {
             CdtEdge edge = frontElement.Edge;
             if(frontElement.LeftSite!=edge.upperSite)
+            {
                 return false;
+            }
+
             Point d =edge.lowerSite.Point-edge.upperSite.Point;
             Debug.Assert(d.X > 0 && d.Y <= 0);
             return d.X <= -0.5 * d.Y;
@@ -530,11 +634,19 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
 
         void LegalizeEdge(CdtSite pi, CdtEdge edge) {
             Debug.Assert(pi!=edge.upperSite && pi!=edge.lowerSite);
-            if (edge.Constrained || edge.CcwTriangle == null || edge.CwTriangle == null) return;
+            if (edge.Constrained || edge.CcwTriangle == null || edge.CwTriangle == null)
+            {
+                return;
+            }
+
             if (edge.CcwTriangle.Contains(pi))
+            {
                 LegalizeEdgeForOtherCwTriangle(pi, edge);
+            }
             else
+            {
                 LegalizeEdgeForOtherCcwTriangle(pi, edge);
+            }
         }
 
         void LegalizeEdgeForOtherCcwTriangle(CdtSite pi, CdtEdge edge) {
@@ -724,14 +836,22 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
             ot.Edges[eOtherIndex + 1] = newEdge;
             //orient the new edge and the two edges that move from one triangle to another
             if (edgeBeforPl.lowerSite == pl)
+            {
                 edgeBeforPl.CcwTriangle = t;
+            }
             else
+            {
                 edgeBeforPl.CwTriangle = t;
+            }
 
             if (edgeBeforPi.lowerSite == pi)
+            {
                 edgeBeforPi.CcwTriangle = ot;
+            }
             else
+            {
                 edgeBeforPi.CwTriangle = ot;
+            }
 
             if (newEdge.upperSite == pi) {
                 newEdge.CcwTriangle = ot;
@@ -771,14 +891,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
                 CdtEdge e = t.Edges[i];
                 CdtSite a = t.Sites[i];
                 CdtSite b = t.Sites[i+1];
-                if (!e.IsAdjacent(a) || !e.IsAdjacent(b)) return false;
+                if (!e.IsAdjacent(a) || !e.IsAdjacent(b))
+                {
+                    return false;
+                }
+
                 if (e.upperSite == a) {
                     if (e.CcwTriangle != t)
+                    {
                         return false;
+                    }
                 }
                 else if (e.CwTriangle != t)
+                {
                     return false;
-
+                }
             }
             return true;
         }

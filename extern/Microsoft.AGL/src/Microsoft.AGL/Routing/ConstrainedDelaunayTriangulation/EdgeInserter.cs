@@ -34,12 +34,20 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
         void UpdateFront() {
             Set<CdtEdge> newFrontEdges = new Set<CdtEdge>();
             foreach (CdtTriangle t in addedTriangles)
+            {
                 foreach (CdtEdge e in t.Edges)
+                {
                     if (e.CwTriangle == null || e.CcwTriangle == null)
+                    {
                         newFrontEdges.Insert(e);
+                    }
+                }
+            }
 
             foreach (CdtEdge e in newFrontEdges)
+            {
                 AddEdgeToFront(e);
+            }
         }
 
         void AddEdgeToFront(CdtEdge e) {
@@ -49,7 +57,9 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
 
         void TriangulatePolygon(List<CdtSite> polygon, CdtSite a, CdtSite b, bool reverseTrangleWhenCompare) {
             if (polygon.Count > 0)
+            {
                 TriangulatePolygon(0, polygon.Count - 1, polygon, a, b,reverseTrangleWhenCompare);
+            }
         }
 
         void TriangulatePolygon(int start, int end, List<CdtSite> polygon, CdtSite a, CdtSite b, bool reverseTrangleWhenCompare) {
@@ -68,9 +78,14 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
             triangles.Insert(t);
             addedTriangles.Add(t);
             if (start < cIndex)
+            {
                 TriangulatePolygon(start, cIndex - 1, polygon, a, c, reverseTrangleWhenCompare);
+            }
+
             if (cIndex < end)
+            {
                 TriangulatePolygon(cIndex + 1, end, polygon, c, b, reverseTrangleWhenCompare);
+            }
         }
 
         static bool LocalInCircle(CdtSite v, CdtSite a, CdtSite b, CdtSite c, bool reverseTrangleWhenCompare) => reverseTrangleWhenCompare ? CdtSweeper.InCircle(v, a, c, b) : CdtSweeper.InCircle(v, a, b, c);

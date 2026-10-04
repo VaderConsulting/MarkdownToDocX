@@ -55,15 +55,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver{
             for (int i = 0; i < varList.Count; i++) {
                 UniformSolverVar v = varList[i];
                 if (v.IsFixed)
+                {
                     solverShell.AddFixedVariable(i, v.Position);
+                }
                 else {
                     solverShell.AddVariableWithIdealPosition(i, idealPositions[i]);
                     if (v.LowBound != double.NegativeInfinity)
-                    //    solverShell.AddLeftRightSeparationConstraint(GetBoundId(v.LowBound), i, varSepartion);
+                    {
+                        //    solverShell.AddLeftRightSeparationConstraint(GetBoundId(v.LowBound), i, varSepartion);
                         constraints.Insert(new IntPair(GetBoundId(v.LowBound), i));
+                    }
+
                     if (v.UpperBound != double.PositiveInfinity)
+                    {
                         constraints.Insert(new IntPair(i, GetBoundId(v.UpperBound)));
-                    
+                    }
                 }
             }
            
@@ -72,27 +78,44 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver{
             foreach (IntPair edge in graph.Edges) {
                 double w = 0.0;
                 if(edge.First<varList.Count)
-                    w+=varList[edge.First].Width;
+                {
+                    w +=varList[edge.First].Width;
+                }
+
                 if (edge.Second < varList.Count)
+                {
                     w += varList[edge.Second].Width;
+                }
+
                 w /= 2;
                 solverShell.AddLeftRightSeparationConstraint(edge.First, edge.Second, varSepartion + w);
             }
             solverShell.Solve();
 
             for (int i = 0; i < varList.Count; i++)
+            {
                 varList[i].Position = solverShell.GetVariableResolvedPosition(i);
+            }
         }
 
         int GetBoundId(double bound) => boundsToInt[bound];
 
         void CreateVariablesForBounds(){
             foreach (UniformSolverVar v in varList){
-                if(v.IsFixed) continue;
+                if(v.IsFixed)
+                {
+                    continue;
+                }
+
                 if (v.LowBound != double.NegativeInfinity)
+                {
                     RegisterBoundVar(v.LowBound);
+                }
+
                 if (v.UpperBound != double.PositiveInfinity)
+                {
                     RegisterBoundVar(v.UpperBound);
+                }
             }
         }
 
@@ -112,8 +135,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver{
             //removing cycles
             IEnumerable<IEdge> feedbackSet = CycleRemoval<IntPair>.GetFeedbackSet(graph);
             if(feedbackSet!=null)
-                foreach(IEdge edge in feedbackSet)
+            {
+                foreach (IEdge edge in feedbackSet)
+                {
                     graph.RemoveEdge(edge as IntPair);
+                }
+            }
         }
 
         internal double GetVariablePosition(int id) => varList[id].Position;

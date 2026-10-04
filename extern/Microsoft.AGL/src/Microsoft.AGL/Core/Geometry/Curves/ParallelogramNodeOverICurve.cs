@@ -55,7 +55,9 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
 
         static bool WithinEpsilon(ICurve seg, double start, double end, double eps) {
             if (seg is LineSegment)
+            {
                 return true;
+            }
 
             int n = 3; //hack !!!! but maybe can be proven for Bezier curves and other regular curves
             double d = (end - start) / n;
@@ -76,7 +78,10 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
 
             Point l = e - s;
             if (l.Length < ApproximateComparer.IntersectionEpsilon)
+            {
                 return (p - (0.5f * (s + e))).Length;
+            }
+
             Point perp = new Point(-l.Y, l.X);
             perp = perp * (1.0f / perp.Length);
             return Math.Abs((p - s) * perp);
@@ -94,7 +99,9 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
             Point startPoint, Point endPoint) {
 
             if (seg is CubicBezierSegment)
+            {
                 return CreateParallelogramOnSubSegOnBezierSeg(start, end, seg, ref box);
+            }
 
             Point tan1 = seg.Derivative(start);
 
@@ -109,12 +116,17 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
             double denumerator = (tan1 * tan2Perp);
             double x;// = (p * tan2Perp) / (tan1 * tan2Perp);
             if (Math.Abs(numerator) < ApproximateComparer.DistanceEpsilon)
+            {
                 x = 0;
+            }
             else if (Math.Abs(denumerator) < ApproximateComparer.DistanceEpsilon) {
                 //it is degenerated; adjacent sides are parallel, but 
                 //since p * tan2Perp is big it does not contain e
                 return false;
-            } else x = numerator / denumerator;
+            } else
+            {
+                x = numerator / denumerator;
+            }
 
             tan1 *= x;
 
@@ -129,9 +141,11 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
 
             double delta = (end - start) / 64;
             for (int i = 1; i < 64; i++) {
-                if (!box.Contains(seg[start + delta * i])) 
+                if (!box.Contains(seg[start + delta * i]))
+                {
                     return false;
-               }
+                }
+            }
             return true;
 
 
@@ -148,12 +162,16 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
             box = new Parallelogram(b(0), a, b(3) - b(0));
 
             if (box.Contains(b(2)))
+            {
                 return true;
+            }
 
             box = new Parallelogram(b(3), b(2) - b(3), b(0) - b(3));
 
             if (box.Contains(b(1)))
+            {
                 return true;
+            }
 
             return false;
         }
@@ -163,7 +181,9 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
 
             bool closedSeg = (start == seg.ParStart && end == seg.ParEnd && ApproximateComparer.Close(seg.Start, seg.End));
             if (closedSeg)
+            {
                 return CreateNodeWithSegmentSplit(start, end, seg, eps);
+            }
 
             Point s = seg[start];
             Point e = seg[end];
@@ -185,9 +205,11 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
             bool we = WithinEpsilon(seg, start, end, eps);
             Parallelogram box = new Parallelogram();
             
-            if (we && CreateParallelogramOnSubSeg(start, end, seg, ref box, s, e)) 
+            if (we && CreateParallelogramOnSubSeg(start, end, seg, ref box, s, e))
+            {
                 return new ParallelogramLeaf(start, end, box, seg, eps);
-            
+            }
+
             return CreateNodeWithSegmentSplit(start, end, seg, eps);
             
         }

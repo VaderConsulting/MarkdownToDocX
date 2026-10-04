@@ -45,12 +45,21 @@ namespace Microsoft.AGL.Layout.Layered
                 int prev = 0, curr = 0;
                 while (curr < layerArrays.Layers[i].Length) {
                     while (curr < layerArrays.Layers[i].Length &&
-                           properLayeredGraph.IsVirtualNode(layerArrays.Layers[i][curr])) curr++;
+                           properLayeredGraph.IsVirtualNode(layerArrays.Layers[i][curr]))
+                    {
+                        curr++;
+                    }
+
                     for (int j = prev; j < curr; j++)
+                    {
                         result[layerArrays.Layers[i][j]] = new Point(i, prev);
+                    }
 
                     if (curr < layerArrays.Layers[i].Length)
+                    {
                         result[layerArrays.Layers[i][curr]] = new Point(i, curr);
+                    }
+
                     curr++;
                     prev = curr;
                 }
@@ -79,12 +88,17 @@ namespace Microsoft.AGL.Layout.Layered
         Dictionary<Point, List<int>> CreateInitialOrdering() {
             Dictionary<Point, List<int>> initialOrdering = new Dictionary<Point, List<int>>();
             for (int i = 0; i < layerArrays.Layers.Length; i++)
+            {
                 for (int j = 0; j < layerArrays.Layers[i].Length; j++) {
                     int node = layerArrays.Layers[i][j];
                     if (!initialOrdering.ContainsKey(nodePositions[node]))
+                    {
                         initialOrdering[nodePositions[node]] = [];
+                    }
+
                     initialOrdering[nodePositions[node]].Add(node);
                 }
+            }
 
             return initialOrdering;
         }
@@ -95,14 +109,19 @@ namespace Microsoft.AGL.Layout.Layered
             Dictionary<Point, List<int>> result = new Dictionary<Point, List<int>>();
             Dictionary<int, int> reverseOrder = new Dictionary<int, int>();
             for (int i = 0; i < layerArrays.Layers.Length; i++)
+            {
                 for (int j = 0; j < layerArrays.Layers[i].Length; j++) {
                     int node = layerArrays.Layers[i][j];
 
                     //already processed
-                    if (result.ContainsKey(nodePositions[node])) continue;
+                    if (result.ContainsKey(nodePositions[node]))
+                    {
+                        continue;
+                    }
 
                     result[nodePositions[node]] = BuildNodeOrdering(initialOrdering[nodePositions[node]], reverseOrder);
                 }
+            }
 
             return result;
         }
@@ -113,7 +132,10 @@ namespace Microsoft.AGL.Layout.Layered
             result.Sort(Comparison(inverseToOrder));
 
             for (int i = 0; i < result.Count; i++)
+            {
                 inverseToOrder[result[i]] = i;
+            }
+
             return result;
         }
 
@@ -135,13 +157,18 @@ namespace Microsoft.AGL.Layout.Layered
             if (succPoint1 != succPoint2)
             {
                 if (predPoint1 != predPoint2)
+                {
                     return predPoint1.CompareTo(predPoint2);
+                }
+
                 return succPoint1.CompareTo(succPoint2);
             }
             if (properLayeredGraph.IsVirtualNode(succ1))
             {
                 if (predPoint1 != predPoint2)
+                {
                     return predPoint1.CompareTo(predPoint2);
+                }
 
                 int o1 = inverseToOrder[succ1];
                 int o2 = inverseToOrder[succ2];
@@ -156,7 +183,10 @@ namespace Microsoft.AGL.Layout.Layered
             }
 
             if (nodePositions[pred1] == nodePositions[pred2])
+            {
                 return node1.CompareTo(node2);
+            }
+
             return nodePositions[pred1].CompareTo(nodePositions[pred2]);
         };
 
@@ -166,9 +196,15 @@ namespace Microsoft.AGL.Layout.Layered
                 while (tec < layerArrays.Layers[i].Length) {
                     while (tec < layerArrays.Layers[i].Length &&
                            nodePositions[layerArrays.Layers[i][pred]] == nodePositions[layerArrays.Layers[i][tec]])
+                    {
                         tec++;
+                    }
+
                     for (int j = pred; j < tec; j++)
+                    {
                         layerArrays.Layers[i][j] = ordering[nodePositions[layerArrays.Layers[i][j]]][j - pred];
+                    }
+
                     pred = tec;
                 }
             }

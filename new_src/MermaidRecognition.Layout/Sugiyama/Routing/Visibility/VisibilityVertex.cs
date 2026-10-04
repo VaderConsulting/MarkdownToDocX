@@ -94,10 +94,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         static RBNode<VisibilityEdge> FindFirst(RBNode<VisibilityEdge> n, RbTree<VisibilityEdge> tree, Point targetPoint)
         {
             if ( n ==  tree.Nil)
+            {
                 return null;
+            }
+
             RBNode<VisibilityEdge> good = null;
             while (n != tree.Nil)
+            {
                 n = n.Item.TargetPoint >= targetPoint ? (good = n).left : n.right;
+            }
 
             return good;
         }
@@ -122,7 +127,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         }
 
         #region IComparer<VisibilityEdge>
-        public int Compare(VisibilityEdge? a, VisibilityEdge? b) { if (a is null) return b is null ? 0 : -1; if (b is null) return 1; return a.TargetPoint.CompareTo(b.TargetPoint); }
+        public int Compare(VisibilityEdge? a, VisibilityEdge? b) { if (a is null) { return b is null ? 0 : -1; } if (b is null) { return 1; } return a.TargetPoint.CompareTo(b.TargetPoint); }
         #endregion // IComparer<VisibilityEdge>
 
         public void ClearEdges() {

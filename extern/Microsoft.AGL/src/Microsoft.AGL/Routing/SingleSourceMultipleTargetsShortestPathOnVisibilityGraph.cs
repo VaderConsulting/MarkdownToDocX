@@ -23,7 +23,9 @@ namespace Microsoft.AGL.Routing {
             _visGraph = visibilityGraph;
             _visGraph.ClearPrevEdgesTable();
             foreach (VisibilityVertex v in visibilityGraph.Vertices())
+            {
                 v.Distance = double.PositiveInfinity;
+            }
 
             source = sourceVisVertex;
             targets = new Set<VisibilityVertex>(targetVisVertices);
@@ -42,13 +44,19 @@ namespace Microsoft.AGL.Routing {
             while (!pq.IsEmpty()) {
                 current = pq.Dequeue();
                 if (targets.Contains(current))
+                {
                     break;
+                }
 
                 foreach (VisibilityEdge e in current.OutEdges.Where(PassableOutEdge))
+                {
                     ProcessNeighbor(pq, e, e.Target);
+                }
 
                 foreach (VisibilityEdge e in current.InEdges.Where(PassableInEdge))
+                {
                     ProcessNeighbor(pq, e, e.Source);
+                }
             }
 
             return _visGraph.PreviosVertex(current) == null ? null : CalculatePath();
@@ -68,7 +76,10 @@ namespace Microsoft.AGL.Routing {
             double len = l.Length;
             double c = current.Distance + len;
             if (c >= upperBound)
+            {
                 return;
+            }
+
             if (targets.Contains(v)) {
                 upperBound = c;
                 closestTarget = v;
@@ -93,7 +104,10 @@ namespace Microsoft.AGL.Routing {
         
         IEnumerable<VisibilityVertex> CalculatePath() {
             if (closestTarget == null)
+            {
                 return null;
+            }
+
             List<VisibilityVertex> ret = new List<VisibilityVertex>();
             VisibilityVertex v = closestTarget;
             do {

@@ -78,12 +78,17 @@ namespace Microsoft.AGL.Routing {
             get {
                 Queue<Shape> q = new Queue<Shape>();
                 foreach (Shape shape in Children)
+                {
                     q.Enqueue(shape);
+                }
+
                 while (q.Count > 0) {
                     Shape sh = q.Dequeue();
                     yield return sh;
                     foreach (Shape shape in sh.Children)
+                    {
                         q.Enqueue(shape);
+                    }
                 }
             }
         }
@@ -92,12 +97,17 @@ namespace Microsoft.AGL.Routing {
             get {
                 Queue<Shape> q = new Queue<Shape>();
                 foreach (Shape shape in Parents)
+                {
                     q.Enqueue(shape);
+                }
+
                 while (q.Count > 0) {
                     Shape sh = q.Dequeue();
                     yield return sh;
                     foreach (Shape shape in sh.Parents)
+                    {
                         q.Enqueue(shape);
+                    }
                 }
             }
         }

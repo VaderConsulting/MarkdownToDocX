@@ -12,7 +12,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
         internal SdVertex Prev {
             get {
-                if (PrevEdge == null) return null;
+                if (PrevEdge == null)
+                {
+                    return null;
+                }
+
                 return PrevEdge.Source == this ? PrevEdge.Target : PrevEdge.Source;
             }
         }
@@ -35,7 +39,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         {
             get
             {
-                if (IsSourceOfRouting) return cost;
+                if (IsSourceOfRouting)
+                {
+                    return cost;
+                }
+
                 return Prev == null ? double.PositiveInfinity : cost;
             }
 

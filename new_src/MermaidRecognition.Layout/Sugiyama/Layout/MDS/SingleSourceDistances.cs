@@ -65,14 +65,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
                 d[u] = prio;
                 IEnumerator<Edge> enumerator;
                 if (directed)
+                {
                     enumerator = u.OutEdges.GetEnumerator();
+                }
                 else
+                {
                     enumerator = u.Edges.GetEnumerator();
+                }
+
                 while (enumerator.MoveNext()) {
                     Edge uv = enumerator.Current;
                     Node v = uv.Target;
                     if (u == v)
+                    {
                         v = uv.Source;
+                    }
                     // relaxation step
                     if (d[v] > d[u] + uv.Length) {
                         d[v] = d[u] + uv.Length;
@@ -89,7 +96,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
                 Result[i] = dummy;
 #else
                 if (!d.TryGetValue(v, out Result[i]))
+                {
                     Result[i] = double.PositiveInfinity;
+                }
 #endif
                 i++;
             }
@@ -168,11 +177,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
                 select new IntPair(nodeToNodeIndex[edge.Source], nodeToNodeIndex[edge.Target]), graph.Nodes.Count);
             List<IEnumerable<int>> comps = new List<IEnumerable<int>>( ConnectedComponentCalculator<IntPair>.GetComponents(basicGraph));
             if (comps.Count == 1)
+            {
                 return new GeometryGraph[] { graph };
+            }
+
             GeometryGraph[] ret = new GeometryGraph[comps.Count];
             int i = 0;
             foreach (IEnumerable<int> comp in comps)
+            {
                 ret[i++] = GeomGraphFromBasicGraph(comp, nodes);
+            }
 
             return ret;
         }

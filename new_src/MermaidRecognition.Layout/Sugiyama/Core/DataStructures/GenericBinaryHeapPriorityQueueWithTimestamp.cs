@@ -116,7 +116,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
 
         internal T Dequeue() {
             if (heapSize == 0)
+            {
                 throw new InvalidOperationException();
+            }
 
             T ret = A[1].v;
 
@@ -127,7 +129,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
         }
 
         internal T Dequeue(out double priority) {
-            if (heapSize == 0) throw new InvalidOperationException();
+            if (heapSize == 0)
+            {
+                throw new InvalidOperationException();
+            }
 
             T ret = A[1].v;
             priority = A[1].priority;
@@ -144,17 +149,25 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
                 int l = i << 1;
 
                 if (l <= heapSize && A[l].ComparePriority(A[i]) < 0)
+                {
                     smallest = l;
+                }
 
                 int r = l + 1;
 
                 if (r <= heapSize && A[r].ComparePriority(A[smallest]) < 0)
+                {
                     smallest = r;
+                }
 
                 if (smallest != i)
+                {
                     SwapWithParent(smallest);
+                }
                 else
+                {
                     break;
+                }
 
                 i = smallest;
 
@@ -169,16 +182,24 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
         internal void DecreasePriority(T element, double newPriority)
         {
             //ignore the element if it is not in the queue
-            if (!cache.TryGetValue(element, out GenericHeapElementWithTimestamp<T>? h)) return;
+            if (!cache.TryGetValue(element, out GenericHeapElementWithTimestamp<T>? h))
+            {
+                return;
+            }
 
             //var h = cache[element];
             h.priority = newPriority;
             int i = h.indexToA;
             while (i > 1) {
                 if (A[i].ComparePriority(A[i >> 1]) < 0)
+                {
                     SwapWithParent(i);
+                }
                 else
+                {
                     break;
+                }
+
                 i >>= 1;
             }
         }
@@ -242,9 +263,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
             q.DecreasePriority(4, 2.5);
 
             while (q.IsEmpty() == false)
+            {
                 Console.WriteLine(q.Dequeue());
-
-
+            }
         }
         /// <summary>
         /// enumerator
@@ -252,12 +273,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
         /// <returns></returns>
         public IEnumerator<T> GetEnumerator() {
             for (int i = 1; i <= heapSize; i++)
+            {
                 yield return A[i].v;
+            }
         }
 
         IEnumerator IEnumerable.GetEnumerator() {
             for (int i = 1; i <= heapSize; i++)
+            {
                 yield return A[i].v;
+            }
         }
 #if TEST_MSAGL
         /// <summary>
@@ -267,7 +292,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
         public override string ToString() {
             StringBuilder sb =new StringBuilder();
             foreach (T i in this)
+            {
                 sb.Append(i + ",");
+            }
+
             return sb.ToString();
         }
   

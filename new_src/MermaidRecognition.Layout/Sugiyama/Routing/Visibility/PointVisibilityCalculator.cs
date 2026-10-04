@@ -85,17 +85,26 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             for (Stem stem = heapForSorting.GetMinimum();; stem = heapForSorting.GetMinimum()) {
                 sortedListOfPolypoints.Add(stem.Start);
                 if (stem.MoveStartClockwise())
+                {
                     heapForSorting.ChangeMinimum(stem);
+                }
                 else
+                {
                     heapForSorting.Dequeue();
+                }
+
                 if (heapForSorting.Count == 0)
+                {
                     break;
+                }
             }
         }
 
         void InitHeapAndInsertActiveSides() {
             foreach (Stem pp in GetInitialVisibleBoundaryStemsAndInsertActiveSides())
+            {
                 heapForSorting.Enqueue(pp);
+            }
         }
 
 
@@ -129,14 +138,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
                             }
                         }
                     } else if (source.Point.Y > q.Y)
+                    {
                         break;
+                    }
                     else if (side.Point.X >= q.X) {
                         //we have pp.Y==q.Y
                         crosses = true;
                         //we need to add one or two stems here
                         yield return new Stem(side, stem.End);
                         if (side != stem.Start)
+                        {
                             yield return new Stem(stem.Start, hole.Prev(source));
+                        }
 
                         RegisterActiveSide(side);
                         break;
@@ -144,7 +157,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
                 }
                 //there is no intersection with the ray
                 if (!crosses)
+                {
                     yield return stem;
+                }
             }
         }
 
@@ -179,7 +194,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
 
         void Sweep() {
             foreach (PolylinePoint polylinePoint in sortedListOfPolypoints)
+            {
                 SweepPolylinePoint(polylinePoint);
+            }
 #if TEST_MSAGL
             //List<ICurve> l = new List<ICurve>();
             //foreach (PEdge pe in this.visibilityGraph.Edges) {
@@ -213,7 +230,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             {
                 //we have an active edge
                 if (node == activeSidesTree.TreeMinimum())
+                {
                     AddEdge(v);
+                }
 
                 if (outSide != null)
                 {
@@ -224,8 +243,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
                 {
                     RBNode<PolylinePoint> changedNode = activeSidesTree.DeleteSubtree(node);
                     if (changedNode != null)
+                    {
                         if (changedNode.Item != null)
+                        {
                             sideNodes[changedNode.Item] = changedNode;
+                        }
+                    }
                 }
                 sideNodes.Remove(inSide);
             }
@@ -237,11 +260,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
                         outsideNode = activeSidesTree.Insert(outSide);
                         sideNodes[outSide] = outsideNode;
                         if (outsideNode == activeSidesTree.TreeMinimum())
+                        {
                             AddEdge(v);
+                        }
                     }
                 }
                 else
+                {
                     throw new InvalidOperationException();
+                }
 
             // CheckActiveSidesAreConsistent();
         }
@@ -266,10 +293,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             // ReSharper restore UnusedMember.Local
             List<ICurve> l = new List<ICurve>();
             foreach (VisibilityEdge pe in visibilityGraph.Edges)
+            {
                 l.Add(new LineSegment(pe.SourcePoint, pe.TargetPoint));
+            }
 
             foreach (PolylinePoint pe in activeSidesTree)
+            {
                 l.Add(new LineSegment(pe.Point, pe.NextOnPolyline.Point));
+            }
+
             l.Add(new Ellipse(0.1, 0.1, q));
 
 
@@ -281,7 +313,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             Stem visibleStem = visibleBoundaries[v.Polyline];
 
             if (v == visibleStem.End)
+            {
                 return null;
+            }
 
             return v;
         }
@@ -292,7 +326,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             InitActiveEdgesAndActiveEdgesComparer();
 
             foreach (Polyline hole in holes)
+            {
                 ComputeVisiblePartOfTheHole(hole);
+            }
         }
 
         void InitActiveEdgesAndActiveEdgesComparer() {
@@ -315,8 +351,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
 
             //now the side a, a.Next - is separating
             if (needToGoCounterclockWise)
+            {
                 while (HoleSideIsVisibleFromQ(hole, hole.Prev(a)))
+                {
                     a = hole.Prev(a);
+                }
+            }
 
             //go clockwise starting from b
             for (; HoleSideIsVisibleFromQ(hole, b); b = hole.Next(b)) {}

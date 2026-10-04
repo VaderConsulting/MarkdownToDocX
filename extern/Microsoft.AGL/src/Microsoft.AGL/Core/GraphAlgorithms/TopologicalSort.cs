@@ -40,7 +40,9 @@ namespace Microsoft.AGL.Core.GraphAlgorithms{
             IEnumerator<int> en;
             for (int u = 0; u < graph.NodeCount; u++){
                 if (visited[u])
+                {
                     continue;
+                }
 
                 int cu = u;
                 visited[cu] = true;
@@ -65,7 +67,9 @@ namespace Microsoft.AGL.Core.GraphAlgorithms{
                         cu = sv.Pop();
                     }
                     else
+                    {
                         break;
+                    }
                 } while (true);
             }
             order.Reverse();
@@ -100,13 +104,23 @@ namespace Microsoft.AGL.Core.GraphAlgorithms{
             IEnumerator<int> en;
             foreach (int u in visited.Keys.ToArray()) {
                 if (visited[u])
+                {
                     continue;
+                }
 
                 int cu = u;
 
                 visited[cu] = true;
-                if (!graph.TryGetValue(u, out List<int> glist)) continue;
-                if (glist == null) continue;
+                if (!graph.TryGetValue(u, out List<int> glist))
+                {
+                    continue;
+                }
+
+                if (glist == null)
+                {
+                    continue;
+                }
+
                 en = glist.GetEnumerator();
                 do {
                     while (en.MoveNext()) {
@@ -130,7 +144,9 @@ namespace Microsoft.AGL.Core.GraphAlgorithms{
                         en = se.Pop();
                         cu = sv.Pop();
                     } else
+                    {
                         break;
+                    }
                 } while (true);
             }
             order.Reverse();

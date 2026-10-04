@@ -90,7 +90,11 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments {
             PixelPoint pPixel = PointToPixel(p);
 
             for (int r = 0; r < MaxSize/2; r++) {
-                if (!GetFreePixelInRadius(ref pPixel, r)) continue;
+                if (!GetFreePixelInRadius(ref pPixel, r))
+                {
+                    continue;
+                }
+
                 found = pPixel;
                 return true;
             }
@@ -105,7 +109,10 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments {
             RTree<SymmetricSegment> fixedSegmentsTree) {
             Console.WriteLine("\nRemoving overlaps");
             int i;
-            if (_moveableRectangles.Length == 0) return 0;
+            if (_moveableRectangles.Length == 0)
+            {
+                return 0;
+            }
 
             InitInsertRectSize(_moveableRectangles[startInd]);
 
@@ -143,7 +150,10 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments {
         void DrawFixedRectsSegments(RTree<Rectangle> fixedRectanglesTree,
             RTree<SymmetricSegment> fixedSegmentsTree) {
             foreach (Rectangle fr in fixedRectanglesTree.GetAllLeaves())
+            {
                 DrawRectDilated(fr);
+            }
+
             foreach (SymmetricSegment seg in fixedSegmentsTree.GetAllLeaves()) {
                 DrawLineSegDilated(seg.A, seg.B);
             }
@@ -159,7 +169,10 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments {
             Point[] translation = new Point[_moveableRectangles.Length];
 
             for (int i = 0; i < _moveableRectangles.Length; i++)
+            {
                 translation[i] = movedRectangles[i].Center - _moveableRectangles[i].Center;
+            }
+
             return translation;
         }
 

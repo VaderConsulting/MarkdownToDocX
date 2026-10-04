@@ -28,7 +28,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         //following Chazelle, Dobkin
         internal int FindMinimum(){
             if (sequence(0) == sequence(Length - 1)) //we have a unimodal function
+            {
                 return (new UnimodalSequence(sequence,Length)).FindMinimum();
+            }
 
             return (new UnimodalSequence(GetAdjustedSequenceForMinimum(), Length)).FindMinimum();
 
@@ -44,7 +46,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
 
         internal int FindMaximum() {
             if (sequence(0) == sequence(Length - 1)) //we have a unimodal function
+            {
                 return (new UnimodalSequence(sequence, Length)).FindMaximum();
+            }
 
             return (new UnimodalSequence(GetAdjustedSequenceForMaximum(), Length)).FindMaximum();
 

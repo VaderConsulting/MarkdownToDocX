@@ -30,20 +30,29 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
                     pivotIndex = n;
                 }
                 else if (point.Y == pivot.Y)
+                {
                     if (point.X > pivot.X) {
                         pivot = point;
                         pivotIndex = n;
                     }
+                }
+
                 n++;
             }
             if (n >= 1) {
                 hullPoints = new HullPoint[n - 1]; //we will not copy the pivot into the hull points
                 n = 0;
                 foreach (Point point in bodyPoints)
+                {
                     if (n != pivotIndex)
+                    {
                         hullPoints[n++] = new HullPoint(point);
+                    }
                     else
+                    {
                         pivotIndex = -1; //forget where the pivot was
+                    }
+                }
             }
         }
 
@@ -63,9 +72,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
 
         IEnumerable<Point> Calculate() {
             if (pivot.Y == double.MaxValue)
+            {
                 return new Point[0];
+            }
+
             if (hullPoints.Length == 0)
+            {
                 return new[] {pivot};
+            }
+
             SortAllPointsWithoutPivot();
             Scan();
             return EnumerateStack();
@@ -82,31 +97,45 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
         void Scan() {
             int i = 0;
             while (hullPoints[i].Deleted)
+            {
                 i++;
-           
+            }
+
             stack = new HullStack(pivot);
             Push(i++);
             if (i < hullPoints.Length) {
                 if (!hullPoints[i].Deleted)
+                {
                     Push(i++);
+                }
                 else
+                {
                     i++;
+                }
             }
 
             while (i < hullPoints.Length) {
                 if (!hullPoints[i].Deleted) {
                     if (LeftTurn(i))
+                    {
                         Push(i++);
+                    }
                     else
+                    {
                         Pop();
+                    }
                 }
                 else
+                {
                     i++;
+                }
             }
 
             //cleanup the end
             while (StackHasMoreThanTwoPoints() && !LeftTurnToPivot())
+            {
                 Pop();
+            }
         }
 
         bool LeftTurnToPivot() => Point.GetTriangleOrientation(StackSecondPoint, StackTopPoint, pivot) ==
@@ -119,18 +148,30 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
 
         bool LeftTurn(int i) {
             if (stack.Next == null)
+            {
                 return true; //there is only one point in the stack
+            }
+
             TriangleOrientation orientation = Point.GetTriangleOrientationWithIntersectionEpsilon(StackSecondPoint, StackTopPoint, hullPoints[i].Point);
             if (orientation == TriangleOrientation.Counterclockwise)
+            {
                 return true;
+            }
+
             if (orientation == TriangleOrientation.Clockwise)
+            {
                 return false;
+            }
+
             return BackSwitchOverPivot(hullPoints[i].Point);
         }
         bool BackSwitchOverPivot(Point point) {
             //we know here that there at least two points in the stack but it has to be exaclty two 
             if (stack.Next.Next != null)
+            {
                 return false;
+            }
+
             Debug.Assert(StackSecondPoint == pivot);
             return StackTopPoint.X > pivot.X + ApproximateComparer.DistanceEpsilon &&
                    point.X < pivot.X - ApproximateComparer.DistanceEpsilon;

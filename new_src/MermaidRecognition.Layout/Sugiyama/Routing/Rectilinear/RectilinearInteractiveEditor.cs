@@ -119,7 +119,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear{
                 double dx = edge.Source.BoundaryCurve.BoundingBox.Width / 2;
                 double dy = edge.Source.BoundingBox.Height / 4;
                 edge.UnderlyingPolyline = CreateUnderlyingPolylineForSelfEdge(a, dx, dy);
-                for (Site? site = edge.UnderlyingPolyline.HeadSite.Next; site.Next != null; site = site.Next) CalculateCoefficiensUnderSite(site, cornerFitRadius);
+                for (Site? site = edge.UnderlyingPolyline.HeadSite.Next; site.Next != null; site = site.Next)
+                {
+                    CalculateCoefficiensUnderSite(site, cornerFitRadius);
+                }
+
                 edge.Curve = edge.UnderlyingPolyline.CreateCurve();
             }
             else
@@ -130,7 +134,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear{
 
             if (!Arrowheads.TrimSplineAndCalculateArrowheads(edge.EdgeGeometry, edge.Source.BoundaryCurve, edge.Target.BoundaryCurve, edge.Curve,
                 true, false))
+            {
                 Arrowheads.CreateBigEnoughSpline(edge);
+            }
         }
 
 
@@ -158,7 +164,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear{
             }
 
             if (!Arrowheads.TrimSplineAndCalculateArrowheads(edge.EdgeGeometry, edge.Source.BoundaryCurve, edge.Target.BoundaryCurve, edge.Curve, true, false))
+            {
                 Arrowheads.CreateBigEnoughSpline(edge);
+            }
         }
 
         static SmoothedPolyline CreateUnderlyingPolylineForSelfEdge(Point p0, double dx, double dy)

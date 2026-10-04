@@ -48,9 +48,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             Curve.AddLineSegment(c, StartPoint.Point, StartPoint.Next.Point);
             PolylinePoint p = StartPoint.Next;
             while ((p = p.Next) != null)
+            {
                 Curve.ContinueWithLineSegment(c, p.Point);
+            }
+
             if (Closed)
+            {
                 Curve.ContinueWithLineSegment(c, StartPoint.Point);
+            }
+
             return c;
         }
 
@@ -92,7 +98,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         internal int Count {
             get {
                 if (needToInit)
+                {
                     Init();
+                }
+
                 return count;
             }            
         }
@@ -125,7 +134,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         public Point this[double t] {
             get {
                 if (NeedToInit)
+                {
                     Init();
+                }
+
                 GetAdjustedParamAndStartEndPoints(ref t, out Point a, out Point b);
                 return (1 - t)*a + t*b;
             }
@@ -165,7 +177,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// <returns></returns>
         public Point Derivative(double t) {
             if (NeedToInit)
+            {
                 Init();
+            }
+
             GetAdjustedParamAndStartEndPoints(ref t, out Point a, out Point b);
             return b - a;
         }
@@ -178,13 +193,22 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// <returns></returns>
         public Point LeftDerivative(double t) {
             if(NeedToInit)
+            {
                 Init();
+            }
+
             PolylinePoint pp = TryToGetPolylinePointCorrespondingToT(t);
             if (pp == null)
+            {
                 return Derivative(t);
+            }
+
             PolylinePoint prev = TryToGetPrevPointToPolylinePoint(pp);
             if (prev != null)
+            {
                 return pp.Point - prev.Point;
+            }
+
             return pp.Next.Point - pp.Point;
         }
 
@@ -195,30 +219,48 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// <returns></returns>
         public Point RightDerivative(double t) {
             if(NeedToInit)
+            {
                 Init();
+            }
+
             PolylinePoint pp = TryToGetPolylinePointCorrespondingToT(t);
             if (pp == null)
+            {
                 return Derivative(t);
+            }
+
             PolylinePoint next = TryToGetNextPointToPolylinePoint(pp);
             if (next != null)
+            {
                 return next.Point - pp.Point;
+            }
+
             return pp.Point - pp.Prev.Point;
         }
 
 
         PolylinePoint TryToGetPolylinePointCorrespondingToT(double t) {
             for (PolylinePoint p = StartPoint; p != null; p = p.Next, t--)
+            {
                 if (Math.Abs(t) < ApproximateComparer.Tolerance)
+                {
                     return p;
+                }
+            }
+
             return null;
         }
 
         PolylinePoint TryToGetPrevPointToPolylinePoint(PolylinePoint p) {
             if (p != StartPoint)
+            {
                 return p.Prev;
+            }
 
             if (!Closed)
+            {
                 return null;
+            }
 
             return EndPoint;
         }
@@ -226,10 +268,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
 
         PolylinePoint TryToGetNextPointToPolylinePoint(PolylinePoint p) {
             if (p != EndPoint)
+            {
                 return p.Next;
+            }
 
             if (!Closed)
+            {
                 return null;
+            }
 
             return StartPoint;
         }
@@ -261,7 +307,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
                 lock(this){
 #endif
                 if(NeedToInit)
+                {
                     Init();
+                }
+
                 return pBNode;
 
                 
@@ -289,8 +338,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
                 lock(this){
 #endif
                 if (NeedToInit)
+                {
                     Init();
-                
+                }
+
                 return boundingBox;
 #if PPC
                 }
@@ -376,7 +427,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             Polyline ret = new Polyline();
             ret.AddPoint(curve.Start);
             foreach (ICurve ls in curve.Segments)
+            {
                 ret.AddPoint(ls.End);
+            }
+
             ret.Closed = curve.Start == curve.End;
             return ret;
         }
@@ -517,7 +571,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// <returns></returns>
         public ICurve Transform(PlaneTransformation transformation) {
             if (transformation == null)
+            {
                 return this;
+            }
+
             Polyline poly = new Polyline {Closed = Closed};
             foreach (Point p in this)
             {
@@ -565,7 +622,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
                     Point delta = ls[t] - targetPoint;
                     double newDist = delta*delta;
                     if (newDist < dist)
+                    {
                         ret = t + offset;
+                    }
                 }
             }
             return ret;
@@ -600,7 +659,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
                 Point delta = ls[t] - targetPoint;
                 double newDist = delta*delta;
                 if (newDist < dist)
+                {
                     ret = t + offset;
+                }
             }
             return ret;
         }
@@ -612,7 +673,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         ICurve ICurve.Clone() {
             Polyline ret = new Polyline();
             foreach (Point p in this)
+            {
                 ret.AddPoint(p);
+            }
+
             ret.Closed = Closed;
             return ret;
         }
@@ -660,7 +724,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         public Polyline(IEnumerable<Point> points) {
             ValidateArg.IsNotNull(points, "points");
             foreach (Point p in points)
+            {
                 AddPoint(p);
+            }
         }
 
         /// <summary>
@@ -724,12 +790,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
                 TriangleOrientation triangleOrientation = Point.GetTriangleOrientation(point, polyPoint.Point,
                                                                                        secondPoint.Point);
                 if (triangleOrientation == TriangleOrientation.Counterclockwise)
+                {
                     return PointLocation.Outside;
+                }
+
                 if (triangleOrientation == TriangleOrientation.Collinear)
+                {
                     if ((point - polyPoint.Point)*(secondPoint.Point - point) >= 0) {
                         witness = polyPoint;
                         return PointLocation.Boundary;
                     }
+                }
             }
 
             return PointLocation.Inside;
@@ -760,7 +831,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// <param name="delta"></param>
         public void Shift(Point delta) {
             for (PolylinePoint pp = StartPoint; pp != null; pp = pp.Next)
+            {
                 pp.Point += delta;
+            }
         }
 
         #region ICurve Members
@@ -790,13 +863,20 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
 
         internal void AddRangeOfPoints(IEnumerable<Point> points){
             foreach (Point point in points)
+            {
                 AddPoint(point);
+            }
         }
 
         internal PolylinePoint GetPolylinePoint(int i) {
             for (PolylinePoint p = startPoint; p != null; p = p.Next,i--)
+            {
                 if (i == 0)
+                {
                     return p;
+                }
+            }
+
             return null;
         }
     }

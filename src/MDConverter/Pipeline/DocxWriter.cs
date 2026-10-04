@@ -813,7 +813,11 @@ public sealed class DocxWriter
             .Concat(_MainPart.FooterParts.SelectMany(Part => Part.Footer!.Descendants<BookmarkStart>()))
             .Select(Bookmark => int.TryParse(Bookmark.Id?.Value, out int Id) ? Id : -1)
             .DefaultIfEmpty(-1).Max() + 1;
-        if (!_Options.Links.EnableInternalLinks) return;
+        if (!_Options.Links.EnableInternalLinks)
+        {
+            return;
+        }
+
         RegisterHeadings(Blocks);
     }
 
@@ -828,20 +832,35 @@ public sealed class DocxWriter
                 Slug = Regex.Replace(Slug, @"\s", "-");
                 string Anchor = Slug;
                 int Suffix = 1;
-                while (_AnchorBookmarks.ContainsKey(Anchor)) Anchor = Slug + "-" + Suffix++;
+                while (_AnchorBookmarks.ContainsKey(Anchor))
+                {
+                    Anchor = Slug + "-" + Suffix++;
+                }
+
                 string Name = "Md_" + Guid.NewGuid().ToString("N");
                 _HeadingBookmarks.Add(Heading, Name);
                 _AnchorBookmarks.Add(Anchor, Name);
             }
-            else if (Block is QuoteBlock Quote) RegisterHeadings(Quote.Blocks);
+            else if (Block is QuoteBlock Quote)
+            {
+                RegisterHeadings(Quote.Blocks);
+            }
             else if (Block is ListBlock List)
             {
-                foreach (ListItemBlock Item in List.Items) RegisterHeadings(Item.Blocks);
+                foreach (ListItemBlock Item in List.Items)
+                {
+                    RegisterHeadings(Item.Blocks);
+                }
             }
             else if (Block is TableBlock Table)
             {
                 foreach (Model.TableRow Row in Table.Rows)
-                    foreach (Model.TableCell Cell in Row.Cells) RegisterHeadings(Cell.Blocks);
+                {
+                    foreach (Model.TableCell Cell in Row.Cells)
+                    {
+                        RegisterHeadings(Cell.Blocks);
+                    }
+                }
             }
         }
     }
@@ -869,7 +888,11 @@ public sealed class DocxWriter
 
     private void AppendHeadingBookmark(Paragraph Paragraph, HeadingBlock Heading)
     {
-        if (!_HeadingBookmarks.TryGetValue(Heading, out string? Name)) return;
+        if (!_HeadingBookmarks.TryGetValue(Heading, out string? Name))
+        {
+            return;
+        }
+
         string Id = (_NextBookmarkId++).ToString(CultureInfo.InvariantCulture);
         Paragraph.InsertAfter(new BookmarkStart { Id = Id, Name = Name }, Paragraph.ParagraphProperties);
         Paragraph.AppendChild(new BookmarkEnd { Id = Id });
@@ -902,7 +925,11 @@ public sealed class DocxWriter
                 Nested.AddChild(new Strike(), true);
                 Children = ((StrikethroughInline)Inline).Inlines;
             }
-            foreach (InlineNode Child in Children) AppendInlineContent(Parent, Child, Styles, Nested);
+            foreach (InlineNode Child in Children)
+            {
+                AppendInlineContent(Parent, Child, Styles, Nested);
+            }
+
             return;
         }
         if (Inline is LinkInline Link)
@@ -926,7 +953,10 @@ public sealed class DocxWriter
                 Parent.AppendChild(Hyperlink);
             }
             foreach (InlineNode Child in Link.Inlines)
+            {
                 AppendInlineContent(Hyperlink ?? Parent, Child, Styles, LinkProperties);
+            }
+
             return;
         }
         if (Inline is ImageInline Image)
@@ -963,8 +993,16 @@ public sealed class DocxWriter
 
     private bool ShouldWriteExternalLink(string Url)
     {
-        if (!_Options.Links.EnableExternalLinks || string.IsNullOrWhiteSpace(Url)) return false;
-        if (!Uri.TryCreate(Url, UriKind.Absolute, out Uri? ParsedUri) || ParsedUri == null) return false;
+        if (!_Options.Links.EnableExternalLinks || string.IsNullOrWhiteSpace(Url))
+        {
+            return false;
+        }
+
+        if (!Uri.TryCreate(Url, UriKind.Absolute, out Uri? ParsedUri) || ParsedUri == null)
+        {
+            return false;
+        }
+
         return ParsedUri.Scheme == Uri.UriSchemeHttp
             || ParsedUri.Scheme == Uri.UriSchemeHttps
             || ParsedUri.Scheme == Uri.UriSchemeMailto;

@@ -37,8 +37,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             int i = 0;
             PolylinePoint pp = polyline.StartPoint;
             for (; i < polyline.Count; i++, pp = pp.Next)
+            {
                 points[i] = pp;
-
+            }
         }
 
         internal int Next(int i) => Module(i + 1);
@@ -49,9 +50,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
 
         internal int Module(int i) {
             if (i < 0)
+            {
                 return i + Count;
+            }
+
             if (i < Count)
+            {
                 return i;
+            }
+
             return i - Count;
         }
 
@@ -80,7 +87,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         internal int Median(int p1, int p2) {
             System.Diagnostics.Debug.Assert(p1 != p2);//otherwise we do not know what arc is mean: the whole one or just the point
             if (p2 > p1)
+            {
                 return (p2 + p1) / 2;
+            }
 
             return Module((p2 + Count + p1) / 2);
         }
@@ -97,20 +106,31 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         internal int FindTheFurthestVertexFromBisector(int p1, int p2, Point bisectorPivot, Point bisectorRay) {
             Point directionToTheHill = bisectorRay.Rotate(Math.PI / 2);
             if ((polyline.StartPoint.Point - bisectorPivot) * directionToTheHill < 0)
+            {
                 directionToTheHill = -directionToTheHill;
+            }
+
             if (p1 == p2)
+            {
                 p2 = Next(p1);
+            }
             //binary search
             do {
                 int m = Median(p2, p1); //now the chunk goes clockwise from p2 to p1
                 Point mp = Pnt(m);
 
                 if ((Pnt(Next(m)) - mp) * directionToTheHill >= 0)
+                {
                     p2 = Next(m);
+                }
                 else if ((Pnt(Prev(m)) - mp) * directionToTheHill >= 0)
+                {
                     p1 = Prev(m);
+                }
                 else
+                {
                     p1 = p2 = m;
+                }
             }
             while (p1 != p2);
 
@@ -122,9 +142,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             // ReSharper restore UnusedMember.Local
             double ret = double.PositiveInfinity;
             for (int i = 0; i < a.Count; i++)
+            {
                 for (int j = 0; j < b.Count; j++)
+                {
                     ret = Math.Min(ret, LineSegment.MinDistBetweenLineSegments(a.Pnt(i), a.Pnt(i + 1), b.Pnt(j),
                                                                                 b.Pnt(j + 1), out double u, out double v));
+                }
+            }
 
             return ret;
         }
@@ -170,9 +194,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         {
             Polyline poly = a.Polyline;
             for (PolylinePoint p = poly.StartPoint; p.Next != null && p.Next.Next != null; p = p.Next)
+            {
                 if (Point.GetTriangleOrientation(p.Point, p.Next.Point, p.Next.Next.Point) ==
                     TriangleOrientation.Collinear)
+                {
                     return false;
+                }
+            }
+
             return true;
         }
 

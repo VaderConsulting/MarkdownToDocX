@@ -23,7 +23,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         internal void MergePaths(){
             InitVerticesToPathOffsetsAndRemoveSelfCycles();
             foreach (Path path in Paths)
+            {
                 ProcessPath(path);
+            }
         }
 
         void ProcessPath(Path path) {
@@ -34,6 +36,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
                 if (prevLocationPathOffsets != null) {
                     //handle returning paths
                     if (departedPaths.Count > 0)
+                    {
                         foreach (KeyValuePair<Path, LinkedPoint> pair in pathOffsets) {
                             Path path0 = pair.Key;
                             if (departedPaths.TryGetValue(path0, out LinkedPoint? departerLinkedPoint)) {//returned!
@@ -41,10 +44,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
                                 departedPaths.Remove(path0);
                             }
                         }
+                    }
 
                     //find departed paths
                     foreach (KeyValuePair<Path, LinkedPoint> pair in prevLocationPathOffsets.Where(pair => !pathOffsets.ContainsKey(pair.Key)))
+                    {
                         departedPaths.Add(pair.Key, pair.Value);
+                    }
                 }
                 prevLocationPathOffsets = pathOffsets;
             }
@@ -82,7 +88,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
     
         static IEnumerable<Point> GetPointsInBetween(LinkedPoint a, LinkedPoint b){
             for(LinkedPoint i =a.Next;i!=b;i=i.Next)
+            {
                 yield return i.Point;
+            }
         }
 
         void ReplacePiece(LinkedPoint a, LinkedPoint b, IEnumerable<Point> points, Path loopingPath){
@@ -114,8 +122,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         /// <returns>true is a is before b in the path</returns>
         static bool Before(LinkedPoint a, LinkedPoint b){
             for(a=a.Next;a!=null;a=a.Next)
-                if(a==b)
+            {
+                if (a==b)
+                {
                     return true;
+                }
+            }
 
             return false;
         }
@@ -123,15 +135,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         static LinkedPoint FindLinkedPointInPath(Path path, Point point) {
             //this function is supposed to always succeed. it will throw a null reference exception otherwise
             for (LinkedPoint linkedPoint = (LinkedPoint) path.PathPoints;; linkedPoint = linkedPoint.Next)
+            {
                 if (linkedPoint.Point == point)
+                {
                     return linkedPoint;
+                }
+            }
         }
 
         void InitVerticesToPathOffsetsAndRemoveSelfCycles(){
             foreach(Path path in Paths){
                 for (LinkedPoint linkedPoint = (LinkedPoint)path.PathPoints; linkedPoint != null; linkedPoint = linkedPoint.Next) {
                     if (!verticesToPathOffsets.TryGetValue(linkedPoint.Point, out Dictionary<Path, LinkedPoint>? pathOffsets))
+                    {
                         verticesToPathOffsets[linkedPoint.Point] = pathOffsets = [];
+                    }
                     //check for the loop
                     if (pathOffsets.TryGetValue(path, out LinkedPoint? loopPoint))
                     {//we have a loop
@@ -139,7 +157,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
                         loopPoint.Next = linkedPoint.Next;
                     }
                     else
+                    {
                         pathOffsets[path] = linkedPoint;
+                    }
                 }
             }
         }

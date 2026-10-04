@@ -13,7 +13,9 @@ namespace Microsoft.AGL.Core.DataStructures {
         /// </summary>
         internal static void SafeAdd<T, TC>(Dictionary<T, TC> dictionary, T key, TC value) {
             if (!dictionary.ContainsKey(key))
+            {
                 dictionary.Add(key, value);
+            }
         }
 
         /// <summary>
@@ -22,7 +24,9 @@ namespace Microsoft.AGL.Core.DataStructures {
         internal static void AddToMap<TS, T, TC>(Dictionary<T, TC> dictionary, T key, TS value)
             where TC : ICollection<TS>, new() {
             if (!dictionary.TryGetValue(key, out TC tc))
+            {
                 dictionary[key] = tc = new TC();
+            }
 
             tc.Add(value);
         }
@@ -35,7 +39,9 @@ namespace Microsoft.AGL.Core.DataStructures {
             TC tc = dictionary[key];
             tc.Remove(value);
             if (tc.Count == 0)
+            {
                 dictionary.Remove(key);
+            }
         }
     }
 }

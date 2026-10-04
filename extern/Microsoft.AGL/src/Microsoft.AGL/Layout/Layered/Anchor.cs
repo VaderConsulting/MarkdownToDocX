@@ -232,9 +232,14 @@ namespace Microsoft.AGL.Layout.Layered {
         internal double LabelWidth {
             get {
                 if (LabelToTheLeftOfAnchorCenter)
+                {
                     return LeftAnchor;
+                }
+
                 if (LabelToTheRightOfAnchorCenter)
+                {
                     return RightAnchor;
+                }
 
                 throw new InvalidOperationException();
             }
@@ -252,26 +257,35 @@ namespace Microsoft.AGL.Layout.Layered {
  Polyline PolygonalBoundary {
             get {
                 if (polygonalBoundary != null)
+                {
                     return polygonalBoundary;
+                }
+
                 return polygonalBoundary = Pad(CreatPolygonalBoundaryWithoutPadding(),Padding);
             }
         }
 
         static Polyline Pad(Polyline curve, double padding) {
             if (padding == 0)
+            {
                 return curve;
+            }
 
             if (CurveIsConvex(curve)) {
                 return PadConvexCurve(curve, padding);
             } else
+            {
                 return PadConvexCurve(Curve.StandardRectBoundary(curve), padding);
+            }
         }
 
         static void PadCorner(Polyline poly, PolylinePoint p0, PolylinePoint p1, PolylinePoint p2, double padding) {
             int numberOfPoints = GetPaddedCorner(p0, p1, p2, out Point a, out Point b, padding);
             poly.AddPoint(a);
             if (numberOfPoints==2)
+            {
                 poly.AddPoint(b);
+            }
         }
 
 
@@ -282,7 +296,9 @@ namespace Microsoft.AGL.Layout.Layered {
             PadCorner(ret, poly.EndPoint, poly.StartPoint, poly.StartPoint.Next, padding);
 
             for (PolylinePoint pp = poly.StartPoint; pp.Next.Next != null; pp = pp.Next)
+            {
                 PadCorner(ret, pp, pp.Next, pp.Next.Next, padding);
+            }
 
             ret.Closed = true;
             return ret;
@@ -331,11 +347,17 @@ namespace Microsoft.AGL.Layout.Layered {
         static bool CurveIsConvex(Polyline poly) {
             TriangleOrientation orientation = Point.GetTriangleOrientation(poly.EndPoint.Point, poly.StartPoint.Point, poly.StartPoint.Next.Point);
             if (Point.GetTriangleOrientation(poly.EndPoint.Prev.Point, poly.EndPoint.Point, poly.StartPoint.Point) != orientation)
+            {
                 return false;
+            }
+
             PolylinePoint pp = poly.StartPoint;
             while (pp.Next.Next != null) {
                 if (Point.GetTriangleOrientation(pp.Point, pp.Next.Point, pp.Next.Next.Point) != orientation)
+                {
                     return false;
+                }
+
                 pp = pp.Next;
             }
 
@@ -350,12 +372,18 @@ namespace Microsoft.AGL.Layout.Layered {
         private Polyline CreatPolygonalBoundaryWithoutPadding() {
             Polyline ret;
             if (HasLabel)
+            {
                 ret = LabelToTheLeftOfAnchorCenter ? PolygonOnLeftLabel() : PolygonOnRightLabel();
+            }
             else if (NodeBoundary == null)
+            {
                 ret = StandardRectBoundary();
-            else 
+            }
+            else
+            {
                 ret = Curve.PolylineAroundClosedCurve(NodeBoundary);
-            
+            }
+
             return ret;
         }
 

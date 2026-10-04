@@ -87,11 +87,18 @@ namespace Microsoft.AGL.Routing {
         /// <returns></returns>
         internal void Calculate() {
             if (!IgnoreTightPadding)
+            {
                 CreateTightObstacles();
+            }
             else
+            {
                 CreateTightObstaclesIgnoringTightPadding();
+            }
+
             if (!IsEmpty())
+            {
                 CreateLooseObstacles();
+            }
         }
 
         /// <summary>
@@ -163,9 +170,14 @@ namespace Microsoft.AGL.Routing {
         static internal RectangleNode<Polyline> CreateTightObstacles(IEnumerable<ICurve> obstacles, double tightPadding, Set<Polyline> tightObstacleSet) {
             Debug.Assert(tightObstacleSet!=null);
             if(obstacles.Count()==0)
+            {
                 return null;
+            }
+
             foreach (ICurve curve in obstacles)
+            {
                 CalculateTightPolyline(tightObstacleSet, tightPadding, curve);
+            }
 
             return RemovePossibleOverlapsInTightPolylinesAndCalculateHierarchy(tightObstacleSet);
         }
@@ -174,7 +186,10 @@ namespace Microsoft.AGL.Routing {
             RectangleNode<Polyline> hierarchy = CalculateHierarchy(tightObstacleSet);
             Set<Tuple<Polyline, Polyline>> overlappingPairSet;
             while ((overlappingPairSet = GetOverlappedPairSet(hierarchy)).Count > 0)
+            {
                 hierarchy = ReplaceTightObstaclesWithConvexHulls(tightObstacleSet, overlappingPairSet);
+            }
+
             return hierarchy;
         }
 
@@ -192,8 +207,9 @@ namespace Microsoft.AGL.Routing {
             } else {
 
                 foreach (Polyline poly in polysWithoutPadding)
+                {
                     TightObstacles.Insert(CreatePaddedPolyline(poly, TightPadding));
-
+                }
 
                 if (!IsEmpty()) {
                     RootOfTightHierarchy = CalculateHierarchy(TightObstacles);
@@ -238,7 +254,10 @@ namespace Microsoft.AGL.Routing {
                 IEnumerable<Point> points = polys.SelectMany(p => p);
                 Polyline convexHull = ConvexHull.CreateConvexHullAsClosedPolyline(points);
                 foreach (Polyline poly in polys)
+                {
                     tightObsts.Remove(poly);
+                }
+
                 tightObsts.Insert(convexHull);
             }
             return CalculateHierarchy(tightObsts);
@@ -247,7 +266,10 @@ namespace Microsoft.AGL.Routing {
         internal static Dictionary<T, int> MapToInt<T>(T[] objects) {
             Dictionary<T, int> ret = new Dictionary<T, int>();
             for (int i = 0; i < objects.Length; i++)
+            {
                 ret[objects[i]] = i;
+            }
+
             return ret;
         }
 
@@ -296,16 +318,23 @@ namespace Microsoft.AGL.Routing {
 
             Polyline ret = new Polyline();
             if (!PadCorner(ret, poly.EndPoint.Prev, poly.EndPoint, poly.StartPoint, padding))
+            {
                 return CreatePaddedPolyline(new Polyline(ConvexHull.CalculateConvexHull(poly)) {Closed = true}, padding);
+            }
 
             if (!PadCorner(ret, poly.EndPoint, poly.StartPoint, poly.StartPoint.Next, padding))
+            {
                 return CreatePaddedPolyline(new Polyline(ConvexHull.CalculateConvexHull(poly)) {Closed = true}, padding);
-
+            }
 
             for (PolylinePoint pp = poly.StartPoint; pp.Next.Next != null; pp = pp.Next)
+            {
                 if (!PadCorner(ret, pp, pp.Next, pp.Next.Next, padding))
+                {
                     return CreatePaddedPolyline(new Polyline(ConvexHull.CalculateConvexHull(poly)) {Closed = true},
                                                 padding);
+                }
+            }
 
             Debug.Assert(Point.GetTriangleOrientation(ret[0], ret[1], ret[2]) != TriangleOrientation.Counterclockwise
                          , "Padded polyline is counterclockwise");
@@ -326,10 +355,16 @@ namespace Microsoft.AGL.Routing {
         static bool PadCorner(Polyline poly, PolylinePoint p0, PolylinePoint p1, PolylinePoint p2, double padding) {
             int numberOfPoints = GetPaddedCorner(p0, p1, p2, out Point a, out Point b, padding);
             if (numberOfPoints == -1)
+            {
                 return false;
+            }
+
             poly.AddPoint(a);
             if (numberOfPoints == 2)
+            {
                 poly.AddPoint(b);
+            }
+
             return true;
         }
 
@@ -413,7 +448,10 @@ namespace Microsoft.AGL.Routing {
 
         internal static Polyline LoosePolylineWithFewCorners(Polyline tightPolyline, double p) {
             if (p < ApproximateComparer.DistanceEpsilon)
+            {
                 return tightPolyline;
+            }
+
             Polyline loosePolyline = CreateLoosePolylineOnBisectors(tightPolyline, p);
 
             //LayoutAlgorithmSettings.Show(tightPolyline, loosePolyline);
@@ -428,7 +466,9 @@ namespace Microsoft.AGL.Routing {
             for (PolylinePoint pp = tightPolyline.StartPoint; pp != null; pp = pp.Next) {
                 Point currentSticking = GetStickingVertexOnBisector(pp, offset, out bool skip);
                 if (!skip)
+                {
                     ret.Add( currentSticking);
+                }
             }
             return ret;
         }
@@ -440,7 +480,9 @@ namespace Microsoft.AGL.Routing {
             Point z = (v - u).Normalize() + (v - w).Normalize();
             double zLen = z.Length;
             if (zLen < ApproximateComparer.Tolerance)
+            {
                 skip = true;
+            }
             else {
                 skip = false;
                 z /= zLen;
@@ -483,7 +525,9 @@ namespace Microsoft.AGL.Routing {
 
         static bool CurveIntersectsRectangleNode(ICurve curve, ref Rectangle curveBox, RectangleNode<Polyline> rectNode) {
             if (!rectNode.Rectangle.Intersects(curveBox))
+            {
                 return false;
+            }
 
             if (rectNode.UserData != null) {
                 Polyline curveUnderTest = rectNode.UserData;
@@ -513,8 +557,11 @@ namespace Microsoft.AGL.Routing {
         internal void ScaleLooseObstacles(double coefficient) {
             LooseObstacles.Clear();
             foreach (Polyline tightPolyline in TightObstacles)
+            {
                 LooseObstacles.Add(LoosePolylineWithFewCorners(tightPolyline,
                                                                tightPolylinesToLooseDistances[tightPolyline]*coefficient));
+            }
+
             RootOfLooseHierarchy = CalculateHierarchy(LooseObstacles);
             Debug.Assert(GetOverlappedPairSet(RootOfLooseHierarchy).Count == 0, "Overlaps are found in LooseObstacles");
         }

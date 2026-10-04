@@ -33,7 +33,10 @@ namespace Microsoft.AGL.Core.Layout {
         public Label Label {
             get{
                 if (labels.Count == 0)
+                {
                     return null;
+                }
+
                 return labels[0];
             }
             set {
@@ -104,7 +107,10 @@ namespace Microsoft.AGL.Core.Layout {
             this.source = source;
             this.target = target;
             if (labelWidth > 0)
+            {
                 Label = new Label(labelWidth, labelHeight, this);
+            }
+
             LineWidth = edgeThickness;
         }
 
@@ -177,18 +183,29 @@ namespace Microsoft.AGL.Core.Layout {
 
                 Rectangle rect = Rectangle.CreateAnEmptyBox();
                 if (UnderlyingPolyline != null)
+                {
                     foreach (Point p in UnderlyingPolyline)
+                    {
                         rect.Add(p);
+                    }
+                }
 
                 if (Curve != null)
+                {
                     rect.Add(Curve.BoundingBox);
+                }
 
                 if (EdgeGeometry != null)
                 {
                     if (EdgeGeometry.SourceArrowhead != null)
+                    {
                         rect.Add(EdgeGeometry.SourceArrowhead.TipPosition);
+                    }
+
                     if (EdgeGeometry.TargetArrowhead != null)
+                    {
                         rect.Add(EdgeGeometry.TargetArrowhead.TipPosition);
+                    }
                 }
 
                 double del = LineWidth;
@@ -237,23 +254,37 @@ namespace Microsoft.AGL.Core.Layout {
         internal void Transform(PlaneTransformation matrix)
         {
             if (Curve == null)
+            {
                 return;
+            }
+
             Curve = Curve.Transform(matrix);
             if (UnderlyingPolyline != null)
+            {
                 for (Site s = UnderlyingPolyline.HeadSite, s0 = UnderlyingPolyline.HeadSite;
                      s != null;
                      s = s.Next, s0 = s0.Next)
+                {
                     s.Point = matrix * s.Point;
+                }
+            }
 
             Arrowhead sourceArrow = edgeGeometry.SourceArrowhead;
             if (sourceArrow != null)
+            {
                 sourceArrow.TipPosition = matrix * sourceArrow.TipPosition;
+            }
+
             Arrowhead targetArrow = edgeGeometry.TargetArrowhead;
             if (targetArrow != null)
+            {
                 targetArrow.TipPosition = matrix * targetArrow.TipPosition;
+            }
 
             if (Label != null)
+            {
                 Label.Center = matrix * LabelBBox.Center;
+            }
         }
 
         /// <summary>

@@ -37,7 +37,9 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
             {
                 chord = value;
                 if (!ApproximateComparer.Close(Seg[low], chord.Start))
+                {
                     throw new InvalidOperationException();
+                }
             }
         }
     }

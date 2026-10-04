@@ -19,7 +19,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
 
 
         public int Compare(SegmentBase? a, SegmentBase? b) {
-            if (a is null) return b is null ? 0 : -1; if (b is null) return 1;
+            if (a is null)
+            {
+                return b is null ? 0 : -1;
+            }
+
+            if (b is null)
+            {
+                return 1;
+            }
+
             ValidateArg.IsNotNull(b, "b");
             TriangleOrientation orient = Point.GetTriangleOrientation(b.Start, b.End, x);
             switch (orient) {

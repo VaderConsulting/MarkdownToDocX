@@ -137,13 +137,22 @@ namespace Microsoft.AGL.Core.Layout {
         /// <param name="matrix">the matrix</param>
         public void Transform(PlaneTransformation matrix) {
             foreach (Node node in Nodes)
+            {
                 node.Transform(matrix);
+            }
+
             foreach (Edge edge in Edges)
+            {
                 edge.Transform(matrix);
+            }
 #if DEBUG && TEST_MSAGL
             if (DebugCurves != null)
+            {
                 foreach (DebugCurve dc in DebugCurves)
+                {
                     dc.Curve = dc.Curve.Transform(matrix);
+                }
+            }
 #endif
             UpdateBoundingBox();
         }
@@ -178,7 +187,11 @@ namespace Microsoft.AGL.Core.Layout {
         /// <param name="b"></param>
         void PumpTheBoxToTheGraph(ref Rectangle b) {
             foreach (Edge e in Edges) {
-                if (e.UnderCollapsedCluster()) continue;
+                if (e.UnderCollapsedCluster())
+                {
+                    continue;
+                }
+
                 if (e.Curve != null) {
                     Rectangle cb = e.Curve.BoundingBox;
                     cb.Pad(e.LineWidth);
@@ -186,11 +199,17 @@ namespace Microsoft.AGL.Core.Layout {
                 }
 
                 foreach (Label l in e.Labels.Where(lbl => lbl != null))
+                {
                     b.Add(l.BoundingBox);
+                }
             }
 
             foreach (Node n in Nodes) {
-                if (n.UnderCollapsedCluster()) continue;
+                if (n.UnderCollapsedCluster())
+                {
+                    continue;
+                }
+
                 b.Add(n.BoundingBox);
             }
 
@@ -198,16 +217,24 @@ namespace Microsoft.AGL.Core.Layout {
             foreach (Cluster c in RootCluster.Clusters) {
                 if (c.BoundaryCurve == null) {
                     if (c.RectangularBoundary != null)
+                    {
                         c.BoundaryCurve = c.RectangularBoundary.RectangularHull();
+                    }
                 }
                 if (c.BoundaryCurve != null)
+                {
                     b.Add(c.BoundaryCurve.BoundingBox);
+                }
             }
 #if DEBUG && TEST_MSAGL
             if(DebugCurves!=null)
+            {
                 foreach (DebugCurve debugCurve in DebugCurves.Where(d => d.Curve != null))
+                {
                     b.Add(debugCurve.Curve.BoundingBox);
-#endif 
+                }
+            }
+#endif
         }
 
         /// <summary>
@@ -218,17 +245,24 @@ namespace Microsoft.AGL.Core.Layout {
         {
             Set<Node> nodeSet = new Set<Node>(Nodes);
             foreach (Node v in Nodes)
+            {
                 v.Center += delta;
+            }
 
             foreach (Cluster cluster in RootCluster.AllClustersDepthFirstExcludingSelf()) {
                 foreach (Node node in cluster.Nodes.Where(n => !nodeSet.Contains(n)))
+                {
                     node.Center += delta;
+                }
+
                 cluster.Center += delta;
                 cluster.RectangularBoundary.TranslateRectangle(delta);                
             }
 
             foreach (Edge e in edges)
+            {
                 e.Translate(delta);
+            }
 
             BoundingBox = new Rectangle(BoundingBox.Left + delta.X, BoundingBox.Bottom + delta.Y, new Point(BoundingBox.Width, BoundingBox.Height));
         }
@@ -271,21 +305,32 @@ namespace Microsoft.AGL.Core.Layout {
         {
             int id = 0;
             foreach (Cluster node in RootCluster.AllClustersDepthFirst())
+            {
                 node.DebugId = id++;
+            }
 
             foreach (Node node in Nodes)
+            {
                 if (node.DebugId == null)
+                {
                     node.DebugId = id++;
+                }
+            }
         }
 
         internal void CheckClusterConsistency() {
             foreach (Cluster cluster in RootCluster.AllClustersDepthFirst())
+            {
                 CheckClusterConsistency(cluster);
+            }
         }
 
         static void CheckClusterConsistency(Cluster cluster) {
             if (cluster.BoundaryCurve == null)
+            {
                 return;
+            }
+
             foreach (Node child in cluster.Clusters.Concat(cluster.Nodes)) {
                 bool inside =Curve.CurveIsInsideOther(child.BoundaryCurve, cluster.BoundaryCurve);
 #if TEST_MSAGL && DEBUG

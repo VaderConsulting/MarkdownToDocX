@@ -58,11 +58,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree
 
         internal void Add(RectangleNode<TData> node) {
             if (_rootNode == null)
+            {
                 _rootNode = node;
+            }
             else if (Count <= 2)
+            {
                 _rootNode = RectangleNode<TData>.CreateRectangleNodeOnEnumeration(_rootNode.GetAllLeafNodes().Concat(new[] {node}));
+            }
             else
+            {
                 AddNodeToTreeRecursive(node, _rootNode);
+            }
         }
         /// <summary>
         /// rebuild the whole tree
@@ -163,7 +169,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree
         /// <param name="userData"></param>
         /// <returns></returns>
         public bool Contains(Rectangle rectangle, TData userData) {
-            if (_rootNode == null) return false;
+            if (_rootNode == null)
+            {
+                return false;
+            }
+
             return
                 _rootNode.GetLeafRectangleNodesIntersectingRectangle(rectangle)
                         .Any(node => node.UserData.Equals(userData));
@@ -181,11 +191,19 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree
             }
             RectangleNode<TData>? ret = _rootNode.GetLeafRectangleNodesIntersectingRectangle(rectangle).FirstOrDefault(node => node.UserData.Equals(userData));
             if (ret == null)
+            {
                 return default(TData);
+            }
+
             if (RootNode.Count == 1)
+            {
                 RootNode = null;
+            }
             else
+            {
                 RemoveLeaf(ret);
+            }
+
             return ret.UserData;
         }
 
@@ -251,8 +269,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree
 
         static RectangleNode<TData> FindTopUnbalancedNode(RectangleNode<TData> node) {
             for (RectangleNode<TData> parent = node.Parent; parent != null; parent = parent.Parent)
+            {
                 if (! Balanced(parent))
+                {
                     return parent;
+                }
+            }
+
             return null;
         }
 
@@ -268,10 +291,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree
 
         static bool NumberOfIntersectedIsLessThanBoundOnNode(RectangleNode<TData> node, Rectangle rect, ref int bound, Func<TData, bool> conditionFunc) {
             Debug.Assert(bound > 0);
-            if (!node.Rectangle.Intersects(rect)) return true;
+            if (!node.Rectangle.Intersects(rect))
+            {
+                return true;
+            }
+
             if (node.IsLeaf) {
                 if (conditionFunc(node.UserData))
+                {
                     return (--bound) != 0;
+                }
+
                 return true;
             }
 

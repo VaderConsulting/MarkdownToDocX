@@ -36,11 +36,22 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         }
 
         public override bool Equals(object obj) {
-            if (ReferenceEquals(null, obj)) return false;
-            if (ReferenceEquals(this, obj)) return true;
-            Corner? corner = obj as Corner;
-            if (ReferenceEquals(corner,null)) 
+            if (ReferenceEquals(null, obj))
+            {
                 return false;
+            }
+
+            if (ReferenceEquals(this, obj))
+            {
+                return true;
+            }
+
+            Corner? corner = obj as Corner;
+            if (ReferenceEquals(corner,null))
+            {
+                return false;
+            }
+
             return Equals(corner);
         }
     }

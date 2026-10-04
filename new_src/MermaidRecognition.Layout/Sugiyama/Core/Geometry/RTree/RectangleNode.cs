@@ -76,10 +76,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree
             internal set
             {
                 if (left != null && left.Parent == this)
+                {
                     left.Parent = null;
+                }
+
                 left = value;
                 if (left != null)
+                {
                     left.Parent = this;
+                }
             }
         }
 
@@ -92,10 +97,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree
             internal set
             {
                 if (right != null && right.Parent == this)
+                {
                     right.Parent = null;
+                }
+
                 right = value;
                 if (right != null)
+                {
                     right.Parent = this;
+                }
             }
         }
 
@@ -144,7 +154,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree
         public RectangleNode<TData> FirstIntersectedNode(Rectangle r) {
             if (r.Intersects(rectangle)) {
                 if (IsLeaf)
+                {
                     return this;
+                }
+
                 return Left.FirstIntersectedNode(r) ?? Right.FirstIntersectedNode(r);
             }
             return null;
@@ -159,8 +172,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree
         /// <returns></returns>
         public RectangleNode<TData> FirstHitNode(Point point) {
             if (rectangle.Contains(point)) {
-                if (IsLeaf)                    
-                    return this;                
+                if (IsLeaf)
+                {
+                    return this;
+                }
+
                 return Left.FirstHitNode(point) ?? Right.FirstHitNode(point);
             }
             return null;
@@ -203,7 +219,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree
                 RectangleNode<TData> node = stack.Pop();
                 if (node.Rectangle.Contains(point)) {
                     if (node.IsLeaf)
+                    {
                         yield return node.UserData;
+                    }
                     else {
                         stack.Push(node.left);
                         stack.Push(node.right);
@@ -246,9 +264,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree
         public RectangleNode<TData> Clone() {
             RectangleNode<TData> ret = new RectangleNode<TData>(Count) {UserData = UserData, Rectangle = Rectangle};
             if (Left != null)
+            {
                 ret.Left = Left.Clone();
+            }
+
             if (Right != null)
+            {
                 ret.Right = Right.Clone();
+            }
+
             return ret;
         }
 
@@ -315,7 +339,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree
         /// <returns></returns>
         public static RectangleNode<TData> CreateRectangleNodeOnEnumeration(IEnumerable<RectangleNode<TData>> nodes) {
             if(nodes==null)
+            {
                 return null;
+            }
+
             List<RectangleNode<TData>> nodeList = new List<RectangleNode<TData>>(nodes);
             return CreateRectangleNodeOnListOfNodes(nodeList);
         }
@@ -328,7 +355,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree
         ///<returns></returns>
         public static RectangleNode<TData> CreateRectangleNodeOnData(IEnumerable<TData>  dataEnumeration, Func<TData, Rectangle> rectangleDelegate) {
             if (dataEnumeration == null || rectangleDelegate == null)
+            {
                 return null;
+            }
+
             List<RectangleNode<TData>> nodeList = new List<RectangleNode<TData>>(dataEnumeration.Select(d=>new RectangleNode<TData>(d, rectangleDelegate(d))));
             return CreateRectangleNodeOnListOfNodes(nodeList);
         }
@@ -341,9 +371,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree
         /// <returns></returns>
         static public RectangleNode<TData> CreateRectangleNodeOnListOfNodes(IList<RectangleNode<TData>> nodes) {
             ValidateArg.IsNotNull(nodes, "nodes");
-            if (nodes.Count == 0) return null;
+            if (nodes.Count == 0)
+            {
+                return null;
+            }
 
-            if (nodes.Count == 1)return nodes[0];
+            if (nodes.Count == 1)
+            {
+                return nodes[0];
+            }
 
             //Finding the seeds
             Rectangle b0 = nodes[0].Rectangle;
@@ -402,7 +438,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree
 
             for (int i = 0; i < nodes.Count; i++) {
                 if (i == seed0)
+                {
                     continue;
+                }
+
                 double area1 = new Rectangle(nodes[seed0].Rectangle, nodes[i].Rectangle).Area;
                 if (area1 > area) {
                     seed1 = i;
@@ -417,7 +456,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree
             for (int i = 0; i < nodes.Count; i++) {
 
                 if (i == seed0 || i == seed1)
+                {
                     continue;
+                }
 
                 // ReSharper disable InconsistentNaming
                 Rectangle box0_ = new Rectangle(box0, nodes[i].Rectangle);
@@ -463,9 +504,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree
             ValidateArg.IsNotNull(visitor, "visitor");
             visitor(node);
             if (node.Left != null)
+            {
                 TraverseHierarchy(node.Left, visitor);
+            }
+
             if (node.Right != null)
+            {
                 TraverseHierarchy(node.Right, visitor);
+            }
         }
     }
 }

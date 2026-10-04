@@ -48,7 +48,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         protected override void RunInternal() {
             while (jumpers.Count > 0)
+            {
                 Jump(ChooseJumper());
+            }
         }
 
         void Init() {
@@ -84,27 +86,37 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             Set<int> neighborPossibleJumpers = [];
             //update possible jumpers neighbors
             foreach (int v in new Pred(dag, jumper))
+            {
                 if (IsJumper(v)) {
                     CalculateRegionAndInsertJumper(v);
                     neighborPossibleJumpers.Insert(v);
                 }
+            }
 
             foreach (int v in new Succ(dag, jumper))
+            {
                 if (IsJumper(v)) {
                     CalculateRegionAndInsertJumper(v);
                     neighborPossibleJumpers.Insert(v);
                 }
+            }
 
             List<int> possibleJumpersToUpdate = [];
 
             foreach (KeyValuePair<int, IntPair> kv in possibleJumperFeasibleIntervals) {
                 if (!neighborPossibleJumpers.Contains(kv.Key))
+                {
                     if (kv.Value.x > jumperLayer && kv.Value.y < jumperLayer)
+                    {
                         possibleJumpersToUpdate.Add(kv.Key);
+                    }
+                }
             }
 
             foreach (int v in possibleJumpersToUpdate)
+            {
                 CalculateRegionAndInsertJumper(v);
+            }
         }
 
         void InitJumpers() {
@@ -117,8 +129,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             possibleJumperFeasibleIntervals = [];
 
             for (int i = 0; i < dag.NodeCount; i++)
+            {
                 if (deltas[i] == 0)
+                {
                     CalculateRegionAndInsertJumper(i);
+                }
+            }
         }
 
         void CalculateRegionAndInsertJumper(int i) {
@@ -130,7 +146,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         void InsertJumper(int upLayer, int lowLayer, int jumper) {
             if (CalcJumpInfo(upLayer, lowLayer, jumper, out int jumperLayer, out int layerToJumpTo))
+            {
                 jumpers.Insert(jumper);
+            }
         }
 
         
@@ -148,17 +166,22 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             layerToJumpTo = -1;
             int min = vertsCounts[jumperLayer] - 2*nodeCount[jumper];
             // jump makes sense if some layer has less than min vertices
-            for (int i = upLayer - 1; i > jumperLayer; i--) 
+            for (int i = upLayer - 1; i > jumperLayer; i--)
+            {
                 if (vertsCounts[i] < min) {
                     min = vertsCounts[i];
                     layerToJumpTo = i;
                 }
- 
+            }
+
             for (int i = jumperLayer - 1; i > lowLayer; i--)
+            {
                 if (vertsCounts[i] < min) {
                     min = vertsCounts[i];
                     layerToJumpTo = i;
                 }
+            }
+
             return layerToJumpTo != -1;
         }
         /// <summary>
@@ -172,11 +195,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             foreach (IntEdge ie in dag.InEdges(i)) {
                 int r = layering[ie.Source] - ie.Separation + 1;
                 if (r < ret)
+                {
                     ret = r;
+                }
             }
 
             if (ret == int.MaxValue)
+            {
                 ret = layering[i] + 1;//
+            }
 
             return ret;
         }
@@ -191,11 +218,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             foreach (IntEdge ie in dag.OutEdges(i)) {
                 int r = layering[ie.Target] + ie.Separation - 1;
                 if (r > ret)
+                {
                     ret = r;
+                }
             }
 
             if (ret == -int.MaxValue)
+            {
                 ret = layering[i] - 1;
+            }
 
             return ret;
         }
@@ -203,13 +234,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         void CalculateLayerCounts() {
             vertsCounts = new int[layering.Max() + 1];
             foreach (int r in layering)
+            {
                 vertsCounts[r] += nodeCount[r];
+            }
         }
 
         int ChooseJumper() {
             //just return the first available
             foreach (int jumper in jumpers)
+            {
                 return jumper;
+            }
 
             System.Diagnostics.Debug.Assert(false,"there are no jumpers to choose");
             return 0;

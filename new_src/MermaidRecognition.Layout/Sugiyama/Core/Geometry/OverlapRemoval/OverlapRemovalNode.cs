@@ -227,7 +227,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.OverlapRemoval
         /// <returns>-1 if 'this' is "less"; +1 if 'this' is "greater"; 0 if 'this' and rhs are equal.</returns>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1307:SpecifyStringComparison", MessageId = "System.String.CompareTo(System.String)")]
         public int CompareTo(OverlapRemovalNode? other) {
-            if (other is null) return 1;
+            if (other is null)
+            {
+                return 1;
+            }
+
             ValidateArg.IsNotNull(other, "other");
             int cmp = Position.CompareTo(other.Position);
             if (0 == cmp)
@@ -246,7 +250,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.OverlapRemoval
         /// <returns>-1 if 'this' is "less"; +1 if 'this' is "greater"; 0 if 'this' and rhs are equal.</returns>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1307:SpecifyStringComparison", MessageId = "System.String.CompareTo(System.String)")]
         public int CompareTo(object? obj) {
-            if (obj is null) return 1;
+            if (obj is null)
+            {
+                return 1;
+            }
+
             if (obj is not OverlapRemovalNode rhs)
             {
                 throw new InvalidOperationException(
@@ -305,7 +313,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.OverlapRemoval
         /// <returns>-1 if lhs is less than rhs; +1 if lhs is greater than rhs; else 0.</returns>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1307:SpecifyStringComparison", MessageId = "System.String.CompareTo(System.String)")]
         public int Compare(OverlapRemovalNode? lhs, OverlapRemovalNode? rhs) {
-            if (lhs is null) return rhs is null ? 0 : -1; if (rhs is null) return 1;
+            if (lhs is null)
+            {
+                return rhs is null ? 0 : -1;
+            }
+
+            if (rhs is null)
+            {
+                return 1;
+            }
+
             ValidateArg.IsNotNull(lhs, "lhs");
             ValidateArg.IsNotNull(rhs, "rhs");
 

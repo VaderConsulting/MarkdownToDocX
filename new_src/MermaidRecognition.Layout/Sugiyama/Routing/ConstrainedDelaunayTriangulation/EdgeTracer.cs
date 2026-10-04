@@ -52,15 +52,22 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
                 else if (piercedToTheRightFrontElemNode != null) {
                     ProcessRightFrontPiercedElement();
                 }
-                else ProcessPiercedEdge();
+                else
+                {
+                    ProcessPiercedEdge();
+                }
             }
             if (piercedTriangle != null)
+            {
                 RemovePiercedTriangle(piercedTriangle);
+            }
 
             FindMoreRemovedFromFrontElements();
 
             foreach (CdtFrontElement elem in elementsToBeRemovedFromFront)
+            {
                 front.Remove(elem);
+            }
         }
 
         void ProcessLeftFrontPiercedElement() {
@@ -105,7 +112,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
                         CdtSite site = e.upperSite.Point.X < e.lowerSite.Point.X ? e.upperSite : e.lowerSite;
                         RBNode<CdtFrontElement> frontNode = CdtSweeper.FindNodeInFrontBySite(front, site);
                         if (frontNode.Item.Edge == e)
+                        {
                             elementsToBeRemovedFromFront.Add(frontNode.Item);
+                        }
                     }
                 }
             }
@@ -148,9 +157,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
                     RBNode<CdtFrontElement> frontElem = CdtSweeper.FindNodeInFrontBySite(front, leftSite);
                     Debug.Assert(frontElem != null);
                     if (leftSite.Point.X < a.Point.X)
+                    {
                         piercedToTheLeftFrontElemNode = frontElem;
+                    }
                     else
+                    {
                         piercedToTheRightFrontElemNode = frontElem;
+                    }
 
                     RemovePiercedTriangle(e.CwTriangle ?? e.CcwTriangle);
                     break;
@@ -161,9 +174,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
         void RemovePiercedTriangle(CdtTriangle t) {
             triangles.Remove(t);
             foreach (CdtEdge e in t.Edges)
+            {
                 if (e.CwTriangle == t)
+                {
                     e.CwTriangle = null;
-                else e.CcwTriangle = null;
+                }
+                else
+                {
+                    e.CcwTriangle = null;
+                }
+            }
+
             removedTriangles.Add(t);
         }
 
@@ -189,11 +210,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
         void AddSiteToLeftPolygon(CdtSite site) => AddSiteToPolygonWithCheck(site, leftPolygon);
 
         void AddSiteToPolygonWithCheck(CdtSite site, List<CdtSite> list) {
-            if (site == b) return;
+            if (site == b)
+            {
+                return;
+            }
 
             if (list.Count == 0 || list[list.Count - 1] != site)
+            {
                 list.Add(site);
-
+            }
         }
 
         void AddSiteToRightPolygon(CdtSite site) => AddSiteToPolygonWithCheck(site, rightPolygon);
@@ -201,7 +226,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
         bool BIsReached() {
             RBNode<CdtFrontElement> node = piercedToTheLeftFrontElemNode ?? piercedToTheRightFrontElemNode;
             if (node != null)
+            {
                 return node.Item.Edge.IsAdjacent(b);
+            }
+
             return piercedEdge.IsAdjacent(b);
         }
 
@@ -212,15 +240,26 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
             RBNode<CdtFrontElement> frontElemNodeRightOfA = CdtSweeper.FindNodeInFrontBySite(front, a);
             RBNode<CdtFrontElement> frontElemNodeLeftOfA = front.Previous(frontElemNodeRightOfA);
             if (Point.PointToTheLeftOfLine(b.Point, frontElemNodeLeftOfA.Item.LeftSite.Point, frontElemNodeLeftOfA.Item.RightSite.Point))
+            {
                 piercedToTheLeftFrontElemNode = frontElemNodeLeftOfA;
+            }
             else if (Point.PointToTheRightOfLine(b.Point, frontElemNodeRightOfA.Item.RightSite.Point, frontElemNodeRightOfA.Item.LeftSite.Point))
+            {
                 piercedToTheRightFrontElemNode = frontElemNodeRightOfA;
+            }
             else {
                 foreach (CdtEdge e in a.Edges) {
                     CdtTriangle? t = e.CcwTriangle;
-                    if (t == null) continue;
-                    if (Point.PointToTheLeftOfLine(b.Point, e.lowerSite.Point, e.upperSite.Point))
+                    if (t == null)
+                    {
                         continue;
+                    }
+
+                    if (Point.PointToTheLeftOfLine(b.Point, e.lowerSite.Point, e.upperSite.Point))
+                    {
+                        continue;
+                    }
+
                     int eIndex = t.Edges.Index(e);
                     CdtSite site = t.Sites[eIndex + 2];
                     if (Point.PointToTheLeftOfLineOrOnLine(b.Point, site.Point, e.upperSite.Point)) {

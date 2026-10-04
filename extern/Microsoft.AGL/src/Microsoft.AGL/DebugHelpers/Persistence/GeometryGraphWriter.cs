@@ -92,10 +92,15 @@ namespace  Microsoft.AGL.DebugHelpers.Persistence {
         /// saves the graph and settings to a file
         /// </summary>
         public static void Write(GeometryGraph graph, LayoutAlgorithmSettings settings, string fileName) {
-            if (fileName == null) return;
-            
+            if (fileName == null)
+            {
+                return;
+            }
+
             if (!fileName.EndsWith(FileExtension, StringComparison.InvariantCultureIgnoreCase))
+            {
                 fileName += FileExtension;
+            }
 
             using (Stream stream = File.Open(fileName, FileMode.Create)) {
                 GeometryGraphWriter graphWriter = new GeometryGraphWriter(stream, graph, settings);
@@ -126,7 +131,11 @@ namespace  Microsoft.AGL.DebugHelpers.Persistence {
         }
 
          void WriteLayers() {
-            if (graph.LgData == null) return;
+            if (graph.LgData == null)
+            {
+                return;
+            }
+
             WriteStartElement(GeometryToken.LgLevels);
             WriteLgEdgeInfos();
             WriteSortedLgInfos();
@@ -192,7 +201,10 @@ namespace  Microsoft.AGL.DebugHelpers.Persistence {
         void WriteRailsGeometry(LgLevel level, Dictionary<Rail, int> railIds) {
             WriteStartElement(GeometryToken.Rails);
             foreach (Rail rail in level._railDictionary.Values)
+            {
                 WriteRail(rail, railIds[rail]);
+            }
+
             WriteEndElement();
         }
 
@@ -201,7 +213,10 @@ namespace  Microsoft.AGL.DebugHelpers.Persistence {
             WriteAttribute(GeometryToken.Id, railId);
             WriteAttribute(GeometryToken.Zoomlevel, rail.ZoomLevel);
             if (rail.MinPassingEdgeZoomLevel != double.MaxValue)
+            {
                 WriteAttribute(GeometryToken.MinPassingEdgeZoomLevel, rail.MinPassingEdgeZoomLevel);
+            }
+
             if (rail.Geometry is Arrowhead ah)
             {
                 WriteStartElement(GeometryToken.Arrowhead);
@@ -212,9 +227,13 @@ namespace  Microsoft.AGL.DebugHelpers.Persistence {
             else
             {
                 if (rail.Geometry is ICurve curve)
+                {
                     WriteICurve(curve);
+                }
                 else
+                {
                     throw new InvalidOperationException();
+                }
             }
             WriteEndElement();
         }
@@ -268,7 +287,9 @@ namespace  Microsoft.AGL.DebugHelpers.Persistence {
         void InitEdgeIds() {
             int id = 0;
             foreach (Edge e in graph.Edges)
+            {
                 edgeIds[e] = id++;
+            }
         }
 
         /// <summary>
@@ -292,14 +313,20 @@ namespace  Microsoft.AGL.DebugHelpers.Persistence {
         }
 
         void WriteClusters() {
-            if (graph.RootCluster == null) return;
+            if (graph.RootCluster == null)
+            {
+                return;
+            }
 
             WriteStartElement(GeometryToken.Clusters);
             
             MapClustersToIds(graph.RootCluster);
 
             foreach (Cluster cluster in graph.RootCluster.AllClustersDepthFirstExcludingSelf())
+            {
                 WriteCluster(cluster, nodeIds[cluster]);
+            }
+
             WriteEndElement();
         }
 
@@ -310,13 +337,20 @@ namespace  Microsoft.AGL.DebugHelpers.Persistence {
             WriteChildClusters(cluster);
             WriteChildNodes(cluster);
             if (cluster.BoundaryCurve != null)
+            {
                 WriteICurve(cluster.BoundaryCurve);
+            }
+
             WriteClusterRectBoundary(cluster.RectangularBoundary);            
             WriteEndElement();
         }
 
         void WriteClusterRectBoundary(RectangularClusterBoundary recClBnd) {
-            if (recClBnd == null) return;
+            if (recClBnd == null)
+            {
+                return;
+            }
+
             WriteStartElement(GeometryToken.RectangularClusterBoundary);
 
             WriteAttribute(GeometryToken.LeftMargin, recClBnd.LeftMargin);
@@ -375,7 +409,10 @@ namespace  Microsoft.AGL.DebugHelpers.Persistence {
             do {
                 string s = i.ToString();
                 if (!setOfIds.Contains(s))
+                {
                     return s;
+                }
+
                 i++;
             } while (true);
         }
@@ -397,7 +434,10 @@ namespace  Microsoft.AGL.DebugHelpers.Persistence {
         void WriteEdges() {
             WriteStartElement(GeometryToken.Edges);
             foreach (Edge edge in EdgeEnumeration)
+            {
                 WriteEdge(edge);
+            }
+
             WriteEndElement();
         }
 
@@ -409,7 +449,10 @@ namespace  Microsoft.AGL.DebugHelpers.Persistence {
             WriteAttribute(GeometryToken.S,NodeOrClusterId(edge.Source).ToString(CultureInfo.InvariantCulture));
             WriteAttribute(GeometryToken.T, NodeOrClusterId(edge.Target).ToString(CultureInfo.InvariantCulture));
             if (edge.LineWidth != 1)
+            {
                 WriteAttribute(GeometryToken.LineWidth, edge.LineWidth);
+            }
+
             if (edge.ArrowheadAtSource) {
                 WriteAttribute(GeometryToken.As, edge.EdgeGeometry.SourceArrowhead.TipPosition);
                 WriteDefaultDouble(GeometryToken.Asl, edge.EdgeGeometry.SourceArrowhead.Length,
@@ -422,28 +465,45 @@ namespace  Microsoft.AGL.DebugHelpers.Persistence {
             }
   
             if (edge.Weight != 1)
+            {
                 WriteAttribute(GeometryToken.Weight, edge.Weight);
+            }
+
             if (edge.Separation != 1)
+            {
                 WriteAttribute(GeometryToken.Separation, edge.Separation);
+            }
+
             if (edge.Label != null)
+            {
                 WriteLabel(edge.Label);
+            }
+
             WriteICurve(edge.Curve);
             WriteEndElement();
         }
 
         void WriteDefaultDouble(GeometryToken geometryToken, double val, double defaultValue) {
             if (val != defaultValue)
+            {
                 WriteAttribute(geometryToken, DoubleToString(val));
+            }
         }
 
         void WriteAttribute(GeometryToken attrKind, object val) {
             string attrString = FirstCharToLower(attrKind);
             if (val is Point)
+            {
                 XmlWriter.WriteAttributeString(attrString, PointToString((Point) val));
+            }
             else if (val is double)
+            {
                 XmlWriter.WriteAttributeString(attrString, DoubleToString((double) val));
+            }
             else
+            {
                 XmlWriter.WriteAttributeString(attrString, val.ToString());
+            }
         }
 
         static internal string FirstCharToLower(GeometryToken attrKind) {
@@ -471,7 +531,10 @@ namespace  Microsoft.AGL.DebugHelpers.Persistence {
                 s[0] = '#';
                 s[1] = '.';
                 for (int i = 0; i < precision; i++)
+                {
                     s[2 + i] = '#';
+                }
+
                 formatForDoubleString = new string(s);
             }
 
@@ -534,23 +597,34 @@ namespace  Microsoft.AGL.DebugHelpers.Persistence {
         void WriteNodes() {
             WriteStartElement(GeometryToken.Nodes);
             foreach (Node node in Graph.Nodes)
+            {
                 WriteNode(node);
+            }
+
             WriteEndElement();
         }
 
         void WriteNodesIpe()
         {
             foreach (Node node in Graph.Nodes)
+            {
                 WriteNodeIpe(node);
+            }
         }
 
         void WriteNode(Node node) {
             if (!nodeIds.TryGetValue(node, out string id))
+            {
                 nodeIds[node] = id = nodeIds.Count.ToString();
+            }
+
             WriteStartElement(GeometryToken.Node);
             WriteAttribute(GeometryToken.Id, id);
             if (node.Padding != GeometryGraphReader.NodeDefaultPadding)
+            {
                 WriteAttribute(GeometryToken.Padding, node.Padding);
+            }
+
             WriteICurve(node.BoundaryCurve);
             WriteEndElement();
         }
@@ -558,7 +632,9 @@ namespace  Microsoft.AGL.DebugHelpers.Persistence {
         void WriteNodeIpe(Node node)
         {
             if (!nodeIds.TryGetValue(node, out string id))
+            {
                 nodeIds[node] = id = nodeIds.Count.ToString();
+            }
             // todo: add Id as text
             if (node.BoundaryCurve != null)
             {
@@ -578,26 +654,40 @@ namespace  Microsoft.AGL.DebugHelpers.Persistence {
         }
 
         void WriteICurve(ICurve iCurve) {
-            if (iCurve == null) return;
+            if (iCurve == null)
+            {
+                return;
+            }
+
             if (iCurve is RoundedRect rect)
+            {
                 WriteRect(rect.BoundingBox.Left, rect.BoundingBox.Bottom, rect.BoundingBox.Width,
                           rect.BoundingBox.Height, rect.RadiusX, rect.RadiusY);
+            }
             else
             {
                 if (iCurve is Curve c)
+                {
                     WriteCurveInSvgStyle(c);
+                }
                 else
                 {
                     if (iCurve is Ellipse ellipse)
+                    {
                         WriteEllipseInSvgStyle(ellipse);
+                    }
                     else
                     {
                         if (iCurve is Polyline poly)
+                        {
                             WritePolylineInSvgStyle(poly);
+                        }
                         else
                         {
                             if (iCurve is LineSegment ls)
+                            {
                                 WriteLineSeg(ls);
+                            }
                             else
                             {
                                 if (iCurve is CubicBezierSegment bs)
@@ -605,7 +695,9 @@ namespace  Microsoft.AGL.DebugHelpers.Persistence {
                                     WriteBezierSegment(bs);
                                 }
                                 else
+                                {
                                     throw new InvalidOperationException();
+                                }
                             }
                         }
 
@@ -622,10 +714,17 @@ namespace  Microsoft.AGL.DebugHelpers.Persistence {
 
         void WriteICurveIpe(ICurve iCurve)
         {
-            if (iCurve == null) return;
+            if (iCurve == null)
+            {
+                return;
+            }
+
             if (iCurve is RoundedRect rect)
+            {
                 WriteRectIpe(rect.BoundingBox.Left, rect.BoundingBox.Bottom, rect.BoundingBox.Width,
                           rect.BoundingBox.Height, rect.RadiusX, rect.RadiusY);
+            }
+
             return;
         }
 
@@ -637,9 +736,15 @@ namespace  Microsoft.AGL.DebugHelpers.Persistence {
             WriteAttribute(GeometryToken.Width, width);
             WriteAttribute(GeometryToken.Height, height);
             if (rx > 0)
+            {
                 WriteAttribute(GeometryToken.Rx, rx);
+            }
+
             if (ry > 0)
+            {
                 WriteAttribute(GeometryToken.Ry, ry);
+            }
+
             WriteEndElement();
         }
 
@@ -701,17 +806,25 @@ namespace  Microsoft.AGL.DebugHelpers.Persistence {
             yield return PointToString(iCurve.Start);
             char previousInstruction = 'w'; //a character that is not used by the SVG curve
             if (iCurve is Curve curve)
+            {
                 for (int i = 0; i < curve.Segments.Count; i++) {
                     ICurve segment = curve.Segments[i];
                     if (i != curve.Segments.Count - 1)
+                    {
                         yield return SegmentString(segment, ref previousInstruction);
+                    }
                     else { //it is the last seg
                         if (segment is LineSegment && ApproximateComparer.Close(segment.End, iCurve.Start))
+                        {
                             yield return "Z";
+                        }
                         else
+                        {
                             yield return SegmentString(segment, ref previousInstruction);
+                        }
                     }
                 }
+            }
         }
 
         string SegmentString(ICurve segment, ref char previousInstruction) {
@@ -778,8 +891,13 @@ namespace  Microsoft.AGL.DebugHelpers.Persistence {
             WriteStartElement(GeometryToken.Transform);
             XmlWriter.WriteComment("the order of elements is [0,0],[0,1],[0,2],[1,0],[1,1],[1,2]");
             for (int i = 0; i < 2; i++)
+            {
                 for (int j = 0; j < 3; j++)
+                {
                     WriteTransformationElement(transformation[i, j]);
+                }
+            }
+
             WriteEndElement();
         }
 
@@ -819,7 +937,10 @@ namespace  Microsoft.AGL.DebugHelpers.Persistence {
                 WriteStartElement(GeometryToken.LayoutAlgorithmSettings);
                 WriteAttribute(GeometryToken.EdgeRoutingMode, (int) routingSettings.EdgeRoutingMode);
 
-                if (settings is SugiyamaLayoutSettings sugiyama) WriteSugiyamaSettings(sugiyama);
+                if (settings is SugiyamaLayoutSettings sugiyama)
+                {
+                    WriteSugiyamaSettings(sugiyama);
+                }
                 else
                 {
                     if (settings is MdsLayoutSettings mds)

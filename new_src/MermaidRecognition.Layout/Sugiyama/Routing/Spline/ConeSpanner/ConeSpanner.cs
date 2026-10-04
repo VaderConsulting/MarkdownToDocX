@@ -75,7 +75,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
                 }
             }
             else
+            {
                 HandleBideractionalCase();
+            }
         }
 
         void HandleBideractionalCase() {
@@ -95,8 +97,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
 
         void AddIntersectionOfBothDirectionSweepsToTheResult(VisibilityGraph vg0, VisibilityGraph vg1) {
             foreach (VisibilityEdge edge in vg0.Edges)
+            {
                 if (vg1.FindEdge(edge.SourcePoint, edge.TargetPoint) != null)
+                {
                     _visibilityGraph.AddEdge(edge.SourcePoint, edge.TargetPoint);
+                }
+            }
         }
 
         void AddDirection(Point direction, Polyline borderPolyline, VisibilityGraph visibilityGraph) => LineSweeper.Sweep(_obstacles, direction, coneAngle, visibilityGraph, Ports, borderPolyline);

@@ -16,9 +16,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
                 Min = Max = x;
                 IsEmpty = false;
             } else if(x < Min)
+            {
                 Min = x;
+            }
             else if(x > Max)
+            {
                 Max = x;
+            }
         }
 
         internal double Min { get; set; }

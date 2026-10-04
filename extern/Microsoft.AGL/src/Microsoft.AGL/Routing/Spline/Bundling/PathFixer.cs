@@ -26,13 +26,21 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         IEnumerable<PointPair> Edges() {
             Set<PointPair> set = new Set<PointPair>();
             foreach (Polyline poly in Polylines)
+            {
                 for (PolylinePoint pp = poly.StartPoint; pp.Next != null; pp = pp.Next)
+                {
                     set.Insert(FlipCollapser.OrderedPair(pp));
+                }
+            }
+
             return set;
         }
 
         internal bool Run() {
-            if (metroGraphData.Edges.Count() == 0) return false;
+            if (metroGraphData.Edges.Count() == 0)
+            {
+                return false;
+            }
 
             Dictionary<PointPair, List<Point>> splittingPoints = new Dictionary<PointPair, List<Point>>();
             RTree<Point> treeOfVertices = new RTree<Point>();
@@ -57,15 +65,24 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         bool FixPaths() {
             bool progress = false;
-            if (RemoveSelfCycles()) progress = true;
+            if (RemoveSelfCycles())
+            {
+                progress = true;
+            }
             //if (CollapseCycles()) progress = true;
-            if (ReduceEdgeCrossings()) progress = true;
+            if (ReduceEdgeCrossings())
+            {
+                progress = true;
+            }
+
             return progress;
         }
 
         void SortInsertedPoints(Dictionary<PointPair, List<Point>> splittingPoints) {
             foreach (KeyValuePair<PointPair, List<Point>> pair in splittingPoints)
+            {
                 SortInsideSegment(pair.Key, pair.Value);
+            }
         }
 
         void SortInsideSegment(PointPair edge, List<Point> list) {
@@ -77,7 +94,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             bool inserted = false;
             foreach (Metroline metroline in metroGraphData.Metrolines) {
                 if (InsertPointsIntoPolyline(metroline, splittingPoints))
+                {
                     inserted = true;
+                }
             }
             return inserted;
         }
@@ -85,7 +104,13 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         bool InsertPointsIntoPolyline(Metroline metroline, Dictionary<PointPair, List<Point>> splittingPoints) {
             bool inserted = false;
             for (PolylinePoint pp = metroline.Polyline.StartPoint; pp.Next != null; pp = pp.Next)
-                if (InsertPointsOnPolypoint(pp, splittingPoints, metroline)) inserted = true;
+            {
+                if (InsertPointsOnPolypoint(pp, splittingPoints, metroline))
+                {
+                    inserted = true;
+                }
+            }
+
             return inserted;
         }
 
@@ -93,24 +118,39 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             PointPair pointPair = FlipCollapser.OrderedPair(pp);
             bool reversed = pp.Point != pointPair.First;
             if (!splittingPoints.TryGetValue(pointPair, out List<Point> list))
+            {
                 return false;
+            }
 
             PolylinePoint endPolyPoint = pp.Next;
             Polyline poly = pp.Polyline;
             if (reversed)
+            {
                 for (int i = list.Count - 1; i >= 0; i--) {
-                    if ( polylineAcceptsPoint!=null && !polylineAcceptsPoint(metroline, list[i])) continue;
+                    if ( polylineAcceptsPoint!=null && !polylineAcceptsPoint(metroline, list[i]))
+                    {
+                        continue;
+                    }
+
                     PolylinePoint p = new PolylinePoint(list[i]) { Prev = pp, Polyline = poly };
                     pp.Next = p;
                     pp = p;
                 }
+            }
             else
+            {
                 for (int i = 0; i < list.Count; i++) {
-                    if (polylineAcceptsPoint!=null &&!polylineAcceptsPoint(metroline, list[i])) continue;
+                    if (polylineAcceptsPoint!=null &&!polylineAcceptsPoint(metroline, list[i]))
+                    {
+                        continue;
+                    }
+
                     PolylinePoint p = new PolylinePoint(list[i]) { Prev = pp, Polyline = poly };
                     pp.Next = p;
                     pp = p;
                 }
+            }
+
             pp.Next = endPolyPoint;
             endPolyPoint.Prev = pp;
             return true;
@@ -119,7 +159,13 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         bool RemoveSelfCycles() {
             bool progress = false;
             foreach (Polyline poly in Polylines)
-                if (RemoveSelfCyclesFromPolyline(poly)) progress = true;
+            {
+                if (RemoveSelfCyclesFromPolyline(poly))
+                {
+                    progress = true;
+                }
+            }
+
             return progress;
         }
 
@@ -141,7 +187,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                     progress = true;
                 }
                 else
+                {
                     pointsToPp[pp.Point] = pp;
+                }
             }
             return progress;
         }
@@ -166,13 +214,20 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             bool removed = false;
             pointsToDelete = foundCrossings - crossingsThatShouldBecomeHubs;
             foreach (Polyline polyline in Polylines)
-                if (RemoveUnimportantCrossingsFromPolyline(polyline)) removed = true;
+            {
+                if (RemoveUnimportantCrossingsFromPolyline(polyline))
+                {
+                    removed = true;
+                }
+            }
+
             return removed;
         }
 
         bool RemoveUnimportantCrossingsFromPolyline(Polyline polyline) {
             bool removed = false;
             for (PolylinePoint p = polyline.StartPoint.Next; p != null && p.Next != null; p = p.Next)
+            {
                 if (pointsToDelete.Contains(p.Point) && Point.GetTriangleOrientation(p.Prev.Point, p.Point, p.Next.Point) == TriangleOrientation.Collinear) {
                     //forget p
                     PolylinePoint pp = p.Prev;
@@ -182,6 +237,8 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                     p = pp;
                     removed = true;
                 }
+            }
+
             return removed;
         }
 
@@ -191,14 +248,18 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                 Point vertex = FindExistingVertexOrCreateNew(tree, x);
                 if (AddVertexToSplittingList(a, splittingPoints, vertex) |
                 AddVertexToSplittingList(b, splittingPoints, vertex))
+                {
                     foundCrossings.Insert(vertex);
+                }
             }
         }
 
         Point FindExistingVertexOrCreateNew(RTree<Point> tree, Point x) {
             RectangleNode<Point> p = tree.RootNode.FirstHitNode(x);
             if (p != null)
+            {
                 return p.UserData;
+            }
 
             Rectangle rect = new Rectangle(x);
             rect.Pad(ApproximateComparer.IntersectionEpsilon);
@@ -213,7 +274,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             if (!ApproximateComparer.CloseIntersections(intersectionPoint, a.First) &&
                 !ApproximateComparer.CloseIntersections(intersectionPoint, a.Second)) {
                 if (!splittingPoints.TryGetValue(a, out List<Point> list))
+                {
                     splittingPoints[a] = list = [];
+                }
+
                 if (!list.Contains(intersectionPoint)) {
                     list.Add(intersectionPoint);
                     return true;

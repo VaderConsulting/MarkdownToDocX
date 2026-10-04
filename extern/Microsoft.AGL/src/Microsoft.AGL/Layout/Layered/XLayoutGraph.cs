@@ -56,7 +56,9 @@ namespace Microsoft.AGL.Layout.Layered
             if (s < layeredGraph.NodeCount &&
                 layerArrays.Y[s] == layerArrays.Y[t] &&
                 layerArrays.X[s] == layerArrays.X[t] + 1)
+            {
                 return 0; //this edge needed only for separation vertices in the same layer
+            }
 
             int k = 0;
             System.Diagnostics.Debug.Assert(s >= layeredGraph.NodeCount); //check the graph on correctness`    
@@ -68,16 +70,24 @@ namespace Microsoft.AGL.Layout.Layered
             foreach (IntEdge intEdge in OutEdges(s))
             {
                 if (s0 == -1)
+                {
                     s0 = intEdge.Target;
+                }
                 else
+                {
                     t0 = intEdge.Target;
+                }
             }
 
             if (s0 >= virtualVerticesStart && s0 <= virtualVerticesEnd)
+            {
                 k++;
+            }
 
             if (t0 >= virtualVerticesStart && t0 <= virtualVerticesEnd)
+            {
                 k++;
+            }
 
             int ret = k == 0 ? weightMultiplierOfOriginalOriginal : (k == 1 ? weightMultOfOneVirtual : weightMultiplierOfTwoVirtual);
             return ret;
@@ -90,7 +100,9 @@ namespace Microsoft.AGL.Layout.Layered
         {
 
             foreach (IntEdge intEdge in Edges)
-                intEdge.Weight = intEdge.Weight * EdgeWeightMultiplier(intEdge);                            
+            {
+                intEdge.Weight = intEdge.Weight * EdgeWeightMultiplier(intEdge);
+            }
         }
        
     }

@@ -42,10 +42,15 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
             ignoreInteresingEdgesFunc = false;
             Edge[] ret =SearchForPath().ToArray();
             if (ret.Length>0)
+            {
                 return ret;
+            }
 
             if (ConsiderOnlyInterestingEdges)
-                    return null;
+            {
+                return null;
+            }
+
             ignoreInteresingEdgesFunc = true;
             Cleanup();
             Edge[] p = SearchForPath().ToArray();
@@ -65,7 +70,10 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
             while (queue.Count > 0 ) {
                 Node node = queue.Dequeue(out double costPlus);
                 if (costPlus >= costToTarget)
+                {
                     break;
+                }
+
                 double cost = node == source ? 0 : prev[node].Item2;
                 ProcessVertex(node, cost);
             }
@@ -81,7 +89,10 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
                     yield return currentEdge;
                     currentNode = GetOtherVertex(currentEdge, currentNode);
                     if (currentNode == source)
+                    {
                         break;
+                    }
+
                     currentEdge = prev[currentNode].Item1;
                 } while (true);
             }
@@ -91,15 +102,23 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
 
         void ProcessVertex(Node node, double cost) {
             foreach (Edge outEdge in node.OutEdges)
+            {
                 ProcessOutEdge(outEdge, cost);
+            }
 
             foreach (Edge outEdge in node.InEdges)
+            {
                 ProcessInEdge(outEdge, cost);
+            }
         }
 
         void ProcessInEdge(Edge inEdge, double cost) {
             Point edgeVector = inEdge.Source.Center - inEdge.Target.Center;
-            if (!ignoreInteresingEdgesFunc && EdgeIsInterestingFunc!=null &&  !EdgeIsInterestingFunc(inEdge.Target,inEdge.Source)) return;
+            if (!ignoreInteresingEdgesFunc && EdgeIsInterestingFunc!=null &&  !EdgeIsInterestingFunc(inEdge.Target,inEdge.Source))
+            {
+                return;
+            }
+
             double costPlus = CalculateCostPlus(inEdge, edgeVector);
             double totalCostToEdgeEnd = cost + costPlus;
             if (inEdge.Source == target) {
@@ -110,7 +129,10 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
             } else {
                 double h = AStarH(inEdge.Source);
                 if (totalCostToEdgeEnd + h >= costToTarget)
+                {
                     return;
+                }
+
                 if (prev.TryGetValue(inEdge.Source, out Tuple<Edge, double> storedPrev))
                 {
                     if (storedPrev.Item2 > totalCostToEdgeEnd)
@@ -129,7 +151,11 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
 
         void ProcessOutEdge(Edge outEdge, double cost) {
             Point edgeVector = outEdge.Target.Center - outEdge.Source.Center;
-            if (!ignoreInteresingEdgesFunc && EdgeIsInterestingFunc != null && !EdgeIsInterestingFunc(outEdge.Source, outEdge.Target)) return; 
+            if (!ignoreInteresingEdgesFunc && EdgeIsInterestingFunc != null && !EdgeIsInterestingFunc(outEdge.Source, outEdge.Target))
+            {
+                return;
+            }
+
             double costPlus = CalculateCostPlus(outEdge, edgeVector);
             double totalCostToEdgeEnd = cost + costPlus;
             if (outEdge.Target == target) {
@@ -141,7 +167,10 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
             else {
                 double h = AStarH(outEdge.Target);
                 if (totalCostToEdgeEnd + h >= costToTarget)
+                {
                     return;
+                }
+
                 if (prev.TryGetValue(outEdge.Target, out Tuple<Edge, double> storedPrev))
                 {
                     if (storedPrev.Item2 > totalCostToEdgeEnd)

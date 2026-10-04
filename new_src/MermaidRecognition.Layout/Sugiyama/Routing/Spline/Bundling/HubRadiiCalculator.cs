@@ -71,7 +71,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             while (!queue.IsEmpty()) {
                 Station v = queue.Dequeue(out double hu);
                 if (hu >= 0)
+                {
                     break;
+                }
 
                 //grow the hub
                 if (TryGrowHub(v, useHalfEdgesAsIdealR)) {
@@ -87,22 +89,32 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             double allowedRadius = CalculateAllowedHubRadius(v);
             Debug.Assert(allowedRadius > 0);
             if (v.Radius >= allowedRadius)
+            {
                 return false;
+            }
+
             double idealR = useHalfEdgesAsIdealR ?
                                   CalculateIdealHubRadiusWithAdjacentEdges(metroGraphData, bundlingSettings, v) :
                                   v.cachedIdealRadius;
 
             Debug.Assert(idealR > 0);
             if (v.Radius >= idealR)
+            {
                 return false;
+            }
+
             double step = 0.05;
             double delta = step * (idealR - v.Radius);
             if (delta < 1.0)
+            {
                 delta = 1.0;
+            }
 
             double newR = Math.Min(v.Radius + delta, allowedRadius);
             if (newR <= v.Radius)
+            {
                 return false;
+            }
 
             v.Radius = newR;
             return true;
@@ -114,7 +126,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                             v.cachedIdealRadius;
 
             if (idealR <= v.Radius)
+            {
                 return 0.0;
+            }
+
             return (idealR - v.Radius) / idealR;
         }
 
@@ -146,7 +161,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             //obstacles
             double minimalDistance = metroGraphData.tightIntersections.GetMinimalDistanceToObstacles(node, node.Position, r);
             if (minimalDistance < r)
+            {
                 r = minimalDistance - 0.001;
+            }
 
             return Math.Max(r, 0.1);
         }
@@ -216,15 +233,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         internal static double GetMinRadiusForTwoAdjacentBundles(double r, Point a, Point b, Point c, double widthAB, double widthAC,
             MetroGraphData metroGraphData, BundlingSettings bundlingSettings) {
             if (widthAB < ApproximateComparer.DistanceEpsilon || widthAC < ApproximateComparer.DistanceEpsilon)
+            {
                 return r;
+            }
 
             double angle = Point.Angle(b, a, c);
             angle = Math.Min(angle, Math.PI * 2 - angle);
             if (angle < ApproximateComparer.DistanceEpsilon)
+            {
                 return 2 * bundlingSettings.MaxHubRadius;
+            }
 
             if (angle >= Math.PI / 2)
+            {
                 return r * 1.05;
+            }
 
             //find the intersection point of two bundles
             double sina = Math.Sin(angle);
@@ -251,12 +274,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         internal static double GetMinRadiusForTwoAdjacentBundlesOld(double r, Point a, Point b, Point c, double widthAB, double widthAC,
             MetroGraphData metroGraphData, BundlingSettings bundlingSettings) {
             if (widthAB < ApproximateComparer.DistanceEpsilon || widthAC < ApproximateComparer.DistanceEpsilon)
+            {
                 return r;
+            }
 
             double angle = Point.Angle(b, a, c);
             angle = Math.Min(angle, Math.PI * 2 - angle);
             if (angle < ApproximateComparer.DistanceEpsilon)
+            {
                 return 2 * bundlingSettings.MaxHubRadius;
+            }
 
             //binary search
             //TODO: solve the equation
@@ -268,9 +295,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 double alpha0 = Math.Asin(widthAB / (2 * C));
                 double alpha1 = Math.Asin(widthAC / (2 * C));
                 if (alpha0 + alpha1 <= angle)
+                {
                     R = C;
+                }
                 else
+                {
                     L = C;
+                }
             }
 
             return L;

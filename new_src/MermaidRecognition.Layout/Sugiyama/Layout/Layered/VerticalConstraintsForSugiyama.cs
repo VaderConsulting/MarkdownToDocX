@@ -109,23 +109,33 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                 GetFeedbackSetWithConstraints(new BasicGraph<IntPair>(GluedUpDownIntConstraints, intGraph.NodeCount), null);
             //feedbackSet contains all glued constraints making constraints cyclic
             foreach (IntPair p in feedbackSet)
+            {
                 GluedUpDownIntConstraints.Remove(p);
+            }
         }
 
         private void AddMaxMinConstraintsToGluedConstraints() {
             if (maxRepresentative != -1)
+            {
                 for (int i = 0; i < intGraph.NodeCount; i++) {
                     int j = NodeToRepr(i);
                     if (j != maxRepresentative)
+                    {
                         GluedUpDownIntConstraints.Insert(new IntPair(maxRepresentative, j));
+                    }
                 }
+            }
 
             if (minRepresentative != -1)
+            {
                 for (int i = 0; i < intGraph.NodeCount; i++) {
                     int j = NodeToRepr(i);
                     if (j != minRepresentative)
+                    {
                         GluedUpDownIntConstraints.Insert(new IntPair(j, minRepresentative));
+                    }
                 }
+            }
         }
 
         private void GlueTogetherSameConstraintsMaxAndMin() {
@@ -154,14 +164,19 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         internal int NodeToRepr(int node) {
             if (sameLayerDictionaryOfRepresentatives.TryGetValue(node, out int repr))
+            {
                 return repr;
+            }
+
             return node;
         }
 
         private void CreateDictionaryOfSameLayerRepresentatives() {
             BasicGraph<IntPair> graphOfSameLayers = CreateGraphOfSameLayers();
             foreach (IEnumerable<int> comp in ConnectedComponentCalculator<IntPair>.GetComponents(graphOfSameLayers))
+            {
                 GlueSameLayerNodesOfALayer(comp);
+            }
         }
 
         private BasicGraph<IntPair> CreateGraphOfSameLayers() => new BasicGraph<IntPair>(CreateEdgesOfSameLayers(), intGraph.NodeCount);
@@ -169,9 +184,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         private IEnumerable<IntPair> CreateEdgesOfSameLayers() {
             List<IntPair> ret = [];
             if (maxRepresentative != -1)
+            {
                 ret.AddRange(from v in maxLayerInt where v != maxRepresentative select new IntPair(maxRepresentative, v));
+            }
+
             if (minRepresentative != -1)
+            {
                 ret.AddRange(from v in minLayerInt where v != minRepresentative select new IntPair(minRepresentative, v));
+            }
+
             ret.AddRange(from couple in SameLayerInts select new IntPair(couple.Item1, couple.Item2));
             return ret;
         }
@@ -183,15 +204,26 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             if (sameLayerNodes.Count<int>() > 1) {
                 int representative = -1;
                 if (ComponentsIsMaxLayer(sameLayerNodes))
+                {
                     foreach (int v in sameLayerNodes)
+                    {
                         sameLayerDictionaryOfRepresentatives[v] = representative = maxRepresentative;
+                    }
+                }
                 else if (ComponentIsMinLayer(sameLayerNodes))
+                {
                     foreach (int v in sameLayerNodes)
+                    {
                         sameLayerDictionaryOfRepresentatives[v] = representative = minRepresentative;
+                    }
+                }
                 else {
                     foreach (int v in sameLayerNodes) {
                         if (representative == -1)
+                        {
                             representative = v;
+                        }
+
                         sameLayerDictionaryOfRepresentatives[v] = representative;
                     }
                 }
@@ -236,19 +268,26 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         private void CreateMinIntConstraints() {
             minLayerInt = CreateIntConstraintsFromExtremeLayer(MinLayerOfGeomGraph);
             if (minLayerInt.Count > 0)
+            {
                 minRepresentative = minLayerInt[0];
+            }
         }
 
         private void CreateMaxIntConstraints() {
             maxLayerInt = CreateIntConstraintsFromExtremeLayer(MaxLayerOfGeomGraph);
             if (maxLayerInt.Count > 0)
+            {
                 maxRepresentative = maxLayerInt[0];
+            }
         }
 
         private List<int> CreateIntConstraintsFromExtremeLayer(Set<Node> setOfNodes) => new List<int>(from node in setOfNodes let index = NodeIndex(node) where index != -1 select index);
         int NodeIndex(Node node) {
             if (nodeIdToIndex.TryGetValue(node, out int index))
+            {
                 return index;
+            }
+
             return -1;
         }
         private IEnumerable<IEdge> GetFeedbackSet() {
@@ -258,16 +297,25 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         private IEnumerable<IEdge> UnglueIntPairs(IEnumerable<IEdge> gluedEdges) {
             foreach (IEdge gluedEdge in gluedEdges)
+            {
                 foreach (IEdge ungluedEdge in UnglueEdge(gluedEdge))
-                    yield return ungluedEdge; 
-
+                {
+                    yield return ungluedEdge;
+                }
+            }
         }
 
         private IEnumerable<IEdge> UnglueEdge(IEdge gluedEdge) {
             foreach (int source in UnglueNode(gluedEdge.Source))
+            {
                 foreach (IntEdge edge in intGraph.OutEdges(source))
+                {
                     if (NodeToRepr(edge.Target) == gluedEdge.Target)
+                    {
                         yield return edge;
+                    }
+                }
+            }
         }
 
         private BasicGraph<IntPair> CreateGluedGraph() => new BasicGraph<IntPair>(new Set<IntPair>(from edge in intGraph.Edges select GluedIntPair(edge)), intGraph.NodeCount);
@@ -275,7 +323,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         IEnumerable<int> UnglueNode(int node) {
             if (representativeToItsLayer.TryGetValue(node, out IEnumerable<int>? layer))
+            {
                 return layer;
+            }
+
             return new int[] { node };
         }
 
@@ -283,7 +334,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         internal int[] GetGluedNodeCounts() {
             int[] ret = new int[nodeIdToIndex.Count];
             for (int node = 0; node < ret.Length; node++)
+            {
                 ret[NodeToRepr(node)]++;
+            }
+
             return ret;
         }
     }

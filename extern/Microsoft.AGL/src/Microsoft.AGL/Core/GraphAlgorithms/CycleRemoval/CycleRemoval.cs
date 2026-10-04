@@ -31,7 +31,9 @@ namespace Microsoft.AGL.Core.GraphAlgorithms.CycleRemoval
                  */
 
             } else
+            {
                 return GetFeedbackSetWithConstraintsLocal(graph, constraints);
+            }
         }
 
         static IEnumerable<IEdge> GetFeedbackSetWithConstraintsLocal(BasicGraph<TEdge> graph, Set<IntPair> constraints) {
@@ -75,7 +77,9 @@ namespace Microsoft.AGL.Core.GraphAlgorithms.CycleRemoval
 #endif
                 for (int vertex = 0; vertex < graph.NodeCount; vertex++) {
                     if (status[vertex] == VertStatus.Visited)
+                    {
                         continue;
+                    }
 
                     System.Diagnostics.Debug.Assert(status[vertex] != VertStatus.InStack);
 
@@ -90,7 +94,9 @@ namespace Microsoft.AGL.Core.GraphAlgorithms.CycleRemoval
                             TEdge e = outEnum.Current;
 
                             if (e.Source == e.Target)
+                            {
                                 continue;
+                            }
 
                             VertStatus targetStatus = status[e.Target];
                             if (targetStatus == VertStatus.InStack) {
@@ -106,7 +112,9 @@ namespace Microsoft.AGL.Core.GraphAlgorithms.CycleRemoval
                 }
                 return feedbackSet as IEnumerable<IEdge>;
             } else
+            {
                 return new Set<IEdge>();
+            }
         }
     }
 }

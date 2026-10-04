@@ -104,7 +104,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         private void FillUpperMedins() {
             upperMedians = new object[graph.NodeCount];
             for (int i = 0; i < graph.NodeCount; i++)
+            {
                 FillUpperMediansForNode(i);
+            }
         }
 
         int CompareByX(int a, int b) => la.X[a] - la.X[b];
@@ -115,23 +117,30 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                 int[] predecessors = new int[count];
                 count = 0;
                 foreach (LayerEdge e in graph.InEdges(i))
+                {
                     predecessors[count++] = e.Source;
+                }
 
                 Array.Sort(predecessors, new System.Comparison<int>(CompareByX));
                 int m = count / 2;
                 if (m * 2 == count) {
                     upperMedians[i] = new IntPair(predecessors[m - 1], predecessors[m]);
                 } else
+                {
                     upperMedians[i] = predecessors[m];
+                }
             } else
+            {
                 upperMedians[i] = -1;
-          
+            }
         }
 
         private void FillLowMedians() {
             lowMedians = new object[graph.NodeCount];
             for (int i = 0; i < graph.NodeCount; i++)
+            {
                 FillLowMediansForNode(i);
+            }
         }
 
         private void FillLowMediansForNode(int i) {
@@ -140,16 +149,22 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                 int[] successors = new int[count];
                 count = 0;
                 foreach (LayerEdge e in graph.OutEdges(i))
+                {
                     successors[count++] = e.Target;
+                }
 
                 Array.Sort(successors, new System.Comparison<int>(CompareByX));
                 int m = count / 2;
                 if (m * 2 == count) {
                     lowMedians[i] = new IntPair(successors[m - 1], successors[m]);
                 } else
+                {
                     lowMedians[i] = successors[m];
+                }
             } else
+            {
                 lowMedians[i] = -1;
+            }
         }
 
 
@@ -172,15 +187,23 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             for (int i = 0; i < 4; i++) {
                 double delta;
                 if (IsLeftMostAssignment(i))
+                {
                     //need to align left ends according to the paper
                     delta = a[leastWidthAssignment] - a[i];
+                }
                 else
+                {
                     delta = b[leastWidthAssignment] - b[i];
+                }
+
                 x = xCoords[i];
                 if (delta != 0)
+                {
                     for (int j = 0; j < nOfVertices; j++)
+                    {
                         x[j] += delta;
-
+                    }
+                }
             }
 
 
@@ -211,9 +234,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                 for (int j = 1; j < nOfVertices; j++) {
                     double r = x[j];
                     if (r < a)
+                    {
                         a = r;
+                    }
                     else if (r > b)
+                    {
                         b = r;
+                    }
                 }
             }
         }
@@ -299,7 +326,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             {
                 int i = (int)medians;
                 if (i >= 0)
+                {
                     yield return i;
+                }
             }
         }
 
@@ -318,7 +347,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             //inner segments can appear only between layers with indices i+1 and i where i>0 and i<h-1
             for (; IsBelow(i, upperBound); i = NextUpper(i)) {
                 if (IsBelow(lowest, i) && IsBelow(i, nextBelowUpperBound))
+                {
                     ConflictsWithAtLeastOneInnerEdgeForALayer(i);
+                }
             }
         }
 
@@ -431,7 +462,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
                 for (; IsNotRightFrom(targetPos, lastTargetPos) && innerEdge == null;
                   targetPos = NextRight(targetPos))
+                {
                     innerEdge = InnerEdgeByTarget(lowerLayer[targetPos]);
+                }
 
                 //now targetPos points to the right of the innerEdge target at lowerLayer
                 if (innerEdge != null) {
@@ -444,9 +477,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                       IsLeftFrom(j, targetPos);
                       j = NextRight(j)) {
                         foreach (LayerEdge ie in InEdges(lowerLayer[j]))
+                        {
                             if (IsLeftFrom(positionOfInnerEdgeSource, Pos(Source(ie))))
+                            {
                                 MarkEdge(ie);
-
+                            }
+                        }
                     }
 
                     int innerSourcePos = Pos(Source(innerEdge));
@@ -476,7 +512,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
                         foreach (LayerEdge ie in InEdges(lowerLayer[k])) {
                             if (IsLeftFrom(Pos(Source(ie)), Pos(Source(innerEdge))))
+                            {
                                 MarkEdge(ie);
+                            }
                         }
                     }
                 }
@@ -504,9 +542,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                 foreach (LayerEdge ie in InEdges(lowerLayer[u])) {
                     int ieSourcePos = Pos(Source(ie));
                     if (IsLeftFrom(ieSourcePos, innerEdgeSourcePos))//the equality is not possible
+                    {
                         MarkEdge(ie);
+                    }
                     else if (IsLeftFrom(newInnerEdgeSourcePos, ieSourcePos))
+                    {
                         MarkEdge(ie);
+                    }
                 }
             }
         }
@@ -527,9 +569,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
                 LayerEdge ie = null;
                 foreach(LayerEdge e in InEdges(lowLayer[i]))
-                    ie=e;
+                {
+                    ie =e;
+                }
+
                 if (IsInnerEdge(ie) && IsLeftFrom(posInnerSource, Pos(ie.Source)))
+                {
                     return ie;
+                }
 
                 return null;
             }
@@ -547,7 +594,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             if (IsVirtual(v)) {
                 LayerEdge ie = InEdgeOfVirtualNode(v);//there is exactly one edge entering in to the dummy node
                 if (IsVirtual(Source(ie)))
+                {
                     return ie;
+                }
             }
             return null;
         }
@@ -603,7 +652,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                     int w = v;//w will be running over the block
                     do {
                         if (TryToGetRightNeighbor(w, out int rightNeighbor))
+                        {
                             edges.Add(new IntEdge(v, root[rightNeighbor]));
+                        }
+
                         w = align[w];
                     }
                     while (w != v);
@@ -630,7 +682,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                                 vIsLeftMost = false;
                             }
                             else
+                            {
                                 vx = RightMost(vx, x[root[wLeftNeighbor]] + DeltaBetweenVertices(wLeftNeighbor, w));
+                            }
                         }
                         w = align[w];
                     }
@@ -643,28 +697,35 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             //push the roots of the graph maximally to the right 
             foreach (int v in topoSort) {
                 if (v == root[v])
+                {
                     if (blockGraph.InEdges(v).Count == 0) {
                         int w = v;//w runs over the block
                         double xLeftMost = RightMost(-infinity, infinity);
                         double xl = xLeftMost;
                         do {
                             if (TryToGetRightNeighbor(w, out int wRightNeigbor))
+                            {
                                 xLeftMost = LeftMost(xLeftMost,
                                     x[root[wRightNeigbor]] - DeltaBetweenVertices(w, wRightNeigbor));
+                            }
 
                             w = align[w];
                         } while (w != v);
 
                         //leave the value zero if there are no right neighbours
                         if (xl != xLeftMost)
+                        {
                             x[v] = xLeftMost;
+                        }
                     }
-
+                }
             }
 
             for (int v = 0; v < nOfVertices; v++) {
                 if (v != root[v])
+                {
                     x[v] = x[root[v]];
+                }
             }
 
         }
@@ -715,7 +776,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         void CreateBlocks() {
 
             for (int v = 0; v < nOfVertices; v++)
+            {
                 root[v] = align[v] = v;
+            }
 
             int lowBound = LowerOf(0, h - 1);
 
@@ -772,9 +835,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         private bool IsMarked(int source, int target) {
             if (BT)
+            {
                 return markedEdges.Contains(new IntPair(target, source));
+            }
             else
+            {
                 return markedEdges.Contains(new IntPair(source, target));
+            }
         }
 
         private void MarkEdge(LayerEdge ie) => markedEdges.Insert(new IntPair(ie.Source, ie.Target));

@@ -41,8 +41,12 @@ namespace Microsoft.AGL.Layout.Layered {
         internal IEnumerable<IntEdge> AllIntEdges {
             get {
                 foreach (List<IntEdge> l in Multiedges.Values)
+                {
                     foreach (IntEdge e in l)
+                    {
                         yield return e;
+                    }
+                }
             }
         }
 
@@ -71,12 +75,18 @@ Anchor[] Anchors { get => anchors; set => anchors = value;
                 //we shuffle reversed edges into the other multiedge
                 List<IntEdge> listToShuffle = multiedges[ip];
                 foreach (IntEdge er in listToShuffle)
+                {
                     er.Revert();
+                }
 
                 if (multiedges.ContainsKey(ipr))
+                {
                     multiedges[ipr].AddRange(listToShuffle);
+                }
                 else
+                {
                     multiedges[ipr] = listToShuffle;
+                }
 
                 multiedges.Remove(ip);
             }
@@ -86,8 +96,12 @@ Anchor[] Anchors { get => anchors; set => anchors = value;
             get {
                 foreach (KeyValuePair<IntPair, List<IntEdge>>
                         kv in Multiedges)
+                {
                     if (kv.Key.x != kv.Key.y)
+                    {
                         yield return kv.Value;
+                    }
+                }
             }
         }
 #if TEST_MSAGL
@@ -106,7 +120,9 @@ Dictionary<IntPair, List<IntEdge>> Multiedges => multiedges;
 
         internal List<IntEdge> GetMultiedge(IntPair ip) {
             if (multiedges.ContainsKey(ip))
+            {
                 return multiedges[ip];
+            }
 
             return [];
         }
@@ -116,9 +132,13 @@ Dictionary<IntPair, List<IntEdge>> Multiedges => multiedges;
             IntPair ip = new IntPair(edge.Source, edge.Target);
             List<IntEdge> o;
             if (multiedges.ContainsKey(ip) == false)
+            {
                 multiedges[ip] = o = [];
+            }
             else
+            {
                 o = multiedges[ip];
+            }
 
             o.Add(edge);
         }

@@ -59,7 +59,10 @@ namespace Microsoft.AGL.Miscellaneous.NonOverlappingBoundaries
         private void GetIntersecting(RectangleNode<IHull> leafNode, RectangleNode<IHull> internalNode, List<IHull> intersecting) {
             Debug.Assert(leafNode.UserData != null);
             if (!leafNode.Rectangle.Intersects(internalNode.Rectangle))
+            {
                 return;
+            }
+
             if (internalNode.UserData != null) {
                 if (leafNode.UserData != internalNode.UserData) {
                     intersecting.Add(internalNode.UserData);
@@ -71,7 +74,10 @@ namespace Microsoft.AGL.Miscellaneous.NonOverlappingBoundaries
         }
         private void GetClosePairs(RectangleNode<IHull> a, RectangleNode<IHull> b, List<Tuple<IHull, IHull>> closePairs) {
             if (!a.Rectangle.Intersects(b.Rectangle))
+            {
                 return;
+            }
+
             if (a.UserData != null && b.UserData != null) {
                 if (a.UserData != b.UserData) {
                     Point ap = a.UserData.Center;

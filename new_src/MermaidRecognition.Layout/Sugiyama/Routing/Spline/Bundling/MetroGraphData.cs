@@ -62,9 +62,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             //Debug.Assert(cdt != null);
             this.regularEdges = regularEdges;
             if (cdt != null)
+            {
                 Cdt = cdt;
+            }
             else
+            {
                 Cdt = BundleRouter.CreateConstrainedDelaunayTriangulation(looseTree);
+            }
 
             EdgeLooseEnterable = edgeLooseEnterable;
             EdgeTightEnterable = edgeTightEnterable;
@@ -102,7 +106,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         internal int RealEdgeCount(Station u, Station v) {
             Tuple<Station, Station> couple = u < v ? new Tuple<Station, Station>(u, v) : new Tuple<Station, Station>(v, u);
             if (edgeInfoDictionary.TryGetValue(couple, out StationEdgeInfo? cw))
+            {
                 return cw.Count;
+            }
+
             return 0;
         }
 
@@ -130,7 +137,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
             //move curves
             foreach (MetroNodeInfo metroNodeInfo in MetroNodeInfosOfNode(node))
+            {
                 metroNodeInfo.PolyPoint.Point = newPosition;
+            }
 
             //update lengths
             foreach (MetroNodeInfo e in MetroNodeInfosOfNode(node)) {
@@ -149,13 +158,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             //update neighbors order
             SortNeighbors(node);
             foreach (Station adj in node.Neighbors)
-                SortNeighbors(adj);            
+            {
+                SortNeighbors(adj);
+            }
         }
 
         internal double GetWidth(Station u, Station v, double edgeSeparation) {
             Tuple<Station, Station> couple = u < v ? new Tuple<Station, Station>(u, v) : new Tuple<Station, Station>(v, u);
             if (edgeInfoDictionary.TryGetValue(couple, out StationEdgeInfo? cw))
+            {
                 return cw.Width + (cw.Count - 1) * edgeSeparation;
+            }
+
             return 0;
         }
 
@@ -203,7 +217,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         /// </summary>
         void SimplifyRegularEdges() {
             foreach (EdgeGeometry edge in regularEdges)
+            {
                 SimplifyRegularEdge(edge);
+            }
         }
 
         /// <summary>
@@ -226,7 +242,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                             pp = pp.Next;
                         }
                         else
+                        {
                             break;
+                        }
                     } while (true);
                     pp.Prev = p.Prev;
                     pp.Prev.Next = pp;
@@ -254,7 +272,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             i = RegisterStation(i, pp, true);
 
             for (pp = pp.Next; pp != poly.EndPoint; pp = pp.Next)
+            {
                 i = RegisterStation(i, pp, false);
+            }
 
             i = RegisterStation(i, pp, true);
             return i;
@@ -323,7 +343,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             Debug.Assert(i < j);
             Tuple<Station, Station> couple = new Tuple<Station, Station>(i, j);
             if (edgeInfoDictionary.TryGetValue(couple, out StationEdgeInfo? cw))
+            {
                 return cw;
+            }
+
             edgeInfoDictionary[couple] = cw = new StationEdgeInfo(i.Position, j.Position);
             return cw;
         }
@@ -336,7 +359,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             InitEdgeIjInfos();
             ink = 0;
             foreach (Tuple<Station, Station> edge in VirtualEdges())
+            {
                 ink += (edge.Item1.Position - edge.Item2.Position).Length;
+            }
         }
 
         void InitMetroNodeInfos(bool initTightTree) {
@@ -345,7 +370,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 InitMetroNodeInfos(metroline);
                 InitNodeEnterableLoosePolylines(metroline, regularEdges[i]);
                 if (initTightTree)
+                {
                     InitNodeEnterableTightPolylines(metroline, regularEdges[i]);
+                }
+
                 metroline.UpdateLengths();
             }
         }
@@ -364,9 +392,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             for (PolylinePoint p = metroline.Polyline.StartPoint.Next; p!=null && p.Next != null; p = p.Next) {
                 Station v = PointToStations[p.Point];
                 if (v.EnterableLoosePolylines != null)
+                {
                     v.EnterableLoosePolylines *= metrolineEnterable;
+                }
                 else
+                {
                     v.EnterableLoosePolylines = new Set<Polyline>(metrolineEnterable);
+                }
             }
 
             AddLooseEnterableForMetrolineStartEndPoints(metroline);
@@ -388,9 +420,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             Station station = PointToStations[point];
             if (!cachedEnterableLooseForEnd.ContainsKey(point)) {
                 foreach (Polyline poly in LooseTree.AllHitItems(point))
-                    if (Curve.PointRelativeToCurveLocation(point, poly) == PointLocation.Inside) 
+                {
+                    if (Curve.PointRelativeToCurveLocation(point, poly) == PointLocation.Inside)
+                    {
                         station.AddEnterableLoosePolyline(poly);
-                    
+                    }
+                }
+
                 cachedEnterableLooseForEnd.Add(point, station.EnterableLoosePolylines);
             }
             else {
@@ -405,8 +441,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         void AddTightEnterableForEnd(Point point) {
             Station station = PointToStations[point];
             foreach (Polyline poly in TightTree.AllHitItems(point))
+            {
                 if (Curve.PointRelativeToCurveLocation(point, poly) == PointLocation.Inside)
+                {
                     station.AddEnterableTightPolyline(poly);
+                }
+            }
         }
 
         void InitNodeEnterableTightPolylines(Metroline metroline, EdgeGeometry regularEdge) {
@@ -417,9 +457,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 Station v = PointToStations[p.Point];
                 Set<Polyline> nodeEnterable = v.EnterableTightPolylines;
                 if (nodeEnterable != null)
+                {
                     v.EnterableTightPolylines = nodeEnterable * metrolineEnterable;
+                }
                 else
+                {
                     v.EnterableTightPolylines = new Set<Polyline>(metrolineEnterable);
+                }
             }
 
             AddTightEnterableForMetrolineStartEndPoints(metroline);
@@ -428,12 +472,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         void SortNeighbors() {
             //counter-clockwise sorting
             foreach (Station station in Stations)
+            {
                 SortNeighbors(station);
+            }
         }
 
         void SortNeighbors(Station station) {
             //nothing to sort
-            if (station.Neighbors.Length <= 2) return;
+            if (station.Neighbors.Length <= 2)
+            {
+                return;
+            }
 
             Point pivot = station.Neighbors[0].Position;
             Point center = station.Position;
@@ -467,7 +516,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
         internal bool PointIsAcceptableForEdge(Metroline metroline, Point point) {
             if (LoosePolylineOfPort == null)
+            {
                 return true;
+            }
+
             Tuple<Polyline, Polyline> polys = metroline.sourceAndTargetLoosePolylines();
             return Curve.PointRelativeToCurveLocation(point, polys.Item1) == PointLocation.Outside &&
                    Curve.PointRelativeToCurveLocation(point, polys.Item2) == PointLocation.Outside;

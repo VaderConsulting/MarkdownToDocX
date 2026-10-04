@@ -19,7 +19,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
             foreach (int nodeCountOnLevel in nodeZoomLevelCalculator.LevelNodeCounts) {
                 bool finished = AddLevel(lgData, nodeZoomLevelCalculator, nodeCountOnLevel, edgeInfos);
                 if (finished)
+                {
                     break;
+                }
             }
         }
 
@@ -38,7 +40,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
 
         static void AssignEdgesToLevels(LgData lgData, IZoomLevelCalculator nodeZoomLevelCalculator) {
             foreach (int nodeCountOnLevel in nodeZoomLevelCalculator.LevelNodeCounts)
+            {
                 EdgePicker.SetEdgeInfosZoomLevelsAndIcreaseRanks(lgData, nodeZoomLevelCalculator, nodeCountOnLevel);
+            }
         }
 
 
@@ -59,7 +63,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         internal static void RankGraph(LgData lgData, GeometryGraph mainGeometryGraph) {
 //fromDrawingToEdgeInfo = new Dictionary<ICurve, LgEdgeInfo>();
             foreach (GeometryGraph connectedGraph in lgData.ConnectedGeometryGraphs)
+            {
                 RankTheGraph(lgData, mainGeometryGraph, connectedGraph);
+            }
 
             UpdateRanksOfClusters(lgData);
         }
@@ -68,8 +74,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
             foreach (LgNodeInfo lgInfo in lgData.GeometryNodesToLgNodeInfos.Values) {
                 foreach (Cluster cluster in lgInfo.GeometryNode.ClusterParents) {
                     if (lgData.GeometryNodesToLgNodeInfos.TryGetValue(cluster, out LgNodeInfo? clusterLgInfo))
+                    {
                         if (clusterLgInfo.Rank < lgInfo.Rank)
+                        {
                             clusterLgInfo.Rank = lgInfo.Rank;
+                        }
+                    }
                 }
             }
         }

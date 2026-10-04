@@ -34,8 +34,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.ConstrainedSkeleton {
 
         void MakeSureThatNodeBoundariesAreInVisGraph(IEnumerable<LgNodeInfo> nodeInfos) {
             foreach (LgNodeInfo nodeInfo in nodeInfos)
+            {
                 foreach (PolylinePoint polypoint in nodeInfo.BoundaryOnLayer.PolylinePoints)
+                {
                     _visGraph.AddVertex(polypoint.Point);
+                }
+            }
         }
 
         public void SaveInputFilePoly(string path) {
@@ -122,20 +126,29 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.ConstrainedSkeleton {
             int oldPoints = _pointList.Count;
             using (StreamReader file = new StreamReader(path)) {
                 string line = file.ReadLine();
-                if (line == null) throw new InvalidOperationException("unexpected end of file");
+                if (line == null)
+                {
+                    throw new InvalidOperationException("unexpected end of file");
+                }
+
                 Regex.Split(line, @"\s{2,}");
 
                 int numVertices = int.Parse(line.Split(' ').First());
 
                 for (int i = 0; i < numVertices; i++) {
                     line = file.ReadLine();
-                    if (line == null) break;
+                    if (line == null)
+                    {
+                        break;
+                    }
 
                     line = line.TrimStart(' ');
                     string[] lineParsed = Regex.Split(line, @"\s{2,}");
                     int ind = int.Parse(lineParsed[0]) - 1;
                     if (ind < oldPoints)
+                    {
                         _outPoints[ind] = _visGraph.FindVertex(_pointList[ind]);
+                    }
                     else {
                         double x = double.Parse(lineParsed[1]);
                         double y = double.Parse(lineParsed[2]);
@@ -150,14 +163,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.ConstrainedSkeleton {
             _visGraph.ClearEdges();
             using (StreamReader file = new StreamReader(path)) {
                 string? line = file.ReadLine();
-                if (line==null) throw new Exception("unexpected end of file");
+                if (line==null)
+                {
+                    throw new Exception("unexpected end of file");
+                }
+
                 line = line.TrimStart(' ');
 
                 int numTriangles = int.Parse(line.Split(' ').First());
 
                 for (int i = 0; i < numTriangles; i++) {
                     line = file.ReadLine();
-                    if (line == null) break;
+                    if (line == null)
+                    {
+                        break;
+                    }
 
                     line = line.TrimStart(' ');
                     string[] lineParsed = Regex.Split(line, @"\s{2,}");
@@ -204,7 +224,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.ConstrainedSkeleton {
         }
 
         void IndexVisGraphVertices() {
-            if (_visGraph == null) return;
+            if (_visGraph == null)
+            {
+                return;
+            }
+
             foreach (VisibilityVertex v in _visGraph.Vertices()) {
                 _pointsToIndices[v.Point] = _pointsToIndices.Count;
                 _pointList.Add(v.Point);
@@ -213,7 +237,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.ConstrainedSkeleton {
 
         void CreateAndIndexBoundingBox() {
            _boundingBox = Rectangle.CreateAnEmptyBox();
-            foreach(Point p in _pointsToIndices.Keys) _boundingBox.Add(p);
+            foreach(Point p in _pointsToIndices.Keys)
+            {
+                _boundingBox.Add(p);
+            }
+
             _boundingBox.Pad(1);
             IndexAPoint(_boundingBox.LeftBottom);
             IndexAPoint(_boundingBox.RightBottom);
@@ -224,7 +252,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.ConstrainedSkeleton {
 
         void AddNodeBoundaryToPointIndices(LgNodeInfo ni) {
             foreach (PolylinePoint polylinePoint in ni.BoundaryOnLayer.PolylinePoints)
+            {
                 IndexAPoint(polylinePoint.Point);
+            }
         }
 
         void IndexAPoint(Point p) {
@@ -247,7 +277,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.ConstrainedSkeleton {
 
 #if TEST_MSAGL
             if (badSegs.Any())
-               ShowInputSegments(badSegs, indexToPoints);
+            {
+                ShowInputSegments(badSegs, indexToPoints);
+            }
 #endif
             return !badSegs.Any();
         }
@@ -303,7 +335,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.ConstrainedSkeleton {
             if (vtsOverlapping.Count > 2) {
                 Console.WriteLine("overlapping points");
                 foreach (Point v in vtsOverlapping)
+                {
                     Console.WriteLine(v);
+                }
             }
             return vtsOverlapping;
         }
@@ -312,7 +346,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.ConstrainedSkeleton {
             _segments.Clear();
             InitSegsOfVisGraph();
             foreach (LgNodeInfo lgNodeInfo in _nodeInfos)
+            {
                 InitSegsOfPolyline(lgNodeInfo.BoundaryOnLayer);
+            }
+
             InitSegments(_boundingBox .LeftTop, _boundingBox .RightTop, _boundingBox .RightBottom, _boundingBox .LeftBottom);
         }
 
@@ -322,7 +359,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.ConstrainedSkeleton {
             int id = startId;
             do {
                 pp = pp.Next;
-                if (pp == null) break;
+                if (pp == null)
+                {
+                    break;
+                }
+
                 int nextId = _pointsToIndices[pp.Point];
                 _segments.Insert(new SymmetricTuple<int>(id, nextId));
                 id = nextId;
@@ -332,17 +373,25 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.ConstrainedSkeleton {
 
         void InitSegments(params Point[] pts) {
             for (int i = 0; i < pts.Length - 1; i++)
+            {
                 InitSegment(pts[i], pts[i + 1]);
+            }
 
             InitSegment(pts[pts.Length - 1], pts[0]);
         }
 
         void InitSegsOfVisGraph() {
-            if (_visGraph == null) return;
+            if (_visGraph == null)
+            {
+                return;
+            }
+
             foreach (VisibilityVertex v in _visGraph.Vertices()) {
                 int vId = _pointsToIndices[v.Point];
                 foreach (VisibilityEdge e in v.OutEdges)
+                {
                     _segments.Insert(new SymmetricTuple<int>(vId, _pointsToIndices[e.Target.Point]));
+                }
             }
         }
 
@@ -367,8 +416,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.ConstrainedSkeleton {
                         Environment.Exit(1);
                     }
                     exeProcess.WaitForExit();
-                    if(exeProcess.ExitCode!=0) 
+                    if(exeProcess.ExitCode!=0)
+                    {
                         Environment.Exit(exeProcess.ExitCode);
+                    }
                 }
             }
             catch (Exception e) {

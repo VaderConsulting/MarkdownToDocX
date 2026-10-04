@@ -34,7 +34,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
             while (!pq.IsEmpty()) {
                 VisibilityVertex u = pq.Dequeue(out double hu);
                 if (hu >= _target.Distance)
+                {
                     break;
+                }
 
                 foreach (VisibilityEdge e in u.OutEdges) {
                     if (PassableOutEdge(e)) {
@@ -79,7 +81,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
                 v.Distance = c;
                 _visGraph.SetPreviousEdge(v, l);
                 if (v != _target)
+                {
                     pq.DecreasePriority(v, H(v));
+                }
             }
         }
 
@@ -93,14 +97,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
             do {
                 ret.Add(v);
                 if (shrinkEdgeLength)
+                {
                     _visGraph.ShrinkLengthOfPrevEdge(v, LengthMultiplier);
+                }
 
                 v = _visGraph.PreviosVertex(v);
             } while (v != _source);
             ret.Add(_source);
 
             for (int i = ret.Count - 1; i >= 0; i--)
+            {
                 yield return ret[i];
+            }
         }
     }
 }

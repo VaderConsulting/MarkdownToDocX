@@ -25,9 +25,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         internal VisibilityVertex PreviosVertex(VisibilityVertex v)
         {
             if (!_prevEdgesDictionary.TryGetValue(v, out VisibilityEdge? prev))
+            {
                 return null;
+            }
+
             if (prev.Source == v)
+            {
                 return prev.Target;
+            }
+
             return prev.Source;
         }
         
@@ -94,7 +100,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         static internal VisibilityGraph CalculateGraphOfBoundaries(List<Polyline> holes) {
             VisibilityGraph graphOfHoleBoundaries = new VisibilityGraph();
             foreach (Polyline polyline in holes)
+            {
                 graphOfHoleBoundaries.AddHole(polyline);
+            }
+
             return graphOfHoleBoundaries;
         }
 
@@ -128,7 +137,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
 #if TEST_MSAGL || VERIFY
         internal static void CheckThatPolylinesAreConvex(IEnumerable<Polyline> holes) {
             foreach (Polyline polyline in holes)
+            {
                 CheckThatPolylineIsConvex(polyline);
+            }
         }
 
         internal static void CheckThatPolylineIsConvex(Polyline polyline) {
@@ -143,18 +154,27 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
                 b = b.Next;
                 c = c.Next;
                 TriangleOrientation currentOrient = Point.GetTriangleOrientation(a.Point, b.Point, c.Point);
-                if (currentOrient == TriangleOrientation.Collinear) continue;
+                if (currentOrient == TriangleOrientation.Collinear)
+                {
+                    continue;
+                }
 
                 if (orient == TriangleOrientation.Collinear)
+                {
                     orient = currentOrient;
+                }
                 else if (orient != currentOrient)
+                {
                     throw new InvalidOperationException();
+                }
             }
 
             TriangleOrientation o = Point.GetTriangleOrientation(polyline.EndPoint.Point, polyline.StartPoint.Point,
                                                  polyline.StartPoint.Next.Point);
             if (o != TriangleOrientation.Collinear && o != orient)
+            {
                 throw new InvalidOperationException();
+            }
         }
 #endif // TEST || VERIFY
 
@@ -199,7 +219,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
 
         static internal VisibilityEdge AddEdge(VisibilityVertex source, VisibilityVertex target) {
             if (source.TryGetEdge(target, out VisibilityEdge? visEdge))
+            {
                 return visEdge;
+            }
+
             if (source == target) {
                 Debug.Assert(false, "Self-edges are not allowed");
                 throw new InvalidOperationException("Self-edges are not allowed");
@@ -227,14 +250,19 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             if (sourceV != null){
                 targetV=FindVertex(target);
                 if ( targetV != null && sourceV.TryGetEdge(targetV, out edge))
+                {
                     return edge;
+                }
             }
 
             if (sourceV == null) { //then targetV is also null
                 sourceV = AddVertex(source);
                 targetV = AddVertex(target);
             }else if (targetV == null)
+            {
                 targetV = AddVertex(target);
+            }
+
             edge = new VisibilityEdge(sourceV, targetV);
             sourceV.OutEdges.Insert(edge);
             targetV.InEdges.Add(edge);
@@ -259,14 +287,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             if (sourceV != null) {
                 targetV = FindVertex(target);
                 if ( targetV != null && sourceV.TryGetEdge(targetV, out edge))
+                {
                     return edge;
+                }
             }
 
             if (sourceV == null) { //then targetV is also null
                 sourceV = AddVertex(source);
                 targetV = AddVertex(target);
             } else if (targetV == null)
+            {
                 targetV = AddVertex(target);
+            }
 
             edge = edgeCreator(sourceV, targetV);
             sourceV.OutEdges.Insert(edge);
@@ -283,17 +315,25 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         internal void RemoveVertex(VisibilityVertex vertex) {
            // Debug.Assert(PointToVertexMap.ContainsKey(vertex.Point), "Cannot find vertex in PointToVertexMap");
 
-            foreach (VisibilityEdge edge in vertex.OutEdges) 
+            foreach (VisibilityEdge edge in vertex.OutEdges)
+            {
                 edge.Target.RemoveInEdge(edge);
-            
-            foreach (VisibilityEdge edge in vertex.InEdges) 
+            }
+
+            foreach (VisibilityEdge edge in vertex.InEdges)
+            {
                 edge.Source.RemoveOutEdge(edge);
-            
+            }
+
             PointToVertexMap.Remove(vertex.Point);
         }
 
         internal void RemoveEdge(VisibilityVertex v1, VisibilityVertex v2) {
-            if (!v1.TryGetEdge(v2, out VisibilityEdge? edge)) return;
+            if (!v1.TryGetEdge(v2, out VisibilityEdge? edge))
+            {
+                return;
+            }
+
             edge.Source.RemoveOutEdge(edge);
             edge.Target.RemoveInEdge(edge);
         }
@@ -301,14 +341,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         internal void RemoveEdge(Point p1, Point p2) {
             // the order of p1 and p2 is not important.
             VisibilityEdge edge = FindEdge(p1, p2);
-            if (edge == null) return;
+            if (edge == null)
+            {
+                return;
+            }
+
             edge.Source.RemoveOutEdge(edge);
             edge.Target.RemoveInEdge(edge);
         }
 
         static internal VisibilityEdge FindEdge(VisibilityEdge edge) {
             if(edge.Source.TryGetEdge(edge.Target, out edge))
+            {
                 return edge;
+            }
+
             return null;
         }
 
@@ -316,13 +363,20 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         internal VisibilityEdge FindEdge(Point source, Point target) {
             VisibilityVertex sourceV = FindVertex(source);
             if (sourceV == null)
+            {
                 return null;
+            }
+
             VisibilityVertex targetV = FindVertex(target);
             if (targetV == null)
+            {
                 return null;
+            }
 
             if (sourceV.TryGetEdge(targetV, out VisibilityEdge? edge))
+            {
                 return edge;
+            }
 
             return null;
         }

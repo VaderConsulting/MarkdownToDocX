@@ -107,11 +107,15 @@ Serializable
 
             aRot = new Point(-sideA.Y, sideA.X);
             if (aRot.Length > 0.5)
+            {
                 aRot = aRot.Normalize();
+            }
 
             bRot = new Point(-sideB.Y, sideB.X);
             if (bRot.Length > 0.5)
+            {
                 bRot = bRot.Normalize();
+            }
 
             abRot = sideA * bRot;
 
@@ -146,7 +150,9 @@ Serializable
 
             double gbRot = g * bRot;
             if (gbRot > abRot + e || gbRot < -e)
+            {
                 return false;
+            }
 
             double gaRot = g * aRot;
             return gaRot <= baRot + e && gaRot >= -e;
@@ -189,15 +195,20 @@ Serializable
                        separByB(ref parallelogram0, ref parallelogram1) || separByB(ref parallelogram1, ref parallelogram0));
 
             if (ret == false)
+            {
                 return false;
+            }
 
             if (!(parallelogram0.isSeg && parallelogram1.isSeg))
+            {
                 return true;
-
+            }
 
             if (!Point.ParallelWithinEpsilon(parallelogram0.OtherCorner - parallelogram0.Corner,
                                              parallelogram1.OtherCorner - parallelogram1.Corner, 1.0E-5))
+            {
                 return true;
+            }
 
             //here we know that the segs are parallel
             return ParallelSegsIntersect(ref parallelogram1, ref parallelogram0);
@@ -253,34 +264,46 @@ Serializable
                 t.X = p1.aPlusCorner.X - p0.corner.X;
                 t.Y = p1.aPlusCorner.Y - p0.corner.Y;
                 if (mult(ref t, ref p0.aRot) <= p0.baRot + eps)
+                {
                     return false;
+                }
 
                 t.X = p1.bPlusCorner.X - p0.corner.X;
                 t.Y = p1.bPlusCorner.Y - p0.corner.Y;
                 if (mult(ref t, ref p0.aRot) <= p0.baRot + eps)
+                {
                     return false;
+                }
 
                 t.X = p1.otherCorner.X - p0.corner.X;
                 t.Y = p1.otherCorner.Y - p0.corner.Y;
                 if (mult(ref t, ref p0.aRot) <= p0.baRot + eps)
+                {
                     return false;
+                }
 
                 return true;
             } else if (p1a < -eps) {
                 t.X = p1.aPlusCorner.X - p0.corner.X;
                 t.Y = p1.aPlusCorner.Y - p0.corner.Y;
                 if (mult(ref t, ref p0.aRot) >= - eps)
+                {
                     return false;
+                }
 
                 t.X = p1.bPlusCorner.X - p0.corner.X;
                 t.Y = p1.bPlusCorner.Y - p0.corner.Y;
                 if (mult(ref t, ref p0.aRot) >= -eps)
+                {
                     return false;
+                }
 
                 t.X = p1.otherCorner.X - p0.corner.X;
                 t.Y = p1.otherCorner.Y - p0.corner.Y;
                 if (mult(ref t, ref p0.aRot) >= -eps)
+                {
                     return false;
+                }
 
                 return true;
             }
@@ -325,7 +348,9 @@ Serializable
 #else
                 for (int i = 1; i < 4; i++) {
                     if ((p1.Vertex((VertexId)i) - p0.corner) * p0.bRot <= p0.abRot + eps)
+                    {
                         return false;
+                    }
                 }
 #endif
 
@@ -339,7 +364,9 @@ Serializable
 #else
                 for (int i = 1; i < 4; i++) {
                     if ((p1.Vertex((VertexId)i) - p0.corner) * p0.bRot >= -eps)
+                    {
                         return false;
+                    }
                 }
 #endif
                 return true;
@@ -413,11 +440,15 @@ Serializable
 
             aRot = new Point(-a.Y, a.X);
             if (aRot.Length > 0.5)
+            {
                 aRot = aRot.Normalize();
+            }
 
             bRot = new Point(-b.Y, b.X);
             if (bRot.Length > 0.5)
+            {
                 bRot = bRot.Normalize();
+            }
 
             abRot = a * bRot;
             baRot = b * aRot;

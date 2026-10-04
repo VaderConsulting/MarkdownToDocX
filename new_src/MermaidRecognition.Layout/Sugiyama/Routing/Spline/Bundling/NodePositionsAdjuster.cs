@@ -66,7 +66,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
                 progress |= (step == 3 && adjuster.RemoveDoublePathCrossings());
 
-                if (!progress) break;
+                if (!progress)
+                {
+                    break;
+                }
             }
 
             //one SA has to be executed with bundle forces
@@ -92,24 +95,36 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         bool GlueConflictingNodes() {
 
             RectangleNode<Station> circlesHierarchy = GetCirclesHierarchy();
-            if (circlesHierarchy == null) return false;
+            if (circlesHierarchy == null)
+            {
+                return false;
+            }
+
             Dictionary<Station, Station> gluingMap = new Dictionary<Station, Station>();
             Set<Station> gluedDomain = new Set<Station>();
             RectangleNodeUtils.CrossRectangleNodes<Station>(circlesHierarchy, circlesHierarchy,
                                                             (i, j) => TryToGlueNodes(i, j, gluingMap, gluedDomain));
             if (gluingMap.Count == 0)
+            {
                 return false;
+            }
 
             for (int i = 0; i < metroGraphData.Edges.Length; i++)
+            {
                 RegenerateEdge(gluingMap, i);
+            }
 
             //can it be more efficient?
             HashSet<Point> affectedPoints = [];
             foreach (Station s in gluedDomain) {
                 affectedPoints.Add(s.Position);
                 foreach (Station neig in s.Neighbors)
+                {
                     if (!neig.IsRealNode)
+                    {
                         affectedPoints.Add(neig.Position);
+                    }
+                }
             }
 
             //TimeMeasurer.DebugOutput("gluing nodes");
@@ -143,7 +158,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 //double r = idealR;
                 Debug.Assert(r <= idealR);
                 foreach (Station adj in node.Neighbors)
+                {
                     r = Math.Min(r, (node.Position - adj.Position).Length);
+                }
+
                 return r;
             }
         }
@@ -154,10 +172,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             double r1 = Math.Max(i.Radius, 5);
             double r2 = Math.Max(j.Radius, 5);
             if (d >= r1 + r2)
+            {
                 return;
+            }
             //we are greedily trying to glue i to j
             if (!TryGlueOrdered(i, j, gluedDomain, gluingMap))
+            {
                 TryGlueOrdered(j, i, gluedDomain, gluingMap);
+            }
         }
 
         bool TryGlueOrdered(Station i, Station j, Set<Station> gluedDomain, Dictionary<Station, Station> gluingMap) {
@@ -183,19 +205,27 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 //1. check that we can merge these stations (== no intersections)
                 Set<Polyline> obstaclesToIgnore = metroGraphData.looseIntersections.ObstaclesToIgnoreForBundle(k, i);
                 if (!metroGraphData.cdtIntersections.EdgeIsLegal(k, j, k.Position, j.Position, obstaclesToIgnore))
+                {
                     return false;
+                }
             }
 
             //2. check that cost of the routing is reduced
             double delta = ComputeCostDeltaAfterNodeGluing(i, j, gluingMap);
-            if (delta < 0) return false;
+            if (delta < 0)
+            {
+                return false;
+            }
 
             return true;
         }
 
         double ComputeCostDeltaAfterNodeGluing(Station i, Station j, Dictionary<Station, Station> gluingMap) {
             double d = (i.Position - j.Position).Length;
-            if (i.Radius >= d || j.Radius >= d) return 1.0;
+            if (i.Radius >= d || j.Radius >= d)
+            {
+                return 1.0;
+            }
 
             double gain = 0;
 
@@ -232,7 +262,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         void RegenerateEdge(Dictionary<Station, Station> gluingMap, int edgeIndex) {
             Polyline poly = metroGraphData.Metrolines[edgeIndex].Polyline;
             if (!poly.Any(p => gluingMap.ContainsKey(metroGraphData.PointToStations[p])))
+            {
                 return;
+            }
 
             metroGraphData.Edges[edgeIndex].Curve =
                 new Polyline(GluedPolyline(poly.Select(p => metroGraphData.PointToStations[p]).ToArray(), gluingMap));
@@ -248,11 +280,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 if (seenStations.Contains(station)) {
                     //we made a cycle - need to cut it out
                     while (ret.Peek() != station)
+                    {
                         seenStations.Delete(ret.Pop());
+                    }
+
                     continue;
                 }
                 if (ApproximateComparer.Close(station.Position, ret.Peek().Position))
+                {
                     continue;
+                }
+
                 seenStations.Insert(station);
                 ret.Push(station);
             }
@@ -292,14 +330,20 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                     metroGraphData.PointToStations[metroline.Polyline.Start].EnterableLoosePolylines*
                     metroGraphData.PointToStations[metroline.Polyline.End].EnterableLoosePolylines;
                 if (TrySeparateOnPolyline(metroline, segsToPolylines, affectedPoints, obstaclesAllowedToIntersect))
+                {
                     progress = true;
+                }
             }
 
             if (progress) //TimeMeasurer.DebugOutput("unbundling");
+            {
                 metroGraphData.Initialize(false);
+            }
 
             if (alwaysExecuteSA || progress)
+            {
                 SimulatedAnnealing.FixRouting(metroGraphData, bundlingSettings, alwaysExecuteSA ? null : affectedPoints);
+            }
 
             return progress;
         }
@@ -311,9 +355,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             while (relaxing) {
                 relaxing = false;
                 for (PolylinePoint p = metroline.Polyline.StartPoint; p.Next != null && p.Next.Next != null; p = p.Next)
+                {
                     if (TryShortcutPolypoint(p, segsToPolylines, affectedPoints, obstaclesAllowedToIntersect))
+                    {
                         relaxing = true;
-                if (relaxing) progress = true;
+                    }
+                }
+
+                if (relaxing)
+                {
+                    progress = true;
+                }
             }
             return progress;
         }
@@ -348,11 +400,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                                                              bStation.EnterableLoosePolylines*
                                                              (aStation.EnterableLoosePolylines +
                                                               cStation.EnterableLoosePolylines)))
+            {
                 return false;
+            }
 
             //2. cost gain
             double inkgain = GetInkgain(pp, segsToPolylines, a, b, c);
-            if (inkgain < 0) return false;
+            if (inkgain < 0)
+            {
+                return false;
+            }
 
             return true;
         }
@@ -366,10 +423,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             double ab = (a - b).Length;
             double bc = (b - c).Length;
             double ac = (a - c).Length;
-            if (abPolylines.Count == abcPolylines.Count) newInk -= ab;
-            if (bcPolylines.Count == abcPolylines.Count) newInk -= bc;
+            if (abPolylines.Count == abcPolylines.Count)
+            {
+                newInk -= ab;
+            }
+
+            if (bcPolylines.Count == abcPolylines.Count)
+            {
+                newInk -= bc;
+            }
+
             if (!segsToPolylines.ContainsKey(new PointPair(a, c)) || segsToPolylines[new PointPair(a, c)].Count == 0)
+            {
                 newInk += ac;
+            }
+
             gain += CostCalculator.InkError(oldInk, newInk, bundlingSettings);
 
             //path lengths
@@ -413,14 +481,26 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             double ac = (a - c).Length;
 
             //fixing ink
-            if (abPolylines.Count == abcPolylines.Count) ink -= ab;
-            if (bcPolylines.Count == abcPolylines.Count) ink -= bc;
+            if (abPolylines.Count == abcPolylines.Count)
+            {
+                ink -= ab;
+            }
+
+            if (bcPolylines.Count == abcPolylines.Count)
+            {
+                ink -= bc;
+            }
+
             if (!segsToPolylines.ContainsKey(new PointPair(a, c)) || segsToPolylines[new PointPair(a, c)].Count == 0)
+            {
                 ink += ac;
+            }
 
             //fixing edge lengths
             foreach (Metroline metroline in abcPolylines)
+            {
                 polylineLength[metroline] -= ab + bc - ac;
+            }
 
             //fixing polylines
             foreach (Metroline metroline in abcPolylines) {
@@ -459,7 +539,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             HashSet<Point> affectedPoints = [];
             bool progress = false;
             foreach (Station node in metroGraphData.Stations)
-                if (GlueCollinearNeighbors(node, affectedPoints, step)) progress = true;
+            {
+                if (GlueCollinearNeighbors(node, affectedPoints, step))
+                {
+                    progress = true;
+                }
+            }
 
             if (progress) {
                 //TimeMeasurer.DebugOutput("gluing edges");
@@ -471,16 +556,23 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         bool GlueCollinearNeighbors(Station node, HashSet<Point> affectedPoints, int step) {
-            if (node.Neighbors.Length <= 1) return false;
+            if (node.Neighbors.Length <= 1)
+            {
+                return false;
+            }
 
             //node,adj => new via point
             Dictionary<Tuple<Station, Station>, Point> gluedEdges = [];
             Station[] neighbors = node.Neighbors;
             for (int i = 0; i < neighbors.Length; i++)
+            {
                 TryToGlueEdges(node, neighbors[i], neighbors[(i + 1) % neighbors.Length], gluedEdges, step);
+            }
 
             if (gluedEdges.Count == 0)
+            {
                 return false;
+            }
 
             foreach (KeyValuePair<Tuple<Station, Station>, Point> keyValuePair in gluedEdges) {
                 GlueEdge(keyValuePair);
@@ -499,7 +591,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 double la = (a.Position - node.Position).Length;
                 double lb = (b.Position - node.Position).Length;
                 double ratio = Math.Min(la, lb) / Math.Max(la, lb);
-                if (ratio < 0.05) return;
+                if (ratio < 0.05)
+                {
+                    return;
+                }
 
                 if (la < lb) {
                     if (EdgeGluingIsAllowed(node, a, b)) {
@@ -534,41 +629,71 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
         bool EdgeGluingIsAllowed(Station node, Station a, Station b) {
             //0. can't pass through real nodes
-            if (a.IsRealNode || b.IsRealNode) return false;
+            if (a.IsRealNode || b.IsRealNode)
+            {
+                return false;
+            }
 
             //1. check intersections)  Here we are bending the edge (node->b) to pass through a.Position.
             //We need to be sure that segments (node,a) and (a,b) intersect only obstacles enterable for the bundle (node, b)
-            if (!metroGraphData.cdtIntersections.EdgeIsLegal(a, b, a.Position, b.Position)) return false;
+            if (!metroGraphData.cdtIntersections.EdgeIsLegal(a, b, a.Position, b.Position))
+            {
+                return false;
+            }
 
             Set<Polyline> enterableForEdgeNodeB = metroGraphData.looseIntersections.ObstaclesToIgnoreForBundle(node, b);
 
             List<IntersectionInfo> crossingsOfEdgeNodeA = InteractiveEdgeRouter.IntersectionsOfLineAndRectangleNodeOverPolyline(new LineSegment(node.Position, a.Position), metroGraphData.LooseTree);
             if (!crossingsOfEdgeNodeA.All(ii => enterableForEdgeNodeB.Contains(ii.Segment1)))
+            {
                 return false;
+            }
 
             List<IntersectionInfo> crossingsOfEdgeab = InteractiveEdgeRouter.IntersectionsOfLineAndRectangleNodeOverPolyline(new LineSegment(a.Position, b.Position), metroGraphData.LooseTree);
             if (!crossingsOfEdgeab.All(ii => enterableForEdgeNodeB.Contains(ii.Segment1)))
+            {
                 return false;
+            }
 
             //2. check cost
             double delta = ComputeCostDeltaAfterEdgeGluing(node, a, b, a.Position);
-            if (delta < 0) return false;
+            if (delta < 0)
+            {
+                return false;
+            }
 
             return true;
         }
 
         bool EdgeGluingIsAllowed(Station node, Station a, Station b, Point gluingPoint) {
             //0. can't pass through real nodes
-            if (!metroGraphData.looseIntersections.HubAvoidsObstacles(gluingPoint, 0, a.EnterableLoosePolylines * b.EnterableLoosePolylines)) return false;
+            if (!metroGraphData.looseIntersections.HubAvoidsObstacles(gluingPoint, 0, a.EnterableLoosePolylines * b.EnterableLoosePolylines))
+            {
+                return false;
+            }
 
             //1. check intersections
-            if (!metroGraphData.cdtIntersections.EdgeIsLegal(node, null, node.Position, gluingPoint)) return false;
-            if (!metroGraphData.cdtIntersections.EdgeIsLegal(a, null, a.Position, gluingPoint)) return false;
-            if (!metroGraphData.cdtIntersections.EdgeIsLegal(b, null, b.Position, gluingPoint)) return false;
+            if (!metroGraphData.cdtIntersections.EdgeIsLegal(node, null, node.Position, gluingPoint))
+            {
+                return false;
+            }
+
+            if (!metroGraphData.cdtIntersections.EdgeIsLegal(a, null, a.Position, gluingPoint))
+            {
+                return false;
+            }
+
+            if (!metroGraphData.cdtIntersections.EdgeIsLegal(b, null, b.Position, gluingPoint))
+            {
+                return false;
+            }
 
             //2. check cost
             double delta = ComputeCostDeltaAfterEdgeGluing(node, a, b, gluingPoint);
-            if (delta < 0) return false;
+            if (delta < 0)
+            {
+                return false;
+            }
 
             return true;
         }
@@ -616,10 +741,25 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
         void AddEdgeToGlue(Station node, Station b, Station a, Point newp, Dictionary<Tuple<Station, Station>, Point> gluedEdges) {
             //same edge in the reverse direction      
-            if (gluedEdges.ContainsKey(new Tuple<Station, Station>(a, node))) return;
-            if (gluedEdges.ContainsKey(new Tuple<Station, Station>(b, node))) return;
-            if (gluedEdges.ContainsKey(new Tuple<Station, Station>(node, a))) return;
-            if (gluedEdges.ContainsKey(new Tuple<Station, Station>(node, b))) return;
+            if (gluedEdges.ContainsKey(new Tuple<Station, Station>(a, node)))
+            {
+                return;
+            }
+
+            if (gluedEdges.ContainsKey(new Tuple<Station, Station>(b, node)))
+            {
+                return;
+            }
+
+            if (gluedEdges.ContainsKey(new Tuple<Station, Station>(node, a)))
+            {
+                return;
+            }
+
+            if (gluedEdges.ContainsKey(new Tuple<Station, Station>(node, b)))
+            {
+                return;
+            }
 
             gluedEdges[new Tuple<Station, Station>(node, a)] = newp;
             gluedEdges[new Tuple<Station, Station>(node, b)] = newp;           
@@ -632,14 +772,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
             foreach (PolylinePoint? polylinePoint in node.MetroNodeInfos.Select(i => i.PolyPoint)) {
                 if (polylinePoint.Next != null && polylinePoint.Next.Point == a.Position)
+                {
                     SplitPolylinePoint(polylinePoint, newp);
+                }
                 else if (polylinePoint.Prev != null && polylinePoint.Prev.Point == a.Position)
+                {
                     SplitPolylinePoint(polylinePoint.Prev, newp);
+                }
             }
         }
 
         void SplitPolylinePoint(PolylinePoint node, Point pointToInsert) {
-            if (node.Point == pointToInsert || node.Next.Point == pointToInsert) return;
+            if (node.Point == pointToInsert || node.Next.Point == pointToInsert)
+            {
+                return;
+            }
 
             PolylinePoint p = new PolylinePoint(pointToInsert) { Polyline = node.Polyline, Next = node.Next, Prev = node };
             p.Next.Prev = p;
@@ -657,7 +804,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             HashSet<Point> affectedPoints = [];
             bool progress = false;
             foreach (Tuple<Station, Station> edge in metroGraphData.VirtualEdges())
-                if (RelaxConstrainedEdge(edge.Item1, edge.Item2, affectedPoints)) progress = true;
+            {
+                if (RelaxConstrainedEdge(edge.Item1, edge.Item2, affectedPoints))
+                {
+                    progress = true;
+                }
+            }
 
             if (progress) {
                 //TimeMeasurer.DebugOutput("relaxing constrained edges");
@@ -685,7 +837,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                     double distToSegmentEnd = Math.Min((a.Position - d.Item2).Length, (b.Position - d.Item2).Length);
                     double distAB = (a.Position - b.Position).Length;
                     double ratio = distToSegmentEnd / distAB;
-                    if (ratio < 0.1) continue;
+                    if (ratio < 0.1)
+                    {
+                        continue;
+                    }
 
                     //choose the closest
                     double dist = (d.Item1 - d.Item2).Length;
@@ -694,10 +849,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                         bestPoint = d.Item2;
                     }
                 }
-                if (bestDist == -1) return false;
+                if (bestDist == -1)
+                {
+                    return false;
+                }
 
                 if (!metroGraphData.looseIntersections.HubAvoidsObstacles(bestPoint, 0, a.EnterableLoosePolylines * b.EnterableLoosePolylines))
+                {
                     return false;
+                }
 
                 affectedPoints.Add(bestPoint);
                 affectedPoints.Add(a.Position);
@@ -707,16 +867,22 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                     PolylinePoint pp = null;
                     //TODO: replace the cycle!
                     foreach (PolylinePoint ppp in metroline.Polyline.PolylinePoints)
+                    {
                         if (ppp.Point == a.Position) {
                             pp = ppp;
                             break;
                         }
+                    }
 
                     Debug.Assert(pp != null);
                     if (pp.Next != null && pp.Next.Point == b.Position)
+                    {
                         SplitPolylinePoint(pp, bestPoint);
+                    }
                     else
+                    {
                         SplitPolylinePoint(pp.Prev, bestPoint);
+                    }
                 }
 
                 return true;

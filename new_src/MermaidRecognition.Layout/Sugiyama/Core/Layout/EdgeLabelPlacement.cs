@@ -107,7 +107,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
 
             List<IObstacle> nodeObstacles = new List<IObstacle>();
             foreach (Node v in nodes)
+            {
                 nodeObstacles.Add(new RectangleObstacle(v.BoundingBox, v));
+            }
 
             RTree<IObstacle> nodeObstacleMap =
                 new RTree<IObstacle>(nodeObstacles.Select(n => new KeyValuePair<Rectangle, IObstacle>(n.Rectangle, n)));
@@ -122,7 +124,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
                 List<KeyValuePair<double, Point>> curvePoints = CurvePoints(e.Curve ?? new LineSegment(e.Source.Center, e.Target.Center), modifiedGranularity);
                 edgePoints[e] = curvePoints;
                 foreach (KeyValuePair<double, Point> p in curvePoints)
+                {
                     edgeObstacles.Add(new PortObstacle(p.Value));
+                }
 
                 ProgressStep();
             }
@@ -132,10 +136,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         int GetModifiedGranularity(List<Edge> edgeList) {
             int modifiedGranularity = CollisionGranularity;
             if (ScaleCollisionGranularity)
+            {
                 modifiedGranularity = LayoutAlgorithmHelpers.LinearInterpolation(edgeList.Count, LowerEdgeBound,
                                                                                  UpperEdgeBound,
                                                                                  CollisionGranularity,
                                                                                  MaxGranularity);
+            }
+
             return modifiedGranularity;
         }
 
@@ -147,13 +154,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
             // Labels can be added by multiple threads at once.  Lock to prevent conflicts.
             // The lock doesn't appear to significantly affect the performance of the algorithm.
             lock (this)
+            {
                 if (labelObstacleMap == null) {
                     labelObstacleMap =
                         new RTree<IObstacle>(new[] {new KeyValuePair<Rectangle, IObstacle>(label.Rectangle, label)});
                     obstacleMaps[0] = labelObstacleMap;
                 }
                 else
+                {
                     labelObstacleMap.Add(label.Rectangle, label);
+                }
+            }
         }
 
         /// <summary>
@@ -170,7 +181,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
 
 #if NET4 && PARALLEL_SUPPORTED
             if (ParallelProcessingEnabled && lbs.Length > 50)
+            {
                 ParallelUtilities.ForEach(sortedLabels, PlaceLabel, ProgressSteps);
+            }
             else
 #endif
                 foreach (Label label in sortedLabels) {
@@ -185,17 +198,25 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         void PlaceLabel(Label label) {
             bool placed = false;
             if (label.PlacementStrategyPriority != null)
+            {
                 foreach (Label.PlacementStrategy s in label.PlacementStrategyPriority) {
                     placed = s == Label.PlacementStrategy.AlongCurve && PlaceEdgeLabelOnCurve(label)
                              || s == Label.PlacementStrategy.Horizontal && PlaceEdgeLabelHorizontally(label);
                     if (placed)
+                    {
                         break;
+                    }
                 }
+            }
 
             if (placed)
+            {
                 CalculateCenterNotSure(label);
+            }
             else // just place it at its desired location
+            {
                 PlaceLabelAtFirstPosition(label);
+            }
         }
 
         /// <summary>
@@ -229,9 +250,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         static void CalculateCenterNotSure(Label label) {
             Point cen = new Point();
             foreach (Point p in label.InnerPoints)
+            {
                 cen += p;
+            }
+
             foreach (Point p in label.OuterPoints)
+            {
                 cen += p;
+            }
+
             label.Center = cen/(label.InnerPoints.Count + label.OuterPoints.Count);
         }
 
@@ -256,7 +283,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
 
                 ICurve curve = e.Curve ?? new LineSegment(e.Source.Center, e.Target.Center);
                 Point der = curve.Derivative(cp.Key);
-                if (der.LengthSquared < ApproximateComparer.DistanceEpsilon) continue;
+                if (der.LengthSquared < ApproximateComparer.DistanceEpsilon)
+                {
+                    continue;
+                }
 
                 foreach (double side in GetPossibleSides(label.Side, der)) {
                     Rectangle queryRect = GetLabelBounds(cp.Value, der, wh, side);
@@ -268,13 +298,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
 
                         // If the best location was found, we're done
                         if (bestConflictIndex == int.MaxValue)
+                        {
                             break;
+                        }
                     }
                 }
 
                 // If the best location was found, we're done
                 if (bestConflictIndex == int.MaxValue)
+                {
                     break;
+                }
             }
 
             if (bestConflictIndex >= 0) {
@@ -418,9 +452,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
             int lower = upper = start + 1;
             while (lower > min || upper < max) {
                 if (lower > min)
+                {
                     yield return --lower;
+                }
+
                 if (upper < max)
+                {
                     yield return upper++;
+                }
             }
         }
 
@@ -553,7 +592,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
                 KeyValuePair<double, Point> p = curvePoints[i];
                 Point der = curve.Derivative(p.Key);
 
-                if (der.LengthSquared < ApproximateComparer.DistanceEpsilon) continue;
+                if (der.LengthSquared < ApproximateComparer.DistanceEpsilon)
+                {
+                    continue;
+                }
 
                 Point o = der.Rotate(Math.PI/2).Normalize()*side;
                 Point labelPos = p.Value + (radius + distanceFromCurve)*o;
@@ -603,14 +645,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
 
             for (int i = 0; i < obstacleMaps.Length; i++) {
                 if (obstacleMaps[i] == null)
+                {
                     continue;
+                }
 
                 foreach (IObstacle c in obstacleMaps[i].GetAllIntersecting(queryRect)) {
                     if (c is PortObstacle) {
                         if ((labelPos - ((PortObstacle) c).Location).LengthSquared < r2)
+                        {
                             return i;
+                        }
                     }
-                    else return i;
+                    else
+                    {
+                        return i;
+                    }
                 }
             }
 
@@ -629,7 +678,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
 
             for (int i = 0; i < obstacleMaps.Length; i++) {
                 if (obstacleMaps[i] == null)
+                {
                     continue;
+                }
 
                 foreach (IObstacle obstacle in obstacleMaps[i].GetAllIntersecting(queryRect)) {
                     // If we're overlapping a node...
@@ -660,7 +711,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         static void SubdivideCurveSegment(List<KeyValuePair<double, Point>> list, ICurve curve, double delta2,
                                           double start, double end) {
             if (list.Count > 64) //LN I saw this function never finishing for a very long curve
+            {
                 return;
+            }
+
             Point startPoint = curve[start];
             Point endPoint = curve[end];
             if ((startPoint - endPoint).LengthSquared > delta2) {

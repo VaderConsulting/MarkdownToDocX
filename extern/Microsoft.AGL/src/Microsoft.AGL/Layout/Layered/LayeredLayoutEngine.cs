@@ -110,10 +110,14 @@ namespace Microsoft.AGL.Layout.Layered {
                 Database = new Database();
                 this.nodeIdToIndex = nodeIdToIndex;
                 foreach (IntEdge e in graph.Edges)
+                {
                     database.RegisterOriginalEdgeInMultiedges(e);
+                }
 #if REPORTING
                 if (sugiyamaSettings.Reporting && SugiyamaLayoutLogger == null)
+                {
                     SugiyamaLayoutLogger = new SugiyamaLayoutLogger();
+                }
 #endif
                 CycleRemoval();
             }
@@ -144,7 +148,9 @@ namespace Microsoft.AGL.Layout.Layered {
                 foreach(Edge edge in edges){
                 
                     if (edge.Source == null || edge.Target == null)
+                    {
                         throw new InvalidOperationException(); //"creating an edge with null source or target");
+                    }
 
                     IntEdge intEdge = new IntEdge(nodeIdToIndex[edge.Source], nodeIdToIndex[edge.Target], edge);
 
@@ -157,7 +163,9 @@ namespace Microsoft.AGL.Layout.Layered {
                 sugiyamaSettings = settings;
                 Database = new Database();
                 foreach (IntEdge e in IntGraph.Edges)
+                {
                     database.RegisterOriginalEdgeInMultiedges(e);
+                }
 
                 CycleRemoval();
             }
@@ -180,16 +188,26 @@ namespace Microsoft.AGL.Layout.Layered {
         void SetGluedEdgesWeights() {
             Dictionary<IntPair, IntEdge> gluedPairsToGluedEdge = new Dictionary<IntPair, IntEdge>();
             foreach (IntEdge ie in GluedDagSkeletonForLayering.Edges)
+            {
                 gluedPairsToGluedEdge[new IntPair(ie.Source, ie.Target)] = ie;
+            }
 
             foreach (KeyValuePair<IntPair, List<IntEdge>> t in database.Multiedges)
+            {
                 if (t.Key.x != t.Key.y) {
                     IntPair gluedPair = VerticalConstraints.GluedIntPair(t.Key);
-                    if (gluedPair.x == gluedPair.y) continue;
+                    if (gluedPair.x == gluedPair.y)
+                    {
+                        continue;
+                    }
+
                     IntEdge gluedIntEdge = gluedPairsToGluedEdge[gluedPair];
                     foreach (IntEdge ie in t.Value)
+                    {
                         gluedIntEdge.Weight += ie.Weight;
+                    }
                 }
+            }
         }
 
         IEnumerable<IntEdge> GluedDagSkeletonEdges() {
@@ -203,7 +221,10 @@ namespace Microsoft.AGL.Layout.Layered {
             IEnumerable<IntEdge> gluedUpDownConstraints = from p in VerticalConstraints.GluedUpDownIntConstraints
                                                           select CreateUpDownConstrainedIntEdge(p);
             foreach (IntEdge edge in gluedUpDownConstraints)
+            {
                 ret.Insert(edge);
+            }
+
             return ret;
         }
 
@@ -234,9 +255,13 @@ namespace Microsoft.AGL.Layout.Layered {
                 engineLayerArrays = CalculateLayers();
   
                 if (!sugiyamaSettings.LayeringOnly)
+                {
                     RunPostLayering();
+                }
             } else
+            {
                 originalGraph.boundingBox.SetToEmpty();
+            }
 
 #if REPORTING
             if (sugiyamaSettings.Reporting) {
@@ -261,7 +286,10 @@ namespace Microsoft.AGL.Layout.Layered {
             EdgeRoutingSettings routingSettings = sugiyamaSettings.EdgeRoutingSettings;
             EdgeRoutingMode mode = routingSettings.EdgeRoutingMode;
             if (constrainedOrdering != null) //we switch to splines when there are constraints, since the ordering of virtual nodes sometimes does not do a good job
+            {
                 mode = EdgeRoutingMode.Spline;
+            }
+
             switch (mode) {
                 case EdgeRoutingMode.SugiyamaSplines:
                     CalculateEdgeSplines();
@@ -283,7 +311,10 @@ namespace Microsoft.AGL.Layout.Layered {
                     padding = sugiyamaSettings.NodeSeparation/20;
                     loosePadding = SplineRouter.ComputeLooseSplinePadding(sugiyamaSettings.NodeSeparation, padding)*2;
                     if (sugiyamaSettings.EdgeRoutingSettings.BundlingSettings == null)
+                    {
                         sugiyamaSettings.EdgeRoutingSettings.BundlingSettings = new BundlingSettings();
+                    }
+
                     SplineRouter br = new SplineRouter(originalGraph, padding, loosePadding, coneAngle,
                                               sugiyamaSettings.EdgeRoutingSettings.BundlingSettings);
                     br.Run();
@@ -350,7 +381,9 @@ namespace Microsoft.AGL.Layout.Layered {
                 FixEdgeSeparation(nodeIndex);
                 CalculateXLayersByGansnerNorthOnProperLayeredGraph();
             } else
+            {
                 CalculateXPositionsByBrandes(engineLayerArrays);
+            }
 
             for (int i = 0; i < IntGraph.NodeCount; i++) {
                 Node n = IntGraph.Nodes[i];
@@ -368,20 +401,24 @@ namespace Microsoft.AGL.Layout.Layered {
             if (nodePosition > 0) {
                 int target = layer[nodePosition - 1];
                 foreach (IntEdge ie in xLayoutGraph.OutEdges(nodeIndex))
+                {
                     if (ie.Target == target) {
                         ie.Separation =
                             (int) (sugiyamaSettings.NodeSeparation + a.LeftAnchor + anchors[target].RightAnchor + 1);
                         break;
                     }
+                }
             }
             if (nodePosition < layer.Length - 1) {
                 int source = layer[nodePosition + 1];
                 foreach (IntEdge ie in xLayoutGraph.InEdges(nodeIndex))
+                {
                     if (ie.Source == source) {
                         ie.Separation =
                             (int) (sugiyamaSettings.NodeSeparation + a.RightAnchor + anchors[source].LeftAnchor + 1);
                         break;
                     }
+                }
             }
         }
 
@@ -475,7 +512,9 @@ namespace Microsoft.AGL.Layout.Layered {
             TryToSatisfyMinWidhtAndMinHeight();
 
             for (int i = 0; i < IntGraph.Nodes.Count && i < database.Anchors.Length; i++)
+            {
                 IntGraph.Nodes[i].Center = database.Anchors[i].Origin;
+            }
 
             if (sugiyamaSettings.GridSizeByX > 0)
             {
@@ -525,10 +564,15 @@ namespace Microsoft.AGL.Layout.Layered {
 
         void TryToSatisfyMinWidth() {
             if (sugiyamaSettings.MinimalWidth == 0)
+            {
                 return;
+            }
+
             double w = GetCurrentWidth();
             if (w < sugiyamaSettings.MinimalWidth)
+            {
                 StretchWidth();
+            }
         }
 
         /// <summary>
@@ -543,22 +587,33 @@ namespace Microsoft.AGL.Layout.Layered {
 
             RealNumberSpan currentSpan = new RealNumberSpan();
             foreach (Anchor anchor in NodeAnchors())
+            {
                 currentSpan.AddValue(anchor.X);
+            }
 
             if (currentSpan.Length > ApproximateComparer.DistanceEpsilon) {
                 double stretch = desiredSpan.Length/currentSpan.Length;
                 if (stretch > 1)
+                {
                     foreach (Anchor a in anchors)
+                    {
                         a.X *= stretch;
+                    }
+                }
             }
         }
 
         void TryToSatisfyMinHeight() {
             if (sugiyamaSettings.MinimalHeight == 0)
+            {
                 return;
+            }
+
             double h = GetCurrentHeight();
             if (h < sugiyamaSettings.MinimalHeight)
+            {
                 StretchHeight();
+            }
         }
 
         double GetCurrentHeight() {
@@ -579,13 +634,19 @@ namespace Microsoft.AGL.Layout.Layered {
 
             RealNumberSpan currentSpan = new RealNumberSpan();
             foreach (Anchor anchor in NodeAnchors())
+            {
                 currentSpan.AddValue(anchor.Y);
+            }
 
             if (currentSpan.Length > ApproximateComparer.DistanceEpsilon) {
                 double stretch = desiredSpan.Length/currentSpan.Length;
                 if (stretch > 1)
+                {
                     foreach (Anchor a in anchors)
+                    {
                         a.Y *= stretch;
+                    }
+                }
             }
         }
 
@@ -603,9 +664,13 @@ namespace Microsoft.AGL.Layout.Layered {
 
         void StretchToDesiredAspectRatio(double aspectRatio, double desiredAR) {
             if (aspectRatio > desiredAR)
+            {
                 StretchInYDirection(aspectRatio/desiredAR);
+            }
             else if (aspectRatio < desiredAR)
+            {
                 StretchInXDirection(desiredAR/aspectRatio);
+            }
         }
 
         void StretchInYDirection(double scaleFactor) {
@@ -641,11 +706,17 @@ namespace Microsoft.AGL.Layout.Layered {
                 CalculateAnchorsAndYPositions(layerArrays);
 
                 if (Brandes)
+                {
                     CalculateXPositionsByBrandes(layerArrays);
+                }
                 else
+                {
                     CalculateXLayersByGansnerNorth(layerArrays);
+                }
             } else
+            {
                 anchors = database.Anchors;
+            }
 
             OptimizeEdgeLabelsLocations();
 
@@ -655,7 +726,9 @@ namespace Microsoft.AGL.Layout.Layered {
             CalculateOriginalGraphBox(out double aspectRatio);
 
             if (sugiyamaSettings.AspectRatio != 0)
+            {
                 StretchToDesiredAspectRatio(aspectRatio, sugiyamaSettings.AspectRatio);
+            }
 
             return layerArrays;
         }
@@ -691,12 +764,16 @@ namespace Microsoft.AGL.Layout.Layered {
 
         void DecideIfUsingFastXCoordCalculation(LayerArrays layerArrays) {
             if (layerArrays.X.Length >= sugiyamaSettings.BrandesThreshold)
+            {
                 Brandes = true;
+            }
 #if !SILVERLIGHT && !SHARPKIT
             else {
                 string s = Environment.GetEnvironmentVariable("Brandes");
                 if (!string.IsNullOrEmpty(s) && string.Compare(s, "on", true, CultureInfo.CurrentCulture) == 0)
+                {
                     Brandes = true;
+                }
             }
 #endif
         }
@@ -709,10 +786,15 @@ namespace Microsoft.AGL.Layout.Layered {
         bool StraightenEdgePaths() {
             bool ret = false;
             foreach (IntEdge e in database.AllIntEdges)
+            {
                 if (e.LayerSpan == 2)
+                {
                     ret =
                         ShiftVertexWithNeighbors(e.LayerEdges[0].Source, e.LayerEdges[0].Target, e.LayerEdges[1].Target) ||
                         ret;
+                }
+            }
+
             return ret;
             //foreach (LayerEdge[][] edgeStrings in this.dataBase.RefinedEdges.Values)
             //    if (edgeStrings[0].Length == 2)
@@ -732,9 +814,15 @@ namespace Microsoft.AGL.Layout.Layered {
             double x = (iAnchor.Y - upper.Y)*(lower.X - upper.X)/(lower.Y - upper.Y) + upper.X;
             const double eps = 0.0001;
             if (x > iAnchor.X + eps)
+            {
                 return TryShiftToTheRight(x, i);
+            }
+
             if (x < iAnchor.X - eps)
+            {
                 return TryShiftToTheLeft(x, i);
+            }
+
             return false;
         }
 
@@ -777,7 +865,10 @@ namespace Microsoft.AGL.Layout.Layered {
             LayerArrays layerArrays =
                 YLayeringAndOrdering(new NetworkSimplexForGeneralGraph(GluedDagSkeletonForLayering, CancelToken));
             if (constrainedOrdering != null)
+            {
                 return layerArrays;
+            }
+
             return InsertLayersIfNeeded(layerArrays);
         }
 
@@ -806,7 +897,9 @@ namespace Microsoft.AGL.Layout.Layered {
                         Point xy = new Point(nx, a.Y);
                         double sumWouldBe = (predecessor.Origin - xy).Length + (successor.Origin - xy).Length;
                         if (sumWouldBe < sumNow) //we need to swap
+                        {
                             PutLabelToTheLeft(a);
+                        }
                     }
                 }
             }
@@ -816,7 +909,9 @@ namespace Microsoft.AGL.Layout.Layered {
             if (a.LabelToTheRightOfAnchorCenter) {
                 if (Point.GetTriangleOrientation(predecessor.Origin, a.Origin, successor.Origin) ==
                     TriangleOrientation.Clockwise)
+                {
                     return true;
+                }
 
                 double la = a.LeftAnchor;
                 double ra = a.RightAnchor;
@@ -824,7 +919,10 @@ namespace Microsoft.AGL.Layout.Layered {
                 PutLabelToTheLeft(a);
                 if (Point.GetTriangleOrientation(predecessor.Origin, a.Origin, successor.Origin) ==
                     TriangleOrientation.Counterclockwise)
+                {
                     return true;
+                }
+
                 a.X = x;
                 a.LeftAnchor = la;
                 a.RightAnchor = ra;
@@ -849,11 +947,15 @@ namespace Microsoft.AGL.Layout.Layered {
         void GetSuccessorAndPredecessor(int i, out Anchor p, out Anchor s) {
             int predecessor = 10; //the value does not matter, just to silence the compiler
             foreach (LayerEdge ie in properLayeredGraph.InEdges(i))
+            {
                 predecessor = ie.Source; // there will be only one
+            }
 
             int successor = 10; // the value does not matter, just to silence the compiler
             foreach (LayerEdge ie in properLayeredGraph.OutEdges(i))
+            {
                 successor = ie.Target; //there will be only one
+            }
 
             //we compare the sum of length of projections of edges (predecessor,i), (i,successor) to x in cases when the label is to the right and to the left
             p = anchors[predecessor];
@@ -930,7 +1032,9 @@ namespace Microsoft.AGL.Layout.Layered {
             //TestYXLayers(layerArrays, xLayers);//this will not be called in the release version
 
             for (int i = 0; i < database.Anchors.Length; i++)
+            {
                 anchors[i].X = xLayers[i];
+            }
         }
 
         //[System.Diagnostics.Conditional("DEBUGGLEE")]
@@ -976,7 +1080,10 @@ namespace Microsoft.AGL.Layout.Layered {
                 Debug.Assert(span >= 0);
 
                 if (span > 0)
+                {
                     e.LayerEdges = new LayerEdge[span];
+                }
+
                 int pe = 0; //offset in the string
 
                 if (span > 1) {
@@ -1008,15 +1115,19 @@ namespace Microsoft.AGL.Layout.Layered {
             int[] extendedVertexLayering = new int[originalGraph.Nodes.Count + nOfVV];
 
             foreach (IntEdge e in database.SkeletonEdges())
+            {
                 if (e.LayerEdges != null) {
                     int l = layering[e.Source];
                     extendedVertexLayering[e.Source] = l--;
                     foreach (LayerEdge le in e.LayerEdges)
+                    {
                         extendedVertexLayering[le.Target] = l--;
+                    }
                 } else {
                     extendedVertexLayering[e.Source] = layering[e.Source];
                     extendedVertexLayering[e.Target] = layering[e.Target];
                 }
+            }
 
             properLayeredGraph =
                 new ProperLayeredGraph(new BasicGraph<Node, IntEdge>(database.SkeletonEdges(), layering.Length));
@@ -1145,7 +1256,9 @@ namespace Microsoft.AGL.Layout.Layered {
                 LayerInserter.InsertLayers(ref properLayeredGraph, ref layerArrays, database, IntGraph);
                 LayersAreDoubled = true;
             } else if (multipleEdges)
+            {
                 EdgePathsInserter.InsertPaths(ref properLayeredGraph, ref layerArrays, database, IntGraph);
+            }
 
             RecreateIntGraphFromDataBase();
 
@@ -1159,22 +1272,29 @@ namespace Microsoft.AGL.Layout.Layered {
         void RecreateIntGraphFromDataBase() {
             List<IntEdge> edges = new List<IntEdge>();
             foreach (List<IntEdge> list in database.Multiedges.Values)
+            {
                 edges.AddRange(list);
+            }
+
             IntGraph.SetEdges(edges, IntGraph.NodeCount);
         }
 
         void AnalyzeNeedToInsertLayersAndHasMultiedges(LayerArrays layerArrays, ref bool needToInsertLayers,
                                                        ref bool multipleEdges) {
             foreach (IntEdge ie in IntGraph.Edges)
+            {
                 if (ie.HasLabel && layerArrays.Y[ie.Source] != layerArrays.Y[ie.Target]) {
                     //if an edge is a flat edge then
                     needToInsertLayers = true;
                     break;
                 }
+            }
 
             if (needToInsertLayers == false && constrainedOrdering == null)
+            {
                 //if we have constrains the multiple edges have been already represented in layers
                 foreach (KeyValuePair<IntPair, List<IntEdge>> kv in database.Multiedges)
+                {
                     if (kv.Value.Count > 1) {
                         multipleEdges = true;
                         if (layerArrays.Y[kv.Key.x] - layerArrays.Y[kv.Key.y] == 1) {
@@ -1184,13 +1304,18 @@ namespace Microsoft.AGL.Layout.Layered {
                             break;
                         }
                     }
+                }
+            }
         }
 
         void InsertVirtualEdgesIfNeeded(LayerArrays layerArrays) {
             if (constrainedOrdering != null) //if there are constraints we handle multiedges correctly
+            {
                 return;
+            }
 
             foreach (KeyValuePair<IntPair, List<IntEdge>> kv in database.Multiedges)
+            {
                 // If there are an even number of multi-edges between two nodes then
                 //  add a virtual edge in the multi-edge dict to improve the placement, but only in case when the edge goes down only one layer.         
                 if (kv.Value.Count%2 == 0 && layerArrays.Y[kv.Key.First] - 1 == layerArrays.Y[kv.Key.Second]) {
@@ -1202,6 +1327,7 @@ namespace Microsoft.AGL.Layout.Layered {
                     kv.Value.Insert(kv.Value.Count/2, newVirtualEdge);
                     IntGraph.AddEdge(newVirtualEdge);
                 }
+            }
         }
 
 
@@ -1209,7 +1335,10 @@ namespace Microsoft.AGL.Layout.Layered {
             if (VerticalConstraints.IsEmpty) {
                 int[] ret = new int[IntGraph.NodeCount];
                 for (int i = 0; i < ret.Length; i++)
+                {
                     ret[i] = 1;
+                }
+
                 return ret;
             }
             return VerticalConstraints.GetGluedNodeCounts();
@@ -1218,14 +1347,19 @@ namespace Microsoft.AGL.Layout.Layered {
         int[] ExtendLayeringToUngluedSameLayerVertices(int[] p) {
             VerticalConstraintsForSugiyama vc = VerticalConstraints;
             for (int i = 0; i < p.Length; i++)
+            {
                 p[i] = p[vc.NodeToRepr(i)];
+            }
+
             return p;
         }
 
         void CalculateEdgeSplines() {
 #if REPORTING
             if (sugiyamaSettings.Reporting)
+            {
                 Report("calculating splines ... ");
+            }
 #endif
             Routing routing = new Routing(sugiyamaSettings, originalGraph, database, engineLayerArrays, properLayeredGraph,
                                       IntGraph);
@@ -1258,14 +1392,19 @@ namespace Microsoft.AGL.Layout.Layered {
             database.Anchors = anchors = new Anchor[properLayeredGraph.NodeCount];
 
             for (int i = 0; i < anchors.Length; i++)
+            {
                 anchors[i] = new Anchor(settings.LabelCornersPreserveCoefficient);
+            }
 
             //go over the old vertices
             for (int i = 0; i < originalGraph.Nodes.Count; i++)
+            {
                 CalcAnchorsForOriginalNode(i, intGraph, anchors, database, settings);
+            }
 
             //go over virtual vertices
             foreach (IntEdge intEdge in database.AllIntEdges)
+            {
                 if (intEdge.LayerEdges != null) {
                     foreach (LayerEdge layerEdge in intEdge.LayerEdges) {
                         int v = layerEdge.Target;
@@ -1289,11 +1428,14 @@ namespace Microsoft.AGL.Layout.Layered {
                         a.LeftAnchor = VirtualNodeWidth*8;
 
                         if (a.TopAnchor < h/2.0)
+                        {
                             a.TopAnchor = a.BottomAnchor = h/2.0;
+                        }
 
                         a.LabelToTheRightOfAnchorCenter = true;
                     }
                 }
+            }
         }
 
         /// <summary>
@@ -1314,9 +1456,14 @@ namespace Microsoft.AGL.Layout.Layered {
                 foreach (int j in yLayer) {
                     Anchor p = anchors[j];
                     if (p.BottomAnchor > bottomAnchorMax)
+                    {
                         bottomAnchorMax = p.BottomAnchor;
+                    }
+
                     if (p.TopAnchor > topAnchorMax)
+                    {
                         topAnchorMax = p.TopAnchor;
+                    }
                 }
 
                 MakeVirtualNodesTall(yLayer, bottomAnchorMax, topAnchorMax, originalGraph.Nodes.Count, database.Anchors);
@@ -1327,7 +1474,10 @@ namespace Microsoft.AGL.Layout.Layered {
                 double layerTop = layerCenter + topAnchorMax;
                 if (NeedToSnapTopsToGrid(settings)) {
                     layerTop += SnapDeltaUp(layerTop, settings.GridSizeByY);
-                    foreach (int j in yLayer) anchors[j].Top = layerTop;                   
+                    foreach (int j in yLayer)
+                    {
+                        anchors[j].Top = layerTop;
+                    }
                 } else if (NeedToSnapBottomsToGrid(settings)) {
                     double layerBottom = layerCenter - bottomAnchorMax;
                     layerBottom += SnapDeltaUp(layerBottom, layerBottom);
@@ -1337,8 +1487,14 @@ namespace Microsoft.AGL.Layout.Layered {
                         layerTop = Math.Max(anchors[j].Top, layerTop);
                     }
                 }
-                else foreach (int j in yLayer) anchors[j].Y = layerCenter;
-                
+                else
+                {
+                    foreach (int j in yLayer)
+                    {
+                        anchors[j].Y = layerCenter;
+                    }
+                }
+
                 double layerSep = settings.ActualLayerSeparation(layersAreDoubled);
                 ymax = layerTop + layerSep;
                 i++;
@@ -1354,7 +1510,9 @@ namespace Microsoft.AGL.Layout.Layered {
         static double SnapDeltaUp(double y, double gridSize)
         {
             if (gridSize == 0)
+            {
                 return 0;
+            }
             // how much to snap?
             int k =(int) (y / gridSize);
             double delta = y - k * gridSize;
@@ -1473,18 +1631,27 @@ namespace Microsoft.AGL.Layout.Layered {
         static void MakeVirtualNodesTall(int[] yLayer, double bottomAnchorMax, double topAnchorMax,
                                          int originalNodeCount, Anchor[] anchors) {
             if (LayerIsOriginal(yLayer, originalNodeCount))
+            {
                 foreach (int j in yLayer)
+                {
                     if (j >= originalNodeCount) {
                         Anchor p = anchors[j];
                         p.BottomAnchor = bottomAnchorMax;
                         p.TopAnchor = topAnchorMax;
                     }
+                }
+            }
         }
 
         static bool LayerIsOriginal(int[] yLayer, int origNodeCount) {
             foreach (int j in yLayer)
+            {
                 if (j < origNodeCount)
+                {
                     return true;
+                }
+            }
+
             return false;
         }
 
@@ -1506,15 +1673,26 @@ namespace Microsoft.AGL.Layout.Layered {
 
             double hw = settings.MinNodeWidth/2;
             if (leftAnchor < hw)
+            {
                 leftAnchor = hw;
+            }
+
             if (rightAnchor < hw)
+            {
                 rightAnchor = hw;
+            }
+
             double hh = settings.MinNodeHeight/2;
 
             if (topAnchor < hh)
+            {
                 topAnchor = hh;
+            }
+
             if (bottomAnchor < hh)
+            {
                 bottomAnchor = hh;
+            }
 
             anchors[i] = new Anchor(leftAnchor, rightAnchor, topAnchor, bottomAnchor, intGraph.Nodes[i],
                                     settings.LabelCornersPreserveCoefficient) {Padding = intGraph.Nodes[i].Padding};
@@ -1538,11 +1716,15 @@ namespace Microsoft.AGL.Layout.Layered {
             //it could be a multiple self edge
             if (multiedges.Count > 0) {
                 foreach (IntEdge e in multiedges)
+                {
                     if (e.Edge.Label != null) {
                         rightAnchor += e.Edge.Label.Width;
                         if (topAnchor < e.Edge.Label.Height/2.0)
+                        {
                             topAnchor = bottomAnchor = e.Edge.Label.Height/2.0f;
+                        }
                     }
+                }
 
                 delta += (settings.NodeSeparation + settings.MinNodeWidth)*multiedges.Count;
             }
@@ -1599,6 +1781,7 @@ namespace Microsoft.AGL.Layout.Layered {
             }
 
             foreach (int[] layer in layerArrays.Layers)
+            {
                 for (int i = layer.Length - 1; i > 0; i--) {
                     int source = layer[i];
                     int target = layer[i - 1];
@@ -1612,6 +1795,7 @@ namespace Microsoft.AGL.Layout.Layered {
 
                     edges.Add(ie);
                 }
+            }
 
             XLayoutGraph ret = new XLayoutGraph(IntGraph, properLayeredGraph, layerArrays, edges, nOfVerts);
             ret.SetEdgeWeights();
@@ -1621,7 +1805,9 @@ namespace Microsoft.AGL.Layout.Layered {
 #if REPORTING
         ~LayeredLayoutEngine() {
             if (SugiyamaLayoutLogger != null)
+            {
                 SugiyamaLayoutLogger.Dispose();
+            }
         }
 #endif
 

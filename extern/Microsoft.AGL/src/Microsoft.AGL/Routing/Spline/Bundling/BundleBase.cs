@@ -135,12 +135,20 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         internal double SpanBetweenTwoPoints(double right, double left) => (right <= left ? left - right : left - right + ParameterSpan);
 
         internal Point RotateLeftPoint(int rotationOfSourceLeftPoint, double parameterChange) {
-            if (rotationOfSourceLeftPoint == 0) return LeftPoint;
+            if (rotationOfSourceLeftPoint == 0)
+            {
+                return LeftPoint;
+            }
+
             return RotatePoint(rotationOfSourceLeftPoint, parLeft, parameterChange);
         }
 
         internal Point RotateRigthPoint(int rotationOfSourceRightPoint, double parameterChange) {
-            if (rotationOfSourceRightPoint == 0) return RightPoint;
+            if (rotationOfSourceRightPoint == 0)
+            {
+                return RightPoint;
+            }
+
             return RotatePoint(rotationOfSourceRightPoint, parRight, parameterChange);
         }
 
@@ -155,33 +163,54 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         internal double AdjustParam(double t) {
             if (t > Curve.ParEnd)
+            {
                 t = Curve.ParStart + (t - Curve.ParEnd);
+            }
             else if (t < Curve.ParStart)
+            {
                 t = Curve.ParEnd - (Curve.ParStart - t);
+            }
+
             return t;
         }
 
         internal void RotateBy(int rotationOfRightPoint, int rotationOfLeftPoint, double parameterChange) {
             double change = ParameterSpan * parameterChange;
             if (rotationOfRightPoint != 0)
+            {
                 ParRight = AdjustParam(ParRight + rotationOfRightPoint * change);
+            }
+
             if (rotationOfLeftPoint != 0)
+            {
                 ParLeft = AdjustParam(ParLeft + rotationOfLeftPoint * change);
+            }
         }
 
         internal bool Intersect(BundleBase other) => Intersect(parRight, parLeft, other.parRight, other.parLeft);
 
         internal bool Intersect(double lParRight, double lParLeft, double rParRight, double rParLeft) {
             if (lParRight > lParLeft)
+            {
                 return Intersect(lParRight, Curve.ParEnd, rParRight, rParLeft) || Intersect(Curve.ParStart, lParLeft, rParRight, rParLeft);
+            }
 
             if (rParRight > rParLeft)
+            {
                 return Intersect(lParRight, lParLeft, rParRight, Curve.ParEnd) || Intersect(lParRight, lParLeft, Curve.ParStart, rParLeft);
+            }
 
             Debug.Assert(lParRight <= lParLeft);
             Debug.Assert(rParRight <= rParLeft);
-            if (ApproximateComparer.LessOrEqual(lParLeft, rParRight)) return false;
-            if (ApproximateComparer.LessOrEqual(rParLeft, lParRight)) return false;
+            if (ApproximateComparer.LessOrEqual(lParLeft, rParRight))
+            {
+                return false;
+            }
+
+            if (ApproximateComparer.LessOrEqual(rParLeft, lParRight))
+            {
+                return false;
+            }
 
             return true;
         }
@@ -192,17 +221,28 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             //we do not swap parRight and parLeft
             double rnew = parRight + rotationOfRightPoint * change;
             double lnew = (parRight < parLeft ? parLeft + rotationOfLeftPoint * change : parLeft + ParameterSpan + rotationOfLeftPoint * change);
-            if (rnew > lnew) return false;
+            if (rnew > lnew)
+            {
+                return false;
+            }
 
             //span could not be greater than pi
-            if (SpanBetweenTwoPoints(rnew, lnew) > ParameterSpan / 2.0) return false;
+            if (SpanBetweenTwoPoints(rnew, lnew) > ParameterSpan / 2.0)
+            {
+                return false;
+            }
 
             //the base is the only base in the hub
-            if (Prev == null) return true;
+            if (Prev == null)
+            {
+                return true;
+            }
 
             //distance between mid points is larger than parameterChange => we can't change the order
             if (SpanBetweenTwoPoints(Prev.ParMid, ParMid) > change && SpanBetweenTwoPoints(ParMid, Next.ParMid) > change)
+            {
                 return true;
+            }
 
             Point rSoP = RotateLeftPoint(rotationOfLeftPoint, parameterChange);
             Point lSoP = RotateRigthPoint(rotationOfRightPoint, parameterChange);
@@ -211,11 +251,15 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
             //check Prev
             if (Point.GetTriangleOrientation(CurveCenter, Prev.MidPoint, curMidPoint) != Point.GetTriangleOrientation(CurveCenter, Prev.MidPoint, newMidPoint))
+            {
                 return false;
+            }
 
             //Next
             if (Point.GetTriangleOrientation(CurveCenter, Next.MidPoint, curMidPoint) != Point.GetTriangleOrientation(CurveCenter, Next.MidPoint, newMidPoint))
+            {
                 return false;
+            }
 
             return true;
         }

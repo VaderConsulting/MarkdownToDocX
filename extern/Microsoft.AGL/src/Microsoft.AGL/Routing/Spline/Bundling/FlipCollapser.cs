@@ -62,7 +62,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         void CreatePathsThroughPoints() {
             foreach (Polyline poly in Polylines)
+            {
                 CreatePathsThroughPointsForPolyline(poly);
+            }
         }
 
         void CreatePathsThroughPointsForPolyline(Polyline poly) {
@@ -80,7 +82,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         //TODO
         Set<PolylinePoint> GetOrCreatePassingPathsSet(PolylinePoint pp) {
             if (pathsThroughPoints.TryGetValue(pp.Point, out Set<PolylinePoint> set))
+            {
                 return set;
+            }
 
             pathsThroughPoints[pp.Point] = set = [];
             return set;
@@ -90,16 +94,21 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             Set<Polyline> queued = new Set<Polyline>(Polylines);
             Queue<Polyline> queue = new Queue<Polyline>();
             foreach (Polyline e in Polylines)
+            {
                 queue.Enqueue(e);
+            }
+
             while (queue.Count > 0) {
                 Polyline initialPolyline = queue.Dequeue();
                 queued.Remove(initialPolyline);
                 Polyline changedPolyline = ProcessPolyline(initialPolyline);
                 if (changedPolyline != null)
+                {
                     if (!queued.Contains(changedPolyline)) {
                         queued.Insert(changedPolyline);
                         queue.Enqueue(changedPolyline);
                     }
+                }
             }
         }
 
@@ -119,7 +128,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                 //look for a returning path
                 foreach (PolylinePoint polyPoint in pathsThroughPoints[pp.Point]) {
                     if (departed.TryGetValue(polyPoint.Polyline, out PolylinePoint pointOfDeparture))
+                    {
                         return pointOfDeparture.Polyline;
+                    }
                 }
             }
 
@@ -215,7 +226,11 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         }
 
         Set<CdtEdge> GetCdtEdgesCrossedByPath(Polyline polyline) {
-            if (cdt == null) return null;
+            if (cdt == null)
+            {
+                return null;
+            }
+
             Set<CdtEdge> ret = new CdtGeneralPolylineTracer(polyline.PolylinePoints, siteHierarchy, triangleHierarchy).GetCrossedEdges();
             return ret;
         }
@@ -240,24 +255,40 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             Debug.Assert(abFirstP.Polyline != a);
             List<PolylinePoint> ret = new List<PolylinePoint>();
             for (PolylinePoint p = a.StartPoint; p != aFirstP; p = p.Next)
+            {
                 ret.Add(p);
+            }
 
             if (aFirstBeforeALastOnB)
+            {
                 for (PolylinePoint p = abFirstP; p != abLastP; p = p.Next)
+                {
                     ret.Add(p);
+                }
+            }
             else
+            {
                 for (PolylinePoint p = abFirstP; p != abLastP; p = p.Prev)
+                {
                     ret.Add(p);
+                }
+            }
 
             for (PolylinePoint p = aLastP; p != null; p = p.Next)
+            {
                 ret.Add(p);
+            }
 
             return ret;
         }
 
         Set<CdtEdge> GetChannelEdgeOfCollapsedA(Polyline a, PolylinePoint aFirstP, PolylinePoint abFirstP,
                                                 PolylinePoint aLastP, PolylinePoint abLastP, bool aFirstBeforeALastOnB) {
-            if (cdt == null) return null;
+            if (cdt == null)
+            {
+                return null;
+            }
+
             CdtGeneralPolylineTracer tracer = new CdtGeneralPolylineTracer(CollapsedPolylinePolylinePoints(a, aFirstP, abFirstP, aLastP,
                                                                                       abLastP,
                                                                                       aFirstBeforeALastOnB),
@@ -328,15 +359,22 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         Dictionary<Point, PolylinePoint> GetPointMap(Polyline a) {
             Dictionary<Point, PolylinePoint> aPointMap = new Dictionary<Point, PolylinePoint>();
             foreach (PolylinePoint p in a.PolylinePoints)
+            {
                 aPointMap[p.Point] = p;
+            }
+
             return aPointMap;
         }
 
         bool PolylinePointsAreInCorrectOrder(PolylinePoint u, PolylinePoint v) {
             Debug.Assert(u.Polyline == v.Polyline);
             for (PolylinePoint p = u; p != null; p = p.Next)
+            {
                 if (p == v)
+                {
                     return true;
+                }
+            }
 
             return false;
         }
@@ -366,7 +404,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             aFirstP.Next = aLastP;
             aLastP.Prev = aFirstP;
             if (cdt != null)
+            {
                 UpdateResidualCapacities(aFirstP, abondonedEdges, enteredEdges);
+            }
         }
 
         void UpdateResidualCapacities(PolylinePoint aFirstP, IEnumerable<CdtEdge> abondonedEdges, IEnumerable<CdtEdge> enteredEdges) {
@@ -375,14 +415,20 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             foreach (CdtEdge edge in abondonedEdges) {
                 edge.ResidualCapacity += (edgeSeparation + width);
                 if (edge.ResidualCapacity > edge.Capacity)
+                {
                     edge.ResidualCapacity = edge.Capacity;
+                }
             }
 
             foreach (CdtEdge edge in enteredEdges) {
                 if (edge.ResidualCapacity == edge.Capacity)
+                {
                     edge.ResidualCapacity -= width;
+                }
                 else
+                {
                     edge.ResidualCapacity -= width + edgeSeparation;
+                }
             }
         }
 
@@ -408,21 +454,36 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         }
 
         double SavedCapacityPenalty(EdgeGeometry edgeGeometry, IEnumerable<CdtEdge> abondonedEdges) {
-            if (abondonedEdges == null) return 0;
+            if (abondonedEdges == null)
+            {
+                return 0;
+            }
+
             return abondonedEdges.Sum(cdtEdge => SavedCapacityPenaltyOnCdtEdge(cdtEdge, edgeGeometry));
         }
 
         double SavedCapacityPenaltyOnCdtEdge(CdtEdge cdtEdge, EdgeGeometry edgeGeometry) {
-            if (cdtEdge.ResidualCapacity > 0) return 0;
+            if (cdtEdge.ResidualCapacity > 0)
+            {
+                return 0;
+            }
 
             double savedDelta;
             double width = edgeGeometry.LineWidth;
             if (cdtEdge.ResidualCapacity == cdtEdge.Capacity - width)
+            {
                 savedDelta = width;
+            }
             else
+            {
                 savedDelta = width + bundlingSettings.EdgeSeparation;
+            }
+
             if (savedDelta > -cdtEdge.ResidualCapacity)
+            {
                 savedDelta = -cdtEdge.ResidualCapacity;
+            }
+
             return savedDelta * SdShortestPath.CapacityOverflowPenaltyMultiplier(bundlingSettings);
         }
 
@@ -438,7 +499,11 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         }
 
         double AddedCapacityPenalty(EdgeGeometry edgeGeometry, IEnumerable<CdtEdge> enteredCdtEdges) {
-            if (cdt == null) return 0;
+            if (cdt == null)
+            {
+                return 0;
+            }
+
             return enteredCdtEdges.Sum(cdtEdge => AddedCapacityPenaltyForCdtEdge(cdtEdge, edgeGeometry));
         }
 
@@ -460,7 +525,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         double LengthBetween(PolylinePoint aFirst, PolylinePoint aLast) {
             double r = 0;
             for (PolylinePoint p = aFirst; p != aLast; p = p.Next)
+            {
                 r += (p.Point - p.Next.Point).Length;
+            }
+
             return r;
         }
 
@@ -487,7 +555,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         //TODO
         void UnregisterSegment(PolylinePoint b, PolylinePoint bm) {
             for (b = b.Next; b != bm; b = b.Next)
+            {
                 UnregisterPolypointFromPathsThrough(b);
+            }
         }
 
         void UnregisterPolypointFromPathsThrough(PolylinePoint b) {
@@ -506,7 +576,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         double RandomCost(PolylinePoint p0, PolylinePoint p1) {
             double w = 0;
             for (; p0 != p1; p0 = p0.Next)
+            {
                 w += GetRandomWeightOfPolylinePoint(p0);
+            }
+
             return w;
         }
 
@@ -520,7 +593,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         double GetRandomWeightOfPolylinePoint(PolylinePoint p) {
             PointPair pointPair = OrderedPair(p);
             if (randomWeights.TryGetValue(pointPair, out double weight))
+            {
                 return weight;
+            }
+
             randomWeights[pointPair] = weight = random.NextDouble();
             return weight;
         }

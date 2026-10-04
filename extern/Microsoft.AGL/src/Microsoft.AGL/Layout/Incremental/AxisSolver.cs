@@ -284,7 +284,9 @@ namespace Microsoft.AGL.Layout.Incremental {
             if (avoidOverlaps && (null != clusterHierarchies) && (0 != solution.NumberOfUnsatisfiableConstraints ))
             {
                 foreach (Cluster c in clusterHierarchies)
+                {
                     DebugVerifyClusters(cg, c, c);
+                }
             }
         }
 
@@ -320,7 +322,11 @@ namespace Microsoft.AGL.Layout.Incremental {
                     }
                     // Make sure the node doesn't intersect any following nodes, or any clusters.
                     foreach (Node u in incCluster.Nodes) {
-                        if (u == v) continue;
+                        if (u == v)
+                        {
+                            continue;
+                        }
+
                         FiNode jjFilNode = (FiNode)u.AlgorithmData;
                         Rectangle jjNodeRect = jjFilNode.mNode.BoundaryCurve.BoundingBox;
 
@@ -360,7 +366,11 @@ namespace Microsoft.AGL.Layout.Incremental {
                     }
                     // Make sure the cluster doesn't intersect any following clusters.
                     foreach (Cluster jjIncClus in incCluster.Clusters) {
-                        if (jjIncClus == iiIncClus) continue;
+                        if (jjIncClus == iiIncClus)
+                        {
+                            continue;
+                        }
+
                         Rectangle jjClusRect = jjIncClus.RectangularBoundary.rectangle;
                         DebugVerifyRectsDisjoint(iiClusRect, jjClusRect
                                                 , generator.PaddingP, generator.Padding, dblEpsilon);

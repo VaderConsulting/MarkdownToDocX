@@ -94,7 +94,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         public Rectangle BoundingBox {
             get {
                 if (Geometry is ICurve icurve)
+                {
                     return icurve.BoundingBox;
+                }
+
                 Arrowhead arrowhead = (Arrowhead) Geometry;
                 Rectangle rec = new Rectangle(arrowhead.TipPosition, CurveAttachmentPoint);
                 rec.Pad(arrowhead.Width); // sometimes this box will not cover the arrowhead, but rarely
@@ -112,7 +115,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
 
         internal Tuple<Point, Point> PointTuple() {
             if (Geometry is ICurve icurve)
+            {
                 return new Tuple<Point, Point>(icurve.Start, icurve.End);
+            }
+
             Arrowhead arrowhead = (Arrowhead) Geometry;
             return new Tuple<Point, Point>(arrowhead.TipPosition, CurveAttachmentPoint);
         }
@@ -149,7 +155,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         public void UpdateTopEdgeInfo(LgEdgeInfo ei)
         {
             if (TopRankedEdgeInfoOfTheRail == null || TopRankedEdgeInfoOfTheRail.Rank < ei.Rank)
+            {
                 TopRankedEdgeInfoOfTheRail = ei;
+            }
 
             MinPassingEdgeZoomLevel = Math.Min(MinPassingEdgeZoomLevel, ei.ZoomLevel);
         }

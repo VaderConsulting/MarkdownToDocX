@@ -227,12 +227,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// <returns>This cluster and all clusters beneath this one, in width first order</returns>
         public IEnumerable<Node> AllSuccessorsWidthFirst() {
             foreach (Node n in Nodes)
+            {
                 yield return n;
+            }
 
             foreach (Cluster c in clusters) {
                 yield return c;
                 foreach (Node n in c.AllSuccessorsWidthFirst())
+                {
                     yield return n;
+                }
             }
         }
 
@@ -413,13 +417,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         public IEnumerable<Cluster> AllClustersWideFirstExcludingSelf() {
             Queue<Cluster> q = new Queue<Cluster>();
             foreach (Cluster cluster in Clusters)
+            {
                 q.Enqueue(cluster);
+            }
 
             while (q.Count > 0) {
                 Cluster c = q.Dequeue();
                 yield return c;
                 foreach (Cluster cluster in c.Clusters)
+                {
                     q.Enqueue(cluster);
+                }
             }
         }
 
@@ -429,14 +437,22 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         public IEnumerable<Cluster> AllClustersWidthFirstExcludingSelfAvoidingChildrenOfCollapsed() {
             Queue<Cluster> q = new Queue<Cluster>();
             foreach (Cluster cluster in Clusters)
+            {
                 q.Enqueue(cluster);
+            }
 
             while (q.Count > 0) {
                 Cluster c = q.Dequeue();
                 yield return c;
-                if (c.IsCollapsed) continue;
+                if (c.IsCollapsed)
+                {
+                    continue;
+                }
+
                 foreach (Cluster cluster in c.Clusters)
+                {
                     q.Enqueue(cluster);
+                }
             }
         }
 
@@ -469,7 +485,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
 
         internal void RaiseLayoutDoneEvent() {
             if (layoutDoneEvent != null)
+            {
                 layoutDoneEvent(this, null);
+            }
         }
     }
 }

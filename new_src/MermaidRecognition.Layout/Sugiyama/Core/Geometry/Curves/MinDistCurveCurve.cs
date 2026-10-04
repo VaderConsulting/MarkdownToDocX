@@ -170,14 +170,22 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
                     si = nsi;
                     ti = nti;
                     if (si > aMax)
+                    {
                         si = aMax;
+                    }
                     else if (si < aMin)
+                    {
                         si = aMin;
+                    }
 
                     if (ti > bMax)
+                    {
                         ti = bMax;
+                    }
                     else if (ti < bMin)
+                    {
                         ti = bMin;
+                    }
                 }
 
                 InitValues();
@@ -219,16 +227,24 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
                 double k1 = 1; //we are looking for a chopped vector of the form k(ds,dt)
 
                 if (si + ds > aMax)  //we have si+k*ds=aMax           
+                {
                     k1 = (aMax - si) / ds;
+                }
                 else if (si + ds < aMin)
+                {
                     k1 = (aMin - si) / ds;
+                }
 
                 double k2 = 1;
 
                 if (ti + dt > bMax)  //we need to have ti+k*dt=bMax  or ti+k*dt=bMin 
+                {
                     k2 = (bMax - ti) / dt;
+                }
                 else if (ti + dt < bMin)
+                {
                     k2 = (bMin - ti) / dt;
+                }
 
                 double k = Math.Min(k1, k2);
                 ds *= k;
@@ -236,14 +252,22 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
 
             } else if (ds == 0) {
                 if (ti + dt > bMax)
+                {
                     dt = bMax - ti;
+                }
                 else if (ti + dt < bMin)
+                {
                     dt = bMin - ti;
+                }
             } else {   //dt==0)
                 if (si + ds > aMax)
+                {
                     ds = aMax - si;
+                }
                 else if (si + ds < aMin)
+                {
                     ds = aMin - si;
+                }
             }
         }
 
@@ -289,8 +313,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
                     aSolution = r / (r1 - r0);
                     bSolution = (r - r2) / (r3 - r2);
                     if (swapped)
+                    {
                         bSolution = 1 - bSolution;
-
+                    }
                 }
             } else {
                 Point d1 = v3 - v2;

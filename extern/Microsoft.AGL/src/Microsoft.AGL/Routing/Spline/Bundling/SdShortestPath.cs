@@ -81,7 +81,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             RerouteEdges();
 
             foreach (EdgeGeometry edgeGeometry in EdgeGeometries)
+            {
                 SetEdgeGeometryCurve(edgeGeometry);
+            }
         }
 
         void SetEdgeGeometryCurve(EdgeGeometry edgeGeometry) {
@@ -101,10 +103,14 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
             edgeGeometry.Curve = poly;
             if (edgeGeometry.SourcePort is ClusterBoundaryPort clusterSourcePort)
+            {
                 ExtendPolylineStartToClusterBoundary(poly, clusterSourcePort.Curve);
+            }
 
             if (edgeGeometry.TargetPort is ClusterBoundaryPort clusterTargetPort)
+            {
                 ExtendPolylineEndToClusterBoundary(poly, clusterTargetPort.Curve);
+            }
         }
 
         static void ExtendPolylineEndToClusterBoundary(Polyline poly, ICurve curve) {
@@ -127,7 +133,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         void RestoreCapacities() {
             if (Cdt != null)
+            {
                 Cdt.RestoreEdgeCapacities();
+            }
         }
 
         /// <summary>
@@ -137,7 +145,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             List<SdBoneEdge> route = EdgesToRoutes[edgeGeometry];
 
             foreach (SdBoneEdge edge in route)
+            {
                 edge.RemoveOccupiedEdge();
+            }
 
             return RouteEdge(edgeGeometry);
         }
@@ -154,7 +164,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             List<SdBoneEdge> ret = RouteEdgeWithGroups();
 
             foreach (Shape shape in transparentShapes)
+            {
                 shape.IsTransparent = false;
+            }
 
             /*List<LineSegment> ls = new List<LineSegment>();
             foreach (var e in ret)
@@ -172,7 +184,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                 SetPortVerticesAndObstacles(CurrentEdgeGeometry.TargetPort, false, out targetLoosePoly);
                 List<SdBoneEdge> ret = RouteOnKnownSourceTargetVertices((CurrentEdgeGeometry.TargetPort.Location - CurrentEdgeGeometry.SourcePort.Location).Normalize(), i == 0);
                 if (ret != null)
+                {
                     return ret;
+                }
+
                 for (int j = 0; j < vertexArray.Length; j++) {
                     vertexArray[j].SetPreviousToNull();
                 }
@@ -189,18 +204,24 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             while (Queue.Count > 0) {
                 SdVertex bestNode = Queue.Dequeue(out double hu);
                 if (hu >= LowestCostToTarget)
+                {
                     continue;
+                }
                 //update the rest
                 for (int i = 0; i < bestNode.OutBoneEdges.Count; i++) {
                     SdBoneEdge outBoneEdge = bestNode.OutBoneEdges[i];
                     if (outBoneEdge.IsPassable)
+                    {
                         ProcessOutcomingBoneEdge(bestNode, outBoneEdge, pathDirection, lookingForMonotonePath);
+                    }
                 }
 
                 for (int i = 0; i < bestNode.InBoneEdges.Count; i++) {
                     SdBoneEdge inBoneEdge = bestNode.InBoneEdges[i];
                     if (inBoneEdge.IsPassable)
+                    {
                         ProcessIncomingBoneEdge(bestNode, inBoneEdge, pathDirection, lookingForMonotonePath);
+                    }
                 }
             }
 
@@ -209,30 +230,44 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         void ProcessOutcomingBoneEdge(SdVertex v, SdBoneEdge outBoneEdge, Point pathDirection, bool lookingForMonotonePath) {
             Debug.Assert(v == outBoneEdge.Source);
-            if (lookingForMonotonePath && pathDirection * (outBoneEdge.TargetPoint - outBoneEdge.SourcePoint) < 0) return;
+            if (lookingForMonotonePath && pathDirection * (outBoneEdge.TargetPoint - outBoneEdge.SourcePoint) < 0)
+            {
+                return;
+            }
 
             ProcessBoneEdge(v, outBoneEdge.Target, outBoneEdge);
         }
 
         void ProcessIncomingBoneEdge(SdVertex v, SdBoneEdge inBoneEdge, Point pathDirection, bool lookingForMonotonePath) {
             Debug.Assert(v == inBoneEdge.Target);
-            if (lookingForMonotonePath && pathDirection * (inBoneEdge.SourcePoint - inBoneEdge.TargetPoint) < 0) return;
+            if (lookingForMonotonePath && pathDirection * (inBoneEdge.SourcePoint - inBoneEdge.TargetPoint) < 0)
+            {
+                return;
+            }
 
             ProcessBoneEdge(v, inBoneEdge.Source, inBoneEdge);
         }
 
         void ProcessBoneEdge(SdVertex v, SdVertex queueCandidate, SdBoneEdge boneEdge) {
             double newCost = GetEdgeAdditionalCost(boneEdge, v.Cost);
-            if (queueCandidate.Cost <= newCost) return;
+            if (queueCandidate.Cost <= newCost)
+            {
+                return;
+            }
+
             queueCandidate.Cost = newCost;
             queueCandidate.PrevEdge = boneEdge;
             if (Queue.ContainsElement(queueCandidate))
+            {
                 Queue.DecreasePriority(queueCandidate, newCost);
+            }
             else {
                 if (queueCandidate.IsTargetOfRouting) {
                     double costToTarget = 0;
                     if (CurrentEdgeGeometry.TargetPort is ClusterBoundaryPort)
+                    {
                         costToTarget = LengthCoefficient * (queueCandidate.Point - CurrentEdgeGeometry.TargetPort.Location).Length;
+                    }
 
                     if (newCost + costToTarget < LowestCostToTarget) {
                         LowestCostToTarget = newCost + costToTarget;
@@ -268,7 +303,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             //restore the path by moving backwards
             SdVertex current = ClosestTargetVertex;
             if (current == null)
+            {
                 return null;
+            }
+
             List<SdBoneEdge> result = new List<SdBoneEdge>();
 
             while (current.PrevEdge != null) {
@@ -288,17 +326,26 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         void RegisterPathInBoneEdge(SdBoneEdge boneEdge) {
             boneEdge.AddOccupiedEdge();
             if (Cdt != null && BundlingSettings.CapacityOverflowCoefficient != 0)
+            {
                 UpdateResidualCostsOfCrossedCdtEdges(boneEdge);
+            }
         }
 
         void UpdateResidualCostsOfCrossedCdtEdges(SdBoneEdge boneEdge) {
             foreach (CdtEdge cdtEdge in boneEdge.CrossedCdtEdges) {
                 if (AdjacentToSourceOrTarget(cdtEdge))
+                {
                     continue;
+                }
+
                 if (cdtEdge.ResidualCapacity == cdtEdge.Capacity)
+                {
                     cdtEdge.ResidualCapacity -= CurrentEdgeGeometry.LineWidth;
+                }
                 else
+                {
                     cdtEdge.ResidualCapacity -= (CurrentEdgeGeometry.LineWidth + BundlingSettings.EdgeSeparation);
+                }
                 //TODO: can we have negative here?
                 //Debug.Assert(cdtEdge.ResidualCapacity >= 0);
             }
@@ -314,7 +361,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         double CapacityOverflowCost(SdBoneEdge boneEdge) {
             if (Cdt == null || BundlingSettings.CapacityOverflowCoefficient == 0)
+            {
                 return 0;
+            }
+
             double ret = 0;
             foreach (CdtEdge cdtEdge in CrossedCdtEdgesOfBoneEdge(boneEdge)) {
                 ret += CostOfCrossingCdtEdgeLocal(capacityOverlowPenaltyMultiplier, BundlingSettings, CurrentEdgeGeometry, cdtEdge);
@@ -324,7 +374,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         IEnumerable<CdtEdge> CrossedCdtEdgesOfBoneEdge(SdBoneEdge boneEdge) {
             if (boneEdge.CrossedCdtEdges != null)
+            {
                 return boneEdge.CrossedCdtEdges;
+            }
 #if SHARPKIT //https://code.google.com/p/sharpkit/issues/detail?id=368
             boneEdge.CrossedCdtEdges = ThreadBoneEdgeThroughCdt(boneEdge);
             return boneEdge.CrossedCdtEdges;
@@ -340,14 +392,18 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             Set<CdtEdge> crossedEdges = new Set<CdtEdge>();
             Point end = boneEdge.TargetPoint;
             if (Cdt.PointIsInsideOfTriangle(end, currentTriangle))
+            {
                 return crossedEdges;
+            }
 
             CdtThreader threader = new CdtThreader(currentTriangle, start, end);
             while (threader.MoveNext()) {
                 CdtEdge piercedEdge = threader.CurrentPiercedEdge;
                 Debug.Assert(piercedEdge != null);
                 if (Gates.Contains(piercedEdge))
+                {
                     crossedEdges.Insert(piercedEdge);
+                }
             }
 
             /*
@@ -370,16 +426,25 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         internal static double CostOfCrossingCdtEdge(double capacityOverflMult, BundlingSettings bundlingSettings, EdgeGeometry currentEdgeGeometry, CdtEdge e) {
             double w = currentEdgeGeometry.LineWidth;
             if (e.Capacity != e.ResidualCapacity)
+            {
                 w += bundlingSettings.EdgeSeparation;
+            }
 
             double del = e.ResidualCapacity - w;
-            if (del >= 0) return 0;
+            if (del >= 0)
+            {
+                return 0;
+            }
+
             return -del * capacityOverflMult;
         }
 
         double CostOfCrossingCdtEdgeLocal(double capacityOverflMult, BundlingSettings bundlingSettings, EdgeGeometry currentEdgeGeometry, CdtEdge e) {
             if (AdjacentToSourceOrTarget(e))
+            {
                 return 0;
+            }
+
             return CostOfCrossingCdtEdge(capacityOverflMult, bundlingSettings, currentEdgeGeometry, e);
         }
 
@@ -436,7 +501,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                 {
                     poly = anywherePort.LoosePolyline;
                     foreach (Point point in poly)
+                    {
                         AddAndEnqueueVertexToEnds(point, sources, 0);
+                    }
                 }
                 else
                 {
@@ -491,12 +558,17 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         void CalculateCapacitiesOfTrianglulation() {
             foreach (CdtEdge e in Gates)
+            {
                 CalculateCdtEdgeCapacityForEdge(e);
+            }
         }
 
         static void CalculateCdtEdgeCapacityForEdge(CdtEdge e) {
             if (e.Constrained || e.CwTriangle == null || e.CcwTriangle == null)
+            {
                 return; //this is a convex hull edge or an obstacle edge
+            }
+
             Polyline startPoly = e.upperSite.Owner as Polyline;
             Polyline endPoly = e.lowerSite.Owner as Polyline;
             if (startPoly != endPoly) {
@@ -525,10 +597,14 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         void TryToAssigenTriangleToVertex(CdtTriangle triangle, SdVertex vertex) {
             if (vertex.Triangle != null)
+            {
                 return;
+            }
 
             if (Cdt.PointIsInsideOfTriangle(vertex.Point, triangle))
+            {
                 vertex.Triangle = triangle;
+            }
         }
 
         internal static double CapacityOverflowPenaltyMultiplier(BundlingSettings bundlingSettings) => bundlingSettings.CapacityOverflowCoefficient * (bundlingSettings.PathLengthImportance + bundlingSettings.InkImportance);
@@ -545,7 +621,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                 foreach (SdBoneEdge boneEdge in EdgesToRoutes[geometryEdge]) {
                     foreach (CdtEdge cdtEdge in CrossedCdtEdgesOfBoneEdge(boneEdge)) {
                         if (AdjacentToSourceOrTarget(cdtEdge))
+                        {
                             continue;
+                        }
+
                         CollectionUtilities.AddToMap(crossedCdtEdges, geometryEdge, cdtEdge);
                     }
                 }

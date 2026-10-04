@@ -24,7 +24,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             {
                 point = value;
                 if (Polyline != null)
+                {
                     Polyline.RequireInit();
+                }
             }
         }
 
@@ -41,7 +43,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             {
                 next = value;
                 if (Polyline != null)
+                {
                     Polyline.RequireInit();
+                }
             }
         }
 
@@ -57,7 +61,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             {
                 prev = value;
                 if (Polyline != null)
+                {
                     Polyline.RequireInit();
+                }
             }
         }
 

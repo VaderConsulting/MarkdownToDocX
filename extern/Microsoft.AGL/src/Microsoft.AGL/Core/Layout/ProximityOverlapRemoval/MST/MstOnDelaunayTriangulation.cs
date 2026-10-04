@@ -51,7 +51,9 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MST
             CdtSite[] siteArray = cdt.PointsToSites.Values.ToArray();
             Dictionary<CdtSite, int> siteIndex = new Dictionary<CdtSite, int>();
             for (int i = 0; i < siteArray.Length; i++)
+            {
                 siteIndex[siteArray[i]] = i;
+            }
 
             Dictionary<IntPair, CdtEdge> intPairsToCdtEdges = GetEdges(siteArray, siteIndex);
 
@@ -68,7 +70,9 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MST
                 CdtSite site = siteArray[i];
                 int sourceIndex = siteIndex[site];
                 foreach (CdtEdge e in site.Edges)
+                {
                     d[new IntPair(sourceIndex, siteIndex[e.lowerSite])] = e;
+                }
             }
             return d;
         }
@@ -83,17 +87,22 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MST
             Random random = new Random(3);
             List<Point> points = new List<Point>();
             for (int i = 0; i < count; i++)
+            {
                 points.Add(20 * new Point(random.NextDouble(), random.NextDouble()));
+            }
 
             Cdt cdt = new Cdt(points, null, null);
             cdt.Run();
             List<CdtEdge> ret = GetMstOnCdt(cdt, e => (e.lowerSite.Point - e.upperSite.Point).Length);
             List<DebugCurve> l = new List<DebugCurve>();
             foreach(CdtSite s in cdt.PointsToSites.Values)
+            {
                 foreach (CdtEdge e in s.Edges)
                 {
                     l.Add(new DebugCurve(100, 0.1, "black", new LineSegment(e.lowerSite.Point, e.upperSite.Point)));
                 }
+            }
+
             foreach (CdtEdge e in ret)
             {
                 l.Add(new DebugCurve(100, 0.12, "red", new LineSegment(e.lowerSite.Point, e.upperSite.Point)));

@@ -44,13 +44,24 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms.CycleRemoval
         internal IEnumerable<int> AllNeighbors {
             get {
                 foreach (int v in OutConstrainedEdges)
+                {
                     yield return v;
+                }
+
                 foreach (int v in InConstrainedEdges)
+                {
                     yield return v;
+                }
+
                 foreach (int v in OutEdges)
+                {
                     yield return v;
+                }
+
                 foreach (int v in InEdges)
+                {
                     yield return v;
+                }
             }
         }
     }

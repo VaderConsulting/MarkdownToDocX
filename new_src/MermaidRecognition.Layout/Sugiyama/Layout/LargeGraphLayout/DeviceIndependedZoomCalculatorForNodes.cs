@@ -70,7 +70,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout
                 LgNodeInfo ni = sortedLgNodeInfos[i];
                 Tuple<int, int> tuple = PointToTuple(Graph.LeftBottom, ni.Center, gridSize);
                 if (!tileTable.ContainsKey(tuple))
+                {
                     tileTable[tuple] = 0;
+                }
 
                 int countForTile = tileTable[tuple]++ + 1;
                 if (countForTile > maxAmountPerTile) {
@@ -97,7 +99,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout
         {
             Rectangle sb = source.BoundingBox;
             Rectangle tb = target.BoundingBox;
-            if (sb.Intersects(tb)) return 0;
+            if (sb.Intersects(tb))
+            {
+                return 0;
+            }
+
             Polygon spolygon = PolygonFromBox(sb);
             Polygon tpolygon = PolygonFromBox(tb);
             return Polygon.Distance(spolygon, tpolygon);

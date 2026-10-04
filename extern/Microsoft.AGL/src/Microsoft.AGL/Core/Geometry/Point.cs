@@ -19,7 +19,10 @@ namespace Microsoft.AGL.Core.Geometry {
         /// <returns></returns>
         public override bool Equals(object obj) {
             if (!(obj is Point))
+            {
                 return false;
+            }
+
             return (Point)obj == this;
         }
 
@@ -290,7 +293,9 @@ namespace Microsoft.AGL.Core.Geometry {
             double alength = a.Length;
             double blength = b.Length;
             if (alength < eps || blength < eps)
+            {
                 return true;
+            }
 
             a /= alength;
             b /= blength;
@@ -319,7 +324,10 @@ namespace Microsoft.AGL.Core.Geometry {
         public Point Normalize() {
             double length = Length;
             if (length < ApproximateComparer.Tolerance)
+            {
                 throw new InvalidOperationException(); //the vector is too short to be normalized
+            }
+
             return this / length;
         }
 
@@ -348,23 +356,33 @@ namespace Microsoft.AGL.Core.Geometry {
 
             if (Math.Abs(dot) < ApproximateComparer.Tolerance) {
                 if (Math.Abs(cross) < ApproximateComparer.Tolerance)
+                {
                     return 0;
-
+                }
 
                 if (cross < -ApproximateComparer.Tolerance)
+                {
                     return 3 * Math.PI / 2;
+                }
+
                 return Math.PI / 2;
             }
 
             if (Math.Abs(cross) < ApproximateComparer.Tolerance) {
                 if (dot < -ApproximateComparer.Tolerance)
+                {
                     return Math.PI;
+                }
+
                 return 0.0;
             }
 
             double atan2 = Math.Atan2(cross, dot);
             if (cross >= -ApproximateComparer.Tolerance)
+            {
                 return atan2;
+            }
+
             return Math.PI * 2.0 + atan2;
         }
 
@@ -392,7 +410,10 @@ namespace Microsoft.AGL.Core.Geometry {
             // v1 is collinear with v0
             if (ApproximateComparer.Close(xp1, 0.0) && ApproximateComparer.GreaterOrEqual(dotp1, 0.0)) {
                 if (ApproximateComparer.Close(xp2, 0.0) && ApproximateComparer.GreaterOrEqual(dotp2, 0.0))
+                {
                     return 0;
+                }
+
                 return 1;
             }
 
@@ -431,9 +452,15 @@ namespace Microsoft.AGL.Core.Geometry {
         static public TriangleOrientation GetTriangleOrientation(Point cornerA, Point cornerB, Point cornerC) {
             double area = SignedDoubledTriangleArea(cornerA, cornerB, cornerC);
             if (area > ApproximateComparer.DistanceEpsilon)
+            {
                 return TriangleOrientation.Counterclockwise;
+            }
+
             if (area < -ApproximateComparer.DistanceEpsilon)
+            {
                 return TriangleOrientation.Clockwise;
+            }
+
             return TriangleOrientation.Collinear;
         }
 
@@ -449,9 +476,15 @@ namespace Microsoft.AGL.Core.Geometry {
         {
             double area = Point.SignedDoubledTriangleArea(cornerA, cornerB, cornerC);
             if (area > ApproximateComparer.IntersectionEpsilon)
+            {
                 return TriangleOrientation.Counterclockwise;
+            }
+
             if (area < -ApproximateComparer.IntersectionEpsilon)
+            {
                 return TriangleOrientation.Clockwise;
+            }
+
             return TriangleOrientation.Collinear;
         }
 
@@ -467,9 +500,15 @@ namespace Microsoft.AGL.Core.Geometry {
         {
             double area = Point.SignedDoubledTriangleArea(cornerA, cornerB, cornerC);
             if (area > 0)
+            {
                 return TriangleOrientation.Counterclockwise;
+            }
+
             if (area < 0)
+            {
                 return TriangleOrientation.Clockwise;
+            }
+
             return TriangleOrientation.Collinear;
         }
 
@@ -487,11 +526,15 @@ namespace Microsoft.AGL.Core.Geometry {
             Point ba = point - segmentStart;
 
             if (ba * bc < 0) // point belongs to the halfplane before the segment
+            {
                 return false;
+            }
 
             Point ca = point - segmentEnd;
             if (ca * bc > 0) //point belongs to the halfplane after the segment
+            {
                 return false;
+            }
 
             return true;
         }
@@ -499,13 +542,22 @@ namespace Microsoft.AGL.Core.Geometry {
         //returns true if there is an intersection lying in the inner part of the segment
         static internal bool IntervalIntersectsRay(Point segStart, Point segEnd, Point rayOrigin, Point rayDirection, out Point x) {
             if (!LineLineIntersection(segStart, segEnd, rayOrigin, rayOrigin + rayDirection, out x))
+            {
                 return false;
+            }
+
             Point ds = segStart - x;
             Point de = x - segEnd;
             if (ds * de <= 0)
+            {
                 return false;
+            }
+
             if ((x - rayOrigin) * rayDirection < 0)
+            {
                 return false;
+            }
+
             return ds * ds > ApproximateComparer.SquareOfDistanceEpsilon && de * de >= ApproximateComparer.SquareOfDistanceEpsilon;
         }
 
@@ -531,7 +583,10 @@ namespace Microsoft.AGL.Core.Geometry {
             Point d = pointOnLine1 - pointOnLine0;
             double dLen = d.Length;
             if (dLen < ApproximateComparer.DistanceEpsilon)
+            {
                 return pointOnLine0;
+            }
+
             d /= dLen;
             double pr = (point - pointOnLine0) * d; //projection 
             Point ret = pointOnLine0 + pr * d;
@@ -577,10 +632,14 @@ namespace Microsoft.AGL.Core.Geometry {
             Point ba = point - segmentStart;
             double c1, c2;
             if ((c1 = bc * ba) <= 0.0 + ApproximateComparer.Tolerance)
+            {
                 return segmentStart;
+            }
 
             if ((c2 = bc * bc) <= c1 + ApproximateComparer.Tolerance)
+            {
                 return segmentEnd;
+            }
 
             double parameter = c1 / c2;
             return segmentStart + parameter * bc;
@@ -599,10 +658,14 @@ namespace Microsoft.AGL.Core.Geometry {
             Point ba = point - segmentStart;
             double c1, c2;
             if ((c1 = bc * ba) <= 0.0 + ApproximateComparer.Tolerance)
+            {
                 return 0;
+            }
 
             if ((c2 = bc * bc) <= c1 + ApproximateComparer.Tolerance)
+            {
                 return 1;
+            }
 
             return c1 / c2;
         }

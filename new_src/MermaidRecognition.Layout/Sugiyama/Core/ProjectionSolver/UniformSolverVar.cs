@@ -15,11 +15,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver{
             set
             {
                 if (value < lowBound)
+                {
                     position = lowBound;
+                }
                 else if (value > upperBound)
+                {
                     position = upperBound;
+                }
                 else
+                {
                     position = value;
+                }
             }
         }
 

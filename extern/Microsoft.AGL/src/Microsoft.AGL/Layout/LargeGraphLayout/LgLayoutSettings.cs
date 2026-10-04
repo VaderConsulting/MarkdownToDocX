@@ -44,7 +44,9 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
         /// </summary>
         public void OnViewerChangeTransformAndInvalidateGraph() {
             if (ViewerChangeTransformAndInvalidateGraph != null)
+            {
                 ViewerChangeTransformAndInvalidateGraph();
+            }
         }
 
         /// <summary>

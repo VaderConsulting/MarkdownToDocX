@@ -172,7 +172,10 @@ namespace Microsoft.AGL.Core.Geometry.OverlapRemoval
         public override bool Equals(object obj)
         {
             if (!(obj is BorderInfo))
+            {
                 return false;
+            }
+
             BorderInfo bi = (BorderInfo)obj;
             return (bi.FixedPosition == FixedPosition)
                    && (bi.Weight == Weight)

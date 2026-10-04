@@ -27,7 +27,10 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
 
         internal void SplitPoints() {
             if(VerticalPoints.Count==0 || HorizontalPoints.Count==0)
+            {
                 return; //there will be no intersections
+            }
+
             InitEventQueue();
             ProcessEvents();
         }
@@ -42,12 +45,20 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
 
         void ProcessEvent(LinkedPoint linkedPoint, double z){
             if(ApproximateComparer.Close(linkedPoint.Next.Point.X, linkedPoint.Point.X))
-                if(z==Low(linkedPoint))
+            {
+                if (z==Low(linkedPoint))
+                {
                     ProcessLowLinkedPointEvent(linkedPoint);
+                }
                 else
+                {
                     ProcessHighLinkedPointEvent(linkedPoint);
+                }
+            }
             else
+            {
                 IntersectWithTree(linkedPoint);
+            }
         }
 
         void IntersectWithTree(LinkedPoint horizontalPoint) {
@@ -65,13 +76,17 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
                 xAligned=false;
             }
             if(xAligned)
-            for(RBNode<LinkedPoint> node = tree.FindFirst(p => left<= p.Point.X); 
+            {
+                for (RBNode<LinkedPoint> node = tree.FindFirst(p => left<= p.Point.X); 
                 node!=null &&  node.Item.Point.X <= right ;
                 node=tree.Next(node)) {
                     Point p = new Point(node.Item.Point.X, y );
                 horizontalPoint = TrySplitHorizontalPoint(horizontalPoint, p, true);
                 TrySplitVerticalPoint(node.Item,p);
-            }else //xAligned==false
+            }
+            }
+            else //xAligned==false
+            {
                 for (RBNode<LinkedPoint> node = tree.FindLast(p => p.Point.X <= right);
                 node != null && node.Item.Point.X >= left;
                 node = tree.Previous(node)) {
@@ -79,12 +94,15 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
                     horizontalPoint = TrySplitHorizontalPoint(horizontalPoint, p, false);
                     TrySplitVerticalPoint(node.Item, p);
                 }
+            }
         }
 
         static void TrySplitVerticalPoint(LinkedPoint linkedPoint, Point point) {
             Debug.Assert(ApproximateComparer.Close(linkedPoint.X, linkedPoint.Next.X));
             if (Low(linkedPoint) + ApproximateComparer.DistanceEpsilon < point.Y && point.Y + ApproximateComparer.DistanceEpsilon < High(linkedPoint))
+            {
                 linkedPoint.SetNewNext(point);
+            }
         }
 
         static LinkedPoint TrySplitHorizontalPoint(LinkedPoint horizontalPoint, Point point, bool xAligned) {
@@ -108,11 +126,15 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
         void InitEventQueue() {
             Queue = new GenericBinaryHeapPriorityQueue<LinkedPoint>();
             foreach (LinkedPoint vertPoint in VerticalPoints)
+            {
                 Queue.Enqueue(vertPoint, Low(vertPoint));
+            }
             //a horizontal point will appear in the queue after a vertical point 
             // with the same coordinate low coorinate
             foreach (LinkedPoint horizPoint in HorizontalPoints)
+            {
                 Queue.Enqueue(horizPoint, horizPoint.Point.Y);
+            }
         }
 
         static double Low(LinkedPoint vertPoint) => Math.Min(vertPoint.Point.Y, vertPoint.Next.Point.Y);

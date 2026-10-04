@@ -45,9 +45,13 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         /// </summary>
         void CreateMetroOrdering() {
             if (bundlingSettings.UseGreedyMetrolineOrdering)
+            {
                 metroOrdering = new GeneralMetroMapOrdering(metroGraphData.Metrolines);
+            }
             else
+            {
                 metroOrdering = new LinearMetroMapOrdering(metroGraphData.Metrolines, metroGraphData.PointToStations);
+            }
         }
 
         void FinalizePaths() {
@@ -68,7 +72,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         void CreateCurves() {
             Debug.Assert(metroGraphData.Metrolines.Count == metroGraphData.Edges.Length);
             for (int i = 0; i < metroGraphData.Metrolines.Count; i++)
+            {
                 CreateCurveLine(metroGraphData.Metrolines[i], metroGraphData.Edges[i]);
+            }
         }
 
         void CreateCurveLine(Metroline line, EdgeGeometry edge) {
@@ -77,7 +83,11 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             Point currentEnd = start;
             IEnumerable<ICurve> hubSegsOfLine = HubSegsOfLine(metroGraphData, metroOrdering, line);
             foreach (ICurve seg in hubSegsOfLine) {
-                if (seg == null) continue;
+                if (seg == null)
+                {
+                    continue;
+                }
+
                 c.AddSegment(new LineSegment(currentEnd, seg.Start));
                 c.AddSegment(seg);
                 currentEnd = seg.End;
@@ -85,7 +95,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             c.AddSegment(new LineSegment(currentEnd, FindCurveEnd(metroGraphData, metroOrdering, line)));
             edge.Curve = c;
             if (CreateUnderlyingPolylines)
+            {
                 edge.SmoothedPolyline = BuildUnderlyingPolyline(start, currentEnd, hubSegsOfLine);
+            }
         }
 
         static Point FindCurveStart(MetroGraphData metroGraphData, IMetroMapOrderingAlgorithm metroOrdering, Metroline metroline) {
@@ -112,7 +124,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         static IEnumerable<ICurve> HubSegsOfLine(MetroGraphData metroGraphData, IMetroMapOrderingAlgorithm metroOrdering, Metroline line) {
             for (PolylinePoint i = line.Polyline.StartPoint.Next; i.Next != null; i = i.Next)
+            {
                 yield return SegOnLineVertex(metroGraphData, metroOrdering, line, i);
+            }
         }
 
         static ICurve SegOnLineVertex(MetroGraphData metroGraphData, IMetroMapOrderingAlgorithm metroOrdering, Metroline line, PolylinePoint i) {
@@ -132,15 +146,21 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         void CreateSegmentsInsideHubs() {
             foreach (Metroline metroline in metroGraphData.Metrolines)
+            {
                 CreateOrientedSegsOnLine(metroline);
+            }
 
             if (bundlingSettings.UseCubicBezierSegmentsInsideOfHubs)
+            {
                 FanBezierSegs();
+            }
         }
 
         void CreateOrientedSegsOnLine(Metroline line) {
             for (PolylinePoint polyPoint = line.Polyline.StartPoint.Next; polyPoint.Next != null; polyPoint = polyPoint.Next)
+            {
                 CreateOrientedSegsOnLineVertex(line, polyPoint);
+            }
         }
 
         void CreateOrientedSegsOnLineVertex(Metroline line, PolylinePoint polyPoint) {
@@ -165,7 +185,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         static internal void ShowHubs(MetroGraphData metroGraphData, IMetroMapOrderingAlgorithm metroMapOrdering, Station station) {
             IEnumerable<DebugCurve> ttt = GetAllDebugCurves(metroMapOrdering, metroGraphData);
             if (station != null)
+            {
                 ttt = ttt.Concat(new[] { new DebugCurve(255, 3, "pink", CurveFactory.CreateDiamond(20, 20, station.Position)) });
+            }
+
             LayoutAlgorithmSettings.ShowDebugCurvesEnumeration(ttt);
         }
 
@@ -182,7 +205,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                 List<Tuple<Point, Point>> segs = GetInterestingSegs(metroGraphData, metroMapOrdering, ml);
                 string color = GetMonotoneColor(ml.Polyline.Start, ml.Polyline.End, segs);
                 foreach (Tuple<Point, Point> seg in segs)
+                {
                     yield return new DebugCurve(100, ml.Width, color, new LineSegment(seg.Item1, seg.Item2));
+                }
             }
         }
 
@@ -191,7 +216,11 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             Point start = FindCurveStart(metroGraphData, metroMapOrdering, line);
             IEnumerable<ICurve> cubicSegs = HubSegsOfLine(metroGraphData, metroMapOrdering, line);
             foreach (ICurve seg in cubicSegs) {
-                if (seg == null) continue;
+                if (seg == null)
+                {
+                    continue;
+                }
+
                 ret.Add(new Tuple<Point, Point>(start, seg.Start));
                 start = seg.End;
             }
@@ -205,9 +234,11 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         static IEnumerable<DebugCurve> DebugHubBases(MetroGraphData metroGraphData) {
             List<DebugCurve> dc = [];
             foreach (Station s in metroGraphData.Stations)
+            {
                 foreach (BundleBase h in s.BundleBases.Values) {
                     dc.Add(new DebugCurve(100, 1, "red", new LineSegment(h.LeftPoint, h.RightPoint)));
                 }
+            }
 
             return dc;
             //return
@@ -224,7 +255,11 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             foreach (Station s in metroGraphData.VirtualNodes()) {
                 foreach (BundleBase b in s.BundleBases.Values) {
                     foreach (OrientedHubSegment h in b.OrientedHubSegments) {
-                        if (h == null) continue;
+                        if (h == null)
+                        {
+                            continue;
+                        }
+
                         if (h.Segment == null) {
                             BundleBase uBase = h.Other.BundleBase;
                             int i = h.Index;
@@ -267,7 +302,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             Debug.Assert(ApproximateComparer.Close(te.LengthSquared, 1));
             Point v = p0 - p4;
             if (v.Length < ApproximateComparer.DistanceEpsilon)
+            {
                 return null;
+            }
 
             double vtse = v * (ts - te);
             double tste = -ts * te;
@@ -289,11 +326,16 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                 double d = b * b - 4 * a * c;
                 Debug.Assert(d >= -ApproximateComparer.Tolerance);
                 if (d < 0)
+                {
                     d = 0;
+                }
+
                 d = Math.Sqrt(d);
                 al = (-b + d) / (2 * a);
                 if (al < 0)
+                {
                     al = (-b - d) / (2 * a);
+                }
             }
 
             Point p1 = p0 + al * ts;
@@ -329,12 +371,17 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         /// <returns></returns>
         internal static ICurve ArcOn(Point a, Point b, Point c) {
             if (Math.Abs(Point.SignedDoubledTriangleArea(a, b, c)) < 0.0001 || !FindArcCenter(a, b, c, out Point center))
+            {
                 return new LineSegment(a, c);
+            }
 
             double radius = (a - center).Length;
             double chordLength = (a - b).Length;
             if (chordLength / radius < 0.0001)//to avoid a floating point error
+            {
                 return new LineSegment(a, c);
+            }
+
             Point cenA = a - center;
             double aAngle = Math.Atan2(cenA.Y, cenA.X);
             Point cenC = c - center;
@@ -352,14 +399,21 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
             //going clockwise
             if (cAngle > 2 * Math.PI)
+            {
                 cAngle -= 2 * Math.PI;
+            }
 
             aAngle = Math.PI - aAngle;
             cAngle = Math.PI - cAngle;
             if (aAngle < 0)
+            {
                 aAngle += 2 * Math.PI;
+            }
+
             while (cAngle < aAngle)
+            {
                 cAngle += 2 * Math.PI;
+            }
 
             delac = cAngle - aAngle;
 
@@ -390,15 +444,22 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             while (progress && steps++ < maxSteps) {
                 progress = false;
                 foreach (Station s in metroGraphData.Stations)
+                {
                     foreach (BundleBase segmentHub in s.BundleBases.Values)
+                    {
                         progress |= FanEdgesOfHubSegment(segmentHub);
+                    }
+                }
             }
         }
 
         bool FanEdgesOfHubSegment(BundleBase bundleHub) {
             bool ret = false;
             for (int i = 0; i < bundleHub.Count - 1; i++)
+            {
                 ret |= FanCouple(bundleHub, i, bundleHub.CurveCenter, bundleHub.Curve.BoundingBox.Diagonal / 2);
+            }
+
             return ret;
         }
 
@@ -408,18 +469,34 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         bool FanCouple(BundleBase bundleHub, int i, Point center, double radius) {
             OrientedHubSegment lSeg = bundleHub.OrientedHubSegments[i];
             OrientedHubSegment rSeg = bundleHub.OrientedHubSegments[i + 1];
-            if (lSeg == null) return false;
+            if (lSeg == null)
+            {
+                return false;
+            }
+
             if (LineSegment.Intersect(lSeg.Segment.Start, lSeg.Segment.End, rSeg.Segment.Start, rSeg.Segment.End, out Point x))
+            {
                 return false; //it doesn not make sense to push these segs apart
+            }
+
             if (Point.GetTriangleOrientation(lSeg[0], lSeg[0.5], lSeg[1]) !=
                 Point.GetTriangleOrientation(rSeg[0], rSeg[0.5], rSeg[1]))
+            {
                 return false;
+            }
+
             double ll = BaseLength(lSeg);
             double rl = BaseLength(rSeg);
             if (Math.Abs(ll - rl) < ApproximateComparer.IntersectionEpsilon)
+            {
                 return false;
+            }
+
             if (ll > rl)
+            {
                 return AdjustLongerSeg(lSeg, rSeg, center, radius);
+            }
+
             return AdjustLongerSeg(rSeg, lSeg, center, radius);
             /*
             var del0 = lSeg.Start - rSeg.Start;
@@ -448,7 +525,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             Point midPointOfShorter = shorterSeg[0.5];
             double maxDelLen = Math.Max(del0.Length, del1.Length);
             if (NicelyAligned((CubicBezierSegment)longerSeg.Segment, del0, del1, midPointOfShorter, minDelLength, maxDelLen) == 0)
+            {
                 return false;
+            }
+
             return FitLonger(longerSeg, del0, del1, midPointOfShorter, minDelLength, maxDelLen, center, radius);
         }
 
@@ -494,7 +574,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                     longerOrientedSeg.Other.Segment = longerOrientedSeg.Segment = seg;
                     return true;
                 }
-                if (steps++ > maxSteps) return false; //cannot fix it
+                if (steps++ > maxSteps)
+                {
+                    return false; //cannot fix it
+                }
             } while (true);
         }
 
@@ -505,7 +588,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             Point offsetNow = highP - closestPointOnLine;
             double offsetLen = offsetNow.Length;
             if (offsetLen > maxOffset)
+            {
                 highP = closestPointOnLine + maxOffset * offsetNow / offsetLen;
+            }
         }
 
         /// <summary>
@@ -524,11 +609,20 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             Point midDel = longerSeg[0.5] - midPointOfShorter;
             double midDelLen = midDel.Length;
             if (del0 * midDel < 0 || del1 * midDel < 0)
+            {
                 return 1;
+            }
+
             if (midDelLen < minDelLength - eps)
+            {
                 return 1;
+            }
+
             if (midDelLen > maxDelLen + eps)
+            {
                 return -1;
+            }
+
             return 0;
         }
 

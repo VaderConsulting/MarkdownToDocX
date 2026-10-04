@@ -89,7 +89,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing
             ICurve sourceCurve = eg.SourcePort.Curve;
             ICurve targetCurve = eg.TargetPort.Curve;
             if (sourceCurve == null || targetCurve == null)
+            {
                 return false;
+            }
+
             Rectangle targetBox = sourceCurve.BoundingBox;
             Rectangle sourceBox = targetCurve.BoundingBox;
             bool targetInSource = targetBox.Contains(sourceBox);
@@ -120,7 +123,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing
             double maxWidth =(vert? Math.Min(center.Y-targetBox.Bottom, targetBox.Top-center.Y): Math.Min(center.X-targetBox.Left, targetBox.Right-center.X))/2; //divide over 2 to not miss the rect
             double width = Math.Min(howMuchToStickOut, maxWidth);
             if (dir.Length <= ApproximateComparer.DistanceEpsilon)
+            {
                 dir = new Point(1, 0);
+            }
+
             Point hookDir =dir.Normalize();
             Point hookPerp =hookDir.Rotate(Math.PI/2);
             Point p1 = closestPoint + hookDir * howMuchToStickOut;
@@ -240,8 +246,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing
 
         static internal void SetStraightLineEdgesWithUnderlyingPolylines(GeometryGraph graph) {
             SplineRouter.CreatePortsIfNeeded(graph.Edges);
-            foreach (Edge edge in graph.Edges) 
+            foreach (Edge edge in graph.Edges)
+            {
                 CreateSimpleEdgeCurveWithUnderlyingPolyline(edge);
+            }
         }
     }
 }

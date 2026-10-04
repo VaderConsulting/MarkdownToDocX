@@ -72,7 +72,10 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
         internal static double DistanceFromPointToPolyline(Point p, Polyline poly) {
             double d = double.PositiveInfinity;
             for (PolylinePoint pp = poly.StartPoint; pp.Next != null; pp = pp.Next)
+            {
                 d = Math.Min(d, Point.DistToLineSegment(p, pp.Point, pp.Next.Point, out double u));
+            }
+
             return d;
         }
 
@@ -194,7 +197,9 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
             for (relaxedPolylinePoint = relaxedPolylinePoint.Next;
                  relaxedPolylinePoint.Next != null;
                  relaxedPolylinePoint = relaxedPolylinePoint.Next)
+            {
                 RelaxPolylinePoint(relaxedPolylinePoint);
+            }
         }
 
         static RelaxedPolylinePoint CreateRelaxedPolylinePoints(Polyline polyline) {
@@ -222,7 +227,10 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
             //ShowPolylineAndObstacles();
 #endif
             if (StickingSegmentDoesNotIntersectTightObstacles(relaxedPoint))
+            {
                 return true;
+            }
+
             PullCloserRelaxedPoint(relaxedPoint.Prev);
             return false;
         }
@@ -254,7 +262,10 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
 
         static bool LineIntersectsRectangleNode(LineSegment ls, RectangleNode<Polyline> rectNode) {
             if (!ls.BoundingBox.Intersects(rectNode.Rectangle))
+            {
                 return false;
+            }
+
             if (rectNode.UserData != null) {
                 // SugiyamaLayoutSettings.Show(ls, rectNode.UserData);
                 return Curve.GetAllIntersections(rectNode.UserData, ls, false).Count > 0;
@@ -275,7 +286,10 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
                     Math.PI / 2);
 
             if (!leftTurn)
+            {
                 v = -v;
+            }
+
             relaxedPoint.PolylinePoint.Point = relaxedPoint.OriginalPosition + v;
         }
 
@@ -288,9 +302,14 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
         List<ICurve> CreateListWithObstaclesAndPolyline(){
             List<ICurve> ls = new List<ICurve>();
             foreach (Polyline poly in obstacleCalculator.TightObstacles)
+            {
                 ls.Add(poly);
+            }
+
             foreach (Polyline poly in obstacleCalculator.LooseObstacles)
+            {
                 ls.Add(poly);
+            }
 
             ls.Add(Polyline);
             return ls;
@@ -346,7 +365,9 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
                 progress = false;
                 for (Site s = underlyingPolyline.HeadSite; s != null && s.Next != null; s = s.Next) {
                     if (s.Turn * s.Next.Turn < 0)
+                    {
                         progress = TryToRemoveInflectionEdge(ref s) || progress;
+                    }
                 }
             }
         }
@@ -384,14 +405,20 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
         LineSegment TryRouteStraightLine() {
             LineSegment ls = new LineSegment(SourcePoint, TargetPoint);
             if (obstacleCalculator.ObstaclesIntersectICurve(ls))
+            {
                 return null;
+            }
+
             return ls;
         }
 
         internal Point TargetPoint {
             get {
                 if (TargetPort is CurvePort tp)
+                {
                     return Target.BoundaryCurve[tp.Parameter];
+                }
+
                 return TargetPort.Location;
             }
         }
@@ -399,7 +426,10 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
         internal Point SourcePoint {
             get {
                 if (SourcePort is CurvePort sp)
+                {
                     return Source.BoundaryCurve[sp.Parameter];
+                }
+
                 return SourcePort.Location;
             }
         }
@@ -410,16 +440,21 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
             IEnumerable<VisibilityVertex> path = pathCalc.GetPath(false);
             Polyline ret = new Polyline();
             foreach (VisibilityVertex v in path)
+            {
                 ret.AddPoint(v.Point);
+            }
+
             return RemoveCollinearPoint(ret);
         }
 
         static Polyline RemoveCollinearPoint(Polyline ret) {
             for (PolylinePoint pp = ret.StartPoint.Next; pp.Next != null; pp = pp.Next)
+            {
                 if (Point.GetTriangleOrientation(pp.Prev.Point, pp.Point, pp.Next.Point) == TriangleOrientation.Collinear) {
                     pp.Prev.Next = pp.Next;
                     pp.Next.Prev = pp.Prev;
                 }
+            }
 
             return ret;
         }
@@ -433,8 +468,12 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
             obstacleCalculator = new ObstacleCalculator(this);
             obstacleCalculator.Calculate();
             foreach (Polyline poly in obstacleCalculator.TightObstacles)
+            {
                 foreach (Point p in poly)
+                {
                     pointsToObstacles[p] = poly;
+                }
+            }
         }
     }
 }

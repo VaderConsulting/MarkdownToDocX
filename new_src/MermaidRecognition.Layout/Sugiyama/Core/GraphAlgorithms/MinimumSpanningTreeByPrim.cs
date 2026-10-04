@@ -28,9 +28,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
 
         static IEnumerable<IntPair> GetEdges(int count) {
             for(int i=0;i<count;i++)
+            {
                 for (int j = i + 1; j < count; j++) {
                     yield return new IntPair(i,j);
                 }
+            }
         }
 
         /// <summary>
@@ -57,7 +59,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
             List<IEdge> ret = new List<IEdge>(graph.NodeCount - 1);
             Init();
             while (ret.Count < graph.NodeCount - 1 && q.Count > 0) //some nodes might have no edges
+            {
                 AddEdgeToTree(ret);
+            }
+
             return ret;
         }
 
@@ -73,7 +78,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
         void UpdateOutEdgesOfV(int v) {
             foreach (IEdge outEdge in graph.OutEdges(v)) {
                 int u = outEdge.Target;
-                if (NodeIsInTree(u)) continue;
+                if (NodeIsInTree(u))
+                {
+                    continue;
+                }
+
                 if (hedgehog.TryGetValue(u, out IEdge? oldEdge))
                 {
                     double oldWeight = weight(oldEdge);
@@ -97,7 +106,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
             foreach (IEdge inEdge in graph.InEdges(v))
             {
                 int u = inEdge.Source;
-                if (NodeIsInTree(u)) continue;
+                if (NodeIsInTree(u))
+                {
+                    continue;
+                }
+
                 if (hedgehog.TryGetValue(u, out IEdge? oldEdge))
                 {
                     double oldWeight = weight(oldEdge);

@@ -86,12 +86,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         void MapVirtualNodesToEdges() {
             foreach (List<IntEdge> list in database.RegularMultiedges)
+            {
                 foreach (IntEdge e in list)
+                {
                     if (! EdgeIsFlat(e))//the edge is not flat
+                    {
                         foreach (LayerEdge le in e.LayerEdges)
+                        {
                             if (le.Target != e.Target)
+                            {
                                 virtNodesToIntEdges[le.Target] = e;
-
+                            }
+                        }
+                    }
+                }
+            }
         }
 
 
@@ -110,7 +119,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                         } else {
                             e.LayerEdges = new LayerEdge[span];
                             if (span == 1)
+                            {
                                 e.LayerEdges[0] = new LayerEdge(e.Source, e.Target, e.CrossingWeight);
+                            }
                             else {
                                 for (int i = 0; i < span; i++) {
                                     int source = GetSource(ref currentVV, e, i);
@@ -128,13 +139,19 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         internal static int GetTarget(ref int currentVV, IntEdge e, int i, int span) {
             if (i < span - 1)
+            {
                 return currentVV;
+            }
+
             return e.Target;
         }
 
         internal static int GetSource(ref int currentVV, IntEdge e, int i) {
             if (i == 0)
+            {
                 return e.Source;
+            }
+
             return currentVV++;
         }
 
@@ -145,7 +162,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             nla = new LayerArrays(new int[NLayeredGraph.NodeCount]);
 
             for (int i = 0; i < layeredGraph.NodeCount; i++)
+            {
                 NLayering[i] = la.Y[i];
+            }
 
             foreach (KeyValuePair<IntPair,List<IntEdge>> kv in database.Multiedges) {
                 if (kv.Key.First != kv.Key.Second && la.Y[kv.Key.First]!=la.Y[kv.Key.Second]) { //not a self edge and not a flat edge
@@ -159,7 +178,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                         }
                         int cl = layer - 1;
                         foreach (LayerEdge le in e.LayerEdges)
+                        {
                             NLayering[le.Target] = cl--;
+                        }
                     }
                 }
             }
@@ -170,12 +191,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             int[] counts = new int[newLayers.Length];
 
             foreach (int l in NLayering)
+            {
                 counts[l]++;
-
+            }
 
             for (int i = 0; i < counts.Length; i++)
+            {
                 newLayers[i] = new int[counts[i]];
-
+            }
 
             nla = new LayerArrays(NLayering)
             {

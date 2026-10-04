@@ -53,7 +53,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         public ICurve Trim(double start, double end) {
 
             if (start > end)
+            {
                 throw new InvalidOperationException();//"wrong params in trimming");
+            }
 
             Point p1 = start <= ParStart ? Start : (1 - start) * a + start * b;
             Point p2 = end >= ParEnd ? End : (1 - end) * a + end * b;
@@ -251,7 +253,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         public double GetParameterAtLength(double length) {
             double len = (b - a).Length;
             if (len < ApproximateComparer.Tolerance)
+            {
                 return 0;
+            }
+
             double t = length/len;
             return t > 1 ? 1 : (t < 0 ? 0 : t);
         }
@@ -274,9 +279,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         public double ClosestParameterWithinBounds(Point targetPoint, double low, double high) {
             double t = ClosestParameter(targetPoint);
             if (t < low)
+            {
                 t = low;
-            if(t>high)
-                t=high;
+            }
+
+            if (t>high)
+            {
+                t =high;
+            }
+
             return t;
         }
 
@@ -337,7 +348,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// <returns></returns>
         public static bool Intersect(Point a, Point b, Point c, Point d, out Point x) {
             if (!Point.LineLineIntersection(a, b, c, d, out x))
+            {
                 return false;
+            }
+
             return XIsBetweenPoints(ref a, ref b, ref x) && XIsBetweenPoints(ref c, ref d, ref x);
         }
 
@@ -425,9 +439,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
                 tN = 0.0;
                 // recompute parab for this edge
                 if (-uw < 0.0)
+                {
                     sN = 0.0;
+                }
                 else if (-uw > uu)
+                {
                     sN = sD;
+                }
                 else {
                     sN = -uw;
                     sD = uu;
@@ -437,9 +455,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
                 tN = tD = 1;
                 // recompute parab for this edge
                 if ((-uw + uv) < 0.0)
+                {
                     sN = 0;
+                }
                 else if ((-uw + uv) > uu)
+                {
                     sN = sD;
+                }
                 else {
                     sN = (-uw + uv);
                     sD = uu;

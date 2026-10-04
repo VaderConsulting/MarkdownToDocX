@@ -51,7 +51,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         /// <param name="rhs"></param>
         /// <returns></returns>
         public int Compare(SweepEvent? lhs, SweepEvent? rhs) {
-            if (lhs is null) return rhs is null ? 0 : -1; if (rhs is null) return 1;
+            if (lhs is null)
+            {
+                return rhs is null ? 0 : -1;
+            }
+
+            if (rhs is null)
+            {
+                return 1;
+            }
+
             if (lhs == rhs) {
                 return 0;
             }

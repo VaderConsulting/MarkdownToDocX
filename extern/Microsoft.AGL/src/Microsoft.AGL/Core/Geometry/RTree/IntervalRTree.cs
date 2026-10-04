@@ -56,11 +56,17 @@ namespace Microsoft.AGL.Core.Geometry.RTree
         internal void Add(IntervalNode<TData> node) {
 
             if (rootNode == null)
+            {
                 rootNode = node;
+            }
             else if (Count <= 2)
+            {
                 rootNode = IntervalNode<TData>.CreateIntervalNodeOnEnumeration(rootNode.GetAllLeafNodes().Concat(new[] {node}));
+            }
             else
+            {
                 AddNodeToTreeRecursive(node, rootNode);
+            }
         }
         /// <summary>
         /// rebuild the whole tree
@@ -148,7 +154,11 @@ namespace Microsoft.AGL.Core.Geometry.RTree
         /// <param name="userData"></param>
         /// <returns></returns>
         public bool Contains(Interval rectangle, TData userData) {
-            if (rootNode == null) return false;
+            if (rootNode == null)
+            {
+                return false;
+            }
+
             return
                 rootNode.GetLeafIntervalNodesIntersectingInterval(rectangle)
                         .Any(node => node.UserData.Equals(userData));
@@ -166,11 +176,19 @@ namespace Microsoft.AGL.Core.Geometry.RTree
             }
             IntervalNode<TData> ret = rootNode.GetLeafIntervalNodesIntersectingInterval(rectangle).FirstOrDefault(node => node.UserData.Equals(userData));
             if (ret == null)
+            {
                 return default(TData);
+            }
+
             if (RootNode.Count == 1)
+            {
                 RootNode = null;
+            }
             else
+            {
                 RemoveLeaf(ret);
+            }
+
             return ret.UserData;
         }
 
@@ -198,11 +216,17 @@ namespace Microsoft.AGL.Core.Geometry.RTree
         static bool TreeIsCorrect(IntervalNode<TData> node)
         {
             if (node == null)
+            {
                 return true;
+            }
+
             bool ret= node.Left != null && node.Right != null  ||
                    node.Left == null && node.Right == null;
             if (!ret)
+            {
                 return false;
+            }
+
             return TreeIsCorrect(node.Left) && TreeIsCorrect(node.Right);
         }
 
@@ -236,8 +260,13 @@ namespace Microsoft.AGL.Core.Geometry.RTree
 
         static IntervalNode<TData> FindTopUnbalancedNode(IntervalNode<TData> node) {
             for (IntervalNode<TData> parent = node.Parent; parent != null; parent = parent.Parent)
+            {
                 if (! Balanced(parent))
+                {
                     return parent;
+                }
+            }
+
             return null;
         }
 

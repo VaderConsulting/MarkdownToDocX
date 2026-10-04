@@ -90,13 +90,23 @@ namespace Microsoft.AGL.Core.Geometry {
         internal static Directions VectorDirection(Point d){
             Directions r = Directions.None;
             if(d.X > ApproximateComparer.DistanceEpsilon)
+            {
                 r = Directions.East;
+            }
             else if(d.X < -ApproximateComparer.DistanceEpsilon)
+            {
                 r = Directions.West;
-            if(d.Y > ApproximateComparer.DistanceEpsilon)
+            }
+
+            if (d.Y > ApproximateComparer.DistanceEpsilon)
+            {
                 r |= Directions.North;
+            }
             else if(d.Y < -ApproximateComparer.DistanceEpsilon)
+            {
                 r |= Directions.South;
+            }
+
             return r;
         }
 
@@ -110,13 +120,23 @@ namespace Microsoft.AGL.Core.Geometry {
             double halfEpsilon = ApproximateComparer.DistanceEpsilon / 2;
 
             if (horizontalDiff > halfEpsilon)
+            {
                 r = Directions.East;
+            }
             else if (-horizontalDiff > halfEpsilon)
+            {
                 r = Directions.West;
+            }
+
             if (verticalDiff > halfEpsilon)
+            {
                 r |= Directions.North;
+            }
             else if (-verticalDiff > halfEpsilon)
+            {
                 r |= Directions.South;
+            }
+
             return r;
         }
 
@@ -175,8 +195,16 @@ namespace Microsoft.AGL.Core.Geometry {
         /// <param name="obj"></param>
         /// <returns></returns>
         public override bool Equals(object obj) {
-            if (ReferenceEquals(null, obj)) return false;
-            if (obj.GetType() != typeof(CompassVector)) return false;
+            if (ReferenceEquals(null, obj))
+            {
+                return false;
+            }
+
+            if (obj.GetType() != typeof(CompassVector))
+            {
+                return false;
+            }
+
             return Equals((CompassVector)obj);
         }
 
@@ -193,13 +221,25 @@ namespace Microsoft.AGL.Core.Geometry {
         public Point ToPoint() {
             Point p = new Point();
             if ((Dir & Directions.East) == Directions.East)
+            {
                 p.X += 1;
+            }
+
             if ((Dir & Directions.North) == Directions.North)
+            {
                 p.Y += 1;
+            }
+
             if ((Dir & Directions.West) == Directions.West)
+            {
                 p.X -= 1;
+            }
+
             if ((Dir & Directions.South) == Directions.South)
+            {
                 p.Y -= 1;
+            }
+
             return p;
         }
 

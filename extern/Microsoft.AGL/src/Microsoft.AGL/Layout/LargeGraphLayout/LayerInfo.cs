@@ -13,7 +13,10 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout
         protected virtual void OnPropertyChanged(string propertyName)
         {
             PropertyChangedEventHandler handler = PropertyChanged;
-            if (handler != null) handler(this, new PropertyChangedEventArgs(propertyName));
+            if (handler != null)
+            {
+                handler(this, new PropertyChangedEventArgs(propertyName));
+            }
         }
 
          bool _isVisible;
@@ -113,7 +116,10 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout
         protected virtual void OnPropertyChanged(string propertyName = null)//[CallerMemberName]
         {
             PropertyChangedEventHandler handler = PropertyChanged;
-            if (handler != null) handler(this, new PropertyChangedEventArgs(propertyName));
+            if (handler != null)
+            {
+                handler(this, new PropertyChangedEventArgs(propertyName));
+            }
         }
     }
 
@@ -138,7 +144,10 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout
         protected virtual void OnPropertyChanged(string propertyName = null)//[CallerMemberName]
         {
             PropertyChangedEventHandler handler = PropertyChanged;
-            if (handler != null) handler(this, new PropertyChangedEventArgs(propertyName));
+            if (handler != null)
+            {
+                handler(this, new PropertyChangedEventArgs(propertyName));
+            }
         }
     }
 
@@ -163,7 +172,10 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout
         protected virtual void OnPropertyChanged(string propertyName = null)//[CallerMemberName]
         {
             PropertyChangedEventHandler handler = PropertyChanged;
-            if (handler != null) handler(this, new PropertyChangedEventArgs(propertyName));
+            if (handler != null)
+            {
+                handler(this, new PropertyChangedEventArgs(propertyName));
+            }
         }
     }
 }

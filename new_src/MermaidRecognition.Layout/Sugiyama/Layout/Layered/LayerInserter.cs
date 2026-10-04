@@ -173,10 +173,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         void MapVirtualNodesToEdges() {
             virtNodesToIntEdges = new IntEdge[NLayering.Length];
             foreach (IntEdge e in database.AllIntEdges)
+            {
                 if (e.Source != e.Target && e.LayerEdges!=null)
+                {
                     foreach (LayerEdge le in e.LayerEdges)
+                    {
                         if (le.Target != e.Target)
+                        {
                             virtNodesToIntEdges[le.Target] = e;
+                        }
+                    }
+                }
+            }
         }
         int totalNodes;
         /// <summary>
@@ -221,10 +229,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                     //find unique predecessor and successor
                     int predecessor = -1;
                     foreach (LayerEdge ie in nLayeredGraph.InEdges(v))
+                    {
                         predecessor = ie.Source;
+                    }
+
                     int successor = -1;
                     foreach (LayerEdge ie in nLayeredGraph.OutEdges(v))
+                    {
                         successor = ie.Target;
+                    }
 
                     int x = nla.X[predecessor] + nla.X[successor];
 
@@ -242,23 +255,34 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                             l.Add(v);
                         }
                     } else
+                    {
                         sd[x] = v;
+                    }
                 }
                 //fill the layer according to this order
                 int c = 0;
                 foreach (object v in sd.Values)
+                {
 #if SHARPKIT //https://code.google.com/p/sharpkit/issues/detail?id=347
                     if (v.GetType() == typeof(int))
 #else
                     if (v is int)
 #endif
                         layer[c++] = (int)v;
-                    else foreach (int k in v as List<int>)
+                    else
+                    {
+                        foreach (int k in v as List<int>)
+                        {
                             layer[c++] = k;
+                        }
+                    }
+                }
 
                 //update X now
                 for (int m = 0; m < layer.Length; m++)
+                {
                     nla.X[layer[m]] = m;
+                }
             }
         }
 
@@ -271,7 +295,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             nla = new LayerArrays(new int[totalNodes]);
 
             for (int i = 0; i < layeredGraph.NodeCount; i++)
+            {
                 NLayering[i] = la.Y[i] * 2;
+            }
 
             foreach (KeyValuePair<IntPair, List<IntEdge>> kv in database.Multiedges) {
                 IntPair ip = kv.Key;
@@ -281,8 +307,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                     foreach (IntEdge e in kv.Value) {
                         int layer = top - 1;
                         foreach (LayerEdge le in e.LayerEdges)
+                        {
                             if (le.Target != e.Target)
+                            {
                                 NLayering[le.Target] = layer--;
+                            }
+                        }
                     }
                 }
             }
@@ -293,10 +323,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             int[] counts = new int[newLayers.Length];
 
             foreach (int l in NLayering)
+            {
                 counts[l]++;
+            }
 
             for (int i = 0; i < counts.Length; i++)
+            {
                 newLayers[i] = new int[counts[i]];
+            }
 
             nla = new LayerArrays(NLayering)
             {

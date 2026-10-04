@@ -66,7 +66,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout
         public bool Remove(Node item)
         {
             if (item == null)
+            {
                 return false;
+            }
+
             DetouchNode(item);
             return nodes.Remove(item);
         }
@@ -74,7 +77,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout
         void DetouchNode(Node item) {
             Edge[] nodeEdges = item.Edges.ToArray(); //cannot use lazy evaluation here
             foreach (Edge? edge in nodeEdges)
+            {
                 graph.Edges.Remove(edge);
+            }
 
             item.GeometryParent = null;
         }

@@ -67,7 +67,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
                 lock(this){
 #endif
                 if (pBoxNode != null)
+                {
                     return pBoxNode;
+                }
+
                 return pBoxNode = ParallelogramNodeOverICurve.CreateParallelogramNodeForCurveSegment(this);
 #if PPC
                 }
@@ -89,9 +92,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
 
         static void AdjustParamTo01(ref double u) {
             if (u > 1)
+            {
                 u = 1;
+            }
             else if (u < 0)
+            {
                 u = 0;
+            }
         }
         //throw away the segments [0,u] and [v,1] of the segment
 
@@ -107,10 +114,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             AdjustParamTo01(ref v);
 
             if (u > v)
+            {
                 return Trim(v, u);
+            }
 
             if (u > 1.0 - ApproximateComparer.Tolerance)
+            {
                 return new CubicBezierSegment(b[3], b[3], b[3], b[3]);
+            }
 
             Point[] b1 = new Point[3];
             Point[] b2 = new Point[2];
@@ -140,10 +151,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
 
             double f = 1.0 - t;
             for (int i = 0; i < 3; i++)
+            {
                 b1[i] = b[i] * f + b[i + 1] * t;
+            }
 
             for (int i = 0; i < 2; i++)
+            {
                 b2[i] = b1[i] * f + b1[i + 1] * t;
+            }
 
             return b2[0] * f + b2[1] * t;
 
@@ -539,11 +554,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
                 double middle = (upper + low)/2;
                 int err = EvaluateError(length, middle);
                 if (err > 0)
+                {
                     upper = middle;
+                }
                 else if (err < 0)
+                {
                     low = middle;
+                }
                 else
+                {
                     return middle;
+                }
             }
 
             return (low + upper)/2;
@@ -562,10 +583,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             double lengthAtT = LengthOnControlPolygon(b[0], mb0, mmb0, mmmb0);
             
             if (lengthAtT > length + ApproximateComparer.DistanceEpsilon)
+            {
                 return 1;
+            }
 
             if (lengthAtT < length - ApproximateComparer.DistanceEpsilon)
+            {
                 return -1;
+            }
 
             return 0;
         }

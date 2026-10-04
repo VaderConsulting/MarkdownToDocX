@@ -8,6 +8,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures.RBTree
 
         public ComparerOnDelegate(Func<T, T, int> compare) => comparer = compare;
 
-        public int Compare(T? x, T? y) { if (x is null) return y is null ? 0 : -1; if (y is null) return 1; return comparer(x, y); }
+        public int Compare(T? x, T? y) { if (x is null) { return y is null ? 0 : -1; } if (y is null) { return 1; } return comparer(x, y); }
     }
 }

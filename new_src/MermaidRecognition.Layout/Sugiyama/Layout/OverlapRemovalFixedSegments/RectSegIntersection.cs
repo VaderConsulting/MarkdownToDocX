@@ -33,14 +33,22 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
             int code = INSIDE;
 
             if (p.X < rect.Left)
+            {
                 code |= LEFT;
+            }
             else if (p.X > rect.Right)
+            {
                 code |= RIGHT;
+            }
 
             if (p.Y < rect.Bottom)
+            {
                 code |= BOTTOM;
+            }
             else if (p.Y > rect.Top)
+            {
                 code |= TOP;
+            }
 
             return code;
         }
@@ -98,17 +106,29 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
             double a1 = 0;
 
             if (iTop && iBottom)
+            {
                 a1 = GetHorizontalTrapezoidArea(rect.LeftBottom, ipBottom, ipTop, rect.LeftTop);
+            }
             else if (iTop && iLeft)
+            {
                 a1 = GetTriangleArea(ipLeft, ipTop, rect.LeftTop);
+            }
             else if (iTop && iRight)
+            {
                 a1 = GetTriangleArea(ipRight, rect.RightTop, ipTop);
+            }
             else if (iLeft && iRight)
+            {
                 a1 = GetVerticalTrapezoidArea(rect.LeftBottom, rect.RightBottom, ipRight, ipLeft);
+            }
             else if (iLeft && iBottom)
+            {
                 a1 = GetTriangleArea(rect.LeftBottom, ipBottom, ipLeft);
+            }
             else if (iRight && iBottom)
+            {
                 a1 = GetTriangleArea(ipBottom, rect.RightBottom, ipRight);
+            }
 
             return Math.Min(a1, a - a1);
         }
@@ -256,7 +276,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
         public static Point GetOrthShiftUntilNoLongerOverlapRectSeg(Rectangle rect, Point p1, Point p2, Point moveDir)
         {
             Point d = (p2 - p1).Rotate90Cw().Normalize();
-            if (Dot(d, moveDir) < 0) d = -d;
+            if (Dot(d, moveDir) < 0)
+            {
+                d = -d;
+            }
+
             double minProj = 0;
 
             minProj = Math.Min(minProj, Dot(rect.LeftBottom - p1, d));
@@ -287,16 +311,28 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
             Point p2 = rect.Center + dir;
 
             GetIntX(rect.Left, p1, p2, out double alpha);
-            if (alpha > 0) t = Math.Min(t, alpha);
+            if (alpha > 0)
+            {
+                t = Math.Min(t, alpha);
+            }
 
             GetIntX(rect.Right, p1, p2, out alpha);
-            if (alpha > 0) t = Math.Min(t, alpha);
+            if (alpha > 0)
+            {
+                t = Math.Min(t, alpha);
+            }
 
             GetIntY(rect.Bottom, p1, p2, out alpha);
-            if (alpha > 0) t = Math.Min(t, alpha);
+            if (alpha > 0)
+            {
+                t = Math.Min(t, alpha);
+            }
 
             GetIntY(rect.Top, p1, p2, out alpha);
-            if (alpha > 0) t = Math.Min(t, alpha);
+            if (alpha > 0)
+            {
+                t = Math.Min(t, alpha);
+            }
 
             return p1 + t*dir;
         }
@@ -352,7 +388,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
                 insideBoundary &= !boxSmall.Contains(p2);
 
                 if(insideBoundary)
+                {
                     boxesContaining.Add(r);
+                }
             }
 
             return boxesContaining.Any();
@@ -372,7 +410,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
                 Point v1 = p2 - p1;
 
                 if (!Point.ParallelWithinEpsilon(v0, v1, 1))
+                {
                     return false;
+                }
             }
             return true;
         }

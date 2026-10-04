@@ -96,9 +96,14 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
         static void TraverseHierarchy(RectangleNode<Polyline> node, Visitor visitor) {
             visitor(node);
             if (node.Left != null)
+            {
                 TraverseHierarchy(node.Left, visitor);
+            }
+
             if (node.Right != null)
+            {
                 TraverseHierarchy(node.Right, visitor);
+            }
         }
 
         void CreateTightObstacles() {
@@ -109,36 +114,57 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
                 CalculateTightHierarchy();
                 overlappingPolylineSets = GetOverlappingSets();
                 foreach (Set<Polyline> overlappingSet in overlappingPolylineSets)
+                {
                     InsertOverlappingSet(overlappingSet);
+                }
             } while (overlappingPolylineSets.Count > 0);
         }
 
         void RemoveTightObstaclesOverlappingPortTightObstacles() {
             List<Polyline> toRemove = new List<Polyline>();
             foreach (Polyline poly in TightObstaclesMinusPortObstacles())
+            {
                 foreach (ICurve portObstacle in portObstacles)
+                {
                     if (poly.BoundingBox.Intersects(portObstacle.BoundingBox))
+                    {
                         if (Curve.GetAllIntersections(poly, portObstacle, false).Count > 0 ||
                             OneCurveLiesInsideOfOther(poly, portObstacle))
+                        {
                             toRemove.Add(poly);
+                        }
+                    }
+                }
+            }
 
             foreach (Polyline poly in toRemove)
+            {
                 TightObstacles.Remove(poly);
+            }
         }
 
         IEnumerable<Polyline> TightObstaclesMinusPortObstacles() {
             foreach (Polyline p in TightObstacles)
+            {
                 if (portObstacles.Contains(p) == false)
+                {
                     yield return p;
+                }
+            }
         }
 
         void InsertOverlappingSet(Set<Polyline> overlappingSet) {
             foreach (Polyline p in overlappingSet)
+            {
                 tightObstacles.Remove(p);
+            }
 
             Polyline hull = new Polyline();
             foreach (Point p in ConvexHull.CalculateConvexHull(EnumerateOverSetOfPolylines(overlappingSet)))
+            {
                 hull.AddPoint(p);
+            }
+
             hull.Closed = true;
 
             //debug 
@@ -155,8 +181,12 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
 
         IEnumerable<Point> EnumerateOverSetOfPolylines(Set<Polyline> pp) {
             foreach (Polyline poly in pp)
+            {
                 foreach (Point p in poly)
+                {
                     yield return p;
+                }
+            }
         }
 
         List<Set<Polyline>> GetOverlappingSets() {
@@ -171,7 +201,10 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
                 if (!processedPolylines.Contains(poly)) {
                     Set<Polyline> component = GetComponent(poly, overlapGraph);
                     if (component.Count > 1)
+                    {
                         list.Add(component);
+                    }
+
                     processedPolylines += component;
                 }
             }
@@ -203,7 +236,10 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
         void CalculateTightHierarchy() {
             List<RectangleNode<Polyline>> rectNodes = new List<RectangleNode<Polyline>>();
             foreach (Polyline polyline in TightObstacles)
+            {
                 rectNodes.Add(CreateRectNodeOfPolyline(polyline));
+            }
+
             RootOfTightHierararchy = RectangleNode<Polyline>.CreateRectangleNodeOnListOfNodes(rectNodes);
         }
 
@@ -224,11 +260,13 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
                 if (a.UserData != null) {
                     if (b.UserData != null) {
                         if (a.UserData != b.UserData)
+                        {
                             if (Curve.GetAllIntersections(a.UserData, b.UserData, false).Count > 0 ||
                                 OneCurveLiesInsideOfOther(a.UserData, b.UserData)) {
                                 overlapGraph.AddEdge(a.UserData, b.UserData);
                                 overlapGraph.AddEdge(b.UserData, a.UserData);
                             }
+                        }
                     } else {
                         CreateEdgesUnderTwoNodes(a, b.Left, overlapGraph);
                         CreateEdgesUnderTwoNodes(a, b.Right, overlapGraph);
@@ -257,9 +295,13 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
             tightObstacles = [];
             foreach (Node node in router.Graph.Nodes) {
                 if (node == router.Source)
+                {
                     CreatePortObstacles(router.Source, router.SourcePort, out sourceFilterLine);
+                }
                 else if (node == router.Target)
+                {
                     CreatePortObstacles(router.Target, router.TargetPort, out targetFilterLine);
+                }
                 else {
                     TightObstacles.Insert(PaddedPolylineBoundaryOfNode(node, router.Padding));
                 }
@@ -333,7 +375,9 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
             Debug.Assert(u >= curve.ParStart && u <= curve.ParEnd);
             Debug.Assert(v >= curve.ParStart && v <= curve.ParEnd);
             if (u < v)
+            {
                 return curve.Trim(u, v) as Curve;
+            }
 
             Curve c = new Curve();
             c.AddSegment(curve.Trim(u, curve.ParEnd) as Curve);
@@ -377,7 +421,10 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
 
         static Polyline LoosePolylineWithFewCorners(Polyline tightPolyline, double p) {
             if (p < ApproximateComparer.DistanceEpsilon)
+            {
                 return tightPolyline;
+            }
+
             Polyline loosePolyline = CreateLoosePolylineOnBisectors(tightPolyline, p);
             return loosePolyline;
         }
@@ -440,7 +487,9 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
                         candidate = currentSticking;
                         if (Point.GetTriangleOrientation(ret.EndPoint.Point, blockingPoint, pp.Point) ==
                             TriangleOrientation.Counterclockwise)
+                        {
                             blockingPoint = pp.Point;
+                        }
                     }
                 }
             }
@@ -452,7 +501,9 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
                     //the first point is visible, but now can we cut it
                     if (Point.GetTriangleOrientation(ret.EndPoint.Point, blockingPoint, ret.StartPoint.Next.Point) ==
                         TriangleOrientation.Counterclockwise)
+                    {
                         ret.RemoveStartPoint();
+                    }
                 } else {
                     ret.AddPoint(candidate);
                 }
@@ -461,7 +512,9 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
                 if (
                     Point.GetTriangleOrientation(ret.EndPoint.Point, tightPolyline.StartPoint.Point,
                                                  ret.StartPoint.Next.Point) == TriangleOrientation.Counterclockwise)
+                {
                     ret.RemoveStartPoint();
+                }
                 else { }
             }
 
@@ -483,7 +536,9 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
             Polygon polygon = new Polygon(polyline);
 
             foreach (Polyline poly in RootOfLooseHierarchy.GetAllLeaves().Where(p => p != polyline))
+            {
                 dist = Math.Min(dist, Polygon.Distance(polygon, new Polygon(poly)));
+            }
 
             //            TraverseHierarchy(RootOfLooseHierarchy, delegate(RectangleNode<Polyline> node) {
             //                                                        if (node.UserData != null)
@@ -516,11 +571,15 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
 
         static bool CurveIntersectsRectangleNode(ICurve curve, ref Rectangle curveBox, RectangleNode<Polyline> rectNode) {
             if (!rectNode.Rectangle.Intersects(curveBox))
+            {
                 return false;
+            }
 
             if (rectNode.UserData != null)
+            {
                 return Curve.CurveCurveIntersectionOne(rectNode.UserData, curve, false) != null ||
                        Inside(rectNode.UserData, curve);
+            }
 
             Debug.Assert(rectNode.Left != null && rectNode.Right != null);
 
@@ -557,12 +616,16 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
 
         static bool CurveIntersectsRectangleNode(ICurve curve, ref Rectangle curveBox, RectangleNode<Polyline> rectNode, Polyline polylineToIgnore) {
             if (!rectNode.Rectangle.Intersects(curveBox))
+            {
                 return false;
+            }
 
             if (rectNode.UserData != null)
+            {
                 return rectNode.UserData != polylineToIgnore &&
                        (Curve.CurveCurveIntersectionOne(rectNode.UserData, curve, false) != null ||
                         Inside(rectNode.UserData, curve));
+            }
 
             Debug.Assert(rectNode.Left != null && rectNode.Right != null);
 

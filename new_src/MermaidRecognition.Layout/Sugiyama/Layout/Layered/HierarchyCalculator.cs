@@ -23,10 +23,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         ParallelogramNode Calc(List<ParallelogramNode> nodes) {
 
             if (nodes.Count == 0)
+            {
                 return null;
+            }
 
             if (nodes.Count == 1)
+            {
                 return nodes[0];
+            }
 
             //Finding the seeds
             Parallelogram b0 = nodes[0].Parallelogram;
@@ -60,7 +64,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
             for (int i = 0; i < nodes.Count; i++) {
                 if (i == seed0)
+                {
                     continue;
+                }
+
                 double area1 = new Parallelogram(nodes[seed0].Parallelogram, nodes[i].Parallelogram).Area;
                 if (area1 > area) {
                     seed1 = i;
@@ -81,7 +88,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             for (int i = 0; i < nodes.Count; i++) {
 
                 if (i == seed0 || i == seed1)
+                {
                     continue;
+                }
 
                 Parallelogram box0_ = new Parallelogram(box0, nodes[i].Parallelogram);
                 double delta0 = box0_.Area - box0.Area;

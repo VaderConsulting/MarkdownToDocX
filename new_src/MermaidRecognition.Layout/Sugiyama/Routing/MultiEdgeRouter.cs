@@ -43,7 +43,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
 
         IEnumerable<GeometryGraph> GetGeometryGraphs() {
             foreach (PreGraph preGraph in GetIndependantPreGraphs())
+            {
                 yield return CreateGeometryGraph(preGraph);
+            }
         }
 
         GeometryGraph CreateGeometryGraph(PreGraph preGraph) {
@@ -55,7 +57,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
                 graph.Nodes.Add(node);
             }
             foreach (EdgeGeometry eg in preGraph.edgeGeometries)
+            {
                 AddEdgeGeometryToGraph(eg, graph, nodeDictionary);
+            }
 
             return graph;
         }
@@ -70,7 +74,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         private Node GetOrCreateNode(Port port, Dictionary<ICurve, Node> nodeDictionary) {
             ICurve curve = GetPortCurve(port);
             if (!nodeDictionary.TryGetValue(curve, out Node? node))
+            {
                 nodeDictionary[curve] = node = new Node(curve);
+            }
+
             return node;
         }
 
@@ -89,7 +96,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
                 int count = preGraphs.Count;
                 UniteConnectedPreGraphs(ref preGraphs);
                 if (count <= preGraphs.Count)
+                {
                     break;
+                }
             } while (true);
             return preGraphs;
         }
@@ -97,7 +106,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         void UniteConnectedPreGraphs(ref List<PreGraph> preGraphs) {
             BasicGraph<IntPair> intersectionGraph = GetIntersectionGraphOfPreGraphs(preGraphs);
             if (intersectionGraph == null)
+            {
                 return;
+            }
+
             IEnumerable<IEnumerable<int>> connectedComponents = ConnectedComponentCalculator<IntPair>.GetComponents(intersectionGraph);
             List<PreGraph> newPreGraphList = new List<PreGraph>();
             foreach (IEnumerable<int> component in connectedComponents) {
@@ -107,24 +119,34 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
                         preGraph = preGraphs[i];
                         newPreGraphList.Add(preGraph);
                     }
-                    else preGraph.AddGraph(preGraphs[i]);
+                    else
+                    {
+                        preGraph.AddGraph(preGraphs[i]);
+                    }
                 }
             }
             preGraphs = newPreGraphList;
             foreach (PreGraph pg in preGraphs)
+            {
                 AddIntersectingNodes(pg);
+            }
         }
 
         private void AddIntersectingNodes(PreGraph pg) {
             Rectangle rect = pg.boundingBox;
             foreach (ICurve curve in nodeTree.GetNodeItemsIntersectingRectangle(rect))
+            {
                 pg.AddNodeBoundary(curve);
+            }
         }
 
         static BasicGraph<IntPair> GetIntersectionGraphOfPreGraphs(List<PreGraph> preGraphs) {
             IEnumerable<IntPair> intersectingPairs = EnumeratePairsOfIntersectedPreGraphs(preGraphs);
             if (intersectingPairs.Any())
+            {
                 return new BasicGraph<IntPair>(intersectingPairs, preGraphs.Count);
+            }
+
             return null;
         }
 
@@ -147,7 +169,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
             rect.Add(eg.TargetPort.Curve.BoundingBox);
             IEnumerable<ICurve> overlapped = nodeTree.GetNodeItemsIntersectingRectangle(rect);
             foreach (ICurve nodeBoundary in overlapped)
+            {
                 nodeBoundaries.Insert(nodeBoundary);
+            }
 
             return new PreGraph(egs, nodeBoundaries);
         }

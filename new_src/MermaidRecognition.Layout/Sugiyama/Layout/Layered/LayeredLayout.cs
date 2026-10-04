@@ -62,10 +62,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
         }
 
         internal static void PreRunTransform(GeometryGraph geomGraph, PlaneTransformation matrix) {
-            if (matrix.IsIdentity) return;
+            if (matrix.IsIdentity)
+            {
+                return;
+            }
+
             PlaneTransformation m = matrix.Inverse;
             foreach (Node n in geomGraph.Nodes)
+            {
                 n.Transform(m);
+            }
             //calculate new label widths and heights
             foreach (Edge e in geomGraph.Edges) {
                 if (e.Label != null) {
@@ -112,7 +118,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
             geometryGraph.BoundingBox = new Rectangle(transformation * geometryGraph.LeftBottom, transformation * geometryGraph.RightTop);
             foreach (Edge e in geometryGraph.Edges) {
                 if (e.Label != null)
+                {
                     e.Label.Center = transformation * e.Label.Center;
+                }
+
                 TransformEdgeCurve(transformation, e);
             }
         }
@@ -123,9 +132,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
                 e.Curve = e.Curve.Transform(transformation);
                 EdgeGeometry eg = e.EdgeGeometry;
                 if (eg.SourceArrowhead != null)
+                {
                     eg.SourceArrowhead.TipPosition = transformation * eg.SourceArrowhead.TipPosition;
+                }
+
                 if (eg.TargetArrowhead != null)
+                {
                     eg.TargetArrowhead.TipPosition = transformation * eg.TargetArrowhead.TipPosition;
+                }
+
                 TransformUnderlyingPolyline(e, transformation);
             }
         }
@@ -156,7 +171,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
         public static void IncrementalLayout(GeometryGraph geometryGraph, Node node) {
             ValidateArg.IsNotNull(geometryGraph, "geometryGraph");
 
-            if (geometryGraph.AlgorithmData is not LayeredLayoutEngine engine) return;
+            if (geometryGraph.AlgorithmData is not LayeredLayoutEngine engine)
+            {
+                return;
+            }
+
             PreRunTransform(geometryGraph, engine.SugiyamaSettings.Transformation);
             engine.IncrementalRun(node);
             PostRunTransform(geometryGraph, engine.SugiyamaSettings.Transformation);

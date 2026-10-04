@@ -70,7 +70,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
             foreach (Station station in metroGraphData.Stations) {
                 if (station.BoundaryCurve == null)
+                {
                     station.BoundaryCurve = new Ellipse(station.Radius, station.Radius, station.Position);
+                }
             }
 
             foreach (Station station in metroGraphData.Stations) {
@@ -141,7 +143,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         void SetLeftRightBases(List<BundleBase> bases) {
             int count = bases.Count;
             if (count <= 1)
+            {
                 return;
+            }
+
             for (int i = 0; i < count; i++) {
                 bases[i].Prev = bases[(i - 1 + count) % count];
                 bases[i].Next = bases[(i + 1) % count];
@@ -156,7 +161,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         void CreateOrientedSegsOnLine(Metroline line) {
             for (PolylinePoint polyPoint = line.Polyline.StartPoint.Next; polyPoint.Next != null; polyPoint = polyPoint.Next)
+            {
                 CreateOrientedSegsOnLineVertex(line, polyPoint);
+            }
         }
 
         void CreateOrientedSegsOnLineVertex(Metroline line, PolylinePoint polyPoint) {
@@ -175,7 +182,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         void UpdateSourceAndTargetBases() {
             foreach (BundleInfo bundleInfo in Bundles)
+            {
                 bundleInfo.UpdateSourceAndTargetBases(true, true);
+            }
         }
 
         void SetBasesRightLeftParamsToTheMiddles() {
@@ -190,7 +199,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         double GetBaseMiddleParamInDirection(BundleBase targetBase, Point sPos, Point neighbPos) {
             ICurve curve = targetBase.Curve;
             if (curve is Ellipse circle && circle.IsArc())
+            {
                 return Point.Angle(circle.AxisA, neighbPos - sPos);
+            }
 
             IList<IntersectionInfo> intersections = Curve.GetAllIntersections(curve, new LineSegment(sPos, neighbPos), true);
             foreach (IntersectionInfo intersectionInfo in intersections) {
@@ -222,7 +233,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         void AdjustCurrentBundleWidthsOnCurve(List<BundleBase> bases) {
             int count = bases.Count;
             if (count <= 1)
+            {
                 return;
+            }
 
             for (int i = 0; i < count; i++) {
                 BundleBase rBase = bases[i];
@@ -235,7 +248,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         void ShrinkBasesToMakeTwoConsecutiveNeighborsHappy(BundleBase rBase, BundleBase lBase) {
             if (!rBase.Intersect(lBase))
+            {
                 return;
+            }
 
             //segments are now [l1..r1] and [l2..r2]
             double l1 = rBase.ParRight;
@@ -247,9 +262,14 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
             //make them regular
             if (l1 > r1)
+            {
                 l1 -= span;
+            }
+
             if (l2 > r2)
+            {
                 l2 -= span;
+            }
 
             //make them intersecting
             if (l2 > r1) {
@@ -305,9 +325,14 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             double mx = Math.Max(l1, l2);
             Debug.Assert(ApproximateComparer.LessOrEqual(mx, cutParam) && ApproximateComparer.LessOrEqual(cutParam, mn));
             if (cutParam < mx)
+            {
                 cutParam = mx;
+            }
+
             if (cutParam > mn)
+            {
                 cutParam = mn;
+            }
 
             return cutParam;
         }
@@ -356,7 +381,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
                 parameterChange = UpdateParameterChange(parameterChange, oldCost, cost);
                 if (parameterChange < MinParameterChange)
+                {
                     break;
+                }
 
                 if (iteration % 10 == 0) {
                     //TimeMeasurer.DebugOutput("bundle bases cost is " + cost + " (" + iteration + " iterations) " + parameterChange * 360);
@@ -394,7 +421,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             bool progress = false;
             foreach (BundleInfo bundleInfo in Bundles) {
                 if (fixedBundles.Contains(bundleInfo))
+                {
                     continue;
+                }
 
                 if (OptimizeBundle(bundleInfo, parameterChange, ref cost)) {
                     progress = true;
@@ -403,7 +432,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                     while ((isClusterS || isClusterT) && OptimizeBundle(bundleInfo, parameterChange, ref cost)) { }*/
                 }
                 else
+                {
                     fixedBundles.Add(bundleInfo);
+                }
             }
             return progress;
         }
@@ -411,7 +442,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         bool OptimizeBundle(BundleInfo bundleInfo, double parameterChange, ref double cost) {
             double bundleCost = Cost(bundleInfo);
             if (bundleCost < CostThreshold)
+            {
                 return false;
+            }
 
             //choose the best step
             double bestDelta = 0;
@@ -434,7 +467,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             }
 
             if (bestDelta < CostDeltaThreshold)
+            {
                 return false;
+            }
             //do the change
             cost -= bestDelta;
 
@@ -446,7 +481,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         double DeltaWithChangedAngles(int rotationOfSourceRigthPoint, int rotationOfSourceLeftPoint, int rotationOfTargetRigthPoint, int rotationOfTargetLeftPoint,
             BundleInfo bundleInfo, double bundleCost, double parameterChange) {
             if (!bundleInfo.RotationIsLegal(rotationOfSourceRigthPoint, rotationOfSourceLeftPoint, rotationOfTargetRigthPoint, rotationOfTargetLeftPoint, parameterChange))
+            {
                 return 0;
+            }
 
             bundleInfo.RotateBy(rotationOfSourceRigthPoint, rotationOfSourceLeftPoint, rotationOfTargetRigthPoint, rotationOfTargetLeftPoint, parameterChange);
             double newCost = Cost(bundleInfo, bundleCost);
@@ -467,13 +504,22 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             double cost = 0;
             cost += CenterCoeff * CenterCost(bundleInfo);
             if (cost > limit)
+            {
                 return cost;
+            }
+
             cost += SeparationCoeff * SeparationCost(bundleInfo);
             if (cost > limit)
+            {
                 return cost;
+            }
+
             cost += SqueezeCoeff * SqueezeCost(bundleInfo);
             if (cost > limit)
+            {
                 return cost;
+            }
+
             cost += AssymetryCoeff * AssymetryCost(bundleInfo);
             return cost;
         }
@@ -496,30 +542,40 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         double CenterCost(BundleInfo bundleInfo) {
             if (!bundleInfo.SourceBase.BelongsToRealNode && !bundleInfo.TargetBase.BelongsToRealNode)
+            {
                 return 0;
+            }
 
             return CenterCost(bundleInfo.SourceBase) + CenterCost(bundleInfo.TargetBase);
         }
 
         double CenterCost(BundleBase bundleBase) {
             if (!bundleBase.BelongsToRealNode)
+            {
                 return 0;
+            }
 
             double currentMid = bundleBase.ParMid;
             double mn = Math.Min(bundleBase.InitialMidParameter, currentMid);
             double mx = Math.Max(bundleBase.InitialMidParameter, currentMid);
             double dist = Math.Min(mx - mn, mn + bundleBase.ParameterSpan - mx);
             if (bundleBase.CurveCenter == bundleBase.Position || bundleBase.IsParent)
+            {
                 return 25 * dist * dist;
+            }
             else
+            {
                 return 500 * dist * dist;
+            }
         }
 
         double AssymetryCost(BundleInfo bundleInfo) => GetAssymetryCostForBase(bundleInfo.SourceBase) + GetAssymetryCostForBase(bundleInfo.TargetBase);
 
         double GetAssymetryCostForBase(BundleBase bundleBase) {
             if (bundleBase.BelongsToRealNode)
+            {
                 return 0;
+            }
 
             double assymetryWeight = bundleBase.OppositeBase.BelongsToRealNode ? 200 : 500;
             double cost = 0;
@@ -545,7 +601,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             Point xAxis = (a - b);
             double len = xAxis.Length;
             if (len < ApproximateComparer.DistanceEpsilon)
+            {
                 return 0;
+            }
+
             xAxis /= len;
             //Tangents both have length 1. If they compensate each other on x-asis,
             //then their projections on y-axis are the same.
@@ -569,7 +628,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         double SeparationCostForBundleBase(BundleBase bBase) {
             if (bBase.Prev == null)
+            {
                 return 0;
+            }
 
             return SeparationCostForAdjacentBundleBases(bBase, bBase.Prev) + SeparationCostForAdjacentBundleBases(bBase, bBase.Next);
         }
@@ -598,11 +659,16 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             double e = curve.ParEnd;
             if (a < b) {
                 if (c < d)
+                {
                     return IntersectRegularIntervals(a, b, c, d);
+                }
+
                 return IntersectRegularIntervals(a, b, c, e) + IntersectRegularIntervals(a, b, s, d);
             }
             if (c < d)
+            {
                 return IntersectRegularIntervals(a, e, c, d) + IntersectRegularIntervals(s, b, c, d);
+            }
 
             return IntersectRegularIntervals(a, e, c, e) + IntersectRegularIntervals(s, b, s, d);
         }

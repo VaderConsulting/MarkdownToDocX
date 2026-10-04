@@ -121,8 +121,16 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
 
 
         internal int GetLevelIndexByScale(double scale) {
-            if (scale <= 1) return 0;
-            if (scale >= _levels.Last().ZoomLevel) return _levels.Count - 1;
+            if (scale <= 1)
+            {
+                return 0;
+            }
+
+            if (scale >= _levels.Last().ZoomLevel)
+            {
+                return _levels.Count - 1;
+            }
+
             double z = Math.Log(scale, 2);
             int ret = (int)Math.Ceiling(z);
             Debug.Assert(0 <= ret && ret < _levels.Count);
@@ -206,7 +214,9 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
         internal void SelectEdges(List<Edge> passingEdges) {
             SelectedEdges.InsertRange(passingEdges);
             for (int i = _levels.Count - 1; i >= 0; i--)
+            {
                 SelectEdgesOnLevel(i, passingEdges);
+            }
         }
 
         public Set<Edge> SelectedEdges => _selectedEdges;
@@ -226,7 +236,9 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
                     TransferHighlightedRails(level, edge, railsOfEdge);
                 }
                 else
+                {
                     railsToHighlight.InsertRange(railsOfEdge);
+                }
             }
             //need to analyze and highlight the new highlighted rails
             foreach (Rail rail in railsToHighlight) {
@@ -258,7 +270,9 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
                     TransferHighlightedRails(level, edge, railsOfEdge); // roman: todo: necessary?
                 }
                 else
+                {
                     railsToHighlight.InsertRange(railsOfEdge);
+                }
             }
             return railsToHighlight;
         }
@@ -286,7 +300,10 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
         static void TransferHighlightedRails(LgLevel level, Edge edge, Set<Rail> railsOfEdge) {
             //need to remove those rails later, when putting them off
             foreach (Rail rail in railsOfEdge)
+            {
                 AddRailToRailTreeOfLowerLevel(rail, level);
+            }
+
             level._railsOfEdges[edge] = railsOfEdge;
             level.HighlightedRails.InsertRange(railsOfEdge);
         }
@@ -318,12 +335,18 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
             Tuple<Point, Point> pt = rail.PointTuple();
             Rectangle box = new Rectangle(pt.Item1, pt.Item2);
             if (!lowerLevel._railTree.Contains(box, rail))
+            {
                 lowerLevel._railTree.Add(box, rail);
+            }
         }
 
 
         internal double GetMaximalZoomLevel() {
-            if (_levels == null || _levels.Count == 0) return 1;
+            if (_levels == null || _levels.Count == 0)
+            {
+                return 1;
+            }
+
             return _levels.Last().ZoomLevel;
         }
 
@@ -336,9 +359,14 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
         public void UnselectEdges(List<Edge> edgesToPutOff) {
             Set<Edge> edgesToPutoffSet = new Set<Edge>(edgesToPutOff);
             for (int i = _levels.Count - 1; i >= 0; i--)
+            {
                 PutOffEdgesOnLevel(i, edgesToPutoffSet);
+            }
+
             foreach (Edge e in edgesToPutOff)
+            {
                 SelectedEdges.Remove(e);
+            }
         }
 
         void PutOffEdgesOnLevel(int i, Set<Edge> edgesToPutOff) {
@@ -348,7 +376,9 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
             foreach (Rail rail in level.HighlightedRails) {
                 if (!railsThatShouldBeHiglighted.Contains(rail)) {
                     if (RailBelongsToLevel(level, rail))
+                    {
                         rail.IsHighlighted = false;
+                    }
                     else {
                         Tuple<Point, Point> railTuple = rail.PointTuple();
                         Rectangle rect = new Rectangle(railTuple.Item1, railTuple.Item2);
@@ -360,7 +390,9 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
             foreach (Edge edge in edgesToPutOff) {
                 LgEdgeInfo lgEdgeInfo = GeometryEdgesToLgEdgeInfos[edge];
                 if (lgEdgeInfo.ZoomLevel > level.ZoomLevel)
+                {
                     level._railsOfEdges.Remove(edge);
+                }
             }
 
             level.HighlightedRails = railsThatShouldBeHiglighted;
@@ -371,7 +403,11 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
         Set<Rail> GetRailsThatShouldBeHighlighted(LgLevel level, Set<Edge> edgesToPutOff) {
             Set<Rail> ret = new Set<Rail>();
             foreach (Edge edge in SelectedEdges) {
-                if (edgesToPutOff.Contains(edge)) continue;
+                if (edgesToPutOff.Contains(edge))
+                {
+                    continue;
+                }
+
                 if (level._railsOfEdges.TryGetValue(edge, out Set<Rail> railsOfEdge))
                 {
                     ret.InsertRange(railsOfEdge);

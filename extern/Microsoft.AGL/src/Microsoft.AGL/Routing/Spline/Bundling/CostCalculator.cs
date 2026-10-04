@@ -40,7 +40,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         /// Error of hubs
         /// </summary>
         static internal double RError(double idealR, double nowR, BundlingSettings bundlingSettings) {
-            if (idealR <= nowR) return 0;
+            if (idealR <= nowR)
+            {
+                return 0;
+            }
 
             double res = bundlingSettings.HubRepulsionImportance * (1.0 - nowR / idealR) * (idealR - nowR);
             return res;
@@ -50,7 +53,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         /// Error of bundles
         /// </summary>
         static internal double BundleError(double idealWidth, double nowWidth, BundlingSettings bundlingSettings) {
-            if (idealWidth <= nowWidth) return 0;
+            if (idealWidth <= nowWidth)
+            {
+                return 0;
+            }
 
             double res = bundlingSettings.BundleRepulsionImportance * (1.0 - nowWidth / idealWidth) * (idealWidth - nowWidth);
             return res;
@@ -152,10 +158,13 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         internal double RadiusCost(Station node, Point newPosition) {
             double idealR;
             if (ApproximateComparer.Close(node.Position, newPosition))
+            {
                 idealR = node.cachedIdealRadius;
+            }
             else
+            {
                 idealR = HubRadiiCalculator.CalculateIdealHubRadiusWithNeighbors(metroGraphData, bundlingSettings, node, newPosition);
-
+            }
 
             if (!metroGraphData.looseIntersections.HubAvoidsObstacles(node, newPosition, idealR, out List<Tuple<Polyline, Point>> touchedObstacles))
             {
@@ -181,7 +190,11 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             gain += node.cachedBundleCost;
             foreach (Station adj in node.Neighbors) {
                 double lgain = BundleCost(node, adj, newPosition);
-                if (ApproximateComparer.GreaterOrEqual(lgain, Inf)) return -Inf;
+                if (ApproximateComparer.GreaterOrEqual(lgain, Inf))
+                {
+                    return -Inf;
+                }
+
                 gain -= lgain;
             }
 

@@ -39,9 +39,14 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
             TriangleOrientation orientation = Point.GetTriangleOrientation(x, coneSide.Start,
                                                                            coneSide.Start + coneSide.Direction);
             if (orientation == TriangleOrientation.Counterclockwise)
+            {
                 return -1;
+            }
+
             if (orientation == TriangleOrientation.Clockwise)
+            {
                 return 1;
+            }
 
             //we have the case where x belongs to the cone side
 
@@ -51,13 +56,18 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
         int CompareConeSideAndObstacleSide(ConeSide coneSide, BrokenConeSide brokenConeSide) {
             TriangleOrientation orientation = Point.GetTriangleOrientation(x, brokenConeSide.Start, brokenConeSide.End);
             if (orientation == TriangleOrientation.Counterclockwise)
+            {
                 return -1;
+            }
+
             if (orientation == TriangleOrientation.Clockwise)
+            {
                 return 1;
+            }
 
             //we have the case where x belongs to the cone side
 
-      //      lineSweeper.Show(CurveFactory.CreateDiamond(5,5, brokenConeSide.EndVertex.Point));
+            //      lineSweeper.Show(CurveFactory.CreateDiamond(5,5, brokenConeSide.EndVertex.Point));
 
             return coneSide is ConeLeftSide ? 1 : -1;
         }
@@ -72,11 +82,16 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
 
         int CompareBrokenSides(BrokenConeSide aObst, BrokenConeSide bObst) {
             if (aObst.EndVertex == bObst.EndVertex)
+            {
                 return CompareNotIntersectingSegs(aObst.ConeSide, bObst.ConeSide);
+            }
 
             if (Point.GetTriangleOrientation(x, bObst.Start, bObst.EndVertex.Point) ==
                 TriangleOrientation.Counterclockwise)
+            {
                 return -1;
+            }
+
             return 1;
         }
     }

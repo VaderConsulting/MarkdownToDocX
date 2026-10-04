@@ -44,7 +44,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             List<Polyline> boundaryAnchorsCurves = FindRightBoundaryAnchorCurves();
             List<ParallelogramNode> l = [];
             foreach (Polyline c in boundaryAnchorsCurves)
+            {
                 l.Add(c.ParallelogramNodeOverICurve);
+            }
 
             thinRightHierarchy = HierarchyCalculator.Calculate(thinRightNodes, settings.GroupSplit);
 
@@ -55,7 +57,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             List<Polyline> boundaryAnchorCurves = FindLeftBoundaryAnchorCurves();
             List<ParallelogramNode> l = [];
             foreach (Polyline a in boundaryAnchorCurves)
+            {
                 l.Add(a.ParallelogramNodeOverICurve);
+            }
 
             thinLeftHierarchy = HierarchyCalculator.Calculate(thinLefttNodes, settings.GroupSplit);
 
@@ -71,11 +75,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                 foreach (int v in LeftBoundaryNodesOfANode(u, Routing.GetNodeKind(uOffset, edgePath))) {
                     Anchor a = anchors[v];
                     if (rightMostAnchor == null || rightMostAnchor.Origin.X < a.Origin.X)
+                    {
                         rightMostAnchor = a;
+                    }
+
                     ret.Add(a.PolygonalBoundary);
                 }
                 if (rightMostAnchor != null)
+                {
                     thinRightNodes.Add(new LineSegment(rightMostAnchor.Origin, originalGraph.Left, rightMostAnchor.Y).ParallelogramNodeOverICurve);
+                }
 
                 uOffset++;
             }
@@ -104,7 +113,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                 int leftMost = -1;
                 foreach (int v in RightBoundaryNodesOfANode(u, Routing.GetNodeKind(uOffset, edgePath))) {
                     if (leftMost == -1 || layerArrays.X[v] < layerArrays.X[leftMost])
+                    {
                         leftMost = v;
+                    }
+
                     ret.Add(anchors[v].PolygonalBoundary);
                 }
                 if (leftMost != -1) {
@@ -133,14 +145,20 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                     if (!NodeUCanBeCrossedByNodeV(u, v)) {
                         t = anchor.TopAnchor;
                         if (anchor.BottomAnchor > b)
+                        {
                             b = anchor.BottomAnchor;
+                        }
+
                         yield return u;
                     }
                 } else if (anchor.BottomAnchor > b) {
                     if (!NodeUCanBeCrossedByNodeV(u, v)) {
                         b = anchor.BottomAnchor;
                         if (anchor.TopAnchor > t)
+                        {
                             t = anchor.TopAnchor;
+                        }
+
                         yield return u;
                     }
                 }
@@ -151,9 +169,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         IEnumerable<int> FillLeftTopAndBottomVerts(int[] layer, int vPosition, NodeKind nodeKind) {
             double t = 0, b = 0;
             if (nodeKind == NodeKind.Top)
+            {
                 t = float.MaxValue; //there are no top vertices - they are cut down by the top boundaryCurve curve       
+            }
             else if (nodeKind == NodeKind.Bottom)
+            {
                 b = float.MaxValue; //there are no bottom vertices - they are cut down by the top boundaryCurve curve
+            }
 
             int v = layer[vPosition];
 
@@ -183,13 +205,19 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         private bool NodeUCanBeCrossedByNodeV(int u, int v) {
             if (IsLabel(u))
+            {
                 return false;
+            }
 
             if (IsLabel(v))
+            {
                 return false;
+            }
 
             if (IsVirtualVertex(u) && IsVirtualVertex(v) && EdgesIntersectSomewhere(u, v))
+            {
                 return true;
+            }
 
             return false;
 
@@ -197,20 +225,29 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         private bool EdgesIntersectSomewhere(int u, int v) {
             if (UVAreMiddlesOfTheSameMultiEdge(u, v))
+            {
                 return false;
+            }
+
             return IntersectAbove(u, v) || IntersectBelow(u, v);
         }
 
         private bool UVAreMiddlesOfTheSameMultiEdge(int u, int v) {
             if (database.MultipleMiddles.Contains(u) && database.MultipleMiddles.Contains(v)
                 && SourceOfTheOriginalEdgeContainingAVirtualNode(u) == SourceOfTheOriginalEdgeContainingAVirtualNode(v))
+            {
                 return true;
+            }
+
             return false;
         }
 
         int SourceOfTheOriginalEdgeContainingAVirtualNode(int u) {
             while (IsVirtualVertex(u))
+            {
                 u = IncomingEdge(u).Source;
+            }
+
             return u;
         }
 
@@ -219,12 +256,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                 LayerEdge eu = OutcomingEdge(u);
                 LayerEdge ev = OutcomingEdge(v);
                 if (Intersect(eu, ev))
+                {
                     return true;
+                }
+
                 u = eu.Target;
                 v = ev.Target;
                 if (!(IsVirtualVertex(u) && IsVirtualVertex(v))) {
                     if (v == u)
+                    {
                         return true;
+                    }
+
                     return false;
                 }
             }
@@ -235,12 +278,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                 LayerEdge eu = IncomingEdge(u);
                 LayerEdge ev = IncomingEdge(v);
                 if (Intersect(eu, ev))
+                {
                     return true;
+                }
+
                 u = eu.Source;
                 v = ev.Source;
                 if (!(IsVirtualVertex(u) && IsVirtualVertex(v))) {
                     if (u == v)
+                    {
                         return true;
+                    }
+
                     return false;
                 }
 
@@ -313,9 +362,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         private bool TryToRemoveInflectionEdge(ref Site s) {
             if (s.Next.Next == null)
+            {
                 return false;
+            }
+
             if (s.Previous == null)
+            {
                 return false;
+            }
 
             if (s.Turn < 0) {//left turn at s
                 if (!SegIntersectRightBound(s, s.Next.Next) && !SegIntersectLeftBound(s, s.Next.Next)) {
@@ -360,12 +414,19 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         private static bool CurveIntersectsHierarchy(LineSegment lineSeg, ParallelogramNode hierarchy) {
             if (hierarchy == null)
+            {
                 return false;
+            }
+
             if (!Parallelogram.Intersect(lineSeg.ParallelogramNodeOverICurve.Parallelogram, hierarchy.Parallelogram))
+            {
                 return false;
+            }
 
             if (hierarchy is ParallelogramBinaryTreeNode n)
+            {
                 return CurveIntersectsHierarchy(lineSeg, n.LeftSon) || CurveIntersectsHierarchy(lineSeg, n.RightSon);
+            }
 
             return Curve.GetAllIntersections(lineSeg, ((ParallelogramNodeOverICurve)hierarchy).Seg, false).Count > 0;
 
@@ -382,7 +443,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                 ret.headSite = site.Clone();
                 ret.headSite.Next = v;
                 if (v != null)
+                {
                     v.Previous = ret.headSite;
+                }
+
                 v = ret.headSite;
                 site = site.Next;
             }
@@ -408,13 +472,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         private void CreateInitialListOfSites() {
             Site currentSite = headSite = new Site(EdgePathPoint(0));
             for (int i = 1; i <= edgePath.Count; i++)
+            {
                 currentSite = new Site(currentSite, EdgePathPoint(i));
+            }
         }
 
         private void TryToRemoveInflections() {
 
             if (TurningAlwaySameDirection())
+            {
                 return;
+            }
 
             bool progress = true;
             while (progress) {
@@ -431,12 +499,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                 double nsign = s.Turn;
                 if (sign == 0) {//try to set the sign
                     if (nsign > 0)
+                    {
                         sign = 1;
+                    }
                     else if (nsign < 0)
+                    {
                         sign = -1;
+                    }
                 } else {
                     if (sign * nsign < 0)
+                    {
                         return false;
+                    }
                 }
             }
             return true;
@@ -450,9 +524,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         int EdgePathNode(int i) {
             int v;
             if (i == edgePath.Count)
+            {
                 v = edgePath[edgePath.Count - 1].Target;
+            }
             else
+            {
                 v = edgePath[i].Source;
+            }
+
             return v;
         }
         #endregion
@@ -470,25 +549,33 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                 curve = ExtendCurveToEndpoints(curve);
             }
             else
+            {
                 curve.AddSegment(new LineSegment(EdgePathPoint(0), EdgePathPoint(edgePath.Count)));
+            }
+
             return curve;
         }
 
         private void RemoveVerticesWithNoTurns() {
 
-            while (RemoveVerticesWithNoTurnsOnePass()) ;
-
+            while (RemoveVerticesWithNoTurnsOnePass())
+            {
+                ;
+            }
         }
 
         private bool RemoveVerticesWithNoTurnsOnePass() {
 
             bool ret = false;
             for (Site s = headSite; s.Next != null && s.Next.Next != null; s = s.Next)
+            {
                 if (Flat(s.Next)) {
                     ret = true;
                     s.Next = s.Next.Next;//crossing out s.next
                     s.Next.Previous = s;
                 }
+            }
+
             return ret;
         }
 
@@ -501,7 +588,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             }
             p = EdgePathPoint(edgePath.Count);
             if (!ApproximateComparer.Close(p, curve.End))
+            {
                 curve.AddSegment(new LineSegment(curve.End, p));
+            }
+
             return curve;
         }
 
@@ -511,9 +601,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                 a = b;
                 b = c;
                 if (b.Next != null)
+                {
                     c = b.Next;
+                }
                 else
+                {
                     break;
+                }
             } while (true);
         }
 
@@ -539,30 +633,44 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             }
 
             if (curve.Segments.Count > 0 && !ApproximateComparer.Close(curve.End, seg.Start))
+            {
                 curve.AddSegment(new LineSegment(curve.End, seg.Start));
+            }
+
             curve.AddSegment(seg);
         }
 
         private bool BezierSegIntersectsBoundary(CubicBezierSegment seg) {
             double side = Point.SignedDoubledTriangleArea(seg.B(0), seg.B(1), seg.B(2));
             if (side > 0)
+            {
                 return BezierSegIntersectsTree(seg, thinLeftHierarchy) || BezierSegIntersectsTree(seg, leftHierarchy);
+            }
             else
+            {
                 return BezierSegIntersectsTree(seg, thinRightHierarchy) || BezierSegIntersectsTree(seg, rightHierarchy);
+            }
         }
 
         private bool BezierSegIntersectsTree(CubicBezierSegment seg, ParallelogramNode tree) {
             if (tree == null)
+            {
                 return false;
+            }
+
             if (Parallelogram.Intersect(seg.ParallelogramNodeOverICurve.Parallelogram, tree.Parallelogram)) {
                 if (tree is ParallelogramBinaryTreeNode n)
                 {
                     return BezierSegIntersectsTree(seg, n.LeftSon) || BezierSegIntersectsTree(seg, n.RightSon);
                 }
                 else
+                {
                     return BezierSegIntersectsBoundary(seg, ((ParallelogramNodeOverICurve)tree).Seg);
-
-            } else return false;
+                }
+            } else
+            {
+                return false;
+            }
         }
 
         static bool BezierSegIntersectsBoundary(CubicBezierSegment seg, ICurve curve) {
@@ -570,7 +678,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                 if (curve is Curve c)
                 {
                     if (Curve.RealCutWithClosedCurve(x, c, false))
+                    {
                         return true;
+                    }
                 }
                 else
                 {

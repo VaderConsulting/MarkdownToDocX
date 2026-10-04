@@ -93,7 +93,10 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
         /// <returns></returns>
         public Cluster FindClusterById(string id) {
             if (stringToClusters.TryGetValue(id, out ClusterWithChildLists cwl))
+            {
                 return cwl.Cluster;
+            }
+
             return null;
         }
 
@@ -104,7 +107,10 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
         /// <returns></returns>
         public Node FindNodeById(string id) {
             if (nodeIdToNodes.TryGetValue(id, out Node node))
+            {
                 return node;
+            }
+
             return null;
         }
 
@@ -207,7 +213,9 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
                         mds.ScaleY = ReadDoubleElement(reader);
                     }
                     else //todo - write a reader and a writer for FastIncrementalLayoutSettings 
+                    {
                         throw new NotImplementedException();
+                    }
                 }
             }
             reader.ReadEndElement();
@@ -257,11 +265,14 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
             if (TokenIs(GeometryToken.Transform)) {
                 XmlRead();
                 for (int i = 0; i < 2; i++)
+                {
                     for (int j = 0; j < 3; j++) {
                         CheckToken(GeometryToken.TransformElement);
                         MoveToContent();
                         transform[i, j] = ReadElementContentAsDouble();
                     }
+                }
+
                 XmlRead();
             }
             else {
@@ -303,7 +314,10 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
             MoveToContent();
             _graph.Margins = GetDoubleAttributeOrDefault(GeometryToken.Margins, 10);
             if (XmlReader.Name.ToLower() != GeometryToken.Graph.ToString().ToLower())
+            {
                 Error("expecting element \"graph\"");
+            }
+
             bool done = false;
             do {
                 switch (GetElementTag()) {
@@ -367,7 +381,10 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
 
             XmlRead();
             if (TokenIs(GeometryToken.LgEdgeInfos))
+            {
                 ReadLgEdgeInfos(lgData);
+            }
+
             if (TokenIs(GeometryToken.LgNodeInfos)) {
                 ReadLgNodeInfos(lgData);
             }
@@ -377,7 +394,10 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
         void ReadLgEdgeInfos(LgData lgData) {
             XmlRead();
             while (TokenIs(GeometryToken.LgEdgeInfo))
+            {
                 ReadLgEdgeInfo(lgData);
+            }
+
             ReadEndElement();
         }
 
@@ -453,7 +473,10 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
         void ReadRailIdsPerEdgeIds(LgData lgData, Dictionary<string, Set<string>> edgeIdToEdgeRailsSet) {
             XmlRead();
             while (TokenIs(GeometryToken.EdgeRails))
+            {
                 ReadEdgeRailIds(lgData, edgeIdToEdgeRailsSet);
+            }
+
             ReadEndElement();
         }
 
@@ -474,10 +497,14 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
             if (railIdsToTopRankedEdgeInfo.TryGetValue(railId, out LgEdgeInfo topRankeEdgeInfo))
             {
                 if (topRankeEdgeInfo.Rank < edgeInfo.Rank)
+                {
                     railIdsToTopRankedEdgeInfo[railId] = edgeInfo;
+                }
             }
             else
+            {
                 railIdsToTopRankedEdgeInfo[railId] = edgeInfo;
+            }
         }
 
         void ReadRails(LgLevel level) {
@@ -577,23 +604,36 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
 
         LgEdgeInfo GetTopRankedEdgeInfoOfRail(string railId) {
             if (!railIdsToTopRankedEdgeInfo.ContainsKey(railId))
+            {
                 return null;
+            }
+
             return railIdsToTopRankedEdgeInfo[railId];
         }
 
         LgEdgeInfo GetTopRankedEdgeInfoOfSkeletonRail(string railId) {
             if (railIdsToTopRankedEdgeInfo.ContainsKey(railId))
+            {
                 return railIdsToTopRankedEdgeInfo[railId];
+            }
+
             return null;
         }
 
         void ReadLgNodeInfos(LgData lgData) {
-            if (XmlReader.IsEmptyElement) return;
+            if (XmlReader.IsEmptyElement)
+            {
+                return;
+            }
+
             lgData.GeometryNodesToLgNodeInfos = [];
             lgData.SortedLgNodeInfos = [];
             XmlRead();
             while (TokenIs(GeometryToken.LgNodeInfo))
+            {
                 ReadLgNodeInfo(lgData);
+            }
+
             ReadEndElement();
         }
 
@@ -614,42 +654,66 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
         GeometryToken GetElementTag() {
             if (XmlReader.NodeType == XmlNodeType.EndElement &&
                 XmlReader.Name == "graph")
+            {
                 return GeometryToken.End;
+            }
+
             if (XmlReader.ReadState == ReadState.EndOfFile)
+            {
                 return GeometryToken.Graph;
+            }
+
             if (Enum.TryParse(XmlReader.Name, true, out             GeometryToken token))
+            {
                 return token;
+            }
+
             return GeometryToken.Unknown;
         }
 
         void ReadClusters() {
             XmlRead();
             while (TokenIs(GeometryToken.Cluster))
+            {
                 ReadCluster();
+            }
 
             FleshOutClusters();
             Set<Cluster> rootClusterSet = new Set<Cluster>();
             foreach (Cluster cluster in stringToClusters.Values.Select(c => c.Cluster))
+            {
                 if (cluster.ClusterParents == null || !cluster.ClusterParents.Any())
+                {
                     rootClusterSet.Insert(cluster);
+                }
+            }
 
             if (rootClusterSet.Count == 1)
+            {
                 _graph.RootCluster = rootClusterSet.First();
+            }
             else {
                 _graph.RootCluster.AddRangeOfCluster(rootClusterSet);
             }
 
             if (!XmlReader.IsStartElement())
+            {
                 ReadEndElement();
+            }
         }
 
         void FleshOutClusters() {
             foreach (ClusterWithChildLists clusterWithLists in stringToClusters.Values) {
                 Cluster cl = clusterWithLists.Cluster;
                 foreach (string i in clusterWithLists.ChildClusters)
+                {
                     cl.AddCluster(stringToClusters[i].Cluster);
+                }
+
                 foreach (string i in clusterWithLists.ChildNodes)
+                {
                     cl.AddNode(nodeIdToNodes[i]);
+                }
             }
         }
 
@@ -677,7 +741,9 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
             }
 
             if (XmlReader.NodeType != XmlNodeType.EndElement)
+            {
                 cluster.RectangularBoundary = ReadClusterRectBoundary();
+            }
 
             ReadEndElement();
         }
@@ -735,13 +801,21 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
 
         void ReadChildClusters(List<string> childClusters) {
             string clusterIds = GetAttribute(GeometryToken.ChildClusters);
-            if (string.IsNullOrEmpty(clusterIds)) return;
+            if (string.IsNullOrEmpty(clusterIds))
+            {
+                return;
+            }
+
             childClusters.AddRange(clusterIds.Split(' '));
         }
 
         void ReadChildNodes(List<string> childNodes) {
             string nodeIds = GetAttribute(GeometryToken.ChildNodes);
-            if (string.IsNullOrEmpty(nodeIds)) return;
+            if (string.IsNullOrEmpty(nodeIds))
+            {
+                return;
+            }
+
             childNodes.AddRange(nodeIds.Split(' '));
         }
 
@@ -749,7 +823,10 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
             CheckToken(GeometryToken.Edges);
             XmlRead();
             while (TokenIs(GeometryToken.Edge))
+            {
                 ReadEdge();
+            }
+
             ReadEndElement();
         }
 
@@ -805,7 +882,9 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
                         break;
                 }
                 if (!breakTheLoop)
+                {
                     XmlRead();
+                }
             } while (!breakTheLoop);
             //XmlReader.Skip();
         }
@@ -817,11 +896,15 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
             Arrowhead arrowhead =
                 edge.EdgeGeometry.SourceArrowhead = str != null ? new Arrowhead {TipPosition = ParsePoint(str)} : null;
             if (arrowhead != null)
+            {
                 arrowhead.Length = GetDoubleAttributeOrDefault(GeometryToken.Asl, Arrowhead.DefaultArrowheadLength);
+            }
             else {
                 str = GetAttribute(GeometryToken.Asl);
                 if (str != null)
+                {
                     edge.EdgeGeometry.SourceArrowhead = new Arrowhead {Length = ParseDouble(str)};
+                }
             }
         }
 
@@ -829,7 +912,10 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
             string[] xy = str.Split(' ').ToArray();
             Debug.Assert(xy.Length == 2);
             if (double.TryParse(xy[0], out double x) && double.TryParse(xy[1], out double y))
+            {
                 return new Point(x, y);
+            }
+
             Error("invalid point format" + str);
             return new Point();
         }
@@ -840,9 +926,13 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
             Point[] ret = new Point[tokens.Length/2];
             for (int i = 0; i < tokens.Length - 1; i += 2) {
                 if (double.TryParse(tokens[i], out double x) && double.TryParse(tokens[i + 1], out double y))
+                {
                     ret[i / 2] = new Point(x, y);
+                }
                 else
+                {
                     Error("invalid point format" + str);
+                }
             }
             return ret;
         }
@@ -852,16 +942,24 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
             Arrowhead arrowhead =
                 edge.EdgeGeometry.TargetArrowhead = str != null ? new Arrowhead {TipPosition = ParsePoint(str)} : null;
             if (arrowhead != null)
+            {
                 arrowhead.Length = GetDoubleAttributeOrDefault(GeometryToken.Atl, Arrowhead.DefaultArrowheadLength);
+            }
             else {
                 str = GetAttribute(GeometryToken.Atl);
                 if (str != null)
+                {
                     edge.EdgeGeometry.TargetArrowhead = new Arrowhead {Length = ParseDouble(str)};
+                }
             }
         }
 
         void ReadLabelFromAttribute(GeometryObject geomObj) {
-            if (!TryGetAttribute(GeometryToken.Label, out string str)) return;
+            if (!TryGetAttribute(GeometryToken.Label, out string str))
+            {
+                return;
+            }
+
             Label label = new Label(geomObj);
             ParseLabel(str, out Point center, out double width, out double height);
             label.Center = center;
@@ -886,7 +984,10 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
 
         double ParseDouble(string s) {
             if (double.TryParse(s, out double ret))
+            {
                 return ret;
+            }
+
             Error(" cannot parse double " + s);
             return 0;
         }
@@ -940,17 +1041,26 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
 
         Node GetNodeOrClusterById(string id) {
             if (nodeIdToNodes.TryGetValue(id, out Node ret))
+            {
                 return ret;
+            }
 
             return stringToClusters[id].Cluster;
 
         }
 
         void ReadNodes() {
-            if (XmlReader.IsEmptyElement) return;
+            if (XmlReader.IsEmptyElement)
+            {
+                return;
+            }
+
             XmlRead();
             while (TokenIs(GeometryToken.Node))
+            {
                 ReadNode();
+            }
+
             ReadEndElement();
         }
 
@@ -962,7 +1072,10 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
             XmlRead();
             Node node = new Node(ReadICurve()) {Padding = nodePadding, UserData = nodeId};
             if (node.BoundaryCurve == null)
+            {
                 throw new InvalidOperationException();
+            }
+
             _graph.Nodes.Add(node);
             XmlReader.Skip();
             ReadEndElement();
@@ -977,7 +1090,10 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
             string s = GeometryGraphWriter.FirstCharToLower(token);
             string ret = XmlReader.GetAttribute(GeometryGraphWriter.FirstCharToLower(token));
             if (ret != null)
+            {
                 return ret;
+            }
+
             Error("attribute " + s + " not found");
             return null;
         }
@@ -985,9 +1101,15 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
         int GetIntAttribute(GeometryToken token) {
             string val = GetAttribute(token);
             if (val == null)
+            {
                 Error(string.Format("attribute {0} not found", token));
+            }
+
             if (int.TryParse(val, out int ret))
+            {
                 return ret;
+            }
+
             Error("cannot parse an int value " + val);
             return 0;
         }
@@ -995,9 +1117,15 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
         double GetDoubleAttribute(GeometryToken token) {
             string val = GetAttribute(token);
             if (val == null)
+            {
                 Error(string.Format("attribute {0} not found", token));
+            }
+
             if (double.TryParse(val, out double ret))
+            {
                 return ret;
+            }
+
             Error("cannot parse an int value " + val);
             return 0;
         }
@@ -1005,9 +1133,15 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
         double GetDoubleAttributeOrDefault(GeometryToken token, double defaultVal) {
             string val = GetAttribute(token);
             if (val == null)
+            {
                 return defaultVal;
+            }
+
             if (double.TryParse(val, out double ret))
+            {
                 return ret;
+            }
+
             Error("cannot parse a double value " + val);
             return 0;
         }
@@ -1015,9 +1149,15 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
         bool GetBoolAttributeOrDefault(GeometryToken token, bool defaultVal) {
             string val = GetAttribute(token);
             if (val == null)
+            {
                 return defaultVal;
+            }
+
             if (bool.TryParse(val, out bool ret))
+            {
                 return ret;
+            }
+
             Error("cannot parse a bool value " + val);
             return false;
         }
@@ -1025,9 +1165,15 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
         int GetIntAttributeOrDefault(GeometryToken token, int defaultVal) {
             string val = GetAttribute(token);
             if (val == null)
+            {
                 return defaultVal;
+            }
+
             if (int.TryParse(val, out int ret))
+            {
                 return ret;
+            }
+
             Error("cannot parse a bool value " + val);
             return 0;
         }
@@ -1071,10 +1217,16 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
             string pointString = GetMustAttribute(GeometryToken.Points);
             string[] t = pointString.Split(' ');
             if (t.Length == 0 || t.Length%2 != 0)
+            {
                 Error("invalid input for the polygon");
+            }
+
             Polyline poly = new Polyline {Closed = true};
             for (int i = 0; i < t.Length; i += 2)
+            {
                 poly.AddPoint(new Point(ParseDouble(t[i]), ParseDouble(t[i + 1])));
+            }
+
             return poly;
         }
 
@@ -1109,7 +1261,10 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
 
         GeometryToken NameToToken() {
             if (Enum.TryParse(XmlReader.Name, true, out GeometryToken token))
+            {
                 return token;
+            }
+
             Error("cannot parse " + XmlReader.Name);
             return GeometryToken.Error;
         }
@@ -1121,7 +1276,10 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
             do {
                 CurveStreamElement curveStreamElement = curveStream.GetNextCurveStreamElement();
                 if (curveStreamElement == null)
+                {
                     return curve;
+                }
+
                 if (curveStreamElement is not CharStreamElement charStreamElement)
                 {
                     Error("wrong formatted curve string " + curveStreamElement);
@@ -1141,7 +1299,10 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
                 case 'Z':
                 case 'z': //closepath
                     if (curve.Segments.Count == 0)
+                    {
                         Error("the curve is too short");
+                    }
+
                     curve.AddSegment(new LineSegment(currentPoint, currentPoint = curve.Start));
                     break;
                 case 'L': //lineto
@@ -1214,7 +1375,10 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
             //figure out the transform to the circle
             //then solve this problem on the circle
             if (ApproximateComparer.Close(rx, 0) || ApproximateComparer.Close(ry, 0))
+            {
                 Error("ellipseArc radius is too small");
+            }
+
             double yScale = rx/ry;
             PlaneTransformation rotationMatrix = PlaneTransformation.Rotation(-xAxisRotation);
             PlaneTransformation scaleMatrix = new PlaneTransformation(1, 0, 0, 0, yScale, 0);
@@ -1255,15 +1419,24 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
             axisY = sweepFlag == 1 ? new Point(0, r) : new Point(0, -r);
             startAngle = Point.Angle(axisX, start - center);
             if (sweepFlag == 0)
+            {
                 startAngle = 2*Math.PI - startAngle;
+            }
 
             endAngle = Point.Angle(axisX, end - center);
             if (sweepFlag == 0)
+            {
                 endAngle = 2*Math.PI - endAngle;
+            }
+
             if (ApproximateComparer.Close(endAngle, startAngle) && largeArcFlag == 1)
+            {
                 endAngle += 2*Math.PI;
+            }
             else if (endAngle < startAngle)
+            {
                 endAngle += 2*Math.PI;
+            }
         }
 
         void ProceedWithLines(Curve curve, CurveStream curveStream, ref Point currentPoint) {
@@ -1277,12 +1450,16 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
         double GetNextDoubleFromCurveData(CurveStream curveStream) {
             CurveStreamElement a = curveStream.GetNextCurveStreamElement();
             if (a == null)
+            {
                 Error("cannot parse curveData");
+            }
 
             DoubleStreamElement d = a as DoubleStreamElement;
             if (d == null)
+            {
                 Error("cannot parse curveData");
-// ReSharper disable PossibleNullReferenceException
+            }
+            // ReSharper disable PossibleNullReferenceException
             return d.Double;
 // ReSharper restore PossibleNullReferenceException
         }
@@ -1309,7 +1486,10 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
             string str = GetAttribute(GeometryToken.Points);
             string[] ss = str.Split(' ');
             if (ss.Length != 4)
+            {
                 Error("wrong number of points in LineSegment");
+            }
+
             double[] ds = ss.Select(ParseDouble).ToArray();
             return new LineSegment(new Point(ds[0], ds[1]), new Point(ds[2], ds[3]));
         }
@@ -1475,8 +1655,11 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
             //todo, figure out how to find the line number for Silverlight
 #else
             if (xmlTextReader != null)
+            {
                 return string.Format(CultureInfo.InvariantCulture, "line {0} col {1}", xmlTextReader.LineNumber,
                     xmlTextReader.LinePosition);
+            }
+
             return string.Empty;
 #endif
         }
@@ -1519,7 +1702,9 @@ namespace Microsoft.AGL.DebugHelpers.Persistence {
         protected virtual void Dispose(bool disposing) {
 #if !SILVERLIGHT
             if (disposing)
+            {
                 xmlTextReader.Close();
+            }
 #endif
         }
 

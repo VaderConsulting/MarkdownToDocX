@@ -86,7 +86,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
         /// <returns></returns>
         internal int Dequeue() {
             if (heapSize == 0)
+            {
                 throw new InvalidOperationException();
+            }
 
             int ret = A[1].v;
 
@@ -103,17 +105,25 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
                     int l = i << 1;
 
                     if (l <= heapSize && A[l].priority.CompareTo(A[i].priority) < 0)
+                    {
                         smallest = l;
+                    }
 
                     int r = l + 1;
 
                     if (r <= heapSize && A[r].priority.CompareTo(A[smallest].priority) < 0)
+                    {
                         smallest = r;
+                    }
 
                     if (smallest != i)
+                    {
                         SwapWithParent(smallest);
+                    }
                     else
+                    {
                         break;
+                    }
 
                     i = smallest;
 
@@ -136,9 +146,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
             int i = h.indexToA;
             while (i > 1) {
                 if (A[i].priority.CompareTo(A[i >> 1].priority) < 0)
+                {
                     SwapWithParent(i);
+                }
                 else
+                {
                     break;
+                }
+
                 i >>= 1;
             }
         }
@@ -156,7 +171,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
             q.Enqueue(6, 6);
             q.Enqueue(0, 0);
             for (int i = 0; i < 10; i++)
+            {
                 Console.WriteLine(q.Dequeue());
+            }
         }
     }
 }

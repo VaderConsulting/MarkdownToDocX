@@ -36,13 +36,23 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         internal Set<Polyline> ObstaclesToIgnoreForBundle(Station node, Station adj) {
             if (node != null && adj != null)
+            {
                 return obstaclesToIgnore(node) + obstaclesToIgnore(adj);
+            }
 
             if (node == null && adj == null)
+            {
                 return [];
+            }
 
-            if (node != null) return obstaclesToIgnore(node);
-            else return obstaclesToIgnore(adj);
+            if (node != null)
+            {
+                return obstaclesToIgnore(node);
+            }
+            else
+            {
+                return obstaclesToIgnore(adj);
+            }
         }
 
         #region Intersections with hub
@@ -60,7 +70,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             List<Tuple<Polyline, Point>> touchedObstacles = [];
             double minimalDistance = upperBound;
             if (!IntersectCircleWithTree(obstacleTree, nodePosition, upperBound, obstaclesToIgnore(node), touchedObstacles, ref minimalDistance))
+            {
                 return 0;
+            }
 
             return minimalDistance;
         }
@@ -85,25 +97,43 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         static bool IntersectCircleWithTree(RectangleNode<Polyline> node, Point center, double radius, Set<Polyline> obstaclesToIgnore,
             List<Tuple<Polyline, Point>> touchedObstacles, ref double minimalDistance) {
             if (!node.Rectangle.Contains(center, radius))
+            {
                 return true;
+            }
 
             if (node.UserData == null) {
                 bool res = IntersectCircleWithTree(node.Left, center, radius, obstaclesToIgnore, touchedObstacles, ref minimalDistance);
-                if (!res) return false;
+                if (!res)
+                {
+                    return false;
+                }
+
                 res = IntersectCircleWithTree(node.Right, center, radius, obstaclesToIgnore, touchedObstacles, ref minimalDistance);
-                if (!res) return false;
+                if (!res)
+                {
+                    return false;
+                }
             }
             else {
                 Polyline obstacle = node.UserData;
-                if (obstaclesToIgnore.Contains(obstacle)) return true;
+                if (obstaclesToIgnore.Contains(obstacle))
+                {
+                    return true;
+                }
 
                 PointLocation pl = Curve.PointRelativeToCurveLocation(center, obstacle);
-                if (pl != PointLocation.Outside) return false;
+                if (pl != PointLocation.Outside)
+                {
+                    return false;
+                }
 
                 Point touchPoint = obstacle[obstacle.ClosestParameter(center)];
                 double dist = (touchPoint - center).Length;
                 if (dist <= radius)
+                {
                     touchedObstacles.Add(new Tuple<Polyline, Point>(obstacle, touchPoint));
+                }
+
                 minimalDistance = Math.Min(dist, minimalDistance);
             }
             return true;
@@ -129,7 +159,11 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                 double num = Point.CrossProduct(e, start - p.Point);
                 double den = -Point.CrossProduct(e, segDirection);
                 if (Math.Abs(den) < ApproximateComparer.Tolerance) { // segment is nearly parallel to this edge
-                    if (num < 0) return false;
+                    if (num < 0)
+                    {
+                        return false;
+                    }
+
                     continue;
                 }
 
@@ -139,13 +173,19 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                     // segment is entering across this edge
                     tStart = Math.Max(tStart, t);
                     // segment enters after leaving polygon
-                    if (tStart > tEnd) return false;
+                    if (tStart > tEnd)
+                    {
+                        return false;
+                    }
                 }
                 else {
                     // segment is leaving across this edge
                     tEnd = Math.Min(tEnd, t);
                     // segment leaves before entering polygon
-                    if (tStart > tEnd) return false;
+                    if (tStart > tEnd)
+                    {
+                        return false;
+                    }
                 }
             }
 
@@ -172,7 +212,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             foreach (Metroline line in metroGraphData.Metrolines) {
                 Polyline poly = line.Polyline;
                 foreach (PolylinePoint p in poly.PolylinePoints)
+                {
                     Debug.Assert(metroGraphData.PointToStations.ContainsKey(p.Point));
+                }
             }
 
             foreach (Station station in metroGraphData.Stations) {
@@ -187,7 +229,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                 //bundles
                 foreach (Station adj in station.Neighbors) {
                     if (ApproximateComparer.Close(adj.Position, station.Position))
+                    {
                         return false;
+                    }
 
                     if (!EdgeIsLegal(station, adj, station.Position, adj.Position)) {
                         if (LayoutAlgorithmSettings.ShowDebugCurvesEnumeration != null) {
@@ -227,12 +271,17 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                 l.Add(new DebugCurve(100, 0.5, "brown", poly));
             }
             if (obstaclesToIgnore(station) != null)
+            {
                 foreach (Polyline poly in obstaclesToIgnore(station))
+                {
                     l.Add(new DebugCurve(100, 1, "red", poly));
-
+                }
+            }
 
             foreach (Polyline obstacle in obstacleTree.GetAllLeaves())
+            {
                 l.Add(new DebugCurve(50, 0.1, "green", obstacle));
+            }
 
             l.Add(new DebugCurve(0.1, "blue", new Ellipse(1, 1, station.Position)));
 

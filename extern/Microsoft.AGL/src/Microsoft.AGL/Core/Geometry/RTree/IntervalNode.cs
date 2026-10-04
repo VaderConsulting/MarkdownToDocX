@@ -78,10 +78,15 @@ namespace Microsoft.AGL.Core.Geometry.RTree
             internal set
             {
                 if (left != null && left.Parent == this)
+                {
                     left.Parent = null;
+                }
+
                 left = value;
                 if (left != null)
+                {
                     left.Parent = this;
+                }
             }
         }
 
@@ -94,10 +99,15 @@ namespace Microsoft.AGL.Core.Geometry.RTree
             internal set
             {
                 if (right != null && right.Parent == this)
+                {
                     right.Parent = null;
+                }
+
                 right = value;
                 if (right != null)
+                {
                     right.Parent = this;
+                }
             }
         }
 
@@ -146,7 +156,10 @@ namespace Microsoft.AGL.Core.Geometry.RTree
         public IntervalNode<TData> FirstIntersectedNode(Interval r) {
             if (r.Intersects(interval)) {
                 if (IsLeaf)
+                {
                     return this;
+                }
+
                 return Left.FirstIntersectedNode(r) ?? Right.FirstIntersectedNode(r);
             }
             return null;
@@ -161,8 +174,11 @@ namespace Microsoft.AGL.Core.Geometry.RTree
         /// <returns></returns>
         public IntervalNode<TData> FirstHitNode(double point) {
             if (interval.Contains(point)) {
-                if (IsLeaf)                    
-                    return this;                
+                if (IsLeaf)
+                {
+                    return this;
+                }
+
                 return Left.FirstHitNode(point) ?? Right.FirstHitNode(point);
             }
             return null;
@@ -205,7 +221,9 @@ namespace Microsoft.AGL.Core.Geometry.RTree
                 IntervalNode<TData> node = stack.Pop();
                 if (node.Interval.Contains(point)) {
                     if (node.IsLeaf)
+                    {
                         yield return node.UserData;
+                    }
                     else {
                         stack.Push(node.left);
                         stack.Push(node.right);
@@ -248,9 +266,15 @@ namespace Microsoft.AGL.Core.Geometry.RTree
         public IntervalNode<TData> Clone() {
             IntervalNode<TData> ret = new IntervalNode<TData>(Count) {UserData = UserData, Interval = Interval};
             if (Left != null)
+            {
                 ret.Left = Left.Clone();
+            }
+
             if (Right != null)
+            {
                 ret.Right = Right.Clone();
+            }
+
             return ret;
         }
 
@@ -317,7 +341,10 @@ namespace Microsoft.AGL.Core.Geometry.RTree
         /// <returns></returns>
         public static IntervalNode<TData> CreateIntervalNodeOnEnumeration(IEnumerable<IntervalNode<TData>> nodes) {
             if(nodes==null)
+            {
                 return null;
+            }
+
             List<IntervalNode<TData>> nodeList = new List<IntervalNode<TData>>(nodes);
             return CreateIntervalNodeOnListOfNodes(nodeList);
         }
@@ -330,7 +357,10 @@ namespace Microsoft.AGL.Core.Geometry.RTree
         ///<returns></returns>
         public static IntervalNode<TData> CreateIntervalNodeOnData(IEnumerable<TData>  dataEnumeration, Func<TData, Interval> intervalDelegate) {
             if (dataEnumeration == null || intervalDelegate == null)
+            {
                 return null;
+            }
+
             List<IntervalNode<TData>> nodeList = new List<IntervalNode<TData>>(dataEnumeration.Select(d=>new IntervalNode<TData>(d, intervalDelegate(d))));
             return CreateIntervalNodeOnListOfNodes(nodeList);
         }
@@ -343,9 +373,15 @@ namespace Microsoft.AGL.Core.Geometry.RTree
         /// <returns></returns>
         static public IntervalNode<TData> CreateIntervalNodeOnListOfNodes(IList<IntervalNode<TData>> nodes) {
             ValidateArg.IsNotNull(nodes, "nodes");
-            if (nodes.Count == 0) return null;
+            if (nodes.Count == 0)
+            {
+                return null;
+            }
 
-            if (nodes.Count == 1)return nodes[0];
+            if (nodes.Count == 1)
+            {
+                return nodes[0];
+            }
 
             //Finding the seeds
             Interval b0 = nodes[0].Interval;
@@ -404,7 +440,10 @@ namespace Microsoft.AGL.Core.Geometry.RTree
 
             for (int i = 0; i < nodes.Count; i++) {
                 if (i == seed0)
+                {
                     continue;
+                }
+
                 double area1 = new Interval(nodes[seed0].Interval, nodes[i].Interval).Length;
                 if (area1 > area) {
                     seed1 = i;
@@ -419,7 +458,9 @@ namespace Microsoft.AGL.Core.Geometry.RTree
             for (int i = 0; i < nodes.Count; i++) {
 
                 if (i == seed0 || i == seed1)
+                {
                     continue;
+                }
 
                 // ReSharper disable InconsistentNaming
                 Interval box0_ = new Interval(box0, nodes[i].Interval);
@@ -465,9 +506,14 @@ namespace Microsoft.AGL.Core.Geometry.RTree
             ValidateArg.IsNotNull(visitor, "visitor");
             visitor(node);
             if (node.Left != null)
+            {
                 TraverseHierarchy(node.Left, visitor);
+            }
+
             if (node.Right != null)
+            {
                 TraverseHierarchy(node.Right, visitor);
+            }
         }
     }
 }

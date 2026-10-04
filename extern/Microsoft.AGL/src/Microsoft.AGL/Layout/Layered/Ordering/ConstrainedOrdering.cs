@@ -39,7 +39,10 @@ namespace Microsoft.AGL.Layout.Layered
         int NumberOfLayers {
             get {
                 if (numberOfLayers > 0)
+                {
                     return numberOfLayers;
+                }
+
                 return numberOfLayers = initialLayering.Max(i => i + 1);
             }
         }
@@ -68,7 +71,10 @@ namespace Microsoft.AGL.Layout.Layered
             //this has to be changed only to insert layers that are needed
             if (NeedToInsertLayers(layering)) {
                 for (int i = 0; i < layering.Length; i++)
+                {
                     layering[i] *= 2;
+                }
+
                 LayersAreDoubled = true;
                 numberOfLayers = -1;
             }
@@ -118,7 +124,9 @@ namespace Microsoft.AGL.Layout.Layered
         void AllocateXPositions() {
             xPositions = new double[NumberOfLayers][];
             for (int i = 0; i < NumberOfLayers; i++)
+            {
                 xPositions[i] = new double[LayerArrays.Layers[i].Length];
+            }
         }
 
         double BlockWidth(int blockRoot) => GetNodeWidth(blockRoot) +
@@ -182,8 +190,9 @@ namespace Microsoft.AGL.Layout.Layered
             solver.Solve();
             SortLayers(solver);
             for (int i = 0; i < LayerArrays.Y.Length; i++)
+            {
                 database.Anchors[i].X = solver.GetVariableResolvedPosition(i);
-
+            }
         }
 
         ISolverShell InitSolverWithoutOrder() {
@@ -200,23 +209,30 @@ namespace Microsoft.AGL.Layout.Layered
 
         void SortLayers(ISolverShell solver) {
             for (int i = 0; i < LayerArrays.Layers.Length; i++)
+            {
                 SortLayerBasedOnSolution(LayerArrays.Layers[i], solver);
+            }
         }
 
         void AddGoalsToKeepFlatEdgesShort(ISolverShell solver) {
             foreach (LayerInfo layerInfo in layerInfos)
+            {
                 AddGoalToKeepFlatEdgesShortOnBlockLevel(layerInfo, solver);
+            }
         }
 
         void InitSolverVars(ISolverShell solver) {
             for (int i = 0; i < LayerArrays.Y.Length; i++)
+            {
                 solver.AddVariableWithIdealPosition(i, 0);
+            }
         }
 
         void AddGoalsToKeepProperEdgesShort(ISolverShell solver) {
             foreach (LayerEdge edge in ProperLayeredGraph.Edges)
+            {
                 solver.AddGoalTwoVariablesAreClose(edge.Source, edge.Target, PositionOverBaricenterWeight);
-
+            }
         }
 
         void PutVerticalConstraintsIntoSolver(ISolverShell solver) {
@@ -261,33 +277,47 @@ namespace Microsoft.AGL.Layout.Layered
             bool[] alreadyInLayers = new bool[LayerArrays.Y.Length];
             int[] runninglayerCounts = new int[LayerArrays.Layers.Length];
             foreach (int vertCompRoot in order)
+            {
                 PutVerticalComponentIntoLayers(EnumerateVertComponent(componentRootsToComponents, vertCompRoot), runninglayerCounts, alreadyInLayers);
-            for (int i = 0; i < ProperLayeredGraph.NodeCount; i++)
-                if (alreadyInLayers[i] == false)
-                    AddVertToLayers(i, runninglayerCounts, alreadyInLayers);
+            }
 
+            for (int i = 0; i < ProperLayeredGraph.NodeCount; i++)
+            {
+                if (alreadyInLayers[i] == false)
+                {
+                    AddVertToLayers(i, runninglayerCounts, alreadyInLayers);
+                }
+            }
         }
 
         IEnumerable<int> EnumerateVertComponent(Dictionary<int, List<int>> componentRootsToComponents, int vertCompRoot) {
             if (componentRootsToComponents.TryGetValue(vertCompRoot, out List<int> compList))
             {
                 foreach (int i in compList)
+                {
                     yield return i;
+                }
             }
             else
+            {
                 yield return vertCompRoot;
-
+            }
         }
 
 
         void PutVerticalComponentIntoLayers(IEnumerable<int> vertComponent, int[] runningLayerCounts, bool[] alreadyInLayers) {
             foreach (int i in vertComponent)
+            {
                 AddVertToLayers(i, runningLayerCounts, alreadyInLayers);
+            }
         }
 
         void AddVertToLayers(int i, int[] runningLayerCounts, bool[] alreadyInLayers) {
             if (alreadyInLayers[i])
+            {
                 return;
+            }
+
             int layerIndex = LayerArrays.Y[i];
 
             int xIndex = runningLayerCounts[layerIndex];
@@ -296,12 +326,19 @@ namespace Microsoft.AGL.Layout.Layered
             layer[xIndex++] = i;
             alreadyInLayers[i] = true;
             if (horizontalConstraints.BlockRootToBlock.TryGetValue(i, out List<int> block))
+            {
                 foreach (int v in block)
                 {
-                    if (alreadyInLayers[v]) continue;
+                    if (alreadyInLayers[v])
+                    {
+                        continue;
+                    }
+
                     layer[xIndex++] = v;
                     alreadyInLayers[v] = true;
                 }
+            }
+
             runningLayerCounts[layerIndex] = xIndex;
         }
 
@@ -321,16 +358,24 @@ namespace Microsoft.AGL.Layout.Layered
 
         IEnumerable<IntPair> LiftLeftRightRelationsToComponentRoots(Dictionary<int, int> nodesToVerticalComponentsRoots) {
             foreach (Tuple<int, int> pair in horizontalConstraints.LeftRighInts)
+            {
                 yield return new IntPair(GetFromDictionaryOrIdentical(nodesToVerticalComponentsRoots, pair.Item1),
                     GetFromDictionaryOrIdentical(nodesToVerticalComponentsRoots, pair.Item2));
+            }
+
             foreach (Tuple<int, int> pair in horizontalConstraints.LeftRightIntNeibs)
+            {
                 yield return new IntPair(GetFromDictionaryOrIdentical(nodesToVerticalComponentsRoots, pair.Item1),
                     GetFromDictionaryOrIdentical(nodesToVerticalComponentsRoots, pair.Item2));
+            }
         }
 
         static int GetFromDictionaryOrIdentical(Dictionary<int, int> d, int key) {
             if (d.TryGetValue(key, out int i))
+            {
                 return i;
+            }
+
             return key;
         }
 
@@ -345,11 +390,17 @@ namespace Microsoft.AGL.Layout.Layered
             foreach (IEnumerable<int> component in verticalComponents) {
                 int[] ca = component.ToArray();
                 if (ca.Length == 1)
+                {
                     continue;
+                }
+
                 int componentRoot = -1;
                 foreach (int j in component) {
                     if (componentRoot == -1)
+                    {
                         componentRoot = j;
+                    }
+
                     nodesToComponentRoots[j] = componentRoot;
                 }
             }
@@ -368,14 +419,19 @@ namespace Microsoft.AGL.Layout.Layered
                 double[] xPos = xPositions[i];
                 double[] xPosClone = xPositionsClone[i];
                 for (int j = 0; j < layer.Length; j++)
+                {
                     database.Anchors[layer[j]].X = (xPos[j] + xPosClone[j]) / 2;
+                }
             }
         }
 
 
         void SwitchXPositions() {
             if (xPositionsClone == null)
+            {
                 AllocateXPositionsClone();
+            }
+
             double[][] xPositionsSaved = xPositions;
             xPositions = xPositionsClone;
             xPositionsClone = xPositionsSaved;
@@ -384,7 +440,9 @@ namespace Microsoft.AGL.Layout.Layered
         void AllocateXPositionsClone() {
             xPositionsClone = new double[xPositions.Length][];
             for (int i = 0; i < xPositions.Length; i++)
+            {
                 xPositionsClone[i] = new double[xPositions[i].Length];
+            }
         }
 
 
@@ -407,7 +465,10 @@ namespace Microsoft.AGL.Layout.Layered
 #if TEST_MSAGL
         static void PrintPositions(double[] positions) {
             for (int j = 0; j < positions.Length; j++)
+            {
                 Console.Write(" " + positions[j]);
+            }
+
             Console.WriteLine();
         }
 #endif
@@ -418,12 +479,16 @@ namespace Microsoft.AGL.Layout.Layered
             double[] positions = new double[length];
             int k = 0;
             foreach (int v in layer)
+            {
                 positions[k++] = solver.GetVariableResolvedPosition(v);
+            }
 
             Array.Sort(positions, layer);
             int i = 0;
             foreach (int v in layer)
+            {
                 LayerArrays.X[v] = i++;
+            }
         }
 
         const double ConstrainedVarWeight = 10e6;
@@ -451,12 +516,18 @@ namespace Microsoft.AGL.Layout.Layered
                         left = p.Item2;
                         right = p.Item1;
                     }
-                    if (left == right) continue;
+                    if (left == right)
+                    {
+                        continue;
+                    }
+
                     double gap = GetGap(left, right);
                     foreach (IntEdge edge in database.GetMultiedge(p.Item1, p.Item2))
+                    {
                         solver.AddLeftRightSeparationConstraint(left, right,
                                                                 gap + NodeSeparation() +
                                                                 (edge.Edge.Label != null ? edge.Edge.Label.Width : 0));
+                    }
                 }
             }
         }
@@ -464,7 +535,9 @@ namespace Microsoft.AGL.Layout.Layered
         void ExtractPositionsFromSolver(int[] layer, ISolverShell solver, double[] positions) {
             solver.Solve();
             for (int i = 0; i < layer.Length; i++)
+            {
                 database.Anchors[layer[i]].X = positions[i] = solver.GetVariableResolvedPosition(layer[i]);
+            }
         }
 
         static IEnumerable<int> AddBlocksToLayer(IEnumerable<int> collapsedSortedLayer,
@@ -472,8 +545,12 @@ namespace Microsoft.AGL.Layout.Layered
             foreach (int i in collapsedSortedLayer) {
                 yield return i;
                 if (blockRootToList != null && blockRootToList.TryGetValue(i, out List<int> list))
+                {
                     foreach (int j in list)
+                    {
                         yield return j;
+                    }
+                }
             }
         }
 
@@ -485,12 +562,15 @@ namespace Microsoft.AGL.Layout.Layered
         void FillSolverWithoutKnowingLayerOrder(IEnumerable<int> layer, LayerInfo layerInfo, ISolverShell solver,
                                                        SweepMode sweepMode) {
             foreach (int v in layer)
+            {
                 if (layerInfo.neigBlocks.ContainsKey(v)) {
                     //v is a block root
                     int blockNode = GetFixedBlockNode(v, layerInfo, sweepMode);
                     if (blockNode != -1)
+                    {
                         solver.AddVariableWithIdealPosition(v, FixedNodePosition(blockNode, sweepMode),
                                                             ConstrainedVarWeight);
+                    }
                     else {
                         IEnumerable<int> t = from u in layerInfo.neigBlocks[v].Concat(new[] { v })
                                              where IsConnectedToPrevLayer(u, sweepMode)
@@ -502,25 +582,36 @@ namespace Microsoft.AGL.Layout.Layered
                     }
                 } else if (!BelongsToNeighbBlock(v, layerInfo)) {
                     if (NodeIsConstrained(v, sweepMode, layerInfo))
+                    {
                         solver.AddVariableWithIdealPosition(v, FixedNodePosition(v, sweepMode), ConstrainedVarWeight);
+                    }
                     else if (IsConnectedToPrevLayer(v, sweepMode))
+                    {
                         solver.AddVariableWithIdealPosition(v, GetBaricenterOnPrevLayer(v, sweepMode));
+                    }
                 }
+            }
 
             AddGoalToKeepFlatEdgesShortOnBlockLevel(layerInfo, solver);
 
             foreach (Tuple<int, int> p in layerInfo.leftRight)
+            {
                 solver.AddLeftRightSeparationConstraint(p.Item1, p.Item2, GetGapBetweenBlockRoots(p.Item1, p.Item2));
+            }
         }
 
         static void AddGoalToKeepFlatEdgesShortOnBlockLevel(LayerInfo layerInfo, ISolverShell solver) {
             if (layerInfo != null)
+            {
                 foreach (Tuple<int, int> couple in layerInfo.flatEdges) {
                     int sourceBlockRoot = NodeToBlockRootSoftOnLayerInfo(layerInfo, couple.Item1);
                     int targetBlockRoot = NodeToBlockRootSoftOnLayerInfo(layerInfo, couple.Item2);
                     if (sourceBlockRoot != targetBlockRoot)
+                    {
                         solver.AddGoalTwoVariablesAreClose(sourceBlockRoot, targetBlockRoot);
+                    }
                 }
+            }
         }
 
         bool IsConnectedToPrevLayer(int v, SweepMode sweepMode) => sweepMode == SweepMode.ComingFromAbove && ProperLayeredGraph.InEdgesCount(v) > 0 ||
@@ -549,41 +640,68 @@ namespace Microsoft.AGL.Layout.Layered
         /// <returns>-1 if no node is constrained</returns>
         static int GetFixedBlockNode(int blockRoot, LayerInfo layerInfo, SweepMode sweepMode) {
             if (sweepMode == SweepMode.Starting)
+            {
                 return -1;
+            }
 
             if (sweepMode == SweepMode.ComingFromBelow)
+            {
                 return GetFixedBlockNodeFromBelow(blockRoot, layerInfo);
+            }
+
             return GetFixedBlockNodeFromAbove(blockRoot, layerInfo);
         }
 
         static int GetFixedBlockNodeFromBelow(int blockRoot, LayerInfo layerInfo) {
             if (layerInfo.constrainedFromBelow.ContainsKey(blockRoot))
+            {
                 return blockRoot;
+            }
+
             foreach (int v in layerInfo.neigBlocks[blockRoot])
+            {
                 if (layerInfo.constrainedFromBelow.ContainsKey(v))
+                {
                     return v;
+                }
+            }
+
             return -1;
         }
 
         static int GetFixedBlockNodeFromAbove(int blockRoot, LayerInfo layerInfo) {
             if (layerInfo.constrainedFromAbove.ContainsKey(blockRoot))
+            {
                 return blockRoot;
+            }
+
             foreach (int v in layerInfo.neigBlocks[blockRoot])
+            {
                 if (layerInfo.constrainedFromAbove.ContainsKey(v))
+                {
                     return v;
+                }
+            }
+
             return -1;
         }
 
 
         static bool NodeIsConstrainedBelow(int v, LayerInfo layerInfo) {
             if (layerInfo == null)
+            {
                 return false;
+            }
+
             return layerInfo.constrainedFromBelow.ContainsKey(v);
         }
 
         static bool NodeIsConstrainedAbove(int v, LayerInfo layerInfo) {
             if (layerInfo == null)
+            {
                 return false;
+            }
+
             return layerInfo.constrainedFromAbove.ContainsKey(v);
         }
 
@@ -597,7 +715,10 @@ namespace Microsoft.AGL.Layout.Layered
 
         double GetBlockWidth(int leftBlockRoot) {
             if (horizontalConstraints.BlockRootToBlock.ContainsKey(leftBlockRoot))
+            {
                 return BlockWidth(leftBlockRoot);
+            }
+
             return GetNodeWidth(leftBlockRoot);
         }
 
@@ -605,14 +726,26 @@ namespace Microsoft.AGL.Layout.Layered
             int layerIndex = LayerArrays.Y[leftNode];
             LayerInfo layerInfo = layerInfos[layerIndex];
             if (layerInfo == null)
+            {
                 return SimpleGapBetweenTwoNodes(leftNode, rightNode);
+            }
+
             double gap = 0;
             if (NodesAreConstrainedAbove(leftNode, rightNode, layerInfo))
+            {
                 gap = GetGapFromNodeNodesConstrainedAbove(leftNode, rightNode, layerInfo, layerIndex);
+            }
+
             if (NodesAreConstrainedBelow(leftNode, rightNode, layerInfo))
+            {
                 gap = Math.Max(GetGapFromNodeNodesConstrainedBelow(leftNode, rightNode, layerInfo, layerIndex), gap);
+            }
+
             if (gap > 0)
+            {
                 return gap;
+            }
+
             return SimpleGapBetweenTwoNodes(leftNode, rightNode);
         }
 
@@ -622,7 +755,10 @@ namespace Microsoft.AGL.Layout.Layered
 
         static bool NodeIsConstrained(int v, SweepMode sweepMode, LayerInfo layerInfo) {
             if (sweepMode == SweepMode.Starting)
+            {
                 return false;
+            }
+
             return sweepMode == SweepMode.ComingFromAbove && NodeIsConstrainedAbove(v, layerInfo) ||
                    sweepMode == SweepMode.ComingFromBelow && NodeIsConstrainedBelow(v, layerInfo);
         }
@@ -635,7 +771,10 @@ namespace Microsoft.AGL.Layout.Layered
             layerIndex--;
             layerInfo = layerInfos[layerIndex];
             if (layerIndex > 0 && NodesAreConstrainedBelow(leftNode, rightNode, layerInfo))
+            {
                 return Math.Max(gap, GetGapFromNodeNodesConstrainedBelow(leftNode, rightNode, layerInfo, layerIndex));
+            }
+
             return Math.Max(gap, SimpleGapBetweenTwoNodes(leftNode, rightNode));
         }
 
@@ -647,7 +786,10 @@ namespace Microsoft.AGL.Layout.Layered
             layerIndex++;
             layerInfo = layerInfos[layerIndex];
             if (layerIndex < LayerArrays.Layers.Length - 1 && NodesAreConstrainedAbove(leftNode, rightNode, layerInfo))
+            {
                 return Math.Max(gap, GetGapFromNodeNodesConstrainedAbove(leftNode, rightNode, layerInfo, layerIndex));
+            }
+
             return Math.Max(gap, SimpleGapBetweenTwoNodes(leftNode, rightNode));
         }
 
@@ -669,15 +811,22 @@ namespace Microsoft.AGL.Layout.Layered
 
         void FillBlockRootToVertConstrainedNode() {
             foreach (LayerInfo layerInfo in layerInfos)
+            {
                 foreach (int v in VertConstrainedNodesOfLayer(layerInfo)) {
                     if (TryGetBlockRoot(v, out int blockRoot, layerInfo))
+                    {
                         layerInfo.blockRootToVertConstrainedNodeOfBlock[blockRoot] = v;
+                    }
                 }
+            }
         }
 
         static bool TryGetBlockRoot(int v, out int blockRoot, LayerInfo layerInfo) {
             if (layerInfo.nodeToBlockRoot.TryGetValue(v, out blockRoot))
+            {
                 return true;
+            }
+
             if (layerInfo.neigBlocks.ContainsKey(v)) {
                 blockRoot = v;
                 return true;
@@ -688,9 +837,14 @@ namespace Microsoft.AGL.Layout.Layered
         static IEnumerable<int> VertConstrainedNodesOfLayer(LayerInfo layerInfo) {
             if (layerInfo != null) {
                 foreach (int v in layerInfo.constrainedFromAbove.Keys)
+                {
                     yield return v;
+                }
+
                 foreach (int v in layerInfo.constrainedFromBelow.Keys)
+                {
                     yield return v;
+                }
             }
         }
 
@@ -703,7 +857,9 @@ namespace Microsoft.AGL.Layout.Layered
                 if (ledges != null && ledges.Length > 1) {
                     int layerIndex = initialLayering[edge.Source] - 1;
                     for (int i = 0; i < ledges.Length - 1; i++)
+                    {
                         layeringExt[ledges[i].Target] = layerIndex--;
+                    }
                 }
             }
             LayerArrays = new LayerArrays(layeringExt);
@@ -724,7 +880,9 @@ namespace Microsoft.AGL.Layout.Layered
                     CreateLayerEdgesUnderIntEdge(ie);
                     ret.Add(ie);
                     if (horizontalConstraints.VerticalInts.Contains(new Tuple<int, int>(ie.Source, ie.Target)))
+                    {
                         verticalEdges.Add(ie);
+                    }
                 }
             }
 
@@ -740,12 +898,17 @@ namespace Microsoft.AGL.Layout.Layered
             ie.LayerEdges = new LayerEdge[span];
             Debug.Assert(span > 0);
             if (span == 1)
+            {
                 ie.LayerEdges[0] = new LayerEdge(ie.Source, ie.Target, ie.CrossingWeight);
+            }
             else {
                 ie.LayerEdges[0] = new LayerEdge(source, numberOfNodesOfProperGraph, ie.CrossingWeight);
                 for (int i = 0; i < span - 2; i++)
+                {
                     ie.LayerEdges[i + 1] = new LayerEdge(numberOfNodesOfProperGraph++, numberOfNodesOfProperGraph,
                                                          ie.CrossingWeight);
+                }
+
                 ie.LayerEdges[span - 1] = new LayerEdge(numberOfNodesOfProperGraph++, target, ie.CrossingWeight);
             }
         }
@@ -761,7 +924,9 @@ namespace Microsoft.AGL.Layout.Layered
             }
 
             foreach (Tuple<int, int> p in horizontalConstraints.VerticalInts)
+            {
                 RegisterAboveBelowOnConstrainedUpperLower(p.Item1, p.Item2);
+            }
         }
 
         void RegisterAboveBelowOnConstrainedUpperLower(int upper, int lower) {
@@ -803,7 +968,9 @@ namespace Microsoft.AGL.Layout.Layered
                 LayerInfo layerInfo = GetOrCreateLayerInfo(initialLayering[p.Key]);
                 layerInfo.neigBlocks[p.Key] = p.Value;
                 foreach (int i in p.Value)
+                {
                     layerInfo.nodeToBlockRoot[i] = p.Key;
+                }
             }
         }
     }

@@ -52,7 +52,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous
                 MdsGraphLayout mdsLayout = new MdsGraphLayout(mdsLayoutSettings, geometryGraph);
                 mdsLayout.Run(cancelToken);
                 if (settings.EdgeRoutingSettings.EdgeRoutingMode != EdgeRoutingMode.None)
+                {
                     RouteAndLabelEdges(geometryGraph, settings, geometryGraph.Edges);
+                }
             }
             else if (settings is FastIncrementalLayoutSettings) {
                 FastIncrementalLayoutSettings? incrementalSettings = settings as FastIncrementalLayoutSettings;
@@ -60,12 +62,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous
                 InitialLayout initialLayout = new InitialLayout(geometryGraph, incrementalSettings);
                 initialLayout.Run(cancelToken);
                 if (settings.EdgeRoutingSettings.EdgeRoutingMode != EdgeRoutingMode.None)
+                {
                     RouteAndLabelEdges(geometryGraph, settings, geometryGraph.Edges);
+                }
                 //incrementalSettings.IncrementalRun(geometryGraph);
             }
             else {
                 if (settings is SugiyamaLayoutSettings sugiyamaLayoutSettings)
+                {
                     ProcessSugiamaLayout(geometryGraph, sugiyamaLayoutSettings, cancelToken);
+                }
                 else
                 {
                     Debug.Assert(settings is LgLayoutSettings);
@@ -99,11 +105,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous
                     geometryGraph.Edges.Where(e => e.Curve == null).ToArray());
             }
             else
+            {
                 geometryGraph.AlgorithmData = SugiyamaLayoutSettings.CalculateLayout(geometryGraph,
                     sugiyamaLayoutSettings, cancelToken);
+            }
 
             if (transformIsNotIdentity)
+            {
                 sugiyamaLayoutSettings.Transformation = originalTransform;
+            }
 
             PostRunTransform(geometryGraph, sugiyamaLayoutSettings);
         }
@@ -114,7 +124,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous
             originalTransform = sugiyamaLayoutSettings.Transformation;
             if (transformIsNotIdentity) {
                 PlaneTransformation m = sugiyamaLayoutSettings.Transformation.Inverse;
-                foreach (Node n in geometryGraph.Nodes) n.Transform(m);
+                foreach (Node n in geometryGraph.Nodes)
+                {
+                    n.Transform(m);
+                }
                 //calculate new label widths and heights
                 foreach (Edge e in geometryGraph.Edges) {
                     if (e.Label != null) {
@@ -165,18 +178,28 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous
                 }
             }
             if (sugiyamaLayoutSettings.FallbackLayoutSettings == null)
+            {
                 sugiyamaLayoutSettings.FallbackLayoutSettings = new FastIncrementalLayoutSettings() {
                     AvoidOverlaps = true
                 };
+            }
+
             AddOrphanNodesToRootCluster(geometryGraph);
         }
 
         static void AddOrphanNodesToRootCluster(GeometryGraph geometryGraph) {
             Set<Node> clusterNodeSet = new Set<Node>();
             foreach(Cluster cl in geometryGraph.RootCluster.AllClustersDepthFirst())
+            {
                 clusterNodeSet.InsertRange(cl.Nodes);
+            }
+
             foreach (Node node in geometryGraph.Nodes) {
-                if (clusterNodeSet.Contains(node)) continue;
+                if (clusterNodeSet.Contains(node))
+                {
+                    continue;
+                }
+
                 geometryGraph.RootCluster.AddNode(node);
             }
         }
@@ -239,7 +262,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous
         public static void IncrementalLayout(GeometryGraph geometryGraph, Node node, SugiyamaLayoutSettings settings)
         {
             if(settings==null)
+            {
                 return;
+            }
 
             if (geometryGraph.AlgorithmData is LayeredLayoutEngine engine)
             {
@@ -252,7 +277,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous
             bool transform = !settings.Transformation.IsIdentity;
             if (transform) {
                 foreach (Node n in geometryGraph.Nodes)
+                {
                     n.Transform(settings.Transformation);
+                }
+
                 foreach (Cluster n in geometryGraph.RootCluster.Clusters) {
                     n.Transform(settings.Transformation);
                     n.RectangularBoundary.Rect = n.BoundaryCurve.BoundingBox;
@@ -279,15 +307,24 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous
             foreach (Edge e in geometryGraph.Edges)
             {
                 if (e.Label != null)
+                {
                     e.Label.Center = transformation * e.Label.Center;
+                }
+
                 if (e.Curve != null)
                 {
                     e.Curve = e.Curve.Transform(transformation);
                     EdgeGeometry eg = e.EdgeGeometry;
                     if (eg.SourceArrowhead != null)
+                    {
                         eg.SourceArrowhead.TipPosition = transformation * eg.SourceArrowhead.TipPosition;
+                    }
+
                     if (eg.TargetArrowhead != null)
+                    {
                         eg.TargetArrowhead.TipPosition = transformation * eg.TargetArrowhead.TipPosition;
+                    }
+
                     TransformUnderlyingPolyline(e, settings);
                 }
             }

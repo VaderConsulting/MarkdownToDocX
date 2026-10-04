@@ -16,7 +16,9 @@ namespace Microsoft.AGL.Layout.Layered
             ValidateArg.IsNotNull(b, "b");
             int r = X[a.Target] - X[b.Target];
             if (r != 0)
+            {
                 return r;
+            }
 
             return X[a.Source] - X[b.Source];
         }

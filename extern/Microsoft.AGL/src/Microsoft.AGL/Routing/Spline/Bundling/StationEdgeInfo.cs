@@ -8,7 +8,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             Point dir = jPos - iPos;
             double length = dir.Length;
             if (length > ApproximateComparer.DistanceEpsilon)
+            {
                 dir /= length;
+            }
         }
 
         internal int Count;

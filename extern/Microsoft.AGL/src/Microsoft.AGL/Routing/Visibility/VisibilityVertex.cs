@@ -94,10 +94,15 @@ namespace Microsoft.AGL.Routing.Visibility {
         static RBNode<VisibilityEdge> FindFirst(RBNode<VisibilityEdge> n, RbTree<VisibilityEdge> tree, Point targetPoint)
         {
             if ( n ==  tree.Nil)
+            {
                 return null;
+            }
+
             RBNode<VisibilityEdge> good = null;
             while (n != tree.Nil)
+            {
                 n = n.Item.TargetPoint >= targetPoint ? (good = n).left : n.right;
+            }
 
             return good;
         }

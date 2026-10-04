@@ -75,9 +75,13 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
         /// <param name="edge"></param>
         void BindEdgeToTriangle(CdtSite site, CdtEdge edge) {
             if (site == edge.upperSite)
+            {
                 edge.CcwTriangle = this;
+            }
             else
+            {
                 edge.CwTriangle = this;
+            }
         }
 
         internal Point getCenter() => (Sites[0].Point + Sites[1].Point + Sites[2].Point) / 3.0;
@@ -96,7 +100,9 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
         void FillCcwTriangle(CdtSite a, CdtSite b, CdtSite c, Func<CdtSite, CdtSite, CdtEdge> createEdgeDelegate) {
             Sites[0] = a; Sites[1] = b; Sites[2] = c;
             for (int i = 0; i < 3; i++)
+            {
                 CreateEdge(i, createEdgeDelegate);
+            }
         }
 
         void CreateEdge(int i, Func<CdtSite, CdtSite, CdtEdge> createEdgeDelegate) {

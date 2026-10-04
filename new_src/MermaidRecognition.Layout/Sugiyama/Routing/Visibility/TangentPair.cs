@@ -52,51 +52,75 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         bool LeftFromLineOnP(int vertexIndex, Point lineStart, Point lineEnd) {
             Point p = P.Pnt(vertexIndex);
             if (upperBranchOnP)
+            {
                 return Point.PointToTheLeftOfLineOrOnLine(lineEnd, p, lineStart);
+            }
+
             return Point.PointToTheRightOfLineOrOnLine(lineEnd, p, lineStart);
         }
 
         bool LeftFromLineOnQ(int vertexIndex, Point lineStart, Point lineEnd) {
             Point point = Q.Pnt(vertexIndex);
             if (lowerBranchOnQ)
+            {
                 return Point.PointToTheLeftOfLineOrOnLine(lineEnd, point, lineStart);
+            }
+
             return Point.PointToTheRightOfLineOrOnLine(lineEnd, point, lineStart);
         }
 
         int PrevOnP(int i) {
             if (upperBranchOnP)
+            {
                 return P.Prev(i);
+            }
+
             return P.Next(i);
         }
 
         int PrevOnQ(int i) {
             if (lowerBranchOnQ)
+            {
                 return Q.Prev(i);
+            }
+
             return Q.Next(i);
         }
 
         int NextOnP(int i) {
             if (upperBranchOnP)
+            {
                 return P.Next(i);
+            }
+
             return P.Prev(i);
         }
 
         int NextOnQ(int i) {
             if (lowerBranchOnQ)
+            {
                 return Q.Next(i);
+            }
+
             return Q.Prev(i);
         }
 
 
         int MedianOnP(int i, int j) {
             if (upperBranchOnP)
+            {
                 return P.Median(i, j);
+            }
+
             return P.Median(j, i);
         }
 
         int MedianOnQ(int i, int j) {
             if (lowerBranchOnQ)
+            {
                 return Q.Median(i, j);
+            }
+
             return Q.Median(j, i);
         }
 
@@ -111,13 +135,19 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
 
         int ModuleP(int p0, int p1) {
             if (upperBranchOnP)
+            {
                 return P.Module(p1 - p0);
+            }
+
             return P.Module(p0 - p1);
         }
 
         int ModuleQ(int q0, int q1) {
             if (lowerBranchOnQ)
+            {
                 return Q.Module(q1 - q0);
+            }
+
             return Q.Module(q0 - q1);
         }
 
@@ -139,41 +169,69 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
                 bool moveOnP = true;
                 if (ModuleP(p0, p1) > 1) {
                     if (LeftFromLineOnP(NextOnP(mp), mpp, mqp)) //try to move p0 clockwise
+                    {
                         p0 = mp;
+                    }
                     else if (LeftFromLineOnP(PrevOnP(mp), mpp, mqp)) //try to move p1 counterclockwise
+                    {
                         p1 = mp;
+                    }
                     else
+                    {
                         moveOnP = false;
+                    }
                 } else if (p1 != p0) {
 //we have only two point in the branch
                     //try to move p0 clockwise
                     if (LeftFromLineOnP(p1, P.Pnt(p0), mqp))
+                    {
                         p0 = p1;
+                    }
                     else if (LeftFromLineOnP(p0, P.Pnt(p1), mqp)) //try to move p1 counterclockwise
+                    {
                         p1 = p0;
+                    }
                     else
+                    {
                         moveOnP = false;
+                    }
                 } else
+                {
                     moveOnP = false;
+                }
 
                 bool moveOnQ = true;
                 if (ModuleQ(q0, q1) > 1) {
                     if (LeftFromLineOnQ(NextOnQ(mq), mqp, mpp)) //try to move q0 clockwise
+                    {
                         q0 = mq;
+                    }
                     else if (LeftFromLineOnQ(PrevOnQ(mq), mqp, mpp)) //try to move q1 counterclockwise
+                    {
                         q1 = mq;
+                    }
                     else
+                    {
                         moveOnQ = false;
+                    }
                 } else if (q1 != q0) {
 //we have only two points in the branch
                     if (LeftFromLineOnQ(q1, Q.Pnt(q0), mpp)) //try to move q0 clockwise
+                    {
                         q0 = q1;
+                    }
                     else if (LeftFromLineOnQ(q0, Q.Pnt(q1), mpp)) //try to move q1 counterclockwise                   
+                    {
                         q1 = q0;
+                    }
                     else
+                    {
                         moveOnQ = false;
+                    }
                 } else
+                {
                     moveOnQ = false;
+                }
 
                 if (!moveOnP && !moveOnQ) {
                     p1 = p0 = mp;
@@ -214,13 +272,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             // LayoutAlgorithmSettings.ShowDebugCurves(new DebugCurve(P.Polyline), new DebugCurve(Q.Polyline), new DebugCurve("red",Ls(p2, 0)), new DebugCurve("blue",Ls(p1, 0)));
 
             if (p2 == p1)
+            {
                 p2 += P.Count;
+            }
+
             Q.GetTangentPoints(out q1, out q2, P[0].Point);
             //LayoutAlgorithmSettings.Show(P.Polyline, Q.Polyline, Ls(0, q1), Ls(0, q2));
             if (q2 == q1)
+            {
                 q1 += Q.Count;
+            }
 
-//            LayoutAlgorithmSettings.ShowDebugCurves(new DebugCurve(100,0.1,"black",P.Polyline),new DebugCurve(100,0.1,"black",Q.Polyline),new DebugCurve(100,0.1,"red",new LineSegment(P [p1].Point,Q [q1].Point)),new DebugCurve(100,0.1,"blue",new LineSegment(P [p2].Point,Q [q2].Point)));
+            //            LayoutAlgorithmSettings.ShowDebugCurves(new DebugCurve(100,0.1,"black",P.Polyline),new DebugCurve(100,0.1,"black",Q.Polyline),new DebugCurve(100,0.1,"red",new LineSegment(P [p1].Point,Q [q1].Point)),new DebugCurve(100,0.1,"blue",new LineSegment(P [p2].Point,Q [q2].Point)));
 
             FindClosestPoints(ref p1, ref p2, ref q2, ref q1, out pClosest, out qClosest);
         }
@@ -237,43 +300,60 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         //chunks go clockwise from p1 to p2 and from q2 to q1
         void FindClosestPoints(ref int p1, ref int p2, ref int q2, ref int q1, out Point pClosest, out Point qClosest) {
             while (ChunksAreLong(p2, p1, q2, q1))
+            {
                 ShrinkChunks(ref p2, ref p1, ref q2, ref q1);
-
+            }
 
             if (p1 == p2) {
                 pClosest = P[p2].Point;
                 if (q1 == q2)
+                {
                     qClosest = Q[q1].Point;
+                }
                 else {
 //                    if(debug) LayoutAlgorithmSettings.Show(new LineSegment(P.Pnt(p2), Q.Pnt(q2)), new LineSegment(P.Pnt(p1), Q.Pnt(q1)), P.Polyline, Q.Polyline);
                     qClosest = Point.ClosestPointAtLineSegment(pClosest, Q[q1].Point, Q[q2].Point);
                     if (ApproximateComparer.Close(qClosest, Q.Pnt(q1)))
+                    {
                         q2 = q1;
+                    }
                     else if (ApproximateComparer.Close(qClosest, Q.Pnt(q2)))
+                    {
                         q1 = q2;
+                    }
                 }
             } else {
                 Debug.Assert(q1 == q2);
                 qClosest = Q[q1].Point;
                 pClosest = Point.ClosestPointAtLineSegment(qClosest, P[p1].Point, P[p2].Point);
                 if (ApproximateComparer.Close(pClosest, P.Pnt(p1)))
+                {
                     p2 = p1;
+                }
                 else if (ApproximateComparer.Close(qClosest, P.Pnt(p2)))
+                {
                     p1 = p2;
+                }
             }
         }
 
         bool ChunksAreLong(int p2, int p1, int q2, int q1) {
             int pLength = P.Module(p2 - p1) + 1;
             if (pLength > 2)
+            {
                 return true;
+            }
 
             int qLength = Q.Module(q1 - q2) + 1;
             if (qLength > 2)
+            {
                 return true;
+            }
 
             if (pLength == 2 && qLength == 2)
+            {
                 return true;
+            }
 
             return false;
         }
@@ -302,10 +382,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
 
             //case 1
             if (OneOfChunksContainsOnlyOneVertex(ref p2, ref p1, ref q2, ref q1, mp, mq, a1, b1))
+            {
                 return;
+            }
             //case 2
             if (OnlyOneChunkContainsExactlyTwoVertices(ref p2, ref p1, ref q2, ref q1, mp, mq, a1, b1, a2, b2))
+            {
                 return;
+            }
 
             // the case where we have exactly two vertices in each chunk
             if (p2 == P.Next(p1) && q1 == Q.Next(q2)) {
@@ -314,13 +398,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
                                                              out double qsol);
                 //System.Diagnostics.Debug.Assert(res);
                 if (psol == 0)
+                {
                     p2 = p1;
+                }
                 else if (psol == 1)
+                {
                     p1 = p2;
+                }
                 else if (qsol == 0)
+                {
                     q2 = q1;
+                }
                 else if (qsol == 1)
+                {
                     q1 = q2;
+                }
 
                 Debug.Assert(p1 == p2 || q1 == q2);
                 return;
@@ -342,23 +434,37 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             if (a1 <= Math.PI && a2 <= Math.PI && b1 <= Math.PI && b2 <= Math.PI) {
                 if (a1 + b1 > Math.PI) {
                     if (a1 >= Math.PI/2)
+                    {
                         p1 = mp;
+                    }
                     else
+                    {
                         q1 = mq;
+                    }
                 } else {
                     Debug.Assert(a2 + b2 >= Math.PI-ApproximateComparer.Tolerance);
                     if (a2 >= Math.PI/2)
+                    {
                         p2 = mp;
+                    }
                     else
+                    {
                         q2 = mq;
+                    }
                 }
             } else {
                 if (a1 > Math.PI)
+                {
                     p1 = mp;
+                }
                 else if (a2 > Math.PI)
+                {
                     p2 = mp;
+                }
                 else if (b1 > Math.PI)
+                {
                     q1 = mq;
+                }
                 else {
                     Debug.Assert(b2 > Math.PI);
                     q2 = mq;
@@ -381,9 +487,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
                 TriangleOrientation nextOrientation = Point.GetTriangleOrientation(mpp, mqp, mpnp);
 
                 if (orientation == nextOrientation)
+                {
                     p1 = P.Next(mp);
+                }
                 else
+                {
                     p2 = P.Prev(mp);
+                }
+
                 ret = true;
             }
             if (b1 >= Math.PI && b2 >= Math.PI) {
@@ -396,9 +507,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
                 TriangleOrientation orientation = Point.GetTriangleOrientation(mpp, mqp, P[0].Point);
                 TriangleOrientation nextOrientation = Point.GetTriangleOrientation(mpp, mqp, mqnp);
                 if (orientation == nextOrientation)
+                {
                     q2 = Q.Next(mq);
+                }
                 else
+                {
                     q1 = Q.Prev(mq);
+                }
+
                 ret = true;
             }
             return ret;
@@ -497,26 +613,47 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
                               double a2, double b2) {
             //case 2.1
             if (mp == p2)
+            {
                 ProcessSide(ref p2, ref p1, ref q2, ref q1, mq, a1, b1, b2);
+            }
             else {
                 if (a2 <= Math.PI) {
                     if (a2 + b2 >= Math.PI) {
-                        if (a2 >= Math.PI / 2) p2 = p1;
-                        else q2 = mq;
+                        if (a2 >= Math.PI / 2)
+                        {
+                            p2 = p1;
+                        }
+                        else
+                        {
+                            q2 = mq;
+                        }
                     } else {
-                        if (b1 >= Math.PI / 2) q1 = mq;
+                        if (b1 >= Math.PI / 2)
+                        {
+                            q1 = mq;
+                        }
                         else if (a2 < b2) {
                             //SugiyamaLayoutSettings.Show(new LineSegment(P.Pnt(p2), Q.Pnt(q2)), new LineSegment(P.Pnt(p1), Q.Pnt(q1)), new LineSegment(P.Pnt(p1), Q.Pnt(mq)), P.Polyline, Q.Polyline);
-                            if (Point.CanProject(Q.Pnt(mq), P[p1].Point, P[p2].Point)) q1 = mq;
-                            else p1 = p2;
+                            if (Point.CanProject(Q.Pnt(mq), P[p1].Point, P[p2].Point))
+                            {
+                                q1 = mq;
+                            }
+                            else
+                            {
+                                p1 = p2;
+                            }
                         }
                     }
                 } else {
                     //a2>Pi , case 2.2                    
                     if (a1 + b1 <= Math.PI)
+                    {
                         p1 = p2;
+                    }
                     else
+                    {
                         p2 = p1;
+                    }
                 }
             }
         }
@@ -532,20 +669,39 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             Point mQ = Q.Pnt(mq);
             if (a1 <= Math.PI) {
                 if (a1 + b1 >= Math.PI) {
-                    if (a1 >= Math.PI/2) p1 = p2;
-                    else q1 = mq;
-                } else if (b2 >= Math.PI/2) q2 = mq;
+                    if (a1 >= Math.PI/2)
+                    {
+                        p1 = p2;
+                    }
+                    else
+                    {
+                        q1 = mq;
+                    }
+                } else if (b2 >= Math.PI/2)
+                {
+                    q2 = mq;
+                }
                 else if (a1 < b2) {
-                    if (Point.CanProject(mQ, P[p1].Point, P[p2].Point)) q2 = mq;
-                    else p2 = p1;
+                    if (Point.CanProject(mQ, P[p1].Point, P[p2].Point))
+                    {
+                        q2 = mq;
+                    }
+                    else
+                    {
+                        p2 = p1;
+                    }
                 }
             } else {
                 //a1>Pi , case 2.2
                 p2 = p1;
                 if (b1 >= Math.PI)
+                {
                     q1 = mq;
+                }
                 else if (b2 >= Math.PI)
+                {
                     q2 = mq;
+                }
             }
         }
 
@@ -554,17 +710,26 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
                                                      double a1, double b1) {
             if (p1 == p2) {
                 if (b1 >= Math.PI/2)
+                {
                     q1 = mq;
+                }
                 else
+                {
                     q2 = mq;
+                }
 
                 return true;
             }
             if (q1 == q2) {
                 if (a1 >= Math.PI/2)
+                {
                     p1 = mp;
+                }
                 else
+                {
                     p2 = mp;
+                }
+
                 return true;
             }
             return false;

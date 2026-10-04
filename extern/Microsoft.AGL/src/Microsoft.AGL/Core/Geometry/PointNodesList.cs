@@ -32,7 +32,9 @@ namespace Microsoft.AGL.Core.Geometry {
                     current = current.Next;
                     return true;
                 } else
+                {
                     return false;
+                }
             } else {
                 current = Head;
                 return true;

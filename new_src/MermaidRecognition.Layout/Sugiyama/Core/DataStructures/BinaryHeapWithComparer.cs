@@ -38,7 +38,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
 
         internal T Dequeue() {
             if (heapSize < 1)
+            {
                 throw new InvalidOperationException();
+            }
+
             T ret = A[1];
 
             T candidate = A[heapSize];
@@ -120,12 +123,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
 
         string Print(int i) {
             if (2*i + 1 <= heapSize)
+            {
                 return string.Format(CultureInfo.InvariantCulture, "({0}->{1},{2})", A[i], A[i*2], A[i*2 + 1]) +
                        Print(i*2) + Print(i*2 + 1);
+            }
+
             if (2*i == heapSize)
+            {
                 return string.Format(CultureInfo.InvariantCulture, "({0}->{1}", A[i], A[i*2]);
+            }
+
             if (i == heapSize && i == 1)
+            {
                 return " " + A[i].ToString() + " ";
+            }
+
             return "";
         }
 #endif

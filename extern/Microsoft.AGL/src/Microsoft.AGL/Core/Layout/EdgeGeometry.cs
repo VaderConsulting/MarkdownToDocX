@@ -94,9 +94,15 @@ namespace Microsoft.AGL.Core.Layout {
             get {
                 Rectangle bBox = Curve.BoundingBox;
                 if (SourceArrowhead != null)
+                {
                     bBox.Add(SourceArrowhead.TipPosition);
+                }
+
                 if (TargetArrowhead != null)
+                {
                     bBox.Add(TargetArrowhead.TipPosition);
+                }
+
                 double del = 0.5*LineWidth;
                 Point delta = new Point(-del, del);
                 bBox.Add(bBox.LeftTop + delta);
@@ -115,30 +121,50 @@ namespace Microsoft.AGL.Core.Layout {
         /// </summary>
         /// <param name="delta">vector by which to translate</param>
         public void Translate(Point delta) {
-            if (delta.X == 0 && delta.Y == 0) return;
+            if (delta.X == 0 && delta.Y == 0)
+            {
+                return;
+            }
+
             RaiseLayoutChangeEvent(delta);
             if (Curve != null)
+            {
                 Curve.Translate(delta);
+            }
 
             if (SmoothedPolyline != null)
+            {
                 for (Site s = SmoothedPolyline.HeadSite, s0 = SmoothedPolyline.HeadSite;
                      s != null;
                      s = s.Next, s0 = s0.Next)
+                {
                     s.Point = s0.Point + delta;
+                }
+            }
 
             if (SourceArrowhead != null)
+            {
                 SourceArrowhead.TipPosition += delta;
-            if (TargetArrowhead != null)
-                TargetArrowhead.TipPosition += delta;
+            }
 
+            if (TargetArrowhead != null)
+            {
+                TargetArrowhead.TipPosition += delta;
+            }
         }
 
         internal double GetMaxArrowheadLength() {
             double l = 0;
             if (SourceArrowhead != null)
+            {
                 l = SourceArrowhead.Length;
+            }
+
             if (TargetArrowhead != null && TargetArrowhead.Length > l)
+            {
                 return TargetArrowhead.Length;
+            }
+
             return l;
         }
 
@@ -153,7 +179,9 @@ namespace Microsoft.AGL.Core.Layout {
         /// <param name="newValue"></param>
         public void RaiseLayoutChangeEvent(object newValue) {
             if (LayoutChangeEvent != null)
+            {
                 LayoutChangeEvent(this, new LayoutChangeEventArgs{DataAfterChange = newValue});
+            }
         }
     }
 }

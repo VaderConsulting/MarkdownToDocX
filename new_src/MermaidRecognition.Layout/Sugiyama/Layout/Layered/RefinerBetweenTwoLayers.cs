@@ -62,7 +62,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         void Refine() {
             Init();
-            while (InsertSites()) ;
+            while (InsertSites())
+            {
+                ;
+            }
         }
 
 #if DEBUGGLEE
@@ -81,13 +84,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         private Point FixCorner(Point start, Point corner, Point end) {
             if (start == corner)
+            {
                 return corner;
+            }
+
             Point a = Point.ClosestPointAtLineSegment(corner, start, end);
             Point offsetInTheChannel = corner - a;
             double y = Math.Abs(offsetInTheChannel.Y);
             double sep = layerSeparation / 2.0;
             if (y > sep) //push the return value closer to the corner
+            {
                 offsetInTheChannel *= (sep / (y * 2));
+            }
 
             return offsetInTheChannel + corner;
         }
@@ -95,9 +103,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         private bool InsertSites() {
             if (random.Next(2) == 0)
+            {
                 return CalculateNewTopSite() | CalculateNewBottomSite();
+            }
             else
+            {
                 return CalculateNewBottomSite() | CalculateNewTopSite();
+            }
         }
         /// <summary>
         /// circimvating from the side
@@ -241,7 +253,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         IEnumerable<Point> NodeCorners(int node) {
             foreach (Point p in NodeAnchor(node).PolygonalBoundary)
+            {
                 yield return p;
+            }
         }
 
         Anchor NodeAnchor(int node) => anchors[node];
@@ -251,18 +265,30 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             double rightMost = currentBottomSite.Point.X;
             foreach (int node in LeftFromTheNode(NodeLayer(bottomNode), bottomPosition,
                 NodeKind.Bottom, leftMost, rightMost))
+            {
                 foreach (Point p in NodeCorners(node))
+                {
                     if (p.Y > currentBottomSite.Point.Y && PossibleCorner(leftMost, rightMost, p))
+                    {
                         yield return p;
+                    }
+                }
+            }
         }
         IEnumerable<Point> CornersToTheLeftOfTop() {
             int topPosition = layerArrays.X[topNode];
             double leftMost = currentBottomSite.Point.X;
             double rightMost = currentTopSite.Point.X;
             foreach (int node in LeftFromTheNode(NodeLayer(topNode), topPosition, NodeKind.Top, leftMost, rightMost))
+            {
                 foreach (Point p in NodeCorners(node))
+                {
                     if (p.Y < currentTopSite.Point.Y && PossibleCorner(leftMost, rightMost, p))
+                    {
                         yield return p;
+                    }
+                }
+            }
         }
         IEnumerable<Point> CornersToTheRightOfBottom() {
             int bottomPosition = layerArrays.X[bottomNode];
@@ -271,19 +297,30 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
             foreach (int node in RightFromTheNode(NodeLayer(bottomNode), bottomPosition,
                 NodeKind.Bottom, leftMost, rightMost))
+            {
                 foreach (Point p in NodeCorners(node))
+                {
                     if (p.Y > currentBottomSite.Point.Y && PossibleCorner(leftMost, rightMost, p))
+                    {
                         yield return p;
-
+                    }
+                }
+            }
         }
         IEnumerable<Point> CornersToTheRightOfTop() {
             int topPosition = layerArrays.X[topNode];
             double leftMost = currentTopSite.Point.X;
             double rightMost = currentBottomSite.Point.X;
             foreach (int node in RightFromTheNode(NodeLayer(topNode), topPosition, NodeKind.Top, leftMost, rightMost))
+            {
                 foreach (Point p in NodeCorners(node))
+                {
                     if (p.Y < currentTopSite.Point.Y && PossibleCorner(leftMost, rightMost, p))
+                    {
                         yield return p;
+                    }
+                }
+            }
         }
 
         private static bool PossibleCorner(double leftMost, double rightMost, Point p) => p.X > leftMost && p.X < rightMost;
@@ -302,9 +339,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         private bool NodeUCanBeCrossedByNodeV(int u, int v) {
             if (IsLabel(u) || IsLabel(v))
+            {
                 return false;
+            }
+
             if (IsVirtualVertex(u) && IsVirtualVertex(v) && AdjacentEdgesIntersect(u, v))
+            {
                 return true;
+            }
+
             return false;
         }
 
@@ -314,14 +357,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         private LayerEdge IncomingEdge(int u) {
             foreach (LayerEdge le in layeredGraph.InEdges(u))
+            {
                 return le;
+            }
 
             throw new InvalidOperationException();
         }
         //here u is a virtual vertex
         private LayerEdge OutcomingEdge(int u) {
             foreach (LayerEdge le in layeredGraph.OutEdges(u))
+            {
                 return le;
+            }
 
             throw new InvalidOperationException();
         }
@@ -330,19 +377,29 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         IEnumerable<int> RightFromTheNode(int[] layer, int vPosition, NodeKind nodeKind, double leftMostX, double rightMostX) {
             double t = 0, b = 0;
             if (nodeKind == NodeKind.Bottom)
+            {
                 b = float.MaxValue;//we don't have bottom boundaries here since they will be cut off
+            }
             else if (nodeKind == NodeKind.Top)
+            {
                 t = float.MaxValue;//we don't have top boundaries here since they will be cut off
+            }
 
             int v = layer[vPosition];
 
             for (int i = vPosition + 1; i < layer.Length; i++) {
                 int u = layer[i];
                 if (NodeUCanBeCrossedByNodeV(u, v))
+                {
                     continue;
+                }
+
                 Anchor anchor = anchors[u];
                 if (anchor.Left >= rightMostX)
+                {
                     break;
+                }
+
                 if (anchor.Right > leftMostX) {
                     if (anchor.TopAnchor > t + ApproximateComparer.DistanceEpsilon) {
                         t = anchor.TopAnchor;
@@ -358,19 +415,29 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         IEnumerable<int> LeftFromTheNode(int[] layer, int vPosition, NodeKind nodeKind, double leftMostX, double rightMostX) {
             double t = 0, b = 0;
             if (nodeKind == NodeKind.Bottom)
+            {
                 b = float.MaxValue;//we don't have bottom boundaries here since they will be cut off
+            }
             else if (nodeKind == NodeKind.Top)
+            {
                 t = float.MaxValue;//we don't have top boundaries here since they will be cut off
+            }
 
             int v = layer[vPosition];
 
             for (int i = vPosition - 1; i > -1; i--) {
                 int u = layer[i];
                 if (NodeUCanBeCrossedByNodeV(u, v))
+                {
                     continue;
+                }
+
                 Anchor anchor = anchors[u];
                 if (anchor.Right <= leftMostX)
+                {
                     break;
+                }
+
                 if (anchor.Left < rightMostX) {
                     if (anchor.TopAnchor > t + ApproximateComparer.DistanceEpsilon) {
                         t = anchor.TopAnchor;

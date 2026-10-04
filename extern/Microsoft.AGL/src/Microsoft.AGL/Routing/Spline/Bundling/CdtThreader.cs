@@ -28,7 +28,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         
         internal IEnumerable<CdtTriangle> Triangles() {
             while(MoveNext())
+            {
                 yield return CurrentTriangle;
+            }
         }
 
         internal CdtEdge FindFirstPiercedEdge() {
@@ -88,9 +90,14 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             for (int i = 0; i < 3; i++) {
                 double area = Point.SignedDoubledTriangleArea(p, triangle.Sites[i].Point, triangle.Sites[i + 1].Point);
                 if (area < -ApproximateComparer.DistanceEpsilon)
+                {
                     return PointLocation.Outside;
+                }
+
                 if (area < ApproximateComparer.DistanceEpsilon)
+                {
                     seenBoundary = true;
+                }
             }
 
             return seenBoundary ? PointLocation.Boundary : PointLocation.Inside;
@@ -185,16 +192,29 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         internal int GetHyperplaneSign(CdtSite cdtSite) {
             double area = Point.SignedDoubledTriangleArea(start, cdtSite.Point, end);
-            if (area > ApproximateComparer.DistanceEpsilon) return 1;
-            if (area < -ApproximateComparer.DistanceEpsilon) return -1;
+            if (area > ApproximateComparer.DistanceEpsilon)
+            {
+                return 1;
+            }
+
+            if (area < -ApproximateComparer.DistanceEpsilon)
+            {
+                return -1;
+            }
+
             return 0;
         }
 
         internal bool MoveNext() {
             if (currentPiercedEdge == null)
+            {
                 currentPiercedEdge = FindFirstPiercedEdge();
+            }
             else
+            {
                 FindNextPierced();
+            }
+
             return currentPiercedEdge != null;
         }
     }

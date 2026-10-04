@@ -314,13 +314,30 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         /// <param name="second"></param>
         /// <returns></returns>
         public int Compare(ScanSegment? first, ScanSegment? second) {
-            if (first is null) return second is null ? 0 : -1; if (second is null) return 1;
-            if (first == second)
-                return 0;
-            if (first == null)
-                return -1;
-            if (second == null)
+            if (first is null)
+            {
+                return second is null ? 0 : -1;
+            }
+
+            if (second is null)
+            {
                 return 1;
+            }
+
+            if (first == second)
+            {
+                return 0;
+            }
+
+            if (first == null)
+            {
+                return -1;
+            }
+
+            if (second == null)
+            {
+                return 1;
+            }
 
             // This orders on both axes.
             int cmp = ScanDirection.Compare(first.Start, second.Start);

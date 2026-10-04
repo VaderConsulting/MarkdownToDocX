@@ -20,7 +20,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
 
         public IEnumerator<Point> GetEnumerator() {
             for (LinkedPoint p = this; p != null; p = p.Next)
+            {
                 yield return p.Point;
+            }
         }
 
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
@@ -31,12 +33,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
 
         internal void InsertVerts(int i, int j, Point[] points) {
             for (j--; i < j; j--)
+            {
                 SetNewNext(points[j]);
+            }
         }
 
         public void InsertVertsInReverse(int i, int j, Point[] points) {
             for (i++; i < j; i++)
+            {
                 SetNewNext(points[i]);
+            }
         }
 
         internal void SetNewNext(Point p) {

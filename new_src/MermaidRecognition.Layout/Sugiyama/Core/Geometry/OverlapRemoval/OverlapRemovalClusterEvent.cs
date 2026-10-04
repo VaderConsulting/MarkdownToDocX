@@ -52,7 +52,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
             /// <param name="other">The right-hand side of the comparison</param>
             /// <returns></returns>
             public int CompareTo(Event? other) {
-            if (other is null) return 1;
+            if (other is null)
+                {
+                    return 1;
+                }
+
                 ValidateArg.IsNotNull(other, "other");
                 
                 int cmp = 0;

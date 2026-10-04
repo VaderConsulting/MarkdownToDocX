@@ -59,9 +59,14 @@ Serializable
                 h=s.Clone();
                 h.Previous=prev;
                 if (prev != null)
+                {
                     prev.Next = h;
+                }
                 else
+                {
                     headOfTheClone = h;
+                }
+
                 s = s.Next;
                 prev = h;
             }
@@ -80,7 +85,10 @@ Serializable
             get {
                 Site ret = headSite;
                 while (ret.Next != null)
+                {
                     ret = ret.Next;
+                }
+
                 return ret;
             }
         }
@@ -117,10 +125,15 @@ Serializable
                 if (curve.Segments.Count == 0)
                 {
                     if (!ApproximateComparer.Close(a.Point, bezierSeg.Start))
+                    {
                         Curve.AddLineSegment(curve, a.Point, bezierSeg.Start);
+                    }
                 }
                 else if (!ApproximateComparer.Close(curve.End, bezierSeg.Start))
+                {
                     Curve.ContinueWithLineSegment(curve, bezierSeg.Start);
+                }
+
                 curve.AddSegment(bezierSeg);
                 a = b;
             }
@@ -135,7 +148,10 @@ Serializable
                     curve.Segments.Add(new CubicBezierSegment(a.Point, a.Point + new Point(w, w), a.Point + new Point(-w, w), b.Point));
                 }
             } else if (!ApproximateComparer.Close(curve.End, a.Next.Point))
+            {
                 Curve.ContinueWithLineSegment(curve, a.Next.Point);
+            }
+
             return curve;
         }
 

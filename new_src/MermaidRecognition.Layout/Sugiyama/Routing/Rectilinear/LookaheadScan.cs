@@ -111,7 +111,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         /// <param name="rhs"></param>
         /// <returns></returns>
         public int Compare(BasicReflectionEvent? lhs, BasicReflectionEvent? rhs) {
-            if (lhs is null) return rhs is null ? 0 : -1; if (rhs is null) return 1;
+            if (lhs is null)
+            {
+                return rhs is null ? 0 : -1;
+            }
+
+            if (rhs is null)
+            {
+                return 1;
+            }
+
             ValidateArg.IsNotNull(lhs, "lhs");
             ValidateArg.IsNotNull(rhs, "rhs");
             return scanDirection.CompareScanCoord(lhs.Site, rhs.Site);

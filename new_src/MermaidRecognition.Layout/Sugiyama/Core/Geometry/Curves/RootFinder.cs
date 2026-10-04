@@ -61,11 +61,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
                 }
                 return false;
             } 
-            if (x < start) 
+            if (x < start)
+            {
                 x = start;
+            }
             else if (x > end )
+            {
                 x = end;
-            
+            }
+
             return true;
 
         }

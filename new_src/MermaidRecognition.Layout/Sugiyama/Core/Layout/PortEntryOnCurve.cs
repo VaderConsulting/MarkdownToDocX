@@ -75,7 +75,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
 #if TEST_MSAGL
         static void TestSpans(ICurve entryCurve, IEnumerable<Tuple<double, double>> parameterSpans, bool curveClosed) {
             foreach (Tuple<double, double> parameterSpan in parameterSpans)
+            {
                 Debug.Assert(InParamDomain(entryCurve, parameterSpan, curveClosed));
+            }
         }
 
         static bool InParamDomain(ICurve entryCurve, Tuple<double, double> parameterSpan, bool curveClosed) => InParamDomain(entryCurve, parameterSpan.Item1) && InParamDomain(entryCurve, parameterSpan.Item2) &&
@@ -94,9 +96,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         IEnumerable<Point> SpanPoints(Tuple<double, double> span) {
             if (span.Item1 == EntryCurve.ParStart && span.Item2 == EntryCurve.ParEnd ||
                 span.Item2 == EntryCurve.ParStart && span.Item1 == EntryCurve.ParEnd)
+            {
                 return new[] {MiddlePoint(EntryCurve)};
+            }
+
             if (EntryCurve is Polyline poly)
+            {
                 return SpanPointsFromPolyline(poly, span);
+            }
 
             // If the EntryCurve is of a type that may contain multiple segments, get their midpoints.
             if ((EntryCurve is Polyline) || (EntryCurve is Curve) || (EntryCurve is RoundedRect)) {
@@ -114,7 +121,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         static Point MiddlePoint(ICurve c) => c[(c.ParStart + c.ParEnd) / 2];
 
         double MiddleOfSpan(Tuple<double, double> span) {
-            if (span.Item1 < span.Item2) return 0.5*(span.Item1 + span.Item2);
+            if (span.Item1 < span.Item2)
+            {
+                return 0.5*(span.Item1 + span.Item2);
+            }
+
             double halfLen = GetSpanLength(span)/2;
             double t = span.Item1 + halfLen;
             return t <= EntryCurve.ParEnd ? t : t - EntryCurve.ParStart;
@@ -125,7 +136,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         static IEnumerable<Point> SpanPointsFromPolyline(Polyline poly, Tuple<double, double> span) {
             Polyline trimmedPoly = (Polyline)poly.TrimWithWrap(span.Item1, span.Item2);
             for (PolylinePoint p = trimmedPoly.StartPoint; p.Next != null; p = p.Next)
+            {
                 yield return (p.Point + p.Next.Point)/2;
+            }
         }
 
         double GetSpanLength(Tuple<double, double> span) => span.Item1 < span.Item2 ? span.Item2 - span.Item1 : EntryCurve.ParEnd - span.Item1 + span.Item2;

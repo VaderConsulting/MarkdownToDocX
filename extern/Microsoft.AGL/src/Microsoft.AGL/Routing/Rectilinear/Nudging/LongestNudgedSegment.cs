@@ -63,16 +63,24 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
 
         void TryPointForStartAndEndNorth(Point p) {
             if (p.Y < start.Y)
+            {
                 start = p;
+            }
             else if (p.Y > end.Y)
+            {
                 end = p;
+            }
         }
 
         void TryPointForStartAndEndEast(Point p) {
             if (p.X < start.X)
+            {
                 start = p;
+            }
             else if (p.X > end.X)
+            {
                 end = p;
+            }
         }
 
         protected CompassVector DirectionPerp { get; set; }
@@ -97,13 +105,19 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
 
         internal double GetLeftBound() {
             if (!IsFixed)
+            {
                 return Edges.Max(edge => edge.AxisEdge.LeftBound);
+            }
+
             return CompassDirection == Core.Geometry.Directions.North ? Edges[0].Source.X : -Edges[0].Source.Y;
         }
 
         internal double GetRightBound() {
             if (!IsFixed)
+            {
                 return Edges.Min(edge => edge.AxisEdge.RightBound);
+            }
+
             return Position();
         }
 

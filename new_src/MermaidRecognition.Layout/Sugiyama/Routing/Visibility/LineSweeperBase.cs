@@ -46,7 +46,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             set
             {
                 if (value > z + ApproximateComparer.Tolerance)
+                {
                     PreviousZ = z;
+                }
 #if DEBUGGLEE
                 Debug.Assert(PreviousZ<=value); 
 #endif
@@ -109,10 +111,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
 
         protected void InitQueueOfEvents() {
             foreach (Polyline obstacle in Obstacles)
+            {
                 EnqueueLowestPointsOnObstacles(obstacle);
+            }
+
             if (Ports != null)
+            {
                 foreach (Point point in Ports)
+                {
                     EnqueueEvent(new PortObstacleEvent(point));
+                }
+            }
         }
 
         void EnqueueLowestPointsOnObstacles(Polyline poly) {
@@ -125,8 +134,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             PolylinePoint pp = poly.StartPoint.Next;
 
             for (; pp != null; pp = pp.Next)
+            {
                 if (Less(pp.Point, candidate.Point))
+                {
                     candidate = pp;
+                }
+            }
+
             return candidate;
         }
 
@@ -139,7 +153,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         /// <param name="b"></param>
         /// <returns></returns>
         public int Compare(SweepEvent? a, SweepEvent? b) {
-            if (a is null) return b is null ? 0 : -1; if (b is null) return 1;
+            if (a is null)
+            {
+                return b is null ? 0 : -1;
+            }
+
+            if (b is null)
+            {
+                return 1;
+            }
+
             ValidateArg.IsNotNull(a, "a");
             ValidateArg.IsNotNull(b, "b");
             Point aSite = a.Site;
@@ -153,15 +176,23 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             double aProjection = SweepDirection * aSite;
             double bProjection = SweepDirection * bSite;
             if (aProjection < bProjection)
+            {
                 return -1;
+            }
+
             if (aProjection > bProjection)
+            {
                 return 1;
+            }
 
             aProjection = directionPerp * aSite;
             bProjection = directionPerp * bSite;
 
             if (aProjection < bProjection)
+            {
                 return -1;
+            }
+
             return aProjection > bProjection ? 1 : 0;
         }
     }

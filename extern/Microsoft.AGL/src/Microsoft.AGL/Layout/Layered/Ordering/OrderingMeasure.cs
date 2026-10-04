@@ -29,27 +29,37 @@ namespace Microsoft.AGL.Layout.Layered
             optimalOriginalGroupSize = optimalOriginalGroupSizePar;
 
             if (optimalOriginalGroupSize != null)
+            {
                 CalculateLayerGroupDisbalance();
+            }
         }
 
         void CalculateLayerGroupDisbalance() {
-            for(int i = 0; i<la.Length;i++)     
-                layerGroupDisbalance+=LayerGroupDisbalance(la[i],optimalOriginalGroupSize[i],
+            for(int i = 0; i<la.Length;i++)
+            {
+                layerGroupDisbalance +=LayerGroupDisbalance(la[i],optimalOriginalGroupSize[i],
                     optimalVirtualGroupSize[i]);
-
+            }
         }
 
         double LayerGroupDisbalance(int[] l, double origGroupOptSize, double virtGroupOptSize){
             if (origGroupOptSize == 1)
+            {
                 return LayerGroupDisbalanceWithOrigSeparators(l,virtGroupOptSize);
+            }
             else
+            {
                 return LayerGroupDisbalanceWithVirtSeparators(l,origGroupOptSize);
+            }
         }
 
         private double LayerGroupDisbalanceWithVirtSeparators(int[] l, double origGroupOptSize) {
             double ret = 0;
             for (int i = 0; i < l.Length; )
+            {
                 ret += CurrentOrigGroupDelta(ref i, l, origGroupOptSize);
+            }
+
             return ret;
         }
 
@@ -57,7 +67,10 @@ namespace Microsoft.AGL.Layout.Layered
             double groupSize = 0;
             int j = i;
             for (; j < l.Length && l[j] < virtVertexStart; j++)
+            {
                 groupSize++;
+            }
+
             i = j + 1;
             return Math.Abs(origGroupOptSize - groupSize);
         }
@@ -65,7 +78,10 @@ namespace Microsoft.AGL.Layout.Layered
         private double LayerGroupDisbalanceWithOrigSeparators(int[] l, double virtGroupOptSize) {
             double ret = 0;
             for (int i = 0; i < l.Length; )
+            {
                 ret += CurrentVirtGroupDelta(ref i, l, virtGroupOptSize);
+            }
+
             return ret;
         }
 
@@ -73,27 +89,39 @@ namespace Microsoft.AGL.Layout.Layered
             double groupSize = 0;
             int j = i;
             for (; j < l.Length && l[j] >= virtVertexStart; j++)
+            {
                 groupSize++;
+            }
+
             i = j + 1;
             return Math.Abs(virtGroupOptSize - groupSize);
         }
 
         static public bool operator<(OrderingMeasure a, OrderingMeasure b){
             if (a.numberOfCrossings < b.numberOfCrossings)
+            {
                 return true;
+            }
+
             if (a.numberOfCrossings > b.numberOfCrossings)
+            {
                 return false;
-           
+            }
+
             return (int)a.layerGroupDisbalance < (int)b.layerGroupDisbalance;
         }
 
          static public bool operator>(OrderingMeasure a, OrderingMeasure b){
             if (a.numberOfCrossings > b.numberOfCrossings)
+            {
                 return true;
-            if (a.numberOfCrossings < b.numberOfCrossings)
-                return false;
+            }
 
-           
+            if (a.numberOfCrossings < b.numberOfCrossings)
+            {
+                return false;
+            }
+
             return (int)a.layerGroupDisbalance > (int)b.layerGroupDisbalance;
         }
 

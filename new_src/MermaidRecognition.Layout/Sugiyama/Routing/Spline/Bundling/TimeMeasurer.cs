@@ -40,10 +40,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
             string method = task.Method.Name;
             if (method.Length >= 4)
+            {
                 method = method.Substring(0, method.Length - 4);
+            }
 
             if (cls.Length > 0)
+            {
                 return cls + "." + method;
+            }
+
             return method;
         }
 

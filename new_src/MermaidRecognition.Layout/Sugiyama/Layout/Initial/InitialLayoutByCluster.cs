@@ -105,10 +105,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
             //clusterCount = clusters.Sum(c => c.AllClustersDepthFirst().Count());
 
             if (runInParallel && clusters.Count > 1)
+            {
                 Parallel.ForEach(clusters, parallelOptions, ProcessCluster);
+            }
             else
+            {
                 foreach (Cluster cluster in clusters)
+                {
                     ProcessCluster(cluster);
+                }
+            }
 
             bool isRootCluster = clusters.Any(c => c == graph.RootCluster);
 
@@ -135,7 +141,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
 
         void ProcessCluster(Cluster cluster) {
             if (cluster.IsCollapsed)
+            {
                 return;
+            }
+
             Rectangle oldBounds = cluster.BoundingBox;
             cluster.UnsetInitialLayoutStateIncludingAncestors();
             LayoutCluster(cluster);
@@ -155,7 +164,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
             RouteSimplHooksAndFillTheLists(graph.RootCluster, inParentEdges, outParentEdges, edgeRoutingSettings);
 
             if (inParentEdges.Count > 0 || outParentEdges.Count > 0)
+            {
                 LabelParentEdgesAndMaybeRerouteThemNicely(graph, inParentEdges, outParentEdges, edgeRoutingSettings);
+            }
         }
 
         static void LabelParentEdgesAndMaybeRerouteThemNicely(GeometryGraph graph, List<Edge> inParentEdges,
@@ -215,7 +226,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
             foreach (Edge? e in cluster.OutEdges.Where(e => IsDescendant(e.Target, cluster))) {
                 double ePadding = Math.Max(padding, 1.5*ArrowlengthAtSource(e));
                 if (e.SourcePort is not HookUpAnywhereFromInsidePort hookPort)
+                {
                     e.SourcePort = hookPort = new HookUpAnywhereFromInsidePort(() => cluster.BoundaryCurve);
+                }
+
                 hookPort.HookSize = ePadding;
 
                 e.Curve = StraightLineEdges.CreateLoop(e.Target.BoundingBox, cluster.BoundingBox, ePadding, false);
@@ -230,7 +244,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
             foreach (Edge? e in cluster.InEdges.Where(e => IsDescendant(e.Source, cluster))) {
                 double ePadding = Math.Max(padding, 1.5*ArrowlengthAtTarget(e));
                 if (e.TargetPort is not HookUpAnywhereFromInsidePort hookPort)
+                {
                     e.TargetPort = hookPort = new HookUpAnywhereFromInsidePort(() => cluster.BoundaryCurve);
+                }
+
                 hookPort.HookSize = ePadding;
                 e.Curve = StraightLineEdges.CreateLoop(e.Source.BoundingBox, cluster.BoundingBox, ePadding, false);
                 Arrowheads.TrimSplineAndCalculateArrowheads(e, e.Curve, false,
@@ -271,8 +288,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
         /// <param name="cluster">check is applied to specified cluster and below</param>
         static void ValidateLayout(Cluster cluster) {
             foreach (Cluster c in cluster.AllClustersDepthFirst())
+            {
                 foreach (Node? v in c.nodes.Concat(c.Clusters.Cast<Node>()))
+                {
                     Debug.Assert(c.BoundingBox.Contains(v.BoundingBox));
+                }
+            }
         }
 #endif
 
@@ -283,29 +304,43 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
         /// <returns>list of edges external to the cluster</returns>
         void LayoutCluster(Cluster cluster) {
             if (cluster.IsCollapsed)
+            {
                 return;
+            }
 
             LayoutAlgorithmSettings settings = clusterSettings(cluster);
             cluster.UnsetInitialLayoutState();
             if (runInParallel && cluster.Clusters.Count() > 1)
+            {
                 Parallel.ForEach(cluster.Clusters, parallelOptions, LayoutCluster);
+            }
             else
+            {
                 foreach (Cluster cl in cluster.Clusters)
+                {
                     LayoutCluster(cl);
+                }
+            }
 
             List<GeometryGraph> components = (List<GeometryGraph>) GetComponents(cluster);
 
             //currentComponentFraction = (1.0 / clusterCount) / components.Count;
 
             if (runInParallel)
+            {
                 Parallel.ForEach(components, parallelOptions, comp => LayoutComponent(settings, comp));
+            }
             else
+            {
                 components.ForEach(c => LayoutComponent(settings, c));
+            }
 
             Rectangle bounds = MdsGraphLayout.PackGraphs(components, settings);
 
             foreach (GeometryGraph g in components)
+            {
                 FixOriginalGraph(g, true);
+            }
 
             cluster.UpdateBoundary(bounds);
 
@@ -332,13 +367,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
                     cluster.DeepTranslation(delta, translateEdges);
                 }
                 else
+                {
                     originalNode.Center += delta;
+                }
             }
             if (translateEdges) {
                 foreach (Edge e in graph.Edges) {
                     Edge originalEdge = (Edge) e.UserData;
                     if (e.Curve != null)
+                    {
                         originalEdge.Curve = e.Curve.Clone();
+                    }
+
                     originalEdge.Length = e.Length;
 
                     originalEdge.EdgeGeometry.SourcePort = e.SourcePort = null;
@@ -346,7 +386,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
                     originalEdge.EdgeGeometry.TargetPort = e.TargetPort = null;
 
                     foreach (Label l in originalEdge.Labels)
+                    {
                         l.GeometryParent = originalEdge;
+                    }
                 }
             }
         }
@@ -372,8 +414,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
                 foreach (Edge e in target.InEdges) {
                     Node sourceAncestorUnderRoot = Ancestor(e.Source, cluster);
                     if (sourceAncestorUnderRoot == e.Source)
+                    {
                         //it is a flat edge and we are only interested in flat edges
                         copiedEdges.Add(CopyEdge(originalToCopyNodeMap, e, sourceAncestorUnderRoot, target));
+                    }
                 }
                 copiedEdges.AddRange(target.SelfEdges.Select(e => CopyEdge(originalToCopyNodeMap, e)));
             }
@@ -425,14 +469,20 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
             Dictionary<Node, Node> originalNodeToCopy = new Dictionary<Node, Node>();
 
             foreach (Node v in cluster.Nodes)
+            {
                 originalNodeToCopy[v] = new Node(v.BoundaryCurve.Clone()) {UserData = v};
+            }
 
             foreach (Cluster cl in cluster.Clusters) {
                 if (cl.IsCollapsed)
+                {
                     originalNodeToCopy[cl] = new Node(cl.CollapsedBoundary.Clone()) {UserData = cl};
+                }
                 else {
                     if (cl.BoundaryCurve == null)
+                    {
                         cl.BoundaryCurve = cl.RectangularBoundary.RectangularHull();
+                    }
 
                     originalNodeToCopy[cl] = new Node(cl.BoundaryCurve.Clone()) {UserData = cl};
                 }
@@ -450,16 +500,24 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
         /// <returns>returns highest ancestor of node (or node itself) that is a direct child of root, null if not 
         /// a descendent of root</returns>
         internal static Node Ancestor(Node node, Cluster root) {
-            if (node.ClusterParents.Contains(root)) return node;
+            if (node.ClusterParents.Contains(root))
+            {
+                return node;
+            }
+
             Queue<Cluster> parents = new Queue<Cluster>(node.ClusterParents);
             while (parents.Count > 0) {
                 Cluster parent = parents.Dequeue();
 
                 if (root.Clusters.Contains(parent))
+                {
                     return parent;
+                }
 
                 foreach (Cluster grandParent in parent.ClusterParents)
+                {
                     parents.Enqueue(grandParent);
+                }
             }
 
             return null;
@@ -526,7 +584,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
                 // the sugiyama edge routing can be quite circuitous on large graphs anyway
                 EdgeRoutingMode prevEdgeRouting = fallbackLayoutSettings.EdgeRoutingSettings.EdgeRoutingMode;
                 if (component.Nodes.Count > 100 && edgeDensity > 2.0)
+                {
                     fallbackLayoutSettings.EdgeRoutingSettings.EdgeRoutingMode = EdgeRoutingMode.StraightLine;
+                }
 
                 LayoutComponent(fallbackLayoutSettings, component);
                 fallbackLayoutSettings.EdgeRoutingSettings.EdgeRoutingMode = prevEdgeRouting;

@@ -46,7 +46,9 @@ namespace Microsoft.AGL.Routing.Visibility {
             set
             {
                 if (value > z + ApproximateComparer.Tolerance)
+                {
                     PreviousZ = z;
+                }
 #if DEBUGGLEE
                 Debug.Assert(PreviousZ<=value); 
 #endif
@@ -109,10 +111,17 @@ namespace Microsoft.AGL.Routing.Visibility {
 
         protected void InitQueueOfEvents() {
             foreach (Polyline obstacle in Obstacles)
+            {
                 EnqueueLowestPointsOnObstacles(obstacle);
+            }
+
             if (Ports != null)
+            {
                 foreach (Point point in Ports)
+                {
                     EnqueueEvent(new PortObstacleEvent(point));
+                }
+            }
         }
 
         void EnqueueLowestPointsOnObstacles(Polyline poly) {
@@ -125,8 +134,13 @@ namespace Microsoft.AGL.Routing.Visibility {
             PolylinePoint pp = poly.StartPoint.Next;
 
             for (; pp != null; pp = pp.Next)
+            {
                 if (Less(pp.Point, candidate.Point))
+                {
                     candidate = pp;
+                }
+            }
+
             return candidate;
         }
 
@@ -152,15 +166,23 @@ namespace Microsoft.AGL.Routing.Visibility {
             double aProjection = SweepDirection * aSite;
             double bProjection = SweepDirection * bSite;
             if (aProjection < bProjection)
+            {
                 return -1;
+            }
+
             if (aProjection > bProjection)
+            {
                 return 1;
+            }
 
             aProjection = directionPerp * aSite;
             bProjection = directionPerp * bSite;
 
             if (aProjection < bProjection)
+            {
                 return -1;
+            }
+
             return aProjection > bProjection ? 1 : 0;
         }
     }

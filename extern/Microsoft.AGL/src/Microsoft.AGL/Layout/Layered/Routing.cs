@@ -53,7 +53,10 @@ namespace Microsoft.AGL.Layout.Layered {
         {
             CreateRegularSplines();
             CreateSelfSplines();
-            if (IntGraph != null) RouteFlatEdges();
+            if (IntGraph != null)
+            {
+                RouteFlatEdges();
+            }
         }
 
         void RouteFlatEdges() {
@@ -73,11 +76,17 @@ namespace Microsoft.AGL.Layout.Layered {
 #endif
                 //Here we try to optimize multi-edge routing
                 int m = intEdgeList.Count;
-                for (int i = m / 2; i < m; i++) CreateSplineForNonSelfEdge(intEdgeList[i]);
+                for (int i = m / 2; i < m; i++)
+                {
+                    CreateSplineForNonSelfEdge(intEdgeList[i]);
+                }
 #if SHARPKIT // https://github.com/SharpKit/SharpKit/issues/4
                 for (int i = (m / 2) - 1; i >= 0; i--) CreateSplineForNonSelfEdge(intEdgeList[i]);
 #else
-                for (int i = m / 2 - 1; i >= 0; i--) CreateSplineForNonSelfEdge(intEdgeList[i]);
+                for (int i = m / 2 - 1; i >= 0; i--)
+                {
+                    CreateSplineForNonSelfEdge(intEdgeList[i]);
+                }
 #endif
             }
 #if PPC
@@ -187,7 +196,10 @@ namespace Microsoft.AGL.Layout.Layered {
             }
             ICurve segmentInFrontOfLabel = GetSegmentInFrontOfLabel(e.Curve, e.Label.Center.Y);
             if (segmentInFrontOfLabel == null)
+            {
                 return;
+            }
+
             if (Curve.GetAllIntersections(e.Curve, Curve.PolyFromBox(e.LabelBBox), false).Count == 0){
                 if (FindClosestPoints(out Point curveClosestPoint, out Point labelSideClosest, segmentInFrontOfLabel, labelSide))
                 {
@@ -221,7 +233,9 @@ namespace Microsoft.AGL.Layout.Layered {
             double shiftLength = shift.Length;
             //   SugiyamaLayoutSettings.Show(e.Curve, shiftLength > 0 ? new LineSegment(curveClosestPoint, labelSideClosest) : null, PolyFromBox(e.LabelBBox));
             if (shiftLength > w)
+            {
                 e.Label.Center += shift/shiftLength*(shiftLength - w);
+            }
         }
 
         static bool FindClosestPoints(out Point curveClosestPoint, out Point labelSideClosest,
@@ -235,10 +249,18 @@ namespace Microsoft.AGL.Layout.Layered {
             if (edgeCurve is Curve curve)
             {
                 foreach (ICurve seg in curve.Segments)
+                {
                     if ((seg.Start.Y - labelY) * (seg.End.Y - labelY) <= 0)
+                    {
                         return seg;
+                    }
+                }
             }
-            else Debug.Assert(false); //not implemented
+            else
+            {
+                Debug.Assert(false); //not implemented
+            }
+
             return null;
         }
 

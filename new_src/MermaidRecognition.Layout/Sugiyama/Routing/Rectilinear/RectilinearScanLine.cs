@@ -118,7 +118,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         /// <param name="second"></param>
         /// <returns></returns>
         public int Compare(BasicObstacleSide? first, BasicObstacleSide? second) {
-            if (first is null) return second is null ? 0 : -1; if (second is null) return 1;
+            if (first is null)
+            {
+                return second is null ? 0 : -1;
+            }
+
+            if (second is null)
+            {
+                return 1;
+            }
+
             ValidateArg.IsNotNull(first, "first");
             ValidateArg.IsNotNull(second, "second");
             

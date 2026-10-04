@@ -87,10 +87,16 @@ namespace Microsoft.AGL.Core.GraphAlgorithms {
 
         static void FillArraySkippingTheEdge(TEdge edge, TEdge[] edgesToChange, TEdge[] newEdges) {
             for (int i = 0, j = 0; i < edgesToChange.Length; i++)
+            {
                 if ((object) edgesToChange[i] != (object) edge)
+                {
                     newEdges[i - j] = edgesToChange[i];
+                }
                 else
+                {
                     j = 1;
+                }
+            }
         }
 
         /// <summary>
@@ -102,9 +108,14 @@ namespace Microsoft.AGL.Core.GraphAlgorithms {
             int nov = 0;
             foreach (TEdge ie in edges) {
                 if (ie.Source >= nov)
+                {
                     nov = ie.Source + 1;
+                }
+
                 if (ie.Target >= nov)
+                {
                     nov = ie.Target + 1;
+                }
             }
             return nov;
         }
@@ -172,7 +183,9 @@ namespace Microsoft.AGL.Core.GraphAlgorithms {
                     outEdges[u][outEdgesCounts[u]++] = e;
                     inEdges[v][inEdgesCounts[v]++] = e;
                 } else
+                {
                     selfEdges[u][selfEdgesCounts[u]++] = e;
+                }
             }
         }
 

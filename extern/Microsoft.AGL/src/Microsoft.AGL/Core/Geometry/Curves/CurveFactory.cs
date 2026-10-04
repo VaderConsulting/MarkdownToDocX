@@ -59,10 +59,16 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
             }
             double w = width / 2;
             if (radiusInXDirection > w/2)
+            {
                 radiusInXDirection = w/2;
+            }
+
             double h = height / 2;
             if (radiusInYDirection > h/2)
+            {
                 radiusInYDirection = h/2;
+            }
+
             double x = center.X;
             double y = center.Y;
             double ox = w - radiusInXDirection;
@@ -78,16 +84,28 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
             c.IncreaseSegmentCapacity(8);
 
             if (ox > 0)
+            {
                 c.AddSegment(new LineSegment(new Point(x - ox, bottom), new Point(x + ox, bottom)));
+            }
+
             c.AddSegment(new Ellipse(1.5 * Math.PI, 2 * Math.PI, a, b, x + ox, y - oy));
             if (oy > 0)
+            {
                 c.AddSegment(new LineSegment(new Point(right, y - oy), new Point(right, y + oy)));
+            }
+
             c.AddSegment(new Ellipse(0, 0.5 * Math.PI, a, b, x + ox, y + oy));
             if (ox > 0)
+            {
                 c.AddSegment(new LineSegment(new Point(x + ox, top), new Point(x - ox, top)));
+            }
+
             c.AddSegment(new Ellipse(0.5 * Math.PI, Math.PI, a, b, x - ox, y + oy));
             if (oy > 0)
+            {
                 c.AddSegment(new LineSegment(new Point(left, y + oy), new Point(left, y - oy)));
+            }
+
             c.AddSegment(new Ellipse(Math.PI, 1.5 * Math.PI, a, b, x - ox, y - oy));
         }
 
@@ -269,14 +287,20 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
 
             ps[0] = new Point(w, 0);
             for (int i = 1; i < 6; i++)
+            {
                 ps[i] = ps[i - 1].Rotate(Math.PI/3);
+            }
 
             double al = height/width;
             for (int i = 0; i < 6; i++)
+            {
                 ps[i].Y *= al; //make it to fit the height
+            }
 
             for (int i = 0; i < 6; i++)
+            {
                 ps[i] += center;
+            }
 
             Polyline poly = new Polyline(ps) {Closed = true};            
             return poly;
@@ -387,7 +411,10 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
             Point[] pt = new Point[n];
             double a = 2*Math.PI/n;
             for (int i = 0; i < n; i++)
+            {
                 pt[i] = rad * (new Point(Math.Cos(i*a), Math.Sin(i*a))) + center;
+            }
+
             return new Polyline(pt) {Closed = true};
         }
     }

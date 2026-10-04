@@ -40,7 +40,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
 
 
         internal void Calculate() {
-            if (MainShape.Children.Count() == 0) return;
+            if (MainShape.Children.Count() == 0)
+            {
+                return;
+            }
+
             CreateTightObstacles();
             CreateTigthLooseCouples();
             FillTheMapOfShapeToTightLooseCouples();
@@ -56,7 +60,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
 
         void TryMapShapeToTightLooseCouple(Shape shape, TightLooseCouple tightLooseCouple) {
             if (ShapeIsInsideOfPoly(shape, tightLooseCouple.TightPolyline))
+            {
                 ShapesToTightLooseCouples[shape] = tightLooseCouple;
+            }
 #if TEST_MSAGL
             tightLooseCouple.LooseShape.UserData = (string) shape.UserData + "x";
 #endif
@@ -94,7 +100,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
             Polyline poly = InteractiveObstacleCalculator.PaddedPolylineBoundaryOfNode(shape.BoundaryCurve, TightPadding);
             Point[] stickingPointsArray = LoosePolylinesUnderShape(shape).SelectMany(l => l).Where(
                 p => Curve.PointRelativeToCurveLocation(p, poly) == PointLocation.Outside).ToArray();
-            if (stickingPointsArray.Length <= 0) return poly;
+            if (stickingPointsArray.Length <= 0)
+            {
+                return poly;
+            }
+
             return new Polyline(
                 ConvexHull.CalculateConvexHull(poly.Concat(stickingPointsArray))) {
                     Closed = true

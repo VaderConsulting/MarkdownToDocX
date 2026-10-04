@@ -315,11 +315,19 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         /// <returns></returns>
         public int Compare(ScanSegment first, ScanSegment second) {
             if (first == second)
+            {
                 return 0;
+            }
+
             if (first == null)
+            {
                 return -1;
+            }
+
             if (second == null)
+            {
                 return 1;
+            }
 
             // This orders on both axes.
             int cmp = ScanDirection.Compare(first.Start, second.Start);

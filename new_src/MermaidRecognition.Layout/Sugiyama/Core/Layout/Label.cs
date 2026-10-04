@@ -130,7 +130,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
             set
             {
                 if (value.X == 0)
+                {
                     Console.WriteLine();
+                }
+
                 RaiseLayoutChangeEvent(value);
                 edgeAttachmentPoint = value;
             }

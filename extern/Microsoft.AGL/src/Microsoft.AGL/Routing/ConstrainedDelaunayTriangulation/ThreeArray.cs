@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 
@@ -20,11 +20,20 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
 
         internal int Index(T t) {
             if(t.Equals(item0))
+            {
                 return 0;
+            }
+
             if (t.Equals(item1))
+            {
                 return 1;
+            }
+
             if (t.Equals(item2))
+            {
                 return 2;
+            }
+
             return -1;
         }
 

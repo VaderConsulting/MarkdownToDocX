@@ -40,9 +40,10 @@ namespace Microsoft.AGL.Routing.Visibility {
             int m = a + (b - a) / 2;
             double valAtM = Sequence(m);
             if (valAtM >= Sequence(0) && valAtM >= Sequence(Length - 1))
+            {
                 return Sequence(0) < Sequence(Length - 1) ? 0 : Length - 1;
+            }
 
-          
             while (b - a > 1) {
                 m = a + (b - a) / 2;
                 switch (BehaviourAtIndex(m)) {
@@ -57,7 +58,10 @@ namespace Microsoft.AGL.Routing.Visibility {
                 }
             }
             if (a == b)
+            {
                 return a;
+            }
+
             return Sequence(a) <= Sequence(b) ? a : b;
         }
 
@@ -66,20 +70,28 @@ namespace Microsoft.AGL.Routing.Visibility {
             if (m == 0) {
                 double seqAt1 = Sequence(1);
                 if (seqAt1 == seqAtM)
+                {
                     return Behavior.Extremum;
+                }
+
                 return seqAt1 > seqAtM ? Behavior.Increasing : Behavior.Decreasing;
             }
             if (m == Length-1) {
                 double seqAt1 = Sequence(Length-2);
                 if (seqAt1 == seqAtM)
+                {
                     return Behavior.Extremum;
+                }
+
                 return seqAt1 > seqAtM ? Behavior.Decreasing : Behavior.Increasing;
             }
 
             double delLeft = seqAtM - Sequence(m - 1);
             double delRight = Sequence(m + 1) - seqAtM;
             if (delLeft * delRight <= 0)
+            {
                 return Behavior.Extremum;
+            }
 
             return delLeft > 0 ? Behavior.Increasing : Behavior.Decreasing;
         }
@@ -91,8 +103,9 @@ namespace Microsoft.AGL.Routing.Visibility {
             int m = a + (b - a) / 2;
             double valAtM = Sequence(m);
             if (valAtM <= Sequence(0) && valAtM <= Sequence(Length - 1))
+            {
                 return Sequence(0) > Sequence(Length - 1) ? 0 : Length - 1;
-
+            }
 
             while (b - a > 1) {
                 m = a + (b - a) / 2;
@@ -108,7 +121,10 @@ namespace Microsoft.AGL.Routing.Visibility {
                 }
             }
             if (a == b)
+            {
                 return a;
+            }
+
             return Sequence(a) >= Sequence(b) ? a : b;
             
         }

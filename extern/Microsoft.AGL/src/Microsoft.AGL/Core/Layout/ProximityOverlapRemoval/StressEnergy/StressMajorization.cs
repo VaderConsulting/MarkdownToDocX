@@ -34,9 +34,13 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.StressEnergy {
         public List<Point> IterateSingleLocalizedMethod() {
             List<Point> newPositions;
             if (Settings.UpdateMethod == UpdateMethod.Serial)
+            {
                 newPositions = Positions;
+            }
             else
+            {
                 newPositions = new List<Point>(Positions.Count);
+            }
 
             // For each node compute the new position by averaging over all votes.
             for (int i = 0; i < NodeVotings.Count; i++) {
@@ -46,7 +50,10 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.StressEnergy {
                 if (Settings.UpdateMethod == UpdateMethod.Serial) {
                     newPositions[votedIndex] = newPos;
                 }
-                else newPositions.Add(newPos);
+                else
+                {
+                    newPositions.Add(newPos);
+                }
             }
 
             if (Settings.UpdateMethod == UpdateMethod.Parallel) {
@@ -71,16 +78,24 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.StressEnergy {
             double stressOld = StressValue(Positions);
             while ( (!Settings.CancelOnStressMaxIteration || (i++)<Settings.MaxStressIterations)){
                 if (Settings.SolvingMethod == SolvingMethod.Localized)
+                {
                     res = IterateSingleLocalizedMethod();
+                }
                 else {
                     res = IterateSingleConjugateGradient();
-                    if (Settings.CancelAfterFirstConjugate) break;
+                    if (Settings.CancelAfterFirstConjugate)
+                    {
+                        break;
+                    }
                 }
 
                 double stressNew = StressValue(res);//stressNew <= stressOld (this should always hold, otherwise there is something wrong)
                 double stressChange = (stressOld > 0) ? (stressOld - stressNew)/stressOld : 0;
                 stressChange = Math.Sqrt(stressChange)/Positions.Count;
-                if (stressChange < Settings.StressChangeTolerance) break;
+                if (stressChange < Settings.StressChangeTolerance)
+                {
+                    break;
+                }
             }
             return res;
         }
@@ -89,7 +104,11 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.StressEnergy {
         /// Sets the maximal number of iterations for the solver. Only relevant if conjugate gradient method is used.
         /// </summary>
          void initMaxIterationsSolver() {
-            if (Positions == null) return;
+            if (Positions == null)
+            {
+                return;
+            }
+
             int problemSize = Positions.Count;
             int maxIterat = Settings.MaxSolverIterations;
 
@@ -152,7 +171,9 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.StressEnergy {
 });
 
             for (int i = 0; i < Positions.Count; i++)
+            {
                 Positions[i] = new Point(resX[i], resY[i]);
+            }
 
             return Positions;
 #else 
@@ -318,7 +339,10 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.StressEnergy {
                 nodeVoting.VotingBlocks.ForEach(block => numAdj += block.Votings.Count);
                 List<int[]> currentAdj = new List<int[]>(numAdj);
                 if (row != targetId)
+                {
                     throw new ArgumentOutOfRangeException("VotedNodeIndex must be consecutive starting from 0");
+                }
+
                 adjLists[row] = currentAdj;
                 foreach (VoteBlock block in nodeVoting.VotingBlocks) {
                     foreach (Vote voting in block.Votings) {

@@ -31,7 +31,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// </summary>
         /// <param name="message"></param>
         public void Write(string message) {
-            if (sw == null) sw = new StreamWriter("msaglLogFile");
+            if (sw == null)
+            {
+                sw = new StreamWriter("msaglLogFile");
+            }
+
             sw.Write(message);
             sw.Flush();
 

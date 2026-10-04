@@ -75,10 +75,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
 
         bool CanSwap(int i, int j) {
             if (IsVirtualNode(i) || IsVirtualNode(j))
+            {
                 return true;
+            }
+
             LayerInfo layerInfo = layerInfos[layering[i]];
             if (layerInfo == null)
+            {
                 return true;
+            }
+
             if (ConstrainedOrdering.BelongsToNeighbBlock(i, layerInfo)
                 ||
                 ConstrainedOrdering.BelongsToNeighbBlock(j, layerInfo)
@@ -87,10 +93,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
                 ||
                 layerInfo.constrainedFromBelow.ContainsKey(j)
                 )
+            {
                 return false;
+            }
 
             if (layerInfo.leftRight.Contains(new Tuple<int, int>(i, j)))
+            {
                 return false;
+            }
+
             return true;
         }
 
@@ -115,7 +126,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
 
         int SwapGain(int u, int v) {
             if (!CanSwap(u, v))
+            {
                 return -1;
+            }
+
             CalcPair(u, v, out int cuv, out int cvu);
             return cuv - cvu;
         }
@@ -154,7 +168,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
             foreach (int uNeighbor in unbs) {
                 int xu = X[uNeighbor];
                 for (; j < vl && X[vnbs[j + 1]] < xu; j++)
+                {
                     vnbsSeenAlready++;
+                }
+
                 ret += vnbsSeenAlready;
             }
             return ret;
@@ -179,7 +196,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
                 int xu = X[uNeib];
                 int vnb;
                 for (; j < vl && X[vnb = vnbs[j + 1]] < xu; j++)
+                {
                     vCrossingNumberSeenAlready += vCrossingCount[vnb];
+                }
+
                 ret += vCrossingNumberSeenAlready*uCrossingCounts[uNeib];
             }
             return ret;
@@ -211,11 +231,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
         bool ExchangeWithGain(int[] layer) {
             //find a first pair giving some gain
             for (int i = 0; i < layer.Length - 1; i++)
+            {
                 if (SwapWithGain(layer[i], layer[i + 1])) {
                     SwapToTheLeft(layer, i);
                     SwapToTheRight(layer, i + 1);
                     return true;
                 }
+            }
 
             return false;
         }
@@ -229,9 +251,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
             while (progress && count++ < MaxNumberOfAdjacentExchanges) {
                 progress = false;
                 for (int i = 0; i < layers.Length; i++)
+                {
                     progress = AdjExchangeLayer(i) || progress;
+                }
+
                 for (int i = layers.Length - 2; i >= 0; i--)
+                {
                     progress = AdjExchangeLayer(i) || progress;
+                }
             }
         }
 
@@ -240,8 +267,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
         /// </summary>
         void InitArrays() {
             if (S == null)
+            {
                 AllocArrays();
-
+            }
 
             for (int i = 0; i < properLayeredGraph.NodeCount; i++) {
                 POrder[i].Clear();
@@ -250,12 +278,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
 
 
             for (int i = 0; i < layers.Length; i++)
+            {
                 InitPSArraysForLayer(layers[i]);
+            }
         }
 
         void DisturbLayer(int[] layer) {
             for (int i = 0; i < layer.Length - 1; i++)
+            {
                 AdjacentSwapToTheRight(layer, i);
+            }
         }
 
         bool AdjExchangeLayer(int i) {
@@ -263,7 +295,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
             bool gain = ExchangeWithGainWithNoDisturbance(layer);
 
             if (gain)
+            {
                 return true;
+            }
 
             DisturbLayer(layer);
 
@@ -288,7 +322,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
                 if (hasCrossWeights) {
                     Dictionary<int, int> inCounts = inCrossingCount[i] = new Dictionary<int, int>(count);
                     foreach (LayerEdge le in properLayeredGraph.InEdges(i))
+                    {
                         inCounts[le.Source] = le.CrossingWeight;
+                    }
                 }
                 POrder[i] = new Dictionary<int, int>(count);
                 count = properLayeredGraph.OutEdgesCount(i);
@@ -297,13 +333,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
                 if (hasCrossWeights) {
                     Dictionary<int, int> outCounts = outCrossingCount[i] = new Dictionary<int, int>(count);
                     foreach (LayerEdge le in properLayeredGraph.OutEdges(i))
+                    {
                         outCounts[le.Target] = le.CrossingWeight;
+                    }
                 }
             }
         }
 
         void UpdatePsContainingUV(int u, int v) {
             if (S[u].Length <= S[v].Length)
+            {
                 foreach (int a in S[u]) {
                     Dictionary<int, int> porder = POrder[a];
                     //of course porder contains u, let us see if it contains v
@@ -318,7 +357,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
                         porder[u] = vOffset;
                     }
                 }
+            }
             else
+            {
                 foreach (int a in S[v]) {
                     Dictionary<int, int> porder = POrder[a];
                     //of course porder contains u, let us see if it contains v
@@ -333,16 +374,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
                         porder[u] = vOffset;
                     }
                 }
+            }
         }
 
         void SwapToTheRight(int[] layer, int i) {
             for (int j = i; j < layer.Length - 1; j++)
+            {
                 AdjacentSwapToTheRight(layer, j);
+            }
         }
 
         void SwapToTheLeft(int[] layer, int i) {
             for (int j = i - 1; j >= 0; j--)
+            {
                 AdjacentSwapToTheRight(layer, j);
+            }
         }
 
         /// <summary>
@@ -387,6 +433,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
 
         void UpdateSsContainingUV(int u, int v) {
             if (P[u].Length <= P[v].Length)
+            {
                 foreach (int a in P[u]) {
                     Dictionary<int, int> sorder = SOrder[a];
                     //of course sorder contains u, let us see if it contains v
@@ -401,7 +448,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
                         sorder[u] = vOffset;
                     }
                 }
+            }
             else
+            {
                 foreach (int a in P[v]) {
                     Dictionary<int, int> sorder = SOrder[a];
                     //of course sorder contains u, let us see if it contains v
@@ -416,6 +465,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
                         sorder[u] = vOffset;
                     }
                 }
+            }
         }
     }
 }

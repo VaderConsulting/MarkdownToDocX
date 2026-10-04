@@ -108,7 +108,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         internal double Turn {
             get {
                 if (Next == null || Previous == null)
+                {
                     return 0;
+                }
+
                 return Point.SignedDoubledTriangleArea(Previous.Point, Point, Next.Point);
             }
         }

@@ -47,7 +47,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves
                 return currentPolyPoint != null;
             }
             if(currentPolyPoint==polyline.EndPoint)
+            {
                 return false;
+            }
+
             currentPolyPoint = currentPolyPoint.Next;
             return true;
         }

@@ -71,8 +71,15 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                 bool coordinatesChanged = TryMoveNodes();
                 //TimeMeasurer.DebugOutput("  #iter = " + iteration + " moved: " + cnt + "/" + metroGraphData.VirtualNodes().Count() + " step: " + step);
 
-                if (iteration <= 1 && !coordinatesChanged) return false;
-                if (!coordinatesChanged) break;
+                if (iteration <= 1 && !coordinatesChanged)
+                {
+                    return false;
+                }
+
+                if (!coordinatesChanged)
+                {
+                    break;
+                }
 
                 double oldEnergy = energy;
                 energy = CostCalculator.Cost(metroGraphData, bundlingSettings);
@@ -81,7 +88,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                 step = UpdateMaxStep(step, oldEnergy, energy);
                 List<Point> oldX = x;
                 x = new List<Point>(metroGraphData.VirtualNodes().Select(v => v.Position));
-                if (step < MinStep || Converged(step, oldX, x)) break;
+                if (step < MinStep || Converged(step, oldX, x))
+                {
+                    break;
+                }
             }
 
             //TimeMeasurer.DebugOutput("SA completed after " + iteration + " iterations");
@@ -97,7 +107,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                 foreach (Point p in changedPoints) {
                     if (metroGraphData.PointToStations.ContainsKey(p)) {
                         Station s = metroGraphData.PointToStations[p];
-                        if (!s.IsRealNode) result.Add(s);
+                        if (!s.IsRealNode)
+                        {
+                            result.Add(s);
+                        }
                     }
                 }
                 return result;
@@ -152,7 +165,12 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
          
                     movedStations.Add(node);
                     foreach (Station adj in node.Neighbors)
-                        if (!adj.IsRealNode) movedStations.Add(adj);                    
+                    {
+                        if (!adj.IsRealNode)
+                        {
+                            movedStations.Add(adj);
+                        }
+                    }
                 }
             }
 
@@ -166,7 +184,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         /// </summary>
         bool TryMoveNode(Station node) {
             Point direction = BuildDirection(node);
-            if (direction.Length == 0) return false;
+            if (direction.Length == 0)
+            {
+                return false;
+            }
 
             double stepLength = BuildStepLength(node, direction);
             if (stepLength < MinStep) {
@@ -174,13 +195,18 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                 direction = Point.RandomPoint();
                 stepLength = BuildStepLength(node, direction);
                 if (stepLength < MinStep)
+                {
                     return false;
+                }
             }
 
             Point step = direction * stepLength;
             Point newPosition = node.Position + step;
             //can this happen?
-            if (metroGraphData.PointToStations.ContainsKey(newPosition)) return false;
+            if (metroGraphData.PointToStations.ContainsKey(newPosition))
+            {
+                return false;
+            }
 
             metroGraphData.MoveNode(node, newPosition);
             cache.UpdateCostCache(node);
@@ -197,7 +223,11 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             Point forceBundle = BuildForceForBundle(node);
 
             Point force = forceInk + forcePL + forceR + forceBundle;
-            if (force.Length < 0.1) return new Point();
+            if (force.Length < 0.1)
+            {
+                return new Point();
+            }
+
             force = force.Normalize();
 
             return force;
@@ -208,12 +238,16 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
             double costGain = CostGain(node, node.Position + direction * stepLength);
             if (costGain < 0.01)
+            {
                 return 0;
+            }
 
             while (2 * stepLength <= MaxStep) {
                 double newCostGain = CostGain(node, node.Position + direction * stepLength * 2);
                 if (newCostGain <= costGain)
+                {
                     break;
+                }
 
                 stepLength *= 2;
                 costGain = newCostGain;
@@ -229,9 +263,17 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         double CostGain(Station node, Point newPosition) {
             double MInf = -12345678.0;
             double rGain = costCalculator.RadiusGain(node, newPosition);
-            if (rGain < MInf) return MInf;
+            if (rGain < MInf)
+            {
+                return MInf;
+            }
+
             double bundleGain = costCalculator.BundleGain(node, newPosition);
-            if (bundleGain < MInf) return MInf;
+            if (bundleGain < MInf)
+            {
+                return MInf;
+            }
+
             double inkGain = costCalculator.InkGain(node, newPosition);
             double plGain = costCalculator.PathLengthsGain(node, newPosition);
 

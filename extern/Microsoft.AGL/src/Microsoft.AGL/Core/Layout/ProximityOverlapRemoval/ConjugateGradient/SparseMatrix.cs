@@ -86,7 +86,11 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.ConjugateGradient {
         /// <param name="vec">vector</param>
         /// <returns>vector with same amount of entries as the matrix has rows</returns>
         public static Vector operator *(SparseMatrix m,Vector vec) {
-            if (vec.array.Length < m.NumCol) throw new ArgumentException("vector must have as many entries as the matrix has columns");
+            if (vec.array.Length < m.NumCol)
+            {
+                throw new ArgumentException("vector must have as many entries as the matrix has columns");
+            }
+
             double[] result=new double[m.NumRow];
             for (int row = 0; row < m.NumRow; row++) {//multiply vector with every row
                 int startPos = m.row_ptr[row];

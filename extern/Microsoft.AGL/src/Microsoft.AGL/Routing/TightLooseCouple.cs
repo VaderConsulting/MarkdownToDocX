@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.AGL.Core.Geometry.Curves;
 
 namespace Microsoft.AGL.Routing
@@ -31,7 +31,10 @@ namespace Microsoft.AGL.Routing
         public override int GetHashCode()
         {  
             if(TightPolyline==null)
+            {
                 throw new InvalidOperationException();
+            }
+
             return TightPolyline.GetHashCode();
         }
         /// <summary>
@@ -42,7 +45,10 @@ namespace Microsoft.AGL.Routing
         public override bool Equals(object obj)
         {
             if (obj is not TightLooseCouple couple)
+            {
                 return false;
+            }
+
             return TightPolyline == couple.TightPolyline;
         }
         public override string ToString() => (TightPolyline == null ? "null" : TightPolyline.ToString().Substring(0, 5)) + "," + (LooseShape == null ? "null" : LooseShape.ToString().Substring(0, 5));

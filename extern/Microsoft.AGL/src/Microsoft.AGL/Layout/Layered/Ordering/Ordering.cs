@@ -78,10 +78,12 @@ namespace Microsoft.AGL.Layout.Layered {
                                          SugiyamaLayoutSettings settings, CancelToken cancelToken) {
             bool hasCrossWeight = false;
             foreach (LayerEdge le in graph.Edges)
+            {
                 if (le.CrossingWeight != 1) {
                     hasCrossWeight = true;
                     break;
                 }
+            }
 
             Ordering o = new Ordering(graph, true, layerArrays, startOfVirtualNodes, balanceVirtualAndOriginalNodes, hasCrossWeight, settings);
             o.Run(cancelToken);
@@ -138,7 +140,9 @@ namespace Microsoft.AGL.Layout.Layered {
 
                 if (revOrdering.measure < measure) {
                     for (int j = 0; j < nOfLayers; j++)
+                    {
                         secondLayers.Layers[j].CopyTo(layerArrays.Layers[nOfLayers - 1 - j], 0);
+                    }
 
                     layerArrays.UpdateXFromLayers();
                 }
@@ -165,10 +169,13 @@ namespace Microsoft.AGL.Layout.Layered {
 
 
                 if (!balanceVirtAndOrigNodes)
+                {
                     AdjacentExchange();
+                }
                 else
+                {
                     AdjacentExchangeWithBalancingVirtOrigNodes();
-
+                }
 
                 OrderingMeasure newMeasure = new OrderingMeasure(layerArrays.Layers,
                                                      GetCrossingsTotal(properLayeredGraph, layerArrays),
@@ -191,10 +198,16 @@ namespace Microsoft.AGL.Layout.Layered {
             if (layerArraysCopy == null) {
                 layerArraysCopy = (int[][]) layers.Clone();
                 for (int i = 0; i < layers.Length; i++)
+                {
                     layerArraysCopy[i] = (int[]) layers[i].Clone();
+                }
             } else
+            {
                 for (int i = 0; i < layers.Length; i++)
+                {
                     layers[i].CopyTo(layerArraysCopy[i], 0);
+                }
+            }
         }
 
         void Restore() => layerArrays.UpdateLayers(layerArraysCopy);
@@ -202,10 +215,16 @@ namespace Microsoft.AGL.Layout.Layered {
         void LayerByLayerSweep(bool up) {
             if (up) {
                 for (int i = 1; i < nOfLayers; i++)
+                {
                     SweepLayer(i, true);
+                }
             } else
+            {
                 for (int i = nOfLayers - 2; i >= 0; i--)
+                {
                     SweepLayer(i, false);
+                }
+            }
         }
 
         //static int count;
@@ -226,14 +245,18 @@ namespace Microsoft.AGL.Layout.Layered {
             float[] medianValues = new float[l.Length];
 
             for (int i = 0; i < medianValues.Length; i++)
+            {
                 medianValues[i] = WMedian(l[i], upperLayer);
+            }
 
             Sort(layer, medianValues);
 
             //update X
             int[] vertices = layerArrays.Layers[layer];
             for (int i = 0; i < vertices.Length; i++)
+            {
                 layerArrays.X[vertices[i]] = i;
+            }
         }
 
         /// <summary>
@@ -250,16 +273,22 @@ namespace Microsoft.AGL.Layout.Layered {
             foreach (float m in medianValues) {
                 int v = vertices[i++];
                 if (m == -1.0)
+                {
                     continue;
+                }
 
                 if (!s.ContainsKey(m))
+                {
                     s[m] = v;
+                }
                 else {
                     object o = s[m];
                     if (o is List<int> al)
                     {
                         if (HeadOfTheCoin())
+                        {
                             al.Add(v);
+                        }
                         else
                         {
                             //stick it in the middle 
@@ -307,12 +336,17 @@ namespace Microsoft.AGL.Layout.Layered {
                         foreach (int v in al) {
 //find the first empty spot
                             while (medianValues[i] == -1)
+                            {
                                 i++;
+                            }
+
                             vertices[i++] = v;
                         }
                     }
                 } else
+                {
                     i++;
+                }
             }
         }
 
@@ -329,27 +363,41 @@ namespace Microsoft.AGL.Layout.Layered {
             }
 
             if (p == 0)
+            {
                 return -1.0f;
+            }
 
             int[] parray = new int[p]; //we have no multiple edges
 
             int i = 0;
             if (theMedianGoingDown)
+            {
                 foreach (LayerEdge e in edges)
+                {
                     parray[i++] = X[e.Target];
+                }
+            }
             else
+            {
                 foreach (LayerEdge e in edges)
+                {
                     parray[i++] = X[e.Source];
+                }
+            }
 
             Array.Sort(parray);
 
             int m = p/2;
 
             if (p%2 == 1)
+            {
                 return parray[m];
+            }
 
             if (p == 2)
+            {
                 return 0.5f*((float) parray[0] + (float) parray[1]);
+            }
 
             float left = parray[m - 1] - parray[0];
 
@@ -370,9 +418,12 @@ namespace Microsoft.AGL.Layout.Layered {
             Stack<int> q = new Stack<int>();
             //enqueue all sources of the graph 
             for (int i = 0; i < properLayeredGraph.NodeCount; i++)
+            {
                 if (properLayeredGraph.InEdgesCount(i) == 0)
+                {
                     q.Push(i);
-
+                }
+            }
 
             bool[] visited = new bool[properLayeredGraph.NodeCount];
 
@@ -386,16 +437,20 @@ namespace Microsoft.AGL.Layout.Layered {
                 counts[l]++;
 
                 foreach (int v in properLayeredGraph.Succ(u))
+                {
                     if (!visited[v]) {
                         visited[v] = true;
                         q.Push(v);
                     }
+                }
             }
 
             X = layerArrays.X;
 
             if (balanceVirtAndOrigNodes)
+            {
                 InitOptimalGroupSizes();
+            }
         }
 
         void InitOptimalGroupSizes() {
@@ -403,15 +458,21 @@ namespace Microsoft.AGL.Layout.Layered {
             optimalVirtualGroupSize = new double[nOfLayers];
 
             for (int i = 0; i < nOfLayers; i++)
+            {
                 InitOptimalGroupSizesForLayer(i);
+            }
         }
 
         void InitOptimalGroupSizesForLayer(int i) {
             //count original and virtual nodes
             int originals = 0;
             foreach (int j in layers[i])
+            {
                 if (j < startOfVirtNodes)
+                {
                     originals++;
+                }
+            }
 
             int virtuals = layers[i].Length - originals;
 
@@ -428,7 +489,9 @@ namespace Microsoft.AGL.Layout.Layered {
         internal static int GetCrossingsTotal(ProperLayeredGraph properLayeredGraph, LayerArrays layerArrays) {
             int x = 0;
             for (int i = 0; i < layerArrays.Layers.Length - 1; i++)
+            {
                 x += GetCrossingCountFromStrip(i, properLayeredGraph, layerArrays);
+            }
 
             return x;
         }
@@ -445,10 +508,14 @@ namespace Microsoft.AGL.Layout.Layered {
             int[] topVerts = layerArrays.Layers[bottom + 1];
             int[] bottomVerts = layerArrays.Layers[bottom];
             if (bottomVerts.Length <= topVerts.Length)
+            {
                 return GetCrossingCountFromStripWhenBottomLayerIsShorter(bottomVerts, properLayeredGraph, layerArrays);
+            }
             else
+            {
                 return GetCrossingCountFromStripWhenTopLayerIsShorter(topVerts, bottomVerts, properLayeredGraph,
                                                                       layerArrays);
+            }
         }
 
         static int GetCrossingCountFromStripWhenTopLayerIsShorter(int[] topVerts, int[] bottomVerts,
@@ -459,7 +526,9 @@ namespace Microsoft.AGL.Layout.Layered {
             //find first n such that 2^n >=topVerts.Length
             int n = 1;
             while (n < topVerts.Length)
+            {
                 n *= 2;
+            }
             //init the accumulator tree
 
             int[] tree = new int[2*n - 1];
@@ -473,7 +542,10 @@ namespace Microsoft.AGL.Layout.Layered {
                 tree[index] += ew;
                 while (index > 0) {
                     if (index%2 != 0)
+                    {
                         cc += ew*tree[index + 1]; //intersect everything accumulated in the right sibling 
+                    }
+
                     index = (index - 1)/2;
                     tree[index] += ew;
                 }
@@ -490,7 +562,9 @@ namespace Microsoft.AGL.Layout.Layered {
             //find first n such that 2^n >=bottomVerts.Length
             int n = 1;
             while (n < bottomVerts.Length)
+            {
                 n *= 2;
+            }
             //init accumulator
 
             int[] tree = new int[2*n - 1];
@@ -504,7 +578,10 @@ namespace Microsoft.AGL.Layout.Layered {
                 tree[index] += ew;
                 while (index > 0) {
                     if (index%2 != 0)
+                    {
                         cc += ew*tree[index + 1]; //intersect everything accumulated in the right sibling 
+                    }
+
                     index = (index - 1)/2;
                     tree[index] += ew;
                 }

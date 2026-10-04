@@ -68,10 +68,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry{
 
         internal bool IntersectsOnY(Rectangle r){
             if (r.Bottom > top + ApproximateComparer.DistanceEpsilon)
+            {
                 return false;
+            }
 
             if (r.Top < bottom - ApproximateComparer.DistanceEpsilon)
+            {
                 return false;
+            }
 
             return true;
             //return ApproximateComparer.Compare(r.bottom, top) <= 0 && ApproximateComparer.Compare(bottom, r.top) <= 0;
@@ -80,10 +84,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry{
         internal bool IntersectsOnX(Rectangle r){
             //return ApproximateComparer.Compare(r.left, right) <= 0 && ApproximateComparer.Compare(left, r.right) <= 0;
             if (r.Left > right + ApproximateComparer.DistanceEpsilon)
+            {
                 return false;
+            }
 
             if (r.Right < left - ApproximateComparer.DistanceEpsilon)
+            {
                 return false;
+            }
 
             return true;
 
@@ -97,7 +105,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry{
         /// <returns></returns>
         public override bool Equals(object obj) {
             if (obj is Rectangle)
+            {
                 Equals((Rectangle) obj);
+            }
+
             return false;
         }
 
@@ -333,17 +344,26 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry{
         public void Add(Point point){
              if (!IsEmpty){
                 if(left > point.X)
+                {
                     left = point.X;
+                }
 
-                if(top < point.Y)
+                if (top < point.Y)
+                {
                     top = point.Y;
+                }
 
-                if(right < point.X)
+                if (right < point.X)
+                {
                     right = point.X;
+                }
 
-                if(bottom > point.Y)
+                if (bottom > point.Y)
+                {
                     bottom = point.Y;
-            }else{
+                }
+            }
+            else{
                 left = right = point.X;
                 top = bottom = point.Y;
             }
@@ -358,16 +378,24 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry{
         public bool AddWithCheck(Point point){
             bool wider;
             if(wider = (point.X < left))
+            {
                 left = point.X;
+            }
             else if(wider = (right < point.X))
+            {
                 right = point.X;
+            }
 
             bool higher;
 
             if(higher = (point.Y > top))
+            {
                 top = point.Y;
+            }
             else if(higher = (bottom > point.Y))
+            {
                 bottom = point.Y;
+            }
 
             return wider || higher;
         }
@@ -455,11 +483,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry{
         /// <param name="padding"></param>
         public void Pad(double padding) {
             if (padding < -Width/2)
+            {
                 padding = -Width/2;
-            if (padding < -Height/2)
-                padding = -Height/2;
-            
+            }
 
+            if (padding < -Height/2)
+            {
+                padding = -Height/2;
+            }
 
             PadWidth(padding);
             PadHeight(padding);
@@ -488,8 +519,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry{
         /// <returns></returns>
         public static Rectangle Intersect(Rectangle rect1,Rectangle rect2) {
             if (rect1.Intersects(rect2))
+            {
                 return new Rectangle(new Point(Math.Max(rect1.Left, rect2.Left), Math.Max(rect1.Bottom, rect2.Bottom)),
                     new Point(Math.Min(rect1.Right, rect2.Right), Math.Min(rect1.Top, rect2.Top)));
+            }
+
             return Rectangle.CreateAnEmptyBox();
         }
 

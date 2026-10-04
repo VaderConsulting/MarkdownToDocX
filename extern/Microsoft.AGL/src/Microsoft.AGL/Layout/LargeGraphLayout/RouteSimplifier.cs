@@ -20,8 +20,9 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
             _pathRouter = pathRouter;
             _fixedPoints = fixedPoints;
             foreach (LgNodeInfo node in nodes)
+            {
                 _nodesTree.Add(node.BoundaryOnLayer.BoundingBox, node);
-
+            }
 
             foreach (VisibilityEdge e in pathRouter.VisGraph.Edges) {
                 SymmetricSegment ss = new SymmetricSegment(e.SourcePoint, e.TargetPoint);
@@ -43,13 +44,29 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
             bool ret = false;
             foreach (VisibilityVertex v in candidates) {
                 List<VisibilityVertex> neighb = GetNeighbors(v);
-                if (neighb.Count != 2) continue;
+                if (neighb.Count != 2)
+                {
+                    continue;
+                }
+
                 Debug.Assert(neighb.Count==2);
                 VisibilityVertex v0 = neighb[0];
                 VisibilityVertex v1 = neighb[1];
-                if (AngleIsTooSmallAfterShortcut(v0, v, v1)) continue;
-                if (ShortcutIntersectsNewVerticesOrCuttingInsideNodes(v0, v, v1)) continue;
-                if (!KeepsPlanarity(v0.Point, v1.Point)) continue;
+                if (AngleIsTooSmallAfterShortcut(v0, v, v1))
+                {
+                    continue;
+                }
+
+                if (ShortcutIntersectsNewVerticesOrCuttingInsideNodes(v0, v, v1))
+                {
+                    continue;
+                }
+
+                if (!KeepsPlanarity(v0.Point, v1.Point))
+                {
+                    continue;
+                }
+
                 RemoveAction(v0.Point, v.Point);
                 RemoveAction(v.Point, v1.Point);
                 _pathRouter.RemoveVisGraphVertex(v.Point);
@@ -102,17 +119,29 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
         bool AngleIsTooSmallAfterShortcutAtVertex(VisibilityVertex v1, VisibilityVertex v2, VisibilityVertex v3) {
             foreach (VisibilityEdge edge in v1.OutEdges) {
                 VisibilityVertex t = edge.Target;
-                if (t == v3 || t == v2) continue;
+                if (t == v3 || t == v2)
+                {
+                    continue;
+                }
                 //LayoutAlgorithmSettings.ShowDebugCurves(new DebugCurve(1, "red", new LineSegment(v3.Point, v1.Point)),
                 //new DebugCurve(1, "blue", new LineSegment(v1.Point, t.Point)));
-                if (AngleIsTooSmall(Point.Angle(v3.Point, v1.Point, t.Point))) return true;
+                if (AngleIsTooSmall(Point.Angle(v3.Point, v1.Point, t.Point)))
+                {
+                    return true;
+                }
             }
 
             foreach (VisibilityEdge edge in v1.InEdges) {
                 VisibilityVertex t = edge.Source;
-                if (t == v3 || t == v2) continue;
+                if (t == v3 || t == v2)
+                {
+                    continue;
+                }
 
-                if (AngleIsTooSmall(Point.Angle(v3.Point, v1.Point, t.Point))) return true;
+                if (AngleIsTooSmall(Point.Angle(v3.Point, v1.Point, t.Point)))
+                {
+                    return true;
+                }
             }
 
             return false;
@@ -124,7 +153,10 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
 
             Set<LgNodeInfo> newIntersected = IntersectedByLineSegNodeInfos(v0.Point, v1.Point);
             if (CuttingInsideOfNodes(newIntersected, v0.Point, v1.Point))
+            {
                 return true;
+            }
+
             return !oldIntersected.Contains(newIntersected);
         }
 
@@ -132,7 +164,11 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
 
         bool GettingTooCloseToNode(LgNodeInfo lgNodeInfo, Point a, Point b) {
             Point center = lgNodeInfo.Center;
-            if (a == center || b == center) return false;
+            if (a == center || b == center)
+            {
+                return false;
+            }
+
             Point closestPoint = Point.ClosestPointAtLineSegment(center, a, b);
             PointLocation where = Curve.PointRelativeToCurveLocation(closestPoint, lgNodeInfo.BoundaryOnLayer);
             return where == PointLocation.Inside;

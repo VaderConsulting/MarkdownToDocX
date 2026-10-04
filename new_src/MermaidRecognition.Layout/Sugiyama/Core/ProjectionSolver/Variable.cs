@@ -219,7 +219,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
         /// <returns>-1 if this.Ordinal is "less"; +1 if this.Ordinal is "greater"; 0 if this.Ordinal
         ///         and rhs are equal.</returns>
         public int CompareTo(Variable? other) {
-            if (other is null) return 1;
+            if (other is null)
+            {
+                return 1;
+            }
+
             ValidateArg.IsNotNull(other, "other");
             return Ordinal.CompareTo(other.Ordinal);
         }

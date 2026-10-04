@@ -19,7 +19,9 @@ namespace Microsoft.AGL.Layout.Layered.Layering
             List<IntEdge> ieEdges = [];
 
             foreach (IntEdge e in bg.Edges)
+            {
                 ieEdges.Add(new NetworkEdge(e));
+            }
 
             return new BasicGraph<IntEdge>(ieEdges, bg.NodeCount);
         }
@@ -36,7 +38,9 @@ namespace Microsoft.AGL.Layout.Layered.Layering
 
         public int[] GetLayers() {
             if (layers == null)
+            {
                 Run(NetworkCancelToken);
+            }
 
             return layers;
         }
@@ -44,13 +48,17 @@ namespace Microsoft.AGL.Layout.Layered.Layering
         private void ShiftLayerToZero() {
             int minLayer = NetworkEdge.Infinity;
             foreach (int i in layers)
+            {
                 if (i < minLayer)
+                {
                     minLayer = i;
-
+                }
+            }
 
             for (int i = 0; i < graph.NodeCount; i++)
+            {
                 layers[i] -= minLayer;
-
+            }
         }
 
 
@@ -65,19 +73,27 @@ namespace Microsoft.AGL.Layout.Layered.Layering
 
                 IntEdge e = GetNonTreeEdgeIncidentToTheTreeWithMinimalAmountOfSlack();
                 if (e == null)
+                {
                     break; //all edges are tree edges
+                }
+
                 int slack = Slack(e);
                 if (slack == 0)
+                {
                     throw new InvalidOperationException();//"the tree should be tight");
+                }
 
                 if (inTree[e.Source])
+                {
                     slack = -slack;
+                }
 
                 //shift the tree rigidly up or down and make e tight ; since the slack is the minimum of slacks
                 //the layering will still remain feasible
                 foreach (int i in treeVertices)
+                {
                     layers[i] += slack;
-
+                }
             }
 
             InitCutValues();
@@ -99,16 +115,25 @@ namespace Microsoft.AGL.Layout.Layered.Layering
             int s = treeEdge.Source;
             int t = treeEdge.Target;
             if (lim[s] > lim[t])//s belongs to the tree root component
+            {
                 if (lim[v] <= lim[t] && low[t] <= lim[v])
+                {
                     return 0;
+                }
                 else
+                {
                     return 1;
+                }
+            }
             else //t belongs to the tree root component
                 if (lim[v] <= lim[s] && low[s] <= lim[v])
+                {
                     return 1;
+                }
                 else
+                {
                     return 0;
-
+                }
         }
 
         /// <summary>
@@ -120,8 +145,13 @@ namespace Microsoft.AGL.Layout.Layered.Layering
 
         bool AllLowCutsHaveBeenDone(int v) {
             foreach (NetworkEdge ie in IncidentEdges(v))
+            {
                 if (ie.inTree && ie.Cut == NetworkEdge.Infinity && ie != parent[v])
+                {
                     return false;
+                }
+            }
+
             return true;
         }
 
@@ -162,25 +192,35 @@ namespace Microsoft.AGL.Layout.Layered.Layering
             //going up from the leaves following parents
             Stack<int> front = new Stack<int>();
             foreach (int i in leaves)
+            {
                 front.Push(i);
+            }
+
             Stack<int> newFront = new Stack<int>();
             while (front.Count > 0) {
                 while (front.Count > 0) {
                     int w = front.Pop();
                     NetworkEdge cutEdge = parent[w]; //have to find the cut of e
                     if (cutEdge == null)
+                    {
                         continue;
+                    }
+
                     int cut = 0;
                     foreach (NetworkEdge e in IncidentEdges(w)) {
 
                         if (e.inTree == false) {
                             int e0Val = EdgeSourceTargetVal(e, cutEdge);
                             if (e0Val != 0)
+                            {
                                 cut += e0Val * e.Weight;
+                            }
                         } else //e0 is a tree edge
             {
                             if (e == cutEdge)
+                            {
                                 cut += e.Weight;
+                            }
                             else {
                                 int impact = cutEdge.Source == e.Target || cutEdge.Target == e.Source ? 1 : -1;
                                 int edgeContribution = EdgeContribution(e, w);
@@ -193,10 +233,9 @@ namespace Microsoft.AGL.Layout.Layered.Layering
                     cutEdge.Cut = cut;
                     int v = cutEdge.Source == w ? cutEdge.Target : cutEdge.Source;
                     if (AllLowCutsHaveBeenDone(v))
+                    {
                         newFront.Push(v);
-
-
-
+                    }
                 }
                 //swap newFrontAndFront
                 Stack<int> t = front;
@@ -221,9 +260,13 @@ namespace Microsoft.AGL.Layout.Layered.Layering
                 if (ie.inTree == false) {
                     int sign = EdgeSourceTargetVal(ie, e);
                     if (sign == -1)
+                    {
                         ret += ie.Weight;
+                    }
                     else if (sign == 1)
+                    {
                         ret -= ie.Weight;
+                    }
                 }
             }
             return ret;
@@ -311,7 +354,10 @@ namespace Microsoft.AGL.Layout.Layered.Layering
                     while (outEnum.MoveNext()) {
                         NetworkEdge e = outEnum.Current as NetworkEdge;
                         if (!e.inTree || low[e.Target] > 0)
+                        {
                             continue;
+                        }
+
                         stack.Push(new StackStruct(v, outEnum, inEnum));
                         v = e.Target;
                         parent[v] = e;
@@ -338,7 +384,9 @@ namespace Microsoft.AGL.Layout.Layered.Layering
                 //finally done with v
                 lim[v] = curLim++;
                 if (lim[v] == low[v])
+                {
                     leaves.Add(v);
+                }
             }
         }
 
@@ -362,10 +410,13 @@ namespace Microsoft.AGL.Layout.Layered.Layering
 
             for (int i = 0; i < graph.NodeCount; i++) {
                 if (llow <= lim[i] && lim[i] <= llim)
+                {
                     low[i] = 0;
+                }
                 else if (low[i] == lim[i])
+                {
                     leaves.Add(i);
-
+                }
             }
 
             int v = l;
@@ -393,29 +444,35 @@ namespace Microsoft.AGL.Layout.Layered.Layering
             foreach (int v in treeVertices) {
                 foreach (NetworkEdge e in graph.OutEdges(v)) {
                     if (inTree[e.Source] && inTree[e.Target])
+                    {
                         continue;
+                    }
+
                     int slack = Slack(e);
                     if (slack < minSlack) {
                         eret = e;
                         minSlack = slack;
                         if (slack == 1)
+                        {
                             return e;
-
+                        }
                     }
                 }
 
                 foreach (NetworkEdge e in graph.InEdges(v)) {
                     if (inTree[e.Source] && inTree[e.Target])
+                    {
                         continue;
-
+                    }
 
                     int slack = Slack(e);
                     if (slack < minSlack) {
                         eret = e;
                         minSlack = slack;
                         if (slack == 1)
+                        {
                             return e;
-
+                        }
                     }
                 }
 
@@ -441,10 +498,14 @@ namespace Microsoft.AGL.Layout.Layered.Layering
         int TightTree() {
             treeVertices.Clear();
             foreach (NetworkEdge ie in graph.Edges)
+            {
                 ie.inTree = false;
+            }
 
             for (int i = 1; i < inTree.Length; i++)
+            {
                 inTree[i] = false;
+            }
 
 
             //the vertex 0 is a fixed node
@@ -458,7 +519,9 @@ namespace Microsoft.AGL.Layout.Layered.Layering
 
                 foreach (NetworkEdge e in graph.OutEdges(v)) {
                     if (inTree[e.Target])
+                    {
                         continue;
+                    }
 
                     if (layers[e.Source] - layers[e.Target] == e.Separation) {
                         q.Push(e.Target);
@@ -470,7 +533,9 @@ namespace Microsoft.AGL.Layout.Layered.Layering
                 }
                 foreach (NetworkEdge e in graph.InEdges(v)) {
                     if (inTree[e.Source])
+                    {
                         continue;
+                    }
 
                     if (layers[e.Source] - layers[e.Target] == e.Separation) {
                         q.Push(e.Source);
@@ -510,7 +575,9 @@ namespace Microsoft.AGL.Layout.Layered.Layering
             }
 
             if (leavingEdge == null)
+            {
                 return null;
+            }
 
             //now we are looking for a non-tree edge with a minimal slack belonging to TS
             bool continuation = false;
@@ -523,7 +590,10 @@ namespace Microsoft.AGL.Layout.Layered.Layering
                     minSlack = slack;
                     enteringEdge = f;
                     if (minSlack == 0 && !continuation)
+                    {
                         break;
+                    }
+
                     continuation = false;
                 }
             }
@@ -572,8 +642,12 @@ namespace Microsoft.AGL.Layout.Layered.Layering
 
             //set layers to infinity under l
             for (int i = 0; i < graph.NodeCount; i++)
+            {
                 if (low[l] <= lim[i] && lim[i] <= lim[l] && i != l)
+                {
                     layers[i] = NetworkEdge.Infinity;
+                }
+            }
 
             while (front.Count > 0) {
                 int u = front.Pop();
@@ -620,21 +694,30 @@ namespace Microsoft.AGL.Layout.Layered.Layering
                     NetworkEdge cutEdge = parent[w]; //have to find the cut of cutEdge
 
                     if (cutEdge == null)
+                    {
                         continue;
+                    }
 
                     if (cutEdge.Cut != NetworkEdge.Infinity)
+                    {
                         continue; //the value of this cut has not been changed
+                    }
+
                     int cut = 0;
                     foreach (NetworkEdge ce in IncidentEdges(w)) {
 
                         if (ce.inTree == false) {
                             int e0Val = EdgeSourceTargetVal(ce, cutEdge);
                             if (e0Val != 0)
+                            {
                                 cut += e0Val * ce.Weight;
+                            }
                         } else //e0 is a tree edge
                         {
                             if (ce == cutEdge)
+                            {
                                 cut += ce.Weight;
+                            }
                             else {
                                 int impact = cutEdge.Source == ce.Target || cutEdge.Target == ce.Source ? 1 : -1;
                                 int edgeContribution = EdgeContribution(ce, w);
@@ -646,8 +729,9 @@ namespace Microsoft.AGL.Layout.Layered.Layering
                     cutEdge.Cut = cut;
                     int u = cutEdge.Source == w ? cutEdge.Target : cutEdge.Source;
                     if (AllLowCutsHaveBeenDone(u))
+                    {
                         newFront.Push(u);
-
+                    }
                 }
                 //swap newFrontAndFront
                 Stack<int> t = front;
@@ -711,7 +795,9 @@ namespace Microsoft.AGL.Layout.Layered.Layering
 
                     }
                     if (e.Cut != cut)
+                    {
                         Console.WriteLine("cuts are wrong for {0}; should be {1} but is {2}", e, cut, e.Cut);
+                    }
                 }
 
 
@@ -776,7 +862,9 @@ namespace Microsoft.AGL.Layout.Layered.Layering
             public bool MoveNext() {
                 outIsActive = outEdges.MoveNext();
                 if (!outIsActive)
+                {
                     inIsActive = inEdges.MoveNext();
+                }
 
                 return outIsActive || inIsActive;
             }
@@ -790,9 +878,14 @@ namespace Microsoft.AGL.Layout.Layered.Layering
 #endif
                 get {
                     if (outIsActive)
+                    {
                         return outEdges.Current as NetworkEdge;
+                    }
+
                     if (inIsActive)
+                    {
                         return inEdges.Current as NetworkEdge;
+                    }
 
                     throw new InvalidOperationException();
                 }
@@ -801,9 +894,14 @@ namespace Microsoft.AGL.Layout.Layered.Layering
             object IEnumerator.Current {
                 get {
                     if (outIsActive)
+                    {
                         return outEdges.Current as NetworkEdge;
+                    }
+
                     if (inIsActive)
+                    {
                         return inEdges.Current as NetworkEdge;
+                    }
 
                     throw new InvalidOperationException();//"bug in the IncEdge enumerator");
                 }
@@ -819,7 +917,9 @@ namespace Microsoft.AGL.Layout.Layered.Layering
         protected override void RunInternal()
         {
             if (graph.Edges.Count == 0 && graph.NodeCount == 0)
-                layers=new int[0];
+            {
+                layers =new int[0];
+            }
 
             FeasibleTree();
 

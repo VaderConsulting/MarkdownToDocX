@@ -15,7 +15,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         void Run() {
             if (_nodeCountOnLevel == lgData.GeometryNodesToLgNodeInfos.Count) {
                 foreach (Edge e in lgData.GeometryEdgesToLgEdgeInfos.Keys)
+                {
                     UpdateEdgeInfoZoomLevel(e);
+                }
+
                 return;
             }
 
@@ -58,19 +61,24 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         void FillShortRoutes() {
             //creating one edge long routes between the nodes of the level
              for (int i = 0; i < _nodeCountOnLevel; i++)
+            {
                 FillShortRoutesOfNode(nodeZoomLevelCalculator.SortedLgNodeInfos[i].GeometryNode);
-
+            }
         }
 
         void FillShortRoutesOfNode(Node node) {
             foreach (Edge e in node.OutEdges)
+            {
                 TryPickingEdge(e);
+            }
         }
 
         void TryPickingEdge(Edge edge) {
             if (lgData.GeometryNodesToLgNodeInfos[edge.Target].ZoomLevel <= zoomLevel)
+            {
                 //connected to a node from the same level
                 UpdateEdgeInfoZoomLevel(edge);
+            }
         }
 
         void UpdateEdgeInfoZoomLevel(Edge edge) {
@@ -87,12 +95,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
 
         static void TryToIncreaseRank(LgEdgeInfo edgeInfo, double edgeRank) {
             if (edgeInfo.Rank < edgeRank)
+            {
                 edgeInfo.Rank = edgeRank;
+            }
         }
 
         void TryToDecreaseZoomLevel(LgEdgeInfo edgeInfo) {
             if (edgeInfo.ZoomLevel > zoomLevel)
+            {
                 edgeInfo.ZoomLevel = zoomLevel;
+            }
         }
     }
 }

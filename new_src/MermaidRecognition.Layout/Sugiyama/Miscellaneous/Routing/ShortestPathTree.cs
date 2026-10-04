@@ -23,14 +23,23 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Routing
         public void AddPathToTree(List<Point> path)
         {
             if (!path.First().Equals(_root))
+            {
                 path.Reverse();
+            }
+
             if (!path.First().Equals(_root))
+            {
                 return;
+            }
+
             int i;
 
             for (i = path.Count - 1; i >= 0; i--)
             {
-                if (_points.Contains(path[i])) break;
+                if (_points.Contains(path[i]))
+                {
+                    break;
+                }
             }
 
             for (int j = path.Count - 1; j > i; j--)
@@ -49,7 +58,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Routing
         {
             List<Point> path = new List<Point>();
             if (!_points.Contains(s))
+            {
                 return null;
+            }
+
             for (Point p = s; !p.Equals(_root); p = _paret[p])
             {
                 path.Insert(0,p);

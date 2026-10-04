@@ -27,7 +27,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         }
 
         static internal void ShowHubs(MetroGraphData mgd, BundlingSettings bundlingSettings, bool withIdeal) {
-            if (!withIdeal) return;
+            if (!withIdeal)
+            {
+                return;
+            }
 
             foreach (Station v in mgd.Stations) {
                 ShowHubs(mgd, bundlingSettings, v);
@@ -64,8 +67,12 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             if (iCurves != null) {
                 int i = 0;
                 foreach(ICurve iCurve in iCurves)
-                if (iCurve != null)
-                    curves.Add(new DebugCurve(100,0.2, DebugCurve.Colors[i++], iCurve));
+                {
+                    if (iCurve != null)
+                    {
+                        curves.Add(new DebugCurve(100,0.2, DebugCurve.Colors[i++], iCurve));
+                    }
+                }
             }
             return curves;
         }

@@ -54,7 +54,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
         /// <returns></returns>
         public static bool operator <(IntPair pair0, IntPair pair1) {
             if (pair0 != null && pair1 != null)
+            {
                 return pair0.x < pair1.x || pair0.x == pair1.x && pair0.y < pair1.y;
+            }
 
             throw new InvalidOperationException();
         }
@@ -74,9 +76,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
         /// <returns></returns>
         public static int Compare(IntPair pair0, IntPair pair1) {
             if (pair0 < pair1)
+            {
                 return 1;
+            }
+
             if (pair0 == pair1)
+            {
                 return 0;
+            }
 
             return -1;
         }
@@ -88,7 +95,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
         /// <returns></returns>
         public override bool Equals(object obj) {
             if (obj is not IntPair other)
+            {
                 return false;
+            }
 
             return x == other.x && y == other.y;
         }

@@ -30,23 +30,31 @@ namespace Microsoft.AGL.Layout.Layered {
             for (int i = 0; i < Layers.Length; i++) {
                 drop[i] = dropVal;
                 if (Layers[i].Length == 0)
+                {
                     dropVal++;
+                }
             }
 
             if (dropVal == 0)
+            {
                 return this;
+            }
 
             //we do have empty layers
             int[] ny = new int[Y.Length];
             for (int i = 0; i < ny.Length; i++)
+            {
                 ny[i] = Y[i] - drop[Y[i]];
+            }
 
 
             //copy the layers itself
             int[][] nls = new int[layers.Length - dropVal][];
             for (int i = 0; i < layers.Length; i++) {
                 if (layers[i].Length > 0)
+                {
                     nls[i - drop[i]] = (int[])layers[i].Clone();
+                }
             }
 
             LayerArrays la = new LayerArrays(ny)
@@ -61,10 +69,14 @@ namespace Microsoft.AGL.Layout.Layered {
         internal void UpdateLayers(int[][] ulayers) {
 
             if (layers == null)
+            {
                 InitLayers();
+            }
 
             for (int i = 0; i < layers.Length; i++)
+            {
                 ulayers[i].CopyTo(layers[i], 0);
+            }
 
             UpdateXFromLayers();
 
@@ -73,15 +85,21 @@ namespace Microsoft.AGL.Layout.Layered {
         internal void UpdateXFromLayers() {
 
             if (layers == null)
+            {
                 InitLayers();
+            }
 
             if (verticesToX == null)
+            {
                 verticesToX = new int[Y.Length];
+            }
 
             foreach (int[] layer in layers) {
                 int i = 0;
                 foreach (int v in layer)
+                {
                     verticesToX[v] = i++;
+                }
             }
         }
 
@@ -93,7 +111,9 @@ namespace Microsoft.AGL.Layout.Layered {
         internal int[] X {
             get {
                 if (verticesToX != null)
+                {
                     return verticesToX;
+                }
 
                 verticesToX = new int[Y.Length];
 
@@ -114,7 +134,10 @@ namespace Microsoft.AGL.Layout.Layered {
             int[] rv = new int[Y.Length];
             int lastLayer = Layers.Length - 1; //call Layers to ensure that the layers are calculated
             for (int i = 0; i < Y.Length; i++)
+            {
                 rv[i] = lastLayer - Y[i];
+            }
+
             return new LayerArrays(rv);
         }
 
@@ -128,7 +151,9 @@ namespace Microsoft.AGL.Layout.Layered {
             get
             {
                 if (layers != null)
+                {
                     return layers;
+                }
 
                 InitLayers();
 
@@ -146,16 +171,21 @@ namespace Microsoft.AGL.Layout.Layered {
             int nOfLayers = 0;
 
             foreach (int l in Y)
+            {
                 if (l + 1 > nOfLayers)
+                {
                     nOfLayers = l + 1;
+                }
+            }
 
             int[] counts = new int[nOfLayers];
 
 
             //find the number of vertices in the layer
             foreach (int l in Y)
+            {
                 counts[l]++;
-
+            }
 
             layers = new int[nOfLayers][];
 

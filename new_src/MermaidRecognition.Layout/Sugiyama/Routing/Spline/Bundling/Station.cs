@@ -101,12 +101,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
         internal void AddEnterableLoosePolyline(Polyline poly) {
             if (EnterableLoosePolylines == null)
+            {
                 EnterableLoosePolylines = [];
+            }
+
             EnterableLoosePolylines.Insert(poly);
         }
         internal void AddEnterableTightPolyline(Polyline poly) {
             if (EnterableTightPolylines == null)
+            {
                 EnterableTightPolylines = [];
+            }
+
             EnterableTightPolylines.Insert(poly);
         }
     }

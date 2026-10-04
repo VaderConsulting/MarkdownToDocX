@@ -70,14 +70,19 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             labelsToLabelObstacles = [];
             IEnumerable<Label> labels = from p in pairArray from label in PairLabels(p) select label;
             foreach (Label label in labels)
+            {
                 labelsToLabelObstacles[label] = CreatObstaceOnLabel(label);
+            }
         }
 
         double GetMaxLabelWidth(IntPair intPair) {
             IEnumerable<Label> multiEdgeLabels = PairLabels(intPair);
 
             if (multiEdgeLabels.Any())
+            {
                 return multiEdgeLabels.Max(label => label.Width);
+            }
+
             return 0;
         }
 
@@ -125,9 +130,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         void RouteEdge(IntEdge edge) {
             if (edge.HasLabel)
+            {
                 RouteEdgeWithLabel(edge, edge.Edge.Label);
+            }
             else
+            {
                 RouteEdgeWithNoLabel(edge);
+            }
         }
 
         void RouteEdgeWithLabel(IntEdge intEdge, Label label) {
@@ -167,7 +176,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         void PositionLabelsOfFlatEdges() {
             if (labelCenters == null || labelCenters.Length == 0)
+            {
                 return;
+            }
+
             SortLabelsByX();
             CalculateLabelsX();
         }
@@ -176,20 +188,26 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             int i;
             ISolverShell solver = ConstrainedOrdering.CreateSolver();
             for (i = 0; i < pairArray.Length; i++)
+            {
                 solver.AddVariableWithIdealPosition(i, labelCenters[i], GetLabelWeight(pairArray[i]));
+            }
 
             //add non overlapping constraints between to neighbor labels
             double prevLabelWidth = GetMaxLabelWidth(pairArray[0]);
             for (i = 0; i < pairArray.Length - 1; i++)
+            {
                 solver.AddLeftRightSeparationConstraint(i, i + 1,
                                                         (prevLabelWidth +
                                                          (prevLabelWidth = GetMaxLabelWidth(pairArray[i + 1])))/2 +
                                                         settings.NodeSeparation);
+            }
 
             for (i = 0; i < labelCenters.Length; i++) {
                 double x = labelCenters[i] = solver.GetVariableResolvedPosition(i);
                 foreach (Label label in PairLabels(pairArray[i]))
+                {
                     label.Center = new Point(x, label.Center.Y);
+                }
             }
         }
 

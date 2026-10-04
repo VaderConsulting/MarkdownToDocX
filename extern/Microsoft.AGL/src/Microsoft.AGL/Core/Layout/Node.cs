@@ -206,11 +206,19 @@ namespace Microsoft.AGL.Core.Layout
             get
             {
                 foreach (Edge e in outEdges_)
+                {
                     yield return e;
+                }
+
                 foreach (Edge e in inEdges_)
+                {
                     yield return e;
+                }
+
                 foreach (Edge e in selfEdges_)
+                {
                     yield return e;
+                }
             }
         }
 
@@ -225,7 +233,11 @@ namespace Microsoft.AGL.Core.Layout
             set
             {
                 Point del = value - Center;
-                if (del.X == 0 && del.Y == 0) return;
+                if (del.X == 0 && del.Y == 0)
+                {
+                    return;
+                }
+
                 RaiseLayoutChangeEvent(value);
                 //an optimization can be appied here; move the boundary curve only on demand
                 BoundaryCurve.Translate(del);

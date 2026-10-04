@@ -16,7 +16,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         }
 
         int IComparer<PolylinePoint>.Compare(PolylinePoint? x, PolylinePoint? y) {
-            if (x is null) return y is null ? 0 : -1; if (y is null) return 1;
+            if (x is null)
+            {
+                return y is null ? 0 : -1;
+            }
+
+            if (y is null)
+            {
+                return 1;
+            }
+
             ValidateArg.IsNotNull(x, "x");
             ValidateArg.IsNotNull(y, "y");
             System.Diagnostics.Debug.Assert(IntersectionPointBelongsToTheInsertedEdge(x));
@@ -39,9 +48,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             //let x(t-s)+s is on the ray, then for some y we x(t-s)+s=y*ray+pivot, or x(t-s)-y*ray=pivot-s
             bool result = LinearSystem2.Solve(target.X - source.X, -ray.X, Pivot.X - source.X, target.Y - source.Y, -ray.Y, Pivot.Y - source.Y, out double x, out double y);
             if (!(-ApproximateComparer.Tolerance <= x && x <= 1 + ApproximateComparer.Tolerance))
+            {
                 throw new Exception();
+            }
+
             if (!result)
+            {
                 throw new InvalidOperationException();
+            }
 
             return Pivot + y * ray;
         }

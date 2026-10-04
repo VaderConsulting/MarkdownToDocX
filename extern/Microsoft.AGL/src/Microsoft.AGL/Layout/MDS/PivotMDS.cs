@@ -60,7 +60,11 @@ namespace Microsoft.AGL.Layout.MDS
             foreach (Edge e in graph.Edges)
             {
                 avgLength += e.Length;
-                if (e.Source is Cluster || e.Target is Cluster) continue;
+                if (e.Source is Cluster || e.Target is Cluster)
+                {
+                    continue;
+                }
+
                 PivotMDSNodeWrap u = e.Source.AlgorithmData as PivotMDSNodeWrap;
                 PivotMDSNodeWrap v = e.Target.AlgorithmData as PivotMDSNodeWrap;
                 Edge ee = new Edge(u.node, v.node)
@@ -81,7 +85,10 @@ namespace Microsoft.AGL.Layout.MDS
             // create edges from the children of each parent cluster to the parent cluster node
             foreach (Cluster c in graph.RootCluster.AllClustersDepthFirst())
             {
-                if (c == graph.RootCluster) continue;
+                if (c == graph.RootCluster)
+                {
+                    continue;
+                }
 
                 Node u = new Node(CurveFactory.CreateRectangle(10, 10, new Point()))
                 {

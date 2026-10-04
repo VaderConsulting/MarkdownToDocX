@@ -12,7 +12,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures.RBTree
 
         public bool MoveNext() {
             if (tree.IsEmpty())
+            {
                 return false;
+            }
 
             if (initialState == true) {
                 initialState = false;

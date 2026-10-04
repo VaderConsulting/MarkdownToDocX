@@ -130,7 +130,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
             timer.Stop();
             Console.WriteLine("levels calculated for {0}", timer.Duration);
             if (_lgLayoutSettings.ExitAfterInit)
+            {
                 Environment.Exit(0);
+            }
 #endif
         }
 
@@ -167,7 +169,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
             foreach (
                 Node node in
                     _mainGeometryGraph.Nodes.Concat(_mainGeometryGraph.RootCluster.AllClustersWideFirstExcludingSelf()))
+            {
                 _lgData.GeometryNodesToLgNodeInfos[node] = new LgNodeInfo(node);
+            }
+
             foreach (Edge edge in _mainGeometryGraph.Edges) {
                 _lgData.GeometryEdgesToLgEdgeInfos[edge] = new LgEdgeInfo(edge);
             }
@@ -176,17 +181,27 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         void LayoutTheWholeGraph() {
             if (_lgLayoutSettings.NeedToLayout) {
                 if (_runInParallel)
+                {
                     Parallel.ForEach(_lgData.ConnectedGeometryGraphs, new ParallelOptions(), LayoutAndPadOneComponent);
+                }
                 else
+                {
                     foreach (GeometryGraph connectedGraph in _lgData.ConnectedGeometryGraphs)
+                    {
                         LayoutAndPadOneComponent(connectedGraph);
+                    }
+                }
 
                 Rectangle rect = MdsGraphLayout.PackGraphs(_lgData.ConnectedGeometryGraphs, _lgLayoutSettings);
                 _mainGeometryGraph.BoundingBox = rect;
             }
             else
+            {
                 foreach (GeometryGraph graph in _lgData.ConnectedGeometryGraphs)
+                {
                     graph.UpdateBoundingBox();
+                }
+            }
         }
 
         void LayoutAndPadOneComponent(GeometryGraph connectedGraph) {
@@ -199,7 +214,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
             BasicGraph<SimpleIntEdge> basicGraph = new BasicGraph<SimpleIntEdge>(GetSimpleIntEdges(nodeToIndex), listOfNodes.Count);
             IEnumerable<IEnumerable<int>> comps = ConnectedComponentCalculator<SimpleIntEdge>.GetComponents(basicGraph);
             foreach (IEnumerable<int> comp in comps)
+            {
                 _lgData.AddConnectedGeomGraph(GetConnectedSubgraph(comp, listOfNodes));
+            }
         }
 
         GeometryGraph GetConnectedSubgraph(IEnumerable<int> comp, List<Node> nodeList) {
@@ -331,7 +348,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
                 int nodesOnLayer = Math.Min(nodesPerTile*numberOfTiles, total);
                 ret.Add(nodesOnLayer);
                 if (nodesOnLayer == total)
+                {
                     break;
+                }
+
                 numberOfTiles *= 3; // thinking about those empty tiles!
             }
             return ret;
@@ -343,14 +363,20 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         }
 
         bool RankingIsDefined(Node[] componentNodes) {
-            if (componentNodes.Length == 0) return true;
+            if (componentNodes.Length == 0)
+            {
+                return true;
+            }
+
             return _lgData.GeometryNodesToLgNodeInfos[componentNodes[0]].Rank > 0;
         }
 
         static void PrepareGraphForLayout(GeometryGraph connectedGraph) {
             foreach (Cluster cluster in connectedGraph.RootCluster.AllClustersDepthFirst()) {
                 if (cluster.RectangularBoundary == null)
+                {
                     cluster.RectangularBoundary = new RectangularClusterBoundary();
+                }
             }
 
             foreach (Edge edge in connectedGraph.Edges) {
@@ -378,7 +404,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         }
 
         bool IsEdgeVisibleAtCurrentLevel(Edge e) {
-            if (!GeometryEdgesToLgEdgeInfos.TryGetValue(e, out LgEdgeInfo? ei)) return false;
+            if (!GeometryEdgesToLgEdgeInfos.TryGetValue(e, out LgEdgeInfo? ei))
+            {
+                return false;
+            }
 
             double curLevel = _lgData.Levels[_lgData.GetLevelIndexByScale(CurrentZoomLevel)].ZoomLevel;
             return ei.ZoomLevel <= curLevel;
@@ -402,7 +431,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
 
         internal static GeometryGraph CreateClusteredSubgraphFromFlatGraph(GeometryGraph subgraph,
             GeometryGraph mainGeometryGraph) {
-            if (mainGeometryGraph.RootCluster.Clusters.Any() == false) return subgraph;
+            if (mainGeometryGraph.RootCluster.Clusters.Any() == false)
+            {
+                return subgraph;
+            }
+
             GeometryGraph ret = new GeometryGraph();
             Dictionary<Node, Node> originalNodesToNewNodes = MapSubgraphNodesToNewNodesForRouting(subgraph);
             ReplicateClusterStructure(subgraph, originalNodesToNewNodes);
@@ -440,21 +473,29 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         static void AddNewNodeAndClustersToTheNewGraph(Dictionary<Node, Node> onodesToNewNodes, GeometryGraph ret) {
             foreach (Node newNode in onodesToNewNodes.Values) {
                 if (newNode is not Cluster cl)
+                {
                     ret.Nodes.Add(newNode);
+                }
                 else
                 {
                     if (!cl.ClusterParents.Any())
+                    {
                         ret.RootCluster.AddCluster(cl);
+                    }
                 }
             }
         }
 
         static void ReplicateClusterStructure(GeometryGraph geometryGraph, Dictionary<Node, Node> onodesToNewNodes) {
             foreach (Node onode in geometryGraph.Nodes)
+            {
                 foreach (Cluster oclparent in onode.ClusterParents) {
                     if (onodesToNewNodes.TryGetValue(oclparent, out Node? newParent))
+                    {
                         ((Cluster)newParent).AddNode(onodesToNewNodes[onode]);
+                    }
                 }
+            }
         }
 
         /*
@@ -494,7 +535,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
             //                    new DebugCurve("blue", visibleRectangle.Perimeter()));
             //                LayoutAlgorithmSettings.ShowGraph(clusterOGraph);
             //            }
-            if (_visibleRectangle.IsEmpty) return; //probably we should avoid this situation
+            if (_visibleRectangle.IsEmpty)
+            {
+                return; //probably we should avoid this situation
+            }
 
             CurrentZoomLevel = GetZoomFactorToTheGraph();
             FillRailGraph();
@@ -519,7 +563,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
 
         void RegisterEdgeSourceTargets() {
             foreach (Edge e in _railGraph.Edges)
+            {
                 AddEdgeSourceAndTarget(e);
+            }
         }
 
         void AddEdgeSourceAndTarget(Edge edge) {
@@ -533,7 +579,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         /// <returns></returns>
         public double GetMaximalZoomLevel() {
             if (_lgData == null)
+            {
                 return 1;
+            }
+
             return _lgData.GetMaximalZoomLevel();
         }
 
@@ -625,13 +674,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
             int iStart = (i == 0 ? 0 : _lgData.LevelNodeCounts[i - 1]);
             int iEnd = _lgData.LevelNodeCounts[i];
             for (int j = iStart; j < iEnd; j++)
+            {
                 yield return _lgData.SortedLgNodeInfos[j];
+            }
         }
 
         IEnumerable<LgNodeInfo> GetNodeInfosOnLevelLeq(int i) {
             int iEnd = _lgData.LevelNodeCounts[i];
             for (int j = 0; j < iEnd; j++)
+            {
                 yield return _lgData.SortedLgNodeInfos[j];
+            }
         }
 
         public void InitEdgesOfLevels() {
@@ -667,6 +720,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
             int numRouted = 0;
 
             foreach (LgNodeInfo ni in GetNodeInfosOnLevelLeq(0))
+            {
                 foreach (LgNodeInfo t in GetNeighborsOnLevel(ni, 0)) {
                     List<Point> path = _lgData.SkeletonLevels[0].HasSavedTrajectory(ni, t)
                         ? skeletonLevel.GetTrajectory(ni, t)
@@ -674,8 +728,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
                     skeletonLevel.SetTrajectoryAndAddEdgesToUsed(ni, t, path);
 
                     if (numRouted++%100 == 0)
+                    {
                         Console.Write(".");
+                    }
                 }
+            }
         }
 
         bool EdgeIsNew(LgNodeInfo s, LgNodeInfo t, int i) => Math.Max(s.ZoomLevel, t.ZoomLevel) >= _lgData.Levels[i].ZoomLevel;
@@ -683,9 +740,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         public void RouteEdges(int i) {
             AddAllPortEdges(i);
             if (i == 0)
+            {
                 RouteEdgesOnZeroLayer();
+            }
             else
+            {
                 RouteOnHigherLevel(i);
+            }
         }
 
         void RouteOnHigherLevel(int iLevel) {
@@ -730,14 +791,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
                 IOrderedEnumerable<LgNodeInfo> neighb = GetNeighborsOnLevel(s, i).OrderBy(n => n.ZoomLevel);
                 foreach (LgNodeInfo t in neighb) {
                     List<Point> oldTrajectory = prevSkeletonLevel.GetTrajectory(s, t);
-                    if (oldTrajectory == null) continue;
+                    if (oldTrajectory == null)
+                    {
+                        continue;
+                    }
+
                     List<Point> trajectory = skeletonLevel.PathRouter.GetPathOnSavedTrajectory(s, t,
                         oldTrajectory, ShrinkEdgeLengths);
                     skeletonLevel.SetTrajectoryAndAddEdgesToUsed(s, t, trajectory);
 
                     skeletonLevel.MarkEdgesAlongPathAsEdgesOnOldTrajectories(trajectory);
                 }
-                if (++numRouted%100 == 1) Console.Write(".");
+                if (++numRouted%100 == 1)
+                {
+                    Console.Write(".");
+                }
             }
         }
 
@@ -770,7 +838,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
                     }
                     numRouted++;
                     if (numRouted%100 == 1)
+                    {
                         Console.Write(".");
+                    }
                 }
             }
         }
@@ -780,7 +850,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
             bool sanity = true;
             foreach (LgNodeInfo s in nodes) {
                 sanity &= CheckSanityRoutes(s, i);
-                if (!sanity) break;
+                if (!sanity)
+                {
+                    break;
+                }
             }
             return sanity;
         }
@@ -797,7 +870,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
                 }
             }
             bool hasCycles = graph.HasCycles(rootPoint);
-            if (hasCycles) Console.WriteLine("BAD SP Tree at: " + s);
+            if (hasCycles)
+            {
+                Console.WriteLine("BAD SP Tree at: " + s);
+            }
 
             //foreach (var t in neighb)
             //{
@@ -873,14 +949,23 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
             RTree<Rectangle> fixedRectTree = new RTree<Rectangle>();
             RTree<SymmetricSegment> fixedSegTree = new RTree<SymmetricSegment>();
             foreach (Rectangle rect in fixedBoxes)
+            {
                 fixedRectTree.Add(rect, rect);
+            }
+
             foreach (SymmetricSegment seg in fixedSegments)
+            {
                 fixedSegTree.Add(new Rectangle(seg.A, seg.B), seg);
+            }
 
             int numPlaced = 0;
             while (true) {
                 numPlaced = orb.PositionAllMoveableRectsSameSize(numPlaced, fixedRectTree, fixedSegTree);
-                if (numPlaced >= moveableBoxes.Count()) break;
+                if (numPlaced >= moveableBoxes.Count())
+                {
+                    break;
+                }
+
                 orb.ScaleBbox(1.25);
             }
 
@@ -953,7 +1038,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
                 GeometryEdgesToLgEdgeInfos[edge].ZoomLevel = zoomLevel;
                 int iLevel = GetIndexByZoomLevel(zoomLevel); //(int) Math.Log(zoomLevel, 2);
                 for (int j = iLevel; j < _lgData.Levels.Count; j++)
+                {
                     _lgData.Levels[j]._railsOfEdges[edge] = [];
+                }
             }
         }
 
@@ -966,7 +1053,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
 
                 int iLevel = Math.Max(GetIndexByZoomLevel(zoomLevel), iMinLevel);
                 for (int j = iLevel; j < _lgData.Levels.Count; j++)
+                {
                     _lgData.Levels[j]._railsOfEdges[edge] = [];
+                }
             }
         }
 
@@ -989,7 +1078,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
             LgSkeletonLevel skeletonLevel = _lgData.SkeletonLevels[iLevel];
             Set<Point> fixedVertices = new Set<Point>(nodes.Select(n => n.Center));
             if (iLevel > 0)
+            {
                 fixedVertices.InsertRange(_lgData.SkeletonLevels[iLevel - 1].GetPointsOnSavedTrajectories());
+            }
 #if DEBUG
             //            SplineRouter.ShowVisGraph(skeletonLevel.PathRouter.VisGraph, nodes.Select(n=>n.BoundaryOnLayer), null, null);
 #endif
@@ -1028,7 +1119,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
 #if DEBUG && !SILVERLIGHT && !SHARPKIT
         private static void ShowOldTrajectories(LgSkeletonLevel skeletonLevel)
         {
-            if (skeletonLevel.ZoomLevel <= 1.0) return;
+            if (skeletonLevel.ZoomLevel <= 1.0)
+            {
+                return;
+            }
+
             IEnumerable<SymmetricSegment> segs = skeletonLevel.PathRouter.EdgesOnOldTrajectories();
             List<DebugCurve> ll = new List<DebugCurve>();
             foreach (SymmetricSegment seg in segs)
@@ -1108,11 +1203,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
     nodesOnPrevLevel, new GridTraversal(bbox, iLevel), _lgData.SkeletonLevels[iLevel].PathRouter);
 
             if (iLevel > 0 && numInserted < _lgData.LevelNodeCounts[iLevel - 1])
+            {
                 // couldn't even get to current level
                 numInserted = _lgData.LevelNodeCounts[iLevel - 1];
+            }
 
             if (numInserted < numToInsert)
+            {
                 PushNodesToNextLevel(iLevel, numInserted);
+            }
 
             // update level node counts
             _lgData.LevelNodeCounts[iLevel] = numInserted;
@@ -1155,7 +1254,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
             }
 
             int numToInsert = _lgData.LevelNodeCounts[iLevel];
-            if (numToInsert <= numInserted) return;
+            if (numToInsert <= numInserted)
+            {
+                return;
+            }
 
             int newZoomLevel = _lgData.Levels[iLevel + 1].ZoomLevel;
             for (int i = numInserted; i < numToInsert; i++) {
@@ -1184,8 +1286,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
             InitNodeLabelWidthToHeightRatios();
             AddSkeletonLevels();
             for (int i = 0; i < _lgData.Levels.Count; i++)
+            {
                 RemoveOverlapsAndRouteForLayer(maxNodesPerTile, maxSegmentsPerTile, increaseNodeQuota, i);
-
+            }
 
             _lgData.CreateLevelNodeTrees(NodeDotWidth(1));
             LabelingOfOneRun();
@@ -1221,7 +1324,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
                 scale *= delta;
             }
             if (numberOfLabeledNodes < _lgData.SortedLgNodeInfos.Count)
+            {
                 Console.WriteLine("Failed to label {0} nodes", _lgData.SortedLgNodeInfos.Count - numberOfLabeledNodes);
+            }
 
             CleanUpRails();
 
@@ -1305,12 +1410,20 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
             AssignRailsByTrajectories(iLayer);
             Debug.Assert(layer.RoutesAreConsistent());
             if (iLayer < _lgData.Levels.Count - 1)
+            {
                 CopyGraphToNextLevel(iLayer);
+            }
         }
 
         bool HigherTrajectoriesPreserved(int iLayer) {
             for (int j = 0; j <= iLayer; j++)
-                if (!TestTrajectoriesPreserved(iLayer)) return false;
+            {
+                if (!TestTrajectoriesPreserved(iLayer))
+                {
+                    return false;
+                }
+            }
+
             return true;
         }
 
@@ -1329,8 +1442,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
 
         void ModifySkeletonWithNewBoundariesOnLayer(int iLayer) {
             for (int i = 0; i < _lgData.LevelNodeCounts[iLayer]; i++)
+            {
                 _lgData.SkeletonLevels[iLayer].PathRouter.ModifySkeletonWithNewBoundaryOnLayer(
                     _lgData.SortedLgNodeInfos[i]);
+            }
         }
 
 
@@ -1343,7 +1458,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
 
             do {
                 if (!SimplifyRoutes(i))
+                {
                     break;
+                }
+
                 UpdateRoutesAfterSimplification(i);
             } while (true);
 
@@ -1391,7 +1509,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
                 LgNodeInfo s = _lgData.GeometryNodesToLgNodeInfos[edge.Source];
                 LgNodeInfo t = _lgData.GeometryNodesToLgNodeInfos[edge.Target];
                 List<Point> path = skeletonLevel.GetTrajectory(s, t);
-                if (path == null) continue;
+                if (path == null)
+                {
+                    continue;
+                }
 
                 int startedToSkip = 0;
                 for (int j = 1; j < path.Count - 1; j++) {
@@ -1403,11 +1524,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
                         continue;
                     }
                     path.RemoveAt(j);
-                    if (startedToSkip == 0) startedToSkip = j;
+                    if (startedToSkip == 0)
+                    {
+                        startedToSkip = j;
+                    }
+
                     j--;
                 }
                 if (startedToSkip > 0)
+                {
                     skeletonLevel.PathRouter.MarkEdgeUsed(path[startedToSkip - 1], path.Last());
+                }
 
                 if (!EdgeIsNew(s, t, i)) {
                     skeletonLevel.MarkEdgesAlongPathAsEdgesOnOldTrajectories(path);
@@ -1416,7 +1543,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         }
 
         bool TestTrajectoriesPreserved(int iLevel) {
-            if (iLevel == 0) return true;
+            if (iLevel == 0)
+            {
+                return true;
+            }
+
             foreach (KeyValuePair<SymmetricTuple<LgNodeInfo>, List<Point>> st in _lgData.SkeletonLevels[iLevel - 1].EdgeTrajectories) {
                 LgNodeInfo s = st.Key.A;
                 LgNodeInfo t = st.Key.B;
@@ -1425,7 +1556,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
                 List<Point> newPath = _lgData.SkeletonLevels[iLevel].GetTrajectory(s, t);
                 Debug.Assert(newPath.Count > 1);
                 if (!newPath.First().Equals(ps))
+                {
                     newPath.Reverse();
+                }
 
                 if (!newPath.First().Equals(ps)) {
                     Console.WriteLine("Endpoint of old path not found on new path!");
@@ -1447,7 +1580,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
                     subdivEdge.Add(newPath[j]);
 
                     bool subdivEdgeIsLine = RectSegIntersection.ArePointsOnLine(subdivEdge);
-                    if (subdivEdgeIsLine) continue;
+                    if (subdivEdgeIsLine)
+                    {
+                        continue;
+                    }
+
                     Console.WriteLine("New path segment is not a line!");
                     return false;
                 }
@@ -1486,7 +1623,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
                 }
 
                 Set<Rail> unusedRails = new Set<Rail>(level._railDictionary.Values.Where(r => !usedRails.Contains(r)));
-                if (!unusedRails.Any()) continue;
+                if (!unusedRails.Any())
+                {
+                    continue;
+                }
 
                 foreach (Rail rail in unusedRails) {
                     level.RemoveRailFromDictionary(rail);
@@ -1508,7 +1648,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
                         {
                             SymmetricSegment ss = new SymmetricSegment(rc.Start, rc.End);
                             if (!_lgData.Levels[i]._railDictionary.ContainsKey(ss))
+                            {
                                 Debug.Assert(false, string.Format("rail {0} is not in the dictionary", rail));
+                            }
                         }
                     }
                 }
@@ -1541,9 +1683,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         public void SelectAllEdgesIncidentTo(LgNodeInfo nodeInfo) {
             List<Edge> edges = nodeInfo.GeometryNode.Edges.ToList();
             if (!nodeInfo.Selected)
+            {
                 _lgData.SelectEdges(edges);
+            }
             else
+            {
                 _lgData.UnselectEdges(edges);
+            }
         }
 
         public void SelectEdge(LgEdgeInfo ei) {
@@ -1602,7 +1748,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
                 GetEdgesPassingThroughRail(rail)
                     .Where(e => selectedVnodes.Contains(_lgData.GeometryNodesToLgNodeInfos[e.Source])
                                 || selectedVnodes.Contains(_lgData.GeometryNodesToLgNodeInfos[e.Target])).ToList();
-            if (!edges.Any()) return;
+            if (!edges.Any())
+            {
+                return;
+            }
+
             DeselectAllEdges();
             Edge edge = edges.OrderByDescending(e => _lgData.GeometryEdgesToLgEdgeInfos[e].Rank).First();
             SelectEdge(_lgData.GeometryEdgesToLgEdgeInfos[edge]);
@@ -1688,7 +1838,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
                 }
                 else {
                     if (node.LabelVisibleFromScale <= 0)
+                    {
                         node.LabelVisibleFromScale = scale;
+                    }
+
                     labelRTree.Add(labelRect, node);
                     labeledNodes++;
                 }
@@ -1702,13 +1855,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
 
             public RankComparer(Dictionary<Node, LgNodeInfo> geometryNodesToLgNodeInfos) => _table = geometryNodesToLgNodeInfos;
 
-            public int Compare(Node? a, Node? b) { if (a is null) return b is null ? 0 : -1; if (b is null) return 1; return _table[b].Rank.CompareTo(_table[a].Rank); }
+            public int Compare(Node? a, Node? b) { if (a is null) { return b is null ? 0 : -1; } if (b is null) { return 1; } return _table[b].Rank.CompareTo(_table[a].Rank); }
         }
 
         public bool RectIsEmptyStartingFromLevel(Rectangle tileBox, int iLevel) {
             for (int i = iLevel; i < _lgData.Levels.Count; i++) {
                 if (!_lgData.Levels[i].RectIsEmptyOnLevel(tileBox))
+                {
                     return false;
+                }
             }
             return true;
         }
@@ -1720,7 +1875,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
             double hitRectWidth = NodeDotWidth(CurrentZoomLevel)/2;
             Rectangle rect = new Rectangle(new Size(hitRectWidth, hitRectWidth), mouseDownPositionInGraph);
             LgNodeInfo[] intersected = level.NodeInfoTree.GetAllIntersecting(rect);
-            if (!intersected.Any()) return null;
+            if (!intersected.Any())
+            {
+                return null;
+            }
+
             double dist = double.PositiveInfinity;
             LgNodeInfo closest = null;
             foreach (LgNodeInfo ni in intersected) {
@@ -1737,14 +1896,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
             int iLevel = _lgData.GetLevelIndexByScale(CurrentZoomLevel);
             for (int i = iLevel + 1; i < _lgData.LevelNodeCounts.Count; i++) {
                 LgNodeInfo closest = FindClosestNodeInfoForMouseClickOnLevel(mouseDownPositionInGraph, i);
-                if (closest != null) return closest;
+                if (closest != null)
+                {
+                    return closest;
+                }
             }
             return null;
         }
 
         public void AnalyzeClick(Point mouseDownPositionInGraph, int downCount) {
             LgNodeInfo closest = FindClosestNodeInfoForMouseClickBelowCurrentLevel(mouseDownPositionInGraph);
-            if (closest == null) return;
+            if (closest == null)
+            {
+                return;
+            }
+
             if (downCount >= 2) {
                 SelectAllEdgesIncidentTo(closest);
                 List<Edge> edges = closest.GeometryNode.Edges.ToList();

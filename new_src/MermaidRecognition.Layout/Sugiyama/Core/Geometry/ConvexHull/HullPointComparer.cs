@@ -17,14 +17,30 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
             if (i is null) return j is null ? 0 : -1; if (j is null) return 1;
 #else
         int IComparer<HullPoint>.Compare(HullPoint? i, HullPoint? j) {
-            if (i is null) return j is null ? 0 : -1; if (j is null) return 1;
+            if (i is null)
+            {
+                return j is null ? 0 : -1;
+            }
+
+            if (j is null)
+            {
+                return 1;
+            }
 #endif
             if (i == j)
+            {
                 return 0;
+            }
+
             if (i == null)
+            {
                 return -1;
+            }
+
             if (j == null)
+            {
                 return 1;
+            }
 
             switch (Point.GetTriangleOrientationWithIntersectionEpsilon(pivot, i.Point, j.Point)) {
                 case TriangleOrientation.Counterclockwise:
@@ -58,11 +74,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
 
                     //points are the same, leave the one with the greatest hash code
                     if (i.GetHashCode() < j.GetHashCode())
-                        i.Deleted = true;
-                    else
-                        j.Deleted = true;
+                        {
+                            i.Deleted = true;
+                        }
+                        else
+                        {
+                            j.Deleted = true;
+                        }
 
-                    return 0;
+                        return 0;
                 }
 
             }

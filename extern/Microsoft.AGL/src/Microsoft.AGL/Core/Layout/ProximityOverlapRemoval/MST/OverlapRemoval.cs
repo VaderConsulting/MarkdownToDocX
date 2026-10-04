@@ -68,7 +68,9 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MST
                 nodeSizes = _sizes;
             }
             if (_settings.InitialScaling != InitialScaling.None)
+            {
                 DoInitialScaling(_nodes, nodePositions, nodeSizes, InitialScaling.Inch72Pixel);
+            }
 
             lastRunNumberIterations = 0;
             while (OneIteration(nodePositions, nodeSizes, false)) {
@@ -91,14 +93,19 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MST
 
         void RemoveOverlapsOnTinyGraph() {
             if (_nodes.Length == 1)
+            {
                 return;
+            }
+
             if (_nodes.Length == 2) {
                 Node[] nodes = _nodes.ToArray();
                 Node a = nodes[0];
                 Node b = nodes[1];
 
                 if (ApproximateComparer.Close(a.Center, b.Center))
+                {
                     b.Center += new Point(0.001, 0);
+                }
 
                 double idealDist = GetIdealDistanceBetweenTwoNodes(a, b);
                 Point center = (a.Center + b.Center)/2;
@@ -129,11 +136,17 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MST
             const double machineAcc = 1.0e-16;
             double t;
             if (dx < machineAcc*wx)
+            {
                 t = wy/dy;
+            }
             else if (dy < machineAcc*wy)
+            {
                 t = wx/dx;
+            }
             else
+            {
                 t = Math.Min(wx/dx, wy/dy);
+            }
 
             return t*ab.Length;
         }
@@ -181,12 +194,15 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MST
             cdt.Run();
             Dictionary<CdtSite, int> siteIndex = new Dictionary<CdtSite, int>();
             for (int i = 0; i < nodePositions.Length; i++)
+            {
                 siteIndex[cdt.PointsToSites[nodePositions[i]]] = i;
+            }
 
             int numCrossings = 0;
             List<Tuple<int, int, double, double, double>> proximityEdges =
                 [];
             foreach (CdtSite site in cdt.PointsToSites.Values)
+            {
                 foreach (CdtEdge edge in site.Edges) {
 
                     Point point1 = edge.upperSite.Point;
@@ -197,9 +213,12 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MST
                     Debug.Assert(ApproximateComparer.Close(point2, nodePositions[nodeId2]));
                     Tuple<int, int, double, double, double> tuple = GetIdealEdgeLength(nodeId1, nodeId2, point1, point2, nodeSizes, _overlapForLayers);
                     proximityEdges.Add(tuple);
-                    if (tuple.Item3 > 1) numCrossings++;
+                    if (tuple.Item3 > 1)
+                    {
+                        numCrossings++;
+                    }
                 }
-
+            }
 
             if (numCrossings == 0 || scanlinePhase) {
                 int additionalCrossings = FindProximityEdgesWithSweepLine(proximityEdges, nodeSizes, nodePositions);
@@ -209,7 +228,10 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MST
                     return false;
                 }
 
-                if (numCrossings == 0 && !scanlinePhase) return false;
+                if (numCrossings == 0 && !scanlinePhase)
+                {
+                    return false;
+                }
             }
             List<Tuple<int, int, double, double, double>> treeEdges = MstOnDelaunayTriangulation.GetMstOnTuple(proximityEdges, nodePositions.Length);
 
@@ -309,9 +331,14 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MST
 
             double weight;
             if (t > 1) //overlap
+            {
                 weight = -(idealDist - length);
+            }
             else
+            {
                 weight = distBox;
+            }
+
             int smallId = nodeId1;
             int bigId = nodeId2;
             if (nodeId1 > nodeId2) {
@@ -337,7 +364,10 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MST
         /// <returns></returns>
         static double GetIdealEdgeLength(int nodeId1, int nodeId2, Point point1, Point point2,
             Size[] nodeBoxes, out double tRes) {
-            if (nodeBoxes == null) throw new ArgumentNullException("nodeBoxes");
+            if (nodeBoxes == null)
+            {
+                throw new ArgumentNullException("nodeBoxes");
+            }
 
 
             //            double expandMax = double.PositiveInfinity; //todo : this expands all the way
@@ -364,7 +394,10 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MST
                 t = Math.Min(wx/dx, wy/dy);
             }
 
-            if (t > 1) t = Math.Max(t, 1.001); // must be done, otherwise the convergence is very slow
+            if (t > 1)
+            {
+                t = Math.Max(t, 1.001); // must be done, otherwise the convergence is very slow
+            }
 
             t = Math.Min(expandMax, t);
             t = Math.Max(expandMin, t);
@@ -381,7 +414,9 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MST
         /// <returns></returns>
         static double GetDistanceRects(Rectangle a, Rectangle b) {
             if (a.Intersects(b))
+            {
                 return 0;
+            }
 
             double dx = 0, dy = 0;
 
@@ -417,25 +452,39 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MST
             List<Tuple<int, int, double, double, double>> proximityEdges, Size[] nodeSizes, Point[] nodePos, int rootId) {
             List<DebugCurve> l = new List<DebugCurve>();
             foreach (Tuple<int, int, double, double, double> tuple in proximityEdges)
+            {
                 l.Add(new DebugCurve(100, 0.5, "black", new LineSegment(nodePos[tuple.Item1], nodePos[tuple.Item2])));
+            }
             //just for debug
             Rectangle[] nodeBoxes = new Rectangle[nodeSizes.Length];
             for (int i = 0; i < nodePos.Length; i++)
+            {
                 nodeBoxes[i] = new Rectangle(nodeSizes[i], nodePos[i]);
+            }
+
             l.AddRange(nodeBoxes.Select(b => new DebugCurve(100, 0.3, "green", b.Perimeter())));
             if (treeEdges != null)
+            {
                 l.AddRange(
                     treeEdges.Select(
                         e =>
                             new DebugCurve(200, GetEdgeWidth(e), "red",
                                 new LineSegment(nodePos[e.Item1], nodePos[e.Item2]))));
+            }
+
             if (rootId >= 0)
+            {
                 l.Add(new DebugCurve(100, 10, "blue", CurveFactory.CreateOctagon(30, 30, nodePos[rootId])));
+            }
+
             LayoutAlgorithmSettings.ShowDebugCurvesEnumeration(l);
         }
         static double GetEdgeWidth(Tuple<int, int, double, double, double> edge) {
             if (edge.Item3 > 1) //overlap
+            {
                 return 6;
+            }
+
             return 2;
         }
 #endif
@@ -455,7 +504,9 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MST
             for (int i = 0; i < treeEdges.Count; i++) {
                 Tuple<int, int, double, double, double> tupleEdge = treeEdges[i];
                 if (visited.Contains(tupleEdge.Item1))
+                {
                     MoveUpperSite(tupleEdge, nodePositions, posOld, visited);
+                }
                 else {
                     Debug.Assert(visited.Contains(tupleEdge.Item2));
                     MoveLowerSite(tupleEdge, nodePositions, posOld, visited);
@@ -502,10 +553,17 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.MST
             double avgEdgeLength = AvgEdgeLength(nodes);
             double goalLength;
             if (scalingMethod == InitialScaling.Inch72Pixel)
+            {
                 goalLength = 72;
+            }
             else if (scalingMethod == InitialScaling.AvgNodeSize)
+            {
                 goalLength = nodeSizes.Average(box => (box.Width + box.Height)/2);
-            else return;
+            }
+            else
+            {
+                return;
+            }
 
             double scaling = goalLength/avgEdgeLength;
 #if DEBUG

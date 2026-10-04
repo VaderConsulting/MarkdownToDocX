@@ -47,28 +47,38 @@ namespace Microsoft.AGL.Core.GraphAlgorithms.CycleRemoval
             NodeInfo uNodeInfo=nodeInfoDictionary[u];
             Set<int> allNbs = new Set<int>(uNodeInfo.AllNeighbors);
             foreach(int v in allNbs)
+            {
                 RemoveNodeFromItsBucket(v);
+            }
 
             DisconnectNodeFromGraph(u, uNodeInfo);
 
             foreach (int v in allNbs)
+            {
                 AddNodeToBucketsSourcesAndSinks(v, nodeInfoDictionary[v]);
-  
-
+            }
         }
 
          void DisconnectNodeFromGraph(int u, NodeInfo uNodeInfo) {
             foreach (int v in uNodeInfo.OutEdges)
+            {
                 nodeInfoDictionary[v].RemoveInEdge(u);
+            }
 
             foreach (int v in uNodeInfo.OutConstrainedEdges)
+            {
                 nodeInfoDictionary[v].RemoveInConstrainedEdge(u);
+            }
 
             foreach (int v in uNodeInfo.InEdges)
+            {
                 nodeInfoDictionary[v].RemoveOutEdge(u);
+            }
 
             foreach (int v in uNodeInfo.InConstrainedEdges)
+            {
                 nodeInfoDictionary[v].RemoveOutConstrainedEdge(u);
+            }
 
             nodeInfoDictionary.Remove(u);
         }
@@ -81,7 +91,9 @@ namespace Microsoft.AGL.Core.GraphAlgorithms.CycleRemoval
             {
                 bucket.Remove(v);
                 if (bucket.Count == 0)
+                {
                     deltaDegreeBucketsForSourcesInConstrainedSubgraph.Remove(delta);
+                }
             }
         }
 
@@ -129,22 +141,33 @@ namespace Microsoft.AGL.Core.GraphAlgorithms.CycleRemoval
         internal IEnumerable<IntPair> GetOriginalIntPairs() => edgesToKeep;
 
         internal void Initialize() {
-            foreach (KeyValuePair<int, NodeInfo> p in nodeInfoDictionary) 
+            foreach (KeyValuePair<int, NodeInfo> p in nodeInfoDictionary)
+            {
                 AddNodeToBucketsSourcesAndSinks(p.Key, p.Value);
+            }
         }
 
          void AddNodeToBucketsSourcesAndSinks(int v, NodeInfo nodeInfo) {
             if (nodeInfo.InDegree == 0)
+            {
                 sources.Insert(v);
+            }
             else if (nodeInfo.OutDegree == 0)
+            {
                 sinks.Insert(v);
+            }
             else if (nodeInfo.InDegreeOfConstrainedEdges == 0)
+            {
                 GetOrCreateBucket(nodeInfo.DeltaDegree).Insert(v);
+            }
         }
 
          Set<int> GetOrCreateBucket(int delta) {
             if (deltaDegreeBucketsForSourcesInConstrainedSubgraph.TryGetValue(delta, out Set<int> ret))
+            {
                 return ret;
+            }
+
             return deltaDegreeBucketsForSourcesInConstrainedSubgraph[delta] = [];
         }
     }

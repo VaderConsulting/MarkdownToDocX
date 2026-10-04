@@ -56,7 +56,9 @@ namespace Microsoft.AGL.Core.Layout
         public virtual void RaiseLayoutChangeEvent(object newValue)
         {
             if (beforeLayoutChangeEvent != null)
+            {
                 beforeLayoutChangeEvent(this, new LayoutChangeEventArgs { DataAfterChange = newValue });
+            }
         }
 
 

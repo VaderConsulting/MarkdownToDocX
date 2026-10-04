@@ -48,10 +48,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                 //no optimization at the moment - just map the layers back
                 int[] reverseMap = new int[mapToComp.Count];
                 foreach (KeyValuePair<int, int> p in mapToComp)
+                {
                     reverseMap[p.Value] = p.Key;
+                }
 
                 for (int j = 0; j < layering.Length; j++)
+                {
                     ret[reverseMap[j]] = layering[j];
+                }
             }
             return ret;
         }
@@ -59,7 +63,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         static List<Dictionary<int, int>> GetMapsToComponent(List<IEnumerable<int>> comps) {
             List<Dictionary<int, int>> ret = [];
             foreach (IEnumerable<int> comp in comps)
+            {
                 ret.Add(MapForComp(comp));
+            }
+
             return ret;
         }
 
@@ -67,7 +74,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             int i = 0;
             Dictionary<int,int> map=[];
             foreach (int v in comp)
+            {
                 map[v] = i++;
+            }
+
             return map;
         }
 

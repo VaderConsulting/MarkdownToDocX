@@ -66,7 +66,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.RegularGrid
             Debug.Assert(PointToTuple(p1).Equals(leftTile));
             Tuple<int, int> rightTile = PointToTuple(p2);
             if (rightTile.Equals(leftTile) || ApproximateComparer.Close(p1, p2, ((double)TileWidth) / 10))
+            {
                 return;
+            }
+
             tiles.Add(rightTile);
             Point midPoint = (p1 + p2) / 2;
             InsertTilesLeftHalf(leftTile, p1, midPoint, tiles);
@@ -77,7 +80,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.RegularGrid
         {
             Tuple<int, int> leftTile = PointToTuple(p1);
             if (leftTile.Equals(rightTile) || ApproximateComparer.Close(p1, p2, ((double)TileWidth) / 10))
+            {
                 return;
+            }
+
             tiles.Add(leftTile);
             Point midPoint = (p1 + p2) / 2;
             InsertTilesLeftHalf(leftTile, p1, midPoint, tiles);

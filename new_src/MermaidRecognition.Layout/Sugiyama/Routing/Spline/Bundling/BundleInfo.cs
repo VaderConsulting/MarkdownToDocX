@@ -37,7 +37,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             if (TotalRequiredWidth > mn) {
                 double scale = TotalRequiredWidth / mn;
                 for (int i = 0; i < HalfWidthArray.Length; i++)
+                {
                     HalfWidthArray[i] /= scale;
+                }
+
                 TotalRequiredWidth /= scale;
                 EdgeSeparation /= scale;
             }
@@ -81,9 +84,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             double mw = uw / 2;
             while (uw - lw > FeasibleWidthEpsilon) {
                 if (SetRLParamsIfWidthIsFeasible(mw * perp / 2, a, b))
+                {
                     lw = mw;
+                }
                 else
+                {
                     uw = mw;
+                }
+
                 mw = 0.5 * (uw + lw);
             }
 
@@ -107,15 +115,25 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         bool SetRLParamsIfWidthIsFeasible(Point perpL, Point perpR, Point a, Point b) {
             LineSegment ls = TrimSegWithBoundaryCurves(new LineSegment(a + perpL, b + perpL), out double sourceLParam, out double targetRParam);
             if (ls == null)
+            {
                 return false;
+            }
+
             if (tightObstaclesInTheBoundingBox.Any(t => Intersections.LineSegmentIntersectPolyline(ls.Start, ls.End, t)))
+            {
                 return false;
+            }
 
             ls = TrimSegWithBoundaryCurves(new LineSegment(a + perpR, b + perpR), out double sourceRParam, out double targetLParam);
             if (ls == null)
+            {
                 return false;
+            }
+
             if (tightObstaclesInTheBoundingBox.Any(t => Intersections.LineSegmentIntersectPolyline(ls.Start, ls.End, t)))
+            {
                 return false;
+            }
 
             if (SourceBase.IsParent) {
                 SourceBase.ParRight = sourceLParam;
@@ -163,12 +181,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             }
             IntersectionInfo i0;
             if (inters.Count == 1)
+            {
                 i0 = inters[0];
+            }
             else {
                 if (!SourceBase.IsParent)
+                {
                     i0 = inters[0].Par0 < inters[1].Par0 ? inters[0] : inters[1];
+                }
                 else
+                {
                     i0 = inters[0].Par0 < inters[1].Par0 ? inters[1] : inters[0];
+                }
             }
 
             inters = Curve.GetAllIntersections(ls, TargetBase.Curve, true);
@@ -178,12 +202,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             }
             IntersectionInfo i1;
             if (inters.Count == 1)
+            {
                 i1 = inters[0];
+            }
             else {
                 if (!TargetBase.IsParent)
+                {
                     i1 = inters[0].Par0 > inters[1].Par0 ? inters[0] : inters[1];
+                }
                 else
+                {
                     i1 = inters[0].Par0 > inters[1].Par0 ? inters[1] : inters[0];
+                }
             }
 
             sourcePar = i0.Par1;
@@ -196,19 +226,28 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             bool needToUpdateTarget = rotationOfTargetRightPoint != 0 || rotationOfTargetLeftPoint != 0;
 
             if (needToUpdateSource)
+            {
                 SourceBase.RotateBy(rotationOfSourceRightPoint, rotationOfSourceLeftPoint, parameterChange);
+            }
 
             if (needToUpdateTarget)
+            {
                 TargetBase.RotateBy(rotationOfTargetRightPoint, rotationOfTargetLeftPoint, parameterChange);
+            }
 
             UpdateSourceAndTargetBases(needToUpdateSource, needToUpdateTarget);
         }
 
         internal void UpdateSourceAndTargetBases(bool sourceChanged, bool targetChanged) {
             if (sourceChanged)
+            {
                 UpdatePointsOnSourceBase();
+            }
+
             if (targetChanged)
+            {
                 UpdatePointsOnTargetBase();
+            }
 
             UpdateTangentsOnBases();
         }
@@ -236,7 +275,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             pns[count - 1] = SourceBase.LeftPoint + (EdgeSeparation / 2 + HalfWidthArray[0]) * dir;
             int j = 1;
             for (int i = count - 2; i >= 0; i--, j++)
+            {
                 pns[i] = pns[i + 1] + (HalfWidthArray[j - 1] + EdgeSeparation + HalfWidthArray[j]) * dir;
+            }
         }
 
         void UpdatePointsOnTargetBase() {
@@ -247,7 +288,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
             pns[0] = TargetBase.RightPoint + (EdgeSeparation / 2 + HalfWidthArray[0]) * dir;
             for (int i = 1; i < count; i++)
+            {
                 pns[i] = pns[i - 1] + (HalfWidthArray[i - 1] + EdgeSeparation + HalfWidthArray[i]) * dir;
+            }
         }
 
         internal bool RotationIsLegal(int rotationOfSourceRightPoint, int rotationOfSourceLeftPoint,
@@ -259,14 +302,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                     Point rSoP = SourceBase.RotateLeftPoint(rotationOfSourceLeftPoint, parameterChange);
                     Point lTarP = TargetBase.RotateRigthPoint(rotationOfTargetRightPoint, parameterChange);
                     if (!LineIsLegal(rSoP, lTarP))
+                    {
                         return false;
+                    }
                 }
 
                 if (rotationOfSourceRightPoint != 0 || rotationOfTargetLeftPoint != 0) {
                     Point lSoP = SourceBase.RotateRigthPoint(rotationOfSourceRightPoint, parameterChange);
                     Point rTarP = TargetBase.RotateLeftPoint(rotationOfTargetLeftPoint, parameterChange);
                     if (!LineIsLegal(lSoP, rTarP))
+                    {
                         return false;
+                    }
                 }
             }
             else {
@@ -274,25 +321,37 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                     Point lSoP = SourceBase.RotateLeftPoint(rotationOfSourceLeftPoint, parameterChange);
                     Point lTarP = TargetBase.RotateLeftPoint(rotationOfTargetLeftPoint, parameterChange);
                     if (!LineIsLegal(lSoP, lTarP))
+                    {
                         return false;
+                    }
                 }
 
                 if (rotationOfSourceRightPoint != 0 || rotationOfTargetRightPoint != 0) {
                     Point rSoP = SourceBase.RotateRigthPoint(rotationOfSourceRightPoint, parameterChange);
                     Point rTarP = TargetBase.RotateRigthPoint(rotationOfTargetRightPoint, parameterChange);
                     if (!LineIsLegal(rSoP, rTarP))
+                    {
                         return false;
+                    }
                 }
             }
 
             //2. we are also not allowed to change the order of bundles around a hub
             if (rotationOfSourceRightPoint != 0 || rotationOfSourceLeftPoint != 0)
+            {
                 if (!SourceBase.RelativeOrderOfBasesIsPreserved(rotationOfSourceRightPoint, rotationOfSourceLeftPoint, parameterChange))
+                {
                     return false;
+                }
+            }
 
             if (rotationOfTargetRightPoint != 0 || rotationOfTargetLeftPoint != 0)
+            {
                 if (!TargetBase.RelativeOrderOfBasesIsPreserved(rotationOfTargetRightPoint, rotationOfTargetLeftPoint, parameterChange))
+                {
                     return false;
+                }
+            }
 
             return true;
         }

@@ -79,11 +79,18 @@ namespace Microsoft.AGL.Layout.Incremental {
 
             foreach (Edge e in graph.Edges) {
                 if (e.Source is Cluster || e.Target is Cluster)
+                {
                     clusterEdges.Add(e);
+                }
                 else
+                {
                     edges.Add(new FiEdge(e));
+                }
+
                 foreach (Label l in e.Labels)
+                {
                     l.InnerPoints = l.OuterPoints = null;
+                }
             }
             SetLockNodeWeights();
             components = [];
@@ -99,7 +106,10 @@ namespace Microsoft.AGL.Layout.Incremental {
                 }
             }
             else // just one big component (regardless of actual edges)
+            {
                 components.Add(nodes);
+            }
+
             horizontalSolver = new AxisSolver(true, nodes, new[] {geometryGraph.RootCluster}, settings.AvoidOverlaps,
                                               settings.MinConstraintLevel, clusterSettings) {
                                                   OverlapRemovalParameters =
@@ -299,7 +309,9 @@ namespace Microsoft.AGL.Layout.Incremental {
 
         void AddClusterForces(Cluster root) {
             if (root == null)
+            {
                 return;
+            }
             // SetBarycenter is recursive.
             root.SetBarycenter();
             // The cluster edges draw the barycenters of the connected clusters together
@@ -336,9 +348,11 @@ namespace Microsoft.AGL.Layout.Incremental {
                 }
             }
             foreach (Cluster c in root.AllClustersDepthFirst())
+            {
                 if (c != root) {
                     c.ForEachNode(v => AddGravityForce(c.Barycenter, settings.ClusterGravity, (FiNode) v.AlgorithmData));
                 }
+            }
         }
 
         /// <summary>
@@ -616,7 +630,10 @@ namespace Microsoft.AGL.Layout.Incremental {
         /// </summary>
         void FinalizeClusterBoundaries() {
             foreach (Cluster c in graph.RootCluster.AllClustersDepthFirst()) {
-                if (c == graph.RootCluster) continue;
+                if (c == graph.RootCluster)
+                {
+                    continue;
+                }
 
                 if (!NeedSolve() && settings.UpdateClusterBoundariesFromChildren) {
                     // if we are not using the solver (e.g. when constraintLevel == 0) then we need to get the cluster bounds manually

@@ -26,9 +26,15 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
 
             Curve = edge.Curve.Clone();
             if (edge.EdgeGeometry.SourceArrowhead != null)
+            {
                 ArrowheadAtSourcePosition = edge.EdgeGeometry.SourceArrowhead.TipPosition;
+            }
+
             if (edge.EdgeGeometry.TargetArrowhead != null)
+            {
                 ArrowheadAtTargetPosition = edge.EdgeGeometry.TargetArrowhead.TipPosition;
+            }
+
             if (edge.Label != null && edge.UnderlyingPolyline != null) {
                 labelCenter = edge.Label.Center;
                 Curve untrimmedCurve = edge.UnderlyingPolyline.CreateCurve();

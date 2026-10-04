@@ -68,36 +68,53 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
         void Calculate() {
             InitQueueOfEvents();
             foreach (Point portLocation in PortLocations)
+            {
                 EnqueueEvent(new PortLocationEvent(portLocation));
+            }
+
             while (EventQueue.Count > 0)
+            {
                 ProcessEvent(EventQueue.Dequeue());
+            }
         }
 
         void ProcessEvent(SweepEvent p) {
             // ShowTrees(CurveFactory.CreateDiamond(3, 3, p.Site));
             if (p is VertexEvent vertexEvent)
+            {
                 ProcessVertexEvent(vertexEvent);
+            }
             else
             {
                 if (p is RightIntersectionEvent rightIntersectionEvent)
+                {
                     ProcessRightIntersectionEvent(rightIntersectionEvent);
+                }
                 else
                 {
                     if (p is LeftIntersectionEvent leftIntersectionEvent)
+                    {
                         ProcessLeftIntersectionEvent(leftIntersectionEvent);
+                    }
                     else
                     {
                         if (p is ConeClosureEvent coneClosure)
                         {
                             if (!coneClosure.ConeToClose.Removed)
+                            {
                                 RemoveCone(coneClosure.ConeToClose);
+                            }
                         }
                         else
                         {
                             if (p is PortLocationEvent portLocationEvent)
+                            {
                                 ProcessPortLocationEvent(portLocationEvent);
+                            }
                             else
+                            {
                                 ProcessPointObstacleEvent((PortObstacleEvent)p);
+                            }
                         }
                         Z = GetZ(p);
                     }
@@ -145,15 +162,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
                     TryCreateConeClosureForLeftSide(leftSide);
                 }
             } else
+            {
                 Z = SweepDirection*leftIntersectionEvent.Site;
+            }
         }
 
         void TryCreateConeClosureForLeftSide(BrokenConeSide leftSide) {
             if (leftSide.Cone.RightSide is ConeRightSide coneRightSide)
+            {
                 if (
                     Point.GetTriangleOrientation(coneRightSide.Start, coneRightSide.Start + coneRightSide.Direction,
                                                  leftSide.EndVertex.Point) == TriangleOrientation.Clockwise)
+                {
                     CreateConeClosureEvent(leftSide, coneRightSide);
+                }
+            }
         }
 
         void CreateConeClosureEvent(BrokenConeSide brokenConeSide, ConeSide otherSide) {
@@ -182,15 +205,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
 
                 TryCreateConeClosureForRightSide(rightSide);
             } else
+            {
                 Z = SweepDirection*rightIntersectionEvent.Site;
+            }
         }
 
         void TryCreateConeClosureForRightSide(BrokenConeSide rightSide) {
             if (rightSide.Cone.LeftSide is ConeLeftSide coneLeftSide)
+            {
                 if (
                     Point.GetTriangleOrientation(coneLeftSide.Start, coneLeftSide.Start + coneLeftSide.Direction,
                                                  rightSide.EndVertex.Point) == TriangleOrientation.Counterclockwise)
+                {
                     CreateConeClosureEvent(rightSide, coneLeftSide);
+                }
+            }
         }
 
         void RemoveConesClosedBySegment(Point leftPoint, Point rightPoint) => CloseConesCoveredBySegment(leftPoint, rightPoint,
@@ -205,7 +234,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
 
             if (node == null || !Point.IntervalIntersectsRay(leftPoint, rightPoint,
                                                              node.Item.Start, node.Item.Direction, out Point x))
+            {
                 return;
+            }
+
             List<Cone> conesToRemove = new List<Cone>();
             do {
                 conesToRemove.Add(node.Item.Cone);
@@ -215,7 +247,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
 
 
             foreach (Cone cone in conesToRemove)
+            {
                 RemoveCone(cone);
+            }
         }
 
         void ProcessVertexEvent(VertexEvent vertexEvent) {
@@ -245,7 +279,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
             foreach (ConeSide s in rightConeSides) {
                 coneSideComparer.SetOperand(s);
                 if (!leftConeSides.Contains(s.Cone.LeftSide))
+                {
                     Console.WriteLine("bug");
+                }
             }
             foreach (ConeSide s in leftConeSides) {
                 coneSideComparer.SetOperand(s);
@@ -356,7 +392,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
             Point prevSite = rightVertexEvent.Vertex.NextOnPolyline.Point;
             double prevZ = prevSite*SweepDirection;
             if (prevZ <= Z && Z - prevZ < ApproximateComparer.DistanceEpsilon)
+            {
                 RemoveConesClosedBySegment(prevSite, rightVertexEvent.Vertex.Point);
+            }
 
             Point site = rightVertexEvent.Site;
             Point coneLp = site + ConeLeftSideDirection;
@@ -365,14 +403,22 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
             //SugiyamaLayoutSettings.Show(new LineSegment(site, coneLP), new LineSegment(site, coneRP), new LineSegment(site, nextSite));
             //try to remove the right side
             if ((site - prevSite)*SweepDirection > ApproximateComparer.DistanceEpsilon)
+            {
                 RemoveRightSide(new RightObstacleSide(rightVertexEvent.Vertex.NextOnPolyline));
+            }
+
             if (GetZ(nextSite) + ApproximateComparer.DistanceEpsilon < GetZ(rightVertexEvent))
+            {
                 return;
+            }
+
             if (!Point.PointToTheRightOfLineOrOnLine(nextSite, site, coneLp)) {
                 //if (angle <= -coneAngle / 2) {
                 //   CreateConeOnVertex(rightVertexEvent);
                 if (Point.PointToTheLeftOfLineOrOnLine(nextSite + DirectionPerp, nextSite, site))
+                {
                     EnqueueEvent(new RightVertexEvent(nextVertex));
+                }
                 //  TryEnqueueRighVertexEvent(nextVertex);
             } else if (Point.PointToTheLeftOfLineOrOnLine(nextSite, site, coneRp)) {
                 //if (angle < coneAngle / 2) {
@@ -400,7 +446,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
                 leftConeSides.FindFirst(side => PointIsToTheLeftOfSegment(rightVertexEvent.Site, side));
             FixConeLeftSideIntersections(rightVertexEvent.Vertex, nextVertex, lnode);
             if ((nextVertex.Point - rightVertexEvent.Site)*SweepDirection > ApproximateComparer.DistanceEpsilon)
+            {
                 InsertRightSide(new RightObstacleSide(rightVertexEvent.Vertex));
+            }
         }
 
 
@@ -438,8 +486,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
                                                               PolylinePoint obstacleSideVertex) {
             RBNode<ConeSide> node = GetFirstNodeToTheRightOfPoint(obstacleSideStart);
             //          ShowLeftTree(Box(obstacleSideStart));
-            if (node == null) return;
-            if (node.Item is not ConeLeftSide coneLeftSide) return;
+            if (node == null)
+            {
+                return;
+            }
+
+            if (node.Item is not ConeLeftSide coneLeftSide)
+            {
+                return;
+            }
+
             if (Point.IntervalIntersectsRay(obstacleSideStart, obstacleSideVertex.Point, coneLeftSide.Start,
                                             ConeLeftSideDirection, out Point intersection))
             {
@@ -458,7 +514,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
         void PrintOutRightSegTree() {
             Console.WriteLine("right segment tree");
             foreach (ConeSide t in rightConeSides)
+            {
                 Console.WriteLine(t);
+            }
+
             Console.WriteLine("end of right segments");
         }
 #endif
@@ -509,8 +568,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
             // SugiyamaLayoutSettings.Show(new LineSegment(site, coneLP), new LineSegment(site, coneRP), new LineSegment(site, nextSite));
 
             if ((site - prevSite)*SweepDirection > ApproximateComparer.DistanceEpsilon)
+            {
                 RemoveLeftSide(new LeftObstacleSide(leftVertexEvent.Vertex.PrevOnPolyline));
-
+            }
 
             if (Point.PointToTheRightOfLineOrOnLine(nextSite, site, site + DirectionPerp)) {
                 //if (angle > Math.PI / 2)
@@ -535,7 +595,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
                 RBNode<ConeSide> rbNode = rightConeSides.FindLast(s => PointIsToTheRightOfSegment(site, s));
                 FixConeRightSideIntersections(leftVertexEvent.Vertex, nextVertex, rbNode);
                 if ((nextVertex.Point - leftVertexEvent.Site)*SweepDirection > ApproximateComparer.DistanceEpsilon)
+                {
                     InsertLeftSide(new LeftObstacleSide(leftVertexEvent.Vertex));
+                }
             } else {
                 EnqueueEvent(new LeftVertexEvent(nextVertex));
                 if ((nextVertex.Point - leftVertexEvent.Site)*SweepDirection > ApproximateComparer.DistanceEpsilon) {
@@ -648,14 +710,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
 
                 RightObstacleSide rightObstacleSide = FindFirstObstacleSideToTheLeftOfPoint(coneLeftSide.Start);
                 if (rightObstacleSide != null)
+                {
                     TryIntersectionOfConeLeftSideAndObstacleSide(coneLeftSide, rightObstacleSide);
+                }
             } else {
                 BrokenConeSide seg = (BrokenConeSide) leftNode.Item;
                 leftNode = leftConeSides.Next(leftNode);
                 if (leftNode != null) {
                     coneLeftSide = leftNode.Item as ConeLeftSide;
                     if (coneLeftSide != null)
+                    {
                         TryIntersectionOfConeLeftSideAndObstacleConeSide(coneLeftSide, seg);
+                    }
                 }
             }
         }
@@ -674,14 +740,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
 
                 LeftObstacleSide leftObstacleSide = FindFirstObstacleSideToToTheRightOfPoint(coneRightSide.Start);
                 if (leftObstacleSide != null)
+                {
                     TryIntersectionOfConeRightSideAndObstacleSide(coneRightSide, leftObstacleSide);
+                }
             } else {
                 BrokenConeSide seg = (BrokenConeSide) rightNode.Item;
                 rightNode = rightConeSides.Previous(rightNode);
                 if (rightNode != null) {
                     coneRightSide = rightNode.Item as ConeRightSide;
                     if (coneRightSide != null)
+                    {
                         TryIntersectionOfConeRightSideAndObstacleConeSide(coneRightSide, seg);
+                    }
                 }
             }
         }
@@ -726,11 +796,19 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
         void GoOverConesSeeingVertexEvent(SweepEvent vertexEvent) {
             RBNode<ConeSide> rbNode = FindFirstSegmentInTheRightTreeNotToTheLeftOfVertex(vertexEvent);
 
-            if (rbNode == null) return;
+            if (rbNode == null)
+            {
+                return;
+            }
+
             ConeSide coneRightSide = rbNode.Item;
             Cone cone = coneRightSide.Cone;
             ConeSide leftConeSide = cone.LeftSide;
-            if (VertexIsToTheLeftOfSegment(vertexEvent, leftConeSide)) return;
+            if (VertexIsToTheLeftOfSegment(vertexEvent, leftConeSide))
+            {
+                return;
+            }
+
             List<Cone> visibleCones = new List<Cone> {cone};
             coneSideComparer.SetOperand(leftConeSide);
             rbNode = leftConeSides.Find(leftConeSide);
@@ -812,7 +890,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
         void PrintOutLeftSegTree() {
             Console.WriteLine("Left cone segments");
             foreach (ConeSide t in leftConeSides)
+            {
                 Console.WriteLine(t);
+            }
+
             Console.WriteLine("end of left cone segments");
         }
 #endif
@@ -830,8 +911,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
         void EnqueueEvent(RightVertexEvent vertexEvent) {
             if (SweepDirection*(vertexEvent.Site - vertexEvent.Vertex.PrevOnPolyline.Point) >
                 ApproximateComparer.Tolerance)
+            {
                 return;
-                    //otherwise we enqueue the vertex twice; once as a LeftVertexEvent and once as a RightVertexEvent
+            }
+            //otherwise we enqueue the vertex twice; once as a LeftVertexEvent and once as a RightVertexEvent
             base.EnqueueEvent(vertexEvent);
         }
     }

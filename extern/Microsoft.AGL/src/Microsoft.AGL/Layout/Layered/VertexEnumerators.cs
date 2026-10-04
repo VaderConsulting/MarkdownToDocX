@@ -95,8 +95,9 @@ namespace Microsoft.AGL.Layout.Layered {
             if (e == null) {
                 return new EmptyEnumerator();
             } else
+            {
                 return new PredEnumerator(e.GetEnumerator());
-
+            }
         }
 
         IEnumerator IEnumerable.GetEnumerator() {
@@ -104,8 +105,9 @@ namespace Microsoft.AGL.Layout.Layered {
             if (e == null) {
                 return new EmptyEnumerator();
             } else
+            {
                 return new PredEnumerator(e.GetEnumerator());
-
+            }
         }
 
         internal Pred(BasicGraph<IntEdge> g, int v) {

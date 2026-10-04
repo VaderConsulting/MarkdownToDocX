@@ -19,7 +19,9 @@ namespace Microsoft.AGL.Routing {
             this.nodeBoundaries = new Set<ICurve>(nodeBoundaries);
             boundingBox = Rectangle.CreateAnEmptyBox();
             foreach (ICurve curve in nodeBoundaries)
+            {
                 boundingBox.Add(curve.BoundingBox);
+            }
         }
 
         internal PreGraph() {}

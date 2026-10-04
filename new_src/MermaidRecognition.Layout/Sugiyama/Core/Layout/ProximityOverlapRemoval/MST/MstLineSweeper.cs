@@ -52,7 +52,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
         void AddIntervalToTree(int i) {
             Interval interval = GetInterval(i);
             if (_intervalTree == null)
+            {
                 _intervalTree = new IntervalRTree<int>();
+            }
 
             _intervalTree.Add(interval, i);
             
@@ -60,14 +62,20 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
 
         void FindOverlapsWithInterval(int i) {
             if (_intervalTree == null)
+            {
                 return;
+            }
+
             Interval interval = GetInterval(i);
             foreach (int j in _intervalTree.GetAllIntersecting(interval)) {
                 Tuple<int, int, double, double, double> tuple = OverlapRemoval.GetIdealEdgeLength(i, j,
                     _nodePositions[i], _nodePositions[j], _nodeSizes, _forLayers);
 
                 if (!(tuple.Item3 > 1))
+                {
                     return;
+                }
+
                 _proximityEdges.Add(tuple);
                 _numberOfOverlaps++;
             }

@@ -44,7 +44,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         /// </summary>
         public void OnViewerChangeTransformAndInvalidateGraph() {
             if (ViewerChangeTransformAndInvalidateGraph != null)
+            {
                 ViewerChangeTransformAndInvalidateGraph();
+            }
         }
 
         /// <summary>

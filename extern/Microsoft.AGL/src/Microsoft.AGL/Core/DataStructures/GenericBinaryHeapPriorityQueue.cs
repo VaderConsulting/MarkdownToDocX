@@ -95,7 +95,9 @@ namespace Microsoft.AGL.Core.DataStructures {
 
         internal T Dequeue() {
             if (heapSize == 0)
+            {
                 throw new InvalidOperationException();
+            }
 
             T ret = A[1].v;
 
@@ -106,7 +108,10 @@ namespace Microsoft.AGL.Core.DataStructures {
         }
 
         internal T Dequeue(out double priority) {
-            if (heapSize == 0) throw new InvalidOperationException();
+            if (heapSize == 0)
+            {
+                throw new InvalidOperationException();
+            }
 
             T ret = A[1].v;
             priority = A[1].priority;
@@ -123,17 +128,25 @@ namespace Microsoft.AGL.Core.DataStructures {
                 int l = i << 1;
 
                 if (l <= heapSize && A[l].priority.CompareTo(A[i].priority) < 0)
+                {
                     smallest = l;
+                }
 
                 int r = l + 1;
 
                 if (r <= heapSize && A[r].priority.CompareTo(A[smallest].priority) < 0)
+                {
                     smallest = r;
+                }
 
                 if (smallest != i)
+                {
                     SwapWithParent(smallest);
+                }
                 else
+                {
                     break;
+                }
 
                 i = smallest;
 
@@ -148,16 +161,24 @@ namespace Microsoft.AGL.Core.DataStructures {
         internal void DecreasePriority(T element, double newPriority)
         {
             //ignore the element if it is not in the queue
-            if (!cache.TryGetValue(element, out GenericHeapElement<T> h)) return;
+            if (!cache.TryGetValue(element, out GenericHeapElement<T> h))
+            {
+                return;
+            }
 
             //var h = cache[element];
             h.priority = newPriority;
             int i = h.indexToA;
             while (i > 1) {
                 if (A[i].priority.CompareTo(A[i >> 1].priority) < 0)
+                {
                     SwapWithParent(i);
+                }
                 else
+                {
                     break;
+                }
+
                 i >>= 1;
             }
         }
@@ -221,9 +242,9 @@ namespace Microsoft.AGL.Core.DataStructures {
             q.DecreasePriority(4, 2.5);
 
             while (q.IsEmpty() == false)
+            {
                 Console.WriteLine(q.Dequeue());
-
-
+            }
         }
         /// <summary>
         /// enumerator
@@ -231,7 +252,9 @@ namespace Microsoft.AGL.Core.DataStructures {
         /// <returns></returns>
         public IEnumerator<T> GetEnumerator() {
             for (int i = 1; i <= heapSize; i++)
+            {
                 yield return A[i].v;
+            }
         }
 
         /// <summary>
@@ -250,7 +273,9 @@ namespace Microsoft.AGL.Core.DataStructures {
 
         IEnumerator IEnumerable.GetEnumerator() {
             for (int i = 1; i <= heapSize; i++)
+            {
                 yield return A[i].v;
+            }
         }
 #if TEST_MSAGL
         /// <summary>
@@ -260,7 +285,10 @@ namespace Microsoft.AGL.Core.DataStructures {
         public override string ToString() {
             StringBuilder sb=new StringBuilder();
             foreach (T i in this)
+            {
                 sb.Append(i + ",");
+            }
+
             return sb.ToString();
         }
   

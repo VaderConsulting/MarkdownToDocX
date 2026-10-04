@@ -16,12 +16,15 @@ namespace Microsoft.AGL.Routing.Visibility {
               ValidateArg.IsNotNull(y, "y");
               System.Diagnostics.Debug.Assert(BelongsToTheDiagonal(PointOnTangentAndInsertedDiagonal, x.Start, x.End));
               if (x.Start != y.Start)
-                  switch (Point.GetTriangleOrientation(PointOnTangentAndInsertedDiagonal, y.Start, y.End)) {
+            {
+                switch (Point.GetTriangleOrientation(PointOnTangentAndInsertedDiagonal, y.Start, y.End)) {
                       case TriangleOrientation.Counterclockwise:
                           return -1;
                       default:
                           return 1;
-                  } else {
+                  }
+            }
+            else {
                   return 0;
               }
           }

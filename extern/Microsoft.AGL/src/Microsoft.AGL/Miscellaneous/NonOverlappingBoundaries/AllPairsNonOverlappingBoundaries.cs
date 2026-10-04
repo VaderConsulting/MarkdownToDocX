@@ -162,7 +162,9 @@ namespace Microsoft.AGL.Miscellaneous.NonOverlappingBoundaries
             get {
                 Rectangle r = new Rectangle(Center);
                 foreach (Node node in cluster.Nodes)
+                {
                     r.Add(node.BoundingBox);
+                }
 
                 return new RectangleNode<IHull>(this, r);
             }
@@ -192,7 +194,9 @@ namespace Microsoft.AGL.Miscellaneous.NonOverlappingBoundaries
             {
                 CvxHull r = new RCHull(null, v, 0);
                 foreach (PolylinePoint p in r.TranslatedBoundary().PolylinePoints)
+                {
                     points.Add(p.Point);
+                }
             }
 
             foreach (Cluster c in cluster.Clusters)

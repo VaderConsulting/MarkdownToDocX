@@ -141,7 +141,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         /// <param name="second"></param>
         /// <returns></returns>
         public int Compare(SegEvent? first, SegEvent? second) {
-            if (first is null) return second is null ? 0 : -1; if (second is null) return 1;
+            if (first is null)
+            {
+                return second is null ? 0 : -1;
+            }
+
+            if (second is null)
+            {
+                return 1;
+            }
+
             if (first == second) {
                 return 0;
             }
@@ -215,7 +224,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         /// <param name="second"></param>
         /// <returns></returns>
         public int Compare(ScanSegment? first, ScanSegment? second) {
-            if (first is null) return second is null ? 0 : -1; if (second is null) return 1;
+            if (first is null)
+            {
+                return second is null ? 0 : -1;
+            }
+
+            if (second is null)
+            {
+                return 1;
+            }
+
             if (first == second) {
                 return 0;
             }

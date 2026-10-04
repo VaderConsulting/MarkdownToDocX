@@ -37,10 +37,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         #region IComparable<PointPair> Members
 
         public int CompareTo(PointPair? other) {
-            if (other is null) return 1;
+            if (other is null)
+            {
+                return 1;
+            }
+
             ValidateArg.IsNotNull(other, "other");
             int cr = first.CompareTo(other.first);
-            if (cr != 0) return cr;
+            if (cr != 0)
+            {
+                return cr;
+            }
+
             return second.CompareTo(other.second);
         }
 
@@ -48,9 +56,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
 
         static bool IsLess(Point p1, Point p2) {
             if (p1.Y < p2.Y)
+            {
                 return true;
+            }
+
             if (p1.Y > p2.Y)
+            {
                 return false;
+            }
+
             return p1.X < p2.X;
         }
 
@@ -62,7 +76,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         public override bool Equals(object obj) {
             PointPair? otherPair = obj as PointPair;
             if (ReferenceEquals(otherPair, null))
+            {
                 return false;
+            }
+
             return otherPair == this;
         }
 

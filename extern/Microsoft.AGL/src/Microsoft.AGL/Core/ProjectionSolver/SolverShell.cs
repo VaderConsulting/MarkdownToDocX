@@ -241,9 +241,17 @@ namespace Microsoft.AGL.Core.ProjectionSolver{
         public void AddLeftRightSeparationConstraint(int idLeft, int idRight, double gap, bool isEquality){
             // The variables must already have been added by AddNodeWithDesiredPosition.
             Variable varLeft = GetVariable(idLeft);
-            if (varLeft == null) return;
+            if (varLeft == null)
+            {
+                return;
+            }
+
             Variable varRight = GetVariable(idRight);
-            if (varRight == null) return;
+            if (varRight == null)
+            {
+                return;
+            }
+
             solver.AddConstraint(varLeft, varRight, gap, isEquality);
         }
 
@@ -263,9 +271,17 @@ namespace Microsoft.AGL.Core.ProjectionSolver{
         /// <param name="weight">The weight of the corresponding term in the goal function</param>
         public void AddGoalTwoVariablesAreClose(int id1, int id2, double weight){
             Variable var1 = GetVariable(id1);
-            if (var1 == null) return;
+            if (var1 == null)
+            {
+                return;
+            }
+
             Variable var2 = GetVariable(id2);
-            if (var2 == null) return;
+            if (var2 == null)
+            {
+                return;
+            }
+
             solver.AddNeighborPair(var1, var2, weight);
         }
 
@@ -306,7 +322,9 @@ namespace Microsoft.AGL.Core.ProjectionSolver{
                 if(null != parameters){
                     solverParameters = parameters as Parameters;
                     if (solverParameters == null)
+                    {
                         throw new ArgumentException("parameters");
+                    }
                 }
 
                 solution = solver.Solve(solverParameters);
@@ -340,7 +358,10 @@ namespace Microsoft.AGL.Core.ProjectionSolver{
             Set<int> movedFixedVars =new Set<int>(fixedVars.
                 Where(kv=>!Close(kv.Value, GetVariableResolvedPosition(kv.Key))).Select(p=>p.Key));
             if(movedFixedVars.Count==0)
+            {
                 return false;
+            }
+
             return AdjustConstraintsForMovedFixedVarSet(movedFixedVars);
             
         }
@@ -351,7 +372,9 @@ namespace Microsoft.AGL.Core.ProjectionSolver{
             while (movedFixedVars.Count>0){
                 int fixedVar = movedFixedVars.First();
                 if(!AdjustSubtreeOfFixedVar(fixedVar, ref movedFixedVars))
+                {
                     return false;
+                }
             }
             return true;
         }
@@ -359,11 +382,20 @@ namespace Microsoft.AGL.Core.ProjectionSolver{
         bool AdjustSubtreeOfFixedVar(int fixedVar, ref Set<int> movedFixedVars){
             IEnumerable<int> neighbors = AdjustConstraintsOfNeighborsOfFixedVariable(fixedVar, out bool successInAdjusting);
             if (!successInAdjusting)
+            {
                 return false;
-            if(!neighbors.Any())
+            }
+
+            if (!neighbors.Any())
+            {
                 return false;
+            }
+
             foreach (int i in neighbors)
+            {
                 movedFixedVars.Remove(i);
+            }
+
             return true;
         }
 
@@ -379,15 +411,23 @@ namespace Microsoft.AGL.Core.ProjectionSolver{
             RealNumberSpan idealSpan = new RealNumberSpan();
             double scale = 1;
             foreach (Variable u in nbs){
-                if (!fixedVars.ContainsKey((int)u.UserData )) 
-                    continue;             
+                if (!fixedVars.ContainsKey((int)u.UserData ))
+                {
+                    continue;
+                }
+
                 currentSpan.AddValue(u.ActualPos);
                 idealSpan.AddValue(u.DesiredPos);
                 if (idealSpan.Length > 0)
+                {
                     scale = Math.Max(scale, currentSpan.Length/idealSpan.Length);
+                }
             }
             if (scale == 1)
+            {
                 scale = 2;//just relax the constraints 
+            }
+
             successInAdjusing = FixActiveConstraints(nbs, scale);
             return nbs.Select(u => (int) u.UserData);
         }
@@ -400,7 +440,10 @@ namespace Microsoft.AGL.Core.ProjectionSolver{
             bool ret = false;
             foreach (Constraint c in from v in neighbs from c in v.LeftConstraints where c.IsActive select c) {
                 if (c.Gap > FailToAdjustEpsilon)
+                {
                     ret = true;
+                }
+
                 solver.SetConstraintUpdate(c, c.Gap/scale);
             }
             return ret;

@@ -48,16 +48,24 @@ namespace Microsoft.AGL.Layout.Incremental {
 
         internal void SetOlapNode(bool horizontal, OverlapRemovalNode olapNode) {
             if (horizontal)
+            {
                 mOlapNodeX = olapNode;
+            }
             else
+            {
                 mOlapNodeY = olapNode;
+            }
         }
 
         internal void SetVariableDesiredPos(bool horizontal) {
             if (horizontal)
+            {
                 mOlapNodeX.Variable.DesiredPos = desiredPosition.X;
+            }
             else
+            {
                 mOlapNodeY.Variable.DesiredPos = desiredPosition.Y;
+            }
         }
         /// <summary>
         /// Update the current X or Y coordinate of the node center from the result of a solve
@@ -65,11 +73,15 @@ namespace Microsoft.AGL.Layout.Incremental {
         /// <param name="horizontal"></param>
         internal void UpdatePos(bool horizontal) {
             if (horizontal)
+            {
                 // Y has not yet been solved so reuse the previous position.
                 Center = new Point(getOlapNode(true).Position, previousCenter.Y);
+            }
             else
+            {
                 // Assumes X has been solved and set on prior pass.
                 Center = new Point(Center.X, getOlapNode(false).Position);
+            }
         }
 
         public override string ToString() => "FINode(" + index + "):" + mNode;

@@ -31,22 +31,30 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         void Init() {
             foreach (EdgeGeometry e in metroGraphData.Edges)
+            {
                 polylineToEdgeGeom[(Polyline)e.Curve] = e;
+            }
 
             foreach (Polyline poly in Polylines)
+            {
                 RegisterPolylinePointInPathsThrough(poly.PolylinePoints);
+            }
         }
 
         void RegisterPolylinePointInPathsThrough(IEnumerable<PolylinePoint> points) {
             foreach (PolylinePoint pp in points)
+            {
                 RegisterPolylinePointInPathsThrough(pp);
+            }
         }
 
         void RegisterPolylinePointInPathsThrough(PolylinePoint pp) => CollectionUtilities.AddToMap(pathsThroughPoints, pp.Point, pp);
 
         void UnregisterPolylinePointInPathsThrough(IEnumerable<PolylinePoint> points) {
             foreach (PolylinePoint pp in points)
+            {
                 UnregisterPolylinePointInPathsThrough(pp);
+            }
         }
 
         void UnregisterPolylinePointInPathsThrough(PolylinePoint pp) => CollectionUtilities.RemoveFromMap(pathsThroughPoints, pp.Point, pp);
@@ -55,7 +63,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             Set<Polyline> queued = new Set<Polyline>(Polylines);
             Queue<Polyline> queue = new Queue<Polyline>();
             foreach (Polyline e in Polylines)
+            {
                 queue.Enqueue(e);
+            }
+
             while (queue.Count > 0) {
                 Polyline initialPolyline = queue.Dequeue();
                 queued.Remove(initialPolyline);
@@ -83,7 +94,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                 foreach (PolylinePoint polyPoint in pathsThroughPoints[pp.Point]) {
                     if (departed.ContainsKey(polyPoint.Polyline)) {
                         if (ProcessFlip(polyline, polyPoint.Polyline, departed[polyPoint.Polyline].Point, pp.Point))
+                        {
                             return polyPoint.Polyline;
+                        }
+
                         departed.Remove(polyPoint.Polyline);
                     }
                 }
@@ -105,7 +119,11 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         bool ProcessFlip(Polyline polylineA, Polyline polylineB, Point flipStart, Point flipEnd) {
             //temporary switching polylines of the same width only
             //need to check capacities here
-            if (polylineToEdgeGeom[polylineA].LineWidth != polylineToEdgeGeom[polylineB].LineWidth) return false;
+            if (polylineToEdgeGeom[polylineA].LineWidth != polylineToEdgeGeom[polylineB].LineWidth)
+            {
+                return false;
+            }
+
             FindPointsOnPolyline(polylineA, flipStart, flipEnd, out PolylinePoint aFirst, out PolylinePoint aLast, out bool forwardOrderA);
             FindPointsOnPolyline(polylineB, flipStart, flipEnd, out PolylinePoint bFirst, out PolylinePoint bLast, out bool forwardOrderB);
             Debug.Assert(PolylinePointsAreInForwardOrder(aFirst, aLast) == forwardOrderA);
@@ -118,9 +136,15 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             int rel2 = FindRelationOnLastPoint(aLast, bLast, forwardOrderA, forwardOrderB);
 
             //no intersection on both sides
-            if (rel1 != 2 && rel2 != 2) return false;
+            if (rel1 != 2 && rel2 != 2)
+            {
+                return false;
+            }
             //can't swap to reduce crossings
-            if (rel1 == 1 || rel2 == 1) return false;
+            if (rel1 == 1 || rel2 == 1)
+            {
+                return false;
+            }
 
             //unregister
             UnregisterPolylinePointInPathsThrough(polylineA.PolylinePoints);
@@ -152,10 +176,25 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             ppFirst = ppLast = null;
             forwardOrder = false;
             for (PolylinePoint pp = polyline.StartPoint; pp != null; pp = pp.Next) {
-                if (pp.Point == first) ppFirst = pp;
-                if (pp.Point == last) ppLast = pp;
-                if (ppFirst != null && ppLast == null) forwardOrder = true;
-                if (ppFirst == null && ppLast != null) forwardOrder = false;
+                if (pp.Point == first)
+                {
+                    ppFirst = pp;
+                }
+
+                if (pp.Point == last)
+                {
+                    ppLast = pp;
+                }
+
+                if (ppFirst != null && ppLast == null)
+                {
+                    forwardOrder = true;
+                }
+
+                if (ppFirst == null && ppLast != null)
+                {
+                    forwardOrder = false;
+                }
             }
             Debug.Assert(ppFirst != null && ppLast != null);
         }
@@ -163,7 +202,13 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         bool PolylinePointsAreInForwardOrder(PolylinePoint u, PolylinePoint v) {
             Debug.Assert(u.Polyline == v.Polyline);
             for (PolylinePoint p = u; p != null; p = p.Next)
-                if (p == v) return true;
+            {
+                if (p == v)
+                {
+                    return true;
+                }
+            }
+
             return false;
         }
 
@@ -185,7 +230,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                     return 0;
                 }
 
-                if (prevA.Point != prevB.Point) break;
+                if (prevA.Point != prevB.Point)
+                {
+                    break;
+                }
 
                 aFirst = prevA;
                 bFirst = prevB;
@@ -208,7 +256,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                     return 0;
                 }
 
-                if (nextA.Point != nextB.Point) break;
+                if (nextA.Point != nextB.Point)
+                {
+                    break;
+                }
 
                 aLast = nextA;
                 bLast = nextB;
@@ -307,7 +358,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         List<PolylinePoint> GetRangeOnPolyline(PolylinePoint start, PolylinePoint end, bool forwardOrder) {
             List<PolylinePoint> res = [];
             for (PolylinePoint pp = start; pp != end; pp = Next(pp, forwardOrder))
+            {
                 res.Add(pp);
+            }
 
             return res;
         }
@@ -320,7 +373,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                 //look for a returning path
                 foreach (PolylinePoint polyPoint in pathsThroughPoints[pp.Point]) {
                     if (departed.TryGetValue(polyPoint.Polyline, out PolylinePoint pointOfDeparture))
+                    {
                         return pointOfDeparture.Polyline;
+                    }
                 }
             }
 
@@ -341,7 +396,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         void RegisterInterestingPoint(Point p) {
             if (!interestingPoints.Contains(p))
+            {
                 interestingPoints.Insert(p);
+            }
         }
 
         internal Set<Point> GetChangedHubs() => interestingPoints;
@@ -352,24 +409,48 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             HashSet<Point> pointsToPP = [];
             for (PolylinePoint pp = poly.StartPoint; pp != null; pp = pp.Next) {
                 if (pp == poly.StartPoint) {
-                    if (pp.Prev != null) return false;
+                    if (pp.Prev != null)
+                    {
+                        return false;
+                    }
                 }
                 else {
-                    if (pp.Prev.Next != pp) return false;
+                    if (pp.Prev.Next != pp)
+                    {
+                        return false;
+                    }
                 }
                 if (pp == poly.EndPoint) {
-                    if (pp.Next != null) return false;
+                    if (pp.Next != null)
+                    {
+                        return false;
+                    }
                 }
                 else {
-                    if (pp.Next.Prev != pp) return false;
+                    if (pp.Next.Prev != pp)
+                    {
+                        return false;
+                    }
                 }
 
-                if (pointsToPP.Contains(pp.Point)) return false;
+                if (pointsToPP.Contains(pp.Point))
+                {
+                    return false;
+                }
+
                 pointsToPP.Add(pp.Point);
             }
 
-            if (poly.StartPoint.Prev != null) return false;
-            if (poly.EndPoint.Next != null) return false;
+            if (poly.StartPoint.Prev != null)
+            {
+                return false;
+            }
+
+            if (poly.EndPoint.Next != null)
+            {
+                return false;
+            }
+
             return true;
         }
     }

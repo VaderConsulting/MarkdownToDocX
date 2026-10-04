@@ -74,7 +74,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         
         void ProcessEvents() {
             while (EventQueue.Count > 0)
+            {
                 ProcessEvent(EventQueue.Dequeue());
+            }
         }
 
         void ProcessEvent(SweepEvent sweepEvent) {
@@ -82,14 +84,20 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             // ShowAtPoint(sweepEvent.Site);
 
             if (sweepEvent is VertexEvent vertexEvent)
+            {
                 ProcessVertexEvent(vertexEvent);
+            }
             else
             {
                 Z = GetZ(sweepEvent.Site);
                 if (sweepEvent is AxisEdgeLowPointEvent lowEdgeEvent)
+                {
                     ProcessLowEdgeEvent(lowEdgeEvent);
+                }
                 else
+                {
                     ProcessHighEdgeEvent((AxisEdgeHighPointEvent)sweepEvent);
+                }
             }
         }
 
@@ -107,21 +115,36 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             containerNode.Item.AddEdge(edge);
             RBNode<AxisEdgesContainer> prev = edgeContainersTree.Previous(containerNode);
             if (prev != null)
+            {
                 foreach (AxisEdge prevEdge in prev.Item)
+                {
                     foreach (AxisEdge ed in containerNode.Item)
+                    {
                         TryToAddRightNeighbor(prevEdge, ed);
+                    }
+                }
+            }
 
             RBNode<AxisEdgesContainer> next = edgeContainersTree.Next(containerNode);
             if (next != null)
+            {
                 foreach (AxisEdge ed in containerNode.Item)
+                {
                     foreach (AxisEdge neEdge in next.Item)
+                    {
                         TryToAddRightNeighbor(ed, neEdge);
+                    }
+                }
+            }
+
             ConstraintEdgeWithObstaclesAtZ(edge, edge.Source.Point);
         }
 
         void TryToAddRightNeighbor(AxisEdge leftEdge, AxisEdge rightEdge) {
             if (ProjectionsOfEdgesOverlap(leftEdge, rightEdge))
+            {
                 leftEdge.AddRightNeighbor(rightEdge);
+            }
         }
 
         bool ProjectionsOfEdgesOverlap(AxisEdge leftEdge, AxisEdge rightEdge) => SweepPole == Directions.North
@@ -167,8 +190,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
 
         void ConstraintEdgeWithObstaclesAtZFromRight(AxisEdge edge, Point point) {
             RBNode<SegmentBase> node = GetActiveSideFromRight(point);
-            if (node == null) return;
-            if (NotRestricting(edge, ((LeftObstacleSide) node.Item).Polyline)) return;
+            if (node == null)
+            {
+                return;
+            }
+
+            if (NotRestricting(edge, ((LeftObstacleSide) node.Item).Polyline))
+            {
+                return;
+            }
+
             Point x = ObstacleSideComparer.IntersectionOfSideAndSweepLine(node.Item);
             edge.BoundFromRight(x*DirectionPerp);
         }
@@ -179,8 +210,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         void ConstraintEdgeWithObstaclesAtZFromLeft(AxisEdge edge, Point point){
             //    ShowNudgedSegAndPoint(point, nudgedSegment);
             RBNode<SegmentBase> node = GetActiveSideFromLeft(point);
-            if (node == null) return;
-            if (NotRestricting(edge, ((RightObstacleSide) node.Item).Polyline)) return;
+            if (node == null)
+            {
+                return;
+            }
+
+            if (NotRestricting(edge, ((RightObstacleSide) node.Item).Polyline))
+            {
+                return;
+            }
+
             Point x = ObstacleSideComparer.IntersectionOfSideAndSweepLine(node.Item);
             edge.BoundFromLeft(x * DirectionPerp);
         }
@@ -302,7 +341,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             RBNode<AxisEdgesContainer> ret = GetAxisEdgesContainerNode(source);
       
             if(ret!=null)
+            {
                 return ret;
+            }
 
             return edgeContainersTree.Insert(new AxisEdgesContainer(source));
         }
@@ -316,8 +357,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             RBNode<AxisEdgesContainer> ret =
                 edgeContainersTree.FindFirst(cont => xProjection(cont.Source) >= prj-ApproximateComparer.DistanceEpsilon/2);
             if(ret != null)
-                if (xProjection(ret.Item.Source) <= prj+ApproximateComparer.DistanceEpsilon/2) 
+            {
+                if (xProjection(ret.Item.Source) <= prj+ApproximateComparer.DistanceEpsilon/2)
+                {
                     return ret;
+                }
+            }
+
             return null;
         }
 
@@ -326,11 +372,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         void ProcessVertexEvent(VertexEvent vertexEvent) {
             Z = GetZ(vertexEvent);
             if (vertexEvent is LeftVertexEvent leftVertexEvent)
+            {
                 ProcessLeftVertex(leftVertexEvent, vertexEvent.Vertex.NextOnPolyline);
+            }
             else
             {
                 if (vertexEvent is RightVertexEvent rightVertexEvent)
+                {
                     ProcessRightVertex(rightVertexEvent, vertexEvent.Vertex.PrevOnPolyline);
+                }
                 else
                 {
                     ProcessLeftVertex(vertexEvent, vertexEvent.Vertex.NextOnPolyline);
@@ -350,9 +400,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             double deltaZ = delta*SweepDirection;
             if (deltaZ <= ApproximateComparer.DistanceEpsilon){
                 if (deltaX > 0 && deltaZ >= 0)
+                {
                     EnqueueEvent(new RightVertexEvent(nextVertex));
+                }
                 else
+                {
                     RestrictEdgeContainerToTheRightOfEvent(rightVertexEvent.Vertex);
+                }
             }
             else{
                 //deltaZ>epsilon
@@ -371,9 +425,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
                     (container => siteX <= xProjection(container.Source));
 
             if (containerNode != null)
+            {
                 foreach (AxisEdge edge in containerNode.Item)
+                {
                     if (!NotRestricting(edge, polylinePoint.Polyline))
+                    {
                         edge.BoundFromLeft(DirectionPerp*site);
+                    }
+                }
+            }
         }
 
         bool NotRestricting(AxisEdge edge, Polyline polyline) => AxisEdgesToObstaclesTheyOriginatedFrom.TryGetValue(edge, out Polyline? p) && p == polyline;
@@ -384,7 +444,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             Point delta = site - prevSite;
             double deltaZ = delta * SweepDirection;
             if (deltaZ > ApproximateComparer.DistanceEpsilon)
+            {
                 RemoveRightSide(new RightObstacleSide(rightVertexEvent.Vertex.NextOnPolyline));
+            }
         }
 
 
@@ -392,9 +454,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             RBNode<AxisEdgesContainer> containerNode = GetAxisEdgesContainerNode(edge.Source.Point);
             containerNode.Item.RemoveAxis(edge);
             if(containerNode.Item.IsEmpty())
+            {
                 edgeContainersTree.DeleteNodeInternal(containerNode);
-            
-         //   Console.WriteLine(edgeContainersTree);
+            }
+
+            //   Console.WriteLine(edgeContainersTree);
         }
 
 
@@ -409,7 +473,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             double deltaZ = delta*SweepDirection;
             if (deltaZ <= ApproximateComparer.DistanceEpsilon ){
                 if (deltaX < 0 && deltaZ >= 0)
+                {
                     EnqueueEvent(new LeftVertexEvent(nextVertex));
+                }
             }
             else{
                 //deltaZ>epsilon
@@ -426,9 +492,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             RBNode<AxisEdgesContainer> containerNode = GetContainerNodeToTheLeftOfEvent(site);
 
             if (containerNode != null)
+            {
                 foreach (AxisEdge edge in containerNode.Item)
+                {
                     if (!NotRestricting(edge, polylinePoint.Polyline))
+                    {
                         edge.BoundFromRight(site*DirectionPerp);
+                    }
+                }
+            }
         }
 
         RBNode<AxisEdgesContainer> GetContainerNodeToTheLeftOfEvent(Point site) {
@@ -446,14 +518,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             Point delta = site - prevSite;
             double deltaZ = delta * SweepDirection;
             if (deltaZ > ApproximateComparer.DistanceEpsilon)
+            {
                 RemoveLeftSide(new LeftObstacleSide(leftVertexEvent.Vertex.PrevOnPolyline));
+            }
         }
 
 
         void InitTheQueueOfEvents() {
             InitQueueOfEvents();
             foreach (AxisEdge axisEdge in AxisEdges)
+            {
                 EnqueueEventsForEdge(axisEdge);
+            }
         }
 
         protected IEnumerable<AxisEdge> AxisEdges { get; set; }
@@ -489,7 +565,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         }
 #else
         public int Compare(AxisEdgesContainer? x, AxisEdgesContainer? y) {
-            if (x is null) return y is null ? 0 : -1; if (y is null) return 1;
+            if (x is null)
+            {
+                return y is null ? 0 : -1;
+            }
+
+            if (y is null)
+            {
+                return 1;
+            }
+
             ValidateArg.IsNotNull(x, "x");
             ValidateArg.IsNotNull(y, "y");
             return (x.Source * DirectionPerp).CompareTo(y.Source * DirectionPerp);

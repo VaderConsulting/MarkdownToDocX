@@ -46,7 +46,9 @@ namespace Microsoft.AGL.Core {
             cancellationTokenSource.Token.ThrowIfCancellationRequested();
 #endif
             if (Canceled)
+            {
                 throw new OperationCanceledException();
+            }
         }
 
 #if PPC

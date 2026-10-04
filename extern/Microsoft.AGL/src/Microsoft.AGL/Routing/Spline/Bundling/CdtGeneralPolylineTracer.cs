@@ -30,9 +30,15 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
 
         void TryInsertEdge(CdtEdge e) {
-            if(crossedEdges.Contains(e)) return;
+            if(crossedEdges.Contains(e))
+            {
+                return;
+            }
+
             if (e.upperSite.Owner != e.lowerSite.Owner && RealCrossing(e))
+            {
                 crossedEdges.Insert(e);
+            }
         }
 
         bool RealCrossing(CdtEdge cdtEdge) {
@@ -50,7 +56,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                 TriangleOrientation orientation = Point.GetTriangleOrientation(polylinePoint.Point, cdtEdge.upperSite.Point,
                                                                cdtEdge.lowerSite.Point);
                 if (orientation != TriangleOrientation.Collinear)
+                {
                     return orientation != segEndOrientation;
+                }
             }
             return false;
         }
@@ -60,9 +68,13 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         static bool PointBelongsToInteriorOfTriangle(Point point, CdtTriangle cdtTriangle) {
             for (int i = 0; i < 3; i++)
+            {
                 if (Point.GetTriangleOrientation(cdtTriangle.Sites[i].Point, cdtTriangle.Sites[i + 1].Point,
                                                  point) != TriangleOrientation.Counterclockwise)
+                {
                     return false;
+                }
+            }
 
             return true;
         }
@@ -82,7 +94,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             foreach (CdtTriangle triangle in TriangleHierarchy.AllHitItems(pp.Point)) {
                 object feature = TryCreateFeatureWhichIsNotSite(pp, triangle);
                 if (feature != null)
+                {
                     return feature;
+                }
             }
             return OutsideOfTriangulation;
         }
@@ -90,23 +104,40 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         static object TryCreateFeatureWhichIsNotSite(PolylinePoint pp, CdtTriangle triangle) {
             Debug.Assert(!triangle.Sites.Any(s => ApproximateComparer.Close(pp.Point, s.Point)));
             TriangleOrientation a0 = Point.GetTriangleOrientation(pp.Point, triangle.Sites[0].Point, triangle.Sites[1].Point);
-            if (a0 == TriangleOrientation.Clockwise) return null;
+            if (a0 == TriangleOrientation.Clockwise)
+            {
+                return null;
+            }
 
             TriangleOrientation a1 = Point.GetTriangleOrientation(pp.Point, triangle.Sites[1].Point, triangle.Sites[2].Point);
-            if (a1 == TriangleOrientation.Clockwise) return null;
+            if (a1 == TriangleOrientation.Clockwise)
+            {
+                return null;
+            }
 
             TriangleOrientation a2 = Point.GetTriangleOrientation(pp.Point, triangle.Sites[2].Point, triangle.Sites[3].Point);
-            if (a2 == TriangleOrientation.Clockwise) return null;
+            if (a2 == TriangleOrientation.Clockwise)
+            {
+                return null;
+            }
 
             if (a0 == TriangleOrientation.Counterclockwise &&
                 a1 == TriangleOrientation.Counterclockwise &&
                 a2 == TriangleOrientation.Counterclockwise)
+            {
                 return triangle;
+            }
 
             if (a0 == TriangleOrientation.Collinear)
+            {
                 return triangle.Edges[0];
+            }
+
             if (a1 == TriangleOrientation.Collinear)
+            {
                 return triangle.Edges[1];
+            }
+
             Debug.Assert(a2 == TriangleOrientation.Collinear);
             return triangle.Edges[2];
         }
@@ -114,17 +145,26 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         internal Set<CdtEdge> GetCrossedEdges() {
            
             if (iterator.MoveNext() == false)
+            {
                 return crossedEdges;
+            }
+
             segStart = iterator.Current;
             lastCrossedFeature = GetPointFeatureOnHierarchies(segStart);
             if (iterator.MoveNext() == false)
+            {
                 return crossedEdges;
+            }
+
             segEnd = iterator.Current;
             do {
                 Step();
                 if (LastCrossedFeatureContainsSegEnd()) {
                     if (iterator.MoveNext() == false)
+                    {
                         return crossedEdges;
+                    }
+
                     MoveSegmentForward();
                 }
             } while (true);
@@ -138,22 +178,33 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         bool LastCrossedFeatureContainsSegEnd() {
             if (lastCrossedFeature is CdtTriangle triangle)
+            {
                 return PointBelongsToInteriorOfTriangle(segEnd.Point, triangle);
+            }
+
             if (lastCrossedFeature is CdtEdge edge)
+            {
                 return Point.GetTriangleOrientation(edge.upperSite.Point, edge.lowerSite.Point, segEnd.Point) ==
                        TriangleOrientation.Collinear;
+            }
 
             if (lastCrossedFeature is CdtSite site)
+            {
                 return ApproximateComparer.Close(site.Point, segEnd.Point);
+            }
 
             return true; //segEnd belongs to the outside of the triangulation
         }
 
         void Step() {
             if (PrevSegStart == null)
+            {
                 ProcessFirstSegment();
+            }
             else
+            {
                 RegularStep();
+            }
         }
 
 
@@ -189,15 +240,21 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
         void RegularStep() {
             if (lastCrossedFeature is CdtTriangle triangle)
+            {
                 StepFromTriangleInteriorPoint(triangle);
+            }
             else
             {
                 if (lastCrossedFeature is CdtEdge edge)
+                {
                     StepFromEdgeInteriorPoint(edge);
+                }
                 else
                 {
                     if (lastCrossedFeature is CdtSite site)
+                    {
                         RegularStepFromSite(site);
+                    }
                     else
                     { //we are outside of the triangulation  
                         //we don't report crossed edges that are on the triangulation boundary here because they are free to cross
@@ -227,24 +284,32 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                 return;
             }
             if (PointBelongsToInteriorOfTriangle(segEnd.Point, triangle))
+            {
                 lastCrossedFeature = triangle;
+            }
             else
+            {
                 foreach (CdtEdge e in triangle.Edges.Where(e=>e.IsAdjacent(site))) {
                     if (Point.GetTriangleOrientation( e.upperSite.Point, e.lowerSite.Point, segEnd.Point)==TriangleOrientation.Collinear) {
                         lastCrossedFeature = e;
                         return;
                     }
                 }
+            }
         }
         
         
         void ProcessFirstSegment() {
             if (lastCrossedFeature is CdtTriangle triangle)
+            {
                 StepFromTriangleInteriorPoint(triangle);
+            }
             else
             {
                 if (lastCrossedFeature is CdtEdge edge)
+                {
                     StepFromEdgeInteriorPoint(edge);
+                }
                 else
                 {
                     Debug.Assert(lastCrossedFeature is CdtSite);
@@ -271,7 +336,11 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
             //we cross an edge
             for (int i = 0; i < 3; i++) {
-                if (triangle.Edges[i] == edge) continue;
+                if (triangle.Edges[i] == edge)
+                {
+                    continue;
+                }
+
                 if (PointIsInsideCone(segEnd.Point, segStart.Point, triangle.Sites[i + 1].Point,
                                             triangle.Sites[i].Point)) {
                     CrossTriangleEdge(triangle.Edges[i]);
@@ -291,13 +360,13 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             }
             //we cross an edge
             for (int i = 0; i < 3; i++)
+            {
                 if (PointIsInsideCone(segEnd.Point, segStart.Point, triangle.Sites[i + 1].Point,
                                             triangle.Sites[i].Point)) {
                     CrossTriangleEdge(triangle.Edges[i]);
                     return;
                 }
-
-
+            }
         }
 
         void CrossTriangleEdge(CdtEdge e) {
@@ -311,7 +380,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                 lastCrossedFeature = e.lowerSite;
               //  PickupEdgesOfSite(e.lowerSite);
             } else
+            {
                 lastCrossedFeature = e;
+            }
         }
 
 /*

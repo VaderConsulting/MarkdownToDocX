@@ -12,17 +12,29 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
           }
 
         public int Compare(Diagonal? x, Diagonal? y) {
-            if (x is null) return y is null ? 0 : -1; if (y is null) return 1;
-              ValidateArg.IsNotNull(x, "x");
+            if (x is null)
+            {
+                return y is null ? 0 : -1;
+            }
+
+            if (y is null)
+            {
+                return 1;
+            }
+
+            ValidateArg.IsNotNull(x, "x");
               ValidateArg.IsNotNull(y, "y");
               System.Diagnostics.Debug.Assert(BelongsToTheDiagonal(PointOnTangentAndInsertedDiagonal, x.Start, x.End));
               if (x.Start != y.Start)
-                  switch (Point.GetTriangleOrientation(PointOnTangentAndInsertedDiagonal, y.Start, y.End)) {
+            {
+                switch (Point.GetTriangleOrientation(PointOnTangentAndInsertedDiagonal, y.Start, y.End)) {
                       case TriangleOrientation.Counterclockwise:
                           return -1;
                       default:
                           return 1;
-                  } else {
+                  }
+            }
+            else {
                   return 0;
               }
           }

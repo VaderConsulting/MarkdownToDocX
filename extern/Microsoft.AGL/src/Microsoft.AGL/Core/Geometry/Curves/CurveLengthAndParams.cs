@@ -25,7 +25,9 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
             lock (this)
             {
                 foreach (ICurve s in segs)
+                {
                     s.Translate(delta);
+                }
 
                 pBNode = null;
             }
@@ -41,7 +43,9 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         {
             Curve c = new Curve(segs.Count);
             foreach (ICurve s in segs)
+            {
                 c.AddSegment(s.ScaleFromOrigin(xScale, yScale));
+            }
 
             return c;
         }
@@ -54,7 +58,9 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         public ICurve Transform(PlaneTransformation transformation) {
             Curve c = new Curve(segs.Count);
             foreach (ICurve s in segs)
+            {
                 c.AddSegment(s.Transform(transformation));
+            }
 
             return c;
         }
@@ -74,7 +80,9 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
             ICurve seg = segs[i];
             double ret = seg.LengthPartial(s, seg.ParEnd);
             for (int k = i + 1; k < j; k++)
+            {
                 ret += segs[k].Length;
+            }
 
             seg = segs[j];
             return ret + seg.LengthPartial(seg.ParStart, e);
@@ -89,7 +97,10 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         static public double LengthWithInterpolation(ICurve curve) {
             double ret = 0;
             foreach (LineSegment ls in Interpolate(curve, lineSegThreshold))
+            {
                 ret += ls.Length;
+            }
+
             return ret;
         }
 
@@ -103,7 +114,10 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         {
             double ret = 0;
             foreach (LineSegment ls in Interpolate(curve, threshold))
+            {
                 ret += ls.Length;
+            }
+
             return ret;
         }
 
@@ -114,7 +128,10 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
             get {
                 double ret = 0;
                 foreach (ICurve ic in segs)
+                {
                     ret += ic.Length;
+                }
+
                 return ret;
             }
         }

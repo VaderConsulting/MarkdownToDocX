@@ -77,7 +77,9 @@ namespace Microsoft.AGL.Core.DataStructures {
                 r += o.ToString();
                 i++;
                 if (i < Count)
+                {
                     r += ",";
+                }
             }
             r += "}";
             return r;
@@ -106,7 +108,9 @@ namespace Microsoft.AGL.Core.DataStructures {
         public Set(IEnumerable<T> enumerableCollection) {
             ValidateArg.IsNotNull(enumerableCollection, "enumerableCollection");
             foreach (T j in enumerableCollection)
+            {
                 Insert(j);
+            }
         }
 
         /// <summary>
@@ -138,7 +142,10 @@ namespace Microsoft.AGL.Core.DataStructures {
             ValidateArg.IsNotNull(set1, "set1");
             Set<T> ret = new Set<T>(set0);
             foreach (T t in set1)
+            {
                 ret.Insert(t);
+            }
+
             return ret;
         }
 
@@ -152,7 +159,10 @@ namespace Microsoft.AGL.Core.DataStructures {
             ValidateArg.IsNotNull(set1, "set1");
             Set<T> ret = new Set<T>(set0);
             foreach (T t in set1)
+            {
                 ret.Remove(t);
+            }
+
             return ret;
         }
 
@@ -164,20 +174,35 @@ namespace Microsoft.AGL.Core.DataStructures {
         /// <returns></returns>
         static public bool operator ==(Set<T> set0, Set<T> set1) {
             if ((object)set0 == null && (object)set1 == null)
+            {
                 return true;
+            }
+
             if ((object)set0 == null && (object)set1 != null)
+            {
                 return false;
+            }
 
             if ((object)set1 == null && (object)set0 != null)
+            {
                 return false;
+            }
 
             foreach (T t in set0)
+            {
                 if (!set1.Contains(t))
+                {
                     return false;
+                }
+            }
 
             foreach (T t in set1)
+            {
                 if (!set0.Contains(t))
+                {
                     return false;
+                }
+            }
 
             return true;
         }
@@ -212,7 +237,10 @@ namespace Microsoft.AGL.Core.DataStructures {
         public override bool Equals(object obj) {
             Set<T> set = obj as Set<T>;
             if (set == null)
+            {
                 return false;
+            }
+
             return set == this;
         }
 
@@ -223,7 +251,10 @@ namespace Microsoft.AGL.Core.DataStructures {
         public override int GetHashCode() {
             int ret = 0;
             foreach (T t in this)
+            {
                 ret |= t.GetHashCode();
+            }
+
             return ret;
         }
 
@@ -243,7 +274,9 @@ namespace Microsoft.AGL.Core.DataStructures {
         {
             ValidateArg.IsNotNull(elements,"elements");
             foreach (T element in elements)
+            {
                 Insert(element);
+            }
         }
 
         ///<summary>

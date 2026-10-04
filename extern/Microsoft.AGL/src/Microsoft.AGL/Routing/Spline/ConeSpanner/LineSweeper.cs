@@ -64,23 +64,34 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
         void Calculate() {
             InitQueueOfEvents();
             while (EventQueue.Count > 0)
+            {
                 ProcessEvent(EventQueue.Dequeue());
+            }
+
             if (BorderPolyline != null)
+            {
                 CloseRemainingCones();
+            }
+
             CreatePortEdges();
 
         }
 
         void CreatePortEdges() {
             if (portEdgesGraph != null)
+            {
                 foreach (VisibilityEdge edge in portEdgesGraph.Edges) {
                     visibilityGraph.AddEdge(edge.SourcePoint, edge.TargetPoint, PortEdgesCreator);
                 }
+            }
         }
 
         void CloseRemainingCones() {
             if (leftConeSides.Count == 0)
+            {
                 return;
+            }
+
             Debug.Assert(leftConeSides.Count == rightConeSides.Count);
 
             PolylinePoint p = BorderPolyline.StartPoint;
@@ -126,17 +137,26 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
         static Point FindInsidePointBool(Point leftPoint, Point rightPoint, Point apex, Point leftSideConePoint,
                                          Point rightSideConePoint) {
             if (ApproximateComparer.Close(leftPoint, rightPoint))
+            {
                 return leftPoint; //does not matter which one to return
+            }
+
             if (Point.PointIsInsideCone(leftPoint, apex, leftSideConePoint, rightSideConePoint))
+            {
                 return leftPoint;
+            }
 
             if (Point.PointIsInsideCone(rightPoint, apex, leftSideConePoint, rightSideConePoint))
+            {
                 return rightPoint;
+            }
 
             Point m = 0.5 * (leftPoint + rightPoint);
 
             if (Point.PointToTheLeftOfLine(m, apex, leftSideConePoint))
+            {
                 return FindInsidePointBool(m, rightPoint, apex, leftSideConePoint, rightSideConePoint);
+            }
 
             return FindInsidePointBool(leftPoint, m, apex, leftSideConePoint, rightSideConePoint);
         }
@@ -148,9 +168,13 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
             foreach (ConeSide leftConeSide in leftConeSides) {
                 if (Point.PointToTheRightOfLineOrOnLine(point, leftConeSide.Start,
                                                         leftConeSide.Start + leftConeSide.Direction))
+                {
                     conesToRemove.Add(leftConeSide.Cone);
+                }
                 else
+                {
                     break;
+                }
             }
             foreach (Cone cone in conesToRemove) {
                 AddEdgeAndRemoveCone(cone, point);
@@ -166,11 +190,16 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
                 PolylinePoint pn = p.NextOnPolyline;
                 int pnSigh = GetSign(pn, a, b);
                 if (pnSigh - pSign > 0)
+                {
                     return p;
+                }
+
                 p = pn;
                 pSign = pnSigh;
                 if (p == startPoint)
+                {
                     throw new InvalidOperationException();
+                }
             } while (true);
             /*
                         throw new InvalidOleVariantTypeException();
@@ -180,7 +209,10 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
         static int GetSign(PolylinePoint p, Point a, Point b) {
             double d = Point.SignedDoubledTriangleArea(a, b, p.Point);
             if (d < 0)
+            {
                 return 1;
+            }
+
             return d > 0 ? -1 : 0;
         }
 
@@ -218,9 +250,14 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
 
         void AddEdgeAndRemoveCone(Cone cone, Point p) {
             if (Ports != null && Ports.Contains(cone.Apex))
+            {
                 CreatePortEdge(cone, p);
+            }
             else
+            {
                 visibilityGraph.AddEdge(cone.Apex, p);
+            }
+
             RemoveCone(cone);
         }
 
@@ -235,18 +272,25 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
             *******************/
 
         void CreatePortEdge(Cone cone, Point p) {
-            if (portEdgesGraph == null) portEdgesGraph = new VisibilityGraph();
+            if (portEdgesGraph == null)
+            {
+                portEdgesGraph = new VisibilityGraph();
+            }
+
             VisibilityVertex coneApexVert = portEdgesGraph.FindVertex(cone.Apex);
             //all previous edges adjacent to cone.Apex 
             VisibilityEdge[] edgesToFix = (coneApexVert != null)
                                  ? coneApexVert.InEdges.Concat(coneApexVert.OutEdges).ToArray()
                                  : null;
             if (edgesToFix != null)
+            {
                 foreach (VisibilityEdge edge in edgesToFix) {
                     Point otherPort = (edge.Target == coneApexVert ? edge.Source : edge.Target).Point;
                     VisibilityGraph.RemoveEdge(edge);
                     portEdgesGraph.AddEdge(otherPort, p);
                 }
+            }
+
             portEdgesGraph.AddEdge(cone.Apex, p);
         }
 
@@ -276,24 +320,35 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
             //            if(debug && (p.Site-new Point(-313.122 ,-170.6)).Length<1)
             //               Show( EllipseOnVert(p));
             if (p is VertexEvent vertexEvent)
+            {
                 ProcessVertexEvent(vertexEvent);
+            }
             else
             {
                 if (p is RightIntersectionEvent rightIntersectionEvent)
+                {
                     ProcessRightIntersectionEvent(rightIntersectionEvent);
+                }
                 else
                 {
                     if (p is LeftIntersectionEvent leftIntersectionEvent)
+                    {
                         ProcessLeftIntersectionEvent(leftIntersectionEvent);
+                    }
                     else
                     {
                         if (p is ConeClosureEvent coneClosure)
                         {
                             if (!coneClosure.ConeToClose.Removed)
+                            {
                                 RemoveCone(coneClosure.ConeToClose);
+                            }
                         }
                         else
+                        {
                             ProcessPortObstacleEvent((PortObstacleEvent)p);
+                        }
+
                         Z = GetZ(p);
                     }
                 }
@@ -343,15 +398,21 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
                     TryCreateConeClosureForLeftSide(leftSide);
                 }
             } else
+            {
                 Z = SweepDirection * leftIntersectionEvent.Site;
+            }
         }
 
         void TryCreateConeClosureForLeftSide(BrokenConeSide leftSide) {
             if (leftSide.Cone.RightSide is ConeRightSide coneRightSide)
+            {
                 if (
                     Point.GetTriangleOrientation(coneRightSide.Start, coneRightSide.Start + coneRightSide.Direction,
                                                  leftSide.EndVertex.Point) == TriangleOrientation.Clockwise)
+                {
                     CreateConeClosureEvent(leftSide, coneRightSide);
+                }
+            }
         }
 
         void CreateConeClosureEvent(BrokenConeSide brokenConeSide, ConeSide otherSide) {
@@ -362,10 +423,13 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
                                                 otherSide.Direction, out Point x);
 #if DEBUG && TEST_MSAGL
             if (!r)
+            {
                 LayoutAlgorithmSettings.ShowDebugCurves(
                     new DebugCurve(100, 0.1, "red",new LineSegment(brokenConeSide.Start, brokenConeSide.start + brokenConeSide.Direction)),
                     new DebugCurve(100,0.1, "black", new Ellipse(0.1,0.1, brokenConeSide.Start)),
                     new DebugCurve(100, 0.1, "blue",new LineSegment(otherSide.Start, otherSide.Start + otherSide.Direction)));
+            }
+
             Debug.Assert(r);
 #endif
             EnqueueEvent(new ConeClosureEvent(x, brokenConeSide.Cone));
@@ -390,15 +454,21 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
 
                 TryCreateConeClosureForRightSide(rightSide);
             } else
+            {
                 Z = SweepDirection * rightIntersectionEvent.Site;
+            }
         }
 
         void TryCreateConeClosureForRightSide(BrokenConeSide rightSide) {
             if (rightSide.Cone.LeftSide is ConeLeftSide coneLeftSide)
+            {
                 if (
                     Point.GetTriangleOrientation(coneLeftSide.Start, coneLeftSide.Start + coneLeftSide.Direction,
                                                  rightSide.EndVertex.Point) == TriangleOrientation.Counterclockwise)
+                {
                     CreateConeClosureEvent(rightSide, coneLeftSide);
+                }
+            }
         }
 
         void RemoveConesClosedBySegment(Point leftPoint, Point rightPoint) => CloseConesCoveredBySegment(leftPoint, rightPoint,
@@ -413,7 +483,10 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
 
             if (node == null || !Point.IntervalIntersectsRay(leftPoint, rightPoint,
                                                              node.Item.Start, node.Item.Direction, out Point x))
+            {
                 return;
+            }
+
             List<Cone> conesToRemove = new List<Cone>();
             do {
                 conesToRemove.Add(node.Item.Cone);
@@ -423,7 +496,9 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
 
 
             foreach (Cone cone in conesToRemove)
+            {
                 RemoveCone(cone);
+            }
         }
 
         void ProcessVertexEvent(VertexEvent vertexEvent) {
@@ -459,7 +534,9 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
             foreach (ConeSide s in rightConeSides) {
                 coneSideComparer. SetOperand(s);
                 if (!leftConeSides.Contains(s.Cone.LeftSide))
+                {
                     Console.WriteLine("bug");
+                }
             }
             foreach (ConeSide s in leftConeSides) {
                 coneSideComparer.SetOperand(s);
@@ -550,7 +627,9 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
             Point prevSite = rightVertexEvent.Vertex.NextOnPolyline.Point;
             double prevZ = prevSite*SweepDirection;
             if (ApproximateComparer.Close(prevZ, Z))
+            {
                 RemoveConesClosedBySegment(prevSite, rightVertexEvent.Vertex.Point);
+            }
 
             Point site = rightVertexEvent.Site;
             Point coneLp = site + ConeLeftSideDirection;
@@ -559,21 +638,33 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
             //SugiyamaLayoutSettings.Show(new LineSegment(site, coneLP), new LineSegment(site, coneRP), new LineSegment(site, nextSite));
             //try to remove the right side
             if ((site - prevSite)*SweepDirection > ApproximateComparer.DistanceEpsilon)
+            {
                 RemoveRightSide(new RightObstacleSide(rightVertexEvent.Vertex.NextOnPolyline));
+            }
+
             if ((site - nextVertex.Point) * SweepDirection > ApproximateComparer.DistanceEpsilon)
+            {
                 RemoveLeftSide(new LeftObstacleSide(nextVertex));
+            }
 
             if (GetZ(nextSite) + ApproximateComparer.DistanceEpsilon < GetZ(rightVertexEvent))
-                  CreateConeOnVertex(rightVertexEvent);   
+            {
+                CreateConeOnVertex(rightVertexEvent);
+            }
+
             if (!Point.PointToTheRightOfLineOrOnLine(nextSite, site, coneLp)) {
                 //if (angle <= -coneAngle / 2) {
                 CreateConeOnVertex(rightVertexEvent);
                 if (Point.PointToTheLeftOfLineOrOnLine(nextSite + DirectionPerp, nextSite, site))
+                {
                     EnqueueEvent(new RightVertexEvent(nextVertex));
+                }
                 //  TryEnqueueRighVertexEvent(nextVertex);
             } else if (Point.PointToTheLeftOfLineOrOnLine(nextSite, site, coneRp))
+            {
                 //if (angle < coneAngle / 2) {
                 CaseToTheLeftOfLineOrOnLineConeRp(rightVertexEvent, nextVertex);
+            }
             else {
                 if ((nextSite - site)*SweepDirection > ApproximateComparer.DistanceEpsilon) {
                     LookForIntersectionOfObstacleSideAndLeftConeSide(rightVertexEvent.Site, nextVertex);
@@ -598,7 +689,9 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
             RBNode<ConeSide> lnode = InsertToTree(leftConeSides, cone.LeftSide);
             FixConeLeftSideIntersections(obstacleSideSeg, lnode);
             if ((nextVertex.Point - rightVertexEvent.Site) * SweepDirection > ApproximateComparer.DistanceEpsilon)
+            {
                 InsertRightSide(new RightObstacleSide(rightVertexEvent.Vertex));
+            }
         }
 
 
@@ -635,8 +728,16 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
                                                               PolylinePoint obstacleSideVertex) {
             RBNode<ConeSide> node = GetFirstNodeToTheRightOfPoint(obstacleSideStart);
             //          ShowLeftTree(Box(obstacleSideStart));
-            if (node == null) return;
-            if (node.Item is not ConeLeftSide coneLeftSide) return;
+            if (node == null)
+            {
+                return;
+            }
+
+            if (node.Item is not ConeLeftSide coneLeftSide)
+            {
+                return;
+            }
+
             if (Point.IntervalIntersectsRay(obstacleSideStart, obstacleSideVertex.Point, coneLeftSide.Start,
                                             ConeLeftSideDirection, out Point intersection))
             {
@@ -655,7 +756,10 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
         void PrintOutRightSegTree() {
             Console.WriteLine("right segment tree");
             foreach (ConeSide t in rightConeSides)
+            {
                 Console.WriteLine(t);
+            }
+
             Console.WriteLine("end of right segments");
         }
 #endif
@@ -710,12 +814,15 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
             // SugiyamaLayoutSettings.Show(new LineSegment(site, coneLP), new LineSegment(site, coneRP), new LineSegment(site, nextSite));
 
             if ((site - prevSite) * SweepDirection > ApproximateComparer.DistanceEpsilon)
+            {
                 RemoveLeftSide(new LeftObstacleSide(leftVertexEvent.Vertex.PrevOnPolyline));
-
+            }
 
             double nextDelZ = GetZ(nextSite) - Z;
             if(nextDelZ<-ApproximateComparer.DistanceEpsilon)
+            {
                 RemoveRightSide(new RightObstacleSide(nextVertex));
+            }
 
             if (nextDelZ < -ApproximateComparer.DistanceEpsilon ||
                 ApproximateComparer.Close(nextDelZ, 0) && (nextSite - leftVertexEvent.Site) * DirectionPerp > 0) {
@@ -742,7 +849,9 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
                 RBNode<ConeSide> rbNode = InsertToTree(rightConeSides, rightSide);
                 FixConeRightSideIntersections(rightSide, rbNode);
                 if ((nextVertex.Point - leftVertexEvent.Site) * SweepDirection > ApproximateComparer.DistanceEpsilon)
+                {
                     InsertLeftSide(new LeftObstacleSide(leftVertexEvent.Vertex));
+                }
             } else {
                 EnqueueEvent(new LeftVertexEvent(nextVertex));
                 if ((nextVertex.Point - leftVertexEvent.Site) * SweepDirection > ApproximateComparer.DistanceEpsilon) {
@@ -877,7 +986,9 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
 
                 RightObstacleSide rightObstacleSide = FindFirstObstacleSideToTheLeftOfPoint(coneLeftSide.Start);
                 if (rightObstacleSide != null)
+                {
                     TryIntersectionOfConeLeftSideAndObstacleSide(coneLeftSide, rightObstacleSide);
+                }
             }
             else
             {
@@ -887,7 +998,9 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
                 {
                     coneLeftSide = leftNode.Item as ConeLeftSide;
                     if (coneLeftSide != null)
+                    {
                         TryIntersectionOfConeLeftSideAndObstacleConeSide(coneLeftSide, seg);
+                    }
                 }
             }
         }
@@ -906,7 +1019,9 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
 
                 LeftObstacleSide leftObstacleSide = FindFirstObstacleSideToToTheRightOfPoint(coneRightSide.Start);
                 if (leftObstacleSide != null)
+                {
                     TryIntersectionOfConeRightSideAndObstacleSide(coneRightSide, leftObstacleSide);
+                }
             }
             else
             {
@@ -916,7 +1031,9 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
                 {
                     coneRightSide = rightNode.Item as ConeRightSide;
                     if (coneRightSide != null)
+                    {
                         TryIntersectionOfConeRightSideAndObstacleConeSide(coneRightSide, seg);
+                    }
                 }
             }
         }
@@ -964,11 +1081,16 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
             foreach (ConeSide s in rightConeSides) {
                 l.Add(new DebugCurve(0.5, "brown", ExtendSegmentToZ(s)));
                 if (s is BrokenConeSide)
+                {
                     l.Add(new DebugCurve("brown", Diamond(s.Start)));
+                }
+
                 l.Add(new DebugCurve(0.5, "green",
                                      ExtendSegmentToZ(s.Cone.LeftSide)));
                 if (s.Cone.LeftSide is BrokenConeSide)
+                {
                     l.Add(new DebugCurve("green", Diamond(s.Cone.LeftSide.Start)));
+                }
             }
 
 //            l.AddRange(
@@ -1002,11 +1124,19 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
         void GoOverConesSeeingVertexEvent(SweepEvent vertexEvent) {
             RBNode<ConeSide> rbNode = FindFirstSegmentInTheRightTreeNotToTheLeftOfVertex(vertexEvent);
 
-            if (rbNode == null) return;
+            if (rbNode == null)
+            {
+                return;
+            }
+
             ConeSide coneRightSide = rbNode.Item;
             Cone cone = coneRightSide.Cone;
             ConeSide leftConeSide = cone.LeftSide;
-            if (VertexIsToTheLeftOfSegment(vertexEvent, leftConeSide)) return;
+            if (VertexIsToTheLeftOfSegment(vertexEvent, leftConeSide))
+            {
+                return;
+            }
+
             List<Cone> visibleCones = new List<Cone> { cone };
             coneSideComparer.SetOperand(leftConeSide);
             rbNode = leftConeSides.Find(leftConeSide);
@@ -1038,7 +1168,9 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
             }
 
             if (rbNode == null)
+            {
                 return; // the cone is not there! and it is a bug
+            }
 
             rbNode = leftConeSides.Next(rbNode);
             while (rbNode != null && !VertexIsToTheLeftOfSegment(vertexEvent, rbNode.Item)) {
@@ -1048,15 +1180,20 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
 
             //Show(new Ellipse(1, 1, vertexEvent.Site));
             foreach (Cone visCone in visibleCones)
+            {
                 AddEdgeAndRemoveCone(visCone, vertexEvent.Site);
+            }
         }
 
         RBNode<ConeSide> GetRbNodeEmergency(RBNode<ConeSide> rbNode, ConeSide leftConeSide) {
             for (RBNode<ConeSide> node = leftConeSides.TreeMinimum(); node != null; node = leftConeSides.Next(node))
+            {
                 if (node.Item == leftConeSide) {
                     rbNode = node;
                     break;
                 }
+            }
+
             return rbNode;
         }
 
@@ -1092,7 +1229,10 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
 
         void EnqueueEvent(RightVertexEvent vertexEvent) {
             if (SweepDirection * (vertexEvent.Site - vertexEvent.Vertex.PrevOnPolyline.Point) > ApproximateComparer.Tolerance)
+            {
                 return;//otherwise we enqueue the vertex twice; once as a LeftVertexEvent and once as a RightVertexEvent
+            }
+
             base.EnqueueEvent(vertexEvent);
         }
 

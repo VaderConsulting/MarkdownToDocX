@@ -107,7 +107,9 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout.NodeRailLevelCalculator {
                 LgNodeInfo ni = SortedLgNodeInfos[i];
                 Tuple<int, int> nodeTile = grid.PointToTuple(ni.Center);
                 if (!_nodeTileTable.ContainsKey(nodeTile))
+                {
                     _nodeTileTable[nodeTile] = 0;
+                }
 
                 if (_nodeTileTable[nodeTile] >= MaxNodesPerTile(zoomLevel)) //test MaxAmountNodesPerTile
                 {
@@ -154,8 +156,15 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout.NodeRailLevelCalculator {
             foreach (LgNodeInfo neighb in neighbors) {
                 SymmetricTuple<LgNodeInfo> t1 = new SymmetricTuple<LgNodeInfo>(ni, neighb);
                 List<Point> trajectory;
-                if (trajectories.ContainsKey(t1)) trajectory = trajectories[t1];
-                else continue;
+                if (trajectories.ContainsKey(t1))
+                {
+                    trajectory = trajectories[t1];
+                }
+                else
+                {
+                    continue;
+                }
+
                 for (int i = 0; i < trajectory.Count - 1; i++)
                 {
                     Point p0 = trajectory[i];
@@ -191,7 +200,9 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout.NodeRailLevelCalculator {
                 LgNodeInfo ni = SortedLgNodeInfos[i];
                 Tuple<int, int> nodeTile = grid.PointToTuple(ni.Center);
                 if (!_nodeTileTable.ContainsKey(nodeTile))
+                {
                     _nodeTileTable[nodeTile] = 0;
+                }
 
                 ni.Processed = true;
                 _nodeTileTable[nodeTile]++;
@@ -315,7 +326,9 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout.NodeRailLevelCalculator {
 
         void AddAllToNodeLevel(int iLevel) {
             if (!_nodeLevels.ContainsKey(iLevel))
+            {
                 _nodeLevels[iLevel] = [];
+            }
 
             foreach (LgNodeInfo ni in _insertedNodes)
             {
@@ -339,7 +352,9 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout.NodeRailLevelCalculator {
                 LgNodeInfo ni = SortedLgNodeInfos[i];
                 Tuple<int, int> tuple = grid.PointToTuple(ni.Center);
                 if (!_nodeTileTable.ContainsKey(tuple))
+                {
                     _nodeTileTable[tuple] = 0;
+                }
 
                 if (_nodeTileTable[tuple] >= MaxNodesPerTile(level)) {
                     return i;
@@ -384,18 +399,25 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout.NodeRailLevelCalculator {
         bool IfCanInsertLooseSegmentUpdateTiles(SymmetricSegment seg,  GridTraversal grid) {
             //test if already inserted
             if (IsSegmentAlreadyAdded(seg))
+            {
                 return true;
+            }
 
             List<Tuple<int, int>> intersectedTiles = GetIntersectedTiles(seg.A, seg.B, grid);
 
             bool canInsertSegment = true;
             foreach (Tuple<int, int> tile in intersectedTiles) {
                 if (!_segmentTileTable.ContainsKey(tile))
+                {
                     _segmentTileTable[tile] = 0;
+                }
 
                 canInsertSegment &= _segmentTileTable[tile] < MaxAmountRailsPerTile;
             }
-            if (!canInsertSegment) return false;
+            if (!canInsertSegment)
+            {
+                return false;
+            }
 
             foreach (Tuple<int, int> tile in intersectedTiles) {
                 _segmentTileTable[tile]++;
@@ -407,9 +429,13 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout.NodeRailLevelCalculator {
             insertedSegs = [];
             foreach (SymmetricSegment seg in segs) {
                 if (IfCanInsertLooseSegmentUpdateTiles(seg, grid))
+                {
                     insertedSegs.Insert(seg);
+                }
                 else
+                {
                     return false;
+                }
             }
             return true;
         }
@@ -425,13 +451,17 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout.NodeRailLevelCalculator {
 
             foreach (Tuple<int, int> tile in intersectedTiles) {
                 if (_segmentTileTable.ContainsKey(tile))
+                {
                     _segmentTileTable[tile]--;
+                }
             }
         }
 
         void AddSegmentToRtree(SymmetricSegment seg) {
             if (IsSegmentAlreadyAdded(seg))
+            {
                 return;
+            }
 
             Rectangle rect = new Rectangle(seg.A, seg.B);
             //rect = new Rectangle(rect.LeftBottom - segRtreeBuffer*new Point(1, 1),
@@ -457,7 +487,9 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout.NodeRailLevelCalculator {
             foreach (LgNodeInfo node in _insertedNodes) {
                 Tuple<int, int> tuple = grid.PointToTuple(node.Center);
                 if (!_nodeTileTable.ContainsKey(tuple))
+                {
                     _nodeTileTable[tuple] = 0;
+                }
 
                 _nodeTileTable[tuple]++;
             }

@@ -63,20 +63,30 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
       
         private void Sweep() {
             if (tangents.Count < 2)
+            {
                 return;
+            }
+
             for (int i = 1; i < tangents.Count; i++) { //we processed the first element already
                 Tangent t = tangents[i];
                 if (t.Diagonal != null) {
                     if (t.Diagonal.RbNode == activeDiagonalTree.TreeMinimum())
+                    {
                         AddVisibleEdge(t);
+                    }
+
                     if (t.IsHigh)
+                    {
                         RemoveDiagonalFromActiveNodes(t.Diagonal);
+                    }
                 } else {
                     if (t.IsLow) {
                         activeDiagonalComparer.PointOnTangentAndInsertedDiagonal = t.End.Point;
                         InsertActiveDiagonal(new Diagonal(t, t.Comp));
                         if (t.Diagonal.RbNode == activeDiagonalTree.TreeMinimum())
+                        {
                             AddVisibleEdge(t);
+                        }
                     }
                 }
 
@@ -105,7 +115,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         /// </summary>
         private void InitActiveDiagonals() {
             if (tangents.Count == 0)
+            {
                 return;
+            }
+
             Tangent firstTangent = tangents[0];
             Point firstTangentStart = firstTangent.Start.Point;
             Point firstTangentEnd = firstTangent.End.Point;
@@ -120,7 +133,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             }
 
             if (firstTangent.Diagonal.RbNode == activeDiagonalTree.TreeMinimum())
+            {
                 AddVisibleEdge(firstTangent);
+            }
 
             if (firstTangent.IsLow == false) { //remove the diagonal of the top tangent from active edges 
                 Diagonal diag = firstTangent.Diagonal;
@@ -132,15 +147,22 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
 
         private void AddPolylinesForShow(List<ICurve> curves) {
             foreach (Polygon p in AllObstacles)
+            {
                 curves.Add(p.Polyline);
+            }
         }
 #endif
 
         private void RemoveDiagonalFromActiveNodes(Diagonal diag) {
             RBNode<Diagonal> changedNode = activeDiagonalTree.DeleteSubtree(diag.RbNode);
             if (changedNode != null)
+            {
                 if (changedNode.Item != null)
+                {
                     changedNode.Item.RbNode = changedNode;
+                }
+            }
+
             diag.LeftTangent.Diagonal = null;
             diag.RightTangent.Diagonal = null;
         }
@@ -177,26 +199,40 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         IEnumerable<Polygon> AllObstacles {
             get {
                 foreach (Polygon p in addedPolygons)
+                {
                     yield return p;
+                }
+
                 foreach (Polygon p in polygons)
+                {
                     yield return p;
+                }
             }
         }
 
         private void OrganizeTangents() {
             foreach (Polygon q in AllObstacles)
+            {
                 if (q != currentPolygon)
+                {
                     ProcessPolygonQ(q);
-    
+                }
+            }
+
             tangents.Sort(new Comparison<Tangent>(TangentComparison));
         }
 
         private void ProcessPolygonQ(Polygon q) {
             TangentPair tangentPair = new TangentPair(currentPolygon, q);
             if (useLeftPTangents)
+            {
                 tangentPair.CalculateLeftTangents();
+            }
             else
+            {
                 tangentPair.CalculateRightTangents();
+            }
+
             Tuple<int, int> couple = useLeftPTangents ? tangentPair.leftPLeftQ : tangentPair.rightPLeftQ;
 
             Tangent t0 = new Tangent(currentPolygon[couple.Item1], q[couple.Item2])

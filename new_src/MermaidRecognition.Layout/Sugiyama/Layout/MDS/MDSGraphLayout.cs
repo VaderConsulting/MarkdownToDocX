@@ -99,12 +99,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
                 avgSum += Math.Sqrt(Math.Pow(x[i] - x[j], 2) + Math.Pow(y[i] - y[j], 2));
                 avgLength += edge.Length;
             }
-            if(avgLength>0) avgSum /= avgLength;
-            if(avgSum>0)
+            if(avgLength>0)
+            {
+                avgSum /= avgLength;
+            }
+
+            if (avgSum>0)
+            {
                 for (int i = 0; i < x.Length; i++) {
                     x[i] /= avgSum;
                     y[i] /= avgSum;
                 }
+            }
         }
 
 
@@ -119,7 +125,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
         internal static void LayoutGraphWithMds(GeometryGraph geometryGraph, MdsLayoutSettings settings, out double[] x, out double[] y) {            
             x = new double[geometryGraph.Nodes.Count];
             y = new double[geometryGraph.Nodes.Count];
-            if (geometryGraph.Nodes.Count == 0) return;
+            if (geometryGraph.Nodes.Count == 0)
+            {
+                return;
+            }
+
             if (geometryGraph.Nodes.Count == 1)
             {
                 x[0] = y[0] = 0;
@@ -170,10 +180,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
                 System.Threading.Tasks.Parallel.ForEach(graphs, options, LayoutConnectedGraphWithMds);
             }
             else
+            {
                 for (int i = 0; i < graphs.Length; i++) {
                     Console.WriteLine("laying out {0} connected component", i);
                     LayoutConnectedGraphWithMds(graphs[i]);
                 }
+            }
 
             if (graphs.Length > 1) {
                 Console.WriteLine("packing");
@@ -181,7 +193,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
                 Console.WriteLine("done packing");
                 //restore the parents
                 foreach (Node? node in graphs.SelectMany(g => g.Nodes))
+                {
                     node.GeometryParent = graph;
+                }
             }
             Console.WriteLine("done with LayoutConnectedComponents");
         }
@@ -194,7 +208,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
 
             LayoutGraphWithMds(compGraph, settings, out double[]? x, out double[]? y);
             if (settings.RotationAngle != 0)
+            {
                 Transform.Rotate(x, y, settings.RotationAngle);
+            }
 
             double scaleX = settings.ScaleX;
             double scaleY = settings.ScaleY;
@@ -209,7 +225,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
                 }
             }
             if (settings.AdjustScale)
+            {
                 AdjustScale(compGraph.Nodes);
+            }
 
             if (settings.RemoveOverlaps)
             {
@@ -230,7 +248,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
 
         void AdjustScale(IList<Node> nodes) {
             if (nodes.Count <= 5)
+            {
                 return; //we can have only a little bit of white space with a layout with only few nodes
+            }
+
             int repetitions = 10;
             double scale = 1.0;
             double delta = 0.5;
@@ -243,9 +264,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
                 const int numberOfChecks = 100; 
                 int hits = NumberOfHits(numberOfChecks, random, tree, maxNumberOfHits);
                 if (hits < minNumberOfHits)
+                {
                     scale /= 1+delta;
+                }
                 else if (hits > maxNumberOfHits)
+                {
                     scale *= 1+delta;
+                }
                 else {
                  //    if ( maxRepetitions> repetitions )
                   //      Console.WriteLine("reps={0} scale={1}, hits={2}", maxRepetitions-repetitions , scale, hits);
@@ -255,7 +280,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
                 //adjust the scale the graph
                 ScaleNodes(nodes, scale);
                 if (repetitions-- == 0)
+                {
                     return;
+                }
+
                 UpdateTree(tree);
             } while (true);            
         }
@@ -266,13 +294,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
                 node.Center *= scale;
                 i++;
                 if ((i%100) == 0)
+                {
                     ProgressStep();
+                }
             }
         }
 
         static void UpdateTree(RectangleNode<Node> tree) {
             if (tree.IsLeaf)
+            {
                 tree.Rectangle = tree.UserData.BoundingBox;
+            }
             else {
                 UpdateTree(tree.Left);
                 UpdateTree(tree.Right);
@@ -289,9 +321,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
                 Point point = RandomPointFromBox(random, ref tree.rectangle);
              //   l.Add(point);
                 if ((tree.FirstHitNode(point, (p, t) => HitTestBehavior.Stop)) != null)
+                {
                     numberOfHits++;
+                }
+
                 if (numberOfHits == maxNumberOfHits)
+                {
                     return maxNumberOfHits;
+                }
             }
             //LayoutAlgorithmSettings.ShowDebugCurvesEnumeration(Getdc(tree, l));
             return numberOfHits;
@@ -340,7 +377,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
                 return new Rectangle(0, 0, packing.PackedWidth, packing.PackedHeight);
             }
             if (rectangles.Count == 1)
+            {
                 return rectangles[0].Rectangle;
+            }
+
             return Rectangle.CreateAnEmptyBox();
         }
     }

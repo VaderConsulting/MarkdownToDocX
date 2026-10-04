@@ -33,8 +33,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
 
                 double secondDerivative = ct * ct + (c - a) * ctt;
 
-                if (Math.Abs(secondDerivative) < ApproximateComparer.Tolerance) 
+                if (Math.Abs(secondDerivative) < ApproximateComparer.Tolerance)
+                {
                     return t;
+                }
 
                 dt = (c - a) * ct / secondDerivative;
                
@@ -52,9 +54,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
                 (abort = (numberOfIteration >= numberOfIterationsMax || numberOfOvershoots >= numberOfOverShootsMax)));
 
             //may be the initial value was just fine
-            if (abort && (curve[hint] - a).Length < ApproximateComparer.DistanceEpsilon) 
+            if (abort && (curve[hint] - a).Length < ApproximateComparer.DistanceEpsilon)
+            {
                 t = hint;
-            
+            }
+
             return t;
 
            }

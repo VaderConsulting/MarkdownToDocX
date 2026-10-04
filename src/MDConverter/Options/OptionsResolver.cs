@@ -119,11 +119,30 @@ public static class OptionsResolver
             Target.Profile = Source.Profile;
         }
 
-        if (Source.HasEnableTables) Target.EnableTables = Source.EnableTables;
-        if (Source.HasEnableTaskLists) Target.EnableTaskLists = Source.EnableTaskLists;
-        if (Source.HasEnableAutoLinks) Target.EnableAutoLinks = Source.EnableAutoLinks;
-        if (Source.HasEnableFootnotes) Target.EnableFootnotes = Source.EnableFootnotes;
-        if (Source.HasEnableInlineHtml) Target.EnableInlineHtml = Source.EnableInlineHtml;
+        if (Source.HasEnableTables)
+        {
+            Target.EnableTables = Source.EnableTables;
+        }
+
+        if (Source.HasEnableTaskLists)
+        {
+            Target.EnableTaskLists = Source.EnableTaskLists;
+        }
+
+        if (Source.HasEnableAutoLinks)
+        {
+            Target.EnableAutoLinks = Source.EnableAutoLinks;
+        }
+
+        if (Source.HasEnableFootnotes)
+        {
+            Target.EnableFootnotes = Source.EnableFootnotes;
+        }
+
+        if (Source.HasEnableInlineHtml)
+        {
+            Target.EnableInlineHtml = Source.EnableInlineHtml;
+        }
     }
 
     private static void OverlayDocx(DocxOptions Target, DocxOptions Source)
@@ -135,19 +154,37 @@ public static class OptionsResolver
 
     private static void OverlayImages(ImageOptions Target, ImageOptions Source)
     {
-        if (Source.HasMaxWidthCm) Target.MaxWidthCm = Source.MaxWidthCm;
-        if (Source.HasScaleDownOnly) Target.ScaleDownOnly = Source.ScaleDownOnly;
+        if (Source.HasMaxWidthCm)
+        {
+            Target.MaxWidthCm = Source.MaxWidthCm;
+        }
+
+        if (Source.HasScaleDownOnly)
+        {
+            Target.ScaleDownOnly = Source.ScaleDownOnly;
+        }
+
         Target.MissingImagePlaceholderFormat = Source.MissingImagePlaceholderFormat ?? Target.MissingImagePlaceholderFormat;
     }
 
     private static void OverlayLinks(LinkOptions Target, LinkOptions Source)
     {
-        if (Source.HasEnableInternalLinks) Target.EnableInternalLinks = Source.EnableInternalLinks;
-        if (Source.HasEnableExternalLinks) Target.EnableExternalLinks = Source.EnableExternalLinks;
+        if (Source.HasEnableInternalLinks)
+        {
+            Target.EnableInternalLinks = Source.EnableInternalLinks;
+        }
+
+        if (Source.HasEnableExternalLinks)
+        {
+            Target.EnableExternalLinks = Source.EnableExternalLinks;
+        }
     }
 
     private static void OverlayTables(TableOptions Target, TableOptions Source)
     {
-        if (Source.HasEnableAlignment) Target.EnableAlignment = Source.EnableAlignment;
+        if (Source.HasEnableAlignment)
+        {
+            Target.EnableAlignment = Source.EnableAlignment;
+        }
     }
 }

@@ -1,4 +1,4 @@
-﻿using Microsoft.AGL.Core.Geometry;
+using Microsoft.AGL.Core.Geometry;
 
 namespace Microsoft.AGL.Layout.LargeGraphLayout {
     /// <summary>
@@ -36,9 +36,14 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
         /// <param name="v"></param>
         public void Add(double v) {
             if (Start > v)
+            {
                 Start = v;
+            }
+
             if (End < v)
+            {
                 End = v;
+            }
         }
 
         /// <summary>
@@ -76,7 +81,9 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
         /// <returns></returns>
         public bool Intersects(Interval other) {
             if (other.Start > End + ApproximateComparer.DistanceEpsilon)
+            {
                 return false;
+            }
 
             return !(other.End < Start - ApproximateComparer.DistanceEpsilon);
         }

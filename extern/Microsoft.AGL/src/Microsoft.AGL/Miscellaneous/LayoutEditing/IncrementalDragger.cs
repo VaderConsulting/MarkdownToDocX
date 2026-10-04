@@ -46,17 +46,27 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
         }
 
         void InitBumperPushers() {
-            if (pushingNodesArray.Length == 0) return;
+            if (pushingNodesArray.Length == 0)
+            {
+                return;
+            }
+
             Cluster cluster = DefaultClusterParent(pushingNodesArray[0]);
             if (cluster == null)
+            {
                 listOfPushers.Add(new BumperPusher(graph.Nodes, nodeSeparation, pushingNodesArray));
+            }
             else {
                 listOfPushers.Add( new BumperPusher(cluster.Nodes.Concat(cluster.Clusters), nodeSeparation,
                                                              pushingNodesArray));
                 do {
                     Cluster pushingCluster = cluster;
                     cluster = DefaultClusterParent(cluster);
-                    if (cluster == null) break;
+                    if (cluster == null)
+                    {
+                        break;
+                    }
+
                     listOfPushers.Add(new BumperPusher(cluster.Nodes.Concat(cluster.Clusters), nodeSeparation,
                                                        new[] {pushingCluster}));
 
@@ -72,7 +82,11 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
                 BumperPusher bumperPusher = listOfPushers[i];
                 bumperPusher.PushNodes();
                 Cluster cluster = DefaultClusterParent(bumperPusher.FirstPushingNode());
-                if (cluster == null || cluster==graph.RootCluster) break;
+                if (cluster == null || cluster==graph.RootCluster)
+                {
+                    break;
+                }
+
                 Rectangle box = cluster.BoundaryCurve.BoundingBox;
                 cluster.CalculateBoundsFromChildren(layoutSettings.ClusterMargin);
                 Debug.Assert(cluster.Nodes.All(n => cluster.BoundingBox.Contains(n.BoundingBox)));
@@ -93,11 +107,15 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
         /// <param name="delta"></param>
         public void Drag(Point delta) {
             if(delta.Length>0)
+            {
                 foreach (GeomNode n in pushingNodesArray) {
                     n.Center += delta;
                     if (n is Cluster cl)
+                    {
                         cl.DeepContentsTranslation(delta, true);
+                    }
                 }
+            }
 
             RunPushers();
             RouteChangedEdges();
@@ -124,11 +142,17 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
 
         void PositionLabels(GeometryGraph changedClusteredGraph) {
             foreach (Edge edge in changedClusteredGraph.Edges)
+            {
                 PositionEdge(edge);
+            }
         }
 
         void PositionEdge(Edge edge) {
-            if (!labelFixtures.TryGetValue(edge.EdgeGeometry, out LabelFixture lf)) return;
+            if (!labelFixtures.TryGetValue(edge.EdgeGeometry, out LabelFixture lf))
+            {
+                return;
+            }
+
             ICurve curve = edge.Curve;
             double lenAtLabelAttachment = curve.Length*lf.RelativeLengthOnCurve;
             double par = curve.GetParameterAtLength(lenAtLabelAttachment);
@@ -139,12 +163,21 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
 
         void InitLabelFixtures(GeometryGraph changedClusteredGraph) {
             foreach (Edge edge in changedClusteredGraph.Edges)
+            {
                 InitLabelFixture(edge);
+            }
         }
 
         void InitLabelFixture(Edge edge) {
-            if (edge.Label == null) return;
-            if (labelFixtures.ContainsKey(edge.EdgeGeometry)) return;
+            if (edge.Label == null)
+            {
+                return;
+            }
+
+            if (labelFixtures.ContainsKey(edge.EdgeGeometry))
+            {
+                return;
+            }
 
             double attachmentPar = edge.Curve.ClosestParameter(edge.Label.Center);
 
@@ -181,28 +214,44 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
             List<Edge> list = new List<Edge>();
             Rectangle box = Rectangle.CreateAnEmptyBox();
             foreach(GeomNode node in changedNodes)
+            {
                 box.Add(node.BoundaryCurve.BoundingBox);
-
+            }
 
             Polyline boxPoly = box.Perimeter();
 
             foreach (Edge e in graph.Edges)
+            {
                 if (EdgeNeedsRouting(ref box, e, boxPoly, changedNodes))
+                {
                     list.Add(e);
+                }
+            }
+
             return list;
         }
 
         bool EdgeNeedsRouting(ref Rectangle box, Edge edge, Polyline boxPolyline, Set<Node> changedNodes) {
             if (edge.Curve == null)
+            {
                 return true;
+            }
+
             if (changedNodes.Contains(edge.Source) || changedNodes.Contains(edge.Target))
+            {
                 return true;
+            }
+
             if (edge.Source.BoundaryCurve.BoundingBox.Intersects(box) ||
                 edge.Target.BoundaryCurve.BoundingBox.Intersects(box))
+            {
                 return true;
+            }
 
             if (!edge.BoundingBox.Intersects(box))
+            {
                 return false;
+            }
 
             return Curve.CurveCurveIntersectionOne(boxPolyline, edge.Curve, false) != null;
         }

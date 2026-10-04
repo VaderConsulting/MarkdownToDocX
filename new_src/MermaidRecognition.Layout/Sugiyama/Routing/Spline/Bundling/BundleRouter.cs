@@ -46,7 +46,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         void CheckGraph() {
             foreach (Edge e in geometryGraph.Edges) {
                 if (e.Source == e.Target)
+                {
                     continue;
+                }
+
                 CheckPortOfNode(e.Source, e.SourcePort);
                 CheckPortOfNode(e.Target, e.TargetPort);
             }
@@ -54,7 +57,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
         static void CheckPortOfNode(Node node, Port nodePort) {
             if (node is Cluster)
+            {
                 Debug.Assert(nodePort is ClusterBoundaryPort || nodePort is HookUpAnywhereFromInsidePort || nodePort is CurvePort);
+            }
         }
 #endif
 
@@ -182,11 +187,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             foreach (Edge edge in edges) {
                 HookUpAnywhereFromInsidePort? hookPort = edge.SourcePort as HookUpAnywhereFromInsidePort;
                 if (hookPort != null)
+                {
                     hookPort.SetLocation(FigureOutHookLocation(hookPort.LoosePolyline, edge.TargetPort, edge.EdgeGeometry));
+                }
                 else {
                     hookPort = edge.TargetPort as HookUpAnywhereFromInsidePort;
                     if (hookPort != null)
+                    {
                         hookPort.SetLocation(FigureOutHookLocation(hookPort.LoosePolyline, edge.SourcePort, edge.EdgeGeometry));
+                    }
                 }
             }
         }
@@ -207,7 +216,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 poly.Select(p => VisibilityGraph.FindVertex(p)), VisibilityGraph);
             IEnumerable<VisibilityVertex> path = s.GetPath();
             foreach (Shape sh in shapes)
+            {
                 sh.IsTransparent = false;
+            }
+
             return path.Last().Point;
         }
 
@@ -221,7 +233,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 poly.PolylinePoints.Select(p => VisibilityGraph.FindVertex(p.Point)), VisibilityGraph);
             IEnumerable<VisibilityVertex> path = s.GetPath();
             foreach (Shape sh in shapes)
+            {
                 sh.IsTransparent = false;
+            }
+
             return path.Last().Point;
         }
 
@@ -237,8 +252,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
             //find appropriate edge separation
             if (shortestPathRouter.Cdt != null)
+            {
                 if (!AnalyzeEdgeSeparation())
+                {
                     return false;
+                }
+            }
+
             return true;
         }
 
@@ -258,12 +278,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
            // TimeMeasurer.DebugOutput("opt es: " + es);
 
             if (es >= bundlingSettings.EdgeSeparation)
+            {
                 return true; //we can even enlarge it here
+            }
 
             if (es <= 0.02) {
                 TimeMeasurer.DebugOutput("edge bundling can't be executed: not enough free space around obstacles");
                 foreach (Edge e in regularEdges)
+                {
                     e.Curve = null;
+                }
 
                 return false;
             }
@@ -278,7 +302,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             Dictionary<CdtEdge, Set<EdgeGeometry>> res = [];
             foreach (EdgeGeometry edge in crossedEdges.Keys) {
                 foreach (CdtEdge cdtEdge in crossedEdges[edge])
+                {
                     CollectionUtilities.AddToMap(res, cdtEdge, edge);
+                }
             }
 
             return res;
@@ -288,13 +314,20 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             double l = 0.01;
             double r = 10;// ?TODO: change to bundlingSettings.EdgeSeparation;
             if (EdgeSeparationIsOk(pathsOnCdtEdge, r))
+            {
                 return r;
+            }
+
             while (Math.Abs(r - l) > 0.01) {
                 double cen = (l + r) / 2;
                 if (EdgeSeparationIsOk(pathsOnCdtEdge, cen))
+                {
                     l = cen;
+                }
                 else
+                {
                     r = cen;
+                }
             }
             return l;
         }
@@ -303,13 +336,19 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             //total number of cdt edges
             double total = pathsOnCdtEdge.Count;
             if (total == 0)
+            {
                 return true;
+            }
 
             //number of edges with requiredWidth <= availableWidth
             double ok = 0;
             foreach (CdtEdge edge in pathsOnCdtEdge.Keys)
+            {
                 if (EdgeSeparationIsOk(edge, pathsOnCdtEdge[edge], separation))
+                {
                     ok++;
+                }
+            }
 
             //at least 95% of edges should be okay
             return (ok / total > bundlingSettings.MinimalRatioOfGoodCdtEdges);
@@ -330,10 +369,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
         void FixArrowheads() {
             foreach (Edge edge in geometryGraph.Edges)
+            {
                 Arrowheads.TrimSplineAndCalculateArrowheads(edge.EdgeGeometry,
                                                                  edge.Source.BoundaryCurve,
                                                                  edge.Target.BoundaryCurve, 
                                                                  edge.Curve, false, bundlingSettings.KeepOriginalSpline);
+            }
         }
     }
 }

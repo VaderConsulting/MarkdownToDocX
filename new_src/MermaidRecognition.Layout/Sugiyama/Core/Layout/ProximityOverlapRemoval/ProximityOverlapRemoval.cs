@@ -46,7 +46,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
             {
                 settings = value;
                 if (StressSolver != null && value != null)
+                {
                     StressSolver.Settings = value.StressSettings;
+                }
             }
         }
 
@@ -89,7 +91,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
             {
                 stressSolver = value;
                 if (Settings != null && stressSolver != null)
+                {
                     stressSolver.Settings = Settings.StressSettings;
+                }
             }
         }
 
@@ -155,12 +159,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
                 //possibly call destructor to free memory...
             }
 
-            if (_nodes == null || _nodes.Length == 0) return;
+            if (_nodes == null || _nodes.Length == 0)
+            {
+                return;
+            }
 
             if (StressSolver == null) {
                 StressSolver = new StressMajorization();
                 if (Settings != null)
+                {
                     StressSolver.Settings = Settings.StressSettings;
+                }
             }
         }
 
@@ -209,7 +218,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
                     CdtSite site2 = triangleEdge.lowerSite;
                     int nodeId1 = (int) site1.Owner;
                     int nodeId2 = (int) site2.Owner;
-                    if (edgeSet.Contains(triangleEdge)) continue; //edge already included 
+                    if (edgeSet.Contains(triangleEdge))
+                    {
+                        continue; //edge already included 
+                    }
+
                     edgeSet.Add(triangleEdge);
 
                     Point point1 = site1.Point;
@@ -218,7 +231,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
                     double distance = GetIdealDistanceBetweenNodes(nodeId1, nodeId2, point1, point2, targetSizes,
                                                                    out double t);
                     if (t > 1)
+                    {
                         numberOverlappingPairs++;
+                    }
+
                     int nodeIdSmall = nodeId1;
                     int nodeIdBig = nodeId2;
                     if (nodeId1 > nodeId2) {
@@ -258,10 +274,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
         /// <returns></returns>
         public static double GetIdealDistanceBetweenNodes(int nodeId1, int nodeId2, Point point1, Point point2,
                                                           Size[] nodeBoxes, out double tRes) {
-            if (nodeBoxes == null) throw new ArgumentNullException("nodeBoxes");
+            if (nodeBoxes == null)
+            {
+                throw new ArgumentNullException("nodeBoxes");
+            }
+
             tRes = -1;
-            if (nodeBoxes.Length <= nodeId1) return 0;
-            if (nodeBoxes.Length <= nodeId2) return 0;
+            if (nodeBoxes.Length <= nodeId1)
+            {
+                return 0;
+            }
+
+            if (nodeBoxes.Length <= nodeId2)
+            {
+                return 0;
+            }
 
             const double expandMax = 1.5;
             const double expandMin = 1;
@@ -287,9 +314,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
                 t = Math.Min(wx/dx, wy/dy);
             }
 
-            if (t > 1) t = Math.Max(t, 1.001); // must be done, otherwise the convergence is very slow
-//            tmax = Math.Max(tmax, t);
-//            tmin = Math.Min(tmin, t);
+            if (t > 1)
+            {
+                t = Math.Max(t, 1.001); // must be done, otherwise the convergence is very slow
+            }
+            //            tmax = Math.Max(tmax, t);
+            //            tmin = Math.Min(tmin, t);
             t = Math.Min(expandMax, t);
             t = Math.Max(expandMin, t);
             tRes = t;
@@ -302,18 +332,24 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
         /// </summary>
         /// <returns></returns>
         public void RemoveOverlaps() {
-            if (_nodes == null || _nodes.Length == 0) return;
+            if (_nodes == null || _nodes.Length == 0)
+            {
+                return;
+            }
 #if DEBUG
-//            if (DebugMode) {
-//                Console.WriteLine("Showing graph on startup.");
-//                LayoutAlgorithmSettings.ShowGraph(Graph);
-//            }
+            //            if (DebugMode) {
+            //                Console.WriteLine("Showing graph on startup.");
+            //                LayoutAlgorithmSettings.ShowGraph(Graph);
+            //            }
 #endif
             // init some things
             InitNodePositionsAndBoxes(Settings, _nodes, out nodePositions, out nodeSizes);
 
             if (!(Settings.InitialScaling == InitialScaling.None))
+            {
                 DoInitialScaling();
+            }
+
             InitStressWithGraph(StressSolver, _nodes, nodePositions);
 #if DEBUG
             //debugging the node movements
@@ -378,7 +414,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
             Rectangle rect = Rectangle.CreateAnEmptyBox();
             Debug.Assert(sizes.Length==points.Length);
             for (int i = 0; i < sizes.Length; i++)
+            {
                 rect.Add(sizes[i], points[i]);
+            }
+
             return rect;
         }
 
@@ -399,10 +438,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
             int realCrossings = CountCrossingsWithRTree(nodeSizes);
             crossingsOverTime.Add(realCrossings);
             if (currentIteration%10 == 0)
+            {
                 Console.WriteLine("Scanline: {0}, Crossings: {1}", scanlinePhase, numCrossings);
+            }
 #endif
 
-            if (numCrossings == 0) return true;
+            if (numCrossings == 0)
+            {
+                return true;
+            }
 
             AddStressFromProximityEdges(StressSolver, proximityEdgesWithDistance);
             List<Point> newPositions = StressSolver.IterateAll();
@@ -424,15 +468,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
 
          void UpdatePointsAndBoxes(List<Point> newPositions) {
              for (int i = 0; i < nodePositions.Length; i++)
-                 nodePositions[i] = newPositions[i];
-         }
+            {
+                nodePositions[i] = newPositions[i];
+            }
+        }
 
          void SetPositionsToGraph() {
             for (int i = 0; i < _nodes.Length; i++) {
                 if (Settings.WorkInInches)
+                {
                     _nodes[i].Center = nodePositions[i]*72;
+                }
                 else
+                {
                     _nodes[i].Center = nodePositions[i];
+                }
             }
         }
 
@@ -506,7 +556,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
                 List<DebugCurve> curveList = [];
                 Rectangle[] nodeBoxes = new Rectangle[nodeSizes.Length];
                 for(int i=0;i<nodeBoxes.Length;i++)
+                {
                     nodeBoxes[i]=new Rectangle(nodeSizes[i], nodePositions[i]);
+                }
+
                 IEnumerable<DebugCurve> nodeCurves =
                     nodeBoxes.Select(
                         v =>
@@ -563,16 +616,26 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
         /// </summary>
          void DoInitialScaling() {
             Edge[] edges = _nodes.SelectMany(n => n.OutEdges).ToArray();
-            if (edges.Length == 0) return;
+            if (edges.Length == 0)
+            {
+                return;
+            }
 
             double avgEdgeLength = AvgEdgeLength(edges);
 
             double goalLength;
             if (Settings.InitialScaling == InitialScaling.Inch72Pixel)
+            {
                 goalLength = 72;
+            }
             else if (Settings.InitialScaling == InitialScaling.AvgNodeSize)
+            {
                 goalLength = nodeSizes.Average(box => (box.Width + box.Height)/2);
-            else return;
+            }
+            else
+            {
+                return;
+            }
 
             double scaling = goalLength/avgEdgeLength;
 #if DEBUG
@@ -632,7 +695,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
             int numCrossings = 0;
              RectangleNodeUtils.CrossRectangleNodes<int, int>(rootNode, rootNode,
                  (a, b) => {
-                     if (a == b) return;
+                     if (a == b)
+                     {
+                         return;
+                     }
+
                      double dist = GetOverlapFactorBetweenNodes
                          (
                              a, b,
@@ -649,7 +716,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
                      }
                      if (!(t > 1) ||
                          edgeSet.Contains(new Tuple<int, int>(smallId, bigId)))
+                     {
                          return;
+                     }
+
                      proximityEdges.Add(Tuple.Create(smallId, bigId,
                          dist, t));
                      edgeSet.Add(new Tuple<int, int>(smallId, bigId));
@@ -667,7 +737,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
             int numCrossings = 0;
             RectangleNodeUtils.CrossRectangleNodes<int, int>(rootNode, rootNode,
                                                              (a, b) => {
-                                                                 if (a == b) return;
+                                                                 if (a == b)
+                                                                 {
+                                                                     return;
+                                                                 }
+
                                                                  numCrossings++;
                                                              });
 
@@ -675,7 +749,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
         }
 
          static Size[] GetNodeSizesByPaddingWithHalfSeparation(Node[] nodes, double nodeSeparation) {
-            if (nodes == null) return null;
+            if (nodes == null)
+            {
+                return null;
+            }
+
             Size[] nodeSizes = new Size[nodes.Length];
             double halfSep = nodeSeparation/2;
              for (int i = 0; i < nodes.Length; i++) {
@@ -701,7 +779,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
                 }
                 Tuple<int, int> tup = new Tuple<int, int>(nodeId1, nodeId2);
                 if (nodePairs.Contains(tup))
+                {
                     continue;
+                }
+
                 nodePairs.Add(tup);
 
                 double distance = tuple.Item3;

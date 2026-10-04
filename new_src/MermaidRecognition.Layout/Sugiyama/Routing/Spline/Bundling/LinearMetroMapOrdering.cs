@@ -45,11 +45,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             List<int> orderedMetrolineListForUv = order[me];
             if (u.SerialNumber < v.SerialNumber) {
                 foreach (int MetrolineIndex in orderedMetrolineListForUv)
+                {
                     yield return MetrolinesGlobal[MetrolineIndex];
+                }
             }
             else {
                 for (int i = orderedMetrolineListForUv.Count - 1; i >= 0; i--)
+                {
                     yield return MetrolinesGlobal[orderedMetrolineListForUv[i]];
+                }
             }
         }
 
@@ -113,29 +117,41 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 int t = e2.Source() == v ? e2.Target() : e2.Source();
 
                 if (s < t)
+                {
                     return CreateFromTwoEdges(v, e1.nodes, e2.nodes);
+                }
                 else
+                {
                     return CreateFromTwoEdges(v, e2.nodes, e1.nodes);
+                }
             }
 
             internal static MetroEdge CreateFromTwoEdges(int v, List<int> e1, List<int> e2) {
                 List<int> nodes = new List<int>(e1.Count + e2.Count - 1);
                 if (e1[0] != v) {
                     for (int i = 0; i < e1.Count; i++)
+                    {
                         nodes.Add(e1[i]);
+                    }
                 }
                 else {
                     for (int i = e1.Count - 1; i >= 0; i--)
+                    {
                         nodes.Add(e1[i]);
+                    }
                 }
 
                 if (e2[0] == v) {
                     for (int i = 1; i < e2.Count; i++)
+                    {
                         nodes.Add(e2[i]);
+                    }
                 }
                 else {
                     for (int i = e2.Count - 2; i >= 0; i--)
+                    {
                         nodes.Add(e2[i]);
+                    }
                 }
 
                 MetroEdge res = new MetroEdge
@@ -155,7 +171,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             public override string ToString() {
                 string s = "(";
                 foreach (int i in nodes)
+                {
                     s += i + " ";
+                }
+
                 s += ")";
                 return s;
             }
@@ -192,13 +211,20 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             /// <returns></returns>
             public override bool Equals(object obj) {
                 if (!(obj is MetroEdge))
+                {
                     return false;
+                }
+
                 return (MetroEdge)obj == this;
 
             }
 
             public static bool operator ==(MetroEdge pair0, MetroEdge pair1) {
-                if (pair0.GetHashCode() != pair1.GetHashCode()) return false;
+                if (pair0.GetHashCode() != pair1.GetHashCode())
+                {
+                    return false;
+                }
+
                 return true;
                 //TODO: are conflicts possible?
                 //return pair0.nodes.SequenceEqual(pair1.nodes);
@@ -263,10 +289,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                     MetroEdge me = MetroEdge.CreateFromTwoNodes(Metroline[i], Metroline[i + 1]);
 
                     if (!initialEdges.Contains(me))
+                    {
                         initialEdges.Add(me);
+                    }
 
                     if (i + 2 < Metroline.Length)
+                    {
                         nonTerminals.Add(Metroline[i + 1]);
+                    }
 
                     CollectionUtilities.AddToMap(adjacent, Metroline[i], me);
                     CollectionUtilities.AddToMap(adjacent, Metroline[i + 1], me);
@@ -353,9 +383,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 MetroEdge newEdge = pl.edge;
 
                 if (oldEdge.Source() == a)
+                {
                     node = node.List.AddAfter(node, newEdge);
+                }
                 else
+                {
                     node = node.List.AddBefore(node, newEdge);
+                }
 
                 adjacencyIndex.Add(new Tuple<int, MetroEdge>(a, newEdge), node);
             }
@@ -373,13 +407,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             PathList pl = e2p[edge];
             if (pl.subLists == null) {
                 foreach (PathOnEdge path in pl.paths)
+                {
                     res.Add(path.index);
+                }
             }
             else {
                 foreach (PathList subList in pl.subLists) {
                     List<int> subResult = RestoreResult(subList.edge);
                     if (!(edge.Source() == subList.edge.Source() || edge.Target() == subList.edge.Target()))
+                    {
                         subResult.Reverse();
+                    }
+
                     res.AddRange(subResult);
                 }
             }
@@ -424,7 +463,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                     MetroEdge newEdge = pl.edge;
 
                     //we could check the reverse edge before
-                    if (e2p.ContainsKey(newEdge)) continue;
+                    if (e2p.ContainsKey(newEdge))
+                    {
+                        continue;
+                    }
 
                     //add e2p for new edge
                     e2p.Add(newEdge, pl);
@@ -490,7 +532,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                     }
                 }
 
-                if (oldEdge.Source() == v) subLists.Reverse();
+                if (oldEdge.Source() == v)
+                {
+                    subLists.Reverse();
+                }
+
                 res.Add(oldEdge, subLists);
             }
 
@@ -503,12 +549,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         MetroEdge FindNextEdgeOnPath(int v, PathOnEdge pathOnEdge) {
             if (pathOnEdge.node.Next != null) {
                 int o = OppositeNode(pathOnEdge.node.Next.Value, v);
-                if (o != -1) return pathOnEdge.node.Next.Value;
+                if (o != -1)
+                {
+                    return pathOnEdge.node.Next.Value;
+                }
             }
 
             if (pathOnEdge.node.Previous != null) {
                 int o = OppositeNode(pathOnEdge.node.Previous.Value, v);
-                if (o != -1) return pathOnEdge.node.Previous.Value;
+                if (o != -1)
+                {
+                    return pathOnEdge.node.Previous.Value;
+                }
             }
 
             throw new NotSupportedException();
@@ -518,8 +570,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         /// return an opposite vertex of a given edge
         /// </summary>
         int OppositeNode(MetroEdge edge, int v) {
-            if (edge.Source() == v) return edge.Target();
-            if (edge.Target() == v) return edge.Source();
+            if (edge.Source() == v)
+            {
+                return edge.Target();
+            }
+
+            if (edge.Target() == v)
+            {
+                return edge.Source();
+            }
 
             return -1;
         }
@@ -550,7 +609,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 f.List.Remove(f.Previous);
             }
             else
+            {
                 throw new NotSupportedException();
+            }
         }
     }
 

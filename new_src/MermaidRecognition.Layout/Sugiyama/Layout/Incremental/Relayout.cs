@@ -61,17 +61,26 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental
             this.clusterSettings = clusterSettings;
             ancestorsOfModifiedNodes =
                 new Set<Cluster>(modifiedNodes.SelectMany(v => v.AllClusterAncestors));
-            if (addedNodes == null) return;
-        
+            if (addedNodes == null)
+            {
+                return;
+            }
+
             foreach (Node v in addedNodes)
+            {
                 CreateOrGetAddedChildrenOfParent(v.ClusterParents.First()).Add(v);
+            }
+
             ancestorsOfModifiedNodes.InsertRange(addedNodes.SelectMany(v => v.AllClusterAncestors));
         }
 
         HashSet<Node> CreateOrGetAddedChildrenOfParent(Cluster parent) {
             addedNodesByCluster.TryGetValue(parent, out HashSet<Node>? addedChildren);
             if (addedChildren == null)
+            {
                 addedNodesByCluster[parent] = addedChildren = [];
+            }
+
             return addedChildren;
         }
 
@@ -82,7 +91,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental
 
             Cluster[] openedClusters = modifiedNodes.OfType<Cluster>().Where(cl => !cl.IsCollapsed).ToArray();
             if (openedClusters.Length > 0)
+            {
                 new InitialLayoutByCluster(graph, openedClusters, clusterSettings).Run();
+            }
 
             Visit(graph.RootCluster);
 
@@ -107,10 +118,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental
         // if the cluster is not in initiallayoutstate then visit children and then apply layout
         void Visit(Cluster u) {
             if (u.IsCollapsed || !ancestorsOfModifiedNodes.Contains(u))
+            {
                 return;
+            }
 
             foreach (Cluster c in u.Clusters)
+            {
                 Visit(c);
+            }
 
             LayoutCluster(u);
         }
@@ -156,7 +171,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental
                 settings.MaxConstraintLevel = 2;
             }
             else
+            {
                 settings.MinConstraintLevel = 2;
+            }
 
             GeometryGraph newGraph = GetShallowCopyGraphUnderCluster(cluster);
             LayoutAlgorithmHelpers.ComputeDesiredEdgeLengths(settings.IdealEdgeLength, newGraph);
@@ -206,24 +223,34 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental
             GeometryGraph newGraph = CreateGeometryGraphAndPopulateItWithNodes(originalToCopyNodeMap);
 
             foreach (Node target in originalToCopyNodeMap.Keys)
+            {
                 foreach (Node underNode in AllSuccessors(target)) { 
                     foreach (Edge e in underNode.InEdges) {
                         Node sourceAncestorUnderRoot = InitialLayoutByCluster.Ancestor(e.Source, cluster);
                         if (IsBetweenClusters(sourceAncestorUnderRoot, target))
+                        {
                             //it is a flat edge and we are only interested in flat edges
                             newGraph.Edges.Add(InitialLayoutByCluster.CopyEdge(originalToCopyNodeMap, e,
                                 sourceAncestorUnderRoot, target));
+                        }
                     }
                     foreach (Edge e in target.SelfEdges)
+                    {
                         newGraph.Edges.Add(InitialLayoutByCluster.CopyEdge(originalToCopyNodeMap, e));
+                    }
                 }
+            }
+
             return newGraph;
         }
 
         static GeometryGraph CreateGeometryGraphAndPopulateItWithNodes(Dictionary<Node, Node> originalToCopyNodeMap) {
             GeometryGraph newGraph = new GeometryGraph();
             foreach (Node v in originalToCopyNodeMap.Values)
+            {
                 newGraph.Nodes.Add(v);
+            }
+
             return newGraph;
         }
 
@@ -232,8 +259,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental
         static IEnumerable<Node> AllSuccessors(Node node) {
             List<Node> ret = new List<Node> {node};
             if (node is Cluster cl)
+            {
                 foreach (Node u in cl.AllSuccessorsWidthFirst())
-                    if (u != node) ret.Add(u);
+                {
+                    if (u != node)
+                    {
+                        ret.Add(u);
+                    }
+                }
+            }
+
             return ret;
         }
 

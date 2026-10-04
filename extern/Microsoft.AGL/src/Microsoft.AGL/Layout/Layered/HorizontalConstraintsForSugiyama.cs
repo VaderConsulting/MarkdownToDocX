@@ -48,7 +48,9 @@ namespace Microsoft.AGL.Layout.Layered {
 
         internal void AddSameLayerNeighbors(List<Node> neighbors) {
             for (int i = 0; i < neighbors.Count - 1; i++)
+            {
                 AddSameLayerNeighborsPair(neighbors[i], neighbors[i + 1]);
+            }
         }
 
         internal void AddSameLayerNeighborsPair(Node leftNode, Node rightNode) => LeftRightNeighbors.Insert(new Tuple<Node, Node>(leftNode, rightNode));
@@ -56,7 +58,10 @@ namespace Microsoft.AGL.Layout.Layered {
 
         int NodeToBlockRootSoft(int i) {
             if (nodeToBlockRoot.TryGetValue(i, out int blockRoot))
+            {
                 return blockRoot;
+            }
+
             return i;
         }
 
@@ -64,6 +69,7 @@ namespace Microsoft.AGL.Layout.Layered {
         void CreateMappingOfNeibBlocks() {
             BasicGraph<IntPair> graph = BasicGraphFromLeftRightIntNeibs();
             for (int root = 0; root < graph.NodeCount; root++)
+            {
                 if (graph.InEdges(root).Count == 0 && !nodeToBlockRoot.ContainsKey(root)) {
                     List<int> block = new List<int>();
                     int current = root;
@@ -74,8 +80,11 @@ namespace Microsoft.AGL.Layout.Layered {
                         nodeToBlockRoot[current] = root;
                     }
                     if (block.Count > 0)
+                    {
                         BlockRootToBlock[root] = block;
+                    }
                 }
+            }
         }
 
 
@@ -105,7 +114,10 @@ namespace Microsoft.AGL.Layout.Layered {
 
         int NodeIndex(Node node) {
             if (nodeIdToIndex.TryGetValue(node, out int index))
+            {
                 return index;
+            }
+
             return -1;
         }
 
@@ -145,7 +157,9 @@ namespace Microsoft.AGL.Layout.Layered {
                 CycleRemoval<IntPair>.GetFeedbackSet(
                     new BasicGraph<IntPair>(from p in LeftRighInts select new IntPair(p.Item1, p.Item2)));
             foreach (IntPair ip in feedbackSet)
+            {
                 LeftRighInts.Remove(new Tuple<int, int>(ip.First, ip.Second));
+            }
         }
 
         void MapNodesToToIntegers(int[] yLayers) {

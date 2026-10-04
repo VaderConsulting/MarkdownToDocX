@@ -61,9 +61,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Phylo
 
         private void StretchToDesiredAspectRatio(double aspectRatio, double desiredAR) {
             if (aspectRatio > desiredAR)
+            {
                 StretchInYDirection(aspectRatio / desiredAR);
+            }
             else if (aspectRatio < desiredAR)
+            {
                 StretchInXDirection(desiredAR / aspectRatio);
+            }
         }
         private void StretchInYDirection(double scaleFactor) {
             double center = (tree.BoundingBox.Top + tree.BoundingBox.Bottom) / 2;
@@ -93,10 +97,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Phylo
         private void DefineCellSize() {
 
             double min = double.MaxValue;
-            foreach (PhyloEdge e in tree.Edges) 
+            foreach (PhyloEdge e in tree.Edges)
+            {
                 min = Math.Min(min, e.Length);
+            }
 
-            cellSize=0.3*min;
+            cellSize =0.3*min;
 
         }
 
@@ -107,7 +113,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Phylo
                 int nodeIndex = nodesToIndices[kv.Key];
                 int gridLayerIndex=originalNodeToGridLayerIndices[nodeIndex] = GetGridLayerIndex(kv.Value);
                 if (!gridLayerOffsets.ContainsKey(gridLayerIndex))
+                {
                     gridLayerOffsets[gridLayerIndex] = kv.Value;
+                }
             }
         }
 
@@ -115,7 +123,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Phylo
 
         private void InitNodesToIndices() {
             for (int i = 0; i < intGraph.Nodes.Count; i++)
+            {
                 nodesToIndices[intGraph.Nodes[i]] = i;
+            }
         }
 
         private void FillNodeOffsets() => FillNodeOffsets(0.0, tree.Root);
@@ -123,13 +133,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Phylo
         private void FillNodeOffsets(double p, Node node) {
             nodeOffsets[node] = p;
             foreach (PhyloEdge e in node.OutEdges)
+            {
                 FillNodeOffsets(p+e.Length, e.Target);
+            }
         }
 
 
         private  void FillDataBase() {
             foreach (IntEdge e in intGraph.Edges)
+            {
                 dataBase.RegisterOriginalEdgeInMultiedges(e);
+            }
+
             SizeAnchors();
             FigureYCoordinates();
 
@@ -141,13 +156,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Phylo
             CalculateAnchorsY(root,m,0);
 
             for (int i = intGraph.NodeCount; i < dataBase.Anchors.Length; i++)
+            {
                 dataBase.Anchors[i].Y = -m * layerOffsets[layerArrays.Y[i]];
-   
+            }
+
             //fix layer offsets
             for (int i = 0; i < layerOffsets.Length; i++)
+            {
                 layerOffsets[i] *= m;
-
- 
+            }
         }
 
         private double GetMultiplier() {
@@ -155,7 +172,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Phylo
             for (int i = layerArrays.Layers.Length - 1; i > 0; i--) {
                 double nm = GetMultiplierBetweenLayers(i);
                 if (nm > m)
+                {
                     m = nm;
+                }
             }
 
             return m;
@@ -169,10 +188,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Phylo
             // we need to have m*(a[y]-b[y])>=anchors[a].BottomAnchor+anchors[b].TopAnchor+layerSeparation;
             double diff = ay - by;
             if (diff < 0)
+            {
                 throw new InvalidOperationException();
+            }
+
             double nm = (dataBase.Anchors[a].BottomAnchor + dataBase.Anchors[b].TopAnchor + LayoutSettings.LayerSeparation) / diff;
             if (nm > 1)
+            {
                 return nm;
+            }
+
             return 1;
         }
 
@@ -216,19 +241,24 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Phylo
             //go over original nodes
             dataBase.Anchors[node].Y = -y;
             foreach (IntEdge e in intGraph.OutEdges(node))
+            {
                 CalculateAnchorsY(e.Target, m, y + e.Edge.Length * m);
-   
+            }
         }
 
         private void SizeAnchors() {
             dataBase.Anchors = anchors = new Anchor[properLayeredGraph.NodeCount];
 
             for (int i = 0; i < anchors.Length; i++)
+            {
                 anchors[i] = new Anchor(LayoutSettings.LabelCornersPreserveCoefficient);
+            }
 
             //go over the old vertices
             for (int i = 0; i < intGraph.NodeCount; i++)
+            {
                 CalcAnchorsForOriginalNode(i);
+            }
 
             //go over virtual vertices
             foreach (IntEdge intEdge in dataBase.AllIntEdges) {
@@ -256,7 +286,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Phylo
                         a.LeftAnchor = LayoutSettings.NodeSeparation;
 
                         if (a.TopAnchor < h / 2.0)
+                        {
                             a.TopAnchor = a.BottomAnchor = h / 2.0;
+                        }
 
                         a.LabelToTheRightOfAnchorCenter = true;
                     }
@@ -294,15 +326,26 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Phylo
 
             double hw = LayoutSettings.MinNodeWidth / 2;
             if (leftAnchor < hw)
+            {
                 leftAnchor = hw;
+            }
+
             if (rightAnchor < hw)
+            {
                 rightAnchor = hw;
+            }
+
             double hh = LayoutSettings.MinNodeHeight / 2;
 
             if (topAnchor < hh)
+            {
                 topAnchor = hh;
+            }
+
             if (bottomAnchor < hh)
+            {
                 bottomAnchor = hh;
+            }
 
             anchors[i] = new Anchor(leftAnchor, rightAnchor, topAnchor, bottomAnchor, intGraph.Nodes[i], LayoutSettings.LabelCornersPreserveCoefficient)
                          {Padding = intGraph.Nodes[i].Padding};
@@ -340,7 +383,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Phylo
                     if (e.Edge.Label != null) {
                         rightAnchor += e.Edge.Label.Width;
                         if (topAnchor < e.Edge.Label.Height / 2.0)
+                        {
                             topAnchor = bottomAnchor = e.Edge.Label.Height / 2.0f;
+                        }
                     }
                 }
 
@@ -379,7 +424,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Phylo
 
             List<int>[] layers = new List<int>[numberOfLayers];
             for (i = 0; i < numberOfLayers; i++)
+            {
                 layers[i] = [];
+            }
 
             WalkTreeAndInsertLayerEdges(layering, layers);
 
@@ -398,9 +445,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Phylo
     
         private int CountTotalNodesIncludingVirtual(int node) {
             int ret = 1;
-            foreach (IntEdge edge in intGraph.OutEdges(node)) 
+            foreach (IntEdge edge in intGraph.OutEdges(node))
+            {
                 ret += NumberOfVirtualNodesOnEdge(edge) + CountTotalNodesIncludingVirtual(edge.Target);
-            
+            }
+
             return ret;
         }
 
@@ -418,16 +467,20 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Phylo
         }
 
         private void WalkTreeAndInsertLayerEdges(int[] layering, List<int>[] layers, int node, ref int virtualNode) {
-            foreach (IntEdge edge in intGraph.OutEdges(node)) 
+            foreach (IntEdge edge in intGraph.OutEdges(node))
+            {
                 InsertLayerEdgesForEdge(edge, layering, ref virtualNode, layers);
+            }
         }
 
         private void InsertLayerEdgesForEdge(IntEdge edge, int[] layering, ref int virtualNode, List<int>[] layers) {
             int span = OriginalNodeLayer(edge.Source) - OriginalNodeLayer(edge.Target);
             edge.LayerEdges=new LayerEdge[span];
-            for (int i = 0; i < span; i++) 
+            for (int i = 0; i < span; i++)
+            {
                 edge.LayerEdges[i] = new LayerEdge(GetSource(i, edge, ref virtualNode), GetTarget(i, span, edge, virtualNode), edge.CrossingWeight);
-       
+            }
+
             int l = OriginalNodeLayer(edge.Source) - 1;
             for (int i = 0; i < span; i++) {
                 int node=edge.LayerEdges[i].Target;
@@ -441,21 +494,27 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Phylo
 
         static private int GetTarget(int i, int span, IntEdge edge, int virtualNode) {
             if (i < span-1)
+            {
                 return virtualNode;
+            }
 
             return edge.Target;
         }
 
         static private int GetSource(int i, IntEdge edge, ref int virtualNode) {
             if (i > 0)
-                return virtualNode++; 
-            
+            {
+                return virtualNode++;
+            }
+
             return edge.Source;
         }
 
         void ProcessPositionedAnchors() {
             for (int i = 0; i < tree.Nodes.Count; i++)
+            {
                 intGraph.Nodes[i].Center=anchors[i].Origin;
+            }
         }
 
         private void CalcTheBoxFromAnchors() {

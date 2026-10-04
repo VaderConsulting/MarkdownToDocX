@@ -89,7 +89,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// <returns>True if the edge was removed. False if the edge was not removed or the edge was not found.</returns>
         virtual public bool Remove(Edge item) {
             if (item == null || !edges.Contains(item))
+            {
                 return false;
+            }
 
             DetouchEdge(item);
 

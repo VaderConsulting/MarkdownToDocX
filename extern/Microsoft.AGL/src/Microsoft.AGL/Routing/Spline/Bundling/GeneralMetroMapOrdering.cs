@@ -45,7 +45,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             }
             else {
                 for (int i = orderedMetrolineListForUv.Count - 1; i >= 0; i--)
+                {
                     yield return orderedMetrolineListForUv[i];
+                }
             }
         }
 
@@ -83,27 +85,38 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                 for (PolylinePoint p = Metroline.Polyline.StartPoint; p.Next != null; p = p.Next) {
                     PointPair e = new PointPair(p.Point, p.Next.Point);
                     if (!bundles.TryGetValue(e, out PointPairOrder li))
+                    {
                         bundles[e] = li = new PointPairOrder();
+                    }
+
                     li.Add(Metroline);
                 }
             }
 
             foreach (KeyValuePair<PointPair, PointPairOrder> edge in bundles)
+            {
                 BuildOrder(edge.Key, edge.Value);
+            }
         }
 
         /// <summary>
         /// Build order for edge (u->v)
         /// </summary>
         void BuildOrder(PointPair pair, PointPairOrder order) {
-            if (order.orderFixed) return;
+            if (order.orderFixed)
+            {
+                return;
+            }
+
             order.Metrolines.Sort((line0, line1) => CompareLines(line0, line1, pair.First, pair.Second));
 
             //save order
             order.orderFixed = true;
             order.LineIndexInOrder = [];
             for (int i = 0; i < order.Metrolines.Count; i++)
+            {
                 order.LineIndexInOrder[order.Metrolines[i]] = i;
+            }
         }
 
 
@@ -144,7 +157,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                 PointPair edge = new PointPair(p00.Point, p0.Point);
 
                 if (bundles[edge].orderFixed)
+                {
                     return CompareOnFixedOrder(edge, ml0, ml1, p0.Point!=edge.First);
+                }
+
                 p0 = p00;
                 p1 = p11;
             }

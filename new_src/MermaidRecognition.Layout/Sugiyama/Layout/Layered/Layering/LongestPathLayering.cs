@@ -29,7 +29,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered.Layering
                     int u = e.Source;
                     int l = layering[v] + e.Separation;
                     if (layering[u] < l)
+                    {
                         layering[u] = l;
+                    }
                 }
             }
             return layering;

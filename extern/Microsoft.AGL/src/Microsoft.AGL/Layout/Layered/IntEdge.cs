@@ -127,7 +127,10 @@ namespace Microsoft.AGL.Layout.Layered {
         /// <returns></returns>
         public override bool Equals(object obj) {
             if (obj is not IntEdge ie)
+            {
                 return false;
+            }
+
             return ie.source == source &&
                    ie.target == target;
         }
@@ -243,7 +246,9 @@ namespace Microsoft.AGL.Layout.Layered {
         public IEnumerator<int> GetEnumerator() {
             yield return layerEdges[0].Source;
             foreach (LayerEdge le in layerEdges)
+            {
                 yield return le.Target;
+            }
         }
 
         #endregion
@@ -253,7 +258,9 @@ namespace Microsoft.AGL.Layout.Layered {
         IEnumerator IEnumerable.GetEnumerator() {
             yield return layerEdges[0].Source;
             foreach (LayerEdge le in layerEdges)
+            {
                 yield return le.Target;
+            }
         }
 
         #endregion
@@ -278,7 +285,9 @@ namespace Microsoft.AGL.Layout.Layered {
             IEnumerator<int> en;
             for (int u = 0; u < graph.NodeCount; u++){
                 if (visited[u])
+                {
                     continue;
+                }
 
                 int cu = u;
                 visited[cu] = true;
@@ -303,7 +312,9 @@ namespace Microsoft.AGL.Layout.Layered {
                         cu = sv.Pop();
                     }
                     else
+                    {
                         break;
+                    }
                 } while (true);
             }
 

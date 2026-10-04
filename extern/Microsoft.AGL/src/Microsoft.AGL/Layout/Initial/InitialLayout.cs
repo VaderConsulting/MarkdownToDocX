@@ -67,7 +67,11 @@ namespace Microsoft.AGL.Layout.Initial
             {
                 foreach (Cluster c in graph.RootCluster.AllClustersDepthFirst())
                 {
-                    if (c == graph.RootCluster || c.RectangularBoundary == null) continue;
+                    if (c == graph.RootCluster || c.RectangularBoundary == null)
+                    {
+                        continue;
+                    }
+
                     c.RectangularBoundary.GenerateFixedConstraints = false;
                 }
 

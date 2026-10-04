@@ -813,9 +813,11 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             List<VisibilityVertex> list = new List<VisibilityVertex>(path);
             List<LineSegment> lines = new List<LineSegment>();
             for (int i = 0; i < list.Count - 1; i++)
+            {
                 lines.Add(new LineSegment(list[i].Point, list[i + 1].Point));
+            }
 
-// ReSharper disable InconsistentNaming
+            // ReSharper disable InconsistentNaming
             double w0 = 4;
             const double w1 = 8;
             double delta = (w1 - w0)/(list.Count - 1);
@@ -842,14 +844,18 @@ namespace Microsoft.AGL.Routing.Rectilinear {
 
                 if (prevEllipse != null) {
                     if (ellipseIsAlmostCurve)
+                    {
                         Curve.ContinueWithLineSegment(curve, CornerPoint(ellipse));
+                    }
                     else {
                         Curve.ContinueWithLineSegment(curve, ellipse.Start);
                         curve.AddSegment(ellipse);
                     }
                 } else {
                     if (ellipseIsAlmostCurve)
+                    {
                         Curve.AddLineSegment(curve, polyline[0], CornerPoint(ellipse));
+                    }
                     else {
                         Curve.AddLineSegment(curve, polyline[0], ellipse.Start);
                         curve.AddSegment(ellipse);
@@ -860,9 +866,13 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             }
 
             if (curve.Segments.Count > 0)
+            {
                 Curve.ContinueWithLineSegment(curve, polyline[polyline.Length - 1]);
+            }
             else
+            {
                 Curve.AddLineSegment(curve, polyline[0], polyline[polyline.Length - 1]);
+            }
 
             return curve;
         }
@@ -882,11 +892,15 @@ namespace Microsoft.AGL.Routing.Rectilinear {
                 double legLength = leg.Length;
 
                 if (legLength < ApproximateComparer.IntersectionEpsilon)
+                {
                     ret = new Ellipse(0, 0, polyline[i]);
+                }
 
                 Point ndir = leg/legLength;
                 if (Math.Abs(ndir*dir) > 0.9) //the polyline does't make a 90 degrees turn
+                {
                     ret = new Ellipse(0, 0, polyline[i]);
+                }
 
                 double nrad0 = Math.Min(radius, leg.Length/2);
                 Point axis0 = -nrad0*ndir;

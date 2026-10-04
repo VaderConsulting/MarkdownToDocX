@@ -156,8 +156,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
                 lock(this){
 #endif
                 if(parallelogramNodeOverICurve != null)
-
+                {
                     return parallelogramNodeOverICurve;
+                }
+
                 return parallelogramNodeOverICurve = CreateParallelogramNodeForCurveSeg(this);
 #if PPC
                 }
@@ -183,7 +185,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
                                                                                        Ellipse seg, double eps){
             bool closedSeg = (start == seg.ParStart && end == seg.ParEnd && ApproximateComparer.Close(seg.Start, seg.End));
             if(closedSeg)
+            {
                 return CreateNodeWithSegmentSplit(start, end, seg, eps);
+            }
 
             Point s = seg[start];
             Point e = seg[end];
@@ -227,12 +231,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
             double denumerator = (tan1*tan2Perp);
             double x; // = (p * tan2Perp) / (tan1 * tan2Perp);
             if(Math.Abs(numerator) < ApproximateComparer.DistanceEpsilon)
+            {
                 x = 0;
+            }
             else if(Math.Abs(denumerator) < ApproximateComparer.DistanceEpsilon){
                 //it is degenerated; adjacent sides are parallel, but 
                 //since p * tan2Perp is big it does not contain e
                 return false;
-            } else x = numerator/denumerator;
+            } else
+            {
+                x = numerator/denumerator;
+            }
 
             tan1 *= x;
 
@@ -256,7 +265,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
 
             double d0 = ParallelogramNodeOverICurve.DistToSegm(seg[start + d], s, e);
             if(d0 > eps)
+            {
                 return false;
+            }
 
             double d1 = ParallelogramNodeOverICurve.DistToSegm(seg[start + d*(n - 1)], s, e);
             //double d1d1 = seg.d1(start) * seg.d1(end);
@@ -306,16 +317,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
 
         void SetBoundingBox() {
             if (ApproximateComparer.Close(ParStart, 0) && ApproximateComparer.Close(ParEnd, Math.PI * 2))
+            {
                 box = FullBox();
+            }
             else {
                 //the idea is that the box of an arc staying in one quadrant is just the box of the start and the end point of the arc
                 box = new Rectangle(Start, End);
                 //now Start and End are in the box, we need just add all k*P/2 that are in between
                 double t;
                 for (int i = (int)Math.Ceiling(ParStart / (Math.PI / 2)); (t = i * Math.PI / 2) < ParEnd; i++)
-                    if (t > parStart) 
+                {
+                    if (t > parStart)
+                    {
                         box.Add(this[t]);
-
+                    }
+                }
             }
         }
 
@@ -392,10 +408,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
                 double m = 0.5*(u + l);
                 double len = LengthPartial(ParStart, m);
                 if(len>lenplus)
-                    u=m;
+                {
+                    u =m;
+                }
                 else if (len < lenminsu)
+                {
                     l = m;
-                else return m;
+                }
+                else
+                {
+                    return m;
+                }
             }
             return (u + l)/2;
         }
@@ -437,10 +460,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
                 }
             }
             if (closest == 0 && high == Math.PI*2)
+            {
                 low = -Math.PI;
+            }
+
             double ret = ClosestPointOnCurve.ClosestPoint(this, targetPoint, closest, low, high);
             if (ret < 0)
+            {
                 ret += 2 * Math.PI;
+            }
+
             return ret;
         }
 
@@ -494,9 +523,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
             }
             double ret = ClosestPointOnCurve.ClosestPoint(this, targetPoint, closest, ParStart, ParEnd);
             if(ret<0)
+            {
                 ret += 2*Math.PI;
+            }
+
             if (parStartWasChanged)
+            {
                 ParStart = savedParStart;
+            }
+
             return ret;
         }
 

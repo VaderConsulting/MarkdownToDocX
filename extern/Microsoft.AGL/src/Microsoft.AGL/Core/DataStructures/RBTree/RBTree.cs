@@ -54,10 +54,15 @@ namespace Microsoft.AGL.Core.DataStructures.RBTree
 
         RBNode<T> FindFirst(RBNode<T> n, Func<T, bool> p) {
             if (n == nil)
+            {
                 return null;
+            }
+
             RBNode<T> good = null;
             while (n != nil)
+            {
                 n = p(n.Item) ? (good = n).left : n.right;
+            }
 
             return good;
         }
@@ -73,10 +78,15 @@ namespace Microsoft.AGL.Core.DataStructures.RBTree
 
         RBNode<T> FindLast(RBNode<T> n, Func<T,bool> p) {
             if (n == nil)
+            {
                 return null;
+            }
+
             RBNode<T> good = null;
             while (n != nil)
+            {
                 n = p(n.Item) ? (good = n).right : n.left;
+            }
 
             return good;
         }
@@ -97,7 +107,10 @@ namespace Microsoft.AGL.Core.DataStructures.RBTree
 
         internal RBNode<T> Next(RBNode<T> x) {
             if (x.right != nil)
+            {
                 return TreeMinimum(x.right);
+            }
+
             RBNode<T> y = x.parent;
             while (y != nil && x == y.right) {
                 x = y;
@@ -110,7 +123,10 @@ namespace Microsoft.AGL.Core.DataStructures.RBTree
 
         internal RBNode<T> Previous(RBNode<T> x) {
             if (x.left != nil)
+            {
                 return TreeMaximum(x.left);
+            }
+
             RBNode<T> y = x.parent;
             while (y != nil && x == y.left) {
                 x = y;
@@ -121,7 +137,10 @@ namespace Microsoft.AGL.Core.DataStructures.RBTree
 
         RBNode<T> TreeMinimum(RBNode<T> x) {
             while (x.left != nil)
+            {
                 x = x.left;
+            }
+
             return ToNull(x);
         }
 
@@ -130,7 +149,10 @@ namespace Microsoft.AGL.Core.DataStructures.RBTree
 
         RBNode<T> TreeMaximum(RBNode<T> x) {
             while (x.right != nil)
+            {
                 x = x.right;
+            }
+
             return ToNull(x);
         }
 
@@ -172,7 +194,10 @@ namespace Microsoft.AGL.Core.DataStructures.RBTree
             } else {
                 /* find tree successor with a nil node as a child */
                 y = z.right;
-                while (y.left != nil) y = y.left;
+                while (y.left != nil)
+                {
+                    y = y.left;
+                }
             }
 
             /* x is y's only child */
@@ -180,17 +205,28 @@ namespace Microsoft.AGL.Core.DataStructures.RBTree
 
             x.parent = y.parent;
             if (y.parent == nil)
+            {
                 root = x;
+            }
             else {
                 if (y == y.parent.left)
+                {
                     y.parent.left = x;
+                }
                 else
+                {
                     y.parent.right = x;
+                }
             }
             if (y != z)
+            {
                 z.Item = y.Item;
+            }
+
             if (y.color == RBColor.Black)
+            {
                 DeleteFixup(x);
+            }
 
             //	checkTheTree();
 
@@ -218,7 +254,9 @@ namespace Microsoft.AGL.Core.DataStructures.RBTree
         RBNode<T> Find(RBNode<T> x, T i) {
             int compareResult;
             while (x != nil && (compareResult = Comparer.Compare(i, x.Item)) != 0)
+            {
                 x = compareResult < 0 ? x.left : x.right;
+            }
 
             return ToNull(x);
         }
@@ -301,11 +339,17 @@ namespace Microsoft.AGL.Core.DataStructures.RBTree
             RBNode<T> nz = new RBNode<T>(RBColor.Black, z, y, nil, nil);
 
             if (y == nil)
+            {
                 root = nz;
+            }
             else if (compareRes < 0)
+            {
                 y.left = nz;
+            }
             else
+            {
                 y.right = nz;
+            }
 
             return ToNull(nz);
         }
@@ -365,14 +409,23 @@ namespace Microsoft.AGL.Core.DataStructures.RBTree
             RBNode<T> y = x.right;
             x.right = y.left;
             if (y.left != nil)
+            {
                 y.left.parent = x;
+            }
+
             y.parent = x.parent;
             if (x.parent == nil)
+            {
                 root = y;
+            }
             else if (x == x.parent.left)
+            {
                 x.parent.left = y;
+            }
             else
+            {
                 x.parent.right = y;
+            }
 
             y.left = x;
             x.parent = y;
@@ -382,14 +435,23 @@ namespace Microsoft.AGL.Core.DataStructures.RBTree
             RBNode<T> y = x.left;
             x.left = y.right;
             if (y.right != nil)
+            {
                 y.right.parent = x;
+            }
+
             y.parent = x.parent;
             if (x.parent == nil)
+            {
                 root = y;
+            }
             else if (x == x.parent.right)
+            {
                 x.parent.right = y;
+            }
             else
+            {
                 x.parent.left = y;
+            }
 
             y.right = x;
             x.parent = y;
@@ -467,14 +529,18 @@ namespace Microsoft.AGL.Core.DataStructures.RBTree
 
         internal void AddCollection(IEnumerable<T> enumerable) {
             foreach (T p in enumerable)
+            {
                 Insert(p);
+            }
         }
 
         internal RBNode<T> InsertUnique(T item) {
             RBNode<T> node = Find(item);
 
             if (node != null)
+            {
                 return node;
+            }
 
             return Insert(item);
         }

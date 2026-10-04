@@ -34,7 +34,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
 
             Set<Polyline> obstaclesToIgnore = metroGraphData.looseIntersections.ObstaclesToIgnoreForBundle(v, u);
             Dictionary<Polyline, Tuple<Point, Point>> closeObstacles = FindCloseObstaclesForBundle(u.CdtTriangle, uPosition, vPosition, obstaclesToIgnore, upperBound);
-            if (closeObstacles == null) return false;
+            if (closeObstacles == null)
+            {
+                return false;
+            }
 
             //Polyline bundle = Intersections.Create4gon(vPosition, uPosition, upperBound, upperBound);
 
@@ -57,7 +60,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             closestDist = [];
             Set<Polyline> obstaclesToIgnore = metroGraphData.looseIntersections.ObstaclesToIgnoreForHub(v);
             Dictionary<Polyline, double> closeObstacles = FindCloseObstaclesForHub(v.CdtTriangle, v.Position, vPosition, obstaclesToIgnore, upperBound);
-            if (closeObstacles == null) return false;
+            if (closeObstacles == null)
+            {
+                return false;
+            }
 
             foreach (KeyValuePair<Polyline, double> item in closeObstacles) {
                 double dist = item.Value;
@@ -76,19 +82,29 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                                                                               double upperBound) {
             Dictionary<Polyline, Tuple<Point, Point>> obstacles = new Dictionary<Polyline, Tuple<Point, Point>>();
             if (!ThreadLineSegmentThroughTriangles(startTriangle, start, end, obstaclesToIgnore, out List<CdtTriangle> list))
+            {
                 return null;
+            }
 
             if (!ComputeForcesForBundles && !bundlingSettings.HighestQuality)
+            {
                 return obstacles;
+            }
 
             HashSet<CdtSite> checkedSites = new HashSet<CdtSite>();
 
             foreach (CdtTriangle t in list) {
                 foreach (CdtSite s in t.Sites) {
-                    if (!checkedSites.Add(s)) continue;
+                    if (!checkedSites.Add(s))
+                    {
+                        continue;
+                    }
 
                     Polyline poly = (Polyline) s.Owner;
-                    if (obstaclesToIgnore.Contains(poly)) continue;
+                    if (obstaclesToIgnore.Contains(poly))
+                    {
+                        continue;
+                    }
 
                     PolylinePoint pp = FindPolylinePoint(poly, s.Point);
                     double d12 = LineSegment.MinDistBetweenLineSegments(pp.Point, pp.NextOnPolyline.Point, start, end,
@@ -99,20 +115,30 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                     double dist;
                     if (d12 < d22) {
                         dist = d12;
-                        if (dist > upperBound) continue;
+                        if (dist > upperBound)
+                        {
+                            continue;
+                        }
+
                         r1 = pp.Point + (pp.NextOnPolyline.Point - pp.Point)*par11;
                         r2 = start + (end - start)*par12;
                     }
                     else {
                         dist = d22;
-                        if (dist > upperBound) continue;
+                        if (dist > upperBound)
+                        {
+                            continue;
+                        }
+
                         r1 = pp.Point + (pp.PrevOnPolyline.Point - pp.Point)*par21;
                         r2 = start + (end - start)*par22;
                     }
                     //if (dist > upperBound) continue;
 
                     if (!obstacles.TryGetValue(poly, out Tuple<Point, Point> currentValue))
+                    {
                         obstacles.Add(poly, new Tuple<Point, Point>(r1, r2));
+                    }
                 }
             }
 
@@ -122,7 +148,9 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         Dictionary<Polyline, double> FindCloseObstaclesForHub(CdtTriangle startTriangle, Point start, Point end, Set<Polyline> obstaclesToIgnore, double upperBound) {
             Dictionary<Polyline, double> obstacles = new Dictionary<Polyline, double>();
             if (!ThreadLineSegmentThroughTriangles(startTriangle, start, end, obstaclesToIgnore, out List<CdtTriangle> nearestTriangles))
+            {
                 return null;
+            }
 
             HashSet<CdtSite> checkedSites = new HashSet<CdtSite>();
 
@@ -142,17 +170,26 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         }
 
         void CheckSite(Point end, Set<Polyline> obstaclesToIgnore, HashSet<CdtSite> checkedSites, CdtSite s, double upperBound, Dictionary<Polyline, double> obstacles) {
-            if (!checkedSites.Add(s)) return;
+            if (!checkedSites.Add(s))
+            {
+                return;
+            }
 
             Polyline poly = (Polyline)s.Owner;
-            if (obstaclesToIgnore.Contains(poly)) return;
+            if (obstaclesToIgnore.Contains(poly))
+            {
+                return;
+            }
 
             //distance to the obstacle
             PolylinePoint pp = FindPolylinePoint(poly, s.Point);
             double d12 = Point.DistToLineSegment(end, pp.Point, pp.NextOnPolyline.Point, out double par);
             double d22 = Point.DistToLineSegment(end, pp.Point, pp.PrevOnPolyline.Point, out par);
             double dist = Math.Min(d12, d22);
-            if (dist > upperBound) return;
+            if (dist > upperBound)
+            {
+                return;
+            }
 
             if (!obstacles.TryGetValue(poly, out double currentValue))
             {
@@ -186,38 +223,51 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                 if (piercedEdge.Constrained) {
                     Debug.Assert(piercedEdge.lowerSite.Owner == piercedEdge.upperSite.Owner);
                     Polyline poly = (Polyline) piercedEdge.lowerSite.Owner;
-                    if (!obstaclesToIgnore.Contains(poly)) return false;
+                    if (!obstaclesToIgnore.Contains(poly))
+                    {
+                        return false;
+                    }
                 }                
             }
             if (threader.CurrentTriangle != null)
+            {
                 triangles.Add(threader.CurrentTriangle);
-//
-//            int positiveSign, negativeSign;
-//            CdtEdge piercedEdge = FindFirstPiercedEdge(currentTriangle, start, end, out negativeSign, out positiveSign,  null);
-//            
-//            Debug.Assert(positiveSign > negativeSign);
-//
-//            Debug.Assert(piercedEdge != null);
-//
-//            do {
-//                triangles.Add(currentTriangle);
-//                if (piercedEdge.Constrained) {
-//                    Debug.Assert(piercedEdge.lowerSite.Owner == piercedEdge.upperSite.Owner);
-//                    Polyline poly = (Polyline)piercedEdge.lowerSite.Owner;
-//                    if (!obstaclesToIgnore.Contains(poly)) return false;
-//                }
-//            }
-//            while (FindNextPierced(start, end, ref currentTriangle, ref piercedEdge, ref negativeSign, ref positiveSign));
-//            if (currentTriangle != null)
-//                triangles.Add(currentTriangle);
+            }
+            //
+            //            int positiveSign, negativeSign;
+            //            CdtEdge piercedEdge = FindFirstPiercedEdge(currentTriangle, start, end, out negativeSign, out positiveSign,  null);
+            //            
+            //            Debug.Assert(positiveSign > negativeSign);
+            //
+            //            Debug.Assert(piercedEdge != null);
+            //
+            //            do {
+            //                triangles.Add(currentTriangle);
+            //                if (piercedEdge.Constrained) {
+            //                    Debug.Assert(piercedEdge.lowerSite.Owner == piercedEdge.upperSite.Owner);
+            //                    Polyline poly = (Polyline)piercedEdge.lowerSite.Owner;
+            //                    if (!obstaclesToIgnore.Contains(poly)) return false;
+            //                }
+            //            }
+            //            while (FindNextPierced(start, end, ref currentTriangle, ref piercedEdge, ref negativeSign, ref positiveSign));
+            //            if (currentTriangle != null)
+            //                triangles.Add(currentTriangle);
 
             return true;
         }
 
         static internal int GetHyperplaneSign(Point start, Point end, CdtSite cdtSite) {
             double area = Point.SignedDoubledTriangleArea(start, cdtSite.Point, end);
-            if (area > ApproximateComparer.DistanceEpsilon) return 1;
-            if (area < -ApproximateComparer.DistanceEpsilon) return -1;
+            if (area > ApproximateComparer.DistanceEpsilon)
+            {
+                return 1;
+            }
+
+            if (area < -ApproximateComparer.DistanceEpsilon)
+            {
+                return -1;
+            }
+
             return 0;
         }
 
@@ -226,9 +276,14 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             for (int i = 0; i < 3; i++) {
                 double area = Point.SignedDoubledTriangleArea(p, triangle.Sites[i].Point, triangle.Sites[i + 1].Point);
                 if (area < -ApproximateComparer.DistanceEpsilon)
+                {
                     return PointLocation.Outside;
+                }
+
                 if (area < ApproximateComparer.DistanceEpsilon)
+                {
                     seenBoundary = true;
+                }
             }
 
             return seenBoundary ? PointLocation.Boundary : PointLocation.Inside;
@@ -237,8 +292,12 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
         
         static PolylinePoint FindPolylinePoint(Polyline poly, Point point) {
             foreach (PolylinePoint ppp in poly.PolylinePoints)
+            {
                 if (ppp.Point == point)
+                {
                     return ppp;
+                }
+            }
 
             throw new NotSupportedException();
         }
@@ -274,7 +333,10 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
                 if (piercedEdge.Constrained) {
                     Debug.Assert(piercedEdge.lowerSite.Owner == piercedEdge.upperSite.Owner);
                     Polyline poly = (Polyline)piercedEdge.lowerSite.Owner;
-                    if (!obstaclesToIgnore.Contains(poly)) return false;
+                    if (!obstaclesToIgnore.Contains(poly))
+                    {
+                        return false;
+                    }
                 }
             }
             return true;

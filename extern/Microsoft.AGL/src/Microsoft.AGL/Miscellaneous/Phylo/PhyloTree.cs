@@ -23,7 +23,9 @@ namespace Microsoft.AGL.Miscellaneous.Phylo
             do {
                 oldVal = ret;
                 foreach (Edge e in ret.InEdges)
+                {
                     ret = e.Source;
+                }
             } while (oldVal != ret);
      
             return ret;
@@ -34,8 +36,12 @@ namespace Microsoft.AGL.Miscellaneous.Phylo
         public IEnumerable<Node> Leaves {
             get {
                 foreach (Node node in Nodes)
+                {
                     if (NodeIsALeaf(node))
+                    {
                         yield return node;
+                    }
+                }
             }
         }
 

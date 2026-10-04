@@ -65,7 +65,9 @@ namespace Microsoft.AGL.Layout.Layered {
         public void PinNodesToMaxLayer(params Node[] nodes) {
             ValidateArg.IsNotNull(nodes, "nodes");
             for (int i = 0; i < nodes.Length; i++)
+            {
                 VerticalConstraints.PinNodeToMaxLayer(nodes[i]);
+            }
         }
 
         /// <summary>
@@ -74,7 +76,9 @@ namespace Microsoft.AGL.Layout.Layered {
         public void PinNodesToMinLayer(params Node[] nodes) {
             ValidateArg.IsNotNull(nodes, "nodes");
             for (int i = 0; i < nodes.Length; i++)
+            {
                 VerticalConstraints.PinNodeToMinLayer(nodes[i]);
+            }
         }
 
         /// <summary>
@@ -83,7 +87,9 @@ namespace Microsoft.AGL.Layout.Layered {
         public void PinNodesToSameLayer(params Node[] nodes) {
             ValidateArg.IsNotNull(nodes, "nodes");
             for (int i = 1; i < nodes.Length; i++)
+            {
                 VerticalConstraints.SameLayerConstraints.Insert(new Tuple<Node, Node>(nodes[0], nodes[i]));
+            }
         }
 
 
@@ -101,7 +107,9 @@ namespace Microsoft.AGL.Layout.Layered {
             List<Node> neibs = new List<Node>(neighbors);
             HorizontalConstraints.AddSameLayerNeighbors(neibs);
             for (int i = 0; i < neibs.Count - 1; i++)
+            {
                 VerticalConstraints.SameLayerConstraints.Insert(new Tuple<Node, Node>(neibs[i], neibs[i + 1]));
+            }
         }
 
         /// <summary>
@@ -147,7 +155,9 @@ namespace Microsoft.AGL.Layout.Layered {
         public void AddUpDownVerticalConstraints(params Node[] upDownNodes) {
             ValidateArg.IsNotNull(upDownNodes, "upDownNodes");
             for (int i = 1; i < upDownNodes.Length; i++)
+            {
                 AddUpDownVerticalConstraint(upDownNodes[i - 1], upDownNodes[i]);
+            }
         }
 
 

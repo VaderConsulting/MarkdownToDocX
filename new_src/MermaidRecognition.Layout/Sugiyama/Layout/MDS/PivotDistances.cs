@@ -66,13 +66,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS
                     {
                         min[j] = Math.Min(min[j], Result[i][j]);
                         if (min[j] > min[argmax])
+                        {
                             argmax = j;
+                        }
                     }
                     pivot = nodes[argmax];
                     pivotArray[i + 1] = argmax;
                 }
                 else
+                {
                     break;
+                }
             }
 
         }

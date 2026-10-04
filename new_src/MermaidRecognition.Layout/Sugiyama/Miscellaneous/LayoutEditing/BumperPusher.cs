@@ -66,9 +66,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing {
             List<Node> ret = new List<Node>();
             Rectangle pushingNodeBox = GetPaddedBoxOfNode(pushingNode);
             foreach (RectangleNode<Node> rectNode in rtree.GetAllLeavesIntersectingRectangle(pushingNodeBox)) {
-                if (fixedNodes.Contains(rectNode.UserData)) continue;
+                if (fixedNodes.Contains(rectNode.UserData))
+                {
+                    continue;
+                }
+
                 if (PushNodeAndUpdateRTree(pushingNode, rectNode))
+                {
                     ret.Add(rectNode.UserData);
+                }
             }
             return ret;
         }
@@ -83,7 +89,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing {
             double xSep = absDelXBetweenCenters - w;
             double ySep = absDelYBetweenCenters - h;
             if (xSep >= separation || ySep >= separation)
+            {
                 return false;
+            }
+
             if (absDelXBetweenCenters >= absDelYBetweenCenters) {
                 double d = del.X > 0 ? separation - xSep : xSep - separation;
                 PushByX(d, pushed);
@@ -105,7 +114,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing {
         static void PushByPoint(RectangleNode<Node> pushed, Point delPoint) {
             pushed.UserData.Center += delPoint;
             if (pushed.UserData is Cluster cluster)
+            {
                 cluster.DeepContentsTranslation(delPoint, true);
+            }
         }
 
         void PushByY(double del, RectangleNode<Node> pushed) {
@@ -141,14 +152,26 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing {
 
         RectangleNode<Node> FindClusterNodeRecurse(RectangleNode<Node> node, Node cluster, Rectangle previousBox) {
             if (node.UserData != null)
+            {
                 return node.UserData == cluster ? node : null;
-            
+            }
+
             RectangleNode<Node> n0=null;
             if (previousBox.Intersects(node.Left.Rectangle))
+            {
                 n0 = FindClusterNodeRecurse(node.Left, cluster, previousBox);
-            if (n0 != null) return n0;
+            }
+
+            if (n0 != null)
+            {
+                return n0;
+            }
+
             if (previousBox.Intersects(node.Right.Rectangle))
+            {
                 return FindClusterNodeRecurse(node.Right, cluster, previousBox);
+            }
+
             return null;
         }
 

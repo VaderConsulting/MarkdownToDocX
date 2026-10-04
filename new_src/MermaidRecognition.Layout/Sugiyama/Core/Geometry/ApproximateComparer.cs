@@ -44,9 +44,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
             double c = numberA - numberB;
             // The <= and >= here complement the < and > in Close(double, double).
             if (c <= -DistanceEpsilon)
+            {
                 return -1;
+            }
+
             if (c >= DistanceEpsilon)
+            {
                 return 1;
+            }
+
             return 0;
         }
 
@@ -100,8 +106,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// -1 iff value is strictly lower than zero;
         /// </summary>
         public static int Sign(double value) {
-            if (value > DistanceEpsilon) return 1;
-            if (value < -DistanceEpsilon) return -1;
+            if (value > DistanceEpsilon)
+            {
+                return 1;
+            }
+
+            if (value < -DistanceEpsilon)
+            {
+                return -1;
+            }
+
             return 0;
         }
 

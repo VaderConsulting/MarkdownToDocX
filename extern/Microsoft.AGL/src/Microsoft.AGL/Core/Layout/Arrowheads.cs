@@ -20,20 +20,41 @@ namespace Microsoft.AGL.Core.Layout
         internal static bool CalculateArrowheads(EdgeGeometry edgeGeometry) {
             ValidateArg.IsNotNull(edgeGeometry, "edgeGeometry");
             if (edgeGeometry.SourceArrowhead == null && edgeGeometry.TargetArrowhead == null)
+            {
                 return true;
+            }
+
             if (!FindTrimStartForArrowheadAtSource(edgeGeometry, out double parStart))
+            {
                 return false;
+            }
+
             if (!FindTrimEndForArrowheadAtTarget(edgeGeometry, out double parEnd))
+            {
                 return false;
+            }
+
             if (parStart > parEnd - ApproximateComparer.IntersectionEpsilon || ApproximateComparer.CloseIntersections(edgeGeometry.Curve[parStart], edgeGeometry.Curve[parEnd]))
+            {
                 return false; //after the trim nothing would be left of the curve
+            }
+
             ICurve c = edgeGeometry.Curve.Trim(parStart, parEnd);
             if (c == null)
+            {
                 return false;
+            }
+
             if (edgeGeometry.SourceArrowhead != null)
+            {
                 edgeGeometry.SourceArrowhead.TipPosition = PlaceTip(c.Start, edgeGeometry.Curve.Start, edgeGeometry.SourceArrowhead.Offset);
+            }
+
             if (edgeGeometry.TargetArrowhead != null)
+            {
                 edgeGeometry.TargetArrowhead.TipPosition = PlaceTip(c.End, edgeGeometry.Curve.End, edgeGeometry.TargetArrowhead.Offset);
+            }
+
             edgeGeometry.Curve = c;
             return true;
         }
@@ -56,7 +77,10 @@ namespace Microsoft.AGL.Core.Layout
             p = edgeGeometry.Curve.ParEnd;
             if (edgeGeometry.TargetArrowhead == null ||
                 edgeGeometry.TargetArrowhead.Length <= ApproximateComparer.DistanceEpsilon)
+            {
                 return true;
+            }
+
             ICurve curve = edgeGeometry.Curve;
             double arrowheadLength = edgeGeometry.TargetArrowhead.Length;
             Point newCurveEnd;
@@ -65,7 +89,10 @@ namespace Microsoft.AGL.Core.Layout
             do {
                 reps--;
                 if (reps == 0)
+                {
                     return false;
+                }
+
                 intersections = GetIntersectionsWithArrowheadCircle(curve, arrowheadLength, curve.End);
                 p = intersections.Count != 0 ? intersections.Max(x => x.Par1) : curve.ParEnd;
                 newCurveEnd = edgeGeometry.Curve[p];
@@ -78,7 +105,10 @@ namespace Microsoft.AGL.Core.Layout
         static bool FindTrimStartForArrowheadAtSource(EdgeGeometry edgeGeometry, out double p) {
             p = 0; //does not matter
             if (edgeGeometry.SourceArrowhead == null || edgeGeometry.SourceArrowhead.Length <= ApproximateComparer.DistanceEpsilon)
+            {
                 return true;
+            }
+
             double eps = ApproximateComparer.DistanceEpsilon * ApproximateComparer.DistanceEpsilon;
             Debug.Assert((edgeGeometry.Curve.End - edgeGeometry.Curve.Start).LengthSquared > eps);
             double arrowheadLength = edgeGeometry.SourceArrowhead.Length;
@@ -90,7 +120,10 @@ namespace Microsoft.AGL.Core.Layout
             {
                 reps--;
                 if (reps == 0)
-                    return false; 
+                {
+                    return false;
+                }
+
                 intersections = GetIntersectionsWithArrowheadCircle(curve, arrowheadLength, curve.Start);
                 p = intersections.Count != 0 ? intersections.Min(x => x.Par1) : curve.ParStart;
                 newStart = curve[p];
@@ -104,12 +137,17 @@ namespace Microsoft.AGL.Core.Layout
         internal static Point PlaceTip(Point arrowBase, Point arrowTip, double offset)
         {
             if (Math.Abs(offset) < ApproximateComparer.Tolerance)
+            {
                 return arrowTip;
+            }
 
             Point d =arrowBase - arrowTip;
             double dLen =d.Length;
             if(dLen<ApproximateComparer.Tolerance)
+            {
                 return arrowTip;
+            }
+
             return arrowTip + offset * (d / dLen);
         }
 
@@ -154,13 +192,18 @@ namespace Microsoft.AGL.Core.Layout
             edgeGeometry.Curve = Curve.TrimEdgeSplineWithNodeBoundaries(sourceBoundary, targetBoundary, spline,
                                                                         narrowestInterval);
             if (edgeGeometry.Curve == null)
+            {
                 return false;
-            
+            }
+
             if ((edgeGeometry.SourceArrowhead == null ||
                  edgeGeometry.SourceArrowhead.Length < ApproximateComparer.DistanceEpsilon) &&
                 (edgeGeometry.TargetArrowhead == null ||
                  edgeGeometry.TargetArrowhead.Length < ApproximateComparer.DistanceEpsilon))
+            {
                 return true; //there are no arrowheads
+            }
+
             bool success = false;
             double sourceArrowheadSavedLength = edgeGeometry.SourceArrowhead != null
                                                     ? edgeGeometry.SourceArrowhead.Length
@@ -170,9 +213,15 @@ namespace Microsoft.AGL.Core.Layout
                                                     : 0;
             double len = (edgeGeometry.Curve.End - edgeGeometry.Curve.Start).Length;
             if (edgeGeometry.SourceArrowhead!=null)
-            edgeGeometry.SourceArrowhead.Length = Math.Min(len, sourceArrowheadSavedLength);
+            {
+                edgeGeometry.SourceArrowhead.Length = Math.Min(len, sourceArrowheadSavedLength);
+            }
+
             if (edgeGeometry.TargetArrowhead != null)
+            {
                 edgeGeometry.TargetArrowhead.Length = Math.Min(len, targetArrowheadSavedLength);
+            }
+
             int count = 10;
             while (
                 (
@@ -183,22 +232,45 @@ namespace Microsoft.AGL.Core.Layout
                     edgeGeometry.TargetArrowhead.Length > ApproximateComparer.IntersectionEpsilon) && !success) {
                 success = Arrowheads.CalculateArrowheads(edgeGeometry);
                 if (!success) {
-                    if (edgeGeometry.SourceArrowhead != null) edgeGeometry.SourceArrowhead.Length *= 0.5;
-                    if (edgeGeometry.TargetArrowhead != null) edgeGeometry.TargetArrowhead.Length *= 0.5;
+                    if (edgeGeometry.SourceArrowhead != null)
+                    {
+                        edgeGeometry.SourceArrowhead.Length *= 0.5;
+                    }
+
+                    if (edgeGeometry.TargetArrowhead != null)
+                    {
+                        edgeGeometry.TargetArrowhead.Length *= 0.5;
+                    }
                 }
                 count--;
                 if (count == 0)
+                {
                     break;
+                }
             }
 
             if (!success) {
                 //to avoid drawing the arrowhead to (0,0)
-                if (edgeGeometry.SourceArrowhead != null) edgeGeometry.SourceArrowhead.TipPosition = spline.Start;
-                if (edgeGeometry.TargetArrowhead != null) edgeGeometry.TargetArrowhead.TipPosition = spline.End;
+                if (edgeGeometry.SourceArrowhead != null)
+                {
+                    edgeGeometry.SourceArrowhead.TipPosition = spline.Start;
+                }
+
+                if (edgeGeometry.TargetArrowhead != null)
+                {
+                    edgeGeometry.TargetArrowhead.TipPosition = spline.End;
+                }
             }
 
-            if (edgeGeometry.SourceArrowhead != null) edgeGeometry.SourceArrowhead.Length = sourceArrowheadSavedLength;
-            if (edgeGeometry.TargetArrowhead != null) edgeGeometry.TargetArrowhead.Length = targetArrowheadSavedLength;
+            if (edgeGeometry.SourceArrowhead != null)
+            {
+                edgeGeometry.SourceArrowhead.Length = sourceArrowheadSavedLength;
+            }
+
+            if (edgeGeometry.TargetArrowhead != null)
+            {
+                edgeGeometry.TargetArrowhead.Length = targetArrowheadSavedLength;
+            }
 
             return success;
         }

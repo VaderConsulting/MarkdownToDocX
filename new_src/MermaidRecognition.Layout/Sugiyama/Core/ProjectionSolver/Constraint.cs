@@ -164,7 +164,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
         /// <returns>-1 if this.Left/Right are "less"; +1 if this.Left/Right are "greater"; 0 if this.Left/Right
         ///         and rhs.Left/Right are equal.</returns>
         public int CompareTo(Constraint? other) {
-            if (other is null) return 1;
+            if (other is null)
+            {
+                return 1;
+            }
+
             ValidateArg.IsNotNull(other, "other");
             int cmp = Left.CompareTo(other.Left);
             if (0 == cmp)

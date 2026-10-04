@@ -232,7 +232,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
                                                                           };
             top.AlgorithmData = new AlgorithmDataNodeWrap(index++, copy);
             foreach (Cluster c in top.Clusters)
+            {
                 copy.AddChild(CopyCluster(c, ref index));
+            }
+
             return copy;
         }
 
@@ -296,40 +299,63 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
             double avgLength = 0;
             foreach (Edge e in graph.Edges) {
                 avgLength += e.Length;
-                if (e.Source is Cluster || e.Target is Cluster) continue;
+                if (e.Source is Cluster || e.Target is Cluster)
+                {
+                    continue;
+                }
+
                 flatGraph.Edges.Add(AlgorithmDataEdgeWrap.MakeEdge(e));
             }
             if (graph.Edges.Count != 0)
+            {
                 avgLength /= graph.Edges.Count;
+            }
             else
+            {
                 avgLength = 100;
+            }
 
             Cluster rootCluster = graph.RootCluster;
             // create edges from the children of each parent cluster to the parent cluster node
             foreach (Cluster c in rootCluster.AllClustersDepthFirst()) {
-                if (c == rootCluster) continue;
+                if (c == rootCluster)
+                {
+                    continue;
+                }
+
                 if (c.BoundaryCurve == null)
+                {
                     c.BoundaryCurve = CurveFactory.CreateRectangleWithRoundedCorners(10, 10, 1, 1, new Point());
+                }
+
                 Node uOfCluster = new Node(c.BoundaryCurve.Clone()) {UserData = c};
                 AlgorithmDataNodeWrap uuOfCluster = new AlgorithmDataNodeWrap(flatGraph.Nodes.Count, uOfCluster);
                 c.AlgorithmData = uuOfCluster;
                 flatGraph.Nodes.Add(uOfCluster);
 
                 foreach (Node? v in c.Nodes.Concat(from cc in c.Clusters select (Node) cc))
+                {
                     flatGraph.Edges.Add(
                         AlgorithmDataEdgeWrap.MakeDummyEdgeFromNodeToItsCluster(
                             v.AlgorithmData as AlgorithmDataNodeWrap, uuOfCluster,
                             avgLength));
+                }
             }
 
             // mark top-level nodes and clusters
             foreach (Node? v in rootCluster.Nodes.Concat(from cc in rootCluster.Clusters select (Node) cc))
+            {
                 ((AlgorithmDataNodeWrap) v.AlgorithmData).TopLevel = true;
+            }
 
             // create edges between clusters
             foreach (Edge e in graph.Edges)
+            {
                 if (e.Source is Cluster || e.Target is Cluster)
+                {
                     flatGraph.Edges.Add(AlgorithmDataEdgeWrap.MakeEdge(e));
+                }
+            }
 
             return flatGraph;
         }

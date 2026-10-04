@@ -27,11 +27,20 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
             get
             {
                 if (Edges != null)
+                {
                     foreach (CdtEdge e in Edges)
+                    {
                         yield return e;
+                    }
+                }
+
                 if (InEdges != null)
+                {
                     foreach (CdtEdge e in InEdges)
+                    {
                         yield return e;
+                    }
+                }
             }
         }
 
@@ -53,7 +62,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
         internal void AddEdgeToSite(CdtEdge edge)
         {
             if (Edges == null)
+            {
                 Edges = [];
+            }
+
             Edges.Add(edge);
         }
 #if DEBUG && TEST_MSAGL
@@ -71,16 +83,26 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
         {
             Debug.Assert(Cdt.Above(this, b) > 0);
             if (Edges != null)
+            {
                 foreach (CdtEdge edge in Edges)
+                {
                     if (edge.lowerSite == b)
+                    {
                         return edge;
+                    }
+                }
+            }
+
             return null;
         }
 
         internal void AddInEdge(CdtEdge e)
         {
             if (InEdges == null)
+            {
                 InEdges = [];
+            }
+
             InEdges.Add(e);
         }
         /// <summary>
@@ -93,10 +115,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
             {
                 CdtEdge edge;
                 if (Edges != null && Edges.Count>0)
+                {
                     edge = Edges[0];
+                }
                 else if (InEdges != null && InEdges.Count>0)
+                {
                     edge = InEdges[0];
-                else yield break;
+                }
+                else
+                {
+                    yield break;
+                }
 
                 //going counterclockwise around the site
                 CdtEdge? e = edge;

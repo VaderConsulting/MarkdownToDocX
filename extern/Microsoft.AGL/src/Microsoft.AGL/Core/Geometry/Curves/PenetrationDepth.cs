@@ -25,9 +25,15 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         public static Polyline PolylineAroundClosedCurve(ICurve curve) {
             Polyline poly = new Polyline();
             foreach (Point point in PointsOnAroundPolyline(curve))
+            {
                 poly.AddPoint(point);
+            }
+
             if (Point.GetTriangleOrientation(poly.StartPoint.Point, poly.StartPoint.Next.Point, poly.StartPoint.Next.Next.Point) == TriangleOrientation.Counterclockwise)
+            {
                 poly = (Polyline)poly.Reverse();
+            }
+
             poly.Closed = true;
             return poly;
         }
@@ -43,7 +49,10 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
                     firstCurveTangent = prevTangent = curveTangent;
                 } else {
                     if (!TangentsAreParallel(prevTangent, curveTangent))
+                    {
                         yield return TangentIntersection(prevTangent, curveTangent);
+                    }
+
                     prevTangent = curveTangent;
                 }
             }
@@ -57,25 +66,37 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
             if (iCurve is Curve c)
             {
                 foreach (ICurve seg in c.Segments)
+                {
                     foreach (CurveTangent ct in TangentsAroundCurve(seg))
+                    {
                         yield return ct;
+                    }
+                }
             }
             else
             {
                 if (iCurve is LineSegment ls)
+                {
                     yield return new CurveTangent(ls.Start, ls.Derivative(0));
+                }
                 else
                 {
                     if (iCurve is Ellipse ellipse)
                     {
                         foreach (CurveTangent ct in TangentsOfEllipse(ellipse))
+                        {
                             yield return ct;
+                        }
                     }
                     else
                     {
                         if (iCurve is CubicBezierSegment bez)
+                        {
                             foreach (CurveTangent ct in TangentsOfBezier(bez))
+                            {
                                 yield return ct;
+                            }
+                        }
                     }
                 }
 
@@ -86,7 +107,9 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
             const int numOfTangents = 8;
             double span = (bez.ParEnd - bez.ParStart) / numOfTangents;
             for (int i = 0; i < numOfTangents; i++)
+            {
                 yield return TangentOnICurve(span / 2 + bez.ParStart + span * i, bez);
+            }
         }
 
         static CurveTangent TangentOnICurve(double p, ICurve iCurve) => new CurveTangent(iCurve[p], iCurve.Derivative(p));
@@ -100,7 +123,9 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
 #endif
             double span = (ellipse.ParEnd - ellipse.ParStart) / numOfTangents;
             for (int i = 0; i < numOfTangents; i++)
+            {
                 yield return TangentOnICurve(span / 2 + ellipse.ParStart + span * i, ellipse);
+            }
         }
 
          static Point TangentIntersection(CurveTangent tangentA, CurveTangent tangentB) {
@@ -156,8 +181,9 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
                 ret.AddPoint(p0.Point + p1.Point);
                 PickNextVertex(ref p0, ref p1);
                 if (p0 == s0 && p1 == s1)
+                {
                     break;
-              
+                }
             } 
             ret.Closed = true;
             return ret;
@@ -167,15 +193,22 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
             Point d = p1.Point - p0.Point;
             TriangleOrientation orient = Point.GetTriangleOrientation(p1.Point, p1.Polyline.Next(p1).Point, p0.Polyline.Next(p0).Point + d);
             if (orient == TriangleOrientation.Counterclockwise)
+            {
                 p0 = p0.Polyline.Next(p0);
+            }
             else
+            {
                 p1 = p1.Polyline.Next(p1);
+            }
         }
 
          static Polyline FlipPolyline(Polyline poly) {
             Polyline ret = new Polyline();
             for (PolylinePoint pp = poly.StartPoint; pp != null; pp = pp.Next)
+            {
                 ret.AddPoint( -pp.Point);
+            }
+
             ret.Closed = true;
             return ret;
         }
@@ -183,11 +216,19 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
          static PolylinePoint GetMostLeftLow(Polyline poly) {
             PolylinePoint ret = poly.StartPoint;
             for (PolylinePoint p = ret.Next; p != null; p = p.Next)
+            {
                 if (p.Point.X < ret.Point.X)
+                {
                     ret = p;
+                }
                 else if (p.Point.X == ret.Point.X)
+                {
                     if (p.Point.Y < ret.Point.Y)
+                    {
                         ret = p;
+                    }
+                }
+            }
 
             return ret;
         }
