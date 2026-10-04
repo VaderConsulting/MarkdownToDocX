@@ -19,7 +19,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging
         internal Point Start => Points[I];
         internal Point End => Points[I + 1];
 
-        override public bool Equals(object obj) {
+        public override bool Equals(object obj) {
             SegWithIndex other = (SegWithIndex) obj;
             return other.Points== Points&& other.I == I;
         }

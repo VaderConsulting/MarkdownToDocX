@@ -4,21 +4,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
     /// <summary>
     /// 
     /// </summary>
-    public class CurvatureDerivative : IFunction {
-        ICurve curve;
-        double start;
-        double end;
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="curve"></param>
-        /// <param name="start"></param>
-        /// <param name="end"></param>
-        public CurvatureDerivative(ICurve curve, double start, double end) {
-            this.curve = curve;
-            this.start = start;
-            this.end = end;
-        }
+    /// <remarks>
+    /// 
+    /// </remarks>
+    /// <param name="curve"></param>
+    /// <param name="start"></param>
+    /// <param name="end"></param>
+    public class CurvatureDerivative(ICurve curve, double start, double end) : IFunction {
+        ICurve curve = curve;
+        double start = start;
+        double end = end;
 
         /// <summary>
         /// 

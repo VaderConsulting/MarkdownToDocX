@@ -107,6 +107,5 @@ namespace Microsoft.AGL.Routing.Visibility {
         }
 
         internal StemStartPointComparer(Point pivotPoint) => pivot = pivotPoint;
-
     }
 }

@@ -16,8 +16,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         internal readonly BundleBase SourceBase;
         internal readonly BundleBase TargetBase;
         readonly Set<Polyline> obstaclesToIgnore;
-        readonly internal double EdgeSeparation;
-        readonly internal double[] HalfWidthArray;
+        internal readonly double EdgeSeparation;
+        internal readonly double[] HalfWidthArray;
         readonly double longEnoughSideLength;
 
         List<Polyline> tightObstaclesInTheBoundingBox;

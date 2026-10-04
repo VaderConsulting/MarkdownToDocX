@@ -41,7 +41,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
 
         static bool BelongsToTheDiagonal(Point IntersectionOfTheRayAndInsertedEdge, Point start, Point end) => ApproximateComparer.Close(IntersectionOfTheRayAndInsertedEdge, Point.ClosestPointAtLineSegment(IntersectionOfTheRayAndInsertedEdge, start, end));
 
-        static internal Point IntersectDiagonalWithRay(Point pivot, Point pointOnRay, Diagonal diagonal ) {
+        internal static Point IntersectDiagonalWithRay(Point pivot, Point pointOnRay, Diagonal diagonal ) {
               Point ray=pointOnRay-pivot;
               Point source=diagonal.Start;
               Point target = diagonal.End;

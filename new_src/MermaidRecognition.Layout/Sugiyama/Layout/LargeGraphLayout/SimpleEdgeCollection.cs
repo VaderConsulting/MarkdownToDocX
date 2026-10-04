@@ -5,11 +5,10 @@ using System.Linq;
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
 
 namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
-    internal class SimpleEdgeCollection : EdgeCollection {
-        readonly List<Edge> edges;
-
-        public SimpleEdgeCollection(IEnumerable<Edge> collectionEdges) : base(null) => edges = collectionEdges as List<Edge> ??
+    internal class SimpleEdgeCollection(IEnumerable<Edge> collectionEdges) : EdgeCollection(null) {
+        readonly List<Edge> edges = collectionEdges as List<Edge> ??
                 collectionEdges.ToList();
+
         public override IEnumerator<Edge> GetEnumerator() => edges.GetEnumerator();
 
         public override int Count => edges.Count;

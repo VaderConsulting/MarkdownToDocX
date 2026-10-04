@@ -138,7 +138,7 @@ namespace Microsoft.AGL.Core.DataStructures {
         /// <param name="set0"></param>
         /// <param name="set1"></param>
         /// <returns></returns>
-        static public Set<T> operator +(Set<T> set0, Set<T> set1) {
+        public static Set<T> operator +(Set<T> set0, Set<T> set1) {
             ValidateArg.IsNotNull(set1, "set1");
             Set<T> ret = new Set<T>(set0);
             foreach (T t in set1)
@@ -155,7 +155,7 @@ namespace Microsoft.AGL.Core.DataStructures {
         /// <param name="set0"></param>
         /// <param name="set1"></param>
         /// <returns></returns>
-        static public Set<T> operator -(Set<T> set0, Set<T> set1) {
+        public static Set<T> operator -(Set<T> set0, Set<T> set1) {
             ValidateArg.IsNotNull(set1, "set1");
             Set<T> ret = new Set<T>(set0);
             foreach (T t in set1)
@@ -172,7 +172,7 @@ namespace Microsoft.AGL.Core.DataStructures {
         /// <param name="set0"></param>
         /// <param name="set1"></param>
         /// <returns></returns>
-        static public bool operator ==(Set<T> set0, Set<T> set1) {
+        public static bool operator ==(Set<T> set0, Set<T> set1) {
             if ((object)set0 == null && (object)set1 == null)
             {
                 return true;
@@ -213,7 +213,7 @@ namespace Microsoft.AGL.Core.DataStructures {
         /// <param name="set0"></param>
         /// <param name="set1"></param>
         /// <returns></returns>
-        static public bool operator !=(Set<T> set0, Set<T> set1) => !(set0 == set1);
+        public static bool operator !=(Set<T> set0, Set<T> set1) => !(set0 == set1);
 
         /// <summary>
         /// intersection
@@ -221,7 +221,7 @@ namespace Microsoft.AGL.Core.DataStructures {
         /// <param name="set0"></param>
         /// <param name="set1"></param>
         /// <returns></returns>
-        static public Set<T> operator *(Set<T> set0, Set<T> set1) {
+        public static Set<T> operator *(Set<T> set0, Set<T> set1) {
             ValidateArg.IsNotNull(set0, "set0");
             ValidateArg.IsNotNull(set1, "set1");
             return

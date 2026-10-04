@@ -8,18 +8,18 @@ using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves;
 
 namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
-    internal class InteractiveTangentVisibilityGraphCalculator : AlgorithmBase {
+    internal class InteractiveTangentVisibilityGraphCalculator(ICollection<Polygon> holes, IEnumerable<Polygon> addedPolygons, VisibilityGraph visibilityGraph) : AlgorithmBase {
         /// <summary>
         /// the list of obstacles
         /// </summary>
-        ICollection<Polygon> polygons;
+        ICollection<Polygon> polygons = holes;
 
         /// <summary>
         /// From these polygons we calculate visibility edges to all other polygons
         /// </summary>
-        IEnumerable<Polygon> addedPolygons;
+        IEnumerable<Polygon> addedPolygons = addedPolygons;
 
-        VisibilityGraph visibilityGraph;
+        VisibilityGraph visibilityGraph = visibilityGraph;
         List<Diagonal> diagonals;
         List<Tangent> tangents;
         RbTree<Diagonal> activeDiagonalTree;
@@ -252,12 +252,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             tangents.Add(t0);
             tangents.Add(t1);
             diagonals.Add(new Diagonal(t0, t1));
-        }
-
-        public InteractiveTangentVisibilityGraphCalculator(ICollection<Polygon> holes, IEnumerable<Polygon> addedPolygons, VisibilityGraph visibilityGraph) {
-            polygons = holes;
-            this.visibilityGraph = visibilityGraph;
-            this.addedPolygons = addedPolygons;
         }
 
         internal delegate bool FilterVisibleEdgesDelegate(Point a, Point b);

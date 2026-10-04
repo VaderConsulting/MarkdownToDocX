@@ -1,8 +1,6 @@
 namespace MDConverter.Model;
 
-public sealed class MermaidBlock : BlockNode
+public sealed class MermaidBlock(string Source) : BlockNode
 {
-    public string Source { get; }
-
-    public MermaidBlock(string Source) => this.Source = Source ?? string.Empty;
+    public string Source { get; } = Source ?? string.Empty;
 }

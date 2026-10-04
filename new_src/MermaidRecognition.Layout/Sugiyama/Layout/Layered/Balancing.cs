@@ -34,7 +34,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// <param name="layering">the layering to change</param>
         /// <param name="nodeCount">shows how many nodes are represented be a node</param>
         /// <param name="cancelObj"></param>
-        static internal void Balance(Graph dag, int[] layering, int[] nodeCount, CancelToken cancelObj) {
+        internal static void Balance(Graph dag, int[] layering, int[] nodeCount, CancelToken cancelObj) {
             Balancing b = new Balancing(dag, layering, nodeCount);
             b.Run(cancelObj);
         }

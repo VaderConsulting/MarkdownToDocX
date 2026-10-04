@@ -12,6 +12,7 @@ namespace Microsoft.AGL.Core.DataStructures.RBTree
         internal T Item;
         internal RBNode<T> parent, left, right;
         internal RBNode(RBColor color) => this.color = color;
+
         internal RBNode(RBColor color, T item, RBNode<T> p, RBNode<T> left, RBNode<T> right) {
             this.color = color;
             parent = p;

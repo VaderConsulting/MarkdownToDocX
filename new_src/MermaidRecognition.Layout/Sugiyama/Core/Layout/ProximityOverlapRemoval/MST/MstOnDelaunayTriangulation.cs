@@ -23,7 +23,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
         /// <param name="proximityEdges">list of tuples, each representing an edge with: nodeId1, nodeId2, t(overlapFactor), ideal distance, edge weight.</param>
         /// <param name="sizeId"></param>
         /// <returns></returns>
-        static internal List<Tuple<int, int, double, double, double>> GetMstOnTuple(List<Tuple<int,int,double,double,double>> proximityEdges, int sizeId) {
+        internal static List<Tuple<int, int, double, double, double>> GetMstOnTuple(List<Tuple<int,int,double,double,double>> proximityEdges, int sizeId) {
             if (proximityEdges.Count == 0)
             {
                 return null;
@@ -47,7 +47,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
         /// <param name="cdt"></param>
         /// <param name="weights"></param>
         /// <returns></returns>
-        static internal List<CdtEdge> GetMstOnCdt(Cdt cdt, Func<CdtEdge, double> weights) {
+        internal static List<CdtEdge> GetMstOnCdt(Cdt cdt, Func<CdtEdge, double> weights) {
             CdtSite[] siteArray = cdt.PointsToSites.Values.ToArray();
             Dictionary<CdtSite, int> siteIndex = new Dictionary<CdtSite, int>();
             for (int i = 0; i < siteArray.Length; i++)

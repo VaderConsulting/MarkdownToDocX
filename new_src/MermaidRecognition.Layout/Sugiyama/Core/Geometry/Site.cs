@@ -75,12 +75,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// </summary>
         /// <param name="sitePoint"></param>
         public Site(Point sitePoint) => point = sitePoint;
+
         /// <summary>
         /// a constructor
         /// </summary>
         /// <param name="previousSite"></param>
         /// <param name="sitePoint"></param>
-		public Site(Site previousSite, Point sitePoint )
+        public Site(Site previousSite, Point sitePoint )
 		{
             ValidateArg.IsNotNull(previousSite, "pr");
             point = sitePoint;

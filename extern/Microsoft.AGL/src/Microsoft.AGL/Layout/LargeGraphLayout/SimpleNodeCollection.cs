@@ -4,10 +4,8 @@ using System.Collections.Generic;
 using Microsoft.AGL.Core.Layout;
 
 namespace Microsoft.AGL.Layout.LargeGraphLayout {
-    internal class SimpleNodeCollection : IList<Node> {
-        List<Node> nodes;
-
-        public SimpleNodeCollection(IEnumerable<Node> nodes) => this.nodes = new List<Node>(nodes);
+    internal class SimpleNodeCollection(IEnumerable<Node> nodes) : IList<Node> {
+        List<Node> nodes = new List<Node>(nodes);
 
         public IEnumerator<Node> GetEnumerator() => nodes.GetEnumerator();
 

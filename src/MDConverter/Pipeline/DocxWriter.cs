@@ -25,7 +25,7 @@ namespace MDConverter.Pipeline;
 /// <summary>
 /// Writes the internal DocModel to a DOCX stream using the Open XML SDK.
 /// </summary>
-public sealed class DocxWriter
+public sealed class DocxWriter(EffectiveOptions Options, IConversionProgressReporter? ProgressReporter)
 {
     private const float MermaidRasterScale = 4.0f;
     private const double FlowchartRasterArrowLengthPx = 8.0;
@@ -45,8 +45,8 @@ public sealed class DocxWriter
     private const int BulletNumId = 1;
     private const int DecimalNumId = 2;
 
-    private readonly EffectiveOptions _Options;
-    private readonly IConversionProgressReporter? _ProgressReporter;
+    private readonly EffectiveOptions _Options = Options ?? throw new ArgumentNullException(nameof(Options));
+    private readonly IConversionProgressReporter? _ProgressReporter = ProgressReporter;
     private MainDocumentPart? _MainPart;
     private NumberingDefinitionsPart? _NumberingPart;
     private int _NextNumberingId = 3;
@@ -59,12 +59,6 @@ public sealed class DocxWriter
     public DocxWriter(EffectiveOptions Options)
         : this(Options, null)
     {
-    }
-
-    public DocxWriter(EffectiveOptions Options, IConversionProgressReporter? ProgressReporter)
-    {
-        _Options = Options ?? throw new ArgumentNullException(nameof(Options));
-        _ProgressReporter = ProgressReporter;
     }
 
     /// <summary>
@@ -1337,79 +1331,49 @@ public sealed class DocxWriter
         }
     }
 
-    private readonly struct SvgNodeBounds
+    private readonly struct SvgNodeBounds(double MinX, double MinY, double MaxX, double MaxY)
     {
-        public double MinX { get; }
-        public double MinY { get; }
-        public double MaxX { get; }
-        public double MaxY { get; }
-
-        public SvgNodeBounds(double MinX, double MinY, double MaxX, double MaxY)
-        {
-            this.MinX = MinX;
-            this.MinY = MinY;
-            this.MaxX = MaxX;
-            this.MaxY = MaxY;
-        }
+        public double MinX { get; } = MinX;
+        public double MinY { get; } = MinY;
+        public double MaxX { get; } = MaxX;
+        public double MaxY { get; } = MaxY;
     }
 
-    private readonly struct SvgStadiumShape
+    private readonly struct SvgStadiumShape(
+        double LeftCapCentreX,
+        double RightCapCentreX,
+        double CapCentreY,
+        double Radius,
+        double TopY,
+        double BottomY)
     {
-        public double LeftCapCentreX { get; }
-        public double RightCapCentreX { get; }
-        public double CapCentreY { get; }
-        public double Radius { get; }
-        public double TopY { get; }
-        public double BottomY { get; }
-
-        public SvgStadiumShape(
-            double LeftCapCentreX,
-            double RightCapCentreX,
-            double CapCentreY,
-            double Radius,
-            double TopY,
-            double BottomY)
-        {
-            this.LeftCapCentreX = LeftCapCentreX;
-            this.RightCapCentreX = RightCapCentreX;
-            this.CapCentreY = CapCentreY;
-            this.Radius = Radius;
-            this.TopY = TopY;
-            this.BottomY = BottomY;
-        }
+        public double LeftCapCentreX { get; } = LeftCapCentreX;
+        public double RightCapCentreX { get; } = RightCapCentreX;
+        public double CapCentreY { get; } = CapCentreY;
+        public double Radius { get; } = Radius;
+        public double TopY { get; } = TopY;
+        public double BottomY { get; } = BottomY;
     }
 
     /// <summary>Naiad diamond node quad (top, right, bottom, left).</summary>
-    private readonly struct SvgDiamondShape
+    private readonly struct SvgDiamondShape(
+        double TopX,
+        double TopY,
+        double RightX,
+        double RightY,
+        double BottomX,
+        double BottomY,
+        double LeftX,
+        double LeftY)
     {
-        public double TopX { get; }
-        public double TopY { get; }
-        public double RightX { get; }
-        public double RightY { get; }
-        public double BottomX { get; }
-        public double BottomY { get; }
-        public double LeftX { get; }
-        public double LeftY { get; }
-
-        public SvgDiamondShape(
-            double TopX,
-            double TopY,
-            double RightX,
-            double RightY,
-            double BottomX,
-            double BottomY,
-            double LeftX,
-            double LeftY)
-        {
-            this.TopX = TopX;
-            this.TopY = TopY;
-            this.RightX = RightX;
-            this.RightY = RightY;
-            this.BottomX = BottomX;
-            this.BottomY = BottomY;
-            this.LeftX = LeftX;
-            this.LeftY = LeftY;
-        }
+        public double TopX { get; } = TopX;
+        public double TopY { get; } = TopY;
+        public double RightX { get; } = RightX;
+        public double RightY { get; } = RightY;
+        public double BottomX { get; } = BottomX;
+        public double BottomY { get; } = BottomY;
+        public double LeftX { get; } = LeftX;
+        public double LeftY { get; } = LeftY;
     }
 
     /// <summary>
@@ -3151,29 +3115,17 @@ public sealed class DocxWriter
         return Properties;
     }
 
-    private readonly struct ImageDimensions
+    private readonly struct ImageDimensions(int WidthPixels, int HeightPixels)
     {
-        public int WidthPixels { get; }
+        public int WidthPixels { get; } = WidthPixels;
 
-        public int HeightPixels { get; }
-
-        public ImageDimensions(int WidthPixels, int HeightPixels)
-        {
-            this.WidthPixels = WidthPixels;
-            this.HeightPixels = HeightPixels;
-        }
+        public int HeightPixels { get; } = HeightPixels;
     }
 
-    private readonly struct SvgDimensions
+    private readonly struct SvgDimensions(int WidthPixels, int HeightPixels)
     {
-        public int WidthPixels { get; }
+        public int WidthPixels { get; } = WidthPixels;
 
-        public int HeightPixels { get; }
-
-        public SvgDimensions(int WidthPixels, int HeightPixels)
-        {
-            this.WidthPixels = WidthPixels;
-            this.HeightPixels = HeightPixels;
-        }
+        public int HeightPixels { get; } = HeightPixels;
     }
 }

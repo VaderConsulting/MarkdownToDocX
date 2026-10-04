@@ -9,24 +9,18 @@ namespace Microsoft.AGL.Core.Geometry.RectanglePacking
     /// <summary>
     /// Flow fill of columns to some maximum height
     /// </summary>
-    public class ColumnPacking<TData> : Packing
+    /// <remarks>
+    /// Constructor for packing, call Run to do the actual pack.
+    /// Each RectangleToPack.Rectangle is updated in place.
+    /// Pack rectangles tallest to shortest, left to right until wrapWidth is reached, 
+    /// then wrap to right-most rectangle still with vertical space to fit the next rectangle
+    /// </remarks>
+    /// <param name="rectangles"></param>
+    /// <param name="maxHeight"></param>
+    public class ColumnPacking<TData>(IEnumerable<RectangleToPack<TData>> rectangles, double maxHeight) : Packing
     {
-         IEnumerable<RectangleToPack<TData>> orderedRectangles;
-         double maxHeight;
-
-        /// <summary>
-        /// Constructor for packing, call Run to do the actual pack.
-        /// Each RectangleToPack.Rectangle is updated in place.
-        /// Pack rectangles tallest to shortest, left to right until wrapWidth is reached, 
-        /// then wrap to right-most rectangle still with vertical space to fit the next rectangle
-        /// </summary>
-        /// <param name="rectangles"></param>
-        /// <param name="maxHeight"></param>
-        public ColumnPacking(IEnumerable<RectangleToPack<TData>> rectangles, double maxHeight)
-        {
-            orderedRectangles = rectangles;
-            this.maxHeight = maxHeight;
-        }
+         IEnumerable<RectangleToPack<TData>> orderedRectangles = rectangles;
+         double maxHeight = maxHeight;
 
         /// <summary>
         /// Pack columns by iterating over rectangle enumerator until column height exceeds wrapHeight.

@@ -6,13 +6,18 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
     /// <summary>
     /// Line segment
     /// </summary>
+    /// <remarks>
+    /// construct a line segment
+    /// </remarks>
+    /// <param name="start"></param>
+    /// <param name="end"></param>
 #if TEST_MSAGL
-    
+
 #endif
     [DebuggerDisplay("[({a.X} {a.Y}),({b.X} {b.Y})]")]
-    public class LineSegment : ICurve {
+    public class LineSegment(Point start, Point end) : ICurve {
 
-        Point a;//the line goes from a to side1
+        Point a = start;//the line goes from a to side1
 
         /// <summary>
         /// Offsets the curve in the direction of dir
@@ -26,7 +31,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// </summary>
         public Point Start { get => a; set => a = value;
         }
-        Point b;
+        Point b = end;
         /// <summary>
         /// the line end point
         /// </summary>
@@ -92,15 +97,6 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
                 t /= t.Length;
                 return new Point(-t.Y, t.X);
             }
-        }
-        /// <summary>
-        /// construct a line segment
-        /// </summary>
-        /// <param name="start"></param>
-        /// <param name="end"></param>
-        public LineSegment(Point start, Point end) {
-            a = start;
-            b = end;
         }
 
         /// <summary>

@@ -2,11 +2,9 @@ using System.Collections.Generic;
 using Microsoft.AGL.Core.Geometry;
 
 namespace Microsoft.AGL.Routing.Rectilinear.Nudging{
-    internal class PointByDelegateComparer : IComparer<Point>{
+    internal class PointByDelegateComparer(PointProjection projection) : IComparer<Point>{
 
-        PointProjection projection;
-
-        public PointByDelegateComparer(PointProjection projection) => this.projection = projection;
+        PointProjection projection = projection;
 
         /// <summary>
         /// Compares two objects and returns a value indicating whether one is less than, equal to, or greater than the other.

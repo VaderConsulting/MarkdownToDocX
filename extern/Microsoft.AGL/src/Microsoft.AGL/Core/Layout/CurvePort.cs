@@ -31,7 +31,7 @@ namespace Microsoft.AGL.Core.Layout {
         /// <summary>
         /// 
         /// </summary>
-        override public ICurve Curve { get => curve; set => curve = value;
+        public override ICurve Curve { get => curve; set => curve = value;
         }
 
         /// <summary>

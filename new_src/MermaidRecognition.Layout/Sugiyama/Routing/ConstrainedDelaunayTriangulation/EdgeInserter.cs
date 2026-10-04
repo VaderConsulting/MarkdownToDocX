@@ -8,21 +8,15 @@ using MermaidRecognition.Layout.Sugiyama.Core.DataStructures.RBTree;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves;
 
 namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangulation {
-    internal class EdgeInserter {
-        readonly CdtEdge edge;
-        readonly Set<CdtTriangle> triangles;
-        readonly RbTree<CdtFrontElement> front;
-        readonly Func<CdtSite, CdtSite, CdtEdge> createEdgeDelegate;
+    internal class EdgeInserter(CdtEdge edge, Set<CdtTriangle> triangles, RbTree<CdtFrontElement> front, Func<CdtSite, CdtSite, CdtEdge> createEdgeDelegate)
+    {
+        readonly CdtEdge edge = edge;
+        readonly Set<CdtTriangle> triangles = triangles;
+        readonly RbTree<CdtFrontElement> front = front;
+        readonly Func<CdtSite, CdtSite, CdtEdge> createEdgeDelegate = createEdgeDelegate;
         List<CdtSite> rightPolygon = [];
         List<CdtSite> leftPolygon = [];
         List<CdtTriangle> addedTriangles=[];
-
-        public EdgeInserter(CdtEdge edge, Set<CdtTriangle> triangles, RbTree<CdtFrontElement> front, Func<CdtSite, CdtSite, CdtEdge> createEdgeDelegate) {
-            this.edge = edge;
-            this.triangles = triangles;
-            this.front = front;
-            this.createEdgeDelegate = createEdgeDelegate;
-        }
 
         public void Run() {
             TraceEdgeThroughTriangles();

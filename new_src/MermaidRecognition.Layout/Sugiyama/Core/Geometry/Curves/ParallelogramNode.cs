@@ -14,7 +14,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
 #if TEST_MSAGL
     
 #endif
-    abstract public class ParallelogramNode {
+    public abstract class ParallelogramNode {
         Parallelogram parallelogram;
         /// <summary>
         /// gets or sets the parallelogram of the node

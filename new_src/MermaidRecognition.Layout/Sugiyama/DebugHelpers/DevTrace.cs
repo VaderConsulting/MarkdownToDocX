@@ -26,9 +26,9 @@ namespace MermaidRecognition.Layout.Sugiyama.DebugHelpers {
     #error TEST_MSAGL must be defined if DEVTRACE is
     #endif
 #else  // DEVTRACE
-    static
+    internal
 #endif // DEVTRACE
-    internal class DevTrace {
+    static class DevTrace {
         [Conditional("DEVTRACE")]
         internal static void Assert(bool condition, string format, params object[] args) => Trace.Assert(condition, string.Format(format, args));
 

@@ -7,7 +7,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms.CycleRemoval
     /// <summary>
     /// Calculates a set of edges to reverse, so called "feedback set", for obtaining a DAG
     /// </summary>
-    static internal class CycleRemoval<TEdge> where TEdge : IEdge {
+    internal static class CycleRemoval<TEdge> where TEdge : IEdge {
         
         /// <summary>
         /// Returning a list of edges reversing which makes the graph into a DAG
@@ -15,7 +15,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms.CycleRemoval
         /// <param name="graph"></param>
         /// <param name="constraints"></param>
         /// <returns></returns>
-        static internal IEnumerable<IEdge> GetFeedbackSetWithConstraints(BasicGraph<TEdge> graph, Set<IntPair> constraints) {
+        internal static IEnumerable<IEdge> GetFeedbackSetWithConstraints(BasicGraph<TEdge> graph, Set<IntPair> constraints) {
             if (constraints == null || constraints.Count == 0) {
                 return GetFeedbackSet(graph);
                 /*
@@ -67,7 +67,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms.CycleRemoval
         /// </summary>
         /// <param name="graph"></param>
         /// <returns></returns>
-        static internal IEnumerable<IEdge> GetFeedbackSet(BasicGraph<TEdge> graph) {
+        internal static IEnumerable<IEdge> GetFeedbackSet(BasicGraph<TEdge> graph) {
             if (graph != null && graph.NodeCount > 0 && graph.Edges.Count > 0) {
                 Set<IEdge> feedbackSet = [];
                 VertStatus[] status = new VertStatus[graph.NodeCount]; //will be Unvisited at the beginning

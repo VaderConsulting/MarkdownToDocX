@@ -1,8 +1,8 @@
 using Microsoft.AGL.Core.Geometry;
 
 namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
-    abstract internal class SweepEvent {
-        abstract internal Point Site { get; }
+    internal abstract class SweepEvent {
+        internal abstract Point Site { get; }
 
         /// <summary/>
         public override string ToString() {

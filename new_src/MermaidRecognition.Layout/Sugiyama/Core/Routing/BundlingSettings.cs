@@ -19,7 +19,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Routing {
         ///<summary>
         ///the default value of CapacityOverflowCoefficient
         ///</summary>
-        static public double DefaultCapacityOverflowCoefficientMultiplier = 1000;
+        public static double DefaultCapacityOverflowCoefficientMultiplier = 1000;
 
         double capacityOverflowCoefficient = DefaultCapacityOverflowCoefficientMultiplier;
         ///<summary>
@@ -46,7 +46,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Routing {
         ///<summary>
         ///the default path lenght importance coefficient
         ///</summary>
-        static public double DefaultPathLengthImportance = 500;
+        public static double DefaultPathLengthImportance = 500;
 
         double pathLengthImportance = DefaultPathLengthImportance;
 
@@ -59,7 +59,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Routing {
         ///<summary>
         ///the default ink importance
         ///</summary>
-        static public double DefaultInkImportance = 0.01;
+        public static double DefaultInkImportance = 0.01;
 
         double inkImportance = DefaultInkImportance;
 
@@ -73,7 +73,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Routing {
         ///<summary>
         ///default edge separation
         ///</summary>
-        static public double DefaultEdgeSeparation = 0.5;
+        public static double DefaultEdgeSeparation = 0.5;
 
         /// <summary>
         /// Separation between to neighboring edges within a bundle

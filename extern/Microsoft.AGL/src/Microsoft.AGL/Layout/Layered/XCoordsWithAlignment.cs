@@ -59,7 +59,7 @@ namespace Microsoft.AGL.Layout.Layered {
         /// <summary>
         /// 
         /// </summary>
-        static internal void CalculateXCoordinates(LayerArrays layerArrays, ProperLayeredGraph layeredGraph, int nOfOriginalVs, Anchor[] anchors, double nodeSeparation) {
+        internal static void CalculateXCoordinates(LayerArrays layerArrays, ProperLayeredGraph layeredGraph, int nOfOriginalVs, Anchor[] anchors, double nodeSeparation) {
             XCoordsWithAlignment x = new XCoordsWithAlignment(layerArrays, layeredGraph, nOfOriginalVs, anchors, nodeSeparation);
             x.Calculate();
         }

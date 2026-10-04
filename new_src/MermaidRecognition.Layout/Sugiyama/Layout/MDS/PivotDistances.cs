@@ -11,33 +11,26 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS
     /// <summary>
     /// An algorithm for computing the distances between a selected set of nodes and all nodes.
     /// </summary>
-    public class PivotDistances : AlgorithmBase
+    /// <remarks>
+    /// Computes distances between a selected set of nodes and all nodes.
+    /// Pivot nodes are selected with maxmin strategy (first at random, later
+    /// ones to maximize distances to all previously selected ones).
+    /// </remarks>
+    /// <param name="graph">A graph.</param>
+    /// <param name="directed">Whether shortest paths are directed.</param>
+    /// <param name="pivotArray">Number of pivots.</param>
+    public class PivotDistances(GeometryGraph graph, bool directed, int[] pivotArray) : AlgorithmBase
     {
-        private GeometryGraph graph;
+        private GeometryGraph graph = graph;
 
-        private bool directed;
+        private bool directed = directed;
 
-        private int[] pivotArray;
+        private int[] pivotArray = pivotArray;
 
         /// <summary>
         /// A square matrix with shortest path distances.
         /// </summary>
         public double[][] Result { get; private set; }
-
-        /// <summary>
-        /// Computes distances between a selected set of nodes and all nodes.
-        /// Pivot nodes are selected with maxmin strategy (first at random, later
-        /// ones to maximize distances to all previously selected ones).
-        /// </summary>
-        /// <param name="graph">A graph.</param>
-        /// <param name="directed">Whether shortest paths are directed.</param>
-        /// <param name="pivotArray">Number of pivots.</param>
-        public PivotDistances(GeometryGraph graph, bool directed, int[] pivotArray)
-        {
-            this.graph = graph;
-            this.directed = directed;
-            this.pivotArray = pivotArray;
-        }
 
         /// <summary>
         /// Executes the algorithm.

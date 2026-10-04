@@ -13,20 +13,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing
     /// <summary>
     /// Basic edge router for producing straight edges.
     /// </summary>
-    public class StraightLineEdges : AlgorithmBase
+    /// <remarks>
+    /// Constructs a basic straight edge router.
+    /// </remarks>
+    public class StraightLineEdges(IEnumerable<Edge> edges, double padding) : AlgorithmBase
     {
-        private readonly IEnumerable<Edge> edges;
+        private readonly IEnumerable<Edge> edges = edges;
 
-        private readonly double padding;
-
-        /// <summary>
-        /// Constructs a basic straight edge router.
-        /// </summary>
-        public StraightLineEdges(IEnumerable<Edge> edges, double padding)
-        {
-            this.edges = edges;
-            this.padding = padding;
-        }
+        private readonly double padding = padding;
 
         /// <summary>
         /// Executes the algorithm.
@@ -244,7 +238,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing
             return polyline;
         }
 
-        static internal void SetStraightLineEdgesWithUnderlyingPolylines(GeometryGraph graph) {
+        internal static void SetStraightLineEdgesWithUnderlyingPolylines(GeometryGraph graph) {
             SplineRouter.CreatePortsIfNeeded(graph.Edges);
             foreach (Edge edge in graph.Edges)
             {

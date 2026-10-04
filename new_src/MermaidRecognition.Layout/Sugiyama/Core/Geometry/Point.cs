@@ -26,7 +26,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
             return (Point)obj == this;
         }
 
-        static internal Point P(double xCoordinate, double yCoordinate) => new Point(xCoordinate, yCoordinate);
+        internal static Point P(double xCoordinate, double yCoordinate) => new Point(xCoordinate, yCoordinate);
         /// <summary>
         /// 
         /// </summary>
@@ -210,7 +210,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="point"></param>
         /// <returns></returns>
         public static Point Divide(double coefficient, Point point) => new Point(point.X / coefficient, point.Y / coefficient);
-        static internal string DoubleToString(double d) => (Math.Abs(d) < 1e-11) ? "0" : d.ToString("#.##########", CultureInfo.InvariantCulture);
+        internal static string DoubleToString(double d) => (Math.Abs(d) < 1e-11) ? "0" : d.ToString("#.##########", CultureInfo.InvariantCulture);
         /// <summary>
         /// Rounded representation of the points.  DebuggerDisplay shows the unrounded form.
         /// </summary>
@@ -289,7 +289,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
 #endif
         }
 
-        static internal bool ParallelWithinEpsilon(Point a, Point b, double eps) {
+        internal static bool ParallelWithinEpsilon(Point a, Point b, double eps) {
             double alength = a.Length;
             double blength = b.Length;
             if (alength < eps || blength < eps)
@@ -335,7 +335,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// The counter-clockwise angle when rotating point1 towards point3 around point2
         /// </summary>
         /// <returns></returns>
-        static public double Angle(Point point1, Point center, Point point3) => Angle(point1 - center, point3 - center);
+        public static double Angle(Point point1, Point center, Point point3) => Angle(point1 - center, point3 - center);
 
         public static double Dot(Point v1, Point v2) => v1.X * v2.X + v1.Y * v2.Y;
 
@@ -345,7 +345,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="side0"></param>
         /// <param name="side1"></param>
         /// <returns></returns>
-        static public double Angle(Point side0, Point side1) {
+        public static double Angle(Point side0, Point side1) {
             double ax = side0.X;
             double ay = side0.Y;
             double bx = side1.X;
@@ -395,7 +395,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         ///   1 if the orientation is v0 v2 v1
         ///   0  if v1 and v2 are collinear and codirectinal
         /// </returns>
-        static public int GetOrientationOf3Vectors(Point vector0, Point vector1, Point vector2) {
+        public static int GetOrientationOf3Vectors(Point vector0, Point vector1, Point vector2) {
             const double multiplier = 1000; //TODO, need to fix it?
 
             vector0 *= multiplier;
@@ -440,7 +440,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="cornerB"></param>
         /// <param name="cornerC"></param>
         /// <returns></returns>        
-        static public double SignedDoubledTriangleArea(Point cornerA, Point cornerB, Point cornerC) => (cornerB.X - cornerA.X) * (cornerC.Y - cornerA.Y) - (cornerC.X - cornerA.X) * (cornerB.Y - cornerA.Y);
+        public static double SignedDoubledTriangleArea(Point cornerA, Point cornerB, Point cornerC) => (cornerB.X - cornerA.X) * (cornerC.Y - cornerA.Y) - (cornerC.X - cornerA.X) * (cornerB.Y - cornerA.Y);
 
         /// <summary>
         /// figures out the triangle on the plane orientation: positive- counterclockwise, negative - clockwise
@@ -449,7 +449,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="cornerB"></param>
         /// <param name="cornerC"></param>
         /// <returns></returns>
-        static public TriangleOrientation GetTriangleOrientation(Point cornerA, Point cornerB, Point cornerC) {
+        public static TriangleOrientation GetTriangleOrientation(Point cornerA, Point cornerB, Point cornerC) {
             double area = SignedDoubledTriangleArea(cornerA, cornerB, cornerC);
             if (area > ApproximateComparer.DistanceEpsilon)
             {
@@ -472,7 +472,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="cornerB"></param>
         /// <param name="cornerC"></param>
         /// <returns></returns>
-        static public TriangleOrientation GetTriangleOrientationWithIntersectionEpsilon(Point cornerA, Point cornerB, Point cornerC)
+        public static TriangleOrientation GetTriangleOrientationWithIntersectionEpsilon(Point cornerA, Point cornerB, Point cornerC)
         {
             double area = Point.SignedDoubledTriangleArea(cornerA, cornerB, cornerC);
             if (area > ApproximateComparer.IntersectionEpsilon)
@@ -496,7 +496,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="cornerB"></param>
         /// <param name="cornerC"></param>
         /// <returns></returns>
-        static public TriangleOrientation GetTriangleOrientationWithNoEpsilon(Point cornerA, Point cornerB, Point cornerC)
+        public static TriangleOrientation GetTriangleOrientationWithNoEpsilon(Point cornerA, Point cornerB, Point cornerC)
         {
             double area = Point.SignedDoubledTriangleArea(cornerA, cornerB, cornerC);
             if (area > 0)
@@ -540,7 +540,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         }
 
         //returns true if there is an intersection lying in the inner part of the segment
-        static internal bool IntervalIntersectsRay(Point segStart, Point segEnd, Point rayOrigin, Point rayDirection, out Point x) {
+        internal static bool IntervalIntersectsRay(Point segStart, Point segEnd, Point rayOrigin, Point rayDirection, out Point x) {
             if (!LineLineIntersection(segStart, segEnd, rayOrigin, rayOrigin + rayDirection, out x))
             {
                 return false;
@@ -562,12 +562,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         }
 
         //returns true if there is an intersection lying in the inner part of rays
-        static internal bool RayIntersectsRayInteriors(Point aOrig, Point aDirection, Point bOrig, Point bDirection, out Point x) => Point.LineLineIntersection(aOrig, aOrig + aDirection,
+        internal static bool RayIntersectsRayInteriors(Point aOrig, Point aDirection, Point bOrig, Point bDirection, out Point x) => Point.LineLineIntersection(aOrig, aOrig + aDirection,
                                               bOrig, bOrig + bDirection, out x) &&
                    (x - aOrig) * aDirection / aDirection.L1 > ApproximateComparer.DistanceEpsilon &&
                    (x - bOrig) * bDirection / bDirection.L1 > ApproximateComparer.DistanceEpsilon;
 
-        static internal bool RayIntersectsRay(Point aOrig, Point aDirection, Point bOrig, Point bDirection, out Point x) => Point.LineLineIntersection(aOrig, aOrig + aDirection,
+        internal static bool RayIntersectsRay(Point aOrig, Point aDirection, Point bOrig, Point bDirection, out Point x) => Point.LineLineIntersection(aOrig, aOrig + aDirection,
                                               bOrig, bOrig + bDirection, out x) &&
                    (x - aOrig) * aDirection >= -ApproximateComparer.Tolerance &&
                    (x - bOrig) * bDirection >= -ApproximateComparer.Tolerance;
@@ -579,7 +579,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="pointOnLine1"> a point on the line </param>
         /// <param name="point"> the point to project </param>
         /// <returns></returns>
-        static public Point ProjectionToLine(Point pointOnLine0, Point pointOnLine1, Point point) {
+        public static Point ProjectionToLine(Point pointOnLine0, Point pointOnLine1, Point point) {
             Point d = pointOnLine1 - pointOnLine0;
             double dLen = d.Length;
             if (dLen < ApproximateComparer.DistanceEpsilon)
@@ -603,7 +603,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="segmentEnd"></param>
         /// <param name="parameter">the parameter of the closest point</param>
         /// <returns></returns>
-        static internal double DistToLineSegment(Point point, Point segmentStart, Point segmentEnd, out double parameter) {
+        internal static double DistToLineSegment(Point point, Point segmentStart, Point segmentEnd, out double parameter) {
             Point bc = segmentEnd - segmentStart;
             Point ba = point - segmentStart;
             double c1, c2;
@@ -627,7 +627,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="segmentStart"></param>
         /// <param name="segmentEnd"></param>
         /// <returns></returns>
-        static public Point ClosestPointAtLineSegment(Point point, Point segmentStart, Point segmentEnd) {
+        public static Point ClosestPointAtLineSegment(Point point, Point segmentStart, Point segmentEnd) {
             Point bc = segmentEnd - segmentStart;
             Point ba = point - segmentStart;
             double c1, c2;
@@ -653,7 +653,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="segmentStart"></param>
         /// <param name="segmentEnd"></param>
         /// <returns></returns>
-        static public double ClosestParameterOnLineSegment(Point point, Point segmentStart, Point segmentEnd) {
+        public static double ClosestParameterOnLineSegment(Point point, Point segmentStart, Point segmentEnd) {
             Point bc = segmentEnd - segmentStart;
             Point ba = point - segmentStart;
             double c1, c2;
@@ -680,7 +680,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="d"></param>
         /// <param name="x"></param>
         /// <returns></returns>
-        static public bool LineLineIntersection(Point a, Point b, Point c, Point d, out Point x) {
+        public static bool LineLineIntersection(Point a, Point b, Point c, Point d, out Point x) {
             //look for the solution in the form a+u*(b-a)=c+v*(d-c)
             Point ba = b - a;
             Point cd = c - d;
@@ -705,7 +705,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="d"></param>
         /// <param name="x"></param>
         /// <returns></returns>
-        static public bool SegmentSegmentIntersection(Point a, Point b, Point c, Point d, out Point x) {
+        public static bool SegmentSegmentIntersection(Point a, Point b, Point c, Point d, out Point x) {
             //look for the solution in the form a+u*(b-a)=c+v*(d-c)
             Point ba = b - a;
             Point cd = c - d;

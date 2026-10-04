@@ -73,7 +73,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         internal static ScanDirection HorizontalInstance => horizontalInstance;
         internal static ScanDirection VerticalInstance => verticalInstance;
         internal ScanDirection PerpendicularInstance => IsHorizontal ? VerticalInstance : HorizontalInstance;
-        static internal ScanDirection GetInstance(Directions dir) => StaticGraphUtility.IsVertical(dir) ? VerticalInstance : HorizontalInstance;
+        internal static ScanDirection GetInstance(Directions dir) => StaticGraphUtility.IsVertical(dir) ? VerticalInstance : HorizontalInstance;
 
         /// <summary/>
         public override string ToString() => Direction.ToString();

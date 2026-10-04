@@ -45,6 +45,6 @@ namespace Microsoft.AGL.Miscellaneous.Phylo
             }
         }
 
-        static private bool NodeIsALeaf(Node node) => !node.OutEdges.GetEnumerator().MoveNext();
+        private static bool NodeIsALeaf(Node node) => !node.OutEdges.GetEnumerator().MoveNext();
     }
 }

@@ -32,6 +32,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// <param name="weight"></param>
         internal LockPosition(Node node, Rectangle bounds, double weight)
             : this(node, bounds) => Weight = weight;
+
         /// <summary>
         /// Set the weight for this lock constraint, i.e. if this constraint conflicts with some other constraint,
         /// projection of that constraint be biased by the weights of the nodes involved

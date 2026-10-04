@@ -1,8 +1,8 @@
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 
 namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
-    abstract internal class SweepEvent {
-        abstract internal Point Site { get; }
+    internal abstract class SweepEvent {
+        internal abstract Point Site { get; }
 
         /// <summary/>
         public override string ToString() {

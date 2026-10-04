@@ -1850,10 +1850,8 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout {
             return labeledNodes;
         }
 
-        class RankComparer : IComparer<Node> {
-            readonly Dictionary<Node, LgNodeInfo> _table;
-
-            public RankComparer(Dictionary<Node, LgNodeInfo> geometryNodesToLgNodeInfos) => _table = geometryNodesToLgNodeInfos;
+        class RankComparer(Dictionary<Node, LgNodeInfo> geometryNodesToLgNodeInfos) : IComparer<Node> {
+            readonly Dictionary<Node, LgNodeInfo> _table = geometryNodesToLgNodeInfos;
 
             public int Compare(Node a, Node b) => _table[b].Rank.CompareTo(_table[a].Rank);
         }

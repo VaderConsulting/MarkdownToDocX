@@ -25,7 +25,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             DirectionToInside = dirToInside;
         }
 
-        static internal double BoundaryWidth => ApproximateComparer.DistanceEpsilon;
+        internal static double BoundaryWidth => ApproximateComparer.DistanceEpsilon;
 
         internal Point GetInteriorVertexPoint(Point outerVertex) => ApproximateComparer.Round(outerVertex + (CompassVector.ToPoint(DirectionToInside) * BoundaryWidth));
 

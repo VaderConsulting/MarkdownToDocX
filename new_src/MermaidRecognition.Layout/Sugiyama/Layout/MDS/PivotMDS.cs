@@ -11,7 +11,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS
     /// <summary>
     /// Initial layout using PivotMDS method for FastIncrementalLayout
     /// </summary>
-    public class PivotMDS : AlgorithmBase
+    /// <remarks>
+    /// Layout graph by the PivotMds method.  Uses spectral techniques to obtain a layout in
+    /// O(n^2) time.
+    /// </remarks>
+    /// <param name="graph"></param>
+    public class PivotMDS(GeometryGraph graph) : AlgorithmBase
     {
         class PivotMDSNodeWrap
         {
@@ -19,23 +24,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS
             internal PivotMDSNodeWrap(Node node) => this.node = node;
         }
 
-        private GeometryGraph graph;
+        private GeometryGraph graph = graph;
 
         /// <summary>
         /// scales the final layout by the specified factor
         /// </summary>
-        public double Scale { get; set; }
-
-        /// <summary>
-        /// Layout graph by the PivotMds method.  Uses spectral techniques to obtain a layout in
-        /// O(n^2) time.
-        /// </summary>
-        /// <param name="graph"></param>
-        public PivotMDS(GeometryGraph graph)
-        {
-            this.graph = graph;
-            Scale = 1;
-        }
+        public double Scale { get; set; } = 1;
 
         /// <summary>
         /// Executes the algorithm.

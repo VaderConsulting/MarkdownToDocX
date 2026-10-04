@@ -6,16 +6,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
     /// <summary>
     /// An edge is a pair of nodes and an ideal length required between them
     /// </summary>
-    internal class FiEdge : IEdge {
-        internal Edge mEdge;
-        public FiNode source;
-        public FiNode target;
-
-        public FiEdge(Edge mEdge) {
-            this.mEdge = mEdge;
-            source = (FiNode) mEdge.Source.AlgorithmData;
-            target = (FiNode) mEdge.Target.AlgorithmData;
-        }
+    internal class FiEdge(Edge mEdge) : IEdge {
+        internal Edge mEdge = mEdge;
+        public FiNode source = (FiNode)mEdge.Source.AlgorithmData;
+        public FiNode target = (FiNode)mEdge.Target.AlgorithmData;
         #region IEdge Members
 
         public int Source

@@ -54,7 +54,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// ToString
         /// </summary>
         /// <returns></returns>
-        override public string ToString() => string.Format(CultureInfo.InvariantCulture, "(Bezie{0},{1},{2},{3})", b[0], b[1], b[2], b[3]);
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "(Bezie{0},{1},{2},{3})", b[0], b[1], b[2], b[3]);
         ParallelogramNodeOverICurve pBoxNode;
         /// <summary>
         /// A tree of ParallelogramNodes covering the curve. 

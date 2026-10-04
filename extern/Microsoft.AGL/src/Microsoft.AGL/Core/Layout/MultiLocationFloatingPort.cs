@@ -10,8 +10,16 @@ namespace Microsoft.AGL.Core.Layout {
     /// Same behavior as RelativeFloatingPort but layout engines can choose the best relative
     /// location for routing from the list of possible locations.
     /// </summary>
-    public class MultiLocationFloatingPort : RelativeFloatingPort {
-         List<Point> PossibleOffsets;
+    /// <remarks>
+    /// Same behavior as RelativeFloatingPort but layout engines can choose the best offset for routing
+    /// from the list of possible offsets.
+    /// </remarks>
+    /// <param name="curveDelegate">The curve the locations are relative to</param>
+    /// <param name="centerDelegate">The center the locations are relative to</param>
+    /// <param name="possibleOffsets">The offsets from the center that form the locations</param>
+    public class MultiLocationFloatingPort(Func<ICurve> curveDelegate,
+            Func<Point> centerDelegate, List<Point> possibleOffsets) : RelativeFloatingPort(curveDelegate, centerDelegate) {
+         List<Point> PossibleOffsets = possibleOffsets;
 
         /// <summary>
         /// Enumerate the offsets this was created with
@@ -30,17 +38,6 @@ namespace Microsoft.AGL.Core.Layout {
         public override Point LocationOffset             // The set() is private to RelativeFloatingPort; this class should set ActiveOffsetIndex
                                                          // rather than setting LocationOffset directly.
             => PossibleOffsets[ActiveOffsetIndex];
-
-        /// <summary>
-        /// Same behavior as RelativeFloatingPort but layout engines can choose the best offset for routing
-        /// from the list of possible offsets.
-        /// </summary>
-        /// <param name="curveDelegate">The curve the locations are relative to</param>
-        /// <param name="centerDelegate">The center the locations are relative to</param>
-        /// <param name="possibleOffsets">The offsets from the center that form the locations</param>
-        public MultiLocationFloatingPort(Func<ICurve> curveDelegate,
-                Func<Point> centerDelegate, List<Point> possibleOffsets)
-            : base(curveDelegate, centerDelegate) => PossibleOffsets = possibleOffsets;
 
         /// <summary>
         /// Set LocationOffset to the PossibleOffset + CenterDelegate() that is closest to point.

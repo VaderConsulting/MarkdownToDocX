@@ -16,8 +16,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
     /// <summary>
     /// A shape wrapping an ICurve, providing additional information.
     /// </summary>
+    /// <remarks>
+    /// Constructor taking the ID and the curve of the shape.
+    /// </remarks>
+    /// <param name="boundaryCurve"></param>
     [DebuggerDisplay("Shape = {UserData}")]
-    public class Shape {
+    public class Shape(ICurve boundaryCurve)
+    {
 
         readonly Set<Shape> parents = [];
         ///<summary>
@@ -35,7 +40,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         /// </summary>
         public virtual ICurve BoundaryCurve { get => boundaryCurve; set => boundaryCurve = value;
         }
-        ICurve boundaryCurve;
+        ICurve boundaryCurve = boundaryCurve;
 
         /// <summary>
         /// The bounding box of the shape.
@@ -60,12 +65,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         /// </summary>
         public Shape() : this (null) {
         }
-
-        /// <summary>
-        /// Constructor taking the ID and the curve of the shape.
-        /// </summary>
-        /// <param name="boundaryCurve"></param>
-        public Shape(ICurve boundaryCurve) => this.boundaryCurve = boundaryCurve;     // RelativeShape throws an exception on BoundaryCurve_set so set _boundaryCurve directly.
 
         /// <summary>
         /// A group is a shape that has children.

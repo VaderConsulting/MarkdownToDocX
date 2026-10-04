@@ -9,7 +9,7 @@ namespace Microsoft.AGL.Routing
     /// <summary>
     /// Class for creating Shape elements from a Graph.
     /// </summary>
-    static internal class ShapeCreator
+    internal static class ShapeCreator
     {
         /// <summary>
         /// For a given graph finds the obstacles for nodes and clusters, correctly parenting the obstacles

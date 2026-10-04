@@ -5,26 +5,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
     /// <summary>
     /// floating port: specifies that the edge is routed to the Location 
     /// </summary>
-    public class FloatingPort : Port {
-        ICurve curve; //a curve associated with the port
-
-        /// <summary>
-        /// constructor
-        /// </summary>
-        /// <param name="location"></param>
-        /// <param name="curve">the port curve, can be null</param>
-        public FloatingPort(ICurve curve, Point location){
-            this.curve = curve;
-            this.location = location;
-        }
+    /// <remarks>
+    /// constructor
+    /// </remarks>
+    /// <param name="location"></param>
+    /// <param name="curve">the port curve, can be null</param>
+    public class FloatingPort(ICurve curve, Point location) : Port {
+        ICurve curve = curve; //a curve associated with the port
 
 
-        
-        Point location;
+
+        Point location = location;
         /// <summary>
         /// the location of the port
         /// </summary>
-        override public Point Location => location;
+        public override Point Location => location;
         /// <summary>
         /// translate the port location by delta
         /// </summary>

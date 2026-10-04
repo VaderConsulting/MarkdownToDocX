@@ -10,11 +10,9 @@ public abstract class MermaidMetadataValue
 /// <summary>
 /// Shape override from metadata (canonical Mermaid <c>shortName</c>).
 /// </summary>
-public sealed class ShapeMetadata : MermaidMetadataValue
+public sealed class ShapeMetadata(string CanonicalShapeId) : MermaidMetadataValue
 {
-    public ShapeMetadata(string CanonicalShapeId) => _CanonicalShapeId = CanonicalShapeId;
-
-    private readonly string _CanonicalShapeId;
+    private readonly string _CanonicalShapeId = CanonicalShapeId;
 
     public string CanonicalShapeId => _CanonicalShapeId;
 }
@@ -22,19 +20,13 @@ public sealed class ShapeMetadata : MermaidMetadataValue
 /// <summary>
 /// Label text and type from metadata.
 /// </summary>
-public sealed class LabelMetadata : MermaidMetadataValue
+public sealed class LabelMetadata(string Text, MermaidLabelType LabelType) : MermaidMetadataValue
 {
-    public LabelMetadata(string Text, MermaidLabelType LabelType)
-    {
-        _Text = Text;
-        _LabelType = LabelType;
-    }
-
-    private readonly string _Text;
+    private readonly string _Text = Text;
 
     public string Text => _Text;
 
-    private readonly MermaidLabelType _LabelType;
+    private readonly MermaidLabelType _LabelType = LabelType;
 
     public MermaidLabelType LabelType => _LabelType;
 }
@@ -42,11 +34,9 @@ public sealed class LabelMetadata : MermaidMetadataValue
 /// <summary>
 /// Edge curve override from metadata.
 /// </summary>
-public sealed class CurveMetadata : MermaidMetadataValue
+public sealed class CurveMetadata(string Curve) : MermaidMetadataValue
 {
-    public CurveMetadata(string Curve) => _Curve = Curve;
-
-    private readonly string _Curve;
+    private readonly string _Curve = Curve;
 
     public string Curve => _Curve;
 }
@@ -54,19 +44,13 @@ public sealed class CurveMetadata : MermaidMetadataValue
 /// <summary>
 /// Animation flags from metadata.
 /// </summary>
-public sealed class AnimationMetadata : MermaidMetadataValue
+public sealed class AnimationMetadata(bool? Animate, string? Animation) : MermaidMetadataValue
 {
-    public AnimationMetadata(bool? Animate, string? Animation)
-    {
-        _Animate = Animate;
-        _Animation = Animation;
-    }
-
-    private readonly bool? _Animate;
+    private readonly bool? _Animate = Animate;
 
     public bool? Animate => _Animate;
 
-    private readonly string? _Animation;
+    private readonly string? _Animation = Animation;
 
     public string? Animation => _Animation;
 }
@@ -74,19 +58,13 @@ public sealed class AnimationMetadata : MermaidMetadataValue
 /// <summary>
 /// Unparsed metadata entry preserved for diagnostics.
 /// </summary>
-public sealed class RawMetadata : MermaidMetadataValue
+public sealed class RawMetadata(string Key, string RawValue) : MermaidMetadataValue
 {
-    public RawMetadata(string Key, string RawValue)
-    {
-        _Key = Key;
-        _RawValue = RawValue;
-    }
-
-    private readonly string _Key;
+    private readonly string _Key = Key;
 
     public string Key => _Key;
 
-    private readonly string _RawValue;
+    private readonly string _RawValue = RawValue;
 
     public string RawValue => _RawValue;
 }

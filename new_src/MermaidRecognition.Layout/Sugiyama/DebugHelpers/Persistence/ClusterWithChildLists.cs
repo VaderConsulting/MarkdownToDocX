@@ -14,6 +14,7 @@ namespace MermaidRecognition.Layout.Sugiyama.DebugHelpers.Persistence
         internal List<string> ChildNodes = [];
         internal Cluster Cluster;
         internal ClusterWithChildLists(Cluster cl) => Cluster = cl;
+
         internal void AddCluster(string clusterIndex) => ChildClusters.Add(clusterIndex);
         internal void AddNode(string nodeId) => ChildNodes.Add(nodeId);
     }

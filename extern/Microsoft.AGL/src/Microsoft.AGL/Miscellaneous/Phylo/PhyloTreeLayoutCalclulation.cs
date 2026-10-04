@@ -492,7 +492,7 @@ namespace Microsoft.AGL.Miscellaneous.Phylo
 
         }
 
-        static private int GetTarget(int i, int span, IntEdge edge, int virtualNode) {
+        private static int GetTarget(int i, int span, IntEdge edge, int virtualNode) {
             if (i < span-1)
             {
                 return virtualNode;
@@ -501,7 +501,7 @@ namespace Microsoft.AGL.Miscellaneous.Phylo
             return edge.Target;
         }
 
-        static private int GetSource(int i, IntEdge edge, ref int virtualNode) {
+        private static int GetSource(int i, IntEdge edge, ref int virtualNode) {
             if (i > 0)
             {
                 return virtualNode++;

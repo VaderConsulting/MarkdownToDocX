@@ -116,6 +116,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
 
         // For Solver.ComputeDfDv's DummyParentNode's constraint only.
         internal Constraint(Variable variable) => Left = Right = variable;
+
         internal bool IsDummy => Left == Right;
 
         /// <summary>

@@ -367,7 +367,7 @@ namespace Microsoft.AGL.Miscellaneous.LayoutEditing
         ///<param name="closedCurve"></param>
         ///<param name="padding"></param>
         ///<returns></returns>
-        static public Polyline GetPaddedPolyline(ICurve closedCurve, double padding) => InteractiveObstacleCalculator.CreatePaddedPolyline(Curve.PolylineAroundClosedCurve(closedCurve), padding);
+        public static Polyline GetPaddedPolyline(ICurve closedCurve, double padding) => InteractiveObstacleCalculator.CreatePaddedPolyline(Curve.PolylineAroundClosedCurve(closedCurve), padding);
 
 
 

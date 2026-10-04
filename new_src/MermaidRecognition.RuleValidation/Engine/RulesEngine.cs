@@ -12,27 +12,19 @@ namespace MermaidRecognition.RuleValidation.Engine;
 /// <summary>
 /// Executes the universal ruleset against an actual-results document.
 /// </summary>
-public sealed class RulesEngine
+/// <remarks>
+/// Creates a rules engine from loaded specification artefacts.
+/// </remarks>
+public sealed class RulesEngine(LoadedSpecBundle SpecBundle, IEnumerable<IRuleEvaluator> Evaluators)
 {
-    private readonly RulesetDocument _Ruleset;
+    private readonly RulesetDocument _Ruleset = SpecBundle.Ruleset;
 
-    private readonly EvaluatorMapDocument _EvaluatorMap;
+    private readonly EvaluatorMapDocument _EvaluatorMap = SpecBundle.EvaluatorMap;
 
-    private readonly Dictionary<string, EvaluatorBinding> _BindingsByRuleId;
-
-    private readonly Dictionary<string, IRuleEvaluator> _EvaluatorsById;
-
-    /// <summary>
-    /// Creates a rules engine from loaded specification artefacts.
-    /// </summary>
-    public RulesEngine(LoadedSpecBundle SpecBundle, IEnumerable<IRuleEvaluator> Evaluators)
-    {
-        _Ruleset = SpecBundle.Ruleset;
-        _EvaluatorMap = SpecBundle.EvaluatorMap;
-        _BindingsByRuleId = SpecBundle.EvaluatorMap.EvaluatorBindings
+    private readonly Dictionary<string, EvaluatorBinding> _BindingsByRuleId = SpecBundle.EvaluatorMap.EvaluatorBindings
             .ToDictionary(Binding => Binding.RuleId, Binding => Binding);
-        _EvaluatorsById = Evaluators.ToDictionary(Evaluator => Evaluator.EvaluatorId, Evaluator => Evaluator);
-    }
+
+    private readonly Dictionary<string, IRuleEvaluator> _EvaluatorsById = Evaluators.ToDictionary(Evaluator => Evaluator.EvaluatorId, Evaluator => Evaluator);
 
     /// <summary>
     /// Validates all diagrams in the actual-results document.

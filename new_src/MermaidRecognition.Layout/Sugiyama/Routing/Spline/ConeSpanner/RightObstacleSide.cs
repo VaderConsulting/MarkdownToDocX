@@ -8,6 +8,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner
         Point end;
         internal RightObstacleSide(PolylinePoint startVertex)
             : base(startVertex) => end = startVertex.PrevOnPolyline.Point;
+
         internal override Point End => end;
 
         internal override PolylinePoint EndVertex => StartVertex.PrevOnPolyline;

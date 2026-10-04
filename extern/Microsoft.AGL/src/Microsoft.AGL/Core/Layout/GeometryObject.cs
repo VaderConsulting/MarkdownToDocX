@@ -10,7 +10,7 @@ namespace Microsoft.AGL.Core.Layout
 #if TEST_MSAGL
     
 #endif
-    abstract public class GeometryObject
+    public abstract class GeometryObject
     {
 
         GeometryObject geometryParent;
@@ -40,7 +40,7 @@ namespace Microsoft.AGL.Core.Layout
         /// <summary>
         /// event signalling that the layout is about to change
         /// </summary>
-        virtual public event EventHandler<LayoutChangeEventArgs> BeforeLayoutChangeEvent
+        public virtual event EventHandler<LayoutChangeEventArgs> BeforeLayoutChangeEvent
         { add => beforeLayoutChangeEvent += value; remove => beforeLayoutChangeEvent -= value;
         }
 

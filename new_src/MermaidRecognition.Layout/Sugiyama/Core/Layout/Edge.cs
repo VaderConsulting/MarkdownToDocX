@@ -338,7 +338,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// <param name="howMuchToStickOut"></param>
         /// <param name="smoothedPolyline"> the underlying polyline used later for editing</param>
         /// <returns></returns>
-        static internal ICurve RouteSelfEdge(ICurve boundaryCurve, double howMuchToStickOut, out SmoothedPolyline smoothedPolyline)
+        internal static ICurve RouteSelfEdge(ICurve boundaryCurve, double howMuchToStickOut, out SmoothedPolyline smoothedPolyline)
         {
             //we just need to find the box of the corresponding node
             double w = boundaryCurve.BoundingBox.Width;
@@ -361,7 +361,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// <param name="boundaryCurve"></param>
         /// <param name="howMuchToStickOut"></param>
         /// <returns></returns>
-        static internal ICurve RouteSelfEdgeAtSide(ICurve boundaryCurve, double howMuchToStickOut)
+        internal static ICurve RouteSelfEdgeAtSide(ICurve boundaryCurve, double howMuchToStickOut)
         {
             //we just need to find the box of the corresponding node
             double w = boundaryCurve.BoundingBox.Width;

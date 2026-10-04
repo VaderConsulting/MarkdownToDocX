@@ -10,12 +10,15 @@ namespace MDConverter;
 /// <summary>
 /// Converts Markdown text to DOCX (bytes or stream). Primary use-case: Markdown in, DOCX out.
 /// </summary>
-public sealed class MarkdownToDocxConverter
+/// <remarks>
+/// Creates a converter with optional progress reporting.
+/// </remarks>
+public sealed class MarkdownToDocxConverter(MarkdownToDocxOptions Options, IConversionProgressReporter? ProgressReporter)
 {
     private static readonly Encoding UTF8_NO_BOM = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 
-    private readonly MarkdownToDocxOptions _Options;
-    private readonly IConversionProgressReporter? _ProgressReporter;
+    private readonly MarkdownToDocxOptions _Options = Options ?? throw new ArgumentNullException(nameof(Options));
+    private readonly IConversionProgressReporter? _ProgressReporter = ProgressReporter;
 
     /// <summary>
     /// Creates a converter with the given options. Options are resolved (profile + overlay) at conversion time.
@@ -23,15 +26,6 @@ public sealed class MarkdownToDocxConverter
     public MarkdownToDocxConverter(MarkdownToDocxOptions Options)
         : this(Options, null)
     {
-    }
-
-    /// <summary>
-    /// Creates a converter with optional progress reporting.
-    /// </summary>
-    public MarkdownToDocxConverter(MarkdownToDocxOptions Options, IConversionProgressReporter? ProgressReporter)
-    {
-        _Options = Options ?? throw new ArgumentNullException(nameof(Options));
-        _ProgressReporter = ProgressReporter;
     }
 
     /// <summary>

@@ -55,6 +55,7 @@ namespace Microsoft.AGL.DebugHelpers {
         ///<param name="color"></param>
         public DebugCurve(byte transparency, double width, string color, ICurve curve)
             : this(width, color, curve, null) => Transparency = transparency;
+
         /// <summary>
         /// </summary>
         /// <param name="transparency"></param>

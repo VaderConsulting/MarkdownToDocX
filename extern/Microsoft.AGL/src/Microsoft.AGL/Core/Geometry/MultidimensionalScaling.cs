@@ -7,7 +7,7 @@ namespace Microsoft.AGL.Core.Geometry {
     /// recovers low-dimensional coordinates for these objects with these
     /// distances.
     /// </summary>
-    sealed public class MultidimensionalScaling {
+    public sealed class MultidimensionalScaling {
         MultidimensionalScaling() { }//suppressing the creation of the public constructor
         /// <summary>
         /// Double-centers a matrix in such a way that the center of gravity is zero.

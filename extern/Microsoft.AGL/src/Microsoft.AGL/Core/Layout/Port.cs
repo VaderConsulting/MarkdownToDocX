@@ -8,7 +8,7 @@ namespace Microsoft.AGL.Core.Layout {
 #if TEST_MSAGL
     [System.Serializable]
 #endif
-    abstract public class Port {
+    public abstract class Port {
         
         /// <summary>
         /// Gets the point associated with the port.

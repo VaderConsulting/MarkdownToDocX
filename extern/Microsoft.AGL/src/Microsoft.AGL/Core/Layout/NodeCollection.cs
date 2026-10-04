@@ -8,20 +8,18 @@ namespace Microsoft.AGL.Core.Layout
     /// <summary>
     /// A collection of nodes.  Adding or removing nodes from the collection automatically updates the graph.
     /// </summary>
+    /// <remarks>
+    /// Creates a collection for nodes.
+    /// </remarks>
+    /// <param name="graph">The graph that each node will be parented under.</param>
 #if TEST_MSAGL
-    
+
 #endif
-    internal class NodeCollection : IList<Node>
+    internal class NodeCollection(GeometryGraph graph) : IList<Node>
     {
         internal readonly List<Node> nodes = [];
 
-         GeometryGraph graph;
-
-        /// <summary>
-        /// Creates a collection for nodes.
-        /// </summary>
-        /// <param name="graph">The graph that each node will be parented under.</param>
-        public NodeCollection(GeometryGraph graph) => this.graph = graph;
+         GeometryGraph graph = graph;
 
         /// <summary>
         /// Adds the node to the collection, but does not add the node edges to the graph

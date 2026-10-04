@@ -9,37 +9,28 @@ using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves;
 
 namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangulation {
-    internal class EdgeTracer {
-        readonly CdtEdge edge;
-        readonly Set<CdtTriangle> triangles;
-        readonly RbTree<CdtFrontElement> front;
-        readonly List<CdtSite> leftPolygon;
-        readonly List<CdtSite> rightPolygon;
+    internal class EdgeTracer(CdtEdge edge, Set<CdtTriangle> triangles, RbTree<CdtFrontElement> front, List<CdtSite> leftPolygon, List<CdtSite> rightPolygon)
+    {
+        readonly CdtEdge edge = edge;
+        readonly Set<CdtTriangle> triangles = triangles;
+        readonly RbTree<CdtFrontElement> front = front;
+        readonly List<CdtSite> leftPolygon = leftPolygon;
+        readonly List<CdtSite> rightPolygon = rightPolygon;
 
         /// <summary>
         /// the upper site of the edge
         /// </summary>
-        CdtSite a;
+        CdtSite a = edge.upperSite;
         /// <summary>
         /// the lower site of the edge
         /// </summary>
-        CdtSite b;
+        CdtSite b = edge.lowerSite;
         CdtEdge piercedEdge;
         CdtTriangle piercedTriangle;
         RBNode<CdtFrontElement> piercedToTheLeftFrontElemNode;
         RBNode<CdtFrontElement> piercedToTheRightFrontElemNode;
         List<CdtFrontElement> elementsToBeRemovedFromFront = [];
         List<CdtTriangle> removedTriangles = [];
-
-        public EdgeTracer(CdtEdge edge, Set<CdtTriangle> triangles, RbTree<CdtFrontElement> front, List<CdtSite> leftPolygon, List<CdtSite> rightPolygon) {
-            this.edge = edge;
-            this.triangles = triangles;
-            this.front = front;
-            this.leftPolygon = leftPolygon;
-            this.rightPolygon = rightPolygon;
-            a = edge.upperSite;
-            b = edge.lowerSite;
-        }
 
         public void Run() {
             Init();

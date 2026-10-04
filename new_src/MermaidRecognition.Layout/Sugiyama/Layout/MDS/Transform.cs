@@ -4,7 +4,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
     /// <summary>
     /// Class for graoh layout with Multidimensional Scaling.
     /// </summary>
-    static internal class Transform {
+    internal static class Transform {
         /// <summary>
         /// Rotates a 2D configuration clockwise by a given angle.
         /// </summary>

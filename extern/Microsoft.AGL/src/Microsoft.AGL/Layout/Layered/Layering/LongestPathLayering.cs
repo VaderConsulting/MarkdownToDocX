@@ -39,6 +39,5 @@ namespace Microsoft.AGL.Layout.Layered.Layering
         }
 
         internal LongestPathLayering(BasicGraph<IntEdge> graph) => this.graph = graph;
-
     }
 }

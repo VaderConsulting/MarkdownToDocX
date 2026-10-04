@@ -94,7 +94,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// </summary>
         /// <param name="curve"></param>
         /// <returns></returns>
-        static public double LengthWithInterpolation(ICurve curve) {
+        public static double LengthWithInterpolation(ICurve curve) {
             double ret = 0;
             foreach (LineSegment ls in Interpolate(curve, lineSegThreshold))
             {
@@ -110,7 +110,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="curve"></param>
         /// <param name="threshold"></param>
         /// <returns></returns>
-        static public double LengthWithInterpolationAndThreshold(ICurve curve, double threshold)
+        public static double LengthWithInterpolationAndThreshold(ICurve curve, double threshold)
         {
             double ret = 0;
             foreach (LineSegment ls in Interpolate(curve, threshold))

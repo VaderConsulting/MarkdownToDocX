@@ -163,12 +163,12 @@ namespace Microsoft.AGL.Core.Geometry {
         /// <summary>
         /// point coordinates will be rounded to NumberOfDigitsToRound for comparison
         /// </summary>
-        static internal int NumberOfDigitsToRound => DistanceEpsilonPrecision;
+        internal static int NumberOfDigitsToRound => DistanceEpsilonPrecision;
 
-        static internal Point Round(Point point) => new Point(Round(point.X), Round(point.Y));
+        internal static Point Round(Point point) => new Point(Round(point.X), Round(point.Y));
 
-        static internal Point Round(Point point, int numberDigitsToRound) => new Point(Math.Round(point.X, numberDigitsToRound), Math.Round(point.Y, numberDigitsToRound));
+        internal static Point Round(Point point, int numberDigitsToRound) => new Point(Math.Round(point.X, numberDigitsToRound), Math.Round(point.Y, numberDigitsToRound));
 
-        static internal double Round(double value) => Math.Round(value, NumberOfDigitsToRound);
+        internal static double Round(double value) => Math.Round(value, NumberOfDigitsToRound);
     }
 }

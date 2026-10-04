@@ -182,7 +182,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         #region Debug show
 
 #if DEBUG && TEST_MSAGL
-        static internal void ShowHubs(MetroGraphData metroGraphData, IMetroMapOrderingAlgorithm metroMapOrdering, Station station) {
+        internal static void ShowHubs(MetroGraphData metroGraphData, IMetroMapOrderingAlgorithm metroMapOrdering, Station station) {
             IEnumerable<DebugCurve> ttt = GetAllDebugCurves(metroMapOrdering, metroGraphData);
             if (station != null)
             {
@@ -192,7 +192,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             LayoutAlgorithmSettings.ShowDebugCurvesEnumeration(ttt);
         }
 
-        static internal IEnumerable<DebugCurve> GetAllDebugCurves(IMetroMapOrderingAlgorithm metroMapOrdering, MetroGraphData metroGraphData) => GraphNodes(metroGraphData).Concat(VertexDebugCurves(metroMapOrdering, metroGraphData)).Concat(DebugEdges(metroGraphData));
+        internal static IEnumerable<DebugCurve> GetAllDebugCurves(IMetroMapOrderingAlgorithm metroMapOrdering, MetroGraphData metroGraphData) => GraphNodes(metroGraphData).Concat(VertexDebugCurves(metroMapOrdering, metroGraphData)).Concat(DebugEdges(metroGraphData));
 
         static IEnumerable<DebugCurve> DebugEdges(MetroGraphData metroGraphData1) => metroGraphData1.Edges.Select(e => new DebugCurve(40, 0.1, "gray", e.Curve));
 

@@ -1,8 +1,6 @@
 namespace MDConverter.Model;
 
-public sealed class TaskCheckboxInline : InlineNode
+public sealed class TaskCheckboxInline(bool Checked) : InlineNode
 {
-    public bool Checked { get; }
-
-    public TaskCheckboxInline(bool Checked) => this.Checked = Checked;
+    public bool Checked { get; } = Checked;
 }

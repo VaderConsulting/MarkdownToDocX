@@ -137,6 +137,7 @@ namespace Microsoft.AGL.Layout.Layered {
         /// an empty constructor
         /// </summary>
         public Anchor(double labelCornersPreserveCoefficient) => this.labelCornersPreserveCoefficient = labelCornersPreserveCoefficient;
+
         /// <summary>
         /// constructor
         /// </summary>

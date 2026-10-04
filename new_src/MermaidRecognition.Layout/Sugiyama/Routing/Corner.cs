@@ -22,7 +22,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         }
 #endif
 
-        readonly internal Point a;
+        internal readonly Point a;
         readonly Point b;
         readonly Point c;
 

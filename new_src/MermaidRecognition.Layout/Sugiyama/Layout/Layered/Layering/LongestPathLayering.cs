@@ -39,6 +39,5 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered.Layering
         }
 
         internal LongestPathLayering(BasicGraph<IntEdge> graph) => this.graph = graph;
-
     }
 }

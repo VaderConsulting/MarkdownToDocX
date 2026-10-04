@@ -90,7 +90,7 @@ Serializable
         /// to string 
         /// </summary>
         /// <returns></returns>
-        override public string ToString() => string.Format(CultureInfo.InvariantCulture, "({0},{1},{2},{3})", Vertex(0), Vertex(VertexId.VertexA),
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "({0},{1},{2},{3})", Vertex(0), Vertex(VertexId.VertexA),
                                  Vertex(VertexId.OtherCorner), Vertex(VertexId.VertexB));
 
         /// <summary>
@@ -186,7 +186,7 @@ Serializable
         /// <param name="parallelogram0"></param>
         /// <param name="parallelogram1"></param>
 /// <returns></returns>
-        static public bool Intersect(Parallelogram parallelogram0, Parallelogram parallelogram1) {
+        public static bool Intersect(Parallelogram parallelogram0, Parallelogram parallelogram1) {
             //my hunch is that p0 and p1 do not intersect if and only if
             //they can be separated with one of the parallelogram sides in case when at least one of them
 

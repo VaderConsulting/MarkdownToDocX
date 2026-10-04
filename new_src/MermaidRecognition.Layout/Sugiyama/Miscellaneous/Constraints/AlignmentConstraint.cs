@@ -11,13 +11,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Constraints
     /// <summary>
     /// This doesn't work yet, but it will be a constraint that aligns nodes, optionally to some fixed orientation (horizontal, vertical, 45 degrees, etc).
     /// </summary>
-    public class AlignmentConstraint : IConstraint {
-        List<Node> nodes;
-        /// <summary>
-        /// Create an alignment constraint for the given set of nodes
-        /// </summary>
-        /// <param name="nodes"></param>
-        public AlignmentConstraint(IEnumerable<Node> nodes) => this.nodes = nodes.ToList();
+    /// <remarks>
+    /// Create an alignment constraint for the given set of nodes
+    /// </remarks>
+    /// <param name="nodes"></param>
+    public class AlignmentConstraint(IEnumerable<Node> nodes) : IConstraint {
+        List<Node> nodes = nodes.ToList();
 
         void leastSquaresLineFit(out double a, out double b) {
             double mx = 0, my = 0, sx2 = 0, sy2 = 0, sxy=0, n = nodes.Count;

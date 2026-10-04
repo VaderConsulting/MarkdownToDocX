@@ -143,7 +143,7 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
         }
 
 
-        static internal CdtEdge GetOrCreateEdge(CdtSite a, CdtSite b) {
+        internal static CdtEdge GetOrCreateEdge(CdtSite a, CdtSite b) {
             if (Above(a.Point, b.Point) == 1) {
                 CdtEdge e = a.EdgeBetweenUpperSiteAndLowerSite(b);
                 if (e != null)
@@ -202,7 +202,7 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
         /// <param name="a"></param>
         /// <param name="b"></param>
         /// <returns>1 if a is above b, 0 if points are the same and -1 if a is below b</returns>
-        static public int Above(Point a, Point b) {
+        public static int Above(Point a, Point b) {
             double del = a.Y - b.Y;
             if (del > 0)
             {
@@ -224,7 +224,7 @@ namespace Microsoft.AGL.Routing.ConstrainedDelaunayTriangulation {
         /// <param name="a"></param>
         /// <param name="b"></param>
         /// <returns>1 if a is above b, 0 if points are the same and -1 if a is below b</returns>
-        static internal int Above(CdtSite a, CdtSite b) {
+        internal static int Above(CdtSite a, CdtSite b) {
             double del = a.Point.Y - b.Point.Y;
             if (del > 0)
             {

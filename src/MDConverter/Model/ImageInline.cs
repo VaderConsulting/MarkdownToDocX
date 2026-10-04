@@ -1,24 +1,17 @@
 namespace MDConverter.Model;
 
 /// <summary>Image; has source URI, alt text, and optional title.</summary>
-public sealed class ImageInline : InlineNode
+public sealed class ImageInline(string SourceUri, string AltText = "", string Title = "") : InlineNode
 {
     /// <summary>Source URI of the image (spec name: SourceUri).</summary>
-    public string SourceUri { get; }
+    public string SourceUri { get; } = SourceUri ?? string.Empty;
 
     /// <summary>Alt text from Markdown.</summary>
-    public string AltText { get; }
+    public string AltText { get; } = AltText ?? string.Empty;
 
     /// <summary>Optional title.</summary>
-    public string Title { get; }
+    public string Title { get; } = Title ?? string.Empty;
 
     /// <summary>Alias for SourceUri for backward compatibility.</summary>
     public string Url => SourceUri;
-
-    public ImageInline(string SourceUri, string AltText = "", string Title = "")
-    {
-        this.SourceUri = SourceUri ?? string.Empty;
-        this.AltText = AltText ?? string.Empty;
-        this.Title = Title ?? string.Empty;
-    }
 }

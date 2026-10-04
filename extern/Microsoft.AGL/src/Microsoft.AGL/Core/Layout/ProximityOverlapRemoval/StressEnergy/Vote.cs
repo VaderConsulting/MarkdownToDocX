@@ -8,7 +8,7 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.StressEnergy
         /// <summary>
         /// Index of the node from which this vote is coming.
         /// </summary>
-        readonly public int VoterIndex;
+        public readonly int VoterIndex;
         /// <summary>
         /// Desired distance.
         /// </summary>
@@ -16,7 +16,7 @@ namespace Microsoft.AGL.Core.Layout.ProximityOverlapRemoval.StressEnergy
         /// <summary>
         /// Weight for this vote: usually 1/(distance*distance)" 
         /// </summary>
-        readonly public double Weight;
+        public readonly double Weight;
 
         /// <summary>
         /// Constructor.

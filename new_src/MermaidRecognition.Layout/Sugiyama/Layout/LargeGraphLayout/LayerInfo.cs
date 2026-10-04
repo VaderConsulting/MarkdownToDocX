@@ -44,50 +44,40 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout
         }
     }
 
-    public class ZoomLayerInfo : ILayerInfo
+    public class ZoomLayerInfo(int zoomLevel) : ILayerInfo
     {
-        public int ZoomLevel;
+        public int ZoomLevel = zoomLevel;
 
         //public List<ISublayerInfo> SublayerInfos = new List<ISublayerInfo>(); 
-         NodesSublayerInfo _nodesSublayerInfo;
+         NodesSublayerInfo _nodesSublayerInfo = new NodesSublayerInfo();
 
         public NodesSublayerInfo NodesSlInf
         { get => _nodesSublayerInfo; set => _nodesSublayerInfo = value;
         }
 
-        EdgesSublayerInfo _edgesSublayerInfo;
+        EdgesSublayerInfo _edgesSublayerInfo = new EdgesSublayerInfo();
 
         public EdgesSublayerInfo EdgesSlInf
         { get => _edgesSublayerInfo; set => _edgesSublayerInfo = value;
         }
 
-        CellsSublayerInfo _cellsSublayerInfo;
+        CellsSublayerInfo _cellsSublayerInfo = new CellsSublayerInfo();
         public CellsSublayerInfo CellsSlInf
         { get => _cellsSublayerInfo; set => _cellsSublayerInfo = value;
         }
 
-        public ZoomLayerInfo(int zoomLevel)
-        {
-            ZoomLevel = zoomLevel;
-            _nodesSublayerInfo = new NodesSublayerInfo();
-            _edgesSublayerInfo = new EdgesSublayerInfo();
-            _cellsSublayerInfo = new CellsSublayerInfo();
-        }
-
-        override public string getLabel() => "level " + ZoomLevel;
+        public override string getLabel() => "level " + ZoomLevel;
     }
 
-    public class SkeletonLayerInfo : ILayerInfo
+    public class SkeletonLayerInfo(int zoomLevel) : ILayerInfo
     {
-        public int ZoomLevel;
-        override public string getLabel() => "skeleton of level " + ZoomLevel;
-
-        public SkeletonLayerInfo(int zoomLevel) => ZoomLevel = zoomLevel;
+        public int ZoomLevel = zoomLevel;
+        public override string getLabel() => "skeleton of level " + ZoomLevel;
     }
 
     public class LooseLayerInfo : ILayerInfo
     {
-        override public string getLabel() => "unassigned";
+        public override string getLabel() => "unassigned";
     }
 
     public interface ISublayerInfo

@@ -7,15 +7,14 @@ using Microsoft.AGL.Core.GraphAlgorithms;
 using Microsoft.AGL.Core.GraphAlgorithms.CycleRemoval;
 
 namespace Microsoft.AGL.Core.ProjectionSolver{
-    internal class UniformOneDimensionalSolver {
+    /// <summary>
+    /// desired variable separation
+    /// </summary>
+    /// <param name="variableSeparation"></param>
+    internal class UniformOneDimensionalSolver(double variableSeparation)
+    {
         readonly Dictionary<int, double> idealPositions = [];
-        readonly double varSepartion;
-        /// <summary>
-        /// desired variable separation
-        /// </summary>
-        /// <param name="variableSeparation"></param>
-        public UniformOneDimensionalSolver(double variableSeparation) => varSepartion = variableSeparation;
-
+        readonly double varSepartion = variableSeparation;
         readonly List<UniformSolverVar> varList = [];
 
         readonly Set<IntPair> constraints = [];

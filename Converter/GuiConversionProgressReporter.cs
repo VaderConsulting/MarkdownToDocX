@@ -1,10 +1,8 @@
 namespace Converter;
 
-internal sealed class GuiConversionProgressReporter : MDConverter.IConversionProgressReporter
+internal sealed class GuiConversionProgressReporter(Main Form) : MDConverter.IConversionProgressReporter
 {
-    private readonly Main _Form;
-
-    public GuiConversionProgressReporter(Main Form) => _Form = Form;
+    private readonly Main _Form = Form;
 
     public void Report(int PercentComplete, string Message)
     {

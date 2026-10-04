@@ -4,10 +4,8 @@ using System.Collections.Generic;
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
 
 namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
-    internal class SimpleNodeCollection : IList<Node> {
-        List<Node> nodes;
-
-        public SimpleNodeCollection(IEnumerable<Node> nodes) => this.nodes = new List<Node>(nodes);
+    internal class SimpleNodeCollection(IEnumerable<Node> nodes) : IList<Node> {
+        List<Node> nodes = new List<Node>(nodes);
 
         public IEnumerator<Node> GetEnumerator() => nodes.GetEnumerator();
 

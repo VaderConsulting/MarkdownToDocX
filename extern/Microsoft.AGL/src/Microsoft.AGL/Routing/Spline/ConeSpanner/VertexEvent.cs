@@ -2,7 +2,7 @@ using Microsoft.AGL.Core.Geometry;
 using Microsoft.AGL.Core.Geometry.Curves;
 
 namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
-    abstract internal class VertexEvent: SweepEvent {
+    internal abstract class VertexEvent: SweepEvent {
         PolylinePoint vertex;
 
         internal PolylinePoint Vertex { get => vertex; set => vertex = value;
@@ -11,6 +11,7 @@ namespace Microsoft.AGL.Routing.Spline.ConeSpanner {
         internal override Point Site => vertex.Point;
 
         internal VertexEvent(PolylinePoint p) => vertex = p;
+
         internal Polyline Polyline => vertex.Polyline;
     }
 }

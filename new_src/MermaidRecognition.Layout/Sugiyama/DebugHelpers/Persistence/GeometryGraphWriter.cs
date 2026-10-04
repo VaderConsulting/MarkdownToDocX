@@ -506,7 +506,7 @@ namespace  MermaidRecognition.Layout.Sugiyama.DebugHelpers.Persistence {
             }
         }
 
-        static internal string FirstCharToLower(GeometryToken attrKind) {
+        internal static string FirstCharToLower(GeometryToken attrKind) {
             string attrString =  attrKind.ToString();
             attrString = attrString.Substring(0, 1).ToLower(CultureInfo.InvariantCulture) + attrString.Substring(1, attrString.Length - 1);
             return attrString;

@@ -53,7 +53,7 @@ namespace Microsoft.AGL.Core.Geometry.RTree
         /// This field provides direct internal access to the value type Rectangle, which RTree and other callers
         /// modify directly with .Add(); the auto-property returns a temporary value-by-copy that is immediately discarded.
         /// </summary>
-// ReSharper disable InconsistentNaming
+        // ReSharper disable InconsistentNaming
         internal Rectangle rectangle;
 // ReSharper restore InconsistentNaming
 
@@ -369,7 +369,7 @@ namespace Microsoft.AGL.Core.Geometry.RTree
         /// </summary>
         /// <param name="nodes"></param>
         /// <returns></returns>
-        static public RectangleNode<TData> CreateRectangleNodeOnListOfNodes(IList<RectangleNode<TData>> nodes) {
+        public static RectangleNode<TData> CreateRectangleNodeOnListOfNodes(IList<RectangleNode<TData>> nodes) {
             ValidateArg.IsNotNull(nodes, "nodes");
             if (nodes.Count == 0)
             {
@@ -499,7 +499,7 @@ namespace Microsoft.AGL.Core.Geometry.RTree
         /// </summary>
         /// <param name="node"></param>
         /// <param name="visitor"></param>
-        static public void TraverseHierarchy(RectangleNode<TData> node, Action<RectangleNode<TData>> visitor) {
+        public static void TraverseHierarchy(RectangleNode<TData> node, Action<RectangleNode<TData>> visitor) {
             ValidateArg.IsNotNull(node, "node");
             ValidateArg.IsNotNull(visitor, "visitor");
             visitor(node);

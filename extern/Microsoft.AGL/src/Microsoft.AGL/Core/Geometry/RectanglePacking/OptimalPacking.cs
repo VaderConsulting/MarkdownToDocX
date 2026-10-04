@@ -10,23 +10,17 @@ namespace Microsoft.AGL.Core.Geometry.RectanglePacking
     /// <summary>
     /// Pack rectangles (without rotation) into a given aspect ratio
     /// </summary>
-    public abstract class OptimalPacking<TData> : AlgorithmBase
+    public abstract class OptimalPacking<TData>(IList<RectangleToPack<TData>> rectangles, double aspectRatio) : AlgorithmBase
     {
-         double desiredAspectRatio = 1.2;
+         double desiredAspectRatio = aspectRatio;
 
          double bestPackingCost;
 
          Packing bestPacking = null;
 
-        protected IList<RectangleToPack<TData>> rectangles;
+        protected IList<RectangleToPack<TData>> rectangles = rectangles;
 
          Dictionary<double, double> cachedCosts = [];
-
-        protected OptimalPacking(IList<RectangleToPack<TData>> rectangles, double aspectRatio)
-        {
-            this.rectangles = rectangles;
-            desiredAspectRatio = aspectRatio;
-        }
 
         /// <summary>
         /// The width of the widest row in the packed solution

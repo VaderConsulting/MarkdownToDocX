@@ -6,10 +6,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
 
         internal ConstrainedOrderMeasure(int numberOfCrossings) => this.numberOfCrossings = numberOfCrossings;//  this.deviationFromConstraints = deviationFromConstraints;
 
-        static public bool operator <(ConstrainedOrderMeasure a, ConstrainedOrderMeasure b) => a.numberOfCrossings < b.numberOfCrossings;
+        public static bool operator <(ConstrainedOrderMeasure a, ConstrainedOrderMeasure b) => a.numberOfCrossings < b.numberOfCrossings;
 
 
-        static public bool operator >(ConstrainedOrderMeasure a, ConstrainedOrderMeasure b) => b < a;
+        public static bool operator >(ConstrainedOrderMeasure a, ConstrainedOrderMeasure b) => b < a;
 
         internal bool Perfect() => numberOfCrossings == 0;
     }

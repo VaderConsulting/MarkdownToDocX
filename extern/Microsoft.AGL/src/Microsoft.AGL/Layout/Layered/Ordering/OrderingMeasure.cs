@@ -97,7 +97,7 @@ namespace Microsoft.AGL.Layout.Layered
             return Math.Abs(virtGroupOptSize - groupSize);
         }
 
-        static public bool operator<(OrderingMeasure a, OrderingMeasure b){
+        public static bool operator<(OrderingMeasure a, OrderingMeasure b){
             if (a.numberOfCrossings < b.numberOfCrossings)
             {
                 return true;
@@ -111,7 +111,7 @@ namespace Microsoft.AGL.Layout.Layered
             return (int)a.layerGroupDisbalance < (int)b.layerGroupDisbalance;
         }
 
-         static public bool operator>(OrderingMeasure a, OrderingMeasure b){
+         public static bool operator>(OrderingMeasure a, OrderingMeasure b){
             if (a.numberOfCrossings > b.numberOfCrossings)
             {
                 return true;

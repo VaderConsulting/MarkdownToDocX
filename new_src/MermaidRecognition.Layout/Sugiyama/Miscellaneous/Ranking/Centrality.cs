@@ -8,7 +8,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Ranking
     /// <summary>
     /// Class for centrality computation.
     /// </summary>
-    sealed internal class Centrality {
+    internal sealed class Centrality {
         private Centrality() { } //to avoid creating the public constructor
         /// <summary>
         /// Computes the PageRank in a directed graph.

@@ -11,11 +11,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
 {
     ///<summary>
     ///</summary>
+    ///<remarks>
+    ///</remarks>
+    ///<param name="isolatedSite"></param>
     [DebuggerDisplay("{Point}")]
 #if TEST_MSAGL
     
 #endif
-    public class CdtSite
+    public class CdtSite(Point isolatedSite)
     {
         /// <summary>
         /// Object to which this site refers to.
@@ -46,18 +49,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
 
         ///<summary>
         ///</summary>
-        public Point Point;
+        public Point Point = isolatedSite;
         /// <summary>
         /// each CdtSite points to the edges for which it is the upper virtex ( for horizontal edges it is the left point)
         /// </summary>
         public List<CdtEdge> Edges;
 
         internal List<CdtEdge> InEdges;
-
-        ///<summary>
-        ///</summary>
-        ///<param name="isolatedSite"></param>
-        public CdtSite(Point isolatedSite) => Point = isolatedSite;
 
         internal void AddEdgeToSite(CdtEdge edge)
         {

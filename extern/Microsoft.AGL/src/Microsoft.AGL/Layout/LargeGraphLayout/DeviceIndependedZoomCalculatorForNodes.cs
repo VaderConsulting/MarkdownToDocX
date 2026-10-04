@@ -95,7 +95,7 @@ namespace Microsoft.AGL.Layout.LargeGraphLayout
 
         bool SomeNodesAreNotAssigned() => unassigned > 0;
 
-        static internal double GetDistBetweenBoundingBoxes(Node source, Node target)
+        internal static double GetDistBetweenBoundingBoxes(Node source, Node target)
         {
             Rectangle sb = source.BoundingBox;
             Rectangle tb = target.BoundingBox;

@@ -4,7 +4,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
     /// <summary>
     /// looking for a root of a function on a given segment
     /// </summary>
-    static public class RootFinder {
+    public static class RootFinder {
 
 
         /// <summary>

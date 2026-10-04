@@ -6,7 +6,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
     /// Works for convex curves by calculating a value which might be slightly greater than the exact penetration depth
     /// It is presize on convex polygons.
     /// </summary>
-    static public class PenetrationDepth {
+    public static class PenetrationDepth {
 
         /// <summary>
         /// Calculates a vector of minimal length by which to move the first curve to avoid intersections of interiors.
@@ -15,7 +15,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="curve0"></param>
         /// <param name="curve1"></param>
         /// <returns>the shortest vector d such that d+curve0 does not intersect the interiou curve1</returns>
-        static public Point PenetrationVector(ICurve curve0, ICurve curve1) => PenetrationDepthForPolylines(PolylineAroundClosedCurve(curve0), PolylineAroundClosedCurve(curve1));
+        public static Point PenetrationVector(ICurve curve0, ICurve curve1) => PenetrationDepthForPolylines(PolylineAroundClosedCurve(curve0), PolylineAroundClosedCurve(curve1));
 
         /// <summary>
         /// returns a polyline around the curve
@@ -141,7 +141,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="poly0"></param>
         /// <param name="poly1"></param>
         /// <returns></returns>
-        static public Point PenetrationDepthForPolylines(Polyline poly0, Polyline poly1) {
+        public static Point PenetrationDepthForPolylines(Polyline poly0, Polyline poly1) {
             ValidateArg.IsNotNull(poly0, "poly0");
             ValidateArg.IsNotNull(poly1, "poly1");
             System.Diagnostics.Debug.Assert(

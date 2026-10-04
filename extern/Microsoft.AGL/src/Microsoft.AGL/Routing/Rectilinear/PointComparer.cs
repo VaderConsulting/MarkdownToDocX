@@ -11,7 +11,7 @@ namespace Microsoft.AGL.Routing.Rectilinear {
         private static readonly double differenceEpsilon = ApproximateComparer.DistanceEpsilon / 2;
         // ReSharper restore InconsistentNaming
 
-        static internal double DifferenceEpsilon => differenceEpsilon;
+        internal static double DifferenceEpsilon => differenceEpsilon;
 
         /// <summary>
         /// Determines whether the specified Points, which are assumed to have been Round()ed,
@@ -144,12 +144,12 @@ namespace Microsoft.AGL.Routing.Rectilinear {
             return (Directions.East == dir) || (Directions.North == dir);
         }
 
-        static internal Directions GetPureDirection(VisibilityVertex first, VisibilityVertex second) {
+        internal static Directions GetPureDirection(VisibilityVertex first, VisibilityVertex second) {
             Assert_Rounded(first.Point);
             Assert_Rounded(second.Point);
             return GetPureDirection(first.Point, second.Point);
         }
-        static internal Directions GetDirections(VisibilityVertex first, VisibilityVertex second) {
+        internal static Directions GetDirections(VisibilityVertex first, VisibilityVertex second) {
             Assert_Rounded(first.Point);
             Assert_Rounded(second.Point);
             return GetDirections(first.Point, second.Point);

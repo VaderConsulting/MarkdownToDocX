@@ -17,7 +17,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 #if DEBUG && TEST_MSAGL
         readonly MetroGraphData mgd;
         readonly BundlingSettings bundlingSettings;
-        static internal void ShowHubs(MetroGraphData mgd, BundlingSettings bundlingSettings, params ICurve[] iCurves
+        internal static void ShowHubs(MetroGraphData mgd, BundlingSettings bundlingSettings, params ICurve[] iCurves
             ) {
             HubDebugger hd = new HubDebugger(mgd, bundlingSettings);
             if (iCurves != null) {
@@ -26,7 +26,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             }
         }
 
-        static internal void ShowHubs(MetroGraphData mgd, BundlingSettings bundlingSettings, bool withIdeal) {
+        internal static void ShowHubs(MetroGraphData mgd, BundlingSettings bundlingSettings, bool withIdeal) {
             if (!withIdeal)
             {
                 return;
@@ -37,7 +37,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             }
         }
 
-        static internal void ShowHubs(MetroGraphData mgd, BundlingSettings bundlingSettings, Station highlightedNode) {
+        internal static void ShowHubs(MetroGraphData mgd, BundlingSettings bundlingSettings, Station highlightedNode) {
             HubDebugger hd = new HubDebugger(mgd, bundlingSettings);
             List<DebugCurve> debugCurves = hd.CreateDebugCurves();
             debugCurves.Add(new DebugCurve(100,1, "magenta", CurveFactory.CreateCircle(3, highlightedNode.Position)));

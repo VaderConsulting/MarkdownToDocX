@@ -242,7 +242,7 @@ namespace Microsoft.AGL.Layout.Layered {
         /// <summary>
         /// The main calculation is done here
         /// </summary>       
-        override protected void RunInternal() {
+        protected override void RunInternal() {
 #if REPORTING
             Timer t = null;
             if (sugiyamaSettings.Reporting) {

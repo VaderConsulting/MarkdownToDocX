@@ -10,7 +10,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
     internal class VisibilityVertex : IComparer<VisibilityEdge> {
 
         // This member is accessed a lot.  Using a field instead of a property for performance.
-        readonly internal Point Point;
+        internal readonly Point Point;
         bool _isTerminal;
         bool _isShortestPathTerminal;
         readonly List<VisibilityEdge> _inEdges=[];

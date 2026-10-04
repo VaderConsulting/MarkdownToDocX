@@ -835,7 +835,7 @@ namespace Microsoft.AGL.Routing {
         #region debugging
 
 #if DEBUG && TEST_MSAGL
-        static internal void AnotherShowMethod(VisibilityGraph visGraph,
+        internal static void AnotherShowMethod(VisibilityGraph visGraph,
             Port sourcePort, Port targetPort, IEnumerable<Shape> obstacleShapes, ICurve curve) {
             List<DebugCurve> dd = new List<DebugCurve>(
          visGraph.Edges.Select(
@@ -1046,7 +1046,7 @@ namespace Microsoft.AGL.Routing {
         internal bool Bidirectional { get; set; }
 
 #if TEST_MSAGL
-        static internal void ShowVisGraph(VisibilityGraph tmpVisGraph, IEnumerable<Polyline> obstacles, IEnumerable<ICurve> greenCurves, IEnumerable<ICurve> redCurves) {
+        internal static void ShowVisGraph(VisibilityGraph tmpVisGraph, IEnumerable<Polyline> obstacles, IEnumerable<ICurve> greenCurves, IEnumerable<ICurve> redCurves) {
             List<DebugCurve> l = new List<DebugCurve>(tmpVisGraph.Edges.Select(e => new DebugCurve(100, 1,
                 e.IsPassable != null && e.IsPassable() ? "green" : "black"
                 , new LineSegment(e.SourcePoint, e.TargetPoint))));
@@ -1237,7 +1237,7 @@ namespace Microsoft.AGL.Routing {
             return ret;
         }
 
-        static internal void CreatePortsIfNeeded(IEnumerable<Edge> edges) {
+        internal static void CreatePortsIfNeeded(IEnumerable<Edge> edges) {
             foreach (Edge edge in edges) {
                 if (edge.SourcePort == null) {
                     Edge e = edge;
@@ -1266,7 +1266,7 @@ namespace Microsoft.AGL.Routing {
         /// <param name="nodeSeparation"></param>
         /// <param name="edgePadding"></param>
         /// <returns></returns>
-        static public double ComputeLooseSplinePadding(double nodeSeparation, double edgePadding) {
+        public static double ComputeLooseSplinePadding(double nodeSeparation, double edgePadding) {
             Debug.Assert(edgePadding > 0, "require EdgePadding > 0");
             double twicePadding = 2.0 * edgePadding;
             Debug.Assert(nodeSeparation > twicePadding, "require OverlapSeparation > 2*EdgePadding");

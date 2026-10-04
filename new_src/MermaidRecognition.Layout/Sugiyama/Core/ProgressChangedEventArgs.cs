@@ -5,10 +5,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Core
     /// <summary>
     /// Progress changed event argument class for MSAGL progress changes.
     /// </summary>
-    public class ProgressChangedEventArgs : EventArgs
+    /// <remarks>
+    /// Constructors a ProgressChangedEventArgs with the given ratio complete and description.
+    /// </remarks>
+    /// <param name="ratioComplete">between 0 (not started) and 1 (finished)</param>
+    /// <param name="algorithmDescription">a useful description</param>
+    public class ProgressChangedEventArgs(double ratioComplete, string algorithmDescription) : EventArgs
     {
-        private string algorithmDescription;
-        private double ratioComplete;
+        private string algorithmDescription = algorithmDescription;
+        private double ratioComplete = ratioComplete;
 
         /// <summary>
         /// Constructors a ProgressChangedEventArgs with the given ratio complete.
@@ -17,17 +22,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Core
         public ProgressChangedEventArgs(double ratioComplete)
             : this(ratioComplete, null)
         {
-        }
-
-        /// <summary>
-        /// Constructors a ProgressChangedEventArgs with the given ratio complete and description.
-        /// </summary>
-        /// <param name="ratioComplete">between 0 (not started) and 1 (finished)</param>
-        /// <param name="algorithmDescription">a useful description</param>
-        public ProgressChangedEventArgs(double ratioComplete, string algorithmDescription)
-        {
-            this.ratioComplete = ratioComplete;
-            this.algorithmDescription = algorithmDescription;
         }
 
         /// <summary>

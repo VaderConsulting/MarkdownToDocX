@@ -2,15 +2,10 @@ using Microsoft.AGL.Core.Geometry;
 using Microsoft.AGL.Routing.Spline.ConeSpanner;
 
 namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
-    internal class AxisEdgeLowPointEvent : SweepEvent {
-        Point site;
-        
-        internal AxisEdge AxisEdge { get; set; }
+    internal class AxisEdgeLowPointEvent(AxisEdge edge, Point point) : SweepEvent {
+        Point site = point;
 
-        public AxisEdgeLowPointEvent(AxisEdge  edge, Point point) {
-            site = point;
-            AxisEdge = edge;
-        }
+        internal AxisEdge AxisEdge { get; set; } = edge;
 
         internal override Point Site => site;
 

@@ -11,26 +11,24 @@ namespace Microsoft.AGL.Core.Layout {
     /// <summary>
     /// A collection of edges.  Adding or removing edges from the collection automatically updates the related nodes.
     /// </summary>
+    /// <remarks>
+    /// Creates a collection for edges.
+    /// </remarks>
+    /// <param name="graph">The graph that each edge will be parented under.</param>
 #if TEST_MSAGL
-    
+
 #endif
-    public class EdgeCollection : IEnumerable<Edge> {
+    public class EdgeCollection(GeometryGraph graph) : IEnumerable<Edge> {
         readonly IList<Edge> edges = [];
         /// <summary>
         /// the graph of the collection
         /// </summary>
-        protected readonly GeometryGraph graph;
-
-        /// <summary>
-        /// Creates a collection for edges.
-        /// </summary>
-        /// <param name="graph">The graph that each edge will be parented under.</param>
-        public EdgeCollection(GeometryGraph graph) => this.graph = graph;
+        protected readonly GeometryGraph graph = graph;
 
         /// <summary>
         /// Adds the edge to the collection
         /// </summary>
-        virtual public void Add(Edge item) {
+        public virtual void Add(Edge item) {
             ValidateArg.IsNotNull(item, "item");
             item.GeometryParent = graph;
             edges.Add(item);
@@ -50,7 +48,7 @@ namespace Microsoft.AGL.Core.Layout {
         /// <summary>
         /// Clears all of the edges.
         /// </summary>
-        virtual public void Clear() {
+        public virtual void Clear() {
             edges.Clear();
             foreach (Node node in graph.Nodes) {
                 ((Set<Edge>) node.OutEdges).Clear();
@@ -87,7 +85,7 @@ namespace Microsoft.AGL.Core.Layout {
         /// Removes the edge from the collection.
         /// </summary>
         /// <returns>True if the edge was removed. False if the edge was not removed or the edge was not found.</returns>
-        virtual public bool Remove(Edge item) {
+        public virtual bool Remove(Edge item) {
             if (item == null || !edges.Contains(item))
             {
                 return false;
@@ -115,7 +113,7 @@ namespace Microsoft.AGL.Core.Layout {
         /// Gets an enumerator for the collection.
         /// </summary>
         /// <returns>The enumerator for the colleciton.</returns>
-        virtual public IEnumerator<Edge> GetEnumerator() => edges.GetEnumerator();
+        public virtual IEnumerator<Edge> GetEnumerator() => edges.GetEnumerator();
 
         /// <summary>
         /// Gets an enumerator for the collection.

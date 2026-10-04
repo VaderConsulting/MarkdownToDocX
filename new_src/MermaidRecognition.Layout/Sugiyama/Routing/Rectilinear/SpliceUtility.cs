@@ -5,7 +5,7 @@ using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves;
 
 namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
-    static internal class SpliceUtility {
+    internal static class SpliceUtility {
         // Most of the original contents of this file have been subsumed into ObstacleTree and TransientGraphUtility.
         internal static Point MungeClosestIntersectionInfo(Point rayOrigin, IntersectionInfo closestIntersection, bool isHorizontal) {
             Rectangle bbox = closestIntersection.Segment1.BoundingBox;
@@ -24,7 +24,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         }
 
         // Make sure that we intersect the object space.
-        static internal double MungeIntersect(double site, double intersect, double start, double end) {
+        internal static double MungeIntersect(double site, double intersect, double start, double end) {
             if (site < intersect) {
                 double min = Math.Min(start, end);
                 if (intersect < min) {
@@ -40,7 +40,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             return ApproximateComparer.Round(intersect);
         }
 
-        static internal Point RawIntersection(IntersectionInfo xx, Point origin) {
+        internal static Point RawIntersection(IntersectionInfo xx, Point origin) {
             // If this fires, then you didn't pass the LineSegment as the first argument to GetAllIntersections.
             Debug.Assert(xx.Segment0 is LineSegment, "LineSegment was not first arg to GetAllIntersections");
 

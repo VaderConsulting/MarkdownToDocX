@@ -9,27 +9,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RectanglePacking
     /// A rectangle and associated data that need to be packed
     /// </summary>
     /// <typeparam name="TData"></typeparam>
-    public class RectangleToPack<TData>
+    /// <remarks>
+    /// Associate a rectangle with a data item to be packed
+    /// </remarks>
+    /// <param name="rectangle"></param>
+    /// <param name="data"></param>
+    public class RectangleToPack<TData>(Rectangle rectangle, TData data)
     {
         /// <summary>
         /// Rectangle to be packed - packing will translate the rectangle
         /// </summary>
-        public Rectangle Rectangle { get; internal set; }
+        public Rectangle Rectangle { get; internal set; } = rectangle;
 
         /// <summary>
         /// data associated with rectangle
         /// </summary>
-        public TData Data { get; private set; }
-
-        /// <summary>
-        /// Associate a rectangle with a data item to be packed
-        /// </summary>
-        /// <param name="rectangle"></param>
-        /// <param name="data"></param>
-        public RectangleToPack(Rectangle rectangle, TData data)
-        {
-            Rectangle = rectangle;
-            Data = data;
-        }
+        public TData Data { get; private set; } = data;
     }
 }

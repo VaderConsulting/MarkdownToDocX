@@ -29,17 +29,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         /// <summary>
         /// Error of ink
         /// </summary>
-        static internal double InkError(double oldInk, double newInk, BundlingSettings bundlingSettings) => (oldInk - newInk) * bundlingSettings.InkImportance;
+        internal static double InkError(double oldInk, double newInk, BundlingSettings bundlingSettings) => (oldInk - newInk) * bundlingSettings.InkImportance;
 
         /// <summary>
         /// Error of path lengths
         /// </summary>
-        static internal double PathLengthsError(double oldLength, double newLength, double idealLength, BundlingSettings bundlingSettings) => (oldLength - newLength) * (bundlingSettings.PathLengthImportance / idealLength);
+        internal static double PathLengthsError(double oldLength, double newLength, double idealLength, BundlingSettings bundlingSettings) => (oldLength - newLength) * (bundlingSettings.PathLengthImportance / idealLength);
 
         /// <summary>
         /// Error of hubs
         /// </summary>
-        static internal double RError(double idealR, double nowR, BundlingSettings bundlingSettings) {
+        internal static double RError(double idealR, double nowR, BundlingSettings bundlingSettings) {
             if (idealR <= nowR)
             {
                 return 0;
@@ -52,7 +52,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         /// <summary>
         /// Error of bundles
         /// </summary>
-        static internal double BundleError(double idealWidth, double nowWidth, BundlingSettings bundlingSettings) {
+        internal static double BundleError(double idealWidth, double nowWidth, BundlingSettings bundlingSettings) {
             if (idealWidth <= nowWidth)
             {
                 return 0;
@@ -65,7 +65,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         /// <summary>
         /// Cost of the whole graph
         /// </summary>
-        static internal double Cost(MetroGraphData metroGraphData, BundlingSettings bundlingSettings) {
+        internal static double Cost(MetroGraphData metroGraphData, BundlingSettings bundlingSettings) {
             double cost = 0;
 
             //ink
@@ -84,7 +84,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         /// <summary>
         /// Cost of the whole graph (hubs and bundles)
         /// </summary>
-        static internal double CostOfForces(MetroGraphData metroGraphData, BundlingSettings bundlingSettings) {
+        internal static double CostOfForces(MetroGraphData metroGraphData, BundlingSettings bundlingSettings) {
             double cost = 0;
 
             //hubs

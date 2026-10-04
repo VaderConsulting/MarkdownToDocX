@@ -22,7 +22,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         int[] NLayering => nla.Y;
 
-        static internal void InsertPaths(
+        internal static void InsertPaths(
                                          ref ProperLayeredGraph layeredGraph, ref LayerArrays la,
                                          Database db, BasicGraph<Node, IntEdge> intGraphP) {
             EdgePathsInserter li = new EdgePathsInserter(layeredGraph, la, db, intGraphP);

@@ -7,17 +7,13 @@ using Microsoft.AGL.Core.Geometry.Curves;
 using Microsoft.AGL.Core.Geometry.RTree;
 
 namespace Microsoft.AGL.Routing.Spline.Bundling {
-    internal class PathFixer {
-        MetroGraphData metroGraphData;
-        Func<Metroline, Point, bool> polylineAcceptsPoint;
+    internal class PathFixer(MetroGraphData metroGraphData, Func<Metroline, Point, bool> polylineAcceptsPoint)
+    {
+        MetroGraphData metroGraphData = metroGraphData;
+        Func<Metroline, Point, bool> polylineAcceptsPoint = polylineAcceptsPoint;
         Set<Point> foundCrossings = [];
         Set<Point> crossingsThatShouldBecomeHubs = [];
         Set<Point> pointsToDelete;
-
-        public PathFixer(MetroGraphData metroGraphData, Func<Metroline, Point, bool> polylineAcceptsPoint) {
-            this.metroGraphData = metroGraphData;
-            this.polylineAcceptsPoint = polylineAcceptsPoint;
-        }
 
         IEnumerable<PolylinePoint> Vertices() => metroGraphData.Edges.Select(e => (Polyline)e.Curve).SelectMany(p => p.PolylinePoints);
 

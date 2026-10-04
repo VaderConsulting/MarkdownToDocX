@@ -7,33 +7,28 @@ namespace Microsoft.AGL.Layout.Incremental {
     /// <summary>
     /// A stick constraint requires a fixed separation between two nodes
     /// </summary>
-    public class StickConstraint : IConstraint {
+    /// <remarks>
+    /// 
+    /// </remarks>
+    /// <param name="u"></param>
+    /// <param name="v"></param>
+    /// <param name="separation"></param>
+    public class StickConstraint(Node u, Node v, double separation) : IConstraint {
         /// <summary>
         /// 
         /// </summary>
-        protected Node u;
+        protected Node u = u;
 
         /// <summary>
         /// 
         /// </summary>
-        protected Node v;
+        protected Node v = v;
 
         /// <summary>
         /// 
         /// </summary>
-        protected double separation;
+        protected double separation = separation;
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="u"></param>
-        /// <param name="v"></param>
-        /// <param name="separation"></param>
-        public StickConstraint(Node u, Node v, double separation) {
-            this.u = u;
-            this.v = v;
-            this.separation = separation;
-        }
         /// <summary>
         /// 
         /// </summary>

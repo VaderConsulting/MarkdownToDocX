@@ -167,7 +167,7 @@ namespace Microsoft.AGL.Routing {
             OverlapsDetected = TightObstacles.Count < Obstacles.Count();
         }
 
-        static internal RectangleNode<Polyline> CreateTightObstacles(IEnumerable<ICurve> obstacles, double tightPadding, Set<Polyline> tightObstacleSet) {
+        internal static RectangleNode<Polyline> CreateTightObstacles(IEnumerable<ICurve> obstacles, double tightPadding, Set<Polyline> tightObstacleSet) {
             Debug.Assert(tightObstacleSet!=null);
             if(obstacles.Count()==0)
             {
@@ -182,7 +182,7 @@ namespace Microsoft.AGL.Routing {
             return RemovePossibleOverlapsInTightPolylinesAndCalculateHierarchy(tightObstacleSet);
         }
 
-        static internal RectangleNode<Polyline> RemovePossibleOverlapsInTightPolylinesAndCalculateHierarchy(Set<Polyline> tightObstacleSet) {
+        internal static RectangleNode<Polyline> RemovePossibleOverlapsInTightPolylinesAndCalculateHierarchy(Set<Polyline> tightObstacleSet) {
             RectangleNode<Polyline> hierarchy = CalculateHierarchy(tightObstacleSet);
             Set<Tuple<Polyline, Polyline>> overlappingPairSet;
             while ((overlappingPairSet = GetOverlappedPairSet(hierarchy)).Count > 0)
@@ -311,7 +311,7 @@ namespace Microsoft.AGL.Routing {
                     Curve.PointRelativeToCurveLocation(polyB.Start, polyA) != PointLocation.Outside);
         }
 
-        static internal Polyline CreatePaddedPolyline(Polyline poly, double padding) {
+        internal static Polyline CreatePaddedPolyline(Polyline poly, double padding) {
 
             Debug.Assert(Point.GetTriangleOrientation(poly[0], poly[1], poly[2]) == TriangleOrientation.Clockwise
                          , "Unpadded polyline is not clockwise");

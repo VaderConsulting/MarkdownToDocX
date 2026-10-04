@@ -11,7 +11,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
     /// <summary>
     /// A shape wrapping an ICurve delegate, providing additional information.
     /// </summary>
-    public class RelativeShape : Shape {
+    /// <remarks>
+    /// Constructor taking the ID and the curve delegate for the shape.
+    /// </remarks>
+    /// <param name="curveDelegate"></param>
+    public class RelativeShape(Func<ICurve> curveDelegate) : Shape {
         /// <summary>
         /// The curve of the shape.
         /// </summary>
@@ -22,12 +26,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
                                                                                );
         }
 
-        readonly Func<ICurve> curveDelegate;
-
-        /// <summary>
-        /// Constructor taking the ID and the curve delegate for the shape.
-        /// </summary>
-        /// <param name="curveDelegate"></param>
-        public RelativeShape(Func<ICurve> curveDelegate) => this.curveDelegate = curveDelegate;
+        readonly Func<ICurve> curveDelegate = curveDelegate;
     }
 }

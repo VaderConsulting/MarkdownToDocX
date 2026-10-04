@@ -11,16 +11,12 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
     /// <summary>
     /// Check intersections between edges and obstacles using triangulation (faster than kd-tree)
     /// </summary>
-    internal class CdtIntersections {
-        readonly MetroGraphData metroGraphData;
-        readonly BundlingSettings bundlingSettings;
+    internal class CdtIntersections(MetroGraphData metroGraphData, BundlingSettings bundlingSettings)
+    {
+        readonly MetroGraphData metroGraphData = metroGraphData;
+        readonly BundlingSettings bundlingSettings = bundlingSettings;
 
         internal bool ComputeForcesForBundles = false;
-
-        public CdtIntersections(MetroGraphData metroGraphData, BundlingSettings bundlingSettings) {
-            this.metroGraphData = metroGraphData;
-            this.bundlingSettings = bundlingSettings;
-        }
 
         /// <summary>
         /// returns false iff the edge overlap an obstacle
@@ -256,7 +252,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             return true;
         }
 
-        static internal int GetHyperplaneSign(Point start, Point end, CdtSite cdtSite) {
+        internal static int GetHyperplaneSign(Point start, Point end, CdtSite cdtSite) {
             double area = Point.SignedDoubledTriangleArea(start, cdtSite.Point, end);
             if (area > ApproximateComparer.DistanceEpsilon)
             {

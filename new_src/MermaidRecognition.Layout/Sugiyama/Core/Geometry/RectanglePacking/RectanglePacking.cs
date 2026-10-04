@@ -9,26 +9,20 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RectanglePacking
     /// <summary>
     /// Greedily pack rectangles (without rotation) into a given aspect ratio
     /// </summary>
-    public class RectanglePacking<TData> : Packing
+    /// <remarks>
+    /// Constructor for packing, call Run to do the actual pack.
+    /// Each RectangleToPack.Rectangle is updated in place.
+    /// Pack rectangles tallest to shortest, left to right until wrapWidth is reached, 
+    /// then wrap to right-most rectangle still with vertical space to fit the next rectangle
+    /// </remarks>
+    /// <param name="rectangles"></param>
+    /// <param name="wrapWidth"></param>
+    /// <param name="rectanglesPresorted">If the rectangles are already sorted into the order to pack, then specify true</param>
+    public class RectanglePacking<TData>(IEnumerable<RectangleToPack<TData>> rectangles, double wrapWidth, bool rectanglesPresorted = false) : Packing
     {
-         IEnumerable<RectangleToPack<TData>> rectanglesByDescendingHeight;
+         IEnumerable<RectangleToPack<TData>> rectanglesByDescendingHeight = rectanglesPresorted ? rectangles : SortRectangles(rectangles);
 
-         double wrapWidth;
-
-        /// <summary>
-        /// Constructor for packing, call Run to do the actual pack.
-        /// Each RectangleToPack.Rectangle is updated in place.
-        /// Pack rectangles tallest to shortest, left to right until wrapWidth is reached, 
-        /// then wrap to right-most rectangle still with vertical space to fit the next rectangle
-        /// </summary>
-        /// <param name="rectangles"></param>
-        /// <param name="wrapWidth"></param>
-        /// <param name="rectanglesPresorted">If the rectangles are already sorted into the order to pack, then specify true</param>
-        public RectanglePacking(IEnumerable<RectangleToPack<TData>> rectangles, double wrapWidth, bool rectanglesPresorted = false)
-        {
-            rectanglesByDescendingHeight = rectanglesPresorted ? rectangles : SortRectangles(rectangles);
-            this.wrapWidth = wrapWidth;
-        }
+         double wrapWidth = wrapWidth;
 
         /// <summary>
         /// Sort rectangles by height

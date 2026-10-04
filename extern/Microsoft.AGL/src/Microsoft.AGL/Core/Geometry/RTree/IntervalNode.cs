@@ -55,7 +55,7 @@ namespace Microsoft.AGL.Core.Geometry.RTree
         /// This field provides direct internal access to the value type Interval, which RTree and other callers
         /// modify directly with .Add(); the auto-property returns a temporary value-by-copy that is immediately discarded.
         /// </summary>
-// ReSharper disable InconsistentNaming
+        // ReSharper disable InconsistentNaming
         internal Interval interval;
 // ReSharper restore InconsistentNaming
 
@@ -371,7 +371,7 @@ namespace Microsoft.AGL.Core.Geometry.RTree
         /// </summary>
         /// <param name="nodes"></param>
         /// <returns></returns>
-        static public IntervalNode<TData> CreateIntervalNodeOnListOfNodes(IList<IntervalNode<TData>> nodes) {
+        public static IntervalNode<TData> CreateIntervalNodeOnListOfNodes(IList<IntervalNode<TData>> nodes) {
             ValidateArg.IsNotNull(nodes, "nodes");
             if (nodes.Count == 0)
             {
@@ -501,7 +501,7 @@ namespace Microsoft.AGL.Core.Geometry.RTree
         /// </summary>
         /// <param name="node"></param>
         /// <param name="visitor"></param>
-        static public void TraverseHierarchy(IntervalNode<TData> node, Action<IntervalNode<TData>> visitor) {
+        public static void TraverseHierarchy(IntervalNode<TData> node, Action<IntervalNode<TData>> visitor) {
             ValidateArg.IsNotNull(node, "node");
             ValidateArg.IsNotNull(visitor, "visitor");
             visitor(node);

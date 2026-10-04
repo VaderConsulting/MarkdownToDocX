@@ -97,7 +97,7 @@ namespace Microsoft.AGL.Routing.Visibility {
             return visibilityGraph;
         }
 
-        static internal VisibilityGraph CalculateGraphOfBoundaries(List<Polyline> holes) {
+        internal static VisibilityGraph CalculateGraphOfBoundaries(List<Polyline> holes) {
             VisibilityGraph graphOfHoleBoundaries = new VisibilityGraph();
             foreach (Polyline polyline in holes)
             {
@@ -217,7 +217,7 @@ namespace Microsoft.AGL.Routing.Visibility {
         internal bool ContainsVertex(Point point) => PointToVertexMap.ContainsKey(point);
 
 
-        static internal VisibilityEdge AddEdge(VisibilityVertex source, VisibilityVertex target) {
+        internal static VisibilityEdge AddEdge(VisibilityVertex source, VisibilityVertex target) {
             if (source.TryGetEdge(target, out VisibilityEdge visEdge))
             {
                 return visEdge;
@@ -237,7 +237,7 @@ namespace Microsoft.AGL.Routing.Visibility {
 
         void AddEdge(PolylinePoint source, PolylinePoint target) => AddEdge(source.Point, target.Point);
 
-        static internal void AddEdge(VisibilityEdge edge) {
+        internal static void AddEdge(VisibilityEdge edge) {
             Debug.Assert(edge.Source!=edge.Target);
             edge.Source.OutEdges.Insert(edge);
             edge.Target.InEdges.Add(edge);
@@ -350,7 +350,7 @@ namespace Microsoft.AGL.Routing.Visibility {
             edge.Target.RemoveInEdge(edge);
         }
 
-        static internal VisibilityEdge FindEdge(VisibilityEdge edge) {
+        internal static VisibilityEdge FindEdge(VisibilityEdge edge) {
             if(edge.Source.TryGetEdge(edge.Target, out edge))
             {
                 return edge;
@@ -381,7 +381,7 @@ namespace Microsoft.AGL.Routing.Visibility {
             return null;
         }
 
-        static internal void RemoveEdge(VisibilityEdge edge) {
+        internal static void RemoveEdge(VisibilityEdge edge) {
             edge.Source.OutEdges.Remove(edge);//not efficient!
             edge.Target.InEdges.Remove(edge);//not efficient
         }

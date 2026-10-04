@@ -14,21 +14,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Ranking
     /// <summary>
     /// Ranking layout for directed graphs.
     /// </summary>
-    public class RankingLayout : AlgorithmBase {
-        GeometryGraph graph;
+    /// <remarks>
+    /// Constructs the ranking layout algorithm.
+    /// </remarks>
+    public class RankingLayout(RankingLayoutSettings settings, GeometryGraph geometryGraph) : AlgorithmBase {
+        GeometryGraph graph = geometryGraph;
 
-         RankingLayoutSettings settings;
+         RankingLayoutSettings settings = settings;
 
-        /// <summary>
-        /// Constructs the ranking layout algorithm.
-        /// </summary>
-        public RankingLayout(RankingLayoutSettings settings, GeometryGraph geometryGraph)
-        {
-            this.settings = settings;
-            graph = geometryGraph;
-        }
-
-         void SetNodePositionsAndMovedBoundaries() {
+        void SetNodePositionsAndMovedBoundaries() {
             
             int pivotNumber = Math.Min(graph.Nodes.Count,settings.PivotNumber);
             double scaleX = settings.ScaleX;

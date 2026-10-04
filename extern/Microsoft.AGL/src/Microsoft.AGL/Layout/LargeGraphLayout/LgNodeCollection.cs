@@ -5,10 +5,8 @@ using System.Linq;
 using Microsoft.AGL.Core.Layout;
 
 namespace Microsoft.AGL.Layout.LargeGraphLayout {
-    internal class LgNodeCollection : IList<Node> {
-        readonly Func<IEnumerable<Node>> funcOfNodes;
-
-        public LgNodeCollection(Func<IEnumerable<LgNodeInfo>> funcOfLgNodes) => funcOfNodes = () => funcOfLgNodes().Select(n => n.GeometryNode);
+    internal class LgNodeCollection(Func<IEnumerable<LgNodeInfo>> funcOfLgNodes) : IList<Node> {
+        readonly Func<IEnumerable<Node>> funcOfNodes = () => funcOfLgNodes().Select(n => n.GeometryNode);
 
         public IEnumerator<Node> GetEnumerator() => funcOfNodes().GetEnumerator();
 

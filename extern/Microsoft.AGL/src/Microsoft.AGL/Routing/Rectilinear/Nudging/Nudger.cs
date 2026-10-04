@@ -195,7 +195,7 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
 
         #region debugging
 #if TEST_MSAGL
-        static internal ICurve[] GetCurvesForShow(IEnumerable<Path> paths, IEnumerable<Polyline> obstacles) {
+        internal static ICurve[] GetCurvesForShow(IEnumerable<Path> paths, IEnumerable<Polyline> obstacles) {
             List<ICurve> ret = new List<ICurve>();
             foreach (Path path in paths) {
                 Polyline poly = new Polyline();
@@ -443,7 +443,7 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
         }
          // ReSharper disable UnusedMember.Local
         
-        static internal void ShowEdgePaths(IEnumerable<Polyline> obstacles, IEnumerable<Path> edgePaths) {
+        internal static void ShowEdgePaths(IEnumerable<Polyline> obstacles, IEnumerable<Path> edgePaths) {
             // ReSharper restore UnusedMember.Local
             List<DebugCurve> debCurves = GetDebCurvesOfPaths(obstacles, edgePaths);
 
@@ -548,7 +548,7 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
             yield return new DebugCurve(200, 1, "green", CurveFactory.CreateDiamond(3, 3, p));
         }
 
-        static internal IEnumerable<DebugCurve> PathDebugCurvesFromPoint(Path path) {
+        internal static IEnumerable<DebugCurve> PathDebugCurvesFromPoint(Path path) {
             List<Point> l = new List<Point>(path.PathPoints);
             for (int i = 0; i < l.Count - 1; i++)
             {
@@ -576,7 +576,7 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
         //        }
 
 
-        static internal List<DebugCurve> GetObstacleBoundaries(IEnumerable<Polyline> obstacles, string color) {
+        internal static List<DebugCurve> GetObstacleBoundaries(IEnumerable<Polyline> obstacles, string color) {
             List<DebugCurve> debugCurves = new List<DebugCurve>();
             if (obstacles != null)
             {

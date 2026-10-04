@@ -10,19 +10,13 @@ public static class DiagramKindDetector
 {
     private delegate bool DetectorFunc(string Text, MermaidDetectorConfig? Config);
 
-    private sealed class DetectorEntry
+    private sealed class DetectorEntry(string MermaidDetectorId, DiagramKindDetector.DetectorFunc Detector)
     {
-        public DetectorEntry(string MermaidDetectorId, DetectorFunc Detector)
-        {
-            _MermaidDetectorId = MermaidDetectorId;
-            _Detector = Detector;
-        }
-
-        private readonly string _MermaidDetectorId;
+        private readonly string _MermaidDetectorId = MermaidDetectorId;
 
         public string MermaidDetectorId => _MermaidDetectorId;
 
-        private readonly DetectorFunc _Detector;
+        private readonly DetectorFunc _Detector = Detector;
 
         public bool TryDetect(string Text, MermaidDetectorConfig? Config) => _Detector(Text, Config);
     }

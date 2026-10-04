@@ -5,7 +5,7 @@ using Microsoft.AGL.Core.Layout;
 
 namespace Microsoft.AGL.Layout.Incremental
 {
-    static internal class Feasibility
+    internal static class Feasibility
     {
         /// <summary>
         /// Very small extra padding used for VPad to ensure feasibility
@@ -26,7 +26,7 @@ namespace Microsoft.AGL.Layout.Incremental
         /// and then vertical overlap resolution of all nodes involved in horizontal equality
         /// constraints
         /// </summary>
-        static internal void Enforce(FastIncrementalLayoutSettings settings, int currentConstraintLevel, IEnumerable<FiNode> nodes, List<IConstraint> horizontalConstraints, List<IConstraint> verticalConstraints, IEnumerable<Cluster> clusterHierarchies, Func<Cluster, LayoutAlgorithmSettings> clusterSettings)
+        internal static void Enforce(FastIncrementalLayoutSettings settings, int currentConstraintLevel, IEnumerable<FiNode> nodes, List<IConstraint> horizontalConstraints, List<IConstraint> verticalConstraints, IEnumerable<Cluster> clusterHierarchies, Func<Cluster, LayoutAlgorithmSettings> clusterSettings)
         {
             foreach (LockPosition l in settings.locks)
             {

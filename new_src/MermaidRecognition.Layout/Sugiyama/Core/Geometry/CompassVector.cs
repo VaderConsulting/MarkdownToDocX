@@ -36,7 +36,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         internal CompassVector(Point a, Point b)
             : this() => Dir = VectorDirection(a, b);
 
-
         internal Directions Dir { get; set; }
         internal CompassVector Left => new CompassVector(RotateLeft(Dir));
         internal CompassVector Right => new CompassVector(RotateRight(Dir));

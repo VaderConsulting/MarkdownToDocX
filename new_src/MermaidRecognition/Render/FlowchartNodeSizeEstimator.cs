@@ -337,16 +337,10 @@ public static class FlowchartNodeSizeEstimator
         return Bbox.Height;
     }
 
-    private readonly struct LabelBBox
+    private readonly struct LabelBBox(double Width, double Height)
     {
-        public LabelBBox(double Width, double Height)
-        {
-            this.Width = Width;
-            this.Height = Height;
-        }
+        public double Width { get; } = Width;
 
-        public double Width { get; }
-
-        public double Height { get; }
+        public double Height { get; } = Height;
     }
 }

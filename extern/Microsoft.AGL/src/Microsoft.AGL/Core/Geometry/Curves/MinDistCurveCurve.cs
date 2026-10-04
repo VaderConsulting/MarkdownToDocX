@@ -17,19 +17,38 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
     /// <summary>
     /// Implements the minimal distance between curves functionality
     /// </summary>
+    /// <remarks>
+    /// constructor
+    /// </remarks>
+    /// <param name="curveAPar">first curve</param>
+    /// <param name="curveBPar">second curve</param>
+    /// <param name="lowBound0">the first curve minimal parameter</param>
+    /// <param name="upperBound0">the first curve maximal parameter</param>
+    /// <param name="lowBound1">the second curve minimal parameter</param>
+    /// <param name="upperBound1">the first curve maximal parameter</param>
+    /// <param name="guess0"></param>
+    /// <param name="guess1"></param>
 #if TEST_MSAGL
     public
 #else
     internal
 #endif
-    class MinDistCurveCurve {
+    class MinDistCurveCurve(ICurve curveAPar,
+            ICurve curveBPar,
+            double lowBound0,
+            double upperBound0,
+            double lowBound1,
+            double upperBound1,
+            double guess0,
+            double guess1)
+    {
 
-        ICurve curveA;
-        ICurve curveB;
-        double aMin;
-        double aMax;
-        double bMin; double bMax;
-        double aGuess; double bGuess;
+        ICurve curveA = curveAPar;
+        ICurve curveB = curveBPar;
+        double aMin = lowBound0;
+        double aMax = upperBound0;
+        double bMin = lowBound1; double bMax = upperBound1;
+        double aGuess = guess0; double bGuess = guess1;
         double aSolution;
         internal double ASolution => aSolution;
         double bSolution;
@@ -42,8 +61,8 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         internal Point BPoint => bPoint;
         bool status;
         internal bool Status => status;
-        double si;
-        double ti;
+        double si = guess0;
+        double ti = guess1;
 
         Point a, b, a_b, ad, bd, add, bdd;
 
@@ -55,36 +74,6 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
             add = curveA.SecondDerivative(si);
             bd = curveB.Derivative(ti);
             bdd = curveB.SecondDerivative(ti);
-        }
-/// <summary>
-/// constructor
-/// </summary>
-/// <param name="curveAPar">first curve</param>
-/// <param name="curveBPar">second curve</param>
-/// <param name="lowBound0">the first curve minimal parameter</param>
-        /// <param name="upperBound0">the first curve maximal parameter</param>
-        /// <param name="lowBound1">the second curve minimal parameter</param>
-        /// <param name="upperBound1">the first curve maximal parameter</param>
-/// <param name="guess0"></param>
-/// <param name="guess1"></param>
-        public MinDistCurveCurve(ICurve curveAPar,
-                ICurve curveBPar,
-                double lowBound0,
-                double upperBound0, 
-                double lowBound1,
-                double upperBound1,
-                double guess0,
-                double guess1) {
-            curveA = curveAPar;
-            curveB = curveBPar;
-            aMin = lowBound0;
-            bMin = lowBound1;
-            aMax = upperBound0;
-            bMax = upperBound1;
-            aGuess = guess0;
-            bGuess = guess1;
-            si = guess0;
-            ti = guess1;
         }
 
 

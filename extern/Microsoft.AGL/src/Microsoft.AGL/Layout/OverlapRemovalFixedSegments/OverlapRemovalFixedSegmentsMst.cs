@@ -62,17 +62,12 @@ namespace Microsoft.AGL.Layout.OverlapRemovalFixedSegments
          double EdgeExpansionFactor = 1.1;
          double BoxSegmentOverlapShiftFactor = 1.1;
 
-        public class Segment
+        public class Segment(Point point1, Point point2)
         {
             public int segmentId;
-             Point point1;
-             Point point2;
+             Point point1 = point1;
+             Point point2 = point2;
 
-            public Segment(Point point1, Point point2)
-            {
-                this.point1 = point1;
-                this.point2 = point2;
-            }
             public Point p1 => point1;
             public Point p2 => point2;
         }

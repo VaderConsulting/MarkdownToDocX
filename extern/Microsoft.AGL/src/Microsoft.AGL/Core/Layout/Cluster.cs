@@ -12,10 +12,14 @@ namespace Microsoft.AGL.Core.Layout {
     /// <summary>
     ///     A cluster has a list of nodes and a list of nested clusters
     /// </summary>
+    /// <remarks>
+    ///     Bottom-most ctor.
+    /// </remarks>
+    /// <param name="origin"></param>
 #if TEST_MSAGL
-    
+
 #endif
-    public class Cluster : Node {
+    public class Cluster(Point origin) : Node {
         bool isCollapsed;
 
         /// <summary>
@@ -38,7 +42,7 @@ namespace Microsoft.AGL.Core.Layout {
         public event EventHandler<LayoutChangeEventArgs> LayoutDoneEvent { add => layoutDoneEvent += value; remove => layoutDoneEvent -= value;
         }
 
-        internal Point Barycenter; // Filled in by SetBarycenter
+        internal Point Barycenter = origin; // Filled in by SetBarycenter
         ICurve collapsedBoundary;
 
         /// <summary>
@@ -53,15 +57,6 @@ namespace Microsoft.AGL.Core.Layout {
         /// <summary>
         /// </summary>
         public Cluster() : this(new Point()) {}
-
-        /// <summary>
-        ///     Bottom-most ctor.
-        /// </summary>
-        /// <param name="origin"></param>
-        public Cluster(Point origin) {
-            Weight = 0;
-            Barycenter = origin;
-        }
 
         /// <summary>
         ///     Construct a cluster with the specified nodes as members
@@ -110,7 +105,7 @@ namespace Microsoft.AGL.Core.Layout {
         /// <summary>
         ///     number of nodes in cluster
         /// </summary>
-        public double Weight { get; private set; }
+        public double Weight { get; private set; } = 0;
 
         /// <summary>
         ///     BoundingBox_get uses the RectangularBoundary.rectangle if available, otherwise uses the cluster's content bounds

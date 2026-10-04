@@ -20,7 +20,7 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
             Debug.Assert(Direction == Directions.East || Direction == Directions.North);
         }
 
-        readonly internal Set<AxisEdge> RightNeighbors = [];
+        internal readonly Set<AxisEdge> RightNeighbors = [];
 
         internal void AddRightNeighbor(AxisEdge edge) => RightNeighbors.Insert(edge);
 

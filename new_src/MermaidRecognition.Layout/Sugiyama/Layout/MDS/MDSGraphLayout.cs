@@ -14,20 +14,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
     /// <summary>
     /// Class for graph layout with multidimensional scaling.
     /// </summary>
-    public class MdsGraphLayout : AlgorithmBase {
+    /// <remarks>
+    /// Constructs the multidimensional scaling algorithm.
+    /// </remarks>
+    public class MdsGraphLayout(MdsLayoutSettings settings, GeometryGraph geometryGraph) : AlgorithmBase {
         
-        readonly GeometryGraph graph;
+        readonly GeometryGraph graph = geometryGraph;
 
-        readonly MdsLayoutSettings settings;
-
-        /// <summary>
-        /// Constructs the multidimensional scaling algorithm.
-        /// </summary>
-        public MdsGraphLayout(MdsLayoutSettings settings, GeometryGraph geometryGraph)
-        {
-            this.settings = settings;
-            graph = geometryGraph;
-        }
+        readonly MdsLayoutSettings settings = settings;
 
         /// <summary>
         /// Executes the algorithm

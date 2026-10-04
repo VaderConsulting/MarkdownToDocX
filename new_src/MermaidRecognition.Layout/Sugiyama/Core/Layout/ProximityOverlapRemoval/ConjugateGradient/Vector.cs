@@ -7,17 +7,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
     /// <summary>
     /// Simple Vector class which allows to easily use operators.
     /// </summary>
-    public class Vector {
+    /// <remarks>
+    /// constructor
+    /// </remarks>
+    /// <param name="array"></param>
+    public class Vector(double[] array)
+    {
         /// <summary>
         /// Value array
         /// </summary>
-        public double[] array;
-
-        /// <summary>
-        /// constructor
-        /// </summary>
-        /// <param name="array"></param>
-        public Vector(double[] array) => this.array = array;
+        public double[] array = array;
 
         /// <summary>
         /// Substracts vector b directly from the current vector (without creating a new vector).

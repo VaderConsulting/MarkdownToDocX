@@ -159,7 +159,7 @@ namespace Microsoft.AGL.Routing.Visibility {
         /// p and q are the closest points
         /// The function doesn't work if the polygons intersect each other
         /// </summary>
-        static public double Distance(Polygon a, Polygon b, out Point p, out Point q) {
+        public static double Distance(Polygon a, Polygon b, out Point p, out Point q) {
             TangentPair tp = new TangentPair(a, b);
             tp.FindClosestPoints(out p, out q);
 #if TEST_MSAGL
@@ -183,7 +183,7 @@ namespace Microsoft.AGL.Routing.Visibility {
         /// <summary>
         /// Distance between two polygons
         /// </summary>
-        static public double Distance(Polygon a, Polygon b) {
+        public static double Distance(Polygon a, Polygon b) {
             System.Diagnostics.Debug.Assert(PolygonIsLegalDebug(a));
             System.Diagnostics.Debug.Assert(PolygonIsLegalDebug(b));
 
@@ -208,7 +208,7 @@ namespace Microsoft.AGL.Routing.Visibility {
         /// <summary>
         /// Distance between polygon and point
         /// </summary>
-        static public double Distance(Polygon poly, Point b)
+        public static double Distance(Polygon poly, Point b)
         {
             double res = double.PositiveInfinity;
             for (int i = 0; i < poly.Count; i++) {

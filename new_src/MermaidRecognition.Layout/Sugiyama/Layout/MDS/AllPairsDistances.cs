@@ -11,29 +11,23 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS
     /// <summary>
     /// Algorithm for computing the distance between every pair of nodes in a graph.
     /// </summary>
-    public class AllPairsDistances : AlgorithmBase
+    /// <remarks>
+    /// Computes distances between every pair of nodes in a graph.
+    /// Distances are symmetric if the graph is undirected.
+    /// </remarks>
+    /// <param name="graph">A graph.</param>
+    /// <param name="directed">Whether shortest paths are directed.</param>
+    /// <returns>A square matrix with shortest path distances.</returns>
+    public class AllPairsDistances(GeometryGraph graph, bool directed) : AlgorithmBase
     {
-        private GeometryGraph graph;
+        private GeometryGraph graph = graph;
 
-        private bool directed;
+        private bool directed = directed;
 
         /// <summary>
         /// The resulting distances between every pair of nodes in the graph.
         /// </summary>
         public double[][] Result { get; private set; }
-
-        /// <summary>
-        /// Computes distances between every pair of nodes in a graph.
-        /// Distances are symmetric if the graph is undirected.
-        /// </summary>
-        /// <param name="graph">A graph.</param>
-        /// <param name="directed">Whether shortest paths are directed.</param>
-        /// <returns>A square matrix with shortest path distances.</returns>
-        public AllPairsDistances(GeometryGraph graph, bool directed)
-        {
-            this.graph = graph;
-            this.directed = directed;
-        }
 
         /// <summary>
         /// Executes the algorithm.

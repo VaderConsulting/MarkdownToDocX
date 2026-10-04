@@ -76,14 +76,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// <param name="transformation"></param>
         /// <param name="point"></param>
         /// <returns></returns>
-        static public Point operator *(PlaneTransformation transformation, Point point) => Multiply(transformation, point);
+        public static Point operator *(PlaneTransformation transformation, Point point) => Multiply(transformation, point);
         /// <summary>
         /// Point by matrix multiplication
         /// </summary>
         /// <param name="transformation"></param>
         /// <param name="point"></param>
         /// <returns></returns>
-        static public Point Multiply(PlaneTransformation transformation, Point point) {
+        public static Point Multiply(PlaneTransformation transformation, Point point) {
             if (transformation != null)
             {
                 return new Point(transformation[0, 0] * point.X + transformation[0, 1] * point.Y + transformation[0, 2], transformation[1, 0] * point.X + transformation[1, 1] * point.Y + transformation[1, 2]);
@@ -97,7 +97,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// <param name="transformation"></param>][
         /// <param name="transformation0"></param>
         /// <returns></returns>
-        static public PlaneTransformation operator *(PlaneTransformation transformation, PlaneTransformation transformation0) => Multiply(transformation, transformation0);
+        public static PlaneTransformation operator *(PlaneTransformation transformation, PlaneTransformation transformation0) => Multiply(transformation, transformation0);
 
         /// <summary>
         /// matrix matrix multiplication
@@ -105,7 +105,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// <param name="a"></param>
         /// <param name="b"></param>
         /// <returns></returns>
-        static public PlaneTransformation Multiply(PlaneTransformation a, PlaneTransformation b) {
+        public static PlaneTransformation Multiply(PlaneTransformation a, PlaneTransformation b) {
             if (a != null && b != null)
             {
                 return new PlaneTransformation(
@@ -122,7 +122,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// <param name="transform0"></param>
         /// <param name="transform1"></param>
         /// <returns></returns>
-        static public PlaneTransformation operator /(PlaneTransformation transform0, PlaneTransformation transform1) {
+        public static PlaneTransformation operator /(PlaneTransformation transform0, PlaneTransformation transform1) {
             if (transform0 != null && transform1 != null)
             {
                 return transform0 * transform1.Inverse;
@@ -138,7 +138,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// <param name="transformation0"></param>
         /// <param name="transformation1"></param>
         /// <returns></returns>
-        static public PlaneTransformation Divide(PlaneTransformation transformation0, PlaneTransformation transformation1) => transformation0 / transformation1;
+        public static PlaneTransformation Divide(PlaneTransformation transformation0, PlaneTransformation transformation1) => transformation0 / transformation1;
 
         /// <summary>
         /// returns the inversed matrix
@@ -164,14 +164,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// <summary>
         /// unit matrix
         /// </summary>
-        static public PlaneTransformation UnitTransformation => new PlaneTransformation(1, 0, 0, 0, 1, 0);
+        public static PlaneTransformation UnitTransformation => new PlaneTransformation(1, 0, 0, 0, 1, 0);
 
         /// <summary>
         /// Rotation matrix
         /// </summary>
         /// <param name="angle">the angle of rotation</param>
         /// <returns></returns>
-        static public PlaneTransformation Rotation(double angle) {
+        public static PlaneTransformation Rotation(double angle) {
             double cos = Math.Cos(angle);
             double sin = Math.Sin(angle);
             return new PlaneTransformation(cos, -sin, 0, sin, cos, 0);

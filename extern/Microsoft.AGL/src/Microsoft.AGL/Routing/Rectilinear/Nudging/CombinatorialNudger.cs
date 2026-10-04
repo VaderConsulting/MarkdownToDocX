@@ -227,7 +227,7 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
 
         }
 
-        static internal IEnumerable<AxisEdge> WalkGraphEdgesInTopologicalOrderIfPossible(VisibilityGraph visibilityGraph){
+        internal static IEnumerable<AxisEdge> WalkGraphEdgesInTopologicalOrderIfPossible(VisibilityGraph visibilityGraph){
             //Here the visibility graph is always a DAG since the edges point only to North and East
             // where possible
             Queue<VisibilityVertex> sourcesQueue = new Queue<VisibilityVertex>();

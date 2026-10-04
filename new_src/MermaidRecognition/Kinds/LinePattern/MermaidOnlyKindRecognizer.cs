@@ -6,21 +6,15 @@ namespace MermaidRecognition.Kinds.LinePattern;
 /// L1 recogniser for Mermaid-only diagram kinds (no Naiad native render path).
 /// Emits <c>recognition.unsupported-native</c> on every parse.
 /// </summary>
-public sealed class MermaidOnlyKindRecognizer : IKindRecognizer
+public sealed class MermaidOnlyKindRecognizer(
+    string ProgrammeKindId,
+    string HeaderRegexPattern,
+    params KindLinePattern[] ExtraPatterns) : IKindRecognizer
 {
     private const string UNSUPPORTED_NATIVE_CODE = "recognition.unsupported-native";
 
-    private readonly LinePatternKindRecognizer _Inner;
-    private readonly string _ProgrammeKindId;
-
-    public MermaidOnlyKindRecognizer(
-        string ProgrammeKindId,
-        string HeaderRegexPattern,
-        params KindLinePattern[] ExtraPatterns)
-    {
-        _ProgrammeKindId = ProgrammeKindId;
-        _Inner = KindLinePatternProfiles.CreateDefault(ProgrammeKindId, HeaderRegexPattern, null, ExtraPatterns);
-    }
+    private readonly LinePatternKindRecognizer _Inner = KindLinePatternProfiles.CreateDefault(ProgrammeKindId, HeaderRegexPattern, null, ExtraPatterns);
+    private readonly string _ProgrammeKindId = ProgrammeKindId;
 
     /// <inheritdoc />
     public DiagramContract Parse(string Source, DiagramDetectionResult Detection)

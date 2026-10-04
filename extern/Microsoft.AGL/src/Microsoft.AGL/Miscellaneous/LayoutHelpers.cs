@@ -86,7 +86,7 @@ namespace Microsoft.AGL.Miscellaneous
         /// <param name="geometryGraph"></param>
         /// <param name="settings"></param>
         /// <param name="cancelToken"></param>
-        static public void LayoutLargeGraphWithLayers(GeometryGraph geometryGraph, LayoutAlgorithmSettings settings, CancelToken cancelToken) {
+        public static void LayoutLargeGraphWithLayers(GeometryGraph geometryGraph, LayoutAlgorithmSettings settings, CancelToken cancelToken) {
             LgLayoutSettings largeGraphLayoutSettings = (LgLayoutSettings) settings;
             LgInteractor largeGraphLayout = new LgInteractor(geometryGraph, largeGraphLayoutSettings, cancelToken);
             largeGraphLayoutSettings.Interactor = largeGraphLayout;

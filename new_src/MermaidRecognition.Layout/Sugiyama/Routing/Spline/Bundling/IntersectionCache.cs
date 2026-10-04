@@ -70,7 +70,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             }
         }
 
-        static internal HitTestBehavior Test(Point pnt, CdtTriangle t) => Cdt.PointIsInsideOfTriangle(pnt, t) ? HitTestBehavior.Stop : HitTestBehavior.Continue;
+        internal static HitTestBehavior Test(Point pnt, CdtTriangle t) => Cdt.PointIsInsideOfTriangle(pnt, t) ? HitTestBehavior.Stop : HitTestBehavior.Continue;
 
     }
 }

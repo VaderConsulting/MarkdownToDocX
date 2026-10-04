@@ -7,13 +7,17 @@ namespace Microsoft.AGL.Core.Geometry {
     /// <summary>
     /// represents the polyline of an edge
     /// </summary>
+    /// <remarks>
+    /// a constructor
+    /// </remarks>
+    /// <param name="head"></param>
     [
 
 #if TEST_MSAGL
 Serializable
 #endif
     ]
-    public class SmoothedPolyline: IEnumerable<Point> {
+    public class SmoothedPolyline(Site head) : IEnumerable<Point> {
 
 
         /// <summary>
@@ -41,7 +45,7 @@ Serializable
         }
 
 
-        readonly Site headSite;
+        readonly Site headSite = head;
         /// <summary>
         /// the first site of the polyline
         /// </summary>
@@ -72,11 +76,6 @@ Serializable
             }
             return new SmoothedPolyline(headOfTheClone);
         }
-        /// <summary>
-        /// a constructor
-        /// </summary>
-        /// <param name="head"></param>
-        public SmoothedPolyline(Site head) => headSite = head;
 
         /// <summary>
         /// the last site of the polyline
@@ -155,7 +154,7 @@ Serializable
             return curve;
         }
 
-        static internal CubicBezierSegment CreateBezierSegOnSite(Site b) {
+        internal static CubicBezierSegment CreateBezierSegOnSite(Site b) {
             double kPrev = b.PreviousBezierSegmentFitCoefficient;
             double kNext = b.NextBezierSegmentFitCoefficient;
             Site a = b.Previous;

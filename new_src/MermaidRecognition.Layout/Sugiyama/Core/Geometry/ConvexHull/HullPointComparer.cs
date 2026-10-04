@@ -90,6 +90,5 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         }
 
         internal HullPointComparer(Point pivotPoint) => pivot = pivotPoint;
-
     }
 }

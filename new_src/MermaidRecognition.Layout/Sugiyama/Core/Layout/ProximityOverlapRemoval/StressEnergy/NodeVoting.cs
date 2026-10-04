@@ -9,7 +9,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
         /// <summary>
         /// Index of the voted node.
         /// </summary>
-        readonly public int VotedNodeIndex;
+        public readonly int VotedNodeIndex;
 
         /// <summary>
         /// List of Blocks. Each Block has a set of votes for this node.

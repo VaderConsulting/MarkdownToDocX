@@ -4,16 +4,14 @@ namespace Microsoft.AGL.Core.Layout {
     /// <summary>
     /// 
     /// </summary>
-    public class IsOpenChangeEventArgs : EventArgs {
+    /// <remarks>
+    /// constructor
+    /// </remarks>
+    /// <param name="previousValue"></param>
+    public class IsOpenChangeEventArgs(bool previousValue) : EventArgs {
         /// <summary>
         /// 
         /// </summary>
-        public readonly bool PreviousValue;
-
-        /// <summary>
-        /// constructor
-        /// </summary>
-        /// <param name="previousValue"></param>
-        public IsOpenChangeEventArgs(bool previousValue) => PreviousValue = previousValue;
+        public readonly bool PreviousValue = previousValue;
     }
 }

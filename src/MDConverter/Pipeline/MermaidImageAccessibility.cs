@@ -3,32 +3,26 @@ namespace MDConverter.Pipeline;
 /// <summary>
 /// Accessibility text for an embedded Mermaid diagram image in DOCX (Mermaid <c>accTitle</c> / <c>accDescr</c>).
 /// </summary>
-public readonly struct MermaidImageAccessibility
+/// <remarks>
+/// Creates accessibility metadata for a diagram image.
+/// </remarks>
+/// <param name="Title">Mermaid <c>accTitle</c> (Word picture title).</param>
+/// <param name="Description">Mermaid <c>accDescr</c> (Word alt text description).</param>
+public readonly struct MermaidImageAccessibility(string? Title, string? Description)
 {
     /// <summary>
     /// Default alt text when the diagram declares no accessibility metadata.
     /// </summary>
     public static MermaidImageAccessibility Default => new MermaidImageAccessibility(null, null);
 
-    /// <summary>
-    /// Creates accessibility metadata for a diagram image.
-    /// </summary>
-    /// <param name="Title">Mermaid <c>accTitle</c> (Word picture title).</param>
-    /// <param name="Description">Mermaid <c>accDescr</c> (Word alt text description).</param>
-    public MermaidImageAccessibility(string? Title, string? Description)
-    {
-        _Title = Title;
-        _Description = Description;
-    }
-
-    private readonly string? _Title;
+    private readonly string? _Title = Title;
 
     /// <summary>
     /// Short accessible title (<c>accTitle</c>).
     /// </summary>
     public string? Title => _Title;
 
-    private readonly string? _Description;
+    private readonly string? _Description = Description;
 
     /// <summary>
     /// Longer accessible description (<c>accDescr</c>).

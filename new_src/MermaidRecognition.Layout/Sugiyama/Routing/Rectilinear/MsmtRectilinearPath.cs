@@ -6,8 +6,9 @@ using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
 using MermaidRecognition.Layout.Sugiyama.Routing.Visibility;
 
 namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
-    internal class MsmtRectilinearPath {
-        private readonly double bendPenaltyAsAPercentageOfDistance = SsstRectilinearPath.DefaultBendPenaltyAsAPercentageOfDistance;
+    internal class MsmtRectilinearPath(double bendPenalty)
+    {
+        private readonly double bendPenaltyAsAPercentageOfDistance = bendPenalty;
 
         // Waypoints define path stages: source -> wp1, wp1 -> wp2 ... wpn -> target.
         class WaypointEntry {
@@ -19,8 +20,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 
         // Temporary for accumulating target entries.
         private readonly VertexEntry[] currentPassTargetEntries = new VertexEntry[4];
-
-        public MsmtRectilinearPath(double bendPenalty) => bendPenaltyAsAPercentageOfDistance = bendPenalty;
 
         /// <summary>
         /// Get the lowest-cost path from one of one or more sources to one of one or more targets, without waypoints.

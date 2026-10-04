@@ -95,22 +95,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental.Multipole
         /// <summary>
         /// Particles used in KDTree multipole force approximations
         /// </summary>
-        public class Particle
+        /// <remarks>
+        /// Create particle at point
+        /// </remarks>
+        /// <param name="point"></param>
+        public class Particle(Point point)
         {
             internal enum Dim { Horizontal = 0, Vertical = 1 };
-            internal Point force;
-            internal Point point;
+            internal Point force = new Point(0, 0);
+            internal Point point = point;
             internal bool splitLeft;
             internal double pos(Dim d) => d == Dim.Horizontal ? point.X : point.Y;
-            /// <summary>
-            /// Create particle at point
-            /// </summary>
-            /// <param name="point"></param>
-            public Particle(Point point)
-            {
-                this.point = point;
-                force = new Point(0, 0);
-            }
         }
         internal abstract class KdNode
         {
@@ -243,10 +238,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental.Multipole
                 multipoleCoefficients = new MultipoleCoefficients(med.Center, leftChild.multipoleCoefficients, rightChild.multipoleCoefficients);
             }
         }
-        class SplitQueue : Queue<LeafKdNode>
+        class SplitQueue(int B) : Queue<LeafKdNode>
         {
-            int B;
-            public SplitQueue(int B) => this.B = B;
+            int B = B;
+
             public void Enqueue(LeafKdNode l, LeafKdNode r)
             {
                 if (l.Size() > B)

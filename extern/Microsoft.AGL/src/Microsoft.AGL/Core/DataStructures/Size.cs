@@ -2,38 +2,29 @@ namespace Microsoft.AGL.Core.DataStructures
 {
 
 
-  /// <summary>
-  /// Size structure
-  /// </summary>
-  public struct Size
-  {
-    double width;
+    /// <summary>
+    /// Size structure
+    /// </summary>
+    /// <remarks>
+    /// constructor
+    /// </remarks>
+    /// <param name="width"></param>
+    /// <param name="height"></param>
+    public struct Size(double width, double height)
+    {
+    double width = width;
     /// <summary>
     /// width
     /// </summary>
     public double Width
     { get => width; set => width = value;
     }
-        double height;
+        double height = height;
     /// <summary>
     /// Height
     /// </summary>
     public double Height
     { get => height; set => height = value;
-    }
-
-        /// <summary>
-        /// constructor
-        /// </summary>
-        /// <param name="width"></param>
-        /// <param name="height"></param>
-        public Size(double width, double height)
-    {
-      this.width = width;
-
-
-      this.height = height;
-
     }
 
         /// <summary>

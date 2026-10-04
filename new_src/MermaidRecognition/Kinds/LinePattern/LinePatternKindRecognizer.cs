@@ -8,24 +8,16 @@ namespace MermaidRecognition.Kinds.LinePattern;
 /// <summary>
 /// L1 recogniser: init/config, header, and line-type catalogue stubs (Mermaid-aligned patterns).
 /// </summary>
-public sealed class LinePatternKindRecognizer : IKindRecognizer
+public sealed class LinePatternKindRecognizer(
+    string ProgrammeKindId,
+    Regex HeaderPattern,
+    KindLinePattern[] LinePatterns,
+    Action<DiagramContract>? PostParseMapper = null) : IKindRecognizer
 {
-    private readonly string _ProgrammeKindId;
-    private readonly Regex _HeaderPattern;
-    private readonly KindLinePattern[] _LinePatterns;
-    private readonly Action<DiagramContract>? _PostParseMapper;
-
-    public LinePatternKindRecognizer(
-        string ProgrammeKindId,
-        Regex HeaderPattern,
-        KindLinePattern[] LinePatterns,
-        Action<DiagramContract>? PostParseMapper = null)
-    {
-        _ProgrammeKindId = ProgrammeKindId;
-        _HeaderPattern = HeaderPattern;
-        _LinePatterns = LinePatterns;
-        _PostParseMapper = PostParseMapper;
-    }
+    private readonly string _ProgrammeKindId = ProgrammeKindId;
+    private readonly Regex _HeaderPattern = HeaderPattern;
+    private readonly KindLinePattern[] _LinePatterns = LinePatterns;
+    private readonly Action<DiagramContract>? _PostParseMapper = PostParseMapper;
 
     /// <inheritdoc />
     public DiagramContract Parse(string Source, DiagramDetectionResult Detection)

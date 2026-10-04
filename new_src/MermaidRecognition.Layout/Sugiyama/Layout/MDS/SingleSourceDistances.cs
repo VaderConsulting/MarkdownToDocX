@@ -12,28 +12,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
     /// <summary>
     /// Provides functionality for computing distances in a graph.
     /// </summary>
-    public class SingleSourceDistances : AlgorithmBase {
-        private GeometryGraph graph;
+    /// <remarks>
+    /// Dijkstra algorithm. Computes graph-theoretic distances from a node to
+    /// all other nodes in a graph with nonnegative edge lengths.
+    /// The distance between a node and itself is 0; the distance between a pair of
+    /// nodes for which no connecting path exists is Double.PositiveInfinity.
+    /// </remarks>
+    /// <param name="graph">A graph.</param>
+    /// <param name="source">The source node.</param>
+    /// <param name="directed">Whether the graph is directed.</param>
+    public class SingleSourceDistances(GeometryGraph graph, Node source, bool directed) : AlgorithmBase {
+        private GeometryGraph graph = graph;
 
-        private Node source;
+        private Node source = source;
 
-        private bool directed;
-
-        /// <summary>
-        /// Dijkstra algorithm. Computes graph-theoretic distances from a node to
-        /// all other nodes in a graph with nonnegative edge lengths.
-        /// The distance between a node and itself is 0; the distance between a pair of
-        /// nodes for which no connecting path exists is Double.PositiveInfinity.
-        /// </summary>
-        /// <param name="graph">A graph.</param>
-        /// <param name="source">The source node.</param>
-        /// <param name="directed">Whether the graph is directed.</param>
-        public SingleSourceDistances(GeometryGraph graph, Node source, bool directed)
-        {
-            this.graph = graph;
-            this.source = source;
-            this.directed = directed;
-        }
+        private bool directed = directed;
 
         /// <summary>
         /// An array of distances from the source node to all nodes.

@@ -28,7 +28,6 @@ namespace Microsoft.AGL.Routing.Rectilinear.Nudging {
         /// <param name="edgeGeometry"></param>
         internal Path(EdgeGeometry edgeGeometry) => EdgeGeometry = edgeGeometry;
 
-
         internal Point End => LastEdge.Target;
 
         internal Point Start => FirstEdge.Source;

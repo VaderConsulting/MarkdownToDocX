@@ -17,7 +17,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
 #if TEST_MSAGL
     
 #endif
-    abstract public class ParallelogramNodeOverICurve : ParallelogramNode {
+    public abstract class ParallelogramNodeOverICurve : ParallelogramNode {
 
         ICurve seg;
         /// <summary>
@@ -28,7 +28,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
 
         double leafBoxesOffset = DefaultLeafBoxesOffset;
 
-        static internal double DefaultLeafBoxesOffset = 0.5;
+        internal static double DefaultLeafBoxesOffset = 0.5;
         /// <summary>
         /// The leafs of this node are as tight as the offset
         /// </summary>
@@ -48,7 +48,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
 /// </summary>
 /// <param name="segment"></param>
 /// <returns></returns>
-        static public ParallelogramNodeOverICurve CreateParallelogramNodeForCurveSegment(ICurve segment) {
+        public static ParallelogramNodeOverICurve CreateParallelogramNodeForCurveSegment(ICurve segment) {
             ValidateArg.IsNotNull(segment, "segment");
             return CreateParallelogramNodeForCurveSeg(segment.ParStart, segment.ParEnd, segment, DefaultLeafBoxesOffset);
         }

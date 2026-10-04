@@ -145,7 +145,7 @@ namespace Microsoft.AGL.Routing.Spline.Bundling {
             }
         }
 
-        static internal Cdt CreateConstrainedDelaunayTriangulation(RectangleNode<Polyline> looseHierarchy) {
+        internal static Cdt CreateConstrainedDelaunayTriangulation(RectangleNode<Polyline> looseHierarchy) {
             IEnumerable<Polyline> obstacles = looseHierarchy.GetAllLeaves();
 
             Rectangle rectangle = looseHierarchy.Rectangle;

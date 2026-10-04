@@ -16,7 +16,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="radiusInYDirection"></param>
         /// <param name="center"></param>
         /// <returns></returns>
-        static public ICurve CreateEllipse(double radiusInXDirection, double radiusInYDirection, Point center) => new Ellipse(radiusInXDirection, radiusInYDirection, center);
+        public static ICurve CreateEllipse(double radiusInXDirection, double radiusInYDirection, Point center) => new Ellipse(radiusInXDirection, radiusInYDirection, center);
 
         /// <summary>
         /// Creates an ellipse by the length of axes and the center
@@ -24,7 +24,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="radius"></param>
         /// <param name="center"></param>
         /// <returns></returns>
-        static public ICurve CreateCircle(double radius, Point center) => new Ellipse(radius, radius, center);
+        public static ICurve CreateCircle(double radius, Point center) => new Ellipse(radius, radius, center);
 
         /// <summary>
         /// Create a rectangle with smoothed corners
@@ -35,7 +35,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="radiusInYDirection">the length of the y axis of the corner smoothing ellipse</param>
         /// <param name="center">the rectangle center</param>
         /// <returns></returns>
-        static public ICurve CreateRectangleWithRoundedCorners(double width, double height, double radiusInXDirection, double radiusInYDirection, Point center) {
+        public static ICurve CreateRectangleWithRoundedCorners(double width, double height, double radiusInXDirection, double radiusInYDirection, Point center) {
             Rectangle box = new Rectangle(center.X - width/2, center.Y - height/2, center.X + width/2, center.Y + height/2);
             return new RoundedRect(box, radiusInXDirection, radiusInYDirection);
         }
@@ -50,7 +50,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="radiusInYDirection">the length of the y axis of the corner smoothing ellipse</param>
         /// <param name="center">the rectangle center</param>
         /// <returns></returns>
-        static internal void CreateRectangleWithRoundedCorners(Curve c, double width, double height, double radiusInXDirection, double radiusInYDirection, Point center)
+        internal static void CreateRectangleWithRoundedCorners(Curve c, double width, double height, double radiusInXDirection, double radiusInYDirection, Point center)
         {
             if (radiusInXDirection == 0 || radiusInYDirection == 0)
             {
@@ -116,7 +116,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="height"></param>
         /// <param name="center"></param>
         /// <returns></returns>
-        static public ICurve CreateRectangle(double width, double height, Point center)
+        public static ICurve CreateRectangle(double width, double height, Point center)
         {
             double w = width / 2;
             double h = height / 2;
@@ -136,7 +136,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="height"></param>
         /// <param name="center"></param>
         /// <returns></returns>
-        static internal void CreateRectangle(Curve c, double width, double height, Point center)
+        internal static void CreateRectangle(Curve c, double width, double height, Point center)
         {
             double w = width / 2;
             double h = height / 2;
@@ -151,7 +151,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// </summary>
         /// <param name="rectangle"></param>
         /// <returns></returns>
-        static public ICurve CreateRectangle(Rectangle rectangle) => CreateRectangle(rectangle.Width, rectangle.Height, rectangle.Center);
+        public static ICurve CreateRectangle(Rectangle rectangle) => CreateRectangle(rectangle.Width, rectangle.Height, rectangle.Center);
 
         /// <summary>
         /// Creates a curve resembling a house large enough to inscribe within it a rectangle of the 
@@ -161,7 +161,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="height">the height of the inscribed rectangle; the house will be half-again higher</param>
         /// <param name="center">the center of the inscribed rectangle</param>
         /// <returns></returns>
-        static public ICurve CreateHouse(double width, double height, Point center) {
+        public static ICurve CreateHouse(double width, double height, Point center) {
             double w = width / 2;
             double h = height / 2;
             double x = center.X;
@@ -183,7 +183,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="height">the bounding rectangle height</param>
         /// <param name="center">the bounding rectangle center</param>
         /// <returns></returns>
-        static public ICurve CreateInteriorHouse(double width, double height, Point center) {
+        public static ICurve CreateInteriorHouse(double width, double height, Point center) {
             double w = width / 2;
             double h = height / 2;
             double x = center.X;
@@ -204,7 +204,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="height">the house heigth</param>
         /// <param name="center">the house center</param>
         /// <returns></returns>
-        static public ICurve CreateInvertedHouse(double width, double height, Point center) {
+        public static ICurve CreateInvertedHouse(double width, double height, Point center) {
             ICurve shape = CreateHouse(width, height, center);
             return RotateCurveAroundCenterByDegree(shape, center, 180.0);
         }
@@ -217,7 +217,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="height">the height of the inscribed rectangle</param>
         /// <param name="center">the diamond center</param>
         /// <returns></returns>
-        static public ICurve CreateDiamond(double width, double height, Point center) {
+        public static ICurve CreateDiamond(double width, double height, Point center) {
             double w = width;
             double h = height;
             double x = center.X;
@@ -235,7 +235,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="height">the bounding rectangle height</param>
         /// <param name="center">the bounding rectangle center</param>
         /// <returns></returns>
-        static public ICurve CreateInteriorDiamond(double width, double height, Point center) => CreateDiamond(width / 2, height / 2, center);
+        public static ICurve CreateInteriorDiamond(double width, double height, Point center) => CreateDiamond(width / 2, height / 2, center);
 
         // This adds the padding to the edges around the inscribed rectangle of an octagon.
         static double octagonPad = 1.0 / 4;
@@ -347,7 +347,7 @@ namespace Microsoft.AGL.Core.Geometry.Curves {
         /// <param name="height"></param>
         /// <param name="center"></param>
         /// <returns></returns>
-        static public ICurve CreateInteriorTriangle(double width, double height, Point center) {
+        public static ICurve CreateInteriorTriangle(double width, double height, Point center) {
             double w = width / 2;
             double h = height / 2;
             double x = center.X;

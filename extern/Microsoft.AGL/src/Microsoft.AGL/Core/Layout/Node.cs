@@ -97,7 +97,7 @@ namespace Microsoft.AGL.Core.Layout
         /// <summary>
         /// enumeration of the node incoming edges
         /// </summary>
-        virtual public IEnumerable<Edge> InEdges
+        public virtual IEnumerable<Edge> InEdges
         { get => inEdges_; set => inEdges_ = (Set<Edge>)value;
         }
         /// <summary>
@@ -108,7 +108,7 @@ namespace Microsoft.AGL.Core.Layout
         /// <summary>
         /// enumeration of the node outcoming edges
         /// </summary>
-        virtual public IEnumerable<Edge> OutEdges
+        public virtual IEnumerable<Edge> OutEdges
         { get => outEdges_; set => outEdges_ = (Set<Edge>)value;
         }
         /// <summary>
@@ -118,7 +118,7 @@ namespace Microsoft.AGL.Core.Layout
         /// <summary>
         ///enumeration of the node self edges
         /// </summary>
-        virtual public IEnumerable<Edge> SelfEdges
+        public virtual IEnumerable<Edge> SelfEdges
         { get => selfEdges_; set => selfEdges_ = (Set<Edge>)value;
         }
 
@@ -276,7 +276,7 @@ namespace Microsoft.AGL.Core.Layout
         /// <summary>
         /// the bounding box of the node
         /// </summary>
-        override public Rectangle BoundingBox
+        public override Rectangle BoundingBox
         {
             get => BoundaryCurve != null ? BoundaryCurve.BoundingBox : Rectangle.CreateAnEmptyBox();
             set

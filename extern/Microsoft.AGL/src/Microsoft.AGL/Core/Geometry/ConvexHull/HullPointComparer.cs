@@ -81,6 +81,5 @@ namespace Microsoft.AGL.Core.Geometry
         }
 
         internal HullPointComparer(Point pivotPoint) => pivot = pivotPoint;
-
     }
 }

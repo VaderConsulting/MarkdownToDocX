@@ -55,7 +55,7 @@ namespace Microsoft.AGL.Layout.Layered {
         ///// <param name="layeredGraph"></param>
         ///// <param name="la"></param>
         ///// <param name="db"></param>
-        static internal void InsertLayers(
+        internal static void InsertLayers(
           ref ProperLayeredGraph layeredGraph, ref LayerArrays la, Database db, BasicGraph<Node, IntEdge> intGraphP) {
             LayerInserter li = new LayerInserter(layeredGraph, la, db, intGraphP);
             li.InsertLayers();

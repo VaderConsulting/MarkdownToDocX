@@ -117,6 +117,5 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         }
 
         internal StemStartPointComparer(Point pivotPoint) => pivot = pivotPoint;
-
     }
 }

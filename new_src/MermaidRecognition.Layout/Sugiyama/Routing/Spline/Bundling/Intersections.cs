@@ -15,22 +15,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
     /// <summary>
     /// Check intersections between hubs and obstacles with kd-tree
     /// </summary>
-    internal class Intersections {
-        readonly MetroGraphData metroGraphData;
-        readonly BundlingSettings bundlingSettings;
-        Func<Station, Set<Polyline>> obstaclesToIgnore;
+    internal class Intersections(MetroGraphData metroGraphData, BundlingSettings bundlingSettings,
+        RectangleNode<Polyline> obstacleTree, Func<Station, Set<Polyline>> obstaclesToIgnore)
+    {
+        readonly MetroGraphData metroGraphData = metroGraphData;
+        readonly BundlingSettings bundlingSettings = bundlingSettings;
+        Func<Station, Set<Polyline>> obstaclesToIgnore = obstaclesToIgnore;
         /// <summary>
         /// represents loose or tight hierarchy
         /// </summary>
-        internal RectangleNode<Polyline> obstacleTree { get; set; }
-
-        public Intersections(MetroGraphData metroGraphData, BundlingSettings bundlingSettings,
-            RectangleNode<Polyline> obstacleTree, Func<Station, Set<Polyline>> obstaclesToIgnore) {
-            this.metroGraphData = metroGraphData;
-            this.obstaclesToIgnore = obstaclesToIgnore;
-            this.bundlingSettings = bundlingSettings;
-            this.obstacleTree = obstacleTree;
-        }
+        internal RectangleNode<Polyline> obstacleTree { get; set; } = obstacleTree;
 
         internal Set<Polyline> ObstaclesToIgnoreForHub(Station node) => (node != null ? obstaclesToIgnore(node) : []);
 
@@ -193,7 +187,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
 
-        static internal Polyline Create4gon(Point apex, Point baseCenter, double width1, double width2) {
+        internal static Polyline Create4gon(Point apex, Point baseCenter, double width1, double width2) {
             Point norm = (baseCenter - apex).Normalize();
             norm = new Point(norm.Y, -norm.X);
             return new Polyline(apex + norm * width1 / 2, apex - norm * width1 / 2, baseCenter - norm * width2 / 2, baseCenter + norm * width2 / 2) { Closed = true };

@@ -18,23 +18,16 @@ namespace Microsoft.AGL.Layout.Layered
     /// A facade for LayeredLayout that implements AlgorithmBase
     /// todo: handle progress properly
     /// </summary>
-    public class LayeredLayout : AlgorithmBase
+    /// <remarks>
+    /// Layered layout arranged the given graph on layers inferred from the directed edge structure
+    /// </remarks>
+    /// <param name="geometryGraph">graph to be laid out</param>
+    /// <param name="settings">The settings for the algorithm.</param>
+    public class LayeredLayout(GeometryGraph geometryGraph, SugiyamaLayoutSettings settings) : AlgorithmBase
     {
-        private GeometryGraph geometryGraph;
-        private SugiyamaLayoutSettings settings;
-        private LayeredLayoutEngine engine;
-
-        /// <summary>
-        /// Layered layout arranged the given graph on layers inferred from the directed edge structure
-        /// </summary>
-        /// <param name="geometryGraph">graph to be laid out</param>
-        /// <param name="settings">The settings for the algorithm.</param>
-        public LayeredLayout(GeometryGraph geometryGraph, SugiyamaLayoutSettings settings)
-        {
-            this.geometryGraph = geometryGraph;
-            this.settings = settings;
-            engine = new LayeredLayoutEngine(geometryGraph, settings);
-        }
+        private GeometryGraph geometryGraph = geometryGraph;
+        private SugiyamaLayoutSettings settings = settings;
+        private LayeredLayoutEngine engine = new LayeredLayoutEngine(geometryGraph, settings);
 
         /// <summary>
         /// estimate the aspect ratio without actually doing layout

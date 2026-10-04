@@ -5,7 +5,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
     /// a tuple such that (a,b)==(b,a) for any a and b
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public class SymmetricTuple<T> {
+    /// <remarks>
+    /// constructor
+    /// </remarks>
+    /// <param name="a"></param>
+    /// <param name="b"></param>
+    public class SymmetricTuple<T>(T a, T b)
+    {
         bool Equals(SymmetricTuple<T> other) => (A.Equals(other.A) && B.Equals(other.B)) ||
                    (A.Equals(other.B) && B.Equals(other.A));
 
@@ -27,17 +33,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
 #endif
         }
 
-        public T A { get; private set; }
-        public T B { get; private set; }
-        /// <summary>
-        /// constructor
-        /// </summary>
-        /// <param name="a"></param>
-        /// <param name="b"></param>
-        public SymmetricTuple(T a, T b) {
-            A = a;
-            B = b;
-        }
+        public T A { get; private set; } = a;
+        public T B { get; private set; } = b;
 
         /// <summary>
         /// Determines whether the specified <see cref="T:System.Object"/> is equal to the current <see cref="T:System.Object"/>.

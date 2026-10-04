@@ -7,15 +7,13 @@ namespace Microsoft.AGL.Layout.Incremental {
     /// the minimum separation they will be projected apart, if they are further apart than the minimum
     /// separation then we don't need to do anything.
     /// </summary>
-    public class MinSeparationConstraint : StickConstraint {
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="u"></param>
-        /// <param name="v"></param>
-        /// <param name="separation"></param>
-        public MinSeparationConstraint(Node u, Node v, double separation)
-            : base(u, v, separation) { }
+    /// <remarks>
+    /// 
+    /// </remarks>
+    /// <param name="u"></param>
+    /// <param name="v"></param>
+    /// <param name="separation"></param>
+    public class MinSeparationConstraint(Node u, Node v, double separation) : StickConstraint(u, v, separation) {
         /// <summary>
         /// 
         /// </summary>
