@@ -1,4 +1,4 @@
-﻿# MarkdownToDocX — Mermaid Diagram Recognition & DOCX Renderer
+﻿# MarkdownToDocX - Mermaid Diagram Recognition & DOCX Renderer
 
 A research-grade .NET platform for **parsing, recognising, and rendering Mermaid diagram source text** into SVG and DOCX, built on a vendored Mermaid 11.14.0 parser and a Sugiyama graph-layout engine derived from Microsoft MSAGL.
 
@@ -23,8 +23,8 @@ The greenfield work (Stage 11.A / Stage 12) is the primary active effort. The le
 
 | Project | Purpose |
 |---------|---------|
-| `MermaidRecognition` | Core recogniser — parses Mermaid source into a typed diagram contract (vertices, edges, groups, styles, interactions) |
-| `MermaidRecognition.Layout` | Graph layout engine; Sugiyama implementation derived from Microsoft MSAGL (MIT) — see [Third-party notices](new_src/MermaidRecognition.Layout/THIRD_PARTY_NOTICES.md) |
+| `MermaidRecognition` | Core recogniser - parses Mermaid source into a typed diagram contract (vertices, edges, groups, styles, interactions) |
+| `MermaidRecognition.Layout` | Graph layout engine; Sugiyama implementation derived from Microsoft MSAGL (MIT) - see [Third-party notices](new_src/MermaidRecognition.Layout/THIRD_PARTY_NOTICES.md) |
 | `MermaidRecognition.NaiadAdapter` | Bridge between the new recognition model and the legacy Naiad SVG renderer |
 | `MermaidRecognition.RuleValidation` | Validation pipeline generating SVG facts and checking orthogonal / smooth path rules |
 | `MermaidRecognition.Tests` | Fixture-driven recognition tests; gate registry (`G12`) across 9 diagram kinds |
@@ -77,7 +77,7 @@ Recognition quality is tracked through gates per diagram kind:
 
 | Component | Origin | Licence |
 |-----------|--------|---------|
-| Sugiyama layout engine (`MermaidRecognition.Layout/Sugiyama/`) | [Microsoft Automatic Graph Layout (MSAGL)](https://github.com/microsoft/automatic-graph-layout) | MIT — Copyright (c) Microsoft Corporation |
+| Sugiyama layout engine (`MermaidRecognition.Layout/Sugiyama/`) | [Microsoft Automatic Graph Layout (MSAGL)](https://github.com/microsoft/automatic-graph-layout) | MIT - Copyright (c) Microsoft Corporation |
 | Mermaid parser/grammar (`mermaid/`) | [Mermaid 11.14.0](https://github.com/mermaid-js/mermaid) | MIT |
 
 See [`new_src/MermaidRecognition.Layout/THIRD_PARTY_NOTICES.md`](new_src/MermaidRecognition.Layout/THIRD_PARTY_NOTICES.md) for full attribution.
