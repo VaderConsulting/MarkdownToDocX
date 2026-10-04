@@ -3,19 +3,17 @@
 **/obj/
 *.user
 *.suo
+.vs/
+**/TestResults/
 
-# Vendored Naiad package output (local ProjectDefaults pack target)
-extern/Naiad/src/nugets/
-
-# Fixture probe renders and logs (the approved SVGs in out/Regression/approved are committed)
-out/FixtureProbe/png/
-out/FixtureProbe/run*.txt
-out/Regression/baseline/
-out/Regression/current/
-out/Regression_*_log.txt
-out/F11Probe/
-out/cs9113-*.log
+# Scratch output: probe renders, regression baseline and current renders, logs.
+# The approved fixture SVGs live in tests/FlowchartRegression/approved and are committed.
+out/
 
 # Docx extraction scratch artefacts (never commit)
 _docx_extract/
 test.zip
+
+# Editor history and NuGet audit reports
+.history/
+**/.nugetaudit/

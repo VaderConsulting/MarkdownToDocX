@@ -1,9 +1,0 @@
-﻿# 03-restore-and-build: Restore Dependencies and Build Solution
-
-Restore NuGet packages for the updated target framework and build the entire solution. Address any compilation errors that arise from the framework change.
-
-Packages to restore:
-- DocumentFormat.OpenXml 3.2.0
-- Markdig 0.38.0
-
-**Done when**: Solution builds successfully with zero compilation errors

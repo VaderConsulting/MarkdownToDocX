@@ -117,14 +117,14 @@ $IncludePaths = @(
     (Join-Path $Root 'class.md')
     (Join-Path $Root 'state.md')
     (Join-Path $Root 'entityrelationship.md')
-    (Join-Path $Root 'new_src\README.md')
+    (Join-Path $Root 'src\MermaidRecognition\README.md')
     (Join-Path $Root 'spec-gates\draft-11.0.12.3-sequence-produces-section.md')
     (Join-Path $Root 'spec-gates\draft-11.0.12.5-state-section.md')
     (Join-Path $Root 'spec-gates\draft-11.0.12.6-er-section.md')
     (Join-Path $Root 'tools\Generate-DiagramGateRegistry.ps1')
 )
 
-Get-ChildItem -Path (Join-Path $Root 'new_src') -Recurse -Include '*.cs' | ForEach-Object {
+Get-ChildItem -Path (Join-Path $Root 'src'), (Join-Path $Root 'tests') -Directory -Filter 'MermaidRecognition*' | Get-ChildItem -Recurse -Include '*.cs' | ForEach-Object {
     $IncludePaths += $_.FullName
 }
 

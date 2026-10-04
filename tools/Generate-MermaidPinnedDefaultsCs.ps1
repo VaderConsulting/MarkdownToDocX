@@ -2,7 +2,7 @@
 $ErrorActionPreference = 'Stop'
 $Root = Split-Path $PSScriptRoot -Parent
 $SchemaPath = Join-Path $Root 'mermaid\packages\mermaid\src\schemas\config.schema.yaml'
-$OutPath = Join-Path $Root 'new_src\MermaidRecognition\Config\MermaidPinnedDefaults.generated.cs'
+$OutPath = Join-Path $Root 'src\MermaidRecognition\Config\MermaidPinnedDefaults.generated.cs'
 $Lines = Get-Content -Path $SchemaPath
 
 $Defs = @(

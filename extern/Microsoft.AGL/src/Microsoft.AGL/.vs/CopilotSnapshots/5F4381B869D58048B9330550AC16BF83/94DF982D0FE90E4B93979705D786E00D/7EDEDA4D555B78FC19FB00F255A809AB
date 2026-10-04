@@ -1,5 +1,0 @@
-﻿# 01-prerequisites: Verify SDK and Environment
-
-Validate the .NET 10 SDK is installed and global.json files (if any) are compatible with the target framework.
-
-**Done when**: .NET 10 SDK validated and any global.json files confirmed compatible or updated

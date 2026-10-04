@@ -12,10 +12,20 @@ The repo has two layers:
 
 | Layer | Location | Role |
 |-------|----------|------|
-| **Legacy** DOCX pipeline | `src/md2docx/`, `src/MDConverter/`, `Converter/` | Converts Markdown files to `.docx` using OpenXml; stable, production path |
-| **Greenfield** Mermaid recogniser | `new_src/MermaidRecognition*/` | Full Mermaid diagram parser → recognition model → SVG render; replaces the legacy Naiad renderer |
+| DOCX pipeline | `src/md2docx/`, `src/MDConverter/`, `src/Converter/` | Converts Markdown files to `.docx` using OpenXml |
+| Mermaid recogniser and renderer | `src/MermaidRecognition*/` | Mermaid diagram parser → recognition model → native layout and SVG render |
 
-The greenfield work (Stage 11.A / Stage 12) is the primary active effort. The legacy `md2docx` pipeline is used for day-to-day DOCX output while the native renderer matures.
+Flowcharts render through the native Sugiyama layout in `src/MermaidRecognition.Layout`. Every other diagram type still renders through the vendored Naiad renderer in `extern/Naiad`, which will be removed once the native renderer covers each type.
+
+## Repository Layout
+
+| Folder | Contents |
+|--------|----------|
+| `src/` | Product code: the DOCX converter (`md2docx`, `MDConverter`, `Converter` GUI) and the Mermaid engine (`MermaidRecognition*`) |
+| `tests/` | Test projects for every product project, plus `FlowchartRegression/approved` (the approved SVG for each `flow.md` fixture) |
+| `tools/` | `FixtureProbe` (renders `flow.md` fixtures; `Compare-Fixtures.ps1` checks them against the approved SVGs), `NativeCompareDocx`, `RuleValidationHarness`, and maintenance scripts |
+| `extern/Naiad/` | Vendored Naiad renderer, still used for non-flowchart diagrams |
+| `mermaid/` | Vendored Mermaid 11.14.0 TypeScript source, used as the reference for tracing behaviour |
 
 ---
 
@@ -24,7 +34,7 @@ The greenfield work (Stage 11.A / Stage 12) is the primary active effort. The le
 | Project | Purpose |
 |---------|---------|
 | `MermaidRecognition` | Core recogniser - parses Mermaid source into a typed diagram contract (vertices, edges, groups, styles, interactions) |
-| `MermaidRecognition.Layout` | Graph layout engine; Sugiyama implementation derived from Microsoft MSAGL (MIT) - see [Third-party notices](new_src/MermaidRecognition.Layout/THIRD_PARTY_NOTICES.md) |
+| `MermaidRecognition.Layout` | Graph layout engine; Sugiyama implementation derived from Microsoft MSAGL (MIT) - see [Third-party notices](src/MermaidRecognition.Layout/THIRD_PARTY_NOTICES.md) |
 | `MermaidRecognition.NaiadAdapter` | Bridge between the new recognition model and the legacy Naiad SVG renderer |
 | `MermaidRecognition.RuleValidation` | Validation pipeline generating SVG facts and checking orthogonal / smooth path rules |
 | `MermaidRecognition.Tests` | Fixture-driven recognition tests; gate registry (`G12`) across 9 diagram kinds |
@@ -79,8 +89,9 @@ Recognition quality is tracked through gates per diagram kind:
 |-----------|--------|---------|
 | Sugiyama layout engine (`MermaidRecognition.Layout/Sugiyama/`) | [Microsoft Automatic Graph Layout (MSAGL)](https://github.com/microsoft/automatic-graph-layout) | MIT - Copyright (c) Microsoft Corporation |
 | Mermaid parser/grammar (`mermaid/`) | [Mermaid 11.14.0](https://github.com/mermaid-js/mermaid) | MIT |
+| Naiad renderer (`extern/Naiad/`) | Naiad (vendored with local changes; see `extern/Naiad/license.txt` and `extern/Naiad/UpstreamContributions.md`) | See `extern/Naiad/license.txt` |
 
-See [`new_src/MermaidRecognition.Layout/THIRD_PARTY_NOTICES.md`](new_src/MermaidRecognition.Layout/THIRD_PARTY_NOTICES.md) for full attribution.
+See [`src/MermaidRecognition.Layout/THIRD_PARTY_NOTICES.md`](src/MermaidRecognition.Layout/THIRD_PARTY_NOTICES.md) for full attribution.
 
 ---
 
@@ -91,4 +102,5 @@ See [`new_src/MermaidRecognition.Layout/THIRD_PARTY_NOTICES.md`](new_src/Mermaid
 | `spec.md` | Normative recognition specification |
 | `status.md` | Live implementation progress, gate registry, fixture counts |
 | `flow.md` | Flowchart visual regression catalogue (F01-F130+) |
-| `new_src/README.md` | Greenfield recogniser scope and architecture |
+| `src/MermaidRecognition/README.md` | Mermaid recogniser scope and architecture |
+| `Mermaid_Specification.md` | Flowchart geometry and routing rules, including Word-first parity notes |

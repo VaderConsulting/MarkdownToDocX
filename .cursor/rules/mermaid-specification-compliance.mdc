@@ -55,7 +55,7 @@ When deviating:
 
 ## Native layout note
 
-`new_src/MermaidRecognition.Layout` implements native Sugiyama flowchart layout and SVG render. It must still satisfy the **geometry and routing outcomes** in `Mermaid_Specification.md` even when the internal pipeline differs from Dagre (guide points, `FlowchartFanOutPortAllocator`, `FlowchartDecisionPortAllocator`, `FlowchartCurvePathBuilder`, etc.).
+`src/MermaidRecognition.Layout` implements native Sugiyama flowchart layout and SVG render. It must still satisfy the **geometry and routing outcomes** in `Mermaid_Specification.md` even when the internal pipeline differs from Dagre (guide points, `FlowchartFanOutPortAllocator`, `FlowchartDecisionPortAllocator`, `FlowchartCurvePathBuilder`, etc.).
 
 ## Recording new rules
 

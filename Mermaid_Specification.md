@@ -1507,7 +1507,7 @@ Vertical flowchart port rule (TD/BT, fixture):
 
 #### 15.0C Native layout routing and layout parity notes (Word-first parity note, October 2026)
 
-These rules belong to the native Sugiyama layout in `new_src/MermaidRecognition.Layout`. Mermaid itself takes its route points from Dagre and smooths them with `curveBasis`; it does not define port slots, loop corridors, or label clearance against other edges. Each rule below is a **Naiad** extension so that Word output stays readable where the Dagre-style route would overlap, hook, or stack arrowheads. All were checked against the fixtures named and are locked in the approved regression set (`out/Regression/approved`, compared by `out/FixtureProbe/Compare-Fixtures.ps1`).
+These rules belong to the native Sugiyama layout in `src/MermaidRecognition.Layout`. Mermaid itself takes its route points from Dagre and smooths them with `curveBasis`; it does not define port slots, loop corridors, or label clearance against other edges. Each rule below is a **Naiad** extension so that Word output stays readable where the Dagre-style route would overlap, hook, or stack arrowheads. All were checked against the fixtures named and are locked in the approved regression set (`tests/FlowchartRegression/approved`, compared by `tools/FixtureProbe/Compare-Fixtures.ps1`).
 
 ##### 15.0C.1 Hub side-face ports, top-to-bottom and bottom-to-top (F31, F32, F111)
 
@@ -1885,7 +1885,7 @@ Torture-test Markdown fixtures (`routing-torture-test.md`) contain multiple Merm
 
 When intent validation fails, the renderer misunderstood the diagram before drawing. When intent validation passes but SVG comparison or structural diagnostics fail, the problem is likely in path generation, label placement, obstacle avoidance, or SVG output.
 
-Implementation: `FlowchartEdgeRoutingIntentAnalyzer`, `FlowchartRoutingIntentValidator`, `FlowchartRoutingIntentPipeline`, `MermaidMarkdownFenceExtractor` in `MermaidRecognition.Layout`. Fixtures and comparison rules: `new_src/MermaidRecognition.Layout.Tests/RoutingIntent/ruleset.json`, `routing-torture-test.md`. Tests: `FlowchartRoutingIntentTests`.
+Implementation: `FlowchartEdgeRoutingIntentAnalyzer`, `FlowchartRoutingIntentValidator`, `FlowchartRoutingIntentPipeline`, `MermaidMarkdownFenceExtractor` in `MermaidRecognition.Layout`. Fixtures and comparison rules: `tests/MermaidRecognition.Layout.Tests/RoutingIntent/ruleset.json`, `routing-torture-test.md`. Tests: `FlowchartRoutingIntentTests`.
 
 #### 17.5.2 Render-stage structural diagnostics
 

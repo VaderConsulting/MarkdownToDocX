@@ -1,5 +1,0 @@
-﻿# 04-run-tests: Execute Test Suite
-
-Run the full test suite to verify functionality after the upgrade. Validate that all tests pass and there are no runtime behavioral issues.
-
-**Done when**: All tests pass, or test projects identified if none exist

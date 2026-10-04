@@ -4,7 +4,7 @@
     Merges gate manifests into spec-gates/registry.generated.md (§11.1.14.2).
 #>
 param(
-    [string] $ManifestsDirectory = (Join-Path $PSScriptRoot "..\new_src\MermaidRecognition.Tests\Gates\manifests"),
+    [string] $ManifestsDirectory = (Join-Path $PSScriptRoot "..\tests\MermaidRecognition.Tests\Gates\manifests"),
     [string] $OutputPath = (Join-Path $PSScriptRoot "..\spec-gates\registry.generated.md")
 )
 
