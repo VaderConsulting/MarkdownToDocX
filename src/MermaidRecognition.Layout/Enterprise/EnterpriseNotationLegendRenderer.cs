@@ -265,7 +265,7 @@ public static class EnterpriseNotationLegendRenderer
             return Lines;
         }
 
-        if (Caption.Length <= 16)
+        if (Caption.Length <= 22)
         {
             Lines.Add((Caption, 0));
             return Lines;

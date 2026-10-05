@@ -78,24 +78,12 @@ internal static class EnterpriseFlowchartEdgeRouter
                 continue;
             }
 
-            List<(double X, double Y)> SvgPoints = new List<(double X, double Y)>();
-            foreach ((double LayoutX, double LayoutY) in LayoutPoints)
-            {
-                SvgPoints.Add((LayoutX, ToSvgY(LayoutY)));
-            }
-
-            string PathData = FlowchartCurvePathBuilder.BuildRenderedEdgePathData(SvgPoints, RouteKind, Direction);
-            if (string.IsNullOrWhiteSpace(PathData))
-            {
-                PathData = FlowchartCurvePathBuilder.BuildPathDataFromGuidePoints(SvgPoints, RenderOptions.Curve);
-            }
-
             string Label = EdgeLabel(Relationship);
             double LabelX = 0;
             double LabelY = 0;
             if (Label.Length > 0
-                && BoundsById.TryGetValue(Relationship.SourceId, out FlowchartLayoutNodeBounds SourceBounds)
-                && BoundsById.TryGetValue(Relationship.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
+                && BoundsById.TryGetValue(Edge.SourceId, out FlowchartLayoutNodeBounds SourceBounds)
+                && BoundsById.TryGetValue(Edge.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
             {
                 string? RouteClass = null;
                 if (!string.IsNullOrEmpty(Edge.Id) && RouteClassByEdgeKey.TryGetValue(Edge.Id, out string? ById))
@@ -104,10 +92,10 @@ internal static class EnterpriseFlowchartEdgeRouter
                 }
                 else
                 {
-                    RouteClassByEdgeKey.TryGetValue(Relationship.SourceId + "->" + Relationship.TargetId, out RouteClass);
+                    RouteClassByEdgeKey.TryGetValue(Edge.SourceId + "->" + Edge.TargetId, out RouteClass);
                 }
 
-                string? SourceShape = NodeById.TryGetValue(Relationship.SourceId, out NodeContract? SourceNode)
+                string? SourceShape = NodeById.TryGetValue(Edge.SourceId, out NodeContract? SourceNode)
                     ? SourceNode.Shape
                     : null;
                 (double LayoutLabelX, double LayoutLabelY) = FlowchartSugiyamaSvgRenderer.ResolveDrawnEdgeLabelCentre(
@@ -123,6 +111,23 @@ internal static class EnterpriseFlowchartEdgeRouter
                     RenderOptions);
                 LabelX = LayoutLabelX;
                 LabelY = ToSvgY(LayoutLabelY);
+            }
+
+            if (IsLayoutReversed(Relationship))
+            {
+                LayoutPoints.Reverse();
+            }
+
+            List<(double X, double Y)> SvgPoints = new List<(double X, double Y)>();
+            foreach ((double LayoutX, double LayoutY) in LayoutPoints)
+            {
+                SvgPoints.Add((LayoutX, ToSvgY(LayoutY)));
+            }
+
+            string PathData = FlowchartCurvePathBuilder.BuildRenderedEdgePathData(SvgPoints, RouteKind, Direction);
+            if (string.IsNullOrWhiteSpace(PathData))
+            {
+                PathData = FlowchartCurvePathBuilder.BuildPathDataFromGuidePoints(SvgPoints, RenderOptions.Curve);
             }
 
             ResolveArchiMateMarkers(Relationship, out string? StartMarker, out string? EndMarker);
@@ -246,11 +251,19 @@ internal static class EnterpriseFlowchartEdgeRouter
                 continue;
             }
 
+            string RouteSourceId = Relationship.SourceId;
+            string RouteTargetId = Relationship.TargetId;
+            if (IsLayoutReversed(Relationship))
+            {
+                RouteSourceId = Relationship.TargetId;
+                RouteTargetId = Relationship.SourceId;
+            }
+
             EdgeContract Edge = new EdgeContract
             {
-                Id = Relationship.SourceId + "->" + Relationship.TargetId + ":" + CreationIndex.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                SourceId = Relationship.SourceId,
-                TargetId = Relationship.TargetId,
+                Id = RouteSourceId + "->" + RouteTargetId + ":" + CreationIndex.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                SourceId = RouteSourceId,
+                TargetId = RouteTargetId,
                 Label = EdgeLabel(Relationship),
                 Stroke = FlowchartStroke(Relationship),
                 MarkerStart = EdgeEndpointMarker.None,
@@ -341,10 +354,18 @@ internal static class EnterpriseFlowchartEdgeRouter
         EnterpriseRelationship Relationship,
         HashSet<string> UsedEdgeIds)
     {
+        string RouteSourceId = Relationship.SourceId;
+        string RouteTargetId = Relationship.TargetId;
+        if (IsLayoutReversed(Relationship))
+        {
+            RouteSourceId = Relationship.TargetId;
+            RouteTargetId = Relationship.SourceId;
+        }
+
         foreach (EdgeContract Edge in Contract.Edges)
         {
-            if (Edge.SourceId == Relationship.SourceId
-                && Edge.TargetId == Relationship.TargetId
+            if (Edge.SourceId == RouteSourceId
+                && Edge.TargetId == RouteTargetId
                 && !UsedEdgeIds.Contains(Edge.Id ?? string.Empty))
             {
                 return Edge;
@@ -371,6 +392,13 @@ internal static class EnterpriseFlowchartEdgeRouter
         }
 
         return "rect";
+    }
+
+    private static bool IsLayoutReversed(EnterpriseRelationship Relationship)
+    {
+        return Relationship.Kind == EnterpriseRelationshipKind.Serving
+            || Relationship.Kind == EnterpriseRelationshipKind.Realization
+            || Relationship.Kind == EnterpriseRelationshipKind.Assignment;
     }
 
     private static string? FlowchartStroke(EnterpriseRelationship Relationship)

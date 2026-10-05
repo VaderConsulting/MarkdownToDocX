@@ -158,8 +158,18 @@ public sealed class EnterpriseRenderTests
         Assert.That(Svg, Does.Contain("trebuchet ms"));
         Assert.That(Svg, Does.Contain("fill=\"#333\""));
         Assert.That(Svg, Does.Not.Contain("fill-opacity=\"0.85\""));
-        Assert.That(Svg, Does.Contain("stroke-dasharray=\"6 4\""));
         Assert.That(Svg, Does.Contain("stroke-dasharray=\"1.5 3\""));
+        string InfluenceSvg = EnterpriseRenderBridge.RenderEnterpriseSvg(
+            """
+            enterprise
+              stakeholder board "Board"
+              driver growth "Growth"
+              board -influence-> growth
+              business-event start "Start"
+              business-event finish "Finish"
+              start -flow-> finish
+            """);
+        Assert.That(InfluenceSvg, Does.Contain("stroke-dasharray=\"6 4\""));
         XDocument.Parse(Svg);
     }
 
