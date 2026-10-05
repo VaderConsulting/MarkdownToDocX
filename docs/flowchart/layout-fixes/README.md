@@ -78,7 +78,7 @@ Local 2 px geometry check after the layout copy (including this quality widen): 
 
 ## How to regenerate
 
-`refresh-after` re-renders every flowchart after SVG from the current head and rasterises **every** after SVG to PNG, including `enterprise-*-enterprise.png`. `FlowchartAfterDocsFreshnessTests` and `.github/workflows/flowchart-after-docs.yml` fail when those files go stale.
+`refresh-after` re-renders every flowchart after SVG from the current head and rasterises **every** after SVG to PNG, including `enterprise-*-enterprise.png`. `FlowchartAfterDocsFreshnessTests` and `.github/workflows/flowchart-after-docs.yml` fail when an after SVG no longer matches a fresh render, or when a PNG is missing. PNG pixels are not compared byte for byte, because HTML and Markdown labels can rasterise differently when the host fonts differ.
 
 ```text
 dotnet run --project tools/FlowchartLayoutFixRender/FlowchartLayoutFixRender.csproj -c Release -- refresh-after docs/flowchart/layout-fixes/after

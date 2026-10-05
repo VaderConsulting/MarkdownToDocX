@@ -22,13 +22,29 @@ jobs:
       - name: Refresh after docs
         run: dotnet run --project tools/FlowchartLayoutFixRender/FlowchartLayoutFixRender.csproj -c Release -- refresh-after docs/flowchart/layout-fixes/after
 
-      - name: Fail when after docs are stale
+      - name: Fail when after SVG docs are stale
         run: |
           git add --intent-to-add docs/flowchart/layout-fixes/after
-          if ! git diff --exit-code -- docs/flowchart/layout-fixes/after; then
-            echo "docs/flowchart/layout-fixes/after is stale. Re-run FlowchartLayoutFixRender refresh-after and commit the PNGs and SVGs."
+          StaleSvgs="$(git diff --name-only -- docs/flowchart/layout-fixes/after | grep '\.svg$' || true)"
+          if [ -n "$StaleSvgs" ]; then
+            echo "These after SVG files do not match a fresh render from this commit:"
+            echo "$StaleSvgs"
+            echo "Run FlowchartLayoutFixRender refresh-after and commit the new SVG files."
+            git diff -- docs/flowchart/layout-fixes/after -- '*.svg'
             exit 1
           fi
+          MissingPngs=""
+          for SvgPath in docs/flowchart/layout-fixes/after/*.svg; do
+            PngPath="${SvgPath%.svg}.png"
+            if [ ! -s "$PngPath" ]; then
+              MissingPngs="$MissingPngs $PngPath"
+            fi
+          done
+          if [ -n "$MissingPngs" ]; then
+            echo "These after PNG files are missing or empty:$MissingPngs"
+            exit 1
+          fi
+          echo "After SVG files match this commit. PNG pixels are not compared byte for byte, because HTML and Markdown labels can rasterise differently when the host fonts differ."
 
       - name: After-docs freshness tests
         run: dotnet test tests/MermaidRecognition.Layout.Tests/MermaidRecognition.Layout.Tests.csproj -c Release --filter FullyQualifiedName~FlowchartAfterDocsFreshnessTests
