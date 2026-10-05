@@ -664,7 +664,7 @@ public static class FlowchartSugiyamaSvgRenderer
                     TerminalCollectorLayoutPoints,
                     FlowchartTerminalCollectorPortAllocator.IsSpineStraightRoute(TerminalCollectorLayoutPoints)
                         ? FlowchartEdgeRouteKind.Straight
-                        : FlowchartEdgeRouteKind.Curved,
+                        : FlowchartEdgeRouteKind.Corridor,
                     Direction,
                     RouteClass,
                     MinLeft,
@@ -1154,7 +1154,11 @@ public static class FlowchartSugiyamaSvgRenderer
             GuideSvgPoints.Add(LayoutToSvgPoint(LayoutX, LayoutY, MinLeft, MaxTop, DiagramPaddingPx));
         }
 
-        if (RouteKind == FlowchartEdgeRouteKind.Straight && GuideSvgPoints.Count >= 2)
+        bool StraightIsAxisAligned = RouteKind == FlowchartEdgeRouteKind.Straight
+            && GuideSvgPoints.Count >= 2
+            && (Math.Abs(GuideSvgPoints[0].X - GuideSvgPoints[GuideSvgPoints.Count - 1].X) <= 0.6
+                || Math.Abs(GuideSvgPoints[0].Y - GuideSvgPoints[GuideSvgPoints.Count - 1].Y) <= 0.6);
+        if (StraightIsAxisAligned)
         {
             (double LayoutBoundaryX, double LayoutBoundaryY) = LayoutPoints[0];
             (double LayoutTipX, double LayoutTipY) = LayoutPoints[LayoutPoints.Count - 1];
@@ -1240,7 +1244,10 @@ public static class FlowchartSugiyamaSvgRenderer
                 Direction);
             if (string.IsNullOrWhiteSpace(PathData))
             {
-                PathData = FlowchartCurvePathBuilder.BuildPathDataFromGuidePoints(GuideSvgPoints, RenderOptions.Curve);
+                PathData = FlowchartCurvePathBuilder.BuildRenderedEdgePathData(
+                    FlowchartPaddedVisibilityRouter.EnsureOrthogonal(GuideSvgPoints),
+                    FlowchartEdgeRouteKind.Corridor,
+                    Direction);
             }
 
             AppendStyledEdgePath(Builder, PathData, EdgeStyle, Edge.SourceId, Edge.TargetId);
@@ -1409,7 +1416,7 @@ public static class FlowchartSugiyamaSvgRenderer
             Direction);
         if (RenderedSamples.Count >= 2
             && FlowchartSharedRouteQualityHelper.DistanceFromPointToPolyline(ClearedX, ClearedY, RenderedSamples)
-            > FlowchartSharedEdgeRouter.LABEL_OWN_EDGE_PX)
+            > 6.5)
         {
             return FlowchartSharedRouteQualityHelper.ResolveLabelOnOwnEdge(
                 RenderedSamples,
@@ -1418,7 +1425,7 @@ public static class FlowchartSugiyamaSvgRenderer
                 BoundsById,
                 Edge.SourceId,
                 Edge.TargetId,
-                FlowchartSharedEdgeRouter.LABEL_OWN_EDGE_PX - 1.0);
+                6.0);
         }
 
         return (ClearedX, ClearedY);

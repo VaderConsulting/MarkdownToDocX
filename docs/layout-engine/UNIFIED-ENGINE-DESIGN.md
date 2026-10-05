@@ -37,7 +37,7 @@ These are **node + edge** diagrams. They already think in ranks, order, and conn
 
 | Type | Code that draws | Layout today | Routing today | Containment |
 | --- | --- | --- | --- | --- |
-| **Flowchart** (native, default) | `src/MermaidRecognition.Layout` | Adopted Sugiyama (`LayeredLayout`) + `FlowchartLayoutPostProcessor` + `FlowchartSubgraphLayoutPostProcessor` | Straight two-point; `curveBasis` on multi-point; orthogonal polyline only for retry/corridor; compound edges clip to the cluster rectangle | Subgraphs are clusters. Dummy group-id nodes are omitted. Non-members stay outside the box |
+| **Flowchart** (native, default) | `src/MermaidRecognition.Layout` | Adopted Sugiyama (`LayeredLayout`) + `FlowchartLayoutPostProcessor` + `FlowchartSubgraphLayoutPostProcessor` | Orthogonal visibility-graph polyline for every edge; two aligned ports stay a straight right-angle run; compound edges clip to the cluster rectangle | Subgraphs are clusters. Dummy group-id nodes are omitted. Non-members stay outside the box |
 | **Flowchart** (legacy) | `Naiad` `FlowchartRenderer` + `DagreLayoutEngine` | Naiad Dagre (acyclic → rank → order → coordinates). Compound subgraphs are a **bottom-up approximation**, not a real compound graph | Dagre route points + a long list of flowchart-only snaps (retry loops, stadium merge, terminal collector, cross-boundary) | Recursive per-subgraph layout, then pack |
 | **Class** | `Naiad` `ClassRenderer` | Convert to a `GraphModel`, then **same** `DagreLayoutEngine`. Spacing 60 / 80 (×2 scale) | Straight centre-to-centre lines plus UML markers | No clusters. Packages are not compound boxes |
 | **State** | `Naiad` `StateRenderer` | Convert to graph, **same** Dagre. Spacing 120 / 80. Extra passes align start/end and notes | Dagre routes; back-edges curve; notes sit beside states | Composite states are flattened into the graph, not nested clusters |
@@ -275,14 +275,14 @@ The resolver already classifies routes (`FlowchartEdgeRouteKind`). The unified e
 
 | Style | When | Implementation already |
 | --- | --- | --- |
-| **Straight** | Two aligned ports, or any two-point compound/group chord | `M… L…` — no `curveBasis` bow |
-| **Curved** | Default multi-point flowchart (`flowchart.curve` = `basis`) | Stub + `curveBasis` body, smooth terminal approach |
-| **Orthogonal** | Retry loops, under-corridors, explicit step syntax | Rounded-corner polyline; **not** the default |
+| **Straight** | Two aligned ports on a clear right-angle run | `M… L…` axis-aligned |
+| **Orthogonal** | Every other flowchart and enterprise edge | Visibility-graph polyline with ordered side ports and a nudge gap |
+| **Curved** | A later profile option only | Draw the same orthogonal path with a curve; not a second router |
 | **Direct (UML/ER)** | Class and ER today | Straight clipped chord + type markers. Profile may set `RoutingStyle = Direct` |
 
 Ports: facing-side selection from relative geometry; `2N−1` slots on a shared face; decision diamonds use side exits; fan-out/fan-in allocators stay in the core. A profile can disable fan ports (class, ER) or force side-only (C4).
 
-The **shared router** (`FlowchartSharedEdgeRouter`) owns every searchable edge. It does not call the adopted MSAGL routers for output. It does reuse their ideas, written in our own types:
+The **shared router** (`FlowchartSharedEdgeRouter`) owns every edge. The padded orthogonal visibility graph is the primary router, not a rescue. It does not call the adopted MSAGL routers for output. It does reuse their ideas, written in our own types. `curveBasis` and free diagonals are not used on the shared stroke; a later profile may draw the same right-angle path with a curve if needed.
 
 | Technique | Our code | Inspired by |
 | --- | --- | --- |

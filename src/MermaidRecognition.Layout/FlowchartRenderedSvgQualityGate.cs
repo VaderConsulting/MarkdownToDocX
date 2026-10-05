@@ -495,8 +495,10 @@ public static class FlowchartRenderedSvgQualityGate
                 continue;
             }
 
-            if (Guide.RouteKind == FlowchartEdgeRouteKind.Straight)
+            if (Guide.RouteKind == FlowchartEdgeRouteKind.Straight
+                || Guide.RouteKind == FlowchartEdgeRouteKind.Corridor)
             {
+                HasOrthogonal = true;
                 continue;
             }
 
@@ -804,13 +806,9 @@ public static class FlowchartRenderedSvgQualityGate
             }
         }
 
+        bool HasRightAngle = HasStraight || HasOrthogonal;
         int Styles = 0;
-        if (HasStraight)
-        {
-            Styles++;
-        }
-
-        if (HasOrthogonal)
+        if (HasRightAngle)
         {
             Styles++;
         }
@@ -1026,6 +1024,23 @@ public static class FlowchartRenderedSvgQualityGate
         foreach (ParsedEdgeStroke Stroke in Strokes)
         {
             if (Stroke.Samples.Count < 2)
+            {
+                continue;
+            }
+
+            bool AllAxisAligned = true;
+            for (int Index = 1; Index < Stroke.Samples.Count; Index++)
+            {
+                bool SegmentHorizontal = Math.Abs(Stroke.Samples[Index].Y - Stroke.Samples[Index - 1].Y) <= 1.5;
+                bool SegmentVertical = Math.Abs(Stroke.Samples[Index].X - Stroke.Samples[Index - 1].X) <= 1.5;
+                if (!SegmentHorizontal && !SegmentVertical)
+                {
+                    AllAxisAligned = false;
+                    break;
+                }
+            }
+
+            if (AllAxisAligned)
             {
                 continue;
             }

@@ -142,12 +142,7 @@ public static class FlowchartCurvePathBuilder
             return BuildRetryLoopPathData(Points);
         }
 
-        if (Points.Count >= 4)
-        {
-            return BuildCorridorCurveBasisPathData(Points);
-        }
-
-        return BuildCurveBasisPathData(Points);
+        return BuildLinearPathData(FlowchartPaddedVisibilityRouter.EnsureOrthogonal(Points));
     }
 
     private static int ResolveCorridorCurveEndIndex(IReadOnlyList<(double X, double Y)> Points)
@@ -533,44 +528,9 @@ public static class FlowchartCurvePathBuilder
         FlowchartEdgeRouteKind RouteKind,
         FlowchartDirection Direction)
     {
-        if (ShouldUseOrthogonalPolylinePathData(GuidePoints, RouteKind))
-        {
-            return BuildRetryLoopPathData(GuidePoints);
-        }
-
-        if (RouteKind == FlowchartEdgeRouteKind.Corridor)
-        {
-            return BuildCorridorRoutePathData(GuidePoints, RouteKind);
-        }
-
-        if (RouteKind == FlowchartEdgeRouteKind.Decision)
-        {
-            return BuildDecisionBranchPathData(GuidePoints);
-        }
-
-        if (TryBuildStubBridgeCurvePathData(GuidePoints, out string StubBridgePathData))
-        {
-            return StubBridgePathData;
-        }
-
-        if (IsStadiumMergeGuideRoute(GuidePoints))
-        {
-            return BuildStadiumMergeHookPathData(GuidePoints);
-        }
-
-        bool HorizontalFanFlow = Direction == FlowchartDirection.LeftToRight
-            || Direction == FlowchartDirection.RightToLeft;
-        if (GuidePoints.Count >= 5)
-        {
-            if (HorizontalFanFlow)
-            {
-                return BuildHorizontalFanRoutePathData(GuidePoints);
-            }
-
-            return BuildVerticalFanRoutePathData(GuidePoints);
-        }
-
-        return BuildCurveBasisPathData(GuidePoints);
+        _ = RouteKind;
+        _ = Direction;
+        return BuildLinearPathData(FlowchartPaddedVisibilityRouter.EnsureOrthogonal(GuidePoints));
     }
 
     /// <summary>

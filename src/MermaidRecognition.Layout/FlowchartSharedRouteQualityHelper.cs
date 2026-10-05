@@ -502,6 +502,19 @@ public static class FlowchartSharedRouteQualityHelper
         string TargetNodeId,
         double OffsetPx)
     {
+        if (TryPlaceLabelOnLongestClearSegment(
+            LayoutPoints,
+            LabelWidth,
+            LabelHeight,
+            BoundsById,
+            SourceNodeId,
+            TargetNodeId,
+            OffsetPx,
+            out (double X, double Y) SegmentAnchor))
+        {
+            return SegmentAnchor;
+        }
+
         (double AnchorX, double AnchorY) = FlowchartEdgeLabelPlacementHelper.ComputeOffsetLabelPosition(
             LayoutPoints,
             OffsetPx);
@@ -1417,6 +1430,59 @@ public static class FlowchartSharedRouteQualityHelper
         return false;
     }
 
+
+    private static bool TryPlaceLabelOnLongestClearSegment(
+        IReadOnlyList<(double X, double Y)> LayoutPoints,
+        double LabelWidth,
+        double LabelHeight,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        string SourceNodeId,
+        string TargetNodeId,
+        double OffsetPx,
+        out (double X, double Y) Anchor)
+    {
+        Anchor = (0.0, 0.0);
+        int BestIndex = -1;
+        double BestLength = 0.0;
+        for (int Index = 1; Index < LayoutPoints.Count; Index++)
+        {
+            double Length = Math.Sqrt(
+                Math.Pow(LayoutPoints[Index].X - LayoutPoints[Index - 1].X, 2.0)
+                + Math.Pow(LayoutPoints[Index].Y - LayoutPoints[Index - 1].Y, 2.0));
+            if (Length < 16.0 || Length <= BestLength)
+            {
+                continue;
+            }
+
+            BestLength = Length;
+            BestIndex = Index;
+        }
+
+        if (BestIndex < 1)
+        {
+            return false;
+        }
+
+        double MidX = (LayoutPoints[BestIndex - 1].X + LayoutPoints[BestIndex].X) / 2.0;
+        double MidY = (LayoutPoints[BestIndex - 1].Y + LayoutPoints[BestIndex].Y) / 2.0;
+        double DeltaX = LayoutPoints[BestIndex].X - LayoutPoints[BestIndex - 1].X;
+        double DeltaY = LayoutPoints[BestIndex].Y - LayoutPoints[BestIndex - 1].Y;
+        (double OffsetX, double OffsetY) = OffsetPerpendicular(MidX, MidY, DeltaX, DeltaY, OffsetPx);
+        if (!LabelOverlapsUnrelatedNode(OffsetX, OffsetY, LabelWidth, LabelHeight, BoundsById, SourceNodeId, TargetNodeId))
+        {
+            Anchor = (OffsetX, OffsetY);
+            return true;
+        }
+
+        (double OtherX, double OtherY) = OffsetPerpendicular(MidX, MidY, DeltaX, DeltaY, -OffsetPx);
+        if (!LabelOverlapsUnrelatedNode(OtherX, OtherY, LabelWidth, LabelHeight, BoundsById, SourceNodeId, TargetNodeId))
+        {
+            Anchor = (OtherX, OtherY);
+            return true;
+        }
+
+        return false;
+    }
 
     private static bool LabelOverlapsUnrelatedNode(
         double CentreX,

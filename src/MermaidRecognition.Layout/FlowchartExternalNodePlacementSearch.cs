@@ -494,6 +494,11 @@ public static class FlowchartExternalNodePlacementSearch
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> ById)
     {
         List<string> Movable = [];
+        if (Contract.Groups.Count == 0)
+        {
+            return Movable;
+        }
+
         foreach (NodeContract Node in Contract.Nodes)
         {
             if (!ById.ContainsKey(Node.Id)
@@ -507,10 +512,33 @@ public static class FlowchartExternalNodePlacementSearch
                 continue;
             }
 
+            if (!NodeTouchesAGroup(Contract, Node.Id))
+            {
+                continue;
+            }
+
             Movable.Add(Node.Id);
         }
 
         return Movable;
+    }
+
+    private static bool NodeTouchesAGroup(DiagramContract Contract, string NodeId)
+    {
+        foreach (string NeighborId in CollectNeighbors(Contract, NodeId))
+        {
+            if (FlowchartCompoundEndpointHelper.IsGroupId(Contract, NeighborId))
+            {
+                return true;
+            }
+
+            if (!string.IsNullOrEmpty(FlowchartSubgraphMembershipHelper.FindInnermostGroupId(NeighborId, Contract)))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static List<string> CollectNeighbors(DiagramContract Contract, string NodeId)

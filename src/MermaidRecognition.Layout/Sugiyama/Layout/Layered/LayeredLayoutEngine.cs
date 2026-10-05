@@ -1449,6 +1449,22 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                                                          bool layersAreDoubled) {
             Anchor[] anchors = database.Anchors;
             double ymax = originalGraph.Margins + spaceBeforeMargins; //setting up y coord - going up by y-layers
+            List<bool> LayerIsVirtualOnly = new List<bool>();
+            foreach (int[] LayerNodes in layerArrays.Layers)
+            {
+                bool VirtualOnly = true;
+                foreach (int NodeIndex in LayerNodes)
+                {
+                    if (NodeIndex < originalGraph.Nodes.Count)
+                    {
+                        VirtualOnly = false;
+                        break;
+                    }
+                }
+
+                LayerIsVirtualOnly.Add(VirtualOnly);
+            }
+
             int i = 0;
             foreach (int[] yLayer in layerArrays.Layers) {
                 double bottomAnchorMax = 0;
@@ -1496,6 +1512,19 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                 }
 
                 double layerSep = settings.ActualLayerSeparation(layersAreDoubled);
+                bool ThisLayerIsVirtualOnly = i < LayerIsVirtualOnly.Count && LayerIsVirtualOnly[i];
+                bool NextLayerIsVirtualOnly = (i + 1) < LayerIsVirtualOnly.Count && LayerIsVirtualOnly[i + 1];
+                if (ThisLayerIsVirtualOnly)
+                {
+                    layerSep = NextLayerIsVirtualOnly
+                        ? 0.0
+                        : Math.Min(layerSep, VirtualNodeHeight(settings));
+                }
+                else if (NextLayerIsVirtualOnly)
+                {
+                    layerSep = Math.Min(layerSep, VirtualNodeHeight(settings));
+                }
+
                 ymax = layerTop + layerSep;
                 i++;
             }

@@ -6,9 +6,10 @@ using MermaidRecognition.Contract;
 namespace MermaidRecognition.Layout;
 
 /// <summary>
-/// Shortest path around padded node and group boxes.
-/// Inspired by <c>VisibilityGraph</c> and
-/// <c>SingleSourceSingleTargetShortestPathOnVisibilityGraph</c> in the adopted MSAGL slice.
+/// Orthogonal shortest path around padded node and group boxes.
+/// Inspired by <c>VisibilityGraph</c>,
+/// <c>SingleSourceSingleTargetShortestPathOnVisibilityGraph</c>,
+/// and the rectilinear scan grid in <c>VisibilityGraphGenerator</c>.
 /// </summary>
 public static class FlowchartPaddedVisibilityRouter
 {
@@ -18,8 +19,10 @@ public static class FlowchartPaddedVisibilityRouter
 
     private const double VERTEX_MERGE_PX = 2.0;
 
+    private const double PORT_STUB_PX = 12.0;
+
     /// <summary>
-    /// Routes from the source port to the target port around padded obstacles.
+    /// Routes from the source port to the target port on right-angle channels.
     /// </summary>
     /// <param name="StartX">Source port X.</param>
     /// <param name="StartY">Source port Y.</param>
@@ -36,6 +39,32 @@ public static class FlowchartPaddedVisibilityRouter
         IReadOnlyList<FlowchartLayoutNodeBounds> Obstacles,
         out List<(double X, double Y)> Points)
     {
+        return TryRoute(StartX, StartY, EndX, EndY, Obstacles, null, null, out Points);
+    }
+
+    /// <summary>
+    /// Routes from the source port to the target port, leaving and entering at a right angle.
+    /// Inspired by <c>RectilinearEdgeRouter</c> port stubs.
+    /// </summary>
+    /// <param name="StartX">Source port X.</param>
+    /// <param name="StartY">Source port Y.</param>
+    /// <param name="EndX">Target port X.</param>
+    /// <param name="EndY">Target port Y.</param>
+    /// <param name="Obstacles">Boxes the path must not enter.</param>
+    /// <param name="SourceBounds">Source box, or null when the port is already off the box.</param>
+    /// <param name="TargetBounds">Target box, or null when the port is already off the box.</param>
+    /// <param name="Points">Guide points when this method returns true.</param>
+    /// <returns>True when a path exists.</returns>
+    public static bool TryRoute(
+        double StartX,
+        double StartY,
+        double EndX,
+        double EndY,
+        IReadOnlyList<FlowchartLayoutNodeBounds> Obstacles,
+        FlowchartLayoutNodeBounds? SourceBounds,
+        FlowchartLayoutNodeBounds? TargetBounds,
+        out List<(double X, double Y)> Points)
+    {
         Points = [];
         List<PaddedBox> Boxes = [];
         foreach (FlowchartLayoutNodeBounds Obstacle in Obstacles)
@@ -43,25 +72,183 @@ public static class FlowchartPaddedVisibilityRouter
             Boxes.Add(Pad(Obstacle, OBSTACLE_PADDING_PX));
         }
 
-        if (SegmentClears(StartX, StartY, EndX, EndY, Boxes))
+        (double RouteStartX, double RouteStartY) = OffsetPortOutward(StartX, StartY, SourceBounds, PORT_STUB_PX);
+        (double RouteEndX, double RouteEndY) = OffsetPortOutward(EndX, EndY, TargetBounds, PORT_STUB_PX);
+        if (PointInsideAny(RouteStartX, RouteStartY, Boxes))
+        {
+            RouteStartX = StartX;
+            RouteStartY = StartY;
+        }
+
+        if (PointInsideAny(RouteEndX, RouteEndY, Boxes))
+        {
+            RouteEndX = EndX;
+            RouteEndY = EndY;
+        }
+
+        if (!TryRouteOrthogonal(RouteStartX, RouteStartY, RouteEndX, RouteEndY, Boxes, out List<(double X, double Y)> Routed))
+        {
+            return false;
+        }
+
+        if (Math.Abs(RouteStartX - StartX) > 0.01 || Math.Abs(RouteStartY - StartY) > 0.01)
+        {
+            Routed.Insert(0, (StartX, StartY));
+        }
+
+        if (Math.Abs(RouteEndX - EndX) > 0.01 || Math.Abs(RouteEndY - EndY) > 0.01)
+        {
+            Routed.Add((EndX, EndY));
+        }
+
+        SimplifyColinear(Routed);
+        Points = Routed;
+        return Points.Count >= 2;
+    }
+
+    /// <summary>
+    /// Inserts right-angle corners so consecutive points never form a diagonal.
+    /// </summary>
+    /// <param name="Points">Input points.</param>
+    /// <returns>An orthogonal polyline.</returns>
+    public static List<(double X, double Y)> EnsureOrthogonal(IReadOnlyList<(double X, double Y)> Points)
+    {
+        List<(double X, double Y)> Orthogonal = [];
+        if (Points.Count == 0)
+        {
+            return Orthogonal;
+        }
+
+        Orthogonal.Add(Points[0]);
+        for (int Index = 1; Index < Points.Count; Index++)
+        {
+            (double PreviousX, double PreviousY) = Orthogonal[Orthogonal.Count - 1];
+            (double NextX, double NextY) = Points[Index];
+            bool Horizontal = Math.Abs(NextY - PreviousY) <= 0.6;
+            bool Vertical = Math.Abs(NextX - PreviousX) <= 0.6;
+            if (!Horizontal && !Vertical)
+            {
+                Orthogonal.Add((NextX, PreviousY));
+            }
+
+            Orthogonal.Add((NextX, NextY));
+        }
+
+        SimplifyColinear(Orthogonal);
+        return Orthogonal;
+    }
+
+    /// <summary>
+    /// Builds the obstacle list for one edge: every box that is not an endpoint or an ancestor group.
+    /// </summary>
+    /// <param name="Contract">Diagram.</param>
+    /// <param name="BoundsById">Node and group bounds.</param>
+    /// <param name="Edge">Edge being routed.</param>
+    /// <returns>Obstacles for the orthogonal visibility router.</returns>
+    public static List<FlowchartLayoutNodeBounds> CollectObstacles(
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        EdgeContract Edge)
+    {
+        List<FlowchartLayoutNodeBounds> Obstacles = [];
+        foreach (FlowchartLayoutNodeBounds Bounds in BoundsById.Values)
+        {
+            if (IsSkippedEndpoint(Contract, Edge, Bounds.NodeId))
+            {
+                continue;
+            }
+
+            Obstacles.Add(Bounds);
+        }
+
+        return Obstacles;
+    }
+
+    private static bool TryRouteOrthogonal(
+        double StartX,
+        double StartY,
+        double EndX,
+        double EndY,
+        IReadOnlyList<PaddedBox> Boxes,
+        out List<(double X, double Y)> Points)
+    {
+        Points = [];
+        if (IsAxisAligned(StartX, StartY, EndX, EndY) && SegmentClears(StartX, StartY, EndX, EndY, Boxes))
         {
             Points.Add((StartX, StartY));
             Points.Add((EndX, EndY));
             return true;
         }
 
+        List<(double X, double Y)> ElbowA = [(StartX, StartY), (EndX, StartY), (EndX, EndY)];
+        List<(double X, double Y)> ElbowB = [(StartX, StartY), (StartX, EndY), (EndX, EndY)];
+        bool ElbowAClear = PolylineClears(ElbowA, Boxes);
+        bool ElbowBClear = PolylineClears(ElbowB, Boxes);
+        if (ElbowAClear && !ElbowBClear)
+        {
+            Points = ElbowA;
+            return true;
+        }
+
+        if (ElbowBClear && !ElbowAClear)
+        {
+            Points = ElbowB;
+            return true;
+        }
+
+        if (ElbowAClear && ElbowBClear)
+        {
+            Points = PathLength(ElbowA) <= PathLength(ElbowB) ? ElbowA : ElbowB;
+            return true;
+        }
+
+        return TryGridPath(StartX, StartY, EndX, EndY, Boxes, out Points);
+    }
+
+    private static bool TryGridPath(
+        double StartX,
+        double StartY,
+        double EndX,
+        double EndY,
+        IReadOnlyList<PaddedBox> Boxes,
+        out List<(double X, double Y)> Points)
+    {
+        Points = [];
+        List<double> Xs = [StartX, EndX];
+        List<double> Ys = [StartY, EndY];
+        foreach (PaddedBox Box in Boxes)
+        {
+            Xs.Add(Box.Left);
+            Xs.Add(Box.Right);
+            Ys.Add(Box.Bottom);
+            Ys.Add(Box.Top);
+        }
+
+        SortUnique(Xs);
+        SortUnique(Ys);
+
         List<(double X, double Y)> Vertices = [];
         AddVertex(Vertices, StartX, StartY);
         AddVertex(Vertices, EndX, EndY);
-        foreach (PaddedBox Box in Boxes)
+        foreach (double X in Xs)
         {
-            AddVertex(Vertices, Box.Left, Box.Bottom);
-            AddVertex(Vertices, Box.Right, Box.Bottom);
-            AddVertex(Vertices, Box.Right, Box.Top);
-            AddVertex(Vertices, Box.Left, Box.Top);
+            foreach (double Y in Ys)
+            {
+                if (PointInsideAny(X, Y, Boxes))
+                {
+                    continue;
+                }
+
+                AddVertex(Vertices, X, Y);
+            }
         }
 
         int Count = Vertices.Count;
+        if (Count < 2)
+        {
+            return false;
+        }
+
         List<int>[] Neighbours = new List<int>[Count];
         for (int Index = 0; Index < Count; Index++)
         {
@@ -72,12 +259,12 @@ public static class FlowchartPaddedVisibilityRouter
         {
             for (int Right = Left + 1; Right < Count; Right++)
             {
-                if (!SegmentClears(
-                    Vertices[Left].X,
-                    Vertices[Left].Y,
-                    Vertices[Right].X,
-                    Vertices[Right].Y,
-                    Boxes))
+                if (!IsAxisAligned(Vertices[Left].X, Vertices[Left].Y, Vertices[Right].X, Vertices[Right].Y))
+                {
+                    continue;
+                }
+
+                if (!SegmentClears(Vertices[Left].X, Vertices[Left].Y, Vertices[Right].X, Vertices[Right].Y, Boxes))
                 {
                     continue;
                 }
@@ -99,34 +286,8 @@ public static class FlowchartPaddedVisibilityRouter
             Points.Add(Vertices[Index]);
         }
 
-        Simplify(Points, Boxes);
+        SimplifyColinear(Points);
         return Points.Count >= 2;
-    }
-
-    /// <summary>
-    /// Builds the obstacle list for one edge: every box that is not an endpoint or an ancestor group.
-    /// </summary>
-    /// <param name="Contract">Diagram.</param>
-    /// <param name="BoundsById">Node and group bounds.</param>
-    /// <param name="Edge">Edge being routed.</param>
-    /// <returns>Obstacles for <see cref="TryRoute"/>.</returns>
-    public static List<FlowchartLayoutNodeBounds> CollectObstacles(
-        DiagramContract Contract,
-        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
-        EdgeContract Edge)
-    {
-        List<FlowchartLayoutNodeBounds> Obstacles = [];
-        foreach (FlowchartLayoutNodeBounds Bounds in BoundsById.Values)
-        {
-            if (IsSkippedEndpoint(Contract, Edge, Bounds.NodeId))
-            {
-                continue;
-            }
-
-            Obstacles.Add(Bounds);
-        }
-
-        return Obstacles;
     }
 
     private static bool IsSkippedEndpoint(DiagramContract Contract, EdgeContract Edge, string NodeId)
@@ -175,6 +336,44 @@ public static class FlowchartPaddedVisibilityRouter
         return false;
     }
 
+    private static (double X, double Y) OffsetPortOutward(
+        double X,
+        double Y,
+        FlowchartLayoutNodeBounds? Bounds,
+        double StubPx)
+    {
+        if (Bounds == null)
+        {
+            return (X, Y);
+        }
+
+        double Left = Bounds.CenterX - (Bounds.Width / 2.0);
+        double Right = Bounds.CenterX + (Bounds.Width / 2.0);
+        double Top = Bounds.CenterY + (Bounds.Height / 2.0);
+        double Bottom = Bounds.CenterY - (Bounds.Height / 2.0);
+        double ToLeft = Math.Abs(X - Left);
+        double ToRight = Math.Abs(X - Right);
+        double ToTop = Math.Abs(Y - Top);
+        double ToBottom = Math.Abs(Y - Bottom);
+        double Best = Math.Min(Math.Min(ToLeft, ToRight), Math.Min(ToTop, ToBottom));
+        if (Best == ToLeft)
+        {
+            return (X - StubPx, Y);
+        }
+
+        if (Best == ToRight)
+        {
+            return (X + StubPx, Y);
+        }
+
+        if (Best == ToTop)
+        {
+            return (X, Y + StubPx);
+        }
+
+        return (X, Y - StubPx);
+    }
+
     private static PaddedBox Pad(FlowchartLayoutNodeBounds Bounds, double PaddingPx)
     {
         return new PaddedBox(
@@ -195,6 +394,56 @@ public static class FlowchartPaddedVisibilityRouter
         }
 
         Vertices.Add((X, Y));
+    }
+
+    private static void SortUnique(List<double> Values)
+    {
+        Values.Sort();
+        int Write = 0;
+        for (int Read = 0; Read < Values.Count; Read++)
+        {
+            if (Write == 0 || Math.Abs(Values[Read] - Values[Write - 1]) > VERTEX_MERGE_PX)
+            {
+                Values[Write] = Values[Read];
+                Write++;
+            }
+        }
+
+        if (Write < Values.Count)
+        {
+            Values.RemoveRange(Write, Values.Count - Write);
+        }
+    }
+
+    private static bool IsAxisAligned(double StartX, double StartY, double EndX, double EndY)
+    {
+        return Math.Abs(StartX - EndX) <= 0.6 || Math.Abs(StartY - EndY) <= 0.6;
+    }
+
+    private static bool PointInsideAny(double X, double Y, IReadOnlyList<PaddedBox> Boxes)
+    {
+        foreach (PaddedBox Box in Boxes)
+        {
+            if (X > Box.Left + 0.6 && X < Box.Right - 0.6 && Y > Box.Bottom + 0.6 && Y < Box.Top - 0.6)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool PolylineClears(IReadOnlyList<(double X, double Y)> Points, IReadOnlyList<PaddedBox> Boxes)
+    {
+        for (int Index = 1; Index < Points.Count; Index++)
+        {
+            if (!SegmentClears(Points[Index - 1].X, Points[Index - 1].Y, Points[Index].X, Points[Index].Y, Boxes))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static bool SegmentClears(
@@ -389,7 +638,7 @@ public static class FlowchartPaddedVisibilityRouter
         return Math.Abs(Cross) < 1.0 && Dot > 0.0;
     }
 
-    private static void Simplify(List<(double X, double Y)> Points, IReadOnlyList<PaddedBox> Boxes)
+    private static void SimplifyColinear(List<(double X, double Y)> Points)
     {
         bool Changed = true;
         while (Changed && Points.Count > 2)
@@ -397,12 +646,7 @@ public static class FlowchartPaddedVisibilityRouter
             Changed = false;
             for (int Index = 1; Index < Points.Count - 1; Index++)
             {
-                if (SegmentClears(
-                    Points[Index - 1].X,
-                    Points[Index - 1].Y,
-                    Points[Index + 1].X,
-                    Points[Index + 1].Y,
-                    Boxes))
+                if (SameDirection(Points[Index - 1], Points[Index], Points[Index + 1]))
                 {
                     Points.RemoveAt(Index);
                     Changed = true;
@@ -410,6 +654,17 @@ public static class FlowchartPaddedVisibilityRouter
                 }
             }
         }
+    }
+
+    private static double PathLength(IReadOnlyList<(double X, double Y)> Points)
+    {
+        double Length = 0.0;
+        for (int Index = 1; Index < Points.Count; Index++)
+        {
+            Length += Hypot(Points[Index].X - Points[Index - 1].X, Points[Index].Y - Points[Index - 1].Y);
+        }
+
+        return Length;
     }
 
     private static double Hypot(double Dx, double Dy)
