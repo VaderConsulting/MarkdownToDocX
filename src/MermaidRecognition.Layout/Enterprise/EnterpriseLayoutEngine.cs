@@ -7,6 +7,8 @@ using MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves;
 using MermaidRecognition.Layout.Sugiyama.Core.Layout;
 using MermaidRecognition.Layout.Sugiyama.Layout.Layered;
 
+using FlowchartLayoutNodeBounds = MermaidRecognition.Layout.FlowchartLayoutNodeBounds;
+
 namespace MermaidRecognition.Layout.Enterprise;
 
 /// <summary>
@@ -86,6 +88,11 @@ internal static class EnterpriseLayoutEngine
             }
         }
 
+        if (TryApplyFlowchartLayout(Document, Nodes, out double FlowchartWidth, out double FlowchartHeight))
+        {
+            return new EnterpriseLayoutResult(Nodes, FlowchartWidth, FlowchartHeight);
+        }
+
         LayoutChildren(null, Roots, Document, Nodes);
         AssignAbsolute(Roots, 20, 20);
 
@@ -98,6 +105,51 @@ internal static class EnterpriseLayoutEngine
         }
 
         return new EnterpriseLayoutResult(Nodes, Width, Height);
+    }
+
+    private static bool TryApplyFlowchartLayout(
+        EnterpriseDocument Document,
+        Dictionary<string, EnterpriseLayoutNode> Nodes,
+        out double Width,
+        out double Height)
+    {
+        Width = 40;
+        Height = 40;
+        if (!EnterpriseFlowchartEdgeRouter.TryBuildRoutingContext(
+                Document,
+                Nodes,
+                out EnterpriseFlowchartRoutingContext Context))
+        {
+            return false;
+        }
+
+        foreach (KeyValuePair<string, FlowchartLayoutNodeBounds> Entry in Context.BoundsById)
+        {
+            if (!Nodes.TryGetValue(Entry.Key, out EnterpriseLayoutNode? Node))
+            {
+                continue;
+            }
+
+            FlowchartLayoutNodeBounds Bounds = Entry.Value;
+            double Left = Bounds.CenterX - (Bounds.Width / 2.0);
+            double Top = Bounds.CenterY + (Bounds.Height / 2.0);
+            (double SvgLeft, double SvgTop) = Context.Frame.LayoutToSvg(Left, Top);
+            (double SvgRight, double SvgBottom) = Context.Frame.LayoutToSvg(
+                Bounds.CenterX + (Bounds.Width / 2.0),
+                Bounds.CenterY - (Bounds.Height / 2.0));
+            Node.AbsoluteX = Math.Min(SvgLeft, SvgRight);
+            Node.AbsoluteY = Math.Min(SvgTop, SvgBottom);
+            Node.Width = Math.Abs(SvgRight - SvgLeft);
+            Node.Height = Math.Abs(SvgBottom - SvgTop);
+        }
+
+        foreach (EnterpriseLayoutNode Node in Nodes.Values)
+        {
+            Width = Math.Max(Width, Node.AbsoluteX + Node.Width + 20);
+            Height = Math.Max(Height, Node.AbsoluteY + Node.Height + 20);
+        }
+
+        return Context.BoundsById.Count > 0;
     }
 
     private static void LayoutChildren(

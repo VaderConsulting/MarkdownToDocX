@@ -1,3 +1,8 @@
+using System.Xml.Linq;
+
+using MermaidRecognition.Contract;
+using MermaidRecognition.Kinds.Enterprise;
+using MermaidRecognition.Layout;
 using MermaidRecognition.Layout.Enterprise;
 
 namespace MermaidRecognition.Layout.Tests.Enterprise;
@@ -15,7 +20,7 @@ public sealed class EnterpriseEdgeClearanceTests
     [TestCase("10-implementation-migration.mmd")]
     [TestCase("11-grouping-location-junction.mmd")]
     [TestCase("12-motivation-to-technology.mmd")]
-    public void ValidSamples_EdgesDoNotCrossNonEndpointNodes(string FileName)
+    public void ValidSamples_EnterprisePathsMatchFlowchartRouting(string FileName)
     {
         string Source = ReadSample(FileName);
         IReadOnlyList<string> Violations = EnterpriseEdgeClearance.FindViolations(Source);
@@ -23,11 +28,92 @@ public sealed class EnterpriseEdgeClearanceTests
     }
 
     [Test]
-    public void Sample12_HostingDoesNotShareServingAndRealizationEnds()
+    public void SimpleGraph_EnterpriseAndFlowchartShareTheSameConnectorPath()
     {
-        IReadOnlyList<string> Violations = EnterpriseEdgeClearance.FindViolations(
-            ReadSample("12-motivation-to-technology.mmd"));
+        string EnterpriseSource = """
+            enterprise
+              application-component top "Top"
+              application-component mid "Mid"
+              application-component bot "Bottom"
+              top -flow-> mid
+              mid -flow-> bot
+              top -association-> bot
+            """;
+        IReadOnlyList<string> Violations = EnterpriseEdgeClearance.FindViolations(EnterpriseSource);
         Assert.That(Violations, Is.Empty, string.Join(Environment.NewLine, Violations));
+
+        EnterpriseAnalysisResult Analysis = EnterpriseValidator.Analyze(EnterpriseSource);
+        Assert.That(Analysis.HasErrors, Is.False);
+        DiagramContract FlowchartContract = EnterpriseFlowchartContractMapper.Build(Analysis.Document);
+        string FlowchartSvg = FlowchartSugiyamaSvgRenderer.RenderToSvg(FlowchartContract);
+        string EnterpriseSvg = EnterpriseRenderBridge.RenderEnterpriseSvg(EnterpriseSource);
+
+        List<string> EnterprisePaths = ExtractEnterpriseEdgePaths(EnterpriseSvg);
+        List<string> FlowchartPaths = ExtractFlowchartEdgePaths(FlowchartSvg);
+        Assert.That(EnterprisePaths, Is.EquivalentTo(FlowchartPaths));
+    }
+
+    private static List<string> ExtractEnterpriseEdgePaths(string Svg)
+    {
+        XDocument Document = XDocument.Parse(Svg);
+        List<string> Paths = new List<string>();
+        foreach (XElement Group in Document.Descendants())
+        {
+            if (Group.Name.LocalName != "g")
+            {
+                continue;
+            }
+
+            string? ClassName = (string?)Group.Attribute("class");
+            if (string.IsNullOrEmpty(ClassName) || !ClassName.StartsWith("relationship", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            XElement? Path = Group.Elements().FirstOrDefault(Element => Element.Name.LocalName == "path");
+            string? PathData = Path == null ? null : (string?)Path.Attribute("d");
+            if (!string.IsNullOrEmpty(PathData))
+            {
+                Paths.Add(PathData);
+            }
+        }
+
+        return Paths;
+    }
+
+    private static List<string> ExtractFlowchartEdgePaths(string Svg)
+    {
+        XDocument Document = XDocument.Parse(Svg);
+        List<string> Paths = new List<string>();
+        foreach (XElement Element in Document.Descendants())
+        {
+            if (Element.Name.LocalName == "path")
+            {
+                string? Fill = (string?)Element.Attribute("fill");
+                string? PathData = (string?)Element.Attribute("d");
+                if (string.Equals(Fill, "none", StringComparison.OrdinalIgnoreCase)
+                    && !string.IsNullOrEmpty(PathData))
+                {
+                    Paths.Add(PathData);
+                }
+            }
+            else if (Element.Name.LocalName == "line")
+            {
+                string? X1 = (string?)Element.Attribute("x1");
+                string? Y1 = (string?)Element.Attribute("y1");
+                string? X2 = (string?)Element.Attribute("x2");
+                string? Y2 = (string?)Element.Attribute("y2");
+                if (!string.IsNullOrEmpty(X1)
+                    && !string.IsNullOrEmpty(Y1)
+                    && !string.IsNullOrEmpty(X2)
+                    && !string.IsNullOrEmpty(Y2))
+                {
+                    Paths.Add("M" + X1 + "," + Y1 + "L" + X2 + "," + Y2);
+                }
+            }
+        }
+
+        return Paths;
     }
 
     private static string ReadSample(string FileName)
