@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Text.RegularExpressions;
+
 using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 using MermaidRecognition.Kinds.Flowchart;
@@ -189,6 +192,114 @@ public sealed class FlowchartSharedRouteQualityTests
         AssertNamedEdgeClear(Edges, Contract, BoundsById, "orderTbl", "order", "ordering");
     }
 
+    [Test]
+    public void RenderToSvg_Sample03_StrokeQualityMatchesSharedRules()
+    {
+        Assert.That(NativeFlowchartRenderBridge.TryRenderFlowchartSvg(SAMPLE_03_SOURCE, out string Svg), Is.True);
+        Match ViewBoxMatch = Regex.Match(Svg, @"viewBox=""0 0 ([0-9.]+) ([0-9.]+)""");
+        Assert.That(ViewBoxMatch.Success, Is.True);
+        double ViewWidth = double.Parse(ViewBoxMatch.Groups[1].Value, CultureInfo.InvariantCulture);
+        double ViewHeight = double.Parse(ViewBoxMatch.Groups[2].Value, CultureInfo.InvariantCulture);
+
+        List<List<(double X, double Y)>> Strokes = [];
+        foreach (Match LineMatch in Regex.Matches(
+            Svg,
+            @"<line x1=""([0-9.\-]+)"" y1=""([0-9.\-]+)"" x2=""([0-9.\-]+)"" y2=""([0-9.\-]+)"""))
+        {
+            Strokes.Add(
+            [
+                (double.Parse(LineMatch.Groups[1].Value, CultureInfo.InvariantCulture),
+                    double.Parse(LineMatch.Groups[2].Value, CultureInfo.InvariantCulture)),
+                (double.Parse(LineMatch.Groups[3].Value, CultureInfo.InvariantCulture),
+                    double.Parse(LineMatch.Groups[4].Value, CultureInfo.InvariantCulture))
+            ]);
+        }
+
+        foreach (Match PathMatch in Regex.Matches(Svg, @"<path d=""([^""]+)"" fill=""none"""))
+        {
+            Assert.That(
+                Regex.Matches(PathMatch.Groups[1].Value, @"[Mm]").Count,
+                Is.EqualTo(1),
+                "Rendered route must be one connected path: " + PathMatch.Groups[1].Value);
+            Assert.That(
+                FlowchartSvgPathGeometryHelper.TryFlattenPathData(PathMatch.Groups[1].Value, out List<(double X, double Y)> Samples),
+                Is.True);
+            Strokes.Add(Samples);
+        }
+
+        Assert.That(Strokes.Count, Is.GreaterThanOrEqualTo(14));
+        foreach (List<(double X, double Y)> Stroke in Strokes)
+        {
+            foreach ((double PointX, double PointY) in Stroke)
+            {
+                Assert.That(PointX, Is.GreaterThanOrEqualTo(-1.0), "Route left the left bound");
+                Assert.That(PointY, Is.GreaterThanOrEqualTo(-1.0), "Route left the top bound");
+                Assert.That(PointX, Is.LessThanOrEqualTo(ViewWidth + 1.0), "Route left the right bound");
+                Assert.That(PointY, Is.LessThanOrEqualTo(ViewHeight + 1.0), "Route left the bottom bound");
+            }
+        }
+
+        List<(double X, double Y)> Arrowheads = [];
+        foreach (Match PolygonMatch in Regex.Matches(Svg, @"<polygon points=""([^""]+)"""))
+        {
+            Arrowheads.Add(PolygonCentroid(PolygonMatch.Groups[1].Value));
+        }
+
+        for (int LeftIndex = 0; LeftIndex < Arrowheads.Count; LeftIndex++)
+        {
+            for (int RightIndex = LeftIndex + 1; RightIndex < Arrowheads.Count; RightIndex++)
+            {
+                double DeltaX = Arrowheads[LeftIndex].X - Arrowheads[RightIndex].X;
+                double DeltaY = Arrowheads[LeftIndex].Y - Arrowheads[RightIndex].Y;
+                Assert.That(
+                    Math.Sqrt((DeltaX * DeltaX) + (DeltaY * DeltaY)),
+                    Is.GreaterThan(FlowchartSharedRouteQualityHelper.STACKED_PORT_EPSILON_PX),
+                    "Two arrowheads stack at " + Arrowheads[LeftIndex].X.ToString("0.0") + "," + Arrowheads[LeftIndex].Y.ToString("0.0"));
+            }
+        }
+
+        Match HttpsMatch = Regex.Match(Svg, @"<tspan[^>]*>(HTTPS)</tspan>");
+        Assert.That(HttpsMatch.Success, Is.True);
+        Match HttpsText = Regex.Match(
+            Svg.Substring(0, HttpsMatch.Index),
+            @"<text x=""([0-9.\-]+)"" y=""([0-9.\-]+)""[^>]*>\s*$");
+        Assert.That(HttpsText.Success, Is.True);
+        double HttpsX = double.Parse(HttpsText.Groups[1].Value, CultureInfo.InvariantCulture);
+        double HttpsY = double.Parse(HttpsText.Groups[2].Value, CultureInfo.InvariantCulture);
+        double BestHttpsDistance = double.PositiveInfinity;
+        foreach (List<(double X, double Y)> Stroke in Strokes)
+        {
+            double Candidate = FlowchartSharedRouteQualityHelper.DistanceFromPointToPolyline(HttpsX, HttpsY, Stroke);
+            if (Candidate < BestHttpsDistance)
+            {
+                BestHttpsDistance = Candidate;
+            }
+        }
+
+        Assert.That(BestHttpsDistance, Is.LessThanOrEqualTo(LABEL_EDGE_TOLERANCE_PX), "HTTPS must sit beside its rendered edge");
+    }
+
+    private static (double X, double Y) PolygonCentroid(string PointsText)
+    {
+        List<(double X, double Y)> Points = [];
+        foreach (Match Pair in Regex.Matches(PointsText, @"([0-9.\-]+),([0-9.\-]+)"))
+        {
+            Points.Add((
+                double.Parse(Pair.Groups[1].Value, CultureInfo.InvariantCulture),
+                double.Parse(Pair.Groups[2].Value, CultureInfo.InvariantCulture)));
+        }
+
+        double SumX = 0.0;
+        double SumY = 0.0;
+        foreach ((double PointX, double PointY) in Points)
+        {
+            SumX += PointX;
+            SumY += PointY;
+        }
+
+        return (SumX / Points.Count, SumY / Points.Count);
+    }
+
     private static void AssertNamedEdgeClear(
         List<ResolvedEdge> Edges,
         DiagramContract Contract,
@@ -209,7 +320,15 @@ public sealed class FlowchartSharedRouteQualityTests
                 TargetId),
             Is.False,
             SourceId + " -> " + TargetId);
-        _ = ObstacleId;
+        Assert.That(
+            FlowchartSharedRouteQualityHelper.PolylineComesWithinClearance(
+                Resolved.Points,
+                Contract,
+                BoundsById,
+                SourceId,
+                TargetId),
+            Is.False,
+            SourceId + " -> " + TargetId + " comes within clearance of " + ObstacleId);
     }
 
     private static void ResolveAll(

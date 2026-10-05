@@ -1720,12 +1720,12 @@ Examples: `webShop --> shopUi`, `war --> webShop`, `lb -->|HTTPS| appNode`, `lan
 
 **Rule:** Every visible edge, including compound edges, is repaired by one shared post-pass:
 
-1. A route segment must not intersect a non-endpoint node body or an unrelated cluster rectangle.
+1. A route segment must not intersect a non-endpoint node body or an unrelated cluster rectangle. A chord that comes within `OBSTACLE_CLEARANCE_PX` of an obstacle is rebuilt on an interior channel.
 2. Two edges that share a node face must use distinct attach points (spread along that face).
 3. An edge must not be drawn across a node’s label box.
 4. An edge label sits beside its own edge’s mid-arc (within a small offset) and must not sit on an unrelated node.
-5. A route must not hook, reverse, or emit a detached segment.
-6. Guide points must stay inside the content bounding box (node and cluster union plus diagram margin). Prefer an interior channel over wrapping outside the right or left edge.
+5. A route must not hook, reverse, or emit a detached segment. A near-aligned colinear guide is collapsed to a two-point straight so `curveBasis` cannot overshoot.
+6. Guide points must stay inside the content bounding box (node and cluster union plus diagram margin). Prefer an interior channel over wrapping outside the right or left edge. Orthogonal channel corners are held so the drawn spline stays on the channel.
 
 **Naiad note:** Sample 03 after membership/compound attach still ran `dbSvc --> webShop` through Order, `lan --> appNode` through PostgreSQL, stacked arrowheads on Online Ordering, placed `HTTPS` on PostgreSQL, hooked `checkout --> order`, and wrapped `orderTbl --> order` outside the canvas. Those are shared-router bugs, not enterprise-only.
 

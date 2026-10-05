@@ -38,6 +38,10 @@ public static class FlowchartSharedRouteQualityHelper
 
     private const double SEGMENT_ENDPOINT_TOLERANCE_PX = 1.25;
 
+    private const double COLINEAR_GUIDE_TOLERANCE_PX = 8.0;
+
+    private const double CORNER_HOLD_PX = 28.0;
+
     /// <summary>
     /// Repairs a resolved route so it stays clear of non-endpoint nodes, inside the diagram, and unhooked.
     /// Spreads this edge's attach points when other edges share the same face.
@@ -100,42 +104,45 @@ public static class FlowchartSharedRouteQualityHelper
         (double BoundsLeft, double BoundsBottom, double BoundsRight, double BoundsTop) ContentBounds =
             ComputeContentBounds(Contract, BoundsById);
 
-        bool StraightClear = !FlowchartRouteObstacleHelper.SegmentIntersectsUnrelatedNodeBodies(
+        bool ChordClearOfClearance = !SegmentComesWithinClearance(
             LayoutPoints[0].X,
             LayoutPoints[0].Y,
             LayoutPoints[LayoutPoints.Count - 1].X,
             LayoutPoints[LayoutPoints.Count - 1].Y,
-            BoundsById,
-            Edge.SourceId,
-            Edge.TargetId)
-            && !SegmentHitsObstacleList(
-                LayoutPoints[0].X,
-                LayoutPoints[0].Y,
-                LayoutPoints[LayoutPoints.Count - 1].X,
-                LayoutPoints[LayoutPoints.Count - 1].Y,
-                Obstacles);
-
+            Obstacles);
         bool NearAligned = IsNearAxisAligned(LayoutPoints[0], LayoutPoints[LayoutPoints.Count - 1]);
         bool Hooked = HasHookedBacktrack(LayoutPoints);
-        bool HitsObstacle = PolylineHitsObstacles(LayoutPoints, Obstacles);
+        bool HitsClearance = PolylineComesWithinClearance(LayoutPoints, Obstacles);
         bool LeavesBounds = PolylineLeavesBounds(LayoutPoints, ContentBounds);
+        bool ColinearGuides = AllPointsNearChord(LayoutPoints, COLINEAR_GUIDE_TOLERANCE_PX);
 
-        if (StraightClear && Hooked)
+        bool ExistingCorridorIsHealthy = RouteKind == FlowchartEdgeRouteKind.Corridor
+            && !PolylineHitsObstacles(LayoutPoints, Obstacles)
+            && !LeavesBounds
+            && !Hooked;
+        if (ExistingCorridorIsHealthy)
+        {
+            return true;
+        }
+
+        if (NearAligned && ChordClearOfClearance && (Hooked || (ColinearGuides && LayoutPoints.Count > 2)))
         {
             (double StartX, double StartY) = LayoutPoints[0];
             (double EndX, double EndY) = LayoutPoints[LayoutPoints.Count - 1];
             LayoutPoints.Clear();
             LayoutPoints.Add((StartX, StartY));
             LayoutPoints.Add((EndX, EndY));
-            RouteKind = FlowchartEdgeRouteKind.Straight;
+            if (Hooked)
+            {
+                RouteKind = FlowchartEdgeRouteKind.Straight;
+            }
+
             Hooked = false;
-            HitsObstacle = false;
+            HitsClearance = false;
             LeavesBounds = PolylineLeavesBounds(LayoutPoints, ContentBounds);
         }
 
-        _ = NearAligned;
-
-        if (HitsObstacle || LeavesBounds || Hooked)
+        if (HitsClearance || LeavesBounds || Hooked)
         {
             if (TryBuildInsideChannelRoute(
                     LayoutPoints[0].X,
@@ -151,9 +158,10 @@ public static class FlowchartSharedRouteQualityHelper
                     Direction,
                     out List<(double X, double Y)> ChannelPoints))
             {
+                List<(double X, double Y)> HeldChannel = DensifyOrthogonalChannel(ChannelPoints);
                 LayoutPoints.Clear();
-                LayoutPoints.AddRange(ChannelPoints);
-                RouteKind = ChannelPoints.Count == 2
+                LayoutPoints.AddRange(HeldChannel);
+                RouteKind = HeldChannel.Count == 2
                     ? FlowchartEdgeRouteKind.Straight
                     : FlowchartEdgeRouteKind.Corridor;
             }
@@ -181,6 +189,24 @@ public static class FlowchartSharedRouteQualityHelper
     }
 
     /// <summary>
+    /// Returns true when any segment comes within <see cref="OBSTACLE_CLEARANCE_PX"/> of a non-endpoint node.
+    /// </summary>
+    public static bool PolylineComesWithinClearance(
+        IReadOnlyList<(double X, double Y)> LayoutPoints,
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        string SourceNodeId,
+        string TargetNodeId)
+    {
+        List<FlowchartLayoutNodeBounds> Obstacles = CollectObstacles(
+            Contract,
+            BoundsById,
+            SourceNodeId,
+            TargetNodeId);
+        return PolylineComesWithinClearance(LayoutPoints, Obstacles);
+    }
+
+    /// <summary>
     /// Returns true when any guide point sits outside the content box plus <see cref="DIAGRAM_MARGIN_PX"/>.
     /// </summary>
     public static bool PolylineLeavesDiagramBounds(
@@ -199,6 +225,35 @@ public static class FlowchartSharedRouteQualityHelper
     public static bool HasDisconnectedOrHookedSegments(IReadOnlyList<(double X, double Y)> LayoutPoints)
     {
         return HasHookedBacktrack(LayoutPoints) || HasDegenerateGap(LayoutPoints);
+    }
+
+    /// <summary>
+    /// Returns true when the guide is a stepped orthogonal channel (at least one horizontal-to-vertical corner).
+    /// </summary>
+    public static bool LooksLikeOrthogonalCorridor(IReadOnlyList<(double X, double Y)> LayoutPoints)
+    {
+        if (LayoutPoints.Count < 3)
+        {
+            return false;
+        }
+
+        for (int Index = 1; Index < LayoutPoints.Count - 1; Index++)
+        {
+            double InDeltaX = LayoutPoints[Index].X - LayoutPoints[Index - 1].X;
+            double InDeltaY = LayoutPoints[Index].Y - LayoutPoints[Index - 1].Y;
+            double OutDeltaX = LayoutPoints[Index + 1].X - LayoutPoints[Index].X;
+            double OutDeltaY = LayoutPoints[Index + 1].Y - LayoutPoints[Index].Y;
+            bool IncomingHorizontal = Math.Abs(InDeltaY) <= 1.0 && Math.Abs(InDeltaX) > 1.0;
+            bool IncomingVertical = Math.Abs(InDeltaX) <= 1.0 && Math.Abs(InDeltaY) > 1.0;
+            bool OutgoingHorizontal = Math.Abs(OutDeltaY) <= 1.0 && Math.Abs(OutDeltaX) > 1.0;
+            bool OutgoingVertical = Math.Abs(OutDeltaX) <= 1.0 && Math.Abs(OutDeltaY) > 1.0;
+            if ((IncomingHorizontal && OutgoingVertical) || (IncomingVertical && OutgoingHorizontal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -502,7 +557,7 @@ public static class FlowchartSharedRouteQualityHelper
         out List<(double X, double Y)> Points)
     {
         Points = [];
-        if (!SegmentHitsObstacleList(StartX, StartY, EndX, EndY, Obstacles)
+        if (!SegmentComesWithinClearance(StartX, StartY, EndX, EndY, Obstacles)
             && PointInsideBounds(StartX, StartY, ContentBounds)
             && PointInsideBounds(EndX, EndY, ContentBounds))
         {
@@ -625,7 +680,7 @@ public static class FlowchartSharedRouteQualityHelper
             return false;
         }
 
-        if (PolylineHitsObstacles(Candidate, Obstacles) || PolylineLeavesBounds(Candidate, ContentBounds))
+        if (PolylineComesWithinClearance(Candidate, Obstacles) || PolylineLeavesBounds(Candidate, ContentBounds))
         {
             return false;
         }
@@ -915,6 +970,144 @@ public static class FlowchartSharedRouteQualityHelper
         }
 
         return false;
+    }
+
+    private static bool PolylineComesWithinClearance(
+        IReadOnlyList<(double X, double Y)> LayoutPoints,
+        List<FlowchartLayoutNodeBounds> Obstacles)
+    {
+        for (int Index = 0; Index < LayoutPoints.Count - 1; Index++)
+        {
+            if (SegmentComesWithinClearance(
+                    LayoutPoints[Index].X,
+                    LayoutPoints[Index].Y,
+                    LayoutPoints[Index + 1].X,
+                    LayoutPoints[Index + 1].Y,
+                    Obstacles))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool SegmentComesWithinClearance(
+        double StartX,
+        double StartY,
+        double EndX,
+        double EndY,
+        List<FlowchartLayoutNodeBounds> Obstacles)
+    {
+        foreach (FlowchartLayoutNodeBounds Obstacle in Obstacles)
+        {
+            FlowchartLayoutNodeBounds Inflated = InflateBounds(Obstacle, OBSTACLE_CLEARANCE_PX);
+            if (FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(
+                    StartX,
+                    StartY,
+                    EndX,
+                    EndY,
+                    Inflated,
+                    0.0))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static FlowchartLayoutNodeBounds InflateBounds(FlowchartLayoutNodeBounds Bounds, double PaddingPx)
+    {
+        return new FlowchartLayoutNodeBounds
+        {
+            NodeId = Bounds.NodeId,
+            CenterX = Bounds.CenterX,
+            CenterY = Bounds.CenterY,
+            Width = Bounds.Width + (2.0 * PaddingPx),
+            Height = Bounds.Height + (2.0 * PaddingPx)
+        };
+    }
+
+    private static bool AllPointsNearChord(IReadOnlyList<(double X, double Y)> LayoutPoints, double TolerancePx)
+    {
+        if (LayoutPoints.Count < 2)
+        {
+            return true;
+        }
+
+        double StartX = LayoutPoints[0].X;
+        double StartY = LayoutPoints[0].Y;
+        double EndX = LayoutPoints[LayoutPoints.Count - 1].X;
+        double EndY = LayoutPoints[LayoutPoints.Count - 1].Y;
+        for (int Index = 0; Index < LayoutPoints.Count; Index++)
+        {
+            if (DistanceFromPointToSegment(
+                    LayoutPoints[Index].X,
+                    LayoutPoints[Index].Y,
+                    StartX,
+                    StartY,
+                    EndX,
+                    EndY) > TolerancePx)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static List<(double X, double Y)> DensifyOrthogonalChannel(List<(double X, double Y)> Points)
+    {
+        if (Points.Count < 3)
+        {
+            return Points;
+        }
+
+        List<(double X, double Y)> Held = [];
+        Held.Add(Points[0]);
+        for (int Index = 1; Index < Points.Count - 1; Index++)
+        {
+            (double PreviousX, double PreviousY) = Points[Index - 1];
+            (double CornerX, double CornerY) = Points[Index];
+            (double NextX, double NextY) = Points[Index + 1];
+            double InDeltaX = CornerX - PreviousX;
+            double InDeltaY = CornerY - PreviousY;
+            double OutDeltaX = NextX - CornerX;
+            double OutDeltaY = NextY - CornerY;
+            bool IncomingHorizontal = Math.Abs(InDeltaY) <= 1.0 && Math.Abs(InDeltaX) > 1.0;
+            bool IncomingVertical = Math.Abs(InDeltaX) <= 1.0 && Math.Abs(InDeltaY) > 1.0;
+            bool OutgoingHorizontal = Math.Abs(OutDeltaY) <= 1.0 && Math.Abs(OutDeltaX) > 1.0;
+            bool OutgoingVertical = Math.Abs(OutDeltaX) <= 1.0 && Math.Abs(OutDeltaY) > 1.0;
+            bool IsCorner = (IncomingHorizontal && OutgoingVertical) || (IncomingVertical && OutgoingHorizontal);
+            if (!IsCorner)
+            {
+                Held.Add((CornerX, CornerY));
+                continue;
+            }
+
+            double InLength = Distance(PreviousX, PreviousY, CornerX, CornerY);
+            double OutLength = Distance(CornerX, CornerY, NextX, NextY);
+            double InHold = Math.Min(CORNER_HOLD_PX, InLength * 0.45);
+            double OutHold = Math.Min(CORNER_HOLD_PX, OutLength * 0.45);
+            if (InHold >= 4.0)
+            {
+                Held.Add((
+                    CornerX - ((InDeltaX / InLength) * InHold),
+                    CornerY - ((InDeltaY / InLength) * InHold)));
+            }
+
+            Held.Add((CornerX, CornerY));
+            if (OutHold >= 4.0)
+            {
+                Held.Add((
+                    CornerX + ((OutDeltaX / OutLength) * OutHold),
+                    CornerY + ((OutDeltaY / OutLength) * OutHold)));
+            }
+        }
+
+        Held.Add(Points[Points.Count - 1]);
+        return Held;
     }
 
     private static bool PolylineLeavesBounds(

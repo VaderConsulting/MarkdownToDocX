@@ -1341,7 +1341,9 @@ public static class FlowchartSugiyamaSvgRenderer
             RouteClass);
         double LabelHeight = FlowchartEdgeLabelPlacementHelper.ComputeRenderedEdgeLabelHeight(LabelDimensions, RenderOptions.EdgeLabelFontSizePx);
         (double ClearedX, double ClearedY) = MoveLayoutLabelClearOfConnector(Edge, Contract, LabelX, LabelY, LabelDimensions.Width, LabelHeight, LayoutPoints, BoundsById, SourceBounds, TargetBounds, Direction);
-        if (FlowchartSharedRouteQualityHelper.DistanceFromPointToPolyline(ClearedX, ClearedY, LayoutPoints)
+        bool CorridorGuides = FlowchartSharedRouteQualityHelper.LooksLikeOrthogonalCorridor(LayoutPoints);
+        if (CorridorGuides
+            || FlowchartSharedRouteQualityHelper.DistanceFromPointToPolyline(ClearedX, ClearedY, LayoutPoints)
             > 80.0)
         {
             return FlowchartSharedRouteQualityHelper.ResolveLabelOnOwnEdge(
@@ -1989,27 +1991,18 @@ public static class FlowchartSugiyamaSvgRenderer
             NodeById.TryGetValue(Edge.SourceId, out NodeContract? SourceNode);
             string? SourceShape = SourceNode?.Shape;
             string? RouteClass = TryResolveRouteClassName(Edge, RouteClassByEdgeKey);
-            (double LabelCentreX, double LabelCentreY) = FlowchartEdgeLabelPlacementHelper.ResolveEdgeLabelPosition(
-                SourceBounds,
-                TargetBounds,
-                LayoutGuidePoints,
-                Direction,
-                SourceShape,
-                Edge.Label,
+            (double LabelCentreX, double LabelCentreY) = ResolveDrawnEdgeLabelCentre(
                 Edge,
                 Contract,
                 BoundsById,
-                RouteClass);
-            double RenderedLabelHeight = FlowchartEdgeLabelPlacementHelper.ComputeRenderedEdgeLabelHeight(LabelDimensions, RenderOptions.EdgeLabelFontSizePx);
-            (double ClearedCentreX, double ClearedCentreY) = MoveLayoutLabelClearOfConnector(Edge, Contract, LabelCentreX, LabelCentreY, LabelDimensions.Width, RenderedLabelHeight, LayoutGuidePoints, BoundsById, SourceBounds, TargetBounds, Direction);
-            double HorizontalMarginPx = EDGE_LABEL_MARGIN_PX;
-            if (Math.Abs(ClearedCentreX - LabelCentreX) > 0.01 || Math.Abs(ClearedCentreY - LabelCentreY) > 0.01)
-            {
-                HorizontalMarginPx = MOVED_EDGE_LABEL_HORIZONTAL_MARGIN_PX;
-            }
-
-            LabelCentreX = ClearedCentreX;
-            LabelCentreY = ClearedCentreY;
+                SourceBounds,
+                TargetBounds,
+                SourceShape,
+                LayoutGuidePoints,
+                Direction,
+                RouteClass,
+                RenderOptions);
+            double HorizontalMarginPx = MOVED_EDGE_LABEL_HORIZONTAL_MARGIN_PX;
             double HalfLabelWidth = (LabelDimensions.Width / 2.0) + HorizontalMarginPx;
             double HalfLabelHeight = (TotalTextHeightPx / 2.0) + EDGE_LABEL_MARGIN_PX;
 
