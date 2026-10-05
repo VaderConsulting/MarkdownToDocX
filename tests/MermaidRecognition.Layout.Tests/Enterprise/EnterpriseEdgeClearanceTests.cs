@@ -30,6 +30,35 @@ public sealed class EnterpriseEdgeClearanceTests
         Assert.That(Violations, Is.Empty, string.Join(Environment.NewLine, Violations));
     }
 
+    [Test]
+    public void Sample12_TakeOrderRealizationEndsOnSellingBorder()
+    {
+        IReadOnlyList<string> Violations = EnterpriseEdgeClearance.FindViolations(
+            ReadSample("12-motivation-to-technology.mmd"));
+        Assert.That(Violations, Is.Empty, string.Join(Environment.NewLine, Violations));
+        foreach (string Violation in Violations)
+        {
+            Assert.That(Violation, Does.Not.Contain("does not end on selling"));
+        }
+    }
+
+    [Test]
+    public void ValidSamples_RespectBendBudgetAndChannelGap()
+    {
+        string[] Files =
+        {
+            "01-application-layer.mmd",
+            "03-cross-layer-webshop.mmd",
+            "11-grouping-location-junction.mmd",
+            "12-motivation-to-technology.mmd"
+        };
+        foreach (string FileName in Files)
+        {
+            IReadOnlyList<string> Violations = EnterpriseEdgeClearance.FindViolations(ReadSample(FileName));
+            Assert.That(Violations, Is.Empty, FileName + ":" + Environment.NewLine + string.Join(Environment.NewLine, Violations));
+        }
+    }
+
     private static string ReadSample(string FileName)
     {
         DirectoryInfo? DirectoryCursor = new DirectoryInfo(AppContext.BaseDirectory);

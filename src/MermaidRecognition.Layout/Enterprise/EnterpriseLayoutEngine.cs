@@ -26,17 +26,17 @@ internal static class EnterpriseLayoutEngine
 
     private const int MAX_CHARS = 22;
 
-    private const double CHILD_PADDING_X = 14;
+    private const double CHILD_PADDING_X = 22;
 
-    private const double CHILD_PADDING_BOTTOM = 14;
+    private const double CHILD_PADDING_BOTTOM = 24;
 
     private const double GROUP_TAB_HEIGHT = 18;
 
-    private const double COMPOUND_TOP_PADDING = 36;
+    private const double COMPOUND_TOP_PADDING = 40;
 
-    private const double LAYER_SEPARATION = 55;
+    private const double LAYER_SEPARATION = 72;
 
-    private const double NODE_SEPARATION = 35;
+    private const double NODE_SEPARATION = 50;
 
     internal static EnterpriseLayoutResult Layout(EnterpriseDocument Document)
     {
@@ -87,14 +87,14 @@ internal static class EnterpriseLayoutEngine
         }
 
         LayoutChildren(null, Roots, Document, Nodes);
-        AssignAbsolute(Roots, 20, 20);
+        AssignAbsolute(Roots, 28, 28);
 
-        double Width = 40;
-        double Height = 40;
+        double Width = 56;
+        double Height = 56;
         foreach (EnterpriseLayoutNode Node in Nodes.Values)
         {
-            Width = Math.Max(Width, Node.AbsoluteX + Node.Width + 20);
-            Height = Math.Max(Height, Node.AbsoluteY + Node.Height + 20);
+            Width = Math.Max(Width, Node.AbsoluteX + Node.Width + 28);
+            Height = Math.Max(Height, Node.AbsoluteY + Node.Height + 28);
         }
 
         return new EnterpriseLayoutResult(Nodes, Width, Height);
@@ -162,7 +162,7 @@ internal static class EnterpriseLayoutEngine
         if (Children.Count == 1)
         {
             Children[0].RelativeX = CHILD_PADDING_X;
-            Children[0].RelativeY = ParentId == null ? 0 : (Nodes[ParentId].IsGroup ? GROUP_TAB_HEIGHT + 14 : COMPOUND_TOP_PADDING);
+            Children[0].RelativeY = ParentId == null ? 0 : (Nodes[ParentId].IsGroup ? GROUP_TAB_HEIGHT + 22 : COMPOUND_TOP_PADDING);
             return;
         }
 
@@ -247,7 +247,7 @@ internal static class EnterpriseLayoutEngine
             }
 
             double OriginX = CHILD_PADDING_X;
-            double OriginY = ParentId == null ? 0 : (Nodes[ParentId].IsGroup ? GROUP_TAB_HEIGHT + 14 : COMPOUND_TOP_PADDING);
+            double OriginY = ParentId == null ? 0 : (Nodes[ParentId].IsGroup ? GROUP_TAB_HEIGHT + 22 : COMPOUND_TOP_PADDING);
             foreach (EnterpriseLayoutNode Child in Children)
             {
                 (double Left, double Top) = Raw[Child.Id];
@@ -263,7 +263,7 @@ internal static class EnterpriseLayoutEngine
 
     private static void PlaceInGrid(string? ParentId, List<EnterpriseLayoutNode> Children, Dictionary<string, EnterpriseLayoutNode> Nodes)
     {
-        double OriginY = ParentId == null ? 0 : (Nodes[ParentId].IsGroup ? GROUP_TAB_HEIGHT + 14 : COMPOUND_TOP_PADDING);
+        double OriginY = ParentId == null ? 0 : (Nodes[ParentId].IsGroup ? GROUP_TAB_HEIGHT + 22 : COMPOUND_TOP_PADDING);
         double X = CHILD_PADDING_X;
         double Y = OriginY;
         int Column = 0;

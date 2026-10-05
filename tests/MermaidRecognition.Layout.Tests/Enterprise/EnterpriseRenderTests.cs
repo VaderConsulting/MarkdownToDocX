@@ -157,7 +157,8 @@ public sealed class EnterpriseRenderTests
         Assert.That(Svg, Does.Contain(">HTTPS<"));
         Assert.That(Svg, Does.Contain("trebuchet ms"));
         Assert.That(Svg, Does.Contain("fill=\"#333\""));
-        Assert.That(Svg, Does.Not.Contain("fill-opacity=\"0.85\""));
+        Assert.That(Svg, Does.Contain("fill=\"#ffffff\""));
+        Assert.That(Svg, Does.Contain("rx=\"2\" fill=\"#ffffff\""));
         Assert.That(Svg, Does.Contain("stroke-dasharray=\"1.5 3\""));
         string InfluenceSvg = EnterpriseRenderBridge.RenderEnterpriseSvg(
             """

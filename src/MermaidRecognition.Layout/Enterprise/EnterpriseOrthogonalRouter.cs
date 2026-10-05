@@ -7,80 +7,85 @@ using MermaidRecognition.Kinds.Enterprise;
 namespace MermaidRecognition.Layout.Enterprise;
 
 /// <summary>
-/// Orthogonal obstacle-aware router for enterprise edges. Node bodies, compound titles
-/// and group tabs are obstacles. Group and compound borders are crossed at a right angle
-/// through a gate away from the tab or title.
+/// Low-bend orthogonal corridor router. One style for a whole diagram: straight
+/// stubs, shared channels, rounded corners, and a four-bend budget.
 /// </summary>
 internal static class EnterpriseOrthogonalRouter
 {
-    private const double CELL_SIZE = 8;
+    internal const double BORDER_GAP = 10;
 
-    private const double WORLD_MARGIN = 72;
+    internal const double CHANNEL_GAP = 8;
 
-    private const int TURN_COST = 3;
+    internal const double STUB = 12;
 
-    private const int USED_CELL_COST = 6;
+    internal const double CORNER_RADIUS = 7;
 
-    private const double STUB = 10;
+    internal const int MAX_BENDS = 4;
 
-    internal static List<(double X, double Y)> Route(
-        EnterpriseLayoutNode Source,
-        EnterpriseLayoutNode Target,
-        EnterprisePort SourcePort,
-        EnterprisePort TargetPort,
-        Dictionary<string, EnterpriseLayoutNode> Nodes,
-        HashSet<long> UsedCells)
+    internal static List<List<(double X, double Y)>> RouteAll(
+        List<EnterpriseRouteWork> Work,
+        Dictionary<string, EnterpriseLayoutNode> Nodes)
     {
-        List<EnterprisePort> Waypoints = BuildWaypoints(Source, Target, SourcePort, TargetPort, Nodes);
-        List<EnterpriseLayoutNode> ExitOrder = EnterpriseObstacleCatalog.CrossingContainers(Source, Target, Nodes);
-        HashSet<string> ClosedContainers = new HashSet<string>(StringComparer.Ordinal);
-        List<(double X, double Y)> Combined = new List<(double X, double Y)>();
-        for (int Index = 0; Index < Waypoints.Count - 1; Index++)
+        List<List<(double X, double Y)>> Paths = new List<List<(double X, double Y)>>();
+        foreach (EnterpriseRouteWork Item in Work)
         {
-            EnterprisePort From = Waypoints[Index];
-            EnterprisePort To = Waypoints[Index + 1];
-            List<EnterpriseRect> Obstacles = EnterpriseObstacleCatalog.ObstaclesForHop(
-                Source,
-                Target,
-                Nodes,
-                ClosedContainers);
-            List<(double X, double Y)> Hop = RouteHop(From, To, Obstacles, Nodes, UsedCells);
-            AppendHop(Combined, Hop);
-            if (Index < ExitOrder.Count)
-            {
-                ClosedContainers.Add(ExitOrder[Index].Id);
-            }
+            Paths.Add(RouteOne(Item, Nodes));
         }
 
-        if (Combined.Count < 2)
-        {
-            Combined.Clear();
-            Combined.Add((SourcePort.X, SourcePort.Y));
-            Combined.Add((TargetPort.X, TargetPort.Y));
-        }
-
-        MarkUsed(Combined, UsedCells);
-        return Simplify(Combined);
+        AssignChannels(Paths);
+        return Paths;
     }
 
-    internal static string BuildPolylinePathData(List<(double X, double Y)> Points)
+    internal static string BuildRoundedPathData(List<(double X, double Y)> Points)
     {
-        if (Points.Count < 2)
+        List<(double X, double Y)> Clean = Simplify(Points);
+        if (Clean.Count < 2)
         {
             return string.Empty;
         }
 
         StringBuilder Builder = new StringBuilder();
         Builder.Append('M')
-            .Append(EnterpriseSvgFormat.Number(Points[0].X))
+            .Append(EnterpriseSvgFormat.Number(Clean[0].X))
             .Append(',')
-            .Append(EnterpriseSvgFormat.Number(Points[0].Y));
-        for (int Index = 1; Index < Points.Count; Index++)
+            .Append(EnterpriseSvgFormat.Number(Clean[0].Y));
+        for (int Index = 1; Index < Clean.Count; Index++)
         {
+            if (Index < Clean.Count - 1)
+            {
+                double IncomingX = Clean[Index].X - Clean[Index - 1].X;
+                double IncomingY = Clean[Index].Y - Clean[Index - 1].Y;
+                double OutgoingX = Clean[Index + 1].X - Clean[Index].X;
+                double OutgoingY = Clean[Index + 1].Y - Clean[Index].Y;
+                double InLen = Math.Abs(IncomingX) + Math.Abs(IncomingY);
+                double OutLen = Math.Abs(OutgoingX) + Math.Abs(OutgoingY);
+                double Radius = Math.Min(CORNER_RADIUS, Math.Min(InLen, OutLen) / 2.2);
+                if (Radius >= 2)
+                {
+                    double Ix = IncomingX == 0 ? 0 : Math.Sign(IncomingX);
+                    double Iy = IncomingY == 0 ? 0 : Math.Sign(IncomingY);
+                    double Ox = OutgoingX == 0 ? 0 : Math.Sign(OutgoingX);
+                    double Oy = OutgoingY == 0 ? 0 : Math.Sign(OutgoingY);
+                    Builder.Append('L')
+                        .Append(EnterpriseSvgFormat.Number(Clean[Index].X - (Ix * Radius)))
+                        .Append(',')
+                        .Append(EnterpriseSvgFormat.Number(Clean[Index].Y - (Iy * Radius)))
+                        .Append('Q')
+                        .Append(EnterpriseSvgFormat.Number(Clean[Index].X))
+                        .Append(',')
+                        .Append(EnterpriseSvgFormat.Number(Clean[Index].Y))
+                        .Append(' ')
+                        .Append(EnterpriseSvgFormat.Number(Clean[Index].X + (Ox * Radius)))
+                        .Append(',')
+                        .Append(EnterpriseSvgFormat.Number(Clean[Index].Y + (Oy * Radius)));
+                    continue;
+                }
+            }
+
             Builder.Append('L')
-                .Append(EnterpriseSvgFormat.Number(Points[Index].X))
+                .Append(EnterpriseSvgFormat.Number(Clean[Index].X))
                 .Append(',')
-                .Append(EnterpriseSvgFormat.Number(Points[Index].Y));
+                .Append(EnterpriseSvgFormat.Number(Clean[Index].Y));
         }
 
         return Builder.ToString();
@@ -88,18 +93,18 @@ internal static class EnterpriseOrthogonalRouter
 
     internal static (double X, double Y) LabelAnchor(List<(double X, double Y)> Points)
     {
-        if (Points.Count < 2)
+        List<(double X, double Y)> Clean = Simplify(Points);
+        if (Clean.Count < 2)
         {
             return (0, 0);
         }
 
         int Best = 0;
         double BestLength = -1;
-        for (int Index = 0; Index < Points.Count - 1; Index++)
+        for (int Index = 0; Index < Clean.Count - 1; Index++)
         {
-            double Dx = Points[Index + 1].X - Points[Index].X;
-            double Dy = Points[Index + 1].Y - Points[Index].Y;
-            double Length = Math.Abs(Dx) + Math.Abs(Dy);
+            double Length = Math.Abs(Clean[Index + 1].X - Clean[Index].X)
+                + Math.Abs(Clean[Index + 1].Y - Clean[Index].Y);
             if (Length > BestLength)
             {
                 BestLength = Length;
@@ -107,16 +112,30 @@ internal static class EnterpriseOrthogonalRouter
             }
         }
 
-        double MidX = (Points[Best].X + Points[Best + 1].X) / 2.0;
-        double MidY = (Points[Best].Y + Points[Best + 1].Y) / 2.0;
-        double Sx = Points[Best + 1].X - Points[Best].X;
-        double Sy = Points[Best + 1].Y - Points[Best].Y;
-        if (Math.Abs(Sx) >= Math.Abs(Sy))
+        return (
+            (Clean[Best].X + Clean[Best + 1].X) / 2.0,
+            (Clean[Best].Y + Clean[Best + 1].Y) / 2.0);
+    }
+
+    internal static int CountBends(List<(double X, double Y)> Points)
+    {
+        List<(double X, double Y)> Clean = Simplify(Points);
+        int Bends = 0;
+        for (int Index = 1; Index < Clean.Count - 1; Index++)
         {
-            return (MidX, MidY - 10);
+            double Ax = Clean[Index].X - Clean[Index - 1].X;
+            double Ay = Clean[Index].Y - Clean[Index - 1].Y;
+            double Bx = Clean[Index + 1].X - Clean[Index].X;
+            double By = Clean[Index + 1].Y - Clean[Index].Y;
+            if (Math.Abs(Math.Sign(Ax) - Math.Sign(Bx)) + Math.Abs(Math.Sign(Ay) - Math.Sign(By)) > 0
+                && (Math.Abs(Ax) + Math.Abs(Ay) > 0.5)
+                && (Math.Abs(Bx) + Math.Abs(By) > 0.5))
+            {
+                Bends++;
+            }
         }
 
-        return (MidX + 10, MidY);
+        return Bends;
     }
 
     internal static bool CrossesContainer(
@@ -126,90 +145,6 @@ internal static class EnterpriseOrthogonalRouter
     {
         return EnterpriseObstacleCatalog.CrossingContainers(Source, Target, Nodes).Count > 0
             || EnterpriseObstacleCatalog.CrossingContainers(Target, Source, Nodes).Count > 0;
-    }
-
-    private static List<EnterprisePort> BuildWaypoints(
-        EnterpriseLayoutNode Source,
-        EnterpriseLayoutNode Target,
-        EnterprisePort SourcePort,
-        EnterprisePort TargetPort,
-        Dictionary<string, EnterpriseLayoutNode> Nodes)
-    {
-        List<EnterprisePort> Waypoints = new List<EnterprisePort>();
-        Waypoints.Add(SourcePort);
-        List<EnterpriseLayoutNode> Exits = EnterpriseObstacleCatalog.CrossingContainers(Source, Target, Nodes);
-        foreach (EnterpriseLayoutNode Container in Exits)
-        {
-            Waypoints.Add(ChooseGate(Container, Source, Target, true));
-        }
-
-        List<EnterpriseLayoutNode> Entries = EnterpriseObstacleCatalog.CrossingContainers(Target, Source, Nodes);
-        Entries.Reverse();
-        foreach (EnterpriseLayoutNode Container in Entries)
-        {
-            Waypoints.Add(ChooseGate(Container, Target, Source, false));
-        }
-
-        Waypoints.Add(TargetPort);
-        return Waypoints;
-    }
-
-    private static EnterprisePort ChooseGate(
-        EnterpriseLayoutNode Container,
-        EnterpriseLayoutNode Inner,
-        EnterpriseLayoutNode Outer,
-        bool Exiting)
-    {
-        EnterpriseRect Bounds = EnterpriseObstacleCatalog.BoundsOf(Container);
-        EnterpriseRect InnerBounds = EnterpriseObstacleCatalog.BoundsOf(Inner);
-        EnterprisePortSide Side = FacingSide(Bounds, EnterpriseObstacleCatalog.BoundsOf(Outer).CentreX, EnterpriseObstacleCatalog.BoundsOf(Outer).CentreY);
-        if (Container.IsCompound && !Container.IsGroup && Side == EnterprisePortSide.Top)
-        {
-            Side = Outer.AbsoluteX + (Outer.Width / 2.0) < Bounds.CentreX
-                ? EnterprisePortSide.Left
-                : EnterprisePortSide.Right;
-        }
-
-        if (Container.IsGroup && Side == EnterprisePortSide.Top)
-        {
-            EnterpriseRect? Tab = EnterpriseObstacleCatalog.GroupTabOf(Container);
-            double TabRight = Tab.HasValue ? Tab.Value.Right + 12 : Bounds.X + 12;
-            double X = Clamp(InnerBounds.CentreX, TabRight, Bounds.Right - 12);
-            double Y = Bounds.Y + EnterpriseObstacleCatalog.GROUP_TAB_HEIGHT;
-            if (Exiting)
-            {
-                Y -= 2;
-            }
-            else
-            {
-                Y += 2;
-            }
-
-            return new EnterprisePort(X, Y, EnterprisePortSide.Top);
-        }
-
-        return PortOnSide(Bounds, Side, InnerBounds.CentreX, InnerBounds.CentreY, Exiting);
-    }
-
-    private static EnterprisePort PortOnSide(
-        EnterpriseRect Bounds,
-        EnterprisePortSide Side,
-        double PreferX,
-        double PreferY,
-        bool Exiting)
-    {
-        double Out = Exiting ? 2 : -2;
-        switch (Side)
-        {
-            case EnterprisePortSide.Top:
-                return new EnterprisePort(Clamp(PreferX, Bounds.X + 12, Bounds.Right - 12), Bounds.Y - Out, Side);
-            case EnterprisePortSide.Bottom:
-                return new EnterprisePort(Clamp(PreferX, Bounds.X + 12, Bounds.Right - 12), Bounds.Bottom + Out, Side);
-            case EnterprisePortSide.Left:
-                return new EnterprisePort(Bounds.X - Out, Clamp(PreferY, Bounds.Y + 28, Bounds.Bottom - 12), Side);
-            default:
-                return new EnterprisePort(Bounds.Right + Out, Clamp(PreferY, Bounds.Y + 28, Bounds.Bottom - 12), Side);
-        }
     }
 
     internal static EnterprisePortSide FacingSide(EnterpriseRect From, double ToX, double ToY)
@@ -224,13 +159,38 @@ internal static class EnterpriseOrthogonalRouter
         return Dx >= 0 ? EnterprisePortSide.Right : EnterprisePortSide.Left;
     }
 
+    internal static EnterprisePortSide PreferredExitSide(
+        EnterpriseLayoutNode From,
+        EnterpriseLayoutNode Toward,
+        Dictionary<string, EnterpriseLayoutNode> Nodes)
+    {
+        EnterprisePortSide Side = FacingSide(
+            EnterpriseObstacleCatalog.BoundsOf(From),
+            EnterpriseObstacleCatalog.BoundsOf(Toward).CentreX,
+            EnterpriseObstacleCatalog.BoundsOf(Toward).CentreY);
+        if (!string.IsNullOrEmpty(From.ParentId)
+            && Nodes.TryGetValue(From.ParentId, out EnterpriseLayoutNode? Parent)
+            && Parent.IsCompound
+            && !Parent.IsGroup
+            && !EnterpriseObstacleCatalog.IsAncestor(Parent, Toward, Nodes)
+            && !string.Equals(Parent.Id, Toward.Id, StringComparison.Ordinal)
+            && Side == EnterprisePortSide.Top)
+        {
+            return EnterpriseObstacleCatalog.BoundsOf(Toward).CentreX < EnterpriseObstacleCatalog.BoundsOf(From).CentreX
+                ? EnterprisePortSide.Left
+                : EnterprisePortSide.Right;
+        }
+
+        return Side;
+    }
+
     internal static EnterprisePort PortOnNode(
         EnterpriseLayoutNode Node,
         EnterprisePortSide Side,
         double SlotT)
     {
         EnterpriseRect Bounds = EnterpriseObstacleCatalog.BoundsOf(Node);
-        double T = Math.Clamp(SlotT, 0.18, 0.82);
+        double T = Math.Clamp(SlotT, 0.22, 0.78);
         double TitleSkip = 0;
         if (Node.IsCompound && !Node.IsGroup)
         {
@@ -247,22 +207,161 @@ internal static class EnterpriseOrthogonalRouter
                 if (Node.IsGroup)
                 {
                     EnterpriseRect? Tab = EnterpriseObstacleCatalog.GroupTabOf(Node);
-                    double Left = Tab.HasValue ? Tab.Value.Right + 10 : Bounds.X + 10;
-                    return new EnterprisePort(Lerp(Left, Bounds.Right - 10, T), Bounds.Y + TitleSkip, Side);
+                    double Left = Tab.HasValue ? Tab.Value.Right + 16 : Bounds.X + 16;
+                    return new EnterprisePort(Lerp(Left, Bounds.Right - 16, T), Bounds.Y + TitleSkip, Side);
                 }
 
                 if (Node.IsCompound)
                 {
-                    return new EnterprisePort(Lerp(Bounds.X + 10, Bounds.Right - 10, T), Bounds.Y + TitleSkip, EnterprisePortSide.Top);
+                    return new EnterprisePort(
+                        Lerp(Bounds.X + 12, Bounds.Right - 12, T),
+                        Bounds.Y + TitleSkip,
+                        EnterprisePortSide.Top);
                 }
 
-                return new EnterprisePort(Lerp(Bounds.X + 10, Bounds.Right - 10, T), Bounds.Y, Side);
+                return new EnterprisePort(Lerp(Bounds.X + 12, Bounds.Right - 12, T), Bounds.Y, Side);
             case EnterprisePortSide.Bottom:
-                return new EnterprisePort(Lerp(Bounds.X + 10, Bounds.Right - 10, T), Bounds.Bottom, Side);
+                return new EnterprisePort(Lerp(Bounds.X + 12, Bounds.Right - 12, T), Bounds.Bottom, Side);
             case EnterprisePortSide.Left:
-                return new EnterprisePort(Bounds.X, Lerp(Bounds.Y + TitleSkip + 10, Bounds.Bottom - 10, T), Side);
+                return new EnterprisePort(Bounds.X, Lerp(Bounds.Y + TitleSkip + 12, Bounds.Bottom - 12, T), Side);
             default:
-                return new EnterprisePort(Bounds.Right, Lerp(Bounds.Y + TitleSkip + 10, Bounds.Bottom - 10, T), Side);
+                return new EnterprisePort(Bounds.Right, Lerp(Bounds.Y + TitleSkip + 12, Bounds.Bottom - 12, T), Side);
+        }
+    }
+
+    private static List<(double X, double Y)> RouteOne(
+        EnterpriseRouteWork Work,
+        Dictionary<string, EnterpriseLayoutNode> Nodes)
+    {
+        HashSet<string> AllClosed = new HashSet<string>(StringComparer.Ordinal);
+        foreach (EnterpriseLayoutNode Container in EnterpriseObstacleCatalog.CrossingContainers(Work.Source, Work.Target, Nodes))
+        {
+            AllClosed.Add(Container.Id);
+        }
+
+        foreach (EnterpriseLayoutNode Container in EnterpriseObstacleCatalog.CrossingContainers(Work.Target, Work.Source, Nodes))
+        {
+            AllClosed.Add(Container.Id);
+        }
+
+        List<EnterpriseRect> DirectObstacles = EnterpriseObstacleCatalog.ObstaclesForHop(
+            Work.Source,
+            Work.Target,
+            Nodes,
+            AllClosed,
+            true);
+        List<(double X, double Y)> Direct = RouteHop(Work.SourcePort, Work.TargetPort, DirectObstacles, Nodes);
+        if (Direct.Count >= 2 && CountBends(Direct) <= MAX_BENDS && Clears(Direct, DirectObstacles, Nodes))
+        {
+            return ClampToPorts(Direct, Work.SourcePort, Work.TargetPort);
+        }
+
+        List<EnterprisePort> Waypoints = BuildWaypoints(Work.Source, Work.Target, Work.SourcePort, Work.TargetPort, Nodes);
+        List<(double X, double Y)> Combined = new List<(double X, double Y)>();
+        HashSet<string> Closed = new HashSet<string>(StringComparer.Ordinal);
+        List<EnterpriseLayoutNode> Exits = EnterpriseObstacleCatalog.CrossingContainers(Work.Source, Work.Target, Nodes);
+        for (int Index = 0; Index < Waypoints.Count - 1; Index++)
+        {
+            List<EnterpriseRect> Obstacles = EnterpriseObstacleCatalog.ObstaclesForHop(
+                Work.Source,
+                Work.Target,
+                Nodes,
+                Closed,
+                true);
+            List<(double X, double Y)> Hop = RouteHop(Waypoints[Index], Waypoints[Index + 1], Obstacles, Nodes);
+            AppendHop(Combined, Hop);
+            if (Index < Exits.Count)
+            {
+                Closed.Add(Exits[Index].Id);
+            }
+        }
+
+        if (Combined.Count < 2)
+        {
+            Combined.Add((Work.SourcePort.X, Work.SourcePort.Y));
+            Combined.Add((Work.TargetPort.X, Work.TargetPort.Y));
+        }
+
+        Combined = ClampToPorts(Simplify(Combined), Work.SourcePort, Work.TargetPort);
+        if (CountBends(Combined) > MAX_BENDS)
+        {
+            List<EnterpriseRect> InteriorObstacles = EnterpriseObstacleCatalog.ObstaclesForHop(
+                Work.Source,
+                Work.Target,
+                Nodes,
+                new HashSet<string>(StringComparer.Ordinal),
+                true);
+            List<(double X, double Y)> Interior = RouteHop(Work.SourcePort, Work.TargetPort, InteriorObstacles, Nodes);
+            if (Interior.Count >= 2
+                && CountBends(Interior) <= MAX_BENDS
+                && Clears(Interior, InteriorObstacles, Nodes))
+            {
+                return ClampToPorts(Interior, Work.SourcePort, Work.TargetPort);
+            }
+        }
+
+        return Combined;
+    }
+
+    private static List<EnterprisePort> BuildWaypoints(
+        EnterpriseLayoutNode Source,
+        EnterpriseLayoutNode Target,
+        EnterprisePort SourcePort,
+        EnterprisePort TargetPort,
+        Dictionary<string, EnterpriseLayoutNode> Nodes)
+    {
+        List<EnterprisePort> Waypoints = new List<EnterprisePort> { SourcePort };
+        foreach (EnterpriseLayoutNode Container in EnterpriseObstacleCatalog.CrossingContainers(Source, Target, Nodes))
+        {
+            Waypoints.Add(ChooseGate(Container, Source, Target, true, Nodes));
+        }
+
+        List<EnterpriseLayoutNode> Entries = EnterpriseObstacleCatalog.CrossingContainers(Target, Source, Nodes);
+        Entries.Reverse();
+        foreach (EnterpriseLayoutNode Container in Entries)
+        {
+            Waypoints.Add(ChooseGate(Container, Target, Source, false, Nodes));
+        }
+
+        Waypoints.Add(TargetPort);
+        return Waypoints;
+    }
+
+    private static EnterprisePort ChooseGate(
+        EnterpriseLayoutNode Container,
+        EnterpriseLayoutNode Inner,
+        EnterpriseLayoutNode Outer,
+        bool Exiting,
+        Dictionary<string, EnterpriseLayoutNode> Nodes)
+    {
+        EnterpriseRect Bounds = EnterpriseObstacleCatalog.BoundsOf(Container);
+        EnterpriseRect InnerBounds = EnterpriseObstacleCatalog.BoundsOf(Inner);
+        EnterprisePortSide Side = PreferredExitSide(Container, Outer, Nodes);
+        if (Container.IsCompound && !Container.IsGroup && Side == EnterprisePortSide.Top)
+        {
+            Side = Outer.AbsoluteX + (Outer.Width / 2.0) < Bounds.CentreX
+                ? EnterprisePortSide.Left
+                : EnterprisePortSide.Right;
+        }
+
+        if (Container.IsGroup && Side == EnterprisePortSide.Top)
+        {
+            EnterpriseRect? Tab = EnterpriseObstacleCatalog.GroupTabOf(Container);
+            double Left = Tab.HasValue ? Tab.Value.Right + 16 : Bounds.X + 16;
+            double X = Clamp(InnerBounds.CentreX, Left, Bounds.Right - 16);
+            return new EnterprisePort(X, Bounds.Y + EnterpriseObstacleCatalog.GROUP_TAB_HEIGHT, EnterprisePortSide.Top);
+        }
+
+        switch (Side)
+        {
+            case EnterprisePortSide.Top:
+                return new EnterprisePort(Clamp(InnerBounds.CentreX, Bounds.X + 16, Bounds.Right - 16), Bounds.Y, Side);
+            case EnterprisePortSide.Bottom:
+                return new EnterprisePort(Clamp(InnerBounds.CentreX, Bounds.X + 16, Bounds.Right - 16), Bounds.Bottom, Side);
+            case EnterprisePortSide.Left:
+                return new EnterprisePort(Bounds.X, Clamp(InnerBounds.CentreY, Bounds.Y + 28, Bounds.Bottom - 16), Side);
+            default:
+                return new EnterprisePort(Bounds.Right, Clamp(InnerBounds.CentreY, Bounds.Y + 28, Bounds.Bottom - 16), Side);
         }
     }
 
@@ -270,233 +369,278 @@ internal static class EnterpriseOrthogonalRouter
         EnterprisePort From,
         EnterprisePort To,
         List<EnterpriseRect> Obstacles,
-        Dictionary<string, EnterpriseLayoutNode> Nodes,
-        HashSet<long> UsedCells)
+        Dictionary<string, EnterpriseLayoutNode> Nodes)
     {
-        List<(double X, double Y)> Stubbed = new List<(double X, double Y)>();
         (double FromX, double FromY) = Offset(From, STUB);
         (double ToX, double ToY) = Offset(To, STUB);
-        Stubbed.Add((From.X, From.Y));
-        List<(double X, double Y)>? Path = Search(FromX, FromY, ToX, ToY, Obstacles, Nodes, UsedCells);
-        if (Path == null)
+        List<List<(double X, double Y)>> Candidates = BuildCandidates(
+            From.X,
+            From.Y,
+            FromX,
+            FromY,
+            ToX,
+            ToY,
+            To.X,
+            To.Y,
+            Obstacles);
+        List<(double X, double Y)>? Best = null;
+        int BestScore = int.MaxValue;
+        foreach (List<(double X, double Y)> Candidate in Candidates)
         {
-            Path = FallbackBox(FromX, FromY, ToX, ToY, Obstacles);
+            List<(double X, double Y)> Clean = Simplify(Candidate);
+            int Bends = CountBends(Clean);
+            if (Bends > MAX_BENDS || !Clears(Clean, Obstacles, Nodes))
+            {
+                continue;
+            }
+
+            int Score = (Bends * 10000) + (int)PathLength(Clean);
+            if (Score < BestScore)
+            {
+                BestScore = Score;
+                Best = Clean;
+            }
         }
 
-        Stubbed.AddRange(Path);
-        Stubbed.Add((To.X, To.Y));
-        return Stubbed;
+        if (Best != null)
+        {
+            return Best;
+        }
+
+        return new List<(double X, double Y)>
+        {
+            (From.X, From.Y),
+            (FromX, FromY),
+            (FromX, ToY),
+            (ToX, ToY),
+            (To.X, To.Y)
+        };
     }
 
-    private static List<(double X, double Y)>? Search(
-        double FromX,
-        double FromY,
-        double ToX,
-        double ToY,
-        List<EnterpriseRect> Obstacles,
-        Dictionary<string, EnterpriseLayoutNode> Nodes,
-        HashSet<long> UsedCells)
+    private static List<List<(double X, double Y)>> BuildCandidates(
+        double Ax,
+        double Ay,
+        double Sx,
+        double Sy,
+        double Tx,
+        double Ty,
+        double Bx,
+        double By,
+        List<EnterpriseRect> Obstacles)
     {
-        double MinX = Math.Min(FromX, ToX);
-        double MinY = Math.Min(FromY, ToY);
-        double MaxX = Math.Max(FromX, ToX);
-        double MaxY = Math.Max(FromY, ToY);
-        foreach (EnterpriseLayoutNode Node in Nodes.Values)
+        List<List<(double X, double Y)>> Candidates = new List<List<(double X, double Y)>>();
+        AddCandidate(Candidates, new List<(double X, double Y)> { (Ax, Ay), (Sx, Sy), (Tx, Ty), (Bx, By) });
+        AddCandidate(Candidates, new List<(double X, double Y)> { (Ax, Ay), (Sx, Sy), (Sx, Ty), (Tx, Ty), (Bx, By) });
+        AddCandidate(Candidates, new List<(double X, double Y)> { (Ax, Ay), (Sx, Sy), (Tx, Sy), (Tx, Ty), (Bx, By) });
+        double MidY = (Sy + Ty) / 2.0;
+        AddCandidate(Candidates, new List<(double X, double Y)> { (Ax, Ay), (Sx, Sy), (Sx, MidY), (Tx, MidY), (Tx, Ty), (Bx, By) });
+        double MidX = (Sx + Tx) / 2.0;
+        AddCandidate(Candidates, new List<(double X, double Y)> { (Ax, Ay), (Sx, Sy), (MidX, Sy), (MidX, Ty), (Tx, Ty), (Bx, By) });
+        double Left = Math.Min(Sx, Tx) - 36;
+        double Right = Math.Max(Sx, Tx) + 36;
+        AddCandidate(Candidates, new List<(double X, double Y)> { (Ax, Ay), (Sx, Sy), (Left, Sy), (Left, Ty), (Tx, Ty), (Bx, By) });
+        AddCandidate(Candidates, new List<(double X, double Y)> { (Ax, Ay), (Sx, Sy), (Right, Sy), (Right, Ty), (Tx, Ty), (Bx, By) });
+        double Top = Math.Min(Sy, Ty) - 36;
+        double Bottom = Math.Max(Sy, Ty) + 36;
+        AddCandidate(Candidates, new List<(double X, double Y)> { (Ax, Ay), (Sx, Sy), (Sx, Top), (Tx, Top), (Tx, Ty), (Bx, By) });
+        AddCandidate(Candidates, new List<(double X, double Y)> { (Ax, Ay), (Sx, Sy), (Sx, Bottom), (Tx, Bottom), (Tx, Ty), (Bx, By) });
+        if (TryUnion(Obstacles, out EnterpriseRect Union))
         {
-            EnterpriseRect Bounds = EnterpriseObstacleCatalog.BoundsOf(Node);
-            MinX = Math.Min(MinX, Bounds.X);
-            MinY = Math.Min(MinY, Bounds.Y);
-            MaxX = Math.Max(MaxX, Bounds.Right);
-            MaxY = Math.Max(MaxY, Bounds.Bottom);
+            double AroundLeft = Union.X - BORDER_GAP - STUB;
+            double AroundRight = Union.Right + BORDER_GAP + STUB;
+            double AroundTop = Union.Y - BORDER_GAP - STUB;
+            double AroundBottom = Union.Bottom + BORDER_GAP + STUB;
+            AddCandidate(Candidates, new List<(double X, double Y)> { (Ax, Ay), (Sx, Sy), (AroundLeft, Sy), (AroundLeft, Ty), (Tx, Ty), (Bx, By) });
+            AddCandidate(Candidates, new List<(double X, double Y)> { (Ax, Ay), (Sx, Sy), (AroundRight, Sy), (AroundRight, Ty), (Tx, Ty), (Bx, By) });
+            AddCandidate(Candidates, new List<(double X, double Y)> { (Ax, Ay), (Sx, Sy), (Sx, AroundTop), (Tx, AroundTop), (Tx, Ty), (Bx, By) });
+            AddCandidate(Candidates, new List<(double X, double Y)> { (Ax, Ay), (Sx, Sy), (Sx, AroundBottom), (Tx, AroundBottom), (Tx, Ty), (Bx, By) });
+            AddCandidate(Candidates, new List<(double X, double Y)> { (Ax, Ay), (Sx, Sy), (AroundLeft, Sy), (AroundLeft, AroundTop), (Tx, AroundTop), (Tx, Ty), (Bx, By) });
+            AddCandidate(Candidates, new List<(double X, double Y)> { (Ax, Ay), (Sx, Sy), (AroundRight, Sy), (AroundRight, AroundTop), (Tx, AroundTop), (Tx, Ty), (Bx, By) });
+            AddCandidate(Candidates, new List<(double X, double Y)> { (Ax, Ay), (Sx, Sy), (AroundLeft, Sy), (AroundLeft, AroundBottom), (Tx, AroundBottom), (Tx, Ty), (Bx, By) });
+            AddCandidate(Candidates, new List<(double X, double Y)> { (Ax, Ay), (Sx, Sy), (AroundRight, Sy), (AroundRight, AroundBottom), (Tx, AroundBottom), (Tx, Ty), (Bx, By) });
         }
 
-        MinX -= WORLD_MARGIN;
-        MinY -= WORLD_MARGIN;
-        MaxX += WORLD_MARGIN;
-        MaxY += WORLD_MARGIN;
-        int Columns = Math.Max(4, (int)Math.Ceiling((MaxX - MinX) / CELL_SIZE));
-        int Rows = Math.Max(4, (int)Math.Ceiling((MaxY - MinY) / CELL_SIZE));
-        int Start = CellIndex(FromX, FromY, MinX, MinY, Columns, Rows);
-        int Goal = CellIndex(ToX, ToY, MinX, MinY, Columns, Rows);
-        bool[] Blocked = BuildBlocked(Columns, Rows, MinX, MinY, Obstacles, FromX, FromY, ToX, ToY);
-        int[] CameFrom = new int[Columns * Rows];
-        int[] GScore = new int[Columns * Rows];
-        int[] IncomingDir = new int[Columns * Rows];
-        for (int Index = 0; Index < GScore.Length; Index++)
-        {
-            CameFrom[Index] = -1;
-            GScore[Index] = int.MaxValue;
-            IncomingDir[Index] = -1;
-        }
-
-        GScore[Start] = 0;
-        List<int> Open = new List<int> { Start };
-        int[] DeltaX = [1, -1, 0, 0];
-        int[] DeltaY = [0, 0, 1, -1];
-        while (Open.Count > 0)
-        {
-            int BestOpen = 0;
-            int BestF = int.MaxValue;
-            for (int OpenIndex = 0; OpenIndex < Open.Count; OpenIndex++)
-            {
-                int Candidate = Open[OpenIndex];
-                int Heuristic = Manhattan(Candidate, Goal, Columns);
-                int F = GScore[Candidate] + Heuristic;
-                if (F < BestF)
-                {
-                    BestF = F;
-                    BestOpen = OpenIndex;
-                }
-            }
-
-            int Current = Open[BestOpen];
-            Open.RemoveAt(BestOpen);
-            if (Current == Goal)
-            {
-                return Reconstruct(Current, CameFrom, MinX, MinY, Columns, FromX, FromY, ToX, ToY);
-            }
-
-            int CurrentColumn = Current % Columns;
-            int CurrentRow = Current / Columns;
-            for (int Direction = 0; Direction < 4; Direction++)
-            {
-                int NextColumn = CurrentColumn + DeltaX[Direction];
-                int NextRow = CurrentRow + DeltaY[Direction];
-                if (NextColumn < 0 || NextColumn >= Columns || NextRow < 0 || NextRow >= Rows)
-                {
-                    continue;
-                }
-
-                int Next = NextRow * Columns + NextColumn;
-                if (Blocked[Next] && Next != Goal)
-                {
-                    continue;
-                }
-
-                int Step = 10;
-                if (IncomingDir[Current] >= 0 && IncomingDir[Current] != Direction)
-                {
-                    Step += TURN_COST;
-                }
-
-                if (UsedCells.Contains(PackCell(NextColumn, NextRow)))
-                {
-                    Step += USED_CELL_COST;
-                }
-
-                int Tentative = GScore[Current] + Step;
-                if (Tentative >= GScore[Next])
-                {
-                    continue;
-                }
-
-                CameFrom[Next] = Current;
-                GScore[Next] = Tentative;
-                IncomingDir[Next] = Direction;
-                if (!Open.Contains(Next))
-                {
-                    Open.Add(Next);
-                }
-            }
-        }
-
-        return null;
+        return Candidates;
     }
 
-    private static bool[] BuildBlocked(
-        int Columns,
-        int Rows,
-        double MinX,
-        double MinY,
-        List<EnterpriseRect> Obstacles,
-        double FromX,
-        double FromY,
-        double ToX,
-        double ToY)
+    private static bool TryUnion(List<EnterpriseRect> Obstacles, out EnterpriseRect Union)
     {
-        bool[] Blocked = new bool[Columns * Rows];
-        for (int Row = 0; Row < Rows; Row++)
+        if (Obstacles.Count == 0)
         {
-            for (int Column = 0; Column < Columns; Column++)
+            Union = new EnterpriseRect(0, 0, 0, 0);
+            return false;
+        }
+
+        double Left = double.MaxValue;
+        double Top = double.MaxValue;
+        double Right = double.MinValue;
+        double Bottom = double.MinValue;
+        foreach (EnterpriseRect Obstacle in Obstacles)
+        {
+            Left = Math.Min(Left, Obstacle.X);
+            Top = Math.Min(Top, Obstacle.Y);
+            Right = Math.Max(Right, Obstacle.Right);
+            Bottom = Math.Max(Bottom, Obstacle.Bottom);
+        }
+
+        Union = new EnterpriseRect(Left, Top, Right - Left, Bottom - Top);
+        return Union.Width > 0 && Union.Height > 0;
+    }
+
+    private static void AddCandidate(List<List<(double X, double Y)>> Candidates, List<(double X, double Y)> Path)
+    {
+        Candidates.Add(Path);
+    }
+
+    private static bool Clears(
+        List<(double X, double Y)> Points,
+        List<EnterpriseRect> Obstacles,
+        Dictionary<string, EnterpriseLayoutNode> Nodes)
+    {
+        if (Points.Count < 2)
+        {
+            return false;
+        }
+
+        for (int Index = 0; Index < Points.Count - 1; Index++)
+        {
+            bool AttachStub = Index == 0 || Index == Points.Count - 2;
+            (double X1, double Y1) = Points[Index];
+            (double X2, double Y2) = Points[Index + 1];
+            foreach (EnterpriseRect Obstacle in Obstacles)
             {
-                double X = MinX + ((Column + 0.5) * CELL_SIZE);
-                double Y = MinY + ((Row + 0.5) * CELL_SIZE);
-                if (Distance(X, Y, FromX, FromY) <= CELL_SIZE * 1.2 || Distance(X, Y, ToX, ToY) <= CELL_SIZE * 1.2)
+                if (AttachStub && (Obstacle.Contains(X1, Y1, 0.5) || Obstacle.Contains(X2, Y2, 0.5)))
                 {
                     continue;
                 }
 
-                for (int ObstacleIndex = 0; ObstacleIndex < Obstacles.Count; ObstacleIndex++)
+                if (Obstacle.IntersectsSegment(X1, Y1, X2, Y2, 0.8))
                 {
-                    if (Obstacles[ObstacleIndex].Contains(X, Y, -1))
+                    if (AttachStub && SegmentLength(X1, Y1, X2, Y2) <= STUB + 1)
                     {
-                        Blocked[Row * Columns + Column] = true;
-                        break;
+                        continue;
+                    }
+
+                    return false;
+                }
+            }
+
+            if (!AttachStub)
+            {
+                foreach (EnterpriseLayoutNode Node in Nodes.Values)
+                {
+                    EnterpriseRect Bounds = EnterpriseObstacleCatalog.BoundsOf(Node);
+                    if (Bounds.IsAlongBorder(X1, Y1, X2, Y2, BORDER_GAP, 16))
+                    {
+                        return false;
+                    }
+
+                    EnterpriseRect? Title = EnterpriseObstacleCatalog.TitleBandOf(Node);
+                    if (Title.HasValue && Title.Value.IntersectsSegment(X1, Y1, X2, Y2, 0.5))
+                    {
+                        return false;
                     }
                 }
             }
         }
 
-        return Blocked;
+        return true;
     }
 
-    private static List<(double X, double Y)> Reconstruct(
-        int Goal,
-        int[] CameFrom,
-        double MinX,
-        double MinY,
-        int Columns,
-        double FromX,
-        double FromY,
-        double ToX,
-        double ToY)
+    private static void AssignChannels(List<List<(double X, double Y)>> Paths)
     {
-        List<(double X, double Y)> Reverse = new List<(double X, double Y)>();
-        int Current = Goal;
-        while (Current >= 0)
+        for (int Pass = 0; Pass < 4; Pass++)
         {
-            int Column = Current % Columns;
-            int Row = Current / Columns;
-            Reverse.Add((MinX + ((Column + 0.5) * CELL_SIZE), MinY + ((Row + 0.5) * CELL_SIZE)));
-            Current = CameFrom[Current];
-        }
+            bool Moved = false;
+            for (int Left = 0; Left < Paths.Count; Left++)
+            {
+                for (int Right = Left + 1; Right < Paths.Count; Right++)
+                {
+                    Moved = OffsetIfOverlap(Paths[Left], Paths[Right]) || Moved;
+                }
+            }
 
-        Reverse.Reverse();
-        if (Reverse.Count == 0)
-        {
-            Reverse.Add((FromX, FromY));
-            Reverse.Add((ToX, ToY));
-            return Reverse;
+            if (!Moved)
+            {
+                return;
+            }
         }
-
-        Reverse[0] = (FromX, FromY);
-        Reverse[Reverse.Count - 1] = (ToX, ToY);
-        return Reverse;
     }
 
-    private static List<(double X, double Y)> FallbackBox(
-        double FromX,
-        double FromY,
-        double ToX,
-        double ToY,
-        List<EnterpriseRect> Obstacles)
+    private static bool OffsetIfOverlap(List<(double X, double Y)> Left, List<(double X, double Y)> Right)
     {
-        double Left = Math.Min(FromX, ToX) - 40;
-        double Right = Math.Max(FromX, ToX) + 40;
-        foreach (EnterpriseRect Obstacle in Obstacles)
+        bool Moved = false;
+        for (int Li = 1; Li < Left.Count - 2; Li++)
         {
-            Left = Math.Min(Left, Obstacle.X - 16);
-            Right = Math.Max(Right, Obstacle.Right + 16);
+            for (int Ri = 1; Ri < Right.Count - 2; Ri++)
+            {
+                (double Ax, double Ay) = Left[Li];
+                (double Bx, double By) = Left[Li + 1];
+                (double Cx, double Cy) = Right[Ri];
+                (double Dx, double Dy) = Right[Ri + 1];
+                bool LeftVertical = Math.Abs(Ax - Bx) < 0.6;
+                bool RightVertical = Math.Abs(Cx - Dx) < 0.6;
+                if (LeftVertical && RightVertical && RangesOverlap(Ay, By, Cy, Dy, 8))
+                {
+                    double Gap = Math.Abs(Ax - Cx);
+                    if (Gap < CHANNEL_GAP && Gap > 0.01)
+                    {
+                        double Shift = CHANNEL_GAP - Gap;
+                        ShiftSegmentX(Right, Ri, Cx < Ax ? -Shift : Shift);
+                        Moved = true;
+                    }
+                }
+
+                bool LeftHorizontal = Math.Abs(Ay - By) < 0.6;
+                bool RightHorizontal = Math.Abs(Cy - Dy) < 0.6;
+                if (LeftHorizontal && RightHorizontal && RangesOverlap(Ax, Bx, Cx, Dx, 8))
+                {
+                    double Gap = Math.Abs(Ay - Cy);
+                    if (Gap < CHANNEL_GAP && Gap > 0.01)
+                    {
+                        double Shift = CHANNEL_GAP - Gap;
+                        ShiftSegmentY(Right, Ri, Cy < Ay ? -Shift : Shift);
+                        Moved = true;
+                    }
+                }
+            }
         }
 
-        double ViaX = Math.Abs(FromX - Left) <= Math.Abs(FromX - Right) ? Left : Right;
-        return new List<(double X, double Y)>
+        return Moved;
+    }
+
+    private static void ShiftSegmentX(List<(double X, double Y)> Points, int Index, double Shift)
+    {
+        Points[Index] = (Points[Index].X + Shift, Points[Index].Y);
+        Points[Index + 1] = (Points[Index + 1].X + Shift, Points[Index + 1].Y);
+    }
+
+    private static void ShiftSegmentY(List<(double X, double Y)> Points, int Index, double Shift)
+    {
+        Points[Index] = (Points[Index].X, Points[Index].Y + Shift);
+        Points[Index + 1] = (Points[Index + 1].X, Points[Index + 1].Y + Shift);
+    }
+
+    private static bool RangesOverlap(double A1, double A2, double B1, double B2, double MinOverlap)
+    {
+        double Low = Math.Max(Math.Min(A1, A2), Math.Min(B1, B2));
+        double High = Math.Min(Math.Max(A1, A2), Math.Max(B1, B2));
+        return High - Low >= MinOverlap;
+    }
+
+    private static List<(double X, double Y)> ClampToPorts(
+        List<(double X, double Y)> Points,
+        EnterprisePort Source,
+        EnterprisePort Target)
+    {
+        if (Points.Count == 0)
         {
-            (FromX, FromY),
-            (ViaX, FromY),
-            (ViaX, ToY),
-            (ToX, ToY)
-        };
+            return new List<(double X, double Y)> { (Source.X, Source.Y), (Target.X, Target.Y) };
+        }
+
+        Points[0] = (Source.X, Source.Y);
+        Points[Points.Count - 1] = (Target.X, Target.Y);
+        return Points;
     }
 
     private static void AppendHop(List<(double X, double Y)> Combined, List<(double X, double Y)> Hop)
@@ -508,11 +652,11 @@ internal static class EnterpriseOrthogonalRouter
         }
     }
 
-    private static List<(double X, double Y)> Simplify(List<(double X, double Y)> Points)
+    internal static List<(double X, double Y)> Simplify(List<(double X, double Y)> Points)
     {
         if (Points.Count < 3)
         {
-            return Points;
+            return new List<(double X, double Y)>(Points);
         }
 
         List<(double X, double Y)> Result = new List<(double X, double Y)>();
@@ -527,7 +671,7 @@ internal static class EnterpriseOrthogonalRouter
             double Cy = Points[Index + 1].Y;
             bool Colinear = (Math.Abs(Ax - Bx) < 1 && Math.Abs(Bx - Cx) < 1)
                 || (Math.Abs(Ay - By) < 1 && Math.Abs(By - Cy) < 1);
-            if (!Colinear)
+            if (!Colinear && (Math.Abs(Ax - Bx) + Math.Abs(Ay - By) > 0.8))
             {
                 Result.Add(Points[Index]);
             }
@@ -535,16 +679,6 @@ internal static class EnterpriseOrthogonalRouter
 
         Result.Add(Points[Points.Count - 1]);
         return Result;
-    }
-
-    private static void MarkUsed(List<(double X, double Y)> Points, HashSet<long> UsedCells)
-    {
-        for (int Index = 0; Index < Points.Count; Index++)
-        {
-            int Column = (int)Math.Round(Points[Index].X / CELL_SIZE);
-            int Row = (int)Math.Round(Points[Index].Y / CELL_SIZE);
-            UsedCells.Add(PackCell(Column, Row));
-        }
     }
 
     private static (double X, double Y) Offset(EnterprisePort Port, double Distance)
@@ -562,32 +696,20 @@ internal static class EnterpriseOrthogonalRouter
         }
     }
 
-    private static int CellIndex(double X, double Y, double MinX, double MinY, int Columns, int Rows)
+    private static double PathLength(List<(double X, double Y)> Points)
     {
-        int Column = (int)Math.Clamp(Math.Floor((X - MinX) / CELL_SIZE), 0, Columns - 1);
-        int Row = (int)Math.Clamp(Math.Floor((Y - MinY) / CELL_SIZE), 0, Rows - 1);
-        return Row * Columns + Column;
+        double Length = 0;
+        for (int Index = 1; Index < Points.Count; Index++)
+        {
+            Length += SegmentLength(Points[Index - 1].X, Points[Index - 1].Y, Points[Index].X, Points[Index].Y);
+        }
+
+        return Length;
     }
 
-    private static int Manhattan(int From, int Goal, int Columns)
+    private static double SegmentLength(double X1, double Y1, double X2, double Y2)
     {
-        int FromColumn = From % Columns;
-        int FromRow = From / Columns;
-        int GoalColumn = Goal % Columns;
-        int GoalRow = Goal / Columns;
-        return (Math.Abs(FromColumn - GoalColumn) + Math.Abs(FromRow - GoalRow)) * 10;
-    }
-
-    private static long PackCell(int Column, int Row)
-    {
-        return ((long)Column << 32) ^ (uint)Row;
-    }
-
-    private static double Distance(double X1, double Y1, double X2, double Y2)
-    {
-        double Dx = X2 - X1;
-        double Dy = Y2 - Y1;
-        return Math.Sqrt((Dx * Dx) + (Dy * Dy));
+        return Math.Abs(X2 - X1) + Math.Abs(Y2 - Y1);
     }
 
     private static double Lerp(double A, double B, double T)
@@ -604,4 +726,30 @@ internal static class EnterpriseOrthogonalRouter
 
         return Math.Clamp(Value, Min, Max);
     }
+}
+
+/// <summary>
+/// One visible relationship ready for orthogonal routing.
+/// </summary>
+internal sealed class EnterpriseRouteWork
+{
+    internal EnterpriseRouteWork(
+        EnterpriseLayoutNode Source,
+        EnterpriseLayoutNode Target,
+        EnterprisePort SourcePort,
+        EnterprisePort TargetPort)
+    {
+        this.Source = Source;
+        this.Target = Target;
+        this.SourcePort = SourcePort;
+        this.TargetPort = TargetPort;
+    }
+
+    internal EnterpriseLayoutNode Source { get; }
+
+    internal EnterpriseLayoutNode Target { get; }
+
+    internal EnterprisePort SourcePort { get; }
+
+    internal EnterprisePort TargetPort { get; }
 }

@@ -43,6 +43,59 @@ internal static class EnterpriseObstacleCatalog
         return new EnterpriseRect(Node.AbsoluteX, Node.AbsoluteY, Node.Width, COMPOUND_TITLE_HEIGHT);
     }
 
+    /// <summary>
+    /// Text band of a leaf label, compound title, or group tab.
+    /// </summary>
+    /// <param name="Node">Laid-out node.</param>
+    /// <returns>Approximate label rectangle, or null when the node has no visible text.</returns>
+    internal static EnterpriseRect? LabelBandOf(EnterpriseLayoutNode Node)
+    {
+        if (Node.IsGroup || Node.IsCompound)
+        {
+            return TitleBandOf(Node);
+        }
+
+        if (Node.Element == null)
+        {
+            return null;
+        }
+
+        if (Node.Element.ElementType == EnterpriseElementType.Junction)
+        {
+            string JunctionLabel = Node.DisplayLabel;
+            if (string.IsNullOrEmpty(JunctionLabel) || string.Equals(JunctionLabel, Node.Id, StringComparison.Ordinal))
+            {
+                return null;
+            }
+
+            double JunctionWidth = Math.Max(24, JunctionLabel.Length * 6.6);
+            return new EnterpriseRect(Node.AbsoluteX + 28, Node.AbsoluteY + 4, JunctionWidth, 18);
+        }
+
+        EnterpriseElementMetadata Metadata = EnterpriseElementCatalog.Elements[Node.Element.ElementType];
+        bool Is3d = Metadata.BoxKind == EnterpriseBoxKind.Box3d;
+        bool IsObject = Metadata.BoxKind == EnterpriseBoxKind.Object;
+        double TextWidth = 24;
+        foreach (string Line in Node.LabelLines)
+        {
+            TextWidth = Math.Max(TextWidth, (Line.Length * 6.6) + 8);
+        }
+
+        double TextHeight = Math.Max(14, Node.LabelLines.Count * 15.0);
+        double CentreX = Node.AbsoluteX + (Is3d ? (Node.Width - 30) / 2.0 : Node.Width / 2.0);
+        double Top;
+        if (IsObject)
+        {
+            Top = Node.AbsoluteY + 12 + ((Node.Height - 12) / 2.0) - (((Node.LabelLines.Count - 1) * 15.0) / 2.0) + 4;
+        }
+        else
+        {
+            Top = Node.AbsoluteY + (Node.Height / 2.0) + (Is3d ? 4 : 0) - (((Node.LabelLines.Count - 1) * 15.0) / 2.0) + 4;
+        }
+
+        return new EnterpriseRect(CentreX - (TextWidth / 2.0), Top - 12, TextWidth, TextHeight);
+    }
+
     internal static EnterpriseRect? GroupTabOf(EnterpriseLayoutNode Node)
     {
         if (!Node.IsGroup)
@@ -102,12 +155,49 @@ internal static class EnterpriseObstacleCatalog
         Dictionary<string, EnterpriseLayoutNode> Nodes,
         HashSet<string> ClosedContainers)
     {
+        return ObstaclesForHop(From, To, Nodes, ClosedContainers, false);
+    }
+
+    /// <summary>
+    /// Obstacles for one hop, optionally treating the endpoints' bodies and label bands as blocked.
+    /// Non-endpoint boxes are inflated by the border gap so corridors stay off the stroke.
+    /// </summary>
+    /// <param name="From">Hop source.</param>
+    /// <param name="To">Hop target.</param>
+    /// <param name="Nodes">Laid-out nodes.</param>
+    /// <param name="ClosedContainers">Containers already exited on earlier hops.</param>
+    /// <param name="IncludeEndpointBodies">When true, the endpoints' interiors and labels are obstacles.</param>
+    /// <returns>Obstacle rectangles.</returns>
+    internal static List<EnterpriseRect> ObstaclesForHop(
+        EnterpriseLayoutNode From,
+        EnterpriseLayoutNode To,
+        Dictionary<string, EnterpriseLayoutNode> Nodes,
+        HashSet<string> ClosedContainers,
+        bool IncludeEndpointBodies)
+    {
         List<EnterpriseRect> Obstacles = new List<EnterpriseRect>();
         foreach (EnterpriseLayoutNode Node in Nodes.Values)
         {
-            if (string.Equals(Node.Id, From.Id, StringComparison.Ordinal)
-                || string.Equals(Node.Id, To.Id, StringComparison.Ordinal))
+            bool IsEndpoint = string.Equals(Node.Id, From.Id, StringComparison.Ordinal)
+                || string.Equals(Node.Id, To.Id, StringComparison.Ordinal);
+            if (IsEndpoint)
             {
+                if (IncludeEndpointBodies)
+                {
+                    Obstacles.Add(BoundsOf(Node).Inflate(-1));
+                    EnterpriseRect? OwnLabel = LabelBandOf(Node);
+                    if (OwnLabel.HasValue)
+                    {
+                        Obstacles.Add(OwnLabel.Value);
+                    }
+
+                    EnterpriseRect? OwnTitle = TitleBandOf(Node);
+                    if (OwnTitle.HasValue)
+                    {
+                        Obstacles.Add(OwnTitle.Value);
+                    }
+                }
+
                 continue;
             }
 
@@ -118,7 +208,7 @@ internal static class EnterpriseObstacleCatalog
                 EnterpriseRect? Title = TitleBandOf(Node);
                 if (Title.HasValue)
                 {
-                    Obstacles.Add(Title.Value);
+                    Obstacles.Add(Title.Value.Inflate(2));
                 }
 
                 continue;
@@ -129,7 +219,7 @@ internal static class EnterpriseObstacleCatalog
                 EnterpriseRect? Tab = GroupTabOf(Node);
                 if (Tab.HasValue)
                 {
-                    Obstacles.Add(Tab.Value);
+                    Obstacles.Add(Tab.Value.Inflate(EnterpriseOrthogonalRouter.BORDER_GAP));
                 }
 
                 EnterpriseRect Body = BoundsOf(Node);
@@ -137,7 +227,7 @@ internal static class EnterpriseObstacleCatalog
                     Body.X,
                     Body.Y + GROUP_TAB_HEIGHT,
                     Body.Width,
-                    Math.Max(4, Body.Height - GROUP_TAB_HEIGHT)));
+                    Math.Max(4, Body.Height - GROUP_TAB_HEIGHT)).Inflate(EnterpriseOrthogonalRouter.BORDER_GAP));
                 continue;
             }
 
@@ -146,7 +236,7 @@ internal static class EnterpriseObstacleCatalog
                 continue;
             }
 
-            Obstacles.Add(BoundsOf(Node));
+            Obstacles.Add(BoundsOf(Node).Inflate(EnterpriseOrthogonalRouter.BORDER_GAP));
         }
 
         return Obstacles;
@@ -212,6 +302,56 @@ internal readonly struct EnterpriseRect
             && PointX <= Right - Inset
             && PointY >= Y + Inset
             && PointY <= Bottom - Inset;
+    }
+
+    internal EnterpriseRect Inflate(double Amount)
+    {
+        return new EnterpriseRect(X - Amount, Y - Amount, Width + (Amount * 2.0), Height + (Amount * 2.0));
+    }
+
+    internal bool IsAlongBorder(double X1, double Y1, double X2, double Y2, double Gap, double MinRun)
+    {
+        bool Horizontal = Math.Abs(Y1 - Y2) < 0.6;
+        bool Vertical = Math.Abs(X1 - X2) < 0.6;
+        if (Horizontal)
+        {
+            double MidY = (Y1 + Y2) / 2.0;
+            double Overlap = Math.Min(Math.Max(X1, X2), Right) - Math.Max(Math.Min(X1, X2), X);
+            if (Overlap < MinRun)
+            {
+                return false;
+            }
+
+            return Math.Abs(MidY - Y) < Gap || Math.Abs(MidY - Bottom) < Gap;
+        }
+
+        if (Vertical)
+        {
+            double MidX = (X1 + X2) / 2.0;
+            double Overlap = Math.Min(Math.Max(Y1, Y2), Bottom) - Math.Max(Math.Min(Y1, Y2), Y);
+            if (Overlap < MinRun)
+            {
+                return false;
+            }
+
+            return Math.Abs(MidX - X) < Gap || Math.Abs(MidX - Right) < Gap;
+        }
+
+        return false;
+    }
+
+    internal bool ContainsOnBorder(double PointX, double PointY, double Tolerance)
+    {
+        bool InsideX = PointX >= X - Tolerance && PointX <= Right + Tolerance;
+        bool InsideY = PointY >= Y - Tolerance && PointY <= Bottom + Tolerance;
+        if (!InsideX || !InsideY)
+        {
+            return false;
+        }
+
+        bool OnVertical = Math.Abs(PointX - X) <= Tolerance || Math.Abs(PointX - Right) <= Tolerance;
+        bool OnHorizontal = Math.Abs(PointY - Y) <= Tolerance || Math.Abs(PointY - Bottom) <= Tolerance;
+        return OnVertical || OnHorizontal;
     }
 
     internal bool IntersectsSegment(double X1, double Y1, double X2, double Y2, double Inset)
