@@ -60,7 +60,21 @@ Adapter and product code stay in `MermaidRecognition.Layout` and call the adopte
 - `GeometryGraph`, `Node`, `Edge`, `CurveFactory`, `Point`, `Rectangle`
 - `SugiyamaLayoutSettings`, `LayeredLayout` → `LayeredLayoutEngine.Run()`
 
-R1 reads **node centres and bounds** only; full edge routing from MSAGL is not yet consumed in SVG output. When copying, prefer the **smallest compile closure** that satisfies `LayeredLayout.Run()` for node placement; add routing types only when product SVG uses MSAGL edge curves.
+The **default product SVG path** (`NativeFlowchartRenderBridge` → `FlowchartSugiyamaSvgRenderer`) still reads **node centres and bounds** only. It then routes with `FlowchartSharedEdgeRouter` and related post-passes. Adopted MSAGL edge curves are not consumed on that path.
+
+## Adopted-router trial (`msagl-layout-trial`)
+
+A separate trial path consumes the adopted routers that already live under `Sugiyama/Routing/`:
+
+- `LayeredLayout` with `Cluster` children for subgraphs and groups, so the routers see containment
+- `RectilinearEdgeRouter` or `SplineRouter`, with obstacle and cluster avoidance
+- SVG from `Edge.Curve`, `EdgeGeometry.TargetArrowhead.TipPosition`, and `Label.Center`
+
+Profiles (`AdoptedMsaglRoutingProfile`) are option pickers only: router style, padding, arrowhead size, and line stroke. Flowchart and enterprise share the same profiles and the same render path. NuGet `Microsoft.Msagl` remains **out of scope**.
+
+If a required routing file is missing from this slice, restore it from upstream under the rules below (namespace mapping, MIT header, `THIRD_PARTY_NOTICES.md`). Do not add a package reference.
+
+Comparison images and gate counts live in `docs/flowchart/msagl-trial/`.
 
 ## Modernisation rules (apply while copying)
 
