@@ -195,13 +195,17 @@ public sealed class EnterpriseRenderTests
         Assert.That(Skip, Is.Not.Null);
         XElement? Path = Skip!.Elements().FirstOrDefault(Element => Element.Name.LocalName == "path");
         Assert.That(Path, Is.Not.Null);
-        string PathData = (string?)Path!.Attribute("d") ?? string.Empty;
-        Assert.That(
-            PathData.Contains('C', StringComparison.Ordinal)
-                || PathData.Contains('Q', StringComparison.Ordinal)
-                || PathData.Contains('S', StringComparison.Ordinal)
-                || PathData.Split('L', StringSplitOptions.RemoveEmptyEntries).Length > 2,
-            "Skip edge should reuse flowchart routing rather than a two-point chord through Mid.");
+        IReadOnlyList<string> Violations = EnterpriseEdgeClearance.FindViolations(
+            """
+            enterprise
+              application-component top "Top"
+              application-component mid "Mid"
+              application-component bot "Bottom"
+              top -flow-> mid
+              mid -flow-> bot
+              top -association-> bot
+            """);
+        Assert.That(Violations, Is.Empty, string.Join(Environment.NewLine, Violations));
     }
 
     [Test]

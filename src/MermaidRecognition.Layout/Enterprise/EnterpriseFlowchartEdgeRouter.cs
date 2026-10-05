@@ -47,6 +47,10 @@ internal static class EnterpriseFlowchartEdgeRouter
         FlowchartRenderOptions RenderOptions = FlowchartRenderOptions.FromContract(Contract);
 
         HashSet<string> UsedEdgeIds = new HashSet<string>(StringComparer.Ordinal);
+        HashSet<long> UsedCells = new HashSet<long>();
+        HashSet<string> UsedPorts = new HashSet<string>(StringComparer.Ordinal);
+        Dictionary<(string NodeId, EnterprisePortSide Side), List<EnterpriseRelationship>> Slots =
+            PlanPortSlots(Document, Nodes);
         List<EnterpriseRoutedEdge> Routed = new List<EnterpriseRoutedEdge>();
         foreach (EnterpriseRelationship Relationship in Document.Relationships)
         {
@@ -55,81 +59,114 @@ internal static class EnterpriseFlowchartEdgeRouter
                 continue;
             }
 
+            if (!Nodes.TryGetValue(Relationship.SourceId, out EnterpriseLayoutNode? Source)
+                || !Nodes.TryGetValue(Relationship.TargetId, out EnterpriseLayoutNode? Target))
+            {
+                continue;
+            }
+
             EdgeContract? Edge = FindUnusedEdge(Contract, Relationship, UsedEdgeIds);
-            if (Edge == null)
-            {
-                continue;
-            }
-
-            UsedEdgeIds.Add(Edge.Id ?? string.Empty);
-            Dictionary<string, FlowchartLayoutNodeBounds> BoundsById =
-                BoundsForEdge(Relationship, Nodes, LeafBounds);
-
-            if (!FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
-                    Edge,
-                    Contract,
-                    BoundsById,
-                    NodeById,
-                    Direction,
-                    out List<(double X, double Y)> LayoutPoints,
-                    out FlowchartEdgeRouteKind RouteKind)
-                || LayoutPoints.Count < 2)
-            {
-                continue;
-            }
-
-            string Label = EdgeLabel(Relationship);
+            EnterprisePort SourcePort = PortFor(Relationship, Source, Target, Slots);
+            EnterprisePort TargetPort = PortFor(Relationship, Target, Source, Slots);
+            List<(double X, double Y)> SvgPoints = new List<(double X, double Y)>();
+            string PathData = string.Empty;
             double LabelX = 0;
             double LabelY = 0;
-            if (Label.Length > 0
-                && BoundsById.TryGetValue(Edge.SourceId, out FlowchartLayoutNodeBounds SourceBounds)
-                && BoundsById.TryGetValue(Edge.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
+            string Label = EdgeLabel(Relationship);
+            FlowchartEdgeRouteKind RouteKind = FlowchartEdgeRouteKind.Straight;
+
+            bool TryFlowchart = Edge != null
+                && !EnterpriseOrthogonalRouter.CrossesContainer(Source, Target, Nodes);
+            if (TryFlowchart)
             {
-                string? RouteClass = null;
-                if (!string.IsNullOrEmpty(Edge.Id) && RouteClassByEdgeKey.TryGetValue(Edge.Id, out string? ById))
+                UsedEdgeIds.Add(Edge!.Id ?? string.Empty);
+                Dictionary<string, FlowchartLayoutNodeBounds> BoundsById =
+                    BoundsForEdge(Relationship, Nodes, LeafBounds);
+                if (FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
+                        Edge,
+                        Contract,
+                        BoundsById,
+                        NodeById,
+                        Direction,
+                        out List<(double X, double Y)> LayoutPoints,
+                        out RouteKind)
+                    && LayoutPoints.Count >= 2)
                 {
-                    RouteClass = ById;
+                    foreach ((double LayoutX, double LayoutY) in LayoutPoints)
+                    {
+                        SvgPoints.Add((LayoutX, ToSvgY(LayoutY)));
+                    }
+
+                    PathData = FlowchartCurvePathBuilder.BuildRenderedEdgePathData(SvgPoints, RouteKind, Direction);
+                    if (string.IsNullOrWhiteSpace(PathData))
+                    {
+                        PathData = FlowchartCurvePathBuilder.BuildPathDataFromGuidePoints(SvgPoints, RenderOptions.Curve);
+                    }
+
+                    bool Hits = EnterpriseEdgeClearance.PathDataHitsObstacle(PathData, Source, Target, Nodes);
+                    bool Shared = SharesPort(UsedPorts, SvgPoints);
+                    bool WrongSide = !NearPort(SvgPoints[0], SourcePort) || !NearPort(SvgPoints[SvgPoints.Count - 1], TargetPort);
+                    if (Hits || Shared || WrongSide)
+                    {
+                        SvgPoints.Clear();
+                        PathData = string.Empty;
+                    }
+                    else if (Label.Length > 0
+                        && BoundsById.TryGetValue(Edge.SourceId, out FlowchartLayoutNodeBounds SourceBounds)
+                        && BoundsById.TryGetValue(Edge.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
+                    {
+                        string? RouteClass = null;
+                        if (!string.IsNullOrEmpty(Edge.Id) && RouteClassByEdgeKey.TryGetValue(Edge.Id, out string? ById))
+                        {
+                            RouteClass = ById;
+                        }
+                        else
+                        {
+                            RouteClassByEdgeKey.TryGetValue(Edge.SourceId + "->" + Edge.TargetId, out RouteClass);
+                        }
+
+                        string? SourceShape = NodeById.TryGetValue(Edge.SourceId, out NodeContract? SourceNode)
+                            ? SourceNode.Shape
+                            : null;
+                        (double LayoutLabelX, double LayoutLabelY) = FlowchartSugiyamaSvgRenderer.ResolveDrawnEdgeLabelCentre(
+                            Edge,
+                            Contract,
+                            BoundsById,
+                            SourceBounds,
+                            TargetBounds,
+                            SourceShape,
+                            LayoutPoints,
+                            Direction,
+                            RouteClass,
+                            RenderOptions);
+                        LabelX = LayoutLabelX;
+                        LabelY = ToSvgY(LayoutLabelY);
+                    }
                 }
-                else
+            }
+
+            if (SvgPoints.Count < 2)
+            {
+                SvgPoints = EnterpriseOrthogonalRouter.Route(
+                    Source,
+                    Target,
+                    SourcePort,
+                    TargetPort,
+                    Nodes,
+                    UsedCells);
+                PathData = EnterpriseOrthogonalRouter.BuildPolylinePathData(SvgPoints);
+                if (Label.Length > 0)
                 {
-                    RouteClassByEdgeKey.TryGetValue(Edge.SourceId + "->" + Edge.TargetId, out RouteClass);
+                    (LabelX, LabelY) = EnterpriseOrthogonalRouter.LabelAnchor(SvgPoints);
                 }
-
-                string? SourceShape = NodeById.TryGetValue(Edge.SourceId, out NodeContract? SourceNode)
-                    ? SourceNode.Shape
-                    : null;
-                (double LayoutLabelX, double LayoutLabelY) = FlowchartSugiyamaSvgRenderer.ResolveDrawnEdgeLabelCentre(
-                    Edge,
-                    Contract,
-                    BoundsById,
-                    SourceBounds,
-                    TargetBounds,
-                    SourceShape,
-                    LayoutPoints,
-                    Direction,
-                    RouteClass,
-                    RenderOptions);
-                LabelX = LayoutLabelX;
-                LabelY = ToSvgY(LayoutLabelY);
             }
 
-            if (IsLayoutReversed(Relationship))
+            if (SvgPoints.Count < 2)
             {
-                LayoutPoints.Reverse();
+                continue;
             }
 
-            List<(double X, double Y)> SvgPoints = new List<(double X, double Y)>();
-            foreach ((double LayoutX, double LayoutY) in LayoutPoints)
-            {
-                SvgPoints.Add((LayoutX, ToSvgY(LayoutY)));
-            }
-
-            string PathData = FlowchartCurvePathBuilder.BuildRenderedEdgePathData(SvgPoints, RouteKind, Direction);
-            if (string.IsNullOrWhiteSpace(PathData))
-            {
-                PathData = FlowchartCurvePathBuilder.BuildPathDataFromGuidePoints(SvgPoints, RenderOptions.Curve);
-            }
-
+            RememberPorts(UsedPorts, SvgPoints);
             ResolveArchiMateMarkers(Relationship, out string? StartMarker, out string? EndMarker);
             Routed.Add(new EnterpriseRoutedEdge(
                 Relationship,
@@ -253,11 +290,6 @@ internal static class EnterpriseFlowchartEdgeRouter
 
             string RouteSourceId = Relationship.SourceId;
             string RouteTargetId = Relationship.TargetId;
-            if (IsLayoutReversed(Relationship))
-            {
-                RouteSourceId = Relationship.TargetId;
-                RouteTargetId = Relationship.SourceId;
-            }
 
             EdgeContract Edge = new EdgeContract
             {
@@ -356,11 +388,6 @@ internal static class EnterpriseFlowchartEdgeRouter
     {
         string RouteSourceId = Relationship.SourceId;
         string RouteTargetId = Relationship.TargetId;
-        if (IsLayoutReversed(Relationship))
-        {
-            RouteSourceId = Relationship.TargetId;
-            RouteTargetId = Relationship.SourceId;
-        }
 
         foreach (EdgeContract Edge in Contract.Edges)
         {
@@ -394,11 +421,115 @@ internal static class EnterpriseFlowchartEdgeRouter
         return "rect";
     }
 
-    private static bool IsLayoutReversed(EnterpriseRelationship Relationship)
+    private static Dictionary<(string NodeId, EnterprisePortSide Side), List<EnterpriseRelationship>> PlanPortSlots(
+        EnterpriseDocument Document,
+        Dictionary<string, EnterpriseLayoutNode> Nodes)
     {
-        return Relationship.Kind == EnterpriseRelationshipKind.Serving
-            || Relationship.Kind == EnterpriseRelationshipKind.Realization
-            || Relationship.Kind == EnterpriseRelationshipKind.Assignment;
+        Dictionary<(string NodeId, EnterprisePortSide Side), List<EnterpriseRelationship>> Slots =
+            new Dictionary<(string, EnterprisePortSide), List<EnterpriseRelationship>>();
+        foreach (EnterpriseRelationship Relationship in Document.Relationships)
+        {
+            if (Relationship.HiddenByNesting)
+            {
+                continue;
+            }
+
+            if (!Nodes.TryGetValue(Relationship.SourceId, out EnterpriseLayoutNode? Source)
+                || !Nodes.TryGetValue(Relationship.TargetId, out EnterpriseLayoutNode? Target))
+            {
+                continue;
+            }
+
+            AddSlot(Slots, Source, Target, Relationship);
+            AddSlot(Slots, Target, Source, Relationship);
+        }
+
+        return Slots;
+    }
+
+    private static void AddSlot(
+        Dictionary<(string NodeId, EnterprisePortSide Side), List<EnterpriseRelationship>> Slots,
+        EnterpriseLayoutNode From,
+        EnterpriseLayoutNode Toward,
+        EnterpriseRelationship Relationship)
+    {
+        EnterprisePortSide Side = PreferredSide(From, Toward);
+        (string, EnterprisePortSide) Key = (From.Id, Side);
+        if (!Slots.TryGetValue(Key, out List<EnterpriseRelationship>? List))
+        {
+            List = new List<EnterpriseRelationship>();
+            Slots[Key] = List;
+        }
+
+        List.Add(Relationship);
+    }
+
+    private static EnterprisePortSide PreferredSide(EnterpriseLayoutNode From, EnterpriseLayoutNode Toward)
+    {
+        EnterpriseRect FromBounds = EnterpriseObstacleCatalog.BoundsOf(From);
+        EnterpriseRect TowardBounds = EnterpriseObstacleCatalog.BoundsOf(Toward);
+        EnterprisePortSide Side = EnterpriseOrthogonalRouter.FacingSide(FromBounds, TowardBounds.CentreX, TowardBounds.CentreY);
+        if (From.IsCompound && !From.IsGroup && Side == EnterprisePortSide.Top)
+        {
+            return TowardBounds.CentreX < FromBounds.CentreX ? EnterprisePortSide.Left : EnterprisePortSide.Right;
+        }
+
+        return Side;
+    }
+
+    private static EnterprisePort PortFor(
+        EnterpriseRelationship Relationship,
+        EnterpriseLayoutNode From,
+        EnterpriseLayoutNode Toward,
+        Dictionary<(string NodeId, EnterprisePortSide Side), List<EnterpriseRelationship>> Slots)
+    {
+        EnterprisePortSide Side = PreferredSide(From, Toward);
+        if (!Slots.TryGetValue((From.Id, Side), out List<EnterpriseRelationship>? List) || List.Count == 0)
+        {
+            return EnterpriseOrthogonalRouter.PortOnNode(From, Side, 0.5);
+        }
+
+        int Index = List.IndexOf(Relationship);
+        if (Index < 0)
+        {
+            Index = 0;
+        }
+
+        double SlotT = (Index + 1.0) / (List.Count + 1.0);
+        return EnterpriseOrthogonalRouter.PortOnNode(From, Side, SlotT);
+    }
+
+    private static bool SharesPort(HashSet<string> UsedPorts, List<(double X, double Y)> Points)
+    {
+        if (Points.Count < 2)
+        {
+            return false;
+        }
+
+        return UsedPorts.Contains(PortKey(Points[0])) || UsedPorts.Contains(PortKey(Points[Points.Count - 1]));
+    }
+
+    private static void RememberPorts(HashSet<string> UsedPorts, List<(double X, double Y)> Points)
+    {
+        if (Points.Count < 2)
+        {
+            return;
+        }
+
+        UsedPorts.Add(PortKey(Points[0]));
+        UsedPorts.Add(PortKey(Points[Points.Count - 1]));
+    }
+
+    private static bool NearPort((double X, double Y) Point, EnterprisePort Port)
+    {
+        return Math.Abs(Point.X - Port.X) <= 24 && Math.Abs(Point.Y - Port.Y) <= 24;
+    }
+
+    private static string PortKey((double X, double Y) Point)
+    {
+        return Math.Round(Point.X).ToString(System.Globalization.CultureInfo.InvariantCulture)
+            + ","
+            + Math.Round(Point.Y).ToString(System.Globalization.CultureInfo.InvariantCulture);
     }
 
     private static string? FlowchartStroke(EnterpriseRelationship Relationship)
