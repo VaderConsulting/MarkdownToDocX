@@ -31,38 +31,23 @@ Geometry parity on that local worktree: samples 01–03 and 06–12 match flowch
 
 Remarked (not rendered): F65, F70, F87, F88.
 
-Unchanged (byte-identical PNG vs the previous after): F01–F23, F25–F30, F33–F35, F48–F57, F61–F64, F66–F69, F71, F72, F75–F77, F79–F83, F85, F86, F89–F97, F99–F105, F110, F111, F114–F120, F123–F125, F130, F131.
+Unchanged (byte-identical PNG vs the `5ced07c` after): F01–F23, F25–F30, F34, F35, F36–F57, F61, F63–F64, F66–F69, F71–F82, F84–F86, F89–F97, F99–F105, F110, F112, F114–F120, F124–F133.
 
-Changed (tighter boxes and/or membership/root/compound routing):
+Changed vs `5ced07c` (shared route-quality widen):
 
 | Id | Change |
 | --- | --- |
-| F36, F126 | Slightly tighter subgraph padding. |
-| F37, F127 | Slightly tighter subgraph padding. |
-| F38, F128 | Slightly tighter subgraph padding. |
-| F39 | Tighter nested/sibling boxes. |
-| F40 | Tighter sibling subgraph boxes. |
-| F41, F129 | Tighter subgraph padding. |
-| F42 | Tighter nested boxes. |
-| F43, F132 | Tighter nested subgraph boxes. |
-| F44 | Tighter subgraph padding. |
-| F45 | Tighter subgraph padding. |
-| F46 | Tighter subgraph padding. |
-| F47 | Tighter subgraph padding. |
-| F24 | Approve/reject labels sit closer to their own curves. |
-| F31, F32 | Hub fan-out/fan-in S-curves kept; side exits shift slightly. |
-| F58 | Decision corridors unchanged in shape; tiny stroke/label movement. |
-| F59 | Worker-pool column still centred; slack reduced. |
-| F60 | Tighter stage boxes. Designed audit corridor kept. |
+| F24 | Approve/reject labels stay beside their own curves. |
+| F31, F32 | Hub fan-out/fan-in S-curves; side exits shift slightly. |
+| F33 | Minor stroke movement from the quality pass. |
+| F58 | Decision corridors kept; tiny stroke/label movement. |
+| F59 | Worker-pool column still centred; slight corridor offset. |
+| F60 | Designed audit corridor kept; slight stroke or label offset. |
+| F62 | Minor stroke or label offset. |
+| F83 | Minor stroke or label offset. |
 | F98 | Minor label or corridor offset. |
-| F113, F121, F122 | Slight curve or label movement from the shared quality pass. |
-| F73 | Tighter subgraph padding. |
-| F74 | Tighter subgraph padding. |
-| F78 | Tighter subgraph padding. |
-| F84 | Tighter subgraph padding. |
-| F111 | Tighter Left/Right insets. |
-| F112 | Minor slack change. |
-| F133 | Minor slack change. |
+| F111 | Tighter Left/Right insets; slight mesh offset. |
+| F113, F121, F122, F123 | Slight curve or label movement from the shared quality pass. |
 
 ## Recognition fixtures (`tests/MermaidRecognition.Tests/FlowchartRecognition`)
 
@@ -89,7 +74,7 @@ Unchanged except:
 | 11 | Store Cluster slack; junctions outside. | Same geometry as the flowchart after. |
 | 12 | Board above Raise Revenue. | Same geometry as the flowchart after. |
 
-Local 2 px geometry check after the layout copy (including the shared route-quality pass): **0 mismatches** on 01–03 and 06–12.
+Local 2 px geometry check after the layout copy (including this quality widen): **0 mismatches** on 01–03 and 06–12. After rasters changed vs `5ced07c` for 01–03, 06–09 and 11; 10 and 12 are byte-identical.
 
 ## How to regenerate
 
