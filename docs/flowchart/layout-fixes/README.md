@@ -10,7 +10,7 @@ Geometry parity on that local worktree: samples 01–03 and 06–12 match flowch
 
 | Diagram | Before | After | What changed |
 | --- | --- | --- | --- |
-| Sample 03 flowchart | [before/enterprise-03-flowchart.png](before/enterprise-03-flowchart.png) | [after/enterprise-03-flowchart.png](after/enterprise-03-flowchart.png) | Membership and compound attach stay fixed. Routes now go around Order and PostgreSQL. HTTPS sits on Load Balancer → App Server Node. Checkout → Order is a straight drop. orders table stays inside the canvas. |
+| Sample 03 flowchart | [before/enterprise-03-flowchart.png](before/enterprise-03-flowchart.png) | [after/enterprise-03-flowchart.png](after/enterprise-03-flowchart.png) | HTTPS sits on its own edge. Checkout → Order is one path. Web Shop verticals are separated. Edges keep ~12 px from group borders or cross them cleanly. One flowchart style throughout. Database Service ports are spread. |
 | Sample 03 enterprise | [before/enterprise-03-enterprise.png](before/enterprise-03-enterprise.png) | [after/enterprise-03-enterprise.png](after/enterprise-03-enterprise.png) | Same geometry as the flowchart after, with ArchiMate markers. |
 | Sample 11 flowchart | [before/enterprise-11-flowchart.png](before/enterprise-11-flowchart.png) | [after/enterprise-11-flowchart.png](after/enterprise-11-flowchart.png) | Store Cluster slack reduced; London and the junctions stay outside the box. |
 | Sample 12 flowchart | [before/enterprise-12-flowchart.png](before/enterprise-12-flowchart.png) | [after/enterprise-12-flowchart.png](after/enterprise-12-flowchart.png) | Board sits above Raise Revenue; the upward edge through the stack is gone. |
@@ -25,7 +25,7 @@ Geometry parity on that local worktree: samples 01–03 and 06–12 match flowch
 3. **Compound edges (03).** Edges to/from a subgraph id attach to the facing rectangle. A clear chord stays a two-point clip. An obstructed chord keeps those attach points and uses an inside corridor so it does not pierce unrelated nodes or wrap outside the canvas.
 4. **LAN → Load Balancer (03).** Source is LAN, target is Load Balancer.
 5. **Cluster slack (11, F111, F59, F60).** Bottom content slack is 8 px (was 26 px). Title band stays 26 px. Column-led spine centring (F59) is unchanged unless the expand would cover a non-member.
-6. **Shared route quality (03).** Non-endpoint nodes are obstacles with 16 px clearance. Side-face ports are spread so arrowheads do not stack. Orthogonal-channel labels sit on their own edge. Near-aligned colinear guides collapse so `curveBasis` cannot hook. Hooked, out-of-bounds, or near-miss routes are rebuilt on an inside channel. Designed retry, decision, grouped, and healthy corridor routes are left alone.
+6. **Shared route quality (03).** Non-endpoint nodes are obstacles with 16 px clearance. Incoming and outgoing ports that share a face are spread. Labels sit on their own edge (HTTPS). Near-aligned noisy guides collapse so `checkout --> order` is one path. Parallel overlapping runs stay at least 12 px apart (Web Shop → Hosting / Database Service). Routes keep 12 px from group borders or cross them cleanly (Shop Web UI, PostgreSQL → orders table, DC LAN, shop.war). One diagram uses one flowchart style — straight when aligned, smooth `curveBasis` when not — not mixed orthogonal corridors and loose curves. Designed retry, decision, and grouped routes stay on their builders.
 
 ## `flow.md` fixtures
 

@@ -193,6 +193,103 @@ public sealed class FlowchartSharedRouteQualityTests
     }
 
     [Test]
+    public void TryResolve_Sample03_HttpsLabelDistanceIsToOwnEdge()
+    {
+        ResolveAll(out DiagramContract Contract, out Dictionary<string, FlowchartLayoutNodeBounds> BoundsById, out List<ResolvedEdge> Edges);
+        ResolvedEdge Https = FindEdge(Edges, "lb", "appNode");
+        FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
+        (double LabelX, double LabelY) = FlowchartSugiyamaSvgRenderer.ResolveDrawnEdgeLabelCentre(
+            Https.Edge,
+            Contract,
+            BoundsById,
+            BoundsById["lb"],
+            BoundsById["appNode"],
+            "rect",
+            Https.Points,
+            FlowchartDirection.TopToBottom,
+            null,
+            Options);
+        Assert.That(
+            FlowchartSharedRouteQualityHelper.DistanceFromPointToPolyline(LabelX, LabelY, Https.Points),
+            Is.LessThanOrEqualTo(FlowchartSharedRouteQualityHelper.LABEL_OWN_EDGE_TOLERANCE_PX));
+    }
+
+    [Test]
+    public void TryResolve_Sample03_CheckoutOrderIsOneContinuousPath()
+    {
+        ResolveAll(out _, out _, out List<ResolvedEdge> Edges);
+        ResolvedEdge CheckoutOrder = FindEdge(Edges, "checkout", "order");
+        Assert.That(FlowchartSharedRouteQualityHelper.HasDuplicatedParallelSegments(CheckoutOrder.Points), Is.False);
+        Assert.That(FlowchartSharedRouteQualityHelper.HasDisconnectedOrHookedSegments(CheckoutOrder.Points), Is.False);
+    }
+
+    [Test]
+    public void TryResolve_Sample03_WebShopParallelEdgesAreSeparated()
+    {
+        ResolveAll(out _, out _, out List<ResolvedEdge> Edges);
+        ResolvedEdge Hosting = FindEdge(Edges, "hosting", "webShop");
+        ResolvedEdge Database = FindEdge(Edges, "dbSvc", "webShop");
+        Assert.That(
+            FlowchartSharedRouteQualityHelper.ParallelSegmentsCloserThanSeparation(Hosting.Points, Database.Points),
+            Is.False,
+            "Web Shop → Hosting and Web Shop → Database Service must stay at least "
+                + FlowchartSharedRouteQualityHelper.PARALLEL_SEPARATION_PX.ToString(CultureInfo.InvariantCulture)
+                + " px apart");
+        Assert.That(
+            FlowchartSharedRouteQualityHelper.AttachPointsStack(Hosting.Points[0], Database.Points[0]),
+            Is.False);
+        Assert.That(
+            FlowchartSharedRouteQualityHelper.AttachPointsStack(Hosting.Points[^1], Database.Points[^1]),
+            Is.False);
+    }
+
+    [Test]
+    public void TryResolve_Sample03_EdgesKeepGroupBorderClearance()
+    {
+        ResolveAll(out DiagramContract Contract, out Dictionary<string, FlowchartLayoutNodeBounds> BoundsById, out List<ResolvedEdge> Edges);
+        string[][] Named =
+        [
+            ["shopUi", "ordering"],
+            ["pg", "orderTbl"],
+            ["lan", "appNode"],
+            ["war", "webShop"]
+        ];
+        foreach (string[] Pair in Named)
+        {
+            ResolvedEdge Resolved = FindEdge(Edges, Pair[0], Pair[1]);
+            Assert.That(
+                FlowchartSharedRouteQualityHelper.PolylineHugsGroupBorders(Resolved.Points, Contract, BoundsById),
+                Is.False,
+                Pair[0] + " -> " + Pair[1] + " hugs a group border");
+        }
+    }
+
+    [Test]
+    public void TryResolve_Sample03_UsesOneRoutingStyle()
+    {
+        ResolveAll(out _, out _, out List<ResolvedEdge> Edges);
+        List<FlowchartEdgeRouteKind> Kinds = [];
+        foreach (ResolvedEdge Resolved in Edges)
+        {
+            Kinds.Add(Resolved.RouteKind);
+        }
+
+        Assert.That(FlowchartSharedRouteQualityHelper.UsesMixedRoutingStyle(Kinds), Is.False);
+    }
+
+    [Test]
+    public void TryResolve_Sample03_DatabaseServicePortsAreSpread()
+    {
+        ResolveAll(out _, out _, out List<ResolvedEdge> Edges);
+        ResolvedEdge Incoming = FindEdge(Edges, "pg", "dbSvc");
+        ResolvedEdge Outgoing = FindEdge(Edges, "dbSvc", "webShop");
+        Assert.That(
+            FlowchartSharedRouteQualityHelper.AttachPointsStack(Incoming.Points[^1], Outgoing.Points[0]),
+            Is.False,
+            "PostgreSQL arrival and Web Shop departure crowd Database Service");
+    }
+
+    [Test]
     public void RenderToSvg_Sample03_StrokeQualityMatchesSharedRules()
     {
         Assert.That(NativeFlowchartRenderBridge.TryRenderFlowchartSvg(SAMPLE_03_SOURCE, out string Svg), Is.True);
@@ -342,39 +439,40 @@ public sealed class FlowchartSharedRouteQualityTests
         FlowchartCompoundEndpointHelper.AddGroupBounds(Contract, BoundsById);
         Dictionary<string, NodeContract> NodeById =
             Contract.Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
+        List<FlowchartResolvedGuide> Guides = FlowchartEdgeRouteResolver.ResolveAllVisibleGuidePoints(
+            Contract,
+            BoundsById,
+            NodeById,
+            FlowchartDirection.TopToBottom);
         Edges = [];
-        foreach (EdgeContract Edge in Contract.Edges)
+        foreach (FlowchartResolvedGuide Guide in Guides)
         {
-            if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            Assert.That(
-                FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
-                    Edge,
-                    Contract,
-                    BoundsById,
-                    NodeById,
-                    FlowchartDirection.TopToBottom,
-                    out List<(double X, double Y)> Points,
-                    out FlowchartEdgeRouteKind _),
-                Is.True,
-                Edge.SourceId + " -> " + Edge.TargetId);
-            Edges.Add(new ResolvedEdge(Edge, Points));
+            Edges.Add(new ResolvedEdge(Guide.Edge, Guide.Points, Guide.RouteKind));
         }
+
+        Assert.That(Edges.Count, Is.GreaterThanOrEqualTo(14));
+    }
+
+    private static ResolvedEdge FindEdge(List<ResolvedEdge> Edges, string SourceId, string TargetId)
+    {
+        return Edges.Single(
+            Candidate => string.Equals(Candidate.Edge.SourceId, SourceId, StringComparison.Ordinal)
+                && string.Equals(Candidate.Edge.TargetId, TargetId, StringComparison.Ordinal));
     }
 
     private sealed class ResolvedEdge
     {
-        public ResolvedEdge(EdgeContract Edge, List<(double X, double Y)> Points)
+        public ResolvedEdge(EdgeContract Edge, List<(double X, double Y)> Points, FlowchartEdgeRouteKind RouteKind)
         {
             this.Edge = Edge;
             this.Points = Points;
+            this.RouteKind = RouteKind;
         }
 
         public EdgeContract Edge { get; }
 
         public List<(double X, double Y)> Points { get; }
+
+        public FlowchartEdgeRouteKind RouteKind { get; }
     }
 }

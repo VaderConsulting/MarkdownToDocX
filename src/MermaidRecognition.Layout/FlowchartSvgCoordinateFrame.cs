@@ -128,6 +128,19 @@ public static class FlowchartSvgCoordinateFrameResolver
         }
 
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
+        FlowchartCompoundEndpointHelper.AddGroupBounds(Contract, BoundsById);
+        List<FlowchartResolvedGuide> ResolvedGuides = FlowchartEdgeRouteResolver.ResolveAllVisibleGuidePoints(
+            Contract,
+            BoundsById,
+            NodeById,
+            Direction);
+        Dictionary<EdgeContract, FlowchartResolvedGuide> GuideByEdge =
+            new Dictionary<EdgeContract, FlowchartResolvedGuide>();
+        foreach (FlowchartResolvedGuide Guide in ResolvedGuides)
+        {
+            GuideByEdge[Guide.Edge] = Guide;
+        }
+
         Dictionary<string, string> RouteClassByEdgeKey =
             FlowchartEdgeRoutingIntentAnalyzer.BuildRouteClassNamesByEdgeKey(Contract, Layout, Direction);
 
@@ -137,6 +150,7 @@ public static class FlowchartSvgCoordinateFrameResolver
             BoundsById,
             RouteClassByEdgeKey,
             Direction,
+            GuideByEdge,
             ref MinLeft,
             ref MinBottom,
             ref MaxRight,

@@ -1718,18 +1718,21 @@ Examples: `webShop --> shopUi`, `war --> webShop`, `lb -->|HTTPS| appNode`, `lan
 
 ##### 15.0C.22 Shared route quality (sample 03)
 
-**Rule:** Every visible edge, including compound edges, is repaired by one shared post-pass:
+**Rule:** Every visible edge, including compound edges, is repaired by one shared post-pass (`FlowchartSharedRouteQualityHelper` via `FlowchartEdgeRouteResolver.ResolveAllVisibleGuidePoints`):
 
-1. A route segment must not intersect a non-endpoint node body or an unrelated cluster rectangle. A chord that comes within `OBSTACLE_CLEARANCE_PX` of an obstacle is rebuilt on an interior channel.
-2. Two edges that share a node face must use distinct attach points (spread along that face).
+1. A route segment must not intersect a non-endpoint node body or an unrelated cluster rectangle. A chord that comes within `OBSTACLE_CLEARANCE_PX` of an obstacle is rebuilt as a smooth flowchart detour (straight when aligned; `curveBasis` guides when not).
+2. Incoming and outgoing edges that share a node face use distinct attach points spread along that face (Web Shop bottom; Database Service arrival and departure).
 3. An edge must not be drawn across a node’s label box.
-4. An edge label sits beside its own edge’s mid-arc (within a small offset) and must not sit on an unrelated node.
-5. A route must not hook, reverse, or emit a detached segment. A near-aligned colinear guide is collapsed to a two-point straight so `curveBasis` cannot overshoot.
-6. Guide points must stay inside the content bounding box (node and cluster union plus diagram margin). Prefer an interior channel over wrapping outside the right or left edge. Orthogonal channel corners are held so the drawn spline stays on the channel.
+4. An edge label sits beside **its own** edge (within `LABEL_OWN_EDGE_TOLERANCE_PX`) and must not sit on an unrelated node or float in empty space.
+5. A route must not hook, reverse, or emit a detached or doubled segment. A near-aligned colinear guide is collapsed to a two-point chord so `curveBasis` cannot overshoot (`checkout --> order`).
+6. Guide points must stay inside the content bounding box (node and cluster union plus diagram margin).
+7. Parallel overlapping runs of different edges stay at least `PARALLEL_SEPARATION_PX` apart (`hosting --> webShop` and `dbSvc --> webShop`).
+8. A route that runs parallel to a group border must keep `GROUP_BORDER_CLEARANCE_PX` clearance, or cross that border cleanly. Crawling just inside a dashed cluster stroke is not allowed (`shopUi --> ordering`, `pg --> orderTbl`, `lan --> appNode`, `war --> webShop`).
+9. All visible edges in one diagram use **one** routing style: normal flowchart routing (straight when aligned; smooth `curveBasis` when not). Orthogonal corridors and loose curves must not be mixed. Designed retry, decision, and grouped two-by-two routes stay on their designed builders.
 
-**Naiad note:** Sample 03 after membership/compound attach still ran `dbSvc --> webShop` through Order, `lan --> appNode` through PostgreSQL, stacked arrowheads on Online Ordering, placed `HTTPS` on PostgreSQL, hooked `checkout --> order`, and wrapped `orderTbl --> order` outside the canvas. Those are shared-router bugs, not enterprise-only.
+**Naiad note:** Sample 03 at `5ced07c` still floated `HTTPS` off its corridor, doubled the dotted `checkout --> order` piece, overlapped the two Web Shop verticals, hugged data-centre borders, crawled inside dashed group strokes, mixed orthogonal corridors with loose curves, and crowded Database Service ports. Those are shared-router bugs, not enterprise-only.
 
-**Closure:** `FlowchartSharedRouteQualityHelper`, called from `FlowchartEdgeRouteResolver` for every resolved edge.
+**Closure:** `FlowchartSharedRouteQualityHelper.TryApply`, `UnifyDiagramRoutingStyle`, and `SeparateParallelChannels`.
 
 Key:
 

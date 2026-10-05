@@ -123,6 +123,19 @@ public static class FlowchartSugiyamaSvgRenderer
         }
 
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
+        FlowchartCompoundEndpointHelper.AddGroupBounds(Contract, BoundsById);
+        List<FlowchartResolvedGuide> ResolvedGuides = FlowchartEdgeRouteResolver.ResolveAllVisibleGuidePoints(
+            Contract,
+            BoundsById,
+            NodeById,
+            Direction);
+        Dictionary<EdgeContract, FlowchartResolvedGuide> GuideByEdge =
+            new Dictionary<EdgeContract, FlowchartResolvedGuide>();
+        foreach (FlowchartResolvedGuide Guide in ResolvedGuides)
+        {
+            GuideByEdge[Guide.Edge] = Guide;
+        }
+
         Dictionary<string, string> RouteClassByEdgeKey =
             FlowchartEdgeRoutingIntentAnalyzer.BuildRouteClassNamesByEdgeKey(Contract, Layout, Direction);
 
@@ -132,6 +145,7 @@ public static class FlowchartSugiyamaSvgRenderer
             BoundsById,
             RouteClassByEdgeKey,
             Direction,
+            GuideByEdge,
             ref MinLeft,
             ref MinBottom,
             ref MaxRight,
@@ -227,16 +241,11 @@ public static class FlowchartSugiyamaSvgRenderer
             bool TargetIsGroup = FlowchartCompoundEndpointHelper.IsGroupId(Contract, Edge.TargetId);
             if (SourceIsGroup || TargetIsGroup)
             {
-                if (FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
-                        Edge,
-                        Contract,
-                        BoundsById,
-                        NodeById,
-                        Direction,
-                        out List<(double X, double Y)> CompoundPoints,
-                        out FlowchartEdgeRouteKind CompoundKind)
-                    && CompoundPoints.Count >= 2)
+                if (GuideByEdge.TryGetValue(Edge, out FlowchartResolvedGuide? CompoundGuide)
+                    && CompoundGuide.Points.Count >= 2)
                 {
+                    List<(double X, double Y)> CompoundPoints = CompoundGuide.Points;
+                    FlowchartEdgeRouteKind CompoundKind = CompoundGuide.RouteKind;
                     Dictionary<string, FlowchartLayoutNodeBounds> CompoundBounds =
                         new Dictionary<string, FlowchartLayoutNodeBounds>(BoundsById, StringComparer.Ordinal);
                     FlowchartCompoundEndpointHelper.AddGroupBounds(Contract, CompoundBounds);
@@ -357,16 +366,11 @@ public static class FlowchartSugiyamaSvgRenderer
                 continue;
             }
 
-            if (FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
-                    Edge,
-                    Contract,
-                    BoundsById,
-                    NodeById,
-                    Direction,
-                    out List<(double X, double Y)> RoutedLayoutPoints,
-                    out FlowchartEdgeRouteKind RouteKind)
-                && RoutedLayoutPoints.Count >= 2)
+            if (GuideByEdge.TryGetValue(Edge, out FlowchartResolvedGuide? RoutedGuide)
+                && RoutedGuide.Points.Count >= 2)
             {
+                List<(double X, double Y)> RoutedLayoutPoints = RoutedGuide.Points;
+                FlowchartEdgeRouteKind RouteKind = RoutedGuide.RouteKind;
                 RenderResolvedEdgeRoute(
                     Builder,
                     Edge,
@@ -1341,9 +1345,7 @@ public static class FlowchartSugiyamaSvgRenderer
             RouteClass);
         double LabelHeight = FlowchartEdgeLabelPlacementHelper.ComputeRenderedEdgeLabelHeight(LabelDimensions, RenderOptions.EdgeLabelFontSizePx);
         (double ClearedX, double ClearedY) = MoveLayoutLabelClearOfConnector(Edge, Contract, LabelX, LabelY, LabelDimensions.Width, LabelHeight, LayoutPoints, BoundsById, SourceBounds, TargetBounds, Direction);
-        bool CorridorGuides = FlowchartSharedRouteQualityHelper.LooksLikeOrthogonalCorridor(LayoutPoints);
-        if (CorridorGuides
-            || FlowchartSharedRouteQualityHelper.DistanceFromPointToPolyline(ClearedX, ClearedY, LayoutPoints)
+        if (FlowchartSharedRouteQualityHelper.DistanceFromPointToPolyline(ClearedX, ClearedY, LayoutPoints)
             > 80.0)
         {
             return FlowchartSharedRouteQualityHelper.ResolveLabelOnOwnEdge(
@@ -1462,7 +1464,14 @@ public static class FlowchartSugiyamaSvgRenderer
                 continue;
             }
 
-            if (!FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(Other, Contract, BoundsById, NodeById, Direction, out List<(double X, double Y)> OtherPoints, out FlowchartEdgeRouteKind _))
+            if (!FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
+                    Other,
+                    Contract,
+                    BoundsById,
+                    NodeById,
+                    Direction,
+                    out List<(double X, double Y)> OtherPoints,
+                    out FlowchartEdgeRouteKind _))
             {
                 continue;
             }
@@ -1937,6 +1946,7 @@ public static class FlowchartSugiyamaSvgRenderer
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         IReadOnlyDictionary<string, string> RouteClassByEdgeKey,
         FlowchartDirection Direction,
+        IReadOnlyDictionary<EdgeContract, FlowchartResolvedGuide> GuideByEdge,
         ref double MinLeft,
         ref double MinBottom,
         ref double MaxRight,
@@ -1976,7 +1986,12 @@ public static class FlowchartSugiyamaSvgRenderer
                 (SourceBounds.CenterX, SourceBounds.CenterY),
                 (TargetBounds.CenterX, TargetBounds.CenterY)
             ];
-            if (FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
+            if (GuideByEdge.TryGetValue(Edge, out FlowchartResolvedGuide? ResolvedGuide)
+                && ResolvedGuide.Points.Count >= 2)
+            {
+                LayoutGuidePoints = ResolvedGuide.Points;
+            }
+            else if (FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
                     Edge,
                     Contract,
                     BoundsById,

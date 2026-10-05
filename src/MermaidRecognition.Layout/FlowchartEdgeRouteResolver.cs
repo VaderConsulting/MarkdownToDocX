@@ -83,6 +83,58 @@ public static class FlowchartEdgeRouteResolver
             ref RouteKind);
     }
 
+    /// <summary>
+    /// Resolves every visible edge, then applies diagram-wide parallel separation.
+    /// </summary>
+    /// <param name="Contract">The diagram.</param>
+    /// <param name="BoundsById">Node bounds, including group rectangles when present.</param>
+    /// <param name="NodeById">Nodes by id.</param>
+    /// <param name="Direction">Diagram direction.</param>
+    /// <returns>Resolved guides in contract edge order.</returns>
+    public static List<FlowchartResolvedGuide> ResolveAllVisibleGuidePoints(
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        IReadOnlyDictionary<string, NodeContract> NodeById,
+        FlowchartDirection Direction)
+    {
+        List<FlowchartResolvedGuide> Guides = [];
+        List<List<(double X, double Y)>> Routes = [];
+        foreach (EdgeContract Edge in Contract.Edges)
+        {
+            if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (!TryResolveLayoutGuidePoints(
+                    Edge,
+                    Contract,
+                    BoundsById,
+                    NodeById,
+                    Direction,
+                    out List<(double X, double Y)> Points,
+                    out FlowchartEdgeRouteKind RouteKind))
+            {
+                continue;
+            }
+
+            Guides.Add(new FlowchartResolvedGuide(Edge, Points, RouteKind));
+            Routes.Add(Points);
+        }
+
+        FlowchartSharedRouteQualityHelper.UnifyDiagramRoutingStyle(Contract, BoundsById, Guides);
+        FlowchartSharedRouteQualityHelper.SeparateParallelChannels(Routes);
+        foreach (FlowchartResolvedGuide Guide in Guides)
+        {
+            if (Guide.RouteKind == FlowchartEdgeRouteKind.Straight && Guide.Points.Count > 2)
+            {
+                Guide.RouteKind = FlowchartEdgeRouteKind.Curved;
+            }
+        }
+
+        return Guides;
+    }
+
     private static bool TryResolveRawLayoutGuidePoints(
         EdgeContract Edge,
         DiagramContract Contract,
@@ -603,6 +655,43 @@ public static class FlowchartEdgeRouteResolver
 
         return FlowchartEdgeRouteKind.CrossGroup;
     }
+}
+
+/// <summary>
+/// One resolved visible edge after the shared quality pass.
+/// </summary>
+public sealed class FlowchartResolvedGuide
+{
+    /// <summary>
+    /// Creates a resolved guide.
+    /// </summary>
+    /// <param name="Edge">The edge.</param>
+    /// <param name="Points">Layout guide points.</param>
+    /// <param name="RouteKind">Resolved kind.</param>
+    public FlowchartResolvedGuide(
+        EdgeContract Edge,
+        List<(double X, double Y)> Points,
+        FlowchartEdgeRouteKind RouteKind)
+    {
+        this.Edge = Edge;
+        this.Points = Points;
+        this.RouteKind = RouteKind;
+    }
+
+    /// <summary>
+    /// The edge.
+    /// </summary>
+    public EdgeContract Edge { get; }
+
+    /// <summary>
+    /// Layout guide points.
+    /// </summary>
+    public List<(double X, double Y)> Points { get; }
+
+    /// <summary>
+    /// Resolved kind.
+    /// </summary>
+    public FlowchartEdgeRouteKind RouteKind { get; set; }
 }
 
 /// <summary>
