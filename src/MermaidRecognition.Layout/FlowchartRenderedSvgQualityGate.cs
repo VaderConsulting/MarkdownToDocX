@@ -246,7 +246,7 @@ public static class FlowchartRenderedSvgQualityGate
         CollectRankGaps(NodeRects, Violations);
         CollectLongDiagonals(Strokes, Violations);
         CollectCrampedArrows(Strokes, Violations);
-        CollectCanvasExits(Strokes, NodeRects, GroupRects, Violations);
+        CollectCanvasExits(Strokes, NodeRects, GroupRects, Svg, Violations);
         CollectLongDetours(Strokes, Violations);
 
         IReadOnlyList<FlowchartLayoutQualityFailure> Justifications = ApplyJustifications
@@ -1114,6 +1114,7 @@ public static class FlowchartRenderedSvgQualityGate
         IReadOnlyList<ParsedEdgeStroke> Strokes,
         IReadOnlyList<SvgNodeRect> NodeRects,
         IReadOnlyList<SvgNodeRect> GroupRects,
+        string Svg,
         List<FlowchartLayoutQualityFailure> Violations)
     {
         double MinX = double.PositiveInfinity;
@@ -1145,6 +1146,14 @@ public static class FlowchartRenderedSvgQualityGate
         MinY -= 16.0;
         MaxX += 16.0;
         MaxY += 16.0;
+        if (TryParseViewBox(Svg, out double ViewMinX, out double ViewMinY, out double ViewMaxX, out double ViewMaxY))
+        {
+            MinX = Math.Max(MinX, ViewMinX);
+            MinY = Math.Max(MinY, ViewMinY);
+            MaxX = Math.Min(MaxX, ViewMaxX);
+            MaxY = Math.Min(MaxY, ViewMaxY);
+        }
+
         foreach (ParsedEdgeStroke Stroke in Strokes)
         {
             foreach ((double X, double Y) in Stroke.Samples)
@@ -1160,6 +1169,47 @@ public static class FlowchartRenderedSvgQualityGate
                 }
             }
         }
+    }
+
+    private static bool TryParseViewBox(
+        string Svg,
+        out double MinX,
+        out double MinY,
+        out double MaxX,
+        out double MaxY)
+    {
+        MinX = 0.0;
+        MinY = 0.0;
+        MaxX = 0.0;
+        MaxY = 0.0;
+        Match ViewBox = Regex.Match(
+            Svg,
+            "viewBox=\"([^\"]+)\"",
+            RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+        if (!ViewBox.Success)
+        {
+            return false;
+        }
+
+        string[] Parts = ViewBox.Groups[1].Value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        if (Parts.Length < 4)
+        {
+            return false;
+        }
+
+        if (!double.TryParse(Parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out double OriginX)
+            || !double.TryParse(Parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double OriginY)
+            || !double.TryParse(Parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out double Width)
+            || !double.TryParse(Parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out double Height))
+        {
+            return false;
+        }
+
+        MinX = OriginX;
+        MinY = OriginY;
+        MaxX = OriginX + Width;
+        MaxY = OriginY + Height;
+        return Width > 0.0 && Height > 0.0;
     }
 
     private static void CollectLongDetours(

@@ -119,6 +119,8 @@ public static class FlowchartSharedEdgeRouter
             TryKeepClearAlignedStraight(Contract, BoundsById, Guide);
         }
 
+        ClampRoutesToNodeUnion(Contract, BoundsById, Direction, Guides);
+
         RecordRemainingJustifications(Contract, BoundsById, Direction, Guides);
     }
 
@@ -319,6 +321,77 @@ public static class FlowchartSharedEdgeRouter
         Guide.Points.AddRange(Straight);
         Guide.RouteKind = FlowchartEdgeRouteKind.Straight;
         return true;
+    }
+
+    private static void ClampRoutesToNodeUnion(
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        FlowchartDirection Direction,
+        List<FlowchartResolvedGuide> Guides)
+    {
+        double MinX = double.PositiveInfinity;
+        double MaxX = double.NegativeInfinity;
+        double MinY = double.PositiveInfinity;
+        double MaxY = double.NegativeInfinity;
+        foreach (FlowchartLayoutNodeBounds Bounds in BoundsById.Values)
+        {
+            MinX = Math.Min(MinX, Bounds.CenterX - (Bounds.Width / 2.0));
+            MaxX = Math.Max(MaxX, Bounds.CenterX + (Bounds.Width / 2.0));
+            MinY = Math.Min(MinY, Bounds.CenterY - (Bounds.Height / 2.0));
+            MaxY = Math.Max(MaxY, Bounds.CenterY + (Bounds.Height / 2.0));
+        }
+
+        if (double.IsInfinity(MinX))
+        {
+            return;
+        }
+
+        MinX -= 8.0;
+        MaxX += 8.0;
+        MinY -= 8.0;
+        MaxY += 8.0;
+        foreach (FlowchartResolvedGuide Guide in Guides)
+        {
+            if (Guide.Points.Count < 3)
+            {
+                continue;
+            }
+
+            List<(double X, double Y)> Before = CopyPoints(Guide.Points);
+            bool Moved = false;
+            for (int Index = 1; Index < Guide.Points.Count - 1; Index++)
+            {
+                (double X, double Y) = Guide.Points[Index];
+                double ClampedX = Math.Max(MinX, Math.Min(MaxX, X));
+                double ClampedY = Math.Max(MinY, Math.Min(MaxY, Y));
+                if (Math.Abs(ClampedX - X) > 0.01 || Math.Abs(ClampedY - Y) > 0.01)
+                {
+                    Guide.Points[Index] = (ClampedX, ClampedY);
+                    Moved = true;
+                }
+            }
+
+            if (!Moved)
+            {
+                continue;
+            }
+
+            List<(double X, double Y)> Orthogonal = FlowchartPaddedVisibilityRouter.EnsureOrthogonal(Guide.Points);
+            if (RenderedPathHitsNonEndpoint(Contract, BoundsById, Guide.Edge, Orthogonal, out _))
+            {
+                Guide.Points.Clear();
+                Guide.Points.AddRange(Before);
+                continue;
+            }
+
+            Guide.Points.Clear();
+            Guide.Points.AddRange(Orthogonal);
+            Guide.RouteKind = Guide.Points.Count <= 2
+                ? FlowchartEdgeRouteKind.Straight
+                : FlowchartEdgeRouteKind.Corridor;
+        }
+
+        _ = Direction;
     }
 
     private static void RepairGroupAndHitRoute(
