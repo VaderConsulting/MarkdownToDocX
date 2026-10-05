@@ -116,6 +116,28 @@ public sealed class EnterpriseRenderTests
     }
 
     [Test]
+    public void Render_NotationLegend_CoversLayersAndRelationships()
+    {
+        string Svg = EnterpriseNotationLegendRenderer.RenderSvg();
+        Assert.That(Svg, Does.Contain("<svg"));
+        Assert.That(Svg, Does.Not.Contain("<marker"));
+        Assert.That(Svg, Does.Not.Contain("<foreignObject"));
+        Assert.That(Svg, Does.Contain("#CCCCFF"));
+        Assert.That(Svg, Does.Contain("#F8D0C8"));
+        Assert.That(Svg, Does.Contain("#FFFFAF"));
+        Assert.That(Svg, Does.Contain("#AFFFFF"));
+        Assert.That(Svg, Does.Contain("#AFFFAF"));
+        Assert.That(Svg, Does.Contain("#FFE0E0"));
+        Assert.That(Svg, Does.Contain("ApplicationComponent"));
+        Assert.That(Svg, Does.Contain("BusinessActor"));
+        Assert.That(Svg, Does.Contain("Stakeholder"));
+        Assert.That(Svg, Does.Contain("WorkPackage"));
+        Assert.That(Svg, Does.Contain("composition"));
+        Assert.That(Svg, Does.Contain("realization"));
+        XDocument.Parse(Svg);
+    }
+
+    [Test]
     public void TryRender_NonEnterprise_ReturnsFalse()
     {
         bool Rendered = EnterpriseRenderBridge.TryRenderEnterpriseSvg("flowchart TD\nA-->B", out string Svg);
