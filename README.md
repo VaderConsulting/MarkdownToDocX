@@ -46,7 +46,11 @@ Flowcharts render through the native Sugiyama layout in `src/MermaidRecognition.
 
 ## Supported Diagram Kinds
 
-Flowchart, Sequence, Class, State, Entity-Relationship (ER), Gantt, Pie, Mindmap, GitGraph
+Flowchart, Sequence, Class, State, Entity-Relationship (ER), Gantt, Pie, Mindmap, GitGraph, and the native **enterprise** diagram (ArchiMate 3.2 notation; all layers and aspects).
+
+The enterprise kind is not one of the 22 Mermaid L1 kinds. It is parsed and drawn in C# (`src/MermaidRecognition/Kinds/Enterprise` and `src/MermaidRecognition.Layout/Enterprise`). Fences ` ```mermaid ` (header `enterprise`) and ` ```enterprise ` are both accepted. See [docs/enterprise/DESIGN-STUDY.md](docs/enterprise/DESIGN-STUDY.md). The planned 4.0 version covers **all** ArchiMate 4 domains (not a subset): [docs/enterprise-archimate-4-plan.md](docs/enterprise-archimate-4-plan.md).
+
+ArchiMate® is a registered trademark of The Open Group. This project is not affiliated with or endorsed by The Open Group.
 
 ---
 
@@ -104,3 +108,4 @@ See [`src/MermaidRecognition.Layout/THIRD_PARTY_NOTICES.md`](src/MermaidRecognit
 | `flow.md` | Flowchart visual regression catalogue (F01-F130+) |
 | `src/MermaidRecognition/README.md` | Mermaid recogniser scope and architecture |
 | `Mermaid_Specification.md` | Flowchart geometry and routing rules, including Word-first parity notes |
+| `docs/enterprise-archimate-4-plan.md` | Enterprise diagram 4.0 plan: full ArchiMate 4 domain coverage, public-summary deltas only |

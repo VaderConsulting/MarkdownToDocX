@@ -1,6 +1,20 @@
 # MarkdownToDocX — programme status
 
-**Last updated:** 2026-06-07 (pass 42 — rule validation harness, F58 routing, layout contracts)
+**Last updated:** 2026-10-05 (pass 43 — native `enterprise` diagram, ArchiMate 3.2 full layers, 4.0 full-domain plan)
+
+---
+
+## Pass 43 — native enterprise diagram
+
+| Item | Status |
+|---|---|
+| Native `enterprise` kind (not a Mermaid L1 kind) | **Done** — parser, 3.1/3.2 rule tables, Sugiyama SVG, mermaid + enterprise fence dispatch, DOCX embed |
+| ArchiMate 3.2 coverage | **Done** — Application, Technology, Physical (Technology green), Business, Motivation, Strategy, Implementation & Migration, Grouping, Location, Junction and/or |
+| Verified relationship cells | Application + Technology 22×22 (3.1 eye-checked). 15 App/Tech 3.2 deltas remain provisional. All newly added layer cells are provisional (Archi MIT `relationships.xml` typing aid only). |
+| ArchiMate 4.0 version | **Planned** — [docs/enterprise-archimate-4-plan.md](docs/enterprise-archimate-4-plan.md). **Mandatory:** 4.0 supports **all** ArchiMate 4 domains (full coverage, not a subset). Public summaries only; unverified points marked. |
+| Feature name | `enterprise` only. ArchiMate is used as an adjective / trademark, never as a product or namespace name. |
+
+The remainder of this file is the pass 42 baseline (2026-06-07).
 
 **Specification:** [`spec.md`](spec.md) (normative — what the solution must do)
 
