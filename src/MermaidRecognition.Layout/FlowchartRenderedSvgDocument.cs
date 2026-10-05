@@ -214,6 +214,7 @@ public sealed class FlowchartRenderedSvgDocument
         FlowchartRenderedSvgDocument Document)
     {
         string? OpenId = null;
+        bool OpenIsEdge = false;
         foreach (Match Match in Regex.Matches(
             Svg,
             "<g\\b[^>]*>|</g>|(<(?:rect|path)\\b[^>]*>)|(<text\\b[^>]*>.*?</text>)",
@@ -224,12 +225,17 @@ public sealed class FlowchartRenderedSvgDocument
             {
                 Dictionary<string, string> Attributes = ParseAttributes(Token);
                 Attributes.TryGetValue("data-id", out OpenId);
+                OpenIsEdge = Attributes.ContainsKey("data-source")
+                    || Attributes.ContainsKey("data-edge-source")
+                    || (Attributes.TryGetValue("class", out string? ClassName)
+                        && ClassName.Contains("relationship", StringComparison.OrdinalIgnoreCase));
                 continue;
             }
 
             if (Token.StartsWith("</g", StringComparison.OrdinalIgnoreCase))
             {
                 OpenId = null;
+                OpenIsEdge = false;
                 continue;
             }
 
@@ -264,23 +270,15 @@ public sealed class FlowchartRenderedSvgDocument
                     {
                         Nearest.NodeId = MappedId;
                     }
-                    else
-                    {
-                        Document.Boxes.Add(new FlowchartRenderedSvgBox(
-                            MappedId,
-                            TextX - 20.0,
-                            TextY - 20.0,
-                            TextX + 20.0,
-                            TextY + 20.0,
-                            IsGroup: false));
-                    }
                 }
 
                 continue;
             }
 
             Dictionary<string, string> ShapeAttributes = ParseAttributes(Token);
-            if (ShapeAttributes.TryGetValue("data-edge-source", out _))
+            if (OpenIsEdge
+                || ShapeAttributes.ContainsKey("data-edge-source")
+                || ShapeAttributes.ContainsKey("data-source"))
             {
                 continue;
             }
@@ -295,15 +293,18 @@ public sealed class FlowchartRenderedSvgDocument
                 continue;
             }
 
-            if (ShapeAttributes.TryGetValue("fill", out string? Fill)
-                && (string.Equals(Fill, "white", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(Fill, "#ffffff", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(Fill, "#fff", StringComparison.OrdinalIgnoreCase)))
+            ShapeAttributes.TryGetValue("fill", out string? Fill);
+            bool FillIsNone = string.IsNullOrEmpty(Fill)
+                || string.Equals(Fill, "none", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(Fill, "transparent", StringComparison.OrdinalIgnoreCase);
+            bool FillIsCanvas = string.Equals(Fill, "white", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(Fill, "#ffffff", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(Fill, "#fff", StringComparison.OrdinalIgnoreCase);
+            bool IsGroup = LooksLikeGroup(ShapeAttributes);
+            if (FillIsCanvas || (FillIsNone && !IsGroup))
             {
                 continue;
             }
-
-            bool IsGroup = LooksLikeGroup(ShapeAttributes);
             string BoxId = OpenId ?? string.Empty;
             Document.Boxes.Add(new FlowchartRenderedSvgBox(BoxId, Left, Top, Right, Bottom, IsGroup));
         }
@@ -315,7 +316,7 @@ public sealed class FlowchartRenderedSvgDocument
         double Y)
     {
         FlowchartRenderedSvgBox? Best = null;
-        double BestDistance = 80.0;
+        double BestScore = double.MaxValue;
         foreach (FlowchartRenderedSvgBox Box in Document.Boxes)
         {
             if (!string.IsNullOrEmpty(Box.NodeId))
@@ -323,17 +324,26 @@ public sealed class FlowchartRenderedSvgDocument
                 continue;
             }
 
-            double MidX = (Box.Left + Box.Right) / 2.0;
-            double MidY = (Box.Top + Box.Bottom) / 2.0;
-            double Distance = Math.Sqrt(((MidX - X) * (MidX - X)) + ((MidY - Y) * (MidY - Y)));
-            if (X >= Box.Left - 8.0 && X <= Box.Right + 8.0 && Y >= Box.Top - 8.0 && Y <= Box.Bottom + 24.0)
+            double Width = Box.Right - Box.Left;
+            double Height = Box.Bottom - Box.Top;
+            if (Width > 900.0 && Height > 700.0)
             {
-                Distance = Math.Min(Distance, 8.0);
+                continue;
             }
 
-            if (Distance < BestDistance)
+            bool ContainsText = X >= Box.Left - 8.0
+                && X <= Box.Right + 8.0
+                && Y >= Box.Top - 8.0
+                && Y <= Box.Bottom + 24.0;
+            if (!ContainsText)
             {
-                BestDistance = Distance;
+                continue;
+            }
+
+            double Score = Width * Height;
+            if (Score < BestScore)
+            {
+                BestScore = Score;
                 Best = Box;
             }
         }

@@ -103,7 +103,25 @@ public static class FlowchartRenderedSvgQualityGate
         string Svg = ForcedLayout != null
             ? FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract, Layout)
             : FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
-        return EvaluateRenderedSvg(DiagramName, Contract, Layout, Svg);
+        return EvaluateRenderedSvg(DiagramName, Contract, Layout, Svg, ApplyJustifications: true);
+    }
+
+    /// <summary>
+    /// Evaluates a stored picture with no search justifications. Used to prove the gate still
+    /// reports defects that are visible on a known picture.
+    /// </summary>
+    /// <param name="DiagramName">Fixture or sample name.</param>
+    /// <param name="MermaidSource">Mermaid flowchart source.</param>
+    /// <param name="Svg">Rendered SVG markup.</param>
+    /// <returns>The quality report.</returns>
+    public static FlowchartRenderedSvgQualityReport EvaluatePicture(
+        string DiagramName,
+        string MermaidSource,
+        string Svg)
+    {
+        DiagramContract Contract = MermaidRecognizer.Parse(MermaidSource);
+        FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout);
+        return EvaluateRenderedSvg(DiagramName, Contract, Layout, Svg, ApplyJustifications: false);
     }
 
     /// <summary>
@@ -119,9 +137,7 @@ public static class FlowchartRenderedSvgQualityGate
         string MermaidSource,
         string Svg)
     {
-        DiagramContract Contract = MermaidRecognizer.Parse(MermaidSource);
-        FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout);
-        return EvaluateRenderedSvg(DiagramName, Contract, Layout, Svg);
+        return EvaluatePicture(DiagramName, MermaidSource, Svg);
     }
 
     /// <summary>
@@ -137,6 +153,25 @@ public static class FlowchartRenderedSvgQualityGate
         DiagramContract Contract,
         FlowchartLayoutResult Layout,
         string Svg)
+    {
+        return EvaluateRenderedSvg(DiagramName, Contract, Layout, Svg, ApplyJustifications: false);
+    }
+
+    /// <summary>
+    /// Evaluates a stored SVG with an already parsed contract and layout.
+    /// </summary>
+    /// <param name="DiagramName">Fixture or sample name.</param>
+    /// <param name="Contract">Parsed flowchart contract.</param>
+    /// <param name="Layout">Layout used for membership and justifications.</param>
+    /// <param name="Svg">Rendered SVG markup.</param>
+    /// <param name="ApplyJustifications">When true, search-backed reasons may tolerate some defects.</param>
+    /// <returns>The quality report.</returns>
+    public static FlowchartRenderedSvgQualityReport EvaluateRenderedSvg(
+        string DiagramName,
+        DiagramContract Contract,
+        FlowchartLayoutResult Layout,
+        string Svg,
+        bool ApplyJustifications)
     {
         FlowchartRenderedSvgQualityReport Report = new FlowchartRenderedSvgQualityReport(DiagramName);
         if (Contract.Nodes.Count == 0)
@@ -195,16 +230,32 @@ public static class FlowchartRenderedSvgQualityGate
         CollectNodeIntersections(Contract, Strokes, NodeRects, Violations);
         CollectStackedArrowheads(Arrowheads, Violations);
         CollectLabelDefects(Strokes, Labels, Violations);
+        CollectLabelOnBox(Strokes, Labels, NodeRects, Violations);
         CollectParallelDefects(Strokes, Violations);
+        CollectOverlayingEdges(Strokes, NodeRects, Violations);
         CollectMixedStyle(Guides, Violations);
+        CollectMixedStyleFromStrokes(Strokes, Violations);
         CollectIllegalGroupTraversals(Contract, Strokes, GroupRects, Violations);
         CollectGroupInteriorDiagonals(Contract, Strokes, GroupRects, Violations);
         CollectHooks(Strokes, Violations);
         CollectCrossings(Strokes, NodeRects, Violations);
+        CollectDetachedEndpoints(Strokes, NodeRects, GroupRects, Violations);
+        CollectDanglingArrowheads(Strokes, Arrowheads, NodeRects, GroupRects, Violations);
+        CollectRankGaps(NodeRects, Violations);
+        CollectLongDiagonals(Strokes, Violations);
+        CollectCrampedArrows(Strokes, Violations);
 
-        IReadOnlyList<FlowchartLayoutQualityFailure> Justifications = FlowchartSharedEdgeRouter.LastJustifications;
+        IReadOnlyList<FlowchartLayoutQualityFailure> Justifications = ApplyJustifications
+            ? FlowchartSharedEdgeRouter.LastJustifications
+            : [];
         foreach (FlowchartLayoutQualityFailure Violation in Violations)
         {
+            if (!ApplyJustifications || IsUnjustifiableKind(Violation.Kind))
+            {
+                Report.Failures.Add(Violation);
+                continue;
+            }
+
             string? Reason = FindJustification(Violation, Justifications, Contract, BoundsById, Direction);
             if (!FlowchartLayoutQualityJustification.IsSpecificReason(Reason))
             {
@@ -247,15 +298,16 @@ public static class FlowchartRenderedSvgQualityGate
             }
 
             double Total = PathLength(Stroke.Samples);
+            List<(double X, double Y)> Dense = Densify(Stroke.Samples, 6.0);
             double Travelled = 0.0;
-            for (int Index = 1; Index < Stroke.Samples.Count; Index++)
+            for (int Index = 1; Index < Dense.Count; Index++)
             {
-                (double StartX, double StartY) = Stroke.Samples[Index - 1];
-                (double EndX, double EndY) = Stroke.Samples[Index];
+                (double StartX, double StartY) = Dense[Index - 1];
+                (double EndX, double EndY) = Dense[Index];
                 double Segment = Distance(StartX, StartY, EndX, EndY);
                 double Mid = Travelled + (Segment / 2.0);
                 Travelled += Segment;
-                if (Mid < 10.0 || Mid > Total - 10.0)
+                if (Mid < 8.0 || Mid > Total - 8.0)
                 {
                     continue;
                 }
@@ -269,7 +321,12 @@ public static class FlowchartRenderedSvgQualityGate
                         continue;
                     }
 
-                    if (SegmentHitsRect(StartX, StartY, EndX, EndY, Rect, 2.0))
+                    bool Hits = SegmentHitsRect(StartX, StartY, EndX, EndY, Rect, 1.0)
+                        || (StartX >= Rect.Left + 1.0
+                            && StartX <= Rect.Right - 1.0
+                            && StartY >= Rect.Top + 1.0
+                            && StartY <= Rect.Bottom - 1.0);
+                    if (Hits)
                     {
                         Violations.Add(new FlowchartLayoutQualityFailure(
                             "NodeIntersection",
@@ -332,7 +389,7 @@ public static class FlowchartRenderedSvgQualityGate
             }
 
             double OwnDistance = DistanceToLabelLine(Label.X, Label.Y, Own.Samples);
-            if (OwnDistance > LABEL_OWN_EDGE_PX)
+            if (OwnDistance > LABEL_OWN_EDGE_PX || PathLength(Own.Samples) < 22.0)
             {
                 Violations.Add(new FlowchartLayoutQualityFailure(
                     "LabelOwnEdge",
@@ -372,6 +429,21 @@ public static class FlowchartRenderedSvgQualityGate
                 }
             }
         }
+    }
+
+    private static bool IsUnjustifiableKind(string Kind)
+    {
+        return string.Equals(Kind, "DanglingArrowhead", StringComparison.Ordinal)
+            || string.Equals(Kind, "DetachedEndpoint", StringComparison.Ordinal)
+            || string.Equals(Kind, "OverlayingEdges", StringComparison.Ordinal)
+            || string.Equals(Kind, "LabelOnBox", StringComparison.Ordinal)
+            || string.Equals(Kind, "NodeIntersection", StringComparison.Ordinal)
+            || string.Equals(Kind, "MixedStyle", StringComparison.Ordinal)
+            || string.Equals(Kind, "ForeignGroupTraversal", StringComparison.Ordinal)
+            || string.Equals(Kind, "GroupBorderDiagonal", StringComparison.Ordinal)
+            || string.Equals(Kind, "RankGap", StringComparison.Ordinal)
+            || string.Equals(Kind, "LongDiagonal", StringComparison.Ordinal)
+            || string.Equals(Kind, "CrampedArrow", StringComparison.Ordinal);
     }
 
     private static void CollectParallelDefects(
@@ -472,7 +544,8 @@ public static class FlowchartRenderedSvgQualityGate
 
                 if (!SourceIn && !TargetIn)
                 {
-                    if (InteriorLength > 12.0 || Crossings >= 1)
+                    if (InteriorLength > 12.0 || Crossings >= 1
+                        || InteriorPathLength(Stroke.Samples, ExpandRect(GroupRect, 20.0)) > 24.0)
                     {
                         Violations.Add(new FlowchartLayoutQualityFailure(
                             "ForeignGroupTraversal",
@@ -631,6 +704,600 @@ public static class FlowchartRenderedSvgQualityGate
                     null));
             }
         }
+    }
+
+    private static void CollectLabelOnBox(
+        IReadOnlyList<ParsedEdgeStroke> Strokes,
+        IReadOnlyList<ParsedLabel> Labels,
+        IReadOnlyList<SvgNodeRect> NodeRects,
+        List<FlowchartLayoutQualityFailure> Violations)
+    {
+        foreach (ParsedLabel Label in Labels)
+        {
+            ParsedEdgeStroke? Own = FindOwnStroke(Strokes, Label);
+            foreach (SvgNodeRect Rect in NodeRects)
+            {
+                if (Own != null
+                    && (string.Equals(Rect.NodeId, Own.SourceId, StringComparison.Ordinal)
+                        || string.Equals(Rect.NodeId, Own.TargetId, StringComparison.Ordinal)))
+                {
+                    continue;
+                }
+
+                if (DistanceToRect(Label.X, Label.Y, Rect) <= 24.0)
+                {
+                    Violations.Add(new FlowchartLayoutQualityFailure(
+                        "LabelOnBox",
+                        "label '" + Label.Text + "' sits on " + Rect.NodeId,
+                        Own == null ? [Rect.NodeId] : [Own.SourceId, Own.TargetId, Rect.NodeId],
+                        null));
+                }
+            }
+        }
+    }
+
+    private static void CollectOverlayingEdges(
+        IReadOnlyList<ParsedEdgeStroke> Strokes,
+        IReadOnlyList<SvgNodeRect> NodeRects,
+        List<FlowchartLayoutQualityFailure> Violations)
+    {
+        for (int LeftIndex = 0; LeftIndex < Strokes.Count; LeftIndex++)
+        {
+            for (int RightIndex = LeftIndex + 1; RightIndex < Strokes.Count; RightIndex++)
+            {
+                ParsedEdgeStroke Left = Strokes[LeftIndex];
+                ParsedEdgeStroke Right = Strokes[RightIndex];
+                if (!TryOverlayRun(
+                    Left.Samples,
+                    Right.Samples,
+                    out double MidX,
+                    out double MidY,
+                    out double Gap)
+                    || Gap >= 8.0)
+                {
+                    continue;
+                }
+
+                if (SharesEndpoint(Left, Right)
+                    && CrossingIsNearSharedEndpoint(Left, Right, MidX, MidY, NodeRects))
+                {
+                    continue;
+                }
+
+                Violations.Add(new FlowchartLayoutQualityFailure(
+                    "OverlayingEdges",
+                    Left.SourceId + "->" + Left.TargetId
+                    + " runs on top of "
+                    + Right.SourceId + "->" + Right.TargetId,
+                    [Left.SourceId, Left.TargetId, Right.SourceId, Right.TargetId],
+                    null));
+            }
+        }
+    }
+
+    private static void CollectMixedStyleFromStrokes(
+        IReadOnlyList<ParsedEdgeStroke> Strokes,
+        List<FlowchartLayoutQualityFailure> Violations)
+    {
+        bool HasStraight = false;
+        bool HasOrthogonal = false;
+        bool HasCurve = false;
+        foreach (ParsedEdgeStroke Stroke in Strokes)
+        {
+            if (PathLength(Stroke.Samples) < 20.0)
+            {
+                continue;
+            }
+
+            StrokeStyleKind Style = ClassifyStrokeStyle(Stroke.Samples);
+            if (Style == StrokeStyleKind.Straight)
+            {
+                HasStraight = true;
+            }
+            else if (Style == StrokeStyleKind.Orthogonal)
+            {
+                HasOrthogonal = true;
+            }
+            else
+            {
+                HasCurve = true;
+            }
+        }
+
+        int Styles = 0;
+        if (HasStraight)
+        {
+            Styles++;
+        }
+
+        if (HasOrthogonal)
+        {
+            Styles++;
+        }
+
+        if (HasCurve)
+        {
+            Styles++;
+        }
+
+        if (Styles >= 2)
+        {
+            Violations.Add(new FlowchartLayoutQualityFailure(
+                "MixedStyle",
+                "diagram mixes straight, right-angle and curved lines",
+                [],
+                null));
+        }
+    }
+
+    private static void CollectDetachedEndpoints(
+        IReadOnlyList<ParsedEdgeStroke> Strokes,
+        IReadOnlyList<SvgNodeRect> NodeRects,
+        IReadOnlyList<SvgNodeRect> GroupRects,
+        List<FlowchartLayoutQualityFailure> Violations)
+    {
+        List<SvgNodeRect> Boxes = [];
+        Boxes.AddRange(NodeRects);
+        Boxes.AddRange(GroupRects);
+        foreach (ParsedEdgeStroke Stroke in Strokes)
+        {
+            if (Stroke.Samples.Count < 2)
+            {
+                continue;
+            }
+
+            SvgNodeRect? Source = FindRect(Boxes, Stroke.SourceId);
+            SvgNodeRect? Target = FindRect(Boxes, Stroke.TargetId);
+            if (Source != null
+                && DistanceToRect(Stroke.Samples[0].X, Stroke.Samples[0].Y, Source) > 40.0)
+            {
+                Violations.Add(new FlowchartLayoutQualityFailure(
+                    "DetachedEndpoint",
+                    Stroke.SourceId + "->" + Stroke.TargetId + " starts away from " + Stroke.SourceId,
+                    [Stroke.SourceId, Stroke.TargetId],
+                    null));
+            }
+
+            if (Target != null
+                && DistanceToRect(
+                    Stroke.Samples[Stroke.Samples.Count - 1].X,
+                    Stroke.Samples[Stroke.Samples.Count - 1].Y,
+                    Target) > 40.0)
+            {
+                Violations.Add(new FlowchartLayoutQualityFailure(
+                    "DetachedEndpoint",
+                    Stroke.SourceId + "->" + Stroke.TargetId + " is not attached to " + Stroke.TargetId,
+                    [Stroke.SourceId, Stroke.TargetId],
+                    null));
+            }
+        }
+    }
+
+    private static void CollectDanglingArrowheads(
+        IReadOnlyList<ParsedEdgeStroke> Strokes,
+        IReadOnlyList<(double X, double Y)> Arrowheads,
+        IReadOnlyList<SvgNodeRect> NodeRects,
+        IReadOnlyList<SvgNodeRect> GroupRects,
+        List<FlowchartLayoutQualityFailure> Violations)
+    {
+        List<SvgNodeRect> Boxes = [];
+        Boxes.AddRange(NodeRects);
+        Boxes.AddRange(GroupRects);
+        foreach ((double TipX, double TipY) in Arrowheads)
+        {
+            bool NearBox = false;
+            foreach (SvgNodeRect Rect in Boxes)
+            {
+                if (DistanceToRect(TipX, TipY, Rect) <= 40.0)
+                {
+                    NearBox = true;
+                    break;
+                }
+            }
+
+            if (NearBox)
+            {
+                continue;
+            }
+
+            ParsedEdgeStroke? Owner = FindNearestStrokeEnd(Strokes, TipX, TipY);
+            Violations.Add(new FlowchartLayoutQualityFailure(
+                "DanglingArrowhead",
+                Owner == null
+                    ? "arrowhead at ("
+                        + TipX.ToString("0", CultureInfo.InvariantCulture)
+                        + ","
+                        + TipY.ToString("0", CultureInfo.InvariantCulture)
+                        + ") is not attached to a box"
+                    : Owner.SourceId + "->" + Owner.TargetId + " ends in a dangling arrowhead",
+                Owner == null ? [] : [Owner.SourceId, Owner.TargetId],
+                null));
+        }
+
+        foreach (ParsedEdgeStroke Stroke in Strokes)
+        {
+            if (Stroke.Samples.Count < 2)
+            {
+                continue;
+            }
+
+            SvgNodeRect? Target = FindRect(Boxes, Stroke.TargetId);
+            if (Target == null)
+            {
+                continue;
+            }
+
+            (double EndX, double EndY) = Stroke.Samples[Stroke.Samples.Count - 1];
+            if (DistanceToRect(EndX, EndY, Target) <= 40.0)
+            {
+                continue;
+            }
+
+            bool AlreadyReported = false;
+            foreach (FlowchartLayoutQualityFailure Existing in Violations)
+            {
+                if (string.Equals(Existing.Kind, "DanglingArrowhead", StringComparison.Ordinal)
+                    && Existing.InvolvedIds.Count >= 2
+                    && string.Equals(Existing.InvolvedIds[0], Stroke.SourceId, StringComparison.Ordinal)
+                    && string.Equals(Existing.InvolvedIds[1], Stroke.TargetId, StringComparison.Ordinal))
+                {
+                    AlreadyReported = true;
+                    break;
+                }
+            }
+
+            if (AlreadyReported)
+            {
+                continue;
+            }
+
+            Violations.Add(new FlowchartLayoutQualityFailure(
+                "DanglingArrowhead",
+                Stroke.SourceId + "->" + Stroke.TargetId + " ends in a dangling arrowhead",
+                [Stroke.SourceId, Stroke.TargetId],
+                null));
+        }
+    }
+
+    private static void CollectRankGaps(
+        IReadOnlyList<SvgNodeRect> NodeRects,
+        List<FlowchartLayoutQualityFailure> Violations)
+    {
+        if (NodeRects.Count < 4)
+        {
+            return;
+        }
+
+        List<double> Centres = [];
+        foreach (SvgNodeRect Rect in NodeRects)
+        {
+            Centres.Add((Rect.Top + Rect.Bottom) / 2.0);
+        }
+
+        Centres.Sort();
+        List<double> RankCentres = [Centres[0]];
+        for (int Index = 1; Index < Centres.Count; Index++)
+        {
+            if (Centres[Index] - RankCentres[RankCentres.Count - 1] > 40.0)
+            {
+                RankCentres.Add(Centres[Index]);
+            }
+            else
+            {
+                RankCentres[RankCentres.Count - 1] = (RankCentres[RankCentres.Count - 1] + Centres[Index]) / 2.0;
+            }
+        }
+
+        if (RankCentres.Count < 3)
+        {
+            return;
+        }
+
+        List<double> Gaps = [];
+        double Largest = 0.0;
+        for (int Index = 1; Index < RankCentres.Count; Index++)
+        {
+            double Gap = RankCentres[Index] - RankCentres[Index - 1];
+            Gaps.Add(Gap);
+            if (Gap > Largest)
+            {
+                Largest = Gap;
+            }
+        }
+
+        Gaps.Sort();
+        double Median = Gaps[Gaps.Count / 2];
+        if (Largest > 200.0 && Largest > (Median * 2.2))
+        {
+            Violations.Add(new FlowchartLayoutQualityFailure(
+                "RankGap",
+                "empty band of "
+                + Largest.ToString("0", CultureInfo.InvariantCulture)
+                + " px between ranks",
+                [],
+                null));
+        }
+    }
+
+    private static void CollectLongDiagonals(
+        IReadOnlyList<ParsedEdgeStroke> Strokes,
+        List<FlowchartLayoutQualityFailure> Violations)
+    {
+        foreach (ParsedEdgeStroke Stroke in Strokes)
+        {
+            if (Stroke.Samples.Count < 2)
+            {
+                continue;
+            }
+
+            (double StartX, double StartY) = Stroke.Samples[0];
+            (double EndX, double EndY) = Stroke.Samples[Stroke.Samples.Count - 1];
+            double Dx = Math.Abs(EndX - StartX);
+            double Dy = Math.Abs(EndY - StartY);
+            double Length = PathLength(Stroke.Samples);
+            bool AxisAligned = Dx <= 8.0 || Dy <= 8.0;
+            if (AxisAligned || Length < 180.0 || Math.Min(Dx, Dy) < 40.0)
+            {
+                continue;
+            }
+
+            Violations.Add(new FlowchartLayoutQualityFailure(
+                "LongDiagonal",
+                Stroke.SourceId + "->" + Stroke.TargetId + " is a long diagonal",
+                [Stroke.SourceId, Stroke.TargetId],
+                null));
+        }
+    }
+
+    private static void CollectCrampedArrows(
+        IReadOnlyList<ParsedEdgeStroke> Strokes,
+        List<FlowchartLayoutQualityFailure> Violations)
+    {
+        foreach (ParsedEdgeStroke Stroke in Strokes)
+        {
+            double Length = PathLength(Stroke.Samples);
+            if (Length > 0.0 && Length < 26.0)
+            {
+                Violations.Add(new FlowchartLayoutQualityFailure(
+                    "CrampedArrow",
+                    Stroke.SourceId + "->" + Stroke.TargetId
+                    + " is a cramped "
+                    + Length.ToString("0.0", CultureInfo.InvariantCulture)
+                    + " px arrow",
+                    [Stroke.SourceId, Stroke.TargetId],
+                    null));
+            }
+        }
+    }
+
+    private static StrokeStyleKind ClassifyStrokeStyle(IReadOnlyList<(double X, double Y)> Samples)
+    {
+        if (Samples.Count < 2)
+        {
+            return StrokeStyleKind.Straight;
+        }
+
+        bool AllAxis = true;
+        int Corners = 0;
+        for (int Index = 1; Index < Samples.Count; Index++)
+        {
+            bool Horizontal = Math.Abs(Samples[Index].Y - Samples[Index - 1].Y) <= 1.5;
+            bool Vertical = Math.Abs(Samples[Index].X - Samples[Index - 1].X) <= 1.5;
+            if (!Horizontal && !Vertical)
+            {
+                AllAxis = false;
+            }
+
+            if (Index >= 2)
+            {
+                bool PreviousHorizontal = Math.Abs(Samples[Index - 1].Y - Samples[Index - 2].Y) <= 1.5;
+                bool CurrentHorizontal = Math.Abs(Samples[Index].Y - Samples[Index - 1].Y) <= 1.5;
+                if (PreviousHorizontal != CurrentHorizontal && (Horizontal || Vertical))
+                {
+                    Corners++;
+                }
+            }
+        }
+
+        if (AllAxis && Corners >= 1)
+        {
+            return StrokeStyleKind.Orthogonal;
+        }
+
+        if (AllAxis)
+        {
+            return StrokeStyleKind.Straight;
+        }
+
+        return StrokeStyleKind.Curve;
+    }
+
+    private static SvgNodeRect? FindRect(IReadOnlyList<SvgNodeRect> Rects, string NodeId)
+    {
+        foreach (SvgNodeRect Rect in Rects)
+        {
+            if (string.Equals(Rect.NodeId, NodeId, StringComparison.Ordinal))
+            {
+                return Rect;
+            }
+        }
+
+        return null;
+    }
+
+    private static ParsedEdgeStroke? FindNearestStrokeEnd(
+        IReadOnlyList<ParsedEdgeStroke> Strokes,
+        double X,
+        double Y)
+    {
+        ParsedEdgeStroke? Best = null;
+        double BestDistance = 24.0;
+        foreach (ParsedEdgeStroke Stroke in Strokes)
+        {
+            if (Stroke.Samples.Count == 0)
+            {
+                continue;
+            }
+
+            (double EndX, double EndY) = Stroke.Samples[Stroke.Samples.Count - 1];
+            double Gap = Distance(X, Y, EndX, EndY);
+            if (Gap < BestDistance)
+            {
+                BestDistance = Gap;
+                Best = Stroke;
+            }
+        }
+
+        return Best;
+    }
+
+    private static SvgNodeRect ExpandRect(SvgNodeRect Rect, double PaddingPx)
+    {
+        return new SvgNodeRect(
+            Rect.NodeId,
+            Rect.Left - PaddingPx,
+            Rect.Top - PaddingPx,
+            Rect.Right + PaddingPx,
+            Rect.Bottom + PaddingPx);
+    }
+
+    private static bool TryOverlayRun(
+        IReadOnlyList<(double X, double Y)> Left,
+        IReadOnlyList<(double X, double Y)> Right,
+        out double MidX,
+        out double MidY,
+        out double Gap)
+    {
+        MidX = 0.0;
+        MidY = 0.0;
+        Gap = double.MaxValue;
+        double BestRun = 0.0;
+        double RunStartX = 0.0;
+        double RunStartY = 0.0;
+        double RunEndX = 0.0;
+        double RunEndY = 0.0;
+        double RunGap = double.MaxValue;
+        bool InRun = false;
+        List<(double X, double Y)> DenseLeft = Densify(Left, 8.0);
+        for (int LeftIndex = 0; LeftIndex < DenseLeft.Count; LeftIndex++)
+        {
+            double LocalGap = DistanceToPolyline(DenseLeft[LeftIndex].X, DenseLeft[LeftIndex].Y, Right);
+            if (LocalGap < 8.0)
+            {
+                if (!InRun)
+                {
+                    InRun = true;
+                    RunStartX = DenseLeft[LeftIndex].X;
+                    RunStartY = DenseLeft[LeftIndex].Y;
+                    RunGap = LocalGap;
+                }
+
+                RunEndX = DenseLeft[LeftIndex].X;
+                RunEndY = DenseLeft[LeftIndex].Y;
+                RunGap = Math.Min(RunGap, LocalGap);
+                continue;
+            }
+
+            if (InRun)
+            {
+                double RunLength = Distance(RunStartX, RunStartY, RunEndX, RunEndY);
+                if (RunLength > BestRun)
+                {
+                    BestRun = RunLength;
+                    MidX = (RunStartX + RunEndX) / 2.0;
+                    MidY = (RunStartY + RunEndY) / 2.0;
+                    Gap = RunGap;
+                }
+
+                InRun = false;
+            }
+        }
+
+        if (InRun)
+        {
+            double RunLength = Distance(RunStartX, RunStartY, RunEndX, RunEndY);
+            if (RunLength > BestRun)
+            {
+                BestRun = RunLength;
+                MidX = (RunStartX + RunEndX) / 2.0;
+                MidY = (RunStartY + RunEndY) / 2.0;
+                Gap = RunGap;
+            }
+        }
+
+        return BestRun >= 20.0;
+    }
+
+    private static List<(double X, double Y)> Densify(
+        IReadOnlyList<(double X, double Y)> Samples,
+        double StepPx)
+    {
+        List<(double X, double Y)> Dense = [];
+        if (Samples.Count == 0)
+        {
+            return Dense;
+        }
+
+        Dense.Add(Samples[0]);
+        for (int Index = 1; Index < Samples.Count; Index++)
+        {
+            double Dx = Samples[Index].X - Samples[Index - 1].X;
+            double Dy = Samples[Index].Y - Samples[Index - 1].Y;
+            double Length = Math.Sqrt((Dx * Dx) + (Dy * Dy));
+            int Steps = Math.Max(1, (int)Math.Ceiling(Length / StepPx));
+            for (int Step = 1; Step <= Steps; Step++)
+            {
+                double T = Step / (double)Steps;
+                Dense.Add((Samples[Index - 1].X + (Dx * T), Samples[Index - 1].Y + (Dy * T)));
+            }
+        }
+
+        return Dense;
+    }
+
+    private static bool TryClosestPair(
+        IReadOnlyList<(double X, double Y)> Left,
+        IReadOnlyList<(double X, double Y)> Right,
+        out double X,
+        out double Y)
+    {
+        X = 0.0;
+        Y = 0.0;
+        double Best = double.MaxValue;
+        for (int LeftIndex = 0; LeftIndex < Left.Count; LeftIndex++)
+        {
+            for (int RightIndex = 0; RightIndex < Right.Count; RightIndex++)
+            {
+                double Gap = Distance(Left[LeftIndex].X, Left[LeftIndex].Y, Right[RightIndex].X, Right[RightIndex].Y);
+                if (Gap < Best)
+                {
+                    Best = Gap;
+                    X = (Left[LeftIndex].X + Right[RightIndex].X) / 2.0;
+                    Y = (Left[LeftIndex].Y + Right[RightIndex].Y) / 2.0;
+                }
+            }
+        }
+
+        return Best < double.MaxValue;
+    }
+
+    private static double DistanceToRect(double X, double Y, SvgNodeRect Rect)
+    {
+        if (X >= Rect.Left && X <= Rect.Right && Y >= Rect.Top && Y <= Rect.Bottom)
+        {
+            return 0.0;
+        }
+
+        double ClosestX = Math.Max(Rect.Left, Math.Min(Rect.Right, X));
+        double ClosestY = Math.Max(Rect.Top, Math.Min(Rect.Bottom, Y));
+        return Distance(X, Y, ClosestX, ClosestY);
+    }
+
+    private enum StrokeStyleKind
+    {
+        Straight = 0,
+        Orthogonal = 1,
+        Curve = 2
     }
 
     private static bool CrossingIsNearSharedEndpoint(

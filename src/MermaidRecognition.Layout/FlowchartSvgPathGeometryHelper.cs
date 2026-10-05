@@ -30,9 +30,11 @@ public static class FlowchartSvgPathGeometryHelper
 
         double CurrentX = 0.0;
         double CurrentY = 0.0;
+        double StartX = 0.0;
+        double StartY = 0.0;
         MatchCollection CommandMatches = Regex.Matches(
             PathData.Trim(),
-            @"([MLC])([^MLC]*)",
+            @"([MLCHVAZ])([^MLCHVAZ]*)",
             RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
         foreach (Match CommandMatch in CommandMatches)
@@ -45,6 +47,14 @@ public static class FlowchartSvgPathGeometryHelper
             string Command = CommandMatch.Groups[1].Value.ToUpperInvariant();
             string ArgumentText = CommandMatch.Groups[2].Value;
             List<double> Values = ParseNumericArguments(ArgumentText);
+            if (string.Equals(Command, "Z", StringComparison.Ordinal))
+            {
+                CurrentX = StartX;
+                CurrentY = StartY;
+                AddDistinctSample(Samples, CurrentX, CurrentY);
+                continue;
+            }
+
             if (Values.Count == 0)
             {
                 continue;
@@ -59,7 +69,43 @@ public static class FlowchartSvgPathGeometryHelper
 
                 CurrentX = Values[0];
                 CurrentY = Values[1];
+                StartX = CurrentX;
+                StartY = CurrentY;
                 AddDistinctSample(Samples, CurrentX, CurrentY);
+                continue;
+            }
+
+            if (string.Equals(Command, "H", StringComparison.Ordinal))
+            {
+                foreach (double Value in Values)
+                {
+                    CurrentX = Value;
+                    AddDistinctSample(Samples, CurrentX, CurrentY);
+                }
+
+                continue;
+            }
+
+            if (string.Equals(Command, "V", StringComparison.Ordinal))
+            {
+                foreach (double Value in Values)
+                {
+                    CurrentY = Value;
+                    AddDistinctSample(Samples, CurrentX, CurrentY);
+                }
+
+                continue;
+            }
+
+            if (string.Equals(Command, "A", StringComparison.Ordinal))
+            {
+                for (int ValueIndex = 0; ValueIndex + 6 < Values.Count; ValueIndex += 7)
+                {
+                    CurrentX = Values[ValueIndex + 5];
+                    CurrentY = Values[ValueIndex + 6];
+                    AddDistinctSample(Samples, CurrentX, CurrentY);
+                }
+
                 continue;
             }
 
