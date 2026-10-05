@@ -138,7 +138,16 @@ public sealed class FlowchartR1RenderGateTests
         DiagramContract Contract = FlowchartRecognizer.Parse(File.ReadAllText(MmdPath));
 
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
-        Assert.That(Layout.NodeBounds.Count, Is.EqualTo(Contract.Nodes.Count));
+        int ExpectedNodeCount = 0;
+        foreach (NodeContract Node in Contract.Nodes)
+        {
+            if (!FlowchartCompoundEndpointHelper.IsGroupId(Contract, Node.Id))
+            {
+                ExpectedNodeCount++;
+            }
+        }
+
+        Assert.That(Layout.NodeBounds.Count, Is.EqualTo(ExpectedNodeCount));
 
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
         Assert.That(Svg, Does.StartWith("<svg"));

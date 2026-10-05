@@ -2182,10 +2182,20 @@ public sealed class FlowchartCatalogueRenderTests
             double NodeBottom = Node.CenterY - (Node.Height / 2.0);
             double NodeTop = Node.CenterY + (Node.Height / 2.0);
 
-            Assert.That(NodeLeft - Left.Left, Is.GreaterThanOrEqualTo(17.0));
-            Assert.That(Left.Right - NodeRight, Is.GreaterThanOrEqualTo(17.0));
-            Assert.That(NodeBottom - Left.Bottom, Is.GreaterThanOrEqualTo(43.0));
-            Assert.That(Left.Top - NodeTop, Is.GreaterThanOrEqualTo(43.0));
+            Assert.That(NodeLeft - Left.Left, Is.GreaterThanOrEqualTo(FlowchartSubgraphBoundsBuilder.PADDING_PX - 1.0));
+            Assert.That(Left.Right - NodeRight, Is.GreaterThanOrEqualTo(FlowchartSubgraphBoundsBuilder.PADDING_PX - 1.0));
+            Assert.That(
+                NodeBottom - Left.Bottom,
+                Is.GreaterThanOrEqualTo(
+                    FlowchartSubgraphBoundsBuilder.PADDING_PX
+                    + FlowchartSubgraphBoundsBuilder.VERTICAL_CONTENT_SLACK_PX
+                    - 1.0));
+            Assert.That(
+                Left.Top - NodeTop,
+                Is.GreaterThanOrEqualTo(
+                    FlowchartSubgraphBoundsBuilder.TITLE_BAND_PX
+                    + FlowchartSubgraphBoundsBuilder.PADDING_PX
+                    - 1.0));
         }
 
         double LeftContentCenterY = BoundsById.Values

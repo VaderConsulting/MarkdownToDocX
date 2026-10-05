@@ -50,8 +50,19 @@ public static class FlowchartGeometryGraphBuilder
         Dictionary<string, FlowchartNodeDimensions> MeasuredById = BuildMeasuredDimensions(Contract, Options);
         bool SwapLayoutDimensions = ShouldSwapLayoutDimensions(Direction);
 
+        HashSet<string> GroupIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (GroupContract Group in Contract.Groups)
+        {
+            GroupIds.Add(Group.Id);
+        }
+
         foreach (NodeContract NodeContract in Contract.Nodes)
         {
+            if (GroupIds.Contains(NodeContract.Id))
+            {
+                continue;
+            }
+
             FlowchartNodeDimensions Dimensions = MeasuredById[NodeContract.Id];
             double LayoutWidth = SwapLayoutDimensions ? Dimensions.Height : Dimensions.Width;
             double LayoutHeight = SwapLayoutDimensions ? Dimensions.Width : Dimensions.Height;

@@ -199,6 +199,11 @@ public static class FlowchartSugiyamaSvgRenderer
 
         foreach (NodeContract Node in NodesInPaintOrder)
         {
+            if (FlowchartCompoundEndpointHelper.IsGroupId(Contract, Node.Id))
+            {
+                continue;
+            }
+
             if (!BoundsById.TryGetValue(Node.Id, out FlowchartLayoutNodeBounds Bounds))
             {
                 continue;
@@ -216,6 +221,56 @@ public static class FlowchartSugiyamaSvgRenderer
                 continue;
             }
 
+            string? RouteClass = TryResolveRouteClassName(Edge, RouteClassByEdgeKey);
+            FlowchartResolvedStyle EdgeStyle = RenderOptions.ResolveEdgeStyle(Edge);
+            bool SourceIsGroup = FlowchartCompoundEndpointHelper.IsGroupId(Contract, Edge.SourceId);
+            bool TargetIsGroup = FlowchartCompoundEndpointHelper.IsGroupId(Contract, Edge.TargetId);
+            if (SourceIsGroup || TargetIsGroup)
+            {
+                if (FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
+                        Edge,
+                        Contract,
+                        BoundsById,
+                        NodeById,
+                        Direction,
+                        out List<(double X, double Y)> CompoundPoints,
+                        out FlowchartEdgeRouteKind CompoundKind)
+                    && CompoundPoints.Count >= 2)
+                {
+                    Dictionary<string, FlowchartLayoutNodeBounds> CompoundBounds =
+                        new Dictionary<string, FlowchartLayoutNodeBounds>(BoundsById, StringComparer.Ordinal);
+                    FlowchartCompoundEndpointHelper.AddGroupBounds(Contract, CompoundBounds);
+                    if (CompoundBounds.TryGetValue(Edge.SourceId, out FlowchartLayoutNodeBounds CompoundSource)
+                        && CompoundBounds.TryGetValue(Edge.TargetId, out FlowchartLayoutNodeBounds CompoundTarget))
+                    {
+                        string? CompoundSourceShape = SourceIsGroup
+                            ? "rect"
+                            : (NodeById.TryGetValue(Edge.SourceId, out NodeContract? CompoundSourceNode)
+                                ? CompoundSourceNode.Shape
+                                : null);
+                        RenderResolvedEdgeRoute(
+                            Builder,
+                            Edge,
+                            Contract,
+                            CompoundBounds,
+                            CompoundSource,
+                            CompoundTarget,
+                            CompoundSourceShape,
+                            CompoundPoints,
+                            CompoundKind,
+                            Direction,
+                            RouteClass,
+                            MinLeft,
+                            MaxTop,
+                            DiagramPaddingPx,
+                            EdgeStyle,
+                            RenderOptions);
+                    }
+
+                    continue;
+                }
+            }
+
             if (!BoundsById.TryGetValue(Edge.SourceId, out FlowchartLayoutNodeBounds SourceBounds)
                 || !BoundsById.TryGetValue(Edge.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
             {
@@ -224,9 +279,6 @@ public static class FlowchartSugiyamaSvgRenderer
 
             string? SourceShape = NodeById.TryGetValue(Edge.SourceId, out NodeContract? SourceNode) ? SourceNode.Shape : null;
             string? TargetShape = NodeById.TryGetValue(Edge.TargetId, out NodeContract? TargetNode) ? TargetNode.Shape : null;
-            string? RouteClass = TryResolveRouteClassName(Edge, RouteClassByEdgeKey);
-
-            FlowchartResolvedStyle EdgeStyle = RenderOptions.ResolveEdgeStyle(Edge);
             bool IsRetryLoop = FlowchartEdgePathBuilder.IsLrRetryLoopEdge(
                 Edge,
                 Contract,
@@ -614,6 +666,11 @@ public static class FlowchartSugiyamaSvgRenderer
 
         foreach (NodeContract Node in NodesInPaintOrder)
         {
+            if (FlowchartCompoundEndpointHelper.IsGroupId(Contract, Node.Id))
+            {
+                continue;
+            }
+
             if (!BoundsById.TryGetValue(Node.Id, out FlowchartLayoutNodeBounds Bounds))
             {
                 continue;
@@ -632,6 +689,11 @@ public static class FlowchartSugiyamaSvgRenderer
 
         foreach (NodeContract Node in NodesInPaintOrder)
         {
+            if (FlowchartCompoundEndpointHelper.IsGroupId(Contract, Node.Id))
+            {
+                continue;
+            }
+
             if (!BoundsById.TryGetValue(Node.Id, out FlowchartLayoutNodeBounds Bounds))
             {
                 continue;

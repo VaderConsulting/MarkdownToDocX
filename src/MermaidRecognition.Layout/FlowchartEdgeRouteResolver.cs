@@ -33,8 +33,34 @@ public static class FlowchartEdgeRouteResolver
             return false;
         }
 
-        if (!BoundsById.TryGetValue(Edge.SourceId, out FlowchartLayoutNodeBounds SourceBounds)
-            || !BoundsById.TryGetValue(Edge.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> EffectiveBounds = BoundsById;
+        if (FlowchartCompoundEndpointHelper.IsGroupId(Contract, Edge.SourceId)
+            || FlowchartCompoundEndpointHelper.IsGroupId(Contract, Edge.TargetId))
+        {
+            Dictionary<string, FlowchartLayoutNodeBounds> WithGroups =
+                new Dictionary<string, FlowchartLayoutNodeBounds>(StringComparer.Ordinal);
+            foreach (KeyValuePair<string, FlowchartLayoutNodeBounds> Pair in BoundsById)
+            {
+                WithGroups[Pair.Key] = Pair.Value;
+            }
+
+            FlowchartCompoundEndpointHelper.AddGroupBounds(Contract, WithGroups);
+            if (FlowchartCompoundEndpointHelper.TryBuildFacingBoundaryPath(
+                    Edge,
+                    Contract,
+                    WithGroups,
+                    NodeById,
+                    out LayoutPoints))
+            {
+                RouteKind = FlowchartEdgeRouteKind.Straight;
+                return true;
+            }
+
+            EffectiveBounds = WithGroups;
+        }
+
+        if (!EffectiveBounds.TryGetValue(Edge.SourceId, out FlowchartLayoutNodeBounds SourceBounds)
+            || !EffectiveBounds.TryGetValue(Edge.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
         {
             return false;
         }

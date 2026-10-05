@@ -1,7 +1,7 @@
 # Mermaid Specification (Consolidated)
 
 **Status:** Consolidated specification (amalgamated from the `Mermaid_*.md` documents in this repository root)  
-**Last updated:** 2026-05-19  
+**Last updated:** 2026-10-05  
 **Primary scope:** Mermaid **flowchart** geometry + edge routing + line-end markers (for exact reproduction, SVG extraction, or manual technical drawing)  
 **Secondary scope:** Rendering Mermaid **inside .NET 10 / C# 14 applications** (in-process vs browser-hosted strategies)
 
@@ -1473,7 +1473,7 @@ Repository requirement (Naiad / native Sugiyama — measured parity constants in
 | --- | ---: | --- |
 | Side / bottom padding | **18px** | Minimum inset from member node body to cluster border (left, right, bottom). |
 | Title band | **26px** | Reserved at top for subgraph label; top inset = **18px below title band** (44px from cluster top to node top). |
-| Bottom content slack | **26px** | Extra space below bottom padding (balances title band). |
+| Bottom content slack | **8px** | Extra space below bottom padding. Native Sugiyama used 26px to mirror the title band; that inflated small groups (sample 11 junctions / Store Cluster) and empty vertical space. Tightened so the box fits its members. Title band already reserves the top. |
 | Member centreing | — | `CenterSubgraphMembersInClusterBoxes` centres the member content bounding box in the interior region (between title band + padding and bottom padding + slack). Deepest subgraphs first. |
 
 Catalogue regression: `F111` (single-row members in stacked subgraphs).
@@ -1567,7 +1567,7 @@ The corners are rounded per §15.0C.4. If a node blocks the drop row, the ordina
 - Rows are separated by the larger of the rank spacing and the node spacing.
 - An external node linked to a branching group is aligned to the X of the member it links to.
 
-Supporting guards keep this layout intact: the primary-row box expansion is skipped when the group is at least as tall as it is wide in aligned nodes, and the parallel-column alignment pass is skipped when a visible edge joins two different column chains.
+Supporting guards keep this layout intact: the primary-row box expansion is skipped when the group is at least as tall as it is wide in aligned nodes (column-led), the primary-column box expansion is skipped when the group is row-led, and the parallel-column alignment pass is skipped when a visible edge joins two different column chains.
 
 **Closure:** `FlowchartSubgraphLayoutPostProcessor.TryLayoutVerticalSubgraphMembersByRow`, `FlowchartSubgraphSpineCenterHelper.ExpandVerticalBoundsAroundPrimaryRow`, `FlowchartParallelColumnAlignHelper.HasEdgeBetweenChains`.
 
@@ -1689,6 +1689,32 @@ The rule uses only graph structure (edges, back edges, invisible links and node 
 **Naiad note:** Mermaid uses `dominant-baseline="middle"` / `central`. Svg.Skia, which rasterises diagrams to PNG for DOCX, ignores `dominant-baseline` and treats `y` as the baseline, so every label sat about 6 px high at 16 px. Writing the baseline explicitly gives the same result in browsers, Word's SVG renderer and Svg.Skia. The old +4 px nudge for single-line rich labels is removed.
 
 **Closure:** `FlowchartRichLabelSvgWriter.ComputeFirstBaselineY` / `ComputeLabelBlockCentreY` (inverse, used by rule validation), `TEXT_BASELINE_OFFSET_EM`; used by `FlowchartSugiyamaSvgRenderer` (node and edge labels), `FlowchartRichLabelSvgWriter.AppendCentredLabel` and `FlowchartSubgraphSvgRenderer`.
+
+##### 15.0C.19 Subgraph boxes contain only members (sample 03)
+
+**Rule:** A subgraph rectangle must enclose only its own members (including nested groups). Nodes that are not members must be laid out outside the box, with the same exterior gap used for sibling clusters. Dummy nodes that exist only because a subgraph id appears in the contract are omitted from Sugiyama placement so they do not occupy a rank.
+
+When members are spread so that a hole between them would swallow a non-member, member columns are packed to close that hole, then any remaining overlap is evicted along the shortest axis. The cluster title stays in the title band of the tightened box.
+
+**Naiad note:** Flat Sugiyama can park non-members in the gap between widely spaced members (sample 03: Shop Web UI, Online Ordering and Order sat inside Primary data centre). Mermaid’s Dagre compound layout never places foreign nodes in a cluster AABB.
+
+**Closure:** `FlowchartGeometryGraphBuilder` skips group-id nodes; `FlowchartSubgraphLayoutPostProcessor.CompactSubgraphMembersAroundNonMembers` and `EvictNonMembersFromSubgraphBoxes`.
+
+##### 15.0C.20 Root ranking follows the diagram direction (sample 12)
+
+**Rule:** A root (a node with outgoing visible edges and no incoming visible edges) is placed one rank beyond its facing successor along the diagram direction: above the highest successor in TB, below the lowest in BT, left of the leftmost in LR, right of the rightmost in RL. Roots are **not** forced onto a shared rank.
+
+**Naiad note:** The earlier `AlignRootNodesToCommonRank` pass moved every root to the minimum Y (TB bottom). That put Board under Raise Revenue in sample 12, so the edge ran up through three boxes. No catalogue test required the shared-rank behaviour, so it is replaced.
+
+**Closure:** `FlowchartLayoutPostProcessor.AlignRootNodesToCommonRank` with `TryGetFacingSuccessorBounds`.
+
+##### 15.0C.21 Compound and subgraph edge endpoints (sample 03)
+
+**Rule:** An edge whose source or target is a subgraph id routes to the cluster rectangle, not to a dummy node and not around the exterior of the diagram. Attach at the facing side, clipped to the rectangle, as a two-point straight segment (Section 15.0A). Both the flowchart and enterprise renders must draw the edge in the source → target direction.
+
+Examples: `webShop --> shopUi`, `war --> webShop`, `lb -->|HTTPS| appNode`, `lan --> appNode`. `lan --> lb` keeps LAN as the source.
+
+**Closure:** `FlowchartCompoundEndpointHelper.AddGroupBounds` / `TryBuildFacingBoundaryPath`, called from `FlowchartEdgeRouteResolver` and `FlowchartSugiyamaSvgRenderer`. Group-id dummy nodes are not painted.
 
 Key:
 
