@@ -58,6 +58,15 @@ public sealed class FlowchartRenderedSvgQualityGateTests
         """;
 
     [Test]
+    public void LivePictures_ReportUnjustifiedCounts()
+    {
+        DumpLivePicture("sample-03-flowchart", SAMPLE_03_SOURCE);
+        DumpLivePicture("sample-03-enterprise", SAMPLE_03_SOURCE);
+        DumpLivePicture("sample-01", File.ReadAllText(FindEnterpriseSample("01-flowchart.mmd")));
+        DumpLivePicture("sample-06", File.ReadAllText(FindEnterpriseSample("06-flowchart.mmd")));
+    }
+
+    [Test]
     public void Sample03_FinalSvg_ReportsDefectCounts()
     {
         FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.Evaluate("sample-03", SAMPLE_03_SOURCE);
@@ -284,6 +293,20 @@ public sealed class FlowchartRenderedSvgQualityGateTests
 
         Source = Heading.Groups[1].Value.Trim();
         return !string.IsNullOrWhiteSpace(Source);
+    }
+
+    private static void DumpLivePicture(string DiagramName, string Source)
+    {
+        Assert.That(NativeFlowchartRenderBridge.TryRenderFlowchartSvg(Source, out string Svg), Is.True);
+        FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.EvaluatePicture(
+            DiagramName,
+            Source,
+            Svg);
+        TestContext.Out.WriteLine(FormatReport(Report));
+        TestContext.Out.WriteLine(
+            DiagramName
+            + " live EvaluatePicture failures="
+            + Report.Failures.Count.ToString(CultureInfo.InvariantCulture));
     }
 
     private static void AssertDetected(

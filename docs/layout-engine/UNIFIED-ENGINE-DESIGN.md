@@ -282,11 +282,22 @@ The resolver already classifies routes (`FlowchartEdgeRouteKind`). The unified e
 
 Ports: facing-side selection from relative geometry; `2N−1` slots on a shared face; decision diamonds use side exits; fan-out/fan-in allocators stay in the core. A profile can disable fan ports (class, ER) or force side-only (C4).
 
+The **shared router** (`FlowchartSharedEdgeRouter`) owns every searchable edge. It does not call the adopted MSAGL routers for output. It does reuse their ideas, written in our own types:
+
+| Technique | Our code | Inspired by |
+| --- | --- | --- |
+| Padded boxes + shortest path that misses foreign nodes | `FlowchartPaddedVisibilityRouter` | `VisibilityGraph`, `SingleSourceSingleTargetShortestPathOnVisibilityGraph` |
+| Leave or enter a group once, at a right angle | `FlowchartGroupBoundaryCrossingHelper` | `GroupBoundaryCrossing`, `ObstacleTree` |
+| Spread overlapping parallel interiors (edges that share a node stay on port spread) | `SeparateParallelRenderedSegments` | `Nudger` |
+| Cost per change of direction on the visibility path | `FlowchartPaddedVisibilityRouter` Dijkstra bend cost (4% of Manhattan length) | `SsstRectilinearPath.BendsImportance`, `MsmtRectilinearPath` |
+| Snap loose ends onto the box they join | `SnapAllEndpointsToBoxes` | `Arrowheads.TrimSplineAndCalculateArrowheads` |
+| Keep labels off boxes and other strokes | `FlowchartEdgeLabelClearanceHelper` | `EdgeLabelPlacement` |
+
 Markers stay **per-type paint**: flowchart arrows/cross/circle; class UML; ER cardinalities; ArchiMate serving/realization. The engine returns attach points; the renderer draws the marker.
 
 ### 4.6 Label placement
 
-Core rule (already flowchart): measure the label before layout; `minlen` comes from stroke length, not label width; place the label beside the route, never on the stroke, arrowhead, or node boundary.
+Core rule (already flowchart): measure the label before layout; `minlen` comes from stroke length, not label width; place the label beside the route, never on the stroke, arrowhead, or node boundary. The clearance helper is the one implementation, following `EdgeLabelPlacement`'s obstacle map (nodes, then other edges, then the own stroke).
 
 Profiles add:
 

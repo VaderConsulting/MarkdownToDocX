@@ -10,6 +10,10 @@ namespace MermaidRecognition.Layout;
 /// <summary>
 /// The one shared flowchart router. It searches ports, channels and detours for a failure-free
 /// layout, then records a justification only when no such option exists.
+/// Techniques adapted from the adopted MSAGL slice (not called for output):
+/// <c>VisibilityGraph</c> / <c>SingleSourceSingleTargetShortestPathOnVisibilityGraph</c>,
+/// <c>GroupBoundaryCrossing</c>, <c>Nudger</c>, <c>SsstRectilinearPath</c> bend penalty,
+/// and <c>Arrowheads.TrimSplineAndCalculateArrowheads</c>.
 /// </summary>
 public static class FlowchartSharedEdgeRouter
 {
@@ -205,7 +209,34 @@ public static class FlowchartSharedEdgeRouter
         bool HitsNode = RenderedPathHitsNonEndpoint(Contract, BoundsById, Guide.Edge, BestSamples, out _);
         bool Crosses = PenaliseCrossings
             && CountCrossingsWithOthers(BoundsById, AllGuides, Guide, BestSamples, Direction) > 0;
-        if ((HitsNode || Crosses) && Best.Points.Count >= 2)
+        bool VisibilityClearedHit = false;
+        if (HitsNode)
+        {
+            AddVisibilityGraphCandidates(Contract, BoundsById, Guide, Candidates);
+            foreach (CandidateRoute Candidate in Candidates)
+            {
+                double Score = ScoreCandidate(
+                    Contract,
+                    BoundsById,
+                    Direction,
+                    AllGuides,
+                    Guide,
+                    Candidate,
+                    PenaliseCrossings);
+                if (Score < BestScore)
+                {
+                    BestScore = Score;
+                    Best = Candidate;
+                }
+            }
+
+            BestSamples = FlattenRenderedGuide(Best.Points, Best.RouteKind, Direction);
+            bool StillHitsNode = RenderedPathHitsNonEndpoint(Contract, BoundsById, Guide.Edge, BestSamples, out _);
+            VisibilityClearedHit = HitsNode && !StillHitsNode;
+            HitsNode = StillHitsNode;
+        }
+
+        if ((HitsNode || Crosses) && Best.Points.Count >= 2 && !VisibilityClearedHit)
         {
             (double StartX, double StartY) = Best.Points[0];
             (double EndX, double EndY) = Best.Points[Best.Points.Count - 1];
@@ -603,7 +634,41 @@ public static class FlowchartSharedEdgeRouter
             Score += 150000.0 * CountCrossingsWithOthers(BoundsById, AllGuides, Guide, Samples, Direction);
             Score += 4000.0 * CountNearParallel(AllGuides, Guide, Samples, Direction);
         }
+
         return Score;
+    }
+
+    private static void AddVisibilityGraphCandidates(
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        FlowchartResolvedGuide Guide,
+        List<CandidateRoute> Candidates)
+    {
+        if (Guide.Points.Count < 2)
+        {
+            return;
+        }
+
+        List<FlowchartLayoutNodeBounds> Obstacles = FlowchartPaddedVisibilityRouter.CollectObstacles(
+            Contract,
+            BoundsById,
+            Guide.Edge);
+        (double StartX, double StartY) = Guide.Points[0];
+        (double EndX, double EndY) = Guide.Points[Guide.Points.Count - 1];
+        if (!FlowchartPaddedVisibilityRouter.TryRoute(StartX, StartY, EndX, EndY, Obstacles, out List<(double X, double Y)> Routed))
+        {
+            return;
+        }
+
+        FlowchartGroupBoundaryCrossingHelper.InsertPerpendicularCrossings(
+            Contract,
+            BoundsById,
+            Guide.Edge,
+            Routed);
+        FlowchartEdgeRouteKind VisibilityKind = Routed.Count <= 2
+            ? FlowchartEdgeRouteKind.Straight
+            : FlowchartEdgeRouteKind.Corridor;
+        Candidates.Add(new CandidateRoute(Routed, VisibilityKind));
     }
 
     private static void ApplyPortSpread(
@@ -699,6 +764,10 @@ public static class FlowchartSharedEdgeRouter
         }
     }
 
+    /// <summary>
+    /// Spreads overlapping parallel interiors. Inspired by <c>Nudger.NudgePaths</c>;
+    /// endpoints stay pinned so shared ports are not dragged off the box.
+    /// </summary>
     private static void SeparateParallelRenderedSegments(
         FlowchartDirection Direction,
         List<FlowchartResolvedGuide> Guides)
@@ -980,7 +1049,7 @@ public static class FlowchartSharedEdgeRouter
                     continue;
                 }
 
-                if (FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(StartX, StartY, EndX, EndY, Bounds, 8.0))
+                if (FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(StartX, StartY, EndX, EndY, Bounds, 1.0))
                 {
                     HitNodeId = Bounds.NodeId;
                     return true;

@@ -92,6 +92,8 @@ public readonly struct FlowchartSvgRect
 /// <summary>
 /// Moves an edge label off its own connector so the text never sits on the line, the arrowhead or a node.
 /// Works in render (SVG, Y down) coordinates.
+/// Inspired by <c>EdgeLabelPlacement</c> in the adopted MSAGL slice: treat nodes, other strokes,
+/// and the own connector as obstacles, then slide the label to the nearest clear offset.
 /// </summary>
 public static class FlowchartEdgeLabelClearanceHelper
 {
