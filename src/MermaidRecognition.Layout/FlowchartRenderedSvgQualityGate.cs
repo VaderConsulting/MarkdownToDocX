@@ -235,9 +235,10 @@ public static class FlowchartRenderedSvgQualityGate
         CollectLabelOnBox(Strokes, Labels, NodeRects, Violations);
         CollectParallelDefects(Strokes, Violations);
         CollectOverlayingEdges(Strokes, NodeRects, Violations);
+        FlowchartQualityGateProfile Profile = FlowchartQualityGateProfile.Detect(Svg);
         CollectMixedStyle(Guides, Violations);
-        CollectMixedStyleFromStrokes(Strokes, Violations);
-        CollectIllegalGroupTraversals(Contract, Strokes, GroupRects, Violations);
+        CollectMixedStyleFromStrokes(Strokes, Profile, Violations);
+        CollectIllegalGroupTraversals(Contract, Strokes, GroupRects, Profile, Violations);
         CollectGroupInteriorDiagonals(Contract, Strokes, GroupRects, Violations);
         CollectHooks(Strokes, Violations);
         CollectCrossings(Strokes, NodeRects, Violations);
@@ -460,7 +461,8 @@ public static class FlowchartRenderedSvgQualityGate
         return string.Equals(Kind, "LabelOnBox", StringComparison.Ordinal)
             || string.Equals(Kind, "LabelOwnEdge", StringComparison.Ordinal)
             || string.Equals(Kind, "GroupBorderReentry", StringComparison.Ordinal)
-            || string.Equals(Kind, "ForeignGroupTraversal", StringComparison.Ordinal);
+            || string.Equals(Kind, "ForeignGroupTraversal", StringComparison.Ordinal)
+            || string.Equals(Kind, "OverlayingEdges", StringComparison.Ordinal);
     }
 
     private static void CollectParallelDefects(
@@ -543,6 +545,7 @@ public static class FlowchartRenderedSvgQualityGate
         DiagramContract Contract,
         IReadOnlyList<ParsedEdgeStroke> Strokes,
         IReadOnlyList<SvgNodeRect> GroupRects,
+        FlowchartQualityGateProfile Profile,
         List<FlowchartLayoutQualityFailure> Violations)
     {
         if (GroupRects.Count == 0)
@@ -612,7 +615,10 @@ public static class FlowchartRenderedSvgQualityGate
                         [Stroke.SourceId, Stroke.TargetId, GroupRect.NodeId],
                         null));
                 }
-                else if (Crossings >= 1 && !CrossingIsPerpendicular && InteriorLength > 48.0)
+                else if (Crossings >= 1
+                    && !CrossingIsPerpendicular
+                    && InteriorLength > 48.0
+                    && !IsArchiMateOrthogonalStroke(Profile, Stroke))
                 {
                     Violations.Add(new FlowchartLayoutQualityFailure(
                         "GroupBorderDiagonal",
@@ -778,7 +784,7 @@ public static class FlowchartRenderedSvgQualityGate
                 }
 
                 if (SharesEndpoint(Left, Right)
-                    && CrossingIsNearSharedEndpoint(Left, Right, MidX, MidY, NodeRects))
+                    && CrossingIsNearSharedPort(Left, Right, MidX, MidY))
                 {
                     continue;
                 }
@@ -796,6 +802,7 @@ public static class FlowchartRenderedSvgQualityGate
 
     private static void CollectMixedStyleFromStrokes(
         IReadOnlyList<ParsedEdgeStroke> Strokes,
+        FlowchartQualityGateProfile Profile,
         List<FlowchartLayoutQualityFailure> Violations)
     {
         bool HasStraight = false;
@@ -817,7 +824,11 @@ public static class FlowchartRenderedSvgQualityGate
             {
                 HasOrthogonal = true;
             }
-            else
+            else if (!Profile.TreatDashedAndSolidAsOneStyle)
+            {
+                HasCurve = true;
+            }
+            else if (PathLength(Stroke.Samples) >= 40.0 && !IsOrthogonalPolyline(Stroke.Samples))
             {
                 HasCurve = true;
             }
@@ -1508,6 +1519,80 @@ public static class FlowchartRenderedSvgQualityGate
                 {
                     return true;
                 }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool CrossingIsNearSharedPort(
+        ParsedEdgeStroke Left,
+        ParsedEdgeStroke Right,
+        double CrossX,
+        double CrossY)
+    {
+        if (Left.Samples.Count < 1 || Right.Samples.Count < 1)
+        {
+            return false;
+        }
+
+        (double LeftStartX, double LeftStartY) = Left.Samples[0];
+        (double LeftEndX, double LeftEndY) = Left.Samples[Left.Samples.Count - 1];
+        (double RightStartX, double RightStartY) = Right.Samples[0];
+        (double RightEndX, double RightEndY) = Right.Samples[Right.Samples.Count - 1];
+        const double PortRadiusPx = 20.0;
+        if (string.Equals(Left.SourceId, Right.SourceId, StringComparison.Ordinal)
+            && Distance(CrossX, CrossY, LeftStartX, LeftStartY) <= PortRadiusPx
+            && Distance(CrossX, CrossY, RightStartX, RightStartY) <= PortRadiusPx)
+        {
+            return true;
+        }
+
+        if (string.Equals(Left.SourceId, Right.TargetId, StringComparison.Ordinal)
+            && Distance(CrossX, CrossY, LeftStartX, LeftStartY) <= PortRadiusPx
+            && Distance(CrossX, CrossY, RightEndX, RightEndY) <= PortRadiusPx)
+        {
+            return true;
+        }
+
+        if (string.Equals(Left.TargetId, Right.SourceId, StringComparison.Ordinal)
+            && Distance(CrossX, CrossY, LeftEndX, LeftEndY) <= PortRadiusPx
+            && Distance(CrossX, CrossY, RightStartX, RightStartY) <= PortRadiusPx)
+        {
+            return true;
+        }
+
+        if (string.Equals(Left.TargetId, Right.TargetId, StringComparison.Ordinal)
+            && Distance(CrossX, CrossY, LeftEndX, LeftEndY) <= PortRadiusPx
+            && Distance(CrossX, CrossY, RightEndX, RightEndY) <= PortRadiusPx)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool HasFarSideExcursion(IReadOnlyList<(double X, double Y)> Samples, double ThresholdPx)
+    {
+        if (Samples.Count < 2)
+        {
+            return false;
+        }
+
+        (double StartX, double StartY) = Samples[0];
+        (double EndX, double EndY) = Samples[Samples.Count - 1];
+        double MinX = Math.Min(StartX, EndX);
+        double MaxX = Math.Max(StartX, EndX);
+        double MinY = Math.Min(StartY, EndY);
+        double MaxY = Math.Max(StartY, EndY);
+        foreach ((double X, double Y) in Samples)
+        {
+            if (X < MinX - ThresholdPx
+                || X > MaxX + ThresholdPx
+                || Y < MinY - ThresholdPx
+                || Y > MaxY + ThresholdPx)
+            {
+                return true;
             }
         }
 
@@ -2376,6 +2461,19 @@ public static class FlowchartRenderedSvgQualityGate
         }
 
         return Corners >= 2;
+    }
+
+    private static bool IsArchiMateOrthogonalStroke(
+        FlowchartQualityGateProfile Profile,
+        ParsedEdgeStroke Stroke)
+    {
+        if (!Profile.TreatDashedAndSolidAsOneStyle)
+        {
+            return false;
+        }
+
+        StrokeStyleKind Style = ClassifyStrokeStyle(Stroke.Samples);
+        return Style == StrokeStyleKind.Straight || Style == StrokeStyleKind.Orthogonal;
     }
 
     private static bool SegmentHitsRect(

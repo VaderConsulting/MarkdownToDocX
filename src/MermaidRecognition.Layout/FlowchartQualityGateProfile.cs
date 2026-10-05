@@ -12,12 +12,14 @@ public sealed class FlowchartQualityGateProfile
         string Name,
         bool KeepFirstRelationshipConnector,
         bool SkipFilledRelationshipMarkers,
-        bool IgnoreGroupChromeStrokes)
+        bool IgnoreGroupChromeStrokes,
+        bool TreatDashedAndSolidAsOneStyle)
     {
         this.Name = Name;
         this.KeepFirstRelationshipConnector = KeepFirstRelationshipConnector;
         this.SkipFilledRelationshipMarkers = SkipFilledRelationshipMarkers;
         this.IgnoreGroupChromeStrokes = IgnoreGroupChromeStrokes;
+        this.TreatDashedAndSolidAsOneStyle = TreatDashedAndSolidAsOneStyle;
     }
 
     /// <summary>
@@ -27,7 +29,8 @@ public sealed class FlowchartQualityGateProfile
         "flowchart",
         KeepFirstRelationshipConnector: false,
         SkipFilledRelationshipMarkers: false,
-        IgnoreGroupChromeStrokes: false);
+        IgnoreGroupChromeStrokes: false,
+        TreatDashedAndSolidAsOneStyle: false);
 
     /// <summary>
     /// ArchiMate paint: first connector path is the edge; filled markers and group
@@ -38,7 +41,8 @@ public sealed class FlowchartQualityGateProfile
         "archimate",
         KeepFirstRelationshipConnector: true,
         SkipFilledRelationshipMarkers: true,
-        IgnoreGroupChromeStrokes: true);
+        IgnoreGroupChromeStrokes: true,
+        TreatDashedAndSolidAsOneStyle: true);
 
     /// <summary>
     /// Profile name used in reports.
@@ -59,6 +63,11 @@ public sealed class FlowchartQualityGateProfile
     /// When true, ignore group-tab chrome that is not an edge.
     /// </summary>
     public bool IgnoreGroupChromeStrokes { get; }
+
+    /// <summary>
+    /// When true, dashed and solid orthogonal runs are one right-angle style.
+    /// </summary>
+    public bool TreatDashedAndSolidAsOneStyle { get; }
 
     /// <summary>
     /// Detects the paint profile from SVG markup.

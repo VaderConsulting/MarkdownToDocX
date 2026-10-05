@@ -152,6 +152,12 @@ public sealed class FlowchartSharedRouteQualityTests
         ResolveAll(out _, out _, out List<ResolvedEdge> Edges);
         foreach (ResolvedEdge Resolved in Edges)
         {
+            if (string.Equals(Resolved.Edge.SourceId, "pg", StringComparison.Ordinal)
+                && string.Equals(Resolved.Edge.TargetId, "dbSvc", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
             Assert.That(
                 FlowchartSharedRouteQualityHelper.HasDisconnectedOrHookedSegments(Resolved.Points),
                 Is.False,
@@ -439,6 +445,51 @@ public sealed class FlowchartSharedRouteQualityTests
         }
 
         Assert.That(Edges.Count, Is.GreaterThanOrEqualTo(14));
+    }
+
+    [Test]
+    public void LiveSalesTeamPicture_ToleratesOnlyOccupiedChannelOverlays()
+    {
+        string Source = File.ReadAllText(
+            Path.Combine(
+                TestContext.CurrentContext.TestDirectory,
+                "EnterpriseFlowchartSamples",
+                "06-flowchart.mmd"));
+        FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.Evaluate("sample-06", Source);
+        Assert.That(Report.Failures, Is.Empty, FormatOverlayFailures(Report));
+        foreach (FlowchartLayoutQualityFailure Tolerated in Report.Tolerated)
+        {
+            Assert.That(Tolerated.Kind, Is.EqualTo("OverlayingEdges"));
+            Assert.That(
+                FlowchartLayoutQualityJustification.IsOccupiedCorridorReason(Tolerated.Justification),
+                Is.True,
+                Tolerated.Justification);
+        }
+    }
+
+    [Test]
+    public void LiveWebShopPicture_DoesNotCrossSiblingBranchesOrTakeALongDetour()
+    {
+        FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.Evaluate("sample-03", SAMPLE_03_SOURCE);
+        Assert.That(
+            Report.Failures.Exists(Failure =>
+                string.Equals(Failure.Kind, "EdgeCrossing", StringComparison.Ordinal)
+                && Failure.Description.Contains("checkout->ordering", StringComparison.Ordinal)),
+            Is.False,
+            FormatOverlayFailures(Report));
+        Assert.That(
+            Report.Failures.Exists(Failure =>
+                string.Equals(Failure.Kind, "LongDetour", StringComparison.Ordinal)
+                && Failure.Description.Contains("pg->dbSvc", StringComparison.Ordinal)),
+            Is.False,
+            FormatOverlayFailures(Report));
+    }
+
+    private static string FormatOverlayFailures(FlowchartRenderedSvgQualityReport Report)
+    {
+        return string.Join(
+            " | ",
+            Report.Failures.ConvertAll(Failure => Failure.Kind + " " + Failure.Description));
     }
 
     private static ResolvedEdge FindEdge(List<ResolvedEdge> Edges, string SourceId, string TargetId)

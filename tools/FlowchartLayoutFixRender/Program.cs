@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 
 using MDConverter;
 using MermaidRecognition.Layout;
+using MermaidRecognition.Render;
 
 string RepoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
 string Command = args.Length > 0 ? args[0] : "help";
@@ -43,7 +44,22 @@ if (string.Equals(Command, "dump-layout", StringComparison.OrdinalIgnoreCase))
     return;
 }
 
-Console.WriteLine("Usage: FlowchartLayoutFixRender rasterize <dir> | render-flow <dir> | render-mmd <in> <out> | refresh-after [dir] | dump-layout <mmd>");
+if (string.Equals(Command, "dump-gate", StringComparison.OrdinalIgnoreCase))
+{
+    string Mermaid = args.Length > 1 ? File.ReadAllText(args[1]) : throw new InvalidOperationException("dump-gate requires a .mmd path.");
+    DumpGate(Path.GetFileName(args[1]), Mermaid);
+    return;
+}
+
+if (string.Equals(Command, "dump-svg-gate", StringComparison.OrdinalIgnoreCase))
+{
+    string Mermaid = args.Length > 1 ? File.ReadAllText(args[1]) : throw new InvalidOperationException("dump-svg-gate requires a .mmd path.");
+    string Svg = args.Length > 2 ? File.ReadAllText(args[2]) : throw new InvalidOperationException("dump-svg-gate requires an .svg path.");
+    DumpSvgGate(Path.GetFileName(args[1]), Mermaid, Svg);
+    return;
+}
+
+Console.WriteLine("Usage: FlowchartLayoutFixRender rasterize <dir> | render-flow <dir> | render-mmd <in> <out> | refresh-after [dir] | dump-layout <mmd> | dump-gate <mmd> | dump-svg-gate <mmd> <svg>");
 
 static void RasterizeDirectory(string DirectoryPath)
 {
@@ -130,6 +146,62 @@ static void DumpLayout(string Mermaid)
             + Bounds.Width.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)
             + " h="
             + Bounds.Height.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture));
+    }
+}
+
+static void DumpGate(string Name, string Mermaid)
+{
+    if (!NativeFlowchartRenderBridge.TryRenderFlowchartSvg(Mermaid, out string Svg) || string.IsNullOrWhiteSpace(Svg))
+    {
+        Console.WriteLine("RENDER FAILED");
+        return;
+    }
+
+    DumpSvgGate(Name, Mermaid, Svg);
+    DumpEdgePaths(Svg);
+}
+
+static void DumpSvgGate(string Name, string Mermaid, string Svg)
+{
+    FlowchartRenderedSvgQualityReport Picture = FlowchartRenderedSvgQualityGate.EvaluatePicture(Name + "-picture", Mermaid, Svg);
+    FlowchartRenderedSvgQualityReport Live = FlowchartRenderedSvgQualityGate.Evaluate(Name, Mermaid);
+    Console.WriteLine("PICTURE failures=" + Picture.Failures.Count + " tolerated=" + Picture.Tolerated.Count);
+    foreach (FlowchartLayoutQualityFailure Failure in Picture.Failures)
+    {
+        Console.WriteLine("  FAIL " + Failure.Kind + " " + Failure.Description);
+    }
+
+    foreach (FlowchartLayoutQualityFailure Failure in Picture.Tolerated)
+    {
+        Console.WriteLine("  TOL " + Failure.Kind + " " + Failure.Description + " :: " + Failure.Justification);
+    }
+
+    Console.WriteLine("LIVE failures=" + Live.Failures.Count + " tolerated=" + Live.Tolerated.Count);
+    foreach (FlowchartLayoutQualityFailure Failure in Live.Failures)
+    {
+        Console.WriteLine("  FAIL " + Failure.Kind + " " + Failure.Description);
+    }
+
+    foreach (FlowchartLayoutQualityFailure Failure in Live.Tolerated)
+    {
+        Console.WriteLine("  TOL " + Failure.Kind + " " + Failure.Description + " :: " + Failure.Justification);
+    }
+}
+
+static void DumpEdgePaths(string Svg)
+{
+    foreach (System.Text.RegularExpressions.Match Match in System.Text.RegularExpressions.Regex.Matches(
+        Svg,
+        "<path[^>]* d=\"([^\"]+)\"[^>]* data-edge-source=\"([^\"]+)\" data-edge-target=\"([^\"]+)\"[^>]*>"))
+    {
+        Console.WriteLine(Match.Groups[2].Value + "->" + Match.Groups[3].Value + " " + Match.Groups[1].Value);
+    }
+
+    foreach (System.Text.RegularExpressions.Match Match in System.Text.RegularExpressions.Regex.Matches(
+        Svg,
+        "<path[^>]* data-edge-source=\"([^\"]+)\" data-edge-target=\"([^\"]+)\"[^>]* d=\"([^\"]+)\"[^>]*>"))
+    {
+        Console.WriteLine(Match.Groups[1].Value + "->" + Match.Groups[2].Value + " " + Match.Groups[3].Value);
     }
 }
 
