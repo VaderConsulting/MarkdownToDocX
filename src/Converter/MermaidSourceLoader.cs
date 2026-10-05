@@ -6,7 +6,7 @@ namespace Converter;
 internal static class MermaidSourceLoader
 {
     private static readonly Regex MermaidFenceRegex = new(
-        @"(?s)```mermaid\s*\r?\n(?<Body>.*?)(\r?\n```)",
+        @"(?s)```(?:mermaid|enterprise)\s*\r?\n(?<Body>.*?)(\r?\n```)",
         RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     public static int GetMermaidBlockCount(string InputPath)

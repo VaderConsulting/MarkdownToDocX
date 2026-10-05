@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\MDConverter\MDConverter.csproj" />
+    <ProjectReference Include="..\..\src\MermaidRecognition.Layout\MermaidRecognition.Layout.csproj" />
     <ProjectReference Include="..\..\extern\Naiad\src\Naiad\Naiad.csproj" />
   </ItemGroup>
 

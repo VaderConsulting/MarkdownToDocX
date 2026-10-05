@@ -1,0 +1,14 @@
+enterprise
+  title Implementation and Migration
+  direction TB
+
+  work-package         cutover   "Cutover"
+  deliverable          goLive    "Go-Live Pack"
+  implementation-event started   "Cutover Started"
+  plateau              target    "Target Architecture"
+  gap                  missing   "Missing Hosting"
+
+  started -triggering-> cutover
+  cutover -access(write)-> goLive
+  cutover -realization-> target
+  target -association-> missing

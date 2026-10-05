@@ -1,0 +1,24 @@
+enterprise
+  title Motivation - goals, principles and requirements
+  direction TB
+
+  stakeholder   board     "Board"
+  driver        growth    "Revenue Growth"
+  assessment    gapReview "Growth Gap"
+  goal          raiseRev  "Raise Revenue"
+  outcome       moreSales "More Sales"
+  principle     customer  "Customer First"
+  requirement   mustTrack "Must Track Orders"
+  constraint    noCash    "No Cash Handling"
+  meaning       orderSense "What an order means"
+  value         trust     "Customer Trust"
+
+  board -influence(+)-> growth
+  growth -association-> gapReview
+  gapReview -influence-> raiseRev
+  customer -realization-> raiseRev
+  mustTrack -realization-> raiseRev
+  noCash -specialization-> mustTrack
+  moreSales -association-> raiseRev
+  orderSense -association-> trust
+  board -association-> trust

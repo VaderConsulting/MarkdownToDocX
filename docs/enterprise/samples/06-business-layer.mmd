@@ -1,0 +1,31 @@
+enterprise
+  title Business layer - actors, behaviour and products
+  direction TB
+
+  business-actor          clerk       "Order Clerk"
+  business-role           seller      "Seller"
+  business-collaboration  salesTeam   "Sales Team"
+  business-interface      shopFront   "Shop Front"
+  business-function       fulfil      "Fulfil Orders"
+  business-interaction    handoff     "Order Handoff"
+  business-process        takeOrder   "Take Order"
+  business-event          orderTaken  "Order Taken"
+  business-service        selling     "Selling"
+  business-object         orderForm   "Order Form"
+  contract                terms       "Terms of Sale"
+  representation          paperOrder  "Paper Order"
+  product                 shopOffer   "Shop Product"
+
+  clerk -assignment-> seller
+  salesTeam -aggregation-> seller
+  seller -assignment-> takeOrder
+  takeOrder -realization-> selling
+  fulfil -realization-> selling
+  shopFront -assignment-> selling
+  selling -serving-> seller
+  takeOrder -triggering-> orderTaken
+  orderTaken -triggering-> handoff
+  takeOrder -access(write)-> orderForm
+  terms -specialization-> orderForm
+  paperOrder -realization-> orderForm
+  shopOffer -aggregation-> selling
