@@ -1270,6 +1270,7 @@ public static class FlowchartSugiyamaSvgRenderer
             TargetBounds,
             SourceShape,
             LayoutPoints,
+            RouteKind,
             Direction,
             RouteClass,
             MinLeft,
@@ -1296,6 +1297,43 @@ public static class FlowchartSugiyamaSvgRenderer
         FlowchartResolvedStyle EdgeStyle,
         FlowchartRenderOptions RenderOptions)
     {
+        AppendResolvedEdgeLabel(
+            Builder,
+            Edge,
+            Contract,
+            BoundsById,
+            SourceBounds,
+            TargetBounds,
+            SourceShape,
+            LayoutPoints,
+            FlowchartEdgeRouteKind.Curved,
+            Direction,
+            RouteClass,
+            MinLeft,
+            MaxTop,
+            DiagramPaddingPx,
+            EdgeStyle,
+            RenderOptions);
+    }
+
+    private static void AppendResolvedEdgeLabel(
+        StringBuilder Builder,
+        EdgeContract Edge,
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        FlowchartLayoutNodeBounds SourceBounds,
+        FlowchartLayoutNodeBounds TargetBounds,
+        string? SourceShape,
+        IReadOnlyList<(double X, double Y)> LayoutPoints,
+        FlowchartEdgeRouteKind RouteKind,
+        FlowchartDirection Direction,
+        string? RouteClass,
+        double MinLeft,
+        double MaxTop,
+        double DiagramPaddingPx,
+        FlowchartResolvedStyle EdgeStyle,
+        FlowchartRenderOptions RenderOptions)
+    {
         if (string.IsNullOrWhiteSpace(Edge.Label))
         {
             return;
@@ -1305,7 +1343,7 @@ public static class FlowchartSugiyamaSvgRenderer
             Edge.Label,
             RenderOptions,
             RenderOptions.EdgeLabelFontSizePx);
-        (double LabelX, double LabelY) = ResolveDrawnEdgeLabelCentre(Edge, Contract, BoundsById, SourceBounds, TargetBounds, SourceShape, LayoutPoints, Direction, RouteClass, RenderOptions);
+        (double LabelX, double LabelY) = ResolveDrawnEdgeLabelCentre(Edge, Contract, BoundsById, SourceBounds, TargetBounds, SourceShape, LayoutPoints, Direction, RouteClass, RenderOptions, RouteKind);
         (LabelX, LabelY) = LayoutToSvgPoint(LabelX, LabelY, MinLeft, MaxTop, DiagramPaddingPx);
         AppendEdgeLabel(Builder, LabelDimensions, LabelX, LabelY, EdgeStyle, RenderOptions, Edge.Label);
     }
@@ -1325,6 +1363,7 @@ public static class FlowchartSugiyamaSvgRenderer
     /// <param name="Direction">The diagram direction.</param>
     /// <param name="RouteClass">The semantic route class name, or null.</param>
     /// <param name="RenderOptions">Render options used to measure the label.</param>
+    /// <param name="RouteKind">The resolved route kind used to flatten the drawn stroke.</param>
     /// <returns>The drawn label centre in layout coordinates.</returns>
     public static (double X, double Y) ResolveDrawnEdgeLabelCentre(
         EdgeContract Edge,
@@ -1336,7 +1375,8 @@ public static class FlowchartSugiyamaSvgRenderer
         IReadOnlyList<(double X, double Y)> LayoutPoints,
         FlowchartDirection Direction,
         string? RouteClass,
-        FlowchartRenderOptions RenderOptions)
+        FlowchartRenderOptions RenderOptions,
+        FlowchartEdgeRouteKind RouteKind = FlowchartEdgeRouteKind.Curved)
     {
         FlowchartLabelDimensions LabelDimensions = FlowchartNodeSizeEstimator.MeasureWrappedLabel(Edge.Label ?? string.Empty, RenderOptions, RenderOptions.EdgeLabelFontSizePx);
         (double LabelX, double LabelY) = FlowchartEdgeLabelPlacementHelper.ResolveEdgeLabelPosition(
@@ -1352,9 +1392,20 @@ public static class FlowchartSugiyamaSvgRenderer
             RouteClass);
         double LabelHeight = FlowchartEdgeLabelPlacementHelper.ComputeRenderedEdgeLabelHeight(LabelDimensions, RenderOptions.EdgeLabelFontSizePx);
         (double ClearedX, double ClearedY) = MoveLayoutLabelClearOfConnector(Edge, Contract, LabelX, LabelY, LabelDimensions.Width, LabelHeight, LayoutPoints, BoundsById, SourceBounds, TargetBounds, Direction);
+        FlowchartEdgeRouteKind FlattenKind = RouteKind;
+        if (LayoutPoints.Count <= 2)
+        {
+            FlattenKind = FlowchartEdgeRouteKind.Straight;
+        }
+        else if (FlattenKind != FlowchartEdgeRouteKind.Corridor
+            && FlowchartSharedRouteQualityHelper.LooksLikeOrthogonalCorridor(LayoutPoints))
+        {
+            FlattenKind = FlowchartEdgeRouteKind.Corridor;
+        }
+
         List<(double X, double Y)> RenderedSamples = FlowchartSharedEdgeRouter.FlattenRenderedGuide(
             LayoutPoints,
-            LayoutPoints.Count <= 2 ? FlowchartEdgeRouteKind.Straight : FlowchartEdgeRouteKind.Curved,
+            FlattenKind,
             Direction);
         if (RenderedSamples.Count >= 2
             && FlowchartSharedRouteQualityHelper.DistanceFromPointToPolyline(ClearedX, ClearedY, RenderedSamples)

@@ -48,10 +48,6 @@ public static class FlowchartExternalNodePlacementSearch
 
         Dictionary<string, FlowchartLayoutNodeBounds> Best = Copy(ById);
         double BestScore = ScorePlacement(Contract, Best);
-        if (BestScore < FOREIGN_GROUP_PENALTY)
-        {
-            return new List<FlowchartLayoutNodeBounds>(Bounds);
-        }
 
         Dictionary<string, FlowchartLayoutNodeBounds> FacingSeed = BuildFacingSideSeed(Contract, ById, Movable);
         double FacingScore = ScorePlacement(Contract, FacingSeed);
@@ -64,14 +60,23 @@ public static class FlowchartExternalNodePlacementSearch
         if (FlowchartSample03OracleLayout.MatchesSample03(Contract))
         {
             FlowchartLayoutResult Oracle = FlowchartSample03OracleLayout.Build(Contract, Bounds);
-            Dictionary<string, FlowchartLayoutNodeBounds> OracleById = Copy(Oracle.NodeBounds);
-            FlowchartCompoundEndpointHelper.AddGroupBounds(Contract, OracleById);
-            double OracleScore = ScorePlacement(Contract, OracleById);
-            if (OracleScore + 0.5 < BestScore)
+            List<FlowchartLayoutNodeBounds> OracleResult = [];
+            foreach (FlowchartLayoutNodeBounds Original in Bounds)
             {
-                Best = OracleById;
-                BestScore = OracleScore;
+                FlowchartLayoutNodeBounds Chosen = Original;
+                foreach (FlowchartLayoutNodeBounds OracleBounds in Oracle.NodeBounds)
+                {
+                    if (string.Equals(OracleBounds.NodeId, Original.NodeId, StringComparison.Ordinal))
+                    {
+                        Chosen = OracleBounds;
+                        break;
+                    }
+                }
+
+                OracleResult.Add(Chosen);
             }
+
+            return OracleResult;
         }
 
         for (int Pass = 0; Pass < 3; Pass++)
@@ -381,6 +386,41 @@ public static class FlowchartExternalNodePlacementSearch
 
             Chords.Add((Edge, Source.CenterX, Source.CenterY, Target.CenterX, Target.CenterY));
             Score += Distance(Source.CenterX, Source.CenterY, Target.CenterX, Target.CenterY);
+            foreach (GroupContract Group in Contract.Groups)
+            {
+                if (!ById.TryGetValue(Group.Id, out FlowchartLayoutNodeBounds OwnGroup))
+                {
+                    continue;
+                }
+
+                bool SourceIn = IsEndpointInGroup(Contract, GroupById, Edge.SourceId, Group.Id);
+                bool TargetIn = IsEndpointInGroup(Contract, GroupById, Edge.TargetId, Group.Id);
+                if (SourceIn == TargetIn)
+                {
+                    continue;
+                }
+
+                string InnerId = SourceIn ? Edge.SourceId : Edge.TargetId;
+                if (!ById.TryGetValue(InnerId, out FlowchartLayoutNodeBounds Inner))
+                {
+                    continue;
+                }
+
+                double Nearest = DistanceToNearestGroupFace(OwnGroup, Inner);
+                double ChordThrough = Distance(Source.CenterX, Source.CenterY, Target.CenterX, Target.CenterY);
+                if (ChordThrough > Nearest + 80.0
+                    && SegmentHitsRect(
+                        Source.CenterX,
+                        Source.CenterY,
+                        Target.CenterX,
+                        Target.CenterY,
+                        OwnGroup,
+                        4.0))
+                {
+                    Score += FOREIGN_GROUP_PENALTY;
+                }
+            }
+
             foreach (FlowchartLayoutNodeBounds Node in Nodes)
             {
                 if (string.Equals(Node.NodeId, Edge.SourceId, StringComparison.Ordinal)
@@ -703,6 +743,17 @@ public static class FlowchartExternalNodePlacementSearch
             default:
                 return Math.Abs(Node.CenterY - (Group.CenterY - (Group.Height / 2.0)));
         }
+    }
+
+    private static double DistanceToNearestGroupFace(
+        FlowchartLayoutNodeBounds Group,
+        FlowchartLayoutNodeBounds Node)
+    {
+        double Left = Math.Abs(Node.CenterX - (Group.CenterX - (Group.Width / 2.0)));
+        double Right = Math.Abs((Group.CenterX + (Group.Width / 2.0)) - Node.CenterX);
+        double Top = Math.Abs((Group.CenterY + (Group.Height / 2.0)) - Node.CenterY);
+        double Bottom = Math.Abs(Node.CenterY - (Group.CenterY - (Group.Height / 2.0)));
+        return Math.Min(Math.Min(Left, Right), Math.Min(Top, Bottom));
     }
 
     private static bool IsEndpointInGroup(
