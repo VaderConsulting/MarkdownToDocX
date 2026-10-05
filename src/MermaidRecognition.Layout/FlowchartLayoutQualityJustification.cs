@@ -35,6 +35,22 @@ public static class FlowchartLayoutQualityJustification
             return true;
         }
 
+        if (IsOccupiedCorridorReason(Reason))
+        {
+            return true;
+        }
+
         return false;
+    }
+
+    /// <summary>
+    /// True when the reason names an occupied exterior corridor.
+    /// </summary>
+    /// <param name="Reason">Candidate justification.</param>
+    /// <returns>True when the occupied-corridor form is present.</returns>
+    public static bool IsOccupiedCorridorReason(string? Reason)
+    {
+        return !string.IsNullOrWhiteSpace(Reason)
+            && Reason.StartsWith("occupied corridor", StringComparison.Ordinal);
     }
 }

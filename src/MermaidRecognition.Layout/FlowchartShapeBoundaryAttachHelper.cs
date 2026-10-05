@@ -94,6 +94,44 @@ public static class FlowchartShapeBoundaryAttachHelper
     }
 
     /// <summary>
+    /// Clips an approach point onto the visible outline of the node. Every shape uses this helper.
+    /// </summary>
+    /// <param name="Bounds">Node layout box.</param>
+    /// <param name="Shape">Mermaid shape name.</param>
+    /// <param name="TowardX">The neighbouring route point facing this node.</param>
+    /// <param name="TowardY">The neighbouring route point facing this node.</param>
+    /// <param name="Marker">Endpoint marker; only a cross keeps an exterior gap.</param>
+    /// <returns>The outline attach point.</returns>
+    public static (double X, double Y) ClipToShapeOutline(
+        FlowchartLayoutNodeBounds Bounds,
+        string? Shape,
+        double TowardX,
+        double TowardY,
+        EdgeEndpointMarker Marker)
+    {
+        if (TryResolveInboundAttach(Bounds, Shape, TowardX, TowardY, Marker, out double AttachX, out double AttachY))
+        {
+            return (AttachX, AttachY);
+        }
+
+        if (TryResolveOutboundAttach(Bounds, Shape, TowardX, TowardY, Marker, out AttachX, out AttachY))
+        {
+            return (AttachX, AttachY);
+        }
+
+        (double ExitX, double ExitY) = FlowchartShapeLayoutHelper.RayExitShape(
+            Bounds.CenterX,
+            Bounds.CenterY,
+            Bounds.Width,
+            Bounds.Height,
+            Shape,
+            0.0,
+            -1.0);
+        double GapPx = FlowchartEdgeAttachConstants.GetExteriorGapPx(Marker);
+        return (ExitX, ExitY - GapPx);
+    }
+
+    /// <summary>
     /// Returns true when source and target share the spine column within tolerance.
     /// </summary>
     public static bool AreSpineColumnAligned(

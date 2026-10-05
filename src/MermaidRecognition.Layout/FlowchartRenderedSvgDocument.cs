@@ -127,6 +127,11 @@ public sealed class FlowchartRenderedSvgDocument
         }
 
         Map[Normalised] = Id;
+        string Compact = Regex.Replace(Normalised, @"\s+", string.Empty);
+        if (Compact.Length > 0)
+        {
+            Map[Compact] = Id;
+        }
     }
 
     private static string NormaliseLabel(string? Text)
@@ -136,13 +141,17 @@ public sealed class FlowchartRenderedSvgDocument
             return string.Empty;
         }
 
-        return Regex.Replace(Text.Trim(), @"\s+", " ");
+        string WithTagSpaces = Regex.Replace(Text, "<[^>]+>", " ");
+        return Regex.Replace(WithTagSpaces.Trim(), @"\s+", " ");
     }
 
     private static void ParseStrokes(string Svg, DiagramContract Contract, FlowchartRenderedSvgDocument Document)
     {
+        FlowchartQualityGateProfile Profile = FlowchartQualityGateProfile.Detect(Svg);
         string? OpenSource = null;
         string? OpenTarget = null;
+        bool OpenIsRelationship = false;
+        bool OpenIsGroupChrome = false;
         foreach (Match Match in Regex.Matches(
             Svg,
             "<g\\b[^>]*>|</g>|(<(?:path|line)\\b[^>]*>)",
@@ -154,6 +163,13 @@ public sealed class FlowchartRenderedSvgDocument
                 Dictionary<string, string> Attributes = ParseAttributes(Token);
                 Attributes.TryGetValue("data-source", out OpenSource);
                 Attributes.TryGetValue("data-target", out OpenTarget);
+                Attributes.TryGetValue("class", out string? ClassName);
+                OpenIsRelationship = !string.IsNullOrEmpty(ClassName)
+                    && ClassName.Contains("relationship", StringComparison.OrdinalIgnoreCase);
+                OpenIsGroupChrome = Profile.IgnoreGroupChromeStrokes
+                    && !string.IsNullOrEmpty(ClassName)
+                    && ClassName.Contains("group", StringComparison.OrdinalIgnoreCase)
+                    && string.IsNullOrEmpty(OpenSource);
                 continue;
             }
 
@@ -161,10 +177,31 @@ public sealed class FlowchartRenderedSvgDocument
             {
                 OpenSource = null;
                 OpenTarget = null;
+                OpenIsRelationship = false;
+                OpenIsGroupChrome = false;
+                continue;
+            }
+
+            if (OpenIsGroupChrome)
+            {
                 continue;
             }
 
             Dictionary<string, string> StrokeAttributes = ParseAttributes(Token);
+            if (OpenIsRelationship && Profile.SkipFilledRelationshipMarkers)
+            {
+                StrokeAttributes.TryGetValue("fill", out string? Fill);
+                bool Filled = !string.IsNullOrEmpty(Fill)
+                    && !string.Equals(Fill, "none", StringComparison.OrdinalIgnoreCase);
+                StrokeAttributes.TryGetValue("d", out string? PathData);
+                bool ClosedMarker = !string.IsNullOrEmpty(PathData)
+                    && PathData.Contains("Z", StringComparison.OrdinalIgnoreCase);
+                if (Filled || ClosedMarker)
+                {
+                    continue;
+                }
+            }
+
             if (!TryReadSamples(StrokeAttributes, out List<(double X, double Y)> Samples))
             {
                 continue;
@@ -195,6 +232,11 @@ public sealed class FlowchartRenderedSvgDocument
             FlowchartRenderedSvgStroke? Existing = FindStroke(Document.Strokes, SourceId, TargetId);
             if (Existing is not null)
             {
+                if (OpenIsRelationship && Profile.KeepFirstRelationshipConnector)
+                {
+                    continue;
+                }
+
                 if (PathLength(Samples) > PathLength(Existing.Samples))
                 {
                     Existing.Samples.Clear();
@@ -249,9 +291,18 @@ public sealed class FlowchartRenderedSvgDocument
                     Text = NormaliseLabel(Regex.Replace(Token, "<[^>]+>", " "));
                 }
 
-                if (Text.Length == 0 || !LabelToId.TryGetValue(Text, out string? MappedId))
+                if (Text.Length == 0)
                 {
                     continue;
+                }
+
+                if (!LabelToId.TryGetValue(Text, out string? MappedId))
+                {
+                    string Compact = Regex.Replace(Text, @"\s+", string.Empty);
+                    if (!LabelToId.TryGetValue(Compact, out MappedId))
+                    {
+                        continue;
+                    }
                 }
 
                 if (Document.FindBox(MappedId) is not null)

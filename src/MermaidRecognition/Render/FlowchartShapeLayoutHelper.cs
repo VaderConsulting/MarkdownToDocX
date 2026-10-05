@@ -117,6 +117,30 @@ public static class FlowchartShapeLayoutHelper
             return RayExitCylinder(CenterX, CenterY, Width, Height, DirX, DirY);
         }
 
+        if (string.Equals(Normalised, "stadium", StringComparison.Ordinal))
+        {
+            return RayExitRoundedRect(
+                CenterX,
+                CenterY,
+                Width,
+                Height,
+                Height / 2.0,
+                DirX,
+                DirY);
+        }
+
+        if (string.Equals(Normalised, "rounded", StringComparison.Ordinal))
+        {
+            return RayExitRoundedRect(
+                CenterX,
+                CenterY,
+                Width,
+                Height,
+                FlowchartShapePathGenerator.FLOWCHART_ROUNDED_RECT_RADIUS_PX,
+                DirX,
+                DirY);
+        }
+
         (double ClipCenterX, double ClipCenterY, double HalfWidth, double HalfHeight) =
             GetClipBox(CenterX, CenterY, Width, Height, Shape);
         return RayExitBox(ClipCenterX, ClipCenterY, HalfWidth, HalfHeight, DirX, DirY);
@@ -269,6 +293,226 @@ public static class FlowchartShapeLayoutHelper
         }
 
         return BoxExit;
+    }
+
+    private static (double X, double Y) RayExitRoundedRect(
+        double CenterX,
+        double CenterY,
+        double Width,
+        double Height,
+        double Radius,
+        double DirX,
+        double DirY)
+    {
+        double HalfWidth = Width / 2.0;
+        double HalfHeight = Height / 2.0;
+        double CornerRadius = Math.Min(Radius, Math.Min(HalfWidth, HalfHeight));
+        double FlatHalfWidth = HalfWidth - CornerRadius;
+        double FlatHalfHeight = HalfHeight - CornerRadius;
+        double BestT = double.PositiveInfinity;
+
+        TryRayHitHorizontalFlat(
+            CenterX,
+            CenterY,
+            DirX,
+            DirY,
+            CenterY + HalfHeight,
+            CenterX - FlatHalfWidth,
+            CenterX + FlatHalfWidth,
+            ref BestT);
+        TryRayHitHorizontalFlat(
+            CenterX,
+            CenterY,
+            DirX,
+            DirY,
+            CenterY - HalfHeight,
+            CenterX - FlatHalfWidth,
+            CenterX + FlatHalfWidth,
+            ref BestT);
+        TryRayHitVerticalFlat(
+            CenterX,
+            CenterY,
+            DirX,
+            DirY,
+            CenterX + HalfWidth,
+            CenterY - FlatHalfHeight,
+            CenterY + FlatHalfHeight,
+            ref BestT);
+        TryRayHitVerticalFlat(
+            CenterX,
+            CenterY,
+            DirX,
+            DirY,
+            CenterX - HalfWidth,
+            CenterY - FlatHalfHeight,
+            CenterY + FlatHalfHeight,
+            ref BestT);
+
+        TryRayHitCircleQuadrant(
+            CenterX,
+            CenterY,
+            DirX,
+            DirY,
+            CenterX + FlatHalfWidth,
+            CenterY + FlatHalfHeight,
+            CornerRadius,
+            1,
+            1,
+            ref BestT);
+        TryRayHitCircleQuadrant(
+            CenterX,
+            CenterY,
+            DirX,
+            DirY,
+            CenterX + FlatHalfWidth,
+            CenterY - FlatHalfHeight,
+            CornerRadius,
+            1,
+            -1,
+            ref BestT);
+        TryRayHitCircleQuadrant(
+            CenterX,
+            CenterY,
+            DirX,
+            DirY,
+            CenterX - FlatHalfWidth,
+            CenterY + FlatHalfHeight,
+            CornerRadius,
+            -1,
+            1,
+            ref BestT);
+        TryRayHitCircleQuadrant(
+            CenterX,
+            CenterY,
+            DirX,
+            DirY,
+            CenterX - FlatHalfWidth,
+            CenterY - FlatHalfHeight,
+            CornerRadius,
+            -1,
+            -1,
+            ref BestT);
+
+        if (double.IsPositiveInfinity(BestT))
+        {
+            return RayExitBox(CenterX, CenterY, HalfWidth, HalfHeight, DirX, DirY);
+        }
+
+        return (CenterX + (DirX * BestT), CenterY + (DirY * BestT));
+    }
+
+    private static void TryRayHitHorizontalFlat(
+        double OriginX,
+        double OriginY,
+        double DirX,
+        double DirY,
+        double LineY,
+        double MinX,
+        double MaxX,
+        ref double BestT)
+    {
+        if (Math.Abs(DirY) <= 1e-9)
+        {
+            return;
+        }
+
+        double T = (LineY - OriginY) / DirY;
+        if (T <= 1e-9)
+        {
+            return;
+        }
+
+        double HitX = OriginX + (DirX * T);
+        if (HitX < MinX - 1e-6 || HitX > MaxX + 1e-6)
+        {
+            return;
+        }
+
+        if (T < BestT)
+        {
+            BestT = T;
+        }
+    }
+
+    private static void TryRayHitVerticalFlat(
+        double OriginX,
+        double OriginY,
+        double DirX,
+        double DirY,
+        double LineX,
+        double MinY,
+        double MaxY,
+        ref double BestT)
+    {
+        if (Math.Abs(DirX) <= 1e-9)
+        {
+            return;
+        }
+
+        double T = (LineX - OriginX) / DirX;
+        if (T <= 1e-9)
+        {
+            return;
+        }
+
+        double HitY = OriginY + (DirY * T);
+        if (HitY < MinY - 1e-6 || HitY > MaxY + 1e-6)
+        {
+            return;
+        }
+
+        if (T < BestT)
+        {
+            BestT = T;
+        }
+    }
+
+    private static void TryRayHitCircleQuadrant(
+        double OriginX,
+        double OriginY,
+        double DirX,
+        double DirY,
+        double CircleX,
+        double CircleY,
+        double Radius,
+        int QuadrantX,
+        int QuadrantY,
+        ref double BestT)
+    {
+        double OffsetX = OriginX - CircleX;
+        double OffsetY = OriginY - CircleY;
+        double QuadraticA = (DirX * DirX) + (DirY * DirY);
+        if (QuadraticA <= 1e-12)
+        {
+            return;
+        }
+
+        double QuadraticB = 2.0 * ((OffsetX * DirX) + (OffsetY * DirY));
+        double QuadraticC = (OffsetX * OffsetX) + (OffsetY * OffsetY) - (Radius * Radius);
+        double Discriminant = (QuadraticB * QuadraticB) - (4.0 * QuadraticA * QuadraticC);
+        if (Discriminant < 0.0)
+        {
+            return;
+        }
+
+        double Root = Math.Sqrt(Discriminant);
+        double[] Candidates = [(-QuadraticB - Root) / (2.0 * QuadraticA), (-QuadraticB + Root) / (2.0 * QuadraticA)];
+        foreach (double T in Candidates)
+        {
+            if (T <= 1e-9 || T >= BestT)
+            {
+                continue;
+            }
+
+            double LocalX = OriginX + (DirX * T) - CircleX;
+            double LocalY = OriginY + (DirY * T) - CircleY;
+            if ((LocalX * QuadrantX) < -1e-6 || (LocalY * QuadrantY) < -1e-6)
+            {
+                continue;
+            }
+
+            BestT = T;
+        }
     }
 
     private static void TryUpdateBestRayExit(

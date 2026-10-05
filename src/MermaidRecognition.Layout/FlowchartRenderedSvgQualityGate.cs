@@ -218,6 +218,8 @@ public static class FlowchartRenderedSvgQualityGate
             NodeRects = BuildNodeRects(Contract, BoundsById, Frame);
         }
 
+        AppendUnnamedBoxes(Document, NodeRects);
+
         List<SvgNodeRect> GroupRects = MapNamedBoxes(Document, Contract, GroupsOnly: true);
         if (GroupRects.Count == 0
             && FlowchartSvgCoordinateFrameResolver.TryResolve(Contract, Layout, out FlowchartSvgCoordinateFrame GroupFrame))
@@ -244,19 +246,24 @@ public static class FlowchartRenderedSvgQualityGate
         CollectRankGaps(NodeRects, Violations);
         CollectLongDiagonals(Strokes, Violations);
         CollectCrampedArrows(Strokes, Violations);
+        CollectCanvasExits(Strokes, NodeRects, GroupRects, Violations);
+        CollectLongDetours(Strokes, Violations);
 
         IReadOnlyList<FlowchartLayoutQualityFailure> Justifications = ApplyJustifications
             ? FlowchartSharedEdgeRouter.LastJustifications
             : [];
         foreach (FlowchartLayoutQualityFailure Violation in Violations)
         {
-            if (!ApplyJustifications || IsUnjustifiableKind(Violation.Kind))
+            string? Reason = FindJustification(Violation, Justifications, Contract, BoundsById, Direction);
+            bool OccupiedCorridor = ApplyJustifications
+                && FlowchartLayoutQualityJustification.IsOccupiedCorridorReason(Reason)
+                && IsOccupiedCorridorKind(Violation.Kind);
+            if ((!ApplyJustifications || IsUnjustifiableKind(Violation.Kind)) && !OccupiedCorridor)
             {
                 Report.Failures.Add(Violation);
                 continue;
             }
 
-            string? Reason = FindJustification(Violation, Justifications, Contract, BoundsById, Direction);
             if (!FlowchartLayoutQualityJustification.IsSpecificReason(Reason))
             {
                 Report.Failures.Add(Violation);
@@ -443,7 +450,17 @@ public static class FlowchartRenderedSvgQualityGate
             || string.Equals(Kind, "GroupBorderDiagonal", StringComparison.Ordinal)
             || string.Equals(Kind, "RankGap", StringComparison.Ordinal)
             || string.Equals(Kind, "LongDiagonal", StringComparison.Ordinal)
-            || string.Equals(Kind, "CrampedArrow", StringComparison.Ordinal);
+            || string.Equals(Kind, "CrampedArrow", StringComparison.Ordinal)
+            || string.Equals(Kind, "CanvasExit", StringComparison.Ordinal)
+            || string.Equals(Kind, "LongDetour", StringComparison.Ordinal);
+    }
+
+    private static bool IsOccupiedCorridorKind(string Kind)
+    {
+        return string.Equals(Kind, "LabelOnBox", StringComparison.Ordinal)
+            || string.Equals(Kind, "LabelOwnEdge", StringComparison.Ordinal)
+            || string.Equals(Kind, "GroupBorderReentry", StringComparison.Ordinal)
+            || string.Equals(Kind, "ForeignGroupTraversal", StringComparison.Ordinal);
     }
 
     private static void CollectParallelDefects(
@@ -920,13 +937,21 @@ public static class FlowchartRenderedSvgQualityGate
             }
 
             SvgNodeRect? Target = FindRect(Boxes, Stroke.TargetId);
-            if (Target == null)
+            (double EndX, double EndY) = Stroke.Samples[Stroke.Samples.Count - 1];
+            bool NearTarget = Target != null && DistanceToRect(EndX, EndY, Target) <= 40.0;
+            if (!NearTarget)
             {
-                continue;
+                foreach (SvgNodeRect Rect in Boxes)
+                {
+                    if (DistanceToRect(EndX, EndY, Rect) <= 40.0)
+                    {
+                        NearTarget = true;
+                        break;
+                    }
+                }
             }
 
-            (double EndX, double EndY) = Stroke.Samples[Stroke.Samples.Count - 1];
-            if (DistanceToRect(EndX, EndY, Target) <= 40.0)
+            if (NearTarget)
             {
                 continue;
             }
@@ -1079,6 +1104,89 @@ public static class FlowchartRenderedSvgQualityGate
                     + " is a cramped "
                     + Length.ToString("0.0", CultureInfo.InvariantCulture)
                     + " px arrow",
+                    [Stroke.SourceId, Stroke.TargetId],
+                    null));
+            }
+        }
+    }
+
+    private static void CollectCanvasExits(
+        IReadOnlyList<ParsedEdgeStroke> Strokes,
+        IReadOnlyList<SvgNodeRect> NodeRects,
+        IReadOnlyList<SvgNodeRect> GroupRects,
+        List<FlowchartLayoutQualityFailure> Violations)
+    {
+        double MinX = double.PositiveInfinity;
+        double MinY = double.PositiveInfinity;
+        double MaxX = double.NegativeInfinity;
+        double MaxY = double.NegativeInfinity;
+        foreach (SvgNodeRect Rect in NodeRects)
+        {
+            MinX = Math.Min(MinX, Math.Min(Rect.Left, Rect.Right));
+            MinY = Math.Min(MinY, Math.Min(Rect.Top, Rect.Bottom));
+            MaxX = Math.Max(MaxX, Math.Max(Rect.Left, Rect.Right));
+            MaxY = Math.Max(MaxY, Math.Max(Rect.Top, Rect.Bottom));
+        }
+
+        foreach (SvgNodeRect Rect in GroupRects)
+        {
+            MinX = Math.Min(MinX, Math.Min(Rect.Left, Rect.Right));
+            MinY = Math.Min(MinY, Math.Min(Rect.Top, Rect.Bottom));
+            MaxX = Math.Max(MaxX, Math.Max(Rect.Left, Rect.Right));
+            MaxY = Math.Max(MaxY, Math.Max(Rect.Top, Rect.Bottom));
+        }
+
+        if (double.IsInfinity(MinX))
+        {
+            return;
+        }
+
+        MinX -= 16.0;
+        MinY -= 16.0;
+        MaxX += 16.0;
+        MaxY += 16.0;
+        foreach (ParsedEdgeStroke Stroke in Strokes)
+        {
+            foreach ((double X, double Y) in Stroke.Samples)
+            {
+                if (X < MinX || X > MaxX || Y < MinY || Y > MaxY)
+                {
+                    Violations.Add(new FlowchartLayoutQualityFailure(
+                        "CanvasExit",
+                        Stroke.SourceId + "->" + Stroke.TargetId + " leaves the canvas",
+                        [Stroke.SourceId, Stroke.TargetId],
+                        null));
+                    break;
+                }
+            }
+        }
+    }
+
+    private static void CollectLongDetours(
+        IReadOnlyList<ParsedEdgeStroke> Strokes,
+        List<FlowchartLayoutQualityFailure> Violations)
+    {
+        foreach (ParsedEdgeStroke Stroke in Strokes)
+        {
+            if (Stroke.Samples.Count < 2)
+            {
+                continue;
+            }
+
+            (double StartX, double StartY) = Stroke.Samples[0];
+            (double EndX, double EndY) = Stroke.Samples[Stroke.Samples.Count - 1];
+            double Manhattan = Math.Abs(EndX - StartX) + Math.Abs(EndY - StartY);
+            double Length = PathLength(Stroke.Samples);
+            if (Length > (2.8 * Math.Max(Manhattan, 40.0)) && (Length - Manhattan) > 80.0)
+            {
+                Violations.Add(new FlowchartLayoutQualityFailure(
+                    "LongDetour",
+                    Stroke.SourceId + "->" + Stroke.TargetId
+                    + " detours "
+                    + Length.ToString("0", CultureInfo.InvariantCulture)
+                    + " px against a "
+                    + Manhattan.ToString("0", CultureInfo.InvariantCulture)
+                    + " px run",
                     [Stroke.SourceId, Stroke.TargetId],
                     null));
             }
@@ -1542,6 +1650,14 @@ public static class FlowchartRenderedSvgQualityGate
             {
                 return Justification.Justification;
             }
+
+            if (Justification.IsJustified
+                && FlowchartLayoutQualityJustification.IsOccupiedCorridorReason(Justification.Justification)
+                && IsOccupiedCorridorKind(Violation.Kind)
+                && ContainsAllIds(Violation.InvolvedIds, Justification.InvolvedIds))
+            {
+                return Justification.Justification;
+            }
         }
 
         if (!string.Equals(Violation.Kind, "EdgeCrossing", StringComparison.Ordinal)
@@ -1910,6 +2026,45 @@ public static class FlowchartRenderedSvgQualityGate
         return Rects;
     }
 
+    private static void AppendUnnamedBoxes(
+        FlowchartRenderedSvgDocument Document,
+        List<SvgNodeRect> NodeRects)
+    {
+        int UnnamedIndex = 0;
+        foreach (FlowchartRenderedSvgBox Box in Document.Boxes)
+        {
+            if (!string.IsNullOrEmpty(Box.NodeId) || Box.IsGroup)
+            {
+                continue;
+            }
+
+            bool AlreadyCovered = false;
+            foreach (SvgNodeRect Existing in NodeRects)
+            {
+                double OverlapWidth = Math.Min(Existing.Right, Box.Right) - Math.Max(Existing.Left, Box.Left);
+                double OverlapHeight = Math.Min(Existing.Bottom, Box.Bottom) - Math.Max(Existing.Top, Box.Top);
+                if (OverlapWidth > 8.0 && OverlapHeight > 8.0)
+                {
+                    AlreadyCovered = true;
+                    break;
+                }
+            }
+
+            if (AlreadyCovered)
+            {
+                continue;
+            }
+
+            NodeRects.Add(new SvgNodeRect(
+                "unnamed-" + UnnamedIndex.ToString(CultureInfo.InvariantCulture),
+                Box.Left,
+                Box.Top,
+                Box.Right,
+                Box.Bottom));
+            UnnamedIndex++;
+        }
+    }
+
     private static List<SvgNodeRect> BuildGroupRects(
         DiagramContract Contract,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
@@ -2105,6 +2260,25 @@ public static class FlowchartRenderedSvgQualityGate
 
         HashSet<string> Set = new HashSet<string>(Left, StringComparer.Ordinal);
         foreach (string Id in Right)
+        {
+            if (!Set.Contains(Id))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool ContainsAllIds(IReadOnlyList<string> Haystack, IReadOnlyList<string> Needles)
+    {
+        if (Needles.Count == 0)
+        {
+            return false;
+        }
+
+        HashSet<string> Set = new HashSet<string>(Haystack, StringComparer.Ordinal);
+        foreach (string Id in Needles)
         {
             if (!Set.Contains(Id))
             {

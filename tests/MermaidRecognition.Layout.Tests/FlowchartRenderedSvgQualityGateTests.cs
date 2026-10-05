@@ -204,6 +204,61 @@ public sealed class FlowchartRenderedSvgQualityGateTests
     }
 
     [Test]
+    public void Picture_ReportsCanvasExitAndLongDetour()
+    {
+        const string Source = """
+            flowchart TB
+              a[A]
+              b[B]
+              a --> b
+            """;
+        const string Svg = """
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+              <g data-id="a"><rect x="40" y="20" width="40" height="20" fill="#fff" stroke="#000"/></g>
+              <g data-id="b"><rect x="40" y="140" width="40" height="20" fill="#fff" stroke="#000"/></g>
+              <g data-edge-source="a" data-edge-target="b">
+                <path d="M60,40 L-40,40 L-40,150 L60,150" fill="none" stroke="#000"/>
+              </g>
+            </svg>
+            """;
+        FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.EvaluatePicture(
+            "canvas-detour",
+            Source,
+            Svg);
+        AssertDetected(Report, "CanvasExit", "a", "b");
+        AssertDetected(Report, "LongDetour", "a", "b");
+    }
+
+    [Test]
+    public void ArchiMateMarkers_AreNotMixedStyle()
+    {
+        const string Svg = """
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+              <g class="element application-component" data-id="a"><rect x="20" y="20" width="40" height="20" fill="#AFFFFF" stroke="#000"/></g>
+              <g class="element application-component" data-id="b"><rect x="20" y="140" width="40" height="20" fill="#AFFFFF" stroke="#000"/></g>
+              <g class="relationship realization" data-source="a" data-target="b">
+                <path d="M40,40 L40,140" fill="none" stroke="#000" stroke-dasharray="1.5 3"/>
+                <path d="M40,140 L33,126 L47,126 Z" fill="#fff" stroke="#000"/>
+              </g>
+            </svg>
+            """;
+        const string Source = """
+            flowchart TB
+              a[A]
+              b[B]
+              a --> b
+            """;
+        FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.EvaluatePicture(
+            "archimate-markers",
+            Source,
+            Svg);
+        foreach (FlowchartLayoutQualityFailure Failure in Report.Failures)
+        {
+            Assert.That(Failure.Kind, Is.Not.EqualTo("MixedStyle"));
+        }
+    }
+
+    [Test]
     public void CatalogueAndEnterprise_FinalSvg_ReportsJustifiedFailuresOnly()
     {
         List<NamedSource> Diagrams = LoadCatalogueSubgraphDiagrams();
