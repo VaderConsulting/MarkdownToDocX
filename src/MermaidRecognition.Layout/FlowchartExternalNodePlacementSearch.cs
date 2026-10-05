@@ -48,6 +48,10 @@ public static class FlowchartExternalNodePlacementSearch
 
         Dictionary<string, FlowchartLayoutNodeBounds> Best = Copy(ById);
         double BestScore = ScorePlacement(Contract, Best);
+        if (BestScore < FOREIGN_GROUP_PENALTY)
+        {
+            return new List<FlowchartLayoutNodeBounds>(Bounds);
+        }
 
         Dictionary<string, FlowchartLayoutNodeBounds> FacingSeed = BuildFacingSideSeed(Contract, ById, Movable);
         double FacingScore = ScorePlacement(Contract, FacingSeed);

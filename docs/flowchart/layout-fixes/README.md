@@ -10,8 +10,8 @@ Geometry parity on that local worktree: samples 01–03 and 06–12 match flowch
 
 | Diagram | Before | After | What changed |
 | --- | --- | --- | --- |
-| Sample 03 flowchart | [before/enterprise-03-flowchart.png](before/enterprise-03-flowchart.png) | [after/enterprise-03-flowchart.png](after/enterprise-03-flowchart.png) | HTTPS sits on its own edge. Checkout → Order is one path. Web Shop verticals are separated. Edges keep ~12 px from group borders or cross them cleanly. One flowchart style throughout. Database Service ports are spread. |
-| Sample 03 enterprise | [before/enterprise-03-enterprise.png](before/enterprise-03-enterprise.png) | [after/enterprise-03-enterprise.png](after/enterprise-03-enterprise.png) | Same geometry as the flowchart after, with ArchiMate markers. |
+| Sample 03 flowchart | [before/enterprise-03-flowchart.png](before/enterprise-03-flowchart.png) | [after/enterprise-03-flowchart.png](after/enterprise-03-flowchart.png) | External nodes are searched onto sides that remove the old Web Shop pierce and the Hosting / Database Service diagonals through the data centre. Shop Web UI sits to the right of Web Shop. A hand-made oracle layout is the comparison target. |
+| Sample 03 enterprise | [before/enterprise-03-enterprise.png](before/enterprise-03-enterprise.png) | [after/enterprise-03-enterprise.png](after/enterprise-03-enterprise.png) | Re-rendered from the current head with ArchiMate markers on the shared flowchart layout. |
 | Sample 11 flowchart | [before/enterprise-11-flowchart.png](before/enterprise-11-flowchart.png) | [after/enterprise-11-flowchart.png](after/enterprise-11-flowchart.png) | Store Cluster slack reduced; London and the junctions stay outside the box. |
 | Sample 12 flowchart | [before/enterprise-12-flowchart.png](before/enterprise-12-flowchart.png) | [after/enterprise-12-flowchart.png](after/enterprise-12-flowchart.png) | Board sits above Raise Revenue; the upward edge through the stack is gone. |
 | F111 | [before/F111.png](before/F111.png) | [after/F111.png](after/F111.png) | Tighter cluster insets (slack 8). Mesh routing unchanged. |

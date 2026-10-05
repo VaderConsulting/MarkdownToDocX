@@ -410,34 +410,38 @@ public static class FlowchartSharedEdgeRouter
                 continue;
             }
 
+            double InnerX = SourceInside ? StartX : EndX;
+            double InnerY = SourceInside ? StartY : EndY;
             double FacingX = SourceInside ? EndX : StartX;
             double FacingY = SourceInside ? EndY : StartY;
-            double CrossX = Math.Max(GroupLeft + 16.0, Math.Min(GroupRight - 16.0, FacingX));
-            double CrossY = Math.Max(GroupBottom + 16.0, Math.Min(GroupTop - 16.0, FacingY));
-            bool CloserToVertical = DistanceToVerticalBorder(FacingX, GroupLeft, GroupRight)
-                <= DistanceToHorizontalBorder(FacingY, GroupTop, GroupBottom);
-            if (CloserToVertical)
-            {
-                double BorderX = Math.Abs(FacingX - GroupLeft) < Math.Abs(FacingX - GroupRight)
-                    ? GroupLeft
-                    : GroupRight;
-                double InteriorX = BorderX + (Math.Sign(GroupBounds.CenterX - BorderX) * 18.0);
-                double ExteriorX = BorderX - (Math.Sign(GroupBounds.CenterX - BorderX) * 18.0);
-                Candidates.Add(new CandidateRoute(
-                    [(StartX, StartY), (InteriorX, CrossY), (ExteriorX, CrossY), (EndX, EndY)],
-                    FlowchartEdgeRouteKind.Curved));
-            }
-            else
-            {
-                double BorderY = Math.Abs(FacingY - GroupTop) < Math.Abs(FacingY - GroupBottom)
-                    ? GroupTop
-                    : GroupBottom;
-                double InteriorY = BorderY + (Math.Sign(GroupBounds.CenterY - BorderY) * 18.0);
-                double ExteriorY = BorderY - (Math.Sign(GroupBounds.CenterY - BorderY) * 18.0);
-                Candidates.Add(new CandidateRoute(
-                    [(StartX, StartY), (CrossX, InteriorY), (CrossX, ExteriorY), (EndX, EndY)],
-                    FlowchartEdgeRouteKind.Curved));
-            }
+            AddPerpendicularGroupExit(
+                Candidates,
+                StartX,
+                StartY,
+                EndX,
+                EndY,
+                GroupLeft,
+                GroupRight,
+                GroupTop,
+                GroupBottom,
+                GroupBounds.CenterX,
+                GroupBounds.CenterY,
+                FacingX,
+                FacingY);
+            AddPerpendicularGroupExit(
+                Candidates,
+                StartX,
+                StartY,
+                EndX,
+                EndY,
+                GroupLeft,
+                GroupRight,
+                GroupTop,
+                GroupBottom,
+                GroupBounds.CenterX,
+                GroupBounds.CenterY,
+                InnerX,
+                InnerY);
         }
     }
 
@@ -494,6 +498,11 @@ public static class FlowchartSharedEdgeRouter
         if (CutsThroughForeignGroup(Contract, BoundsById, Guide.Edge, Samples))
         {
             Score += 200000.0;
+        }
+
+        if (HasLongOwnGroupInterior(Contract, BoundsById, Guide.Edge, Samples))
+        {
+            Score += 150000.0;
         }
 
         if (HasHook(Samples, Direction))
@@ -870,6 +879,109 @@ public static class FlowchartSharedEdgeRouter
             }
 
             if (InteriorHits >= 3)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void AddPerpendicularGroupExit(
+        List<CandidateRoute> Candidates,
+        double StartX,
+        double StartY,
+        double EndX,
+        double EndY,
+        double GroupLeft,
+        double GroupRight,
+        double GroupTop,
+        double GroupBottom,
+        double GroupCenterX,
+        double GroupCenterY,
+        double AimX,
+        double AimY)
+    {
+        double CrossX = Math.Max(GroupLeft + 16.0, Math.Min(GroupRight - 16.0, AimX));
+        double CrossY = Math.Max(GroupBottom + 16.0, Math.Min(GroupTop - 16.0, AimY));
+        bool CloserToVertical = DistanceToVerticalBorder(AimX, GroupLeft, GroupRight)
+            <= DistanceToHorizontalBorder(AimY, GroupTop, GroupBottom);
+        if (CloserToVertical)
+        {
+            double BorderX = Math.Abs(AimX - GroupLeft) < Math.Abs(AimX - GroupRight)
+                ? GroupLeft
+                : GroupRight;
+            double InteriorX = BorderX + (Math.Sign(GroupCenterX - BorderX) * 18.0);
+            double ExteriorX = BorderX - (Math.Sign(GroupCenterX - BorderX) * 18.0);
+            Candidates.Add(new CandidateRoute(
+                [(StartX, StartY), (InteriorX, CrossY), (ExteriorX, CrossY), (EndX, EndY)],
+                FlowchartEdgeRouteKind.Curved));
+            return;
+        }
+
+        double BorderY = Math.Abs(AimY - GroupTop) < Math.Abs(AimY - GroupBottom)
+            ? GroupTop
+            : GroupBottom;
+        double InteriorY = BorderY + (Math.Sign(GroupCenterY - BorderY) * 18.0);
+        double ExteriorY = BorderY - (Math.Sign(GroupCenterY - BorderY) * 18.0);
+        Candidates.Add(new CandidateRoute(
+            [(StartX, StartY), (CrossX, InteriorY), (CrossX, ExteriorY), (EndX, EndY)],
+            FlowchartEdgeRouteKind.Curved));
+    }
+
+    private static bool HasLongOwnGroupInterior(
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        EdgeContract Edge,
+        IReadOnlyList<(double X, double Y)> Samples)
+    {
+        foreach (GroupContract Group in Contract.Groups)
+        {
+            if (!BoundsById.TryGetValue(Group.Id, out FlowchartLayoutNodeBounds GroupBounds))
+            {
+                continue;
+            }
+
+            bool SourceInside = IsMemberOfGroup(Contract, Edge.SourceId, Group.Id);
+            bool TargetInside = IsMemberOfGroup(Contract, Edge.TargetId, Group.Id);
+            if (SourceInside == TargetInside)
+            {
+                continue;
+            }
+
+            double Left = GroupBounds.CenterX - (GroupBounds.Width / 2.0) + 4.0;
+            double Right = GroupBounds.CenterX + (GroupBounds.Width / 2.0) - 4.0;
+            double Top = GroupBounds.CenterY + (GroupBounds.Height / 2.0) - 4.0;
+            double Bottom = GroupBounds.CenterY - (GroupBounds.Height / 2.0) + 4.0;
+            double Interior = 0.0;
+            for (int Index = 1; Index < Samples.Count; Index++)
+            {
+                double MidX = (Samples[Index - 1].X + Samples[Index].X) / 2.0;
+                double MidY = (Samples[Index - 1].Y + Samples[Index].Y) / 2.0;
+                if (MidX > Left && MidX < Right && MidY < Top && MidY > Bottom)
+                {
+                    Interior += Distance(
+                        Samples[Index - 1].X,
+                        Samples[Index - 1].Y,
+                        Samples[Index].X,
+                        Samples[Index].Y);
+                }
+            }
+
+            string InnerId = SourceInside ? Edge.SourceId : Edge.TargetId;
+            if (!BoundsById.TryGetValue(InnerId, out FlowchartLayoutNodeBounds Inner))
+            {
+                continue;
+            }
+
+            double Nearest = Math.Min(
+                Math.Min(
+                    Math.Abs(Inner.CenterX - (GroupBounds.CenterX - (GroupBounds.Width / 2.0))),
+                    Math.Abs((GroupBounds.CenterX + (GroupBounds.Width / 2.0)) - Inner.CenterX)),
+                Math.Min(
+                    Math.Abs((GroupBounds.CenterY + (GroupBounds.Height / 2.0)) - Inner.CenterY),
+                    Math.Abs(Inner.CenterY - (GroupBounds.CenterY - (GroupBounds.Height / 2.0)))));
+            if (Interior > (Nearest * 2.0) + 40.0)
             {
                 return true;
             }

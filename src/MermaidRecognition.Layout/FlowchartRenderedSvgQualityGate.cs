@@ -471,30 +471,15 @@ public static class FlowchartRenderedSvgQualityGate
                     continue;
                 }
 
-                if (Crossings == 1 && !CrossingIsPerpendicular)
-                {
-                    Violations.Add(new FlowchartLayoutQualityFailure(
-                        "GroupBorderDiagonal",
-                        Stroke.SourceId
-                        + "->"
-                        + Stroke.TargetId
-                        + " leaves group "
-                        + Group.Id
-                        + " on a diagonal",
-                        [Stroke.SourceId, Stroke.TargetId, Group.Id],
-                        null));
-                    continue;
-                }
-
                 double NearestFace = NearestFaceDistance(BoundsById, Stroke, Group.Id, SourceIn);
-                if (InteriorLength > NearestFace + 80.0)
+                if (InteriorLength > (NearestFace * 2.0) + 80.0 && !CrossingIsPerpendicular)
                 {
                     Violations.Add(new FlowchartLayoutQualityFailure(
                         "GroupBorderDiagonal",
                         Stroke.SourceId
                         + "->"
                         + Stroke.TargetId
-                        + " takes a long interior path through group "
+                        + " takes a long diagonal through group "
                         + Group.Id,
                         [Stroke.SourceId, Stroke.TargetId, Group.Id],
                         null));
@@ -519,7 +504,31 @@ public static class FlowchartRenderedSvgQualityGate
             return false;
         }
 
-        return FlowchartSubgraphMembershipHelper.IsNodeMemberOfGroup(EndpointId, Group, Contract, GroupById);
+        if (FlowchartSubgraphMembershipHelper.IsNodeMemberOfGroup(EndpointId, Group, Contract, GroupById))
+        {
+            return true;
+        }
+
+        if (GroupById.TryGetValue(EndpointId, out GroupContract? EndpointGroup))
+        {
+            string? Cursor = EndpointGroup.ParentGroupId;
+            while (!string.IsNullOrEmpty(Cursor))
+            {
+                if (string.Equals(Cursor, GroupId, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+
+                if (!GroupById.TryGetValue(Cursor, out GroupContract? Parent))
+                {
+                    break;
+                }
+
+                Cursor = Parent.ParentGroupId;
+            }
+        }
+
+        return false;
     }
 
     private static int CountRectBorderCrossings(IReadOnlyList<(double X, double Y)> Samples, SvgNodeRect Rect)
