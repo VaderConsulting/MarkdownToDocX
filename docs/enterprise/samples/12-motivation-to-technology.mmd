@@ -1,0 +1,22 @@
+enterprise
+  title Motivation to Technology view
+  direction TB
+
+  stakeholder        board      "Board"
+  goal               raiseRev   "Raise Revenue"
+  capability         sellingCap "Selling"
+  business-process   takeOrder  "Take Order"
+  business-service   selling    "Selling"
+  application-component webShop "Web Shop"
+  application-service  ordering "Online Ordering"
+  node               appNode    "App Server Node"
+  technology-service hosting    "Hosting"
+
+  board -influence-> raiseRev
+  raiseRev -association-> sellingCap
+  sellingCap -association-> takeOrder
+  takeOrder -realization-> selling
+  selling -serving-> webShop
+  webShop -assignment-> ordering
+  ordering -serving-> hosting
+  appNode -realization-> hosting

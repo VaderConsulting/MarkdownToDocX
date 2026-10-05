@@ -1,10 +1,16 @@
 namespace MermaidRecognition.Kinds.Enterprise;
 
 /// <summary>
-/// Architectural layer of an enterprise element.
+/// Architectural layer or aspect of an enterprise element.
 /// </summary>
 public enum EnterpriseLayer
 {
+    Motivation,
+    Strategy,
+    Business,
     Application,
-    Technology
+    Technology,
+    Implementation,
+    Composite,
+    Junction
 }

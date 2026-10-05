@@ -165,11 +165,50 @@ public sealed class EnterpriseParserTests
         EnterpriseParseResult Result = EnterpriseParser.Parse(
             """
             enterprise
-              business-actor actor "Actor"
+              foobar-widget ghost "Ghost"
             """);
 
         Assert.That(Result.Diagnostics[0].LineNumber, Is.EqualTo(2));
-        Assert.That(Result.Diagnostics[0].Message, Does.Contain("line 2: unknown element type \"business-actor\""));
+        Assert.That(Result.Diagnostics[0].Message, Does.Contain("line 2: unknown element type \"foobar-widget\""));
+    }
+
+    [TestCase("business-actor", EnterpriseElementType.BusinessActor)]
+    [TestCase("stakeholder", EnterpriseElementType.Stakeholder)]
+    [TestCase("capability", EnterpriseElementType.Capability)]
+    [TestCase("equipment", EnterpriseElementType.Equipment)]
+    [TestCase("work-package", EnterpriseElementType.WorkPackage)]
+    [TestCase("location", EnterpriseElementType.Location)]
+    [TestCase("grouping", EnterpriseElementType.Grouping)]
+    [TestCase("and-junction", EnterpriseElementType.Junction)]
+    [TestCase("or-junction", EnterpriseElementType.Junction)]
+    public void Parse_NewLayerType_ResolvesElement(string Token, EnterpriseElementType Expected)
+    {
+        EnterpriseParseResult Result = EnterpriseParser.Parse(
+            "enterprise\n  " + Token + " item \"Item\"");
+        Assert.That(Result.HasErrors, Is.False, string.Join("; ", Result.Diagnostics.Select(Item => Item.Message)));
+        Assert.That(Result.Document.Elements["item"].ElementType, Is.EqualTo(Expected));
+        if (Expected == EnterpriseElementType.Junction)
+        {
+            EnterpriseJunctionKind ExpectedKind = Token.StartsWith("or", StringComparison.Ordinal)
+                ? EnterpriseJunctionKind.Or
+                : EnterpriseJunctionKind.And;
+            Assert.That(Result.Document.Elements["item"].JunctionKind, Is.EqualTo(ExpectedKind));
+        }
+    }
+
+    [Test]
+    public void Parse_GroupStatement_CreatesGroupingElement()
+    {
+        EnterpriseParseResult Result = EnterpriseParser.Parse(
+            """
+            enterprise
+              group store "Store"
+              business-actor clerk "Clerk" in store
+            """);
+        Assert.That(Result.HasErrors, Is.False, string.Join("; ", Result.Diagnostics.Select(Item => Item.Message)));
+        Assert.That(Result.Document.Groups.ContainsKey("store"), Is.True);
+        Assert.That(Result.Document.Elements["store"].ElementType, Is.EqualTo(EnterpriseElementType.Grouping));
+        Assert.That(Result.Document.Elements["clerk"].ParentId, Is.EqualTo("store"));
     }
 
     [Test]

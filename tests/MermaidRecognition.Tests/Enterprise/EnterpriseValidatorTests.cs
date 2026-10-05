@@ -55,6 +55,13 @@ public sealed class EnterpriseValidatorTests
     [TestCase("01-application-layer.mmd")]
     [TestCase("02-technology-layer.mmd")]
     [TestCase("03-cross-layer-webshop.mmd")]
+    [TestCase("06-business-layer.mmd")]
+    [TestCase("07-motivation.mmd")]
+    [TestCase("08-strategy.mmd")]
+    [TestCase("09-physical.mmd")]
+    [TestCase("10-implementation-migration.mmd")]
+    [TestCase("11-grouping-location-junction.mmd")]
+    [TestCase("12-motivation-to-technology.mmd")]
     public void Analyze_ValidSamples_AreValidUnder31And32(string FileName)
     {
         string Source = EnterpriseSamplePaths.ReadSample(FileName);
@@ -104,6 +111,28 @@ public sealed class EnterpriseValidatorTests
         List<EnterpriseDiagnostic> Diagnostics = EnterpriseValidator.Validate(Parsed.Document, null);
         Assert.That(Diagnostics.Any(Item => Item.Severity == MermaidDiagnosticSeverity.Warning), Is.False);
         Assert.That(Parsed.Document.Relationships[0].HiddenByNesting, Is.True);
+    }
+
+    [Test]
+    public void Validate_NestedInGrouping_DoesNotWarn()
+    {
+        EnterpriseParseResult Parsed = EnterpriseParser.Parse(
+            """
+            enterprise
+              group store "Store"
+              business-actor clerk "Clerk" in store
+            """);
+
+        Assert.That(Parsed.HasErrors, Is.False);
+        List<EnterpriseDiagnostic> Diagnostics = EnterpriseValidator.Validate(Parsed.Document, null);
+        Assert.That(Diagnostics.Any(Item => Item.Severity == MermaidDiagnosticSeverity.Warning), Is.False);
+    }
+
+    [Test]
+    public void IsProvisionalCell_NewLayerType_IsProvisional()
+    {
+        Assert.That(EnterpriseRulesCatalog.Instance.IsProvisionalCell("business-actor", "business-role"), Is.True);
+        Assert.That(EnterpriseRulesCatalog.Instance.IsProvisionalCell("application-component", "data-object"), Is.False);
     }
 
     private static string EnsureVersion(string Source, string Version)

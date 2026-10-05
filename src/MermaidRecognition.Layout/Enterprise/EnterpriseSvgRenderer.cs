@@ -157,7 +157,13 @@ public static class EnterpriseSvgRenderer
             .Append("\" data-id=\"")
             .Append(EnterpriseSvgFormat.Escape(Element.Id))
             .Append("\">")
-            .Append(EnterpriseNotationSvg.ElementBoxSvg(Element.ElementType, X, Y, Node.Width, Node.Height));
+            .Append(EnterpriseNotationSvg.ElementBoxSvg(Element.ElementType, X, Y, Node.Width, Node.Height, Element.JunctionKind));
+
+        if (Element.ElementType == EnterpriseElementType.Junction)
+        {
+            Builder.Append("</g>");
+            return;
+        }
 
         EnterpriseElementMetadata Metadata = EnterpriseElementCatalog.Elements[Element.ElementType];
         bool Is3d = Metadata.BoxKind == EnterpriseBoxKind.Box3d;

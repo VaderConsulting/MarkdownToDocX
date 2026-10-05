@@ -197,6 +197,14 @@ public static class EnterpriseParser
             LineNumber = LineNumber
         };
         Document.Groups[Id] = Group;
+        Document.Elements[Id] = new EnterpriseElement
+        {
+            Id = Id,
+            ElementType = EnterpriseElementType.Grouping,
+            Label = QuotedLabel ?? Id,
+            ParentId = ParentId,
+            LineNumber = LineNumber
+        };
     }
 
     private static void AddElement(
@@ -210,7 +218,7 @@ public static class EnterpriseParser
         {
             Diagnostics.Add(CreateError(
                 LineNumber,
-                "unknown element type \"" + TypeToken + "\" (in scope: Application and Technology layer elements)"));
+                "unknown element type \"" + TypeToken + "\" (in scope: ArchiMate 3.2 Application, Technology, Physical, Business, Motivation, Strategy, Implementation, composite and junction elements)"));
             return;
         }
 
@@ -231,7 +239,33 @@ public static class EnterpriseParser
             ParentId = ParentId,
             LineNumber = LineNumber
         };
+        if (ElementType == EnterpriseElementType.Junction)
+        {
+            Element.JunctionKind = ResolveJunctionKind(TypeToken);
+        }
+
         Document.Elements[Id] = Element;
+        if (ElementType == EnterpriseElementType.Grouping && !Document.Groups.ContainsKey(Id))
+        {
+            Document.Groups[Id] = new EnterpriseGroup
+            {
+                Id = Id,
+                Label = Element.Label,
+                ParentId = ParentId,
+                LineNumber = LineNumber
+            };
+        }
+    }
+
+    private static EnterpriseJunctionKind ResolveJunctionKind(string TypeToken)
+    {
+        string NormalisedType = TypeToken.Trim().ToLowerInvariant().Replace("-", string.Empty, StringComparison.Ordinal);
+        if (NormalisedType == "orjunction" || NormalisedType == "junctionor")
+        {
+            return EnterpriseJunctionKind.Or;
+        }
+
+        return EnterpriseJunctionKind.And;
     }
 
     private static void AddRelationship(

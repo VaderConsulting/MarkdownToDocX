@@ -43,7 +43,7 @@ public static class EnterpriseValidator
             Diagnostics.Add(new EnterpriseDiagnostic(
                 MermaidDiagnosticSeverity.Info,
                 0,
-                "version 3.2: 15 Technology-layer cells use provisional 3.2 values not yet verified against the 3.2 specification text."));
+                "version 3.2: 15 Application/Technology cells that differ from 3.1, and every cell that involves Business, Motivation, Strategy, Physical, Implementation, composite or junction types, use provisional values not yet verified against the 3.2 specification text."));
         }
 
         foreach (EnterpriseRelationship Relationship in Document.Relationships)
@@ -89,6 +89,12 @@ public static class EnterpriseValidator
         foreach (EnterpriseElement Element in Document.Elements.Values)
         {
             if (string.IsNullOrEmpty(Element.ParentId) || !Document.Elements.ContainsKey(Element.ParentId))
+            {
+                continue;
+            }
+
+            if (Document.Elements.TryGetValue(Element.ParentId, out EnterpriseElement? Parent)
+                && Parent.ElementType == EnterpriseElementType.Grouping)
             {
                 continue;
             }

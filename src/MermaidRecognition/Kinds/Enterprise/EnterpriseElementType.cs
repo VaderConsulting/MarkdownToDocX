@@ -1,7 +1,7 @@
 namespace MermaidRecognition.Kinds.Enterprise;
 
 /// <summary>
-/// In-scope Application and Technology layer element types for the enterprise diagram.
+/// In-scope ArchiMate 3.2 element types for the enterprise diagram.
 /// </summary>
 public enum EnterpriseElementType
 {
@@ -26,5 +26,44 @@ public enum EnterpriseElementType
     TechnologyInteraction,
     TechnologyEvent,
     TechnologyService,
-    Artifact
+    Artifact,
+    Stakeholder,
+    Driver,
+    Assessment,
+    Goal,
+    Outcome,
+    Principle,
+    Requirement,
+    Constraint,
+    Meaning,
+    Value,
+    Resource,
+    Capability,
+    ValueStream,
+    CourseOfAction,
+    BusinessActor,
+    BusinessRole,
+    BusinessCollaboration,
+    BusinessInterface,
+    BusinessFunction,
+    BusinessInteraction,
+    BusinessProcess,
+    BusinessEvent,
+    BusinessService,
+    BusinessObject,
+    Contract,
+    Representation,
+    Product,
+    Equipment,
+    Facility,
+    DistributionNetwork,
+    Material,
+    WorkPackage,
+    Deliverable,
+    ImplementationEvent,
+    Plateau,
+    Gap,
+    Grouping,
+    Location,
+    Junction
 }

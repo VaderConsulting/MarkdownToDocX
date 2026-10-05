@@ -15,6 +15,8 @@ public sealed class EnterpriseElement
 
     private int _LineNumber;
 
+    private EnterpriseJunctionKind? _JunctionKind;
+
     /// <summary>Gets or sets the element identifier.</summary>
     public string Id
     {
@@ -64,6 +66,19 @@ public sealed class EnterpriseElement
         set
         {
             _ParentId = value;
+        }
+    }
+
+    /// <summary>Gets or sets and/or when the type is a junction.</summary>
+    public EnterpriseJunctionKind? JunctionKind
+    {
+        get
+        {
+            return _JunctionKind;
+        }
+        set
+        {
+            _JunctionKind = value;
         }
     }
 

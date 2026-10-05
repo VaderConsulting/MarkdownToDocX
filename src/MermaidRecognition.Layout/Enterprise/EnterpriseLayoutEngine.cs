@@ -50,9 +50,26 @@ internal static class EnterpriseLayoutEngine
 
         foreach (EnterpriseElement Element in Document.Elements.Values)
         {
-            EnterpriseLayoutNode Node = new EnterpriseLayoutNode(Element.Id, false, Element, null);
+            if (Nodes.TryGetValue(Element.Id, out EnterpriseLayoutNode? Existing))
+            {
+                Existing.AttachElement(Element);
+                continue;
+            }
+
+            bool IsGrouping = Element.ElementType == EnterpriseElementType.Grouping;
+            EnterpriseGroup? Group = null;
+            if (IsGrouping && Document.Groups.TryGetValue(Element.Id, out EnterpriseGroup? DocumentGroup))
+            {
+                Group = DocumentGroup;
+            }
+
+            EnterpriseLayoutNode Node = new EnterpriseLayoutNode(Element.Id, IsGrouping, Element, Group);
             Node.LabelLines.AddRange(Wrap(Element.Label));
-            MeasureLeaf(Node);
+            if (!IsGrouping)
+            {
+                MeasureLeaf(Node);
+            }
+
             Nodes[Element.Id] = Node;
         }
 
@@ -313,8 +330,8 @@ internal static class EnterpriseLayoutEngine
         out string LayoutSource,
         out string LayoutTarget)
     {
-        int SourceRank = EnterpriseElementCatalog.Elements[Source.ElementType].Layer == EnterpriseLayer.Application ? 0 : 1;
-        int TargetRank = EnterpriseElementCatalog.Elements[Target.ElementType].Layer == EnterpriseLayer.Application ? 0 : 1;
+        int SourceRank = EnterpriseElementCatalog.GetLayoutRank(EnterpriseElementCatalog.Elements[Source.ElementType].Layer);
+        int TargetRank = EnterpriseElementCatalog.GetLayoutRank(EnterpriseElementCatalog.Elements[Target.ElementType].Layer);
         if (SourceRank != TargetRank)
         {
             if (SourceRank < TargetRank)
@@ -348,6 +365,13 @@ internal static class EnterpriseLayoutEngine
     {
         if (Node.Element == null)
         {
+            return;
+        }
+
+        if (Node.Element.ElementType == EnterpriseElementType.Junction)
+        {
+            Node.Width = 26;
+            Node.Height = 26;
             return;
         }
 

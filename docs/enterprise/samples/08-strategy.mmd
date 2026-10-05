@@ -1,0 +1,13 @@
+enterprise
+  title Strategy - capability and course of action
+  direction TB
+
+  resource         staff      "Sales Staff"
+  capability       sellingCap "Selling"
+  value-stream     winOrder   "Win Order"
+  course-of-action expand     "Expand Channels"
+
+  staff -assignment-> sellingCap
+  sellingCap -realization-> expand
+  winOrder -flow-> sellingCap
+  expand -flow-> sellingCap

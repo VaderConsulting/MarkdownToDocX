@@ -31,6 +31,12 @@ public sealed class EnterpriseKindRecognizer : IKindRecognizer
 
         foreach (EnterpriseElement Element in Analysis.Document.Elements.Values)
         {
+            if (Element.ElementType == EnterpriseElementType.Grouping
+                && Analysis.Document.Groups.ContainsKey(Element.Id))
+            {
+                continue;
+            }
+
             NodeContract Node = new NodeContract
             {
                 Id = Element.Id,

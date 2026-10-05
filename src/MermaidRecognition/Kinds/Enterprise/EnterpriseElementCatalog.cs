@@ -117,6 +117,62 @@ public static class EnterpriseElementCatalog
     }
 
     /// <summary>
+    /// Returns the layer fill colour used by specification example figures.
+    /// </summary>
+    /// <param name="Layer">Layer or aspect.</param>
+    /// <returns>Hex fill.</returns>
+    public static string GetLayerFill(EnterpriseLayer Layer)
+    {
+        switch (Layer)
+        {
+            case EnterpriseLayer.Motivation:
+                return "#CCCCFF";
+            case EnterpriseLayer.Strategy:
+                return "#F8D0C8";
+            case EnterpriseLayer.Business:
+                return "#FFFFAF";
+            case EnterpriseLayer.Application:
+                return "#AFFFFF";
+            case EnterpriseLayer.Technology:
+                return "#AFFFAF";
+            case EnterpriseLayer.Implementation:
+                return "#FFE0E0";
+            case EnterpriseLayer.Composite:
+                return "#FFFFFF";
+            case EnterpriseLayer.Junction:
+                return "#FFFFFF";
+            default:
+                return "#FFFFFF";
+        }
+    }
+
+    /// <summary>
+    /// Returns the layout rank so Motivation/Strategy sit above Business, Application, then Technology.
+    /// </summary>
+    /// <param name="Layer">Layer or aspect.</param>
+    /// <returns>Smaller values are placed higher in TB layout.</returns>
+    public static int GetLayoutRank(EnterpriseLayer Layer)
+    {
+        switch (Layer)
+        {
+            case EnterpriseLayer.Motivation:
+                return 0;
+            case EnterpriseLayer.Strategy:
+                return 1;
+            case EnterpriseLayer.Business:
+                return 2;
+            case EnterpriseLayer.Application:
+                return 3;
+            case EnterpriseLayer.Technology:
+                return 4;
+            case EnterpriseLayer.Implementation:
+                return 5;
+            default:
+                return 3;
+        }
+    }
+
+    /// <summary>
     /// Resolves a relationship letter to its kind.
     /// </summary>
     /// <param name="Letter">Matrix letter.</param>
@@ -162,6 +218,45 @@ public static class EnterpriseElementCatalog
         Add(Map, EnterpriseElementType.TechnologyEvent, "technology-event", "TechnologyEvent", EnterpriseLayer.Technology, EnterpriseAspect.Behaviour, "event", EnterpriseBoxKind.Rectangle);
         Add(Map, EnterpriseElementType.TechnologyService, "technology-service", "TechnologyService", EnterpriseLayer.Technology, EnterpriseAspect.Behaviour, "service", EnterpriseBoxKind.Rectangle);
         Add(Map, EnterpriseElementType.Artifact, "artifact", "Artifact", EnterpriseLayer.Technology, EnterpriseAspect.Passive, "artifact", EnterpriseBoxKind.Rectangle);
+        Add(Map, EnterpriseElementType.Stakeholder, "stakeholder", "Stakeholder", EnterpriseLayer.Motivation, EnterpriseAspect.Active, "stakeholder", EnterpriseBoxKind.Rectangle);
+        Add(Map, EnterpriseElementType.Driver, "driver", "Driver", EnterpriseLayer.Motivation, EnterpriseAspect.Active, "driver", EnterpriseBoxKind.Rectangle);
+        Add(Map, EnterpriseElementType.Assessment, "assessment", "Assessment", EnterpriseLayer.Motivation, EnterpriseAspect.Passive, "assessment", EnterpriseBoxKind.Rectangle);
+        Add(Map, EnterpriseElementType.Goal, "goal", "Goal", EnterpriseLayer.Motivation, EnterpriseAspect.Passive, "goal", EnterpriseBoxKind.Rectangle);
+        Add(Map, EnterpriseElementType.Outcome, "outcome", "Outcome", EnterpriseLayer.Motivation, EnterpriseAspect.Passive, "outcome", EnterpriseBoxKind.Rectangle);
+        Add(Map, EnterpriseElementType.Principle, "principle", "Principle", EnterpriseLayer.Motivation, EnterpriseAspect.Passive, "principle", EnterpriseBoxKind.Rectangle);
+        Add(Map, EnterpriseElementType.Requirement, "requirement", "Requirement", EnterpriseLayer.Motivation, EnterpriseAspect.Passive, "requirement", EnterpriseBoxKind.Rectangle);
+        Add(Map, EnterpriseElementType.Constraint, "constraint", "Constraint", EnterpriseLayer.Motivation, EnterpriseAspect.Passive, "constraint", EnterpriseBoxKind.Rectangle);
+        Add(Map, EnterpriseElementType.Meaning, "meaning", "Meaning", EnterpriseLayer.Motivation, EnterpriseAspect.Passive, "meaning", EnterpriseBoxKind.Rectangle);
+        Add(Map, EnterpriseElementType.Value, "value", "Value", EnterpriseLayer.Motivation, EnterpriseAspect.Passive, "value", EnterpriseBoxKind.Ellipse);
+        Add(Map, EnterpriseElementType.Resource, "resource", "Resource", EnterpriseLayer.Strategy, EnterpriseAspect.Passive, "resource", EnterpriseBoxKind.Rectangle);
+        Add(Map, EnterpriseElementType.Capability, "capability", "Capability", EnterpriseLayer.Strategy, EnterpriseAspect.Behaviour, "capability", EnterpriseBoxKind.Rectangle);
+        Add(Map, EnterpriseElementType.ValueStream, "value-stream", "ValueStream", EnterpriseLayer.Strategy, EnterpriseAspect.Behaviour, "valueStream", EnterpriseBoxKind.Rectangle);
+        Add(Map, EnterpriseElementType.CourseOfAction, "course-of-action", "CourseOfAction", EnterpriseLayer.Strategy, EnterpriseAspect.Behaviour, "courseOfAction", EnterpriseBoxKind.Rectangle);
+        Add(Map, EnterpriseElementType.BusinessActor, "business-actor", "BusinessActor", EnterpriseLayer.Business, EnterpriseAspect.Active, "actor", EnterpriseBoxKind.Rectangle);
+        Add(Map, EnterpriseElementType.BusinessRole, "business-role", "BusinessRole", EnterpriseLayer.Business, EnterpriseAspect.Active, "role", EnterpriseBoxKind.Rectangle);
+        Add(Map, EnterpriseElementType.BusinessCollaboration, "business-collaboration", "BusinessCollaboration", EnterpriseLayer.Business, EnterpriseAspect.Active, "collaboration", EnterpriseBoxKind.Rectangle);
+        Add(Map, EnterpriseElementType.BusinessInterface, "business-interface", "BusinessInterface", EnterpriseLayer.Business, EnterpriseAspect.Active, "interface", EnterpriseBoxKind.Rectangle);
+        Add(Map, EnterpriseElementType.BusinessFunction, "business-function", "BusinessFunction", EnterpriseLayer.Business, EnterpriseAspect.Behaviour, "function", EnterpriseBoxKind.Rectangle);
+        Add(Map, EnterpriseElementType.BusinessInteraction, "business-interaction", "BusinessInteraction", EnterpriseLayer.Business, EnterpriseAspect.Behaviour, "interaction", EnterpriseBoxKind.Rectangle);
+        Add(Map, EnterpriseElementType.BusinessProcess, "business-process", "BusinessProcess", EnterpriseLayer.Business, EnterpriseAspect.Behaviour, "process", EnterpriseBoxKind.Rectangle);
+        Add(Map, EnterpriseElementType.BusinessEvent, "business-event", "BusinessEvent", EnterpriseLayer.Business, EnterpriseAspect.Behaviour, "event", EnterpriseBoxKind.Rectangle);
+        Add(Map, EnterpriseElementType.BusinessService, "business-service", "BusinessService", EnterpriseLayer.Business, EnterpriseAspect.Behaviour, "service", EnterpriseBoxKind.Rectangle);
+        Add(Map, EnterpriseElementType.BusinessObject, "business-object", "BusinessObject", EnterpriseLayer.Business, EnterpriseAspect.Passive, null, EnterpriseBoxKind.Object);
+        Add(Map, EnterpriseElementType.Contract, "contract", "Contract", EnterpriseLayer.Business, EnterpriseAspect.Passive, null, EnterpriseBoxKind.Contract);
+        Add(Map, EnterpriseElementType.Representation, "representation", "Representation", EnterpriseLayer.Business, EnterpriseAspect.Passive, "representation", EnterpriseBoxKind.Representation);
+        Add(Map, EnterpriseElementType.Product, "product", "Product", EnterpriseLayer.Business, EnterpriseAspect.Passive, "product", EnterpriseBoxKind.Rectangle);
+        Add(Map, EnterpriseElementType.Equipment, "equipment", "Equipment", EnterpriseLayer.Technology, EnterpriseAspect.Active, "equipment", EnterpriseBoxKind.Box3d);
+        Add(Map, EnterpriseElementType.Facility, "facility", "Facility", EnterpriseLayer.Technology, EnterpriseAspect.Active, "facility", EnterpriseBoxKind.Rectangle);
+        Add(Map, EnterpriseElementType.DistributionNetwork, "distribution-network", "DistributionNetwork", EnterpriseLayer.Technology, EnterpriseAspect.Active, "distributionNetwork", EnterpriseBoxKind.Rectangle);
+        Add(Map, EnterpriseElementType.Material, "material", "Material", EnterpriseLayer.Technology, EnterpriseAspect.Passive, "material", EnterpriseBoxKind.Object);
+        Add(Map, EnterpriseElementType.WorkPackage, "work-package", "WorkPackage", EnterpriseLayer.Implementation, EnterpriseAspect.Behaviour, "workPackage", EnterpriseBoxKind.Rectangle);
+        Add(Map, EnterpriseElementType.Deliverable, "deliverable", "Deliverable", EnterpriseLayer.Implementation, EnterpriseAspect.Passive, "deliverable", EnterpriseBoxKind.Rectangle);
+        Add(Map, EnterpriseElementType.ImplementationEvent, "implementation-event", "ImplementationEvent", EnterpriseLayer.Implementation, EnterpriseAspect.Behaviour, "event", EnterpriseBoxKind.Rectangle);
+        Add(Map, EnterpriseElementType.Plateau, "plateau", "Plateau", EnterpriseLayer.Implementation, EnterpriseAspect.Passive, "plateau", EnterpriseBoxKind.Rectangle);
+        Add(Map, EnterpriseElementType.Gap, "gap", "Gap", EnterpriseLayer.Implementation, EnterpriseAspect.Passive, "gap", EnterpriseBoxKind.Rectangle);
+        Add(Map, EnterpriseElementType.Grouping, "grouping", "Grouping", EnterpriseLayer.Composite, EnterpriseAspect.Active, null, EnterpriseBoxKind.Grouping);
+        Add(Map, EnterpriseElementType.Location, "location", "Location", EnterpriseLayer.Composite, EnterpriseAspect.Active, "location", EnterpriseBoxKind.Rectangle);
+        Add(Map, EnterpriseElementType.Junction, "junction", "Junction", EnterpriseLayer.Junction, EnterpriseAspect.Active, null, EnterpriseBoxKind.Junction);
         return Map;
     }
 
@@ -188,6 +283,13 @@ public static class EnterpriseElementCatalog
             Map[Metadata.SpecName.ToLowerInvariant()] = Metadata.ElementType;
         }
 
+        Map["group"] = EnterpriseElementType.Grouping;
+        Map["and-junction"] = EnterpriseElementType.Junction;
+        Map["or-junction"] = EnterpriseElementType.Junction;
+        Map["junction-and"] = EnterpriseElementType.Junction;
+        Map["junction-or"] = EnterpriseElementType.Junction;
+        Map["andjunction"] = EnterpriseElementType.Junction;
+        Map["orjunction"] = EnterpriseElementType.Junction;
         return Map;
     }
 

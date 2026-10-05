@@ -13,7 +13,7 @@ internal sealed class EnterpriseLayoutNode
 
     private readonly bool _IsGroup;
 
-    private readonly EnterpriseElement? _Element;
+    private EnterpriseElement? _Element;
 
     private readonly EnterpriseGroup? _Group;
 
@@ -71,6 +71,15 @@ internal sealed class EnterpriseLayoutNode
         {
             return _Element;
         }
+    }
+
+    /// <summary>
+    /// Attaches the typed grouping element to a visual group node so relationships can resolve.
+    /// </summary>
+    /// <param name="Element">Grouping element with the same id.</param>
+    internal void AttachElement(EnterpriseElement Element)
+    {
+        _Element = Element;
     }
 
     internal EnterpriseGroup? Group

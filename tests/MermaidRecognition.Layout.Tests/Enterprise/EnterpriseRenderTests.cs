@@ -11,6 +11,13 @@ public sealed class EnterpriseRenderTests
     [TestCase("01-application-layer.mmd")]
     [TestCase("02-technology-layer.mmd")]
     [TestCase("03-cross-layer-webshop.mmd")]
+    [TestCase("06-business-layer.mmd")]
+    [TestCase("07-motivation.mmd")]
+    [TestCase("08-strategy.mmd")]
+    [TestCase("09-physical.mmd")]
+    [TestCase("10-implementation-migration.mmd")]
+    [TestCase("11-grouping-location-junction.mmd")]
+    [TestCase("12-motivation-to-technology.mmd")]
     public void Render_ValidSamples_ProduceMarkerFreeSvg(string FileName)
     {
         string Source = ReadSample(FileName);
@@ -76,6 +83,35 @@ public sealed class EnterpriseRenderTests
         Assert.That(Svg, Does.Contain("#AFFFAF"));
         Assert.That(Svg, Does.Contain("class=\"element data-object\""));
         Assert.That(Svg, Does.Contain("class=\"element device\""));
+        XDocument.Parse(Svg);
+    }
+
+    [Test]
+    public void Render_NewLayers_EmitLayerFillsAndJunctions()
+    {
+        string Svg = EnterpriseRenderBridge.RenderEnterpriseSvg(
+            """
+            enterprise
+              stakeholder board "Board"
+              business-actor clerk "Clerk"
+              capability selling "Selling"
+              equipment press "Press"
+              work-package cutover "Cutover"
+              location london "London"
+              and-junction both
+              or-junction either
+              board -association-> clerk
+              clerk -association-> selling
+            """);
+
+        Assert.That(Svg, Does.Contain("#CCCCFF"));
+        Assert.That(Svg, Does.Contain("#FFFFAF"));
+        Assert.That(Svg, Does.Contain("#F8D0C8"));
+        Assert.That(Svg, Does.Contain("#AFFFAF"));
+        Assert.That(Svg, Does.Contain("#FFE0E0"));
+        Assert.That(Svg, Does.Contain("class=\"element stakeholder\""));
+        Assert.That(Svg, Does.Contain("class=\"element business-actor\""));
+        Assert.That(Svg, Does.Contain("class=\"element junction\""));
         XDocument.Parse(Svg);
     }
 

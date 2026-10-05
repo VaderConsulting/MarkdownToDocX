@@ -20,6 +20,32 @@ public sealed class EnterpriseRulesCatalog
 
     private readonly HashSet<string> _ProvisionalKeys;
 
+    private static readonly HashSet<string> _VerifiedApplicationTechnologyTypes = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "application-component",
+        "application-collaboration",
+        "application-interface",
+        "application-function",
+        "application-interaction",
+        "application-process",
+        "application-event",
+        "application-service",
+        "data-object",
+        "node",
+        "device",
+        "system-software",
+        "technology-collaboration",
+        "technology-interface",
+        "path",
+        "communication-network",
+        "technology-function",
+        "technology-process",
+        "technology-interaction",
+        "technology-event",
+        "technology-service",
+        "artifact"
+    };
+
     /// <summary>
     /// Creates a catalog from already-deserialised tables.
     /// </summary>
@@ -86,14 +112,31 @@ public sealed class EnterpriseRulesCatalog
     }
 
     /// <summary>
-    /// Returns true when the pair is one of the 15 unverified 3.2 cells.
+    /// Returns true when the pair is an unverified 3.2 Application/Technology delta
+    /// or either endpoint is a newly added 3.2 type.
     /// </summary>
     /// <param name="SourceType">Kebab-case source type.</param>
     /// <param name="TargetType">Kebab-case target type.</param>
     /// <returns>True when the cell is provisional.</returns>
     public bool IsProvisionalCell(string SourceType, string TargetType)
     {
-        return _ProvisionalKeys.Contains(SourceType + "|" + TargetType);
+        if (_ProvisionalKeys.Contains(SourceType + "|" + TargetType))
+        {
+            return true;
+        }
+
+        return !IsVerifiedApplicationOrTechnologyType(SourceType)
+            || !IsVerifiedApplicationOrTechnologyType(TargetType);
+    }
+
+    /// <summary>
+    /// Returns true when the type is one of the original 22 Application/Technology types.
+    /// </summary>
+    /// <param name="TypeName">Kebab-case type.</param>
+    /// <returns>True when the type was in the verified Application/Technology set.</returns>
+    public static bool IsVerifiedApplicationOrTechnologyType(string TypeName)
+    {
+        return !string.IsNullOrEmpty(TypeName) && _VerifiedApplicationTechnologyTypes.Contains(TypeName);
     }
 
     private static EnterpriseRulesCatalog LoadEmbedded()

@@ -7,5 +7,10 @@ public enum EnterpriseBoxKind
 {
     Rectangle,
     Object,
-    Box3d
+    Contract,
+    Representation,
+    Ellipse,
+    Box3d,
+    Grouping,
+    Junction
 }
