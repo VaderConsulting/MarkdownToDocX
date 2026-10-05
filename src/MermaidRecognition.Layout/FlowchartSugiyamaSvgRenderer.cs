@@ -1345,11 +1345,16 @@ public static class FlowchartSugiyamaSvgRenderer
             RouteClass);
         double LabelHeight = FlowchartEdgeLabelPlacementHelper.ComputeRenderedEdgeLabelHeight(LabelDimensions, RenderOptions.EdgeLabelFontSizePx);
         (double ClearedX, double ClearedY) = MoveLayoutLabelClearOfConnector(Edge, Contract, LabelX, LabelY, LabelDimensions.Width, LabelHeight, LayoutPoints, BoundsById, SourceBounds, TargetBounds, Direction);
-        if (FlowchartSharedRouteQualityHelper.DistanceFromPointToPolyline(ClearedX, ClearedY, LayoutPoints)
+        List<(double X, double Y)> RenderedSamples = FlowchartSharedEdgeRouter.FlattenRenderedGuide(
+            LayoutPoints,
+            LayoutPoints.Count <= 2 ? FlowchartEdgeRouteKind.Straight : FlowchartEdgeRouteKind.Curved,
+            Direction);
+        if (RenderedSamples.Count >= 2
+            && FlowchartSharedRouteQualityHelper.DistanceFromPointToPolyline(ClearedX, ClearedY, RenderedSamples)
             > FlowchartSharedEdgeRouter.LABEL_OWN_EDGE_PX)
         {
             return FlowchartSharedRouteQualityHelper.ResolveLabelOnOwnEdge(
-                LayoutPoints,
+                RenderedSamples,
                 LabelDimensions.Width,
                 LabelHeight,
                 BoundsById,

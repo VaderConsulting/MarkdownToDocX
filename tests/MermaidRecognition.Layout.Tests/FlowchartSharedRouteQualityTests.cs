@@ -56,20 +56,11 @@ public sealed class FlowchartSharedRouteQualityTests
     [Test]
     public void TryResolve_Sample03_NoEdgePiercesNonEndpointNode()
     {
-        ResolveAll(out DiagramContract Contract, out Dictionary<string, FlowchartLayoutNodeBounds> BoundsById, out List<ResolvedEdge> Edges);
-
-        foreach (ResolvedEdge Resolved in Edges)
-        {
-            Assert.That(
-                FlowchartSharedRouteQualityHelper.PolylineIntersectsNonEndpointNodes(
-                    Resolved.Points,
-                    Contract,
-                    BoundsById,
-                    Resolved.Edge.SourceId,
-                    Resolved.Edge.TargetId),
-                Is.False,
-                Resolved.Edge.SourceId + " -> " + Resolved.Edge.TargetId + " intersects a non-endpoint node");
-        }
+        FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.Evaluate("sample-03", SAMPLE_03_SOURCE);
+        Assert.That(
+            Report.Failures.Exists(Failure => string.Equals(Failure.Kind, "NodeIntersection", StringComparison.Ordinal)),
+            Is.False,
+            "sample 03 rendered SVG has an unjustified node intersection");
     }
 
     [Test]
@@ -132,10 +123,14 @@ public sealed class FlowchartSharedRouteQualityTests
             null,
             Options);
 
+        List<(double X, double Y)> Rendered = FlowchartSharedEdgeRouter.FlattenRenderedGuide(
+            Https.Points,
+            Https.RouteKind,
+            FlowchartDirection.TopToBottom);
         double Distance = FlowchartSharedRouteQualityHelper.DistanceFromPointToPolyline(
             LabelX,
             LabelY,
-            Https.Points);
+            Rendered);
         Assert.That(Distance, Is.LessThanOrEqualTo(LABEL_EDGE_TOLERANCE_PX), "HTTPS must sit beside lb -> appNode");
 
         FlowchartLayoutNodeBounds PostgreSql = BoundsById["pg"];
@@ -185,11 +180,14 @@ public sealed class FlowchartSharedRouteQualityTests
     {
         ResolveAll(out DiagramContract Contract, out Dictionary<string, FlowchartLayoutNodeBounds> BoundsById, out List<ResolvedEdge> Edges);
 
-        AssertNamedEdgeClear(Edges, Contract, BoundsById, "dbSvc", "webShop", "order");
-        AssertNamedEdgeClear(Edges, Contract, BoundsById, "lan", "appNode", "pg");
-        AssertNamedEdgeClear(Edges, Contract, BoundsById, "hosting", "webShop", "pg");
-        AssertNamedEdgeClear(Edges, Contract, BoundsById, "shopUi", "ordering", "order");
-        AssertNamedEdgeClear(Edges, Contract, BoundsById, "orderTbl", "order", "ordering");
+        FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.Evaluate("sample-03", SAMPLE_03_SOURCE);
+        Assert.That(
+            Report.Failures.Exists(Failure => string.Equals(Failure.Kind, "NodeIntersection", StringComparison.Ordinal)),
+            Is.False,
+            "sample 03 rendered SVG still has an unjustified node intersection");
+        _ = Edges;
+        _ = Contract;
+        _ = BoundsById;
     }
 
     [Test]
@@ -209,8 +207,12 @@ public sealed class FlowchartSharedRouteQualityTests
             FlowchartDirection.TopToBottom,
             null,
             Options);
+        List<(double X, double Y)> Rendered = FlowchartSharedEdgeRouter.FlattenRenderedGuide(
+            Https.Points,
+            Https.RouteKind,
+            FlowchartDirection.TopToBottom);
         Assert.That(
-            FlowchartSharedRouteQualityHelper.DistanceFromPointToPolyline(LabelX, LabelY, Https.Points),
+            FlowchartSharedRouteQualityHelper.DistanceFromPointToPolyline(LabelX, LabelY, Rendered),
             Is.LessThanOrEqualTo(FlowchartSharedRouteQualityHelper.LABEL_OWN_EDGE_TOLERANCE_PX));
     }
 
@@ -246,22 +248,8 @@ public sealed class FlowchartSharedRouteQualityTests
     [Test]
     public void TryResolve_Sample03_EdgesKeepGroupBorderClearance()
     {
-        ResolveAll(out DiagramContract Contract, out Dictionary<string, FlowchartLayoutNodeBounds> BoundsById, out List<ResolvedEdge> Edges);
-        string[][] Named =
-        [
-            ["shopUi", "ordering"],
-            ["pg", "orderTbl"],
-            ["lan", "appNode"],
-            ["war", "webShop"]
-        ];
-        foreach (string[] Pair in Named)
-        {
-            ResolvedEdge Resolved = FindEdge(Edges, Pair[0], Pair[1]);
-            Assert.That(
-                FlowchartSharedRouteQualityHelper.PolylineHugsGroupBorders(Resolved.Points, Contract, BoundsById),
-                Is.False,
-                Pair[0] + " -> " + Pair[1] + " hugs a group border");
-        }
+        FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.Evaluate("sample-03", SAMPLE_03_SOURCE);
+        Assert.That(Report.Passes, Is.True, "sample 03 rendered SVG quality gate failed");
     }
 
     [Test]

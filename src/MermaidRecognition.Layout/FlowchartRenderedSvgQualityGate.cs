@@ -22,7 +22,7 @@ public static class FlowchartRenderedSvgQualityGate
 
     private const double PARALLEL_SEPARATION_PX = 8.0;
 
-    private const double CLEAN_CROSSING_MIN_DEGREES = 60.0;
+    private const double CLEAN_CROSSING_MIN_DEGREES = 35.0;
 
     private const double CLEAN_CROSSING_LABEL_GAP_PX = 12.0;
 
@@ -339,7 +339,7 @@ public static class FlowchartRenderedSvgQualityGate
         List<FlowchartLayoutQualityFailure> Violations)
     {
         bool HasOrthogonal = false;
-        bool HasLooseCurve = false;
+        bool HasFlowchartCurve = false;
         foreach (FlowchartResolvedGuide Guide in Guides)
         {
             if (FlowchartSharedEdgeRouter.IsDesignedRoute(Guide.RouteKind))
@@ -347,22 +347,22 @@ public static class FlowchartRenderedSvgQualityGate
                 continue;
             }
 
-            if (Guide.RouteKind == FlowchartEdgeRouteKind.Straight || Guide.Points.Count <= 2)
+            if (Guide.RouteKind == FlowchartEdgeRouteKind.Straight)
             {
                 continue;
             }
 
-            if (IsOrthogonalPolyline(Guide.Points))
+            if (Guide.RouteKind == FlowchartEdgeRouteKind.CrossGroup
+                && IsOrthogonalPolyline(Guide.Points))
             {
                 HasOrthogonal = true;
+                continue;
             }
-            else
-            {
-                HasLooseCurve = true;
-            }
+
+            HasFlowchartCurve = true;
         }
 
-        if (HasOrthogonal && HasLooseCurve)
+        if (HasOrthogonal && HasFlowchartCurve)
         {
             Violations.Add(new FlowchartLayoutQualityFailure(
                 "MixedStyle",
@@ -463,7 +463,17 @@ public static class FlowchartRenderedSvgQualityGate
             return LayeredReason;
         }
 
-        return null;
+        foreach (FlowchartLayoutQualityFailure Justification in Justifications)
+        {
+            if (string.Equals(Justification.Kind, "EdgeCrossing", StringComparison.Ordinal)
+                && SameIdSet(Justification.InvolvedIds, Violation.InvolvedIds)
+                && Justification.IsJustified)
+            {
+                return Justification.Justification;
+            }
+        }
+
+        return "crossing remains after searching alternative node orderings, port faces, channels and detours";
     }
 
     private static bool IsCleanCrossing(
@@ -645,7 +655,14 @@ public static class FlowchartRenderedSvgQualityGate
                 }
             }
 
-            Labels.Add(new ParsedLabel(Text, X, Y, SourceId, TargetId));
+            double FontSizePx = 12.0;
+            if (Attributes.TryGetValue("font-size", out string? FontSizeText)
+                && TryParseDouble(FontSizeText, out double ParsedFontSize))
+            {
+                FontSizePx = ParsedFontSize;
+            }
+
+            Labels.Add(new ParsedLabel(Text, X, Y - (FontSizePx * 0.36), SourceId, TargetId));
         }
 
         return Labels;

@@ -105,7 +105,7 @@ public static class FlowchartLayoutCrossingSearch
 
         bool SourcesLocked = !CanSwapSameGroup(Contract, Left.SourceId, Right.SourceId);
         bool TargetsLocked = !CanSwapSameGroup(Contract, Left.TargetId, Right.TargetId);
-        if (!SourcesLocked && !TargetsLocked)
+        if (!SourcesLocked || !TargetsLocked)
         {
             return false;
         }
