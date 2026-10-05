@@ -1,0 +1,18 @@
+enterprise
+  title Deliberately invalid relationships (validator demo)
+
+  application-component webShop "Web Shop"
+  application-service   ordering "Online Ordering"
+  data-object           order    "Order"
+  node                  appNode  "App Server Node"
+  artifact              war      "shop.war"
+  technology-service    hosting  "Hosting"
+
+  %% each line below breaks a rule in the ArchiMate 3.1 Appendix B tables
+  order -serving-> webShop
+  ordering -composition-> webShop
+  webShop -realization-> appNode
+  war -assignment-> webShop
+  hosting -access(read)-> appNode
+  %% valid, for contrast
+  hosting -serving-> webShop

@@ -1,0 +1,33 @@
+enterprise
+  title Technology layer - all thirteen element types
+  direction TB
+  version 3.1
+
+  technology-collaboration webCluster "Web Cluster"
+  node                    appServer  "Application Server"
+  device                  lbAppliance "Load Balancer Appliance"
+  system-software         jvm        "Java VM"
+  technology-interface    httpsPort  "HTTPS Endpoint"
+  path                    dcLink     "DC-to-DR Link"
+  communication-network   lan        "Data Centre LAN"
+  technology-function     hosting    "Application Hosting"
+  technology-process      deploy     "Deploy Release"
+  technology-interaction  replicate  "Session Replication"
+  technology-event        releaseReady "Release Ready"
+  technology-service      hostingSvc "Hosting Service"
+  artifact                shopWar    "shop.war"
+
+  webCluster -aggregation-> appServer
+  webCluster -aggregation-> lbAppliance
+  webCluster -assignment-> replicate
+  appServer -assignment-> jvm
+  appServer -composition-> httpsPort
+  jvm -assignment-> hosting
+  hosting -realization-> hostingSvc
+  httpsPort -assignment-> hostingSvc
+  releaseReady -triggering-> deploy
+  deploy -access(write)-> shopWar
+  deploy -flow-> hosting "release"
+  lan -association-> appServer
+  lan -association-> lbAppliance
+  lan -realization-> dcLink
