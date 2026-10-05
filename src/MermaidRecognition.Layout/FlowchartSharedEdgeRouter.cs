@@ -67,7 +67,7 @@ public static class FlowchartSharedEdgeRouter
         List<FlowchartResolvedGuide> Guides)
     {
         _LastJustifications = [];
-        ApplyPortSpread(Contract, BoundsById, NodeById, Direction, Guides);
+        ApplyPortSpread(Contract, BoundsById, NodeById, Direction, Guides, SkipDesigned: true);
 
         List<FlowchartResolvedGuide> Searchable = [];
         foreach (FlowchartResolvedGuide Guide in Guides)
@@ -88,6 +88,12 @@ public static class FlowchartSharedEdgeRouter
             {
                 RouteOneEdge(Contract, BoundsById, NodeById, Direction, Guides, Guide, PenaliseCrossings: true);
             }
+        }
+
+        ApplyPortSpread(Contract, BoundsById, NodeById, Direction, Guides, SkipDesigned: true);
+        foreach (FlowchartResolvedGuide Guide in Searchable)
+        {
+            RouteOneEdge(Contract, BoundsById, NodeById, Direction, Guides, Guide, PenaliseCrossings: true);
         }
 
         SeparateParallelRenderedSegments(Direction, Guides);
@@ -246,9 +252,76 @@ public static class FlowchartSharedEdgeRouter
             }
         }
 
+        if (Crosses && Best.Points.Count >= 3)
+        {
+            CandidateRoute? Collapsed = TryCollapseCrossingTerminalStub(
+                Contract,
+                BoundsById,
+                Direction,
+                AllGuides,
+                Guide,
+                Best,
+                PenaliseCrossings,
+                BestScore);
+            if (Collapsed != null)
+            {
+                Best = Collapsed;
+            }
+        }
+
         Guide.Points.Clear();
         Guide.Points.AddRange(Best.Points);
         Guide.RouteKind = Best.RouteKind;
+    }
+
+    private static CandidateRoute? TryCollapseCrossingTerminalStub(
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        FlowchartDirection Direction,
+        IReadOnlyList<FlowchartResolvedGuide> AllGuides,
+        FlowchartResolvedGuide Guide,
+        CandidateRoute Best,
+        bool PenaliseCrossings,
+        double BestScore)
+    {
+        List<(double X, double Y)> Points = CopyPoints(Best.Points);
+        int Last = Points.Count - 1;
+        (double PrevX, double PrevY) = Points[Last - 1];
+        (double EndX, double EndY) = Points[Last];
+        List<CandidateRoute> Variants =
+        [
+            new CandidateRoute(ReplaceLast(Points, PrevX, EndY), Best.RouteKind),
+            new CandidateRoute(ReplaceLast(Points, EndX, PrevY), Best.RouteKind)
+        ];
+        CandidateRoute? Winner = null;
+        foreach (CandidateRoute Variant in Variants)
+        {
+            double Score = ScoreCandidate(
+                Contract,
+                BoundsById,
+                Direction,
+                AllGuides,
+                Guide,
+                Variant,
+                PenaliseCrossings);
+            if (Score < BestScore)
+            {
+                BestScore = Score;
+                Winner = Variant;
+            }
+        }
+
+        return Winner;
+    }
+
+    private static List<(double X, double Y)> ReplaceLast(
+        List<(double X, double Y)> Points,
+        double X,
+        double Y)
+    {
+        List<(double X, double Y)> Copy = CopyPoints(Points);
+        Copy[Copy.Count - 1] = (X, Y);
+        return Copy;
     }
 
     private static List<CandidateRoute> BuildCandidates(
@@ -509,6 +582,11 @@ public static class FlowchartSharedEdgeRouter
             Score += 100000.0;
         }
 
+        if (GuidePointsReverseTowardSource(Candidate.Points, 80.0))
+        {
+            Score += 80000.0;
+        }
+
         if (LeavesAndReentersOwnGroup(Contract, BoundsById, Guide.Edge, Samples))
         {
             Score += 300000.0;
@@ -532,13 +610,19 @@ public static class FlowchartSharedEdgeRouter
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         IReadOnlyDictionary<string, NodeContract> NodeById,
         FlowchartDirection Direction,
-        List<FlowchartResolvedGuide> Guides)
+        List<FlowchartResolvedGuide> Guides,
+        bool SkipDesigned)
     {
         Dictionary<string, List<PortUse>> UsesByNode =
             new Dictionary<string, List<PortUse>>(StringComparer.Ordinal);
         foreach (FlowchartResolvedGuide Guide in Guides)
         {
             if (Guide.Points.Count < 2)
+            {
+                continue;
+            }
+
+            if (SkipDesigned && IsDesignedRoute(Guide.RouteKind))
             {
                 continue;
             }
@@ -589,12 +673,14 @@ public static class FlowchartSharedEdgeRouter
     {
         Uses.Sort((Left, Right) =>
         {
+            (double LeftOtherX, double LeftOtherY) = OppositeEnd(Left);
+            (double RightOtherX, double RightOtherY) = OppositeEnd(Right);
             if (FaceIsHorizontal(Face))
             {
-                return Left.X.CompareTo(Right.X);
+                return LeftOtherX.CompareTo(RightOtherX);
             }
 
-            return Left.Y.CompareTo(Right.Y);
+            return LeftOtherY.CompareTo(RightOtherY);
         });
 
         double Span = FaceIsHorizontal(Face) ? NodeBounds.Width : NodeBounds.Height;
@@ -784,7 +870,7 @@ public static class FlowchartSharedEdgeRouter
                     continue;
                 }
 
-                if (FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(StartX, StartY, EndX, EndY, Bounds, 0.0))
+                if (FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(StartX, StartY, EndX, EndY, Bounds, 8.0))
                 {
                     HitNodeId = Bounds.NodeId;
                     return true;
@@ -1620,13 +1706,27 @@ public static class FlowchartSharedEdgeRouter
             return;
         }
 
-        if (AtSource)
+        int EndIndex = AtSource ? 0 : Guide.Points.Count - 1;
+        int NeighborIndex = AtSource ? 1 : Guide.Points.Count - 2;
+        (double OldX, double OldY) = Guide.Points[EndIndex];
+        Guide.Points[EndIndex] = (X, Y);
+        if (Guide.Points.Count < 3)
         {
-            Guide.Points[0] = (X, Y);
             return;
         }
 
-        Guide.Points[Guide.Points.Count - 1] = (X, Y);
+        (double NeighborX, double NeighborY) = Guide.Points[NeighborIndex];
+        if (Math.Abs(NeighborX - OldX) <= 1.0)
+        {
+            NeighborX = X;
+        }
+
+        if (Math.Abs(NeighborY - OldY) <= 1.0)
+        {
+            NeighborY = Y;
+        }
+
+        Guide.Points[NeighborIndex] = (NeighborX, NeighborY);
     }
 
     private static void ShiftInteriorPoints(FlowchartResolvedGuide Guide, double ShiftX, double ShiftY)
@@ -1961,6 +2061,55 @@ public static class FlowchartSharedEdgeRouter
         }
 
         return Copy;
+    }
+
+    private static (double X, double Y) OppositeEnd(PortUse Use)
+    {
+        if (Use.Guide.Points.Count < 2)
+        {
+            return (Use.X, Use.Y);
+        }
+
+        return Use.AtSource
+            ? Use.Guide.Points[Use.Guide.Points.Count - 1]
+            : Use.Guide.Points[0];
+    }
+
+    private static bool GuidePointsReverseTowardSource(
+        IReadOnlyList<(double X, double Y)> Points,
+        double BacktrackPx)
+    {
+        if (Points.Count < 3)
+        {
+            return false;
+        }
+
+        double AxisX = Points[Points.Count - 1].X - Points[0].X;
+        double AxisY = Points[Points.Count - 1].Y - Points[0].Y;
+        double AxisLength = Math.Sqrt((AxisX * AxisX) + (AxisY * AxisY));
+        if (AxisLength < 1e-6)
+        {
+            return false;
+        }
+
+        AxisX /= AxisLength;
+        AxisY /= AxisLength;
+        double MaximumProgress = 0.0;
+        for (int Index = 0; Index < Points.Count - 1; Index++)
+        {
+            double Progress = ((Points[Index].X - Points[0].X) * AxisX)
+                + ((Points[Index].Y - Points[0].Y) * AxisY);
+            if (Progress > MaximumProgress)
+            {
+                MaximumProgress = Progress;
+            }
+            else if ((MaximumProgress - Progress) > BacktrackPx)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static double PathLength(IReadOnlyList<(double X, double Y)> Samples)
