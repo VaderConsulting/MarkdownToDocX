@@ -231,15 +231,15 @@ correctly in Svg.Skia. See `samples/rendered/00-notation-legend.png`.
 
 ## 8. Constraints (allowed relationships)
 
-**Provenance.** The source of truth is the ArchiMate 3.1 specification, Appendix B.5 relationship tables.
-To avoid transcribing ~500 cells by hand, the MIT-licensed Archi project's `relationships.xml` (v3.1, commit
-`9ba0559c`) was used **only as a machine-readable transcription aid**; every one of the 22 × 22 = 484 in-scope
-3.1 cells was then checked by eye against the spec table images (archived 3.1 copy) — **all 484 match**.
-**3.2:** 15 cells differ in Archi's v3.2 file (commit `0469def6`). They match the documented 3.2 change
-(Device and System Software are no longer specialisations of Node), but they come **solely from Archi** and
-have **not** been verified against the 3.2 specification (the online spec now requires sign-in), so they are
-**provisional** and marked † below. Machine-readable: `poc/archimate-rules.json`; diff:
-`poc/rules-diff-3.1-vs-3.2.txt`.
+**Provenance.** The 22 × 22 Application + Technology **3.1** cells were checked by eye against the ArchiMate 3.1
+Appendix B.5 tables — **all 484 match**. Every other cell (Business, Motivation, Strategy, Physical,
+Implementation & Migration, Grouping, Location, Junction, and the 15 Application/Technology **3.2** deltas)
+is taken from the MIT-licensed Archi project's `relationships.xml` (3.1: commit `9ba0559c`, release_4.6.0;
+3.2: commit `0469def6`, release_5.0.0). Archi is the **source** of those cells, not a transcription aid.
+They stay **provisional** — Archi is its maintainers' reading of The Open Group tables, not an official
+Open Group publication, and those cells have not been verified against specification text. Machine-readable:
+`docs/enterprise/enterprise-rules.json`; pinned Archi files: `docs/enterprise/archi/`. See
+`THIRD-PARTY-NOTICES.md`.
 
 Note that the 3.1 Appendix B tables already include the **permitted derived relationships**, which is why many
 cross-layer cells are permissive (e.g. `fotv`).
@@ -339,9 +339,10 @@ Key points:
   general appearance. No image, path data or figure was copied from the spec, from Archi or from any shape library.
 * The spec pages and figures downloaded for verification (`sources/`) are copyrighted Open Group material kept
   **for local checking only**, marked in `sources/README-DO-NOT-REDISTRIBUTE.md`. Don't commit or publish them.
-* Rule data: the allowed-relationship facts come from the spec tables; Archi's `relationships.xml` (MIT) was
-  used only as a transcription aid. If the JSON is shipped, keep its provenance note and an MIT notice for Archi,
-  to be safe.
+* Rule data: the 22 × 22 Application + Technology 3.1 cells were checked against the 3.1 Appendix B tables.
+  Archi's MIT `relationships.xml` is the source of every new-layer cell and of the 15 Application/Technology
+  3.2 deltas; those cells stay provisional. The shipped JSON and `THIRD-PARTY-NOTICES.md` record that source
+  and the MIT licence. No Archi notation, figures, icons or code are used.
 
 **Risk flags:**
 * ⚠ **Product/package naming:** don't publish anything called "mermaid-archimate", "ArchiMate for Mermaid" and so

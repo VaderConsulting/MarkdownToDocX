@@ -1,7 +1,7 @@
 {
   "name": "enterprise diagram relationship rules (ArchiMate 3.x, all layers and aspects)",
   "trademark": "ArchiMate is a registered trademark of The Open Group in the United States and other countries.",
-  "provenance": "Application \u002B Technology 3.1 cells (22x22) were checked by eye against the ArchiMate 3.1 Appendix B.5 tables. The 15 Application/Technology cells that differ in 3.2 remain provisional. All newly added Business, Motivation, Strategy, Physical, Implementation \u0026 Migration, Grouping, Location and Junction cells were transcribed from the MIT-licensed Archi relationships.xml (current 3.2 file) as a typing aid only (no notation) and are PROVISIONAL \u2014 not verified against specification text.",
+  "provenance": "Application \u002B Technology 3.1 cells (22x22) were checked by eye against the ArchiMate 3.1 Appendix B.5 tables. Archi relationships.xml is the source of every new-layer cell (Business, Motivation, Strategy, Physical, Implementation \u0026 Migration, Grouping, Location, Junction) and of the 15 Application/Technology 3.2 deltas. Those Archi-sourced cells stay provisional \u2014 not verified against Open Group specification text. Only relationship-rule data is used; no Archi notation, figures, icons or code are used.",
   "letters": {
     "a": "access",
     "c": "composition",
@@ -186,7 +186,7 @@
         "o",
         "acfginorstv",
         "fotv",
-        "acfginorstv"
+        "afinortv"
       ],
       [
         "fgortv",
@@ -249,7 +249,7 @@
         "o",
         "acfginorstv",
         "fotv",
-        "acfginorstv"
+        "afinortv"
       ],
       [
         "fotv",
@@ -312,7 +312,7 @@
         "o",
         "acfginorstv",
         "fotv",
-        "acfginorstv"
+        "afinortv"
       ],
       [
         "fotv",
@@ -375,7 +375,7 @@
         "o",
         "acfgnorstv",
         "fotv",
-        "acfginorstv"
+        "afnortv"
       ],
       [
         "fotv",
@@ -438,7 +438,7 @@
         "o",
         "acfgnorstv",
         "fotv",
-        "acfginorstv"
+        "afnortv"
       ],
       [
         "fotv",
@@ -501,7 +501,7 @@
         "o",
         "acfgnorstv",
         "fotv",
-        "acfginorstv"
+        "afnortv"
       ],
       [
         "fotv",
@@ -564,7 +564,7 @@
         "o",
         "acfgnorstv",
         "fotv",
-        "acfginorstv"
+        "afnortv"
       ],
       [
         "fotv",
@@ -627,7 +627,7 @@
         "o",
         "acfgnorstv",
         "fotv",
-        "acfginorstv"
+        "afnortv"
       ],
       [
         "o",
@@ -690,7 +690,7 @@
         "o",
         "cgnors",
         "o",
-        "acfginorstv"
+        "nor"
       ],
       [
         "fortv",
@@ -715,7 +715,7 @@
         "fiortv",
         "fiortv",
         "aio",
-        "ino",
+        "nor",
         "no",
         "no",
         "nor",
@@ -729,9 +729,9 @@
         "or",
         "or",
         "or",
-        "fiotv",
-        "fiotv",
-        "fiotv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
         "fiortv",
         "fiortv",
         "fiortv",
@@ -742,18 +742,18 @@
         "ao",
         "ao",
         "fotv",
-        "cfgiortv",
-        "cfgiotv",
+        "cfgiorstv",
+        "cfgiorstv",
         "fotv",
         "aio",
-        "io",
         "o",
-        "io",
+        "o",
+        "o",
         "o",
         "o",
         "acfginorstv",
         "fotv",
-        "acfginorstv"
+        "afinortv"
       ],
       [
         "fortv",
@@ -778,7 +778,7 @@
         "fiortv",
         "fiortv",
         "aio",
-        "no",
+        "nor",
         "no",
         "no",
         "nor",
@@ -792,23 +792,23 @@
         "or",
         "or",
         "or",
-        "fotv",
-        "fotv",
-        "fotv",
-        "fortv",
-        "fortv",
-        "fortv",
-        "fortv",
-        "fortv",
-        "fortv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
         "ao",
         "ao",
         "ao",
         "fotv",
+        "cfgiorstv",
+        "cfgiorstv",
         "fotv",
-        "fotv",
-        "fotv",
-        "ao",
+        "aio",
         "o",
         "o",
         "o",
@@ -816,7 +816,7 @@
         "o",
         "acfginorstv",
         "fotv",
-        "acfginorstv"
+        "afinortv"
       ],
       [
         "fortv",
@@ -841,7 +841,7 @@
         "fiortv",
         "fiortv",
         "aio",
-        "no",
+        "nor",
         "no",
         "no",
         "nor",
@@ -855,23 +855,23 @@
         "or",
         "or",
         "or",
-        "fotv",
-        "fotv",
-        "fotv",
-        "fortv",
-        "fortv",
-        "fortv",
-        "fortv",
-        "fortv",
-        "fortv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
         "ao",
         "ao",
         "ao",
         "fotv",
+        "cfgiorstv",
+        "cfgiorstv",
         "fotv",
-        "fotv",
-        "fotv",
-        "ao",
+        "aio",
         "o",
         "o",
         "o",
@@ -879,7 +879,7 @@
         "o",
         "acfginorstv",
         "fotv",
-        "acfginorstv"
+        "afinortv"
       ],
       [
         "fortv",
@@ -904,7 +904,7 @@
         "fiortv",
         "fiortv",
         "aio",
-        "ino",
+        "nor",
         "no",
         "no",
         "nor",
@@ -918,9 +918,9 @@
         "or",
         "or",
         "or",
-        "fiotv",
-        "fiotv",
-        "fiotv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
         "fiortv",
         "fiortv",
         "fiortv",
@@ -932,17 +932,17 @@
         "ao",
         "fotv",
         "fgiortv",
-        "fgiotv",
+        "fgiortv",
         "fotv",
         "aio",
-        "io",
         "o",
-        "io",
+        "o",
+        "o",
         "o",
         "o",
         "acfginorstv",
         "fotv",
-        "acfginorstv"
+        "afinortv"
       ],
       [
         "fotv",
@@ -1005,7 +1005,7 @@
         "o",
         "acfginorstv",
         "fotv",
-        "acfginorstv"
+        "afinortv"
       ],
       [
         "fortv",
@@ -1030,7 +1030,7 @@
         "fiortv",
         "fiortv",
         "aio",
-        "ino",
+        "nor",
         "no",
         "no",
         "nor",
@@ -1044,9 +1044,9 @@
         "or",
         "or",
         "or",
-        "fiotv",
-        "fiotv",
-        "fiotv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
         "fiortv",
         "fiortv",
         "fiortv",
@@ -1058,72 +1058,9 @@
         "ao",
         "fotv",
         "fgiortv",
-        "fgiotv",
+        "fgiortv",
         "fotv",
         "aio",
-        "io",
-        "o",
-        "io",
-        "o",
-        "o",
-        "acfginorstv",
-        "fotv",
-        "acfginorstv"
-      ],
-      [
-        "fortv",
-        "fortv",
-        "fortv",
-        "fortv",
-        "fortv",
-        "fortv",
-        "fortv",
-        "fortv",
-        "ao",
-        "fgiortv",
-        "fgiortv",
-        "fgiortv",
-        "fortv",
-        "fgiortv",
-        "fortv",
-        "cfgostv",
-        "fiortv",
-        "fiortv",
-        "fiortv",
-        "fiortv",
-        "fiortv",
-        "aio",
-        "nor",
-        "no",
-        "no",
-        "nor",
-        "nor",
-        "nor",
-        "nor",
-        "nor",
-        "no",
-        "no",
-        "or",
-        "or",
-        "or",
-        "or",
-        "fortv",
-        "fortv",
-        "fortv",
-        "fortv",
-        "fortv",
-        "fortv",
-        "fortv",
-        "fortv",
-        "fortv",
-        "ao",
-        "ao",
-        "ao",
-        "fotv",
-        "fortv",
-        "fortv",
-        "fotv",
-        "ao",
         "o",
         "o",
         "o",
@@ -1131,7 +1068,70 @@
         "o",
         "acfginorstv",
         "fotv",
-        "acfginorstv"
+        "afinortv"
+      ],
+      [
+        "fortv",
+        "fortv",
+        "fortv",
+        "fortv",
+        "fortv",
+        "fortv",
+        "fortv",
+        "fortv",
+        "ao",
+        "fgiortv",
+        "fgiortv",
+        "fgiortv",
+        "fortv",
+        "fgiortv",
+        "fortv",
+        "cfgostv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
+        "aio",
+        "nor",
+        "no",
+        "no",
+        "nor",
+        "nor",
+        "nor",
+        "nor",
+        "nor",
+        "no",
+        "no",
+        "or",
+        "or",
+        "or",
+        "or",
+        "fiortv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
+        "ao",
+        "ao",
+        "ao",
+        "fotv",
+        "fgiortv",
+        "fgiortv",
+        "fotv",
+        "aio",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "acfginorstv",
+        "fotv",
+        "afinortv"
       ],
       [
         "fotv",
@@ -1194,7 +1194,7 @@
         "o",
         "acfgnorstv",
         "fotv",
-        "acfginorstv"
+        "afnortv"
       ],
       [
         "fotv",
@@ -1257,7 +1257,7 @@
         "o",
         "acfgnorstv",
         "fotv",
-        "acfginorstv"
+        "afnortv"
       ],
       [
         "fotv",
@@ -1320,7 +1320,7 @@
         "o",
         "acfgnorstv",
         "fotv",
-        "acfginorstv"
+        "afnortv"
       ],
       [
         "fotv",
@@ -1383,7 +1383,7 @@
         "o",
         "acfgnorstv",
         "fotv",
-        "acfginorstv"
+        "afnortv"
       ],
       [
         "fotv",
@@ -1446,7 +1446,7 @@
         "o",
         "acfgnorstv",
         "fotv",
-        "acfginorstv"
+        "afnortv"
       ],
       [
         "or",
@@ -1471,7 +1471,7 @@
         "or",
         "or",
         "cgos",
-        "no",
+        "nor",
         "no",
         "no",
         "nor",
@@ -1485,21 +1485,21 @@
         "or",
         "or",
         "or",
+        "or",
+        "or",
+        "or",
+        "or",
+        "or",
+        "or",
+        "or",
+        "or",
+        "or",
+        "or",
+        "or",
         "o",
         "o",
-        "o",
         "or",
         "or",
-        "or",
-        "or",
-        "or",
-        "or",
-        "or",
-        "or",
-        "o",
-        "o",
-        "o",
-        "o",
         "o",
         "o",
         "o",
@@ -1509,7 +1509,7 @@
         "o",
         "cgnors",
         "o",
-        "acfginorstv"
+        "nor"
       ],
       [
         "o",
@@ -1572,7 +1572,7 @@
         "o",
         "cgnos",
         "o",
-        "acfginorstv"
+        "no"
       ],
       [
         "o",
@@ -1635,7 +1635,7 @@
         "o",
         "cgnos",
         "o",
-        "acfginorstv"
+        "no"
       ],
       [
         "o",
@@ -1698,7 +1698,7 @@
         "o",
         "cgnos",
         "o",
-        "acfginorstv"
+        "no"
       ],
       [
         "o",
@@ -1761,70 +1761,7 @@
         "o",
         "cgnos",
         "o",
-        "acfginorstv"
-      ],
-      [
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "no",
-        "no",
-        "no",
-        "nor",
-        "cgnos",
-        "no",
-        "no",
-        "no",
-        "no",
-        "no",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "o",
-        "cgnors",
-        "o",
-        "acfginorstv"
+        "no"
       ],
       [
         "o",
@@ -1853,8 +1790,8 @@
         "no",
         "no",
         "nor",
-        "nor",
         "cgnos",
+        "no",
         "no",
         "no",
         "no",
@@ -1887,7 +1824,7 @@
         "o",
         "cgnors",
         "o",
-        "acfginorstv"
+        "nor"
       ],
       [
         "o",
@@ -1917,9 +1854,9 @@
         "no",
         "nor",
         "nor",
-        "nor",
         "cgnos",
-        "cgnos",
+        "no",
+        "no",
         "no",
         "no",
         "o",
@@ -1950,7 +1887,7 @@
         "o",
         "cgnors",
         "o",
-        "acfginorstv"
+        "nor"
       ],
       [
         "o",
@@ -2013,7 +1950,70 @@
         "o",
         "cgnors",
         "o",
-        "acfginorstv"
+        "nor"
+      ],
+      [
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "no",
+        "no",
+        "no",
+        "nor",
+        "nor",
+        "nor",
+        "cgnos",
+        "cgnos",
+        "no",
+        "no",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "cgnors",
+        "o",
+        "nor"
       ],
       [
         "o",
@@ -2076,7 +2076,7 @@
         "o",
         "cgnos",
         "o",
-        "acfginorstv"
+        "no"
       ],
       [
         "o",
@@ -2139,7 +2139,7 @@
         "o",
         "cgnos",
         "o",
-        "acfginorstv"
+        "no"
       ],
       [
         "o",
@@ -2202,7 +2202,7 @@
         "o",
         "cfginorstv",
         "o",
-        "acfginorstv"
+        "finortv"
       ],
       [
         "o",
@@ -2265,7 +2265,7 @@
         "o",
         "cfgnorstv",
         "o",
-        "acfginorstv"
+        "fnortv"
       ],
       [
         "o",
@@ -2328,7 +2328,7 @@
         "o",
         "cfgnorstv",
         "o",
-        "acfginorstv"
+        "fnortv"
       ],
       [
         "o",
@@ -2391,7 +2391,7 @@
         "o",
         "cfgnorstv",
         "o",
-        "acfginorstv"
+        "fnortv"
       ],
       [
         "fotv",
@@ -2454,7 +2454,7 @@
         "o",
         "acfginorstv",
         "fotv",
-        "acfginorstv"
+        "afinortv"
       ],
       [
         "fotv",
@@ -2517,7 +2517,7 @@
         "o",
         "acfginorstv",
         "fotv",
-        "acfginorstv"
+        "afinortv"
       ],
       [
         "fotv",
@@ -2580,7 +2580,7 @@
         "o",
         "acfginorstv",
         "fotv",
-        "acfginorstv"
+        "afinortv"
       ],
       [
         "fotv",
@@ -2643,7 +2643,7 @@
         "o",
         "acfginorstv",
         "fotv",
-        "acfginorstv"
+        "afinortv"
       ],
       [
         "fotv",
@@ -2706,7 +2706,7 @@
         "o",
         "acfgnorstv",
         "fotv",
-        "acfginorstv"
+        "afnortv"
       ],
       [
         "fotv",
@@ -2769,7 +2769,7 @@
         "o",
         "acfgnorstv",
         "fotv",
-        "acfginorstv"
+        "afnortv"
       ],
       [
         "fotv",
@@ -2832,7 +2832,7 @@
         "o",
         "acfgnorstv",
         "fotv",
-        "acfginorstv"
+        "afnortv"
       ],
       [
         "fotv",
@@ -2895,7 +2895,7 @@
         "o",
         "acfgnorstv",
         "fotv",
-        "acfginorstv"
+        "afnortv"
       ],
       [
         "fotv",
@@ -2958,7 +2958,7 @@
         "o",
         "acfgnorstv",
         "fotv",
-        "acfginorstv"
+        "afnortv"
       ],
       [
         "o",
@@ -3021,7 +3021,7 @@
         "o",
         "cgnors",
         "o",
-        "acfginorstv"
+        "nor"
       ],
       [
         "o",
@@ -3084,7 +3084,7 @@
         "o",
         "cgnors",
         "o",
-        "acfginorstv"
+        "nor"
       ],
       [
         "o",
@@ -3147,7 +3147,7 @@
         "o",
         "cgnors",
         "o",
-        "acfginorstv"
+        "nor"
       ],
       [
         "fortv",
@@ -3159,7 +3159,7 @@
         "fortv",
         "cfgortv",
         "acgo",
-        "fotv",
+        "fortv",
         "fortv",
         "fortv",
         "fotv",
@@ -3172,7 +3172,7 @@
         "fortv",
         "cfgortv",
         "acgo",
-        "no",
+        "nor",
         "no",
         "no",
         "nor",
@@ -3186,9 +3186,9 @@
         "or",
         "or",
         "or",
-        "fotv",
-        "fotv",
-        "fotv",
+        "fortv",
+        "fortv",
+        "fortv",
         "fortv",
         "fortv",
         "fortv",
@@ -3200,7 +3200,7 @@
         "acgo",
         "cfgostv",
         "fortv",
-        "fotv",
+        "fortv",
         "fotv",
         "acgo",
         "o",
@@ -3210,7 +3210,7 @@
         "o",
         "acfgnorstv",
         "fotv",
-        "acfginorstv"
+        "afnortv"
       ],
       [
         "fortv",
@@ -3222,9 +3222,9 @@
         "fortv",
         "fortv",
         "ao",
-        "fotv",
-        "cfgortv",
-        "cfgiortv",
+        "cfgiorstv",
+        "cfgiorstv",
+        "cfgiorstv",
         "fotv",
         "cfgiortv",
         "fotv",
@@ -3235,7 +3235,7 @@
         "fiortv",
         "fiortv",
         "aio",
-        "no",
+        "nor",
         "no",
         "no",
         "nor",
@@ -3249,21 +3249,21 @@
         "or",
         "or",
         "or",
-        "fotv",
-        "fotv",
-        "fotv",
-        "fortv",
-        "fortv",
-        "fortv",
-        "fortv",
-        "fortv",
-        "fortv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
         "ao",
         "ao",
         "ao",
         "fotv",
-        "cfgorstv",
-        "fotv",
+        "cfgiorstv",
+        "cfgiorstv",
         "fotv",
         "aio",
         "o",
@@ -3273,7 +3273,7 @@
         "o",
         "acfginorstv",
         "fotv",
-        "acfginorstv"
+        "afinortv"
       ],
       [
         "fortv",
@@ -3285,9 +3285,9 @@
         "fortv",
         "fortv",
         "ao",
-        "cfgiotv",
-        "cfgiortv",
-        "cfgiortv",
+        "cfgiorstv",
+        "cfgiorstv",
+        "cfgiorstv",
         "fotv",
         "cfgiortv",
         "fotv",
@@ -3298,7 +3298,7 @@
         "fiortv",
         "fiortv",
         "aio",
-        "ino",
+        "nor",
         "no",
         "no",
         "nor",
@@ -3312,9 +3312,9 @@
         "or",
         "or",
         "or",
-        "fiotv",
-        "fiotv",
-        "fiotv",
+        "fiortv",
+        "fiortv",
+        "fiortv",
         "fiortv",
         "fiortv",
         "fiortv",
@@ -3325,18 +3325,18 @@
         "ao",
         "ao",
         "fotv",
-        "cfgiortv",
-        "cfgiostv",
+        "cfgiorstv",
+        "cfgiorstv",
         "fotv",
         "aio",
-        "io",
         "o",
-        "io",
+        "o",
+        "o",
         "o",
         "o",
         "acfginorstv",
         "fotv",
-        "acfginorstv"
+        "afinortv"
       ],
       [
         "fortv",
@@ -3361,7 +3361,7 @@
         "fiortv",
         "fiortv",
         "aio",
-        "inor",
+        "nor",
         "no",
         "no",
         "nor",
@@ -3392,38 +3392,38 @@
         "fgiortv",
         "cfgostv",
         "aio",
-        "io",
         "o",
-        "io",
+        "o",
+        "o",
         "o",
         "o",
         "acfginorstv",
         "fotv",
-        "acfginorstv"
+        "afinortv"
       ],
       [
-        "or",
-        "or",
-        "or",
-        "or",
-        "or",
-        "or",
-        "or",
-        "or",
-        "or",
-        "o",
-        "or",
-        "or",
-        "o",
-        "or",
         "o",
         "o",
-        "or",
-        "or",
-        "or",
-        "or",
-        "or",
-        "or",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
         "no",
         "no",
         "no",
@@ -3441,20 +3441,20 @@
         "o",
         "o",
         "o",
-        "or",
-        "or",
-        "or",
-        "or",
-        "or",
-        "or",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
+        "o",
         "or",
         "or",
         "o",
         "o",
-        "or",
         "o",
         "o",
-        "cgors",
+        "o",
+        "cgos",
         "o",
         "o",
         "o",
@@ -3462,7 +3462,7 @@
         "o",
         "cgnors",
         "o",
-        "acfginorstv"
+        "nor"
       ],
       [
         "or",
@@ -3487,7 +3487,7 @@
         "or",
         "or",
         "or",
-        "nor",
+        "no",
         "no",
         "no",
         "nor",
@@ -3525,7 +3525,7 @@
         "o",
         "acfgnorst",
         "or",
-        "acfginorstv"
+        "afnort"
       ],
       [
         "or",
@@ -3550,7 +3550,7 @@
         "or",
         "or",
         "or",
-        "nor",
+        "no",
         "no",
         "no",
         "nor",
@@ -3588,7 +3588,7 @@
         "o",
         "cgnors",
         "or",
-        "acfginorstv"
+        "nor"
       ],
       [
         "o",
@@ -3651,7 +3651,7 @@
         "o",
         "acfgnost",
         "o",
-        "acfginorstv"
+        "afnot"
       ],
       [
         "cgor",
@@ -3676,11 +3676,11 @@
         "cgor",
         "cgor",
         "cgor",
-        "inor",
+        "no",
         "no",
         "no",
         "cgnor",
-        "cgnor",
+        "nor",
         "nor",
         "cgnor",
         "cgnor",
@@ -3712,9 +3712,9 @@
         "fot",
         "cfgost",
         "o",
-        "acfginorst",
+        "acfgnorst",
         "cgor",
-        "acfginorstv"
+        "acfgnort"
       ],
       [
         "o",
@@ -3777,7 +3777,7 @@
         "cgos",
         "cgos",
         "o",
-        "acfginorstv"
+        "o"
       ],
       [
         "cfgorstv",
@@ -3840,7 +3840,7 @@
         "cgos",
         "acfginorstv",
         "cfgorstv",
-        "acfginorstv"
+        "acfginortv"
       ],
       [
         "cfgortv",
@@ -3865,7 +3865,7 @@
         "cfgiortv",
         "cfgiortv",
         "acgio",
-        "cginor",
+        "cgnor",
         "cgno",
         "cgno",
         "cgnor",
@@ -3896,14 +3896,14 @@
         "cfgiortv",
         "cfgotv",
         "acgio",
-        "cgio",
         "cgo",
-        "cgio",
+        "cgo",
+        "cgo",
         "cgo",
         "cgo",
         "acfginorstv",
         "cfgostv",
-        "acfginorstv"
+        "acfginortv"
       ],
       [
         "fortv",
@@ -3966,7 +3966,7 @@
         "o",
         "afinortv",
         "fortv",
-        "acfginorstv"
+        "afinortv"
       ]
     ],
     "3.2": [
@@ -7911,5 +7911,14 @@
       }
     ],
     "newTypesUnverified": true
+  },
+  "source": {
+    "name": "Archi relationships.xml",
+    "url": "https://github.com/archimatetool/archi",
+    "licence": "MIT",
+    "commits": {
+      "3.1": "9ba0559c2bd6e1ff15a7019c9986afadb29e2e71",
+      "3.2": "0469def652b4d23d7ba21d6a31bc867c2e38f8b3"
+    }
   }
 }

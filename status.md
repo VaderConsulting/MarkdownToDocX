@@ -10,7 +10,7 @@
 |---|---|
 | Native `enterprise` kind (not a Mermaid L1 kind) | **Done** — parser, 3.1/3.2 rule tables, Sugiyama SVG, mermaid + enterprise fence dispatch, DOCX embed |
 | ArchiMate 3.2 coverage | **Done** — Application, Technology, Physical (Technology green), Business, Motivation, Strategy, Implementation & Migration, Grouping, Location, Junction and/or |
-| Verified relationship cells | Application + Technology 22×22 (3.1 eye-checked). 15 App/Tech 3.2 deltas remain provisional. All newly added layer cells are provisional (Archi MIT `relationships.xml` typing aid only). |
+| Verified relationship cells | Application + Technology 22×22 (3.1 eye-checked). 15 App/Tech 3.2 deltas remain provisional. All newly added layer cells are provisional. Archi MIT `relationships.xml` is the source of those new-layer cells and of the 15 deltas (3.1 commit `9ba0559c`; 3.2 commit `0469def6`). |
 | ArchiMate 4.0 version | **Planned** — [docs/enterprise-archimate-4-plan.md](docs/enterprise-archimate-4-plan.md). **Mandatory:** 4.0 supports **all** ArchiMate 4 domains (full coverage, not a subset). Public summaries only; unverified points marked. |
 | Feature name | `enterprise` only. ArchiMate is used as an adjective / trademark, never as a product or namespace name. |
 

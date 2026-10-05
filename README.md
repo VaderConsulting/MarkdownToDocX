@@ -94,8 +94,9 @@ Recognition quality is tracked through gates per diagram kind:
 | Sugiyama layout engine (`MermaidRecognition.Layout/Sugiyama/`) | [Microsoft Automatic Graph Layout (MSAGL)](https://github.com/microsoft/automatic-graph-layout) | MIT - Copyright (c) Microsoft Corporation |
 | Mermaid parser/grammar (`mermaid/`) | [Mermaid 11.14.0](https://github.com/mermaid-js/mermaid) | MIT |
 | Naiad renderer (`extern/Naiad/`) | Naiad (vendored with local changes; see `extern/Naiad/license.txt` and `extern/Naiad/UpstreamContributions.md`) | See `extern/Naiad/license.txt` |
+| Enterprise relationship-rule data (`docs/enterprise/enterprise-rules.json`, embedded in MermaidRecognition.dll) | Archi® `relationships.xml` (3.1 commit `9ba0559c`, release_4.6.0; 3.2 commit `0469def6`, release_5.0.0) | MIT - see [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md) |
 
-See [`src/MermaidRecognition.Layout/THIRD_PARTY_NOTICES.md`](src/MermaidRecognition.Layout/THIRD_PARTY_NOTICES.md) for full attribution.
+See [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md) and [`src/MermaidRecognition.Layout/THIRD_PARTY_NOTICES.md`](src/MermaidRecognition.Layout/THIRD_PARTY_NOTICES.md) for full attribution.
 
 ---
 

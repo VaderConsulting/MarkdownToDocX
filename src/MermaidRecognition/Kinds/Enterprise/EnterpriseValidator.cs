@@ -58,6 +58,9 @@ public static class EnterpriseValidator
             string TargetType = EnterpriseElementCatalog.GetKebabName(Target.ElementType);
             string AllowedLetters = Rules.GetAllowedLetters(Document.Version, SourceType, TargetType);
             char Letter = EnterpriseElementCatalog.GetLetter(Relationship.Kind);
+            // Archi allows every relationship letter into a junction (3.2) or a large subset (3.1).
+            // Those cells stay in the JSON as Archi published them. And/or polarity is not a letter
+            // restriction; it is carried on the junction element in the parser and renderer.
             bool Provisional = string.Equals(Document.Version, "3.2", StringComparison.Ordinal)
                 && Rules.IsProvisionalCell(SourceType, TargetType);
             if (AllowedLetters.IndexOf(Letter) < 0)
