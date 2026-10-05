@@ -30,15 +30,9 @@ public static class EnterpriseSvgRenderer
         EnterpriseLayoutResult Layout = EnterpriseLayoutEngine.Layout(Document);
         List<EnterpriseRoutedEdge> RoutedEdges = EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes);
         double TitleHeight = string.IsNullOrEmpty(Document.Title) ? 0 : 30;
-        double MinX = 0;
-        double MinY = 0;
-        double MaxX = Layout.Width;
-        double MaxY = Layout.Height;
-        ExpandForRoutedEdges(RoutedEdges, ref MinX, ref MinY, ref MaxX, ref MaxY);
-        double ShiftX = 10 - MinX;
-        double ShiftY = 10 - MinY;
-        double Width = Math.Ceiling(MaxX + ShiftX + 10);
-        double Height = Math.Ceiling(MaxY + ShiftY + TitleHeight + 10);
+        double Width = Math.Ceiling(Math.Max(Layout.Width, 40));
+        double Height = Math.Ceiling(Math.Max(Layout.Height, 40) + TitleHeight);
+        ExpandForRoutedEdges(RoutedEdges, ref Width, ref Height, TitleHeight);
         StringBuilder Builder = new StringBuilder();
         Builder.Append("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"")
             .Append(EnterpriseSvgFormat.Number(Width))
@@ -65,10 +59,8 @@ public static class EnterpriseSvgRenderer
                 .Append("</text>");
         }
 
-        Builder.Append("<g transform=\"translate(")
-            .Append(EnterpriseSvgFormat.Number(ShiftX))
-            .Append(',')
-            .Append(EnterpriseSvgFormat.Number(TitleHeight + ShiftY))
+        Builder.Append("<g transform=\"translate(0,")
+            .Append(EnterpriseSvgFormat.Number(TitleHeight))
             .Append(")\">");
 
         List<EnterpriseLayoutNode> Ordered = new List<EnterpriseLayoutNode>(Layout.Nodes.Values);
@@ -96,28 +88,23 @@ public static class EnterpriseSvgRenderer
 
     private static void ExpandForRoutedEdges(
         List<EnterpriseRoutedEdge> RoutedEdges,
-        ref double MinX,
-        ref double MinY,
-        ref double MaxX,
-        ref double MaxY)
+        ref double Width,
+        ref double Height,
+        double TitleHeight)
     {
         foreach (EnterpriseRoutedEdge Routed in RoutedEdges)
         {
             foreach ((double X, double Y) in Routed.SvgPoints)
             {
-                MinX = Math.Min(MinX, X - 20);
-                MinY = Math.Min(MinY, Y - 20);
-                MaxX = Math.Max(MaxX, X + 20);
-                MaxY = Math.Max(MaxY, Y + 20);
+                Width = Math.Max(Width, X + 20);
+                Height = Math.Max(Height, Y + TitleHeight + 20);
             }
 
             if (Routed.Label.Length > 0)
             {
                 double LabelWidth = (Routed.Label.Length * 7.0) + 8;
-                MinX = Math.Min(MinX, Routed.LabelX - (LabelWidth / 2.0));
-                MaxX = Math.Max(MaxX, Routed.LabelX + (LabelWidth / 2.0));
-                MinY = Math.Min(MinY, Routed.LabelY - 12);
-                MaxY = Math.Max(MaxY, Routed.LabelY + 12);
+                Width = Math.Max(Width, Routed.LabelX + (LabelWidth / 2.0) + 8);
+                Height = Math.Max(Height, Routed.LabelY + TitleHeight + 16);
             }
         }
     }
@@ -163,9 +150,9 @@ public static class EnterpriseSvgRenderer
             if (!string.IsNullOrEmpty(JunctionLabel) && !string.Equals(JunctionLabel, Element.Id, StringComparison.Ordinal))
             {
                 Builder.Append("<text x=\"")
-                    .Append(EnterpriseSvgFormat.Number(X + 30))
+                    .Append(EnterpriseSvgFormat.Number(X + Node.Width + 6))
                     .Append("\" y=\"")
-                    .Append(EnterpriseSvgFormat.Number(Y + 18))
+                    .Append(EnterpriseSvgFormat.Number(Y + (Node.Height / 2.0) + 4))
                     .Append("\" font-size=\"11\">")
                     .Append(EnterpriseSvgFormat.Escape(JunctionLabel))
                     .Append("</text>");

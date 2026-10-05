@@ -47,6 +47,26 @@ public sealed class NodeContract
         get => _ParentGroupId; set => _ParentGroupId = value;
     }
 
+    private double _LayoutWidth;
+
+    /// <summary>
+    /// When greater than zero, flowchart layout uses this width instead of measuring the label.
+    /// </summary>
+    public double LayoutWidth
+    {
+        get => _LayoutWidth; set => _LayoutWidth = value;
+    }
+
+    private double _LayoutHeight;
+
+    /// <summary>
+    /// When greater than zero, flowchart layout uses this height instead of measuring the label.
+    /// </summary>
+    public double LayoutHeight
+    {
+        get => _LayoutHeight; set => _LayoutHeight = value;
+    }
+
     private readonly List<MermaidDeclaration> _Declarations = [];
 
     public IReadOnlyList<MermaidDeclaration> Declarations => _Declarations;

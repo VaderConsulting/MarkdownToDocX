@@ -13,8 +13,7 @@ namespace MermaidRecognition.Layout.Enterprise;
 
 /// <summary>
 /// Hierarchical Sugiyama layout for enterprise elements and groups.
-/// Serving, realization and assignment are reversed for placement only so
-/// consumers sit above providers and Application sits above Technology.
+/// Relationships keep their declared direction so sources rank above targets.
 /// </summary>
 internal static class EnterpriseLayoutEngine
 {
@@ -69,7 +68,7 @@ internal static class EnterpriseLayoutEngine
             Node.LabelLines.AddRange(Wrap(Element.Label));
             if (!IsGrouping)
             {
-                MeasureLeaf(Node);
+                EnterpriseNodeSizer.MeasureLeaf(Node);
             }
 
             Nodes[Element.Id] = Node;
@@ -88,9 +87,14 @@ internal static class EnterpriseLayoutEngine
             }
         }
 
-        if (TryApplyFlowchartLayout(Document, Nodes, out double FlowchartWidth, out double FlowchartHeight))
+        if (TryApplyFlowchartLayout(
+                Document,
+                Nodes,
+                out double FlowchartWidth,
+                out double FlowchartHeight,
+                out EnterpriseFlowchartRoutingContext? RoutingContext))
         {
-            return new EnterpriseLayoutResult(Nodes, FlowchartWidth, FlowchartHeight);
+            return new EnterpriseLayoutResult(Nodes, FlowchartWidth, FlowchartHeight, RoutingContext);
         }
 
         LayoutChildren(null, Roots, Document, Nodes);
@@ -104,17 +108,19 @@ internal static class EnterpriseLayoutEngine
             Height = Math.Max(Height, Node.AbsoluteY + Node.Height + 20);
         }
 
-        return new EnterpriseLayoutResult(Nodes, Width, Height);
+        return new EnterpriseLayoutResult(Nodes, Width, Height, null);
     }
 
     private static bool TryApplyFlowchartLayout(
         EnterpriseDocument Document,
         Dictionary<string, EnterpriseLayoutNode> Nodes,
         out double Width,
-        out double Height)
+        out double Height,
+        out EnterpriseFlowchartRoutingContext? RoutingContext)
     {
         Width = 40;
         Height = 40;
+        RoutingContext = null;
         if (!EnterpriseFlowchartEdgeRouter.TryBuildRoutingContext(
                 Document,
                 Nodes,
@@ -123,33 +129,24 @@ internal static class EnterpriseLayoutEngine
             return false;
         }
 
-        foreach (KeyValuePair<string, FlowchartLayoutNodeBounds> Entry in Context.BoundsById)
+        foreach (KeyValuePair<string, EnterpriseSvgRect> Entry in Context.SvgRects)
         {
             if (!Nodes.TryGetValue(Entry.Key, out EnterpriseLayoutNode? Node))
             {
                 continue;
             }
 
-            FlowchartLayoutNodeBounds Bounds = Entry.Value;
-            double Left = Bounds.CenterX - (Bounds.Width / 2.0);
-            double Top = Bounds.CenterY + (Bounds.Height / 2.0);
-            (double SvgLeft, double SvgTop) = Context.Frame.LayoutToSvg(Left, Top);
-            (double SvgRight, double SvgBottom) = Context.Frame.LayoutToSvg(
-                Bounds.CenterX + (Bounds.Width / 2.0),
-                Bounds.CenterY - (Bounds.Height / 2.0));
-            Node.AbsoluteX = Math.Min(SvgLeft, SvgRight);
-            Node.AbsoluteY = Math.Min(SvgTop, SvgBottom);
-            Node.Width = Math.Abs(SvgRight - SvgLeft);
-            Node.Height = Math.Abs(SvgBottom - SvgTop);
+            EnterpriseSvgRect Rect = Entry.Value;
+            Node.AbsoluteX = Rect.Left;
+            Node.AbsoluteY = Rect.Top;
+            Node.Width = Rect.Width;
+            Node.Height = Rect.Height;
         }
 
-        foreach (EnterpriseLayoutNode Node in Nodes.Values)
-        {
-            Width = Math.Max(Width, Node.AbsoluteX + Node.Width + 20);
-            Height = Math.Max(Height, Node.AbsoluteY + Node.Height + 20);
-        }
-
-        return Context.BoundsById.Count > 0;
+        Width = Math.Max(Width, Context.SvgWidth);
+        Height = Math.Max(Height, Context.SvgHeight);
+        RoutingContext = Context;
+        return Context.SvgRects.Count > 0;
     }
 
     private static void LayoutChildren(
@@ -192,12 +189,12 @@ internal static class EnterpriseLayoutEngine
 
         double ContentWidth = MaxRight + CHILD_PADDING_X;
         double ContentHeight = MaxBottom + CHILD_PADDING_BOTTOM;
-        if (!Node.IsGroup)
-        {
-            MeasureLeaf(Node);
-            Node.Width = Math.Max(Node.Width, Math.Max(MIN_WIDTH, ContentWidth));
-            Node.Height = Math.Max(Node.Height, ContentHeight);
-        }
+            if (!Node.IsGroup)
+            {
+                EnterpriseNodeSizer.MeasureLeaf(Node);
+                Node.Width = Math.Max(Node.Width, Math.Max(MIN_WIDTH, ContentWidth));
+                Node.Height = Math.Max(Node.Height, ContentHeight);
+            }
         else
         {
             Node.Width = Math.Max(MIN_WIDTH, Math.Max(ContentWidth, MaxLineWidth(Node.LabelLines) + 24));
@@ -382,106 +379,18 @@ internal static class EnterpriseLayoutEngine
         out string LayoutSource,
         out string LayoutTarget)
     {
-        int SourceRank = EnterpriseElementCatalog.GetLayoutRank(EnterpriseElementCatalog.Elements[Source.ElementType].Layer);
-        int TargetRank = EnterpriseElementCatalog.GetLayoutRank(EnterpriseElementCatalog.Elements[Target.ElementType].Layer);
-        if (SourceRank != TargetRank)
-        {
-            if (SourceRank < TargetRank)
-            {
-                LayoutSource = SourceMember;
-                LayoutTarget = TargetMember;
-            }
-            else
-            {
-                LayoutSource = TargetMember;
-                LayoutTarget = SourceMember;
-            }
-
-            return;
-        }
-
-        if (Kind == EnterpriseRelationshipKind.Serving
-            || Kind == EnterpriseRelationshipKind.Realization
-            || Kind == EnterpriseRelationshipKind.Assignment)
-        {
-            LayoutSource = TargetMember;
-            LayoutTarget = SourceMember;
-            return;
-        }
-
         LayoutSource = SourceMember;
         LayoutTarget = TargetMember;
     }
 
-    private static void MeasureLeaf(EnterpriseLayoutNode Node)
-    {
-        if (Node.Element == null)
-        {
-            return;
-        }
-
-        if (Node.Element.ElementType == EnterpriseElementType.Junction)
-        {
-            double LabelWidth = MaxLineWidth(Node.LabelLines);
-            Node.Width = 26 + (LabelWidth > 0 ? LabelWidth + 10 : 0);
-            Node.Height = 26;
-            return;
-        }
-
-        bool Is3d = EnterpriseElementCatalog.Elements[Node.Element.ElementType].BoxKind == EnterpriseBoxKind.Box3d;
-        double Width = Math.Max(MIN_WIDTH, MaxLineWidth(Node.LabelLines) + 40) + (Is3d ? 28 : 0);
-        double Height = Math.Max(ELEMENT_HEIGHT, (Node.LabelLines.Count * LINE_HEIGHT) + 26) + (Is3d ? 8 : 0);
-        Node.Width = Width;
-        Node.Height = Height;
-    }
-
     private static double MaxLineWidth(List<string> Lines)
     {
-        double Max = 0;
-        foreach (string Line in Lines)
-        {
-            Max = Math.Max(Max, Line.Length * FONT_CHAR_WIDTH);
-        }
-
-        return Max;
+        return EnterpriseNodeSizer.MaxLineWidth(Lines);
     }
 
     private static List<string> Wrap(string Label)
     {
-        List<string> Lines = new List<string>();
-        if (string.IsNullOrEmpty(Label))
-        {
-            Lines.Add(string.Empty);
-            return Lines;
-        }
-
-        string[] Words = Label.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-        string Current = string.Empty;
-        foreach (string Word in Words)
-        {
-            string Candidate = Current.Length == 0 ? Word : Current + " " + Word;
-            if (Current.Length > 0 && Candidate.Length > MAX_CHARS)
-            {
-                Lines.Add(Current);
-                Current = Word;
-            }
-            else
-            {
-                Current = Candidate;
-            }
-        }
-
-        if (Current.Length > 0)
-        {
-            Lines.Add(Current);
-        }
-
-        if (Lines.Count == 0)
-        {
-            Lines.Add(Label);
-        }
-
-        return Lines;
+        return EnterpriseNodeSizer.Wrap(Label);
     }
 }
 
@@ -496,9 +405,16 @@ internal sealed class EnterpriseLayoutResult
 
     private readonly double _Height;
 
-    internal EnterpriseLayoutResult(Dictionary<string, EnterpriseLayoutNode> Nodes, double Width, double Height)
+    private readonly EnterpriseFlowchartRoutingContext? _RoutingContext;
+
+    internal EnterpriseLayoutResult(
+        Dictionary<string, EnterpriseLayoutNode> Nodes,
+        double Width,
+        double Height,
+        EnterpriseFlowchartRoutingContext? RoutingContext)
     {
         _Nodes = Nodes;
+        _RoutingContext = RoutingContext;
         _Width = Width;
         _Height = Height;
     }
@@ -524,6 +440,14 @@ internal sealed class EnterpriseLayoutResult
         get
         {
             return _Height;
+        }
+    }
+
+    internal EnterpriseFlowchartRoutingContext? RoutingContext
+    {
+        get
+        {
+            return _RoutingContext;
         }
     }
 }

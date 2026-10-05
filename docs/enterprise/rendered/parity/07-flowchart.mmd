@@ -1,0 +1,20 @@
+flowchart TB
+  board["Board"]
+  growth["Revenue Growth"]
+  gapReview["Growth Gap"]
+  raiseRev["Raise Revenue"]
+  moreSales["More Sales"]
+  customer["Customer First"]
+  mustTrack["Must Track Orders"]
+  noCash["No Cash Handling"]
+  orderSense["What an order means"]
+  trust(("Customer Trust"))
+  board -->|+| growth
+  growth --> gapReview
+  gapReview --> raiseRev
+  customer --> raiseRev
+  mustTrack --> raiseRev
+  noCash --> mustTrack
+  moreSales --> raiseRev
+  orderSense --> trust
+  board --> trust

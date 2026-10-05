@@ -39,6 +39,16 @@ public static class FlowchartNodeSizeEstimator
     /// </summary>
     public static FlowchartNodeDimensions Estimate(NodeContract Node, FlowchartRenderOptions Options)
     {
+        if (Node.LayoutWidth > 0.0 && Node.LayoutHeight > 0.0)
+        {
+            return new FlowchartNodeDimensions
+            {
+                Width = Node.LayoutWidth,
+                Height = Node.LayoutHeight,
+                DisplayLabel = string.IsNullOrEmpty(Node.Label) ? Node.Id : Node.Label
+            };
+        }
+
         string RawLabel = string.IsNullOrEmpty(Node.Label) ? Node.Id : Node.Label;
         string NormalisedLabel = NormaliseHtmlLineBreaks(RawLabel);
         bool HasIcon = IconPattern.IsMatch(NormalisedLabel);

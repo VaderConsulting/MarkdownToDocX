@@ -1,0 +1,28 @@
+flowchart TB
+  webCluster["Web Cluster"]
+  appServer["Application Server"]
+  lbAppliance["Load Balancer Appliance"]
+  jvm["Java VM"]
+  httpsPort["HTTPS Endpoint"]
+  dcLink["DC-to-DR Link"]
+  lan["Data Centre LAN"]
+  hosting(["Application Hosting"])
+  deploy(["Deploy Release"])
+  replicate(["Session Replication"])
+  releaseReady(["Release Ready"])
+  hostingSvc(["Hosting Service"])
+  shopWar["shop.war"]
+  webCluster --> appServer
+  webCluster --> lbAppliance
+  webCluster --> replicate
+  appServer --> jvm
+  appServer --> httpsPort
+  jvm --> hosting
+  hosting --> hostingSvc
+  httpsPort --> hostingSvc
+  releaseReady --> deploy
+  deploy --> shopWar
+  deploy -->|release| hosting
+  lan --> appServer
+  lan --> lbAppliance
+  lan --> dcLink

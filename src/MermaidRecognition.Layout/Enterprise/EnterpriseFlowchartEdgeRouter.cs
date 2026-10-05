@@ -267,10 +267,11 @@ internal static class EnterpriseFlowchartEdgeRouter
         FlowchartRenderOptions RenderOptions = FlowchartRenderOptions.FromContract(Contract);
         FlowchartSubgraphBoundsRequest BoundsRequest =
             FlowchartSubgraphBoundsRequest.FromContract(Contract, RenderOptions);
-        foreach (FlowchartSubgraphLayoutRect Rect in FlowchartSubgraphBoundsBuilder.BuildOrderedRects(
-                     Contract,
-                     BoundsById,
-                     BoundsRequest))
+        List<FlowchartSubgraphLayoutRect> SubgraphRects = FlowchartSubgraphBoundsBuilder.BuildOrderedRects(
+            Contract,
+            BoundsById,
+            BoundsRequest);
+        foreach (FlowchartSubgraphLayoutRect Rect in SubgraphRects)
         {
             BoundsById[Rect.GroupId] = new FlowchartLayoutNodeBounds
             {
@@ -280,6 +281,25 @@ internal static class EnterpriseFlowchartEdgeRouter
                 Width = Math.Max(1.0, Rect.Right - Rect.Left),
                 Height = Math.Max(1.0, Rect.Top - Rect.Bottom)
             };
+        }
+
+        Dictionary<string, EnterpriseSvgRect> SvgRects = new Dictionary<string, EnterpriseSvgRect>(StringComparer.Ordinal);
+        foreach (FlowchartLayoutNodeBounds Bounds in Layout.NodeBounds)
+        {
+            SvgRects[Bounds.NodeId] = EnterpriseSvgRect.FromNodeBounds(Bounds, Frame);
+        }
+
+        foreach (FlowchartSubgraphLayoutRect Rect in SubgraphRects)
+        {
+            SvgRects[Rect.GroupId] = EnterpriseSvgRect.FromSubgraph(Rect, Frame);
+        }
+
+        double SvgWidth = Frame.DiagramPaddingPx * 2.0;
+        double SvgHeight = Frame.DiagramPaddingPx * 2.0;
+        foreach (EnterpriseSvgRect SvgRect in SvgRects.Values)
+        {
+            SvgWidth = Math.Max(SvgWidth, SvgRect.Left + SvgRect.Width + Frame.DiagramPaddingPx);
+            SvgHeight = Math.Max(SvgHeight, SvgRect.Top + SvgRect.Height + Frame.DiagramPaddingPx);
         }
 
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
@@ -295,7 +315,10 @@ internal static class EnterpriseFlowchartEdgeRouter
             RouteClassByEdgeKey = FlowchartEdgeRoutingIntentAnalyzer.BuildRouteClassNamesByEdgeKey(
                 Contract,
                 Layout,
-                Direction)
+                Direction),
+            SvgRects = SvgRects,
+            SvgWidth = SvgWidth,
+            SvgHeight = SvgHeight
         };
         return true;
     }
@@ -392,6 +415,53 @@ internal sealed class EnterpriseFlowchartRoutingContext
 
     internal Dictionary<string, string> RouteClassByEdgeKey { get; set; } =
         new Dictionary<string, string>(StringComparer.Ordinal);
+
+    internal Dictionary<string, EnterpriseSvgRect> SvgRects { get; set; } =
+        new Dictionary<string, EnterpriseSvgRect>(StringComparer.Ordinal);
+
+    internal double SvgWidth { get; set; } = 40;
+
+    internal double SvgHeight { get; set; } = 40;
+}
+
+/// <summary>
+/// SVG rectangle matching <see cref="FlowchartSugiyamaSvgRenderer"/> node placement.
+/// </summary>
+internal sealed class EnterpriseSvgRect
+{
+    internal EnterpriseSvgRect(double Left, double Top, double Width, double Height)
+    {
+        this.Left = Left;
+        this.Top = Top;
+        this.Width = Width;
+        this.Height = Height;
+    }
+
+    internal double Left { get; }
+
+    internal double Top { get; }
+
+    internal double Width { get; }
+
+    internal double Height { get; }
+
+    internal static EnterpriseSvgRect FromNodeBounds(
+        FlowchartLayoutNodeBounds Bounds,
+        FlowchartSvgCoordinateFrame Frame)
+    {
+        double Left = Frame.DiagramPaddingPx + (Bounds.CenterX - (Bounds.Width / 2.0) - Frame.MinLeft);
+        double Top = Frame.DiagramPaddingPx + (Frame.MaxTop - Bounds.CenterY - (Bounds.Height / 2.0));
+        return new EnterpriseSvgRect(Left, Top, Bounds.Width, Bounds.Height);
+    }
+
+    internal static EnterpriseSvgRect FromSubgraph(
+        FlowchartSubgraphLayoutRect Rect,
+        FlowchartSvgCoordinateFrame Frame)
+    {
+        double Left = Frame.DiagramPaddingPx + (Rect.Left - Frame.MinLeft);
+        double Top = Frame.DiagramPaddingPx + (Frame.MaxTop - Rect.Top);
+        return new EnterpriseSvgRect(Left, Top, Rect.Right - Rect.Left, Rect.Top - Rect.Bottom);
+    }
 }
 
 /// <summary>

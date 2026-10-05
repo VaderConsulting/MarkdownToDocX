@@ -34,44 +34,26 @@ public static class EnterpriseFlowchartContractMapper
         };
 
         HashSet<string> Containers = CollectContainers(Document);
+        HashSet<string> WrittenGroups = new HashSet<string>(StringComparer.Ordinal);
+        HashSet<string> WrittenNodes = new HashSet<string>(StringComparer.Ordinal);
         foreach (string ContainerId in Containers)
         {
-            GroupContract Group = new GroupContract
-            {
-                Id = ContainerId,
-                Title = ContainerTitle(Document, ContainerId),
-                ParentGroupId = ParentContainerId(Document, ContainerId, Containers)
-            };
-            foreach (string ChildId in ChildIds(Document, ContainerId))
-            {
-                if (Containers.Contains(ChildId))
-                {
-                    Group.ChildGroupIdsMutable.Add(ChildId);
-                }
-                else
-                {
-                    Group.ChildNodeIdsMutable.Add(ChildId);
-                }
-            }
-
-            Contract.GroupsMutable.Add(Group);
-        }
-
-        foreach (EnterpriseElement Element in Document.Elements.Values)
-        {
-            if (Containers.Contains(Element.Id))
+            if (ParentContainerId(Document, ContainerId, Containers) != null)
             {
                 continue;
             }
 
-            NodeContract NodeContract = new NodeContract
+            AddGroupTree(Contract, Document, ContainerId, Containers, WrittenGroups, WrittenNodes);
+        }
+
+        foreach (EnterpriseElement Element in Document.Elements.Values)
+        {
+            if (Containers.Contains(Element.Id) || WrittenNodes.Contains(Element.Id))
             {
-                Id = Element.Id,
-                Label = Element.Label,
-                Shape = RoutingShape(Element),
-                ParentGroupId = ParentContainerId(Document, Element.Id, Containers)
-            };
-            Contract.NodesMutable.Add(NodeContract);
+                continue;
+            }
+
+            AddLeafNode(Contract, Document, Element, Containers, WrittenNodes);
         }
 
         int CreationIndex = 0;
@@ -89,7 +71,6 @@ public static class EnterpriseFlowchartContractMapper
                 SourceId = Relationship.SourceId,
                 TargetId = Relationship.TargetId,
                 Label = EdgeLabel(Relationship),
-                Stroke = FlowchartStroke(Relationship),
                 MarkerStart = EdgeEndpointMarker.None,
                 MarkerEnd = EdgeEndpointMarker.None,
                 CreationIndex = CreationIndex
@@ -99,6 +80,67 @@ public static class EnterpriseFlowchartContractMapper
         }
 
         return Contract;
+    }
+
+    private static void AddGroupTree(
+        DiagramContract Contract,
+        EnterpriseDocument Document,
+        string ContainerId,
+        HashSet<string> Containers,
+        HashSet<string> WrittenGroups,
+        HashSet<string> WrittenNodes)
+    {
+        if (!WrittenGroups.Add(ContainerId))
+        {
+            return;
+        }
+
+        GroupContract Group = new GroupContract
+        {
+            Id = ContainerId,
+            Title = ContainerTitle(Document, ContainerId),
+            ParentGroupId = ParentContainerId(Document, ContainerId, Containers)
+        };
+        Contract.GroupsMutable.Add(Group);
+        foreach (string ChildId in ChildIds(Document, ContainerId))
+        {
+            if (Containers.Contains(ChildId))
+            {
+                Group.ChildGroupIdsMutable.Add(ChildId);
+                AddGroupTree(Contract, Document, ChildId, Containers, WrittenGroups, WrittenNodes);
+            }
+            else if (Document.Elements.TryGetValue(ChildId, out EnterpriseElement? Child))
+            {
+                Group.ChildNodeIdsMutable.Add(ChildId);
+                AddLeafNode(Contract, Document, Child, Containers, WrittenNodes);
+            }
+        }
+    }
+
+    private static void AddLeafNode(
+        DiagramContract Contract,
+        EnterpriseDocument Document,
+        EnterpriseElement Element,
+        HashSet<string> Containers,
+        HashSet<string> WrittenNodes)
+    {
+        if (!WrittenNodes.Add(Element.Id))
+        {
+            return;
+        }
+
+        (double Width, double Height) Size = EnterpriseNodeSizer.MeasureElement(Element);
+        string Label = Element.ElementType == EnterpriseElementType.Junction ? " " : Element.Label;
+        NodeContract NodeContract = new NodeContract
+        {
+            Id = Element.Id,
+            Label = Label,
+            Shape = RoutingShape(Element),
+            ParentGroupId = ParentContainerId(Document, Element.Id, Containers),
+            LayoutWidth = Size.Width,
+            LayoutHeight = Size.Height
+        };
+        Contract.NodesMutable.Add(NodeContract);
     }
 
     internal static string EdgeLabel(EnterpriseRelationship Relationship)
@@ -114,23 +156,7 @@ public static class EnterpriseFlowchartContractMapper
         return Label;
     }
 
-    internal static string? FlowchartStroke(EnterpriseRelationship Relationship)
-    {
-        string Style = EnterpriseElementCatalog.Relationships[Relationship.Kind].LineStyle;
-        if (Style == "dotted")
-        {
-            return "dotted";
-        }
-
-        if (Style == "dashed")
-        {
-            return "dashed";
-        }
-
-        return null;
-    }
-
-    private static HashSet<string> CollectContainers(EnterpriseDocument Document)
+    internal static HashSet<string> CollectContainers(EnterpriseDocument Document)
     {
         HashSet<string> Containers = new HashSet<string>(StringComparer.Ordinal);
         foreach (EnterpriseGroup Group in Document.Groups.Values)
@@ -153,7 +179,7 @@ public static class EnterpriseFlowchartContractMapper
         return Containers;
     }
 
-    private static string ContainerTitle(EnterpriseDocument Document, string ContainerId)
+    internal static string ContainerTitle(EnterpriseDocument Document, string ContainerId)
     {
         if (Document.Groups.TryGetValue(ContainerId, out EnterpriseGroup? Group)
             && !string.IsNullOrEmpty(Group.Label))
@@ -169,7 +195,7 @@ public static class EnterpriseFlowchartContractMapper
         return ContainerId;
     }
 
-    private static string? ParentContainerId(
+    internal static string? ParentContainerId(
         EnterpriseDocument Document,
         string Id,
         HashSet<string> Containers)
@@ -192,7 +218,7 @@ public static class EnterpriseFlowchartContractMapper
         return ParentId;
     }
 
-    private static List<string> ChildIds(EnterpriseDocument Document, string ContainerId)
+    internal static List<string> ChildIds(EnterpriseDocument Document, string ContainerId)
     {
         List<string> Children = new List<string>();
         foreach (EnterpriseGroup Group in Document.Groups.Values)
@@ -215,7 +241,7 @@ public static class EnterpriseFlowchartContractMapper
         return Children;
     }
 
-    private static string RoutingShape(EnterpriseElement Element)
+    internal static string RoutingShape(EnterpriseElement Element)
     {
         if (Element.ElementType == EnterpriseElementType.Junction)
         {

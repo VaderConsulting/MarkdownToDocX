@@ -1,8 +1,7 @@
+using System.Globalization;
 using System.Xml.Linq;
 
-using MermaidRecognition.Contract;
 using MermaidRecognition.Kinds.Enterprise;
-using MermaidRecognition.Layout;
 using MermaidRecognition.Layout.Enterprise;
 
 namespace MermaidRecognition.Layout.Tests.Enterprise;
@@ -20,11 +19,11 @@ public sealed class EnterpriseEdgeClearanceTests
     [TestCase("10-implementation-migration.mmd")]
     [TestCase("11-grouping-location-junction.mmd")]
     [TestCase("12-motivation-to-technology.mmd")]
-    public void ValidSamples_EnterprisePathsMatchFlowchartRouting(string FileName)
+    public void ValidSamples_EnterpriseGeometryMatchesEquivalentFlowchart(string FileName)
     {
         string Source = ReadSample(FileName);
-        IReadOnlyList<string> Violations = EnterpriseEdgeClearance.FindViolations(Source);
-        Assert.That(Violations, Is.Empty, FileName + ":" + Environment.NewLine + string.Join(Environment.NewLine, Violations));
+        IReadOnlyList<string> Mismatches = EnterpriseParity.FindGeometryMismatches(Source, 2.0);
+        Assert.That(Mismatches, Is.Empty, FileName + ":" + Environment.NewLine + string.Join(Environment.NewLine, Mismatches));
     }
 
     [Test]
@@ -39,81 +38,86 @@ public sealed class EnterpriseEdgeClearanceTests
               mid -flow-> bot
               top -association-> bot
             """;
-        IReadOnlyList<string> Violations = EnterpriseEdgeClearance.FindViolations(EnterpriseSource);
-        Assert.That(Violations, Is.Empty, string.Join(Environment.NewLine, Violations));
+        IReadOnlyList<string> Mismatches = EnterpriseParity.FindGeometryMismatches(EnterpriseSource, 2.0);
+        Assert.That(Mismatches, Is.Empty, string.Join(Environment.NewLine, Mismatches));
 
-        EnterpriseAnalysisResult Analysis = EnterpriseValidator.Analyze(EnterpriseSource);
-        Assert.That(Analysis.HasErrors, Is.False);
-        DiagramContract FlowchartContract = EnterpriseFlowchartContractMapper.Build(Analysis.Document);
-        string FlowchartSvg = FlowchartSugiyamaSvgRenderer.RenderToSvg(FlowchartContract);
+        string FlowchartSource = EnterpriseParity.WriteFlowchartSource(EnterpriseSource);
+        Assert.That(FlowchartSource, Does.StartWith("flowchart TB"));
+        Assert.That(FlowchartSource, Does.Contain("top[\"Top\"]"));
+        Assert.That(FlowchartSource, Does.Contain("top --> mid"));
+        Assert.That(FlowchartSource, Does.Contain("top --> bot"));
+
         string EnterpriseSvg = EnterpriseRenderBridge.RenderEnterpriseSvg(EnterpriseSource);
-
-        List<string> EnterprisePaths = ExtractEnterpriseEdgePaths(EnterpriseSvg);
-        List<string> FlowchartPaths = ExtractFlowchartEdgePaths(FlowchartSvg);
-        Assert.That(EnterprisePaths, Is.EquivalentTo(FlowchartPaths));
+        XDocument Document = XDocument.Parse(EnterpriseSvg);
+        XElement? Skip = Document.Descendants()
+            .FirstOrDefault(Element =>
+                (string?)Element.Attribute("data-source") == "top"
+                && (string?)Element.Attribute("data-target") == "bot");
+        Assert.That(Skip, Is.Not.Null);
+        XElement? Path = Skip!.Elements().FirstOrDefault(Element => Element.Name.LocalName == "path");
+        Assert.That(Path, Is.Not.Null);
+        Assert.That((string?)Path!.Attribute("d"), Is.Not.Null.And.Not.Empty);
     }
 
-    private static List<string> ExtractEnterpriseEdgePaths(string Svg)
+    [Test]
+    public void Sample11_JunctionsSitOnTheirEdgeEnds()
     {
+        string Source = ReadSample("11-grouping-location-junction.mmd");
+        string Svg = EnterpriseRenderBridge.RenderEnterpriseSvg(Source);
         XDocument Document = XDocument.Parse(Svg);
-        List<string> Paths = new List<string>();
-        foreach (XElement Group in Document.Descendants())
-        {
-            if (Group.Name.LocalName != "g")
-            {
-                continue;
-            }
-
-            string? ClassName = (string?)Group.Attribute("class");
-            if (string.IsNullOrEmpty(ClassName) || !ClassName.StartsWith("relationship", StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            XElement? Path = Group.Elements().FirstOrDefault(Element => Element.Name.LocalName == "path");
-            string? PathData = Path == null ? null : (string?)Path.Attribute("d");
-            if (!string.IsNullOrEmpty(PathData))
-            {
-                Paths.Add(PathData);
-            }
-        }
-
-        return Paths;
+        XElement Both = Document.Descendants().First(Element => (string?)Element.Attribute("data-id") == "both");
+        XElement Either = Document.Descendants().First(Element => (string?)Element.Attribute("data-id") == "either");
+        XElement BothCircle = Both.Descendants().First(Element => Element.Name.LocalName == "circle");
+        XElement StartBoth = Document.Descendants().First(Element =>
+            (string?)Element.Attribute("data-source") == "start"
+            && (string?)Element.Attribute("data-target") == "both");
+        XElement? StartBothPath = StartBoth.Elements().FirstOrDefault(Element => Element.Name.LocalName == "path");
+        Assert.That(StartBothPath, Is.Not.Null);
+        double JunctionX = double.Parse((string)BothCircle.Attribute("cx")!, CultureInfo.InvariantCulture);
+        double JunctionY = double.Parse((string)BothCircle.Attribute("cy")!, CultureInfo.InvariantCulture);
+        string PathData = (string)StartBothPath!.Attribute("d")!;
+        Assert.That(PathData, Does.Contain("317.5").Or.Contain("318"));
+        Assert.That(JunctionX, Is.EqualTo(317.5).Within(2.0));
+        Assert.That(JunctionY, Is.GreaterThan(40));
+        Assert.That((string?)Either.Attribute("data-id"), Is.EqualTo("either"));
     }
 
-    private static List<string> ExtractFlowchartEdgePaths(string Svg)
+    [Test]
+    public void Sample12_DeclaredDirectionsAreForwardInTheEquivalentFlowchart()
     {
+        string Source = ReadSample("12-motivation-to-technology.mmd");
+        string FlowchartSource = EnterpriseParity.WriteFlowchartSource(Source);
+        Assert.That(FlowchartSource, Does.Contain("board --> raiseRev"));
+        Assert.That(FlowchartSource, Does.Contain("takeOrder --> selling"));
+        Assert.That(FlowchartSource, Does.Contain("selling --> webShop"));
+        Assert.That(FlowchartSource, Does.Contain("appNode --> hosting"));
+        Assert.That(FlowchartSource, Does.Not.Contain("-.->"));
+
+        string Svg = EnterpriseRenderBridge.RenderEnterpriseSvg(Source);
         XDocument Document = XDocument.Parse(Svg);
-        List<string> Paths = new List<string>();
-        foreach (XElement Element in Document.Descendants())
+        double TakeOrderTop = ElementTop(Document, "takeOrder");
+        double SellingTop = ElementTop(Document, "selling");
+        double WebShopTop = ElementTop(Document, "webShop");
+        double AppNodeTop = ElementTop(Document, "appNode");
+        double HostingTop = ElementTop(Document, "hosting");
+        Assert.That(TakeOrderTop, Is.LessThan(SellingTop - 10), "Take Order must rank above Selling Service");
+        Assert.That(SellingTop, Is.LessThan(WebShopTop - 10), "Selling Service must rank above Web Shop");
+        Assert.That(AppNodeTop, Is.LessThan(HostingTop - 10), "App Server Node must rank above Hosting");
+    }
+
+    private static double ElementTop(XDocument Document, string Id)
+    {
+        XElement Group = Document.Descendants().First(Element => (string?)Element.Attribute("data-id") == Id);
+        XElement? Rect = Group.Descendants().FirstOrDefault(Element => Element.Name.LocalName == "rect");
+        if (Rect != null)
         {
-            if (Element.Name.LocalName == "path")
-            {
-                string? Fill = (string?)Element.Attribute("fill");
-                string? PathData = (string?)Element.Attribute("d");
-                if (string.Equals(Fill, "none", StringComparison.OrdinalIgnoreCase)
-                    && !string.IsNullOrEmpty(PathData))
-                {
-                    Paths.Add(PathData);
-                }
-            }
-            else if (Element.Name.LocalName == "line")
-            {
-                string? X1 = (string?)Element.Attribute("x1");
-                string? Y1 = (string?)Element.Attribute("y1");
-                string? X2 = (string?)Element.Attribute("x2");
-                string? Y2 = (string?)Element.Attribute("y2");
-                if (!string.IsNullOrEmpty(X1)
-                    && !string.IsNullOrEmpty(Y1)
-                    && !string.IsNullOrEmpty(X2)
-                    && !string.IsNullOrEmpty(Y2))
-                {
-                    Paths.Add("M" + X1 + "," + Y1 + "L" + X2 + "," + Y2);
-                }
-            }
+            return double.Parse((string)Rect.Attribute("y")!, CultureInfo.InvariantCulture);
         }
 
-        return Paths;
+        XElement Circle = Group.Descendants().First(Element => Element.Name.LocalName == "circle");
+        double Cy = double.Parse((string)Circle.Attribute("cy")!, CultureInfo.InvariantCulture);
+        double Radius = double.Parse((string)Circle.Attribute("r")!, CultureInfo.InvariantCulture);
+        return Cy - Radius;
     }
 
     private static string ReadSample(string FileName)

@@ -205,7 +205,7 @@ public static class EnterpriseNotationSvg
         string FillStroke = "fill=\"" + Fill + "\" stroke=\"" + Stroke + "\" stroke-width=\"1\"";
         if (Metadata.BoxKind == EnterpriseBoxKind.Junction)
         {
-            return JunctionSvg(X, Y, JunctionKind);
+            return JunctionSvg(X, Y, Width, Height, JunctionKind);
         }
 
         if (Metadata.BoxKind == EnterpriseBoxKind.Grouping)
@@ -290,11 +290,32 @@ public static class EnterpriseNotationSvg
     /// <returns>SVG fragment.</returns>
     public static string JunctionSvg(double X, double Y, EnterpriseJunctionKind? JunctionKind)
     {
-        const double SIZE = 26;
-        double Cx = X + (SIZE / 2.0);
-        double Cy = Y + (SIZE / 2.0);
+        return JunctionSvg(X, Y, 26, 26, JunctionKind);
+    }
+
+    /// <summary>
+    /// Draws an and/or junction centred in the layout rectangle.
+    /// </summary>
+    /// <param name="X">Left of the layout box.</param>
+    /// <param name="Y">Top of the layout box.</param>
+    /// <param name="Width">Layout width.</param>
+    /// <param name="Height">Layout height.</param>
+    /// <param name="JunctionKind">And (filled) or or (hollow).</param>
+    /// <returns>SVG fragment.</returns>
+    public static string JunctionSvg(
+        double X,
+        double Y,
+        double Width,
+        double Height,
+        EnterpriseJunctionKind? JunctionKind)
+    {
+        double BoxWidth = Width > 0 ? Width : 26;
+        double BoxHeight = Height > 0 ? Height : 26;
+        double Radius = Math.Min(BoxWidth, BoxHeight) / 2.0;
+        double Cx = X + (BoxWidth / 2.0);
+        double Cy = Y + (BoxHeight / 2.0);
         bool Hollow = JunctionKind == EnterpriseJunctionKind.Or;
-        return "<circle cx=\"" + N(Cx) + "\" cy=\"" + N(Cy) + "\" r=\"13\" fill=\""
+        return "<circle cx=\"" + N(Cx) + "\" cy=\"" + N(Cy) + "\" r=\"" + N(Radius) + "\" fill=\""
             + (Hollow ? "#fff" : "#000") + "\" stroke=\"#000\" stroke-width=\"1\"/>";
     }
 
