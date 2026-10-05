@@ -98,6 +98,7 @@ public static class FlowchartSharedEdgeRouter
 
         SeparateParallelRenderedSegments(Direction, Guides);
         UnifyFlowchartStyle(Guides);
+        SnapAllEndpointsToBoxes(Contract, BoundsById, NodeById, Guides);
         RecordRemainingJustifications(Contract, BoundsById, Direction, Guides);
     }
 
@@ -707,11 +708,16 @@ public static class FlowchartSharedEdgeRouter
             for (int LeftIndex = 0; LeftIndex < Guides.Count; LeftIndex++)
             {
                 FlowchartResolvedGuide Left = Guides[LeftIndex];
+                if (IsDesignedRoute(Left.RouteKind))
+                {
+                    continue;
+                }
+
                 List<(double X, double Y)> LeftSamples = FlattenRenderedGuide(Left.Points, Left.RouteKind, Direction);
                 for (int RightIndex = LeftIndex + 1; RightIndex < Guides.Count; RightIndex++)
                 {
                     FlowchartResolvedGuide Right = Guides[RightIndex];
-                    if (SharesEndpoint(Left.Edge, Right.Edge))
+                    if (IsDesignedRoute(Right.RouteKind) || SharesEndpoint(Left.Edge, Right.Edge))
                     {
                         continue;
                     }
@@ -762,6 +768,110 @@ public static class FlowchartSharedEdgeRouter
 
             Guide.RouteKind = FlowchartEdgeRouteKind.Curved;
         }
+    }
+
+    private static void SnapAllEndpointsToBoxes(
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        IReadOnlyDictionary<string, NodeContract> NodeById,
+        List<FlowchartResolvedGuide> Guides)
+    {
+        foreach (FlowchartResolvedGuide Guide in Guides)
+        {
+            if (IsDesignedRoute(Guide.RouteKind) || Guide.Points.Count < 2)
+            {
+                continue;
+            }
+
+            if (TryGetEndpointBounds(Contract, BoundsById, Guide.Edge.SourceId, out FlowchartLayoutNodeBounds Source)
+                && DistanceToBounds(Guide.Points[0].X, Guide.Points[0].Y, Source) > 40.0)
+            {
+                string? SourceShape = ResolveShape(Contract, NodeById, Guide.Edge.SourceId);
+                (double NextX, double NextY) = Guide.Points[1];
+                (double PortX, double PortY) = ClosestBoundaryPoint(Source, SourceShape, NextX, NextY, Guide.Edge.MarkerStart);
+                Guide.Points[0] = (PortX, PortY);
+            }
+
+            if (TryGetEndpointBounds(Contract, BoundsById, Guide.Edge.TargetId, out FlowchartLayoutNodeBounds Target)
+                && DistanceToBounds(
+                    Guide.Points[Guide.Points.Count - 1].X,
+                    Guide.Points[Guide.Points.Count - 1].Y,
+                    Target) > 40.0)
+            {
+                string? TargetShape = ResolveShape(Contract, NodeById, Guide.Edge.TargetId);
+                (double PrevX, double PrevY) = Guide.Points[Guide.Points.Count - 2];
+                (double PortX, double PortY) = ClosestBoundaryPoint(Target, TargetShape, PrevX, PrevY, Guide.Edge.MarkerEnd);
+                Guide.Points[Guide.Points.Count - 1] = (PortX, PortY);
+            }
+        }
+    }
+
+    private static bool TryGetEndpointBounds(
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        string NodeId,
+        out FlowchartLayoutNodeBounds Bounds)
+    {
+        Bounds = new FlowchartLayoutNodeBounds();
+        if (!BoundsById.TryGetValue(NodeId, out FlowchartLayoutNodeBounds? Found) || Found == null)
+        {
+            _ = Contract;
+            return false;
+        }
+
+        Bounds = Found;
+        return true;
+    }
+
+    private static (double X, double Y) ClosestBoundaryPoint(
+        FlowchartLayoutNodeBounds Bounds,
+        string? Shape,
+        double TowardX,
+        double TowardY,
+        EdgeEndpointMarker Marker)
+    {
+        double Gap = FlowchartEdgeAttachConstants.GetExteriorGapPx(Marker);
+        double Left = Bounds.CenterX - (Bounds.Width / 2.0) - Gap;
+        double Right = Bounds.CenterX + (Bounds.Width / 2.0) + Gap;
+        double Top = Bounds.CenterY + (Bounds.Height / 2.0) + Gap;
+        double Bottom = Bounds.CenterY - (Bounds.Height / 2.0) - Gap;
+        double X = Math.Max(Left, Math.Min(Right, TowardX));
+        double Y = Math.Max(Bottom, Math.Min(Top, TowardY));
+        double ToLeft = Math.Abs(X - Left);
+        double ToRight = Math.Abs(X - Right);
+        double ToTop = Math.Abs(Y - Top);
+        double ToBottom = Math.Abs(Y - Bottom);
+        double Best = Math.Min(Math.Min(ToLeft, ToRight), Math.Min(ToTop, ToBottom));
+        if (Best == ToLeft)
+        {
+            X = Left;
+        }
+        else if (Best == ToRight)
+        {
+            X = Right;
+        }
+        else if (Best == ToTop)
+        {
+            Y = Top;
+        }
+        else
+        {
+            Y = Bottom;
+        }
+
+        _ = Shape;
+        return (X, Y);
+    }
+
+    private static double DistanceToBounds(double X, double Y, FlowchartLayoutNodeBounds Bounds)
+    {
+        double Left = Bounds.CenterX - (Bounds.Width / 2.0);
+        double Right = Bounds.CenterX + (Bounds.Width / 2.0);
+        double Top = Bounds.CenterY + (Bounds.Height / 2.0);
+        double Bottom = Bounds.CenterY - (Bounds.Height / 2.0);
+        double ClosestX = Math.Max(Left, Math.Min(Right, X));
+        double ClosestY = Math.Max(Bottom, Math.Min(Top, Y));
+        return Distance(X, Y, ClosestX, ClosestY);
     }
 
     private static void RecordRemainingJustifications(
