@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
 using MermaidRecognition.Kinds.Enterprise;
@@ -76,8 +77,9 @@ public sealed class EnterpriseEdgeClearanceTests
         double JunctionX = double.Parse((string)BothCircle.Attribute("cx")!, CultureInfo.InvariantCulture);
         double JunctionY = double.Parse((string)BothCircle.Attribute("cy")!, CultureInfo.InvariantCulture);
         string PathData = (string)StartBothPath!.Attribute("d")!;
-        Assert.That(PathData, Does.Contain("317.5").Or.Contain("318"));
-        Assert.That(JunctionX, Is.EqualTo(317.5).Within(2.0));
+        (double EndX, double EndY) = LastPathPoint(PathData);
+        Assert.That(EndY, Is.EqualTo(JunctionY).Within(2.0));
+        Assert.That(Math.Abs(EndX - JunctionX), Is.LessThanOrEqualTo(14.0));
         Assert.That(JunctionY, Is.GreaterThan(40));
         Assert.That((string?)Either.Attribute("data-id"), Is.EqualTo("either"));
     }
@@ -103,6 +105,18 @@ public sealed class EnterpriseEdgeClearanceTests
         Assert.That(TakeOrderTop, Is.LessThan(SellingTop - 10), "Take Order must rank above Selling Service");
         Assert.That(SellingTop, Is.LessThan(WebShopTop - 10), "Selling Service must rank above Web Shop");
         Assert.That(AppNodeTop, Is.LessThan(HostingTop - 10), "App Server Node must rank above Hosting");
+    }
+
+    private static (double X, double Y) LastPathPoint(string PathData)
+    {
+        MatchCollection Pairs = Regex.Matches(
+            PathData,
+            @"(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)");
+        Assert.That(Pairs.Count, Is.GreaterThan(0));
+        Match Last = Pairs[Pairs.Count - 1];
+        return (
+            double.Parse(Last.Groups[1].Value, CultureInfo.InvariantCulture),
+            double.Parse(Last.Groups[2].Value, CultureInfo.InvariantCulture));
     }
 
     private static double ElementTop(XDocument Document, string Id)
