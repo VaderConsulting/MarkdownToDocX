@@ -43,6 +43,7 @@
     <None Include="C4Recognition\*.*" Link="C4Fixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="MermaidOnlyRecognition\*.*" Link="MermaidOnlyFixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Gates\manifests\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\docs\enterprise\samples\*.mmd" Link="EnterpriseSamples\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

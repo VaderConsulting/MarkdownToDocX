@@ -16,4 +16,8 @@
     <AnalysisLevel>none</AnalysisLevel>
   </PropertyGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\docs\enterprise\enterprise-rules.json" LogicalName="MermaidRecognition.Enterprise.enterprise-rules.json" />
+  </ItemGroup>
+
 </Project>
