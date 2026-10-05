@@ -32,7 +32,20 @@ internal static class EnterpriseOrthogonalRouter
             Paths.Add(RouteOne(Item, Nodes));
         }
 
+        for (int Index = 0; Index < Paths.Count; Index++)
+        {
+            Paths[Index] = EnsureOutwardStubs(
+                Simplify(Paths[Index]),
+                Work[Index].SourcePort,
+                Work[Index].TargetPort);
+        }
+
         AssignChannels(Paths);
+        for (int Index = 0; Index < Paths.Count; Index++)
+        {
+            Paths[Index] = ClampToPorts(Simplify(Paths[Index]), Work[Index].SourcePort, Work[Index].TargetPort);
+        }
+
         return Paths;
     }
 
@@ -407,7 +420,7 @@ internal static class EnterpriseOrthogonalRouter
             return Best;
         }
 
-        return new List<(double X, double Y)>
+        List<(double X, double Y)> Fallback = new List<(double X, double Y)>
         {
             (From.X, From.Y),
             (FromX, FromY),
@@ -415,6 +428,13 @@ internal static class EnterpriseOrthogonalRouter
             (ToX, ToY),
             (To.X, To.Y)
         };
+        List<(double X, double Y)> CleanFallback = Simplify(Fallback);
+        if (Clears(CleanFallback, Obstacles, Nodes))
+        {
+            return CleanFallback;
+        }
+
+        return Best ?? CleanFallback;
     }
 
     private static List<List<(double X, double Y)>> BuildCandidates(
@@ -436,14 +456,18 @@ internal static class EnterpriseOrthogonalRouter
         AddCandidate(Candidates, new List<(double X, double Y)> { (Ax, Ay), (Sx, Sy), (Sx, MidY), (Tx, MidY), (Tx, Ty), (Bx, By) });
         double MidX = (Sx + Tx) / 2.0;
         AddCandidate(Candidates, new List<(double X, double Y)> { (Ax, Ay), (Sx, Sy), (MidX, Sy), (MidX, Ty), (Tx, Ty), (Bx, By) });
-        double Left = Math.Min(Sx, Tx) - 36;
-        double Right = Math.Max(Sx, Tx) + 36;
-        AddCandidate(Candidates, new List<(double X, double Y)> { (Ax, Ay), (Sx, Sy), (Left, Sy), (Left, Ty), (Tx, Ty), (Bx, By) });
-        AddCandidate(Candidates, new List<(double X, double Y)> { (Ax, Ay), (Sx, Sy), (Right, Sy), (Right, Ty), (Tx, Ty), (Bx, By) });
-        double Top = Math.Min(Sy, Ty) - 36;
-        double Bottom = Math.Max(Sy, Ty) + 36;
-        AddCandidate(Candidates, new List<(double X, double Y)> { (Ax, Ay), (Sx, Sy), (Sx, Top), (Tx, Top), (Tx, Ty), (Bx, By) });
-        AddCandidate(Candidates, new List<(double X, double Y)> { (Ax, Ay), (Sx, Sy), (Sx, Bottom), (Tx, Bottom), (Tx, Ty), (Bx, By) });
+        double[] Spreads = { 36, 56, 80, 110 };
+        foreach (double Spread in Spreads)
+        {
+            double Left = Math.Min(Sx, Tx) - Spread;
+            double Right = Math.Max(Sx, Tx) + Spread;
+            AddCandidate(Candidates, new List<(double X, double Y)> { (Ax, Ay), (Sx, Sy), (Left, Sy), (Left, Ty), (Tx, Ty), (Bx, By) });
+            AddCandidate(Candidates, new List<(double X, double Y)> { (Ax, Ay), (Sx, Sy), (Right, Sy), (Right, Ty), (Tx, Ty), (Bx, By) });
+            double Top = Math.Min(Sy, Ty) - Spread;
+            double Bottom = Math.Max(Sy, Ty) + Spread;
+            AddCandidate(Candidates, new List<(double X, double Y)> { (Ax, Ay), (Sx, Sy), (Sx, Top), (Tx, Top), (Tx, Ty), (Bx, By) });
+            AddCandidate(Candidates, new List<(double X, double Y)> { (Ax, Ay), (Sx, Sy), (Sx, Bottom), (Tx, Bottom), (Tx, Ty), (Bx, By) });
+        }
         if (TryUnion(Obstacles, out EnterpriseRect Union))
         {
             double AroundLeft = Union.X - BORDER_GAP - STUB;
@@ -504,19 +528,15 @@ internal static class EnterpriseOrthogonalRouter
 
         for (int Index = 0; Index < Points.Count - 1; Index++)
         {
-            bool AttachStub = Index == 0 || Index == Points.Count - 2;
             (double X1, double Y1) = Points[Index];
             (double X2, double Y2) = Points[Index + 1];
+            bool AttachStub = (Index == 0 || Index == Points.Count - 2)
+                && SegmentLength(X1, Y1, X2, Y2) <= STUB + 2;
             foreach (EnterpriseRect Obstacle in Obstacles)
             {
-                if (AttachStub && (Obstacle.Contains(X1, Y1, 0.5) || Obstacle.Contains(X2, Y2, 0.5)))
-                {
-                    continue;
-                }
-
                 if (Obstacle.IntersectsSegment(X1, Y1, X2, Y2, 0.8))
                 {
-                    if (AttachStub && SegmentLength(X1, Y1, X2, Y2) <= STUB + 1)
+                    if (AttachStub)
                     {
                         continue;
                     }
@@ -583,10 +603,10 @@ internal static class EnterpriseOrthogonalRouter
                 if (LeftVertical && RightVertical && RangesOverlap(Ay, By, Cy, Dy, 8))
                 {
                     double Gap = Math.Abs(Ax - Cx);
-                    if (Gap < CHANNEL_GAP && Gap > 0.01)
+                    if (Gap < CHANNEL_GAP)
                     {
-                        double Shift = CHANNEL_GAP - Gap;
-                        ShiftSegmentX(Right, Ri, Cx < Ax ? -Shift : Shift);
+                        double Shift = Gap < 0.01 ? CHANNEL_GAP : CHANNEL_GAP - Gap;
+                        ShiftSegmentX(Right, Ri, Cx <= Ax ? -Shift : Shift);
                         Moved = true;
                     }
                 }
@@ -596,10 +616,10 @@ internal static class EnterpriseOrthogonalRouter
                 if (LeftHorizontal && RightHorizontal && RangesOverlap(Ax, Bx, Cx, Dx, 8))
                 {
                     double Gap = Math.Abs(Ay - Cy);
-                    if (Gap < CHANNEL_GAP && Gap > 0.01)
+                    if (Gap < CHANNEL_GAP)
                     {
-                        double Shift = CHANNEL_GAP - Gap;
-                        ShiftSegmentY(Right, Ri, Cy < Ay ? -Shift : Shift);
+                        double Shift = Gap < 0.01 ? CHANNEL_GAP : CHANNEL_GAP - Gap;
+                        ShiftSegmentY(Right, Ri, Cy <= Ay ? -Shift : Shift);
                         Moved = true;
                     }
                 }
@@ -640,7 +660,60 @@ internal static class EnterpriseOrthogonalRouter
 
         Points[0] = (Source.X, Source.Y);
         Points[Points.Count - 1] = (Target.X, Target.Y);
-        return Points;
+        return EnsureOutwardStubs(Points, Source, Target);
+    }
+
+    private static List<(double X, double Y)> EnsureOutwardStubs(
+        List<(double X, double Y)> Points,
+        EnterprisePort Source,
+        EnterprisePort Target)
+    {
+        (double Sx, double Sy) = Offset(Source, STUB);
+        (double Tx, double Ty) = Offset(Target, STUB);
+        List<(double X, double Y)> Result = new List<(double X, double Y)>();
+        Result.Add((Source.X, Source.Y));
+        if (Points.Count < 2 || !SamePoint(Points[1], Sx, Sy))
+        {
+            Result.Add((Sx, Sy));
+        }
+
+        int Start = 1;
+        int End = Points.Count - 1;
+        if (Points.Count >= 2 && SamePoint(Points[0], Source.X, Source.Y))
+        {
+            Start = 1;
+        }
+
+        if (Points.Count >= 2 && SamePoint(Points[Points.Count - 1], Target.X, Target.Y))
+        {
+            End = Points.Count - 1;
+        }
+
+        for (int Index = Start; Index < End; Index++)
+        {
+            if (SamePoint(Points[Index], Source.X, Source.Y)
+                || SamePoint(Points[Index], Target.X, Target.Y)
+                || SamePoint(Points[Index], Sx, Sy)
+                || SamePoint(Points[Index], Tx, Ty))
+            {
+                continue;
+            }
+
+            Result.Add(Points[Index]);
+        }
+
+        if (Result.Count < 2 || !SamePoint(Result[Result.Count - 1], Tx, Ty))
+        {
+            Result.Add((Tx, Ty));
+        }
+
+        Result.Add((Target.X, Target.Y));
+        return Simplify(Result);
+    }
+
+    private static bool SamePoint((double X, double Y) Point, double X, double Y)
+    {
+        return Math.Abs(Point.X - X) < 0.6 && Math.Abs(Point.Y - Y) < 0.6;
     }
 
     private static void AppendHop(List<(double X, double Y)> Combined, List<(double X, double Y)> Hop)
@@ -671,7 +744,9 @@ internal static class EnterpriseOrthogonalRouter
             double Cy = Points[Index + 1].Y;
             bool Colinear = (Math.Abs(Ax - Bx) < 1 && Math.Abs(Bx - Cx) < 1)
                 || (Math.Abs(Ay - By) < 1 && Math.Abs(By - Cy) < 1);
-            if (!Colinear && (Math.Abs(Ax - Bx) + Math.Abs(Ay - By) > 0.8))
+            bool NearEnd = SegmentLength(Bx, By, Points[0].X, Points[0].Y) <= STUB + 2
+                || SegmentLength(Bx, By, Points[Points.Count - 1].X, Points[Points.Count - 1].Y) <= STUB + 2;
+            if ((!Colinear || NearEnd) && (Math.Abs(Ax - Bx) + Math.Abs(Ay - By) > 0.8))
             {
                 Result.Add(Points[Index]);
             }

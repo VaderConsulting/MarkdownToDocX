@@ -155,8 +155,8 @@ internal static class EnterpriseFlowchartEdgeRouter
                 Relationship,
                 Source,
                 Target,
-                PortFor(Relationship, Source, Target, Slots),
-                PortFor(Relationship, Target, Source, Slots)));
+                PortFor(Relationship, Source, Target, Nodes, Slots),
+                PortFor(Relationship, Target, Source, Nodes, Slots)));
         }
 
         return Hops;
@@ -557,8 +557,8 @@ internal static class EnterpriseFlowchartEdgeRouter
                 continue;
             }
 
-            AddSlot(Slots, Source, Target, Relationship);
-            AddSlot(Slots, Target, Source, Relationship);
+            AddSlot(Slots, Source, Target, Relationship, Nodes);
+            AddSlot(Slots, Target, Source, Relationship, Nodes);
         }
 
         return Slots;
@@ -568,9 +568,10 @@ internal static class EnterpriseFlowchartEdgeRouter
         Dictionary<(string NodeId, EnterprisePortSide Side), List<EnterpriseRelationship>> Slots,
         EnterpriseLayoutNode From,
         EnterpriseLayoutNode Toward,
-        EnterpriseRelationship Relationship)
+        EnterpriseRelationship Relationship,
+        Dictionary<string, EnterpriseLayoutNode> Nodes)
     {
-        EnterprisePortSide Side = PreferredSide(From, Toward);
+        EnterprisePortSide Side = PreferredSide(From, Toward, Nodes);
         (string, EnterprisePortSide) Key = (From.Id, Side);
         if (!Slots.TryGetValue(Key, out List<EnterpriseRelationship>? List))
         {
@@ -583,14 +584,51 @@ internal static class EnterpriseFlowchartEdgeRouter
 
     private static EnterprisePortSide PreferredSide(
         EnterpriseLayoutNode From,
-        EnterpriseLayoutNode Toward)
+        EnterpriseLayoutNode Toward,
+        Dictionary<string, EnterpriseLayoutNode> Nodes)
     {
         EnterpriseRect FromBounds = EnterpriseObstacleCatalog.BoundsOf(From);
         EnterpriseRect TowardBounds = EnterpriseObstacleCatalog.BoundsOf(Toward);
-        EnterprisePortSide Side = EnterpriseOrthogonalRouter.FacingSide(FromBounds, TowardBounds.CentreX, TowardBounds.CentreY);
+        EnterprisePortSide Side;
+        if (FromBounds.Bottom + 8 < TowardBounds.Y)
+        {
+            Side = EnterprisePortSide.Bottom;
+        }
+        else if (TowardBounds.Bottom + 8 < FromBounds.Y)
+        {
+            Side = EnterprisePortSide.Top;
+        }
+        else if (FromBounds.Right + 8 < TowardBounds.X)
+        {
+            Side = EnterprisePortSide.Right;
+        }
+        else if (TowardBounds.Right + 8 < FromBounds.X)
+        {
+            Side = EnterprisePortSide.Left;
+        }
+        else
+        {
+            Side = EnterpriseOrthogonalRouter.FacingSide(FromBounds, TowardBounds.CentreX, TowardBounds.CentreY);
+        }
+
+        bool NestedInCompound = !string.IsNullOrEmpty(From.ParentId)
+            && Nodes.TryGetValue(From.ParentId, out EnterpriseLayoutNode? Parent)
+            && Parent.IsCompound
+            && !Parent.IsGroup;
         if (From.IsCompound && !From.IsGroup && Side == EnterprisePortSide.Top)
         {
             return TowardBounds.CentreX < FromBounds.CentreX ? EnterprisePortSide.Left : EnterprisePortSide.Right;
+        }
+
+        if (NestedInCompound && Side == EnterprisePortSide.Top)
+        {
+            if (Nodes.TryGetValue(From.ParentId!, out EnterpriseLayoutNode? Compound))
+            {
+                EnterpriseRect ParentBounds = EnterpriseObstacleCatalog.BoundsOf(Compound);
+                double LeftGap = FromBounds.X - ParentBounds.X;
+                double RightGap = ParentBounds.Right - FromBounds.Right;
+                return LeftGap <= RightGap ? EnterprisePortSide.Left : EnterprisePortSide.Right;
+            }
         }
 
         return Side;
@@ -600,9 +638,10 @@ internal static class EnterpriseFlowchartEdgeRouter
         EnterpriseRelationship Relationship,
         EnterpriseLayoutNode From,
         EnterpriseLayoutNode Toward,
+        Dictionary<string, EnterpriseLayoutNode> Nodes,
         Dictionary<(string NodeId, EnterprisePortSide Side), List<EnterpriseRelationship>> Slots)
     {
-        EnterprisePortSide Side = PreferredSide(From, Toward);
+        EnterprisePortSide Side = PreferredSide(From, Toward, Nodes);
         if (!Slots.TryGetValue((From.Id, Side), out List<EnterpriseRelationship>? List) || List.Count == 0)
         {
             return EnterpriseOrthogonalRouter.PortOnNode(From, Side, 0.5);

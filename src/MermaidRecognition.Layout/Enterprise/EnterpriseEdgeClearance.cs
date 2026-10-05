@@ -170,7 +170,7 @@ public static class EnterpriseEdgeClearance
                 if (LeftVertical && RightVertical && RangesOverlap(Ay, By, Cy, Dy, 8))
                 {
                     double Gap = Math.Abs(Ax - Cx);
-                    if (Gap < EnterpriseOrthogonalRouter.CHANNEL_GAP && Gap > 0.01)
+                    if (Gap < EnterpriseOrthogonalRouter.CHANNEL_GAP)
                     {
                         return true;
                     }
@@ -179,7 +179,7 @@ public static class EnterpriseEdgeClearance
                 if (LeftHorizontal && RightHorizontal && RangesOverlap(Ax, Bx, Cx, Dx, 8))
                 {
                     double Gap = Math.Abs(Ay - Cy);
-                    if (Gap < EnterpriseOrthogonalRouter.CHANNEL_GAP && Gap > 0.01)
+                    if (Gap < EnterpriseOrthogonalRouter.CHANNEL_GAP)
                     {
                         return true;
                     }
