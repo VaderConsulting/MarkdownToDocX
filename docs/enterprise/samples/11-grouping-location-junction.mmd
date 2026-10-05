@@ -10,8 +10,8 @@ enterprise
   or-junction  either   "Either"
   business-event finish "Finish" in store
 
-  location -composition-> clerk
-  grouping -aggregation-> clerk
+  london -composition-> clerk
+  store -aggregation-> clerk
   start -triggering-> both
   both -triggering-> finish
   start -flow-> either

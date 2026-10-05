@@ -205,11 +205,11 @@ public static class EnterpriseNotationSvg
         string FillStroke = "fill=\"" + Fill + "\" stroke=\"" + Stroke + "\" stroke-width=\"1\"";
         if (Metadata.BoxKind == EnterpriseBoxKind.Junction)
         {
-            double Radius = Math.Min(Width, Height) / 2.0;
+            double JunctionRadius = Math.Min(Width, Height) / 2.0;
             double Cx = X + (Width / 2.0);
             double Cy = Y + (Height / 2.0);
             bool Hollow = JunctionKind == EnterpriseJunctionKind.Or;
-            return "<circle cx=\"" + N(Cx) + "\" cy=\"" + N(Cy) + "\" r=\"" + N(Radius) + "\" fill=\""
+            return "<circle cx=\"" + N(Cx) + "\" cy=\"" + N(Cy) + "\" r=\"" + N(JunctionRadius) + "\" fill=\""
                 + (Hollow ? "#fff" : "#000") + "\" stroke=\"" + Stroke + "\" stroke-width=\"1\"/>";
         }
 
@@ -280,10 +280,10 @@ public static class EnterpriseNotationSvg
                 + IconSvg(Metadata.Icon, X + Width - 23, Y + 15, Fill);
         }
 
-        int Radius = Metadata.Aspect == EnterpriseAspect.Behaviour ? 10 : 0;
+        int CornerRadius = Metadata.Aspect == EnterpriseAspect.Behaviour ? 10 : 0;
         return "<rect " + FillStroke + " x=\"" + N(X) + "\" y=\"" + N(Y) + "\" width=\"" + N(Width) + "\" height=\"" + N(Height)
-            + "\" rx=\"" + Radius.ToString(System.Globalization.CultureInfo.InvariantCulture)
-            + "\" ry=\"" + Radius.ToString(System.Globalization.CultureInfo.InvariantCulture) + "\"/>"
+            + "\" rx=\"" + CornerRadius.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            + "\" ry=\"" + CornerRadius.ToString(System.Globalization.CultureInfo.InvariantCulture) + "\"/>"
             + IconSvg(Metadata.Icon, X + Width - 23, Y + 3, Fill);
     }
 

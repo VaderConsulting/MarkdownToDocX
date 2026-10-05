@@ -16,9 +16,9 @@ enterprise
   board -influence(+)-> growth
   growth -association-> gapReview
   gapReview -influence-> raiseRev
-  principle -realization-> raiseRev
-  requirement -realization-> raiseRev
-  constraint -specialization-> requirement
-  outcome -association-> raiseRev
-  meaning -association-> trust
+  customer -realization-> raiseRev
+  mustTrack -realization-> raiseRev
+  noCash -specialization-> mustTrack
+  moreSales -association-> raiseRev
+  orderSense -association-> trust
   board -association-> trust
