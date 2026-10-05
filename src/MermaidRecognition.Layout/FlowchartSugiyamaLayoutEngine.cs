@@ -70,6 +70,7 @@ public static class FlowchartSugiyamaLayoutEngine
 
         List<FlowchartLayoutNodeBounds> RemappedBounds = FlowchartDirectionRemapper.Remap(RawBounds, Direction);
         RemappedBounds = FlowchartLayoutPostProcessor.Apply(Contract, RemappedBounds, Direction, RenderOptions);
+        RemappedBounds = FlowchartLayoutCrossingSearch.ReduceSameRankInversions(Contract, RemappedBounds, Direction);
         (double GraphWidth, double GraphHeight) = FlowchartDirectionRemapper.ComputeGraphSize(RemappedBounds);
 
         FlowchartLayoutResult Built = new FlowchartLayoutResult

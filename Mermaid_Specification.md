@@ -1718,21 +1718,19 @@ Examples: `webShop --> shopUi`, `war --> webShop`, `lb -->|HTTPS| appNode`, `lan
 
 ##### 15.0C.22 Shared route quality (sample 03)
 
-**Rule:** Every visible edge, including compound edges, is repaired by one shared post-pass (`FlowchartSharedRouteQualityHelper` via `FlowchartEdgeRouteResolver.ResolveAllVisibleGuidePoints`):
+**Rule:** Every visible non-designed edge is routed by one shared search (`FlowchartSharedEdgeRouter` via `FlowchartEdgeRouteResolver.ResolveAllVisibleGuidePoints`). The router evaluates the **rendered** `curveBasis` stroke, not only discrete guide points. It searches alternative same-rank node orderings, port faces, channels and detours, and accepts a remaining defect only when no failure-free option exists.
 
-1. A route segment must not intersect a non-endpoint node body or an unrelated cluster rectangle. A chord that comes within `OBSTACLE_CLEARANCE_PX` of an obstacle is rebuilt as a smooth flowchart detour (straight when aligned; `curveBasis` guides when not).
-2. Incoming and outgoing edges that share a node face use distinct attach points spread along that face (Web Shop bottom; Database Service arrival and departure).
-3. An edge must not be drawn across a node’s label box.
-4. An edge label sits beside **its own** edge (within `LABEL_OWN_EDGE_TOLERANCE_PX`) and must not sit on an unrelated node or float in empty space.
-5. A route must not hook, reverse, or emit a detached or doubled segment. A near-aligned colinear guide is collapsed to a two-point chord so `curveBasis` cannot overshoot (`checkout --> order`).
-6. Guide points must stay inside the content bounding box (node and cluster union plus diagram margin).
-7. Parallel overlapping runs of different edges stay at least `PARALLEL_SEPARATION_PX` apart (`hosting --> webShop` and `dbSvc --> webShop`).
-8. A route that runs parallel to a group border must keep `GROUP_BORDER_CLEARANCE_PX` clearance, or cross that border cleanly. Crawling just inside a dashed cluster stroke is not allowed (`shopUi --> ordering`, `pg --> orderTbl`, `lan --> appNode`, `war --> webShop`).
-9. All visible edges in one diagram use **one** routing style: normal flowchart routing (straight when aligned; smooth `curveBasis` when not). Orthogonal corridors and loose curves must not be mixed. Designed retry, decision, and grouped two-by-two routes stay on their designed builders.
+1. A rendered stroke must not intersect a non-endpoint node rectangle. Node bodies and label boxes are obstacles.
+2. Incoming and outgoing edges that share a node face use distinct attach points. No two arrowheads may sit within 10 px.
+3. An edge label sits on **its own** rendered edge (centre within 8 px) and must be further from every other edge. Labels must not sit on crossings.
+4. Parallel overlapping runs of different edges stay at least 8 px apart.
+5. A route that runs parallel to a group border must keep 12 px clearance, or cross that border cleanly and perpendicularly. Both-outside edges must not cut through a foreign group.
+6. All visible edges in one diagram use **one** routing style: normal flowchart routing (straight when aligned; smooth `curveBasis` when not). Designed retry, decision, grouped two-by-two and corridor routes stay on their designed builders.
+7. Unavoidable crossings (only after the search) must still be clean: near-perpendicular, away from labels and arrowheads. The quality gate reports every tolerated failure with the reason it could not be avoided (for example `K3,3 subgraph: a crossing is unavoidable`, or `node X fully enclosed`). A failure without a justified reason fails the gate.
 
-**Naiad note:** Sample 03 at `5ced07c` still floated `HTTPS` off its corridor, doubled the dotted `checkout --> order` piece, overlapped the two Web Shop verticals, hugged data-centre borders, crawled inside dashed group strokes, mixed orthogonal corridors with loose curves, and crowded Database Service ports. Those are shared-router bugs, not enterprise-only.
+**Naiad note:** Sample 03 at `6466fe9` still pierced Order, stacked Online Ordering markers, sat `HTTPS` on a crossing, mixed orthogonal and curved styles, crowded Database Service ports, and crossed the data-centre border with a long PostgreSQL curve. Guide-only tests missed those because `curveBasis` bows off the polyline. The gate now parses the final SVG.
 
-**Closure:** `FlowchartSharedRouteQualityHelper.TryApply`, `UnifyDiagramRoutingStyle`, and `SeparateParallelChannels`.
+**Closure:** `FlowchartSharedEdgeRouter.RouteAll`, `FlowchartLayoutCrossingSearch.ReduceSameRankInversions`, `FlowchartRenderedSvgQualityGate.Evaluate`.
 
 Key:
 

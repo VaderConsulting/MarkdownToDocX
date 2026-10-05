@@ -1,0 +1,24 @@
+flowchart TB
+  orderSuite["Order Management Suite"]
+  webShop["Web Shop"]
+  orderMgr["Order Manager"]
+  shopApi["Shop REST API"]
+  checkout(["Checkout"])
+  orderSync(["Order Synchronisation"])
+  placeOrder(["Place Order"])
+  orderPlaced(["Order Placed"])
+  orderSvc(["Order Service"])
+  order["Order"]
+  orderSuite --> webShop
+  orderSuite --> orderMgr
+  orderSuite --> orderSync
+  webShop --> shopApi
+  webShop --> checkout
+  checkout --> orderSvc
+  shopApi --> orderSvc
+  placeOrder --> orderPlaced
+  orderPlaced --> orderSync
+  checkout -->|order details| orderSync
+  placeOrder --> order
+  orderSync --> order
+  orderSvc --> placeOrder

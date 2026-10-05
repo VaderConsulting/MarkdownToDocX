@@ -97,8 +97,16 @@ public static class FlowchartEdgeRouteResolver
         IReadOnlyDictionary<string, NodeContract> NodeById,
         FlowchartDirection Direction)
     {
+        Dictionary<string, FlowchartLayoutNodeBounds> MutableBounds =
+            new Dictionary<string, FlowchartLayoutNodeBounds>(StringComparer.Ordinal);
+        foreach (KeyValuePair<string, FlowchartLayoutNodeBounds> Pair in BoundsById)
+        {
+            MutableBounds[Pair.Key] = Pair.Value;
+        }
+
+        FlowchartCompoundEndpointHelper.AddGroupBounds(Contract, MutableBounds);
+
         List<FlowchartResolvedGuide> Guides = [];
-        List<List<(double X, double Y)>> Routes = [];
         foreach (EdgeContract Edge in Contract.Edges)
         {
             if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
@@ -106,10 +114,10 @@ public static class FlowchartEdgeRouteResolver
                 continue;
             }
 
-            if (!TryResolveLayoutGuidePoints(
+            if (!TryResolveRawLayoutGuidePoints(
                     Edge,
                     Contract,
-                    BoundsById,
+                    MutableBounds,
                     NodeById,
                     Direction,
                     out List<(double X, double Y)> Points,
@@ -119,19 +127,9 @@ public static class FlowchartEdgeRouteResolver
             }
 
             Guides.Add(new FlowchartResolvedGuide(Edge, Points, RouteKind));
-            Routes.Add(Points);
         }
 
-        FlowchartSharedRouteQualityHelper.UnifyDiagramRoutingStyle(Contract, BoundsById, Guides);
-        FlowchartSharedRouteQualityHelper.SeparateParallelChannels(Routes);
-        foreach (FlowchartResolvedGuide Guide in Guides)
-        {
-            if (Guide.RouteKind == FlowchartEdgeRouteKind.Straight && Guide.Points.Count > 2)
-            {
-                Guide.RouteKind = FlowchartEdgeRouteKind.Curved;
-            }
-        }
-
+        FlowchartSharedEdgeRouter.RouteAll(Contract, MutableBounds, NodeById, Direction, Guides);
         return Guides;
     }
 

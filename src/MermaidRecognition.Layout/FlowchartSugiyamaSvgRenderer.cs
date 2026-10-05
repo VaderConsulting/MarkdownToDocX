@@ -306,7 +306,7 @@ public static class FlowchartSugiyamaSvgRenderer
                 }
 
                 string PathData = FlowchartCurvePathBuilder.BuildRetryLoopPathData(SvgPoints);
-                AppendStyledEdgePath(Builder, PathData, EdgeStyle);
+                AppendStyledEdgePath(Builder, PathData, EdgeStyle, Edge.SourceId, Edge.TargetId);
 
                 if (SvgPoints.Count >= 2)
                 {
@@ -428,7 +428,7 @@ public static class FlowchartSugiyamaSvgRenderer
                         || Direction == FlowchartDirection.RightToLeft
                         ? FlowchartCurvePathBuilder.BuildHorizontalFanRoutePathData(FanOutSvgPoints)
                         : FlowchartCurvePathBuilder.BuildVerticalFanRoutePathData(FanOutSvgPoints);
-                    AppendStyledEdgePath(Builder, FanOutPathData, EdgeStyle);
+                    AppendStyledEdgePath(Builder, FanOutPathData, EdgeStyle, Edge.SourceId, Edge.TargetId);
 
                     if (FanOutSvgPoints.Count > 2)
                     {
@@ -501,7 +501,7 @@ public static class FlowchartSugiyamaSvgRenderer
                         || Direction == FlowchartDirection.RightToLeft
                         ? FlowchartCurvePathBuilder.BuildHorizontalFanRoutePathData(FanInSvgPoints)
                         : FlowchartCurvePathBuilder.BuildVerticalFanRoutePathData(FanInSvgPoints);
-                    AppendStyledEdgePath(Builder, FanInPathData, EdgeStyle);
+                    AppendStyledEdgePath(Builder, FanInPathData, EdgeStyle, Edge.SourceId, Edge.TargetId);
 
                     if (FanInSvgPoints.Count > 2)
                     {
@@ -602,7 +602,7 @@ public static class FlowchartSugiyamaSvgRenderer
                 else
                 {
                     string DecisionPathData = FlowchartCurvePathBuilder.BuildDecisionBranchPathData(DecisionSvgPoints);
-                    AppendStyledEdgePath(Builder, DecisionPathData, EdgeStyle);
+                    AppendStyledEdgePath(Builder, DecisionPathData, EdgeStyle, Edge.SourceId, Edge.TargetId);
 
                     if (DecisionSvgPoints.Count > 2)
                     {
@@ -1181,7 +1181,7 @@ public static class FlowchartSugiyamaSvgRenderer
         else if (RouteKind == FlowchartEdgeRouteKind.Corridor)
         {
             string PathData = FlowchartCurvePathBuilder.BuildCorridorRoutePathData(GuideSvgPoints, RouteKind);
-            AppendStyledEdgePath(Builder, PathData, EdgeStyle);
+            AppendStyledEdgePath(Builder, PathData, EdgeStyle, Edge.SourceId, Edge.TargetId);
 
             if (GuideSvgPoints.Count >= 2)
             {
@@ -1236,7 +1236,7 @@ public static class FlowchartSugiyamaSvgRenderer
                 PathData = FlowchartCurvePathBuilder.BuildPathDataFromGuidePoints(GuideSvgPoints, RenderOptions.Curve);
             }
 
-            AppendStyledEdgePath(Builder, PathData, EdgeStyle);
+            AppendStyledEdgePath(Builder, PathData, EdgeStyle, Edge.SourceId, Edge.TargetId);
 
             if (GuideSvgPoints.Count >= 2)
             {
@@ -1346,7 +1346,7 @@ public static class FlowchartSugiyamaSvgRenderer
         double LabelHeight = FlowchartEdgeLabelPlacementHelper.ComputeRenderedEdgeLabelHeight(LabelDimensions, RenderOptions.EdgeLabelFontSizePx);
         (double ClearedX, double ClearedY) = MoveLayoutLabelClearOfConnector(Edge, Contract, LabelX, LabelY, LabelDimensions.Width, LabelHeight, LayoutPoints, BoundsById, SourceBounds, TargetBounds, Direction);
         if (FlowchartSharedRouteQualityHelper.DistanceFromPointToPolyline(ClearedX, ClearedY, LayoutPoints)
-            > 80.0)
+            > FlowchartSharedEdgeRouter.LABEL_OWN_EDGE_PX)
         {
             return FlowchartSharedRouteQualityHelper.ResolveLabelOnOwnEdge(
                 LayoutPoints,
@@ -1355,7 +1355,7 @@ public static class FlowchartSugiyamaSvgRenderer
                 BoundsById,
                 Edge.SourceId,
                 Edge.TargetId,
-                FlowchartEdgeLabelPlacementHelper.DEFAULT_OFFSET_PX);
+                FlowchartSharedEdgeRouter.LABEL_OWN_EDGE_PX - 1.0);
         }
 
         return (ClearedX, ClearedY);
@@ -1554,7 +1554,7 @@ public static class FlowchartSugiyamaSvgRenderer
             (LineEndX, LineEndY) = ShortenSegmentForArrowhead(LineStartX, LineStartY, RenderTipX, RenderTipY, EndInset);
         }
 
-        AppendStyledLine(Builder, LineStartX, LineStartY, LineEndX, LineEndY, EdgeStyle, "butt");
+        AppendStyledLine(Builder, LineStartX, LineStartY, LineEndX, LineEndY, EdgeStyle, "butt", Edge.SourceId, Edge.TargetId);
 
         if (Edge.MarkerEnd == EdgeEndpointMarker.Point)
         {
@@ -1648,6 +1648,16 @@ public static class FlowchartSugiyamaSvgRenderer
         string PathData,
         FlowchartResolvedStyle Style)
     {
+        AppendStyledEdgePath(Builder, PathData, Style, null, null);
+    }
+
+    private static void AppendStyledEdgePath(
+        StringBuilder Builder,
+        string PathData,
+        FlowchartResolvedStyle Style,
+        string? SourceId,
+        string? TargetId)
+    {
         if (string.IsNullOrEmpty(PathData))
         {
             return;
@@ -1660,6 +1670,7 @@ public static class FlowchartSugiyamaSvgRenderer
         Builder.Append("\" stroke-width=\"");
         Builder.Append(Style.StrokeWidth.ToString(CultureInfo.InvariantCulture));
         Builder.Append("\" stroke-linejoin=\"round\" stroke-linecap=\"round\"");
+        AppendEdgeIdentityAttributes(Builder, SourceId, TargetId);
 
         if (!string.IsNullOrEmpty(Style.StrokeDasharray))
         {
@@ -1671,6 +1682,23 @@ public static class FlowchartSugiyamaSvgRenderer
         Builder.Append("/>");
     }
 
+    private static void AppendEdgeIdentityAttributes(
+        StringBuilder Builder,
+        string? SourceId,
+        string? TargetId)
+    {
+        if (string.IsNullOrEmpty(SourceId) || string.IsNullOrEmpty(TargetId))
+        {
+            return;
+        }
+
+        Builder.Append(" data-edge-source=\"");
+        Builder.Append(EscapeXml(SourceId));
+        Builder.Append("\" data-edge-target=\"");
+        Builder.Append(EscapeXml(TargetId));
+        Builder.Append('\"');
+    }
+
     private static void AppendStyledLine(
         StringBuilder Builder,
         double X1,
@@ -1679,6 +1707,20 @@ public static class FlowchartSugiyamaSvgRenderer
         double Y2,
         FlowchartResolvedStyle Style,
         string LineCap = "round")
+    {
+        AppendStyledLine(Builder, X1, Y1, X2, Y2, Style, LineCap, null, null);
+    }
+
+    private static void AppendStyledLine(
+        StringBuilder Builder,
+        double X1,
+        double Y1,
+        double X2,
+        double Y2,
+        FlowchartResolvedStyle Style,
+        string LineCap,
+        string? SourceId,
+        string? TargetId)
     {
         Builder.Append("<line x1=\"");
         Builder.Append(X1.ToString(CultureInfo.InvariantCulture));
@@ -1695,6 +1737,7 @@ public static class FlowchartSugiyamaSvgRenderer
         Builder.Append("\" stroke-linecap=\"");
         Builder.Append(EscapeXml(LineCap));
         Builder.Append('\"');
+        AppendEdgeIdentityAttributes(Builder, SourceId, TargetId);
 
         if (!string.IsNullOrEmpty(Style.StrokeDasharray))
         {

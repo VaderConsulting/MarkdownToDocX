@@ -1,0 +1,33 @@
+flowchart TB
+  subgraph dc["Primary data centre"]
+    subgraph appNode["App Server Node"]
+      jvm["Java VM"]
+      war["shop.war"]
+    end
+    pg["PostgreSQL"]
+    lb["Load Balancer"]
+    lan["DC LAN"]
+  end
+  subgraph webShop["Web Shop"]
+    checkout(["Checkout"])
+  end
+  shopUi["Shop Web UI"]
+  ordering(["Online Ordering"])
+  order["Order"]
+  hosting(["Java Application Hosting"])
+  dbSvc(["Database Service"])
+  orderTbl["orders table"]
+  webShop --> shopUi
+  checkout --> ordering
+  shopUi --> ordering
+  checkout --> order
+  war --> webShop
+  orderTbl --> order
+  jvm --> hosting
+  pg --> dbSvc
+  hosting --> webShop
+  dbSvc --> webShop
+  pg --> orderTbl
+  lb -->|HTTPS| appNode
+  lan --> lb
+  lan --> appNode

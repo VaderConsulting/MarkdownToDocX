@@ -1,0 +1,9 @@
+flowchart TB
+  press["Packing Press"]
+  warehouse["Warehouse"]
+  fleet["Delivery Fleet"]
+  carton["Carton"]
+  warehouse --> press
+  warehouse --> carton
+  fleet --> warehouse
+  press --> carton

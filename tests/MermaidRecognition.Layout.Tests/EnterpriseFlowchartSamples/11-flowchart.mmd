@@ -1,0 +1,14 @@
+flowchart TB
+  subgraph store["Store Cluster"]
+    clerk["Clerk"]
+    start(["Start"])
+    finish(["Finish"])
+  end
+  london["London"]
+  both((" "))
+  either((" "))
+  london --> clerk
+  start --> both
+  both --> finish
+  start --> either
+  either --> finish

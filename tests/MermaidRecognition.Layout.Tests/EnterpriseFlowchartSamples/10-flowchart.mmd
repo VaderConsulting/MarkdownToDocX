@@ -1,0 +1,10 @@
+flowchart TB
+  cutover(["Cutover"])
+  goLive["Go-Live Pack"]
+  started(["Cutover Started"])
+  target["Target Architecture"]
+  missing["Missing Hosting"]
+  started --> cutover
+  cutover --> goLive
+  cutover --> target
+  target --> missing
