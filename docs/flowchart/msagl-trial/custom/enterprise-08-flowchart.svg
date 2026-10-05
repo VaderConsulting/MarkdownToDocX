@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="270" height="256" viewBox="0 0 270 256"><rect x="0" y="0" width="269.53200000000004" height="256" fill="white"/><line x1="83.815" y1="78" x2="83.815" y2="105" stroke="#333333" stroke-width="1" stroke-linecap="butt" data-edge-source="staff" data-edge-target="sellingCap"/><line x1="83.815" y1="169" x2="83.815" y2="184" stroke="#333333" stroke-width="1" stroke-linecap="butt" data-edge-source="sellingCap" data-edge-target="expand"/><line x1="159.054" y1="141.5" x2="140.79" y2="141.5" stroke="#333333" stroke-width="1" stroke-linecap="butt" data-edge-source="winOrder" data-edge-target="sellingCap"/><line x1="83.815" y1="193" x2="83.815" y2="178" stroke="#333333" stroke-width="1" stroke-linecap="butt" data-edge-source="expand" data-edge-target="sellingCap"/><path d="M8.76,8 H158.87 V78 H8.76 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M63.34,114
+H104.29
+A27.5,27.5 0 0 1 104.29,169
+H63.34
+A27.5,27.5 0 0 1 63.34,114 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M186.55,114
+H234.03
+A27.5,27.5 0 0 1 234.03,169
+H186.55
+A27.5,27.5 0 0 1 186.55,114 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M35.5,193
+H132.13
+A27.5,27.5 0 0 1 132.13,248
+H35.5
+A27.5,27.5 0 0 1 35.5,193 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><polygon points="83.815,115 80.315,105 87.315,105" fill="#333333" stroke="none"/><polygon points="83.815,194 80.315,184 87.315,184" fill="#333333" stroke="none"/><polygon points="130.79,141.5 140.79,138 140.79,145" fill="#333333" stroke="none"/><polygon points="83.815,168 87.315,178 80.315,178" fill="#333333" stroke="none"/><text x="83.815" y="48.76" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Sales Staff</text><text x="83.815" y="147.26" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Selling</text><text x="210.293" y="147.26" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Win Order</text><text x="83.815" y="226.26" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Expand Channels</text></svg>

@@ -175,11 +175,18 @@ static Dictionary<string, string> LoadTrialDiagrams(string RepoRoot)
     {
         Match HeadingMatch = Regex.Match(
             FlowMarkdown,
-            @"^### " + Regex.Escape(FixtureId) + @"\b[^\n]*\n+(?:```mermaid\r?\n)(.*?)```",
-            RegexOptions.CultureInvariant | RegexOptions.Singleline | RegexOptions.Multiline);
+            @"^### " + Regex.Escape(FixtureId) + @"\b",
+            RegexOptions.CultureInvariant | RegexOptions.Multiline);
         if (HeadingMatch.Success)
         {
-            Diagrams[FixtureId] = HeadingMatch.Groups[1].Value.Trim();
+            Match BlockMatch = Regex.Match(
+                FlowMarkdown.Substring(HeadingMatch.Index),
+                @"```mermaid\r?\n(.*?)```",
+                RegexOptions.Singleline);
+            if (BlockMatch.Success)
+            {
+                Diagrams[FixtureId] = BlockMatch.Groups[1].Value.Trim();
+            }
         }
     }
 
@@ -207,7 +214,7 @@ static void RenderAdoptedOne(string Stem, string Mermaid, string OutputDirectory
     {
         if (!AdoptedMsaglRenderBridge.TryRenderSvg(Mermaid, Profile, out string Svg) || string.IsNullOrWhiteSpace(Svg))
         {
-            Console.WriteLine("SKIP " + Profile.Style + " " + Stem);
+            Console.WriteLine("SKIP " + Profile.Style + " " + Stem + " " + AdoptedMsaglLayoutEngine.LastError.Split('\n')[0]);
             return;
         }
 

@@ -68,7 +68,8 @@ public sealed class AdoptedMsaglLayoutTrialTests
                 AdoptedMsaglRoutingProfile.SharedRectilinear,
                 out GeometryGraph Graph,
                 out Dictionary<string, Node> NodesById),
-            Is.True);
+            Is.True,
+            AdoptedMsaglLayoutEngine.LastError);
         Assert.That(NodesById.ContainsKey("dc"), Is.True);
         Assert.That(NodesById["dc"], Is.TypeOf<Cluster>());
         Assert.That(NodesById.ContainsKey("appNode"), Is.True);

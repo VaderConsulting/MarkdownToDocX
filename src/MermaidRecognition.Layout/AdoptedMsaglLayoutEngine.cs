@@ -20,6 +20,11 @@ namespace MermaidRecognition.Layout;
 public static class AdoptedMsaglLayoutEngine
 {
     /// <summary>
+    /// Last layout or routing exception, when <see cref="TryLayoutAndRoute"/> returns false.
+    /// </summary>
+    public static string LastError { get; private set; } = string.Empty;
+
+    /// <summary>
     /// Lays out nodes and routes edges with the adopted router named by <paramref name="Profile"/>.
     /// </summary>
     /// <param name="Contract">Flowchart contract.</param>
@@ -35,6 +40,7 @@ public static class AdoptedMsaglLayoutEngine
     {
         Graph = new GeometryGraph();
         NodesById = new Dictionary<string, Node>(StringComparer.Ordinal);
+        LastError = string.Empty;
         if (Contract == null || Contract.Nodes.Count == 0)
         {
             return false;
@@ -56,20 +62,48 @@ public static class AdoptedMsaglLayoutEngine
 
         try
         {
+            List<Edge> ClusterEndpointEdges = DeferClusterEndpointEdges(Graph);
             LayeredLayout Layout = new LayeredLayout(Graph, Settings);
             Layout.Run();
             FitClusterBoundaries(Graph);
+            foreach (Edge ClusterEdge in ClusterEndpointEdges)
+            {
+                Graph.Edges.Add(ClusterEdge);
+            }
+
             RouteWithAdoptedRouter(Graph, Profile);
             EdgeLabelPlacement Labels = new EdgeLabelPlacement(Graph);
             Labels.Run();
         }
-        catch (Exception)
+        catch (Exception Exception)
         {
+            LastError = Exception.ToString();
             return false;
         }
 
         Graph.UpdateBoundingBox();
         return NodesById.Count > 0;
+    }
+
+    private static List<Edge> DeferClusterEndpointEdges(GeometryGraph Graph)
+    {
+        List<Edge> Deferred = [];
+        List<Edge> Snapshot = [];
+        foreach (Edge LayoutEdge in Graph.Edges)
+        {
+            Snapshot.Add(LayoutEdge);
+        }
+
+        foreach (Edge LayoutEdge in Snapshot)
+        {
+            if (LayoutEdge.Source is Cluster || LayoutEdge.Target is Cluster)
+            {
+                Deferred.Add(LayoutEdge);
+                Graph.Edges.Remove(LayoutEdge);
+            }
+        }
+
+        return Deferred;
     }
 
     private static void RouteWithAdoptedRouter(GeometryGraph Graph, AdoptedMsaglRoutingProfile Profile)
