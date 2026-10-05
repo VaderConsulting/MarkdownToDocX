@@ -1,11 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="232" height="192" viewBox="0 0 232 192"><rect x="0" y="0" width="231.648" height="192" fill="white"/><line x1="115.824" y1="114" x2="115.824" y2="87" stroke="#333333" stroke-width="1" stroke-linecap="butt" data-edge-source="App" data-edge-target="Store"/><path d="M8,23.83
-A107.82,15.83 0 0 0 223.65,23.83
-A107.82,15.83 0 0 0 8,23.83
-L8,62.17
-A107.82,15.83 0 0 0 223.65,62.17
-L223.65,23.83 Z" fill="#ECECFF" stroke="none" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M8,23.83
-A107.82,15.83 0 0 0 223.65,23.83
-A107.82,15.83 0 0 0 8,23.83
-L8,62.17
-A107.82,15.83 0 0 0 223.65,62.17
-L223.65,23.83" fill="#ECECFF" fill-opacity="0" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M40.77,114 H190.88 V184 H40.77 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><polygon points="115.824,77 119.324,87 112.324,87" fill="#333333" stroke="none"/><text x="115.824" y="56.67315375402175" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Database / cylinder</text><text x="115.824" y="154.76" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Application</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="232" height="206" viewBox="0 0 232 206"><rect x="0" y="0" width="231.648" height="206" fill="white"/><line x1="115.824" y1="78" x2="115.824" y2="119" stroke="#333333" stroke-width="1" stroke-linecap="butt" data-edge-source="App" data-edge-target="Store"/><path d="M40.77,8 H190.88 V78 H40.77 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M8,143.83
+A107.82,15.83 0 0 0 223.65,143.83
+A107.82,15.83 0 0 0 8,143.83
+L8,182.17
+A107.82,15.83 0 0 0 223.65,182.17
+L223.65,143.83 Z" fill="#ECECFF" stroke="none" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M8,143.83
+A107.82,15.83 0 0 0 223.65,143.83
+A107.82,15.83 0 0 0 8,143.83
+L8,182.17
+A107.82,15.83 0 0 0 223.65,182.17
+L223.65,143.83" fill="#ECECFF" fill-opacity="0" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><polygon points="115.824,129 112.324,119 119.324,119" fill="#333333" stroke="none"/><text x="115.824" y="48.76" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Application</text><text x="115.824" y="176.67315375402174" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Database / cylinder</text></svg>

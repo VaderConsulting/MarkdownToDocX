@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="160" height="177" viewBox="0 0 160 177"><rect x="0" y="0" width="159.438" height="177" fill="white"/><line x1="79.719" y1="63" x2="79.719" y2="90" stroke="#333333" stroke-width="1" stroke-linecap="butt" data-edge-source="Node" data-edge-target="Down"/><path d="M13,8
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="191" viewBox="0 0 160 191"><rect x="0" y="0" width="159.438" height="191" fill="white"/><line x1="79.719" y1="63" x2="79.719" y2="104" stroke="#333333" stroke-width="1" stroke-linecap="butt" data-edge-source="Node" data-edge-target="Down"/><path d="M13,8
 H146.44
 Q151.44,8 151.44,13
 V58
@@ -6,4 +6,4 @@ Q151.44,63 146.44,63
 H13
 Q8,63 8,58
 V13
-Q8,8 13,8 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M8.76,99 H150.68 V169 H8.76 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><polygon points="79.719,100 76.219,90 83.219,90" fill="#333333" stroke="none"/><text x="79.719" y="41.26" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Rendered label</text><text x="79.719" y="139.76" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Downstream</text></svg>
+Q8,8 13,8 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M8.76,113 H150.68 V183 H8.76 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><polygon points="79.719,114 76.219,104 83.219,104" fill="#333333" stroke="none"/><text x="79.719" y="41.26" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Rendered label</text><text x="79.719" y="153.76" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Downstream</text></svg>
