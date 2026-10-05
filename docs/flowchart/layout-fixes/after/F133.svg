@@ -1,16 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="426" height="206" viewBox="0 0 426 206"><rect x="0" y="0" width="425.086" height="206" fill="white"/><path d="M79.719,78L79.719,86L79.719,128" fill="none" stroke="#333333" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" data-edge-source="A" data-edge-target="B"/><path d="M309.262,78L309.262,86L309.262,128" fill="none" stroke="#333333" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" data-edge-source="App" data-edge-target="Store"/><path d="M234.21,8 H384.32 V78 H234.21 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M35.5,23
-H123.94
-A27.5,27.5 0 0 1 123.94,78
-H35.5
-A27.5,27.5 0 0 1 35.5,23 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M8.76,128 H150.68 V198 H8.76 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M22.95,128 V198
-M136.49,128 V198" fill="#ECECFF" fill-opacity="0" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M201.44,143.83
-A107.82,15.83 0 0 0 417.09,143.83
-A107.82,15.83 0 0 0 201.44,143.83
-L201.44,182.17
-A107.82,15.83 0 0 0 417.09,182.17
-L417.09,143.83 Z" fill="#ECECFF" stroke="none" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M201.44,143.83
-A107.82,15.83 0 0 0 417.09,143.83
-A107.82,15.83 0 0 0 201.44,143.83
-L201.44,182.17
-A107.82,15.83 0 0 0 417.09,182.17
-L417.09,143.83" fill="#ECECFF" fill-opacity="0" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><polygon points="79.719,129 76.219,119 83.219,119" fill="#333333" stroke="none"/><polygon points="309.262,129 305.762,119 312.762,119" fill="#333333" stroke="none"/><text x="309.262" y="48.76" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Application</text><text x="79.719" y="56.26" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Stadium / pill</text><text x="79.719" y="168.76" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Subroutine</text><text x="309.262" y="176.67315375402174" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Database / cylinder</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="433" height="230" viewBox="0 0 433 230"><rect x="0" y="0" width="432.336" height="230" fill="white"/><line x1="86.2879936708861" y1="63" x2="85.20803951460023" y2="70.58974987515202" stroke="#333333" stroke-width="1" stroke-linecap="butt" data-edge-source="A" data-edge-target="B"/><line x1="303.47676595744684" y1="152" x2="306.8344830813142" y2="136.82812601642277" stroke="#333333" stroke-width="1" stroke-linecap="butt" data-edge-source="App" data-edge-target="Store"/><path d="M45.98,8
+H134.42
+A27.5,27.5 0 0 1 134.42,63
+H45.98
+A27.5,27.5 0 0 1 45.98,8 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M208.69,73.83
+A107.82,15.83 0 0 0 424.34,73.83
+A107.82,15.83 0 0 0 208.69,73.83
+L208.69,112.17
+A107.82,15.83 0 0 0 424.34,112.17
+L424.34,73.83 Z" fill="#ECECFF" stroke="none" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M208.69,73.83
+A107.82,15.83 0 0 0 424.34,73.83
+A107.82,15.83 0 0 0 208.69,73.83
+L208.69,112.17
+A107.82,15.83 0 0 0 424.34,112.17
+L424.34,73.83" fill="#ECECFF" fill-opacity="0" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M8,79.5 H149.92 V149.5 H8 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M22.19,79.5 V149.5
+M135.73,79.5 V149.5" fill="#ECECFF" fill-opacity="0" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M220.69,152 H370.8 V222 H220.69 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><polygon points="83.79931769106413,80.49002779164978 81.74294224382602,70.0966972369144 88.67313678537444,71.08280251338965" fill="#333333" stroke="none"/><polygon points="308.99531748269084,127.06437700849413 310.25179523408923,137.58441805690458 303.4171709285392,136.07183397594096" fill="#333333" stroke="none"/><text x="90.20100000000002" y="41.26" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Stadium / pill</text><text x="316.51200000000006" y="106.67315375402175" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Database / cylinder</text><text x="78.96000000000001" y="120.26" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Subroutine</text><text x="295.744" y="192.76" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Application</text></svg>

@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="213" height="206" viewBox="0 0 213 206"><rect x="0" y="0" width="212.77866666666665" height="206" fill="white"/><path d="M94.72266666666665,78L94.72266666666665,86L94.72266666666665,128" fill="none" stroke="#333333" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" data-edge-source="Top" data-edge-target="Bottom"/><path d="M66.12,8
+<svg xmlns="http://www.w3.org/2000/svg" width="213" height="192" viewBox="0 0 213 192"><rect x="0" y="0" width="212.77866666666665" height="192" fill="white"/><line x1="94.72266666666665" y1="78" x2="94.72266666666665" y2="105" stroke="#333333" stroke-width="1" stroke-linecap="butt" data-edge-source="Top" data-edge-target="Bottom"/><path d="M66.12,8
 L181.66,8
 L146.66,78
-L31.12,78 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M43,128
-L169.78,128
-L204.78,198
-L8,198 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><polygon points="94.72266666666665,129 91.22266666666665,119 98.22266666666665,119" fill="#333333" stroke="none"/><text x="106.38933333333333" y="48.76" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Wide top</text><text x="106.38933333333333" y="168.76" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Wide bottom</text></svg>
+L31.12,78 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M43,114
+L169.78,114
+L204.78,184
+L8,184 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><polygon points="94.72266666666665,115 91.22266666666665,105 98.22266666666665,105" fill="#333333" stroke="none"/><text x="106.38933333333333" y="48.76" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Wide top</text><text x="106.38933333333333" y="154.76" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Wide bottom</text></svg>
