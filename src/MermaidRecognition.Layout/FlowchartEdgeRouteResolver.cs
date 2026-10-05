@@ -25,6 +25,73 @@ public static class FlowchartEdgeRouteResolver
         out List<(double X, double Y)> LayoutPoints,
         out FlowchartEdgeRouteKind RouteKind)
     {
+        bool Resolved = TryResolveRawLayoutGuidePoints(
+            Edge,
+            Contract,
+            BoundsById,
+            NodeById,
+            Direction,
+            out LayoutPoints,
+            out RouteKind);
+        if (!Resolved || LayoutPoints.Count < 2)
+        {
+            return false;
+        }
+
+        Dictionary<string, FlowchartLayoutNodeBounds> EffectiveBounds =
+            new Dictionary<string, FlowchartLayoutNodeBounds>(StringComparer.Ordinal);
+        foreach (KeyValuePair<string, FlowchartLayoutNodeBounds> Pair in BoundsById)
+        {
+            EffectiveBounds[Pair.Key] = Pair.Value;
+        }
+
+        if (FlowchartCompoundEndpointHelper.IsGroupId(Contract, Edge.SourceId)
+            || FlowchartCompoundEndpointHelper.IsGroupId(Contract, Edge.TargetId))
+        {
+            FlowchartCompoundEndpointHelper.AddGroupBounds(Contract, EffectiveBounds);
+        }
+
+        if (!EffectiveBounds.TryGetValue(Edge.SourceId, out FlowchartLayoutNodeBounds SourceBounds)
+            || !EffectiveBounds.TryGetValue(Edge.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
+        {
+            return LayoutPoints.Count >= 2;
+        }
+
+        string? SourceShape = NodeById.TryGetValue(Edge.SourceId, out NodeContract? SourceNode) ? SourceNode.Shape : "rect";
+        string? TargetShape = NodeById.TryGetValue(Edge.TargetId, out NodeContract? TargetNode) ? TargetNode.Shape : "rect";
+        if (FlowchartCompoundEndpointHelper.IsGroupId(Contract, Edge.SourceId))
+        {
+            SourceShape = "rect";
+        }
+
+        if (FlowchartCompoundEndpointHelper.IsGroupId(Contract, Edge.TargetId))
+        {
+            TargetShape = "rect";
+        }
+
+        return FlowchartSharedRouteQualityHelper.TryApply(
+            Edge,
+            Contract,
+            EffectiveBounds,
+            NodeById,
+            Direction,
+            SourceBounds,
+            TargetBounds,
+            SourceShape,
+            TargetShape,
+            LayoutPoints,
+            ref RouteKind);
+    }
+
+    private static bool TryResolveRawLayoutGuidePoints(
+        EdgeContract Edge,
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        IReadOnlyDictionary<string, NodeContract> NodeById,
+        FlowchartDirection Direction,
+        out List<(double X, double Y)> LayoutPoints,
+        out FlowchartEdgeRouteKind RouteKind)
+    {
         LayoutPoints = [];
         RouteKind = FlowchartEdgeRouteKind.Unknown;
 

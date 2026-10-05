@@ -22,9 +22,10 @@ Geometry parity on that local worktree: samples 01–03 and 06–12 match flowch
 
 1. **Subgraph membership (03, F43–F47, nested fixtures).** A cluster box contains only members. Non-members are packed out of member holes or evicted. Dummy subgraph-id nodes are not placed or painted.
 2. **Root ranking (12).** Each root is one rank beyond its facing successor. The old “all roots share the bottom rank” pass is gone; no catalogue test required it.
-3. **Compound edges (03).** Edges to/from a subgraph id attach to the facing rectangle as a straight clipped segment. They are no longer dropped, and they do not loop around the exterior. Group rectangles are not obstacles for member-to-member edges.
+3. **Compound edges (03).** Edges to/from a subgraph id attach to the facing rectangle. A clear chord stays a two-point clip. An obstructed chord keeps those attach points and uses an inside corridor so it does not pierce unrelated nodes or wrap outside the canvas.
 4. **LAN → Load Balancer (03).** Source is LAN, target is Load Balancer.
 5. **Cluster slack (11, F111, F59, F60).** Bottom content slack is 8 px (was 26 px). Title band stays 26 px. Column-led spine centring (F59) is unchanged unless the expand would cover a non-member.
+6. **Shared route quality (03).** Non-endpoint nodes are obstacles. Side-face ports are spread so arrowheads do not stack. Edge labels stay beside their own edge. Hooked or out-of-bounds routes are rebuilt on an inside channel. Designed retry/decision routes are left alone.
 
 ## `flow.md` fixtures
 

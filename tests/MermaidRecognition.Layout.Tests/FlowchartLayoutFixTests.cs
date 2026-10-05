@@ -172,13 +172,23 @@ public sealed class FlowchartLayoutFixTests
                     out FlowchartEdgeRouteKind _),
                 Is.True,
                 Pair.SourceId + " -> " + Pair.TargetId + " must resolve");
-            Assert.That(Points.Count, Is.EqualTo(2), Pair.SourceId + " -> " + Pair.TargetId);
             AssertPointOnEndpoint(Points[0], Pair.SourceId, BoundsById, RectById);
-            AssertPointOnEndpoint(Points[1], Pair.TargetId, BoundsById, RectById);
+            AssertPointOnEndpoint(Points[^1], Pair.TargetId, BoundsById, RectById);
+            Assert.That(
+                FlowchartSharedRouteQualityHelper.PolylineIntersectsNonEndpointNodes(
+                    Points,
+                    Contract,
+                    BoundsById,
+                    Pair.SourceId,
+                    Pair.TargetId),
+                Is.False,
+                Pair.SourceId + " -> " + Pair.TargetId + " must not pierce unrelated nodes");
 
-            double Straight = Distance(Points[0], Points[1]);
-            double PathLength = Straight;
-            Assert.That(PathLength, Is.LessThanOrEqualTo(Straight + 1.0));
+            if (string.Equals(Pair.SourceId, "webShop", StringComparison.Ordinal)
+                && string.Equals(Pair.TargetId, "shopUi", StringComparison.Ordinal))
+            {
+                Assert.That(Points.Count, Is.EqualTo(2), "webShop -> shopUi stays a clear two-point clip");
+            }
         }
     }
 

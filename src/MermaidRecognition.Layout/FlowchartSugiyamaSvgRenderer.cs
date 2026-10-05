@@ -1340,7 +1340,21 @@ public static class FlowchartSugiyamaSvgRenderer
             BoundsById,
             RouteClass);
         double LabelHeight = FlowchartEdgeLabelPlacementHelper.ComputeRenderedEdgeLabelHeight(LabelDimensions, RenderOptions.EdgeLabelFontSizePx);
-        return MoveLayoutLabelClearOfConnector(Edge, Contract, LabelX, LabelY, LabelDimensions.Width, LabelHeight, LayoutPoints, BoundsById, SourceBounds, TargetBounds, Direction);
+        (double ClearedX, double ClearedY) = MoveLayoutLabelClearOfConnector(Edge, Contract, LabelX, LabelY, LabelDimensions.Width, LabelHeight, LayoutPoints, BoundsById, SourceBounds, TargetBounds, Direction);
+        if (FlowchartSharedRouteQualityHelper.DistanceFromPointToPolyline(ClearedX, ClearedY, LayoutPoints)
+            > 80.0)
+        {
+            return FlowchartSharedRouteQualityHelper.ResolveLabelOnOwnEdge(
+                LayoutPoints,
+                LabelDimensions.Width,
+                LabelHeight,
+                BoundsById,
+                Edge.SourceId,
+                Edge.TargetId,
+                FlowchartEdgeLabelPlacementHelper.DEFAULT_OFFSET_PX);
+        }
+
+        return (ClearedX, ClearedY);
     }
 
     /// <summary>

@@ -1710,11 +1710,26 @@ When members are spread so that a hole between them would swallow a non-member, 
 
 ##### 15.0C.21 Compound and subgraph edge endpoints (sample 03)
 
-**Rule:** An edge whose source or target is a subgraph id routes to the cluster rectangle, not to a dummy node and not around the exterior of the diagram. Attach at the facing side, clipped to the rectangle, as a two-point straight segment (Section 15.0A). Both the flowchart and enterprise renders must draw the edge in the source → target direction.
+**Rule:** An edge whose source or target is a subgraph id routes to the cluster rectangle, not to a dummy node and not around the exterior of the diagram. Attach at the facing side, clipped to the rectangle. Use a two-point straight segment (Section 15.0A) when that chord is clear of non-endpoint nodes. When the chord would pierce an unrelated node or unrelated cluster, keep the facing attach points and route around the obstacles in an **inside** channel that stays within the diagram content box. Both the flowchart and enterprise renders must draw the edge in the source → target direction.
 
 Examples: `webShop --> shopUi`, `war --> webShop`, `lb -->|HTTPS| appNode`, `lan --> appNode`. `lan --> lb` keeps LAN as the source.
 
-**Closure:** `FlowchartCompoundEndpointHelper.AddGroupBounds` / `TryBuildFacingBoundaryPath`, called from `FlowchartEdgeRouteResolver` and `FlowchartSugiyamaSvgRenderer`. Group-id dummy nodes are not painted.
+**Closure:** `FlowchartCompoundEndpointHelper.AddGroupBounds` / `TryBuildFacingBoundaryPath`, then `FlowchartSharedRouteQualityHelper.TryApply` from `FlowchartEdgeRouteResolver`. Group-id dummy nodes are not painted.
+
+##### 15.0C.22 Shared route quality (sample 03)
+
+**Rule:** Every visible edge, including compound edges, is repaired by one shared post-pass:
+
+1. A route segment must not intersect a non-endpoint node body or an unrelated cluster rectangle.
+2. Two edges that share a node face must use distinct attach points (spread along that face).
+3. An edge must not be drawn across a node’s label box.
+4. An edge label sits beside its own edge’s mid-arc (within a small offset) and must not sit on an unrelated node.
+5. A route must not hook, reverse, or emit a detached segment.
+6. Guide points must stay inside the content bounding box (node and cluster union plus diagram margin). Prefer an interior channel over wrapping outside the right or left edge.
+
+**Naiad note:** Sample 03 after membership/compound attach still ran `dbSvc --> webShop` through Order, `lan --> appNode` through PostgreSQL, stacked arrowheads on Online Ordering, placed `HTTPS` on PostgreSQL, hooked `checkout --> order`, and wrapped `orderTbl --> order` outside the canvas. Those are shared-router bugs, not enterprise-only.
+
+**Closure:** `FlowchartSharedRouteQualityHelper`, called from `FlowchartEdgeRouteResolver` for every resolved edge.
 
 Key:
 

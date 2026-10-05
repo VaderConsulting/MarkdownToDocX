@@ -99,6 +99,30 @@ public static class FlowchartFanInPortAllocator
             }
         }
 
+        double ContentLeft = double.PositiveInfinity;
+        double ContentRight = double.NegativeInfinity;
+        foreach (FlowchartLayoutNodeBounds Bounds in BoundsById.Values)
+        {
+            double NodeLeft = Bounds.CenterX - (Bounds.Width / 2.0);
+            double NodeRight = Bounds.CenterX + (Bounds.Width / 2.0);
+            if (NodeLeft < ContentLeft)
+            {
+                ContentLeft = NodeLeft;
+            }
+
+            if (NodeRight > ContentRight)
+            {
+                ContentRight = NodeRight;
+            }
+        }
+
+        double InsideLeft = ContentLeft + FlowchartSharedRouteQualityHelper.DIAGRAM_MARGIN_PX;
+        double InsideRight = ContentRight - FlowchartSharedRouteQualityHelper.DIAGRAM_MARGIN_PX;
+        if (CorridorX < InsideLeft || CorridorX > InsideRight)
+        {
+            return false;
+        }
+
         foreach (FlowchartLayoutNodeBounds Bounds in BoundsById.Values)
         {
             if (ReferenceEquals(Bounds, SourceBounds))
