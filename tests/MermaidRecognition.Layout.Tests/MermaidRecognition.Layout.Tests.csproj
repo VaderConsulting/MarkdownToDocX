@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <None Include="..\MermaidRecognition.Tests\FlowchartRecognition\*.mmd" CopyToOutputDirectory="PreserveNewest" Link="FlowchartRecognition\%(Filename)%(Extension)" />
+    <None Include="..\..\docs\enterprise\samples\*.mmd" CopyToOutputDirectory="PreserveNewest" Link="EnterpriseSamples\%(Filename)%(Extension)" />
     <None Include="RoutingIntent\**\*" CopyToOutputDirectory="PreserveNewest" Link="RoutingIntent\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
