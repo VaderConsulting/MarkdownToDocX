@@ -20,7 +20,7 @@ public static class MermaidMarkdownFenceExtractor
     private const int HEADING_LOOKUP_MAX_CHARS = 1200;
 
     private static readonly Regex _MermaidFencePattern = new Regex(
-        @"```mermaid\s*\r?\n(?<Body>[\s\S]*?)\r?\n```",
+        @"```(?:mermaid|enterprise)\s*\r?\n(?<Body>[\s\S]*?)\r?\n```",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     /// <summary>

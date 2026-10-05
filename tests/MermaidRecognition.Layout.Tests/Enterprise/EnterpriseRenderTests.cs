@@ -91,9 +91,10 @@ public sealed class EnterpriseRenderTests
     public void TryRender_InvalidRelationships_ThrowsWithLineNumbers()
     {
         string Source = ReadSample("04-invalid-relationships.mmd");
-        InvalidOperationException Error = Assert.Throws<InvalidOperationException>(
+        InvalidOperationException? Error = Assert.Throws<InvalidOperationException>(
             () => EnterpriseRenderBridge.RenderEnterpriseSvg(Source));
-        Assert.That(Error.Message, Does.Contain("line 12"));
+        Assert.That(Error, Is.Not.Null);
+        Assert.That(Error!.Message, Does.Contain("line 12"));
         Assert.That(Error.Message, Does.Contain("line 16"));
     }
 

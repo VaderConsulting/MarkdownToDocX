@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 
 using MermaidRecognition.Contract;
+using MermaidRecognition.Kinds.Enterprise;
 using MermaidRecognition.Kinds.Er;
 using MermaidRecognition.Kinds.LinePattern;
 using MermaidRecognition.Kinds.Pie;
@@ -62,6 +63,7 @@ public static class KindRecognizerRegistry
         Registry["state"] = StateRecognizer;
 
         Registry["erDiagram"] = new ErKindRecognizer();
+        Registry["enterprise"] = new EnterpriseKindRecognizer();
         RegisterLinePatternWithMapper(
             Registry,
             "gantt",

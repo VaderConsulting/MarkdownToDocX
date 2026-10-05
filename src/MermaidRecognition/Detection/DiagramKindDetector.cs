@@ -51,6 +51,7 @@ public static class DiagramKindDetector
         [
             new DetectorEntry("error", (Text, _) => Text.Trim().Equals("error", StringComparison.OrdinalIgnoreCase)),
             new DetectorEntry("---", (Text, _) => Text.TrimStart().StartsWith("---", StringComparison.Ordinal)),
+            new DetectorEntry("enterprise", (Text, _) => Regex.IsMatch(Text, @"^\s*enterprise(-beta)?\b", RegexOptions.IgnoreCase)),
             new DetectorEntry("flowchart-elk", FlowchartElkDetector),
             new DetectorEntry("c4", (Text, _) => Regex.IsMatch(Text, @"^\s*C4Context|C4Container|C4Component|C4Dynamic|C4Deployment", RegexOptions.IgnoreCase)),
             new DetectorEntry("kanban", (Text, _) => Regex.IsMatch(Text, @"^\s*kanban", RegexOptions.IgnoreCase)),
