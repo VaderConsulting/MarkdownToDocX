@@ -102,6 +102,39 @@ public sealed class FlowchartRenderedSvgQualityGateTests
     }
 
     [Test]
+    public void KnownBadWebShopFlowchartPicture_ReportsEveryVisibleDefect()
+    {
+        string Svg = File.ReadAllText(FindFixture("enterprise-03-flowchart.known-bad.svg"));
+        FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.EvaluateRenderedSvg(
+            "sample-03-flowchart-known-bad",
+            SAMPLE_03_SOURCE,
+            Svg);
+        TestContext.Out.WriteLine(FormatReport(Report));
+        AssertDetected(Report, "EdgeCrossing", "lan", "appNode", "lb", "appNode");
+        AssertDetected(Report, "LabelOwnEdge", "HTTPS");
+        AssertDetected(Report, "GroupBorderDiagonal", "war", "webShop", "dc");
+        AssertDetected(Report, "GroupBorderDiagonal", "jvm", "hosting", "dc");
+        AssertDetected(Report, "GroupBorderDiagonal", "pg", "dbSvc", "dc");
+        AssertDetected(Report, "Hook", "lan", "appNode");
+    }
+
+    [Test]
+    public void KnownBadWebShopEnterprisePicture_ReportsEveryVisibleDefect()
+    {
+        string Svg = File.ReadAllText(FindFixture("enterprise-03-enterprise.known-bad.svg"));
+        FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.EvaluateRenderedSvg(
+            "sample-03-enterprise-known-bad",
+            SAMPLE_03_SOURCE,
+            Svg);
+        TestContext.Out.WriteLine(FormatReport(Report));
+        AssertDetected(Report, "EdgeCrossing", "dbSvc", "webShop", "checkout", "order");
+        AssertDetected(Report, "NodeIntersection", "pg", "dbSvc", "orderTbl");
+        AssertDetected(Report, "GroupBorderDiagonal", "war", "webShop", "dc");
+        AssertDetected(Report, "GroupBorderDiagonal", "jvm", "hosting", "dc");
+        AssertDetected(Report, "GroupInteriorDiagonal", "lb", "appNode", "dc");
+    }
+
+    [Test]
     public void CatalogueAndEnterprise_FinalSvg_ReportsJustifiedFailuresOnly()
     {
         List<NamedSource> Diagrams = LoadCatalogueSubgraphDiagrams();
@@ -192,6 +225,103 @@ public sealed class FlowchartRenderedSvgQualityGateTests
 
         Source = Heading.Groups[1].Value.Trim();
         return !string.IsNullOrWhiteSpace(Source);
+    }
+
+    private static void AssertDetected(
+        FlowchartRenderedSvgQualityReport Report,
+        string Kind,
+        params string[] InvolvedIds)
+    {
+        List<FlowchartLayoutQualityFailure> All = [];
+        All.AddRange(Report.Failures);
+        All.AddRange(Report.Tolerated);
+        foreach (FlowchartLayoutQualityFailure Failure in All)
+        {
+            if (!string.Equals(Failure.Kind, Kind, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (Kind == "LabelOwnEdge")
+            {
+                if (Failure.Description.Contains(InvolvedIds[0], StringComparison.Ordinal))
+                {
+                    return;
+                }
+
+                continue;
+            }
+
+            if (ContainsAllIds(Failure, InvolvedIds))
+            {
+                return;
+            }
+        }
+
+        Assert.Fail(
+            "The gate did not report "
+            + Kind
+            + " for "
+            + string.Join(", ", InvolvedIds)
+            + "."
+            + Environment.NewLine
+            + FormatReport(Report));
+    }
+
+    private static bool ContainsAllIds(FlowchartLayoutQualityFailure Failure, IReadOnlyList<string> InvolvedIds)
+    {
+        foreach (string Id in InvolvedIds)
+        {
+            bool Found = Failure.Description.Contains(Id, StringComparison.Ordinal);
+            if (!Found)
+            {
+                foreach (string Involved in Failure.InvolvedIds)
+                {
+                    if (string.Equals(Involved, Id, StringComparison.Ordinal))
+                    {
+                        Found = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!Found)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static string FindFixture(string FileName)
+    {
+        string FromOutput = Path.Combine(
+            TestContext.CurrentContext.TestDirectory,
+            "QualityGateFixtures",
+            FileName);
+        if (File.Exists(FromOutput))
+        {
+            return FromOutput;
+        }
+
+        return Path.Combine(FindRepoRoot(), "tests", "MermaidRecognition.Layout.Tests", "QualityGateFixtures", FileName);
+    }
+
+    private static string FindRepoRoot()
+    {
+        DirectoryInfo? Cursor = new DirectoryInfo(TestContext.CurrentContext.TestDirectory);
+        while (Cursor is not null)
+        {
+            if (File.Exists(Path.Combine(Cursor.FullName, "flow.md")))
+            {
+                return Cursor.FullName;
+            }
+
+            Cursor = Cursor.Parent;
+        }
+
+        throw new DirectoryNotFoundException("Could not find the repository root.");
     }
 
     private static string FindRepoFile(string FileName)

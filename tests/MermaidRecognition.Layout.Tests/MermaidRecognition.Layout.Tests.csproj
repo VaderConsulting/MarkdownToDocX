@@ -15,6 +15,7 @@
     <None Include="..\MermaidRecognition.Tests\FlowchartRecognition\*.mmd" CopyToOutputDirectory="PreserveNewest" Link="FlowchartRecognition\%(Filename)%(Extension)" />
     <None Include="RoutingIntent\**\*" CopyToOutputDirectory="PreserveNewest" Link="RoutingIntent\%(RecursiveDir)%(Filename)%(Extension)" />
     <None Include="EnterpriseFlowchartSamples\*.mmd" CopyToOutputDirectory="PreserveNewest" Link="EnterpriseFlowchartSamples\%(Filename)%(Extension)" />
+    <None Include="QualityGateFixtures\*" CopyToOutputDirectory="PreserveNewest" Link="QualityGateFixtures\%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>
