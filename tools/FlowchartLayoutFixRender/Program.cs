@@ -36,6 +36,15 @@ if (string.Equals(Command, "refresh-after", StringComparison.OrdinalIgnoreCase))
     return;
 }
 
+if (string.Equals(Command, "msagl-trial", StringComparison.OrdinalIgnoreCase))
+{
+    string OutputDirectory = args.Length > 1
+        ? args[1]
+        : Path.Combine(RepoRoot, "docs", "flowchart", "msagl-trial");
+    RenderMsaglTrial(RepoRoot, OutputDirectory);
+    return;
+}
+
 if (string.Equals(Command, "dump-layout", StringComparison.OrdinalIgnoreCase))
 {
     string Mermaid = args.Length > 1 ? File.ReadAllText(args[1]) : throw new InvalidOperationException("dump-layout requires a .mmd path.");
@@ -43,7 +52,7 @@ if (string.Equals(Command, "dump-layout", StringComparison.OrdinalIgnoreCase))
     return;
 }
 
-Console.WriteLine("Usage: FlowchartLayoutFixRender rasterize <dir> | render-flow <dir> | render-mmd <in> <out> | refresh-after [dir] | dump-layout <mmd>");
+Console.WriteLine("Usage: FlowchartLayoutFixRender rasterize <dir> | render-flow <dir> | render-mmd <in> <out> | refresh-after [dir] | msagl-trial [dir] | dump-layout <mmd>");
 
 static void RasterizeDirectory(string DirectoryPath)
 {
@@ -107,6 +116,125 @@ static void RefreshAfterDocs(string RepoRoot, string AfterDirectory)
     }
 
     RasterizeDirectory(AfterDirectory);
+}
+
+static void RenderMsaglTrial(string RepoRoot, string OutputDirectory)
+{
+    string CustomDirectory = Path.Combine(OutputDirectory, "custom");
+    string RectilinearDirectory = Path.Combine(OutputDirectory, "msagl-rectilinear");
+    string SplineDirectory = Path.Combine(OutputDirectory, "msagl-spline");
+    Directory.CreateDirectory(CustomDirectory);
+    Directory.CreateDirectory(RectilinearDirectory);
+    Directory.CreateDirectory(SplineDirectory);
+
+    CopyCurrentCustomPictures(RepoRoot, CustomDirectory);
+    RenderFlowMarkdown(RepoRoot, CustomDirectory);
+
+    string SamplesDirectory = Path.Combine(RepoRoot, "tests", "MermaidRecognition.Layout.Tests", "EnterpriseFlowchartSamples");
+    if (Directory.Exists(SamplesDirectory))
+    {
+        foreach (string MermaidPath in Directory.GetFiles(SamplesDirectory, "*-flowchart.mmd").OrderBy(Path.GetFileName, StringComparer.Ordinal))
+        {
+            string Number = Path.GetFileNameWithoutExtension(MermaidPath).Replace("-flowchart", string.Empty, StringComparison.Ordinal);
+            string Source = File.ReadAllText(MermaidPath);
+            RenderOne("enterprise-" + Number + "-flowchart", Source, CustomDirectory);
+        }
+    }
+
+    RenderEngineSet(RepoRoot, SamplesDirectory, RectilinearDirectory, DiagramLayoutProfile.FlowchartMsaglRectilinear());
+    RenderEngineSet(RepoRoot, SamplesDirectory, SplineDirectory, DiagramLayoutProfile.FlowchartMsaglSpline());
+    RasterizeDirectory(CustomDirectory);
+    RasterizeDirectory(RectilinearDirectory);
+    RasterizeDirectory(SplineDirectory);
+}
+
+static void CopyCurrentCustomPictures(string RepoRoot, string CustomDirectory)
+{
+    string FixtureDirectory = Path.Combine(RepoRoot, "tests", "MermaidRecognition.Layout.Tests", "QualityGateFixtures");
+    CopyIfExists(
+        Path.Combine(FixtureDirectory, "enterprise-03-flowchart.current.svg"),
+        Path.Combine(CustomDirectory, "enterprise-03-flowchart.svg"));
+    CopyIfExists(
+        Path.Combine(FixtureDirectory, "enterprise-03-enterprise.current.svg"),
+        Path.Combine(CustomDirectory, "enterprise-03-enterprise.svg"));
+    CopyIfExists(
+        Path.Combine(FixtureDirectory, "enterprise-01-flowchart.current.svg"),
+        Path.Combine(CustomDirectory, "enterprise-01-flowchart.svg"));
+    CopyIfExists(
+        Path.Combine(FixtureDirectory, "enterprise-06-flowchart.current.svg"),
+        Path.Combine(CustomDirectory, "enterprise-06-flowchart.svg"));
+}
+
+static void CopyIfExists(string SourcePath, string DestinationPath)
+{
+    if (File.Exists(SourcePath))
+    {
+        File.Copy(SourcePath, DestinationPath, overwrite: true);
+    }
+}
+
+static void RenderEngineSet(
+    string RepoRoot,
+    string SamplesDirectory,
+    string OutputDirectory,
+    DiagramLayoutProfile Profile)
+{
+    string FlowMarkdown = File.ReadAllText(Path.Combine(RepoRoot, "flow.md"));
+    foreach (Match HeadingMatch in Regex.Matches(FlowMarkdown, @"^#+ \**(F\d+[A-Za-z]?)\b", RegexOptions.Multiline))
+    {
+        string FixtureId = HeadingMatch.Groups[1].Value;
+        Match BlockMatch = Regex.Match(FlowMarkdown.Substring(HeadingMatch.Index), @"```mermaid\r?\n(.*?)```", RegexOptions.Singleline);
+        if (!BlockMatch.Success)
+        {
+            continue;
+        }
+
+        RenderOneWithProfile(FixtureId, BlockMatch.Groups[1].Value, OutputDirectory, Profile);
+    }
+
+    if (Directory.Exists(SamplesDirectory))
+    {
+        foreach (string MermaidPath in Directory.GetFiles(SamplesDirectory, "*-flowchart.mmd").OrderBy(Path.GetFileName, StringComparer.Ordinal))
+        {
+            string Number = Path.GetFileNameWithoutExtension(MermaidPath).Replace("-flowchart", string.Empty, StringComparison.Ordinal);
+            string Source = File.ReadAllText(MermaidPath);
+            RenderOneWithProfile("enterprise-" + Number + "-flowchart", Source, OutputDirectory, Profile);
+            if (string.Equals(Number, "03", StringComparison.Ordinal))
+            {
+                RenderOneWithProfile("enterprise-03-enterprise", Source, OutputDirectory, Profile);
+            }
+        }
+    }
+}
+
+static void RenderOneWithProfile(string Stem, string Mermaid, string OutputDirectory, DiagramLayoutProfile Profile)
+{
+    try
+    {
+        MermaidRecognition.Contract.DiagramContract Contract = MermaidRecognition.Core.MermaidRecognizer.Parse(Mermaid);
+        string Svg = DiagramLayoutEngine.RenderToSvg(Contract, Profile);
+        if (string.IsNullOrWhiteSpace(Svg))
+        {
+            Console.WriteLine("SKIP " + Stem + " " + Profile.EngineKind);
+            return;
+        }
+
+        File.WriteAllText(Path.Combine(OutputDirectory, Stem + ".svg"), Svg);
+        byte[]? Png = MermaidDiagramExport.TryRasterizeSvg(Svg);
+        if (Png is not null && Png.Length > 0)
+        {
+            File.WriteAllBytes(Path.Combine(OutputDirectory, Stem + ".png"), Png);
+            Console.WriteLine("OK " + Stem + " " + Profile.EngineKind);
+        }
+        else
+        {
+            Console.WriteLine("SVG " + Stem + " " + Profile.EngineKind);
+        }
+    }
+    catch (Exception Exception)
+    {
+        Console.WriteLine("FAIL " + Stem + " " + Profile.EngineKind + " " + Exception.Message);
+    }
 }
 
 static void DumpLayout(string Mermaid)

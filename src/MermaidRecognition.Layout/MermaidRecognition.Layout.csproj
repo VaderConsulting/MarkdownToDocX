@@ -42,6 +42,8 @@
 
     <ProjectReference Include="..\MermaidRecognition\MermaidRecognition.csproj" />
 
+    <PackageReference Include="Msagl" Version="1.2.1" />
+
   </ItemGroup>
 
 
