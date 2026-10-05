@@ -370,7 +370,8 @@ internal static class EnterpriseLayoutEngine
 
         if (Node.Element.ElementType == EnterpriseElementType.Junction)
         {
-            Node.Width = 26;
+            double LabelWidth = MaxLineWidth(Node.LabelLines);
+            Node.Width = 26 + (LabelWidth > 0 ? LabelWidth + 10 : 0);
             Node.Height = 26;
             return;
         }

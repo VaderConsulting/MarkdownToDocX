@@ -127,7 +127,7 @@ public static class EnterpriseNotationSvg
             case "constraint":
                 return "<g " + STROKE + " fill=\"none\"><path d=\"M" + N(X + 4) + "," + N(Y + 3) + " H" + N(X + 16) + " L" + N(X + 14) + "," + N(Y + 11) + " H" + N(X + 6) + " Z\"/><line x1=\"" + N(X + 6) + "\" y1=\"" + N(Y + 11) + "\" x2=\"" + N(X + 16) + "\" y2=\"" + N(Y + 3) + "\"/></g>";
             case "meaning":
-                return "<g " + STROKE + " fill=\"none\"><path d=\"M" + N(X + 6) + "," + N(Y + 4) + " Q" + N(X + 6) + "," + N(Y + 2) + " " + N(X + 8) + "," + N(Y + 2) + "\"/><path d=\"M" + N(X + 12) + "," + N(Y + 4) + " Q" + N(X + 12) + "," + N(Y + 2) + " " + N(X + 14) + "," + N(Y + 2) + "\"/><line x1=\"" + N(X + 6) + "\" y1=\"" + N(Y + 4) + "\" x2=\"" + N(X + 6) + "\" y2=\"" + N(Y + 9) + "\"/><line x1=\"" + N(X + 12) + "\" y1=\"" + N(Y + 4) + "\" x2=\"" + N(X + 12) + "\" y2=\"" + N(Y + 9) + "\"/></g>";
+                return "<g stroke=\"#000\" stroke-width=\"1.8\" fill=\"#000\" stroke-linejoin=\"round\"><path d=\"M" + N(X + 3) + "," + N(Y + 2) + " H" + N(X + 7.5) + " V" + N(Y + 6.2) + " H" + N(X + 5.2) + " V" + N(Y + 12) + " H" + N(X + 3) + " Z\"/><path d=\"M" + N(X + 10.5) + "," + N(Y + 2) + " H" + N(X + 15) + " V" + N(Y + 6.2) + " H" + N(X + 12.7) + " V" + N(Y + 12) + " H" + N(X + 10.5) + " Z\"/></g>";
             case "resource":
                 return "<g " + STROKE + " fill=\"none\"><rect x=\"" + N(X + 5) + "\" y=\"" + N(Y + 3) + "\" width=\"10\" height=\"8\"/><line x1=\"" + N(X + 5) + "\" y1=\"" + N(Y + 3) + "\" x2=\"" + N(X + 15) + "\" y2=\"" + N(Y + 11) + "\"/><line x1=\"" + N(X + 15) + "\" y1=\"" + N(Y + 3) + "\" x2=\"" + N(X + 5) + "\" y2=\"" + N(Y + 11) + "\"/></g>";
             case "capability":
@@ -157,9 +157,9 @@ public static class EnterpriseNotationSvg
             case "deliverable":
                 return "<rect " + STROKE + " fill=\"none\" x=\"" + N(X + 4) + "\" y=\"" + N(Y + 3) + "\" width=\"12\" height=\"8\" rx=\"2\"/>";
             case "plateau":
-                return "<g " + STROKE + " fill=\"none\"><path d=\"M" + N(X + 3) + "," + N(Y + 11) + " H" + N(X + 17) + " M" + N(X + 5) + "," + N(Y + 8) + " H" + N(X + 15) + " M" + N(X + 7) + "," + N(Y + 5) + " H" + N(X + 13) + "\"/></g>";
+                return "<g stroke=\"#000\" stroke-width=\"2.2\" fill=\"none\" stroke-linecap=\"square\"><path d=\"M" + N(X + 1.5) + "," + N(Y + 12.5) + " H" + N(X + 18.5) + " M" + N(X + 3.5) + "," + N(Y + 8.2) + " H" + N(X + 16.5) + " M" + N(X + 5.5) + "," + N(Y + 3.9) + " H" + N(X + 14.5) + "\"/></g>";
             case "gap":
-                return "<g " + STROKE + " fill=\"none\"><path d=\"M" + N(X + 4) + "," + N(Y + 3) + " V" + N(Y + 11) + " M" + N(X + 16) + "," + N(Y + 3) + " V" + N(Y + 11) + "\"/><path d=\"M" + N(X + 6) + "," + N(Y + 7) + " H" + N(X + 9) + " M" + N(X + 11) + "," + N(Y + 7) + " H" + N(X + 14) + "\"/></g>";
+                return "<g stroke=\"#000\" stroke-width=\"2.2\" fill=\"none\" stroke-linecap=\"square\"><path d=\"M" + N(X + 2.5) + "," + N(Y + 1.5) + " V" + N(Y + 12.5) + " M" + N(X + 17.5) + "," + N(Y + 1.5) + " V" + N(Y + 12.5) + "\"/><path d=\"M" + N(X + 5) + "," + N(Y + 7) + " H" + N(X + 8.2) + " M" + N(X + 11.8) + "," + N(Y + 7) + " H" + N(X + 15) + "\"/></g>";
             case "location":
                 return "<g " + STROKE + " fill=\"none\"><path d=\"M" + N(X + 10) + "," + N(Y + 13) + " L" + N(X + 5.5) + "," + N(Y + 6.5) + " A4.5,4.5 0 1 1 " + N(X + 14.5) + "," + N(Y + 6.5) + " Z\"/><circle cx=\"" + N(X + 10) + "\" cy=\"" + N(Y + 6) + "\" r=\"1.6\"/></g>";
             default:
@@ -205,18 +205,12 @@ public static class EnterpriseNotationSvg
         string FillStroke = "fill=\"" + Fill + "\" stroke=\"" + Stroke + "\" stroke-width=\"1\"";
         if (Metadata.BoxKind == EnterpriseBoxKind.Junction)
         {
-            double JunctionRadius = Math.Min(Width, Height) / 2.0;
-            double Cx = X + (Width / 2.0);
-            double Cy = Y + (Height / 2.0);
-            bool Hollow = JunctionKind == EnterpriseJunctionKind.Or;
-            return "<circle cx=\"" + N(Cx) + "\" cy=\"" + N(Cy) + "\" r=\"" + N(JunctionRadius) + "\" fill=\""
-                + (Hollow ? "#fff" : "#000") + "\" stroke=\"" + Stroke + "\" stroke-width=\"1\"/>";
+            return JunctionSvg(X, Y, JunctionKind);
         }
 
         if (Metadata.BoxKind == EnterpriseBoxKind.Grouping)
         {
-            return "<rect fill=\"none\" stroke=\"" + Stroke + "\" stroke-width=\"1\" stroke-dasharray=\"5 3\" x=\""
-                + N(X) + "\" y=\"" + N(Y) + "\" width=\"" + N(Width) + "\" height=\"" + N(Height) + "\"/>";
+            return GroupingTabSvg(X, Y, Width, Height, string.Empty);
         }
 
         if (Metadata.BoxKind == EnterpriseBoxKind.Ellipse)
@@ -285,6 +279,71 @@ public static class EnterpriseNotationSvg
             + "\" rx=\"" + CornerRadius.ToString(System.Globalization.CultureInfo.InvariantCulture)
             + "\" ry=\"" + CornerRadius.ToString(System.Globalization.CultureInfo.InvariantCulture) + "\"/>"
             + IconSvg(Metadata.Icon, X + Width - 23, Y + 3, Fill);
+    }
+
+    /// <summary>
+    /// Draws the 26px and/or junction used in both diagrams and the legend.
+    /// </summary>
+    /// <param name="X">Left of the junction box.</param>
+    /// <param name="Y">Top of the junction box.</param>
+    /// <param name="JunctionKind">And (filled) or or (hollow).</param>
+    /// <returns>SVG fragment.</returns>
+    public static string JunctionSvg(double X, double Y, EnterpriseJunctionKind? JunctionKind)
+    {
+        const double SIZE = 26;
+        double Cx = X + (SIZE / 2.0);
+        double Cy = Y + (SIZE / 2.0);
+        bool Hollow = JunctionKind == EnterpriseJunctionKind.Or;
+        return "<circle cx=\"" + N(Cx) + "\" cy=\"" + N(Cy) + "\" r=\"13\" fill=\""
+            + (Hollow ? "#fff" : "#000") + "\" stroke=\"#000\" stroke-width=\"1\"/>";
+    }
+
+    /// <summary>
+    /// Draws the tabbed dashed grouping box used in both diagrams and the legend.
+    /// </summary>
+    /// <param name="X">Left.</param>
+    /// <param name="Y">Top.</param>
+    /// <param name="Width">Outer width.</param>
+    /// <param name="Height">Outer height.</param>
+    /// <param name="Label">Tab label.</param>
+    /// <returns>SVG fragment.</returns>
+    public static string GroupingTabSvg(double X, double Y, double Width, double Height, string Label)
+    {
+        string SafeLabel = Label ?? string.Empty;
+        double TabWidth = Math.Max(60, (SafeLabel.Length * 6.6) + 16);
+        StringBuilder Builder = new StringBuilder();
+        Builder.Append("<path d=\"M")
+            .Append(N(X))
+            .Append(',')
+            .Append(N(Y + 18))
+            .Append(" V")
+            .Append(N(Y))
+            .Append(" H")
+            .Append(N(X + TabWidth))
+            .Append(" V")
+            .Append(N(Y + 18))
+            .Append("\" fill=\"none\" stroke=\"#000\" stroke-dasharray=\"5 3\"/>")
+            .Append("<rect x=\"")
+            .Append(N(X))
+            .Append("\" y=\"")
+            .Append(N(Y + 18))
+            .Append("\" width=\"")
+            .Append(N(Width))
+            .Append("\" height=\"")
+            .Append(N(Math.Max(10, Height - 18)))
+            .Append("\" fill=\"none\" stroke=\"#000\" stroke-dasharray=\"5 3\"/>");
+        if (SafeLabel.Length > 0)
+        {
+            Builder.Append("<text x=\"")
+                .Append(N(X + 6))
+                .Append("\" y=\"")
+                .Append(N(Y + 13))
+                .Append("\">")
+                .Append(EnterpriseSvgFormat.Escape(SafeLabel))
+                .Append("</text>");
+        }
+
+        return Builder.ToString();
     }
 
     /// <summary>

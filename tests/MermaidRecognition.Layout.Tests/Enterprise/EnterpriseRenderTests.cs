@@ -134,7 +134,64 @@ public sealed class EnterpriseRenderTests
         Assert.That(Svg, Does.Contain("WorkPackage"));
         Assert.That(Svg, Does.Contain("composition"));
         Assert.That(Svg, Does.Contain("realization"));
+        Assert.That(Svg, Does.Contain("stroke-dasharray=\"5 3\""));
+        Assert.That(Svg, Does.Contain("r=\"13\""));
+        Assert.That(Svg, Does.Contain("Junction (and)"));
+        Assert.That(Svg, Does.Contain("Junction (or)"));
         XDocument.Parse(Svg);
+    }
+
+    [Test]
+    public void Render_Sample12_SellingBoxesAreDistinct()
+    {
+        string Svg = EnterpriseRenderBridge.RenderEnterpriseSvg(ReadSample("12-motivation-to-technology.mmd"));
+        Assert.That(Svg, Does.Contain("Selling Capability"));
+        Assert.That(Svg, Does.Contain("Selling Service"));
+        XDocument.Parse(Svg);
+    }
+
+    [Test]
+    public void Render_EdgeLabels_MatchFlowchartOffsetStyle()
+    {
+        string Svg = EnterpriseRenderBridge.RenderEnterpriseSvg(ReadSample("03-cross-layer-webshop.mmd"));
+        Assert.That(Svg, Does.Contain(">HTTPS<"));
+        Assert.That(Svg, Does.Contain("trebuchet ms"));
+        Assert.That(Svg, Does.Contain("fill=\"#333\""));
+        Assert.That(Svg, Does.Not.Contain("fill-opacity=\"0.85\""));
+        Assert.That(Svg, Does.Contain("stroke-dasharray=\"6 4\""));
+        Assert.That(Svg, Does.Contain("stroke-dasharray=\"1.5 3\""));
+        XDocument.Parse(Svg);
+    }
+
+    [Test]
+    public void Render_SkipEdge_RoutesAroundInterveningNode()
+    {
+        string Svg = EnterpriseRenderBridge.RenderEnterpriseSvg(
+            """
+            enterprise
+              application-component top "Top"
+              application-component mid "Mid"
+              application-component bot "Bottom"
+              top -flow-> mid
+              mid -flow-> bot
+              top -association-> bot
+            """);
+
+        XDocument Document = XDocument.Parse(Svg);
+        XElement? Skip = Document.Descendants()
+            .FirstOrDefault(Element =>
+                (string?)Element.Attribute("data-source") == "top"
+                && (string?)Element.Attribute("data-target") == "bot");
+        Assert.That(Skip, Is.Not.Null);
+        XElement? Path = Skip!.Elements().FirstOrDefault(Element => Element.Name.LocalName == "path");
+        Assert.That(Path, Is.Not.Null);
+        string PathData = (string?)Path!.Attribute("d") ?? string.Empty;
+        Assert.That(
+            PathData.Contains('C', StringComparison.Ordinal)
+                || PathData.Contains('Q', StringComparison.Ordinal)
+                || PathData.Contains('S', StringComparison.Ordinal)
+                || PathData.Split('L', StringSplitOptions.RemoveEmptyEntries).Length > 2,
+            "Skip edge should reuse flowchart routing rather than a two-point chord through Mid.");
     }
 
     [Test]

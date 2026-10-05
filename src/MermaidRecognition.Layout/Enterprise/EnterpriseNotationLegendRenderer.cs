@@ -12,17 +12,17 @@ namespace MermaidRecognition.Layout.Enterprise;
 /// </summary>
 public static class EnterpriseNotationLegendRenderer
 {
-    private const double BOX_WIDTH = 150;
+    private const double BOX_WIDTH = 196;
 
-    private const double BOX_HEIGHT = 56;
+    private const double BOX_HEIGHT = 58;
 
-    private const double COLUMN_GAP = 16;
+    private const double COLUMN_GAP = 22;
 
-    private const double ROW_GAP = 28;
+    private const double ROW_GAP = 36;
 
-    private const double SECTION_GAP = 22;
+    private const double SECTION_GAP = 26;
 
-    private const int COLUMNS = 5;
+    private const int COLUMNS = 4;
 
     private const double MARGIN = 24;
 
@@ -57,20 +57,42 @@ public static class EnterpriseNotationLegendRenderer
             foreach (LegendItem Item in Section.Items)
             {
                 double X = MARGIN + (Column * (BOX_WIDTH + COLUMN_GAP));
-                Body.Append(EnterpriseNotationSvg.ElementBoxSvg(
-                    Item.ElementType,
-                    X,
-                    Y,
-                    BOX_WIDTH,
-                    BOX_HEIGHT,
-                    Item.JunctionKind));
-                Body.Append("<text x=\"")
-                    .Append(EnterpriseSvgFormat.Number(X + (BOX_WIDTH / 2.0)))
-                    .Append("\" y=\"")
-                    .Append(EnterpriseSvgFormat.Number(Y + BOX_HEIGHT + 14))
-                    .Append("\" text-anchor=\"middle\" font-size=\"10\">")
-                    .Append(EnterpriseSvgFormat.Escape(Item.Caption))
-                    .Append("</text>");
+                if (Item.ElementType == EnterpriseElementType.Grouping)
+                {
+                    Body.Append(EnterpriseNotationSvg.GroupingTabSvg(X, Y, BOX_WIDTH, BOX_HEIGHT + 8, Item.Caption));
+                }
+                else if (Item.ElementType == EnterpriseElementType.Junction)
+                {
+                    Body.Append(EnterpriseNotationSvg.JunctionSvg(X, Y + 8, Item.JunctionKind));
+                    Body.Append("<text x=\"")
+                        .Append(EnterpriseSvgFormat.Number(X + 34))
+                        .Append("\" y=\"")
+                        .Append(EnterpriseSvgFormat.Number(Y + 26))
+                        .Append("\" font-size=\"12\">")
+                        .Append(EnterpriseSvgFormat.Escape(Item.Caption))
+                        .Append("</text>");
+                }
+                else
+                {
+                    Body.Append(EnterpriseNotationSvg.ElementBoxSvg(
+                        Item.ElementType,
+                        X,
+                        Y,
+                        BOX_WIDTH,
+                        BOX_HEIGHT,
+                        Item.JunctionKind));
+                    foreach ((string Line, int LineIndex) in WrapCaption(Item.Caption))
+                    {
+                        Body.Append("<text x=\"")
+                            .Append(EnterpriseSvgFormat.Number(X + (BOX_WIDTH / 2.0)))
+                            .Append("\" y=\"")
+                            .Append(EnterpriseSvgFormat.Number(Y + BOX_HEIGHT + 13 + (LineIndex * 12)))
+                            .Append("\" text-anchor=\"middle\" font-size=\"10\">")
+                            .Append(EnterpriseSvgFormat.Escape(Line))
+                            .Append("</text>");
+                    }
+                }
+
                 Column++;
                 if (Column >= COLUMNS)
                 {
@@ -233,6 +255,52 @@ public static class EnterpriseNotationLegendRenderer
         }
 
         return new LegendSection(Title, Items);
+    }
+
+    private static List<(string Line, int LineIndex)> WrapCaption(string Caption)
+    {
+        List<(string Line, int LineIndex)> Lines = new List<(string Line, int LineIndex)>();
+        if (string.IsNullOrEmpty(Caption))
+        {
+            return Lines;
+        }
+
+        if (Caption.Length <= 16)
+        {
+            Lines.Add((Caption, 0));
+            return Lines;
+        }
+
+        List<string> Parts = SplitCamelCase(Caption);
+        if (Parts.Count <= 1)
+        {
+            Lines.Add((Caption, 0));
+            return Lines;
+        }
+
+        int SplitAt = Math.Max(1, Parts.Count / 2);
+        string First = string.Join(string.Empty, Parts.GetRange(0, SplitAt));
+        string Second = string.Join(string.Empty, Parts.GetRange(SplitAt, Parts.Count - SplitAt));
+        Lines.Add((First, 0));
+        Lines.Add((Second, 1));
+        return Lines;
+    }
+
+    private static List<string> SplitCamelCase(string Caption)
+    {
+        List<string> Parts = new List<string>();
+        int Start = 0;
+        for (int Index = 1; Index < Caption.Length; Index++)
+        {
+            if (char.IsUpper(Caption[Index]))
+            {
+                Parts.Add(Caption.Substring(Start, Index - Start));
+                Start = Index;
+            }
+        }
+
+        Parts.Add(Caption.Substring(Start));
+        return Parts;
     }
 
     private static List<LegendRelationship> BuildRelationships()
