@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="144" height="321" viewBox="0 0 144 321"><rect x="0" y="0" width="143.2" height="320.4000000000001" fill="white"/><path d="M71.6,135.20000000000005L71.6,147.20000000000005L71.6,185.20000000000005" fill="none" stroke="#333333" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M71.6,8
+A63.6,63.6 0 1 1 71.6,135.2
+A63.6,63.6 0 1 1 71.6,8 Z M71.6,13
+A58.6,58.6 0 1 1 71.6,130.2
+A58.6,58.6 0 1 1 71.6,13 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M71.6,185.2
+A63.6,63.6 0 1 1 71.6,312.4
+A63.6,63.6 0 1 1 71.6,185.2 Z M71.6,190.2
+A58.6,58.6 0 1 1 71.6,307.4
+A58.6,58.6 0 1 1 71.6,190.2 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><polygon points="71.6,186.20000000000005 68.1,176.20000000000005 75.1,176.20000000000005" fill="#333333" stroke="none"/><text x="71.6" y="77.36000000000003" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Start</text><text x="71.6" y="254.56000000000006" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Stop</text></svg>

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="158" height="901" viewBox="0 0 158 901"><rect x="0" y="0" width="157.92000000000007" height="900.4000000000001" fill="white"/><path d="M12.1,8 H145.82 V78 H12.1 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M35.99,128
+H121.94
+Q126.94,128 126.94,133
+V178
+Q126.94,183 121.94,183
+H35.99
+Q30.99,183 30.99,178
+V133
+Q30.99,128 35.99,128 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M78.96,233
+L147.56,301.6
+L78.96,370.2
+L10.36,301.6 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M78.96,420.2
+A63.6,63.6 0 1 1 78.96,547.4
+A63.6,63.6 0 1 1 78.96,420.2 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M58.49,597.4
+H99.44
+A27.5,27.5 0 0 1 99.44,652.4
+H58.49
+A27.5,27.5 0 0 1 58.49,597.4 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M8,702.4 H149.92 V772.4 H8 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M22.19,702.4 V772.4
+M135.73,702.4 V772.4" fill="#ECECFF" fill-opacity="0" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M15.36,835.01
+A63.6,12.61 0 0 0 142.56,835.01
+A63.6,12.61 0 0 0 15.36,835.01
+L15.36,879.79
+A63.6,12.61 0 0 0 142.56,879.79
+L142.56,835.01 Z" fill="#ECECFF" stroke="none" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M15.36,835.01
+A63.6,12.61 0 0 0 142.56,835.01
+A63.6,12.61 0 0 0 15.36,835.01
+L15.36,879.79
+A63.6,12.61 0 0 0 142.56,879.79
+L142.56,835.01" fill="#ECECFF" fill-opacity="0" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><text x="78.96000000000001" y="48.76" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Rectangle</text><text x="78.96000000000001" y="161.26" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Rounded</text><text x="78.96000000000001" y="307.36" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Decision</text><text x="78.96000000000001" y="489.56000000000006" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Terminal</text><text x="78.96000000000001" y="630.6600000000001" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Stadium</text><text x="78.96000000000001" y="743.1600000000001" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Subroutine</text><text x="78.96000000000001" y="869.4645202220461" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Cylinder</text></svg>
