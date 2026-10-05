@@ -493,7 +493,7 @@ public static class FlowchartSharedEdgeRouter
 
         if (CutsThroughForeignGroup(Contract, BoundsById, Guide.Edge, Samples))
         {
-            Score += 40000.0;
+            Score += 200000.0;
         }
 
         if (HasHook(Samples, Direction))
@@ -713,7 +713,12 @@ public static class FlowchartSharedEdgeRouter
                 }
                 else
                 {
-                    Reason = "crossing remains after searching alternative node orderings, port faces, channels and detours";
+                    continue;
+                }
+
+                if (!FlowchartLayoutQualityJustification.IsSpecificReason(Reason))
+                {
+                    continue;
                 }
 
                 _LastJustifications.Add(new FlowchartLayoutQualityFailure(

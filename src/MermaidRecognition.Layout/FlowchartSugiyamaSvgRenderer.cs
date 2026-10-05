@@ -42,22 +42,29 @@ public static class FlowchartSugiyamaSvgRenderer
     /// </summary>
     public static string RenderToSvg(DiagramContract Contract)
     {
-        if (!IsFlowchartContract(Contract))
+        if (!IsFlowchartContract(Contract) || Contract.Nodes.Count == 0)
         {
             return string.Empty;
         }
 
-        if (Contract.Nodes.Count == 0)
+        if (!FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout)
+            || Layout.NodeBounds.Count == 0)
         {
             return string.Empty;
         }
 
-        if (!FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout))
-        {
-            return string.Empty;
-        }
+        return RenderToSvg(Contract, Layout);
+    }
 
-        if (Layout.NodeBounds.Count == 0)
+    /// <summary>
+    /// Renders SVG from an already computed layout. Used by the sample 03 oracle comparison.
+    /// </summary>
+    /// <param name="Contract">Flowchart contract.</param>
+    /// <param name="Layout">Node bounds to paint.</param>
+    /// <returns>SVG markup, or empty when the layout is unusable.</returns>
+    public static string RenderToSvg(DiagramContract Contract, FlowchartLayoutResult Layout)
+    {
+        if (!IsFlowchartContract(Contract) || Layout == null || Layout.NodeBounds.Count == 0)
         {
             return string.Empty;
         }

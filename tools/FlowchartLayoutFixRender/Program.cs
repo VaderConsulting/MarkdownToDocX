@@ -27,7 +27,23 @@ if (string.Equals(Command, "render-mmd", StringComparison.OrdinalIgnoreCase))
     return;
 }
 
-Console.WriteLine("Usage: FlowchartLayoutFixRender rasterize <dir> | render-flow <dir> | render-mmd <in> <out>");
+if (string.Equals(Command, "refresh-after", StringComparison.OrdinalIgnoreCase))
+{
+    string AfterDirectory = args.Length > 1
+        ? args[1]
+        : Path.Combine(RepoRoot, "docs", "flowchart", "layout-fixes", "after");
+    RefreshAfterDocs(RepoRoot, AfterDirectory);
+    return;
+}
+
+if (string.Equals(Command, "dump-layout", StringComparison.OrdinalIgnoreCase))
+{
+    string Mermaid = args.Length > 1 ? File.ReadAllText(args[1]) : throw new InvalidOperationException("dump-layout requires a .mmd path.");
+    DumpLayout(Mermaid);
+    return;
+}
+
+Console.WriteLine("Usage: FlowchartLayoutFixRender rasterize <dir> | render-flow <dir> | render-mmd <in> <out> | refresh-after [dir] | dump-layout <mmd>");
 
 static void RasterizeDirectory(string DirectoryPath)
 {
@@ -73,6 +89,47 @@ static void RenderMermaidFiles(string InputDirectory, string OutputDirectory)
     {
         string Stem = Path.GetFileNameWithoutExtension(MermaidPath);
         RenderOne(Stem, File.ReadAllText(MermaidPath), OutputDirectory);
+    }
+}
+
+static void RefreshAfterDocs(string RepoRoot, string AfterDirectory)
+{
+    Directory.CreateDirectory(AfterDirectory);
+    RenderFlowMarkdown(RepoRoot, AfterDirectory);
+    string SamplesDirectory = Path.Combine(RepoRoot, "tests", "MermaidRecognition.Layout.Tests", "EnterpriseFlowchartSamples");
+    if (Directory.Exists(SamplesDirectory))
+    {
+        foreach (string MermaidPath in Directory.GetFiles(SamplesDirectory, "*-flowchart.mmd").OrderBy(Path.GetFileName, StringComparer.Ordinal))
+        {
+            string Number = Path.GetFileNameWithoutExtension(MermaidPath).Replace("-flowchart", string.Empty, StringComparison.Ordinal);
+            RenderOne("enterprise-" + Number + "-flowchart", File.ReadAllText(MermaidPath), AfterDirectory);
+        }
+    }
+
+    RasterizeDirectory(AfterDirectory);
+}
+
+static void DumpLayout(string Mermaid)
+{
+    MermaidRecognition.Contract.DiagramContract Contract = MermaidRecognition.Core.MermaidRecognizer.Parse(Mermaid);
+    if (!FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout))
+    {
+        Console.WriteLine("LAYOUT FAILED");
+        return;
+    }
+
+    foreach (FlowchartLayoutNodeBounds Bounds in Layout.NodeBounds)
+    {
+        Console.WriteLine(
+            Bounds.NodeId
+            + " cx="
+            + Bounds.CenterX.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)
+            + " cy="
+            + Bounds.CenterY.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)
+            + " w="
+            + Bounds.Width.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)
+            + " h="
+            + Bounds.Height.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture));
     }
 }
 

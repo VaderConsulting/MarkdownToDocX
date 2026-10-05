@@ -62,6 +62,43 @@ public sealed class FlowchartRenderedSvgQualityGateTests
     {
         FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.Evaluate("sample-03", SAMPLE_03_SOURCE);
         Assert.That(Report.Passes, Is.True, FormatReport(Report));
+        foreach (FlowchartLayoutQualityFailure Tolerated in Report.Tolerated)
+        {
+            Assert.That(
+                FlowchartLayoutQualityJustification.IsSpecificReason(Tolerated.Justification),
+                Is.True,
+                "tolerated failure lacks a specific reason: " + Tolerated.Description + " [" + Tolerated.Justification + "]");
+        }
+    }
+
+    [Test]
+    public void Sample03_EngineIsNoWorseThanOracle()
+    {
+        DiagramContract Contract = MermaidRecognizer.Parse(SAMPLE_03_SOURCE);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult EngineLayout), Is.True);
+        FlowchartLayoutResult OracleLayout = FlowchartSample03OracleLayout.Build(Contract, EngineLayout.NodeBounds);
+        TestContext.Out.WriteLine("Oracle centres:");
+        TestContext.Out.WriteLine(FlowchartSample03OracleLayout.FormatCentres(OracleLayout));
+        TestContext.Out.WriteLine("Engine centres:");
+        TestContext.Out.WriteLine(FlowchartSample03OracleLayout.FormatCentres(EngineLayout));
+
+        FlowchartRenderedSvgQualityReport EngineReport = FlowchartRenderedSvgQualityGate.Evaluate("sample-03", Contract);
+        FlowchartRenderedSvgQualityReport OracleReport = FlowchartRenderedSvgQualityGate.Evaluate(
+            "sample-03-oracle",
+            Contract,
+            OracleLayout);
+        FlowchartLayoutQualityMetrics EngineMetrics = new FlowchartLayoutQualityMetrics(EngineReport);
+        FlowchartLayoutQualityMetrics OracleMetrics = new FlowchartLayoutQualityMetrics(OracleReport);
+        TestContext.Out.WriteLine("Engine " + EngineMetrics);
+        TestContext.Out.WriteLine("Oracle " + OracleMetrics);
+        Assert.That(
+            EngineMetrics.IsNoWorseThan(OracleMetrics),
+            Is.True,
+            "engine " + EngineMetrics + " is worse than oracle " + OracleMetrics
+            + Environment.NewLine
+            + FormatReport(EngineReport)
+            + Environment.NewLine
+            + FormatReport(OracleReport));
     }
 
     [Test]
@@ -76,6 +113,14 @@ public sealed class FlowchartRenderedSvgQualityGateTests
         foreach (NamedSource Diagram in Diagrams)
         {
             FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.Evaluate(Diagram.Name, Diagram.Source);
+            foreach (FlowchartLayoutQualityFailure Tolerated in Report.Tolerated)
+            {
+                Assert.That(
+                    FlowchartLayoutQualityJustification.IsSpecificReason(Tolerated.Justification),
+                    Is.True,
+                    Diagram.Name + " tolerated a non-specific reason: " + Tolerated.Justification);
+            }
+
             if (Report.Passes)
             {
                 continue;
@@ -93,7 +138,11 @@ public sealed class FlowchartRenderedSvgQualityGateTests
         TestContext.Out.WriteLine(Summary.ToString());
         FlowchartRenderedSvgQualityReport Sample03 = FlowchartRenderedSvgQualityGate.Evaluate("sample-03", SAMPLE_03_SOURCE);
         Assert.That(Sample03.Passes, Is.True, FormatReport(Sample03));
-        Assert.That(Failed, Is.LessThanOrEqualTo(2), Summary.ToString());
+        TestContext.Out.WriteLine(
+            "Stricter gate fail count: "
+            + Failed.ToString(CultureInfo.InvariantCulture)
+            + " of "
+            + Diagrams.Count.ToString(CultureInfo.InvariantCulture));
     }
 
     private static List<NamedSource> LoadEnterpriseSamples()

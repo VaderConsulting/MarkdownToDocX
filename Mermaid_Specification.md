@@ -1718,19 +1718,20 @@ Examples: `webShop --> shopUi`, `war --> webShop`, `lb -->|HTTPS| appNode`, `lan
 
 ##### 15.0C.22 Shared route quality (sample 03)
 
-**Rule:** Every visible non-designed edge is routed by one shared search (`FlowchartSharedEdgeRouter` via `FlowchartEdgeRouteResolver.ResolveAllVisibleGuidePoints`). The router evaluates the **rendered** `curveBasis` stroke, not only discrete guide points. It searches alternative same-rank node orderings, port faces, channels and detours, and accepts a remaining defect only when no failure-free option exists.
+**Rule:** Every visible non-designed edge is routed by one shared search (`FlowchartSharedEdgeRouter` via `FlowchartEdgeRouteResolver.ResolveAllVisibleGuidePoints`). The router evaluates the **rendered** `curveBasis` stroke, not only discrete guide points. The layout search includes **node placement** (rank assignment, order within a rank, and which side of a group an external node sits on) as well as port faces, channels and detours. A remaining defect is tolerated only when no failure-free layout exists.
 
 1. A rendered stroke must not intersect a non-endpoint node rectangle. Node bodies and label boxes are obstacles.
 2. Incoming and outgoing edges that share a node face use distinct attach points. No two arrowheads may sit within 10 px.
 3. An edge label sits on **its own** rendered edge (centre within 8 px) and must be further from every other edge. Labels must not sit on crossings.
 4. Parallel overlapping runs of different edges stay at least 8 px apart.
-5. A route that runs parallel to a group border must keep 12 px clearance, or cross that border cleanly and perpendicularly. Both-outside edges must not cut through a foreign group.
+5. A group-border crossing counts as **one clean perpendicular crossing per edge**. An edge that does not belong to a group must not take a long diagonal through that group. A route that runs parallel to a group border must keep 12 px clearance.
 6. All visible edges in one diagram use **one** routing style: normal flowchart routing (straight when aligned; smooth `curveBasis` when not). Designed retry, decision, grouped two-by-two and corridor routes stay on their designed builders.
-7. Unavoidable crossings (only after the search) must still be clean: near-perpendicular, away from labels and arrowheads. The quality gate reports every tolerated failure with the reason it could not be avoided (for example `K3,3 subgraph: a crossing is unavoidable`, or `node X fully enclosed`). A failure without a justified reason fails the gate.
+7. Unavoidable crossings (only after the search) must still be clean: near-perpendicular (at least 50°), away from labels and arrowheads. Every tolerated failure needs a **specific, checkable** reason (`K3,3 subgraph: a crossing is unavoidable`, `node X fully enclosed`, or `layered inversion A->B and C->D: a crossing is unavoidable without breaking subgraph membership`). A generic "searched" note is not a reason. A failure without a specific reason fails the gate.
+8. Sample 03 has a hand-made oracle layout (`FlowchartSample03OracleLayout`). The engine result must be no worse than that oracle on piercings, crossings and parallel overlaps.
 
-**Naiad note:** Sample 03 at `6466fe9` still pierced Order, stacked Online Ordering markers, sat `HTTPS` on a crossing, mixed orthogonal and curved styles, crowded Database Service ports, and crossed the data-centre border with a long PostgreSQL curve. Guide-only tests missed those because `curveBasis` bows off the polyline. The gate now parses the final SVG.
+**Naiad note:** Sample 03 at `bae78e6` still cut Web Shop (Shop Web UI → Online Ordering), mixed straight, orthogonal and curved styles, sent Hosting → Web Shop and Database Service → Web Shop as long diagonals through the data centre, hugged the group bottom on PostgreSQL → orders table, and crowded the HTTPS label. Those defects are avoidable by placing Hosting left of the data centre in the Web Shop band, Shop Web UI to the right of Web Shop, Database Service under PostgreSQL, and orders table under Order. The gate no longer accepts "searched" as a reason. After PNGs under `docs/flowchart/layout-fixes/after/` are regenerated from the current head; `FlowchartAfterDocsFreshnessTests` fails when those SVGs go stale.
 
-**Closure:** `FlowchartSharedEdgeRouter.RouteAll`, `FlowchartLayoutCrossingSearch.ReduceSameRankInversions`, `FlowchartRenderedSvgQualityGate.Evaluate`.
+**Closure:** `FlowchartSharedEdgeRouter.RouteAll`, `FlowchartExternalNodePlacementSearch.Search`, `FlowchartLayoutCrossingSearch.ReduceSameRankInversions`, `FlowchartSample03OracleLayout.Build`, `FlowchartRenderedSvgQualityGate.Evaluate`.
 
 Key:
 

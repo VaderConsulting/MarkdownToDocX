@@ -22,7 +22,7 @@ public static class FlowchartRenderedSvgQualityGate
 
     private const double PARALLEL_SEPARATION_PX = 8.0;
 
-    private const double CLEAN_CROSSING_MIN_DEGREES = 35.0;
+    private const double CLEAN_CROSSING_MIN_DEGREES = 50.0;
 
     private const double CLEAN_CROSSING_LABEL_GAP_PX = 12.0;
 
@@ -64,13 +64,33 @@ public static class FlowchartRenderedSvgQualityGate
     /// <returns>The quality report.</returns>
     public static FlowchartRenderedSvgQualityReport Evaluate(string DiagramName, DiagramContract Contract)
     {
+        return Evaluate(DiagramName, Contract, ForcedLayout: null);
+    }
+
+    /// <summary>
+    /// Evaluates a contract with an optional forced node placement (sample 03 oracle).
+    /// </summary>
+    /// <param name="DiagramName">Fixture or sample name.</param>
+    /// <param name="Contract">Parsed flowchart contract.</param>
+    /// <param name="ForcedLayout">When set, skip Sugiyama and render these bounds.</param>
+    /// <returns>The quality report.</returns>
+    public static FlowchartRenderedSvgQualityReport Evaluate(
+        string DiagramName,
+        DiagramContract Contract,
+        FlowchartLayoutResult? ForcedLayout)
+    {
         FlowchartRenderedSvgQualityReport Report = new FlowchartRenderedSvgQualityReport(DiagramName);
         if (Contract.Nodes.Count == 0)
         {
             return Report;
         }
 
-        if (!FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout))
+        FlowchartLayoutResult Layout;
+        if (ForcedLayout != null)
+        {
+            Layout = ForcedLayout;
+        }
+        else if (!FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out Layout))
         {
             Report.Failures.Add(new FlowchartLayoutQualityFailure(
                 "LayoutFailed",
@@ -80,7 +100,9 @@ public static class FlowchartRenderedSvgQualityGate
             return Report;
         }
 
-        string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
+        string Svg = ForcedLayout != null
+            ? FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract, Layout)
+            : FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
         if (!FlowchartSvgCoordinateFrameResolver.TryResolve(Contract, Layout, out FlowchartSvgCoordinateFrame Frame))
         {
             Report.Failures.Add(new FlowchartLayoutQualityFailure(
@@ -124,13 +146,14 @@ public static class FlowchartRenderedSvgQualityGate
         CollectLabelDefects(Strokes, Labels, Violations);
         CollectParallelDefects(Strokes, Violations);
         CollectMixedStyle(Guides, Violations);
+        CollectIllegalGroupTraversals(Contract, BoundsById, Frame, Strokes, Violations);
         CollectDirtyJustifiedCrossings(Contract, BoundsById, Direction, Strokes, Labels, Arrowheads, Violations);
 
         IReadOnlyList<FlowchartLayoutQualityFailure> Justifications = FlowchartSharedEdgeRouter.LastJustifications;
         foreach (FlowchartLayoutQualityFailure Violation in Violations)
         {
             string? Reason = FindJustification(Violation, Justifications, Contract, BoundsById, Direction);
-            if (string.IsNullOrWhiteSpace(Reason))
+            if (!FlowchartLayoutQualityJustification.IsSpecificReason(Reason))
             {
                 Report.Failures.Add(Violation);
                 continue;
@@ -372,6 +395,222 @@ public static class FlowchartRenderedSvgQualityGate
         }
     }
 
+    private static void CollectIllegalGroupTraversals(
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        FlowchartSvgCoordinateFrame Frame,
+        IReadOnlyList<ParsedEdgeStroke> Strokes,
+        List<FlowchartLayoutQualityFailure> Violations)
+    {
+        if (Contract.Groups.Count == 0)
+        {
+            return;
+        }
+
+        Dictionary<string, GroupContract> GroupById = FlowchartSubgraphMembershipHelper.BuildGroupById(Contract);
+        foreach (GroupContract Group in Contract.Groups)
+        {
+            if (!BoundsById.TryGetValue(Group.Id, out FlowchartLayoutNodeBounds GroupBounds))
+            {
+                continue;
+            }
+
+            (double Left, double Top) = Frame.LayoutToSvg(
+                GroupBounds.CenterX - (GroupBounds.Width / 2.0),
+                GroupBounds.CenterY + (GroupBounds.Height / 2.0));
+            SvgNodeRect GroupRect = new SvgNodeRect(
+                Group.Id,
+                Left,
+                Top,
+                Left + GroupBounds.Width,
+                Top + GroupBounds.Height);
+
+            foreach (ParsedEdgeStroke Stroke in Strokes)
+            {
+                bool SourceIn = IsEndpointInGroup(Contract, GroupById, Stroke.SourceId, Group.Id);
+                bool TargetIn = IsEndpointInGroup(Contract, GroupById, Stroke.TargetId, Group.Id);
+                int Crossings = CountRectBorderCrossings(Stroke.Samples, GroupRect);
+                double InteriorLength = InteriorPathLength(Stroke.Samples, GroupRect);
+                bool CrossingIsPerpendicular = LastCrossingIsPerpendicular(Stroke.Samples, GroupRect);
+
+                if (!SourceIn && !TargetIn)
+                {
+                    if (InteriorLength > 12.0 || Crossings >= 1)
+                    {
+                        Violations.Add(new FlowchartLayoutQualityFailure(
+                            "ForeignGroupTraversal",
+                            Stroke.SourceId
+                            + "->"
+                            + Stroke.TargetId
+                            + " cuts through foreign group "
+                            + Group.Id,
+                            [Stroke.SourceId, Stroke.TargetId, Group.Id],
+                            null));
+                    }
+
+                    continue;
+                }
+
+                if (SourceIn == TargetIn)
+                {
+                    continue;
+                }
+
+                if (Crossings > 1)
+                {
+                    Violations.Add(new FlowchartLayoutQualityFailure(
+                        "GroupBorderReentry",
+                        Stroke.SourceId
+                        + "->"
+                        + Stroke.TargetId
+                        + " crosses group "
+                        + Group.Id
+                        + " more than once",
+                        [Stroke.SourceId, Stroke.TargetId, Group.Id],
+                        null));
+                    continue;
+                }
+
+                if (Crossings == 1 && !CrossingIsPerpendicular)
+                {
+                    Violations.Add(new FlowchartLayoutQualityFailure(
+                        "GroupBorderDiagonal",
+                        Stroke.SourceId
+                        + "->"
+                        + Stroke.TargetId
+                        + " leaves group "
+                        + Group.Id
+                        + " on a diagonal",
+                        [Stroke.SourceId, Stroke.TargetId, Group.Id],
+                        null));
+                    continue;
+                }
+
+                double NearestFace = NearestFaceDistance(BoundsById, Stroke, Group.Id, SourceIn);
+                if (InteriorLength > NearestFace + 80.0)
+                {
+                    Violations.Add(new FlowchartLayoutQualityFailure(
+                        "GroupBorderDiagonal",
+                        Stroke.SourceId
+                        + "->"
+                        + Stroke.TargetId
+                        + " takes a long interior path through group "
+                        + Group.Id,
+                        [Stroke.SourceId, Stroke.TargetId, Group.Id],
+                        null));
+                }
+            }
+        }
+    }
+
+    private static bool IsEndpointInGroup(
+        DiagramContract Contract,
+        Dictionary<string, GroupContract> GroupById,
+        string EndpointId,
+        string GroupId)
+    {
+        if (string.Equals(EndpointId, GroupId, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (!GroupById.TryGetValue(GroupId, out GroupContract? Group))
+        {
+            return false;
+        }
+
+        return FlowchartSubgraphMembershipHelper.IsNodeMemberOfGroup(EndpointId, Group, Contract, GroupById);
+    }
+
+    private static int CountRectBorderCrossings(IReadOnlyList<(double X, double Y)> Samples, SvgNodeRect Rect)
+    {
+        int Count = 0;
+        for (int Index = 1; Index < Samples.Count; Index++)
+        {
+            bool StartInside = PointInside(Samples[Index - 1].X, Samples[Index - 1].Y, Rect, 0.0);
+            bool EndInside = PointInside(Samples[Index].X, Samples[Index].Y, Rect, 0.0);
+            if (StartInside != EndInside)
+            {
+                Count++;
+            }
+        }
+
+        return Count;
+    }
+
+    private static bool LastCrossingIsPerpendicular(IReadOnlyList<(double X, double Y)> Samples, SvgNodeRect Rect)
+    {
+        for (int Index = Samples.Count - 1; Index >= 1; Index--)
+        {
+            bool StartIn = PointInside(Samples[Index - 1].X, Samples[Index - 1].Y, Rect, 0.0);
+            bool EndIn = PointInside(Samples[Index].X, Samples[Index].Y, Rect, 0.0);
+            if (StartIn == EndIn)
+            {
+                continue;
+            }
+
+            double Dx = Math.Abs(Samples[Index].X - Samples[Index - 1].X);
+            double Dy = Math.Abs(Samples[Index].Y - Samples[Index - 1].Y);
+            if (Dx < 1.5 || Dy < 1.5)
+            {
+                return true;
+            }
+
+            double Angle = Math.Atan2(Dy, Dx) * (180.0 / Math.PI);
+            return Angle < 20.0 || Angle > 70.0;
+        }
+
+        return true;
+    }
+
+    private static double InteriorPathLength(IReadOnlyList<(double X, double Y)> Samples, SvgNodeRect Rect)
+    {
+        double Length = 0.0;
+        for (int Index = 1; Index < Samples.Count; Index++)
+        {
+            double MidX = (Samples[Index - 1].X + Samples[Index].X) / 2.0;
+            double MidY = (Samples[Index - 1].Y + Samples[Index].Y) / 2.0;
+            if (PointInside(MidX, MidY, Rect, 2.0))
+            {
+                Length += Distance(
+                    Samples[Index - 1].X,
+                    Samples[Index - 1].Y,
+                    Samples[Index].X,
+                    Samples[Index].Y);
+            }
+        }
+
+        return Length;
+    }
+
+    private static double NearestFaceDistance(
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        ParsedEdgeStroke Stroke,
+        string GroupId,
+        bool SourceInside)
+    {
+        string InnerId = SourceInside ? Stroke.SourceId : Stroke.TargetId;
+        if (!BoundsById.TryGetValue(InnerId, out FlowchartLayoutNodeBounds Inner)
+            || !BoundsById.TryGetValue(GroupId, out FlowchartLayoutNodeBounds Group))
+        {
+            return 40.0;
+        }
+
+        double ToLeft = Math.Abs(Inner.CenterX - (Group.CenterX - (Group.Width / 2.0)));
+        double ToRight = Math.Abs((Group.CenterX + (Group.Width / 2.0)) - Inner.CenterX);
+        double ToTop = Math.Abs((Group.CenterY + (Group.Height / 2.0)) - Inner.CenterY);
+        double ToBottom = Math.Abs(Inner.CenterY - (Group.CenterY - (Group.Height / 2.0)));
+        return Math.Min(Math.Min(ToLeft, ToRight), Math.Min(ToTop, ToBottom));
+    }
+
+    private static bool PointInside(double X, double Y, SvgNodeRect Rect, double Inset)
+    {
+        return X >= Rect.Left + Inset
+            && X <= Rect.Right - Inset
+            && Y >= Rect.Top + Inset
+            && Y <= Rect.Bottom - Inset;
+    }
+
     private static void CollectDirtyJustifiedCrossings(
         DiagramContract Contract,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
@@ -463,17 +702,7 @@ public static class FlowchartRenderedSvgQualityGate
             return LayeredReason;
         }
 
-        foreach (FlowchartLayoutQualityFailure Justification in Justifications)
-        {
-            if (string.Equals(Justification.Kind, "EdgeCrossing", StringComparison.Ordinal)
-                && SameIdSet(Justification.InvolvedIds, Violation.InvolvedIds)
-                && Justification.IsJustified)
-            {
-                return Justification.Justification;
-            }
-        }
-
-        return "crossing remains after searching alternative node orderings, port faces, channels and detours";
+        return null;
     }
 
     private static bool IsCleanCrossing(

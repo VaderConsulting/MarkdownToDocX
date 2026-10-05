@@ -1,0 +1,34 @@
+name: flowchart-after-docs
+
+on:
+  push:
+    branches:
+      - flowchart-layout-fixes
+      - master
+  pull_request:
+
+jobs:
+  after-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Refresh after docs
+        run: dotnet run --project tools/FlowchartLayoutFixRender/FlowchartLayoutFixRender.csproj -c Release -- refresh-after docs/flowchart/layout-fixes/after
+
+      - name: Fail when after docs are stale
+        run: |
+          git add --intent-to-add docs/flowchart/layout-fixes/after
+          if ! git diff --exit-code -- docs/flowchart/layout-fixes/after; then
+            echo "docs/flowchart/layout-fixes/after is stale. Re-run FlowchartLayoutFixRender refresh-after and commit the PNGs and SVGs."
+            exit 1
+          fi
+
+      - name: After-docs freshness tests
+        run: dotnet test tests/MermaidRecognition.Layout.Tests/MermaidRecognition.Layout.Tests.csproj -c Release --filter FullyQualifiedName~FlowchartAfterDocsFreshnessTests
