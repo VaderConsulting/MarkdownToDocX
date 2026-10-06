@@ -319,6 +319,19 @@ Added between each pair of ranks when a labelled edge crosses that boundary. TB 
 
 **Isolated / long-offset edges (exterior exception routes):** `CollapsePredominantlyAxisAlignedMinlenPolyline` only collapses dummy-chain polylines when perpendicular drift is small (≤48px). `RepairMissingOrDiagonalFlowchartEdges` replaces two-point diagonals with direction-aware Manhattan routing.
 
+### 6.4 One node size and a shared centre grid (Naiad)
+
+**Closure:** Naiad / Word-first parity. Upstream Mermaid sizes each shape from its own label, so a stadium can be narrower than a rectangle in the same diagram. This repository does not follow that for flowchart layout.
+
+**Rule:**
+
+- Measure each node with the existing label wrap, then take one width and one height for the whole diagram: the maximum measured width and the maximum measured height. Every shape (rectangle, stadium, rounded rectangle, circle, diamond, and the rest) is drawn in that box. A circle uses the box as an ellipse so its outline meets the same width and height.
+- Sugiyama still places the nodes at their measured sizes. After placement, centres are snapped onto shared columns and rows. A centre joins a track when it is within half a cell of that track. Later tracks stay at least one node plus the configured gap apart, and a larger natural gap is kept.
+- Two nodes that land on the same cell are moved to the next free column.
+- Subgraph rectangles are still wrapped around their members with the constant padding in `FlowchartSubgraphBoundsBuilder` (`PADDING_PX` 18, plus the title band).
+- A corridor is the gap an edge has to cross between two boxes that face each other. Its width must be at least the line clearance on one side plus the border clearance on the other (`16 + 16`). A shorter corridor is opened by moving the blocking row or column whole grid steps. A move that would overlap another node, or push a node into a group it does not belong to, is refused, and the other side of the corridor is tried. Routing runs again after a move.
+- The runs of those lines are not snapped onto their own tracks yet.
+
 ---
 
 ## 7. Confirmed generic polygon insertion rule
@@ -1862,6 +1875,20 @@ Intersection = polygon intersection, then adjusted by (-0.5, -0.5)
 **Closure:** implemented in `FlowchartDiamondAttachHelper.TryResolveOutwardNormal`. An attach point within 1 px of a vertex returns the axis direction instead of the nearest slope's normal.
 
 **Naiad note:** Mermaid clips the edge to the polygon and does not define a stub direction. This rule exists so Word output does not show a 45° jog where a straight line was intended (fixture F11: `B(Rounded rectangle) --> C{Diamond decision} --> D((Circle))`).
+
+#### 16.4.2 Diamond ports on the standard cell (Naiad)
+
+**Closure:** Naiad / Word-first parity. The diamond is drawn in the diagram's standard node cell. Ports are whole pixels, mirrored about the centre.
+
+**Rule:**
+
+- The four vertices are the first ports. A line at a vertex leaves along the diamond's axis: vertical at the top and bottom, horizontal at the left and right.
+- Each slanted edge adds ports only for the lines that did not take a vertex. An edge chooses its own count, from one to four, and spaces those ports evenly, not counting the vertices.
+- One port sits at the midpoint. Two sit at the one-third and two-thirds points. Three sit at the quarter, half, and three-quarter points. Four sit at the one-fifth through four-fifths points.
+- A line on an edge leaves horizontally or vertically, in the outward direction that faces the other node. The segment itself is not slanted.
+- If a half-width or half-height does not divide evenly, each offset rounds to the nearest pixel away from the centre, so the opposite port stays the exact mirror.
+
+**Source:** Naiad grid rule, October 2026. Implemented in `FlowchartDiamondPorts`.
 
 ### 16.5 Hexagon (`hex`)
 
