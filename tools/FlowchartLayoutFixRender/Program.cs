@@ -186,6 +186,26 @@ static void DumpSvgGate(string Name, string Mermaid, string Svg)
     {
         Console.WriteLine("  TOL " + Failure.Kind + " " + Failure.Description + " :: " + Failure.Justification);
     }
+
+    Console.WriteLine("JUMPS " + FlowchartSvgLineJump.LastJumps.Count);
+    foreach (FlowchartSvgLineJump.DrawnJump Jump in FlowchartSvgLineJump.LastJumps)
+    {
+        Console.WriteLine(
+            "  JUMP "
+            + Jump.HopperSource
+            + "->"
+            + Jump.HopperTarget
+            + " over "
+            + Jump.CrossedSource
+            + "->"
+            + Jump.CrossedTarget
+            + " at "
+            + Jump.X.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)
+            + ","
+            + Jump.Y.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)
+            + " :: "
+            + Jump.Reason);
+    }
 }
 
 static void DumpEdgePaths(string Svg)

@@ -40,6 +40,11 @@ public static class FlowchartLayoutQualityJustification
             return true;
         }
 
+        if (Reason.StartsWith("right-angle fallback", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
         return false;
     }
 

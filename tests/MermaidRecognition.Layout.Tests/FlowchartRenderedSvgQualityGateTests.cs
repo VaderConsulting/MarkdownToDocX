@@ -254,6 +254,23 @@ public sealed class FlowchartRenderedSvgQualityGateTests
     /// under the shop row, and a run under Order Taken each cross the other edge or a box.
     /// </summary>
     [Test]
+    public void LineJump_DrawsOneHopAtAPerpendicularCrossing()
+    {
+        const string Svg = """
+            <svg xmlns="http://www.w3.org/2000/svg">
+              <path d="M10,40 L110,40" fill="none" stroke="#333" data-edge-source="a" data-edge-target="b"/>
+              <path d="M60,10 L60,90" fill="none" stroke="#333" data-edge-source="c" data-edge-target="d"/>
+              <path d="M10,70 L110,70" fill="none" stroke="#333" data-edge-source="e" data-edge-target="f"/>
+            </svg>
+            """;
+        string Jumped = FlowchartSvgLineJump.Apply(Svg);
+        Assert.That(FlowchartSvgLineJump.LastJumps, Has.Count.EqualTo(2));
+        Assert.That(PathFor(Jumped, "a", "b"), Does.Not.Contain("A6,6"));
+        Assert.That(PathFor(Jumped, "c", "d"), Does.Contain("A6,6"));
+        Assert.That(PathFor(Jumped, "e", "f"), Does.Contain("A6,6"));
+    }
+
+    [Test]
     public void Sample06_SharedSellingChannel_IsAnOccupiedCorridor()
     {
         string Source = File.ReadAllText(FindEnterpriseSample("06-flowchart.mmd"));
@@ -268,6 +285,17 @@ public sealed class FlowchartRenderedSvgQualityGateTests
             Assert.That(Failure.Kind, Is.Not.EqualTo("DanglingStub"));
             Assert.That(Failure.Kind, Is.Not.EqualTo("Hook"));
         }
+    }
+
+    private static string PathFor(string Svg, string SourceId, string TargetId)
+    {
+        int SourceAt = Svg.IndexOf("data-edge-source=\"" + SourceId + "\"", StringComparison.Ordinal);
+        Assert.That(SourceAt, Is.GreaterThanOrEqualTo(0));
+        int PathStart = Svg.LastIndexOf("<path", SourceAt, StringComparison.Ordinal);
+        int PathEnd = Svg.IndexOf("/>", SourceAt, StringComparison.Ordinal);
+        string Tag = Svg.Substring(PathStart, PathEnd - PathStart);
+        Assert.That(Tag, Does.Contain("data-edge-target=\"" + TargetId + "\""));
+        return Tag;
     }
 
     private static void AssertToleratedCorridor(

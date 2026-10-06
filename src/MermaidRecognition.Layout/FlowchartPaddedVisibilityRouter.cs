@@ -660,9 +660,10 @@ public static class FlowchartPaddedVisibilityRouter
     /// Drops vertices that the next point immediately retraces, so each segment ends at its bend.
     /// </summary>
     /// <param name="Points">Orthogonal polyline, edited in place.</param>
-    public static void CollapseReversalSpurs(List<(double X, double Y)> Points)
+    /// <param name="DropCornerOvershoot">Also drop a few-pixel spur past a corner. Used when drawing, where orthogonalising a guide can leave that spur.</param>
+    public static void CollapseReversalSpurs(List<(double X, double Y)> Points, bool DropCornerOvershoot = false)
     {
-        RemoveReversalSpurs(Points);
+        RemoveReversalSpurs(Points, DropCornerOvershoot);
         TrimTerminalOvershoot(Points);
         SimplifyColinear(Points);
     }
@@ -714,7 +715,7 @@ public static class FlowchartPaddedVisibilityRouter
     /// <summary>
     /// Drops a vertex that the next point immediately retraces, so a segment ends at its bend.
     /// </summary>
-    private static void RemoveReversalSpurs(List<(double X, double Y)> Points)
+    private static void RemoveReversalSpurs(List<(double X, double Y)> Points, bool DropCornerOvershoot)
     {
         bool Changed = true;
         while (Changed && Points.Count > 2)
@@ -725,16 +726,52 @@ public static class FlowchartPaddedVisibilityRouter
                 (double PreviousX, double PreviousY) = Points[Index - 1];
                 (double SpurX, double SpurY) = Points[Index];
                 (double NextX, double NextY) = Points[Index + 1];
-                if (!PointLiesOnSegment(NextX, NextY, PreviousX, PreviousY, SpurX, SpurY))
+                if (PointLiesOnSegment(NextX, NextY, PreviousX, PreviousY, SpurX, SpurY)
+                    || (DropCornerOvershoot && IsShortAxisOvershoot(PreviousX, PreviousY, SpurX, SpurY, NextX, NextY)))
                 {
-                    continue;
+                    Points.RemoveAt(Index);
+                    Changed = true;
+                    break;
                 }
-
-                Points.RemoveAt(Index);
-                Changed = true;
-                break;
             }
         }
+    }
+
+    /// <summary>
+    /// True when the middle vertex sticks a few pixels past a corner and the route turns back.
+    /// </summary>
+    private static bool IsShortAxisOvershoot(
+        double PreviousX,
+        double PreviousY,
+        double SpurX,
+        double SpurY,
+        double NextX,
+        double NextY)
+    {
+        bool SameX = Math.Abs(SpurX - PreviousX) <= 0.6 && Math.Abs(SpurX - NextX) <= 0.6;
+        bool SameY = Math.Abs(SpurY - PreviousY) <= 0.6 && Math.Abs(SpurY - NextY) <= 0.6;
+        if (SameX == SameY)
+        {
+            return false;
+        }
+
+        double Spur = Math.Sqrt(Math.Pow(SpurX - PreviousX, 2.0) + Math.Pow(SpurY - PreviousY, 2.0));
+        double Continuation = Math.Sqrt(Math.Pow(NextX - SpurX, 2.0) + Math.Pow(NextY - SpurY, 2.0));
+        if (Spur < 2.0 || Spur > 12.0 || Continuation < 2.0)
+        {
+            return false;
+        }
+
+        if (SameX)
+        {
+            double Low = Math.Min(PreviousY, NextY);
+            double High = Math.Max(PreviousY, NextY);
+            return SpurY < Low - 0.6 || SpurY > High + 0.6;
+        }
+
+        double Left = Math.Min(PreviousX, NextX);
+        double Right = Math.Max(PreviousX, NextX);
+        return SpurX < Left - 0.6 || SpurX > Right + 0.6;
     }
 
     private static bool PointLiesOnSegment(

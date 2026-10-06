@@ -142,7 +142,9 @@ public static class FlowchartCurvePathBuilder
             return BuildRetryLoopPathData(Points);
         }
 
-        return BuildLinearPathData(FlowchartPaddedVisibilityRouter.EnsureOrthogonal(Points));
+        List<(double X, double Y)> Orthogonal = FlowchartPaddedVisibilityRouter.EnsureOrthogonal(Points);
+        FlowchartPaddedVisibilityRouter.CollapseReversalSpurs(Orthogonal, DropCornerOvershoot: true);
+        return BuildLinearPathData(Orthogonal);
     }
 
     private static int ResolveCorridorCurveEndIndex(IReadOnlyList<(double X, double Y)> Points)

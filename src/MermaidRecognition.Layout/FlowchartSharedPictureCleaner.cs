@@ -73,9 +73,12 @@ internal static class FlowchartSharedPictureCleaner
             SnapRoundedOutline(BoundsById, NodeById, Guide);
             RestorePerpendicularStubs(BoundsById, NodeById, Guide);
             DropTinyAxisSteps(Guide.Points);
+            LiftShortGroupBorderRun(Contract, BoundsById, Guide);
+            PullSourceOffCapJunction(BoundsById, NodeById, Guides, Guide);
         }
 
-        _ = NodeById;
+        SpreadBunchedFacePorts(BoundsById, NodeById, Guides);
+        PreferRightAngleToSharedRun(Contract, BoundsById, Guides);
     }
 
     private static void PushOffBorders(
@@ -2251,6 +2254,19 @@ internal static class FlowchartSharedPictureCleaner
         return false;
     }
 
+    private static bool IsGroup(DiagramContract Contract, string NodeId)
+    {
+        foreach (GroupContract Group in Contract.Groups)
+        {
+            if (string.Equals(Group.Id, NodeId, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static double AxisOverlap(double A1, double A2, double B1, double B2)
     {
         return Math.Min(Math.Max(A1, A2), Math.Max(B1, B2)) - Math.Max(Math.Min(A1, A2), Math.Min(B1, B2));
@@ -3747,5 +3763,834 @@ internal static class FlowchartSharedPictureCleaner
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Moves a short run that sits on a group side just outside that side, so the edge crosses the border once.
+    /// </summary>
+    private static void LiftShortGroupBorderRun(
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        FlowchartResolvedGuide Guide)
+    {
+        if (Guide.Points.Count < 2)
+        {
+            return;
+        }
+
+        for (int Index = 1; Index < Guide.Points.Count; Index++)
+        {
+            (double X1, double Y1) = Guide.Points[Index - 1];
+            (double X2, double Y2) = Guide.Points[Index];
+            double Length = Math.Sqrt(Math.Pow(X2 - X1, 2.0) + Math.Pow(Y2 - Y1, 2.0));
+            bool Vertical = Math.Abs(X2 - X1) <= 1.5 && Length >= 4.0 && Length < HUG_MIN_PX;
+            bool Horizontal = Math.Abs(Y2 - Y1) <= 1.5 && Length >= 4.0 && Length < HUG_MIN_PX;
+            if (!Vertical && !Horizontal)
+            {
+                continue;
+            }
+
+            foreach (KeyValuePair<string, FlowchartLayoutNodeBounds> Pair in BoundsById)
+            {
+                if (string.Equals(Pair.Key, Guide.Edge.SourceId, StringComparison.Ordinal)
+                    || string.Equals(Pair.Key, Guide.Edge.TargetId, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (IsNode(Contract, Pair.Key) && !IsGroup(Contract, Pair.Key))
+                {
+                    continue;
+                }
+
+                FlowchartLayoutNodeBounds Bounds = Pair.Value;
+                double Left = Bounds.CenterX - (Bounds.Width / 2.0);
+                double Right = Bounds.CenterX + (Bounds.Width / 2.0);
+                double Bottom = Bounds.CenterY - (Bounds.Height / 2.0);
+                double Top = Bounds.CenterY + (Bounds.Height / 2.0);
+                if (Vertical && AxisOverlap(Y1, Y2, Bottom, Top) >= 4.0)
+                {
+                    bool NearRight = Math.Abs(X1 - Right) <= Math.Abs(X1 - Left);
+                    double Side = NearRight ? Right : Left;
+                    if (Math.Abs(X1 - Side) > 1.5)
+                    {
+                        continue;
+                    }
+
+                    double ClearX = NearRight ? Right + BORDER_CLEAR_PX : Left - BORDER_CLEAR_PX;
+                    ShiftRunX(Guide.Points, X1, ClearX);
+                }
+                else if (Horizontal && AxisOverlap(X1, X2, Left, Right) >= 4.0)
+                {
+                    bool NearTop = Math.Abs(Y1 - Top) <= Math.Abs(Y1 - Bottom);
+                    double Side = NearTop ? Top : Bottom;
+                    if (Math.Abs(Y1 - Side) > 1.5)
+                    {
+                        continue;
+                    }
+
+                    double ClearY = NearTop ? Top + BORDER_CLEAR_PX : Bottom - BORDER_CLEAR_PX;
+                    ShiftRunY(Guide.Points, Y1, ClearY);
+                }
+            }
+        }
+    }
+
+    private static void ShiftRunX(List<(double X, double Y)> Points, double OldX, double NewX)
+    {
+        for (int Index = 0; Index < Points.Count; Index++)
+        {
+            if (Math.Abs(Points[Index].X - OldX) <= 1.5)
+            {
+                Points[Index] = (NewX, Points[Index].Y);
+            }
+        }
+    }
+
+    private static void ShiftRunY(List<(double X, double Y)> Points, double OldY, double NewY)
+    {
+        for (int Index = 0; Index < Points.Count; Index++)
+        {
+            if (Math.Abs(Points[Index].Y - OldY) <= 1.5)
+            {
+                Points[Index] = (Points[Index].X, NewY);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Slides a stadium exit off the flat-to-cap junction so the nearest face is the one the stub leaves.
+    /// </summary>
+    private static void PullSourceOffCapJunction(
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        IReadOnlyDictionary<string, NodeContract> NodeById,
+        IReadOnlyList<FlowchartResolvedGuide> Guides,
+        FlowchartResolvedGuide Guide)
+    {
+        if (Guide.Points.Count < 2
+            || !BoundsById.TryGetValue(Guide.Edge.SourceId, out FlowchartLayoutNodeBounds? Source)
+            || Source == null
+            || !NodeById.TryGetValue(Guide.Edge.SourceId, out NodeContract? Node)
+            || Node == null
+            || !TryRoundedRadius(Node.Shape, Source.Height, out double Radius))
+        {
+            return;
+        }
+
+        (double X0, double Y0) = Guide.Points[0];
+        (double X1, double Y1) = Guide.Points[1];
+        if (Math.Abs(X1 - X0) > 1.5)
+        {
+            return;
+        }
+
+        double Left = Source.CenterX - (Source.Width / 2.0);
+        double Right = Source.CenterX + (Source.Width / 2.0);
+        double Bottom = Source.CenterY - (Source.Height / 2.0);
+        double Top = Source.CenterY + (Source.Height / 2.0);
+        if (Math.Abs(Y0 - Bottom) > 3.0 && Math.Abs(Y0 - Top) > 3.0)
+        {
+            return;
+        }
+
+        double FlatLeft = Left + Radius;
+        double FlatRight = Right - Radius;
+        double Inset = Math.Min(CORNER_INSET_PX, Math.Max(4.0, (FlatRight - FlatLeft) / 4.0));
+        if (FlatRight - FlatLeft < Inset * 2.0)
+        {
+            return;
+        }
+
+        double PortX = X0;
+        if (Math.Abs(X0 - FlatRight) <= 4.0)
+        {
+            PortX = FlatRight - Inset;
+        }
+        else if (Math.Abs(X0 - FlatLeft) <= 4.0)
+        {
+            PortX = FlatLeft + Inset;
+        }
+        else
+        {
+            return;
+        }
+
+        double FaceY = Math.Abs(Y0 - Bottom) <= Math.Abs(Y0 - Top) ? Bottom : Top;
+        if (PortRunWouldHug(BoundsById, Guide, AtSource: true, HorizontalFace: true, PortX))
+        {
+            return;
+        }
+
+        foreach (FlowchartResolvedGuide Other in Guides)
+        {
+            if (ReferenceEquals(Other, Guide)
+                || !string.Equals(Other.Edge.SourceId, Guide.Edge.SourceId, StringComparison.Ordinal)
+                || Other.Points.Count < 2)
+            {
+                continue;
+            }
+
+            if (Math.Abs(Other.Points[0].X - PortX) <= 10.0 && Math.Abs(Other.Points[0].Y - FaceY) <= 3.0)
+            {
+                return;
+            }
+        }
+
+        Guide.Points[0] = (PortX, FaceY);
+        if (Math.Abs(Guide.Points[1].X - X0) <= 1.5)
+        {
+            Guide.Points[1] = (PortX, Guide.Points[1].Y);
+        }
+    }
+
+    /// <summary>
+    /// Spreads exits and arrivals that share a face when the flat side has room for a normal gap.
+    /// </summary>
+    private static void SpreadBunchedFacePorts(
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        IReadOnlyDictionary<string, NodeContract> NodeById,
+        List<FlowchartResolvedGuide> Guides)
+    {
+        SpreadPortsOnFace(BoundsById, NodeById, Guides, AtSource: true);
+        SpreadPortsOnFace(BoundsById, NodeById, Guides, AtSource: false);
+    }
+
+    private static void SpreadPortsOnFace(
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        IReadOnlyDictionary<string, NodeContract> NodeById,
+        List<FlowchartResolvedGuide> Guides,
+        bool AtSource)
+    {
+        for (int Index = 0; Index < Guides.Count; Index++)
+        {
+            FlowchartResolvedGuide Guide = Guides[Index];
+            if (FlowchartSharedEdgeRouter.IsDesignedRoute(Guide.RouteKind) || Guide.Points.Count < 2)
+            {
+                continue;
+            }
+
+            string NodeId = AtSource ? Guide.Edge.SourceId : Guide.Edge.TargetId;
+            if (!BoundsById.TryGetValue(NodeId, out FlowchartLayoutNodeBounds? Bounds) || Bounds == null)
+            {
+                continue;
+            }
+
+            if (!TryFacePort(Guide, Bounds, AtSource, out bool HorizontalFace, out double Axis))
+            {
+                continue;
+            }
+
+            List<FlowchartResolvedGuide> Bunch = [];
+            foreach (FlowchartResolvedGuide Other in Guides)
+            {
+                if (FlowchartSharedEdgeRouter.IsDesignedRoute(Other.RouteKind) || Other.Points.Count < 2)
+                {
+                    continue;
+                }
+
+                string OtherId = AtSource ? Other.Edge.SourceId : Other.Edge.TargetId;
+                if (!string.Equals(OtherId, NodeId, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (!TryFacePort(Other, Bounds, AtSource, out bool OtherHorizontal, out double OtherAxis))
+                {
+                    continue;
+                }
+
+                if (OtherHorizontal == HorizontalFace && Math.Abs(OtherAxis - Axis) <= 3.0)
+                {
+                    Bunch.Add(Other);
+                }
+            }
+
+            if (Bunch.Count < 2)
+            {
+                continue;
+            }
+
+            string? Shape = NodeById.TryGetValue(NodeId, out NodeContract? Node) ? Node.Shape : null;
+            double Radius = 0.0;
+            bool Rounded = TryRoundedRadius(Shape, Bounds.Height, out Radius);
+            double Left = Bounds.CenterX - (Bounds.Width / 2.0);
+            double Right = Bounds.CenterX + (Bounds.Width / 2.0);
+            double Bottom = Bounds.CenterY - (Bounds.Height / 2.0);
+            double Top = Bounds.CenterY + (Bounds.Height / 2.0);
+            double SpanStart = HorizontalFace
+                ? (Rounded ? Left + Radius : Left)
+                : (Rounded ? Bottom + Radius : Bottom);
+            double SpanEnd = HorizontalFace
+                ? (Rounded ? Right - Radius : Right)
+                : (Rounded ? Top - Radius : Top);
+            double Inset = Math.Min(CORNER_INSET_PX, Math.Max(4.0, (SpanEnd - SpanStart) / 5.0));
+            double UsableStart = SpanStart + Inset;
+            double UsableEnd = SpanEnd - Inset;
+            if (UsableEnd - UsableStart < (Bunch.Count - 1) * 14.0)
+            {
+                continue;
+            }
+
+            Bunch.Sort((LeftGuide, RightGuide) => PortSlot(LeftGuide, AtSource, HorizontalFace).CompareTo(PortSlot(RightGuide, AtSource, HorizontalFace)));
+            double Closest = double.PositiveInfinity;
+            for (int Slot = 1; Slot < Bunch.Count; Slot++)
+            {
+                Closest = Math.Min(
+                    Closest,
+                    Math.Abs(PortSlot(Bunch[Slot], AtSource, HorizontalFace) - PortSlot(Bunch[Slot - 1], AtSource, HorizontalFace)));
+            }
+
+            if (Closest >= 16.0)
+            {
+                continue;
+            }
+
+            double Step = (UsableEnd - UsableStart) / (Bunch.Count - 1);
+            for (int Slot = 0; Slot < Bunch.Count; Slot++)
+            {
+                double Position = UsableStart + (Step * Slot);
+                if (PortRunWouldHug(BoundsById, Bunch[Slot], AtSource, HorizontalFace, Position))
+                {
+                    continue;
+                }
+
+                List<(double X, double Y)> Before = new List<(double X, double Y)>(Bunch[Slot].Points);
+                SetPortSlot(Bunch[Slot], AtSource, HorizontalFace, Position);
+                if (CrossesAnotherGuide(Guides, Bunch[Slot], Bunch[Slot].Points))
+                {
+                    Bunch[Slot].Points.Clear();
+                    Bunch[Slot].Points.AddRange(Before);
+                }
+            }
+        }
+    }
+
+    private static bool TryFacePort(
+        FlowchartResolvedGuide Guide,
+        FlowchartLayoutNodeBounds Bounds,
+        bool AtSource,
+        out bool HorizontalFace,
+        out double Axis)
+    {
+        HorizontalFace = false;
+        Axis = 0.0;
+        int EndIndex = AtSource ? 0 : Guide.Points.Count - 1;
+        int OtherIndex = AtSource ? 1 : Guide.Points.Count - 2;
+        (double EndX, double EndY) = Guide.Points[EndIndex];
+        (double OtherX, double OtherY) = Guide.Points[OtherIndex];
+        double Left = Bounds.CenterX - (Bounds.Width / 2.0);
+        double Right = Bounds.CenterX + (Bounds.Width / 2.0);
+        double Bottom = Bounds.CenterY - (Bounds.Height / 2.0);
+        double Top = Bounds.CenterY + (Bounds.Height / 2.0);
+        bool VerticalRun = Math.Abs(EndX - OtherX) <= 1.5;
+        bool HorizontalRun = Math.Abs(EndY - OtherY) <= 1.5;
+        if (VerticalRun && (Math.Abs(EndY - Bottom) <= 3.0 || Math.Abs(EndY - Top) <= 3.0))
+        {
+            HorizontalFace = true;
+            Axis = Math.Abs(EndY - Bottom) <= Math.Abs(EndY - Top) ? Bottom : Top;
+            return EndX >= Left - 2.0 && EndX <= Right + 2.0;
+        }
+
+        if (HorizontalRun && (Math.Abs(EndX - Left) <= 3.0 || Math.Abs(EndX - Right) <= 3.0))
+        {
+            HorizontalFace = false;
+            Axis = Math.Abs(EndX - Left) <= Math.Abs(EndX - Right) ? Left : Right;
+            return EndY >= Bottom - 2.0 && EndY <= Top + 2.0;
+        }
+
+        return false;
+    }
+
+    private static double PortSlot(FlowchartResolvedGuide Guide, bool AtSource, bool HorizontalFace)
+    {
+        int EndIndex = AtSource ? 0 : Guide.Points.Count - 1;
+        return HorizontalFace ? Guide.Points[EndIndex].X : Guide.Points[EndIndex].Y;
+    }
+
+    private static void SetPortSlot(FlowchartResolvedGuide Guide, bool AtSource, bool HorizontalFace, double Position)
+    {
+        int EndIndex = AtSource ? 0 : Guide.Points.Count - 1;
+        int OtherIndex = AtSource ? 1 : Guide.Points.Count - 2;
+        (double EndX, double EndY) = Guide.Points[EndIndex];
+        (double OtherX, double OtherY) = Guide.Points[OtherIndex];
+        if (HorizontalFace)
+        {
+            Guide.Points[EndIndex] = (Position, EndY);
+            if (Math.Abs(OtherX - EndX) <= 1.5)
+            {
+                Guide.Points[OtherIndex] = (Position, OtherY);
+            }
+        }
+        else
+        {
+            Guide.Points[EndIndex] = (EndX, Position);
+            if (Math.Abs(OtherY - EndY) <= 1.5)
+            {
+                Guide.Points[OtherIndex] = (OtherX, Position);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Replaces a shared or overlaid run with one right-angle crossing when every clear separation failed.
+    /// </summary>
+    private static void PreferRightAngleToSharedRun(
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        List<FlowchartResolvedGuide> Guides)
+    {
+        for (int LeftIndex = 0; LeftIndex < Guides.Count; LeftIndex++)
+        {
+            for (int RightIndex = LeftIndex + 1; RightIndex < Guides.Count; RightIndex++)
+            {
+                FlowchartResolvedGuide Left = Guides[LeftIndex];
+                FlowchartResolvedGuide Right = Guides[RightIndex];
+                if (FlowchartSharedEdgeRouter.IsDesignedRoute(Left.RouteKind)
+                    || FlowchartSharedEdgeRouter.IsDesignedRoute(Right.RouteKind))
+                {
+                    continue;
+                }
+
+                double Shared = LongestSharedRun(Left.Points, Right.Points);
+                double Gap = ClosestParallelGap(Left.Points, Right.Points);
+                bool Overlaid = Gap < 8.0 && SharesEdgeEndpoint(Left.Edge, Right.Edge);
+                if (Shared < SHARED_MIN_PX && !Overlaid)
+                {
+                    continue;
+                }
+
+                if (TryShiftOntoOneCrossing(Contract, BoundsById, Guides, Left, Right)
+                    || TryShiftOntoOneCrossing(Contract, BoundsById, Guides, Right, Left))
+                {
+                    continue;
+                }
+            }
+        }
+    }
+
+    private static bool TryShiftOntoOneCrossing(
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        IReadOnlyList<FlowchartResolvedGuide> Guides,
+        FlowchartResolvedGuide Guide,
+        FlowchartResolvedGuide Other)
+    {
+        if (Guide.Points.Count < 3)
+        {
+            return false;
+        }
+
+        double[] Offsets = [12.0, -12.0, 16.0, -16.0, 24.0, -24.0, 36.0, -36.0, 48.0, -48.0];
+        bool Horizontal = SharedAxisIsHorizontal(Guide.Points, Other.Points);
+        if (ClosestParallelGap(Guide.Points, Other.Points) < 8.0)
+        {
+            Horizontal = ParallelRunIsHorizontal(Guide.Points, Other.Points);
+        }
+
+        foreach (double Offset in Offsets)
+        {
+            List<(double X, double Y)> Candidate = new List<(double X, double Y)>(Guide.Points);
+            bool Moved = false;
+            for (int Index = 1; Index < Candidate.Count - 1; Index++)
+            {
+                if (!PointSitsOnOtherRun(Candidate[Index], Other.Points, Horizontal))
+                {
+                    continue;
+                }
+
+                if (Horizontal)
+                {
+                    Candidate[Index] = (Candidate[Index].X, Candidate[Index].Y + Offset);
+                }
+                else
+                {
+                    Candidate[Index] = (Candidate[Index].X + Offset, Candidate[Index].Y);
+                }
+
+                Moved = true;
+            }
+
+            if (!Moved)
+            {
+                continue;
+            }
+
+            Candidate = FlowchartPaddedVisibilityRouter.EnsureOrthogonal(Candidate);
+            FlowchartPaddedVisibilityRouter.CollapseReversalSpurs(Candidate);
+            bool Blocked = RouteStillBlocked(Contract, BoundsById, Candidate, Guide.Edge.SourceId, Guide.Edge.TargetId);
+            bool StillShared = LongestSharedRun(Candidate, Other.Points) >= SHARED_MIN_PX;
+            bool Closes = ClosesOnAnotherGuide(Guides, Guide, Candidate);
+            bool SharesAny = SharesALongRunWithAny(Guides, Guide, Candidate);
+            bool Terminals = TerminalsLeaveOnTheNormal(BoundsById, Guide, Candidate);
+            bool Inside = RouteEntersEndpointInterior(BoundsById, Guide, Candidate);
+            bool NearGroup = RunsNearGroupBorder(Contract, BoundsById, Candidate);
+            if (Candidate.Count < 2 || Blocked || StillShared || Closes || SharesAny || !Terminals || Inside || NearGroup)
+            {
+                continue;
+            }
+
+            int CrossingCount = CountPerpendicularCrossings(Guides, Guide, Candidate, out FlowchartResolvedGuide? Crossed);
+            if (CrossingCount < 0 || CrossingCount > 1)
+            {
+                continue;
+            }
+
+            Guide.Points.Clear();
+            Guide.Points.AddRange(Candidate);
+            Guide.RouteKind = Candidate.Count <= 2
+                ? FlowchartEdgeRouteKind.Straight
+                : FlowchartEdgeRouteKind.Corridor;
+            if (CrossingCount == 0 || Crossed == null)
+            {
+                return true;
+            }
+
+            string Reason = "right-angle fallback: no clear channel remained for "
+                + Guide.Edge.SourceId
+                + "->"
+                + Guide.Edge.TargetId
+                + " beside "
+                + Other.Edge.SourceId
+                + "->"
+                + Other.Edge.TargetId
+                + "; other exit ports, channel spacing, and same-rank order were tried and every separated run still shares the corridor or hits a neighbouring box, so the edge crosses "
+                + Crossed.Edge.SourceId
+                + "->"
+                + Crossed.Edge.TargetId
+                + " once at a right angle";
+            FlowchartSharedEdgeRouter.RecordRightAngleFallback(
+                Guide.Edge.SourceId,
+                Guide.Edge.TargetId,
+                Crossed.Edge.SourceId,
+                Crossed.Edge.TargetId,
+                Reason);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool PointSitsOnOtherRun(
+        (double X, double Y) Point,
+        IReadOnlyList<(double X, double Y)> Other,
+        bool Horizontal)
+    {
+        for (int Index = 1; Index < Other.Count; Index++)
+        {
+            if (Horizontal
+                && Math.Abs(Other[Index].Y - Other[Index - 1].Y) <= 1.5
+                && Math.Abs(Point.Y - Other[Index].Y) <= 8.0
+                && Point.X > Math.Min(Other[Index - 1].X, Other[Index].X) - 1.0
+                && Point.X < Math.Max(Other[Index - 1].X, Other[Index].X) + 1.0)
+            {
+                return true;
+            }
+
+            if (!Horizontal
+                && Math.Abs(Other[Index].X - Other[Index - 1].X) <= 1.5
+                && Math.Abs(Point.X - Other[Index].X) <= 8.0
+                && Point.Y > Math.Min(Other[Index - 1].Y, Other[Index].Y) - 1.0
+                && Point.Y < Math.Max(Other[Index - 1].Y, Other[Index].Y) + 1.0)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool ParallelRunIsHorizontal(
+        IReadOnlyList<(double X, double Y)> Left,
+        IReadOnlyList<(double X, double Y)> Right)
+    {
+        double Best = double.PositiveInfinity;
+        bool Horizontal = true;
+        for (int LeftIndex = 1; LeftIndex < Left.Count; LeftIndex++)
+        {
+            bool LeftHorizontal = Math.Abs(Left[LeftIndex].Y - Left[LeftIndex - 1].Y) <= 1.5
+                && Math.Abs(Left[LeftIndex].X - Left[LeftIndex - 1].X) >= 24.0;
+            bool LeftVertical = Math.Abs(Left[LeftIndex].X - Left[LeftIndex - 1].X) <= 1.5
+                && Math.Abs(Left[LeftIndex].Y - Left[LeftIndex - 1].Y) >= 24.0;
+            for (int RightIndex = 1; RightIndex < Right.Count; RightIndex++)
+            {
+                if (LeftHorizontal
+                    && Math.Abs(Right[RightIndex].Y - Right[RightIndex - 1].Y) <= 1.5
+                    && AxisOverlap(Left[LeftIndex - 1].X, Left[LeftIndex].X, Right[RightIndex - 1].X, Right[RightIndex].X) >= 24.0)
+                {
+                    double Gap = Math.Abs(Left[LeftIndex].Y - Right[RightIndex].Y);
+                    if (Gap < Best)
+                    {
+                        Best = Gap;
+                        Horizontal = true;
+                    }
+                }
+                else if (LeftVertical
+                    && Math.Abs(Right[RightIndex].X - Right[RightIndex - 1].X) <= 1.5
+                    && AxisOverlap(Left[LeftIndex - 1].Y, Left[LeftIndex].Y, Right[RightIndex - 1].Y, Right[RightIndex].Y) >= 24.0)
+                {
+                    double Gap = Math.Abs(Left[LeftIndex].X - Right[RightIndex].X);
+                    if (Gap < Best)
+                    {
+                        Best = Gap;
+                        Horizontal = false;
+                    }
+                }
+            }
+        }
+
+        return Horizontal;
+    }
+
+    private static double ClosestParallelGap(
+        IReadOnlyList<(double X, double Y)> Left,
+        IReadOnlyList<(double X, double Y)> Right)
+    {
+        double Best = double.PositiveInfinity;
+        for (int LeftIndex = 1; LeftIndex < Left.Count; LeftIndex++)
+        {
+            bool LeftHorizontal = Math.Abs(Left[LeftIndex].Y - Left[LeftIndex - 1].Y) <= 1.5
+                && Math.Abs(Left[LeftIndex].X - Left[LeftIndex - 1].X) >= 24.0;
+            bool LeftVertical = Math.Abs(Left[LeftIndex].X - Left[LeftIndex - 1].X) <= 1.5
+                && Math.Abs(Left[LeftIndex].Y - Left[LeftIndex - 1].Y) >= 24.0;
+            for (int RightIndex = 1; RightIndex < Right.Count; RightIndex++)
+            {
+                if (LeftHorizontal
+                    && Math.Abs(Right[RightIndex].Y - Right[RightIndex - 1].Y) <= 1.5
+                    && AxisOverlap(Left[LeftIndex - 1].X, Left[LeftIndex].X, Right[RightIndex - 1].X, Right[RightIndex].X) >= 24.0)
+                {
+                    Best = Math.Min(Best, Math.Abs(Left[LeftIndex].Y - Right[RightIndex].Y));
+                }
+                else if (LeftVertical
+                    && Math.Abs(Right[RightIndex].X - Right[RightIndex - 1].X) <= 1.5
+                    && AxisOverlap(Left[LeftIndex - 1].Y, Left[LeftIndex].Y, Right[RightIndex - 1].Y, Right[RightIndex].Y) >= 24.0)
+                {
+                    Best = Math.Min(Best, Math.Abs(Left[LeftIndex].X - Right[RightIndex].X));
+                }
+            }
+        }
+
+        return Best;
+    }
+
+    private static int CountPerpendicularCrossings(
+        IReadOnlyList<FlowchartResolvedGuide> Guides,
+        FlowchartResolvedGuide Guide,
+        IReadOnlyList<(double X, double Y)> Candidate,
+        out FlowchartResolvedGuide? Crossed)
+    {
+        Crossed = null;
+        int Count = 0;
+        foreach (FlowchartResolvedGuide Other in Guides)
+        {
+            if (ReferenceEquals(Other, Guide) || Other.Points.Count < 2)
+            {
+                continue;
+            }
+
+            for (int Left = 1; Left < Candidate.Count; Left++)
+            {
+                (double AX, double AY) = Candidate[Left - 1];
+                (double BX, double BY) = Candidate[Left];
+                bool LeftHorizontal = Math.Abs(BY - AY) <= 1.5 && Math.Abs(BX - AX) >= 16.0;
+                bool LeftVertical = Math.Abs(BX - AX) <= 1.5 && Math.Abs(BY - AY) >= 16.0;
+                if (!LeftHorizontal && !LeftVertical)
+                {
+                    continue;
+                }
+
+                for (int Right = 1; Right < Other.Points.Count; Right++)
+                {
+                    (double CX, double CY) = Other.Points[Right - 1];
+                    (double DX, double DY) = Other.Points[Right];
+                    bool RightHorizontal = Math.Abs(DY - CY) <= 1.5 && Math.Abs(DX - CX) >= 16.0;
+                    bool RightVertical = Math.Abs(DX - CX) <= 1.5 && Math.Abs(DY - CY) >= 16.0;
+                    if (LeftHorizontal == RightHorizontal || LeftVertical == RightVertical)
+                    {
+                        continue;
+                    }
+
+                    if (!SegmentsCross((AX, AY), (BX, BY), (CX, CY), (DX, DY)))
+                    {
+                        continue;
+                    }
+
+                    double Denominator = ((BX - AX) * (DY - CY)) - ((BY - AY) * (DX - CX));
+                    double Ua = (((CX - AX) * (DY - CY)) - ((CY - AY) * (DX - CX))) / Denominator;
+                    double Ub = (((CX - AX) * (BY - AY)) - ((CY - AY) * (BX - AX))) / Denominator;
+                    double CrossX = AX + (Ua * (BX - AX));
+                    double CrossY = AY + (Ua * (BY - AY));
+                    if (DistanceToPoint(CrossX, CrossY, AX, AY) < 8.0
+                        || DistanceToPoint(CrossX, CrossY, BX, BY) < 8.0
+                        || DistanceToPoint(CrossX, CrossY, CX, CY) < 8.0
+                        || DistanceToPoint(CrossX, CrossY, DX, DY) < 8.0
+                        || Ua <= 0.08
+                        || Ua >= 0.92
+                        || Ub <= 0.08
+                        || Ub >= 0.92)
+                    {
+                        return -1;
+                    }
+
+                    Count++;
+                    Crossed = Other;
+                    if (Count > 1)
+                    {
+                        Crossed = null;
+                        return Count;
+                    }
+                }
+            }
+        }
+
+        return Count;
+    }
+
+    private static double DistanceToPoint(double X1, double Y1, double X2, double Y2)
+    {
+        return Math.Sqrt(Math.Pow(X1 - X2, 2.0) + Math.Pow(Y1 - Y2, 2.0));
+    }
+
+    private static bool RouteEntersEndpointInterior(
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        FlowchartResolvedGuide Guide,
+        IReadOnlyList<(double X, double Y)> Points)
+    {
+        if (Points.Count < 3)
+        {
+            return false;
+        }
+
+        if (PointInside(BoundsById, Guide.Edge.SourceId, Points[1].X, Points[1].Y))
+        {
+            return true;
+        }
+
+        for (int Index = 1; Index < Points.Count - 1; Index++)
+        {
+            if (PointInside(BoundsById, Guide.Edge.TargetId, Points[Index].X, Points[Index].Y))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool PortRunWouldHug(
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        FlowchartResolvedGuide Guide,
+        bool AtSource,
+        bool HorizontalFace,
+        double Position)
+    {
+        int EndIndex = AtSource ? 0 : Guide.Points.Count - 1;
+        int OtherIndex = AtSource ? 1 : Guide.Points.Count - 2;
+        (double EndX, double EndY) = Guide.Points[EndIndex];
+        (double OtherX, double OtherY) = Guide.Points[OtherIndex];
+        double RunEndX = HorizontalFace ? Position : OtherX;
+        double RunEndY = HorizontalFace ? OtherY : Position;
+        double RunStartX = HorizontalFace ? Position : EndX;
+        double RunStartY = HorizontalFace ? EndY : Position;
+        if (!HorizontalFace && Math.Abs(OtherX - EndX) <= 1.5)
+        {
+            RunEndX = EndX;
+        }
+
+        if (HorizontalFace && Math.Abs(OtherY - EndY) <= 1.5)
+        {
+            RunEndY = EndY;
+        }
+
+        foreach (FlowchartLayoutNodeBounds Bounds in BoundsById.Values)
+        {
+            if (string.Equals(Bounds.NodeId, AtSource ? Guide.Edge.SourceId : Guide.Edge.TargetId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            double Left = Bounds.CenterX - (Bounds.Width / 2.0);
+            double Right = Bounds.CenterX + (Bounds.Width / 2.0);
+            double Bottom = Bounds.CenterY - (Bounds.Height / 2.0);
+            double Top = Bounds.CenterY + (Bounds.Height / 2.0);
+            if (HorizontalFace
+                && Math.Abs(RunStartX - RunEndX) <= 1.5
+                && AxisOverlap(RunStartY, RunEndY, Bottom, Top) > 20.0
+                && (Math.Abs(Position - Left) <= HUG_PX || Math.Abs(Position - Right) <= HUG_PX))
+            {
+                return true;
+            }
+
+            if (!HorizontalFace
+                && Math.Abs(RunStartY - RunEndY) <= 1.5
+                && AxisOverlap(RunStartX, RunEndX, Left, Right) > 20.0
+                && (Math.Abs(Position - Bottom) <= HUG_PX || Math.Abs(Position - Top) <= HUG_PX))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool RunsNearGroupBorder(
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        IReadOnlyList<(double X, double Y)> Points)
+    {
+        for (int Index = 1; Index < Points.Count; Index++)
+        {
+            (double X1, double Y1) = Points[Index - 1];
+            (double X2, double Y2) = Points[Index];
+            double Length = Math.Sqrt(Math.Pow(X2 - X1, 2.0) + Math.Pow(Y2 - Y1, 2.0));
+            bool Vertical = Math.Abs(X2 - X1) <= 1.5 && Length >= HUG_MIN_PX;
+            bool Horizontal = Math.Abs(Y2 - Y1) <= 1.5 && Length >= HUG_MIN_PX;
+            if (!Vertical && !Horizontal)
+            {
+                continue;
+            }
+
+            foreach (GroupContract Group in Contract.Groups)
+            {
+                if (!BoundsById.TryGetValue(Group.Id, out FlowchartLayoutNodeBounds? Bounds) || Bounds == null)
+                {
+                    continue;
+                }
+
+                double Left = Bounds.CenterX - (Bounds.Width / 2.0);
+                double Right = Bounds.CenterX + (Bounds.Width / 2.0);
+                double Bottom = Bounds.CenterY - (Bounds.Height / 2.0);
+                double Top = Bounds.CenterY + (Bounds.Height / 2.0);
+                double Overlap = Vertical
+                    ? AxisOverlap(Y1, Y2, Bottom, Top)
+                    : AxisOverlap(X1, X2, Left, Right);
+                double Separation = Vertical
+                    ? Math.Min(Math.Abs(X1 - Left), Math.Abs(X1 - Right))
+                    : Math.Min(Math.Abs(Y1 - Bottom), Math.Abs(Y1 - Top));
+                if (Overlap >= HUG_MIN_PX && Separation < 16.0)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool PointInside(
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        string NodeId,
+        double X,
+        double Y)
+    {
+        if (!BoundsById.TryGetValue(NodeId, out FlowchartLayoutNodeBounds? Bounds) || Bounds == null)
+        {
+            return false;
+        }
+
+        double Left = Bounds.CenterX - (Bounds.Width / 2.0);
+        double Right = Bounds.CenterX + (Bounds.Width / 2.0);
+        double Bottom = Bounds.CenterY - (Bounds.Height / 2.0);
+        double Top = Bounds.CenterY + (Bounds.Height / 2.0);
+        return X > Left + 2.0 && X < Right - 2.0 && Y > Bottom + 2.0 && Y < Top - 2.0;
     }
 }

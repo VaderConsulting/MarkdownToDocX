@@ -747,7 +747,7 @@ public static class FlowchartSugiyamaSvgRenderer
         }
 
         Builder.Append("</svg>");
-        return Builder.ToString();
+        return FlowchartSvgLineJump.Apply(Builder.ToString());
         }
         finally
         {
@@ -2338,7 +2338,7 @@ public static class FlowchartSugiyamaSvgRenderer
 
         Builder.Append("<text y=\"");
         Builder.Append(FirstLineY.ToString(CultureInfo.InvariantCulture));
-        Builder.Append("\" text-anchor=\"start\" fill=\"");
+        Builder.Append("\" text-anchor=\"middle\" fill=\"");
         Builder.Append(EscapeXml(NodeStyle.TextColor));
         Builder.Append("\" font-family=\"");
         Builder.Append(EscapeXml(NodeStyle.FontFamily));
@@ -2348,24 +2348,18 @@ public static class FlowchartSugiyamaSvgRenderer
         Builder.Append(EscapeXml(NodeStyle.FontWeight));
         Builder.Append("\">");
 
-        List<string> LineList = new List<string>(Lines);
-        double BlockStartX = FlowchartRichLabelSvgWriter.GetMultilineBlockStartX(
-            CentreX,
-            LineList,
-            NodeStyle.FontSizePx);
-
         for (int LineIndex = 0; LineIndex < Lines.Length; LineIndex++)
         {
             if (LineIndex == 0)
             {
                 Builder.Append("<tspan x=\"");
-                Builder.Append(BlockStartX.ToString(CultureInfo.InvariantCulture));
+                Builder.Append(CentreX.ToString(CultureInfo.InvariantCulture));
                 Builder.Append("\" dy=\"0\">");
             }
             else
             {
                 Builder.Append("<tspan x=\"");
-                Builder.Append(BlockStartX.ToString(CultureInfo.InvariantCulture));
+                Builder.Append(CentreX.ToString(CultureInfo.InvariantCulture));
                 Builder.Append("\" dy=\"");
                 Builder.Append(LineHeightPx.ToString(CultureInfo.InvariantCulture));
                 Builder.Append("\">");

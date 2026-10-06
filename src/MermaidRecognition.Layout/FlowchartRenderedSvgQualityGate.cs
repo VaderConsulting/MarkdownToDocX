@@ -3626,6 +3626,44 @@ public static class FlowchartRenderedSvgQualityGate
                     null));
                 break;
             }
+
+            for (int Index = 1; Index < Stroke.Samples.Count - 1; Index++)
+            {
+                (double PreviousX, double PreviousY) = Stroke.Samples[Index - 1];
+                (double SpurX, double SpurY) = Stroke.Samples[Index];
+                (double NextX, double NextY) = Stroke.Samples[Index + 1];
+                bool SameX = Math.Abs(SpurX - PreviousX) <= 1.5 && Math.Abs(SpurX - NextX) <= 1.5;
+                bool SameY = Math.Abs(SpurY - PreviousY) <= 1.5 && Math.Abs(SpurY - NextY) <= 1.5;
+                if (SameX == SameY)
+                {
+                    continue;
+                }
+
+                double SpurLength = Distance(PreviousX, PreviousY, SpurX, SpurY);
+                double Continuation = Distance(SpurX, SpurY, NextX, NextY);
+                if (SpurLength < 2.0 || SpurLength > 12.0 || Continuation < 2.0)
+                {
+                    continue;
+                }
+
+                bool PastCorner = SameX
+                    ? SpurY < Math.Min(PreviousY, NextY) - 0.6 || SpurY > Math.Max(PreviousY, NextY) + 0.6
+                    : SpurX < Math.Min(PreviousX, NextX) - 0.6 || SpurX > Math.Max(PreviousX, NextX) + 0.6;
+                if (!PastCorner)
+                {
+                    continue;
+                }
+
+                Violations.Add(new FlowchartLayoutQualityFailure(
+                    "DanglingStub",
+                    Stroke.SourceId + "->" + Stroke.TargetId
+                    + " continues "
+                    + SpurLength.ToString("0.0", CultureInfo.InvariantCulture)
+                    + " px past a corner",
+                    [Stroke.SourceId, Stroke.TargetId],
+                    null));
+                break;
+            }
         }
     }
 
@@ -3715,7 +3753,7 @@ public static class FlowchartRenderedSvgQualityGate
                 (double X1, double Y1) = Stroke.Samples[Index - 1];
                 (double X2, double Y2) = Stroke.Samples[Index];
                 double Length = Distance(X1, Y1, X2, Y2);
-                if (Length < BORDER_HUG_MIN_PX)
+                if (Length < 4.0)
                 {
                     continue;
                 }
@@ -3748,7 +3786,11 @@ public static class FlowchartRenderedSvgQualityGate
                         Separation = Math.Min(Math.Abs(X1 - Box.Left), Math.Abs(X1 - Box.Right));
                     }
 
-                    if (Overlap < BORDER_HUG_MIN_PX || Separation >= GROUP_BORDER_CLEAR_PX)
+                    bool OnTheBorder = Length >= 4.0 && Overlap >= 4.0 && Separation <= 1.5;
+                    bool NearTheBorder = Length >= BORDER_HUG_MIN_PX
+                        && Overlap >= BORDER_HUG_MIN_PX
+                        && Separation < GROUP_BORDER_CLEAR_PX;
+                    if (!OnTheBorder && !NearTheBorder)
                     {
                         continue;
                     }

@@ -56,6 +56,28 @@ public static class FlowchartSharedEdgeRouter
     private static List<FlowchartLayoutQualityFailure> _LastJustifications = [];
 
     /// <summary>
+    /// Records a single right-angle crossing chosen because every clear separation still shared a run or hit a box.
+    /// </summary>
+    /// <param name="SourceId">Source of the edge that crosses.</param>
+    /// <param name="TargetId">Target of the edge that crosses.</param>
+    /// <param name="OtherSourceId">Source of the crossed edge.</param>
+    /// <param name="OtherTargetId">Target of the crossed edge.</param>
+    /// <param name="Reason">Why no failure-free route remained.</param>
+    public static void RecordRightAngleFallback(
+        string SourceId,
+        string TargetId,
+        string OtherSourceId,
+        string OtherTargetId,
+        string Reason)
+    {
+        _LastJustifications.Add(new FlowchartLayoutQualityFailure(
+            "EdgeCrossing",
+            SourceId + "->" + TargetId + " crosses " + OtherSourceId + "->" + OtherTargetId,
+            [SourceId, TargetId, OtherSourceId, OtherTargetId],
+            Reason));
+    }
+
+    /// <summary>
     /// Searches alternative ports, channels and detours for every non-designed edge, then unifies style.
     /// </summary>
     /// <param name="Contract">The diagram.</param>
