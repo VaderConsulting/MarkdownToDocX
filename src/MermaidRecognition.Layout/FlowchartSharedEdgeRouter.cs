@@ -2867,6 +2867,13 @@ public static class FlowchartSharedEdgeRouter
                     + Right.Edge.SourceId + "->" + Right.Edge.TargetId,
                     [Left.Edge.SourceId, Left.Edge.TargetId, Right.Edge.SourceId, Right.Edge.TargetId],
                     Reason));
+                _LastJustifications.Add(new FlowchartLayoutQualityFailure(
+                    "SharedStretch",
+                    Left.Edge.SourceId + "->" + Left.Edge.TargetId
+                    + " shares the occupied corridor with "
+                    + Right.Edge.SourceId + "->" + Right.Edge.TargetId,
+                    [Left.Edge.SourceId, Left.Edge.TargetId, Right.Edge.SourceId, Right.Edge.TargetId],
+                    Reason));
             }
         }
 

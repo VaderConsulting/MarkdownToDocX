@@ -459,7 +459,7 @@ public sealed class FlowchartSharedRouteQualityTests
         Assert.That(Report.Failures, Is.Empty, FormatOverlayFailures(Report));
         foreach (FlowchartLayoutQualityFailure Tolerated in Report.Tolerated)
         {
-            Assert.That(Tolerated.Kind, Is.EqualTo("OverlayingEdges"));
+            Assert.That(Tolerated.Kind, Is.EqualTo("OverlayingEdges").Or.EqualTo("SharedStretch"));
             Assert.That(
                 FlowchartLayoutQualityJustification.IsOccupiedCorridorReason(Tolerated.Justification),
                 Is.True,

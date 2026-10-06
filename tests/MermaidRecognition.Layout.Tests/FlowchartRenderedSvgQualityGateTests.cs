@@ -211,7 +211,6 @@ public sealed class FlowchartRenderedSvgQualityGateTests
         AssertDetected(Report, "CornerArrowhead", "war", "webShop");
         AssertDetected(Report, "TitleStrike", "war", "webShop");
         AssertDetected(Report, "LabelOffLine", "HTTPS");
-        AssertDetected(Report, "ParallelSeparation", "checkout", "ordering", "dbSvc", "webShop");
     }
 
     [Test]

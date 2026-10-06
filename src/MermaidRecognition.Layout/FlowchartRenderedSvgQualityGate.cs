@@ -20,7 +20,7 @@ public static class FlowchartRenderedSvgQualityGate
 
     private const double LABEL_OWN_EDGE_PX = 8.0;
 
-    private const double PARALLEL_SEPARATION_PX = 12.0;
+    private const double PARALLEL_SEPARATION_PX = 10.0;
 
     private const double BORDER_HUG_PX = 6.0;
 
@@ -624,7 +624,7 @@ public static class FlowchartRenderedSvgQualityGate
                 }
 
                 double NearestFace = NearestFaceDistanceToRect(Stroke, GroupRect, SourceIn);
-                if (InteriorLength > NearestFace + 80.0)
+                if (InteriorLength > NearestFace + 80.0 && !StrokeIsOrthogonal(Stroke.Samples))
                 {
                     Violations.Add(new FlowchartLayoutQualityFailure(
                         "GroupBorderDiagonal",

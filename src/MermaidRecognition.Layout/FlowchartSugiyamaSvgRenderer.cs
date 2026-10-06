@@ -1422,7 +1422,8 @@ public static class FlowchartSugiyamaSvgRenderer
             FlattenKind,
             Direction);
         if (RenderedSamples.Count >= 2
-            && FlowchartSharedRouteQualityHelper.LooksLikeOrthogonalCorridor(LayoutPoints))
+            && (FlowchartSharedRouteQualityHelper.LooksLikeOrthogonalCorridor(LayoutPoints)
+                || IsAxisAlignedPolyline(LayoutPoints)))
         {
             return FlowchartSharedRouteQualityHelper.ResolveLabelOnOwnEdge(
                 RenderedSamples,
@@ -1449,6 +1450,26 @@ public static class FlowchartSugiyamaSvgRenderer
         }
 
         return (ClearedX, ClearedY);
+    }
+
+    private static bool IsAxisAlignedPolyline(IReadOnlyList<(double X, double Y)> LayoutPoints)
+    {
+        if (LayoutPoints.Count < 2)
+        {
+            return false;
+        }
+
+        for (int Index = 1; Index < LayoutPoints.Count; Index++)
+        {
+            double DeltaX = Math.Abs(LayoutPoints[Index].X - LayoutPoints[Index - 1].X);
+            double DeltaY = Math.Abs(LayoutPoints[Index].Y - LayoutPoints[Index - 1].Y);
+            if (DeltaX > 1.5 && DeltaY > 1.5)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>
