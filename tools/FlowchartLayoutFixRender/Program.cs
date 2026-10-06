@@ -203,6 +203,24 @@ static void DumpEdgePaths(string Svg)
     {
         Console.WriteLine(Match.Groups[1].Value + "->" + Match.Groups[2].Value + " " + Match.Groups[3].Value);
     }
+
+    foreach (System.Text.RegularExpressions.Match Match in System.Text.RegularExpressions.Regex.Matches(
+        Svg,
+        "<line[^>]* x1=\"([^\"]+)\" y1=\"([^\"]+)\" x2=\"([^\"]+)\" y2=\"([^\"]+)\"[^>]* data-edge-source=\"([^\"]+)\" data-edge-target=\"([^\"]+)\"[^>]*>"))
+    {
+        Console.WriteLine(
+            Match.Groups[5].Value
+            + "->"
+            + Match.Groups[6].Value
+            + " LINE "
+            + Match.Groups[1].Value
+            + ","
+            + Match.Groups[2].Value
+            + " "
+            + Match.Groups[3].Value
+            + ","
+            + Match.Groups[4].Value);
+    }
 }
 
 static void RenderOne(string Stem, string Mermaid, string OutputDirectory)

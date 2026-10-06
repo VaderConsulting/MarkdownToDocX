@@ -965,6 +965,17 @@ public static class FlowchartSugiyamaSvgRenderer
 
         string[] Lines = LabelDimensions.DisplayText.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
         double EdgeLabelFontSizePx = Options.EdgeLabelFontSizePx;
+        double GapWidth = Math.Max(12.0, LabelDimensions.Width + 6.0);
+        double GapHeight = Math.Max(EdgeLabelFontSizePx, LabelDimensions.Height) + 4.0;
+        Builder.Append("<rect x=\"");
+        Builder.Append((CentreX - (GapWidth / 2.0)).ToString(CultureInfo.InvariantCulture));
+        Builder.Append("\" y=\"");
+        Builder.Append((CentreY - (GapHeight / 2.0)).ToString(CultureInfo.InvariantCulture));
+        Builder.Append("\" width=\"");
+        Builder.Append(GapWidth.ToString(CultureInfo.InvariantCulture));
+        Builder.Append("\" height=\"");
+        Builder.Append(GapHeight.ToString(CultureInfo.InvariantCulture));
+        Builder.Append("\" fill=\"#ffffff\" stroke=\"none\"/>");
         double LineHeightPx = EdgeLabelFontSizePx * FLOWCHART_MULTILINE_LINE_HEIGHT_FACTOR;
         double FirstLineY = FlowchartRichLabelSvgWriter.ComputeFirstBaselineY(
             CentreY,

@@ -133,6 +133,7 @@ public static class FlowchartSharedEdgeRouter
         ClampRoutesToNodeUnion(Contract, BoundsById, Direction, Guides);
         ForceMinimumChannelGap(Contract, BoundsById, Direction, Guides);
         SnapAllEndpointsToBoxes(Contract, BoundsById, NodeById, Guides);
+        TrySeparateOverlayByRankOrder(Contract, BoundsById, NodeById, Direction, Guides);
         FlowchartSharedPictureCleaner.Clean(Contract, BoundsById, NodeById, Guides);
 
         RecordRemainingJustifications(Contract, BoundsById, Direction, Guides);
@@ -2745,6 +2746,173 @@ public static class FlowchartSharedEdgeRouter
         return Distance(X, Y, ClosestX, ClosestY);
     }
 
+    private static void TrySeparateOverlayByRankOrder(
+        DiagramContract Contract,
+        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        IReadOnlyDictionary<string, NodeContract> NodeById,
+        FlowchartDirection Direction,
+        List<FlowchartResolvedGuide> Guides)
+    {
+        bool Horizontal = Direction == FlowchartDirection.LeftToRight
+            || Direction == FlowchartDirection.RightToLeft;
+        for (int LeftIndex = 0; LeftIndex < Guides.Count; LeftIndex++)
+        {
+            FlowchartResolvedGuide Left = Guides[LeftIndex];
+            for (int RightIndex = LeftIndex + 1; RightIndex < Guides.Count; RightIndex++)
+            {
+                FlowchartResolvedGuide Right = Guides[RightIndex];
+                if (!string.Equals(Left.Edge.SourceId, Right.Edge.SourceId, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (SharedRunLength(Left.Points, Right.Points) < 36.0)
+                {
+                    continue;
+                }
+
+                if (!BoundsById.TryGetValue(Left.Edge.TargetId, out FlowchartLayoutNodeBounds? LeftTarget)
+                    || LeftTarget == null
+                    || !BoundsById.TryGetValue(Right.Edge.TargetId, out FlowchartLayoutNodeBounds? RightTarget)
+                    || RightTarget == null)
+                {
+                    continue;
+                }
+
+                bool SameRank = Horizontal
+                    ? Math.Abs(LeftTarget.CenterX - RightTarget.CenterX) <= 24.0
+                    : Math.Abs(LeftTarget.CenterY - RightTarget.CenterY) <= 24.0;
+                if (!SameRank)
+                {
+                    continue;
+                }
+
+                string? LeftGroup = FlowchartSubgraphMembershipHelper.FindInnermostGroupId(Left.Edge.TargetId, Contract);
+                string? RightGroup = FlowchartSubgraphMembershipHelper.FindInnermostGroupId(Right.Edge.TargetId, Contract);
+                if (!string.Equals(LeftGroup, RightGroup, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                Dictionary<FlowchartResolvedGuide, List<(double X, double Y)>> Saved =
+                    new Dictionary<FlowchartResolvedGuide, List<(double X, double Y)>>();
+                Dictionary<FlowchartResolvedGuide, FlowchartEdgeRouteKind> SavedKinds =
+                    new Dictionary<FlowchartResolvedGuide, FlowchartEdgeRouteKind>();
+                foreach (FlowchartResolvedGuide Guide in Guides)
+                {
+                    Saved[Guide] = CopyPoints(Guide.Points);
+                    SavedKinds[Guide] = Guide.RouteKind;
+                }
+
+                FlowchartLayoutNodeBounds SavedLeft = BoundsById[Left.Edge.TargetId];
+                FlowchartLayoutNodeBounds SavedRight = BoundsById[Right.Edge.TargetId];
+                if (Horizontal)
+                {
+                    BoundsById[Left.Edge.TargetId] = CopyBounds(SavedLeft, SavedLeft.CenterX, SavedRight.CenterY);
+                    BoundsById[Right.Edge.TargetId] = CopyBounds(SavedRight, SavedRight.CenterX, SavedLeft.CenterY);
+                }
+                else
+                {
+                    BoundsById[Left.Edge.TargetId] = CopyBounds(SavedLeft, SavedRight.CenterX, SavedLeft.CenterY);
+                    BoundsById[Right.Edge.TargetId] = CopyBounds(SavedRight, SavedLeft.CenterX, SavedRight.CenterY);
+                }
+
+                foreach (FlowchartResolvedGuide Guide in Guides)
+                {
+                    if (Guide.Edge.SourceId == Left.Edge.TargetId
+                        || Guide.Edge.TargetId == Left.Edge.TargetId
+                        || Guide.Edge.SourceId == Right.Edge.TargetId
+                        || Guide.Edge.TargetId == Right.Edge.TargetId
+                        || ReferenceEquals(Guide, Left)
+                        || ReferenceEquals(Guide, Right))
+                    {
+                        RouteOneEdge(Contract, BoundsById, NodeById, Direction, Guides, Guide, PenaliseCrossings: true);
+                    }
+                }
+
+                bool Clear = SharedRunLength(Left.Points, Right.Points) < 36.0;
+                if (Clear)
+                {
+                    foreach (FlowchartResolvedGuide Guide in Guides)
+                    {
+                        List<(double X, double Y)> Samples = FlattenRenderedGuide(Guide.Points, Guide.RouteKind, Direction);
+                        if (RenderedPathHitsNonEndpoint(Contract, BoundsById, Guide.Edge, Samples, out _))
+                        {
+                            Clear = false;
+                            break;
+                        }
+                    }
+                }
+
+                if (Clear)
+                {
+                    continue;
+                }
+
+                BoundsById[Left.Edge.TargetId] = SavedLeft;
+                BoundsById[Right.Edge.TargetId] = SavedRight;
+                foreach (FlowchartResolvedGuide Guide in Guides)
+                {
+                    Guide.Points.Clear();
+                    Guide.Points.AddRange(Saved[Guide]);
+                    Guide.RouteKind = SavedKinds[Guide];
+                }
+            }
+        }
+    }
+
+    private static FlowchartLayoutNodeBounds CopyBounds(
+        FlowchartLayoutNodeBounds Source,
+        double CenterX,
+        double CenterY)
+    {
+        return new FlowchartLayoutNodeBounds
+        {
+            NodeId = Source.NodeId,
+            CenterX = CenterX,
+            CenterY = CenterY,
+            Width = Source.Width,
+            Height = Source.Height
+        };
+    }
+
+    private static double SharedRunLength(
+        IReadOnlyList<(double X, double Y)> Left,
+        IReadOnlyList<(double X, double Y)> Right)
+    {
+        double Best = 0.0;
+        for (int LeftIndex = 1; LeftIndex < Left.Count; LeftIndex++)
+        {
+            bool LeftHorizontal = Math.Abs(Left[LeftIndex].Y - Left[LeftIndex - 1].Y) <= 1.5;
+            bool LeftVertical = Math.Abs(Left[LeftIndex].X - Left[LeftIndex - 1].X) <= 1.5;
+            for (int RightIndex = 1; RightIndex < Right.Count; RightIndex++)
+            {
+                double Overlap = 0.0;
+                if (LeftHorizontal
+                    && Math.Abs(Right[RightIndex].Y - Right[RightIndex - 1].Y) <= 1.5
+                    && Math.Abs(Left[LeftIndex].Y - Right[RightIndex].Y) <= 2.5)
+                {
+                    Overlap = Math.Min(Math.Max(Left[LeftIndex - 1].X, Left[LeftIndex].X), Math.Max(Right[RightIndex - 1].X, Right[RightIndex].X))
+                        - Math.Max(Math.Min(Left[LeftIndex - 1].X, Left[LeftIndex].X), Math.Min(Right[RightIndex - 1].X, Right[RightIndex].X));
+                }
+                else if (LeftVertical
+                    && Math.Abs(Right[RightIndex].X - Right[RightIndex - 1].X) <= 1.5
+                    && Math.Abs(Left[LeftIndex].X - Right[RightIndex].X) <= 2.5)
+                {
+                    Overlap = Math.Min(Math.Max(Left[LeftIndex - 1].Y, Left[LeftIndex].Y), Math.Max(Right[RightIndex - 1].Y, Right[RightIndex].Y))
+                        - Math.Max(Math.Min(Left[LeftIndex - 1].Y, Left[LeftIndex].Y), Math.Min(Right[RightIndex - 1].Y, Right[RightIndex].Y));
+                }
+
+                if (Overlap > Best)
+                {
+                    Best = Overlap;
+                }
+            }
+        }
+
+        return Best;
+    }
+
     private static void RecordRemainingJustifications(
         DiagramContract Contract,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
@@ -2848,7 +3016,7 @@ public static class FlowchartSharedEdgeRouter
                         + Right.Edge.SourceId
                         + "->"
                         + Right.Edge.TargetId
-                        + " share a channel whose separated alternatives cross or hit a neighbouring box"
+                        + " share a channel; other exit ports, channel spacing, and same-rank order were tried and every separated run crosses or hits a neighbouring box"
                     : "occupied corridor: "
                         + Left.Edge.SourceId
                         + "->"
@@ -2859,7 +3027,7 @@ public static class FlowchartSharedEdgeRouter
                         + Right.Edge.TargetId
                         + " share the only clear channel beside "
                         + Shared
-                        + "; every separated run crosses the sibling or hits a neighbouring box";
+                        + "; other exit ports, channel spacing, and same-rank order were tried and every separated run crosses the sibling or hits a neighbouring box";
                 _LastJustifications.Add(new FlowchartLayoutQualityFailure(
                     "OverlayingEdges",
                     Left.Edge.SourceId + "->" + Left.Edge.TargetId

@@ -101,7 +101,7 @@ public static class FlowchartPaddedVisibilityRouter
             Routed.Add((EndX, EndY));
         }
 
-        SimplifyColinear(Routed);
+        CollapseReversalSpurs(Routed);
         Points = Routed;
         return Points.Count >= 2;
     }
@@ -654,6 +654,113 @@ public static class FlowchartPaddedVisibilityRouter
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Drops vertices that the next point immediately retraces, so each segment ends at its bend.
+    /// </summary>
+    /// <param name="Points">Orthogonal polyline, edited in place.</param>
+    public static void CollapseReversalSpurs(List<(double X, double Y)> Points)
+    {
+        RemoveReversalSpurs(Points);
+        TrimTerminalOvershoot(Points);
+        SimplifyColinear(Points);
+    }
+
+    /// <summary>
+    /// Shortens a terminal leg that runs past the final approach and comes back a few pixels.
+    /// </summary>
+    private static void TrimTerminalOvershoot(List<(double X, double Y)> Points)
+    {
+        if (Points.Count < 5)
+        {
+            return;
+        }
+
+        int Last = Points.Count - 1;
+        (double AX, double AY) = Points[Last - 4];
+        (double BX, double BY) = Points[Last - 3];
+        (double CX, double CY) = Points[Last - 2];
+        (double DX, double DY) = Points[Last - 1];
+        bool LongHorizontal = Math.Abs(AY - BY) <= 1.5 && Math.Abs(AX - BX) > 24.0;
+        bool LongVertical = Math.Abs(AX - BX) <= 1.5 && Math.Abs(AY - BY) > 24.0;
+        double Side = Math.Sqrt(Math.Pow(CX - BX, 2.0) + Math.Pow(CY - BY, 2.0));
+        double Return = Math.Sqrt(Math.Pow(DX - CX, 2.0) + Math.Pow(DY - CY, 2.0));
+        if (Side > 20.0 || Return > 48.0 || Return < 1.0)
+        {
+            return;
+        }
+
+        if (LongHorizontal
+            && Math.Abs(CY - DY) <= 1.5
+            && ((DX - CX) * (BX - AX)) < 0.0
+            && DX > Math.Min(AX, BX) && DX < Math.Max(AX, BX))
+        {
+            Points[Last - 3] = (DX, BY);
+            Points[Last - 2] = (DX, CY);
+            return;
+        }
+
+        if (LongVertical
+            && Math.Abs(CX - DX) <= 1.5
+            && ((DY - CY) * (BY - AY)) < 0.0
+            && DY > Math.Min(AY, BY) && DY < Math.Max(AY, BY))
+        {
+            Points[Last - 3] = (BX, DY);
+            Points[Last - 2] = (CX, DY);
+        }
+    }
+
+    /// <summary>
+    /// Drops a vertex that the next point immediately retraces, so a segment ends at its bend.
+    /// </summary>
+    private static void RemoveReversalSpurs(List<(double X, double Y)> Points)
+    {
+        bool Changed = true;
+        while (Changed && Points.Count > 2)
+        {
+            Changed = false;
+            for (int Index = 1; Index < Points.Count - 1; Index++)
+            {
+                (double PreviousX, double PreviousY) = Points[Index - 1];
+                (double SpurX, double SpurY) = Points[Index];
+                (double NextX, double NextY) = Points[Index + 1];
+                if (!PointLiesOnSegment(NextX, NextY, PreviousX, PreviousY, SpurX, SpurY))
+                {
+                    continue;
+                }
+
+                Points.RemoveAt(Index);
+                Changed = true;
+                break;
+            }
+        }
+    }
+
+    private static bool PointLiesOnSegment(
+        double PointX,
+        double PointY,
+        double StartX,
+        double StartY,
+        double EndX,
+        double EndY)
+    {
+        double SegmentX = EndX - StartX;
+        double SegmentY = EndY - StartY;
+        double LengthSquared = (SegmentX * SegmentX) + (SegmentY * SegmentY);
+        if (LengthSquared < 1.0)
+        {
+            return false;
+        }
+
+        double Along = ((PointX - StartX) * SegmentX) + ((PointY - StartY) * SegmentY);
+        if (Along < 1.0 || Along > LengthSquared - 1.0)
+        {
+            return false;
+        }
+
+        double Cross = Math.Abs(((PointX - StartX) * SegmentY) - ((PointY - StartY) * SegmentX));
+        return Cross <= Math.Sqrt(LengthSquared) * 1.25;
     }
 
     private static double PathLength(IReadOnlyList<(double X, double Y)> Points)

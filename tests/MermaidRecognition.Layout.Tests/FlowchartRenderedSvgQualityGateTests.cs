@@ -236,6 +236,118 @@ public sealed class FlowchartRenderedSvgQualityGateTests
     }
 
     [Test]
+    public void LiveSamples_ClearTheListedPictureDefects()
+    {
+        AssertSampleClear(
+            "01-flowchart.mmd",
+            ["LabelOnStroke", "NeedlessDogleg", "OutlineGap", "CornerArrowhead"]);
+        AssertSampleClear(
+            "03-flowchart.mmd",
+            ["DanglingStub", "TitleClearance", "GroupBorderClearance", "LabelOnStroke", "CornerArrowhead", "InteriorStroke", "OutlineGap"]);
+        AssertSampleClear(
+            "06-flowchart.mmd",
+            ["InteriorStroke", "StackedArrowheads", "OutlineGap", "CornerArrowhead", "OverlayingEdges", "SharedStretch"]);
+    }
+
+    /// <summary>
+    /// Take Order to Selling and Shop Product to Selling still share a channel. A side run, a lane
+    /// under the shop row, and a run under Order Taken each cross the other edge or a box.
+    /// </summary>
+    [Test]
+    public void Sample06_SharedSellingChannel_IsAnOccupiedCorridor()
+    {
+        string Source = File.ReadAllText(FindEnterpriseSample("06-flowchart.mmd"));
+        FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.Evaluate("06-flowchart.mmd", Source);
+        TestContext.Out.WriteLine(FormatReport(Report));
+        AssertToleratedCorridor(Report, "OverlayingEdges", "takeOrder", "selling");
+        AssertToleratedCorridor(Report, "SharedStretch", "takeOrder", "selling");
+        foreach (FlowchartLayoutQualityFailure Failure in Report.Failures)
+        {
+            Assert.That(Failure.Kind, Is.Not.EqualTo("OutlineGap"));
+            Assert.That(Failure.Kind, Is.Not.EqualTo("CornerArrowhead"));
+            Assert.That(Failure.Kind, Is.Not.EqualTo("DanglingStub"));
+            Assert.That(Failure.Kind, Is.Not.EqualTo("Hook"));
+        }
+    }
+
+    private static void AssertToleratedCorridor(
+        FlowchartRenderedSvgQualityReport Report,
+        string Kind,
+        string SourceId,
+        string TargetId)
+    {
+        FlowchartLayoutQualityFailure? Match = null;
+        foreach (FlowchartLayoutQualityFailure Tolerated in Report.Tolerated)
+        {
+            if (!string.Equals(Tolerated.Kind, Kind, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (!Tolerated.Description.Contains(SourceId + "->" + TargetId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            Match = Tolerated;
+            break;
+        }
+
+        Assert.That(Match, Is.Not.Null, Kind + " for " + SourceId + "->" + TargetId + " was not tolerated");
+        Assert.That(Match!.Justification, Does.Contain("every separated run crosses"));
+    }
+
+    [Test]
+    public void SyntheticPictures_ReportStubTitleLabelAndInteriorDefects()
+    {
+        const string Source = """
+            flowchart TB
+              subgraph dc["Primary data centre"]
+                a["Alpha"]
+              end
+              b["Beta"]
+              a -->|HTTPS| b
+            """;
+        const string Svg = """
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+              <rect x="40" y="40" width="200" height="160" fill="#ffffde" stroke="#aaaa33"/>
+              <text x="140" y="58" text-anchor="middle" font-size="16">Primary data centre</text>
+              <rect x="80" y="80" width="80" height="40" fill="#fff" stroke="#000"/>
+              <text x="120" y="104" text-anchor="middle" font-size="16">Alpha</text>
+              <rect x="80" y="280" width="80" height="40" fill="#fff" stroke="#000"/>
+              <text x="120" y="304" text-anchor="middle" font-size="16">Beta</text>
+              <path d="M120,120 L120,40 L120,48 L200,48 L200,300" fill="none" stroke="#333" data-edge-source="a" data-edge-target="b"/>
+              <text x="160" y="48" text-anchor="middle" font-size="16">HTTPS</text>
+            </svg>
+            """;
+        FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.EvaluatePicture(
+            "synthetic-stubs",
+            Source,
+            Svg);
+        TestContext.Out.WriteLine(FormatReport(Report));
+        AssertDetected(Report, "DanglingStub", "a", "b");
+        AssertDetected(Report, "TitleClearance", "a", "b");
+        AssertDetected(Report, "LabelOnStroke", "HTTPS");
+    }
+
+    private static void AssertSampleClear(string FileName, string[] ForbiddenKinds)
+    {
+        string Source = File.ReadAllText(FindEnterpriseSample(FileName));
+        FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.Evaluate(FileName, Source);
+        TestContext.Out.WriteLine(FormatReport(Report));
+        foreach (FlowchartLayoutQualityFailure Failure in Report.Failures)
+        {
+            foreach (string Kind in ForbiddenKinds)
+            {
+                Assert.That(
+                    Failure.Kind,
+                    Is.Not.EqualTo(Kind),
+                    FileName + " still fails " + Failure.Kind + ": " + Failure.Description);
+            }
+        }
+    }
+
+    [Test]
     public void Picture_ReportsCanvasExitAndLongDetour()
     {
         const string Source = """

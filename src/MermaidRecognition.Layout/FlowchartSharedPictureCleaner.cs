@@ -19,6 +19,12 @@ internal static class FlowchartSharedPictureCleaner
 
     private const double CORNER_INSET_PX = 12.0;
 
+    private const double ARRIVAL_CLEAR_PX = 18.0;
+
+    private const double GROUP_CLEAR_PX = 20.0;
+
+    private const double TITLE_CLEAR_PX = 10.0;
+
     private const double SHARED_MIN_PX = 36.0;
 
     private const double TITLE_BAND_PX = 26.0;
@@ -48,6 +54,25 @@ internal static class FlowchartSharedPictureCleaner
             StepAsideTitle(Contract, BoundsById, Guide);
             SquareFinalPort(Contract, BoundsById, Guides, Guide);
             PullInOuterLane(Contract, BoundsById, Guides, Guide);
+            FlowchartPaddedVisibilityRouter.CollapseReversalSpurs(Guide.Points);
+            ClipRouteToTargetBorder(Contract, BoundsById, Guide);
+            PullArrivalOffCorner(BoundsById, Guide);
+            PreferDirectOrthogonal(Contract, BoundsById, Guides, Guide);
+            FlowchartPaddedVisibilityRouter.CollapseReversalSpurs(Guide.Points);
+        }
+
+        SeparateSharedSourceChannels(Contract, BoundsById, Guides);
+        foreach (FlowchartResolvedGuide Guide in Guides)
+        {
+            if (FlowchartSharedEdgeRouter.IsDesignedRoute(Guide.RouteKind) || Guide.Points.Count < 2)
+            {
+                continue;
+            }
+
+            PullEndsOffCorners(Contract, BoundsById, Guide);
+            SnapRoundedOutline(BoundsById, NodeById, Guide);
+            RestorePerpendicularStubs(BoundsById, NodeById, Guide);
+            DropTinyAxisSteps(Guide.Points);
         }
 
         _ = NodeById;
@@ -821,7 +846,19 @@ internal static class FlowchartSharedPictureCleaner
                 ApproachY = PortY + (ApproachSign * BORDER_CLEAR_PX);
                 if (Candidate.Count > 0)
                 {
-                    Candidate.Add((Candidate[Candidate.Count - 1].X, ApproachY));
+                    int Last = Candidate.Count - 1;
+                    (double LastX, double LastY) = Candidate[Last];
+                    bool PastChannel = string.Equals(Face, "top", StringComparison.Ordinal)
+                        ? LastY < ApproachY - 0.5
+                        : LastY > ApproachY + 0.5;
+                    if (PastChannel)
+                    {
+                        Candidate[Last] = (LastX, ApproachY);
+                    }
+                    else if (Math.Abs(LastY - ApproachY) > 1.5)
+                    {
+                        Candidate.Add((LastX, ApproachY));
+                    }
                 }
             }
 
@@ -1468,16 +1505,19 @@ internal static class FlowchartSharedPictureCleaner
                 double Top = Bounds.CenterY + (Bounds.Height / 2.0);
                 if (Vertical && AxisOverlap(Y1, Y2, Bottom, Top) >= HUG_MIN_PX)
                 {
-                    double Side = Math.Abs(X1 - Right) <= Math.Abs(X1 - Left) ? Right : Left;
-                    if (Math.Abs(X1 - Side) > HUG_PX)
+                    bool NearRight = Math.Abs(X1 - Right) <= Math.Abs(X1 - Left);
+                    bool Outside = NearRight ? X1 >= Right - 1.0 : X1 <= Left + 1.0;
+                    double Clearance = Outside ? GROUP_CLEAR_PX : 12.0;
+                    double Side = NearRight ? Right : Left;
+                    if (Math.Abs(X1 - Side) > Clearance)
                     {
                         continue;
                     }
 
-                    double ClearX = Math.Abs(X1 - Right) <= Math.Abs(X1 - Left)
-                        ? (X1 >= Right ? Right + BORDER_CLEAR_PX : Right - BORDER_CLEAR_PX)
-                        : (X1 <= Left ? Left - BORDER_CLEAR_PX : Left + BORDER_CLEAR_PX);
-                    if (Math.Abs(ClearX - X1) > 12.0)
+                    double ClearX = NearRight
+                        ? (X1 >= Right ? Right + Clearance : Right - Clearance)
+                        : (X1 <= Left ? Left - Clearance : Left + Clearance);
+                    if (Math.Abs(ClearX - X1) > Clearance)
                     {
                         continue;
                     }
@@ -1486,14 +1526,17 @@ internal static class FlowchartSharedPictureCleaner
                 }
                 else if (Horizontal && AxisOverlap(X1, X2, Left, Right) >= HUG_MIN_PX)
                 {
-                    double Side = Math.Abs(Y1 - Top) <= Math.Abs(Y1 - Bottom) ? Top : Bottom;
-                    if (Math.Abs(Y1 - Side) > HUG_PX)
+                    bool NearTop = Math.Abs(Y1 - Top) <= Math.Abs(Y1 - Bottom);
+                    bool Outside = NearTop ? Y1 >= Top - 1.0 : Y1 <= Bottom + 1.0;
+                    double Clearance = Outside ? GROUP_CLEAR_PX : 12.0;
+                    double Side = NearTop ? Top : Bottom;
+                    if (Math.Abs(Y1 - Side) > Clearance)
                     {
                         continue;
                     }
 
-                    double ClearY = Y1 >= Side ? Side + BORDER_CLEAR_PX : Side - BORDER_CLEAR_PX;
-                    if (Math.Abs(ClearY - Y1) > 12.0)
+                    double ClearY = Y1 >= Side ? Side + Clearance : Side - Clearance;
+                    if (Math.Abs(ClearY - Y1) > Clearance)
                     {
                         continue;
                     }
@@ -1534,18 +1577,18 @@ internal static class FlowchartSharedPictureCleaner
                     continue;
                 }
 
-                double TitleWidth = Math.Max(48.0, Group.Title.Length * 16.0 * 0.52);
+                double TitleWidth = Math.Max(48.0, Group.Title.Length * 16.0 * 0.58);
                 double TitleLeft = Bounds.CenterX - (TitleWidth / 2.0);
                 double TitleRight = Bounds.CenterX + (TitleWidth / 2.0);
-                if (X1 <= TitleLeft + 4.0 || X1 >= TitleRight - 4.0)
+                if (X1 < TitleLeft - TITLE_CLEAR_PX || X1 > TitleRight + TITLE_CLEAR_PX)
                 {
                     continue;
                 }
 
                 double Low = Math.Min(Y1, Y2);
                 double High = Math.Max(Y1, Y2);
-                double LeftClear = TitleLeft - 2.0;
-                double RightClear = TitleRight + 2.0;
+                double LeftClear = TitleLeft - TITLE_CLEAR_PX;
+                double RightClear = TitleRight + TITLE_CLEAR_PX;
                 double TowardX = Index >= 2 ? Guide.Points[Index - 2].X : X1;
                 double ClearX = Math.Abs(TowardX - LeftClear) <= Math.Abs(TowardX - RightClear) ? LeftClear : RightClear;
                 if (VerticalHitsNode(Contract, BoundsById, Low, High, ClearX, Group.Id))
@@ -2211,5 +2254,1498 @@ internal static class FlowchartSharedPictureCleaner
     private static double AxisOverlap(double A1, double A2, double B1, double B2)
     {
         return Math.Min(Math.Max(A1, A2), Math.Max(B1, B2)) - Math.Max(Math.Min(A1, A2), Math.Min(B1, B2));
+    }
+
+    private static void ClipRouteToTargetBorder(
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        FlowchartResolvedGuide Guide)
+    {
+        if (Guide.Points.Count < 2
+            || !IsNode(Contract, Guide.Edge.TargetId)
+            || !BoundsById.TryGetValue(Guide.Edge.TargetId, out FlowchartLayoutNodeBounds? Target)
+            || Target == null)
+        {
+            return;
+        }
+
+        double Left = Target.CenterX - (Target.Width / 2.0);
+        double Right = Target.CenterX + (Target.Width / 2.0);
+        double Bottom = Target.CenterY - (Target.Height / 2.0);
+        double Top = Target.CenterY + (Target.Height / 2.0);
+        for (int Index = 1; Index < Guide.Points.Count; Index++)
+        {
+            (double X1, double Y1) = Guide.Points[Index - 1];
+            (double X2, double Y2) = Guide.Points[Index];
+            if (!IsStrictlyInside(X2, Y2, Left, Right, Bottom, Top))
+            {
+                continue;
+            }
+
+            if (!TryBorderHit(X1, Y1, X2, Y2, Left, Right, Bottom, Top, out double HitX, out double HitY))
+            {
+                continue;
+            }
+
+            Guide.Points[Index] = (HitX, HitY);
+            if (Index < Guide.Points.Count - 1)
+            {
+                Guide.Points.RemoveRange(Index + 1, Guide.Points.Count - (Index + 1));
+            }
+
+            break;
+        }
+    }
+
+    private static bool IsStrictlyInside(
+        double X,
+        double Y,
+        double Left,
+        double Right,
+        double Bottom,
+        double Top)
+    {
+        return X > Left + 1.0 && X < Right - 1.0 && Y > Bottom + 1.0 && Y < Top - 1.0;
+    }
+
+    private static bool TryBorderHit(
+        double X1,
+        double Y1,
+        double X2,
+        double Y2,
+        double Left,
+        double Right,
+        double Bottom,
+        double Top,
+        out double HitX,
+        out double HitY)
+    {
+        HitX = X2;
+        HitY = Y2;
+        double BestT = double.PositiveInfinity;
+        double DeltaX = X2 - X1;
+        double DeltaY = Y2 - Y1;
+        if (Math.Abs(DeltaX) > 0.001)
+        {
+            ConsiderBorderT(X1, Y1, DeltaX, DeltaY, (Left - X1) / DeltaX, Bottom, Top, true, Left, ref BestT, ref HitX, ref HitY);
+            ConsiderBorderT(X1, Y1, DeltaX, DeltaY, (Right - X1) / DeltaX, Bottom, Top, true, Right, ref BestT, ref HitX, ref HitY);
+        }
+
+        if (Math.Abs(DeltaY) > 0.001)
+        {
+            ConsiderBorderT(X1, Y1, DeltaX, DeltaY, (Bottom - Y1) / DeltaY, Left, Right, false, Bottom, ref BestT, ref HitX, ref HitY);
+            ConsiderBorderT(X1, Y1, DeltaX, DeltaY, (Top - Y1) / DeltaY, Left, Right, false, Top, ref BestT, ref HitX, ref HitY);
+        }
+
+        return !double.IsPositiveInfinity(BestT);
+    }
+
+    private static void ConsiderBorderT(
+        double X1,
+        double Y1,
+        double DeltaX,
+        double DeltaY,
+        double T,
+        double RangeMin,
+        double RangeMax,
+        bool VerticalEdge,
+        double EdgeCoordinate,
+        ref double BestT,
+        ref double HitX,
+        ref double HitY)
+    {
+        if (T <= 0.02 || T >= 0.98 || T >= BestT)
+        {
+            return;
+        }
+
+        double X = X1 + (DeltaX * T);
+        double Y = Y1 + (DeltaY * T);
+        double Across = VerticalEdge ? Y : X;
+        if (Across < RangeMin - 0.5 || Across > RangeMax + 0.5)
+        {
+            return;
+        }
+
+        BestT = T;
+        HitX = VerticalEdge ? EdgeCoordinate : X;
+        HitY = VerticalEdge ? Y : EdgeCoordinate;
+    }
+
+    private static void PreferDirectOrthogonal(
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        IReadOnlyList<FlowchartResolvedGuide> Guides,
+        FlowchartResolvedGuide Guide)
+    {
+        if (Guide.Points.Count < 3
+            || CountBends(Guide.Points) <= 1
+            || !BoundsById.TryGetValue(Guide.Edge.SourceId, out FlowchartLayoutNodeBounds? Source)
+            || Source == null
+            || !BoundsById.TryGetValue(Guide.Edge.TargetId, out FlowchartLayoutNodeBounds? Target)
+            || Target == null)
+        {
+            return;
+        }
+
+        double SourceLeft = Source.CenterX - (Source.Width / 2.0);
+        double SourceRight = Source.CenterX + (Source.Width / 2.0);
+        double SourceBottom = Source.CenterY - (Source.Height / 2.0);
+        double SourceTop = Source.CenterY + (Source.Height / 2.0);
+        double TargetLeft = Target.CenterX - (Target.Width / 2.0);
+        double TargetRight = Target.CenterX + (Target.Width / 2.0);
+        double TargetBottom = Target.CenterY - (Target.Height / 2.0);
+        double TargetTop = Target.CenterY + (Target.Height / 2.0);
+        bool TargetBelow = Target.CenterY < Source.CenterY - 8.0;
+        bool TargetAbove = Target.CenterY > Source.CenterY + 8.0;
+        if (TargetBelow || TargetAbove)
+        {
+            double BandLeft = Math.Max(SourceLeft + CORNER_INSET_PX, TargetLeft + CORNER_INSET_PX);
+            double BandRight = Math.Min(SourceRight - CORNER_INSET_PX, TargetRight - CORNER_INSET_PX);
+            if (BandRight - BandLeft >= 8.0)
+            {
+                double SharedX = Math.Clamp(Target.CenterX, BandLeft, BandRight);
+                double SourceY = TargetBelow ? SourceBottom : SourceTop;
+                double TargetY = TargetBelow ? TargetTop : TargetBottom;
+                List<(double X, double Y)> Straight = [(SharedX, SourceY), (SharedX, TargetY)];
+                if (AcceptsDirect(Contract, BoundsById, Guides, Guide, Straight))
+                {
+                    return;
+                }
+            }
+        }
+
+        (double StartX, double StartY) = Guide.Points[0];
+        (double EndX, double EndY) = Guide.Points[Guide.Points.Count - 1];
+        List<(double X, double Y)> ElbowA = [(StartX, StartY), (EndX, StartY), (EndX, EndY)];
+        List<(double X, double Y)> ElbowB = [(StartX, StartY), (StartX, EndY), (EndX, EndY)];
+        bool FirstLeavesVertically = Math.Abs(Guide.Points[1].X - StartX) <= 1.5;
+        List<(double X, double Y)> Preferred = FirstLeavesVertically ? ElbowB : ElbowA;
+        List<(double X, double Y)> Alternate = FirstLeavesVertically ? ElbowA : ElbowB;
+        if (CountBends(Preferred) < CountBends(Guide.Points) && AcceptsDirect(Contract, BoundsById, Guides, Guide, Preferred))
+        {
+            return;
+        }
+
+        if (CountBends(Alternate) < CountBends(Guide.Points) && AcceptsDirect(Contract, BoundsById, Guides, Guide, Alternate))
+        {
+            return;
+        }
+
+        TrySlideSourceToSingleBend(Contract, BoundsById, Guides, Guide, Source, Target, TargetBelow, TargetAbove);
+    }
+
+    private static bool RouteHugsBox(
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        IReadOnlyList<(double X, double Y)> Points)
+    {
+        for (int Index = 1; Index < Points.Count; Index++)
+        {
+            (double X1, double Y1) = Points[Index - 1];
+            (double X2, double Y2) = Points[Index];
+            bool Horizontal = Math.Abs(Y2 - Y1) <= 1.5 && Math.Abs(X2 - X1) >= HUG_MIN_PX;
+            bool Vertical = Math.Abs(X2 - X1) <= 1.5 && Math.Abs(Y2 - Y1) >= HUG_MIN_PX;
+            if (!Horizontal && !Vertical)
+            {
+                continue;
+            }
+
+            foreach (KeyValuePair<string, FlowchartLayoutNodeBounds> Pair in BoundsById)
+            {
+                FlowchartLayoutNodeBounds Bounds = Pair.Value;
+                double Left = Bounds.CenterX - (Bounds.Width / 2.0);
+                double Right = Bounds.CenterX + (Bounds.Width / 2.0);
+                double Bottom = Bounds.CenterY - (Bounds.Height / 2.0);
+                double Top = Bounds.CenterY + (Bounds.Height / 2.0);
+                if (Horizontal && AxisOverlap(X1, X2, Left, Right) >= HUG_MIN_PX
+                    && (Math.Abs(Y1 - Top) <= HUG_PX || Math.Abs(Y1 - Bottom) <= HUG_PX))
+                {
+                    return true;
+                }
+
+                if (Vertical && AxisOverlap(Y1, Y2, Bottom, Top) >= HUG_MIN_PX
+                    && (Math.Abs(X1 - Left) <= HUG_PX || Math.Abs(X1 - Right) <= HUG_PX))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static void PullArrivalOffCorner(
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        FlowchartResolvedGuide Guide)
+    {
+        if (Guide.Points.Count < 2
+            || !BoundsById.TryGetValue(Guide.Edge.TargetId, out FlowchartLayoutNodeBounds? Target)
+            || Target == null)
+        {
+            return;
+        }
+
+        int Last = Guide.Points.Count - 1;
+        (double TipX, double TipY) = Guide.Points[Last];
+        (double PrevX, double PrevY) = Guide.Points[Last - 1];
+        double Left = Target.CenterX - (Target.Width / 2.0);
+        double Right = Target.CenterX + (Target.Width / 2.0);
+        double Bottom = Target.CenterY - (Target.Height / 2.0);
+        double Top = Target.CenterY + (Target.Height / 2.0);
+        bool Horizontal = Math.Abs(TipY - PrevY) <= 1.5 && Math.Abs(TipX - PrevX) >= 8.0;
+        bool Vertical = Math.Abs(TipX - PrevX) <= 1.5 && Math.Abs(TipY - PrevY) >= 8.0;
+        if (!Horizontal && !Vertical)
+        {
+            return;
+        }
+
+        double Corner = DistanceToCorner(TipX, TipY, Left, Right, Bottom, Top);
+        if (Corner >= ARRIVAL_CLEAR_PX)
+        {
+            return;
+        }
+
+        if (Horizontal)
+        {
+            if (Top - Bottom < (ARRIVAL_CLEAR_PX * 2.0))
+            {
+                return;
+            }
+
+            double PortY = Math.Clamp(TipY, Bottom + ARRIVAL_CLEAR_PX, Top - ARRIVAL_CLEAR_PX);
+            List<(double X, double Y)> Candidate = new List<(double X, double Y)>(Guide.Points);
+            Candidate[Last] = (TipX, PortY);
+            Candidate[Last - 1] = (PrevX, PortY);
+            if (RouteHugsBox(BoundsById, Candidate))
+            {
+                return;
+            }
+
+            Guide.Points[Last] = (TipX, PortY);
+            Guide.Points[Last - 1] = (PrevX, PortY);
+            return;
+        }
+
+        if (Right - Left < (ARRIVAL_CLEAR_PX * 2.0))
+        {
+            return;
+        }
+
+        double PortX = Math.Clamp(TipX, Left + ARRIVAL_CLEAR_PX, Right - ARRIVAL_CLEAR_PX);
+        List<(double X, double Y)> Shifted = new List<(double X, double Y)>(Guide.Points);
+        Shifted[Last] = (PortX, TipY);
+        Shifted[Last - 1] = (PortX, PrevY);
+        if (RouteHugsBox(BoundsById, Shifted))
+        {
+            return;
+        }
+
+        Guide.Points[Last] = (PortX, TipY);
+        Guide.Points[Last - 1] = (PortX, PrevY);
+    }
+
+    private static bool RunsAlongEndpoint(
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        string NodeId,
+        IReadOnlyList<(double X, double Y)> Points,
+        bool AtStart)
+    {
+        if (Points.Count < 2
+            || !BoundsById.TryGetValue(NodeId, out FlowchartLayoutNodeBounds? Bounds)
+            || Bounds == null)
+        {
+            return false;
+        }
+
+        int First = AtStart ? 0 : Points.Count - 2;
+        int Second = AtStart ? 1 : Points.Count - 1;
+        (double X1, double Y1) = Points[First];
+        (double X2, double Y2) = Points[Second];
+        double Left = Bounds.CenterX - (Bounds.Width / 2.0);
+        double Right = Bounds.CenterX + (Bounds.Width / 2.0);
+        double Bottom = Bounds.CenterY - (Bounds.Height / 2.0);
+        double Top = Bounds.CenterY + (Bounds.Height / 2.0);
+        bool Horizontal = Math.Abs(Y2 - Y1) <= 1.5 && Math.Abs(X2 - X1) > 8.0;
+        bool Vertical = Math.Abs(X2 - X1) <= 1.5 && Math.Abs(Y2 - Y1) > 8.0;
+        if (Horizontal
+            && AxisOverlap(X1, X2, Left, Right) > 8.0
+            && (Math.Abs(Y1 - Top) <= HUG_PX || Math.Abs(Y1 - Bottom) <= HUG_PX))
+        {
+            return true;
+        }
+
+        if (Vertical
+            && AxisOverlap(Y1, Y2, Bottom, Top) > 8.0
+            && (Math.Abs(X1 - Left) <= HUG_PX || Math.Abs(X1 - Right) <= HUG_PX))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool ClosesOnAnotherGuide(
+        IReadOnlyList<FlowchartResolvedGuide> Guides,
+        FlowchartResolvedGuide Guide,
+        IReadOnlyList<(double X, double Y)> Candidate)
+    {
+        foreach (FlowchartResolvedGuide Other in Guides)
+        {
+            if (ReferenceEquals(Other, Guide) || Other.Points.Count < 2)
+            {
+                continue;
+            }
+
+            for (int LeftIndex = 1; LeftIndex < Candidate.Count; LeftIndex++)
+            {
+                (double LeftX1, double LeftY1) = Candidate[LeftIndex - 1];
+                (double LeftX2, double LeftY2) = Candidate[LeftIndex];
+                for (int RightIndex = 1; RightIndex < Other.Points.Count; RightIndex++)
+                {
+                    (double RightX1, double RightY1) = Other.Points[RightIndex - 1];
+                    (double RightX2, double RightY2) = Other.Points[RightIndex];
+                    bool Horizontal = Math.Abs(LeftY2 - LeftY1) <= 1.5
+                        && Math.Abs(RightY2 - RightY1) <= 1.5
+                        && Math.Abs(LeftX2 - LeftX1) >= 24.0
+                        && Math.Abs(RightX2 - RightX1) >= 24.0
+                        && AxisOverlap(LeftX1, LeftX2, RightX1, RightX2) >= 24.0;
+                    bool Vertical = Math.Abs(LeftX2 - LeftX1) <= 1.5
+                        && Math.Abs(RightX2 - RightX1) <= 1.5
+                        && Math.Abs(LeftY2 - LeftY1) >= 24.0
+                        && Math.Abs(RightY2 - RightY1) >= 24.0
+                        && AxisOverlap(LeftY1, LeftY2, RightY1, RightY2) >= 24.0;
+                    if (Horizontal && Math.Abs(LeftY1 - RightY1) < 8.0)
+                    {
+                        return true;
+                    }
+
+                    if (Vertical && Math.Abs(LeftX1 - RightX1) < 8.0)
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static void TrySlideSourceToSingleBend(
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        IReadOnlyList<FlowchartResolvedGuide> Guides,
+        FlowchartResolvedGuide Guide,
+        FlowchartLayoutNodeBounds Source,
+        FlowchartLayoutNodeBounds Target,
+        bool TargetBelow,
+        bool TargetAbove)
+    {
+        if ((!TargetBelow && !TargetAbove) || CountBends(Guide.Points) <= 1)
+        {
+            return;
+        }
+
+        (double EndX, double EndY) = Guide.Points[Guide.Points.Count - 1];
+        double SourceLeft = Source.CenterX - (Source.Width / 2.0);
+        double SourceRight = Source.CenterX + (Source.Width / 2.0);
+        double FaceY = TargetBelow ? Source.CenterY - (Source.Height / 2.0) : Source.CenterY + (Source.Height / 2.0);
+        bool TowardRight = Target.CenterX >= Source.CenterX;
+        double[] Margins = [12.0, 16.0, 20.0, 28.0];
+        foreach (double Margin in Margins)
+        {
+            if ((SourceRight - SourceLeft) < (Margin * 2.0))
+            {
+                continue;
+            }
+
+            double PortX = TowardRight ? SourceRight - Margin : SourceLeft + Margin;
+            List<(double X, double Y)> Elbow =
+            [
+                (PortX, FaceY),
+                (PortX, EndY),
+                (EndX, EndY)
+            ];
+            if (CountBends(Elbow) < CountBends(Guide.Points)
+                && AcceptsDirect(Contract, BoundsById, Guides, Guide, Elbow))
+            {
+                return;
+            }
+        }
+    }
+
+    private static bool AcceptsDirect(
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        IReadOnlyList<FlowchartResolvedGuide> Guides,
+        FlowchartResolvedGuide Guide,
+        List<(double X, double Y)> Candidate)
+    {
+        FlowchartPaddedVisibilityRouter.CollapseReversalSpurs(Candidate);
+        if (Candidate.Count < 2
+            || RouteHugsBox(BoundsById, Candidate)
+            || RunsAlongEndpoint(BoundsById, Guide.Edge.SourceId, Candidate, true)
+            || RunsAlongEndpoint(BoundsById, Guide.Edge.TargetId, Candidate, false)
+            || RouteStillBlocked(Contract, BoundsById, Candidate, Guide.Edge.SourceId, Guide.Edge.TargetId)
+            || CrossesAnotherGuide(Guides, Guide, Candidate)
+            || ClosesOnAnotherGuide(Guides, Guide, Candidate)
+            || !TerminalsLeaveOnTheNormal(BoundsById, Guide, Candidate))
+        {
+            return false;
+        }
+
+        Guide.Points.Clear();
+        Guide.Points.AddRange(Candidate);
+        Guide.RouteKind = Candidate.Count <= 2
+            ? FlowchartEdgeRouteKind.Straight
+            : FlowchartEdgeRouteKind.Corridor;
+        return true;
+    }
+
+    private static int CountBends(IReadOnlyList<(double X, double Y)> Points)
+    {
+        int Bends = 0;
+        for (int Index = 2; Index < Points.Count; Index++)
+        {
+            double InX = Points[Index - 1].X - Points[Index - 2].X;
+            double InY = Points[Index - 1].Y - Points[Index - 2].Y;
+            double OutX = Points[Index].X - Points[Index - 1].X;
+            double OutY = Points[Index].Y - Points[Index - 1].Y;
+            if ((Math.Abs(InX) > 1.5 || Math.Abs(InY) > 1.5)
+                && (Math.Abs(OutX) > 1.5 || Math.Abs(OutY) > 1.5)
+                && Math.Abs((InX * OutY) - (InY * OutX)) > 1.0)
+            {
+                Bends++;
+            }
+        }
+
+        return Bends;
+    }
+
+    private static void SeparateSharedSourceChannels(
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        List<FlowchartResolvedGuide> Guides)
+    {
+        for (int LeftIndex = 0; LeftIndex < Guides.Count; LeftIndex++)
+        {
+            for (int RightIndex = LeftIndex + 1; RightIndex < Guides.Count; RightIndex++)
+            {
+                FlowchartResolvedGuide Left = Guides[LeftIndex];
+                FlowchartResolvedGuide Right = Guides[RightIndex];
+                if (!SharesEdgeEndpoint(Left.Edge, Right.Edge))
+                {
+                    continue;
+                }
+
+                if (LongestSharedRun(Left.Points, Right.Points) < 36.0)
+                {
+                    continue;
+                }
+
+                if (TryShiftOffSharedRun(Contract, BoundsById, Guides, Left, Right)
+                    || TryShiftOffSharedRun(Contract, BoundsById, Guides, Right, Left)
+                    || TryAlternateSourcePort(Contract, BoundsById, Guides, Left, Right)
+                    || TryAlternateSourcePort(Contract, BoundsById, Guides, Right, Left)
+                    || TryShoulderToTargetSide(Contract, BoundsById, Guides, Left, Right)
+                    || TryShoulderToTargetSide(Contract, BoundsById, Guides, Right, Left)
+                    || TryUnderRowToTarget(Contract, BoundsById, Guides, Left, Right)
+                    || TryUnderRowToTarget(Contract, BoundsById, Guides, Right, Left))
+                {
+                    continue;
+                }
+            }
+        }
+    }
+
+    private static bool SharesEdgeEndpoint(EdgeContract Left, EdgeContract Right)
+    {
+        return string.Equals(Left.SourceId, Right.SourceId, StringComparison.Ordinal)
+            || string.Equals(Left.SourceId, Right.TargetId, StringComparison.Ordinal)
+            || string.Equals(Left.TargetId, Right.SourceId, StringComparison.Ordinal)
+            || string.Equals(Left.TargetId, Right.TargetId, StringComparison.Ordinal);
+    }
+
+    private static bool TryShiftOffSharedRun(
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        IReadOnlyList<FlowchartResolvedGuide> Guides,
+        FlowchartResolvedGuide Guide,
+        FlowchartResolvedGuide Other)
+    {
+        if (Guide.Points.Count < 3)
+        {
+            return false;
+        }
+
+        double[] Offsets = [16.0, -16.0, 24.0, -24.0, 36.0, -36.0];
+        foreach (double Offset in Offsets)
+        {
+            List<(double X, double Y)> Candidate = new List<(double X, double Y)>(Guide.Points);
+            bool Horizontal = SharedAxisIsHorizontal(Guide.Points, Other.Points);
+            bool Moved = false;
+            for (int Index = 1; Index < Candidate.Count - 1; Index++)
+            {
+                bool OnShared = false;
+                for (int OtherIndex = 1; OtherIndex < Other.Points.Count; OtherIndex++)
+                {
+                    if (Horizontal
+                        && Math.Abs(Candidate[Index].Y - Other.Points[OtherIndex].Y) <= 2.5
+                        && Math.Abs(Other.Points[OtherIndex].Y - Other.Points[OtherIndex - 1].Y) <= 1.5)
+                    {
+                        OnShared = true;
+                        break;
+                    }
+
+                    if (!Horizontal
+                        && Math.Abs(Candidate[Index].X - Other.Points[OtherIndex].X) <= 2.5
+                        && Math.Abs(Other.Points[OtherIndex].X - Other.Points[OtherIndex - 1].X) <= 1.5)
+                    {
+                        OnShared = true;
+                        break;
+                    }
+                }
+
+                if (!OnShared)
+                {
+                    continue;
+                }
+
+                if (Horizontal)
+                {
+                    Candidate[Index] = (Candidate[Index].X, Candidate[Index].Y + Offset);
+                }
+                else
+                {
+                    Candidate[Index] = (Candidate[Index].X + Offset, Candidate[Index].Y);
+                }
+
+                Moved = true;
+            }
+
+            if (!Moved)
+            {
+                continue;
+            }
+
+            Candidate = FlowchartPaddedVisibilityRouter.EnsureOrthogonal(Candidate);
+            bool Blocked = RouteStillBlocked(Contract, BoundsById, Candidate, Guide.Edge.SourceId, Guide.Edge.TargetId);
+            bool Crosses = CrossesAnotherGuide(Guides, Guide, Candidate);
+            double SharedAfter = LongestSharedRun(Candidate, Other.Points);
+            FlowchartPaddedVisibilityRouter.CollapseReversalSpurs(Candidate);
+            if (RouteStillBlocked(Contract, BoundsById, Candidate, Guide.Edge.SourceId, Guide.Edge.TargetId)
+                || CrossesAnotherGuide(Guides, Guide, Candidate)
+                || LongestSharedRun(Candidate, Other.Points) >= 36.0)
+            {
+                continue;
+            }
+
+            Guide.Points.Clear();
+            Guide.Points.AddRange(Candidate);
+            Guide.RouteKind = Candidate.Count <= 2
+                ? FlowchartEdgeRouteKind.Straight
+                : FlowchartEdgeRouteKind.Corridor;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool SharedAxisIsHorizontal(
+        IReadOnlyList<(double X, double Y)> Left,
+        IReadOnlyList<(double X, double Y)> Right)
+    {
+        double Horizontal = 0.0;
+        double Vertical = 0.0;
+        for (int LeftIndex = 1; LeftIndex < Left.Count; LeftIndex++)
+        {
+            bool LeftHorizontal = Math.Abs(Left[LeftIndex].Y - Left[LeftIndex - 1].Y) <= 1.5;
+            bool LeftVertical = Math.Abs(Left[LeftIndex].X - Left[LeftIndex - 1].X) <= 1.5;
+            for (int RightIndex = 1; RightIndex < Right.Count; RightIndex++)
+            {
+                double Overlap = 0.0;
+                if (LeftHorizontal && Math.Abs(Right[RightIndex].Y - Right[RightIndex - 1].Y) <= 1.5
+                    && Math.Abs(Left[LeftIndex].Y - Right[RightIndex].Y) <= 2.5)
+                {
+                    Overlap = AxisOverlap(Left[LeftIndex - 1].X, Left[LeftIndex].X, Right[RightIndex - 1].X, Right[RightIndex].X);
+                    Horizontal = Math.Max(Horizontal, Overlap);
+                }
+                else if (LeftVertical && Math.Abs(Right[RightIndex].X - Right[RightIndex - 1].X) <= 1.5
+                    && Math.Abs(Left[LeftIndex].X - Right[RightIndex].X) <= 2.5)
+                {
+                    Overlap = AxisOverlap(Left[LeftIndex - 1].Y, Left[LeftIndex].Y, Right[RightIndex - 1].Y, Right[RightIndex].Y);
+                    Vertical = Math.Max(Vertical, Overlap);
+                }
+            }
+        }
+
+        return Horizontal >= Vertical;
+    }
+
+    private static bool TryAlternateSourcePort(
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        IReadOnlyList<FlowchartResolvedGuide> Guides,
+        FlowchartResolvedGuide Guide,
+        FlowchartResolvedGuide Other)
+    {
+        if (!string.Equals(Guide.Edge.SourceId, Other.Edge.SourceId, StringComparison.Ordinal)
+            || !BoundsById.TryGetValue(Guide.Edge.SourceId, out FlowchartLayoutNodeBounds? Source)
+            || Source == null
+            || !BoundsById.TryGetValue(Guide.Edge.TargetId, out FlowchartLayoutNodeBounds? Target)
+            || Target == null
+            || Guide.Points.Count < 2)
+        {
+            return false;
+        }
+
+        List<FlowchartLayoutNodeBounds> Obstacles = FlowchartPaddedVisibilityRouter.CollectObstacles(
+            Contract,
+            BoundsById,
+            Guide.Edge);
+        (double EndX, double EndY) = Guide.Points[Guide.Points.Count - 1];
+        double[] Slots = [0.28, 0.5, 0.72];
+        foreach (double Slot in Slots)
+        {
+            (double BottomX, double BottomY) = SlotOnFace(Source, "bottom", Slot);
+            (double LeftX, double LeftY) = SlotOnFace(Source, "left", Slot);
+            (double RightX, double RightY) = SlotOnFace(Source, "right", Slot);
+            if (TryAcceptReroute(Contract, BoundsById, Guides, Guide, Other, Obstacles, Source, Target, BottomX, BottomY, EndX, EndY)
+                || TryAcceptReroute(Contract, BoundsById, Guides, Guide, Other, Obstacles, Source, Target, LeftX, LeftY, EndX, EndY)
+                || TryAcceptReroute(Contract, BoundsById, Guides, Guide, Other, Obstacles, Source, Target, RightX, RightY, EndX, EndY))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static (double X, double Y) SlotOnFace(FlowchartLayoutNodeBounds Bounds, string Face, double Slot)
+    {
+        double Left = Bounds.CenterX - (Bounds.Width / 2.0);
+        double Right = Bounds.CenterX + (Bounds.Width / 2.0);
+        double Bottom = Bounds.CenterY - (Bounds.Height / 2.0);
+        double Top = Bounds.CenterY + (Bounds.Height / 2.0);
+        double SpanX = Right - Left;
+        double SpanY = Top - Bottom;
+        double X = Left + (SpanX * Slot);
+        double Y = Bottom + (SpanY * Slot);
+        double InnerLeft = Left + CORNER_INSET_PX;
+        double InnerRight = Right - CORNER_INSET_PX;
+        double InnerBottom = Bottom + CORNER_INSET_PX;
+        double InnerTop = Top - CORNER_INSET_PX;
+        if (InnerLeft >= InnerRight)
+        {
+            X = Bounds.CenterX;
+            InnerLeft = X;
+            InnerRight = X;
+        }
+
+        if (InnerBottom >= InnerTop)
+        {
+            Y = Bounds.CenterY;
+            InnerBottom = Y;
+            InnerTop = Y;
+        }
+
+        if (string.Equals(Face, "bottom", StringComparison.Ordinal))
+        {
+            return (Math.Clamp(X, InnerLeft, InnerRight), Bottom);
+        }
+
+        if (string.Equals(Face, "top", StringComparison.Ordinal))
+        {
+            return (Math.Clamp(X, InnerLeft, InnerRight), Top);
+        }
+
+        if (string.Equals(Face, "left", StringComparison.Ordinal))
+        {
+            return (Left, Math.Clamp(Y, InnerBottom, InnerTop));
+        }
+
+        return (Right, Math.Clamp(Y, InnerBottom, InnerTop));
+    }
+
+    private static bool TryAcceptReroute(
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        IReadOnlyList<FlowchartResolvedGuide> Guides,
+        FlowchartResolvedGuide Guide,
+        FlowchartResolvedGuide Other,
+        List<FlowchartLayoutNodeBounds> Obstacles,
+        FlowchartLayoutNodeBounds Source,
+        FlowchartLayoutNodeBounds Target,
+        double StartX,
+        double StartY,
+        double EndX,
+        double EndY)
+    {
+        if (!FlowchartPaddedVisibilityRouter.TryRoute(
+            StartX,
+            StartY,
+            EndX,
+            EndY,
+            Obstacles,
+            Source,
+            Target,
+            out List<(double X, double Y)> Routed))
+        {
+            return false;
+        }
+
+        if (RouteStillBlocked(Contract, BoundsById, Routed, Guide.Edge.SourceId, Guide.Edge.TargetId)
+            || CrossesAnotherGuide(Guides, Guide, Routed)
+            || LongestSharedRun(Routed, Other.Points) >= 36.0)
+        {
+            return false;
+        }
+
+        Guide.Points.Clear();
+        Guide.Points.AddRange(Routed);
+        Guide.RouteKind = Routed.Count <= 2
+            ? FlowchartEdgeRouteKind.Straight
+            : FlowchartEdgeRouteKind.Corridor;
+        return true;
+    }
+
+    private static double LongestSharedRun(
+        IReadOnlyList<(double X, double Y)> Left,
+        IReadOnlyList<(double X, double Y)> Right)
+    {
+        double Best = 0.0;
+        for (int LeftIndex = 1; LeftIndex < Left.Count; LeftIndex++)
+        {
+            bool LeftHorizontal = Math.Abs(Left[LeftIndex].Y - Left[LeftIndex - 1].Y) <= 1.5;
+            bool LeftVertical = Math.Abs(Left[LeftIndex].X - Left[LeftIndex - 1].X) <= 1.5;
+            for (int RightIndex = 1; RightIndex < Right.Count; RightIndex++)
+            {
+                double Overlap = 0.0;
+                if (LeftHorizontal
+                    && Math.Abs(Right[RightIndex].Y - Right[RightIndex - 1].Y) <= 1.5
+                    && Math.Abs(Left[LeftIndex].Y - Right[RightIndex].Y) <= 2.5)
+                {
+                    Overlap = AxisOverlap(
+                        Left[LeftIndex - 1].X,
+                        Left[LeftIndex].X,
+                        Right[RightIndex - 1].X,
+                        Right[RightIndex].X);
+                }
+                else if (LeftVertical
+                    && Math.Abs(Right[RightIndex].X - Right[RightIndex - 1].X) <= 1.5
+                    && Math.Abs(Left[LeftIndex].X - Right[RightIndex].X) <= 2.5)
+                {
+                    Overlap = AxisOverlap(
+                        Left[LeftIndex - 1].Y,
+                        Left[LeftIndex].Y,
+                        Right[RightIndex - 1].Y,
+                        Right[RightIndex].Y);
+                }
+
+                if (Overlap > Best)
+                {
+                    Best = Overlap;
+                }
+            }
+        }
+
+        return Best;
+    }
+
+    /// <summary>
+    /// Slides an end that sits on a corner inward along its face, further on a long face.
+    /// </summary>
+    private static void PullEndsOffCorners(
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        FlowchartResolvedGuide Guide)
+    {
+        PullOneEndOffCorner(Contract, BoundsById, Guide, AtSource: true);
+        PullOneEndOffCorner(Contract, BoundsById, Guide, AtSource: false);
+    }
+
+    private static void PullOneEndOffCorner(
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        FlowchartResolvedGuide Guide,
+        bool AtSource)
+    {
+        string NodeId = AtSource ? Guide.Edge.SourceId : Guide.Edge.TargetId;
+        if (Guide.Points.Count < 2
+            || !BoundsById.TryGetValue(NodeId, out FlowchartLayoutNodeBounds? Bounds)
+            || Bounds == null)
+        {
+            return;
+        }
+
+        int TipIndex = AtSource ? 0 : Guide.Points.Count - 1;
+        int PrevIndex = AtSource ? 1 : Guide.Points.Count - 2;
+        (double TipX, double TipY) = Guide.Points[TipIndex];
+        (double PrevX, double PrevY) = Guide.Points[PrevIndex];
+        double Left = Bounds.CenterX - (Bounds.Width / 2.0);
+        double Right = Bounds.CenterX + (Bounds.Width / 2.0);
+        double Bottom = Bounds.CenterY - (Bounds.Height / 2.0);
+        double Top = Bounds.CenterY + (Bounds.Height / 2.0);
+        bool Horizontal = Math.Abs(TipY - PrevY) <= 1.5 && Math.Abs(TipX - PrevX) >= 8.0;
+        bool Vertical = Math.Abs(TipX - PrevX) <= 1.5 && Math.Abs(TipY - PrevY) >= 8.0;
+        if (!Horizontal && !Vertical)
+        {
+            return;
+        }
+
+        double FaceLength = Vertical ? Right - Left : Top - Bottom;
+        double Clear = FaceLength >= 100.0 ? 28.0 : ARRIVAL_CLEAR_PX;
+        if (DistanceToCorner(TipX, TipY, Left, Right, Bottom, Top) >= Clear)
+        {
+            return;
+        }
+
+        List<(double X, double Y)> Candidate = new List<(double X, double Y)>(Guide.Points);
+        if (Vertical)
+        {
+            if (Right - Left < (Clear * 2.0))
+            {
+                return;
+            }
+
+            double PortX = Math.Clamp(TipX, Left + Clear, Right - Clear);
+            Candidate[TipIndex] = (PortX, TipY);
+            Candidate[PrevIndex] = (PortX, PrevY);
+        }
+        else
+        {
+            if (Top - Bottom < (Clear * 2.0))
+            {
+                return;
+            }
+
+            double PortY = Math.Clamp(TipY, Bottom + Clear, Top - Clear);
+            Candidate[TipIndex] = (TipX, PortY);
+            Candidate[PrevIndex] = (PrevX, PortY);
+        }
+
+        if (!TailIntroducesObstacle(Contract, BoundsById, Guide.Points, Candidate, Guide.Edge.SourceId, Guide.Edge.TargetId))
+        {
+            Guide.Points.Clear();
+            Guide.Points.AddRange(Candidate);
+            return;
+        }
+
+        if (!AtSource)
+        {
+            TrySideEntry(Contract, BoundsById, Guide, Bounds, Clear);
+        }
+    }
+
+    private static void TrySideEntry(
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        FlowchartResolvedGuide Guide,
+        FlowchartLayoutNodeBounds Bounds,
+        double Clear)
+    {
+        if (Guide.Points.Count < 3)
+        {
+            return;
+        }
+
+        int Last = Guide.Points.Count - 1;
+        (double TipX, double TipY) = Guide.Points[Last];
+        (double PrevX, double PrevY) = Guide.Points[Last - 1];
+        double Left = Bounds.CenterX - (Bounds.Width / 2.0);
+        double Right = Bounds.CenterX + (Bounds.Width / 2.0);
+        double Bottom = Bounds.CenterY - (Bounds.Height / 2.0);
+        double Top = Bounds.CenterY + (Bounds.Height / 2.0);
+        bool Vertical = Math.Abs(TipX - PrevX) <= 1.5;
+        if (!Vertical || Top - Bottom < (Clear * 2.0))
+        {
+            return;
+        }
+
+        bool FromLeft = PrevX <= Bounds.CenterX;
+        double SideX = FromLeft ? Left : Right;
+        double SideY = Math.Clamp(TipY + (TipY >= Bounds.CenterY ? -Clear : Clear), Bottom + Clear, Top - Clear);
+        double ApproachX = FromLeft ? SideX - 14.0 : SideX + 14.0;
+        List<(double X, double Y)> Candidate = new List<(double X, double Y)>(Guide.Points);
+        Candidate[Last - 1] = (ApproachX, PrevY);
+        Candidate.Insert(Last, (ApproachX, SideY));
+        Candidate[Candidate.Count - 1] = (SideX, SideY);
+        FlowchartPaddedVisibilityRouter.CollapseReversalSpurs(Candidate);
+        if (TailIntroducesObstacle(Contract, BoundsById, Guide.Points, Candidate, Guide.Edge.SourceId, Guide.Edge.TargetId))
+        {
+            return;
+        }
+
+        Guide.Points.Clear();
+        Guide.Points.AddRange(Candidate);
+        Guide.RouteKind = FlowchartEdgeRouteKind.Corridor;
+    }
+
+    /// <summary>
+    /// Moves a rounded or stadium end along its terminal segment until it sits on the outline.
+    /// </summary>
+    private static void SnapRoundedOutline(
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        IReadOnlyDictionary<string, NodeContract> NodeById,
+        FlowchartResolvedGuide Guide)
+    {
+        SnapOneRoundedEnd(BoundsById, NodeById, Guide, AtSource: true);
+        SnapOneRoundedEnd(BoundsById, NodeById, Guide, AtSource: false);
+    }
+
+    private static void SnapOneRoundedEnd(
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        IReadOnlyDictionary<string, NodeContract> NodeById,
+        FlowchartResolvedGuide Guide,
+        bool AtSource)
+    {
+        string NodeId = AtSource ? Guide.Edge.SourceId : Guide.Edge.TargetId;
+        if (Guide.Points.Count < 2
+            || !NodeById.TryGetValue(NodeId, out NodeContract? Node)
+            || Node == null
+            || !BoundsById.TryGetValue(NodeId, out FlowchartLayoutNodeBounds? Bounds)
+            || Bounds == null
+            || !TryRoundedRadius(Node.Shape, Bounds.Height, out double Radius))
+        {
+            return;
+        }
+
+        int TipIndex = AtSource ? 0 : Guide.Points.Count - 1;
+        int OtherIndex = AtSource ? 1 : Guide.Points.Count - 2;
+        (double TipX, double TipY) = Guide.Points[TipIndex];
+        (double OtherX, double OtherY) = Guide.Points[OtherIndex];
+        bool Vertical = Math.Abs(TipX - OtherX) <= 1.5;
+        bool Horizontal = Math.Abs(TipY - OtherY) <= 1.5;
+        if (!Vertical && !Horizontal)
+        {
+            PullLooseRoundedEnd(Guide, TipIndex, OtherIndex, Bounds, Radius, TipX, TipY, OtherX, OtherY);
+            return;
+        }
+
+        double Left = Bounds.CenterX - (Bounds.Width / 2.0);
+        double Right = Bounds.CenterX + (Bounds.Width / 2.0);
+        double Bottom = Bounds.CenterY - (Bounds.Height / 2.0);
+        double Top = Bounds.CenterY + (Bounds.Height / 2.0);
+        double FlatLeft = Left + Radius;
+        double FlatRight = Right - Radius;
+        double FlatBottom = Bottom + Radius;
+        double FlatTop = Top - Radius;
+        if (Vertical)
+        {
+            double NewX = TipX;
+            double OutlineY = TipY;
+            if (TipX >= FlatLeft && TipX <= FlatRight)
+            {
+                if (TipY <= Top + 0.5 && TipY >= Bottom - 0.5)
+                {
+                    return;
+                }
+
+                OutlineY = TipY > Top ? Top : Bottom;
+            }
+            else
+            {
+                double CapX = TipX < Bounds.CenterX ? FlatLeft : FlatRight;
+                double DeltaX = TipX - CapX;
+                if (Math.Abs(DeltaX) >= Radius - 0.5)
+                {
+                    NewX = TipX < Bounds.CenterX ? FlatLeft + 2.0 : FlatRight - 2.0;
+                    OutlineY = TipY >= Bounds.CenterY ? Top : Bottom;
+                }
+                else
+                {
+                    double Distance = Math.Sqrt((DeltaX * DeltaX) + Math.Pow(TipY - Bounds.CenterY, 2.0));
+                    if (Distance <= Radius + 1.5)
+                    {
+                        return;
+                    }
+
+                    double DeltaY = Math.Sqrt((Radius * Radius) - (DeltaX * DeltaX));
+                    OutlineY = TipY >= Bounds.CenterY ? Bounds.CenterY + DeltaY : Bounds.CenterY - DeltaY;
+                }
+            }
+
+            if (Math.Abs(OutlineY - TipY) <= 1.5 && Math.Abs(NewX - TipX) <= 1.5)
+            {
+                return;
+            }
+
+            Guide.Points[TipIndex] = (NewX, OutlineY);
+            if (Math.Abs(NewX - TipX) > 1.5 && Math.Abs(OtherX - TipX) <= 1.5)
+            {
+                Guide.Points[OtherIndex] = (NewX, OtherY);
+            }
+
+            return;
+        }
+
+        double OutlineX = TipX;
+        if (TipY >= FlatBottom && TipY <= FlatTop)
+        {
+            OutlineX = TipX >= Bounds.CenterX ? Right : Left;
+        }
+        else if (Radius < (Bounds.Height / 2.0) - 0.5)
+        {
+            double CapY = TipY < Bounds.CenterY ? FlatBottom : FlatTop;
+            double DeltaY = TipY - CapY;
+            if (Math.Abs(DeltaY) >= Radius)
+            {
+                return;
+            }
+
+            double DeltaX = Math.Sqrt((Radius * Radius) - (DeltaY * DeltaY));
+            OutlineX = TipX >= Bounds.CenterX ? Bounds.CenterX + (Bounds.Width / 2.0) - Radius + DeltaX : Bounds.CenterX - (Bounds.Width / 2.0) + Radius - DeltaX;
+        }
+        else
+        {
+            double DeltaY = TipY - Bounds.CenterY;
+            if (Math.Abs(DeltaY) >= Radius - 0.5)
+            {
+                return;
+            }
+
+            double CapX = TipX < Bounds.CenterX ? FlatLeft : FlatRight;
+            double DeltaX = Math.Sqrt((Radius * Radius) - (DeltaY * DeltaY));
+            OutlineX = TipX < Bounds.CenterX ? CapX - DeltaX : CapX + DeltaX;
+        }
+
+        if (Math.Abs(OutlineX - TipX) <= 1.5)
+        {
+            return;
+        }
+
+        Guide.Points[TipIndex] = (OutlineX, TipY);
+    }
+
+    /// <summary>
+    /// Pulls a diagonal stadium or rounded end onto the arc and leaves on a horizontal stub.
+    /// </summary>
+    private static void PullLooseRoundedEnd(
+        FlowchartResolvedGuide Guide,
+        int TipIndex,
+        int OtherIndex,
+        FlowchartLayoutNodeBounds Bounds,
+        double Radius,
+        double TipX,
+        double TipY,
+        double OtherX,
+        double OtherY)
+    {
+        double Left = Bounds.CenterX - (Bounds.Width / 2.0);
+        double Right = Bounds.CenterX + (Bounds.Width / 2.0);
+        double CentreY = Bounds.CenterY;
+        double FlatLeft = Left + Radius;
+        double FlatRight = Right - Radius;
+        if (TipX >= FlatLeft && TipX <= FlatRight)
+        {
+            return;
+        }
+
+        double DeltaY = TipY - CentreY;
+        if (Math.Abs(DeltaY) >= Radius - 0.5)
+        {
+            return;
+        }
+
+        double CapX = TipX < Bounds.CenterX ? FlatLeft : FlatRight;
+        double Reach = Math.Sqrt((Radius * Radius) - (DeltaY * DeltaY));
+        double OutlineX = TipX < Bounds.CenterX ? CapX - Reach : CapX + Reach;
+        bool Outside = TipX < Bounds.CenterX ? TipX < OutlineX - 1.5 : TipX > OutlineX + 1.5;
+        if (!Outside)
+        {
+            return;
+        }
+
+        Guide.Points[TipIndex] = (OutlineX, TipY);
+        if (Math.Abs(OtherY - TipY) <= 1.5)
+        {
+            return;
+        }
+
+        Guide.Points.Insert(Math.Min(TipIndex, OtherIndex) + 1, (OtherX, TipY));
+    }
+
+    private static bool TryRoundedRadius(string? Shape, double Height, out double Radius)
+    {
+        Radius = 0.0;
+        if (string.IsNullOrWhiteSpace(Shape))
+        {
+            return false;
+        }
+
+        string Normalised = Shape.Trim().ToLowerInvariant();
+        if (string.Equals(Normalised, "stadium", StringComparison.Ordinal))
+        {
+            Radius = Height / 2.0;
+            return Radius > 1.0;
+        }
+
+        if (string.Equals(Normalised, "rounded", StringComparison.Ordinal))
+        {
+            Radius = Math.Min(5.0, Height / 2.0);
+            return Radius > 1.0;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Inserts a straight stub when a source or target segment no longer leaves the face on its normal.
+    /// </summary>
+    private static void RestorePerpendicularStubs(
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        IReadOnlyDictionary<string, NodeContract> NodeById,
+        FlowchartResolvedGuide Guide)
+    {
+        if (!BoundsById.TryGetValue(Guide.Edge.SourceId, out FlowchartLayoutNodeBounds? Source)
+            || Source == null
+            || !BoundsById.TryGetValue(Guide.Edge.TargetId, out FlowchartLayoutNodeBounds? Target)
+            || Target == null)
+        {
+            return;
+        }
+
+        string? SourceShape = NodeById.TryGetValue(Guide.Edge.SourceId, out NodeContract? SourceNode) ? SourceNode.Shape : null;
+        string? TargetShape = NodeById.TryGetValue(Guide.Edge.TargetId, out NodeContract? TargetNode) ? TargetNode.Shape : null;
+        if (FlowchartPerpendicularAttachValidator.TryValidateGuidePoints(
+            Guide.Points,
+            Source,
+            SourceShape,
+            Target,
+            TargetShape,
+            AllowDiagonalCrossEdge: false,
+            out string Failure)
+            || string.IsNullOrEmpty(Failure)
+            || Failure.Contains("diamond", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        List<(double X, double Y)> Repaired = FlowchartEdgeTerminalStubExpander.Apply(
+            Guide.Points,
+            Source,
+            SourceShape,
+            Target,
+            TargetShape);
+        if (Repaired.Count == Guide.Points.Count
+            && Failure.Contains("Source attach", StringComparison.Ordinal)
+            && Guide.Points.Count < 3)
+        {
+            (double BoundaryX, double BoundaryY) = Guide.Points[0];
+            (double NextX, double NextY) = Guide.Points[1];
+            (double StubX, double StubY) = FlowchartEdgeTerminalStubExpander.ResolveExteriorStubPoint(
+                Source,
+                SourceShape,
+                BoundaryX,
+                BoundaryY,
+                NextX,
+                NextY);
+            if (Math.Abs(StubX - BoundaryX) > 0.5 || Math.Abs(StubY - BoundaryY) > 0.5)
+            {
+                Repaired = [(BoundaryX, BoundaryY), (StubX, StubY), (NextX, NextY)];
+            }
+        }
+
+        DropReturnOntoSourceFace(Repaired, Source);
+        if (!FlowchartPerpendicularAttachValidator.TryValidateGuidePoints(
+            Repaired,
+            Source,
+            SourceShape,
+            Target,
+            TargetShape,
+            AllowDiagonalCrossEdge: false,
+            out _))
+        {
+            return;
+        }
+
+        Guide.Points.Clear();
+        Guide.Points.AddRange(Repaired);
+        Guide.RouteKind = Repaired.Count <= 2
+            ? FlowchartEdgeRouteKind.Straight
+            : FlowchartEdgeRouteKind.Corridor;
+    }
+
+    /// <summary>
+    /// Drops a waypoint that sits back on the source face after a perpendicular stub, which otherwise
+    /// renders as a hook onto the outline.
+    /// </summary>
+    private static void DropReturnOntoSourceFace(
+        List<(double X, double Y)> Points,
+        FlowchartLayoutNodeBounds Source)
+    {
+        double Left = Source.CenterX - (Source.Width / 2.0);
+        double Right = Source.CenterX + (Source.Width / 2.0);
+        double Bottom = Source.CenterY - (Source.Height / 2.0);
+        double Top = Source.CenterY + (Source.Height / 2.0);
+        while (Points.Count >= 4 && LiesOnBoxEdge(Points[2].X, Points[2].Y, Left, Right, Bottom, Top))
+        {
+            Points.RemoveAt(2);
+        }
+    }
+
+    private static bool LiesOnBoxEdge(
+        double X,
+        double Y,
+        double Left,
+        double Right,
+        double Bottom,
+        double Top)
+    {
+        bool OnHorizontal = (Math.Abs(Y - Top) <= 2.0 || Math.Abs(Y - Bottom) <= 2.0)
+            && X >= Left - 2.0
+            && X <= Right + 2.0;
+        bool OnVertical = (Math.Abs(X - Left) <= 2.0 || Math.Abs(X - Right) <= 2.0)
+            && Y >= Bottom - 2.0
+            && Y <= Top + 2.0;
+        return OnHorizontal || OnVertical;
+    }
+
+    private static bool TerminalsLeaveOnTheNormal(
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        FlowchartResolvedGuide Guide,
+        IReadOnlyList<(double X, double Y)> Points)
+    {
+        if (!BoundsById.TryGetValue(Guide.Edge.SourceId, out FlowchartLayoutNodeBounds? Source)
+            || Source == null
+            || !BoundsById.TryGetValue(Guide.Edge.TargetId, out FlowchartLayoutNodeBounds? Target)
+            || Target == null)
+        {
+            return true;
+        }
+
+        return FlowchartPerpendicularAttachValidator.TryValidateGuidePoints(
+            Points,
+            Source,
+            null,
+            Target,
+            null,
+            AllowDiagonalCrossEdge: false,
+            out _);
+    }
+
+    /// <summary>
+    /// Drops a shared run onto a clear lane and brings it into the target's facing side.
+    /// </summary>
+    private static bool TryShoulderToTargetSide(
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        IReadOnlyList<FlowchartResolvedGuide> Guides,
+        FlowchartResolvedGuide Guide,
+        FlowchartResolvedGuide Other)
+    {
+        if (LongestSharedRun(Guide.Points, Other.Points) < SHARED_MIN_PX
+            || !BoundsById.TryGetValue(Guide.Edge.SourceId, out FlowchartLayoutNodeBounds? Source)
+            || Source == null
+            || !BoundsById.TryGetValue(Guide.Edge.TargetId, out FlowchartLayoutNodeBounds? Target)
+            || Target == null
+            || Target.CenterY > Source.CenterY - 8.0)
+        {
+            return false;
+        }
+
+        double SourceLeft = Source.CenterX - (Source.Width / 2.0);
+        double SourceRight = Source.CenterX + (Source.Width / 2.0);
+        double SourceBottom = Source.CenterY - (Source.Height / 2.0);
+        double TargetLeft = Target.CenterX - (Target.Width / 2.0);
+        double TargetRight = Target.CenterX + (Target.Width / 2.0);
+        double TargetBottom = Target.CenterY - (Target.Height / 2.0);
+        double TargetTop = Target.CenterY + (Target.Height / 2.0);
+        bool FromRight = Source.CenterX >= Target.CenterX;
+        double SideX = FromRight ? TargetRight : TargetLeft;
+        double SideY = Math.Clamp(Target.CenterY, TargetBottom + CORNER_INSET_PX, TargetTop - CORNER_INSET_PX);
+        double ApproachX = FromRight ? SideX + 14.0 : SideX - 14.0;
+        double[] PortSlots = [0.2, 0.35, 0.5, 0.65, 0.8];
+        double[] Drops = [16.0, 24.0, 32.0, 40.0, 46.0, 50.0, 54.0, 64.0, 72.0];
+        foreach (double Slot in PortSlots)
+        {
+            double PortX = SourceLeft + ((SourceRight - SourceLeft) * Slot);
+            PortX = Math.Clamp(PortX, SourceLeft + CORNER_INSET_PX, SourceRight - CORNER_INSET_PX);
+            foreach (double Drop in Drops)
+            {
+                double LaneY = SourceBottom - Drop;
+                if (LaneY <= TargetTop + 8.0)
+                {
+                    continue;
+                }
+
+                List<(double X, double Y)> Candidate =
+                [
+                    (PortX, SourceBottom),
+                    (PortX, LaneY),
+                    (ApproachX, LaneY),
+                    (ApproachX, SideY),
+                    (SideX, SideY)
+                ];
+                FlowchartPaddedVisibilityRouter.CollapseReversalSpurs(Candidate);
+                if (Candidate.Count < 2
+                    || RouteStillBlocked(Contract, BoundsById, Candidate, Guide.Edge.SourceId, Guide.Edge.TargetId)
+                    || CrossesAnotherGuide(Guides, Guide, Candidate)
+                    || ClosesOnAnotherGuide(Guides, Guide, Candidate)
+                    || LongestSharedRun(Candidate, Other.Points) >= SHARED_MIN_PX
+                    || SharesALongRunWithAny(Guides, Guide, Candidate))
+                {
+                    continue;
+                }
+
+                Guide.Points.Clear();
+                Guide.Points.AddRange(Candidate);
+                Guide.RouteKind = FlowchartEdgeRouteKind.Corridor;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Sends one of a shared pair out beside its source and back underneath the target row.
+    /// </summary>
+    private static bool TryUnderRowToTarget(
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        IReadOnlyList<FlowchartResolvedGuide> Guides,
+        FlowchartResolvedGuide Guide,
+        FlowchartResolvedGuide Other)
+    {
+        if (LongestSharedRun(Guide.Points, Other.Points) < SHARED_MIN_PX
+            || !BoundsById.TryGetValue(Guide.Edge.SourceId, out FlowchartLayoutNodeBounds? Source)
+            || Source == null
+            || !BoundsById.TryGetValue(Guide.Edge.TargetId, out FlowchartLayoutNodeBounds? Target)
+            || Target == null
+            || Target.CenterY > Source.CenterY - 8.0)
+        {
+            return false;
+        }
+
+        double SourceLeft = Source.CenterX - (Source.Width / 2.0);
+        double SourceRight = Source.CenterX + (Source.Width / 2.0);
+        double SourceBottom = Source.CenterY - (Source.Height / 2.0);
+        double SourceTop = Source.CenterY + (Source.Height / 2.0);
+        double TargetLeft = Target.CenterX - (Target.Width / 2.0);
+        double TargetRight = Target.CenterX + (Target.Width / 2.0);
+        double TargetBottom = Target.CenterY - (Target.Height / 2.0);
+        if (SourceTop - SourceBottom < (CORNER_INSET_PX * 2.0) || TargetRight - TargetLeft < (CORNER_INSET_PX * 2.0))
+        {
+            return false;
+        }
+
+        double ExitY = Math.Clamp(Source.CenterY, SourceBottom + CORNER_INSET_PX, SourceTop - CORNER_INSET_PX);
+        double PortX = Math.Clamp(Target.CenterX, TargetLeft + CORNER_INSET_PX, TargetRight - CORNER_INSET_PX);
+        bool SourceIsRight = Source.CenterX >= Target.CenterX;
+        bool[] Outward = [true, false];
+        double[] Gutters = [20.0, 32.0, 44.0];
+        double[] Drops = [20.0, 32.0, 48.0, 72.0, 110.0, 150.0];
+        foreach (bool Away in Outward)
+        {
+            bool UseRight = Away ? SourceIsRight : !SourceIsRight;
+            double FaceX = UseRight ? SourceRight : SourceLeft;
+            foreach (double Gutter in Gutters)
+            {
+                double DropX = UseRight ? FaceX + Gutter : FaceX - Gutter;
+                foreach (double Drop in Drops)
+                {
+                    double LaneY = TargetBottom - Drop;
+                    if (LaneY >= SourceBottom - 8.0)
+                    {
+                        continue;
+                    }
+
+                    List<(double X, double Y)> Candidate =
+                    [
+                        (FaceX, ExitY),
+                        (DropX, ExitY),
+                        (DropX, LaneY),
+                        (PortX, LaneY),
+                        (PortX, TargetBottom)
+                    ];
+                    List<(double X, double Y)> Saved = new List<(double X, double Y)>(Guide.Points);
+                    FlowchartEdgeRouteKind SavedKind = Guide.RouteKind;
+                    if (!AcceptsDirect(Contract, BoundsById, Guides, Guide, Candidate)
+                        || LongestSharedRun(Guide.Points, Other.Points) >= SHARED_MIN_PX
+                        || SharesALongRunWithAny(Guides, Guide, Guide.Points))
+                    {
+                        Guide.Points.Clear();
+                        Guide.Points.AddRange(Saved);
+                        Guide.RouteKind = SavedKind;
+                        continue;
+                    }
+
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Removes a bend that runs on for less than two pixels, which reads as a dangling stub.
+    /// </summary>
+    private static void DropTinyAxisSteps(List<(double X, double Y)> Points)
+    {
+        for (int Index = 1; Index < Points.Count; Index++)
+        {
+            double DeltaX = Points[Index].X - Points[Index - 1].X;
+            double DeltaY = Points[Index].Y - Points[Index - 1].Y;
+            if (Math.Abs(DeltaX) < 2.0 && Math.Abs(DeltaX) > 0.05 && Math.Abs(DeltaY) > 8.0)
+            {
+                Points[Index - 1] = (Points[Index].X, Points[Index - 1].Y);
+            }
+            else if (Math.Abs(DeltaY) < 2.0 && Math.Abs(DeltaY) > 0.05 && Math.Abs(DeltaX) > 8.0)
+            {
+                Points[Index - 1] = (Points[Index - 1].X, Points[Index].Y);
+            }
+        }
+
+        bool Changed = true;
+        while (Changed && Points.Count > 2)
+        {
+            Changed = false;
+            for (int Index = 1; Index < Points.Count - 1; Index++)
+            {
+                double Step = Math.Sqrt(
+                    Math.Pow(Points[Index].X - Points[Index - 1].X, 2.0)
+                    + Math.Pow(Points[Index].Y - Points[Index - 1].Y, 2.0));
+                if (Step >= 2.0 || Step < 0.2)
+                {
+                    continue;
+                }
+
+                bool SameX = Math.Abs(Points[Index].X - Points[Index + 1].X) <= 1.5;
+                bool SameY = Math.Abs(Points[Index].Y - Points[Index + 1].Y) <= 1.5;
+                if (!SameX && !SameY)
+                {
+                    continue;
+                }
+
+                double KeptX = SameX ? Points[Index].X : Points[Index - 1].X;
+                double KeptY = SameY ? Points[Index].Y : Points[Index - 1].Y;
+                Points[Index - 1] = (KeptX, KeptY);
+                Points.RemoveAt(Index);
+                Changed = true;
+                break;
+            }
+        }
+    }
+
+    private static bool SharesALongRunWithAny(
+        IReadOnlyList<FlowchartResolvedGuide> Guides,
+        FlowchartResolvedGuide Guide,
+        IReadOnlyList<(double X, double Y)> Candidate)
+    {
+        foreach (FlowchartResolvedGuide Other in Guides)
+        {
+            if (ReferenceEquals(Other, Guide))
+            {
+                continue;
+            }
+
+            if (LongestSharedRun(Candidate, Other.Points) >= SHARED_MIN_PX)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
