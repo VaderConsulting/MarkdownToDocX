@@ -133,6 +133,7 @@ public static class FlowchartSharedEdgeRouter
         ClampRoutesToNodeUnion(Contract, BoundsById, Direction, Guides);
         ForceMinimumChannelGap(Contract, BoundsById, Direction, Guides);
         SnapAllEndpointsToBoxes(Contract, BoundsById, NodeById, Guides);
+        FlowchartSharedPictureCleaner.Clean(Contract, BoundsById, NodeById, Guides);
 
         RecordRemainingJustifications(Contract, BoundsById, Direction, Guides);
     }

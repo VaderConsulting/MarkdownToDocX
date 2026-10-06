@@ -204,6 +204,39 @@ public sealed class FlowchartRenderedSvgQualityGateTests
     }
 
     [Test]
+    public void VisibleWebShop_FlagsBorderHugsTitleStrikesAndTightChannels()
+    {
+        FlowchartRenderedSvgQualityReport Report = EvaluateVisible("visible-03-web-shop.svg", SAMPLE_03_SOURCE);
+        AssertDetected(Report, "BorderHug", "pg", "dbSvc");
+        AssertDetected(Report, "CornerArrowhead", "war", "webShop");
+        AssertDetected(Report, "TitleStrike", "war", "webShop");
+        AssertDetected(Report, "LabelOffLine", "HTTPS");
+        AssertDetected(Report, "ParallelSeparation", "checkout", "ordering", "dbSvc", "webShop");
+    }
+
+    [Test]
+    public void VisibleOrderSuite_FlagsCanvasMarginLabelStrikeAndSourceDogleg()
+    {
+        string Source = File.ReadAllText(FindEnterpriseSample("01-flowchart.mmd"));
+        FlowchartRenderedSvgQualityReport Report = EvaluateVisible("visible-01-order-suite.svg", Source);
+        AssertDetected(Report, "CanvasMargin", "orderSuite", "orderSync");
+        AssertDetected(Report, "LabelStrike", "checkout", "orderSync");
+        AssertDetected(Report, "SourceDogleg", "orderSuite", "webShop");
+    }
+
+    [Test]
+    public void VisibleSalesTeam_FlagsBorderHugsCornersAndSharedStretch()
+    {
+        string Source = File.ReadAllText(FindEnterpriseSample("06-flowchart.mmd"));
+        FlowchartRenderedSvgQualityReport Report = EvaluateVisible("visible-06-sales-team.svg", Source);
+        AssertDetected(Report, "BorderHug", "terms", "orderForm");
+        AssertDetected(Report, "BorderHug", "clerk", "seller");
+        AssertDetected(Report, "CornerArrowhead", "terms", "orderForm");
+        AssertDetected(Report, "SharedStretch", "takeOrder", "selling", "takeOrder", "orderTaken");
+        AssertDetected(Report, "SourceDogleg");
+    }
+
+    [Test]
     public void Picture_ReportsCanvasExitAndLongDetour()
     {
         const string Source = """
@@ -467,6 +500,17 @@ public sealed class FlowchartRenderedSvgQualityGateTests
         }
 
         return Path.Combine(FindRepoRoot(), "tests", "MermaidRecognition.Layout.Tests", "EnterpriseFlowchartSamples", FileName);
+    }
+
+    private static FlowchartRenderedSvgQualityReport EvaluateVisible(string FileName, string Source)
+    {
+        string Svg = File.ReadAllText(FindFixture(FileName));
+        FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.EvaluatePicture(
+            FileName,
+            Source,
+            Svg);
+        TestContext.Out.WriteLine(FormatReport(Report));
+        return Report;
     }
 
     private static string FindFixture(string FileName)

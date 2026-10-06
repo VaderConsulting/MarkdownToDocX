@@ -20,7 +20,21 @@ public static class FlowchartRenderedSvgQualityGate
 
     private const double LABEL_OWN_EDGE_PX = 8.0;
 
-    private const double PARALLEL_SEPARATION_PX = 8.0;
+    private const double PARALLEL_SEPARATION_PX = 12.0;
+
+    private const double BORDER_HUG_PX = 6.0;
+
+    private const double BORDER_HUG_MIN_PX = 28.0;
+
+    private const double CORNER_ATTACH_PX = 10.0;
+
+    private const double SHARED_STRETCH_MIN_PX = 36.0;
+
+    private const double CANVAS_MARGIN_PX = 10.0;
+
+    private const double LABEL_OFF_LINE_PX = 4.0;
+
+    private const double SOURCE_DOGLEG_PX = 16.0;
 
     private const double CLEAN_CROSSING_MIN_DEGREES = 50.0;
 
@@ -249,6 +263,13 @@ public static class FlowchartRenderedSvgQualityGate
         CollectCrampedArrows(Strokes, Violations);
         CollectCanvasExits(Strokes, NodeRects, GroupRects, Svg, Violations);
         CollectLongDetours(Strokes, Violations);
+        CollectBorderHugs(Strokes, NodeRects, GroupRects, Violations);
+        CollectCornerArrowheads(Strokes, NodeRects, GroupRects, Violations);
+        CollectSharedStretches(Strokes, Violations);
+        CollectTextStrikes(Svg, Contract, Strokes, Labels, NodeRects, Violations);
+        CollectCanvasMargins(Strokes, NodeRects, GroupRects, Svg, Violations);
+        CollectSourceDoglegs(Strokes, NodeRects, GroupRects, Violations);
+        CollectLabelsOffLine(Strokes, Labels, Violations);
 
         IReadOnlyList<FlowchartLayoutQualityFailure> Justifications = ApplyJustifications
             ? FlowchartSharedEdgeRouter.LastJustifications
@@ -2646,6 +2667,32 @@ public static class FlowchartRenderedSvgQualityGate
                     continue;
                 }
 
+                bool LeftHorizontal = Math.Abs(Ly2 - Ly1) <= 1.5;
+                bool RightHorizontal = Math.Abs(Ry2 - Ry1) <= 1.5;
+                bool LeftVertical = Math.Abs(Lx2 - Lx1) <= 1.5;
+                bool RightVertical = Math.Abs(Rx2 - Rx1) <= 1.5;
+                if (LeftHorizontal && RightHorizontal)
+                {
+                    double Overlap = AxisOverlap(Lx1, Lx2, Rx1, Rx2);
+                    if (Overlap >= 16.0 && Math.Abs(Ly1 - Ry1) < Gap)
+                    {
+                        Gap = Math.Abs(Ly1 - Ry1);
+                    }
+
+                    continue;
+                }
+
+                if (LeftVertical && RightVertical)
+                {
+                    double Overlap = AxisOverlap(Ly1, Ly2, Ry1, Ry2);
+                    if (Overlap >= 16.0 && Math.Abs(Lx1 - Rx1) < Gap)
+                    {
+                        Gap = Math.Abs(Lx1 - Rx1);
+                    }
+
+                    continue;
+                }
+
                 double MidX = (Rx1 + Rx2) / 2.0;
                 double MidY = (Ry1 + Ry2) / 2.0;
                 double DistanceValue = DistanceToSegment(MidX, MidY, Lx1, Ly1, Lx2, Ly2);
@@ -2728,6 +2775,647 @@ public static class FlowchartRenderedSvgQualityGate
     private static bool TryParseDouble(string Text, out double Value)
     {
         return double.TryParse(Text, NumberStyles.Float, CultureInfo.InvariantCulture, out Value);
+    }
+
+    private static double AxisOverlap(double A1, double A2, double B1, double B2)
+    {
+        double Start = Math.Max(Math.Min(A1, A2), Math.Min(B1, B2));
+        double End = Math.Min(Math.Max(A1, A2), Math.Max(B1, B2));
+        return End - Start;
+    }
+
+    private static void CollectBorderHugs(
+        IReadOnlyList<ParsedEdgeStroke> Strokes,
+        IReadOnlyList<SvgNodeRect> NodeRects,
+        IReadOnlyList<SvgNodeRect> GroupRects,
+        List<FlowchartLayoutQualityFailure> Violations)
+    {
+        List<SvgNodeRect> Boxes = new List<SvgNodeRect>(NodeRects.Count + GroupRects.Count);
+        Boxes.AddRange(NodeRects);
+        Boxes.AddRange(GroupRects);
+        foreach (ParsedEdgeStroke Stroke in Strokes)
+        {
+            for (int Index = 1; Index < Stroke.Samples.Count; Index++)
+            {
+                (double X1, double Y1) = Stroke.Samples[Index - 1];
+                (double X2, double Y2) = Stroke.Samples[Index];
+                double Length = Distance(X1, Y1, X2, Y2);
+                if (Length < BORDER_HUG_MIN_PX)
+                {
+                    continue;
+                }
+
+                bool Horizontal = Math.Abs(Y2 - Y1) <= 1.5;
+                bool Vertical = Math.Abs(X2 - X1) <= 1.5;
+                if (!Horizontal && !Vertical)
+                {
+                    continue;
+                }
+
+                foreach (SvgNodeRect Box in Boxes)
+                {
+                    double Overlap;
+                    double Separation;
+                    string Side;
+                    if (Horizontal)
+                    {
+                        Overlap = AxisOverlap(X1, X2, Box.Left, Box.Right);
+                        double TopGap = Math.Abs(Y1 - Box.Top);
+                        double BottomGap = Math.Abs(Y1 - Box.Bottom);
+                        if (TopGap <= BottomGap)
+                        {
+                            Separation = TopGap;
+                            Side = "top";
+                        }
+                        else
+                        {
+                            Separation = BottomGap;
+                            Side = "bottom";
+                        }
+                    }
+                    else
+                    {
+                        Overlap = AxisOverlap(Y1, Y2, Box.Top, Box.Bottom);
+                        double LeftGap = Math.Abs(X1 - Box.Left);
+                        double RightGap = Math.Abs(X1 - Box.Right);
+                        if (LeftGap <= RightGap)
+                        {
+                            Separation = LeftGap;
+                            Side = "left";
+                        }
+                        else
+                        {
+                            Separation = RightGap;
+                            Side = "right";
+                        }
+                    }
+
+                    if (Overlap < BORDER_HUG_MIN_PX || Separation > BORDER_HUG_PX)
+                    {
+                        continue;
+                    }
+
+                    Violations.Add(new FlowchartLayoutQualityFailure(
+                        "BorderHug",
+                        Stroke.SourceId + "->" + Stroke.TargetId
+                        + " runs along the "
+                        + Side
+                        + " of "
+                        + Box.NodeId
+                        + " for "
+                        + Overlap.ToString("0.0", CultureInfo.InvariantCulture)
+                        + " px at "
+                        + Separation.ToString("0.0", CultureInfo.InvariantCulture)
+                        + " px",
+                        [Stroke.SourceId, Stroke.TargetId, Box.NodeId],
+                        null));
+                    break;
+                }
+            }
+        }
+    }
+
+    private static void CollectCornerArrowheads(
+        IReadOnlyList<ParsedEdgeStroke> Strokes,
+        IReadOnlyList<SvgNodeRect> NodeRects,
+        IReadOnlyList<SvgNodeRect> GroupRects,
+        List<FlowchartLayoutQualityFailure> Violations)
+    {
+        List<SvgNodeRect> Boxes = new List<SvgNodeRect>(NodeRects.Count + GroupRects.Count);
+        Boxes.AddRange(NodeRects);
+        Boxes.AddRange(GroupRects);
+        foreach (ParsedEdgeStroke Stroke in Strokes)
+        {
+            if (Stroke.Samples.Count < 2)
+            {
+                continue;
+            }
+
+            (double TipX, double TipY) = Stroke.Samples[Stroke.Samples.Count - 1];
+            (double PrevX, double PrevY) = Stroke.Samples[Stroke.Samples.Count - 2];
+            double Run = Distance(PrevX, PrevY, TipX, TipY);
+            bool ApproachHorizontal = Math.Abs(TipY - PrevY) <= 1.5 && Run > 8.0;
+            bool ApproachVertical = Math.Abs(TipX - PrevX) <= 1.5 && Run > 8.0;
+            foreach (SvgNodeRect Box in Boxes)
+            {
+                if (!string.Equals(Box.NodeId, Stroke.TargetId, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                double CornerDistance = DistanceToNearestCorner(TipX, TipY, Box);
+                bool Tangential = false;
+                if (ApproachVertical && (Math.Abs(TipX - Box.Left) <= BORDER_HUG_PX || Math.Abs(TipX - Box.Right) <= BORDER_HUG_PX))
+                {
+                    Tangential = true;
+                }
+
+                if (ApproachHorizontal && (Math.Abs(TipY - Box.Top) <= BORDER_HUG_PX || Math.Abs(TipY - Box.Bottom) <= BORDER_HUG_PX))
+                {
+                    Tangential = true;
+                }
+
+                if (CornerDistance > CORNER_ATTACH_PX && !Tangential)
+                {
+                    continue;
+                }
+
+                if (CornerDistance > CORNER_ATTACH_PX && Tangential && Run < BORDER_HUG_MIN_PX)
+                {
+                    continue;
+                }
+
+                Violations.Add(new FlowchartLayoutQualityFailure(
+                    "CornerArrowhead",
+                    Stroke.SourceId + "->" + Stroke.TargetId
+                    + " meets "
+                    + Box.NodeId
+                    + " "
+                    + CornerDistance.ToString("0.0", CultureInfo.InvariantCulture)
+                    + " px from a corner",
+                    [Stroke.SourceId, Stroke.TargetId, Box.NodeId],
+                    null));
+                break;
+            }
+        }
+    }
+
+    private static double DistanceToNearestCorner(double X, double Y, SvgNodeRect Box)
+    {
+        double Best = double.PositiveInfinity;
+        double[] Xs = [Box.Left, Box.Right];
+        double[] Ys = [Box.Top, Box.Bottom];
+        foreach (double CornerX in Xs)
+        {
+            foreach (double CornerY in Ys)
+            {
+                Best = Math.Min(Best, Distance(X, Y, CornerX, CornerY));
+            }
+        }
+
+        return Best;
+    }
+
+    private static void CollectSharedStretches(
+        IReadOnlyList<ParsedEdgeStroke> Strokes,
+        List<FlowchartLayoutQualityFailure> Violations)
+    {
+        for (int LeftIndex = 0; LeftIndex < Strokes.Count; LeftIndex++)
+        {
+            for (int RightIndex = LeftIndex + 1; RightIndex < Strokes.Count; RightIndex++)
+            {
+                ParsedEdgeStroke Left = Strokes[LeftIndex];
+                ParsedEdgeStroke Right = Strokes[RightIndex];
+                double Shared = LongestSharedRun(Left.Samples, Right.Samples);
+                if (Shared < SHARED_STRETCH_MIN_PX)
+                {
+                    continue;
+                }
+
+                Violations.Add(new FlowchartLayoutQualityFailure(
+                    "SharedStretch",
+                    Left.SourceId + "->" + Left.TargetId
+                    + " shares "
+                    + Shared.ToString("0.0", CultureInfo.InvariantCulture)
+                    + " px with "
+                    + Right.SourceId + "->" + Right.TargetId,
+                    [Left.SourceId, Left.TargetId, Right.SourceId, Right.TargetId],
+                    null));
+            }
+        }
+    }
+
+    private static double LongestSharedRun(
+        IReadOnlyList<(double X, double Y)> Left,
+        IReadOnlyList<(double X, double Y)> Right)
+    {
+        double Best = 0.0;
+        for (int LeftIndex = 1; LeftIndex < Left.Count; LeftIndex++)
+        {
+            (double Lx1, double Ly1) = Left[LeftIndex - 1];
+            (double Lx2, double Ly2) = Left[LeftIndex];
+            bool LeftHorizontal = Math.Abs(Ly2 - Ly1) <= 1.5;
+            bool LeftVertical = Math.Abs(Lx2 - Lx1) <= 1.5;
+            if (!LeftHorizontal && !LeftVertical)
+            {
+                continue;
+            }
+
+            for (int RightIndex = 1; RightIndex < Right.Count; RightIndex++)
+            {
+                (double Rx1, double Ry1) = Right[RightIndex - 1];
+                (double Rx2, double Ry2) = Right[RightIndex];
+                double Overlap = 0.0;
+                if (LeftHorizontal && Math.Abs(Ry2 - Ry1) <= 1.5 && Math.Abs(Ly1 - Ry1) <= 2.5)
+                {
+                    Overlap = AxisOverlap(Lx1, Lx2, Rx1, Rx2);
+                }
+                else if (LeftVertical && Math.Abs(Rx2 - Rx1) <= 1.5 && Math.Abs(Lx1 - Rx1) <= 2.5)
+                {
+                    Overlap = AxisOverlap(Ly1, Ly2, Ry1, Ry2);
+                }
+
+                if (Overlap > Best)
+                {
+                    Best = Overlap;
+                }
+            }
+        }
+
+        return Best;
+    }
+
+    private static void CollectTextStrikes(
+        string Svg,
+        DiagramContract Contract,
+        IReadOnlyList<ParsedEdgeStroke> Strokes,
+        IReadOnlyList<ParsedLabel> Labels,
+        IReadOnlyList<SvgNodeRect> NodeRects,
+        List<FlowchartLayoutQualityFailure> Violations)
+    {
+        foreach (Match Match in TextRegex.Matches(Svg))
+        {
+            string Text = Regex.Replace(Match.Groups[1].Value, "<[^>]+>", " ").Trim();
+            Text = Regex.Replace(Text, @"\s+", " ");
+            if (Text.Length == 0)
+            {
+                continue;
+            }
+
+            Dictionary<string, string> Attributes = ParseAttributes(Match.Value);
+            if (!TryReadTextAnchor(Attributes, Match.Value, out double AnchorX, out double AnchorY, out double FontSize))
+            {
+                continue;
+            }
+
+            double Width = Math.Max(12.0, Text.Length * FontSize * 0.52);
+            double Left = AnchorX - (Width / 2.0);
+            double Right = AnchorX + (Width / 2.0);
+            if (Attributes.TryGetValue("text-anchor", out string? Anchor) && string.Equals(Anchor, "start", StringComparison.OrdinalIgnoreCase))
+            {
+                Left = AnchorX;
+                Right = AnchorX + Width;
+            }
+
+            double Top = AnchorY - (FontSize * 0.85);
+            double Bottom = AnchorY + (FontSize * 0.25);
+            bool EdgeLabel = false;
+            string? LabelSource = null;
+            string? LabelTarget = null;
+            foreach (ParsedLabel Label in Labels)
+            {
+                if (string.Equals(Label.Text, Text, StringComparison.Ordinal))
+                {
+                    EdgeLabel = true;
+                    LabelSource = Label.SourceId;
+                    LabelTarget = Label.TargetId;
+                    break;
+                }
+            }
+
+            if (!EdgeLabel && PointInsideAny(NodeRects, AnchorX, AnchorY))
+            {
+                continue;
+            }
+
+            foreach (ParsedEdgeStroke Stroke in Strokes)
+            {
+                if (!PolylineHitsRect(Stroke.Samples, Left, Top, Right, Bottom))
+                {
+                    continue;
+                }
+
+                if (EdgeLabel
+                    && string.Equals(Stroke.SourceId, LabelSource, StringComparison.Ordinal)
+                    && string.Equals(Stroke.TargetId, LabelTarget, StringComparison.Ordinal))
+                {
+                    double OwnDistance = DistanceToPolyline(AnchorX, AnchorY - (FontSize * 0.35), Stroke.Samples);
+                    if (OwnDistance <= LABEL_OFF_LINE_PX)
+                    {
+                        continue;
+                    }
+                }
+
+                string Kind = EdgeLabel ? "LabelStrike" : "TitleStrike";
+                Violations.Add(new FlowchartLayoutQualityFailure(
+                    Kind,
+                    Stroke.SourceId + "->" + Stroke.TargetId + " crosses '" + Text + "'",
+                    [Stroke.SourceId, Stroke.TargetId],
+                    null));
+                break;
+            }
+
+            _ = Contract;
+        }
+    }
+
+    private static bool TryReadTextAnchor(
+        Dictionary<string, string> Attributes,
+        string Token,
+        out double AnchorX,
+        out double AnchorY,
+        out double FontSize)
+    {
+        AnchorX = 0.0;
+        AnchorY = 0.0;
+        FontSize = 16.0;
+        if (!Attributes.TryGetValue("x", out string? XText) || !TryParseLeadingDouble(XText, out AnchorX))
+        {
+            Match Tspan = Regex.Match(Token, "x=\"([^\"]+)\"", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+            if (!Tspan.Success || !TryParseLeadingDouble(Tspan.Groups[1].Value, out AnchorX))
+            {
+                return false;
+            }
+        }
+
+        if (!Attributes.TryGetValue("y", out string? YText) || !TryParseLeadingDouble(YText, out AnchorY))
+        {
+            return false;
+        }
+
+        if (Attributes.TryGetValue("font-size", out string? FontText) && TryParseLeadingDouble(FontText, out double ParsedSize))
+        {
+            FontSize = ParsedSize;
+        }
+
+        return true;
+    }
+
+    private static bool TryParseLeadingDouble(string Text, out double Value)
+    {
+        Value = 0.0;
+        if (string.IsNullOrWhiteSpace(Text))
+        {
+            return false;
+        }
+
+        int End = 0;
+        string Trimmed = Text.Trim();
+        while (End < Trimmed.Length
+            && (char.IsDigit(Trimmed[End]) || Trimmed[End] == '.' || Trimmed[End] == '-' || Trimmed[End] == '+'))
+        {
+            End++;
+        }
+
+        if (End == 0)
+        {
+            return false;
+        }
+
+        return TryParseDouble(Trimmed.Substring(0, End), out Value);
+    }
+
+    private static bool PointInsideAny(IReadOnlyList<SvgNodeRect> Rects, double X, double Y)
+    {
+        foreach (SvgNodeRect Rect in Rects)
+        {
+            if (X > Rect.Left + 2.0 && X < Rect.Right - 2.0 && Y > Rect.Top + 2.0 && Y < Rect.Bottom - 2.0)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool PolylineHitsRect(
+        IReadOnlyList<(double X, double Y)> Samples,
+        double Left,
+        double Top,
+        double Right,
+        double Bottom)
+    {
+        for (int Index = 1; Index < Samples.Count; Index++)
+        {
+            (double X1, double Y1) = Samples[Index - 1];
+            (double X2, double Y2) = Samples[Index];
+            double MinX = Math.Min(X1, X2);
+            double MaxX = Math.Max(X1, X2);
+            double MinY = Math.Min(Y1, Y2);
+            double MaxY = Math.Max(Y1, Y2);
+            if (MaxX < Left || MinX > Right || MaxY < Top || MinY > Bottom)
+            {
+                continue;
+            }
+
+            if (Math.Abs(Y2 - Y1) <= 1.5 && Y1 > Top && Y1 < Bottom && AxisOverlap(X1, X2, Left, Right) > 4.0)
+            {
+                return true;
+            }
+
+            if (Math.Abs(X2 - X1) <= 1.5 && X1 > Left && X1 < Right && AxisOverlap(Y1, Y2, Top, Bottom) > 4.0)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void CollectCanvasMargins(
+        IReadOnlyList<ParsedEdgeStroke> Strokes,
+        IReadOnlyList<SvgNodeRect> NodeRects,
+        IReadOnlyList<SvgNodeRect> GroupRects,
+        string Svg,
+        List<FlowchartLayoutQualityFailure> Violations)
+    {
+        if (!TryParseViewBox(Svg, out double ViewMinX, out double ViewMinY, out double ViewMaxX, out double ViewMaxY))
+        {
+            return;
+        }
+
+        List<SvgNodeRect> Boxes = new List<SvgNodeRect>(NodeRects.Count + GroupRects.Count);
+        Boxes.AddRange(NodeRects);
+        Boxes.AddRange(GroupRects);
+        foreach (ParsedEdgeStroke Stroke in Strokes)
+        {
+            foreach ((double X, double Y) in Stroke.Samples)
+            {
+                double Margin = Math.Min(Math.Min(X - ViewMinX, ViewMaxX - X), Math.Min(Y - ViewMinY, ViewMaxY - Y));
+                if (Margin >= CANVAS_MARGIN_PX || PointLiesOnBox(Boxes, X, Y))
+                {
+                    continue;
+                }
+
+                Violations.Add(new FlowchartLayoutQualityFailure(
+                    "CanvasMargin",
+                    Stroke.SourceId + "->" + Stroke.TargetId
+                    + " is "
+                    + Margin.ToString("0.0", CultureInfo.InvariantCulture)
+                    + " px from the canvas edge",
+                    [Stroke.SourceId, Stroke.TargetId],
+                    null));
+                break;
+            }
+        }
+    }
+
+    private static bool PointLiesOnBox(IReadOnlyList<SvgNodeRect> Boxes, double X, double Y)
+    {
+        foreach (SvgNodeRect Box in Boxes)
+        {
+            bool InsideX = X >= Box.Left - 2.0 && X <= Box.Right + 2.0;
+            bool InsideY = Y >= Box.Top - 2.0 && Y <= Box.Bottom + 2.0;
+            if (!InsideX || !InsideY)
+            {
+                continue;
+            }
+
+            double EdgeDistance = Math.Min(
+                Math.Min(Math.Abs(X - Box.Left), Math.Abs(X - Box.Right)),
+                Math.Min(Math.Abs(Y - Box.Top), Math.Abs(Y - Box.Bottom)));
+            if (EdgeDistance <= 2.5)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void CollectSourceDoglegs(
+        IReadOnlyList<ParsedEdgeStroke> Strokes,
+        IReadOnlyList<SvgNodeRect> NodeRects,
+        IReadOnlyList<SvgNodeRect> GroupRects,
+        List<FlowchartLayoutQualityFailure> Violations)
+    {
+        List<SvgNodeRect> Boxes = new List<SvgNodeRect>(NodeRects.Count + GroupRects.Count);
+        Boxes.AddRange(NodeRects);
+        Boxes.AddRange(GroupRects);
+        foreach (ParsedEdgeStroke Stroke in Strokes)
+        {
+            if (Stroke.Samples.Count < 3)
+            {
+                continue;
+            }
+
+            (double X0, double Y0) = Stroke.Samples[0];
+            (double X1, double Y1) = Stroke.Samples[1];
+            (double X2, double Y2) = Stroke.Samples[2];
+            double First = Distance(X0, Y0, X1, Y1);
+            if (First > SOURCE_DOGLEG_PX || First < 1.0)
+            {
+                continue;
+            }
+
+            SvgNodeRect? Source = null;
+            foreach (SvgNodeRect Box in Boxes)
+            {
+                if (string.Equals(Box.NodeId, Stroke.SourceId, StringComparison.Ordinal))
+                {
+                    Source = Box;
+                    break;
+                }
+            }
+
+            if (Source is null)
+            {
+                continue;
+            }
+
+            double LeftGap = Math.Abs(X0 - Source.Left);
+            double RightGap = Math.Abs(X0 - Source.Right);
+            double TopGap = Math.Abs(Y0 - Source.Top);
+            double BottomGap = Math.Abs(Y0 - Source.Bottom);
+            double Nearest = Math.Min(Math.Min(LeftGap, RightGap), Math.Min(TopGap, BottomGap));
+            bool HorizontalFace = Nearest == TopGap || Nearest == BottomGap;
+            bool FirstHorizontal = Math.Abs(Y1 - Y0) <= 1.5;
+            bool FirstVertical = Math.Abs(X1 - X0) <= 1.5;
+            bool SlidesAlongFace = (HorizontalFace && FirstHorizontal) || (!HorizontalFace && FirstVertical);
+            bool LeavesFace = (HorizontalFace && FirstVertical) || (!HorizontalFace && FirstHorizontal);
+            if (!SlidesAlongFace && !LeavesFace)
+            {
+                continue;
+            }
+
+            double TurnX = X2 - X1;
+            double TurnY = Y2 - Y1;
+            double FirstX = X1 - X0;
+            double FirstY = Y1 - Y0;
+            double TurnLength = Math.Sqrt((TurnX * TurnX) + (TurnY * TurnY));
+            double FirstLength = Math.Sqrt((FirstX * FirstX) + (FirstY * FirstY));
+            if (TurnLength < 1.0 || FirstLength < 1.0)
+            {
+                continue;
+            }
+
+            double Dot = ((FirstX * TurnX) + (FirstY * TurnY)) / (FirstLength * TurnLength);
+            bool ContinuesAfterJog = false;
+            if (Stroke.Samples.Count >= 4 && TurnLength <= SOURCE_DOGLEG_PX)
+            {
+                (double X3, double Y3) = Stroke.Samples[3];
+                bool ThirdVertical = Math.Abs(X3 - X2) <= 1.5;
+                bool ThirdHorizontal = Math.Abs(Y3 - Y2) <= 1.5;
+                ContinuesAfterJog = (FirstVertical && ThirdVertical) || (FirstHorizontal && ThirdHorizontal);
+            }
+
+            if (SlidesAlongFace && Dot <= 0.35)
+            {
+                // A short slide along the source face before the route turns away.
+            }
+            else if (!ContinuesAfterJog)
+            {
+                continue;
+            }
+
+            Violations.Add(new FlowchartLayoutQualityFailure(
+                "SourceDogleg",
+                Stroke.SourceId + "->" + Stroke.TargetId
+                + " steps "
+                + First.ToString("0.0", CultureInfo.InvariantCulture)
+                + " px along its source before turning",
+                [Stroke.SourceId, Stroke.TargetId],
+                null));
+        }
+    }
+
+    private static void CollectLabelsOffLine(
+        IReadOnlyList<ParsedEdgeStroke> Strokes,
+        IReadOnlyList<ParsedLabel> Labels,
+        List<FlowchartLayoutQualityFailure> Violations)
+    {
+        foreach (ParsedLabel Label in Labels)
+        {
+            ParsedEdgeStroke? Own = FindOwnStroke(Strokes, Label);
+            if (Own is null || !StrokeIsOrthogonal(Own.Samples))
+            {
+                continue;
+            }
+
+            double OwnDistance = DistanceToPolyline(Label.X, Label.Y, Own.Samples);
+            if (OwnDistance <= LABEL_OFF_LINE_PX || OwnDistance > 24.0)
+            {
+                continue;
+            }
+
+            Violations.Add(new FlowchartLayoutQualityFailure(
+                "LabelOffLine",
+                "label '"
+                + Label.Text
+                + "' sits "
+                + OwnDistance.ToString("0.0", CultureInfo.InvariantCulture)
+                + " px off "
+                + Own.SourceId
+                + "->"
+                + Own.TargetId,
+                [Own.SourceId, Own.TargetId],
+                null));
+        }
+    }
+
+    private static bool StrokeIsOrthogonal(IReadOnlyList<(double X, double Y)> Samples)
+    {
+        for (int Index = 1; Index < Samples.Count; Index++)
+        {
+            double DeltaX = Math.Abs(Samples[Index].X - Samples[Index - 1].X);
+            double DeltaY = Math.Abs(Samples[Index].Y - Samples[Index - 1].Y);
+            if (DeltaX > 1.5 && DeltaY > 1.5)
+            {
+                return false;
+            }
+        }
+
+        return Samples.Count >= 2;
     }
 
     private sealed class ParsedEdgeStroke

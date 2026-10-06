@@ -178,6 +178,13 @@ public static class FlowchartSugiyamaSvgRenderer
             ref MinBottom,
             ref MaxRight,
             ref MaxTop);
+        ExpandLayoutBoundsForExteriorStrokes(
+            ResolvedGuides,
+            DiagramPaddingPx,
+            ref MinLeft,
+            ref MinBottom,
+            ref MaxRight,
+            ref MaxTop);
 
         GraphWidth = Math.Max(1.0, MaxRight - MinLeft);
         GraphHeight = Math.Max(1.0, MaxTop - MinBottom);
@@ -1415,6 +1422,19 @@ public static class FlowchartSugiyamaSvgRenderer
             FlattenKind,
             Direction);
         if (RenderedSamples.Count >= 2
+            && FlowchartSharedRouteQualityHelper.LooksLikeOrthogonalCorridor(LayoutPoints))
+        {
+            return FlowchartSharedRouteQualityHelper.ResolveLabelOnOwnEdge(
+                RenderedSamples,
+                LabelDimensions.Width,
+                LabelHeight,
+                BoundsById,
+                Edge.SourceId,
+                Edge.TargetId,
+                0.0);
+        }
+
+        if (RenderedSamples.Count >= 2
             && FlowchartSharedRouteQualityHelper.DistanceFromPointToPolyline(ClearedX, ClearedY, RenderedSamples)
             > 6.5)
         {
@@ -2159,6 +2179,67 @@ public static class FlowchartSugiyamaSvgRenderer
                 MaxTop = LabelTop;
             }
         }
+    }
+
+    /// <summary>
+    /// Extends the canvas so a stroke that runs outside the node union stays at least 10 px from the viewBox.
+    /// </summary>
+    private static void ExpandLayoutBoundsForExteriorStrokes(
+        IReadOnlyList<FlowchartResolvedGuide> Guides,
+        double DiagramPaddingPx,
+        ref double MinLeft,
+        ref double MinBottom,
+        ref double MaxRight,
+        ref double MaxTop)
+    {
+        const double CANVAS_MARGIN_PX = 10.0;
+        double NeedLeft = 0.0;
+        double NeedRight = 0.0;
+        double NeedTop = 0.0;
+        double NeedBottom = 0.0;
+        foreach (FlowchartResolvedGuide Guide in Guides)
+        {
+            foreach ((double LayoutX, double LayoutY) in Guide.Points)
+            {
+                bool Outside = LayoutX < MinLeft - 0.5
+                    || LayoutX > MaxRight + 0.5
+                    || LayoutY < MinBottom - 0.5
+                    || LayoutY > MaxTop + 0.5;
+                if (!Outside)
+                {
+                    continue;
+                }
+
+                double SvgX = DiagramPaddingPx + (LayoutX - MinLeft);
+                if (SvgX < CANVAS_MARGIN_PX)
+                {
+                    NeedLeft = Math.Max(NeedLeft, CANVAS_MARGIN_PX - SvgX);
+                }
+
+                double RightGap = MaxRight + DiagramPaddingPx - LayoutX;
+                if (RightGap < CANVAS_MARGIN_PX)
+                {
+                    NeedRight = Math.Max(NeedRight, CANVAS_MARGIN_PX - RightGap);
+                }
+
+                double SvgY = DiagramPaddingPx + (MaxTop - LayoutY);
+                if (SvgY < CANVAS_MARGIN_PX)
+                {
+                    NeedTop = Math.Max(NeedTop, CANVAS_MARGIN_PX - SvgY);
+                }
+
+                double BottomGap = LayoutY - MinBottom + DiagramPaddingPx;
+                if (BottomGap < CANVAS_MARGIN_PX)
+                {
+                    NeedBottom = Math.Max(NeedBottom, CANVAS_MARGIN_PX - BottomGap);
+                }
+            }
+        }
+
+        MinLeft -= NeedLeft;
+        MaxRight += NeedRight;
+        MaxTop += NeedTop;
+        MinBottom -= NeedBottom;
     }
 
     private static (double X, double Y) LayoutToSvgPoint(
