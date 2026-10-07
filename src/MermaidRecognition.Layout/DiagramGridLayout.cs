@@ -81,7 +81,9 @@ public static class DiagramGridLayout
         SeparateTracks(Copy, Placed);
         PushPointsOutOfNodes(Copy, Placed);
         FlowchartFanNestingRouteHelper.Apply(Contract, Copy, Placed, Nodes, Direction);
+        DiagramGridFrameRouteClearanceHelper.Apply(Contract, Copy, Frames);
         WriteBack(Copy, Placed, Frames);
+        Copy.UsesGridRoutes = true;
         return Copy;
     }
 

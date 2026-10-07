@@ -280,6 +280,32 @@ public static class FlowchartSugiyamaSvgRenderer
                 string? DagreSourceShape = NodeById.TryGetValue(DagreRoute.SourceId, out NodeContract? DagreSourceNode)
                     ? DagreSourceNode.Shape
                     : "rect";
+                if (Layout.UsesGridRoutes
+                    && GuideByEdge.TryGetValue(Edge, out FlowchartResolvedGuide? GridGuide)
+                    && GridGuide.Points.Count >= 2
+                    && (GridGuide.RouteKind == FlowchartEdgeRouteKind.Grid
+                        || GridGuide.RouteKind == FlowchartEdgeRouteKind.Straight))
+                {
+                    RenderResolvedEdgeRoute(
+                        Builder,
+                        Edge,
+                        Contract,
+                        BoundsById,
+                        DagreSource,
+                        DagreTarget,
+                        DagreSourceShape,
+                        GridGuide.Points,
+                        GridGuide.RouteKind,
+                        Direction,
+                        RouteClass,
+                        MinLeft,
+                        MaxTop,
+                        DiagramPaddingPx,
+                        EdgeStyle,
+                        RenderOptions);
+                    continue;
+                }
+
                 RenderDagreBasisEdge(
                     Builder,
                     Edge,
