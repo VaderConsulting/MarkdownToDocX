@@ -39,6 +39,7 @@ public static class FlowchartDagrePlacement
         string RankDir = ToRankDir(Direction);
         Dictionary<string, FlowchartNodeDimensions> Measured =
             FlowchartGeometryGraphBuilder.BuildMeasuredDimensions(Contract, Options);
+        Dictionary<string, (double Width, double Height)> MermaidDiamondSize = ApplyDiamondSize(Contract, Measured);
 
         DagreGraph Graph = new DagreGraph(true, true, true);
         Graph.SetGraph(new DagreGraphLabel
@@ -179,21 +180,88 @@ public static class FlowchartDagrePlacement
             });
         }
 
-        AppendEdges(Graph, Built, 0, 0);
+        AppendEdges(Graph, Built, 0, 0, MermaidDiamondSize);
         foreach (KeyValuePair<string, DagreGraph> Pair in Extracted)
         {
             (double X, double Y) Centre = ResolveCentre(Pair.Key, Graph, Extracted);
             DagreNodeLabel? ClusterLabel = FindLabel(Pair.Key, Graph, Extracted);
             double Left = Centre.X - ((ClusterLabel?.Width ?? 0) / 2);
             double Top = Centre.Y - ((ClusterLabel?.Height ?? 0) / 2);
-            AppendEdges(Pair.Value, Built, Left, Top);
+            AppendEdges(Pair.Value, Built, Left, Top, MermaidDiamondSize);
         }
 
         Result = Built;
         return Result.NodeBounds.Count > 0;
     }
 
-    private static void AppendEdges(DagreGraph Graph, FlowchartLayoutResult Built, double OffsetX, double OffsetY)
+    private static Dictionary<string, (double Width, double Height)> ApplyDiamondSize(
+        DiagramContract Contract,
+        Dictionary<string, FlowchartNodeDimensions> Measured)
+    {
+        double StandardWidth = 0.0;
+        double StandardHeight = 0.0;
+        bool Found = false;
+        foreach (NodeContract Node in Contract.Nodes)
+        {
+            if (FlowchartDagrePresentation.IsDiamondShape(Node.Shape)
+                || !Measured.TryGetValue(Node.Id, out FlowchartNodeDimensions? Size))
+            {
+                continue;
+            }
+
+            if (!IsStandardRectangle(Node.Shape))
+            {
+                continue;
+            }
+
+            Found = true;
+            StandardWidth = Math.Max(StandardWidth, Size.Width);
+            StandardHeight = Math.Max(StandardHeight, Size.Height);
+        }
+
+        Dictionary<string, (double Width, double Height)> MermaidSize =
+            new Dictionary<string, (double Width, double Height)>(StringComparer.Ordinal);
+        if (!Found || StandardWidth < 1.0 || StandardHeight < 1.0)
+        {
+            return MermaidSize;
+        }
+
+        double DiamondWidth = Math.Max(1.0, Math.Round(StandardWidth));
+        double DiamondHeight = Math.Max(1.0, Math.Round(StandardHeight)) * FlowchartDagrePresentation.DIAMOND_HEIGHT_FACTOR;
+        foreach (NodeContract Node in Contract.Nodes)
+        {
+            if (!FlowchartDagrePresentation.IsDiamondShape(Node.Shape)
+                || !Measured.TryGetValue(Node.Id, out FlowchartNodeDimensions? Size))
+            {
+                continue;
+            }
+
+            MermaidSize[Node.Id] = (Size.Width, Size.Height);
+            Size.Width = DiamondWidth;
+            Size.Height = DiamondHeight;
+        }
+
+        return MermaidSize;
+    }
+
+    private static bool IsStandardRectangle(string? Shape)
+    {
+        if (string.IsNullOrWhiteSpace(Shape))
+        {
+            return true;
+        }
+
+        return string.Equals(Shape, "rect", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(Shape, "rectangle", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(Shape, "square", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void AppendEdges(
+        DagreGraph Graph,
+        FlowchartLayoutResult Built,
+        double OffsetX,
+        double OffsetY,
+        Dictionary<string, (double Width, double Height)> MermaidDiamondSize)
     {
         foreach (DagreEdge Edge in Graph.Edges())
         {
@@ -243,8 +311,8 @@ public static class FlowchartDagrePlacement
                 EdgeId = Edge.Name ?? string.Empty,
                 SourceId = SourceId,
                 TargetId = TargetId,
-                ExitSide = SideOf(Source, Points[0], Points[1]),
-                EntrySide = SideOf(Target, Points[Points.Count - 1], Points[Points.Count - 2])
+                ExitSide = SideOfDiamond(Source, Points[0], Points[1], MermaidDiamondSize, SourceId),
+                EntrySide = SideOfDiamond(Target, Points[Points.Count - 1], Points[Points.Count - 2], MermaidDiamondSize, TargetId)
             };
             foreach (DagrePoint Point in Points)
             {
@@ -269,6 +337,74 @@ public static class FlowchartDagrePlacement
         }
 
         return Dy >= 0 ? "bottom" : "top";
+    }
+
+    /// <summary>
+    /// Names the rectangle face a diamond edge actually meets. A waypoint that leans off a
+    /// corner would otherwise report the neighbouring side.
+    /// </summary>
+    private static string SideOfDiamond(
+        DagreNodeLabel Node,
+        DagrePoint AtBoundary,
+        DagrePoint Towards,
+        Dictionary<string, (double Width, double Height)> MermaidDiamondSize,
+        string NodeId)
+    {
+        if (!MermaidDiamondSize.ContainsKey(NodeId))
+        {
+            return SideOf(Node, AtBoundary, Towards);
+        }
+
+        string? Face = ClearRectangleFace(Node, AtBoundary);
+        if (Face != null)
+        {
+            return Face;
+        }
+
+        return SideOf(Node, AtBoundary, Towards);
+    }
+
+    /// <summary>
+    /// Returns the rectangle face under <paramref name="At"/> when the point is on one side and not a corner.
+    /// </summary>
+    private static string? ClearRectangleFace(DagreNodeLabel Node, DagrePoint At)
+    {
+        double HalfWidth = Node.Width / 2.0;
+        double HalfHeight = Node.Height / 2.0;
+        double DistanceLeft = Math.Abs(At.X - (Node.X - HalfWidth));
+        double DistanceRight = Math.Abs(At.X - (Node.X + HalfWidth));
+        double DistanceTop = Math.Abs(At.Y - (Node.Y - HalfHeight));
+        double DistanceBottom = Math.Abs(At.Y - (Node.Y + HalfHeight));
+        (string Name, double Distance)[] Faces =
+        {
+            ("left", DistanceLeft),
+            ("right", DistanceRight),
+            ("top", DistanceTop),
+            ("bottom", DistanceBottom)
+        };
+        string BestName = Faces[0].Name;
+        double Best = Faces[0].Distance;
+        double Second = double.PositiveInfinity;
+        for (int Index = 1; Index < Faces.Length; Index++)
+        {
+            if (Faces[Index].Distance < Best)
+            {
+                Second = Best;
+                Best = Faces[Index].Distance;
+                BestName = Faces[Index].Name;
+            }
+            else if (Faces[Index].Distance < Second)
+            {
+                Second = Faces[Index].Distance;
+            }
+        }
+
+        if (Best > 2.0 || Second <= Best + 8.0)
+        {
+            return null;
+        }
+
+        return BestName;
     }
 
     private static (double X, double Y) ResolveCentre(string NodeId, DagreGraph Outer, Dictionary<string, DagreGraph> Extracted)

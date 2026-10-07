@@ -168,10 +168,32 @@ public static class FlowchartSvgCoordinateFrameResolver
 
         FlowchartSubgraphBoundsRequest BoundsRequest =
             FlowchartSubgraphBoundsRequest.FromContract(Contract, RenderOptions);
-        List<FlowchartSubgraphLayoutRect> SubgraphRects =
-            FlowchartSubgraphBoundsBuilder.BuildOrderedRects(Contract, BoundsById, BoundsRequest);
+        List<FlowchartSubgraphLayoutRect> SubgraphRects = Layout.ClusterBounds.Count > 0
+            ? FlowchartSugiyamaSvgRenderer.BuildDagreClusterRects(Contract, Layout)
+            : FlowchartSubgraphBoundsBuilder.BuildOrderedRects(Contract, BoundsById, BoundsRequest);
+        if (Layout.ClusterBounds.Count > 0)
+        {
+            foreach (FlowchartLayoutNodeBounds Cluster in Layout.ClusterBounds)
+            {
+                BoundsById[Cluster.NodeId] = Cluster;
+            }
+        }
+
         FlowchartSubgraphBoundsBuilder.ExpandLayoutExtents(
             SubgraphRects,
+            ref MinLeft,
+            ref MinBottom,
+            ref MaxRight,
+            ref MaxTop);
+        FlowchartSugiyamaSvgRenderer.ExpandLayoutBoundsForExteriorStrokes(
+            ResolvedGuides,
+            DiagramPaddingPx,
+            ref MinLeft,
+            ref MinBottom,
+            ref MaxRight,
+            ref MaxTop);
+        FlowchartSugiyamaSvgRenderer.ExpandLayoutBoundsForDagreRoutes(
+            Layout,
             ref MinLeft,
             ref MinBottom,
             ref MaxRight,
