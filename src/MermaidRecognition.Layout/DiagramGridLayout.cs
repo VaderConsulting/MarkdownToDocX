@@ -1129,6 +1129,12 @@ public static class DiagramGridLayout
                         continue;
                     }
 
+                    if (TryEvictNodeFromFrame(Node, Frame))
+                    {
+                        Moved = true;
+                        break;
+                    }
+
                     int Push = DiagramGridMetrics.GRID_UNIT_PX;
                     if (Main(Node, Horizontal, Old: false) >= Frame.CenterMain(Horizontal))
                     {
@@ -1165,6 +1171,59 @@ public static class DiagramGridLayout
             {
                 break;
             }
+        }
+    }
+
+    /// <summary>
+    /// Moves a non-member node just outside a group frame with at least one grid step of clearance (rulebook 7.3).
+    /// </summary>
+    private static bool TryEvictNodeFromFrame(GridNode Node, GridFrame Frame)
+    {
+        if (!Overlaps(Node, Frame))
+        {
+            return false;
+        }
+
+        int Gap = DiagramGridMetrics.GRID_UNIT_PX;
+        double ShiftUp = Frame.Top - Gap - (Node.Height / 2.0) - Node.Y;
+        double ShiftDown = Frame.Bottom + Gap + (Node.Height / 2.0) - Node.Y;
+        double ShiftLeft = Frame.Left - Gap - (Node.Width / 2.0) - Node.X;
+        double ShiftRight = Frame.Right + Gap + (Node.Width / 2.0) - Node.X;
+        double Best = double.MaxValue;
+        double ChosenX = 0.0;
+        double ChosenY = 0.0;
+        ConsiderEviction(0.0, ShiftUp, ref Best, ref ChosenX, ref ChosenY);
+        ConsiderEviction(0.0, ShiftDown, ref Best, ref ChosenX, ref ChosenY);
+        ConsiderEviction(ShiftLeft, 0.0, ref Best, ref ChosenX, ref ChosenY);
+        ConsiderEviction(ShiftRight, 0.0, ref Best, ref ChosenX, ref ChosenY);
+        if (Best == double.MaxValue)
+        {
+            return false;
+        }
+
+        Node.X += ChosenX;
+        Node.Y += ChosenY;
+        return true;
+    }
+
+    private static void ConsiderEviction(
+        double ShiftX,
+        double ShiftY,
+        ref double Best,
+        ref double ChosenX,
+        ref double ChosenY)
+    {
+        if (ShiftX == 0.0 && ShiftY == 0.0)
+        {
+            return;
+        }
+
+        double Distance = Math.Sqrt((ShiftX * ShiftX) + (ShiftY * ShiftY));
+        if (Distance < Best)
+        {
+            Best = Distance;
+            ChosenX = ShiftX;
+            ChosenY = ShiftY;
         }
     }
 
