@@ -136,6 +136,19 @@ public static class DiagramGridRouteBuilder
         FlowchartDirection Direction,
         bool Horizontal)
     {
+        if (FlowchartEdgeConnectionGeometry.ShouldRenderStraightConnector(StartX, StartY, EndX, EndY)
+            && !FlowchartRouteObstacleHelper.SegmentIntersectsUnrelatedNodeBodies(
+                StartX,
+                StartY,
+                EndX,
+                EndY,
+                BoundsById,
+                SourceId,
+                TargetId))
+        {
+            return [(StartX, StartY), (EndX, EndY)];
+        }
+
         double SourceStubLength = FlowchartEdgeTerminalStubExpander.ComputeTerminalStubLength(SourceBounds);
         double TargetStubLength = FlowchartEdgeTerminalStubExpander.ComputeTerminalStubLength(TargetBounds);
         (double SourceStubX, double SourceStubY) = FlowchartPerpendicularRouteBuilder.ResolveStubOuterPoint(
