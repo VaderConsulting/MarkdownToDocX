@@ -358,7 +358,15 @@ public static class FlowchartDecisionPortAllocator
             Direction,
             RenderOptions,
             out FlowchartSpineLayoutContext? SpineContext);
-        bool UseSpreadTopPort = SpineContext is not null
+        bool IsBypassRejoinFanOut = TryResolveBypassRejoinFanOutVertex(
+            Edge,
+            Outgoing,
+            BoundsById,
+            CentreX,
+            HorizontalFlow,
+            out _);
+        bool UseSpreadTopPort = !IsBypassRejoinFanOut
+            && SpineContext is not null
             && FlowchartMultiIncomingTargetPortAllocator.TargetHasBranchAndMergeIncoming(
                 Contract,
                 BoundsById,
@@ -750,6 +758,49 @@ public static class FlowchartDecisionPortAllocator
                 UseBottomFace,
                 HorizontalFlow,
                 RightToLeft);
+            if (TryResolveBypassRejoinFanOutVertex(
+                    OutgoingEdge,
+                    Outgoing,
+                    BoundsById,
+                    CentreX,
+                    HorizontalFlow,
+                    out DiamondVertexKind BypassVertex))
+            {
+                Preferred = BypassVertex;
+            }
+            bool HasCoRankedSibling = Outgoing.Count == 2
+                && TryHasCoRankedDecisionSibling(Outgoing, OutgoingEdge, BoundsById);
+            if (HasCoRankedSibling
+                && (Preferred == DiamondVertexKind.Left || Preferred == DiamondVertexKind.Right))
+            {
+                PortsByTarget[OutgoingEdge.TargetId] = ResolveEdgeCentreFallbackAttach(
+                    Preferred,
+                    CentreX,
+                    CentreY,
+                    HalfWidth,
+                    HalfHeight,
+                    UseBottomFace);
+                continue;
+            }
+
+            if (ShouldUseSlantedEdgeCentrePort(
+                    Preferred,
+                    TargetBounds,
+                    CentreX,
+                    CentreY,
+                    HalfWidth,
+                    HorizontalFlow))
+            {
+                PortsByTarget[OutgoingEdge.TargetId] = ResolveEdgeCentreFallbackAttach(
+                    Preferred,
+                    CentreX,
+                    CentreY,
+                    HalfWidth,
+                    HalfHeight,
+                    UseBottomFace);
+                continue;
+            }
+
             PortsByTarget[OutgoingEdge.TargetId] = AllocatePreferredVertexAttach(
                 Preferred,
                 ref Taken,
@@ -761,6 +812,147 @@ public static class FlowchartDecisionPortAllocator
         }
 
         return PortsByTarget;
+    }
+
+    private static bool TryHasCoRankedDecisionSibling(
+        List<EdgeContract> Outgoing,
+        EdgeContract Edge,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById)
+    {
+        if (!BoundsById.TryGetValue(Edge.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
+        {
+            return false;
+        }
+
+        foreach (EdgeContract OtherEdge in Outgoing)
+        {
+            if (string.Equals(OtherEdge.TargetId, Edge.TargetId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (!BoundsById.TryGetValue(OtherEdge.TargetId, out FlowchartLayoutNodeBounds CandidateBounds))
+            {
+                continue;
+            }
+
+            if (Math.Abs(CandidateBounds.CenterY - TargetBounds.CenterY) <= COLLINEAR_EPSILON_PX)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// A9: when a bypass target shares a rank with a sibling branch child, pick the side port
+    /// facing that target instead of treating it as a collinear spine drop.
+    /// </summary>
+    private static bool TryResolveBypassRejoinFanOutVertex(
+        EdgeContract Edge,
+        List<EdgeContract> Outgoing,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        double CentreX,
+        bool HorizontalFlow,
+        out DiamondVertexKind Vertex)
+    {
+        Vertex = DiamondVertexKind.Bottom;
+        if (HorizontalFlow || Outgoing.Count != 2)
+        {
+            return false;
+        }
+
+        if (!BoundsById.TryGetValue(Edge.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
+        {
+            return false;
+        }
+
+        FlowchartLayoutNodeBounds? SiblingBounds = null;
+        foreach (EdgeContract OtherEdge in Outgoing)
+        {
+            if (string.Equals(OtherEdge.TargetId, Edge.TargetId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (!BoundsById.TryGetValue(OtherEdge.TargetId, out FlowchartLayoutNodeBounds CandidateBounds))
+            {
+                continue;
+            }
+
+            if (Math.Abs(CandidateBounds.CenterY - TargetBounds.CenterY) <= COLLINEAR_EPSILON_PX)
+            {
+                SiblingBounds = CandidateBounds;
+                break;
+            }
+        }
+
+        if (SiblingBounds is null)
+        {
+            return false;
+        }
+
+        double TargetDx = TargetBounds.CenterX - CentreX;
+        if (TargetDx < -SIDE_BRANCH_CROSS_AXIS_EPSILON_PX)
+        {
+            Vertex = DiamondVertexKind.Left;
+            return true;
+        }
+
+        if (TargetDx > SIDE_BRANCH_CROSS_AXIS_EPSILON_PX)
+        {
+            Vertex = DiamondVertexKind.Right;
+            return true;
+        }
+
+        double SiblingDx = SiblingBounds.CenterX - CentreX;
+        if (SiblingDx < -SIDE_BRANCH_CROSS_AXIS_EPSILON_PX)
+        {
+            Vertex = DiamondVertexKind.Right;
+            return true;
+        }
+
+        if (SiblingDx > SIDE_BRANCH_CROSS_AXIS_EPSILON_PX)
+        {
+            Vertex = DiamondVertexKind.Left;
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// B16: when a side vertex would turn downward immediately, use the lower slanted edge centre
+    /// so the first corner sits at least one corner radius plus one grid step from the vertex.
+    /// </summary>
+    private static bool ShouldUseSlantedEdgeCentrePort(
+        DiamondVertexKind Preferred,
+        FlowchartLayoutNodeBounds TargetBounds,
+        double CentreX,
+        double CentreY,
+        double HalfWidth,
+        bool HorizontalFlow)
+    {
+        if (HorizontalFlow)
+        {
+            return false;
+        }
+
+        if (Preferred != DiamondVertexKind.Left && Preferred != DiamondVertexKind.Right)
+        {
+            return false;
+        }
+
+        double MinimumStubPx = DiagramGridRouteBuilder.CORNER_RADIUS_PX + DiagramGridMetrics.GRID_UNIT_PX;
+        if (TargetBounds.CenterY >= CentreY - COLLINEAR_EPSILON_PX)
+        {
+            return false;
+        }
+
+        double VertexX = Preferred == DiamondVertexKind.Left ? CentreX - HalfWidth : CentreX + HalfWidth;
+        double HorizontalSpan = Math.Abs(TargetBounds.CenterX - VertexX);
+        return HorizontalSpan < MinimumStubPx;
     }
 
     private static DiamondVertexOccupancy ResolveIncomingVertexOccupancy(

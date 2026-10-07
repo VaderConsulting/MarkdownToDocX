@@ -65,8 +65,10 @@ public static class DiagramGridLayout
 
         AssignRanks(Placed, Horizontal);
         AssignColumns(Placed, Horizontal, CrossPitch);
+        AlignBypassRejoinRank(Contract, Placed, Horizontal, Copy);
         ResolveVerticalChordBlockers(Contract, Placed);
         AlignForwardMainChainColumn(Contract, Placed, Horizontal);
+        AlignBypassRejoinColumns(Contract, Placed, Horizontal);
         AlignDecisionCentreChildColumn(Contract, Placed, Horizontal);
         CascadeColumns(Placed);
         PlaceOnGrid(Placed, Horizontal, BoxWidth, BoxHeight, MainPitch, CrossPitch, Copy, Contract);
@@ -323,6 +325,244 @@ public static class DiagramGridLayout
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// A9: when a bypass target C shares a decision parent D with intermediate child A (D→A→C and D→C),
+    /// co-place C in A's rank beside A on the side away from D.
+    /// </summary>
+    private static void AlignBypassRejoinRank(
+        DiagramContract Contract,
+        List<GridNode> Placed,
+        bool Horizontal,
+        FlowchartLayoutResult Copy)
+    {
+        if (Horizontal)
+        {
+            return;
+        }
+
+        Dictionary<string, GridNode> ById = IndexPlaced(Placed);
+        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        Dictionary<string, HashSet<string>> Parents = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        Dictionary<string, HashSet<string>> Children = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        foreach (EdgeContract Edge in Contract.Edges)
+        {
+            if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase) || BackEdges.Contains(Edge))
+            {
+                continue;
+            }
+
+            if (!Parents.TryGetValue(Edge.TargetId, out HashSet<string>? ParentSet))
+            {
+                ParentSet = new HashSet<string>(StringComparer.Ordinal);
+                Parents[Edge.TargetId] = ParentSet;
+            }
+
+            ParentSet.Add(Edge.SourceId);
+
+            if (!Children.TryGetValue(Edge.SourceId, out HashSet<string>? ChildSet))
+            {
+                ChildSet = new HashSet<string>(StringComparer.Ordinal);
+                Children[Edge.SourceId] = ChildSet;
+            }
+
+            ChildSet.Add(Edge.TargetId);
+        }
+
+        foreach (GridNode Candidate in Placed)
+        {
+            if (!Parents.TryGetValue(Candidate.Id, out HashSet<string>? IncomingParents) || IncomingParents.Count != 2)
+            {
+                continue;
+            }
+
+            GridNode? DecisionParent = null;
+            GridNode? IntermediateChild = null;
+            foreach (string ParentId in IncomingParents)
+            {
+                if (!ById.TryGetValue(ParentId, out GridNode? ParentNode))
+                {
+                    continue;
+                }
+
+                if (!ParentNode.IsDiamond)
+                {
+                    if (IntermediateChild != null)
+                    {
+                        continue;
+                    }
+
+                    IntermediateChild = ParentNode;
+                    continue;
+                }
+
+                if (DecisionParent != null)
+                {
+                    continue;
+                }
+
+                DecisionParent = ParentNode;
+            }
+
+            if (DecisionParent is null || IntermediateChild is null)
+            {
+                continue;
+            }
+
+            if (!Children.TryGetValue(DecisionParent.Id, out HashSet<string>? DecisionChildren)
+                || !DecisionChildren.Contains(IntermediateChild.Id)
+                || !DecisionChildren.Contains(Candidate.Id)
+                || !Children.TryGetValue(IntermediateChild.Id, out HashSet<string>? IntermediateChildren)
+                || !IntermediateChildren.Contains(Candidate.Id))
+            {
+                continue;
+            }
+
+            if (Candidate.Rank <= IntermediateChild.Rank)
+            {
+                continue;
+            }
+
+            int BeforeCrossings = CountBypassRejoinCrossings(Placed, Contract, Copy);
+            int SavedRank = Candidate.Rank;
+            Candidate.Rank = IntermediateChild.Rank;
+            int AfterCrossings = CountBypassRejoinCrossings(Placed, Contract, Copy);
+            if (AfterCrossings > BeforeCrossings)
+            {
+                Candidate.Rank = SavedRank;
+            }
+        }
+    }
+
+    /// <summary>
+    /// A9 column pass: after spine alignment, place the intermediate child on the decision's side branch
+    /// and the bypass target beside it on the side away from the decision.
+    /// </summary>
+    private static void AlignBypassRejoinColumns(
+        DiagramContract Contract,
+        List<GridNode> Placed,
+        bool Horizontal)
+    {
+        if (Horizontal)
+        {
+            return;
+        }
+
+        Dictionary<string, GridNode> ById = IndexPlaced(Placed);
+        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        Dictionary<string, HashSet<string>> Parents = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        Dictionary<string, HashSet<string>> Children = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        foreach (EdgeContract Edge in Contract.Edges)
+        {
+            if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase) || BackEdges.Contains(Edge))
+            {
+                continue;
+            }
+
+            if (!Parents.TryGetValue(Edge.TargetId, out HashSet<string>? ParentSet))
+            {
+                ParentSet = new HashSet<string>(StringComparer.Ordinal);
+                Parents[Edge.TargetId] = ParentSet;
+            }
+
+            ParentSet.Add(Edge.SourceId);
+
+            if (!Children.TryGetValue(Edge.SourceId, out HashSet<string>? ChildSet))
+            {
+                ChildSet = new HashSet<string>(StringComparer.Ordinal);
+                Children[Edge.SourceId] = ChildSet;
+            }
+
+            ChildSet.Add(Edge.TargetId);
+        }
+
+        foreach (GridNode Candidate in Placed)
+        {
+            if (!Parents.TryGetValue(Candidate.Id, out HashSet<string>? IncomingParents) || IncomingParents.Count != 2)
+            {
+                continue;
+            }
+
+            GridNode? DecisionParent = null;
+            GridNode? IntermediateChild = null;
+            foreach (string ParentId in IncomingParents)
+            {
+                if (!ById.TryGetValue(ParentId, out GridNode? ParentNode))
+                {
+                    continue;
+                }
+
+                if (!ParentNode.IsDiamond)
+                {
+                    if (IntermediateChild != null)
+                    {
+                        continue;
+                    }
+
+                    IntermediateChild = ParentNode;
+                    continue;
+                }
+
+                if (DecisionParent != null)
+                {
+                    continue;
+                }
+
+                DecisionParent = ParentNode;
+            }
+
+            if (DecisionParent is null || IntermediateChild is null)
+            {
+                continue;
+            }
+
+            if (!Children.TryGetValue(DecisionParent.Id, out HashSet<string>? DecisionChildren)
+                || !DecisionChildren.Contains(IntermediateChild.Id)
+                || !DecisionChildren.Contains(Candidate.Id)
+                || !Children.TryGetValue(IntermediateChild.Id, out HashSet<string>? IntermediateChildren)
+                || !IntermediateChildren.Contains(Candidate.Id)
+                || Candidate.Rank != IntermediateChild.Rank)
+            {
+                continue;
+            }
+
+            bool BranchIsLeft = Cross(IntermediateChild, Horizontal, Old: true)
+                < Cross(DecisionParent, Horizontal, Old: true) - DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX;
+            IntermediateChild.Column = BranchIsLeft
+                ? DecisionParent.Column - 1
+                : DecisionParent.Column + 1;
+            Candidate.Column = BranchIsLeft
+                ? IntermediateChild.Column + 1
+                : IntermediateChild.Column - 1;
+        }
+
+        CascadeColumns(Placed);
+    }
+
+    /// <summary>
+    /// Counts edge crossings between adjacent ranks using column order (A5 heuristic for A9).
+    /// </summary>
+    private static int CountBypassRejoinCrossings(
+        List<GridNode> Placed,
+        DiagramContract Contract,
+        FlowchartLayoutResult Copy)
+    {
+        int RankCount = 0;
+        foreach (GridNode Node in Placed)
+        {
+            RankCount = Math.Max(RankCount, Node.Rank + 1);
+        }
+
+        int Total = 0;
+        for (int Rank = 0; Rank + 1 < RankCount; Rank++)
+        {
+            List<GridNode> RankNodes = NodesInRank(Placed, Rank);
+            List<GridNode> NextNodes = NodesInRank(Placed, Rank + 1);
+            Total += CountRankCrossings(Copy, RankNodes, NextNodes);
+        }
+
+        return Total;
     }
 
     /// <summary>
@@ -1820,6 +2060,25 @@ public static class DiagramGridLayout
             return true;
         }
 
+        if (Math.Abs(Source.CenterY - Target.CenterY) <= DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
+        {
+            if (Source.CenterX < Target.CenterX)
+            {
+                ExitSide = "right";
+                EntrySide = "left";
+                return true;
+            }
+
+            if (Source.CenterX > Target.CenterX)
+            {
+                ExitSide = "left";
+                EntrySide = "right";
+                return true;
+            }
+
+            return false;
+        }
+
         if (Math.Abs(Source.CenterX - Target.CenterX) > DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
         {
             if (Target.IsFrame)
@@ -2111,7 +2370,13 @@ public static class DiagramGridLayout
             }
 
             ForwardOutgoing.Sort((Left, Right) => Left.CreationIndex.CompareTo(Right.CreationIndex));
-            CurrentId = ForwardOutgoing[0].TargetId;
+            string NextId = ForwardOutgoing[0].TargetId;
+            if (!ById.TryGetValue(NextId, out GridNode? NextNode) || NextNode.Rank <= CurrentNode.Rank)
+            {
+                break;
+            }
+
+            CurrentId = NextId;
         }
 
         int SpineColumn = StartNode.Column;
