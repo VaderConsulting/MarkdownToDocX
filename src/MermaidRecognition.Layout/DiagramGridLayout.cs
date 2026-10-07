@@ -67,6 +67,7 @@ public static class DiagramGridLayout
         AssignColumns(Placed, Horizontal, CrossPitch);
         ResolveVerticalChordBlockers(Contract, Placed);
         AlignForwardMainChainColumn(Contract, Placed, Horizontal);
+        AlignFanInMergeColumn(Contract, Placed, Horizontal);
         AlignBypassDetourColumns(Contract, Placed, Horizontal);
         AlignDecisionCentreChildColumn(Contract, Placed, Horizontal);
         CascadeColumns(Placed);
@@ -323,6 +324,50 @@ public static class DiagramGridLayout
                     RankNodes[Index].Column = RankNodes[Index - 1].Column + 1;
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// Rulebook 2.4 / 2.10: when several same-rank parents fan into one child, centre the child on the middle parent.
+    /// </summary>
+    private static void AlignFanInMergeColumn(
+        DiagramContract Contract,
+        List<GridNode> Placed,
+        bool Horizontal)
+    {
+        Dictionary<string, GridNode> ById = IndexPlaced(Placed);
+        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        foreach (GridNode Target in Placed)
+        {
+            List<GridNode> Parents = [];
+            foreach (EdgeContract Edge in Contract.Edges)
+            {
+                if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
+                    || BackEdges.Contains(Edge)
+                    || !string.Equals(Edge.TargetId, Target.Id, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (ById.TryGetValue(Edge.SourceId, out GridNode? Parent))
+                {
+                    Parents.Add(Parent);
+                }
+            }
+
+            if (Parents.Count < 2)
+            {
+                continue;
+            }
+
+            int ParentRank = Parents[0].Rank;
+            if (Parents.Any(Parent => Parent.Rank != ParentRank))
+            {
+                continue;
+            }
+
+            Parents.Sort((Left, Right) => Cross(Left, Horizontal, Old: true).CompareTo(Cross(Right, Horizontal, Old: true)));
+            Target.Column = Parents[Parents.Count / 2].Column;
         }
     }
 
@@ -657,7 +702,10 @@ public static class DiagramGridLayout
                 int PitchSpan = IndexGap * CrossPitch;
                 int HalfBefore = MaxCrossHalf(PreviousMembers, Horizontal, Before: false);
                 int HalfAfter = MaxCrossHalf(Pair.Value, Horizontal, Before: true);
-                int Span = Math.Max(PitchSpan, HalfBefore + HalfAfter + DiagramGridMetrics.NODE_GAP_PX);
+                int MinimumCrossClearGap = Math.Max(
+                    DiagramGridMetrics.NODE_GAP_PX,
+                    (int)Math.Round(FlowchartRenderOptions.FromContract(Contract).NodeSpacingPx));
+                int Span = Math.Max(PitchSpan, HalfBefore + HalfAfter + MinimumCrossClearGap);
                 CrossCursor += Span;
             }
 
