@@ -66,12 +66,26 @@ public static class DiagramGridLayout
         AssignRanks(Placed, Horizontal);
         AssignColumns(Placed, Horizontal, CrossPitch);
         ResolveVerticalChordBlockers(Contract, Placed);
-        AlignForwardMainChainColumn(Contract, Placed, Horizontal);
+        if (!ShouldUseSpineColumnLayout(Contract, Placed, Direction))
+        {
+            AlignForwardMainChainColumn(Contract, Placed, Horizontal);
+        }
+
         AlignFanInMergeColumn(Contract, Placed, Horizontal);
+        if (ShouldUseSpineColumnLayout(Contract, Placed, Direction))
+        {
+            AlignTwoWayDecisionSideTargets(Contract, Placed);
+        }
+
         AlignBypassDetourColumns(Contract, Placed, Horizontal);
         AlignDecisionCentreChildColumn(Contract, Placed, Horizontal);
         CascadeColumns(Placed);
         PlaceOnGrid(Placed, Horizontal, BoxWidth, BoxHeight, MainPitch, CrossPitch, Copy, Contract);
+        if (!Horizontal)
+        {
+            ApplySpineColumnAdjustments(Contract, Placed, Direction);
+        }
+
         GrowCrowdedSides(Placed, Copy, BoxWidth, BoxHeight);
         SeparateOverlaps(Placed, Horizontal);
         List<GridFrame> Frames = new List<GridFrame>();
@@ -328,6 +342,109 @@ public static class DiagramGridLayout
     }
 
     /// <summary>
+    /// Rulebook 2.6: two-way decisions place branch targets on opposite sides of the spine column.
+    /// </summary>
+    private static void AlignTwoWayDecisionSideTargets(DiagramContract Contract, List<GridNode> Placed)
+    {
+        Dictionary<string, GridNode> ById = IndexPlaced(Placed);
+        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        foreach (GridNode Decision in Placed)
+        {
+            if (!Decision.IsDiamond)
+            {
+                continue;
+            }
+
+            List<GridNode> Children = [];
+            foreach (EdgeContract Edge in Contract.Edges)
+            {
+                if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
+                    || BackEdges.Contains(Edge)
+                    || !string.Equals(Edge.SourceId, Decision.Id, StringComparison.Ordinal)
+                    || !ById.TryGetValue(Edge.TargetId, out GridNode? Child))
+                {
+                    continue;
+                }
+
+                Children.Add(Child);
+            }
+
+            if (Children.Count != 2)
+            {
+                continue;
+            }
+
+            Children.Sort((Left, Right) => Left.OldX.CompareTo(Right.OldX));
+            Children[0].Column = Decision.Column - 2;
+            Children[1].Column = Decision.Column + 1;
+        }
+    }
+
+    private static bool ShouldUseSpineColumnLayout(
+        DiagramContract Contract,
+        List<GridNode> Placed,
+        FlowchartDirection Direction)
+    {
+        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById =
+            new Dictionary<string, FlowchartLayoutNodeBounds>(StringComparer.Ordinal);
+        foreach (GridNode Node in Placed)
+        {
+            BoundsById[Node.Id] = new FlowchartLayoutNodeBounds
+            {
+                NodeId = Node.Id,
+                CenterX = Node.OldX,
+                CenterY = Node.OldY,
+                Width = Node.Width,
+                Height = Node.Height
+            };
+        }
+
+        return FlowchartSpineGraphHelper.TryBuildContext(
+            Contract,
+            BoundsById,
+            Direction,
+            FlowchartRenderOptions.FromContract(Contract),
+            out _);
+    }
+
+    /// <summary>
+    /// Rulebook 2.6: after grid placement, move decision side branches into margin columns on the spine layout.
+    /// </summary>
+    private static void ApplySpineColumnAdjustments(
+        DiagramContract Contract,
+        List<GridNode> Placed,
+        FlowchartDirection Direction)
+    {
+        Dictionary<string, GridNode> ById = IndexPlaced(Placed);
+        List<FlowchartLayoutNodeBounds> Bounds = [];
+        foreach (GridNode Node in Placed)
+        {
+            Bounds.Add(new FlowchartLayoutNodeBounds
+            {
+                NodeId = Node.Id,
+                CenterX = Node.X,
+                CenterY = Node.Y,
+                Width = Node.Width,
+                Height = Node.Height
+            });
+        }
+
+        List<FlowchartLayoutNodeBounds> Adjusted = FlowchartSpineColumnPostProcessor.Apply(
+            Contract,
+            Bounds,
+            Direction,
+            FlowchartRenderOptions.FromContract(Contract));
+        foreach (FlowchartLayoutNodeBounds NodeBounds in Adjusted)
+        {
+            if (ById.TryGetValue(NodeBounds.NodeId, out GridNode? Node))
+            {
+                Node.X = (int)Math.Round(NodeBounds.CenterX);
+                Node.Y = (int)Math.Round(NodeBounds.CenterY);
+            }
+        }
+    }
+
+    /// <summary>
     /// Rulebook 2.4 / 2.10: when several same-rank parents fan into one child, centre the child on the middle parent.
     /// </summary>
     private static void AlignFanInMergeColumn(
@@ -335,6 +452,11 @@ public static class DiagramGridLayout
         List<GridNode> Placed,
         bool Horizontal)
     {
+        if (Horizontal)
+        {
+            return;
+        }
+
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
         HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         foreach (GridNode Target in Placed)
