@@ -2339,11 +2339,57 @@ public static class FlowchartSugiyamaSvgRenderer
         FlowchartRenderOptions RenderOptions)
     {
         List<(double X, double Y)> LayoutPoints = new List<(double X, double Y)>();
-        List<(double X, double Y)> SvgPoints = new List<(double X, double Y)>();
         foreach (FlowchartLayoutPoint Point in Route.Points)
         {
             LayoutPoints.Add((Point.X, Point.Y));
-            SvgPoints.Add(LayoutToSvgPoint(Point.X, Point.Y, MinLeft, MaxTop, DiagramPaddingPx));
+        }
+
+        if (FlowchartCurvePathBuilder.TryCollapseAxisAlignedEndpoints(LayoutPoints, out List<(double X, double Y)> StraightSegment))
+        {
+            (double StraightStartX, double StraightStartY) = LayoutToSvgPoint(
+                StraightSegment[0].X,
+                StraightSegment[0].Y,
+                MinLeft,
+                MaxTop,
+                DiagramPaddingPx);
+            (double StraightEndX, double StraightEndY) = LayoutToSvgPoint(
+                StraightSegment[1].X,
+                StraightSegment[1].Y,
+                MinLeft,
+                MaxTop,
+                DiagramPaddingPx);
+            RenderStraightEdgeSegment(
+                Builder,
+                Edge,
+                StraightStartX,
+                StraightStartY,
+                StraightEndX,
+                StraightEndY,
+                EdgeStyle,
+                RenderOptions);
+            AppendResolvedEdgeLabel(
+                Builder,
+                Edge,
+                Contract,
+                BoundsById,
+                SourceBounds,
+                TargetBounds,
+                SourceShape,
+                StraightSegment,
+                Direction,
+                RouteClass,
+                MinLeft,
+                MaxTop,
+                DiagramPaddingPx,
+                EdgeStyle,
+                RenderOptions);
+            return;
+        }
+
+        List<(double X, double Y)> SvgPoints = new List<(double X, double Y)>();
+        foreach ((double LayoutX, double LayoutY) in LayoutPoints)
+        {
+            SvgPoints.Add(LayoutToSvgPoint(LayoutX, LayoutY, MinLeft, MaxTop, DiagramPaddingPx));
         }
 
         string PathData = FlowchartCurvePathBuilder.BuildPureD3CurveBasisPathData(SvgPoints);
