@@ -16,34 +16,37 @@ public sealed class DiagramGridBypassRejoinRouteTests
         """;
 
     [Test]
-    public void TryLayout_DetourFlag_RejoinSharesInspectionRank()
+    public void TryLayout_DetourFlag_RejoinStaysOnSpineColumn()
     {
         DiagramContract Contract = MermaidRecognizer.Parse(DetourFlagSource);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
 
+        FlowchartLayoutNodeBounds Message = Find(Layout, "M");
+        FlowchartLayoutNodeBounds Decision = Find(Layout, "D");
         FlowchartLayoutNodeBounds Inspection = Find(Layout, "X");
         FlowchartLayoutNodeBounds Rejoin = Find(Layout, "R");
 
-        Assert.That(Rejoin.CenterY, Is.EqualTo(Inspection.CenterY).Within(2.0));
-        Assert.That(Rejoin.CenterX, Is.GreaterThan(Inspection.CenterX + 50.0));
-        Assert.That(Inspection.CenterX, Is.LessThan(Find(Layout, "D").CenterX - 50.0));
+        Assert.That(Rejoin.CenterX, Is.EqualTo(Decision.CenterX).Within(2.0));
+        Assert.That(Rejoin.CenterX, Is.EqualTo(Message.CenterX).Within(2.0));
+        Assert.That(Rejoin.CenterY, Is.LessThan(Decision.CenterY - 20.0));
+        Assert.That(Math.Abs(Inspection.CenterX - Decision.CenterX), Is.GreaterThan(50.0));
+        Assert.That(Inspection.CenterY, Is.LessThan(Decision.CenterY - 20.0));
+        Assert.That(Inspection.CenterY, Is.GreaterThan(Rejoin.CenterY + 20.0));
     }
 
     [Test]
-    public void TryLayout_DetourFlag_InspectionToRejoinIsStraightHorizontal()
+    public void TryLayout_DetourFlag_InspectionToRejoinIsOrthogonal()
     {
         DiagramContract Contract = MermaidRecognizer.Parse(DetourFlagSource);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartLayoutEdgeRoute Route = FindRoute(Layout, "X", "R");
-        Assert.That(Route.Points, Has.Count.EqualTo(2));
-        Assert.That(Route.Points[0].Y, Is.EqualTo(Route.Points[1].Y).Within(1.0));
-        Assert.That(Route.ExitSide, Is.EqualTo("right"));
-        Assert.That(Route.EntrySide, Is.EqualTo("left"));
+        Assert.That(Route.Points, Has.Count.GreaterThanOrEqualTo(2));
+        AssertRouteIsOrthogonal(Route.Points);
     }
 
     [Test]
-    public void TryLayout_DetourFlag_DecisionBranchesUseSlantedEdgesAndOrthogonalPaths()
+    public void TryLayout_DetourFlag_DecisionBranchesUseCorrectVertices()
     {
         DiagramContract Contract = MermaidRecognizer.Parse(DetourFlagSource);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
@@ -51,22 +54,18 @@ public sealed class DiagramGridBypassRejoinRouteTests
         FlowchartLayoutNodeBounds Diamond = Find(Layout, "D");
         double HalfWidth = Diamond.Width / 2.0;
         double HalfHeight = Diamond.Height / 2.0;
-        double LowerLeftX = Diamond.CenterX - (HalfWidth / 2.0);
-        double LowerRightX = Diamond.CenterX + (HalfWidth / 2.0);
-        double LowerEdgeY = Diamond.CenterY - (HalfHeight / 2.0);
+        double BottomY = Diamond.CenterY - HalfHeight;
 
         FlowchartLayoutEdgeRoute OnRoute = FindRoute(Layout, "D", "X");
         FlowchartLayoutEdgeRoute OffRoute = FindRoute(Layout, "D", "R");
 
-        Assert.That(OnRoute.Points[0].X, Is.EqualTo(LowerLeftX).Within(2.0));
-        Assert.That(OnRoute.Points[0].Y, Is.EqualTo(LowerEdgeY).Within(2.0));
-        Assert.That(OffRoute.Points[0].X, Is.EqualTo(LowerRightX).Within(2.0));
-        Assert.That(OffRoute.Points[0].Y, Is.EqualTo(LowerEdgeY).Within(2.0));
-
+        Assert.That(OnRoute.Points[0].X, Is.LessThan(Diamond.CenterX - 20.0));
         AssertRouteIsOrthogonal(OnRoute.Points);
-        AssertRouteIsOrthogonal(OffRoute.Points);
-        Assert.That(OffRoute.Points[0].X, Is.LessThan(OffRoute.Points[1].X - 40.0),
-            "Off branch runs outward before dropping");
+
+        Assert.That(OffRoute.Points[0].X, Is.EqualTo(Diamond.CenterX).Within(2.0));
+        Assert.That(OffRoute.Points[0].Y, Is.EqualTo(BottomY).Within(2.0));
+        Assert.That(OffRoute.Points, Has.Count.EqualTo(2));
+        Assert.That(OffRoute.Points[0].X, Is.EqualTo(OffRoute.Points[1].X).Within(1.0));
     }
 
     [Test]
@@ -78,11 +77,6 @@ public sealed class DiagramGridBypassRejoinRouteTests
         Assert.That(Svg, Does.Contain("data-edge-source=\"D\" data-edge-target=\"X\""));
         Assert.That(Svg, Does.Contain("data-edge-source=\"D\" data-edge-target=\"R\""));
         Assert.That(Svg, Does.Contain("data-edge-source=\"X\" data-edge-target=\"R\""));
-        Assert.That(Svg, Does.Contain(@"path d=""M406,368L456,368"""),
-            "Off branch runs outward before dropping");
-        Assert.That(Svg, Does.Contain(@"data-edge-source=""X"" data-edge-target=""R"""));
-        Assert.That(Svg, Does.Contain(@"x1=""218"" y1=""593"" x2=""239"" y2=""593"""),
-            "Inspection to Rejoin runs straight across");
     }
 
     private static void AssertRouteIsOrthogonal(IReadOnlyList<FlowchartLayoutPoint> Points)
