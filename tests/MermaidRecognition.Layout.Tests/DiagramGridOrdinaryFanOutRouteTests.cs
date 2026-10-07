@@ -95,12 +95,6 @@ public sealed class DiagramGridOrdinaryFanOutRouteTests
             "pass finishes with a horizontal run into Core consumer left side");
         Assert.That(Svg, Does.Contain(@"path d=""M477,218L537,218"""),
             "drop finishes with a horizontal run into Telemetry only left side");
-
-        string ArtifactDir = "/opt/cursor/artifacts";
-        if (Directory.Exists(ArtifactDir))
-        {
-            File.WriteAllText(Path.Combine(ArtifactDir, "message-filter.svg"), Svg);
-        }
     }
 
     private static int CountCorners(IReadOnlyList<FlowchartLayoutPoint> Points)

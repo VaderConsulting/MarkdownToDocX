@@ -39,6 +39,11 @@ public static class FlowchartDecisionPortAllocator
             return false;
         }
 
+        if (FlowchartBackEdgeHelper.FindBackEdges(Contract).Contains(Edge))
+        {
+            return false;
+        }
+
         if (IsDecisionShape(SourceShape)
             && CountVisibleEdges(Contract, Edge.SourceId, true) >= 2)
         {

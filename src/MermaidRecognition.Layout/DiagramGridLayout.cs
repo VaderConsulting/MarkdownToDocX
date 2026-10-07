@@ -66,6 +66,7 @@ public static class DiagramGridLayout
         AssignRanks(Placed, Horizontal);
         AssignColumns(Placed, Horizontal, CrossPitch);
         ResolveVerticalChordBlockers(Contract, Placed);
+        AlignForwardMainChainColumn(Contract, Placed, Horizontal);
         CascadeColumns(Placed);
         PlaceOnGrid(Placed, Horizontal, BoxWidth, BoxHeight, MainPitch, CrossPitch, Copy, Contract);
         GrowCrowdedSides(Placed, Copy, BoxWidth, BoxHeight);
@@ -74,10 +75,13 @@ public static class DiagramGridLayout
         CenterLoneNestedGroups(Contract, Placed, Horizontal);
         FitFrames(Contract, Placed, Frames, Horizontal);
         FlipToYUp(Placed, Frames, Copy);
+        EnsureBackEdgeRoutes(Contract, Copy, Placed);
         AssignPortSides(Contract, Copy, Placed, Frames, Nodes, Direction);
         DiagramGridRouteBuilder.RebuildAllRoutes(Copy, Placed, Nodes, Contract, Frames, Direction);
         RebuildDecisionFanOutRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
+        RebuildSoleForwardDecisionBranchRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
         RebuildOrdinaryFanOutRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
+        RebuildLoopBackRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
         Copy.UsesGridRoutes = true;
         SeparateTracks(Copy, Placed);
         PushPointsOutOfNodes(Copy, Placed);
@@ -327,10 +331,11 @@ public static class DiagramGridLayout
     private static void ResolveVerticalChordBlockers(DiagramContract Contract, List<GridNode> Placed)
     {
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
+        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         Dictionary<string, int> ParentCount = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (EdgeContract Edge in Contract.Edges)
         {
-            if (!ById.ContainsKey(Edge.SourceId) || !ById.ContainsKey(Edge.TargetId))
+            if (!ById.ContainsKey(Edge.SourceId) || !ById.ContainsKey(Edge.TargetId) || BackEdges.Contains(Edge))
             {
                 continue;
             }
@@ -341,6 +346,11 @@ public static class DiagramGridLayout
 
         foreach (EdgeContract Edge in Contract.Edges)
         {
+            if (BackEdges.Contains(Edge))
+            {
+                continue;
+            }
+
             if (!ById.TryGetValue(Edge.SourceId, out GridNode Parent)
                 || !ById.TryGetValue(Edge.TargetId, out GridNode Child))
             {
@@ -1943,6 +1953,302 @@ public static class DiagramGridLayout
         }
     }
 
+    /// <summary>
+    /// B15: keeps the forward main chain in one column; back edges never pull nodes sideways.
+    /// </summary>
+    private static void AlignForwardMainChainColumn(
+        DiagramContract Contract,
+        List<GridNode> Placed,
+        bool Horizontal)
+    {
+        if (Horizontal || Placed.Count == 0)
+        {
+            return;
+        }
+
+        Dictionary<string, GridNode> ById = IndexPlaced(Placed);
+        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        HashSet<string> HasForwardIncoming = new HashSet<string>(StringComparer.Ordinal);
+        foreach (EdgeContract Edge in Contract.Edges)
+        {
+            if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase) || BackEdges.Contains(Edge))
+            {
+                continue;
+            }
+
+            HasForwardIncoming.Add(Edge.TargetId);
+        }
+
+        string? StartId = null;
+        foreach (GridNode Node in Placed)
+        {
+            if (!HasForwardIncoming.Contains(Node.Id))
+            {
+                StartId = Node.Id;
+                break;
+            }
+        }
+
+        if (StartId == null || !ById.TryGetValue(StartId, out GridNode? StartNode))
+        {
+            return;
+        }
+
+        HashSet<string> SpineIds = new HashSet<string>(StringComparer.Ordinal);
+        string? CurrentId = StartId;
+        while (CurrentId is not null && ById.TryGetValue(CurrentId, out GridNode? CurrentNode))
+        {
+            if (!SpineIds.Add(CurrentId))
+            {
+                break;
+            }
+
+            List<EdgeContract> ForwardOutgoing = [];
+            foreach (EdgeContract Edge in Contract.Edges)
+            {
+                if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
+                    || BackEdges.Contains(Edge)
+                    || !string.Equals(Edge.SourceId, CurrentId, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                ForwardOutgoing.Add(Edge);
+            }
+
+            if (ForwardOutgoing.Count == 0)
+            {
+                break;
+            }
+
+            ForwardOutgoing.Sort((Left, Right) => Left.CreationIndex.CompareTo(Right.CreationIndex));
+            CurrentId = ForwardOutgoing[0].TargetId;
+        }
+
+        int SpineColumn = StartNode.Column;
+        foreach (string SpineId in SpineIds)
+        {
+            if (ById.TryGetValue(SpineId, out GridNode? SpineNode))
+            {
+                SpineNode.Column = SpineColumn;
+            }
+        }
+    }
+
+    /// <summary>
+    /// B15: dagre omits back edges from placement, so add placeholder routes before port assignment.
+    /// </summary>
+    private static void EnsureBackEdgeRoutes(
+        DiagramContract Contract,
+        FlowchartLayoutResult Copy,
+        List<GridNode> Placed)
+    {
+        Dictionary<string, GridNode> ById = IndexPlaced(Placed);
+        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        foreach (EdgeContract Edge in Contract.Edges)
+        {
+            if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase) || !BackEdges.Contains(Edge))
+            {
+                continue;
+            }
+
+            bool Found = false;
+            foreach (FlowchartLayoutEdgeRoute Route in Copy.EdgeRoutes)
+            {
+                if (string.Equals(Route.SourceId, Edge.SourceId, StringComparison.Ordinal)
+                    && string.Equals(Route.TargetId, Edge.TargetId, StringComparison.Ordinal))
+                {
+                    Found = true;
+                    break;
+                }
+            }
+
+            if (Found
+                || !ById.TryGetValue(Edge.SourceId, out GridNode? Source)
+                || !ById.TryGetValue(Edge.TargetId, out GridNode? Target))
+            {
+                continue;
+            }
+
+            FlowchartLayoutEdgeRoute Placeholder = new FlowchartLayoutEdgeRoute
+            {
+                EdgeId = Edge.Id ?? string.Empty,
+                SourceId = Edge.SourceId,
+                TargetId = Edge.TargetId,
+                ExitSide = "right",
+                EntrySide = "right"
+            };
+            Placeholder.Points.Add(new FlowchartLayoutPoint { X = Math.Round(Source.X), Y = Math.Round(Source.Y) });
+            Placeholder.Points.Add(new FlowchartLayoutPoint { X = Math.Round(Target.X), Y = Math.Round(Target.Y) });
+            Copy.EdgeRoutesMutable.Add(Placeholder);
+        }
+    }
+
+    private static void RebuildSoleForwardDecisionBranchRoutes(
+        DiagramContract Contract,
+        FlowchartLayoutResult Copy,
+        List<GridNode> Placed,
+        List<GridFrame> Frames,
+        Dictionary<string, NodeContract> Nodes,
+        FlowchartDirection Direction)
+    {
+        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = BuildPlacedBounds(Placed, Frames);
+        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        bool HorizontalFlow = Direction == FlowchartDirection.LeftToRight
+            || Direction == FlowchartDirection.RightToLeft;
+
+        foreach (FlowchartLayoutEdgeRoute Route in Copy.EdgeRoutes)
+        {
+            EdgeContract? Edge = FindContractEdge(Contract, Route);
+            if (Edge == null || BackEdges.Contains(Edge))
+            {
+                continue;
+            }
+
+            if (!FlowchartLoopBackRouteHelper.TryResolveSoleForwardDecisionBranch(
+                    Edge,
+                    Contract,
+                    BoundsById,
+                    Nodes,
+                    Direction,
+                    out List<(double X, double Y)> LayoutPoints)
+                || LayoutPoints.Count < 2)
+            {
+                continue;
+            }
+
+            if (BoundsById.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds SourceBounds)
+                && BoundsById.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
+            {
+                SetRouteEndpointSides(Route, SourceBounds, TargetBounds, LayoutPoints, HorizontalFlow);
+            }
+
+            Route.Points.Clear();
+            foreach ((double PointX, double PointY) in LayoutPoints)
+            {
+                Route.Points.Add(new FlowchartLayoutPoint
+                {
+                    X = Math.Round(PointX),
+                    Y = Math.Round(PointY)
+                });
+            }
+        }
+    }
+
+    private static void RebuildLoopBackRoutes(
+        DiagramContract Contract,
+        FlowchartLayoutResult Copy,
+        List<GridNode> Placed,
+        List<GridFrame> Frames,
+        Dictionary<string, NodeContract> Nodes,
+        FlowchartDirection Direction)
+    {
+        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = BuildPlacedBounds(Placed, Frames);
+        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        bool HorizontalFlow = Direction == FlowchartDirection.LeftToRight
+            || Direction == FlowchartDirection.RightToLeft;
+
+        foreach (FlowchartLayoutEdgeRoute Route in Copy.EdgeRoutes)
+        {
+            EdgeContract? Edge = FindContractEdge(Contract, Route);
+            if (Edge == null || !BackEdges.Contains(Edge))
+            {
+                continue;
+            }
+
+            if (!FlowchartLoopBackRouteHelper.TryResolveDecisionLoopBackRoute(
+                    Edge,
+                    Contract,
+                    BoundsById,
+                    Nodes,
+                    Direction,
+                    out List<(double X, double Y)> LayoutPoints)
+                && !FlowchartFanInPortAllocator.TryResolveLoopBackRoute(
+                    Edge,
+                    Contract,
+                    BoundsById,
+                    Nodes.TryGetValue(Route.TargetId, out NodeContract? TargetNode) ? TargetNode.Shape : null,
+                    Direction,
+                    out LayoutPoints))
+            {
+                continue;
+            }
+
+            if (LayoutPoints.Count < 2)
+            {
+                continue;
+            }
+
+            if (BoundsById.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds SourceBounds)
+                && BoundsById.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
+            {
+                SetRouteEndpointSides(Route, SourceBounds, TargetBounds, LayoutPoints, HorizontalFlow);
+            }
+
+            Route.Points.Clear();
+            foreach ((double PointX, double PointY) in LayoutPoints)
+            {
+                Route.Points.Add(new FlowchartLayoutPoint
+                {
+                    X = Math.Round(PointX),
+                    Y = Math.Round(PointY)
+                });
+            }
+        }
+    }
+
+    private static EdgeContract? FindContractEdge(DiagramContract Contract, FlowchartLayoutEdgeRoute Route)
+    {
+        foreach (EdgeContract Candidate in Contract.Edges)
+        {
+            if (string.Equals(Candidate.SourceId, Route.SourceId, StringComparison.Ordinal)
+                && string.Equals(Candidate.TargetId, Route.TargetId, StringComparison.Ordinal))
+            {
+                return Candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private static void SetRouteEndpointSides(
+        FlowchartLayoutEdgeRoute Route,
+        FlowchartLayoutNodeBounds SourceBounds,
+        FlowchartLayoutNodeBounds TargetBounds,
+        List<(double X, double Y)> LayoutPoints,
+        bool HorizontalFlow)
+    {
+        if (LayoutPoints.Count == 0)
+        {
+            return;
+        }
+
+        (double StartX, double StartY) = LayoutPoints[0];
+        (double EndX, double EndY) = LayoutPoints[^1];
+        double SourceOffsetX = Math.Abs(StartX - SourceBounds.CenterX);
+        double SourceOffsetY = Math.Abs(StartY - SourceBounds.CenterY);
+        double TargetOffsetX = Math.Abs(EndX - TargetBounds.CenterX);
+        double TargetOffsetY = Math.Abs(EndY - TargetBounds.CenterY);
+
+        if (HorizontalFlow)
+        {
+            Route.ExitSide = SourceOffsetY > SourceOffsetX
+                ? (StartY >= SourceBounds.CenterY ? "top" : "bottom")
+                : (StartX >= SourceBounds.CenterX ? "right" : "left");
+            Route.EntrySide = TargetOffsetY > TargetOffsetX
+                ? (EndY >= TargetBounds.CenterY ? "top" : "bottom")
+                : (EndX >= TargetBounds.CenterX ? "right" : "left");
+            return;
+        }
+
+        Route.ExitSide = SourceOffsetX > SourceOffsetY
+            ? (StartX >= SourceBounds.CenterX ? "right" : "left")
+            : (StartY <= SourceBounds.CenterY ? "bottom" : "top");
+        Route.EntrySide = TargetOffsetX > TargetOffsetY
+            ? (EndX >= TargetBounds.CenterX ? "right" : "left")
+            : (EndY <= TargetBounds.CenterY ? "bottom" : "top");
+    }
+
     private static void RebuildDecisionFanOutRoutes(
         DiagramContract Contract,
         FlowchartLayoutResult Copy,
@@ -1952,6 +2258,7 @@ public static class DiagramGridLayout
         FlowchartDirection Direction)
     {
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = BuildPlacedBounds(Placed, Frames);
+        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
 
         foreach (FlowchartLayoutEdgeRoute Route in Copy.EdgeRoutes)
         {
@@ -1965,7 +2272,8 @@ public static class DiagramGridLayout
             foreach (EdgeContract Candidate in Contract.Edges)
             {
                 if (string.Equals(Candidate.SourceId, Route.SourceId, StringComparison.Ordinal)
-                    && !string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+                    && !string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
+                    && !BackEdges.Contains(Candidate))
                 {
                     Outgoing++;
                 }
@@ -1987,7 +2295,7 @@ public static class DiagramGridLayout
                 }
             }
 
-            if (Edge == null)
+            if (Edge == null || BackEdges.Contains(Edge))
             {
                 continue;
             }

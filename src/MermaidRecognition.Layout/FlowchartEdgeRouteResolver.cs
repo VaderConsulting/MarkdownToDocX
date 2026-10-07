@@ -210,6 +210,12 @@ public static class FlowchartEdgeRouteResolver
         }
 
         LayoutPoints = Copied;
+        if (FlowchartBackEdgeHelper.FindBackEdges(Contract).Contains(Edge))
+        {
+            RouteKind = FlowchartEdgeRouteKind.RetryLoop;
+            return true;
+        }
+
         if (LayoutPoints.Count == 2)
         {
             RouteKind = FlowchartEdgeRouteKind.Straight;
@@ -315,6 +321,20 @@ public static class FlowchartEdgeRouteResolver
         string? SourceShape = NodeById.TryGetValue(Edge.SourceId, out NodeContract? SourceNode) ? SourceNode.Shape : null;
         string? TargetShape = NodeById.TryGetValue(Edge.TargetId, out NodeContract? TargetNode) ? TargetNode.Shape : null;
 
+        if (FlowchartLoopBackRouteHelper.TryResolveDecisionLoopBackRoute(Edge, Contract, EffectiveBounds, NodeById, Direction, out List<(double X, double Y)> DecisionLoopPoints))
+        {
+            LayoutPoints = DecisionLoopPoints;
+            RouteKind = FlowchartEdgeRouteKind.RetryLoop;
+            return true;
+        }
+
+        if (FlowchartLoopBackRouteHelper.TryResolveSoleForwardDecisionBranch(Edge, Contract, EffectiveBounds, NodeById, Direction, out List<(double X, double Y)> SoleBranchPoints))
+        {
+            LayoutPoints = SoleBranchPoints;
+            RouteKind = FlowchartEdgeRouteKind.Straight;
+            return true;
+        }
+
         if (FlowchartDecisionPortAllocator.TryResolveEdgeRoute(
                 Edge,
                 Contract,
@@ -360,20 +380,6 @@ public static class FlowchartEdgeRouteResolver
         {
             LayoutPoints = GroupedPoints;
             RouteKind = FlowchartEdgeRouteKind.GroupedTwoByTwo;
-            return true;
-        }
-
-        if (FlowchartLoopBackRouteHelper.TryResolveDecisionLoopBackRoute(Edge, Contract, BoundsById, NodeById, Direction, out List<(double X, double Y)> DecisionLoopPoints))
-        {
-            LayoutPoints = DecisionLoopPoints;
-            RouteKind = FlowchartEdgeRouteKind.RetryLoop;
-            return true;
-        }
-
-        if (FlowchartLoopBackRouteHelper.TryResolveSoleForwardDecisionBranch(Edge, Contract, BoundsById, NodeById, Direction, out List<(double X, double Y)> SoleBranchPoints))
-        {
-            LayoutPoints = SoleBranchPoints;
-            RouteKind = FlowchartEdgeRouteKind.Straight;
             return true;
         }
 

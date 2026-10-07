@@ -61,6 +61,23 @@ public static class DiagramGridRouteBuilder
                 continue;
             }
 
+            EdgeContract? RouteEdge = null;
+            foreach (EdgeContract Candidate in Contract.Edges)
+            {
+                if (string.Equals(Candidate.SourceId, Route.SourceId, StringComparison.Ordinal)
+                    && string.Equals(Candidate.TargetId, Route.TargetId, StringComparison.Ordinal))
+                {
+                    RouteEdge = Candidate;
+                    break;
+                }
+            }
+
+            if (RouteEdge != null
+                && FlowchartBackEdgeHelper.FindBackEdges(Contract).Contains(RouteEdge))
+            {
+                continue;
+            }
+
             if (!BoundsById.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds SourceBounds)
                 || !BoundsById.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
             {

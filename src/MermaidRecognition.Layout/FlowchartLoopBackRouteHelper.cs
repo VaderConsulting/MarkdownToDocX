@@ -72,14 +72,63 @@ public static class FlowchartLoopBackRouteHelper
         }
 
         double Side = ResolveLoopSide(Edge, Contract, BoundsById, BackEdges, SourceBounds, TargetBounds);
-        double StartX = SourceBounds.CenterX + (Side * ((SourceBounds.Width / 2.0) + FlowchartEdgeAttachConstants.GetExteriorGapPx(Edge.MarkerStart)));
+        double SourceGapPx = FlowchartEdgeAttachConstants.GetExteriorGapPx(Edge.MarkerStart);
+        double TargetGapPx = FlowchartEdgeAttachConstants.GetExteriorGapPx(Edge.MarkerEnd);
+        double StartX = SourceBounds.CenterX + (Side * ((SourceBounds.Width / 2.0) + SourceGapPx));
         double StartY = SourceBounds.CenterY;
-        double EndX = TargetBounds.CenterX + (Side * ((TargetBounds.Width / 2.0) + FlowchartEdgeAttachConstants.GetExteriorGapPx(Edge.MarkerEnd)));
+        double EndX = TargetBounds.CenterX + (Side * ((TargetBounds.Width / 2.0) + TargetGapPx));
         double EndY = TargetBounds.CenterY;
         double SpanMinY = Math.Min(StartY, EndY);
         double SpanMaxY = Math.Max(StartY, EndY);
 
-        double CorridorX = StartX + (Side * MINIMUM_SIDE_STUB_PX);
+        double StubX = StartX + (Side * MINIMUM_SIDE_STUB_PX);
+        double CorridorX = ResolveParallelLoopCorridorX(
+            Edge,
+            Contract,
+            BoundsById,
+            BackEdges,
+            Side,
+            StubX,
+            SpanMinY,
+            SpanMaxY);
+
+        foreach (KeyValuePair<string, FlowchartLayoutNodeBounds> Entry in BoundsById)
+        {
+            if (string.Equals(Entry.Key, Edge.SourceId, StringComparison.Ordinal) || string.Equals(Entry.Key, Edge.TargetId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (CrossesHorizontalRun(Entry.Value, StartX, StubX, StartY)
+                || CrossesHorizontalRun(Entry.Value, CorridorX, CorridorX, StartY)
+                || CrossesHorizontalRun(Entry.Value, EndX, CorridorX, EndY))
+            {
+                return false;
+            }
+        }
+
+        LayoutPoints.Add((StartX, StartY));
+        LayoutPoints.Add((StubX, StartY));
+        LayoutPoints.Add((CorridorX, StartY));
+        LayoutPoints.Add((CorridorX, EndY));
+        LayoutPoints.Add((EndX, EndY));
+        return true;
+    }
+
+    /// <summary>
+    /// B15: longest loop-back track sits outermost; shorter loops use parallel interior corridors.
+    /// </summary>
+    private static double ResolveParallelLoopCorridorX(
+        EdgeContract Edge,
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        HashSet<EdgeContract> BackEdges,
+        double Side,
+        double StubX,
+        double SpanMinY,
+        double SpanMaxY)
+    {
+        double BaseCorridorX = StubX;
         foreach (FlowchartLayoutNodeBounds Bounds in BoundsById.Values)
         {
             double Bottom = Bounds.CenterY - (Bounds.Height / 2.0);
@@ -90,30 +139,65 @@ public static class FlowchartLoopBackRouteHelper
             }
 
             double Candidate = Bounds.CenterX + (Side * ((Bounds.Width / 2.0) + LOOP_CORRIDOR_CLEARANCE_PX));
-            if ((Candidate - CorridorX) * Side > 0.0)
+            if ((Candidate - BaseCorridorX) * Side > 0.0)
             {
-                CorridorX = Candidate;
+                BaseCorridorX = Candidate;
             }
         }
 
-        foreach (KeyValuePair<string, FlowchartLayoutNodeBounds> Entry in BoundsById)
+        List<EdgeContract> SameSideLoops = [];
+        foreach (EdgeContract Candidate in BackEdges)
         {
-            if (string.Equals(Entry.Key, Edge.SourceId, StringComparison.Ordinal) || string.Equals(Entry.Key, Edge.TargetId, StringComparison.Ordinal))
+            if (!BoundsById.TryGetValue(Candidate.SourceId, out FlowchartLayoutNodeBounds SourceBounds)
+                || !BoundsById.TryGetValue(Candidate.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
             {
                 continue;
             }
 
-            if (CrossesHorizontalRun(Entry.Value, StartX, CorridorX, StartY) || CrossesHorizontalRun(Entry.Value, EndX, CorridorX, EndY))
+            double CandidateSide = ResolveLoopSide(Candidate, Contract, BoundsById, BackEdges, SourceBounds, TargetBounds);
+            if (Math.Abs(CandidateSide - Side) > COLLINEAR_EPSILON_PX)
             {
-                return false;
+                continue;
             }
+
+            SameSideLoops.Add(Candidate);
         }
 
-        LayoutPoints.Add((StartX, StartY));
-        LayoutPoints.Add((CorridorX, StartY));
-        LayoutPoints.Add((CorridorX, EndY));
-        LayoutPoints.Add((EndX, EndY));
-        return true;
+        if (SameSideLoops.Count <= 1)
+        {
+            return BaseCorridorX;
+        }
+
+        SameSideLoops.Sort((Left, Right) =>
+        {
+            if (!BoundsById.TryGetValue(Left.SourceId, out FlowchartLayoutNodeBounds LeftSource)
+                || !BoundsById.TryGetValue(Left.TargetId, out FlowchartLayoutNodeBounds LeftTarget)
+                || !BoundsById.TryGetValue(Right.SourceId, out FlowchartLayoutNodeBounds RightSource)
+                || !BoundsById.TryGetValue(Right.TargetId, out FlowchartLayoutNodeBounds RightTarget))
+            {
+                return 0;
+            }
+
+            double LeftSpan = Math.Abs(LeftSource.CenterY - LeftTarget.CenterY);
+            double RightSpan = Math.Abs(RightSource.CenterY - RightTarget.CenterY);
+            int SpanCompare = RightSpan.CompareTo(LeftSpan);
+            if (SpanCompare != 0)
+            {
+                return SpanCompare;
+            }
+
+            return Left.CreationIndex.CompareTo(Right.CreationIndex);
+        });
+
+        int LoopIndex = SameSideLoops.FindIndex(
+            Candidate => string.Equals(Candidate.SourceId, Edge.SourceId, StringComparison.Ordinal)
+                && string.Equals(Candidate.TargetId, Edge.TargetId, StringComparison.Ordinal));
+        if (LoopIndex < 0)
+        {
+            return BaseCorridorX;
+        }
+
+        return BaseCorridorX + (Side * LOOP_CORRIDOR_CLEARANCE_PX * LoopIndex);
     }
 
     /// <summary>

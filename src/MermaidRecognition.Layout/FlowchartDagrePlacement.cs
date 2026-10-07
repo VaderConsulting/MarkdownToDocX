@@ -106,10 +106,18 @@ public static class FlowchartDagrePlacement
             }
         }
 
+        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         int EdgeIndex = 0;
         foreach (EdgeContract Edge in Contract.Edges)
         {
             if (!Graph.HasNode(Edge.SourceId) || !Graph.HasNode(Edge.TargetId))
+            {
+                continue;
+            }
+
+            if (BackEdges.Contains(Edge)
+                && !string.Equals(Edge.SourceId, Edge.TargetId, StringComparison.Ordinal)
+                && !HasReverseEdge(Contract, Edge))
             {
                 continue;
             }
@@ -824,6 +832,20 @@ public static class FlowchartDagrePlacement
             X = HitX,
             Y = HitY
         };
+    }
+
+    private static bool HasReverseEdge(DiagramContract Contract, EdgeContract Edge)
+    {
+        foreach (EdgeContract Candidate in Contract.Edges)
+        {
+            if (string.Equals(Candidate.SourceId, Edge.TargetId, StringComparison.Ordinal)
+                && string.Equals(Candidate.TargetId, Edge.SourceId, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static string ToRankDir(FlowchartDirection Direction)
