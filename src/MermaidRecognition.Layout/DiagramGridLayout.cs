@@ -67,6 +67,7 @@ public static class DiagramGridLayout
         AssignColumns(Placed, Horizontal, CrossPitch);
         ResolveVerticalChordBlockers(Contract, Placed);
         AlignForwardMainChainColumn(Contract, Placed, Horizontal);
+        AlignDecisionCentreChildColumn(Contract, Placed, Horizontal);
         CascadeColumns(Placed);
         PlaceOnGrid(Placed, Horizontal, BoxWidth, BoxHeight, MainPitch, CrossPitch, Copy, Contract);
         GrowCrowdedSides(Placed, Copy, BoxWidth, BoxHeight);
@@ -320,6 +321,107 @@ public static class DiagramGridLayout
                 {
                     RankNodes[Index].Column = RankNodes[Index - 1].Column + 1;
                 }
+            }
+        }
+    }
+
+    /// <summary>
+    /// B12b/B12c: for a three-way decision fan-out, the centre child keeps the parent column.
+    /// </summary>
+    private static void AlignDecisionCentreChildColumn(
+        DiagramContract Contract,
+        List<GridNode> Placed,
+        bool Horizontal)
+    {
+        if (Horizontal)
+        {
+            return;
+        }
+
+        Dictionary<string, GridNode> ById = IndexPlaced(Placed);
+        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        foreach (GridNode Parent in Placed)
+        {
+            if (!Parent.IsDiamond)
+            {
+                continue;
+            }
+
+            List<GridNode> Children = [];
+            foreach (EdgeContract Edge in Contract.Edges)
+            {
+                if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
+                    || BackEdges.Contains(Edge)
+                    || !string.Equals(Edge.SourceId, Parent.Id, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (!ById.TryGetValue(Edge.TargetId, out GridNode? Child) || Child.Rank <= Parent.Rank)
+                {
+                    continue;
+                }
+
+                Children.Add(Child);
+            }
+
+            if (Children.Count < 3)
+            {
+                continue;
+            }
+
+            double ParentCross = Parent.OldX;
+            GridNode? CentreChild = null;
+            double MinOffset = double.MaxValue;
+            foreach (GridNode Child in Children)
+            {
+                double Offset = Math.Abs(Child.OldX - ParentCross);
+                if (Offset < MinOffset)
+                {
+                    MinOffset = Offset;
+                    CentreChild = Child;
+                }
+            }
+
+            if (CentreChild == null)
+            {
+                continue;
+            }
+
+            CentreChild.Column = Parent.Column;
+            List<GridNode> LeftChildren = [];
+            List<GridNode> RightChildren = [];
+            foreach (GridNode Child in Children)
+            {
+                if (string.Equals(Child.Id, CentreChild.Id, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (Child.OldX < CentreChild.OldX - DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
+                {
+                    LeftChildren.Add(Child);
+                }
+                else if (Child.OldX > CentreChild.OldX + DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
+                {
+                    RightChildren.Add(Child);
+                }
+            }
+
+            LeftChildren.Sort((Left, Right) => Left.OldX.CompareTo(Right.OldX));
+            RightChildren.Sort((Left, Right) => Left.OldX.CompareTo(Right.OldX));
+            int LeftColumn = Parent.Column - 1;
+            foreach (GridNode Child in LeftChildren)
+            {
+                Child.Column = LeftColumn;
+                LeftColumn--;
+            }
+
+            int RightColumn = Parent.Column + 1;
+            foreach (GridNode Child in RightChildren)
+            {
+                Child.Column = RightColumn;
+                RightColumn++;
             }
         }
     }

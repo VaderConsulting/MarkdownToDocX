@@ -736,29 +736,6 @@ public static class FlowchartDecisionPortAllocator
         Dictionary<string, (double X, double Y, FlowchartDecisionPortRole Role)> PortsByTarget =
             new Dictionary<string, (double X, double Y, FlowchartDecisionPortRole Role)>(StringComparer.Ordinal);
 
-        if (Outgoing.Count >= 3)
-        {
-            DiamondVertexKind[] IndexedVertices = UseBottomFace
-                ? [DiamondVertexKind.Left, DiamondVertexKind.Bottom, DiamondVertexKind.Right]
-                : [DiamondVertexKind.Left, DiamondVertexKind.Top, DiamondVertexKind.Right];
-            for (int Index = 0; Index < Outgoing.Count; Index++)
-            {
-                DiamondVertexKind Preferred = Index < IndexedVertices.Length
-                    ? IndexedVertices[Index]
-                    : DiamondVertexKind.Right;
-                PortsByTarget[Outgoing[Index].TargetId] = AllocatePreferredVertexAttach(
-                    Preferred,
-                    ref Taken,
-                    CentreX,
-                    CentreY,
-                    HalfWidth,
-                    HalfHeight,
-                    UseBottomFace);
-            }
-
-            return PortsByTarget;
-        }
-
         foreach (EdgeContract OutgoingEdge in Outgoing)
         {
             if (!BoundsById.TryGetValue(OutgoingEdge.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
