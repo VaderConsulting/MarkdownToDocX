@@ -216,12 +216,32 @@ public static class FlowchartEdgeRouteResolver
             return true;
         }
 
-        if (NodeById.TryGetValue(Edge.SourceId, out NodeContract? SourceNode)
-            && FlowchartDagrePresentation.IsDiamondShape(SourceNode.Shape)
-            && CountVisibleOutgoing(Contract, Edge.SourceId) >= 2)
+        if (NodeById.TryGetValue(Edge.SourceId, out NodeContract? SourceNode))
         {
-            RouteKind = FlowchartEdgeRouteKind.Grid;
-            return true;
+            if (FlowchartDagrePresentation.IsDiamondShape(SourceNode.Shape)
+                && CountVisibleOutgoing(Contract, Edge.SourceId) >= 2)
+            {
+                RouteKind = FlowchartEdgeRouteKind.Grid;
+                return true;
+            }
+
+            Dictionary<string, FlowchartLayoutNodeBounds> BoundsById =
+                new Dictionary<string, FlowchartLayoutNodeBounds>(StringComparer.Ordinal);
+            foreach (FlowchartLayoutNodeBounds Bounds in Layout.NodeBounds)
+            {
+                BoundsById[Bounds.NodeId] = Bounds;
+            }
+
+            if (FlowchartOrdinaryFanOutRouteBuilder.TryIsOrdinaryFanOutHub(
+                    Contract,
+                    Edge.SourceId,
+                    SourceNode.Shape,
+                    FlowchartDirectionNormalizer.Normalize(Contract.Direction),
+                    BoundsById))
+            {
+                RouteKind = FlowchartEdgeRouteKind.Grid;
+                return true;
+            }
         }
 
         RouteKind = FlowchartEdgeRouteKind.Grid;
@@ -507,6 +527,23 @@ public static class FlowchartEdgeRouteResolver
                 || FanInPoints.Count == 2
                 ? FlowchartEdgeRouteKind.Straight
                 : FlowchartEdgeRouteKind.Curved;
+            return true;
+        }
+
+        if (FlowchartOrdinaryFanOutRouteBuilder.TryBuildEdgeRoute(
+                Edge,
+                Contract,
+                BoundsById,
+                SourceShape,
+                TargetShape,
+                Direction,
+                out List<(double X, double Y)> OrdinaryFanOutPoints))
+        {
+            LayoutPoints = OrdinaryFanOutPoints;
+            RouteKind = FlowchartEdgeConnectionGeometry.IsCollinearStubStraightRoute(OrdinaryFanOutPoints)
+                || OrdinaryFanOutPoints.Count == 2
+                ? FlowchartEdgeRouteKind.Straight
+                : FlowchartEdgeRouteKind.Grid;
             return true;
         }
 

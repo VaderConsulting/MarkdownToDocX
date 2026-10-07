@@ -77,6 +77,7 @@ public static class DiagramGridLayout
         AssignPortSides(Contract, Copy, Placed, Frames, Nodes, Direction);
         DiagramGridRouteBuilder.RebuildAllRoutes(Copy, Placed, Nodes, Contract, Frames, Direction);
         RebuildDecisionFanOutRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
+        RebuildOrdinaryFanOutRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
         Copy.UsesGridRoutes = true;
         SeparateTracks(Copy, Placed);
         PushPointsOutOfNodes(Copy, Placed);
@@ -1126,22 +1127,40 @@ public static class DiagramGridLayout
             Pending.Add((Route, Source, Target));
         }
 
+        Dictionary<string, FlowchartLayoutNodeBounds> FanOutBoundsById = BuildPlacedBounds(Placed, Frames);
         foreach ((FlowchartLayoutEdgeRoute Route, BoxRef Source, BoxRef Target) Item in Pending)
         {
-            string Exit = string.IsNullOrEmpty(Item.Route.ExitSide)
-                ? ChooseElbowExitSide(
+            string Exit;
+            string Entry;
+            if (FlowchartOrdinaryFanOutRouteBuilder.TryGetFlowSides(Direction, out string FanOutExit, out string FanOutEntry)
+                && Nodes.TryGetValue(Item.Source.Id, out NodeContract? SourceNode)
+                && FlowchartOrdinaryFanOutRouteBuilder.TryIsOrdinaryFanOutHub(
                     Contract,
-                    Item.Source,
-                    Item.Target,
+                    Item.Source.Id,
+                    SourceNode.Shape,
                     Direction,
-                    ReservedCenterPorts,
-                    ObstacleBounds,
-                    Item.Route.SourceId,
-                    Item.Route.TargetId)
-                : Item.Route.ExitSide;
-            string Entry = string.IsNullOrEmpty(Item.Route.EntrySide)
-                ? ChooseElbowEntrySide(Item.Target, Item.Source, Direction, Exit)
-                : Item.Route.EntrySide;
+                    FanOutBoundsById))
+            {
+                Exit = FanOutExit;
+                Entry = FanOutEntry;
+            }
+            else
+            {
+                Exit = string.IsNullOrEmpty(Item.Route.ExitSide)
+                    ? ChooseElbowExitSide(
+                        Contract,
+                        Item.Source,
+                        Item.Target,
+                        Direction,
+                        ReservedCenterPorts,
+                        ObstacleBounds,
+                        Item.Route.SourceId,
+                        Item.Route.TargetId)
+                    : Item.Route.ExitSide;
+                Entry = string.IsNullOrEmpty(Item.Route.EntrySide)
+                    ? ChooseElbowEntrySide(Item.Target, Item.Source, Direction, Exit)
+                    : Item.Route.EntrySide;
+            }
             Item.Route.ExitSide = Exit;
             Item.Route.EntrySide = Entry;
             Ends.Add(new PortEnd
@@ -1844,6 +1863,84 @@ public static class DiagramGridLayout
         }
 
         return BoundsById;
+    }
+
+    private static void RebuildOrdinaryFanOutRoutes(
+        DiagramContract Contract,
+        FlowchartLayoutResult Copy,
+        List<GridNode> Placed,
+        List<GridFrame> Frames,
+        Dictionary<string, NodeContract> Nodes,
+        FlowchartDirection Direction)
+    {
+        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = BuildPlacedBounds(Placed, Frames);
+
+        foreach (FlowchartLayoutEdgeRoute Route in Copy.EdgeRoutes)
+        {
+            if (!Nodes.TryGetValue(Route.SourceId, out NodeContract? SourceNode)
+                || FlowchartDagrePresentation.IsDiamondShape(SourceNode.Shape))
+            {
+                continue;
+            }
+
+            if (!FlowchartOrdinaryFanOutRouteBuilder.TryIsOrdinaryFanOutHub(
+                    Contract,
+                    Route.SourceId,
+                    SourceNode.Shape,
+                    Direction,
+                    BoundsById))
+            {
+                continue;
+            }
+
+            EdgeContract? Edge = null;
+            foreach (EdgeContract Candidate in Contract.Edges)
+            {
+                if (string.Equals(Candidate.SourceId, Route.SourceId, StringComparison.Ordinal)
+                    && string.Equals(Candidate.TargetId, Route.TargetId, StringComparison.Ordinal))
+                {
+                    Edge = Candidate;
+                    break;
+                }
+            }
+
+            if (Edge == null)
+            {
+                continue;
+            }
+
+            string? TargetShape = Nodes.TryGetValue(Route.TargetId, out NodeContract? TargetNode)
+                ? TargetNode.Shape
+                : null;
+            if (!FlowchartOrdinaryFanOutRouteBuilder.TryBuildEdgeRoute(
+                    Edge,
+                    Contract,
+                    BoundsById,
+                    SourceNode.Shape,
+                    TargetShape,
+                    Direction,
+                    out List<(double X, double Y)> LayoutPoints)
+                || LayoutPoints.Count < 2)
+            {
+                continue;
+            }
+
+            if (FlowchartOrdinaryFanOutRouteBuilder.TryGetFlowSides(Direction, out string ExitSide, out string EntrySide))
+            {
+                Route.ExitSide = ExitSide;
+                Route.EntrySide = EntrySide;
+            }
+
+            Route.Points.Clear();
+            foreach ((double PointX, double PointY) in LayoutPoints)
+            {
+                Route.Points.Add(new FlowchartLayoutPoint
+                {
+                    X = Math.Round(PointX),
+                    Y = Math.Round(PointY)
+                });
+            }
+        }
     }
 
     private static void RebuildDecisionFanOutRoutes(

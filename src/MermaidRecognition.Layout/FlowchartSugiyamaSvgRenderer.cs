@@ -480,6 +480,39 @@ public static class FlowchartSugiyamaSvgRenderer
                 continue;
             }
 
+            if (FlowchartOrdinaryFanOutRouteBuilder.TryBuildEdgeRoute(
+                    Edge,
+                    Contract,
+                    BoundsById,
+                    SourceShape,
+                    TargetShape,
+                    Direction,
+                    out List<(double X, double Y)> OrdinaryFanOutLayoutPoints)
+                && OrdinaryFanOutLayoutPoints.Count >= 2)
+            {
+                RenderResolvedEdgeRoute(
+                    Builder,
+                    Edge,
+                    Contract,
+                    BoundsById,
+                    SourceBounds,
+                    TargetBounds,
+                    SourceShape,
+                    OrdinaryFanOutLayoutPoints,
+                    FlowchartEdgeConnectionGeometry.IsCollinearStubStraightRoute(OrdinaryFanOutLayoutPoints)
+                        || OrdinaryFanOutLayoutPoints.Count == 2
+                        ? FlowchartEdgeRouteKind.Straight
+                        : FlowchartEdgeRouteKind.Grid,
+                    Direction,
+                    RouteClass,
+                    MinLeft,
+                    MaxTop,
+                    DiagramPaddingPx,
+                    EdgeStyle,
+                    RenderOptions);
+                continue;
+            }
+
             if (FlowchartFanOutPortAllocator.TryResolveEdgeRoute(
                     Edge,
                     Contract,

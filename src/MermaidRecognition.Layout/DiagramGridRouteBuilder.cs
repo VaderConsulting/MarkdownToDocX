@@ -42,9 +42,21 @@ public static class DiagramGridRouteBuilder
                 continue;
             }
 
-            if (Nodes.TryGetValue(Route.SourceId, out NodeContract? SourceNode)
+            Nodes.TryGetValue(Route.SourceId, out NodeContract? SourceNode);
+
+            if (SourceNode != null
                 && FlowchartDagrePresentation.IsDiamondShape(SourceNode.Shape)
                 && CountVisibleOutgoing(Contract, Route.SourceId) >= 2)
+            {
+                continue;
+            }
+
+            if (FlowchartOrdinaryFanOutRouteBuilder.TryIsOrdinaryFanOutHub(
+                    Contract,
+                    Route.SourceId,
+                    SourceNode?.Shape,
+                    Direction,
+                    BoundsById))
             {
                 continue;
             }
