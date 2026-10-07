@@ -279,23 +279,34 @@ public static class FlowchartEdgeRouteDiagnosticAnalyzer
                 return;
             }
 
-            if (ResolvedRoute.SemanticRouteClass == FlowchartEdgeSemanticRouteClass.LongExceptionRoute
-                && SpineCorridor is not null
-                && FlowchartRouteObstacleHelper.SegmentIntersectsRectangleInterior(
-                    StartX,
-                    StartY,
-                    EndX,
-                    EndY,
-                    SpineCorridor.Left,
-                    SpineCorridor.Top,
-                    SpineCorridor.Right,
-                    SpineCorridor.Bottom))
+            if (ResolvedRoute.SemanticRouteClass == FlowchartEdgeSemanticRouteClass.LongExceptionRoute)
             {
-                Findings.Add(CreateFinding(
-                    ResolvedRoute,
-                    FlowchartEdgeRouteDiagnosticKind.LongDiagonalCrossing,
-                    "Long exception route uses a diagonal segment that cuts through the spine corridor instead of an exterior bypass lane."));
-                return;
+                bool CutsBuiltSpineCorridor = SpineCorridor is not null
+                    && FlowchartRouteObstacleHelper.SegmentIntersectsRectangleInterior(
+                        StartX,
+                        StartY,
+                        EndX,
+                        EndY,
+                        SpineCorridor.Left,
+                        SpineCorridor.Top,
+                        SpineCorridor.Right,
+                        SpineCorridor.Bottom);
+                bool CutsSpineColumn = VerticalFlow
+                    && SegmentIntersectsSpineColumn(
+                        StartX,
+                        StartY,
+                        EndX,
+                        EndY,
+                        ResolvedRoute.SourceBounds,
+                        ResolvedRoute.TargetBounds);
+                if (CutsBuiltSpineCorridor || CutsSpineColumn)
+                {
+                    Findings.Add(CreateFinding(
+                        ResolvedRoute,
+                        FlowchartEdgeRouteDiagnosticKind.LongDiagonalCrossing,
+                        "Long exception route uses a diagonal segment that cuts through the spine corridor instead of an exterior bypass lane."));
+                    return;
+                }
             }
         }
     }
@@ -1004,6 +1015,29 @@ public static class FlowchartEdgeRouteDiagnosticAnalyzer
         string Normalised = Shape.Trim();
         return string.Equals(Normalised, "diamond", StringComparison.OrdinalIgnoreCase)
             || string.Equals(Normalised, "rhombus", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool SegmentIntersectsSpineColumn(
+        double StartX,
+        double StartY,
+        double EndX,
+        double EndY,
+        FlowchartLayoutNodeBounds SourceBounds,
+        FlowchartLayoutNodeBounds TargetBounds)
+    {
+        double BandLeft = Math.Min(SourceBounds.CenterX, TargetBounds.CenterX) - NODE_PADDING_PX;
+        double BandRight = Math.Max(SourceBounds.CenterX, TargetBounds.CenterX) + NODE_PADDING_PX;
+        double BandBottom = Math.Min(SourceBounds.CenterY, TargetBounds.CenterY) - NODE_PADDING_PX;
+        double BandTop = Math.Max(SourceBounds.CenterY, TargetBounds.CenterY) + NODE_PADDING_PX;
+        return FlowchartRouteObstacleHelper.SegmentIntersectsRectangleInterior(
+            StartX,
+            StartY,
+            EndX,
+            EndY,
+            BandLeft,
+            BandTop,
+            BandRight,
+            BandBottom);
     }
 
     private static bool TryResolveGridLayoutPoints(

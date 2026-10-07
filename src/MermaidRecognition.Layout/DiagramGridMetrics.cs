@@ -81,6 +81,21 @@ public static class DiagramGridMetrics
     }
 
     /// <summary>
+    /// Rounds a positive distance to the nearest whole number of grid units.
+    /// </summary>
+    /// <param name="ValuePx">Distance in pixels.</param>
+    /// <returns>The nearest grid multiple, or zero when the value is not positive.</returns>
+    public static int RoundToGrid(double ValuePx)
+    {
+        if (ValuePx <= 0.0)
+        {
+            return 0;
+        }
+
+        return (int)(Math.Round(ValuePx / GRID_UNIT_PX) * GRID_UNIT_PX);
+    }
+
+    /// <summary>
     /// Grows the standard box in whole grid units until the label fits.
     /// </summary>
     /// <param name="NeededWidthPx">Label width including inset.</param>

@@ -85,33 +85,69 @@ public static class DiagramGridLayout
     /// <returns>The box width and height in pixels.</returns>
     public static (int WidthPx, int HeightPx) ResolveStandardBox(DiagramContract Contract)
     {
-        int WidthPx = DiagramGridMetrics.NODE_WIDTH_PX;
-        int HeightPx = DiagramGridMetrics.NODE_HEIGHT_PX;
         if (Contract == null)
         {
-            return (WidthPx, HeightPx);
+            return (DiagramGridMetrics.NODE_WIDTH_PX, DiagramGridMetrics.NODE_HEIGHT_PX);
         }
 
+        int WidthPx = 0;
+        int HeightPx = 0;
         FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
         foreach (NodeContract Node in Contract.Nodes)
         {
-            string Label = string.IsNullOrEmpty(Node.Label) ? Node.Id : Node.Label;
-            MeasureLabel(Label, Options, out double NeededWidth, out double NeededHeight);
+            FlowchartNodeDimensions Measured = FlowchartNodeSizeEstimator.Estimate(Node, Options);
             bool Diamond = FlowchartDagrePresentation.IsDiamondShape(Node.Shape);
             if (Diamond)
             {
-                (int GrownWidth, int GrownHeight) = DiagramGridMetrics.GrowBox(NeededWidth, NeededHeight / FlowchartDagrePresentation.DIAMOND_HEIGHT_FACTOR);
-                WidthPx = Math.Max(WidthPx, GrownWidth);
-                HeightPx = Math.Max(HeightPx, GrownHeight);
+                int DiamondWidth = DiagramGridMetrics.RoundToGrid(Measured.Width);
+                int DiamondHeight = DiagramGridMetrics.RoundToGrid(
+                    Measured.Height / FlowchartDagrePresentation.DIAMOND_HEIGHT_FACTOR);
+                WidthPx = Math.Max(WidthPx, DiamondWidth);
+                HeightPx = Math.Max(HeightPx, DiamondHeight);
                 continue;
             }
 
-            (int NodeWidth, int NodeHeight) = DiagramGridMetrics.GrowBox(NeededWidth, NeededHeight);
+            int NodeWidth = DiagramGridMetrics.RoundToGrid(Measured.Width);
+            int NodeHeight = DiagramGridMetrics.RoundToGrid(Measured.Height);
             WidthPx = Math.Max(WidthPx, NodeWidth);
             HeightPx = Math.Max(HeightPx, NodeHeight);
         }
 
+        if (WidthPx <= 0)
+        {
+            WidthPx = DiagramGridMetrics.NODE_WIDTH_PX;
+        }
+
+        if (HeightPx <= 0)
+        {
+            HeightPx = DiagramGridMetrics.NODE_HEIGHT_PX;
+        }
+
+        if (!UsesCompactLabelSizing(Contract))
+        {
+            WidthPx = Math.Max(WidthPx, DiagramGridMetrics.NODE_WIDTH_PX);
+            HeightPx = Math.Max(HeightPx, DiagramGridMetrics.NODE_HEIGHT_PX);
+        }
+
         return (WidthPx, HeightPx);
+    }
+
+    private static bool UsesCompactLabelSizing(DiagramContract Contract)
+    {
+        foreach (NodeContract Node in Contract.Nodes)
+        {
+            string Label = string.IsNullOrEmpty(Node.Label) ? Node.Id : Node.Label;
+            string NormalisedLabel = Label.Replace("<br>", "<br/>", StringComparison.OrdinalIgnoreCase)
+                .Replace("<br/>", "\n", StringComparison.OrdinalIgnoreCase);
+            if (Label.Contains("<table", StringComparison.OrdinalIgnoreCase)
+                || Label.Contains("<div", StringComparison.OrdinalIgnoreCase)
+                || FlowchartRichLabelSvgWriter.IsMarkdownListLabel(NormalisedLabel))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static void MeasureLabel(
