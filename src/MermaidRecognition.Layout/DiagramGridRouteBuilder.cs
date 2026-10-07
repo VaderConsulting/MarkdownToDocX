@@ -27,9 +27,11 @@ public static class DiagramGridRouteBuilder
         FlowchartLayoutResult Copy,
         List<DiagramGridLayout.GridNode> Placed,
         Dictionary<string, NodeContract> Nodes,
+        DiagramContract Contract,
+        IReadOnlyList<DiagramGridLayout.GridFrame> Frames,
         FlowchartDirection Direction)
     {
-        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = BuildBounds(Placed);
+        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = BuildBounds(Placed, Frames);
         bool Horizontal = Direction == FlowchartDirection.LeftToRight
             || Direction == FlowchartDirection.RightToLeft;
 
@@ -66,6 +68,7 @@ public static class DiagramGridRouteBuilder
                 BoundsById,
                 Route.SourceId,
                 Route.TargetId,
+                Contract,
                 Direction,
                 Horizontal);
 
@@ -93,6 +96,7 @@ public static class DiagramGridRouteBuilder
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         string SourceId,
         string TargetId,
+        DiagramContract Contract,
         FlowchartDirection Direction,
         bool Horizontal)
     {
@@ -125,11 +129,12 @@ public static class DiagramGridRouteBuilder
                      BoundsById,
                      SourceId,
                      TargetId,
+                     Contract,
                      Direction,
                      Horizontal))
         {
             List<(double X, double Y)> Simplified = SimplifyCollinear(Candidate);
-            if (!PathIsValid(Simplified, BoundsById, SourceId, TargetId))
+            if (!PathIsValid(Simplified, BoundsById, SourceId, TargetId, Contract))
             {
                 continue;
             }
@@ -163,7 +168,7 @@ public static class DiagramGridRouteBuilder
             SourceId,
             TargetId);
         List<(double X, double Y)> SimplifiedFallback = SimplifyCollinear(Fallback);
-        if (PathIsValid(SimplifiedFallback, BoundsById, SourceId, TargetId))
+        if (PathIsValid(SimplifiedFallback, BoundsById, SourceId, TargetId, Contract))
         {
             return SimplifiedFallback;
         }
@@ -180,6 +185,7 @@ public static class DiagramGridRouteBuilder
             BoundsById,
             SourceId,
             TargetId,
+            Contract,
             Horizontal);
     }
 
@@ -195,6 +201,7 @@ public static class DiagramGridRouteBuilder
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         string SourceId,
         string TargetId,
+        DiagramContract Contract,
         bool Horizontal)
     {
         if (!Horizontal)
@@ -238,7 +245,7 @@ public static class DiagramGridRouteBuilder
             foreach (List<(double X, double Y)> Candidate in CorridorCandidates)
             {
                 List<(double X, double Y)> Simplified = SimplifyCollinear(Candidate);
-                if (PathIsValid(Simplified, BoundsById, SourceId, TargetId))
+                if (PathIsValid(Simplified, BoundsById, SourceId, TargetId, Contract))
                 {
                     return Simplified;
                 }
@@ -264,22 +271,10 @@ public static class DiagramGridRouteBuilder
                 (EndX, EndY)
             ];
             List<(double X, double Y)> Simplified = SimplifyCollinear(Candidate);
-            if (PathIsValid(Simplified, BoundsById, SourceId, TargetId))
+            if (PathIsValid(Simplified, BoundsById, SourceId, TargetId, Contract))
             {
                 return Simplified;
             }
-        }
-
-        if (Math.Abs(SourceStubX - TargetStubX) <= COLLINEAR_EPSILON_PX
-            || Math.Abs(SourceStubY - TargetStubY) <= COLLINEAR_EPSILON_PX)
-        {
-            return SimplifyCollinear(
-            [
-                (StartX, StartY),
-                (SourceStubX, SourceStubY),
-                (TargetStubX, TargetStubY),
-                (EndX, EndY)
-            ]);
         }
 
         return SimplifyCollinear(
@@ -304,6 +299,7 @@ public static class DiagramGridRouteBuilder
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         string SourceId,
         string TargetId,
+        DiagramContract Contract,
         FlowchartDirection Direction,
         bool Horizontal)
     {
@@ -400,10 +396,14 @@ public static class DiagramGridRouteBuilder
         double EndY)
     {
         List<List<(double X, double Y)>> Results = [];
+        if (Math.Abs(StartX - EndX) <= COLLINEAR_EPSILON_PX || Math.Abs(StartY - EndY) <= COLLINEAR_EPSILON_PX)
+        {
+            Results.Add([(StartX, StartY), (EndX, EndY)]);
+        }
+
         if (Math.Abs(SourceStubX - TargetStubX) <= COLLINEAR_EPSILON_PX
             || Math.Abs(SourceStubY - TargetStubY) <= COLLINEAR_EPSILON_PX)
         {
-            Results.Add([(StartX, StartY), (EndX, EndY)]);
             Results.Add(
             [
                 (StartX, StartY),
@@ -411,7 +411,6 @@ public static class DiagramGridRouteBuilder
                 (TargetStubX, TargetStubY),
                 (EndX, EndY)
             ]);
-            return Results;
         }
 
         Results.Add(
@@ -511,7 +510,8 @@ public static class DiagramGridRouteBuilder
         List<(double X, double Y)> Path,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         string SourceId,
-        string TargetId)
+        string TargetId,
+        DiagramContract Contract)
     {
         if (Path.Count < 2)
         {
@@ -528,7 +528,7 @@ public static class DiagramGridRouteBuilder
             return false;
         }
 
-        if (CountCorners(Path) > 2)
+        if (CountCorners(Path) > 4)
         {
             return false;
         }
@@ -546,7 +546,8 @@ public static class DiagramGridRouteBuilder
                     SegmentEndY,
                     BoundsById,
                     SourceId,
-                    TargetId))
+                    TargetId,
+                    Contract))
             {
                 return false;
             }
@@ -577,7 +578,8 @@ public static class DiagramGridRouteBuilder
         double EndY,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         string SourceId,
-        string TargetId)
+        string TargetId,
+        DiagramContract Contract)
     {
         foreach (KeyValuePair<string, FlowchartLayoutNodeBounds> Entry in BoundsById)
         {
@@ -594,7 +596,34 @@ public static class DiagramGridRouteBuilder
                 continue;
             }
 
+            if (IsGroupFrameObstacle(Contract, NodeBounds.NodeId)
+                && DiagramGridLayout.IsInsideGroup(Contract, SourceId, NodeBounds.NodeId)
+                && DiagramGridLayout.IsInsideGroup(Contract, TargetId, NodeBounds.NodeId))
+            {
+                continue;
+            }
+
+            if (IsGroupFrameObstacle(Contract, NodeBounds.NodeId)
+                && string.Equals(NodeBounds.NodeId, TargetId, StringComparison.Ordinal)
+                && SegmentIndex == LastSegmentIndex)
+            {
+                continue;
+            }
+
             if (FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(StartX, StartY, EndX, EndY, NodeBounds))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsGroupFrameObstacle(DiagramContract Contract, string NodeId)
+    {
+        foreach (GroupContract Group in Contract.Groups)
+        {
+            if (string.Equals(Group.Id, NodeId, StringComparison.Ordinal))
             {
                 return true;
             }
@@ -699,7 +728,9 @@ public static class DiagramGridRouteBuilder
         return Result;
     }
 
-    private static Dictionary<string, FlowchartLayoutNodeBounds> BuildBounds(List<DiagramGridLayout.GridNode> Placed)
+    private static Dictionary<string, FlowchartLayoutNodeBounds> BuildBounds(
+        List<DiagramGridLayout.GridNode> Placed,
+        IReadOnlyList<DiagramGridLayout.GridFrame> Frames)
     {
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById =
             new Dictionary<string, FlowchartLayoutNodeBounds>(StringComparer.Ordinal);
@@ -712,6 +743,18 @@ public static class DiagramGridRouteBuilder
                 CenterY = Node.Y,
                 Width = Node.Width,
                 Height = Node.Height
+            };
+        }
+
+        foreach (DiagramGridLayout.GridFrame Frame in Frames)
+        {
+            BoundsById[Frame.Id] = new FlowchartLayoutNodeBounds
+            {
+                NodeId = Frame.Id,
+                CenterX = Frame.CenterX(),
+                CenterY = Frame.CenterY(),
+                Width = Frame.Right - Frame.Left,
+                Height = Frame.Top - Frame.Bottom
             };
         }
 

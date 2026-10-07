@@ -37,7 +37,9 @@ public static class DiagramGridLayout
             || Direction == FlowchartDirection.RightToLeft;
         (int BoxWidth, int BoxHeight) = ResolveStandardBox(Contract);
         int DiamondHeight = BoxHeight * FlowchartDagrePresentation.DIAMOND_HEIGHT_FACTOR;
-        int MainPitch = Horizontal ? DiagramGridMetrics.PitchX(BoxWidth) : DiagramGridMetrics.PitchY(BoxHeight);
+        int MainPitch = Horizontal
+            ? BoxWidth + Math.Max(DiagramGridMetrics.NODE_GAP_PX, DiagramGridMetrics.MIN_LR_RANK_GAP_PX)
+            : DiagramGridMetrics.PitchY(BoxHeight);
         int CrossPitch = Horizontal ? DiagramGridMetrics.PitchY(BoxHeight) : DiagramGridMetrics.PitchX(BoxWidth);
 
         Dictionary<string, NodeContract> Nodes = IndexNodes(Contract);
@@ -70,7 +72,7 @@ public static class DiagramGridLayout
         FitFrames(Contract, Placed, Frames, Horizontal);
         FlipToYUp(Placed, Frames, Copy);
         AssignPortSides(Copy, Placed, Frames, Nodes, Direction);
-        DiagramGridRouteBuilder.RebuildAllRoutes(Copy, Placed, Nodes, Direction);
+        DiagramGridRouteBuilder.RebuildAllRoutes(Copy, Placed, Nodes, Contract, Frames, Direction);
         SeparateTracks(Copy, Placed);
         PushPointsOutOfNodes(Copy, Placed);
         WriteBack(Copy, Placed, Frames);
@@ -1651,7 +1653,7 @@ public static class DiagramGridLayout
         return null;
     }
 
-    private static bool IsInsideGroup(DiagramContract Contract, string NodeId, string GroupId)
+    internal static bool IsInsideGroup(DiagramContract Contract, string NodeId, string GroupId)
     {
         string? Current = GroupOf(Contract, NodeId);
         int Guard = 0;
@@ -1809,7 +1811,7 @@ public static class DiagramGridLayout
         public int Index;
     }
 
-    private sealed class GridFrame
+    internal sealed class GridFrame
     {
         public string Id = string.Empty;
 

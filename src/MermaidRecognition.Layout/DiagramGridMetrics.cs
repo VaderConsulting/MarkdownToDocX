@@ -29,6 +29,11 @@ public static class DiagramGridMetrics
     public const int NODE_GAP_PX = GRID_UNIT_PX;
 
     /// <summary>
+    /// Minimum clear span between node edges along the flow axis in LR diagrams.
+    /// </summary>
+    public const int MIN_LR_RANK_GAP_PX = 49;
+
+    /// <summary>
     /// Column pitch for a standard node: the node plus one gap.
     /// </summary>
     public const int PITCH_X_PX = NODE_WIDTH_PX + NODE_GAP_PX;
