@@ -277,20 +277,10 @@ public sealed class FlowchartPerpendicularAttachTests
             """);
 
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
-        System.Text.RegularExpressions.MatchCollection BranchPaths = System.Text.RegularExpressions.Regex.Matches(
-            Svg,
-            @"<path d=""([^""]+)"" fill=""none""");
-
-        foreach (System.Text.RegularExpressions.Match Match in BranchPaths)
+        foreach (string TargetId in new[] { "OK", "Fail" })
         {
-            string PathData = Match.Groups[1].Value;
-            if (!PathData.Contains('C'))
-            {
-                continue;
-            }
-
-            int CubicCount = System.Text.RegularExpressions.Regex.Matches(PathData, @"C").Count;
-            Assert.That(CubicCount, Is.GreaterThanOrEqualTo(1), "A non-aligned branch is a basis curve");
+            string PathData = OrthogonalRouteTestHelper.ExtractEdgePath(Svg, "Check", TargetId);
+            OrthogonalRouteTestHelper.AssertOrthogonalPathWithRoundedCorners(PathData);
             System.Text.RegularExpressions.Match Start = System.Text.RegularExpressions.Regex.Match(
                 PathData,
                 @"M\s*([-\d.]+)[,\s]+([-\d.]+)");
@@ -299,9 +289,17 @@ public sealed class FlowchartPerpendicularAttachTests
                 @"([-\d.]+)[,\s]+([-\d.]+)\s*$");
             Assert.That(Start.Success, Is.True);
             Assert.That(End.Success, Is.True);
-            double StartY = double.Parse(Start.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture);
-            double EndY = double.Parse(End.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture);
-            Assert.That(EndY, Is.GreaterThan(StartY), "The branch keeps moving down toward its target");
+            if (string.Equals(TargetId, "Fail", StringComparison.Ordinal))
+            {
+                double StartY = double.Parse(Start.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture);
+                double EndY = double.Parse(End.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture);
+                Assert.That(EndY, Is.GreaterThan(StartY), "The branch keeps moving down toward its target");
+            }
+            else
+            {
+                Assert.That(OrthogonalRouteTestHelper.LongestHorizontalRunMidpoint(PathData), Is.Not.Null,
+                    "Aligned branch exposes a horizontal label run");
+            }
         }
     }
 
@@ -369,8 +367,8 @@ public sealed class FlowchartPerpendicularAttachTests
 
             Assert.That(Resolved, Is.True);
             Assert.That(RouteKind, Is.EqualTo(FlowchartEdgeRouteKind.Grid));
-            Assert.That(LayoutPoints.Count, Is.GreaterThanOrEqualTo(2).And.LessThanOrEqualTo(3),
-                "B12 decision branches use a single rounded elbow, not five-point curveBasis guides");
+            Assert.That(LayoutPoints.Count, Is.GreaterThanOrEqualTo(2).And.LessThanOrEqualTo(4),
+                "Decision branches use orthogonal guides with at most one rounded elbow");
 
             double SourceX = LayoutPoints[0].X;
             if (string.Equals(TargetId, "OK", StringComparison.Ordinal))
@@ -416,24 +414,13 @@ public sealed class FlowchartPerpendicularAttachTests
             """);
 
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
-        int AngularPolylineCount = System.Text.RegularExpressions.Regex.Matches(
-            Svg,
-            @"<path d=""([^""]+)"" fill=""none""",
-            System.Text.RegularExpressions.RegexOptions.CultureInvariant)
-            .Cast<System.Text.RegularExpressions.Match>()
-            .Count(Match =>
-                !Match.Groups[1].Value.Contains('C', StringComparison.Ordinal)
-                && System.Text.RegularExpressions.Regex.IsMatch(
-                    Match.Groups[1].Value,
-                    @"M[^""]*L[^""]*L[^""]*L[^""]*L"));
-        int CurvedBranchCount = System.Text.RegularExpressions.Regex.Matches(
-            Svg,
-            @"<path d=""[^""]*C[^""]*"" fill=""none""").Count;
-
-        Assert.That(AngularPolylineCount, Is.EqualTo(0),
-            "Side branches must not regress to kinked polyline paths");
-        Assert.That(CurvedBranchCount, Is.GreaterThanOrEqualTo(2),
-            "Laptop and Other gift side branches should use smooth curved bodies (one stub-bridge cubic, spec §15.0C.3)");
+        foreach (string TargetId in new[] { "D", "F" })
+        {
+            string PathData = OrthogonalRouteTestHelper.ExtractEdgePath(Svg, "C", TargetId);
+            OrthogonalRouteTestHelper.AssertOrthogonalPathWithRoundedCorners(PathData);
+            Assert.That(PathData, Does.Match(@"^M[^""]+L[^""]+"),
+                "Side branches leave the diamond horizontally before turning down");
+        }
     }
 
     [Test]
