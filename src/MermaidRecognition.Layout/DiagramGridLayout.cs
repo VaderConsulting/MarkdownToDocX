@@ -75,6 +75,7 @@ public static class DiagramGridLayout
         FlipToYUp(Placed, Frames, Copy);
         AssignPortSides(Contract, Copy, Placed, Frames, Nodes, Direction);
         DiagramGridRouteBuilder.RebuildAllRoutes(Copy, Placed, Nodes, Contract, Frames, Direction);
+        Copy.UsesGridRoutes = true;
         SeparateTracks(Copy, Placed);
         PushPointsOutOfNodes(Copy, Placed);
         WriteBack(Copy, Placed, Frames);
@@ -1740,11 +1741,26 @@ public static class DiagramGridLayout
         }
 
         bool BottomReserved = ReservedCenterPorts.Contains(Source.Id + "|bottom");
-        if (!BottomReserved
+        bool BottomBusy = BottomReserved
+            || BottomSideBusyWithNextRankChild(Contract, Source, ObstacleBounds);
+        if (!BottomBusy
             && Target.CenterY < Source.CenterY
             && StraightChordIsClear(Contract, Source, Target, "bottom", "top", ObstacleBounds, SourceId, TargetId))
         {
             return "bottom";
+        }
+
+        if (BottomBusy && Target.CenterY < Source.CenterY - DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
+        {
+            if (Target.CenterX > Source.CenterX + DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
+            {
+                return "right";
+            }
+
+            if (Target.CenterX < Source.CenterX - DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
+            {
+                return "left";
+            }
         }
 
         if (Target.CenterX < Source.CenterX - DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
@@ -1757,7 +1773,39 @@ public static class DiagramGridLayout
             return "right";
         }
 
-        return BottomReserved ? "left" : "left";
+        return "left";
+    }
+
+    private static bool BottomSideBusyWithNextRankChild(
+        DiagramContract Contract,
+        BoxRef Source,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> ObstacleBounds)
+    {
+        double BottomBand = (Source.Width / 2.0) + DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX;
+        foreach (EdgeContract Edge in Contract.Edges)
+        {
+            if (!string.Equals(Edge.SourceId, Source.Id, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (!ObstacleBounds.TryGetValue(Edge.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
+            {
+                continue;
+            }
+
+            if (TargetBounds.CenterY >= Source.CenterY - DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
+            {
+                continue;
+            }
+
+            if (Math.Abs(TargetBounds.CenterX - Source.CenterX) <= BottomBand)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static string ChooseElbowEntrySide(

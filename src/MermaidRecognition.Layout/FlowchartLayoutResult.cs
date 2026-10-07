@@ -39,6 +39,11 @@ public sealed class FlowchartLayoutResult
     internal List<FlowchartLayoutNodeBounds> ClusterBoundsMutable => _ClusterBounds;
 
     /// <summary>
+    /// True when <see cref="DiagramGridLayout"/> rebuilt edge routes on the grid.
+    /// </summary>
+    public bool UsesGridRoutes { get; internal set; }
+
+    /// <summary>
     /// Copies the drawn route for <paramref name="Edge"/> when this layout stored one.
     /// </summary>
     /// <param name="Edge">The edge to look up.</param>
