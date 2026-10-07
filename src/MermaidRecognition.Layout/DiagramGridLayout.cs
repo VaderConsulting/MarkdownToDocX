@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 using MermaidRecognition.Contract;
 using MermaidRecognition.Kinds.Flowchart;
@@ -66,7 +67,7 @@ public static class DiagramGridLayout
         AssignColumns(Placed, Horizontal, CrossPitch);
         ResolveVerticalChordBlockers(Contract, Placed);
         CascadeColumns(Placed);
-        PlaceOnGrid(Placed, Horizontal, BoxWidth, BoxHeight, MainPitch, CrossPitch, Copy);
+        PlaceOnGrid(Placed, Horizontal, BoxWidth, BoxHeight, MainPitch, CrossPitch, Copy, Contract);
         GrowCrowdedSides(Placed, Copy, BoxWidth, BoxHeight);
         SeparateOverlaps(Placed, Horizontal);
         List<GridFrame> Frames = new List<GridFrame>();
@@ -382,7 +383,8 @@ public static class DiagramGridLayout
         int BoxHeight,
         int MainPitch,
         int CrossPitch,
-        FlowchartLayoutResult Copy)
+        FlowchartLayoutResult Copy,
+        DiagramContract Contract)
     {
         int RankCount = 0;
         foreach (GridNode Node in Placed)
@@ -419,6 +421,8 @@ public static class DiagramGridLayout
                 Gap = Math.Max(Gap, MermaidGap);
             }
 
+            int LabelGapBoost = ComputeLabelledEdgeRankGapBoost(Contract, Rank, RankNodes, NextNodes);
+            Gap = Math.Max(Gap, LabelGapBoost);
             int Span = HalfBelow + HalfAbove + Gap;
             int PitchSpan = MainPitch;
             if (Span < PitchSpan)
@@ -2380,6 +2384,48 @@ public static class DiagramGridLayout
                 IsFrame = true
             };
         }
+    }
+
+    private static int ComputeLabelledEdgeRankGapBoost(
+        DiagramContract Contract,
+        int Rank,
+        IReadOnlyList<GridNode> RankNodes,
+        IReadOnlyList<GridNode> NextNodes)
+    {
+        if (RankNodes.Count == 0 || NextNodes.Count == 0)
+        {
+            return 0;
+        }
+
+        HashSet<string> RankIds = new HashSet<string>(RankNodes.Select(Node => Node.Id), StringComparer.Ordinal);
+        HashSet<string> NextIds = new HashSet<string>(NextNodes.Select(Node => Node.Id), StringComparer.Ordinal);
+        int MaxBoost = 0;
+        FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
+        foreach (EdgeContract Edge in Contract.Edges)
+        {
+            if (string.IsNullOrWhiteSpace(Edge.Label)
+                || string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (!RankIds.Contains(Edge.SourceId) || !NextIds.Contains(Edge.TargetId))
+            {
+                continue;
+            }
+
+            FlowchartLabelDimensions LabelDimensions = FlowchartNodeSizeEstimator.MeasureWrappedLabel(
+                Edge.Label,
+                Options,
+                Options.EdgeLabelFontSizePx);
+            int Required = DiagramGridMetrics.CeilToGrid(
+                FlowchartEdgeLabelGapHelper.ComputeRequiredSegmentLengthPx(
+                    LabelDimensions,
+                    Options.EdgeLabelFontSizePx));
+            MaxBoost = Math.Max(MaxBoost, Required);
+        }
+
+        return MaxBoost;
     }
 
     private sealed class PortEnd

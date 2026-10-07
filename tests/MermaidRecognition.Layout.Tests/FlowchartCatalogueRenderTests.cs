@@ -412,12 +412,15 @@ public sealed class FlowchartCatalogueRenderTests
         FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
 
-        SvgStraightConnector HorizontalSpineLine = SvgStraightConnectorReader.Read(Svg)
-            .Where(Connector => Math.Abs(Connector.Y1 - Connector.Y2) < 0.5 && Math.Abs(Connector.X2 - Connector.X1) > 50.0)
-            .OrderByDescending(Connector => Math.Abs(Connector.X2 - Connector.X1))
-            .First();
+        List<SvgStraightConnector> HorizontalSpineLines = SvgStraightConnectorReader.Read(Svg)
+            .Where(Connector => Math.Abs(Connector.Y1 - Connector.Y2) < 0.5)
+            .ToList();
+        Assert.That(HorizontalSpineLines, Is.Not.Empty, "Expected horizontal connector segments for the labelled edge.");
 
-        double SpineMidSvgY = (HorizontalSpineLine.Y1 + HorizontalSpineLine.Y2) / 2.0;
+        double SpineMidSvgY = (HorizontalSpineLines[0].Y1 + HorizontalSpineLines[0].Y2) / 2.0;
+        double ConnectorMinSvgX = HorizontalSpineLines.Min(Connector => Math.Min(Connector.X1, Connector.X2));
+        double ConnectorMaxSvgX = HorizontalSpineLines.Max(Connector => Math.Max(Connector.X1, Connector.X2));
+        double ConnectorMidSvgX = (ConnectorMinSvgX + ConnectorMaxSvgX) / 2.0;
 
         Match? LabelText = Regex.Matches(
                 Svg,
@@ -437,11 +440,23 @@ public sealed class FlowchartCatalogueRenderTests
         double LabelCentreSvgY = FlowchartRichLabelSvgWriter.ComputeLabelBlockCentreY(FirstLineSvgY, LineCount, Options.EdgeLabelFontSizePx, 1.5);
         double LabelHalfHeight = (LineCount * Options.EdgeLabelFontSizePx * 1.5) / 2.0;
         double LabelCentreSvgX = double.Parse(LabelText.Groups[1].Value, CultureInfo.InvariantCulture);
-        double ConnectorMidSvgX = (HorizontalSpineLine.X1 + HorizontalSpineLine.X2) / 2.0;
 
-        // The wrapped label sits above or below the connector (spec §15.0C.8), centred along it.
-        AssertLabelEdgeBesideLine(LabelCentreSvgY - LabelHalfHeight, LabelCentreSvgY + LabelHalfHeight, SpineMidSvgY);
+        Assert.That(LabelCentreSvgY, Is.EqualTo(SpineMidSvgY).Within(1.5),
+            "Rule B13: wrapped edge labels sit centred on the connector.");
         Assert.That(LabelCentreSvgX, Is.EqualTo(ConnectorMidSvgX).Within(2.0));
+        FlowchartLabelDimensions LabelDimensions = FlowchartNodeSizeEstimator.MeasureWrappedLabel(
+            LongLabel,
+            Options,
+            Options.EdgeLabelFontSizePx);
+        double HalfGap = FlowchartEdgeLabelGapHelper.ComputeHalfGapWidthPx(
+            LabelDimensions,
+            Options.EdgeLabelFontSizePx);
+        FlowchartEdgeLabelGapTests.AssertLabelHasStrokeGapAt(
+            Svg,
+            LabelCentreSvgX,
+            LabelCentreSvgY,
+            HalfGap,
+            LongLabel);
     }
 
     [Test]
@@ -490,13 +505,14 @@ public sealed class FlowchartCatalogueRenderTests
         double SpineSvgX = VerticalSpineLineXValues
             .OrderBy(X => Math.Abs(X - Step1TextX))
             .First();
-
-        // Labels sit beside the spine, not on it (spec §15.0C.8): the near edge clears the line and stays close to it.
         FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
-        double Step1HalfWidth = FlowchartNodeSizeEstimator.MeasureWrappedLabel("Step 1: validate input", Options, Options.EdgeLabelFontSizePx).Width / 2.0;
-        double Step2HalfWidth = FlowchartNodeSizeEstimator.MeasureWrappedLabel("Step 2: persist (async)", Options, Options.EdgeLabelFontSizePx).Width / 2.0;
-        AssertLabelEdgeBesideLine(Step1TextX - Step1HalfWidth, Step1TextX + Step1HalfWidth, SpineSvgX);
-        AssertLabelEdgeBesideLine(Step2TextX - Step2HalfWidth, Step2TextX + Step2HalfWidth, SpineSvgX);
+
+        Assert.That(Step1TextX, Is.EqualTo(SpineSvgX).Within(2.0),
+            "Rule B13: Step 1 label is centred on the spine connector.");
+        Assert.That(Step2TextX, Is.EqualTo(SpineSvgX).Within(2.0),
+            "Rule B13: Step 2 label is centred on the spine connector.");
+        FlowchartEdgeLabelGapTests.AssertLabelHasStrokeGap(Svg, "Step 1: validate input", Options);
+        FlowchartEdgeLabelGapTests.AssertLabelHasStrokeGap(Svg, "Step 2: persist (async)", Options);
 
         Dictionary<string, NodeContract> NodeById = Contract.Nodes
             .ToDictionary(Node => Node.Id, Node => Node);
@@ -525,28 +541,11 @@ public sealed class FlowchartCatalogueRenderTests
                 out FlowchartEdgeRouteKind _),
             Is.True);
 
-        double Step1TextY = double.Parse(Step1Text.Groups[2].Value, CultureInfo.InvariantCulture);
-        double Step2TextY = double.Parse(Step2Text.Groups[2].Value, CultureInfo.InvariantCulture);
         double ExpectedStep1PortMidLayoutY =
             (Step1GuidePoints[0].Y + Step1GuidePoints[Step1GuidePoints.Count - 1].Y) / 2.0;
         double ExpectedStep2PortMidLayoutY =
             (Step2GuidePoints[0].Y + Step2GuidePoints[Step2GuidePoints.Count - 1].Y) / 2.0;
 
-        List<SvgStraightConnector> VerticalLines = SvgStraightConnectorReader.Read(Svg)
-            .Where(Connector => Math.Abs(Connector.X1 - Connector.X2) < 0.5)
-            .ToList();
-        SvgStraightConnector Step1SpineLine = VerticalLines
-            .OrderBy(Connector => Math.Abs(((Connector.Y1 + Connector.Y2) / 2.0) - Step1TextY))
-            .First();
-        SvgStraightConnector Step2SpineLine = VerticalLines
-            .OrderBy(Connector => Math.Abs(((Connector.Y1 + Connector.Y2) / 2.0) - Step2TextY))
-            .First();
-
-        double Step1LineMidSvgY = (Step1SpineLine.Y1 + Step1SpineLine.Y2) / 2.0;
-        double Step2LineMidSvgY = (Step2SpineLine.Y1 + Step2SpineLine.Y2) / 2.0;
-
-        Assert.That(Step1TextY, Is.EqualTo(Step1LineMidSvgY).Within(10.0));
-        Assert.That(Step2TextY, Is.EqualTo(Step2LineMidSvgY).Within(10.0));
         Assert.That(ExpectedStep1PortMidLayoutY, Is.GreaterThan(Validator.CenterY));
         Assert.That(ExpectedStep2PortMidLayoutY, Is.GreaterThan(Store.CenterY));
     }
