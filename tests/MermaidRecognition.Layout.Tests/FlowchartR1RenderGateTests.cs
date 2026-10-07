@@ -319,13 +319,12 @@ public sealed class FlowchartR1RenderGateTests
         }
 
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
-        List<string> EdgePathData = ExtractRenderedEdgePathData(Svg);
-        Assert.That(EdgePathData.Count, Is.EqualTo(2));
-        foreach (string PathData in EdgePathData)
+        foreach (string SourceId in new[] { "Success", "Error" })
         {
-            bool Straight = !PathData.Contains('C', StringComparison.Ordinal);
-            bool Curved = PathData.Contains('C', StringComparison.Ordinal);
-            Assert.That(Straight || Curved, Is.True);
+            Assert.That(Svg, Does.Contain($@"data-edge-source=""{SourceId}"" data-edge-target=""End"""));
+            string PathData = OrthogonalRouteTestHelper.ExtractEdgePath(Svg, SourceId, "End");
+            Assert.That(PathData, Is.Not.Empty);
+            OrthogonalRouteTestHelper.AssertOrthogonalPathWithRoundedCorners(PathData);
         }
     }
 
