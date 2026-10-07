@@ -60,7 +60,7 @@ Adapter and product code stay in `MermaidRecognition.Layout` and call the adopte
 - `GeometryGraph`, `Node`, `Edge`, `CurveFactory`, `Point`, `Rectangle`
 - `SugiyamaLayoutSettings`, `LayeredLayout` → `LayeredLayoutEngine.Run()`
 
-R1 reads **node centres and bounds** only; full edge routing from MSAGL is not yet consumed in SVG output. When copying, prefer the **smallest compile closure** that satisfies `LayeredLayout.Run()` for node placement; add routing types only when product SVG uses MSAGL edge curves.
+Product SVG uses **node centres and bounds** from MSAGL for placement. Edge paths are built separately by `FlowchartEdgeRouteResolver` and `FlowchartCurvePathBuilder` (structural routing with `curveBasis` and corridor paths). MSAGL spline routing inside `LayeredLayoutEngine` is not consumed directly in product SVG output.
 
 ## Modernisation rules (apply while copying)
 

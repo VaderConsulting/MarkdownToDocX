@@ -2,7 +2,7 @@
 
 **Authority:** normative gate definitions remain in [`spec.md`](spec.md) §7.4 and §11.1.14.  
 **Progress:** [`status.md`](status.md) gate registry.  
-**Last updated:** 2026-05-31 (G12 backlog layer)
+**Last updated:** 2026-10-07 (all started kinds at L4 on `master`)
 
 ---
 
@@ -31,21 +31,21 @@ Each parallel path’s **exact requirements** live in three linked artefacts:
 
 ---
 
-## Current snapshot (pass 18)
+## Current snapshot (`master`, 2026-10-07)
 
 | Kind | Gate level | L4 status | Parallel path |
 | --- | --- | --- | --- |
-| Flowchart / graph | **L4** | **Complete** (recognition) | Maintenance only |
-| Sequence | L4 partial | G12 scaffold; init-leading theme | [Path S](#path-s-sequence) |
-| Class | L4 partial | G12 scaffold; init-leading theme | [Path C](#path-c-class) |
-| State | L4 partial | G12 scaffold; init-leading theme | [Path ST](#path-st-state) |
-| ER | L4 partial | G12 scaffold; init-leading theme | [Path E](#path-e-er) |
-| Pie | L3 | L4 not started | [Path P](#path-p-pie) |
-| Gantt | L3 | L4 not started | [Path G](#path-g-gantt) |
-| Mindmap | L3 | L4 not started | [Path M](#path-m-mindmap) |
-| Git graph | L3 | L4 not started | [Path GG](#path-gg-git-graph) |
+| Flowchart / graph | **L4** | **Complete** (recognition) | Native Sugiyama render (maintenance) |
+| Sequence | **L4** | Minimum G12 slice complete | [Path S](#path-s-sequence) |
+| Class | **L4** | Minimum G12 slice complete | [Path C](#path-c-class) |
+| State | **L4** | Minimum G12 slice complete | [Path ST](#path-st-state) |
+| ER | **L4** | Minimum G12 slice complete | [Path E](#path-e-er) |
+| Pie | **L4** | Minimum G12 slice complete | [Path P](#path-p-pie) |
+| Gantt | **L4** | Minimum G12 slice complete | [Path G](#path-g-gantt) |
+| Mindmap | **L4** | Minimum G12 slice complete | [Path M](#path-m-mindmap) |
+| Git graph | **L4** | Minimum G12 slice complete | [Path GG](#path-gg-git-graph) |
 
-**Suite:** 702 tests passing (`MermaidRecognition.Tests`).
+**Suite:** 932 tests in `MermaidRecognition.Tests` (921 passing on Linux CI as of 2026-10-07). Native render: flowcharts only; other kinds still use Naiad. Grid layout and rounded-corner grid routing remain on open branches, not on `master`.
 
 ---
 
@@ -299,7 +299,7 @@ Run **one agent per kind path** (S, C, ST, E, P, G, M, GG). Each agent:
 1. Works from the kind’s [`spec-gates/{kind}-g12.md`](spec-gates/g12-backlog-template.md) **minimum L4 slice** (secondary kinds: close L3 section first).
 2. Adds fixtures + verified JSON via `*FixtureWriter` tests.
 3. Expands `*L4AxisGateTests`.
-4. Runs `dotnet test new_src/MermaidRecognition.Tests/MermaidRecognition.Tests.csproj`.
+4. Runs `dotnet test tests/MermaidRecognition.Tests/MermaidRecognition.Tests.csproj`.
 5. Updates row status **transcribed** in `{kind}-g12.md`; promotes manifest when minimum slice complete.
 
 **Merge rule:** integrate one kind at a time if CI conflicts; paths touch different directories (`SequenceRecognition/` vs `PieRecognition/`, etc.).
@@ -394,8 +394,8 @@ Runs **after** recognition L4. **Naiad is not a product option** — legacy outp
 
 ```text
 Recognition L4 (all started kinds)
-  └─► Native render: DiagramContract → per-kind adapter + layout (new_src/)
-        └─► Visual catalogues (pie.md, gantt.md, …) + SvgHarness R1
+  └─► Native render: DiagramContract → per-kind adapter + layout (src/)
+        └─► Visual catalogues (pie.md, gantt.md, …) + FixtureProbe / Converter export
               └─► MDConverter default: MermaidRecognizer + native adapters
                     └─► §11.E Mermaid.js fallback where native render is not yet available
 ```

@@ -31,6 +31,6 @@ Source: `extern/Naiad/src/test-renders/*.md` and `extern/Naiad/src/Naiad/Diagram
 
 Kinds without a legacy Naiad path (recognition still required at L1): see §3.18.2 Mermaid-only kinds (`eventmodeling`, `treeview`, `ishikawa`, `venn`, `wardley-beta`, `info`).
 
-**Policy:** do not extend Naiad parsers or renderers for programme gaps. Native render is built in `new_src/` from `DiagramContract`.
+**Policy:** do not extend Naiad parsers or renderers for programme gaps. Native render is built in `src/` and `tests/` (see §11.1.8.2)  from `DiagramContract`.
 
 Update this table when adding `*Recognition/` fixture folders or regression catalogues — not when planning product features in Naiad.

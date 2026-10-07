@@ -2,7 +2,7 @@
 
 Progressive Mermaid **stateDiagram** scenarios for recognition and render regression (Markdown → DOCX). Each section increases complexity; scenarios within a section are ordered from simplest to hardest.
 
-**Spec mapping:** line types in `spec.md` §11.1.14.4; recognition fixtures in `new_src/MermaidRecognition.Tests/StateRecognition/`.
+**Spec mapping:** line types in `spec.md` §11.1.14.4; recognition fixtures in `tests/MermaidRecognition.Tests/StateRecognition/`.
 
 **Programme note:** Naiad is an interim render baseline only. L2 recognition classifies lines in `StateKindRecognizer`; L3 entity mapping and non-Naiad render are planned in `MermaidRecognition` (see §11.1.14.4).
 
@@ -46,29 +46,23 @@ This file is the **complete** state diagram regression catalogue: **isolated dia
 
 ### Remarked scenarios (`%%`)
 
-Diagrams that **do not render** on [mermaid.live](https://mermaid.live) remain in this file with **every source line prefixed by `%%`**. That marks them as **considered but rejected** for the render gate — **do not re-add** them because the catalogue looks incomplete. SvgHarness and DOCX visual review skip remarked blocks. See §9.1 in `spec.md`.
+Diagrams that **do not render** on [mermaid.live](https://mermaid.live) remain in this file with **every source line prefixed by `%%`**. That marks them as **considered but rejected** for the render gate — **do not re-add** them because the catalogue looks incomplete. DOCX visual review skips remarked blocks. See §9.1 in `spec.md`.
 
 **Currently remarked:** ST19 (`cssClass`).
 
-### SvgHarness (visual / structural gate)
+### Visual export (Windows `Converter.exe`)
 
-```powershell
-dotnet build extern/Naiad/src/Naiad/Naiad.csproj -c Release
-dotnet run --project src/SvgHarness/SvgHarness.csproj -c Release -- state.md out/state-mermaid-ink --reference=mermaid-ink --parallel 2 --report=out/state-mermaid-ink/report.md
+Export a single diagram block from this catalogue to PNG or SVG (use `-index N` for the Nth ` ```mermaid ` block):
+
+```text
+Converter.exe -in state.md -png out/state/ST01.png -index 1
+Converter.exe -in state.md -svg out/state/ST01.svg -index 1
 ```
-
-Structural-only (no reference download):
-
-```powershell
-dotnet run --project src/SvgHarness/SvgHarness.csproj -c Release -- state.md out/state-harness --no-reference
-```
-
-Exit code **0** only when all **active** (non-remarked) scenarios PASS.
 
 ### Recognition contract gate
 
 ```powershell
-dotnet test new_src/MermaidRecognition.Tests/MermaidRecognition.Tests.csproj --filter "FullyQualifiedName~StateRecognition"
+dotnet test tests/MermaidRecognition.Tests/MermaidRecognition.Tests.csproj --filter "FullyQualifiedName~StateRecognition"
 ```
 
 Catalogue scenarios must not produce silent `stateDiagram.body` fallback (see `StateRecognitionFixtureTests`).
@@ -459,7 +453,7 @@ stateDiagram-v2
 | Scenario id | `ST` + two digits; stable once published |
 | New scenario | Must map to a row in §11.1.14.4 or add that row first |
 | Recognition | Every `StateRecognition/*.mmd` fixture must appear in the index table |
-| Render | SvgHarness PASS against mermaid.ink for **active** scenarios only (remarked `%%` blocks excluded) |
+| Render | Visual export succeeds against mermaid.ink for **active** scenarios only (remarked `%%` blocks excluded) |
 | Remarked `%%` | Considered but rejected on mermaid.live; do not treat as missing |
 
 Do not treat this file as the recognition specification — it samples axes from `spec.md`. Machine-readable truth remains `*.verified.json` under `StateRecognition/`. Do not extend Naiad `StateParser` to close recognition gaps — extend `MermaidRecognition` and this catalogue instead.

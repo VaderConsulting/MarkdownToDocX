@@ -3,11 +3,11 @@
 **Status:** Design only. No implementation in this document.  
 **Branch:** `flowchart-layout-fixes`  
 **Date:** 5 October 2026  
-**Audience:** Dave and anyone extending markdown2docx layout
+**Audience:** Anyone extending markdown2docx layout
 
-Dave’s goal: **one configurable layout engine** in markdown2docx that understands every diagram type, instead of a separate layout per type.
+**Goal:** **one configurable layout engine** in markdown2docx that understands every diagram type, instead of a separate layout per type.
 
-**Extra rule (Dave):** wherever diagram types overlap — containment, ranking, edge routing, arrowheads, label placement, text measuring, padding, colours, and fonts — there is **exactly one implementation and one set of decisions**, shared by every type. No duplicated or parallel code paths for the same job. A per-type profile may only **choose options** from that shared code (spacing, routing style, marker set, font size). It must not reimplement the job, copy the formula, or keep a private helper that does the same work.
+**Extra rule:** wherever diagram types overlap - containment, ranking, edge routing, arrowheads, label placement, text measuring, padding, colours, and fonts - there is **exactly one implementation and one set of decisions**, shared by every type. No duplicated or parallel code paths for the same job. A per-type profile may only **choose options** from that shared code (spacing, routing style, marker set, font size). It must not reimplement the job, copy the formula, or keep a private helper that does the same work.
 
 This note surveys what the product renders today, lists every current duplication of those overlapping jobs (file paths and the single replacement), and how to grow the native flowchart Sugiyama path into that engine without breaking existing pictures. The gate for every stage is **before/after renders**, the same way `docs/flowchart/layout-fixes/` proved the shared flowchart fixes.
 

@@ -18,10 +18,11 @@ The adopted MSAGL Sugiyama code lives only in `src/MermaidRecognition.Layout/Sug
 | Target | Meaning |
 | --- | --- |
 | **All kinds (L1)** | Every §3.18.2 diagram: detect, config, diagnostics, one smoke fixture |
-| **Flowchart (L3)** | **Current phase target-state:** full line-type catalogue + axis gates (styles, metadata, subgraphs, …) |
+| **Flowchart (L4)** | Minimum G12 slice complete; extended backlog may remain open |
+| **Started kinds (9)** | All at **L4** minimum G12 slice (sequence, class, state, ER, pie, gantt, mindmap, gitGraph) |
 | **Catalogue** | Every source line form documented (`flowchart.link.grouped`, `sequence.message`, …) — see §11.1.14.1 exemplar |
 
-Flowchart-only code today is **slice 1** toward flowchart **L3**, not Stage 11.A complete.
+Stage 11.A recognition exit is met for all started kinds at L4 minimum. Native render is implemented for flowcharts (Sugiyama); other kinds still use Naiad.
 
 ## Layout (`MermaidRecognition`)
 
@@ -46,7 +47,7 @@ src/MermaidRecognition.Layout/
   Sugiyama/                       # copied MSAGL sources (503 files); see SUGIYAMA_ADOPTION.md
 ```
 
-**Tests** (under `tests/`): `MermaidRecognition.Tests/` (840+; includes `Gates/DiagramKindEdgeCaseTests`), `MermaidRecognition.Layout.Tests/`, `MermaidRecognition.NaiadAdapter.Tests/`, `MermaidRecognition.RuleValidation.Tests/`.
+**Tests** (under `tests/`): `MermaidRecognition.Tests/` (932 tests), `MermaidRecognition.Layout.Tests/` (268 tests), `MermaidRecognition.NaiadAdapter.Tests/` (47 tests), `MermaidRecognition.RuleValidation.Tests/` (57 tests). Some layout and rule-validation tests may fail on Linux CI; run on Windows for the full suite.
 
 **Flowchart regression:** `tests/FlowchartRegression/approved/` holds the approved SVG for every `flow.md` fixture. Run `.\tools\FixtureProbe\Compare-Fixtures.ps1` to check that none has changed.
 

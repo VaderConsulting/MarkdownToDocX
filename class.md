@@ -2,7 +2,7 @@
 
 Progressive Mermaid **classDiagram** scenarios for recognition and render regression (Markdown → DOCX). Each section increases complexity; scenarios within a section are ordered from simplest to hardest.
 
-**Spec mapping:** line types in `spec.md` §11.1.14.3; recognition fixtures in `new_src/MermaidRecognition.Tests/ClassRecognition/`.
+**Spec mapping:** line types in `spec.md` §11.1.14.3; recognition fixtures in `tests/MermaidRecognition.Tests/ClassRecognition/`.
 
 **Programme note:** Naiad is an interim render baseline only. L2 recognition classifies lines in `ClassKindRecognizer`; L3 entity mapping and non-Naiad render are planned in `MermaidRecognition` (see §11.1.14.3).
 
@@ -54,27 +54,25 @@ This file is the **complete** class diagram regression catalogue: **isolated dia
 
 ### Remarked scenarios (`%%`)
 
-Diagrams that **do not render** on [mermaid.live](https://mermaid.live) remain in this file with **every source line prefixed by `%%`**. That marks them as **considered but rejected** for the render gate — **do not re-add** them because the catalogue looks incomplete. SvgHarness and DOCX visual review skip remarked blocks. See §9.1 in `spec.md`.
+Diagrams that **do not render** on [mermaid.live](https://mermaid.live) remain in this file with **every source line prefixed by `%%`**. That marks them as **considered but rejected** for the render gate — **do not re-add** them because the catalogue looks incomplete. DOCX visual review skips remarked blocks. See §9.1 in `spec.md`.
 
 **Currently remarked:** C24 (`cssClass`).
 
-### SvgHarness (visual / structural gate)
+### Visual export (Windows `Converter.exe`)
 
-```powershell
-dotnet build extern/Naiad/src/Naiad/Naiad.csproj -c Release
-dotnet run --project src/SvgHarness/SvgHarness.csproj -c Release -- class.md out/class-mermaid-ink --reference=mermaid-ink --parallel 2 --report=out/class-mermaid-ink/report.md
+Export a single diagram block from this catalogue to PNG or SVG (use `-index N` for the Nth ` ```mermaid ` block):
+
+```text
+Converter.exe -in class.md -png out/class/S01.png -index 1
+Converter.exe -in class.md -svg out/class/S01.svg -index 1
 ```
 
-Structural-only:
-
-```powershell
-dotnet run --project src/SvgHarness/SvgHarness.csproj -c Release -- class.md out/class-harness --no-reference
-```
+Flowchart fixtures in `flow.md` can also be rendered with `tools/FixtureProbe` and checked with `tools/FixtureProbe/Compare-Fixtures.ps1`.
 
 ### Recognition contract gate
 
 ```powershell
-dotnet test new_src/MermaidRecognition.Tests/MermaidRecognition.Tests.csproj --filter "FullyQualifiedName~ClassRecognition"
+dotnet test tests/MermaidRecognition.Tests/MermaidRecognition.Tests.csproj --filter "FullyQualifiedName~ClassRecognition"
 ```
 
 Catalogue scenarios must not produce silent `classDiagram.body` fallback.
@@ -522,7 +520,7 @@ classDiagram
 | Scenario id | `C` + two digits; stable once published |
 | New scenario | Must map to a row in §11.1.14.3 or add that row first |
 | Recognition | Every `ClassRecognition/*.mmd` fixture must appear in the index table |
-| Render | SvgHarness PASS for **active** scenarios only (remarked `%%` blocks excluded) |
+| Render | Visual export succeeds for **active** scenarios only (remarked `%%` blocks excluded) |
 | Remarked `%%` | Considered but rejected on mermaid.live; do not treat as missing |
 
 Do not extend Naiad `ClassParser` to close recognition gaps — extend `MermaidRecognition` and this catalogue instead.

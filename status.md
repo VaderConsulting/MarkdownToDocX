@@ -1,6 +1,6 @@
 # MarkdownToDocX — programme status
 
-**Last updated:** 2026-06-07 (pass 42 — rule validation harness, F58 routing, layout contracts)
+**Last updated:** 2026-10-07 (docs aligned to `master` repository layout and current test counts)
 
 **Specification:** [`spec.md`](spec.md) (normative — what the solution must do)
 
@@ -15,7 +15,7 @@
 Regenerate manifest summary after manifest changes:
 
 ```powershell
-dotnet test new_src/MermaidRecognition.Tests/MermaidRecognition.Tests.csproj
+dotnet test tests/MermaidRecognition.Tests/MermaidRecognition.Tests.csproj
 # Optional: tools/Generate-DiagramGateRegistry.ps1 → spec-gates/registry.generated.md
 ```
 
@@ -37,10 +37,14 @@ dotnet test new_src/MermaidRecognition.Tests/MermaidRecognition.Tests.csproj
 | **Default DOCX render path (flowcharts)** | **Native pilot** — `md2docx` default: MermaidRecognition → **Sugiyama SVG**; legacy Naiad fallback when native fails |
 | **Default DOCX render path (other kinds)** | **Legacy** — direct Naiad until per-kind native adapters exist |
 | **Native render (product path)** | **Pilot** — Sugiyama SVG uses `FlowchartRenderOptions` (theme + style + §3.17 layout/typography); comparison DOCX |
-| **Tests (`MermaidRecognition.Tests`)** | **943** passing |
-| **Tests (`MermaidRecognition.Layout.Tests`)** | **208** total (**194** passing; 14 failing — see pass 42) |
-| **Tests (`MermaidRecognition.RuleValidation.Tests`)** | **48** passing |
+| **Tests (`MermaidRecognition.Tests`)** | **932** total (**921** passing, 11 failing on Linux CI) |
+| **Tests (`MermaidRecognition.Layout.Tests`)** | **268** total (**235** passing, 33 failing on Linux CI) |
+| **Tests (`MermaidRecognition.RuleValidation.Tests`)** | **57** total (**46** passing, 11 failing on Linux CI) |
 | **Tests (`MermaidRecognition.NaiadAdapter.Tests`)** | **47** passing |
+| **Tests (`MDConverter.Tests`)** | **14** total (**13** passing, 1 failing on Linux CI) |
+| **Native AOT publish** | **Not configured** — standard SDK builds only |
+| **Grid layout engine** | **In progress** — open branch `cursor/grid-layout-pass-c72f` (not on `master`) |
+| **Rounded-corner grid routing** | **In progress** — open branch `cursor/many-to-many-routing-3834` (not on `master`) |
 | **Rule validation harness (`flow.md`)** | **Pass** — 132 scenarios, 128 evaluated, 4 skipped (F65/F70/F87/F88), **0** errors |
 
 **Progress shorthand:** `L1: 22/22` · `started kinds L4: 9/9` · `rule harness: 0 errors` · pass 42 · [`parity-roadmap.md`](parity-roadmap.md)
@@ -99,7 +103,7 @@ Authoritative **implementation** tracking for §7.4 gates. Normative gate defini
 
 **Column key:** G2 = line-type catalogue published; G3 = each line type parsed or diagnosed; G11 = verified JSON fixture count; G12 = parser parity with pinned Mermaid; **R0 legacy** = legacy Naiad can render a smoke sample (comparison baseline only — not the product render target).
 
-Manifest paths: `new_src/MermaidRecognition.Tests/Gates/manifests/*.gate-manifest.json`
+Manifest paths: `tests/MermaidRecognition.Tests/Gates/manifests/*.gate-manifest.json`
 
 ---
 
@@ -110,7 +114,7 @@ Manifest paths: `new_src/MermaidRecognition.Tests/Gates/manifests/*.gate-manifes
 | Item | Status | Notes |
 | --- | --- | --- |
 | Multi-kind detect + parse dispatch | Done | `DiagramKindDetector` order matches vendored orchestration |
-| Contract types in `new_src/MermaidRecognition/` | Done | §4 DTOs |
+| Contract types in `src/MermaidRecognition/` | Done | §4 DTOs |
 | No recognition fields in Naiad models | Done | Mapping via legacy adapter only; Naiad frozen |
 | Legacy Naiad render (comparison only) | Unchanged | Explicit via `--use-legacy-flowchart-renderer` or `TryRenderLegacyNaiadFlowchartSvg`; frozen baseline |
 | All kinds gate **L1** smoke | Done | 22 / 22 — `MermaidRecognizerL1Tests` |
@@ -178,14 +182,14 @@ Eight parallel agents (batch 19) closed the minimum G12 slice for each incomplet
 
 | Deliverable | Location | Tests |
 | --- | --- | --- |
-| Vendored MSAGL (transitional spike) | `extern/Microsoft.AGL/` | build gate until adopted slice copied to `new_src/.../Sugiyama/` |
+| Vendored MSAGL (transitional spike) | removed | adopted slice lives in `src/MermaidRecognition.Layout/Sugiyama/` |
 | DiagramContract → GeometryGraph adapter | `MermaidRecognition.Layout/FlowchartGeometryGraphBuilder.cs` | layout engine tests |
 | Sugiyama layout engine | `FlowchartSugiyamaLayoutEngine.cs` | `FlowchartSugiyamaLayoutEngineTests` (3) |
 | Sugiyama SVG renderer (R1 pilot) | `FlowchartSugiyamaSvgRenderer.cs` | `FlowchartR1RenderGateTests` (5) |
 | L1 + started-kind edge cases | `Gates/DiagramKindEdgeCaseTests.cs`, `StartedKindEdgeCaseTests.cs`, `DiagramKindEdgeCaseCatalog.cs` | positive + negative for all 22 L1 kinds, 9 started kinds, 7 Mermaid-only fixtures, yaml trap |
 | SvgHarness native emit | `src/SvgHarness/Program.cs` `--emit-native` | manual / R1 fixture slice |
 
-**MSAGL policy:** Required MSAGL classes are **copied into** `new_src/MermaidRecognition.Layout/Sugiyama/` as first-party code (MIT preserved). `extern/Microsoft.AGL/` is a **transitional** spike until that slice compiles without it. See `SUGIYAMA_ADOPTION.md`.
+**MSAGL policy:** Required MSAGL classes are **copied into** `src/MermaidRecognition.Layout/Sugiyama/` as first-party code (MIT preserved). `extern/Microsoft.AGL/` is a **transitional** spike until that slice compiles without it. See `SUGIYAMA_ADOPTION.md`.
 
 **Suite after pass 21:** **908** recognition tests + **8** layout tests = **916** total (+117 vs pass 20).
 
@@ -223,7 +227,7 @@ Scenarios: chain A-B-C, subgraph membership, decision fan-out, F02 LR chain. Eac
 | Adopted MSAGL slice | `MermaidRecognition.Layout/Sugiyama/` | 503 files: `Core/`, `Layout/`, `Routing/`, `DebugHelpers/`, `Miscellaneous/` |
 | No `extern` project reference | `MermaidRecognition.Layout.csproj` | Builds on `net10.0` only |
 | Re-copy tool | `tools/Copy-SugiyamaSlice.ps1` | Target: flat `Sugiyama/` |
-| Adoption docs | `SUGIYAMA_ADOPTION.md`, `THIRD_PARTY_NOTICES.md`, `new_src/README.md` | Namespace map + phase table aligned to flat layout |
+| Adoption docs | `SUGIYAMA_ADOPTION.md`, `THIRD_PARTY_NOTICES.md`, `src/MermaidRecognition/README.md` | Namespace map + phase table aligned to flat layout |
 
 **Suite after pass 23:** **918** total (unchanged test count).
 
@@ -270,8 +274,8 @@ dotnet run --project src/md2docx/md2docx.csproj -- flow.md flow.docx --use-legac
 
 | Deliverable | Location | Notes |
 | --- | --- | --- |
-| Rule validation library | `new_src/MermaidRecognition.RuleValidation/` | `RulesEngine`, evaluators, `ActualResultsGenerator` |
-| Rule validation tests | `new_src/MermaidRecognition.RuleValidation.Tests/` | 48 passing |
+| Rule validation library | `src/MermaidRecognition.RuleValidation/` | `RulesEngine`, evaluators, `ActualResultsGenerator` |
+| Rule validation tests | `tests/MermaidRecognition.RuleValidation.Tests/` | 48 passing |
 | CLI harness | `src/RuleValidationHarness/` | `flow.md` → `actual-results.json` + `validation-report.json` |
 | Rule artefacts | `Rule Specification/` | `ruleset.json` (generated), `ruleset-org.json` (catalogue overlay), `Build-Ruleset.ps1` |
 | F58 skip-bypass | `FlowchartDecisionPortAllocator`, `FlowchartSkipBypassRouteBuilder` | Right `No` port when `HasInterveningSpineColumnNode`; obstacle-aware return chord |
@@ -570,7 +574,7 @@ Regenerate: `dotnet test ... --filter "FullyQualifiedName~Write_"`
 
 | Component | Status | Location |
 | --- | --- | --- |
-| `MermaidRecognizer` / `DiagramKindDetector` | Done | `new_src/MermaidRecognition/Core/` |
+| `MermaidRecognizer` / `DiagramKindDetector` | Done | `src/MermaidRecognition/Core/` |
 | `FlowchartDb` / `FlowchartRecognizer` | Done | `Kinds/Flowchart/` |
 | Wave kind contract mappers | Done (L4) | `Kinds/*/*ContractMapper.cs` |
 | `*L4AxisGateTests` (started kinds) | Done | `MermaidRecognition.Tests/*/` |
@@ -589,7 +593,7 @@ Regenerate: `dotnet test ... --filter "FullyQualifiedName~Write_"`
 
 ## Phased work — what is next
 
-Recognition minimum slice for all started kinds is **complete**. **Naiad is not a forward option** — it remains frozen under `extern/Naiad` and is used only when comparing legacy output against a new native render path (SvgHarness, DOCX review). See [`parity-roadmap.md`](parity-roadmap.md).
+Recognition minimum slice for all started kinds is **complete**. **Naiad is not a forward option** - it remains frozen under `extern/Naiad` and is used only when comparing legacy output against a new native render path (FixtureProbe, Converter.exe, DOCX review). See [`parity-roadmap.md`](parity-roadmap.md).
 
 1. **Native render — flowchart depth** — extend Sugiyama SVG (subgraphs, styles, MSAGL edge curves); SvgHarness R1 parity on `flow.md` slice.
 2. **Native render — started kinds** — per-kind `DiagramContract` → render adapters (sequence, class, state, ER, pie, gantt, mindmap, gitGraph).
@@ -605,7 +609,7 @@ Stage 11.A recognition exit is **met and exceeded**. Stage **11.B** routing pilo
 
 ## Truthfulness checklist (repository vs claims)
 
-Automated: `new_src/MermaidRecognition.Tests/Truthfulness/TruthfulnessChecklistTests.cs` (+ `LegacyNaiadLabelSemanticsTests`, `FlowchartRouterLabelInvarianceTests`).
+Automated: `tests/MermaidRecognition.Tests/Truthfulness/TruthfulnessChecklistTests.cs` (+ `LegacyNaiadLabelSemanticsTests`, `FlowchartRouterLabelInvarianceTests`).
 
 | Statement | As of pass 42 |
 | --- | --- |
@@ -638,8 +642,8 @@ Update this table when implementation or claims change.
 
 ## Decision gates (not yet met)
 
-- **Stage 11.B label-invariance exit:** **Partially met** — `FlowchartRouter` ignores all edge label text; full §11.B exit still requires layout integration and SvgHarness proof that port roles are unchanged when labels vary.
-- **Adopt MSAGL Sugiyama for native layout:** **Phase 1–2 done** — `FlowchartSugiyamaLayoutEngine` + flat `Sugiyama/` (503 files); no `extern` project reference. Remaining: Phase 3–4 trim, modernisation, SvgHarness parity on agreed fixture slice (§11.1.11.1). Transitional re-copy reference: `extern/Microsoft.AGL`.
+- **Stage 11.B label-invariance exit:** **Partially met** - `FlowchartRouter` ignores all edge label text; full §11.B exit still requires layout integration and FixtureProbe proof that port roles are unchanged when labels vary.
+- **Adopt MSAGL Sugiyama for native layout:** **Phase 1-3 done** - `FlowchartSugiyamaLayoutEngine` + flat `Sugiyama/` (503 files); no `extern` project reference. Remaining: Phase 4 trim and FixtureProbe parity on agreed fixture slice (section 11.1.11.1).
 - **Port native ELK for `flowchart-elk`:** requires vendored Mermaid adapter parity (§11.1.11.2), `config.elk.*` mapping, and ELK-specific acceptance fixtures.
 - **Enable native render as MDConverter default:** **Partially met (flowcharts)** — pass 24: md2docx uses Sugiyama by default with Naiad fallback. Exit gate still requires R1 visual parity on agreed fixture slice and native adapters for other kinds.
 - **Use legacy Naiad for product render:** **Out of scope** — frozen; comparison and regression baseline only (§12).
@@ -649,5 +653,5 @@ Update this table when implementation or claims change.
 
 ## Repository layout note
 
-**Breadcrumb (2026-05-31):** Stage 11.A+ recognition and Stage 11.B routing/layout pilot live in **`new_src/`**. MSAGL adopted under flat `MermaidRecognition.Layout/Sugiyama/` (`SUGIYAMA_ADOPTION.md`); **md2docx flowcharts default to Sugiyama**. `extern/Microsoft.AGL` is transitional re-copy reference only. Legacy Naiad: `extern/Naiad` (frozen — comparison baseline only).
+**Breadcrumb (2026-10-07):** Recognition and layout code live under `src/MermaidRecognition*` with tests under `tests/`. MSAGL is adopted under flat `src/MermaidRecognition.Layout/Sugiyama/` (`SUGIYAMA_ADOPTION.md`); **md2docx flowcharts default to Sugiyama**. Legacy Naiad: `extern/Naiad` (frozen - comparison baseline only).
 

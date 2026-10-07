@@ -101,9 +101,9 @@ powershell -File "Rule Specification/Build-Ruleset.ps1"
 
 | Package / project | Role |
 | --- | --- |
-| `new_src/MermaidRecognition.RuleValidation/` | `RulesEngine`, evaluators, `ActualResultsGenerator`, models |
-| `new_src/MermaidRecognition.RuleValidation.Tests/` | Rule/evaluator integrity and integration tests |
-| `new_src/MermaidRecognition.Layout/` | `FlowchartSugiyamaLayoutEngine`, structural routing, SVG render, diagnostic analysers |
+| `src/MermaidRecognition.RuleValidation/` | `RulesEngine`, evaluators, `ActualResultsGenerator`, models |
+| `tests/MermaidRecognition.RuleValidation.Tests/` | Rule/evaluator integrity and integration tests |
+| `src/MermaidRecognition.Layout/` | `FlowchartSugiyamaLayoutEngine`, structural routing, SVG render, diagnostic analysers |
 | `src/RuleValidationHarness/` | CLI: Markdown → `actual-results.json` → `validation-report.json` |
 
 ---

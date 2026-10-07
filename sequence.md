@@ -2,7 +2,7 @@
 
 Progressive Mermaid **sequenceDiagram** scenarios for recognition and render regression (Markdown → DOCX). Each section increases complexity; scenarios within a section are ordered from simplest to hardest.
 
-**Spec mapping:** line types in `spec.md` §11.1.14.2; recognition fixtures in `new_src/MermaidRecognition.Tests/SequenceRecognition/`.
+**Spec mapping:** line types in `spec.md` §11.1.14.2; recognition fixtures in `tests/MermaidRecognition.Tests/SequenceRecognition/`.
 
 **Programme note:** Naiad is an interim render baseline only. Recognition truth lives in `MermaidRecognition`; eventual render must not depend on extending Naiad sequence parsers.
 
@@ -51,29 +51,23 @@ This file is the **complete** sequence regression catalogue: **isolated diagrams
 
 ### Remarked scenarios (`%%`)
 
-Diagrams that **do not render** on [mermaid.live](https://mermaid.live) remain in this file with **every source line prefixed by `%%`**. That marks them as **considered but rejected** for the render gate — **do not re-add** them because the catalogue looks incomplete. SvgHarness and DOCX visual review skip remarked blocks. See §9.1 in `spec.md`.
+Diagrams that **do not render** on [mermaid.live](https://mermaid.live) remain in this file with **every source line prefixed by `%%`**. That marks them as **considered but rejected** for the render gate — **do not re-add** them because the catalogue looks incomplete. DOCX visual review skips remarked blocks. See §9.1 in `spec.md`.
 
 **Currently remarked:** *(none yet — add ids here when you remark a scenario.)*
 
-### SvgHarness (visual / structural gate)
+### Visual export (Windows `Converter.exe`)
 
-```powershell
-dotnet build extern/Naiad/src/Naiad/Naiad.csproj -c Release
-dotnet run --project src/SvgHarness/SvgHarness.csproj -c Release -- sequence.md out/sequence-mermaid-ink --reference=mermaid-ink --parallel 2 --report=out/sequence-mermaid-ink/report.md
+Export a single diagram block from this catalogue to PNG or SVG (use `-index N` for the Nth ` ```mermaid ` block):
+
+```text
+Converter.exe -in sequence.md -png out/sequence/S01.png -index 1
+Converter.exe -in sequence.md -svg out/sequence/S01.svg -index 1
 ```
-
-Structural-only (no reference download):
-
-```powershell
-dotnet run --project src/SvgHarness/SvgHarness.csproj -c Release -- sequence.md out/sequence-harness --no-reference
-```
-
-Exit code **0** only when all **active** (non-remarked) scenarios PASS.
 
 ### Recognition contract gate
 
 ```powershell
-dotnet test new_src/MermaidRecognition.Tests/MermaidRecognition.Tests.csproj --filter "FullyQualifiedName~SequenceRecognition"
+dotnet test tests/MermaidRecognition.Tests/MermaidRecognition.Tests.csproj --filter "FullyQualifiedName~SequenceRecognition"
 ```
 
 Official catalogue scenarios must not produce silent `sequence.body` fallback (see `SequenceRecognitionFixtureTests`).
@@ -506,7 +500,7 @@ sequenceDiagram
 | Scenario id | `S` + two digits; stable once published |
 | New scenario | Must map to a row in §11.1.14.2 or add that row first |
 | Recognition | Every `SequenceRecognition/*.mmd` fixture must appear in the index table |
-| Render | SvgHarness PASS against mermaid.ink for **active** scenarios only (remarked `%%` blocks excluded) |
+| Render | Visual export succeeds against mermaid.ink for **active** scenarios only (remarked `%%` blocks excluded) |
 | Remarked `%%` | Considered but rejected on mermaid.live; do not treat as missing |
 
 Do not treat this file as the recognition specification — it samples axes from `spec.md`. Machine-readable truth remains `*.verified.json` under `SequenceRecognition/`.

@@ -2,7 +2,7 @@
 
 Progressive Mermaid **erDiagram** scenarios for recognition and render regression (Markdown → DOCX). Each section increases complexity; scenarios within a section are ordered from simplest to hardest.
 
-**Spec mapping:** line types in `spec.md` §11.1.14.5; recognition fixtures in `new_src/MermaidRecognition.Tests/ErRecognition/`.
+**Spec mapping:** line types in `spec.md` §11.1.14.5; recognition fixtures in `tests/MermaidRecognition.Tests/ErRecognition/`.
 
 **Programme note:** Naiad is an interim render baseline only. Recognition advances in `ErKindRecognizer`; entity population and non-Naiad render follow the same pattern as class (§11.1.14.3).
 
@@ -54,27 +54,23 @@ This file is the **complete** ER regression catalogue: **isolated diagrams (E01�
 
 ### Remarked scenarios (`%%`)
 
-Diagrams that **do not render** on [mermaid.live](https://mermaid.live) remain in this file with **every source line prefixed by `%%`**. That marks them as **considered but rejected** for the render gate — **do not re-add** them because the catalogue looks incomplete. SvgHarness and DOCX visual review skip remarked blocks. See §9.1 in `spec.md`.
+Diagrams that **do not render** on [mermaid.live](https://mermaid.live) remain in this file with **every source line prefixed by `%%`**. That marks them as **considered but rejected** for the render gate — **do not re-add** them because the catalogue looks incomplete. DOCX visual review skips remarked blocks. See §9.1 in `spec.md`.
 
 **Currently remarked:** E10 (entity alias syntax).
 
-### SvgHarness (visual / structural gate)
+### Visual export (Windows `Converter.exe`)
 
-```powershell
-dotnet build extern/Naiad/src/Naiad/Naiad.csproj -c Release
-dotnet run --project src/SvgHarness/SvgHarness.csproj -c Release -- entityrelationship.md out/er-mermaid-ink --reference=mermaid-ink --parallel 2 --report=out/er-mermaid-ink/report.md
-```
+Export a single diagram block from this catalogue to PNG or SVG (use `-index N` for the Nth ` ```mermaid ` block):
 
-Structural-only:
-
-```powershell
-dotnet run --project src/SvgHarness/SvgHarness.csproj -c Release -- entityrelationship.md out/er-harness --no-reference
+```text
+Converter.exe -in entityrelationship.md -png out/er/E01.png -index 1
+Converter.exe -in entityrelationship.md -svg out/er/E01.svg -index 1
 ```
 
 ### Recognition contract gate
 
 ```powershell
-dotnet test new_src/MermaidRecognition.Tests/MermaidRecognition.Tests.csproj --filter "FullyQualifiedName~ErRecognition"
+dotnet test tests/MermaidRecognition.Tests/MermaidRecognition.Tests.csproj --filter "FullyQualifiedName~ErRecognition"
 ```
 
 Catalogue scenarios must not produce silent `erDiagram.body` fallback.
@@ -543,7 +539,7 @@ Left and right markers compose Mermaid ER cardinality (identifying `--` vs non-i
 | Scenario id | `E` + two digits; stable once published |
 | New scenario | Must map to §11.1.14.5 (expand spec table when adding rows) |
 | Recognition | Every `ErRecognition/*.mmd` fixture must appear in the index table |
-| Render | SvgHarness PASS for **active** scenarios only (remarked `%%` blocks excluded) |
+| Render | Visual export succeeds for **active** scenarios only (remarked `%%` blocks excluded) |
 | Remarked `%%` | Considered but rejected on mermaid.live; do not treat as missing |
 
 Do not treat this file as the specification — machine-readable truth remains `*.verified.json` under `ErRecognition/`. Expand §11.1.14.5 to a full line-type table like §11.1.14.3 when ER L2 is claimed complete.

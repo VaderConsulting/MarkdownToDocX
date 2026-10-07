@@ -18,7 +18,7 @@ Geometry parity on that local worktree: samples 01–03 and 06–12 match flowch
 | F60 | [before/F60.png](before/F60.png) | [after/F60.png](after/F60.png) | Tighter stage boxes. Dotted audit corridor unchanged. |
 | F40 | [before/F40.png](before/F40.png) | [after/F40.png](after/F40.png) | Tighter sibling subgraph boxes. |
 
-## Behaviour changes Dave should review
+## Behaviour changes to review
 
 1. **Subgraph membership (03, F43–F47, nested fixtures).** A cluster box contains only members. Non-members are packed out of member holes or evicted. Dummy subgraph-id nodes are not placed or painted.
 2. **Root ranking (12).** Each root is one rank beyond its facing successor. The old “all roots share the bottom rank” pass is gone; no catalogue test required it.
