@@ -59,14 +59,11 @@ public static class FlowchartDagrePlacement
             ClusterDirection[Group.Id] = string.IsNullOrWhiteSpace(Group.Direction)
                 ? string.Empty
                 : ToRankDir(FlowchartDirectionNormalizer.Normalize(Group.Direction));
-            if (!Measured.ContainsKey(Group.Id))
+            Graph.SetNode(Group.Id, new DagreNodeLabel
             {
-                Graph.SetNode(Group.Id, new DagreNodeLabel
-                {
-                    Width = 0,
-                    Height = 0
-                }, true);
-            }
+                Width = 0,
+                Height = 0
+            }, true);
         }
 
         foreach (NodeContract Node in Contract.Nodes)
@@ -213,14 +210,43 @@ public static class FlowchartDagrePlacement
                 continue;
             }
 
+            string SourceId = Edge.V;
+            string TargetId = Edge.W;
+            List<DagrePoint> Points = new List<DagrePoint>(Label.Points);
+            if (!string.IsNullOrEmpty(Label.ToCluster))
+            {
+                DagreNodeLabel? Cluster = Graph.Node(Label.ToCluster);
+                if (Cluster != null && Cluster.Width > 0 && Cluster.Height > 0)
+                {
+                    Points = CutPathAtCluster(Points, Cluster);
+                    TargetId = Label.ToCluster;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(Label.FromCluster))
+            {
+                DagreNodeLabel? Cluster = Graph.Node(Label.FromCluster);
+                if (Cluster != null && Cluster.Width > 0 && Cluster.Height > 0)
+                {
+                    Points = CutPathLeavingCluster(Points, Cluster);
+                    SourceId = Label.FromCluster;
+                }
+            }
+
+            if (Points.Count < 2)
+            {
+                continue;
+            }
+
             FlowchartLayoutEdgeRoute Route = new FlowchartLayoutEdgeRoute
             {
-                SourceId = Edge.V,
-                TargetId = Edge.W,
-                ExitSide = SideOf(Source, Label.Points[0], Label.Points[1]),
-                EntrySide = SideOf(Target, Label.Points[Label.Points.Count - 1], Label.Points[Label.Points.Count - 2])
+                EdgeId = Edge.Name ?? string.Empty,
+                SourceId = SourceId,
+                TargetId = TargetId,
+                ExitSide = SideOf(Source, Points[0], Points[1]),
+                EntrySide = SideOf(Target, Points[Points.Count - 1], Points[Points.Count - 2])
             };
-            foreach (DagrePoint Point in Label.Points)
+            foreach (DagrePoint Point in Points)
             {
                 Route.Points.Add(new FlowchartLayoutPoint
                 {
@@ -318,13 +344,21 @@ public static class FlowchartDagrePlacement
         {
             string Source = Edge.V;
             string Target = Edge.W;
+            DagreEdgeLabel? Label = Graph.Edge(Edge);
+            if (Label == null)
+            {
+                continue;
+            }
+
             if (Anchor.ContainsKey(Source) && External.Contains(Source))
             {
+                Label.FromCluster = Source;
                 Source = Anchor[Source];
             }
 
             if (Anchor.ContainsKey(Target) && External.Contains(Target))
             {
+                Label.ToCluster = Target;
                 Target = Anchor[Target];
             }
 
@@ -333,7 +367,6 @@ public static class FlowchartDagrePlacement
                 continue;
             }
 
-            DagreEdgeLabel? Label = Graph.Edge(Edge);
             Graph.RemoveEdge(Edge);
             if (Source != Target)
             {
@@ -517,6 +550,144 @@ public static class FlowchartDagrePlacement
         }
 
         return NodeId;
+    }
+
+    private static List<DagrePoint> CutPathLeavingCluster(List<DagrePoint> Points, DagreNodeLabel Boundary)
+    {
+        List<DagrePoint> Reversed = new List<DagrePoint>(Points);
+        Reversed.Reverse();
+        List<DagrePoint> Cut = CutPathAtCluster(Reversed, Boundary);
+        Cut.Reverse();
+        return Cut;
+    }
+
+    /// <summary>
+    /// Mermaid cuts a cluster edge at the subgraph rectangle (cutPathAtIntersect).
+    /// </summary>
+    private static List<DagrePoint> CutPathAtCluster(List<DagrePoint> Points, DagreNodeLabel Boundary)
+    {
+        List<DagrePoint> Kept = new List<DagrePoint>();
+        if (Points.Count == 0)
+        {
+            return Kept;
+        }
+
+        DagrePoint LastOutside = Points[0];
+        bool Inside = false;
+        foreach (DagrePoint Point in Points)
+        {
+            if (!IsOutsideCluster(Boundary, Point) && !Inside)
+            {
+                DagrePoint Hit = IntersectCluster(Boundary, LastOutside, Point);
+                bool Already = false;
+                foreach (DagrePoint Existing in Kept)
+                {
+                    if (Existing.X == Hit.X && Existing.Y == Hit.Y)
+                    {
+                        Already = true;
+                        break;
+                    }
+                }
+
+                if (!Already)
+                {
+                    Kept.Add(Hit);
+                }
+
+                Inside = true;
+            }
+            else
+            {
+                LastOutside = Point;
+                if (!Inside)
+                {
+                    Kept.Add(Point);
+                }
+            }
+        }
+
+        return Kept;
+    }
+
+    private static bool IsOutsideCluster(DagreNodeLabel Node, DagrePoint Point)
+    {
+        double Dx = Math.Abs(Point.X - Node.X);
+        double Dy = Math.Abs(Point.Y - Node.Y);
+        return Dx >= (Node.Width / 2.0) || Dy >= (Node.Height / 2.0);
+    }
+
+    private static DagrePoint IntersectCluster(DagreNodeLabel Node, DagrePoint Outside, DagrePoint Inside)
+    {
+        double CentreX = Node.X;
+        double CentreY = Node.Y;
+        double HalfWidth = Node.Width / 2.0;
+        double HalfHeight = Node.Height / 2.0;
+        double SpanX = Math.Abs(Outside.X - Inside.X);
+        double SpanY = Math.Abs(Outside.Y - Inside.Y);
+        double AlongX = Math.Abs(CentreX - Inside.X);
+        double Radius = Inside.X < Outside.X ? HalfWidth - AlongX : HalfWidth + AlongX;
+        double HitX;
+        double HitY;
+        if ((Math.Abs(CentreY - Outside.Y) * HalfWidth) > (Math.Abs(CentreX - Outside.X) * HalfHeight))
+        {
+            double GapY = Inside.Y < Outside.Y
+                ? Outside.Y - HalfHeight - CentreY
+                : CentreY - HalfHeight - Outside.Y;
+            Radius = SpanY == 0 ? 0 : (SpanX * GapY) / SpanY;
+            HitX = Inside.X < Outside.X ? Inside.X + Radius : Inside.X - SpanX + Radius;
+            HitY = Inside.Y < Outside.Y ? Inside.Y + SpanY - GapY : Inside.Y - SpanY + GapY;
+            if (Radius == 0)
+            {
+                HitX = Outside.X;
+                HitY = Outside.Y;
+            }
+
+            if (SpanX == 0)
+            {
+                HitX = Outside.X;
+            }
+
+            if (SpanY == 0)
+            {
+                HitY = Outside.Y;
+            }
+        }
+        else
+        {
+            if (Inside.X < Outside.X)
+            {
+                Radius = Outside.X - HalfWidth - CentreX;
+            }
+            else
+            {
+                Radius = CentreX - HalfWidth - Outside.X;
+            }
+
+            double GapY = SpanX == 0 ? 0 : (SpanY * Radius) / SpanX;
+            HitX = Inside.X < Outside.X ? Inside.X + SpanX - Radius : Inside.X - SpanX + Radius;
+            HitY = Inside.Y < Outside.Y ? Inside.Y + GapY : Inside.Y - GapY;
+            if (Radius == 0)
+            {
+                HitX = Outside.X;
+                HitY = Outside.Y;
+            }
+
+            if (SpanX == 0)
+            {
+                HitX = Outside.X;
+            }
+
+            if (SpanY == 0)
+            {
+                HitY = Outside.Y;
+            }
+        }
+
+        return new DagrePoint
+        {
+            X = HitX,
+            Y = HitY
+        };
     }
 
     private static string ToRankDir(FlowchartDirection Direction)

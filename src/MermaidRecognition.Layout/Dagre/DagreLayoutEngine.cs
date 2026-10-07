@@ -126,7 +126,8 @@ internal static partial class DagreLayoutEngine
             InputLabel.Y = LayoutLabel.Y;
             InputLabel.Rank = LayoutLabel.Rank;
             InputLabel.Order = LayoutLabel.Order;
-            if (LayoutGraph.Children(NodeId).Count > 0)
+            int KidCount = LayoutGraph.Children(NodeId).Count;
+            if (KidCount > 0)
             {
                 InputLabel.Width = LayoutLabel.Width;
                 InputLabel.Height = LayoutLabel.Height;

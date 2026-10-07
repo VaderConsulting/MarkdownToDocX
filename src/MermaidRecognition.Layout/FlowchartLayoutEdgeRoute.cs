@@ -8,6 +8,11 @@ namespace MermaidRecognition.Layout;
 public sealed class FlowchartLayoutEdgeRoute
 {
     /// <summary>
+    /// Contract edge id, or the generated name used when the contract edge has none.
+    /// </summary>
+    public string EdgeId { get; set; } = string.Empty;
+
+    /// <summary>
     /// Source node id.
     /// </summary>
     public string SourceId { get; set; } = string.Empty;

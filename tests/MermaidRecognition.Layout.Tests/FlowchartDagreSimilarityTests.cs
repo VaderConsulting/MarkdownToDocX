@@ -153,7 +153,7 @@ public sealed class FlowchartDagreSimilarityTests
         List<List<string>> OurRanks = BuildRanks(OurNodes, Horizontal);
         Comparison.RankMatch = SamePartitions(ReferenceRanks, OurRanks);
         Comparison.OrderMatch = SameOrder(ReferenceNodes, OurNodes, ReferenceRanks, Horizontal);
-        Comparison.ClusterMatch = SameClusters(Contract, Reference, ReferenceNodes);
+        Comparison.ClusterMatch = SameClusters(Contract, Layout, Reference, ReferenceNodes, out string ClusterDetail);
         Comparison.SideMatch = SameSides(Contract, Layout, Reference, ReferenceNodes, out int ReferenceCrossings, out int OurCrossings, out string SideDetail);
         Comparison.CrossingMatch = OurCrossings <= ReferenceCrossings;
         double WorstOffset = WorstCentreOffset(ReferenceNodes, OurNodes);
@@ -176,6 +176,11 @@ public sealed class FlowchartDagreSimilarityTests
         if (!Comparison.RankMatch)
         {
             Comparison.Summary += " our=" + FormatRanks(OurRanks) + " ref=" + FormatRanks(ReferenceRanks);
+        }
+
+        if (!Comparison.ClusterMatch && !string.IsNullOrEmpty(ClusterDetail))
+        {
+            Comparison.Summary += " " + ClusterDetail;
         }
 
         if (!Comparison.SideMatch && !string.IsNullOrEmpty(SideDetail))
@@ -355,14 +360,21 @@ public sealed class FlowchartDagreSimilarityTests
         return Node.X;
     }
 
-    private static bool SameClusters(DiagramContract Contract, JsonElement Reference, List<PlacedNode> ReferenceNodes)
+    private static bool SameClusters(
+        DiagramContract Contract,
+        FlowchartLayoutResult Layout,
+        JsonElement Reference,
+        List<PlacedNode> ReferenceNodes,
+        out string Detail)
     {
+        Detail = string.Empty;
         Dictionary<string, PlacedNode> ById = Index(ReferenceNodes);
         foreach (GroupContract Group in Contract.Groups)
         {
             JsonElement? Cluster = FindCluster(Reference, Group.Id);
             if (Cluster == null)
             {
+                Detail = " missing-ref " + Group.Id;
                 return false;
             }
 
@@ -384,17 +396,232 @@ public sealed class FlowchartDagreSimilarityTests
             {
                 if (!ById.ContainsKey(NodeId))
                 {
+                    Detail = " missing-node " + NodeId;
                     return false;
                 }
 
                 if (!Inside.Contains(NodeId))
                 {
+                    Detail = " ref-outside " + Group.Id + " " + NodeId;
+                    return false;
+                }
+            }
+        }
+
+        if (!OurClustersEncloseMembers(Contract, Layout, out Detail))
+        {
+            return false;
+        }
+
+        return ClusterEdgesEndOnBounds(Contract, Layout, Reference, ReferenceNodes, out Detail);
+    }
+
+    private static bool OurClustersEncloseMembers(DiagramContract Contract, FlowchartLayoutResult Layout, out string Detail)
+    {
+        Detail = string.Empty;
+        Dictionary<string, FlowchartLayoutNodeBounds> Clusters = new Dictionary<string, FlowchartLayoutNodeBounds>(StringComparer.Ordinal);
+        foreach (FlowchartLayoutNodeBounds Bounds in Layout.ClusterBounds)
+        {
+            Clusters[Bounds.NodeId] = Bounds;
+        }
+
+        Dictionary<string, FlowchartLayoutNodeBounds> Nodes = new Dictionary<string, FlowchartLayoutNodeBounds>(StringComparer.Ordinal);
+        foreach (FlowchartLayoutNodeBounds Bounds in Layout.NodeBounds)
+        {
+            Nodes[Bounds.NodeId] = Bounds;
+        }
+
+        foreach (GroupContract Group in Contract.Groups)
+        {
+            if (!Clusters.TryGetValue(Group.Id, out FlowchartLayoutNodeBounds? Bounds))
+            {
+                Detail = " missing-ours " + Group.Id;
+                return false;
+            }
+
+            if (Bounds.Width < 1.0 || Bounds.Height < 1.0)
+            {
+                Detail = " zero " + Group.Id;
+                return false;
+            }
+
+            foreach (string NodeId in DescendantNodes(Contract, Group.Id))
+            {
+                if (!Nodes.TryGetValue(NodeId, out FlowchartLayoutNodeBounds? Member))
+                {
+                    Detail = " missing-member " + Group.Id + " " + NodeId;
+                    return false;
+                }
+
+                if (!CentreInside(Bounds, Member.CenterX, Member.CenterY))
+                {
+                    Detail = " outside " + Group.Id + " " + NodeId;
+                    return false;
+                }
+            }
+
+            foreach (string ChildGroupId in Group.ChildGroupIds)
+            {
+                if (!Clusters.TryGetValue(ChildGroupId, out FlowchartLayoutNodeBounds? Child))
+                {
+                    Detail = " missing-child " + Group.Id + " " + ChildGroupId;
+                    return false;
+                }
+
+                if (!CentreInside(Bounds, Child.CenterX, Child.CenterY))
+                {
+                    Detail = " child-outside " + Group.Id + " " + ChildGroupId;
                     return false;
                 }
             }
         }
 
         return true;
+    }
+
+    private static bool CentreInside(FlowchartLayoutNodeBounds Bounds, double X, double Y)
+    {
+        double Left = Bounds.CenterX - (Bounds.Width / 2.0);
+        double Right = Bounds.CenterX + (Bounds.Width / 2.0);
+        double Top = Bounds.CenterY - (Bounds.Height / 2.0);
+        double Bottom = Bounds.CenterY + (Bounds.Height / 2.0);
+        return X >= Left - 1.0 && X <= Right + 1.0 && Y >= Top - 1.0 && Y <= Bottom + 1.0;
+    }
+
+    private static bool ClusterEdgesEndOnBounds(
+        DiagramContract Contract,
+        FlowchartLayoutResult Layout,
+        JsonElement Reference,
+        List<PlacedNode> ReferenceNodes,
+        out string Detail)
+    {
+        Detail = string.Empty;
+        HashSet<string> GroupIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (GroupContract Group in Contract.Groups)
+        {
+            GroupIds.Add(Group.Id);
+        }
+
+        if (GroupIds.Count == 0)
+        {
+            return true;
+        }
+
+        Dictionary<string, FlowchartLayoutNodeBounds> Clusters = new Dictionary<string, FlowchartLayoutNodeBounds>(StringComparer.Ordinal);
+        foreach (FlowchartLayoutNodeBounds Bounds in Layout.ClusterBounds)
+        {
+            Clusters[Bounds.NodeId] = Bounds;
+        }
+
+        List<Polyline> ReferenceEdges = ReadEdges(Reference, ReferenceNodes);
+        List<Polyline> OurEdges = new List<Polyline>();
+        foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
+        {
+            Polyline Line = new Polyline
+            {
+                SourceId = Route.SourceId,
+                TargetId = Route.TargetId
+            };
+            foreach (FlowchartLayoutPoint Point in Route.Points)
+            {
+                Line.Points.Add(new PlacedNode
+                {
+                    X = Point.X,
+                    Y = Point.Y
+                });
+            }
+
+            OurEdges.Add(Line);
+        }
+
+        foreach (Polyline ReferenceEdge in ReferenceEdges)
+        {
+            bool SourceIsCluster = GroupIds.Contains(ReferenceEdge.SourceId);
+            bool TargetIsCluster = GroupIds.Contains(ReferenceEdge.TargetId);
+            if (!SourceIsCluster && !TargetIsCluster)
+            {
+                continue;
+            }
+
+            Polyline? Match = null;
+            foreach (Polyline Candidate in OurEdges)
+            {
+                if (Candidate.Used)
+                {
+                    continue;
+                }
+
+                if (EndsMatch(Contract, Candidate.SourceId, ReferenceEdge.SourceId)
+                    && EndsMatch(Contract, Candidate.TargetId, ReferenceEdge.TargetId))
+                {
+                    Match = Candidate;
+                    break;
+                }
+            }
+
+            if (Match == null || Match.Points.Count < 2)
+            {
+                Detail = " cluster-edge " + ReferenceEdge.SourceId + "->" + ReferenceEdge.TargetId;
+                return false;
+            }
+
+            Match.Used = true;
+            if (SourceIsCluster
+                && (!Clusters.TryGetValue(ReferenceEdge.SourceId, out FlowchartLayoutNodeBounds? SourceBounds)
+                    || DistanceToBoundary(SourceBounds, Match.Points[0]) > 2.0))
+            {
+                Detail = " start-off " + ReferenceEdge.SourceId + "->" + ReferenceEdge.TargetId;
+                return false;
+            }
+
+            if (TargetIsCluster
+                && (!Clusters.TryGetValue(ReferenceEdge.TargetId, out FlowchartLayoutNodeBounds? TargetBounds)
+                    || DistanceToBoundary(TargetBounds, Match.Points[Match.Points.Count - 1]) > 2.0))
+            {
+                Detail = " end-off " + ReferenceEdge.SourceId + "->" + ReferenceEdge.TargetId;
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static double DistanceToBoundary(FlowchartLayoutNodeBounds Bounds, PlacedNode Point)
+    {
+        double Left = Bounds.CenterX - (Bounds.Width / 2.0);
+        double Right = Bounds.CenterX + (Bounds.Width / 2.0);
+        double Top = Bounds.CenterY - (Bounds.Height / 2.0);
+        double Bottom = Bounds.CenterY + (Bounds.Height / 2.0);
+        double OutsideX = 0;
+        if (Point.X < Left)
+        {
+            OutsideX = Left - Point.X;
+        }
+        else if (Point.X > Right)
+        {
+            OutsideX = Point.X - Right;
+        }
+
+        double OutsideY = 0;
+        if (Point.Y < Top)
+        {
+            OutsideY = Top - Point.Y;
+        }
+        else if (Point.Y > Bottom)
+        {
+            OutsideY = Point.Y - Bottom;
+        }
+
+        if (OutsideX > 0 || OutsideY > 0)
+        {
+            return Math.Sqrt((OutsideX * OutsideX) + (OutsideY * OutsideY));
+        }
+
+        double ToLeft = Point.X - Left;
+        double ToRight = Right - Point.X;
+        double ToTop = Point.Y - Top;
+        double ToBottom = Bottom - Point.Y;
+        return Math.Min(Math.Min(ToLeft, ToRight), Math.Min(ToTop, ToBottom));
     }
 
     private static HashSet<string> DescendantNodes(DiagramContract Contract, string GroupId)

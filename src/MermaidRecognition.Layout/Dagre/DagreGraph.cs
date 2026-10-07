@@ -127,6 +127,16 @@ internal sealed class DagreEdgeLabel
     public double? CutValue { get; set; }
 
     /// <summary>
+    /// Original cluster id when this edge leaves a subgraph. Layout uses a stand-in node inside the cluster.
+    /// </summary>
+    public string? FromCluster { get; set; }
+
+    /// <summary>
+    /// Original cluster id when this edge enters a subgraph. Layout uses a stand-in node inside the cluster.
+    /// </summary>
+    public string? ToCluster { get; set; }
+
+    /// <summary>
     /// Copies the fields dagre keeps when it rebuilds an edge label during layout.
     /// </summary>
     public DagreEdgeLabel Clone()
@@ -150,7 +160,9 @@ internal sealed class DagreEdgeLabel
             X = X,
             HasY = HasY,
             Y = Y,
-            CutValue = CutValue
+            CutValue = CutValue,
+            FromCluster = FromCluster,
+            ToCluster = ToCluster
         };
         foreach (DagrePoint Point in Points)
         {
