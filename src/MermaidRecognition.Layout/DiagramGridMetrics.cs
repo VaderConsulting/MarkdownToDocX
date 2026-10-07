@@ -29,9 +29,29 @@ public static class DiagramGridMetrics
     public const int NODE_GAP_PX = GRID_UNIT_PX;
 
     /// <summary>
+    /// Clear space between facing outlines along the flow axis (rulebook 1, terms).
+    /// </summary>
+    public const int BASE_RANK_GAP_PX = 2 * GRID_UNIT_PX;
+
+    /// <summary>
+    /// Clear space between facing outlines across the flow axis (rulebook 1, terms).
+    /// </summary>
+    public const int BASE_COLUMN_GAP_PX = GRID_UNIT_PX;
+
+    /// <summary>
+    /// Minimum straight run after a port and before an arrowhead (rulebook decisions, 4.4).
+    /// </summary>
+    public const int MIN_STRAIGHT_RUN_PX = 50;
+
+    /// <summary>
+    /// Centre-to-centre spacing of tracks inside a rank gap (rulebook decisions).
+    /// </summary>
+    public const int TRACK_SPACING_PX = 6;
+
+    /// <summary>
     /// Minimum clear span between node edges along the flow axis in LR diagrams.
     /// </summary>
-    public const int MIN_LR_RANK_GAP_PX = 49;
+    public const int MIN_LR_RANK_GAP_PX = BASE_RANK_GAP_PX;
 
     /// <summary>
     /// Column pitch for a standard node: the node plus one gap.
@@ -39,9 +59,9 @@ public static class DiagramGridMetrics
     public const int PITCH_X_PX = NODE_WIDTH_PX + NODE_GAP_PX;
 
     /// <summary>
-    /// Row pitch for a standard node: the node plus one gap.
+    /// Row pitch for a standard node: the node plus one column gap.
     /// </summary>
-    public const int PITCH_Y_PX = NODE_HEIGHT_PX + NODE_GAP_PX;
+    public const int PITCH_Y_PX = NODE_HEIGHT_PX + BASE_COLUMN_GAP_PX;
 
     /// <summary>
     /// How many line tracks fit in one gap.
@@ -137,10 +157,20 @@ public static class DiagramGridMetrics
     /// Row pitch once the shared box has grown.
     /// </summary>
     /// <param name="BoxHeightPx">Shared box height.</param>
-    /// <returns>Box height plus one gap.</returns>
+    /// <returns>Box height plus one column gap.</returns>
     public static int PitchY(int BoxHeightPx)
     {
-        return BoxHeightPx + NODE_GAP_PX;
+        return BoxHeightPx + BASE_COLUMN_GAP_PX;
+    }
+
+    /// <summary>
+    /// Centre-to-centre pitch along the flow axis for TB/BT ranks.
+    /// </summary>
+    /// <param name="BoxExtentPx">Node extent along the flow axis.</param>
+    /// <returns>Extent plus the base rank gap.</returns>
+    public static int PitchMainRank(int BoxExtentPx)
+    {
+        return BoxExtentPx + BASE_RANK_GAP_PX;
     }
 
     /// <summary>

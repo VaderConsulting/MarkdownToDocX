@@ -71,6 +71,11 @@ public static class FlowchartFanNestingRouteHelper
                 continue;
             }
 
+            if (IsManyToManyHub(Contract, HubId, PlacedById))
+            {
+                continue;
+            }
+
             List<EdgeContract> Outgoing = CollectVisibleEdgesFromSource(Contract, HubId);
             List<EdgeContract> Incoming = CollectVisibleEdgesToTarget(Contract, HubId);
             if (Outgoing.Count >= MINIMUM_FAN_BRANCH_COUNT
@@ -963,6 +968,98 @@ public static class FlowchartFanNestingRouteHelper
         double Ta = (((Bx1 - Ax1) * (Ay2 - Ay1)) - ((By1 - Ay1) * (Ax2 - Ax1))) / Denominator;
         double Tb = (((Bx1 - Ax1) * (By2 - By1)) - ((By1 - Ay1) * (Bx2 - Bx1))) / Denominator;
         return Ta > 0.01 && Ta < 0.99 && Tb > 0.01 && Tb < 0.99;
+    }
+
+    /// <summary>
+    /// True when the hub sits in a dense many-to-many link between two ranks (rulebook 2.10).
+    /// Fan nesting (5.2) does not apply; port slots and cross-rank tracks handle those edges.
+    /// </summary>
+    private static bool IsManyToManyHub(
+        DiagramContract Contract,
+        string HubId,
+        IReadOnlyDictionary<string, DiagramGridLayout.GridNode> PlacedById)
+    {
+        if (!PlacedById.TryGetValue(HubId, out DiagramGridLayout.GridNode? HubNode))
+        {
+            return false;
+        }
+
+        int HubRank = HubNode.Rank;
+        HashSet<int> NeighbourRanks = new HashSet<int>();
+        foreach (EdgeContract Edge in Contract.Edges)
+        {
+            if (IsInvisibleEdge(Edge))
+            {
+                continue;
+            }
+
+            if (string.Equals(Edge.SourceId, HubId, StringComparison.Ordinal)
+                && PlacedById.TryGetValue(Edge.TargetId, out DiagramGridLayout.GridNode? Target)
+                && Target.Rank > HubRank)
+            {
+                NeighbourRanks.Add(Target.Rank);
+            }
+
+            if (string.Equals(Edge.TargetId, HubId, StringComparison.Ordinal)
+                && PlacedById.TryGetValue(Edge.SourceId, out DiagramGridLayout.GridNode? Source)
+                && Source.Rank < HubRank)
+            {
+                NeighbourRanks.Add(Source.Rank);
+            }
+        }
+
+        foreach (int NeighbourRank in NeighbourRanks)
+        {
+            HashSet<string> SameRankIds = new HashSet<string>(StringComparer.Ordinal);
+            HashSet<string> OtherRankIds = new HashSet<string>(StringComparer.Ordinal);
+            int EdgeCount = 0;
+            foreach (EdgeContract Edge in Contract.Edges)
+            {
+                if (IsInvisibleEdge(Edge))
+                {
+                    continue;
+                }
+
+                if (!PlacedById.TryGetValue(Edge.SourceId, out DiagramGridLayout.GridNode? Source)
+                    || !PlacedById.TryGetValue(Edge.TargetId, out DiagramGridLayout.GridNode? Target))
+                {
+                    continue;
+                }
+
+                bool Forward = Source.Rank == HubRank && Target.Rank == NeighbourRank;
+                bool Backward = Source.Rank == NeighbourRank && Target.Rank == HubRank;
+                if (!Forward && !Backward)
+                {
+                    continue;
+                }
+
+                if (Forward)
+                {
+                    SameRankIds.Add(Source.Id);
+                    OtherRankIds.Add(Target.Id);
+                }
+                else
+                {
+                    SameRankIds.Add(Target.Id);
+                    OtherRankIds.Add(Source.Id);
+                }
+
+                EdgeCount++;
+            }
+
+            int Span = Math.Max(SameRankIds.Count, OtherRankIds.Count);
+            if (EdgeCount > Span)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsInvisibleEdge(EdgeContract Edge)
+    {
+        return string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase);
     }
 
     private static HashSet<string> CollectFanHubIds(DiagramContract Contract)
