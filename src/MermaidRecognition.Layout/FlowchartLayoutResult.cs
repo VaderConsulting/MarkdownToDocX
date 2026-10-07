@@ -20,12 +20,6 @@ public sealed class FlowchartLayoutResult
 
     public double GraphHeight { get; init; }
 
-    /// <summary>
-    /// True when edge routes were rebuilt by <see cref="DiagramGridLayout"/> and must not be
-    /// re-smoothed by the SVG renderer.
-    /// </summary>
-    public bool UsesGridRoutes { get; set; }
-
     private readonly List<FlowchartLayoutEdgeRoute> _EdgeRoutes = [];
 
     /// <summary>

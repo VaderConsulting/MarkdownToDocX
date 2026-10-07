@@ -38,8 +38,8 @@ public static class DiagramGridLayout
         (int BoxWidth, int BoxHeight) = ResolveStandardBox(Contract);
         int DiamondHeight = BoxHeight * FlowchartDagrePresentation.DIAMOND_HEIGHT_FACTOR;
         int MainPitch = Horizontal
-            ? DiagramGridMetrics.PitchMainRank(BoxWidth)
-            : DiagramGridMetrics.PitchMainRank(BoxHeight);
+            ? BoxWidth + Math.Max(DiagramGridMetrics.NODE_GAP_PX, DiagramGridMetrics.MIN_LR_RANK_GAP_PX)
+            : DiagramGridMetrics.PitchY(BoxHeight);
         int CrossPitch = Horizontal ? DiagramGridMetrics.PitchY(BoxHeight) : DiagramGridMetrics.PitchX(BoxWidth);
 
         Dictionary<string, NodeContract> Nodes = IndexNodes(Contract);
@@ -64,26 +64,20 @@ public static class DiagramGridLayout
 
         AssignRanks(Placed, Horizontal);
         AssignColumns(Placed, Horizontal, CrossPitch);
-        DiagramGridPlacementHelper.Apply(Contract, Placed, Horizontal);
         ResolveVerticalChordBlockers(Contract, Placed);
         CascadeColumns(Placed);
         PlaceOnGrid(Placed, Horizontal, BoxWidth, BoxHeight, MainPitch, CrossPitch, Copy);
         GrowCrowdedSides(Placed, Copy, BoxWidth, BoxHeight);
         SeparateOverlaps(Placed, Horizontal);
-        DiagramGridFrameGapHelper.WidenNeighbouringFrameGaps(Contract, Placed, Copy, Horizontal);
         List<GridFrame> Frames = new List<GridFrame>();
         CenterLoneNestedGroups(Contract, Placed, Horizontal);
         FitFrames(Contract, Placed, Frames, Horizontal);
         FlipToYUp(Placed, Frames, Copy);
         AssignPortSides(Contract, Copy, Placed, Frames, Nodes, Direction);
         DiagramGridRouteBuilder.RebuildAllRoutes(Copy, Placed, Nodes, Contract, Frames, Direction);
-        DiagramGridCrossLinkRouteHelper.Apply(Contract, Copy, Placed, Direction);
         SeparateTracks(Copy, Placed);
         PushPointsOutOfNodes(Copy, Placed);
-        FlowchartFanNestingRouteHelper.Apply(Contract, Copy, Placed, Nodes, Direction);
-        DiagramGridFrameRouteClearanceHelper.Apply(Contract, Copy, Frames);
         WriteBack(Copy, Placed, Frames);
-        Copy.UsesGridRoutes = true;
         return Copy;
     }
 
@@ -411,7 +405,7 @@ public static class DiagramGridLayout
             List<GridNode> NextNodes = NodesInRank(Placed, Rank + 1);
             int HalfBelow = MaxHalf(RankNodes, Horizontal, Below: true);
             int HalfAbove = MaxHalf(NextNodes, Horizontal, Below: false);
-            int Gap = DiagramGridMetrics.BASE_RANK_GAP_PX;
+            int Gap = DiagramGridMetrics.NODE_GAP_PX;
             int Crossings = CountRankCrossings(Copy, RankNodes, NextNodes);
             int TrackUnits = Math.Max(1, (Crossings + DiagramGridMetrics.TRACKS_PER_GAP - 1) / DiagramGridMetrics.TRACKS_PER_GAP);
             Gap = Math.Max(Gap, TrackUnits * DiagramGridMetrics.GRID_UNIT_PX);
@@ -795,12 +789,6 @@ public static class DiagramGridLayout
                 break;
             }
         }
-    }
-
-    internal static void BuildPreviewFrames(DiagramContract Contract, List<GridNode> Placed, List<GridFrame> Frames)
-    {
-        Frames.Clear();
-        BuildFrames(Contract, Placed, Frames);
     }
 
     private static void BuildFrames(DiagramContract Contract, List<GridNode> Placed, List<GridFrame> Frames)
