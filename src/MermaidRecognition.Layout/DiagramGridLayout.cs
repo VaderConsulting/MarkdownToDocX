@@ -77,6 +77,7 @@ public static class DiagramGridLayout
         DiagramGridRouteBuilder.RebuildAllRoutes(Copy, Placed, Nodes, Contract, Frames, Direction);
         SeparateTracks(Copy, Placed);
         PushPointsOutOfNodes(Copy, Placed);
+        FlowchartFanNestingRouteHelper.Apply(Contract, Copy, Placed, Nodes, Direction);
         WriteBack(Copy, Placed, Frames);
         return Copy;
     }
