@@ -27,6 +27,13 @@ public static class FlowchartDagrePresentation
 
     private const double WIDE_CORNER_CLEARANCE_PX = 24.0;
 
+    private const double SHARED_LANE_PX = 40.0;
+
+    /// <summary>
+    /// Decision diamonds are this many times the standard node height, at the standard node width.
+    /// </summary>
+    public const int DIAMOND_HEIGHT_FACTOR = 2;
+
     /// <summary>
     /// Returns a Y-up copy of <paramref name="LaidOut"/> with one shared rectangle size,
     /// whole-pixel boxes, and edge ends on the drawn outline.
@@ -59,6 +66,7 @@ public static class FlowchartDagrePresentation
         RewriteEdgeEnds(Copy, Boxes, Clusters, Nodes, Edges);
         PullRectangleCorners(Copy, Boxes, Clusters, Nodes);
         SeparateStackedEnds(Copy, Boxes, Clusters);
+        SeparateSharedTargetRuns(Copy, Boxes, Clusters);
         double Flip = Math.Max(Copy.GraphHeight, Extent(Boxes, Clusters, Copy));
         FlipToYUp(Boxes, Clusters, Copy, Flip);
         WriteBoxes(Copy.NodeBoundsMutable, Boxes);
@@ -88,11 +96,29 @@ public static class FlowchartDagrePresentation
             return;
         }
 
+        double DiamondWidth = Math.Max(1.0, Math.Round(StandardWidth));
+        double DiamondHeight = Math.Max(1.0, Math.Round(StandardHeight)) * DIAMOND_HEIGHT_FACTOR;
         foreach (Box Bounds in Boxes)
         {
+            if (Nodes.TryGetValue(Bounds.Id, out NodeContract? Node) && IsDiamondShape(Node.Shape))
+            {
+                Bounds.Width = DiamondWidth;
+                Bounds.Height = DiamondHeight;
+                continue;
+            }
+
             Bounds.Width = StandardWidth;
             Bounds.Height = StandardHeight;
         }
+    }
+
+    /// <summary>
+    /// Returns true when <paramref name="Shape"/> is a decision diamond.
+    /// </summary>
+    public static bool IsDiamondShape(string? Shape)
+    {
+        return string.Equals(Shape, "diamond", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(Shape, "rhombus", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsRectangle(string? Shape)
@@ -507,6 +533,254 @@ public static class FlowchartDagrePresentation
                 OffsetRun(Mover, Stay, ById);
             }
         }
+    }
+
+    private static void SeparateSharedTargetRuns(FlowchartLayoutResult Copy, List<Box> Boxes, List<Box> Clusters)
+    {
+        Dictionary<string, Box> ById = IndexBoxes(Boxes, Clusters);
+        Dictionary<string, List<FlowchartLayoutEdgeRoute>> ByTarget = new Dictionary<string, List<FlowchartLayoutEdgeRoute>>(StringComparer.Ordinal);
+        foreach (FlowchartLayoutEdgeRoute Route in Copy.EdgeRoutes)
+        {
+            if (Route.Points.Count < 2)
+            {
+                continue;
+            }
+
+            if (!ByTarget.TryGetValue(Route.TargetId, out List<FlowchartLayoutEdgeRoute>? Group))
+            {
+                Group = new List<FlowchartLayoutEdgeRoute>();
+                ByTarget[Route.TargetId] = Group;
+            }
+
+            Group.Add(Route);
+        }
+
+        foreach (KeyValuePair<string, List<FlowchartLayoutEdgeRoute>> Pair in ByTarget)
+        {
+            if (Pair.Value.Count < 2 || !ById.TryGetValue(Pair.Key, out Box? Target))
+            {
+                continue;
+            }
+
+            for (int Pass = 0; Pass < 4; Pass++)
+            {
+                bool Moved = false;
+                for (int Left = 0; Left < Pair.Value.Count; Left++)
+                {
+                    for (int Right = Left + 1; Right < Pair.Value.Count; Right++)
+                    {
+                        FlowchartLayoutEdgeRoute First = Pair.Value[Left];
+                        FlowchartLayoutEdgeRoute Second = Pair.Value[Right];
+                        if (!BasisCurvesShareARun(First, Second))
+                        {
+                            continue;
+                        }
+
+                        FlowchartLayoutEdgeRoute Stay = PreferUnmovedSpine(First, Second, Target);
+                        FlowchartLayoutEdgeRoute Mover = ReferenceEquals(Stay, First) ? Second : First;
+                        if (OpenLane(Mover, Stay, Target))
+                        {
+                            Moved = true;
+                        }
+                    }
+                }
+
+                if (!Moved)
+                {
+                    break;
+                }
+            }
+        }
+    }
+
+    private static FlowchartLayoutEdgeRoute PreferUnmovedSpine(
+        FlowchartLayoutEdgeRoute First,
+        FlowchartLayoutEdgeRoute Second,
+        Box Target)
+    {
+        bool FirstAligned = IsAxisAligned(First);
+        bool SecondAligned = IsAxisAligned(Second);
+        if (FirstAligned != SecondAligned)
+        {
+            return FirstAligned ? First : Second;
+        }
+
+        double FirstDistance = Math.Abs(First.Points[0].X - Target.CenterX) + Math.Abs(First.Points[0].Y - Target.CenterY);
+        double SecondDistance = Math.Abs(Second.Points[0].X - Target.CenterX) + Math.Abs(Second.Points[0].Y - Target.CenterY);
+        if (FirstDistance + 1.0 < SecondDistance)
+        {
+            return First;
+        }
+
+        if (SecondDistance + 1.0 < FirstDistance)
+        {
+            return Second;
+        }
+
+        return First;
+    }
+
+    private static bool OpenLane(FlowchartLayoutEdgeRoute Mover, FlowchartLayoutEdgeRoute Stay, Box Target)
+    {
+        if (Mover.Points.Count < 2)
+        {
+            return false;
+        }
+
+        FlowchartLayoutPoint End = Mover.Points[Mover.Points.Count - 1];
+        FlowchartLayoutPoint StayEnd = Stay.Points[Stay.Points.Count - 1];
+        double Left = Target.CenterX - (Target.Width / 2.0);
+        double Right = Target.CenterX + (Target.Width / 2.0);
+        double Bottom = Target.CenterY - (Target.Height / 2.0);
+        double Top = Target.CenterY + (Target.Height / 2.0);
+        double DistLeft = Math.Abs(End.X - Left);
+        double DistRight = Math.Abs(End.X - Right);
+        double DistBottom = Math.Abs(End.Y - Bottom);
+        double DistTop = Math.Abs(End.Y - Top);
+        bool HorizontalFace = DistTop <= DistLeft && DistTop <= DistRight && DistTop <= DistBottom
+            || DistBottom < DistTop && DistBottom <= DistLeft && DistBottom <= DistRight;
+        double Current = HorizontalFace ? End.X : End.Y;
+        double StayAlong = HorizontalFace ? StayEnd.X : StayEnd.Y;
+        double Direction = Current >= StayAlong ? 1.0 : -1.0;
+        double TargetAlong = StayAlong + (Direction * SHARED_LANE_PX);
+        double MinAlong = HorizontalFace ? Left + 1.0 : Bottom + 1.0;
+        double MaxAlong = HorizontalFace ? Right - 1.0 : Top - 1.0;
+        if (TargetAlong < MinAlong || TargetAlong > MaxAlong)
+        {
+            Direction = -Direction;
+            TargetAlong = StayAlong + (Direction * SHARED_LANE_PX);
+        }
+
+        TargetAlong = Math.Clamp(TargetAlong, MinAlong, MaxAlong);
+        FlowchartLayoutPoint Start = Mover.Points[0];
+        double EndX;
+        double EndY;
+        bool SourceBeside = Math.Abs(Start.X - Target.CenterX) >= Math.Abs(Start.Y - Target.CenterY);
+        if (SourceBeside)
+        {
+            EndX = Start.X < Target.CenterX ? Left : Right;
+            EndY = Target.CenterY;
+        }
+        else
+        {
+            EndY = Start.Y < Target.CenterY ? Bottom : Top;
+            EndX = Math.Clamp(TargetAlong, Left + 1.0, Right - 1.0);
+        }
+
+        double LaneX = SourceBeside ? Start.X : (Start.X + EndX) / 2.0;
+        double LaneY = SourceBeside ? (Start.Y + EndY) / 2.0 : Start.Y;
+        Mover.Points.Clear();
+        Mover.Points.Add(Start);
+        Mover.Points.Add(new FlowchartLayoutPoint
+        {
+            X = LaneX,
+            Y = LaneY
+        });
+        Mover.Points.Add(new FlowchartLayoutPoint
+        {
+            X = EndX,
+            Y = EndY
+        });
+        return true;
+    }
+
+    private static bool BasisCurvesShareARun(FlowchartLayoutEdgeRoute Left, FlowchartLayoutEdgeRoute Right)
+    {
+        List<(double X, double Y)> LeftSamples = BasisSamples(Left);
+        List<(double X, double Y)> RightSamples = BasisSamples(Right);
+        if (LeftSamples.Count < 2 || RightSamples.Count < 2)
+        {
+            return SharesARun(Left, Right) || SharesARun(Right, Left);
+        }
+
+        double BestRun = 0.0;
+        double Run = 0.0;
+        (double X, double Y) Previous = LeftSamples[0];
+        bool InRun = false;
+        for (int Index = 0; Index < LeftSamples.Count; Index++)
+        {
+            (double X, double Y) Sample = LeftSamples[Index];
+            double Gap = DistanceToPolyline(Sample.X, Sample.Y, RightSamples);
+            if (Gap < 8.0)
+            {
+                if (InRun)
+                {
+                    double Dx = Sample.X - Previous.X;
+                    double Dy = Sample.Y - Previous.Y;
+                    Run += Math.Sqrt((Dx * Dx) + (Dy * Dy));
+                }
+                else
+                {
+                    InRun = true;
+                    Run = 0.0;
+                }
+
+                Previous = Sample;
+                BestRun = Math.Max(BestRun, Run);
+                continue;
+            }
+
+            InRun = false;
+            Run = 0.0;
+            Previous = Sample;
+        }
+
+        return BestRun >= 20.0;
+    }
+
+    private static List<(double X, double Y)> BasisSamples(FlowchartLayoutEdgeRoute Route)
+    {
+        List<(double X, double Y)> Points = new List<(double X, double Y)>();
+        foreach (FlowchartLayoutPoint Point in Route.Points)
+        {
+            Points.Add((Point.X, Point.Y));
+        }
+
+        if (Points.Count < 2)
+        {
+            return Points;
+        }
+
+        if (FlowchartCurvePathBuilder.TryCollapseAxisAlignedEndpoints(Points, out List<(double X, double Y)> Straight))
+        {
+            return Straight;
+        }
+
+        string PathData = FlowchartCurvePathBuilder.BuildPureD3CurveBasisPathData(Points);
+        if (FlowchartSvgPathGeometryHelper.TryFlattenPathData(PathData, out List<(double X, double Y)> Samples)
+            && Samples.Count >= 2)
+        {
+            return Samples;
+        }
+
+        return Points;
+    }
+
+    private static double DistanceToPolyline(double X, double Y, IReadOnlyList<(double X, double Y)> Samples)
+    {
+        double Best = double.MaxValue;
+        for (int Index = 1; Index < Samples.Count; Index++)
+        {
+            (double X, double Y) Start = Samples[Index - 1];
+            (double X, double Y) End = Samples[Index];
+            double SegX = End.X - Start.X;
+            double SegY = End.Y - Start.Y;
+            double LengthSquared = (SegX * SegX) + (SegY * SegY);
+            double T = 0.0;
+            if (LengthSquared > 1e-6)
+            {
+                T = (((X - Start.X) * SegX) + ((Y - Start.Y) * SegY)) / LengthSquared;
+                T = Math.Clamp(T, 0.0, 1.0);
+            }
+
+            double CandidateX = Start.X + (SegX * T);
+            double CandidateY = Start.Y + (SegY * T);
+            double Dx = X - CandidateX;
+            double Dy = Y - CandidateY;
+            Best = Math.Min(Best, Math.Sqrt((Dx * Dx) + (Dy * Dy)));
+        }
+
+        return Best;
     }
 
     private static bool SharesARun(FlowchartLayoutEdgeRoute Left, FlowchartLayoutEdgeRoute Right)

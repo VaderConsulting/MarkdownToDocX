@@ -325,7 +325,8 @@ Added between each pair of ranks when a labelled edge crosses that boundary. TB 
 
 **Rule:**
 
-- Measure each node with the existing label wrap, then take one width and one height for the whole diagram: the maximum measured width and the maximum measured height. Every shape (rectangle, stadium, rounded rectangle, circle, diamond, and the rest) is drawn in that box. A circle uses the box as an ellipse so its outline meets the same width and height.
+- Measure each node with the existing label wrap, then take one width and one height for the whole diagram: the maximum measured width and the maximum measured height of the standard rectangles. Every shape other than a decision diamond (rectangle, stadium, rounded rectangle, circle, and the rest) is drawn in that box. A circle uses the box as an ellipse so its outline meets the same width and height.
+- A decision diamond keeps that standard width and is exactly twice that standard height (`FlowchartDagrePresentation.DIAMOND_HEIGHT_FACTOR`). Both sides are whole pixels, so a 150×60 box becomes a 150×120 diamond. Dagre receives this size before layout so the gap between ranks includes the taller diamond. This replaces the square `S = W0 + H0` box in §6.1 for Naiad flowchart layout.
 - Sugiyama still places the nodes at their measured sizes. After placement, centres are snapped onto shared columns and rows. A centre joins a track when it is within half a cell of that track. Later tracks stay at least one node plus the configured gap apart, and a larger natural gap is kept.
 - Two nodes that land on the same cell are moved to the next free column.
 - Subgraph rectangles are still wrapped around their members with the constant padding in `FlowchartSubgraphBoundsBuilder` (`PADDING_PX` 18, plus the title band).

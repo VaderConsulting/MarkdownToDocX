@@ -157,8 +157,47 @@ public static class FlowchartSharedEdgeRouter
         SnapAllEndpointsToBoxes(Contract, BoundsById, NodeById, Guides);
         TrySeparateOverlayByRankOrder(Contract, BoundsById, NodeById, Direction, Guides);
         FlowchartSharedPictureCleaner.Clean(Contract, BoundsById, NodeById, Guides);
+        RepairDiamondTerminalStubs(Contract, BoundsById, NodeById, Guides);
 
         RecordRemainingJustifications(Contract, BoundsById, Direction, Guides);
+    }
+
+    private static void RepairDiamondTerminalStubs(
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        IReadOnlyDictionary<string, NodeContract> NodeById,
+        List<FlowchartResolvedGuide> Guides)
+    {
+        foreach (FlowchartResolvedGuide Guide in Guides)
+        {
+            if (Guide.Points.Count < 3)
+            {
+                continue;
+            }
+
+            if (!BoundsById.TryGetValue(Guide.Edge.SourceId, out FlowchartLayoutNodeBounds SourceBounds)
+                || !BoundsById.TryGetValue(Guide.Edge.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
+            {
+                continue;
+            }
+
+            string? SourceShape = ResolveShape(Contract, NodeById, Guide.Edge.SourceId);
+            string? TargetShape = ResolveShape(Contract, NodeById, Guide.Edge.TargetId);
+            if (!FlowchartDiamondAttachHelper.IsDiamondShape(SourceShape)
+                && !FlowchartDiamondAttachHelper.IsDiamondShape(TargetShape))
+            {
+                continue;
+            }
+
+            List<(double X, double Y)> Repaired = FlowchartEdgeTerminalStubExpander.Apply(
+                Guide.Points,
+                SourceBounds,
+                SourceShape,
+                TargetBounds,
+                TargetShape);
+            Guide.Points.Clear();
+            Guide.Points.AddRange(Repaired);
+        }
     }
 
     /// <summary>
@@ -215,7 +254,7 @@ public static class FlowchartSharedEdgeRouter
         FlowchartResolvedGuide Guide,
         bool PenaliseCrossings)
     {
-        if (Guide.Points.Count < 2)
+        if (Guide.Points.Count < 2 || IsDesignedRoute(Guide.RouteKind))
         {
             return;
         }

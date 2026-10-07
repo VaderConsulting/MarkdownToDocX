@@ -1463,6 +1463,14 @@ public static class FlowchartSugiyamaSvgRenderer
             BoundsById,
             RouteClass);
         double LabelHeight = FlowchartEdgeLabelPlacementHelper.ComputeRenderedEdgeLabelHeight(LabelDimensions, RenderOptions.EdgeLabelFontSizePx);
+        if (LayoutPoints.Count > 2
+            && !FlowchartCurvePathBuilder.TryCollapseAxisAlignedEndpoints(LayoutPoints, out _)
+            && !IsAxisAlignedPolyline(LayoutPoints)
+            && TryCurveMidpoint(LayoutPoints, out double CurveX, out double CurveY))
+        {
+            return (CurveX, CurveY);
+        }
+
         (double ClearedX, double ClearedY) = MoveLayoutLabelClearOfConnector(Edge, Contract, LabelX, LabelY, LabelDimensions.Width, LabelHeight, LayoutPoints, BoundsById, SourceBounds, TargetBounds, Direction);
         FlowchartEdgeRouteKind FlattenKind = RouteKind;
         if (LayoutPoints.Count <= 2)
@@ -1508,6 +1516,50 @@ public static class FlowchartSugiyamaSvgRenderer
         }
 
         return (ClearedX, ClearedY);
+    }
+
+    private static bool TryCurveMidpoint(
+        IReadOnlyList<(double X, double Y)> LayoutPoints,
+        out double X,
+        out double Y)
+    {
+        X = 0.0;
+        Y = 0.0;
+        string PathData = FlowchartCurvePathBuilder.BuildPureD3CurveBasisPathData(LayoutPoints);
+        if (!FlowchartSvgPathGeometryHelper.TryFlattenPathData(PathData, out List<(double X, double Y)> Samples)
+            || Samples.Count < 2)
+        {
+            return false;
+        }
+
+        double Total = 0.0;
+        for (int Index = 1; Index < Samples.Count; Index++)
+        {
+            double Dx = Samples[Index].X - Samples[Index - 1].X;
+            double Dy = Samples[Index].Y - Samples[Index - 1].Y;
+            Total += Math.Sqrt((Dx * Dx) + (Dy * Dy));
+        }
+
+        double Remaining = Total / 2.0;
+        for (int Index = 1; Index < Samples.Count; Index++)
+        {
+            double Dx = Samples[Index].X - Samples[Index - 1].X;
+            double Dy = Samples[Index].Y - Samples[Index - 1].Y;
+            double Segment = Math.Sqrt((Dx * Dx) + (Dy * Dy));
+            if (Segment >= Remaining && Segment > 1e-9)
+            {
+                double Ratio = Remaining / Segment;
+                X = Samples[Index - 1].X + (Dx * Ratio);
+                Y = Samples[Index - 1].Y + (Dy * Ratio);
+                return true;
+            }
+
+            Remaining -= Segment;
+        }
+
+        X = Samples[Samples.Count - 1].X;
+        Y = Samples[Samples.Count - 1].Y;
+        return true;
     }
 
     private static bool IsAxisAlignedPolyline(IReadOnlyList<(double X, double Y)> LayoutPoints)
@@ -2263,7 +2315,7 @@ public static class FlowchartSugiyamaSvgRenderer
     /// <summary>
     /// Extends the canvas so a stroke that runs outside the node union stays at least 10 px from the viewBox.
     /// </summary>
-    private static void ExpandLayoutBoundsForExteriorStrokes(
+    internal static void ExpandLayoutBoundsForExteriorStrokes(
         IReadOnlyList<FlowchartResolvedGuide> Guides,
         double DiagramPaddingPx,
         ref double MinLeft,
@@ -2461,7 +2513,7 @@ public static class FlowchartSugiyamaSvgRenderer
         return true;
     }
 
-    private static List<FlowchartSubgraphLayoutRect> BuildDagreClusterRects(DiagramContract Contract, FlowchartLayoutResult Layout)
+    internal static List<FlowchartSubgraphLayoutRect> BuildDagreClusterRects(DiagramContract Contract, FlowchartLayoutResult Layout)
     {
         Dictionary<string, string?> Titles = new Dictionary<string, string?>(StringComparer.Ordinal);
         Dictionary<string, int> Depth = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -2512,7 +2564,7 @@ public static class FlowchartSugiyamaSvgRenderer
         return Rects;
     }
 
-    private static void ExpandLayoutBoundsForDagreRoutes(
+    internal static void ExpandLayoutBoundsForDagreRoutes(
         FlowchartLayoutResult Layout,
         ref double MinLeft,
         ref double MinBottom,

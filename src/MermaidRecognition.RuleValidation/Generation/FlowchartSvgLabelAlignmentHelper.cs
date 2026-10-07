@@ -97,6 +97,10 @@ public static class FlowchartSvgLabelAlignmentHelper
 
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = CoordinateFrame.Layout.NodeBounds
             .ToDictionary(Bounds => Bounds.NodeId, Bounds => Bounds, StringComparer.Ordinal);
+        foreach (FlowchartLayoutNodeBounds Cluster in CoordinateFrame.Layout.ClusterBounds)
+        {
+            BoundsById[Cluster.NodeId] = Cluster;
+        }
         Dictionary<string, NodeContract> NodeById = Contract.Nodes
             .ToDictionary(Node => Node.Id, Node => Node, StringComparer.Ordinal);
         Dictionary<string, string> RouteClassByEdgeKey =
@@ -158,6 +162,13 @@ public static class FlowchartSvgLabelAlignmentHelper
             else
             {
                 LayoutPoints = ResolvedGuidePoints;
+            }
+
+            if (FlowchartCurvePathBuilder.TryCollapseAxisAlignedEndpoints(
+                    LayoutPoints,
+                    out List<(double X, double Y)> StraightSegment))
+            {
+                LayoutPoints = StraightSegment;
             }
 
             string LabelForPlacement = string.IsNullOrWhiteSpace(EdgeContract.Label)

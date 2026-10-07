@@ -100,7 +100,11 @@ public static class FlowchartEdgeRouteClassifier
                 return FlowchartEdgeSemanticRouteClass.LocalDecisionBranch;
             }
 
-            if (FlowchartSpineCorridorHelper.TryBuildCorridor(BoundsById, SpineContext, out FlowchartSpineCorridorBounds Corridor)
+            if (FlowchartSpineCorridorHelper.TryBuildCorridorExcluding(
+                    BoundsById,
+                    SpineContext,
+                    Edge.SourceId,
+                    out FlowchartSpineCorridorBounds Corridor)
                 && FlowchartRouteObstacleHelper.CentreChordIntersectsSpineCorridor(
                     SourceBounds,
                     TargetBounds,
