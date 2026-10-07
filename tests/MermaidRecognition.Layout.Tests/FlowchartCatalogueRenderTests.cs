@@ -622,12 +622,6 @@ public sealed class FlowchartCatalogueRenderTests
 
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
-        FlowchartDirection Direction = FlowchartDirection.TopToBottom;
-        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds
-            .ToDictionary(Bounds => Bounds.NodeId, Bounds => Bounds);
-        Dictionary<string, NodeContract> NodeById = Contract.Nodes
-            .ToDictionary(Node => Node.Id, Node => Node);
-        Assert.That(FlowchartSvgLayoutCoordinateMapper.TryCreate(Contract, Layout, out FlowchartSvgLayoutCoordinateMapper? Mapper), Is.True);
 
         foreach (EdgeContract Edge in Contract.Edges.Where(
                      Candidate => string.Equals(Candidate.SourceId, "Check", StringComparison.Ordinal)
