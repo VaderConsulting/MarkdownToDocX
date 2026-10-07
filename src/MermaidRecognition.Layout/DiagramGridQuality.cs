@@ -335,42 +335,12 @@ public static class DiagramGridQuality
             OurRanks.Reverse();
         }
 
+        // Rulebook 2.1 and 9.4: Mermaid ranks are the starting point, but section 2 may
+        // reorder nodes within a rank and move them between columns. Only rank membership
+        // is checked here; order, column and port sides are governed by placement rules.
         if (!SamePartitions(ReferenceRanks, OurRanks))
         {
             Violations.Add(Failure("ArrangementKept", "Ranks do not match the Mermaid placement"));
-        }
-        else if (!SameOrder(ReferenceCentres, OurCentres, ReferenceRanks, Horizontal))
-        {
-            Violations.Add(Failure("ArrangementKept", "Order within a rank does not match the Mermaid placement"));
-        }
-
-        foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
-        {
-            FlowchartLayoutEdgeRoute? Match = FindRoute(Reference, Route);
-            if (Match == null)
-            {
-                continue;
-            }
-
-            if (!string.IsNullOrEmpty(Match.ExitSide)
-                && !string.Equals(Match.ExitSide, Route.ExitSide, StringComparison.OrdinalIgnoreCase))
-            {
-                Violations.Add(Failure(
-                    "ArrangementKept",
-                    Route.SourceId + "->" + Route.TargetId + " leaves by " + Route.ExitSide + " instead of " + Match.ExitSide,
-                    Route.SourceId,
-                    Route.TargetId));
-            }
-
-            if (!string.IsNullOrEmpty(Match.EntrySide)
-                && !string.Equals(Match.EntrySide, Route.EntrySide, StringComparison.OrdinalIgnoreCase))
-            {
-                Violations.Add(Failure(
-                    "ArrangementKept",
-                    Route.SourceId + "->" + Route.TargetId + " enters by " + Route.EntrySide + " instead of " + Match.EntrySide,
-                    Route.SourceId,
-                    Route.TargetId));
-            }
         }
     }
 

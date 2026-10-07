@@ -69,6 +69,7 @@ public static class DiagramGridLayout
         PlaceOnGrid(Placed, Horizontal, BoxWidth, BoxHeight, MainPitch, CrossPitch, Copy);
         GrowCrowdedSides(Placed, Copy, BoxWidth, BoxHeight);
         SeparateOverlaps(Placed, Horizontal);
+        DiagramGridFrameGapHelper.WidenNeighbouringFrameGaps(Contract, Placed, Copy, Horizontal);
         List<GridFrame> Frames = new List<GridFrame>();
         CenterLoneNestedGroups(Contract, Placed, Horizontal);
         FitFrames(Contract, Placed, Frames, Horizontal);
@@ -790,6 +791,12 @@ public static class DiagramGridLayout
                 break;
             }
         }
+    }
+
+    internal static void BuildPreviewFrames(DiagramContract Contract, List<GridNode> Placed, List<GridFrame> Frames)
+    {
+        Frames.Clear();
+        BuildFrames(Contract, Placed, Frames);
     }
 
     private static void BuildFrames(DiagramContract Contract, List<GridNode> Placed, List<GridFrame> Frames)
