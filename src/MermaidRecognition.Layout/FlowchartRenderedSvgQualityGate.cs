@@ -297,6 +297,7 @@ public static class FlowchartRenderedSvgQualityGate
             GroupRects,
             Violations);
         CollectLabelOnStroke(Svg, Strokes, Labels, Violations);
+        DiagramGridQuality.Collect(Contract, Layout, Violations);
 
         IReadOnlyList<FlowchartLayoutQualityFailure> Justifications = ApplyJustifications
             ? FlowchartSharedEdgeRouter.LastJustifications
