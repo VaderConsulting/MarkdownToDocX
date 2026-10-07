@@ -132,7 +132,11 @@ public static class FlowchartSvgLabelAlignmentHelper
             string? RouteClass = TryResolveRouteClassName(EdgeContract, RouteClassByEdgeKey) ?? Edge.RouteClass;
 
             List<(double X, double Y)> LayoutPoints = [];
-            if (!FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
+            if (CoordinateFrame.Layout.TryCopyDrawnRoutePoints(EdgeContract, out List<(double X, double Y)> DrawnPoints))
+            {
+                LayoutPoints = DrawnPoints;
+            }
+            else if (!FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
                     EdgeContract,
                     Contract,
                     BoundsById,

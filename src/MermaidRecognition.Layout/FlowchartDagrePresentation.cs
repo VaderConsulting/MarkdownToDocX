@@ -19,6 +19,14 @@ public static class FlowchartDagrePresentation
 
     private const double CLUSTER_PAD_PX = 8.0;
 
+    private const double CORNER_FACE_MIN_PX = 56.0;
+
+    private const double CORNER_CLEARANCE_PX = 12.0;
+
+    private const double WIDE_FACE_PX = 100.0;
+
+    private const double WIDE_CORNER_CLEARANCE_PX = 24.0;
+
     /// <summary>
     /// Returns a Y-up copy of <paramref name="LaidOut"/> with one shared rectangle size,
     /// whole-pixel boxes, and edge ends on the drawn outline.
@@ -49,7 +57,8 @@ public static class FlowchartDagrePresentation
         ExpandClusters(Contract, Boxes, Clusters);
         Dictionary<string, EdgeContract> Edges = IndexEdges(Contract);
         RewriteEdgeEnds(Copy, Boxes, Clusters, Nodes, Edges);
-        SeparateStackedEnds(Copy, Boxes, Clusters, Nodes);
+        PullRectangleCorners(Copy, Boxes, Clusters, Nodes);
+        SeparateStackedEnds(Copy, Boxes, Clusters);
         double Flip = Math.Max(Copy.GraphHeight, Extent(Boxes, Clusters, Copy));
         FlipToYUp(Boxes, Clusters, Copy, Flip);
         WriteBoxes(Copy.NodeBoundsMutable, Boxes);
@@ -108,7 +117,9 @@ public static class FlowchartDagrePresentation
             {
                 Box Previous = Rank[Index - 1];
                 Box Current = Rank[Index];
-                double Needed = (CrossSize(Previous, Horizontal) / 2.0) + (CrossSize(Current, Horizontal) / 2.0) + MIN_GAP_PX;
+                double Needed = (CrossSize(Previous, Horizontal) / 2.0)
+                    + (CrossSize(Current, Horizontal) / 2.0)
+                    + MIN_GAP_PX;
                 double Have = Cross(Current, Horizontal) - Cross(Previous, Horizontal);
                 if (Have < Needed)
                 {
@@ -125,7 +136,9 @@ public static class FlowchartDagrePresentation
             {
                 foreach (Box Later in Ranks[RankIndex])
                 {
-                    double Needed = (MainSize(Earlier, Horizontal) / 2.0) + (MainSize(Later, Horizontal) / 2.0) + MIN_GAP_PX;
+                    double Needed = (MainSize(Earlier, Horizontal) / 2.0)
+                        + (MainSize(Later, Horizontal) / 2.0)
+                        + BorderGapFloor(Earlier, Later, Horizontal, CrossAxis: false);
                     double Have = Main(Later, Horizontal) - Main(Earlier, Horizontal);
                     if (Have < Needed)
                     {
@@ -195,15 +208,17 @@ public static class FlowchartDagrePresentation
                 continue;
             }
 
-            double Left = Cluster.CenterX - (Cluster.Width / 2.0);
-            double Right = Cluster.CenterX + (Cluster.Width / 2.0);
-            double Top = Cluster.CenterY - (Cluster.Height / 2.0);
-            double Bottom = Cluster.CenterY + (Cluster.Height / 2.0);
+            double Left = double.PositiveInfinity;
+            double Right = double.NegativeInfinity;
+            double Top = double.PositiveInfinity;
+            double Bottom = double.NegativeInfinity;
+            bool Included = false;
             foreach (string ChildId in Group.ChildNodeIds)
             {
                 if (Nodes.TryGetValue(ChildId, out Box? Child))
                 {
                     Include(ref Left, ref Right, ref Top, ref Bottom, Child, CLUSTER_PAD_PX);
+                    Included = true;
                 }
             }
 
@@ -212,7 +227,13 @@ public static class FlowchartDagrePresentation
                 if (ClusterById.TryGetValue(ChildGroupId, out Box? Child))
                 {
                     Include(ref Left, ref Right, ref Top, ref Bottom, Child, CLUSTER_PAD_PX);
+                    Included = true;
                 }
+            }
+
+            if (!Included)
+            {
+                continue;
             }
 
             Cluster.CenterX = (Left + Right) / 2.0;
@@ -339,7 +360,7 @@ public static class FlowchartDagrePresentation
         }
     }
 
-    private static void SeparateStackedEnds(FlowchartLayoutResult Copy, List<Box> Boxes, List<Box> Clusters, Dictionary<string, NodeContract> Nodes)
+    private static void SeparateStackedEnds(FlowchartLayoutResult Copy, List<Box> Boxes, List<Box> Clusters)
     {
         Dictionary<string, Box> ById = IndexBoxes(Boxes, Clusters);
         Dictionary<string, List<FlowchartLayoutEdgeRoute>> ByTarget = new Dictionary<string, List<FlowchartLayoutEdgeRoute>>(StringComparer.Ordinal);
@@ -366,7 +387,6 @@ public static class FlowchartDagrePresentation
                 continue;
             }
 
-            string? Shape = ShapeOf(Nodes, Pair.Key, Clusters);
             for (int Index = 1; Index < Pair.Value.Count; Index++)
             {
                 FlowchartLayoutPoint Current = Pair.Value[Index].Points[Pair.Value[Index].Points.Count - 1];
@@ -376,31 +396,458 @@ public static class FlowchartDagrePresentation
                     FlowchartLayoutPoint Other = Pair.Value[Earlier].Points[Pair.Value[Earlier].Points.Count - 1];
                     double Dx = Current.X - Other.X;
                     double Dy = Current.Y - Other.Y;
-                    if ((Dx * Dx) + (Dy * Dy) < 16.0)
+                    if ((Dx * Dx) + (Dy * Dy) < 100.0)
                     {
                         Stacked = true;
                         break;
                     }
                 }
 
-                if (!Stacked)
+                if (!Stacked || IsAxisAligned(Pair.Value[Index]))
                 {
                     continue;
                 }
 
-                double Angle = Math.Atan2(Current.Y - Target.CenterY, Current.X - Target.CenterX) + (Index * 0.35);
-                double TowardX = Target.CenterX + (Math.Cos(Angle) * 1000.0);
-                double TowardY = Target.CenterY + (Math.Sin(Angle) * 1000.0);
-                (double X, double Y) = FlowchartShapeBoundaryAttachHelper.ClipToShapeOutline(
-                    Target.ToBounds(),
-                    Shape,
-                    TowardX,
-                    TowardY,
-                    EdgeEndpointMarker.Point);
-                Current.X = X;
-                Current.Y = Y;
+                SlideAlongFace(Target, Current, Index);
             }
         }
+
+        Dictionary<string, List<FlowchartLayoutEdgeRoute>> BySource = new Dictionary<string, List<FlowchartLayoutEdgeRoute>>(StringComparer.Ordinal);
+        foreach (FlowchartLayoutEdgeRoute Route in Copy.EdgeRoutes)
+        {
+            if (Route.Points.Count < 2)
+            {
+                continue;
+            }
+
+            if (!BySource.TryGetValue(Route.SourceId, out List<FlowchartLayoutEdgeRoute>? Group))
+            {
+                Group = new List<FlowchartLayoutEdgeRoute>();
+                BySource[Route.SourceId] = Group;
+            }
+
+            Group.Add(Route);
+        }
+
+        foreach (KeyValuePair<string, List<FlowchartLayoutEdgeRoute>> Pair in BySource)
+        {
+            if (Pair.Value.Count < 2 || !ById.TryGetValue(Pair.Key, out Box? Source))
+            {
+                continue;
+            }
+
+            for (int Index = 1; Index < Pair.Value.Count; Index++)
+            {
+                FlowchartLayoutPoint Current = Pair.Value[Index].Points[0];
+                bool Stacked = false;
+                for (int Earlier = 0; Earlier < Index; Earlier++)
+                {
+                    FlowchartLayoutPoint Other = Pair.Value[Earlier].Points[0];
+                    double Dx = Current.X - Other.X;
+                    double Dy = Current.Y - Other.Y;
+                    if ((Dx * Dx) + (Dy * Dy) < 100.0)
+                    {
+                        Stacked = true;
+                        break;
+                    }
+                }
+
+                if (!Stacked || IsAxisAligned(Pair.Value[Index]))
+                {
+                    continue;
+                }
+
+                SlideAlongFace(Source, Current, Index);
+            }
+        }
+    }
+
+    private static bool IsAxisAligned(FlowchartLayoutEdgeRoute Route)
+    {
+        if (Route.Points.Count < 2)
+        {
+            return false;
+        }
+
+        FlowchartLayoutPoint Start = Route.Points[0];
+        FlowchartLayoutPoint End = Route.Points[Route.Points.Count - 1];
+        return Math.Abs(Start.X - End.X) <= 1.0 || Math.Abs(Start.Y - End.Y) <= 1.0;
+    }
+
+    private static void NudgeOffSharedRuns(FlowchartLayoutResult Copy, List<Box> Boxes, List<Box> Clusters)
+    {
+        Dictionary<string, Box> ById = IndexBoxes(Boxes, Clusters);
+        List<FlowchartLayoutEdgeRoute> Routes = new List<FlowchartLayoutEdgeRoute>();
+        foreach (FlowchartLayoutEdgeRoute Route in Copy.EdgeRoutes)
+        {
+            if (Route.Points.Count >= 2)
+            {
+                Routes.Add(Route);
+            }
+        }
+
+        for (int Left = 0; Left < Routes.Count; Left++)
+        {
+            for (int Right = Left + 1; Right < Routes.Count; Right++)
+            {
+                bool SameTarget = string.Equals(Routes[Left].TargetId, Routes[Right].TargetId, StringComparison.Ordinal);
+                if (!SameTarget && !SharesARun(Routes[Right], Routes[Left]))
+                {
+                    continue;
+                }
+
+                FlowchartLayoutEdgeRoute Mover = Routes[Right];
+                FlowchartLayoutEdgeRoute Stay = Routes[Left];
+                if (IsAxisAligned(Mover) && !IsAxisAligned(Stay))
+                {
+                    Mover = Stay;
+                    Stay = Routes[Right];
+                }
+
+                OffsetRun(Mover, Stay, ById);
+            }
+        }
+    }
+
+    private static bool SharesARun(FlowchartLayoutEdgeRoute Left, FlowchartLayoutEdgeRoute Right)
+    {
+        for (int Index = 1; Index < Left.Points.Count; Index++)
+        {
+            double MidX = (Left.Points[Index - 1].X + Left.Points[Index].X) / 2.0;
+            double MidY = (Left.Points[Index - 1].Y + Left.Points[Index].Y) / 2.0;
+            if (ClosestPoint(Right, MidX, MidY, out _, out _, out double Distance) && Distance < 8.0)
+            {
+                double Run = Math.Abs(Left.Points[Index].X - Left.Points[Index - 1].X)
+                    + Math.Abs(Left.Points[Index].Y - Left.Points[Index - 1].Y);
+                if (Run >= 20.0)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static void OffsetRun(
+        FlowchartLayoutEdgeRoute Mover,
+        FlowchartLayoutEdgeRoute Other,
+        Dictionary<string, Box> ById)
+    {
+        FlowchartLayoutPoint Start = Mover.Points[0];
+        FlowchartLayoutPoint End = Mover.Points[Mover.Points.Count - 1];
+        double TravelX = End.X - Start.X;
+        double TravelY = End.Y - Start.Y;
+        double Travel = Math.Sqrt((TravelX * TravelX) + (TravelY * TravelY));
+        if (Travel < 1.0)
+        {
+            return;
+        }
+
+        double SideX = -TravelY / Travel;
+        double SideY = TravelX / Travel;
+        double MidX = (Start.X + End.X) / 2.0;
+        double MidY = (Start.Y + End.Y) / 2.0;
+        if (ClosestPoint(Other, MidX, MidY, out double NearX, out double NearY, out _))
+        {
+            double AwayX = MidX - NearX;
+            double AwayY = MidY - NearY;
+            if ((AwayX * SideX) + (AwayY * SideY) < 0.0)
+            {
+                SideX = -SideX;
+                SideY = -SideY;
+            }
+        }
+
+        const double OffsetPx = 20.0;
+        if (Mover.Points.Count == 2)
+        {
+            Mover.Points.Insert(1, new FlowchartLayoutPoint
+            {
+                X = MidX + (SideX * OffsetPx),
+                Y = MidY + (SideY * OffsetPx)
+            });
+        }
+
+        for (int Index = 1; Index < Mover.Points.Count; Index++)
+        {
+            Mover.Points[Index].X += SideX * OffsetPx;
+            Mover.Points[Index].Y += SideY * OffsetPx;
+        }
+
+        if (ById.TryGetValue(Mover.TargetId, out Box? Target))
+        {
+            FlowchartLayoutPoint Tip = Mover.Points[Mover.Points.Count - 1];
+            (double X, double Y) = ProjectOntoOutline(Target, Tip.X, Tip.Y);
+            Tip.X = X;
+            Tip.Y = Y;
+        }
+    }
+
+    private static (double X, double Y) ProjectOntoOutline(Box Bounds, double X, double Y)
+    {
+        double Left = Bounds.CenterX - (Bounds.Width / 2.0);
+        double Right = Bounds.CenterX + (Bounds.Width / 2.0);
+        double Bottom = Bounds.CenterY - (Bounds.Height / 2.0);
+        double Top = Bounds.CenterY + (Bounds.Height / 2.0);
+        double ClampX = Math.Clamp(X, Left, Right);
+        double ClampY = Math.Clamp(Y, Bottom, Top);
+        double DistLeft = Math.Abs(ClampX - Left);
+        double DistRight = Math.Abs(ClampX - Right);
+        double DistBottom = Math.Abs(ClampY - Bottom);
+        double DistTop = Math.Abs(ClampY - Top);
+        double Nearest = Math.Min(Math.Min(DistLeft, DistRight), Math.Min(DistBottom, DistTop));
+        if (Nearest == DistLeft)
+        {
+            ClampX = Left;
+        }
+        else if (Nearest == DistRight)
+        {
+            ClampX = Right;
+        }
+        else if (Nearest == DistBottom)
+        {
+            ClampY = Bottom;
+        }
+        else
+        {
+            ClampY = Top;
+        }
+
+        return (ClampX, ClampY);
+    }
+
+    private static void NudgeInteriorAway(FlowchartLayoutEdgeRoute Mover, FlowchartLayoutEdgeRoute Other, double ClearancePx)
+    {
+        bool Close = false;
+        for (int Index = 0; Index < Mover.Points.Count; Index++)
+        {
+            FlowchartLayoutPoint Point = Mover.Points[Index];
+            if (ClosestPoint(Other, Point.X, Point.Y, out _, out _, out double Distance) && Distance < 8.0)
+            {
+                Close = true;
+                break;
+            }
+
+            if (Index == 0)
+            {
+                continue;
+            }
+
+            double MidX = (Mover.Points[Index - 1].X + Point.X) / 2.0;
+            double MidY = (Mover.Points[Index - 1].Y + Point.Y) / 2.0;
+            if (ClosestPoint(Other, MidX, MidY, out _, out _, out Distance) && Distance < 8.0)
+            {
+                Close = true;
+                break;
+            }
+        }
+
+        if (!Close)
+        {
+            return;
+        }
+
+        if (Mover.Points.Count == 2)
+        {
+            FlowchartLayoutPoint Start = Mover.Points[0];
+            FlowchartLayoutPoint End = Mover.Points[1];
+            Mover.Points.Insert(1, new FlowchartLayoutPoint
+            {
+                X = (Start.X + End.X) / 2.0,
+                Y = (Start.Y + End.Y) / 2.0
+            });
+        }
+
+        for (int Index = 1; Index < Mover.Points.Count - 1; Index++)
+        {
+            FlowchartLayoutPoint Point = Mover.Points[Index];
+            if (!ClosestPoint(Other, Point.X, Point.Y, out double NearX, out double NearY, out double Distance) || Distance >= 8.0)
+            {
+                continue;
+            }
+
+            double DirX = Point.X - NearX;
+            double DirY = Point.Y - NearY;
+            double Length = Math.Sqrt((DirX * DirX) + (DirY * DirY));
+            if (Length < 1e-3)
+            {
+                DirX = -(Point.Y - Mover.Points[Index - 1].Y);
+                DirY = Point.X - Mover.Points[Index - 1].X;
+                Length = Math.Sqrt((DirX * DirX) + (DirY * DirY));
+                if (Length < 1e-3)
+                {
+                    continue;
+                }
+            }
+
+            double Push = ClearancePx - Distance;
+            Point.X += DirX / Length * Push;
+            Point.Y += DirY / Length * Push;
+        }
+    }
+
+    private static bool ClosestPoint(
+        FlowchartLayoutEdgeRoute Route,
+        double X,
+        double Y,
+        out double NearX,
+        out double NearY,
+        out double Distance)
+    {
+        NearX = 0.0;
+        NearY = 0.0;
+        Distance = double.MaxValue;
+        bool Found = false;
+        for (int Index = 1; Index < Route.Points.Count; Index++)
+        {
+            FlowchartLayoutPoint Start = Route.Points[Index - 1];
+            FlowchartLayoutPoint End = Route.Points[Index];
+            double SegX = End.X - Start.X;
+            double SegY = End.Y - Start.Y;
+            double LengthSquared = (SegX * SegX) + (SegY * SegY);
+            double T = 0.0;
+            if (LengthSquared > 1e-6)
+            {
+                T = (((X - Start.X) * SegX) + ((Y - Start.Y) * SegY)) / LengthSquared;
+                T = Math.Clamp(T, 0.0, 1.0);
+            }
+
+            double CandidateX = Start.X + (SegX * T);
+            double CandidateY = Start.Y + (SegY * T);
+            double Dx = X - CandidateX;
+            double Dy = Y - CandidateY;
+            double CandidateDistance = Math.Sqrt((Dx * Dx) + (Dy * Dy));
+            if (CandidateDistance < Distance)
+            {
+                Distance = CandidateDistance;
+                NearX = CandidateX;
+                NearY = CandidateY;
+                Found = true;
+            }
+        }
+
+        return Found;
+    }
+
+    private static void SlideAlongFace(Box Bounds, FlowchartLayoutPoint Point, int Index)
+    {
+        double Left = Bounds.CenterX - (Bounds.Width / 2.0);
+        double Right = Bounds.CenterX + (Bounds.Width / 2.0);
+        double Bottom = Bounds.CenterY - (Bounds.Height / 2.0);
+        double Top = Bounds.CenterY + (Bounds.Height / 2.0);
+        double DistLeft = Math.Abs(Point.X - Left);
+        double DistRight = Math.Abs(Point.X - Right);
+        double DistBottom = Math.Abs(Point.Y - Bottom);
+        double DistTop = Math.Abs(Point.Y - Top);
+        double Shift = Index * 12.0;
+        bool HorizontalFace = DistTop <= DistLeft && DistTop <= DistRight && DistTop <= DistBottom
+            || DistBottom < DistTop && DistBottom <= DistLeft && DistBottom <= DistRight;
+        if (HorizontalFace)
+        {
+            double Direction = Point.X < Bounds.CenterX ? 1.0 : -1.0;
+            Point.X = Math.Clamp(Point.X + (Direction * Shift), Left + 1.0, Right - 1.0);
+            return;
+        }
+
+        double VerticalDirection = Point.Y < Bounds.CenterY ? 1.0 : -1.0;
+        Point.Y = Math.Clamp(Point.Y + (VerticalDirection * Shift), Bottom + 1.0, Top - 1.0);
+    }
+
+    private static void PullRectangleCorners(
+        FlowchartLayoutResult Copy,
+        List<Box> Boxes,
+        List<Box> Clusters,
+        Dictionary<string, NodeContract> Nodes)
+    {
+        Dictionary<string, Box> ById = IndexBoxes(Boxes, Clusters);
+        foreach (FlowchartLayoutEdgeRoute Route in Copy.EdgeRoutes)
+        {
+            if (Route.Points.Count < 2)
+            {
+                continue;
+            }
+
+            if (IsAxisAligned(Route))
+            {
+                continue;
+            }
+
+            if (ById.TryGetValue(Route.SourceId, out Box? Source))
+            {
+                (double X, double Y) = PullInFromRectangleCorner(
+                    Source,
+                    ShapeOf(Nodes, Route.SourceId, Clusters),
+                    Route.Points[0].X,
+                    Route.Points[0].Y);
+                Route.Points[0].X = X;
+                Route.Points[0].Y = Y;
+            }
+
+            if (ById.TryGetValue(Route.TargetId, out Box? Target))
+            {
+                int Last = Route.Points.Count - 1;
+                (double X, double Y) = PullInFromRectangleCorner(
+                    Target,
+                    ShapeOf(Nodes, Route.TargetId, Clusters),
+                    Route.Points[Last].X,
+                    Route.Points[Last].Y);
+                Route.Points[Last].X = X;
+                Route.Points[Last].Y = Y;
+            }
+        }
+    }
+
+    private static (double X, double Y) PullInFromRectangleCorner(Box Bounds, string? Shape, double X, double Y)
+    {
+        if (!IsRectangle(Shape))
+        {
+            return (X, Y);
+        }
+
+        double Left = Bounds.CenterX - (Bounds.Width / 2.0);
+        double Right = Bounds.CenterX + (Bounds.Width / 2.0);
+        double Bottom = Bounds.CenterY - (Bounds.Height / 2.0);
+        double Top = Bounds.CenterY + (Bounds.Height / 2.0);
+        double DistLeft = Math.Abs(X - Left);
+        double DistRight = Math.Abs(X - Right);
+        double DistBottom = Math.Abs(Y - Bottom);
+        double DistTop = Math.Abs(Y - Top);
+        double NearestEdge = Math.Min(Math.Min(DistLeft, DistRight), Math.Min(DistBottom, DistTop));
+        if (NearestEdge > 1.5)
+        {
+            return (X, Y);
+        }
+
+        bool VerticalFace = DistLeft <= DistBottom && DistLeft <= DistTop && DistLeft <= DistRight
+            || DistRight < DistLeft && DistRight <= DistBottom && DistRight <= DistTop;
+        double FaceLength = VerticalFace ? Bounds.Height : Bounds.Width;
+        if (FaceLength < CORNER_FACE_MIN_PX)
+        {
+            return (X, Y);
+        }
+
+        double Limit = FaceLength >= WIDE_FACE_PX ? WIDE_CORNER_CLEARANCE_PX : CORNER_CLEARANCE_PX;
+        if (VerticalFace)
+        {
+            double Low = Bottom + Limit;
+            double High = Top - Limit;
+            if (Low <= High)
+            {
+                Y = Math.Clamp(Y, Low, High);
+            }
+        }
+        else
+        {
+            double Low = Left + Limit;
+            double High = Right - Limit;
+            if (Low <= High)
+            {
+                X = Math.Clamp(X, Low, High);
+            }
+        }
+
+        return (X, Y);
     }
 
     private static string? ShapeOf(Dictionary<string, NodeContract> Nodes, string Id, List<Box> Clusters)
@@ -687,6 +1134,59 @@ public static class FlowchartDagrePresentation
         }
     }
 
+    /// <summary>
+    /// Keeps the border gap that dagre left before boxes grew to a shared size.
+    /// </summary>
+    private static double BorderGapFloor(Box Earlier, Box Later, bool Horizontal, bool CrossAxis)
+    {
+        double EarlierCentre = CrossAxis ? OriginalCross(Earlier, Horizontal) : OriginalMain(Earlier, Horizontal);
+        double LaterCentre = CrossAxis ? OriginalCross(Later, Horizontal) : OriginalMain(Later, Horizontal);
+        double EarlierSize = CrossAxis ? OriginalCrossSize(Earlier, Horizontal) : OriginalMainSize(Earlier, Horizontal);
+        double LaterSize = CrossAxis ? OriginalCrossSize(Later, Horizontal) : OriginalMainSize(Later, Horizontal);
+        double OriginalGap = (LaterCentre - (LaterSize / 2.0)) - (EarlierCentre + (EarlierSize / 2.0));
+        return Math.Max(MIN_GAP_PX, OriginalGap);
+    }
+
+    private static double OriginalMain(Box Bounds, bool Horizontal)
+    {
+        if (Horizontal)
+        {
+            return Bounds.OriginalCenterX;
+        }
+
+        return Bounds.OriginalCenterY;
+    }
+
+    private static double OriginalCross(Box Bounds, bool Horizontal)
+    {
+        if (Horizontal)
+        {
+            return Bounds.OriginalCenterY;
+        }
+
+        return Bounds.OriginalCenterX;
+    }
+
+    private static double OriginalMainSize(Box Bounds, bool Horizontal)
+    {
+        if (Horizontal)
+        {
+            return Bounds.OriginalWidth;
+        }
+
+        return Bounds.OriginalHeight;
+    }
+
+    private static double OriginalCrossSize(Box Bounds, bool Horizontal)
+    {
+        if (Horizontal)
+        {
+            return Bounds.OriginalHeight;
+        }
+
+        return Bounds.OriginalWidth;
+    }
+
     private sealed class Box
     {
         public string Id { get; set; } = string.Empty;
@@ -699,6 +1199,14 @@ public static class FlowchartDagrePresentation
 
         public double Height { get; set; }
 
+        public double OriginalCenterX { get; set; }
+
+        public double OriginalCenterY { get; set; }
+
+        public double OriginalWidth { get; set; }
+
+        public double OriginalHeight { get; set; }
+
         public static Box From(FlowchartLayoutNodeBounds Bounds)
         {
             return new Box
@@ -707,7 +1215,11 @@ public static class FlowchartDagrePresentation
                 CenterX = Bounds.CenterX,
                 CenterY = Bounds.CenterY,
                 Width = Bounds.Width,
-                Height = Bounds.Height
+                Height = Bounds.Height,
+                OriginalCenterX = Bounds.CenterX,
+                OriginalCenterY = Bounds.CenterY,
+                OriginalWidth = Bounds.Width,
+                OriginalHeight = Bounds.Height
             };
         }
 
