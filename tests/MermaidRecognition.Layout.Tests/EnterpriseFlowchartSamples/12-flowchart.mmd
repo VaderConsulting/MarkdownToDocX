@@ -1,0 +1,18 @@
+flowchart TB
+  board["Board"]
+  raiseRev["Raise Revenue"]
+  sellingCap(["Selling Capability"])
+  takeOrder(["Take Order"])
+  selling(["Selling Service"])
+  webShop["Web Shop"]
+  ordering(["Online Ordering"])
+  appNode["App Server Node"]
+  hosting(["Hosting"])
+  board --> raiseRev
+  raiseRev --> sellingCap
+  sellingCap --> takeOrder
+  takeOrder --> selling
+  selling --> webShop
+  webShop --> ordering
+  ordering --> hosting
+  appNode --> hosting

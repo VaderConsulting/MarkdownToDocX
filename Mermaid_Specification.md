@@ -1,7 +1,7 @@
 # Mermaid Specification (Consolidated)
 
 **Status:** Consolidated specification (amalgamated from the `Mermaid_*.md` documents in this repository root)  
-**Last updated:** 2026-05-19  
+**Last updated:** 2026-10-05  
 **Primary scope:** Mermaid **flowchart** geometry + edge routing + line-end markers (for exact reproduction, SVG extraction, or manual technical drawing)  
 **Secondary scope:** Rendering Mermaid **inside .NET 10 / C# 14 applications** (in-process vs browser-hosted strategies)
 
@@ -318,6 +318,20 @@ Added between each pair of ranks when a labelled edge crosses that boundary. TB 
 **Cross-boundary / compound edges (LR sibling subgraphs):** `TryComputeStraightFlowchartEdgePoints` uses diagram **direction** (LR: exit right → enter left with optional Manhattan elbow; TB/BT: bottom → top) instead of centre-to-centre shape intersection only, so sibling-subgraph links stay on the outer LR spine.
 
 **Isolated / long-offset edges (exterior exception routes):** `CollapsePredominantlyAxisAlignedMinlenPolyline` only collapses dummy-chain polylines when perpendicular drift is small (≤48px). `RepairMissingOrDiagonalFlowchartEdges` replaces two-point diagonals with direction-aware Manhattan routing.
+
+### 6.4 One node size and a shared centre grid (Naiad)
+
+**Closure:** Naiad / Word-first parity. Upstream Mermaid sizes each shape from its own label, so a stadium can be narrower than a rectangle in the same diagram. This repository does not follow that for flowchart layout.
+
+**Rule:**
+
+- Measure each node with the existing label wrap, then take one width and one height for the whole diagram: the maximum measured width and the maximum measured height of the standard rectangles. Every shape other than a decision diamond (rectangle, stadium, rounded rectangle, circle, and the rest) is drawn in that box. A circle uses the box as an ellipse so its outline meets the same width and height.
+- A decision diamond keeps that standard width and is exactly twice that standard height (`FlowchartDagrePresentation.DIAMOND_HEIGHT_FACTOR`). Both sides are whole pixels, so a 150×60 box becomes a 150×120 diamond. Dagre receives this size before layout so the gap between ranks includes the taller diamond. This replaces the square `S = W0 + H0` box in §6.1 for Naiad flowchart layout.
+- Sugiyama still places the nodes at their measured sizes. After placement, centres are snapped onto shared columns and rows. A centre joins a track when it is within half a cell of that track. Later tracks stay at least one node plus the configured gap apart, and a larger natural gap is kept.
+- Two nodes that land on the same cell are moved to the next free column.
+- Subgraph rectangles are still wrapped around their members with the constant padding in `FlowchartSubgraphBoundsBuilder` (`PADDING_PX` 18, plus the title band).
+- A corridor is the gap an edge has to cross between two boxes that face each other. Its width must be at least the line clearance on one side plus the border clearance on the other (`16 + 16`). A shorter corridor is opened by moving the blocking row or column whole grid steps. A move that would overlap another node, or push a node into a group it does not belong to, is refused, and the other side of the corridor is tried. Routing runs again after a move.
+- The runs of those lines are not snapped onto their own tracks yet.
 
 ---
 
@@ -1473,7 +1487,7 @@ Repository requirement (Naiad / native Sugiyama — measured parity constants in
 | --- | ---: | --- |
 | Side / bottom padding | **18px** | Minimum inset from member node body to cluster border (left, right, bottom). |
 | Title band | **26px** | Reserved at top for subgraph label; top inset = **18px below title band** (44px from cluster top to node top). |
-| Bottom content slack | **26px** | Extra space below bottom padding (balances title band). |
+| Bottom content slack | **8px** | Extra space below bottom padding. Native Sugiyama used 26px to mirror the title band; that inflated small groups (sample 11 junctions / Store Cluster) and empty vertical space. Tightened so the box fits its members. Title band already reserves the top. |
 | Member centreing | — | `CenterSubgraphMembersInClusterBoxes` centres the member content bounding box in the interior region (between title band + padding and bottom padding + slack). Deepest subgraphs first. |
 
 Catalogue regression: `F111` (single-row members in stacked subgraphs).
@@ -1567,7 +1581,7 @@ The corners are rounded per §15.0C.4. If a node blocks the drop row, the ordina
 - Rows are separated by the larger of the rank spacing and the node spacing.
 - An external node linked to a branching group is aligned to the X of the member it links to.
 
-Supporting guards keep this layout intact: the primary-row box expansion is skipped when the group is at least as tall as it is wide in aligned nodes, and the parallel-column alignment pass is skipped when a visible edge joins two different column chains.
+Supporting guards keep this layout intact: the primary-row box expansion is skipped when the group is at least as tall as it is wide in aligned nodes (column-led), the primary-column box expansion is skipped when the group is row-led, and the parallel-column alignment pass is skipped when a visible edge joins two different column chains.
 
 **Closure:** `FlowchartSubgraphLayoutPostProcessor.TryLayoutVerticalSubgraphMembersByRow`, `FlowchartSubgraphSpineCenterHelper.ExpandVerticalBoundsAroundPrimaryRow`, `FlowchartParallelColumnAlignHelper.HasEdgeBetweenChains`.
 
@@ -1689,6 +1703,49 @@ The rule uses only graph structure (edges, back edges, invisible links and node 
 **Naiad note:** Mermaid uses `dominant-baseline="middle"` / `central`. Svg.Skia, which rasterises diagrams to PNG for DOCX, ignores `dominant-baseline` and treats `y` as the baseline, so every label sat about 6 px high at 16 px. Writing the baseline explicitly gives the same result in browsers, Word's SVG renderer and Svg.Skia. The old +4 px nudge for single-line rich labels is removed.
 
 **Closure:** `FlowchartRichLabelSvgWriter.ComputeFirstBaselineY` / `ComputeLabelBlockCentreY` (inverse, used by rule validation), `TEXT_BASELINE_OFFSET_EM`; used by `FlowchartSugiyamaSvgRenderer` (node and edge labels), `FlowchartRichLabelSvgWriter.AppendCentredLabel` and `FlowchartSubgraphSvgRenderer`.
+
+##### 15.0C.19 Subgraph boxes contain only members (sample 03)
+
+**Rule:** A subgraph rectangle must enclose only its own members (including nested groups). Nodes that are not members must be laid out outside the box, with the same exterior gap used for sibling clusters. Dummy nodes that exist only because a subgraph id appears in the contract are omitted from Sugiyama placement so they do not occupy a rank.
+
+When members are spread so that a hole between them would swallow a non-member, member columns are packed to close that hole, then any remaining overlap is evicted along the shortest axis. The cluster title stays in the title band of the tightened box.
+
+**Naiad note:** Flat Sugiyama can park non-members in the gap between widely spaced members (sample 03: Shop Web UI, Online Ordering and Order sat inside Primary data centre). Mermaid’s Dagre compound layout never places foreign nodes in a cluster AABB.
+
+**Closure:** `FlowchartGeometryGraphBuilder` skips group-id nodes; `FlowchartSubgraphLayoutPostProcessor.CompactSubgraphMembersAroundNonMembers` and `EvictNonMembersFromSubgraphBoxes`.
+
+##### 15.0C.20 Root ranking follows the diagram direction (sample 12)
+
+**Rule:** A root (a node with outgoing visible edges and no incoming visible edges) is placed one rank beyond its facing successor along the diagram direction: above the highest successor in TB, below the lowest in BT, left of the leftmost in LR, right of the rightmost in RL. Roots are **not** forced onto a shared rank.
+
+**Naiad note:** The earlier `AlignRootNodesToCommonRank` pass moved every root to the minimum Y (TB bottom). That put Board under Raise Revenue in sample 12, so the edge ran up through three boxes. No catalogue test required the shared-rank behaviour, so it is replaced.
+
+**Closure:** `FlowchartLayoutPostProcessor.AlignRootNodesToCommonRank` with `TryGetFacingSuccessorBounds`.
+
+##### 15.0C.21 Compound and subgraph edge endpoints (sample 03)
+
+**Rule:** An edge whose source or target is a subgraph id routes to the cluster rectangle, not to a dummy node and not around the exterior of the diagram. Attach at the facing side, clipped to the rectangle. Use a two-point straight segment (Section 15.0A) when that chord is clear of non-endpoint nodes. When the chord would pierce an unrelated node or unrelated cluster, keep the facing attach points and route around the obstacles in an **inside** channel that stays within the diagram content box. Both the flowchart and enterprise renders must draw the edge in the source → target direction.
+
+Examples: `webShop --> shopUi`, `war --> webShop`, `lb -->|HTTPS| appNode`, `lan --> appNode`. `lan --> lb` keeps LAN as the source.
+
+**Closure:** `FlowchartCompoundEndpointHelper.AddGroupBounds` / `TryBuildFacingBoundaryPath`, then `FlowchartSharedRouteQualityHelper.TryApply` from `FlowchartEdgeRouteResolver`. Group-id dummy nodes are not painted.
+
+##### 15.0C.22 Shared route quality (sample 03)
+
+**Rule:** Every visible non-designed edge is routed by one shared search (`FlowchartSharedEdgeRouter` via `FlowchartEdgeRouteResolver.ResolveAllVisibleGuidePoints`). The router evaluates the **rendered** `curveBasis` stroke, not only discrete guide points. The layout search includes **node placement** (rank assignment, order within a rank, and which side of a group an external node sits on) as well as port faces, channels and detours. A remaining defect is tolerated only when no failure-free layout exists.
+
+1. A rendered stroke must not intersect a non-endpoint node rectangle. Node bodies and label boxes are obstacles.
+2. Incoming and outgoing edges that share a node face use distinct attach points. No two arrowheads may sit within 10 px.
+3. An edge label sits on **its own** rendered edge (centre within 8 px) and must be further from every other edge. Labels must not sit on crossings.
+4. Parallel overlapping runs of different edges stay at least 8 px apart.
+5. A group-border crossing counts as **one clean perpendicular crossing per edge**. An edge that does not belong to a group must not take a long diagonal through that group. A route that runs parallel to a group border must keep 12 px clearance.
+6. All visible edges in one diagram use **one** routing style: normal flowchart routing (straight when aligned; smooth `curveBasis` when not). Designed retry, decision, grouped two-by-two and corridor routes stay on their designed builders.
+7. Unavoidable crossings (only after the search) must still be clean: near-perpendicular (at least 50°), away from labels and arrowheads. Every tolerated failure needs a **specific, checkable** reason (`K3,3 subgraph: a crossing is unavoidable`, `node X fully enclosed`, or `layered inversion A->B and C->D: a crossing is unavoidable without breaking subgraph membership`). A generic "searched" note is not a reason. A failure without a specific reason fails the gate.
+8. Sample 03 has a hand-made oracle layout (`FlowchartSample03OracleLayout`). The engine result must be no worse than that oracle on piercings, crossings and parallel overlaps.
+
+**Naiad note:** The gate judges the rendered SVG, including a stored picture. A line that crosses another line is reported even when the two lines share a node, unless the crossing sits next to that node. A long run through a group the line is leaving, a square-exit that is missing, a hook past the target, a label away from its line, and a straight diagonal across a group the line already sits in are all failures. A generic "searched" note is not a reason. Comparison images under `docs/flowchart/layout-fixes/after/` are regenerated from the current head; `FlowchartAfterDocsFreshnessTests` fails when those SVG files go stale.
+
+**Closure:** `FlowchartSharedEdgeRouter.RouteAll`, `FlowchartExternalNodePlacementSearch.Search`, `FlowchartLayoutCrossingSearch.ReduceSameRankInversions`, `FlowchartSample03OracleLayout.Build`, `FlowchartRenderedSvgQualityGate.Evaluate`.
 
 Key:
 
@@ -1819,6 +1876,20 @@ Intersection = polygon intersection, then adjusted by (-0.5, -0.5)
 **Closure:** implemented in `FlowchartDiamondAttachHelper.TryResolveOutwardNormal`. An attach point within 1 px of a vertex returns the axis direction instead of the nearest slope's normal.
 
 **Naiad note:** Mermaid clips the edge to the polygon and does not define a stub direction. This rule exists so Word output does not show a 45° jog where a straight line was intended (fixture F11: `B(Rounded rectangle) --> C{Diamond decision} --> D((Circle))`).
+
+#### 16.4.2 Diamond ports on the standard cell (Naiad)
+
+**Closure:** Naiad / Word-first parity. The diamond is drawn in the diagram's standard node cell. Ports are whole pixels, mirrored about the centre.
+
+**Rule:**
+
+- The four vertices are the first ports. A line at a vertex leaves along the diamond's axis: vertical at the top and bottom, horizontal at the left and right.
+- Each slanted edge adds ports only for the lines that did not take a vertex. An edge chooses its own count, from one to four, and spaces those ports evenly, not counting the vertices.
+- One port sits at the midpoint. Two sit at the one-third and two-thirds points. Three sit at the quarter, half, and three-quarter points. Four sit at the one-fifth through four-fifths points.
+- A line on an edge leaves horizontally or vertically, in the outward direction that faces the other node. The segment itself is not slanted.
+- If a half-width or half-height does not divide evenly, each offset rounds to the nearest pixel away from the centre, so the opposite port stays the exact mirror.
+
+**Source:** Naiad grid rule, October 2026. Implemented in `FlowchartDiamondPorts`.
 
 ### 16.5 Hexagon (`hex`)
 

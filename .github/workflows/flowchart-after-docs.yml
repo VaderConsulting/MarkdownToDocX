@@ -1,0 +1,50 @@
+name: flowchart-after-docs
+
+on:
+  push:
+    branches:
+      - flowchart-layout-fixes
+      - master
+  pull_request:
+
+jobs:
+  after-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Refresh after docs
+        run: dotnet run --project tools/FlowchartLayoutFixRender/FlowchartLayoutFixRender.csproj -c Release -- refresh-after docs/flowchart/layout-fixes/after
+
+      - name: Fail when after SVG docs are stale
+        run: |
+          git add --intent-to-add docs/flowchart/layout-fixes/after
+          StaleSvgs="$(git diff --name-only -- docs/flowchart/layout-fixes/after | grep '\.svg$' || true)"
+          if [ -n "$StaleSvgs" ]; then
+            echo "These after SVG files do not match a fresh render from this commit:"
+            echo "$StaleSvgs"
+            echo "Run FlowchartLayoutFixRender refresh-after and commit the new SVG files."
+            git diff -- docs/flowchart/layout-fixes/after -- '*.svg'
+            exit 1
+          fi
+          MissingPngs=""
+          for SvgPath in docs/flowchart/layout-fixes/after/*.svg; do
+            PngPath="${SvgPath%.svg}.png"
+            if [ ! -s "$PngPath" ]; then
+              MissingPngs="$MissingPngs $PngPath"
+            fi
+          done
+          if [ -n "$MissingPngs" ]; then
+            echo "These after PNG files are missing or empty:$MissingPngs"
+            exit 1
+          fi
+          echo "After SVG files match this commit. PNG pixels are not compared byte for byte, because HTML and Markdown labels can rasterise differently when the host fonts differ."
+
+      - name: After-docs freshness tests
+        run: dotnet test tests/MermaidRecognition.Layout.Tests/MermaidRecognition.Layout.Tests.csproj -c Release --filter FullyQualifiedName~FlowchartAfterDocsFreshnessTests

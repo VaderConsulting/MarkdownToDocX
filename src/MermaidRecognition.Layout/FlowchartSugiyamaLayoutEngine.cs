@@ -18,9 +18,35 @@ namespace MermaidRecognition.Layout;
 public static class FlowchartSugiyamaLayoutEngine
 {
     /// <summary>
-    /// Lays out the contract using Sugiyama; returns node centres and graph bounds.
+    /// Lays out the contract with dagre, then applies whole-pixel sizes for the document renderer.
+    /// Coordinates are Y-up, matching the SVG renderer.
     /// </summary>
     public static bool TryLayout(DiagramContract Contract, out FlowchartLayoutResult Result)
+    {
+        Result = new FlowchartLayoutResult();
+        if (Contract == null || Contract.Nodes.Count == 0)
+        {
+            return false;
+        }
+
+        if (!NativeRenderCapabilities.CanRender(Contract))
+        {
+            return false;
+        }
+
+        if (!FlowchartDagrePlacement.TryPlace(Contract, out FlowchartLayoutResult Placed))
+        {
+            return false;
+        }
+
+        Result = FlowchartDagrePresentation.Apply(Contract, Placed);
+        return Result.NodeBounds.Count > 0;
+    }
+
+    /// <summary>
+    /// Lays out the contract using Sugiyama; returns node centres and graph bounds.
+    /// </summary>
+    public static bool TryLayoutSugiyama(DiagramContract Contract, out FlowchartLayoutResult Result)
     {
         Result = new FlowchartLayoutResult();
 
@@ -70,6 +96,9 @@ public static class FlowchartSugiyamaLayoutEngine
 
         List<FlowchartLayoutNodeBounds> RemappedBounds = FlowchartDirectionRemapper.Remap(RawBounds, Direction);
         RemappedBounds = FlowchartLayoutPostProcessor.Apply(Contract, RemappedBounds, Direction, RenderOptions);
+        RemappedBounds = FlowchartLayoutCrossingSearch.ReduceSameRankInversions(Contract, RemappedBounds, Direction);
+        RemappedBounds = FlowchartExternalNodePlacementSearch.Search(Contract, RemappedBounds, Direction);
+        RemappedBounds = FlowchartLayoutCrossingSearch.ReduceSameRankInversions(Contract, RemappedBounds, Direction);
         (double GraphWidth, double GraphHeight) = FlowchartDirectionRemapper.ComputeGraphSize(RemappedBounds);
 
         FlowchartLayoutResult Built = new FlowchartLayoutResult

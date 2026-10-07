@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="797" height="218" viewBox="0 0 797 218"><rect x="0" y="0" width="796.0140000000004" height="217.072" fill="white"/><line x1="141.72800000000007" y1="108.536" x2="182.72800000000007" y2="108.536" stroke="#333333" stroke-width="1" stroke-linecap="butt" data-edge-source="A" data-edge-target="B"/><line x1="359.7420000000002" y1="108.536" x2="400.7420000000002" y2="108.536" stroke="#333333" stroke-width="1" stroke-linecap="butt" data-edge-source="B" data-edge-target="C"/><line x1="610.8140000000003" y1="108.536" x2="622.8140000000003" y2="108.536" stroke="#333333" stroke-width="1" stroke-linecap="round"/><line x1="622.8140000000003" y1="108.536" x2="651.8140000000005" y2="108.536" stroke="#333333" stroke-width="1" stroke-linecap="butt" data-edge-source="C" data-edge-target="D"/><path d="M8,73.54 H141.73 V143.54 H8 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M196.73,81.04
+H354.74
+Q359.74,81.04 359.74,86.04
+V131.04
+Q359.74,136.04 354.74,136.04
+H196.73
+Q191.73,136.04 191.73,131.04
+V86.04
+Q191.73,81.04 196.73,81.04 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M510.28,8
+L610.81,108.54
+L510.28,209.07
+L409.74,108.54 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M724.41,44.94
+A63.6,63.6 0 1 1 724.41,172.14
+A63.6,63.6 0 1 1 724.41,44.94 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><polygon points="192.72800000000007,108.536 182.72800000000007,112.036 182.72800000000007,105.036" fill="#333333" stroke="none"/><polygon points="410.7420000000002,108.536 400.7420000000002,112.036 400.7420000000002,105.036" fill="#333333" stroke="none"/><polygon points="661.8140000000005,108.536 651.8140000000005,112.036 651.8140000000005,105.036" fill="#333333" stroke="none"/><text x="74.864" y="114.296" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Rectangle</text><text x="275.73500000000007" y="114.296" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Rounded rectangle</text><text x="510.2780000000002" y="114.296" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Diamond decision</text><text x="724.4140000000006" y="114.296" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Circle</text></svg>

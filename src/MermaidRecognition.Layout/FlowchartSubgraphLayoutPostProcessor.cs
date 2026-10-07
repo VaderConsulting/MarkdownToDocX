@@ -63,6 +63,8 @@ public static class FlowchartSubgraphLayoutPostProcessor
         EnforceSiblingSubgraphGaps(Contract, MutableById, GroupById, HorizontalFlow, ReverseFlow, Options);
         EnforceExternalSubgraphGaps(Contract, MutableById, GroupById, HorizontalFlow, ReverseFlow, Options);
         FlowchartParallelColumnAlignHelper.Apply(Contract, MutableById, Direction, Options);
+        CompactSubgraphMembersAroundNonMembers(Contract, MutableById, GroupById, Options);
+        EvictNonMembersFromSubgraphBoxes(Contract, MutableById, GroupById, Options);
 
         return MutableById.Values.ToList();
     }
@@ -1141,6 +1143,316 @@ public static class FlowchartSubgraphLayoutPostProcessor
         return HasAny ? LeadingEdge : 0.0;
     }
 
+    private static void CompactSubgraphMembersAroundNonMembers(
+        DiagramContract Contract,
+        Dictionary<string, FlowchartLayoutNodeBounds> MutableById,
+        Dictionary<string, GroupContract> GroupById,
+        FlowchartRenderOptions Options)
+    {
+        double PackGap = Math.Max(Options.NodeSpacingPx, SUBGRAPH_EXTERNAL_GAP_PX);
+        List<GroupContract> OrderedGroups = Contract.Groups
+            .OrderByDescending(Group => GetGroupDepth(Group, GroupById))
+            .ToList();
+        foreach (GroupContract Group in OrderedGroups)
+        {
+            HashSet<string> MemberIds = new HashSet<string>(StringComparer.Ordinal);
+            CollectAllMemberNodeIds(Group, Contract, GroupById, MemberIds);
+            List<FlowchartLayoutNodeBounds> Members = new List<FlowchartLayoutNodeBounds>();
+            foreach (string MemberId in MemberIds)
+            {
+                if (MutableById.TryGetValue(MemberId, out FlowchartLayoutNodeBounds Bounds))
+                {
+                    Members.Add(Bounds);
+                }
+            }
+
+            if (Members.Count < 2)
+            {
+                continue;
+            }
+
+            Members.Sort((Left, Right) => Left.CenterX.CompareTo(Right.CenterX));
+            for (int Index = 1; Index < Members.Count; Index++)
+            {
+                FlowchartLayoutNodeBounds Previous = Members[Index - 1];
+                FlowchartLayoutNodeBounds Current = Members[Index];
+                double PreviousRight = Previous.CenterX + (Previous.Width / 2.0);
+                double CurrentLeft = Current.CenterX - (Current.Width / 2.0);
+                double Gap = CurrentLeft - PreviousRight;
+                if (Gap <= PackGap + 1.0)
+                {
+                    continue;
+                }
+
+                if (!GapContainsNonMember(MutableById, MemberIds, PreviousRight, CurrentLeft))
+                {
+                    continue;
+                }
+
+                double Shift = PackGap - Gap;
+                for (int Tail = Index; Tail < Members.Count; Tail++)
+                {
+                    FlowchartLayoutNodeBounds TailBounds = Members[Tail];
+                    FlowchartLayoutNodeBounds Moved = new FlowchartLayoutNodeBounds
+                    {
+                        NodeId = TailBounds.NodeId,
+                        CenterX = TailBounds.CenterX + Shift,
+                        CenterY = TailBounds.CenterY,
+                        Width = TailBounds.Width,
+                        Height = TailBounds.Height
+                    };
+                    Members[Tail] = Moved;
+                    MutableById[Moved.NodeId] = Moved;
+                }
+            }
+        }
+    }
+
+    private static bool GapContainsNonMember(
+        Dictionary<string, FlowchartLayoutNodeBounds> MutableById,
+        HashSet<string> MemberIds,
+        double GapLeft,
+        double GapRight)
+    {
+        foreach (FlowchartLayoutNodeBounds Bounds in MutableById.Values)
+        {
+            if (MemberIds.Contains(Bounds.NodeId))
+            {
+                continue;
+            }
+
+            double NodeLeft = Bounds.CenterX - (Bounds.Width / 2.0);
+            double NodeRight = Bounds.CenterX + (Bounds.Width / 2.0);
+            bool OverlapsX = NodeRight > GapLeft && NodeLeft < GapRight;
+            if (OverlapsX)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void CollectAllMemberNodeIds(
+        GroupContract Group,
+        DiagramContract Contract,
+        Dictionary<string, GroupContract> GroupById,
+        HashSet<string> MemberIds)
+    {
+        foreach (string NodeId in Group.ChildNodeIds)
+        {
+            MemberIds.Add(NodeId);
+        }
+
+        foreach (NodeContract Node in Contract.Nodes)
+        {
+            if (string.Equals(Node.ParentGroupId, Group.Id, StringComparison.Ordinal))
+            {
+                MemberIds.Add(Node.Id);
+            }
+        }
+
+        foreach (GroupContract Child in GroupById.Values)
+        {
+            if (string.Equals(Child.ParentGroupId, Group.Id, StringComparison.Ordinal))
+            {
+                CollectAllMemberNodeIds(Child, Contract, GroupById, MemberIds);
+            }
+        }
+    }
+
+    private static void EvictNonMembersFromSubgraphBoxes(
+        DiagramContract Contract,
+        Dictionary<string, FlowchartLayoutNodeBounds> MutableById,
+        Dictionary<string, GroupContract> GroupById,
+        FlowchartRenderOptions Options)
+    {
+        double Gap = Math.Max(SUBGRAPH_EXTERNAL_GAP_PX, Options.NodeSpacingPx);
+        FlowchartSubgraphBoundsRequest Request = FlowchartSubgraphBoundsRequest.FromContract(Contract, Options);
+        List<GroupContract> OrderedGroups = Contract.Groups
+            .OrderBy(Group => GetGroupDepth(Group, GroupById))
+            .ToList();
+        foreach (GroupContract Group in OrderedGroups)
+        {
+            List<FlowchartSubgraphLayoutRect> Rects =
+                FlowchartSubgraphBoundsBuilder.BuildOrderedRects(Contract, MutableById, Request);
+            FlowchartSubgraphLayoutRect? GroupRect = Rects.Find(
+                Candidate => string.Equals(Candidate.GroupId, Group.Id, StringComparison.Ordinal));
+            if (GroupRect is null)
+            {
+                continue;
+            }
+
+            HashSet<string> MemberIds = new HashSet<string>(StringComparer.Ordinal);
+            CollectAllMemberNodeIds(Group, Contract, GroupById, MemberIds);
+            List<string> NodeIds = new List<string>(MutableById.Keys);
+            foreach (string NodeId in NodeIds)
+            {
+                if (MemberIds.Contains(NodeId) || GroupById.ContainsKey(NodeId))
+                {
+                    continue;
+                }
+
+                FlowchartLayoutNodeBounds Bounds = MutableById[NodeId];
+                double NodeLeft = Bounds.CenterX - (Bounds.Width / 2.0);
+                double NodeRight = Bounds.CenterX + (Bounds.Width / 2.0);
+                double NodeBottom = Bounds.CenterY - (Bounds.Height / 2.0);
+                double NodeTop = Bounds.CenterY + (Bounds.Height / 2.0);
+                bool Overlaps = NodeRight > GroupRect.Left
+                    && NodeLeft < GroupRect.Right
+                    && NodeTop > GroupRect.Bottom
+                    && NodeBottom < GroupRect.Top;
+                if (!Overlaps)
+                {
+                    continue;
+                }
+
+                double ShiftUp = GroupRect.Top + Gap + (Bounds.Height / 2.0) - Bounds.CenterY;
+                double ShiftDown = GroupRect.Bottom - Gap - (Bounds.Height / 2.0) - Bounds.CenterY;
+                double ShiftLeft = GroupRect.Left - Gap - (Bounds.Width / 2.0) - Bounds.CenterX;
+                double ShiftRight = GroupRect.Right + Gap + (Bounds.Width / 2.0) - Bounds.CenterX;
+                double ChosenX = 0.0;
+                double ChosenY = 0.0;
+                double Best = double.MaxValue;
+                ConsiderEvictionShift(
+                    Bounds,
+                    0.0,
+                    ShiftUp,
+                    Contract,
+                    MutableById,
+                    GroupById,
+                    Request,
+                    ref Best,
+                    ref ChosenX,
+                    ref ChosenY);
+                ConsiderEvictionShift(
+                    Bounds,
+                    0.0,
+                    ShiftDown,
+                    Contract,
+                    MutableById,
+                    GroupById,
+                    Request,
+                    ref Best,
+                    ref ChosenX,
+                    ref ChosenY);
+                ConsiderEvictionShift(
+                    Bounds,
+                    ShiftLeft,
+                    0.0,
+                    Contract,
+                    MutableById,
+                    GroupById,
+                    Request,
+                    ref Best,
+                    ref ChosenX,
+                    ref ChosenY);
+                ConsiderEvictionShift(
+                    Bounds,
+                    ShiftRight,
+                    0.0,
+                    Contract,
+                    MutableById,
+                    GroupById,
+                    Request,
+                    ref Best,
+                    ref ChosenX,
+                    ref ChosenY);
+                if (Best == double.MaxValue)
+                {
+                    ConsiderShift(0.0, ShiftUp, ref Best, ref ChosenX, ref ChosenY);
+                    ConsiderShift(0.0, ShiftDown, ref Best, ref ChosenX, ref ChosenY);
+                    ConsiderShift(ShiftLeft, 0.0, ref Best, ref ChosenX, ref ChosenY);
+                    ConsiderShift(ShiftRight, 0.0, ref Best, ref ChosenX, ref ChosenY);
+                }
+
+                MutableById[NodeId] = new FlowchartLayoutNodeBounds
+                {
+                    NodeId = Bounds.NodeId,
+                    CenterX = Bounds.CenterX + ChosenX,
+                    CenterY = Bounds.CenterY + ChosenY,
+                    Width = Bounds.Width,
+                    Height = Bounds.Height
+                };
+            }
+        }
+    }
+
+    private static void ConsiderEvictionShift(
+        FlowchartLayoutNodeBounds Bounds,
+        double ShiftX,
+        double ShiftY,
+        DiagramContract Contract,
+        Dictionary<string, FlowchartLayoutNodeBounds> MutableById,
+        Dictionary<string, GroupContract> GroupById,
+        FlowchartSubgraphBoundsRequest Request,
+        ref double Best,
+        ref double ChosenX,
+        ref double ChosenY)
+    {
+        FlowchartLayoutNodeBounds Candidate = new FlowchartLayoutNodeBounds
+        {
+            NodeId = Bounds.NodeId,
+            CenterX = Bounds.CenterX + ShiftX,
+            CenterY = Bounds.CenterY + ShiftY,
+            Width = Bounds.Width,
+            Height = Bounds.Height
+        };
+        Dictionary<string, FlowchartLayoutNodeBounds> Probe =
+            new Dictionary<string, FlowchartLayoutNodeBounds>(MutableById, StringComparer.Ordinal)
+            {
+                [Bounds.NodeId] = Candidate
+            };
+        List<FlowchartSubgraphLayoutRect> Rects =
+            FlowchartSubgraphBoundsBuilder.BuildOrderedRects(Contract, Probe, Request);
+        foreach (FlowchartSubgraphLayoutRect Rect in Rects)
+        {
+            if (FlowchartSubgraphMembershipHelper.IsNodeMemberOfGroup(
+                    Bounds.NodeId,
+                    GroupById[Rect.GroupId],
+                    Contract,
+                    GroupById))
+            {
+                continue;
+            }
+
+            if (NodeOverlapsRect(Candidate, Rect))
+            {
+                return;
+            }
+        }
+
+        ConsiderShift(ShiftX, ShiftY, ref Best, ref ChosenX, ref ChosenY);
+    }
+
+    private static bool NodeOverlapsRect(FlowchartLayoutNodeBounds Bounds, FlowchartSubgraphLayoutRect Rect)
+    {
+        double NodeLeft = Bounds.CenterX - (Bounds.Width / 2.0);
+        double NodeRight = Bounds.CenterX + (Bounds.Width / 2.0);
+        double NodeBottom = Bounds.CenterY - (Bounds.Height / 2.0);
+        double NodeTop = Bounds.CenterY + (Bounds.Height / 2.0);
+        return NodeRight > Rect.Left + 0.5
+            && NodeLeft < Rect.Right - 0.5
+            && NodeTop > Rect.Bottom + 0.5
+            && NodeBottom < Rect.Top - 0.5;
+    }
+
+    private static void ConsiderShift(
+        double ShiftX,
+        double ShiftY,
+        ref double Best,
+        ref double ChosenX,
+        ref double ChosenY)
+    {
+        double Distance = Math.Sqrt((ShiftX * ShiftX) + (ShiftY * ShiftY));
+        if (Distance < Best)
+        {
+            Best = Distance;
+            ChosenX = ShiftX;
+            ChosenY = ShiftY;
+        }
+    }
+
     private static void AlignExternalBoundaryNodes(
         DiagramContract Contract,
         Dictionary<string, FlowchartLayoutNodeBounds> MutableById,
@@ -1313,7 +1625,8 @@ public static class FlowchartSubgraphLayoutPostProcessor
                 MutableById,
                 out double PrimaryRowCenterY);
 
-            if (UsesPrimaryColumnCentering)
+            bool ColumnLed = FlowchartSubgraphSpineCenterHelper.IsColumnLed(Contract, Group, MutableById);
+            if (UsesPrimaryColumnCentering && ColumnLed)
             {
                 FlowchartSubgraphSpineCenterHelper.ExpandHorizontalBoundsAroundPrimaryColumn(
                     Contract,
@@ -1323,7 +1636,7 @@ public static class FlowchartSubgraphLayoutPostProcessor
                     ref MaxX);
             }
 
-            if (UsesPrimaryRowCentering)
+            if (UsesPrimaryRowCentering && !ColumnLed)
             {
                 FlowchartSubgraphSpineCenterHelper.ExpandVerticalBoundsAroundPrimaryRow(
                     Contract,
@@ -1341,10 +1654,10 @@ public static class FlowchartSubgraphLayoutPostProcessor
                 + FlowchartSubgraphBoundsBuilder.TITLE_BAND_PX
                 + FlowchartSubgraphBoundsBuilder.VERTICAL_CONTENT_SLACK_PX;
 
-            double ContentCenterX = UsesPrimaryColumnCentering
+            double ContentCenterX = UsesPrimaryColumnCentering && ColumnLed
                 ? PrimaryColumnCenterX
                 : (MinX + MaxX) / 2.0;
-            double ContentCenterY = UsesPrimaryRowCentering
+            double ContentCenterY = UsesPrimaryRowCentering && !ColumnLed
                 ? PrimaryRowCenterY
                 : (MinY + MaxY) / 2.0;
             double ClusterLeft = ContentCenterX - (ClusterWidth / 2.0);
@@ -1352,18 +1665,18 @@ public static class FlowchartSubgraphLayoutPostProcessor
 
             double InteriorWidth = ClusterWidth - (FlowchartSubgraphBoundsBuilder.PADDING_PX * 2.0);
             double InteriorHeight = ClusterHeight - (FlowchartSubgraphBoundsBuilder.PADDING_PX * 2.0);
-            double ExtraX = UsesPrimaryColumnCentering
+            double ExtraX = UsesPrimaryColumnCentering && ColumnLed
                 ? 0.0
                 : (InteriorWidth - ContentWidth) / 2.0;
-            double ExtraY = UsesPrimaryRowCentering
+            double ExtraY = UsesPrimaryRowCentering && !ColumnLed
                 ? 0.0
                 : (InteriorHeight - ContentHeight) / 2.0;
 
             double TargetMinX = ClusterLeft + FlowchartSubgraphBoundsBuilder.PADDING_PX + ExtraX;
             double TargetMinY = ClusterBottom + FlowchartSubgraphBoundsBuilder.PADDING_PX + ExtraY;
 
-            double ShiftX = UsesPrimaryColumnCentering ? 0.0 : TargetMinX - MinX;
-            double ShiftY = UsesPrimaryRowCentering ? 0.0 : TargetMinY - MinY;
+            double ShiftX = UsesPrimaryColumnCentering && ColumnLed ? 0.0 : TargetMinX - MinX;
+            double ShiftY = UsesPrimaryRowCentering && !ColumnLed ? 0.0 : TargetMinY - MinY;
 
             if (Math.Abs(ShiftX) < 0.5 && Math.Abs(ShiftY) < 0.5)
             {

@@ -1,0 +1,695 @@
+using System.Globalization;
+using System.Text;
+using System.Text.RegularExpressions;
+
+using MermaidRecognition.Contract;
+using MermaidRecognition.Core;
+using MermaidRecognition.Layout;
+
+namespace MermaidRecognition.Layout.Tests;
+
+/// <summary>
+/// Final-SVG quality gate: sample 03, enterprise flowchart samples, and catalogue subgraph diagrams.
+/// A defect is tolerated only with a search-backed justification.
+/// </summary>
+[TestFixture]
+public sealed class FlowchartRenderedSvgQualityGateTests
+{
+    private static readonly string[] CatalogueSubgraphIds =
+    [
+        "F36", "F37", "F38", "F39", "F40", "F41", "F42", "F43", "F44", "F45", "F46", "F47",
+        "F59", "F60", "F73", "F74", "F78", "F84", "F126", "F127", "F128", "F129", "F132"
+    ];
+
+    private const string SAMPLE_03_SOURCE = """
+        flowchart TB
+          subgraph dc["Primary data centre"]
+            subgraph appNode["App Server Node"]
+              jvm["Java VM"]
+              war["shop.war"]
+            end
+            pg["PostgreSQL"]
+            lb["Load Balancer"]
+            lan["DC LAN"]
+          end
+          subgraph webShop["Web Shop"]
+            checkout(["Checkout"])
+          end
+          shopUi["Shop Web UI"]
+          ordering(["Online Ordering"])
+          order["Order"]
+          hosting(["Java Application Hosting"])
+          dbSvc(["Database Service"])
+          orderTbl["orders table"]
+          webShop --> shopUi
+          checkout --> ordering
+          shopUi --> ordering
+          checkout --> order
+          war --> webShop
+          orderTbl --> order
+          jvm --> hosting
+          pg --> dbSvc
+          hosting --> webShop
+          dbSvc --> webShop
+          pg --> orderTbl
+          lb -->|HTTPS| appNode
+          lan --> lb
+          lan --> appNode
+        """;
+
+    [Test]
+    public void LivePictures_ReportUnjustifiedCounts()
+    {
+        DumpLivePicture("sample-03-flowchart", SAMPLE_03_SOURCE);
+        DumpLivePicture("sample-03-enterprise", SAMPLE_03_SOURCE);
+        DumpLivePicture("sample-01", File.ReadAllText(FindEnterpriseSample("01-flowchart.mmd")));
+        DumpLivePicture("sample-06", File.ReadAllText(FindEnterpriseSample("06-flowchart.mmd")));
+    }
+
+    [Test]
+    public void Sample03_FinalSvg_ReportsDefectCounts()
+    {
+        FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.Evaluate("sample-03", SAMPLE_03_SOURCE);
+        TestContext.Out.WriteLine(FormatReport(Report));
+        TestContext.Out.WriteLine(
+            "sample-03 live custom engine failures="
+            + Report.Failures.Count.ToString(CultureInfo.InvariantCulture)
+            + " tolerated="
+            + Report.Tolerated.Count.ToString(CultureInfo.InvariantCulture));
+        Assert.That(Report.Failures, Is.Not.Null);
+    }
+
+    [Test]
+    public void KnownBadWebShopFlowchartPicture_ReportsEveryVisibleDefect()
+    {
+        string Svg = File.ReadAllText(FindFixture("enterprise-03-flowchart.known-bad.svg"));
+        FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.EvaluateRenderedSvg(
+            "sample-03-flowchart-known-bad",
+            SAMPLE_03_SOURCE,
+            Svg);
+        TestContext.Out.WriteLine(FormatReport(Report));
+        AssertDetected(Report, "EdgeCrossing", "lan", "appNode", "lb", "appNode");
+        AssertDetected(Report, "LabelOwnEdge", "HTTPS");
+        AssertDetected(Report, "GroupBorderDiagonal", "war", "webShop", "dc");
+        AssertDetected(Report, "GroupBorderDiagonal", "jvm", "hosting", "dc");
+        AssertDetected(Report, "GroupBorderDiagonal", "pg", "dbSvc", "dc");
+        AssertDetected(Report, "Hook", "lan", "appNode");
+    }
+
+    [Test]
+    public void KnownBadWebShopEnterprisePicture_ReportsEveryVisibleDefect()
+    {
+        string Svg = File.ReadAllText(FindFixture("enterprise-03-enterprise.known-bad.svg"));
+        FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.EvaluateRenderedSvg(
+            "sample-03-enterprise-known-bad",
+            SAMPLE_03_SOURCE,
+            Svg);
+        TestContext.Out.WriteLine(FormatReport(Report));
+        AssertDetected(Report, "EdgeCrossing", "dbSvc", "webShop", "checkout", "order");
+        AssertDetected(Report, "OverlayingEdges", "pg", "dbSvc", "orderTbl");
+        AssertDetected(Report, "GroupBorderDiagonal", "war", "webShop", "dc");
+        AssertDetected(Report, "GroupBorderDiagonal", "jvm", "hosting", "dc");
+        AssertDetected(Report, "GroupInteriorDiagonal", "lb", "appNode", "dc");
+    }
+
+    [Test]
+    public void CurrentWebShopEnterprisePicture_ReportsEveryListedDefect()
+    {
+        string Svg = File.ReadAllText(FindFixture("enterprise-03-enterprise.current.svg"));
+        FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.EvaluatePicture(
+            "sample-03-enterprise-current",
+            SAMPLE_03_SOURCE,
+            Svg);
+        TestContext.Out.WriteLine(FormatReport(Report));
+        AssertDetected(Report, "DanglingArrowhead", "pg", "orderTbl");
+        AssertDetected(Report, "DetachedEndpoint", "pg", "orderTbl");
+        AssertDetected(Report, "LabelOnBox", "HTTPS", "pg");
+        AssertDetected(Report, "ForeignGroupTraversal", "dbSvc", "webShop", "dc");
+        AssertDetected(Report, "OverlayingEdges", "lan", "appNode", "lb", "appNode");
+    }
+
+    [Test]
+    public void CurrentWebShopFlowchartPicture_ReportsEveryListedDefect()
+    {
+        string Svg = File.ReadAllText(FindFixture("enterprise-03-flowchart.current.svg"));
+        FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.EvaluatePicture(
+            "sample-03-flowchart-current",
+            SAMPLE_03_SOURCE,
+            Svg);
+        TestContext.Out.WriteLine(FormatReport(Report));
+        AssertDetected(Report, "NodeIntersection", "dbSvc", "webShop", "orderTbl");
+        AssertDetected(Report, "OverlayingEdges", "pg", "orderTbl", "lan", "appNode");
+        AssertDetected(Report, "LongDiagonal", "jvm", "hosting");
+        AssertDetected(Report, "LongDiagonal", "war", "webShop");
+        AssertDetected(Report, "MixedStyle");
+    }
+
+    [Test]
+    public void CurrentOrderSuitePicture_ReportsEveryListedDefect()
+    {
+        string Source = File.ReadAllText(FindEnterpriseSample("01-flowchart.mmd"));
+        string Svg = File.ReadAllText(FindFixture("enterprise-01-flowchart.current.svg"));
+        FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.EvaluatePicture(
+            "sample-01-current",
+            Source,
+            Svg);
+        TestContext.Out.WriteLine(FormatReport(Report));
+        AssertDetected(Report, "RankGap");
+        AssertDetected(Report, "LongDiagonal");
+        AssertDetected(Report, "LabelOwnEdge", "order details");
+    }
+
+    [Test]
+    public void CurrentSalesTeamPicture_ReportsEveryListedDefect()
+    {
+        string Source = File.ReadAllText(FindEnterpriseSample("06-flowchart.mmd"));
+        string Svg = File.ReadAllText(FindFixture("enterprise-06-flowchart.current.svg"));
+        FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.EvaluatePicture(
+            "sample-06-current",
+            Source,
+            Svg);
+        TestContext.Out.WriteLine(FormatReport(Report));
+        AssertDetected(Report, "OverlayingEdges", "fulfil", "selling", "selling", "seller");
+        AssertDetected(Report, "CrampedArrow", "clerk", "seller");
+    }
+
+    [Test]
+    public void VisibleWebShop_FlagsBorderHugsTitleStrikesAndTightChannels()
+    {
+        FlowchartRenderedSvgQualityReport Report = EvaluateVisible("visible-03-web-shop.svg", SAMPLE_03_SOURCE);
+        AssertDetected(Report, "BorderHug", "pg", "dbSvc");
+        AssertDetected(Report, "CornerArrowhead", "war", "webShop");
+        AssertDetected(Report, "TitleStrike", "war", "webShop");
+        AssertDetected(Report, "LabelOffLine", "HTTPS");
+    }
+
+    [Test]
+    public void VisibleOrderSuite_FlagsCanvasMarginLabelStrikeAndSourceDogleg()
+    {
+        string Source = File.ReadAllText(FindEnterpriseSample("01-flowchart.mmd"));
+        FlowchartRenderedSvgQualityReport Report = EvaluateVisible("visible-01-order-suite.svg", Source);
+        AssertDetected(Report, "CanvasMargin", "orderSuite", "orderSync");
+        AssertDetected(Report, "LabelStrike", "checkout", "orderSync");
+        AssertDetected(Report, "SourceDogleg", "orderSuite", "webShop");
+    }
+
+    [Test]
+    public void VisibleSalesTeam_FlagsBorderHugsCornersAndSharedStretch()
+    {
+        string Source = File.ReadAllText(FindEnterpriseSample("06-flowchart.mmd"));
+        FlowchartRenderedSvgQualityReport Report = EvaluateVisible("visible-06-sales-team.svg", Source);
+        AssertDetected(Report, "BorderHug", "terms", "orderForm");
+        AssertDetected(Report, "BorderHug", "clerk", "seller");
+        AssertDetected(Report, "CornerArrowhead", "terms", "orderForm");
+        AssertDetected(Report, "SharedStretch", "takeOrder", "selling", "takeOrder", "orderTaken");
+        AssertDetected(Report, "SourceDogleg");
+    }
+
+    [Test]
+    public void LiveSamples_ClearTheListedPictureDefects()
+    {
+        AssertSampleClear(
+            "01-flowchart.mmd",
+            ["LabelOnStroke", "NeedlessDogleg", "OutlineGap", "CornerArrowhead"]);
+        AssertSampleClear(
+            "03-flowchart.mmd",
+            ["DanglingStub", "TitleClearance", "GroupBorderClearance", "LabelOnStroke", "CornerArrowhead", "InteriorStroke", "OutlineGap"]);
+        AssertSampleClear(
+            "06-flowchart.mmd",
+            ["InteriorStroke", "StackedArrowheads", "OutlineGap", "CornerArrowhead", "OverlayingEdges", "SharedStretch"]);
+    }
+
+    [Test]
+    public void LineJump_DrawsOneHopAtAPerpendicularCrossing()
+    {
+        const string Svg = """
+            <svg xmlns="http://www.w3.org/2000/svg">
+              <path d="M10,40 L110,40" fill="none" stroke="#333" data-edge-source="a" data-edge-target="b"/>
+              <path d="M60,10 L60,90" fill="none" stroke="#333" data-edge-source="c" data-edge-target="d"/>
+              <path d="M10,70 L110,70" fill="none" stroke="#333" data-edge-source="e" data-edge-target="f"/>
+            </svg>
+            """;
+        string Jumped = FlowchartSvgLineJump.Apply(Svg);
+        Assert.That(FlowchartSvgLineJump.LastJumps, Has.Count.EqualTo(2));
+        Assert.That(PathFor(Jumped, "a", "b"), Does.Not.Contain("A6,6"));
+        Assert.That(PathFor(Jumped, "c", "d"), Does.Contain("A6,6"));
+        Assert.That(PathFor(Jumped, "e", "f"), Does.Contain("A6,6"));
+    }
+
+    private static string PathFor(string Svg, string SourceId, string TargetId)
+    {
+        int SourceAt = Svg.IndexOf("data-edge-source=\"" + SourceId + "\"", StringComparison.Ordinal);
+        Assert.That(SourceAt, Is.GreaterThanOrEqualTo(0));
+        int PathStart = Svg.LastIndexOf("<path", SourceAt, StringComparison.Ordinal);
+        int PathEnd = Svg.IndexOf("/>", SourceAt, StringComparison.Ordinal);
+        string Tag = Svg.Substring(PathStart, PathEnd - PathStart);
+        Assert.That(Tag, Does.Contain("data-edge-target=\"" + TargetId + "\""));
+        return Tag;
+    }
+
+    private static void AssertToleratedCorridor(
+        FlowchartRenderedSvgQualityReport Report,
+        string Kind,
+        string SourceId,
+        string TargetId)
+    {
+        FlowchartLayoutQualityFailure? Match = null;
+        foreach (FlowchartLayoutQualityFailure Tolerated in Report.Tolerated)
+        {
+            if (!string.Equals(Tolerated.Kind, Kind, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (!Tolerated.Description.Contains(SourceId + "->" + TargetId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            Match = Tolerated;
+            break;
+        }
+
+        Assert.That(Match, Is.Not.Null, Kind + " for " + SourceId + "->" + TargetId + " was not tolerated");
+        Assert.That(Match!.Justification, Does.Contain("every separated run crosses"));
+    }
+
+    [Test]
+    public void SyntheticPictures_ReportStubTitleLabelAndInteriorDefects()
+    {
+        const string Source = """
+            flowchart TB
+              subgraph dc["Primary data centre"]
+                a["Alpha"]
+              end
+              b["Beta"]
+              a -->|HTTPS| b
+            """;
+        const string Svg = """
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+              <rect x="40" y="40" width="200" height="160" fill="#ffffde" stroke="#aaaa33"/>
+              <text x="140" y="58" text-anchor="middle" font-size="16">Primary data centre</text>
+              <rect x="80" y="80" width="80" height="40" fill="#fff" stroke="#000"/>
+              <text x="120" y="104" text-anchor="middle" font-size="16">Alpha</text>
+              <rect x="80" y="280" width="80" height="40" fill="#fff" stroke="#000"/>
+              <text x="120" y="304" text-anchor="middle" font-size="16">Beta</text>
+              <path d="M120,120 L120,40 L120,48 L200,48 L200,300" fill="none" stroke="#333" data-edge-source="a" data-edge-target="b"/>
+              <text x="160" y="48" text-anchor="middle" font-size="16">HTTPS</text>
+            </svg>
+            """;
+        FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.EvaluatePicture(
+            "synthetic-stubs",
+            Source,
+            Svg);
+        TestContext.Out.WriteLine(FormatReport(Report));
+        AssertDetected(Report, "DanglingStub", "a", "b");
+        AssertDetected(Report, "TitleClearance", "a", "b");
+        AssertDetected(Report, "LabelOnStroke", "HTTPS");
+    }
+
+    private static void AssertSampleClear(string FileName, string[] ForbiddenKinds)
+    {
+        string Source = File.ReadAllText(FindEnterpriseSample(FileName));
+        FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.Evaluate(FileName, Source);
+        TestContext.Out.WriteLine(FormatReport(Report));
+        foreach (FlowchartLayoutQualityFailure Failure in Report.Failures)
+        {
+            foreach (string Kind in ForbiddenKinds)
+            {
+                Assert.That(
+                    Failure.Kind,
+                    Is.Not.EqualTo(Kind),
+                    FileName + " still fails " + Failure.Kind + ": " + Failure.Description);
+            }
+        }
+    }
+
+    [Test]
+    public void Picture_ReportsCanvasExitAndLongDetour()
+    {
+        const string Source = """
+            flowchart TB
+              a[A]
+              b[B]
+              a --> b
+            """;
+        const string Svg = """
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+              <g data-id="a"><rect x="40" y="20" width="40" height="20" fill="#fff" stroke="#000"/></g>
+              <g data-id="b"><rect x="40" y="140" width="40" height="20" fill="#fff" stroke="#000"/></g>
+              <g data-edge-source="a" data-edge-target="b">
+                <path d="M60,40 L-40,40 L-40,150 L60,150" fill="none" stroke="#000"/>
+              </g>
+            </svg>
+            """;
+        FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.EvaluatePicture(
+            "canvas-detour",
+            Source,
+            Svg);
+        AssertDetected(Report, "CanvasExit", "a", "b");
+        AssertDetected(Report, "LongDetour", "a", "b");
+    }
+
+    [Test]
+    public void ArchiMateMarkers_AreNotMixedStyle()
+    {
+        const string Svg = """
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+              <g class="element application-component" data-id="a"><rect x="20" y="20" width="40" height="20" fill="#AFFFFF" stroke="#000"/></g>
+              <g class="element application-component" data-id="b"><rect x="20" y="140" width="40" height="20" fill="#AFFFFF" stroke="#000"/></g>
+              <g class="relationship realization" data-source="a" data-target="b">
+                <path d="M40,40 L40,140" fill="none" stroke="#000" stroke-dasharray="1.5 3"/>
+                <path d="M40,140 L33,126 L47,126 Z" fill="#fff" stroke="#000"/>
+              </g>
+            </svg>
+            """;
+        const string Source = """
+            flowchart TB
+              a[A]
+              b[B]
+              a --> b
+            """;
+        FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.EvaluatePicture(
+            "archimate-markers",
+            Source,
+            Svg);
+        foreach (FlowchartLayoutQualityFailure Failure in Report.Failures)
+        {
+            Assert.That(Failure.Kind, Is.Not.EqualTo("MixedStyle"));
+        }
+    }
+
+    [Test]
+    public void CatalogueAndEnterprise_FinalSvg_ReportsJustifiedFailuresOnly()
+    {
+        List<NamedSource> Diagrams = LoadCatalogueSubgraphDiagrams();
+        Diagrams.AddRange(LoadEnterpriseSamples());
+        Diagrams.Add(new NamedSource("sample-03", SAMPLE_03_SOURCE));
+
+        int Failed = 0;
+        StringBuilder Summary = new StringBuilder();
+        foreach (NamedSource Diagram in Diagrams)
+        {
+            FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.Evaluate(Diagram.Name, Diagram.Source);
+            foreach (FlowchartLayoutQualityFailure Tolerated in Report.Tolerated)
+            {
+                Assert.That(
+                    FlowchartLayoutQualityJustification.IsSpecificReason(Tolerated.Justification),
+                    Is.True,
+                    Diagram.Name + " tolerated a non-specific reason: " + Tolerated.Justification);
+            }
+
+            if (Report.Passes)
+            {
+                continue;
+            }
+
+            Failed++;
+            Summary.AppendLine(FormatReport(Report));
+        }
+
+        TestContext.Out.WriteLine(
+            "Quality gate diagrams: "
+            + Diagrams.Count.ToString(CultureInfo.InvariantCulture)
+            + ", failed: "
+            + Failed.ToString(CultureInfo.InvariantCulture));
+        TestContext.Out.WriteLine(Summary.ToString());
+        TestContext.Out.WriteLine(
+            "Gate fail count: "
+            + Failed.ToString(CultureInfo.InvariantCulture)
+            + " of "
+            + Diagrams.Count.ToString(CultureInfo.InvariantCulture));
+        Assert.That(Diagrams.Count, Is.GreaterThan(20));
+    }
+
+    private static List<NamedSource> LoadEnterpriseSamples()
+    {
+        List<NamedSource> Diagrams = [];
+        string DirectoryPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "EnterpriseFlowchartSamples");
+        if (!Directory.Exists(DirectoryPath))
+        {
+            return Diagrams;
+        }
+
+        foreach (string FilePath in Directory.GetFiles(DirectoryPath, "*-flowchart.mmd").OrderBy(Path.GetFileName, StringComparer.Ordinal))
+        {
+            Diagrams.Add(new NamedSource(Path.GetFileNameWithoutExtension(FilePath), File.ReadAllText(FilePath)));
+        }
+
+        return Diagrams;
+    }
+
+    private static List<NamedSource> LoadCatalogueSubgraphDiagrams()
+    {
+        List<NamedSource> Diagrams = [];
+        string FlowPath = FindRepoFile("flow.md");
+        string Markdown = File.ReadAllText(FlowPath);
+        foreach (string FixtureId in CatalogueSubgraphIds)
+        {
+            if (TryExtractFixture(Markdown, FixtureId, out string Source))
+            {
+                Diagrams.Add(new NamedSource(FixtureId, Source));
+            }
+        }
+
+        return Diagrams;
+    }
+
+    private static bool TryExtractFixture(string Markdown, string FixtureId, out string Source)
+    {
+        Source = string.Empty;
+        Match Heading = Regex.Match(
+            Markdown,
+            @"^### " + Regex.Escape(FixtureId) + @"\b[^\n]*\n+(?:```mermaid\n)(.*?)```",
+            RegexOptions.CultureInvariant | RegexOptions.Singleline | RegexOptions.Multiline);
+        if (!Heading.Success)
+        {
+            return false;
+        }
+
+        Source = Heading.Groups[1].Value.Trim();
+        return !string.IsNullOrWhiteSpace(Source);
+    }
+
+    private static void DumpLivePicture(string DiagramName, string Source)
+    {
+        Assert.That(NativeFlowchartRenderBridge.TryRenderFlowchartSvg(Source, out string Svg), Is.True);
+        FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.EvaluatePicture(
+            DiagramName,
+            Source,
+            Svg);
+        TestContext.Out.WriteLine(FormatReport(Report));
+        TestContext.Out.WriteLine(
+            DiagramName
+            + " live EvaluatePicture failures="
+            + Report.Failures.Count.ToString(CultureInfo.InvariantCulture));
+    }
+
+    private static void AssertDetected(
+        FlowchartRenderedSvgQualityReport Report,
+        string Kind,
+        params string[] InvolvedIds)
+    {
+        List<FlowchartLayoutQualityFailure> All = [];
+        All.AddRange(Report.Failures);
+        All.AddRange(Report.Tolerated);
+        foreach (FlowchartLayoutQualityFailure Failure in All)
+        {
+            if (!string.Equals(Failure.Kind, Kind, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (Kind == "LabelOwnEdge" || Kind == "LabelOnBox")
+            {
+                bool AllFound = true;
+                foreach (string Token in InvolvedIds)
+                {
+                    if (!Failure.Description.Contains(Token, StringComparison.Ordinal)
+                        && !ContainsId(Failure, Token))
+                    {
+                        AllFound = false;
+                        break;
+                    }
+                }
+
+                if (AllFound)
+                {
+                    return;
+                }
+
+                continue;
+            }
+
+            if (ContainsAllIds(Failure, InvolvedIds))
+            {
+                return;
+            }
+        }
+
+        Assert.Fail(
+            "The gate did not report "
+            + Kind
+            + " for "
+            + string.Join(", ", InvolvedIds)
+            + "."
+            + Environment.NewLine
+            + FormatReport(Report));
+    }
+
+    private static bool ContainsAllIds(FlowchartLayoutQualityFailure Failure, IReadOnlyList<string> InvolvedIds)
+    {
+        foreach (string Id in InvolvedIds)
+        {
+            bool Found = Failure.Description.Contains(Id, StringComparison.Ordinal);
+            if (!Found)
+            {
+                foreach (string Involved in Failure.InvolvedIds)
+                {
+                    if (string.Equals(Involved, Id, StringComparison.Ordinal))
+                    {
+                        Found = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!Found)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool ContainsId(FlowchartLayoutQualityFailure Failure, string Id)
+    {
+        foreach (string Involved in Failure.InvolvedIds)
+        {
+            if (string.Equals(Involved, Id, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static string FindEnterpriseSample(string FileName)
+    {
+        string FromOutput = Path.Combine(
+            TestContext.CurrentContext.TestDirectory,
+            "EnterpriseFlowchartSamples",
+            FileName);
+        if (File.Exists(FromOutput))
+        {
+            return FromOutput;
+        }
+
+        return Path.Combine(FindRepoRoot(), "tests", "MermaidRecognition.Layout.Tests", "EnterpriseFlowchartSamples", FileName);
+    }
+
+    private static FlowchartRenderedSvgQualityReport EvaluateVisible(string FileName, string Source)
+    {
+        string Svg = File.ReadAllText(FindFixture(FileName));
+        FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.EvaluatePicture(
+            FileName,
+            Source,
+            Svg);
+        TestContext.Out.WriteLine(FormatReport(Report));
+        return Report;
+    }
+
+    private static string FindFixture(string FileName)
+    {
+        string FromOutput = Path.Combine(
+            TestContext.CurrentContext.TestDirectory,
+            "QualityGateFixtures",
+            FileName);
+        if (File.Exists(FromOutput))
+        {
+            return FromOutput;
+        }
+
+        return Path.Combine(FindRepoRoot(), "tests", "MermaidRecognition.Layout.Tests", "QualityGateFixtures", FileName);
+    }
+
+    private static string FindRepoRoot()
+    {
+        DirectoryInfo? Cursor = new DirectoryInfo(TestContext.CurrentContext.TestDirectory);
+        while (Cursor is not null)
+        {
+            if (File.Exists(Path.Combine(Cursor.FullName, "flow.md")))
+            {
+                return Cursor.FullName;
+            }
+
+            Cursor = Cursor.Parent;
+        }
+
+        throw new DirectoryNotFoundException("Could not find the repository root.");
+    }
+
+    private static string FindRepoFile(string FileName)
+    {
+        DirectoryInfo? Cursor = new DirectoryInfo(TestContext.CurrentContext.TestDirectory);
+        while (Cursor is not null)
+        {
+            string Candidate = Path.Combine(Cursor.FullName, FileName);
+            if (File.Exists(Candidate))
+            {
+                return Candidate;
+            }
+
+            Cursor = Cursor.Parent;
+        }
+
+        throw new FileNotFoundException(FileName);
+    }
+
+    private static string FormatReport(FlowchartRenderedSvgQualityReport Report)
+    {
+        StringBuilder Builder = new StringBuilder();
+        Builder.Append(Report.DiagramName);
+        Builder.Append(": ");
+        Builder.Append(Report.Failures.Count.ToString(CultureInfo.InvariantCulture));
+        Builder.Append(" unjustified, ");
+        Builder.Append(Report.Tolerated.Count.ToString(CultureInfo.InvariantCulture));
+        Builder.Append(" tolerated");
+        Builder.AppendLine();
+        foreach (FlowchartLayoutQualityFailure Failure in Report.Failures)
+        {
+            Builder.Append("  FAIL ");
+            Builder.Append(Failure.Kind);
+            Builder.Append(": ");
+            Builder.AppendLine(Failure.Description);
+        }
+
+        foreach (FlowchartLayoutQualityFailure Tolerated in Report.Tolerated)
+        {
+            Builder.Append("  TOLERATED ");
+            Builder.Append(Tolerated.Kind);
+            Builder.Append(": ");
+            Builder.Append(Tolerated.Description);
+            Builder.Append(" [");
+            Builder.Append(Tolerated.Justification);
+            Builder.AppendLine("]");
+        }
+
+        return Builder.ToString();
+    }
+
+    private sealed class NamedSource
+    {
+        public NamedSource(string Name, string Source)
+        {
+            this.Name = Name;
+            this.Source = Source;
+        }
+
+        public string Name { get; }
+
+        public string Source { get; }
+    }
+}

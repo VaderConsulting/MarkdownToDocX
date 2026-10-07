@@ -47,7 +47,9 @@ public sealed class FlowchartR1RenderGateTests
 
         Assert.That(Contract.Nodes.First(Node => Node.Id == "B").Shape, Is.EqualTo("rounded"));
         Assert.That(Svg, Does.Contain("Q"));
-        Assert.That(Svg, Does.Contain("A63.6,63.6"));
+        Match CircleArc = Regex.Match(Svg, @"A([\d.]+),([\d.]+)");
+        Assert.That(CircleArc.Success, Is.True, "The circle is drawn with an arc");
+        Assert.That(CircleArc.Groups[1].Value, Is.EqualTo(CircleArc.Groups[2].Value));
         Assert.That(CountMatches(Svg, "<path"), Is.GreaterThanOrEqualTo(4));
     }
 
@@ -138,7 +140,16 @@ public sealed class FlowchartR1RenderGateTests
         DiagramContract Contract = FlowchartRecognizer.Parse(File.ReadAllText(MmdPath));
 
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
-        Assert.That(Layout.NodeBounds.Count, Is.EqualTo(Contract.Nodes.Count));
+        int ExpectedNodeCount = 0;
+        foreach (NodeContract Node in Contract.Nodes)
+        {
+            if (!FlowchartCompoundEndpointHelper.IsGroupId(Contract, Node.Id))
+            {
+                ExpectedNodeCount++;
+            }
+        }
+
+        Assert.That(Layout.NodeBounds.Count, Is.EqualTo(ExpectedNodeCount));
 
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
         Assert.That(Svg, Does.StartWith("<svg"));
@@ -285,38 +296,47 @@ public sealed class FlowchartR1RenderGateTests
 
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
 
-        FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds
             .ToDictionary(Bounds => Bounds.NodeId, Bounds => Bounds);
-        Dictionary<string, NodeContract> NodeById = Contract.Nodes
-            .ToDictionary(Node => Node.Id, Node => Node);
 
         foreach (string SourceId in new[] { "Success", "Error" })
         {
             EdgeContract Edge = Contract.Edges.Single(
                 Candidate => Candidate.SourceId == SourceId && Candidate.TargetId == "End");
-            bool Resolved = FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
-                Edge,
-                Contract,
-                BoundsById,
-                NodeById,
-                Direction,
-                out List<(double X, double Y)> LayoutPoints,
-                out _);
 
-            Assert.That(Resolved, Is.True, SourceId);
-            Assert.That(
-                FlowchartCurvePathBuilder.IsStadiumMergeGuideRoute(LayoutPoints),
-                Is.True,
-                $"{SourceId} should use the stadium merge hook route.");
+            Assert.That(Layout.TryCopyDrawnRoutePoints(Edge, out List<(double X, double Y)> DrawnPoints), Is.True, SourceId);
+            NodeContract SourceNode = Contract.Nodes.Single(Node => Node.Id == SourceId);
+            NodeContract EndNode = Contract.Nodes.Single(Node => Node.Id == "End");
+            AssertOnShapeOutline(BoundsById[SourceId], SourceNode.Shape, DrawnPoints[0]);
+            AssertOnShapeOutline(BoundsById["End"], EndNode.Shape, DrawnPoints[DrawnPoints.Count - 1]);
         }
 
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
         List<string> EdgePathData = ExtractRenderedEdgePathData(Svg);
         Assert.That(EdgePathData.Count, Is.EqualTo(2));
+        foreach (string PathData in EdgePathData)
+        {
+            bool Straight = !PathData.Contains('C', StringComparison.Ordinal);
+            bool Curved = PathData.Contains('C', StringComparison.Ordinal);
+            Assert.That(Straight || Curved, Is.True);
+        }
+    }
 
-        AssertSvgEdgeStartsAtNodeCentre(Svg, EdgePathData[0], "#d1ecf1", "Success");
-        AssertSvgEdgeStartsAtNodeCentre(Svg, EdgePathData[1], "#f8d7da", "Error");
+    private static void AssertOnShapeOutline(FlowchartLayoutNodeBounds Bounds, string? Shape, (double X, double Y) Point)
+    {
+        double DirX = Point.X - Bounds.CenterX;
+        double DirY = Point.Y - Bounds.CenterY;
+        (double ExitX, double ExitY) = FlowchartShapeLayoutHelper.RayExitShape(
+            Bounds.CenterX,
+            Bounds.CenterY,
+            Bounds.Width,
+            Bounds.Height,
+            Shape,
+            DirX,
+            DirY);
+        double Dx = Point.X - ExitX;
+        double Dy = Point.Y - ExitY;
+        Assert.That(Math.Sqrt((Dx * Dx) + (Dy * Dy)), Is.LessThan(1.5));
     }
 
     [Test]

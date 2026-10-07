@@ -177,8 +177,23 @@ public static class FlowchartSubgraphSpineCenterHelper
         double BottomExtent = RowCenterY - MinY;
         double TopExtent = MaxY - RowCenterY;
         double HalfSpan = Math.Max(BottomExtent, TopExtent);
-        MinY = RowCenterY - HalfSpan;
-        MaxY = RowCenterY + HalfSpan;
+        double ExpandedMinY = RowCenterY - HalfSpan;
+        double ExpandedMaxY = RowCenterY + HalfSpan;
+        if (ExpandedRangeContainsNonMember(
+                Contract,
+                Group,
+                BoundsById,
+                ExpandedMinY,
+                ExpandedMaxY,
+                MinY,
+                MaxY,
+                CheckHorizontal: false))
+        {
+            return;
+        }
+
+        MinY = ExpandedMinY;
+        MaxY = ExpandedMaxY;
     }
 
     /// <summary>
@@ -246,8 +261,23 @@ public static class FlowchartSubgraphSpineCenterHelper
         double LeftExtent = ColumnCenterX - MinX;
         double RightExtent = MaxX - ColumnCenterX;
         double HalfSpan = Math.Max(LeftExtent, RightExtent);
-        MinX = ColumnCenterX - HalfSpan;
-        MaxX = ColumnCenterX + HalfSpan;
+        double ExpandedMinX = ColumnCenterX - HalfSpan;
+        double ExpandedMaxX = ColumnCenterX + HalfSpan;
+        if (ExpandedRangeContainsNonMember(
+                Contract,
+                Group,
+                BoundsById,
+                ExpandedMinX,
+                ExpandedMaxX,
+                MinX,
+                MaxX,
+                CheckHorizontal: true))
+        {
+            return;
+        }
+
+        MinX = ExpandedMinX;
+        MaxX = ExpandedMaxX;
     }
 
     private static double ScoreHorizontalChainSpan(
@@ -316,6 +346,70 @@ public static class FlowchartSubgraphSpineCenterHelper
         }
 
         return MaxY - MinY;
+    }
+
+    private static bool ExpandedRangeContainsNonMember(
+        DiagramContract Contract,
+        GroupContract Group,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        double ExpandedMin,
+        double ExpandedMax,
+        double CurrentMin,
+        double CurrentMax,
+        bool CheckHorizontal)
+    {
+        HashSet<string> MemberIds = CollectMemberNodeIds(Group, Contract);
+        double BandMin = double.MaxValue;
+        double BandMax = double.MinValue;
+        foreach (string MemberId in MemberIds)
+        {
+            if (!BoundsById.TryGetValue(MemberId, out FlowchartLayoutNodeBounds MemberBounds))
+            {
+                continue;
+            }
+
+            if (CheckHorizontal)
+            {
+                BandMin = Math.Min(BandMin, MemberBounds.CenterY - (MemberBounds.Height / 2.0));
+                BandMax = Math.Max(BandMax, MemberBounds.CenterY + (MemberBounds.Height / 2.0));
+            }
+            else
+            {
+                BandMin = Math.Min(BandMin, MemberBounds.CenterX - (MemberBounds.Width / 2.0));
+                BandMax = Math.Max(BandMax, MemberBounds.CenterX + (MemberBounds.Width / 2.0));
+            }
+        }
+
+        foreach (KeyValuePair<string, FlowchartLayoutNodeBounds> Pair in BoundsById)
+        {
+            if (MemberIds.Contains(Pair.Key))
+            {
+                continue;
+            }
+
+            FlowchartLayoutNodeBounds Bounds = Pair.Value;
+            double AxisMin = CheckHorizontal
+                ? Bounds.CenterX - (Bounds.Width / 2.0)
+                : Bounds.CenterY - (Bounds.Height / 2.0);
+            double AxisMax = CheckHorizontal
+                ? Bounds.CenterX + (Bounds.Width / 2.0)
+                : Bounds.CenterY + (Bounds.Height / 2.0);
+            double CrossMin = CheckHorizontal
+                ? Bounds.CenterY - (Bounds.Height / 2.0)
+                : Bounds.CenterX - (Bounds.Width / 2.0);
+            double CrossMax = CheckHorizontal
+                ? Bounds.CenterY + (Bounds.Height / 2.0)
+                : Bounds.CenterX + (Bounds.Width / 2.0);
+            bool InExpanded = AxisMax > ExpandedMin && AxisMin < ExpandedMax;
+            bool OutsideCurrent = AxisMax <= CurrentMin || AxisMin >= CurrentMax;
+            bool InBand = CrossMax > BandMin && CrossMin < BandMax;
+            if (InExpanded && OutsideCurrent && InBand)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static HashSet<string> CollectMemberNodeIds(GroupContract Group, DiagramContract Contract)

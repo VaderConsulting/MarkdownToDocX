@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="301" height="86" viewBox="0 0 301 86"><rect x="0" y="0" width="300.18000000000006" height="86" fill="white"/><line x1="114.98000000000002" y1="43" x2="155.98000000000002" y2="43" stroke="#333333" stroke-width="1" stroke-linecap="butt" data-edge-source="A" data-edge-target="B"/><path d="M23.75,11.5
+L99.23,11.5
+L114.98,43
+L99.23,74.5
+L23.75,74.5
+L8,43 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><path d="M164.98,8 H292.18 V78 H164.98 Z" fill="#ECECFF" stroke="#9370DB" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/><polygon points="165.98000000000002,43 155.98000000000002,46.5 155.98000000000002,39.5" fill="#333333" stroke="none"/><text x="61.49" y="48.76" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Hexagon</text><text x="228.58" y="48.76" text-anchor="middle" fill="#333" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16" font-weight="normal">Next</text></svg>

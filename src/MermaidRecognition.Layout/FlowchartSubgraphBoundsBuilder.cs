@@ -24,7 +24,7 @@ public static class FlowchartSubgraphBoundsBuilder
     /// <summary>
     /// Extra vertical space below member content (balances the title band; Naiad/Mermaid parity).
     /// </summary>
-    public const double VERTICAL_CONTENT_SLACK_PX = 26.0;
+    public const double VERTICAL_CONTENT_SLACK_PX = 8.0;
 
     /// <summary>
     /// Minimum exterior gap between a nested child subgraph cluster border and its parent cluster border.
@@ -277,18 +277,24 @@ public static class FlowchartSubgraphBoundsBuilder
         if (HasAny)
         {
             IncludeInternalLoopBackRoutes(Contract, Group, BoundsById, ref MinX, ref MinY, ref MaxX, ref MaxY);
-            FlowchartSubgraphSpineCenterHelper.ExpandHorizontalBoundsAroundPrimaryColumn(
-                Contract,
-                Group,
-                BoundsById,
-                ref MinX,
-                ref MaxX);
-            FlowchartSubgraphSpineCenterHelper.ExpandVerticalBoundsAroundPrimaryRow(
-                Contract,
-                Group,
-                BoundsById,
-                ref MinY,
-                ref MaxY);
+            if (FlowchartSubgraphSpineCenterHelper.IsColumnLed(Contract, Group, BoundsById))
+            {
+                FlowchartSubgraphSpineCenterHelper.ExpandHorizontalBoundsAroundPrimaryColumn(
+                    Contract,
+                    Group,
+                    BoundsById,
+                    ref MinX,
+                    ref MaxX);
+            }
+            else
+            {
+                FlowchartSubgraphSpineCenterHelper.ExpandVerticalBoundsAroundPrimaryRow(
+                    Contract,
+                    Group,
+                    BoundsById,
+                    ref MinY,
+                    ref MaxY);
+            }
         }
 
         return HasAny;

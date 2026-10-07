@@ -22,7 +22,7 @@ public sealed class F104FeedbackLoopRenderTests
 
         FlowchartLayoutNodeBounds NodeA = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "A");
         FlowchartLayoutNodeBounds NodeB = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "B");
-        Assert.That(NodeB.CenterY, Is.GreaterThan(NodeA.CenterY), "B should be above A in layout");
+        Assert.That(NodeA.CenterY, Is.GreaterThan(NodeB.CenterY), "A should be above B in layout");
 
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
 
@@ -33,12 +33,12 @@ public sealed class F104FeedbackLoopRenderTests
 
         double SvgAy = double.Parse(LabelA.Groups[1].Value, CultureInfo.InvariantCulture);
         double SvgBy = double.Parse(LabelB.Groups[1].Value, CultureInfo.InvariantCulture);
-        Assert.That(SvgBy, Is.LessThan(SvgAy), "B should render above A");
+        Assert.That(SvgAy, Is.LessThan(SvgBy), "A should render above B");
 
-        List<double> LineX1 = SvgStraightConnectorReader.Read(Svg)
-            .Select(Connector => Connector.X1)
-            .ToList();
-        Assert.That(LineX1, Has.Count.EqualTo(2));
-        Assert.That(Math.Abs(LineX1[0] - LineX1[1]), Is.GreaterThan(5.0), "Feedback edges should be horizontally separated");
+        Assert.That(Layout.EdgeRoutes, Has.Count.EqualTo(2));
+        FlowchartLayoutPoint FirstMid = Layout.EdgeRoutes[0].Points[Layout.EdgeRoutes[0].Points.Count / 2];
+        FlowchartLayoutPoint SecondMid = Layout.EdgeRoutes[1].Points[Layout.EdgeRoutes[1].Points.Count / 2];
+        double Separation = Math.Abs(FirstMid.X - SecondMid.X);
+        Assert.That(Separation, Is.GreaterThan(5.0), "Feedback edges should be horizontally separated");
     }
 }

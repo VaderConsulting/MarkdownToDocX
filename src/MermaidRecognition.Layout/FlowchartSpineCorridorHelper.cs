@@ -95,4 +95,38 @@ public static class FlowchartSpineCorridorHelper
             Bottom - CORRIDOR_PADDING_PX);
         return true;
     }
+
+    /// <summary>
+    /// Builds the spine corridor from every spine node except <paramref name="ExcludedNodeId"/>.
+    /// A decision branch starts inside its own diamond, so that box must not count as an obstacle.
+    /// </summary>
+    public static bool TryBuildCorridorExcluding(
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        FlowchartSpineLayoutContext Context,
+        string ExcludedNodeId,
+        out FlowchartSpineCorridorBounds Corridor)
+    {
+        Dictionary<string, FlowchartLayoutNodeBounds> Reduced =
+            new Dictionary<string, FlowchartLayoutNodeBounds>(StringComparer.Ordinal);
+        foreach (string SpineNodeId in Context.SpineNodeIds)
+        {
+            if (string.Equals(SpineNodeId, ExcludedNodeId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (BoundsById.TryGetValue(SpineNodeId, out FlowchartLayoutNodeBounds NodeBounds))
+            {
+                Reduced[SpineNodeId] = NodeBounds;
+            }
+        }
+
+        FlowchartSpineLayoutContext ReducedContext = new FlowchartSpineLayoutContext(
+            new HashSet<string>(Reduced.Keys, StringComparer.Ordinal),
+            Context.PrimaryRootId,
+            Context.PrimarySinkId,
+            Context.SpineCrossAxis,
+            Context.ColumnStep);
+        return TryBuildCorridor(Reduced, ReducedContext, out Corridor);
+    }
 }

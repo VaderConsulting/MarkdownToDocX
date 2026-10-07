@@ -479,44 +479,112 @@ public static class FlowchartLayoutPostProcessor
             MutableById[Bounds.NodeId] = Bounds;
         }
 
-        if (HorizontalFlow)
+        FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
+        double RankGap = Math.Max(24.0, Options.RankSpacingPx);
+        foreach (string RootNodeId in RootNodeIds)
         {
-            double SharedCenterX = ReverseFlow
-                ? RootNodeIds.Select(NodeId => MutableById[NodeId].CenterX).Max()
-                : RootNodeIds.Select(NodeId => MutableById[NodeId].CenterX).Min();
-            foreach (string RootNodeId in RootNodeIds)
+            FlowchartLayoutNodeBounds RootBounds = MutableById[RootNodeId];
+            if (!TryGetFacingSuccessorBounds(RootNodeId, Contract, MutableById, HorizontalFlow, ReverseFlow, out FlowchartLayoutNodeBounds SuccessorBounds))
             {
-                FlowchartLayoutNodeBounds Bounds = MutableById[RootNodeId];
+                continue;
+            }
+
+            if (HorizontalFlow)
+            {
+                double SuccessorEdge = ReverseFlow
+                    ? SuccessorBounds.CenterX + (SuccessorBounds.Width / 2.0)
+                    : SuccessorBounds.CenterX - (SuccessorBounds.Width / 2.0);
+                double RootHalf = RootBounds.Width / 2.0;
+                double DesiredCenterX = ReverseFlow
+                    ? SuccessorEdge + RankGap + RootHalf
+                    : SuccessorEdge - RankGap - RootHalf;
                 MutableById[RootNodeId] = new FlowchartLayoutNodeBounds
                 {
-                    NodeId = Bounds.NodeId,
-                    CenterX = SharedCenterX,
-                    CenterY = Bounds.CenterY,
-                    Width = Bounds.Width,
-                    Height = Bounds.Height
+                    NodeId = RootBounds.NodeId,
+                    CenterX = DesiredCenterX,
+                    CenterY = RootBounds.CenterY,
+                    Width = RootBounds.Width,
+                    Height = RootBounds.Height
                 };
             }
-        }
-        else
-        {
-            double SharedCenterY = ReverseFlow
-                ? RootNodeIds.Select(NodeId => MutableById[NodeId].CenterY).Max()
-                : RootNodeIds.Select(NodeId => MutableById[NodeId].CenterY).Min();
-            foreach (string RootNodeId in RootNodeIds)
+            else
             {
-                FlowchartLayoutNodeBounds Bounds = MutableById[RootNodeId];
+                double SuccessorEdge = ReverseFlow
+                    ? SuccessorBounds.CenterY - (SuccessorBounds.Height / 2.0)
+                    : SuccessorBounds.CenterY + (SuccessorBounds.Height / 2.0);
+                double RootHalf = RootBounds.Height / 2.0;
+                double DesiredCenterY = ReverseFlow
+                    ? SuccessorEdge - RankGap - RootHalf
+                    : SuccessorEdge + RankGap + RootHalf;
                 MutableById[RootNodeId] = new FlowchartLayoutNodeBounds
                 {
-                    NodeId = Bounds.NodeId,
-                    CenterX = Bounds.CenterX,
-                    CenterY = SharedCenterY,
-                    Width = Bounds.Width,
-                    Height = Bounds.Height
+                    NodeId = RootBounds.NodeId,
+                    CenterX = RootBounds.CenterX,
+                    CenterY = DesiredCenterY,
+                    Width = RootBounds.Width,
+                    Height = RootBounds.Height
                 };
             }
         }
 
         return MutableById.Values.ToList();
+    }
+
+    private static bool TryGetFacingSuccessorBounds(
+        string RootNodeId,
+        DiagramContract Contract,
+        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        bool HorizontalFlow,
+        bool ReverseFlow,
+        out FlowchartLayoutNodeBounds SuccessorBounds)
+    {
+        SuccessorBounds = new FlowchartLayoutNodeBounds();
+        bool Found = false;
+        foreach (EdgeContract Edge in Contract.Edges)
+        {
+            if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (!string.Equals(Edge.SourceId, RootNodeId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (!BoundsById.TryGetValue(Edge.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
+            {
+                continue;
+            }
+
+            if (!Found)
+            {
+                SuccessorBounds = TargetBounds;
+                Found = true;
+                continue;
+            }
+
+            bool PreferTarget;
+            if (HorizontalFlow)
+            {
+                PreferTarget = ReverseFlow
+                    ? TargetBounds.CenterX > SuccessorBounds.CenterX
+                    : TargetBounds.CenterX < SuccessorBounds.CenterX;
+            }
+            else
+            {
+                PreferTarget = ReverseFlow
+                    ? TargetBounds.CenterY < SuccessorBounds.CenterY
+                    : TargetBounds.CenterY > SuccessorBounds.CenterY;
+            }
+
+            if (PreferTarget)
+            {
+                SuccessorBounds = TargetBounds;
+            }
+        }
+
+        return Found;
     }
 
     private static List<FlowchartLayoutNodeBounds> ExpandFlowAxisGapForMinLength(

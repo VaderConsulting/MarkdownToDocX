@@ -13,10 +13,126 @@ namespace MermaidRecognition.Layout;
 /// </summary>
 public static class FlowchartEdgeRouteResolver
 {
+    private static DiagramContract? _CachedRouteContract;
+
+    private static List<FlowchartResolvedGuide>? _CachedRouteGuides;
+
     /// <summary>
     /// Resolves guide points in MSAGL layout coordinates for an edge.
+    /// Uses the same shared search as the rest of the diagram so a single-edge
+    /// lookup cannot pick a different path.
     /// </summary>
     public static bool TryResolveLayoutGuidePoints(
+        EdgeContract Edge,
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        IReadOnlyDictionary<string, NodeContract> NodeById,
+        FlowchartDirection Direction,
+        out List<(double X, double Y)> LayoutPoints,
+        out FlowchartEdgeRouteKind RouteKind)
+    {
+        List<FlowchartResolvedGuide> Guides = GetOrResolveAllVisibleGuidePoints(
+            Contract,
+            BoundsById,
+            NodeById,
+            Direction);
+        foreach (FlowchartResolvedGuide Guide in Guides)
+        {
+            if (!IsSameEdge(Guide.Edge, Edge))
+            {
+                continue;
+            }
+
+            LayoutPoints = new List<(double X, double Y)>(Guide.Points);
+            RouteKind = Guide.RouteKind;
+            return LayoutPoints.Count >= 2;
+        }
+
+        LayoutPoints = [];
+        RouteKind = FlowchartEdgeRouteKind.Unknown;
+        return false;
+    }
+
+    private static List<FlowchartResolvedGuide> GetOrResolveAllVisibleGuidePoints(
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        IReadOnlyDictionary<string, NodeContract> NodeById,
+        FlowchartDirection Direction)
+    {
+        if (_CachedRouteGuides != null && ReferenceEquals(_CachedRouteContract, Contract))
+        {
+            return _CachedRouteGuides;
+        }
+
+        return ResolveAllVisibleGuidePoints(Contract, BoundsById, NodeById, Direction);
+    }
+
+    private static bool IsSameEdge(EdgeContract Left, EdgeContract Right)
+    {
+        if (!string.IsNullOrEmpty(Left.Id)
+            && !string.IsNullOrEmpty(Right.Id)
+            && string.Equals(Left.Id, Right.Id, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        return string.Equals(Left.SourceId, Right.SourceId, StringComparison.Ordinal)
+            && string.Equals(Left.TargetId, Right.TargetId, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Resolves every visible edge, then applies diagram-wide parallel separation.
+    /// </summary>
+    /// <param name="Contract">The diagram.</param>
+    /// <param name="BoundsById">Node bounds, including group rectangles when present.</param>
+    /// <param name="NodeById">Nodes by id.</param>
+    /// <param name="Direction">Diagram direction.</param>
+    /// <returns>Resolved guides in contract edge order.</returns>
+    public static List<FlowchartResolvedGuide> ResolveAllVisibleGuidePoints(
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        IReadOnlyDictionary<string, NodeContract> NodeById,
+        FlowchartDirection Direction)
+    {
+        Dictionary<string, FlowchartLayoutNodeBounds> MutableBounds =
+            new Dictionary<string, FlowchartLayoutNodeBounds>(StringComparer.Ordinal);
+        foreach (KeyValuePair<string, FlowchartLayoutNodeBounds> Pair in BoundsById)
+        {
+            MutableBounds[Pair.Key] = Pair.Value;
+        }
+
+        FlowchartCompoundEndpointHelper.AddGroupBounds(Contract, MutableBounds);
+
+        List<FlowchartResolvedGuide> Guides = [];
+        foreach (EdgeContract Edge in Contract.Edges)
+        {
+            if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (!TryResolveRawLayoutGuidePoints(
+                    Edge,
+                    Contract,
+                    MutableBounds,
+                    NodeById,
+                    Direction,
+                    out List<(double X, double Y)> Points,
+                    out FlowchartEdgeRouteKind RouteKind))
+            {
+                continue;
+            }
+
+            Guides.Add(new FlowchartResolvedGuide(Edge, Points, RouteKind));
+        }
+
+        FlowchartSharedEdgeRouter.RouteAll(Contract, MutableBounds, NodeById, Direction, Guides);
+        _CachedRouteContract = Contract;
+        _CachedRouteGuides = Guides;
+        return Guides;
+    }
+
+    private static bool TryResolveRawLayoutGuidePoints(
         EdgeContract Edge,
         DiagramContract Contract,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
@@ -33,8 +149,34 @@ public static class FlowchartEdgeRouteResolver
             return false;
         }
 
-        if (!BoundsById.TryGetValue(Edge.SourceId, out FlowchartLayoutNodeBounds SourceBounds)
-            || !BoundsById.TryGetValue(Edge.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> EffectiveBounds = BoundsById;
+        if (FlowchartCompoundEndpointHelper.IsGroupId(Contract, Edge.SourceId)
+            || FlowchartCompoundEndpointHelper.IsGroupId(Contract, Edge.TargetId))
+        {
+            Dictionary<string, FlowchartLayoutNodeBounds> WithGroups =
+                new Dictionary<string, FlowchartLayoutNodeBounds>(StringComparer.Ordinal);
+            foreach (KeyValuePair<string, FlowchartLayoutNodeBounds> Pair in BoundsById)
+            {
+                WithGroups[Pair.Key] = Pair.Value;
+            }
+
+            FlowchartCompoundEndpointHelper.AddGroupBounds(Contract, WithGroups);
+            if (FlowchartCompoundEndpointHelper.TryBuildFacingBoundaryPath(
+                    Edge,
+                    Contract,
+                    WithGroups,
+                    NodeById,
+                    out LayoutPoints))
+            {
+                RouteKind = FlowchartEdgeRouteKind.Straight;
+                return true;
+            }
+
+            EffectiveBounds = WithGroups;
+        }
+
+        if (!EffectiveBounds.TryGetValue(Edge.SourceId, out FlowchartLayoutNodeBounds SourceBounds)
+            || !EffectiveBounds.TryGetValue(Edge.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
         {
             return false;
         }
@@ -510,6 +652,43 @@ public static class FlowchartEdgeRouteResolver
 
         return FlowchartEdgeRouteKind.CrossGroup;
     }
+}
+
+/// <summary>
+/// One resolved visible edge after the shared quality pass.
+/// </summary>
+public sealed class FlowchartResolvedGuide
+{
+    /// <summary>
+    /// Creates a resolved guide.
+    /// </summary>
+    /// <param name="Edge">The edge.</param>
+    /// <param name="Points">Layout guide points.</param>
+    /// <param name="RouteKind">Resolved kind.</param>
+    public FlowchartResolvedGuide(
+        EdgeContract Edge,
+        List<(double X, double Y)> Points,
+        FlowchartEdgeRouteKind RouteKind)
+    {
+        this.Edge = Edge;
+        this.Points = Points;
+        this.RouteKind = RouteKind;
+    }
+
+    /// <summary>
+    /// The edge.
+    /// </summary>
+    public EdgeContract Edge { get; }
+
+    /// <summary>
+    /// Layout guide points.
+    /// </summary>
+    public List<(double X, double Y)> Points { get; }
+
+    /// <summary>
+    /// Resolved kind.
+    /// </summary>
+    public FlowchartEdgeRouteKind RouteKind { get; set; }
 }
 
 /// <summary>

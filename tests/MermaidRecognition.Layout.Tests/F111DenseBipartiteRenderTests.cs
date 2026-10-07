@@ -46,21 +46,79 @@ public sealed class F111DenseBipartiteRenderTests
         Dictionary<string, NodeContract> NodeById = Contract.Nodes
             .ToDictionary(Node => Node.Id, Node => Node);
 
-        List<double> L1SourceAttachX = CollectSourceAttachX(Contract, BoundsById, NodeById, Direction, "L1");
-        Assert.That(L1SourceAttachX, Has.Count.EqualTo(3));
-        Assert.That(L1SourceAttachX.Distinct().Count(), Is.EqualTo(3), "L1 outgoing edges should use three bottom slots");
+        List<(double X, double Y)> L1Starts = DrawnEnds(Contract, Layout, "L1", AtTarget: false);
+        List<(double X, double Y)> R1Ends = DrawnEnds(Contract, Layout, "R1", AtTarget: true);
+        Assert.That(L1Starts, Has.Count.EqualTo(3));
+        Assert.That(R1Ends, Has.Count.EqualTo(3));
+        Assert.That(DistinctPoints(L1Starts), Is.EqualTo(3), "L1 outgoing edges should not share a terminal");
+        Assert.That(DistinctPoints(R1Ends), Is.EqualTo(3), "R1 incoming edges should not share a terminal");
+        AssertOutline(BoundsById["L1"], L1Starts);
+        AssertOutline(BoundsById["R1"], R1Ends);
+    }
 
-        List<double> R1TargetAttachX = CollectTargetAttachX(Contract, BoundsById, NodeById, Direction, "R1");
-        Assert.That(R1TargetAttachX, Has.Count.EqualTo(3));
-        Assert.That(R1TargetAttachX.Distinct().Count(), Is.EqualTo(3), "R1 incoming edges should use three top slots");
+    private static List<(double X, double Y)> DrawnEnds(
+        DiagramContract Contract,
+        FlowchartLayoutResult Layout,
+        string NodeId,
+        bool AtTarget)
+    {
+        List<(double X, double Y)> Ends = [];
+        foreach (EdgeContract Edge in Contract.Edges)
+        {
+            bool Match = AtTarget
+                ? string.Equals(Edge.TargetId, NodeId, StringComparison.Ordinal)
+                : string.Equals(Edge.SourceId, NodeId, StringComparison.Ordinal);
+            if (!Match)
+            {
+                continue;
+            }
 
-        double MinimumSeparationPx = 8.0;
-        Assert.That(
-            Math.Abs(L1SourceAttachX[0] - L1SourceAttachX[1]),
-            Is.GreaterThan(MinimumSeparationPx));
-        Assert.That(
-            Math.Abs(R1TargetAttachX[0] - R1TargetAttachX[1]),
-            Is.GreaterThan(MinimumSeparationPx));
+            Assert.That(Layout.TryCopyDrawnRoutePoints(Edge, out List<(double X, double Y)> Points), Is.True);
+            Ends.Add(AtTarget ? Points[Points.Count - 1] : Points[0]);
+        }
+
+        return Ends;
+    }
+
+    private static int DistinctPoints(List<(double X, double Y)> Points)
+    {
+        int Count = 0;
+        for (int Index = 0; Index < Points.Count; Index++)
+        {
+            bool Seen = false;
+            for (int Earlier = 0; Earlier < Index; Earlier++)
+            {
+                double Dx = Points[Index].X - Points[Earlier].X;
+                double Dy = Points[Index].Y - Points[Earlier].Y;
+                if ((Dx * Dx) + (Dy * Dy) < 1.0)
+                {
+                    Seen = true;
+                    break;
+                }
+            }
+
+            if (!Seen)
+            {
+                Count++;
+            }
+        }
+
+        return Count;
+    }
+
+    private static void AssertOutline(FlowchartLayoutNodeBounds Bounds, List<(double X, double Y)> Points)
+    {
+        double Left = Bounds.CenterX - (Bounds.Width / 2.0);
+        double Right = Bounds.CenterX + (Bounds.Width / 2.0);
+        double Bottom = Bounds.CenterY - (Bounds.Height / 2.0);
+        double Top = Bounds.CenterY + (Bounds.Height / 2.0);
+        foreach ((double X, double Y) Point in Points)
+        {
+            double EdgeDistance = Math.Min(
+                Math.Min(Math.Abs(Point.X - Left), Math.Abs(Point.X - Right)),
+                Math.Min(Math.Abs(Point.Y - Bottom), Math.Abs(Point.Y - Top)));
+            Assert.That(EdgeDistance, Is.LessThan(1.5));
+        }
     }
 
     [Test]

@@ -22,7 +22,8 @@ internal static class DrawnEdgeLabelLocator
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds.ToDictionary(Bounds => Bounds.NodeId, Bounds => Bounds, StringComparer.Ordinal);
         Dictionary<string, NodeContract> NodeById = Contract.Nodes.ToDictionary(Node => Node.Id, Node => Node, StringComparer.Ordinal);
-        if (!FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(Edge, Contract, BoundsById, NodeById, Direction, out List<(double X, double Y)> GuidePoints, out FlowchartEdgeRouteKind _))
+        if (!Layout.TryCopyDrawnRoutePoints(Edge, out List<(double X, double Y)> GuidePoints)
+            && !FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(Edge, Contract, BoundsById, NodeById, Direction, out GuidePoints, out FlowchartEdgeRouteKind _))
         {
             throw new InvalidOperationException($"Could not resolve guide points for {Edge.SourceId}->{Edge.TargetId}.");
         }

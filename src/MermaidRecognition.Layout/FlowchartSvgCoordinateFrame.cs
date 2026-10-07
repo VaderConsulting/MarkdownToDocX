@@ -128,6 +128,19 @@ public static class FlowchartSvgCoordinateFrameResolver
         }
 
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
+        FlowchartCompoundEndpointHelper.AddGroupBounds(Contract, BoundsById);
+        List<FlowchartResolvedGuide> ResolvedGuides = FlowchartEdgeRouteResolver.ResolveAllVisibleGuidePoints(
+            Contract,
+            BoundsById,
+            NodeById,
+            Direction);
+        Dictionary<EdgeContract, FlowchartResolvedGuide> GuideByEdge =
+            new Dictionary<EdgeContract, FlowchartResolvedGuide>();
+        foreach (FlowchartResolvedGuide Guide in ResolvedGuides)
+        {
+            GuideByEdge[Guide.Edge] = Guide;
+        }
+
         Dictionary<string, string> RouteClassByEdgeKey =
             FlowchartEdgeRoutingIntentAnalyzer.BuildRouteClassNamesByEdgeKey(Contract, Layout, Direction);
 
@@ -137,6 +150,7 @@ public static class FlowchartSvgCoordinateFrameResolver
             BoundsById,
             RouteClassByEdgeKey,
             Direction,
+            GuideByEdge,
             ref MinLeft,
             ref MinBottom,
             ref MaxRight,
@@ -154,10 +168,32 @@ public static class FlowchartSvgCoordinateFrameResolver
 
         FlowchartSubgraphBoundsRequest BoundsRequest =
             FlowchartSubgraphBoundsRequest.FromContract(Contract, RenderOptions);
-        List<FlowchartSubgraphLayoutRect> SubgraphRects =
-            FlowchartSubgraphBoundsBuilder.BuildOrderedRects(Contract, BoundsById, BoundsRequest);
+        List<FlowchartSubgraphLayoutRect> SubgraphRects = Layout.ClusterBounds.Count > 0
+            ? FlowchartSugiyamaSvgRenderer.BuildDagreClusterRects(Contract, Layout)
+            : FlowchartSubgraphBoundsBuilder.BuildOrderedRects(Contract, BoundsById, BoundsRequest);
+        if (Layout.ClusterBounds.Count > 0)
+        {
+            foreach (FlowchartLayoutNodeBounds Cluster in Layout.ClusterBounds)
+            {
+                BoundsById[Cluster.NodeId] = Cluster;
+            }
+        }
+
         FlowchartSubgraphBoundsBuilder.ExpandLayoutExtents(
             SubgraphRects,
+            ref MinLeft,
+            ref MinBottom,
+            ref MaxRight,
+            ref MaxTop);
+        FlowchartSugiyamaSvgRenderer.ExpandLayoutBoundsForExteriorStrokes(
+            ResolvedGuides,
+            DiagramPaddingPx,
+            ref MinLeft,
+            ref MinBottom,
+            ref MaxRight,
+            ref MaxTop);
+        FlowchartSugiyamaSvgRenderer.ExpandLayoutBoundsForDagreRoutes(
+            Layout,
             ref MinLeft,
             ref MinBottom,
             ref MaxRight,

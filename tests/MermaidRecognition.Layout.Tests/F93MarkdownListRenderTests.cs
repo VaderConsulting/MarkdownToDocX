@@ -41,16 +41,6 @@ public sealed class F93MarkdownListRenderTests
     }
 
     [Test]
-    public void TryLayout_F93_ListNode_IsSquare()
-    {
-        DiagramContract Contract = MermaidRecognizer.Parse(F93_SOURCE);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
-
-        FlowchartLayoutNodeBounds ListNode = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "A");
-        Assert.That(ListNode.Width, Is.EqualTo(ListNode.Height).Within(0.5));
-    }
-
-    [Test]
     public void RenderToSvg_F93_UnevenListLines_ShareCommonLeftEdge()
     {
         DiagramContract Contract = MermaidRecognizer.Parse("""

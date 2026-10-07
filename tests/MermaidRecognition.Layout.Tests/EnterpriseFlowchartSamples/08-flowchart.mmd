@@ -1,0 +1,9 @@
+flowchart TB
+  staff["Sales Staff"]
+  sellingCap(["Selling"])
+  winOrder(["Win Order"])
+  expand(["Expand Channels"])
+  staff --> sellingCap
+  sellingCap --> expand
+  winOrder --> sellingCap
+  expand --> sellingCap

@@ -71,6 +71,14 @@ public static class FlowchartSubgraphMembershipHelper
     /// </summary>
     public static string? FindInnermostGroupId(string NodeId, DiagramContract Contract)
     {
+        foreach (GroupContract Group in Contract.Groups)
+        {
+            if (string.Equals(Group.Id, NodeId, StringComparison.Ordinal))
+            {
+                return Group.Id;
+            }
+        }
+
         foreach (NodeContract Node in Contract.Nodes)
         {
             if (string.Equals(Node.Id, NodeId, StringComparison.Ordinal))

@@ -10,7 +10,10 @@ public static class FlowchartShapePathGenerator
 {
     private const double FLOWCHART_DOUBLE_CIRCLE_GAP_PX = 5.0;
 
-    private const double FLOWCHART_ROUNDED_RECT_RADIUS_PX = 5.0;
+    /// <summary>
+    /// Corner radius used by the rounded-rectangle shape.
+    /// </summary>
+    public const double FLOWCHART_ROUNDED_RECT_RADIUS_PX = 5.0;
 
     /// <summary>
     /// Returns the primary fill path for a node shape, or empty when the shape needs custom rendering (cylinder).

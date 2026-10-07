@@ -1,0 +1,27 @@
+flowchart TB
+  clerk["Order Clerk"]
+  seller["Seller"]
+  salesTeam["Sales Team"]
+  shopFront["Shop Front"]
+  fulfil(["Fulfil Orders"])
+  handoff(["Order Handoff"])
+  takeOrder(["Take Order"])
+  orderTaken(["Order Taken"])
+  selling(["Selling"])
+  orderForm["Order Form"]
+  terms["Terms of Sale"]
+  paperOrder["Paper Order"]
+  shopOffer["Shop Product"]
+  clerk --> seller
+  salesTeam --> seller
+  seller --> takeOrder
+  takeOrder --> selling
+  fulfil --> selling
+  shopFront --> selling
+  selling --> seller
+  takeOrder --> orderTaken
+  orderTaken --> handoff
+  takeOrder --> orderForm
+  terms --> orderForm
+  paperOrder --> orderForm
+  shopOffer --> selling

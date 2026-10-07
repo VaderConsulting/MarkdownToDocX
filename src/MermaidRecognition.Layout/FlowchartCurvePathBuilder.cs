@@ -42,6 +42,11 @@ public static class FlowchartCurvePathBuilder
 
     private const double AXIS_ALIGNMENT_TOLERANCE_PX = 0.75;
 
+    /// <summary>
+    /// After whole-pixel snapping, connection points this close in x or y are one straight segment.
+    /// </summary>
+    public const double AXIS_ALIGNED_ENDPOINT_TOLERANCE_PX = 1.0;
+
     private const double RETRY_LOOP_CORNER_RADIUS_PX = 28.0;
 
     /// <summary>
@@ -64,7 +69,79 @@ public static class FlowchartCurvePathBuilder
             return BuildLinearPathData(Points);
         }
 
+        if (TryCollapseAxisAlignedEndpoints(Points, out List<(double X, double Y)> StraightSegment))
+        {
+            return BuildLinearPathData(StraightSegment);
+        }
+
         return BuildCurveBasisPathData(Points);
+    }
+
+    /// <summary>
+    /// Drops middle waypoints when the snapped source and target connection points share x or y.
+    /// </summary>
+    /// <param name="Points">Edge waypoints, including the two connection points.</param>
+    /// <param name="Segment">The two snapped connection points when they line up.</param>
+    /// <returns>True when the edge must be one straight segment.</returns>
+    public static bool TryCollapseAxisAlignedEndpoints(
+        IReadOnlyList<(double X, double Y)> Points,
+        out List<(double X, double Y)> Segment)
+    {
+        Segment = new List<(double X, double Y)>();
+        if (Points == null || Points.Count < 2)
+        {
+            return false;
+        }
+
+        (double StartX, double StartY) = Points[0];
+        (double EndX, double EndY) = Points[Points.Count - 1];
+        double SnappedStartX = Math.Round(StartX, MidpointRounding.AwayFromZero);
+        double SnappedStartY = Math.Round(StartY, MidpointRounding.AwayFromZero);
+        double SnappedEndX = Math.Round(EndX, MidpointRounding.AwayFromZero);
+        double SnappedEndY = Math.Round(EndY, MidpointRounding.AwayFromZero);
+        double DeltaX = Math.Abs(SnappedStartX - SnappedEndX);
+        double DeltaY = Math.Abs(SnappedStartY - SnappedEndY);
+        bool SameColumn = DeltaX <= AXIS_ALIGNED_ENDPOINT_TOLERANCE_PX;
+        bool SameRow = DeltaY <= AXIS_ALIGNED_ENDPOINT_TOLERANCE_PX;
+        if (!SameColumn && !SameRow)
+        {
+            return false;
+        }
+
+        if (SameColumn && SameRow)
+        {
+            if (DeltaY >= DeltaX)
+            {
+                SameRow = false;
+            }
+            else
+            {
+                SameColumn = false;
+            }
+        }
+
+        if (SameColumn)
+        {
+            double SharedX = Math.Round((SnappedStartX + SnappedEndX) / 2.0, MidpointRounding.AwayFromZero);
+            if (Math.Abs(SnappedStartY - SnappedEndY) < 1.0)
+            {
+                return false;
+            }
+
+            Segment.Add((SharedX, SnappedStartY));
+            Segment.Add((SharedX, SnappedEndY));
+            return true;
+        }
+
+        double SharedY = Math.Round((SnappedStartY + SnappedEndY) / 2.0, MidpointRounding.AwayFromZero);
+        if (Math.Abs(SnappedStartX - SnappedEndX) < 1.0)
+        {
+            return false;
+        }
+
+        Segment.Add((SnappedStartX, SharedY));
+        Segment.Add((SnappedEndX, SharedY));
+        return true;
     }
 
     /// <summary>
@@ -142,12 +219,9 @@ public static class FlowchartCurvePathBuilder
             return BuildRetryLoopPathData(Points);
         }
 
-        if (Points.Count >= 4)
-        {
-            return BuildCorridorCurveBasisPathData(Points);
-        }
-
-        return BuildCurveBasisPathData(Points);
+        List<(double X, double Y)> Orthogonal = FlowchartPaddedVisibilityRouter.EnsureOrthogonal(Points);
+        FlowchartPaddedVisibilityRouter.CollapseReversalSpurs(Orthogonal, DropCornerOvershoot: true);
+        return BuildLinearPathData(Orthogonal);
     }
 
     private static int ResolveCorridorCurveEndIndex(IReadOnlyList<(double X, double Y)> Points)
@@ -533,44 +607,9 @@ public static class FlowchartCurvePathBuilder
         FlowchartEdgeRouteKind RouteKind,
         FlowchartDirection Direction)
     {
-        if (ShouldUseOrthogonalPolylinePathData(GuidePoints, RouteKind))
-        {
-            return BuildRetryLoopPathData(GuidePoints);
-        }
-
-        if (RouteKind == FlowchartEdgeRouteKind.Corridor)
-        {
-            return BuildCorridorRoutePathData(GuidePoints, RouteKind);
-        }
-
-        if (RouteKind == FlowchartEdgeRouteKind.Decision)
-        {
-            return BuildDecisionBranchPathData(GuidePoints);
-        }
-
-        if (TryBuildStubBridgeCurvePathData(GuidePoints, out string StubBridgePathData))
-        {
-            return StubBridgePathData;
-        }
-
-        if (IsStadiumMergeGuideRoute(GuidePoints))
-        {
-            return BuildStadiumMergeHookPathData(GuidePoints);
-        }
-
-        bool HorizontalFanFlow = Direction == FlowchartDirection.LeftToRight
-            || Direction == FlowchartDirection.RightToLeft;
-        if (GuidePoints.Count >= 5)
-        {
-            if (HorizontalFanFlow)
-            {
-                return BuildHorizontalFanRoutePathData(GuidePoints);
-            }
-
-            return BuildVerticalFanRoutePathData(GuidePoints);
-        }
-
-        return BuildCurveBasisPathData(GuidePoints);
+        _ = RouteKind;
+        _ = Direction;
+        return BuildLinearPathData(FlowchartPaddedVisibilityRouter.EnsureOrthogonal(GuidePoints));
     }
 
     /// <summary>
