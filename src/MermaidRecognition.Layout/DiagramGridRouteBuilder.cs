@@ -277,14 +277,21 @@ public static class DiagramGridRouteBuilder
             }
         }
 
-        return SimplifyCollinear(
+        List<(double X, double Y)> LastResort =
         [
             (StartX, StartY),
             (SourceStubX, SourceStubY),
             (SourceStubX, TargetStubY),
             (TargetStubX, TargetStubY),
             (EndX, EndY)
-        ]);
+        ];
+        List<(double X, double Y)> SimplifiedLastResort = SimplifyCollinear(LastResort);
+        if (PathIsValid(SimplifiedLastResort, BoundsById, SourceId, TargetId, Contract))
+        {
+            return SimplifiedLastResort;
+        }
+
+        return LastResort;
     }
 
     private static IEnumerable<List<(double X, double Y)>> EnumerateCandidates(
@@ -376,6 +383,28 @@ public static class DiagramGridRouteBuilder
                     (SourceStubX, SourceStubY),
                     (SourceStubX, CorridorY),
                     (TargetStubX, CorridorY),
+                    (TargetStubX, TargetStubY),
+                    (EndX, EndY)
+                ]);
+            }
+
+            double BelowCorridorY = FlowchartRouteObstacleHelper.ResolveCorridorYBelowHorizontalObstacles(
+                SourceStubX,
+                SourceStubY,
+                TargetStubX,
+                SourceId,
+                TargetId,
+                BoundsById,
+                FlowchartPerpendicularRouteBuilder.OBSTACLE_AVOIDANCE_CLEARANCE_PX);
+            if (Math.Abs(BelowCorridorY - SourceStubY) > COLLINEAR_EPSILON_PX
+                && Math.Abs(BelowCorridorY - CorridorY) > COLLINEAR_EPSILON_PX)
+            {
+                Results.Add(
+                [
+                    (StartX, StartY),
+                    (SourceStubX, SourceStubY),
+                    (SourceStubX, BelowCorridorY),
+                    (TargetStubX, BelowCorridorY),
                     (TargetStubX, TargetStubY),
                     (EndX, EndY)
                 ]);
@@ -596,18 +625,14 @@ public static class DiagramGridRouteBuilder
                 continue;
             }
 
-            if (IsGroupFrameObstacle(Contract, NodeBounds.NodeId)
-                && DiagramGridLayout.IsInsideGroup(Contract, SourceId, NodeBounds.NodeId)
-                && DiagramGridLayout.IsInsideGroup(Contract, TargetId, NodeBounds.NodeId))
+            if (IsGroupFrameObstacle(Contract, NodeBounds.NodeId))
             {
-                continue;
-            }
-
-            if (IsGroupFrameObstacle(Contract, NodeBounds.NodeId)
-                && string.Equals(NodeBounds.NodeId, TargetId, StringComparison.Ordinal)
-                && SegmentIndex == LastSegmentIndex)
-            {
-                continue;
+                bool SourceInside = DiagramGridLayout.IsInsideGroup(Contract, SourceId, NodeBounds.NodeId);
+                bool TargetInside = DiagramGridLayout.IsInsideGroup(Contract, TargetId, NodeBounds.NodeId);
+                if (SourceInside || TargetInside)
+                {
+                    continue;
+                }
             }
 
             if (FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(StartX, StartY, EndX, EndY, NodeBounds))

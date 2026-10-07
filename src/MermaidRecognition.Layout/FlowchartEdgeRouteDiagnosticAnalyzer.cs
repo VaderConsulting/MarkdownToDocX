@@ -98,7 +98,7 @@ public static class FlowchartEdgeRouteDiagnosticAnalyzer
 
             List<(double X, double Y)> LayoutPoints;
             FlowchartEdgeRouteKind RouteKind;
-            if (!TryResolveGridLayoutPoints(Layout, Edge, out LayoutPoints, out RouteKind)
+            if (!FlowchartEdgeRouteResolver.TryResolveGridLayoutPoints(Layout, Edge, out LayoutPoints, out RouteKind)
                 && !FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
                     Edge,
                     Contract,
@@ -1040,38 +1040,4 @@ public static class FlowchartEdgeRouteDiagnosticAnalyzer
             BandBottom);
     }
 
-    private static bool TryResolveGridLayoutPoints(
-        FlowchartLayoutResult Layout,
-        EdgeContract Edge,
-        out List<(double X, double Y)> LayoutPoints,
-        out FlowchartEdgeRouteKind RouteKind)
-    {
-        LayoutPoints = [];
-        RouteKind = FlowchartEdgeRouteKind.Unknown;
-        foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
-        {
-            if (!string.Equals(Route.SourceId, Edge.SourceId, StringComparison.Ordinal)
-                || !string.Equals(Route.TargetId, Edge.TargetId, StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            if (Route.Points.Count < 2)
-            {
-                return false;
-            }
-
-            foreach (FlowchartLayoutPoint Point in Route.Points)
-            {
-                LayoutPoints.Add((Point.X, Point.Y));
-            }
-
-            RouteKind = LayoutPoints.Count == 2
-                ? FlowchartEdgeRouteKind.Straight
-                : FlowchartEdgeRouteKind.Corridor;
-            return true;
-        }
-
-        return false;
-    }
 }

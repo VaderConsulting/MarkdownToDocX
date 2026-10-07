@@ -221,6 +221,7 @@ public static class FlowchartRenderedSvgQualityGate
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         List<FlowchartResolvedGuide> Guides = FlowchartEdgeRouteResolver.ResolveAllVisibleGuidePoints(
             Contract,
+            Layout,
             BoundsById,
             NodeById,
             Direction);

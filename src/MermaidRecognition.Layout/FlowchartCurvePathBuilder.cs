@@ -625,7 +625,8 @@ public static class FlowchartCurvePathBuilder
             return FlowchartRenderedPathKind.RetryLoop;
         }
 
-        if (RouteKind == FlowchartEdgeRouteKind.Corridor)
+        if (RouteKind == FlowchartEdgeRouteKind.Corridor
+            || RouteKind == FlowchartEdgeRouteKind.Grid)
         {
             return FlowchartRenderedPathKind.Corridor;
         }

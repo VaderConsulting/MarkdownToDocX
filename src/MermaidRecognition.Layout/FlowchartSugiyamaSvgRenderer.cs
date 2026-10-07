@@ -133,6 +133,7 @@ public static class FlowchartSugiyamaSvgRenderer
         FlowchartCompoundEndpointHelper.AddGroupBounds(Contract, BoundsById);
         List<FlowchartResolvedGuide> ResolvedGuides = FlowchartEdgeRouteResolver.ResolveAllVisibleGuidePoints(
             Contract,
+            Layout,
             BoundsById,
             NodeById,
             Direction);
@@ -1254,7 +1255,8 @@ public static class FlowchartSugiyamaSvgRenderer
                 EdgeStyle,
                 RenderOptions);
         }
-        else if (RouteKind == FlowchartEdgeRouteKind.Corridor)
+        else if (RouteKind == FlowchartEdgeRouteKind.Corridor
+            || RouteKind == FlowchartEdgeRouteKind.Grid)
         {
             string PathData = FlowchartCurvePathBuilder.BuildCorridorRoutePathData(GuideSvgPoints, RouteKind);
             AppendStyledEdgePath(Builder, PathData, EdgeStyle, Edge.SourceId, Edge.TargetId);
@@ -2396,7 +2398,8 @@ public static class FlowchartSugiyamaSvgRenderer
             LayoutPoints.Add((Point.X, Point.Y));
         }
 
-        if (FlowchartCurvePathBuilder.TryCollapseAxisAlignedEndpoints(LayoutPoints, out List<(double X, double Y)> StraightSegment))
+        if (LayoutPoints.Count == 2
+            && FlowchartCurvePathBuilder.TryCollapseAxisAlignedEndpoints(LayoutPoints, out List<(double X, double Y)> StraightSegment))
         {
             (double StraightStartX, double StraightStartY) = LayoutToSvgPoint(
                 StraightSegment[0].X,

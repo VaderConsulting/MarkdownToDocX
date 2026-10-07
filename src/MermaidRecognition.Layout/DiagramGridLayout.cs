@@ -64,6 +64,8 @@ public static class DiagramGridLayout
 
         AssignRanks(Placed, Horizontal);
         AssignColumns(Placed, Horizontal, CrossPitch);
+        ResolveVerticalChordBlockers(Contract, Placed);
+        CascadeColumns(Placed);
         PlaceOnGrid(Placed, Horizontal, BoxWidth, BoxHeight, MainPitch, CrossPitch, Copy);
         GrowCrowdedSides(Placed, Copy, BoxWidth, BoxHeight);
         SeparateOverlaps(Placed, Horizontal);
@@ -71,7 +73,7 @@ public static class DiagramGridLayout
         CenterLoneNestedGroups(Contract, Placed, Horizontal);
         FitFrames(Contract, Placed, Frames, Horizontal);
         FlipToYUp(Placed, Frames, Copy);
-        AssignPortSides(Copy, Placed, Frames, Nodes, Direction);
+        AssignPortSides(Contract, Copy, Placed, Frames, Nodes, Direction);
         DiagramGridRouteBuilder.RebuildAllRoutes(Copy, Placed, Nodes, Contract, Frames, Direction);
         SeparateTracks(Copy, Placed);
         PushPointsOutOfNodes(Copy, Placed);
@@ -310,6 +312,63 @@ public static class DiagramGridLayout
                 {
                     RankNodes[Index].Column = RankNodes[Index - 1].Column + 1;
                 }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Rules A3/A5: when a parent and child sit in different columns, any same-rank node
+    /// that shares the parent column blocks their vertical chord and swaps aside.
+    /// </summary>
+    private static void ResolveVerticalChordBlockers(DiagramContract Contract, List<GridNode> Placed)
+    {
+        Dictionary<string, GridNode> ById = IndexPlaced(Placed);
+        Dictionary<string, int> ParentCount = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (EdgeContract Edge in Contract.Edges)
+        {
+            if (!ById.ContainsKey(Edge.SourceId) || !ById.ContainsKey(Edge.TargetId))
+            {
+                continue;
+            }
+
+            ParentCount.TryGetValue(Edge.TargetId, out int Count);
+            ParentCount[Edge.TargetId] = Count + 1;
+        }
+
+        foreach (EdgeContract Edge in Contract.Edges)
+        {
+            if (!ById.TryGetValue(Edge.SourceId, out GridNode Parent)
+                || !ById.TryGetValue(Edge.TargetId, out GridNode Child))
+            {
+                continue;
+            }
+
+            if (!ParentCount.TryGetValue(Child.Id, out int Parents) || Parents < 2)
+            {
+                continue;
+            }
+
+            if (Parent.Rank >= Child.Rank || Parent.Column == Child.Column)
+            {
+                continue;
+            }
+
+            List<GridNode> RankNodes = NodesInRank(Placed, Child.Rank);
+            foreach (GridNode Mate in RankNodes)
+            {
+                if (string.Equals(Mate.Id, Child.Id, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (Mate.Column != Parent.Column)
+                {
+                    continue;
+                }
+
+                int ChildColumn = Child.Column;
+                Child.Column = Parent.Column;
+                Mate.Column = ChildColumn;
             }
         }
     }
@@ -997,6 +1056,7 @@ public static class DiagramGridLayout
     }
 
     private static void AssignPortSides(
+        DiagramContract Contract,
         FlowchartLayoutResult Copy,
         List<GridNode> Placed,
         List<GridFrame> Frames,
@@ -1012,7 +1072,10 @@ public static class DiagramGridLayout
             FrameById[Frame.Id] = Frame;
         }
 
+        Dictionary<string, FlowchartLayoutNodeBounds> ObstacleBounds = BuildObstacleBounds(Placed, Frames);
+        HashSet<string> ReservedCenterPorts = new HashSet<string>(StringComparer.Ordinal);
         List<PortEnd> Ends = new List<PortEnd>();
+        List<(FlowchartLayoutEdgeRoute Route, BoxRef Source, BoxRef Target)> Pending = [];
         foreach (FlowchartLayoutEdgeRoute Route in Copy.EdgeRoutes)
         {
             if (!TryBox(Route.SourceId, ById, FrameById, out BoxRef Source) || !TryBox(Route.TargetId, ById, FrameById, out BoxRef Target))
@@ -1020,38 +1083,76 @@ public static class DiagramGridLayout
                 continue;
             }
 
-            string Exit = string.IsNullOrEmpty(Route.ExitSide) ? FacingSide(Source, Target) : Route.ExitSide;
-            string Entry = string.IsNullOrEmpty(Route.EntrySide) ? FacingSide(Target, Source) : Route.EntrySide;
-            if (!Horizontal
-                && Math.Abs(Source.CenterX - Target.CenterX) <= DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
+            if (TryAssignStraightPortSides(Source, Target, Direction, out string StraightExit, out string StraightEntry)
+                && StraightChordIsClear(
+                    Contract,
+                    Source,
+                    Target,
+                    StraightExit,
+                    StraightEntry,
+                    ObstacleBounds,
+                    Route.SourceId,
+                    Route.TargetId))
             {
-                Exit = Target.CenterY < Source.CenterY ? "bottom" : "top";
-                Entry = Source.CenterY > Target.CenterY ? "top" : "bottom";
-            }
-            else if (Horizontal
-                && Math.Abs(Source.CenterY - Target.CenterY) <= DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
-            {
-                Exit = Target.CenterX < Source.CenterX ? "left" : "right";
-                Entry = Source.CenterX > Target.CenterX ? "left" : "right";
+                Route.ExitSide = StraightExit;
+                Route.EntrySide = StraightEntry;
+                ReservedCenterPorts.Add(Source.Id + "|" + StraightExit);
+                ReservedCenterPorts.Add(Target.Id + "|" + StraightEntry);
+                Ends.Add(new PortEnd
+                {
+                    Route = Route,
+                    IsSource = true,
+                    Side = StraightExit,
+                    Box = Source,
+                    Other = Target
+                });
+                Ends.Add(new PortEnd
+                {
+                    Route = Route,
+                    IsSource = false,
+                    Side = StraightEntry,
+                    Box = Target,
+                    Other = Source
+                });
+                continue;
             }
 
-            Route.ExitSide = Exit;
-            Route.EntrySide = Entry;
+            Pending.Add((Route, Source, Target));
+        }
+
+        foreach ((FlowchartLayoutEdgeRoute Route, BoxRef Source, BoxRef Target) Item in Pending)
+        {
+            string Exit = string.IsNullOrEmpty(Item.Route.ExitSide)
+                ? ChooseElbowExitSide(
+                    Contract,
+                    Item.Source,
+                    Item.Target,
+                    Direction,
+                    ReservedCenterPorts,
+                    ObstacleBounds,
+                    Item.Route.SourceId,
+                    Item.Route.TargetId)
+                : Item.Route.ExitSide;
+            string Entry = string.IsNullOrEmpty(Item.Route.EntrySide)
+                ? ChooseElbowEntrySide(Item.Target, Item.Source, Direction, Exit)
+                : Item.Route.EntrySide;
+            Item.Route.ExitSide = Exit;
+            Item.Route.EntrySide = Entry;
             Ends.Add(new PortEnd
             {
-                Route = Route,
+                Route = Item.Route,
                 IsSource = true,
                 Side = Exit,
-                Box = Source,
-                Other = Target
+                Box = Item.Source,
+                Other = Item.Target
             });
             Ends.Add(new PortEnd
             {
-                Route = Route,
+                Route = Item.Route,
                 IsSource = false,
                 Side = Entry,
-                Box = Target,
-                Other = Source
+                Box = Item.Target,
+                Other = Item.Source
             });
         }
 
@@ -1462,6 +1563,222 @@ public static class DiagramGridLayout
                 }
             }
         }
+    }
+
+    private static Dictionary<string, FlowchartLayoutNodeBounds> BuildObstacleBounds(
+        List<GridNode> Placed,
+        List<GridFrame> Frames)
+    {
+        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById =
+            new Dictionary<string, FlowchartLayoutNodeBounds>(StringComparer.Ordinal);
+        foreach (GridNode Node in Placed)
+        {
+            BoundsById[Node.Id] = new FlowchartLayoutNodeBounds
+            {
+                NodeId = Node.Id,
+                CenterX = Node.X,
+                CenterY = Node.Y,
+                Width = Node.Width,
+                Height = Node.Height
+            };
+        }
+
+        foreach (GridFrame Frame in Frames)
+        {
+            BoundsById[Frame.Id] = new FlowchartLayoutNodeBounds
+            {
+                NodeId = Frame.Id,
+                CenterX = Frame.CenterX(),
+                CenterY = Frame.CenterY(),
+                Width = Frame.Right - Frame.Left,
+                Height = Frame.Top - Frame.Bottom
+            };
+        }
+
+        return BoundsById;
+    }
+
+    private static bool StraightChordIsClear(
+        DiagramContract Contract,
+        BoxRef Source,
+        BoxRef Target,
+        string ExitSide,
+        string EntrySide,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> ObstacleBounds,
+        string SourceId,
+        string TargetId)
+    {
+        (double StartX, double StartY) = StraightAttachPoint(Source, ExitSide);
+        (double EndX, double EndY) = StraightAttachPoint(Target, EntrySide);
+        foreach (KeyValuePair<string, FlowchartLayoutNodeBounds> Entry in ObstacleBounds)
+        {
+            if (string.Equals(Entry.Key, SourceId, StringComparison.Ordinal)
+                || string.Equals(Entry.Key, TargetId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            bool IsGroupFrame = false;
+            foreach (GroupContract Group in Contract.Groups)
+            {
+                if (string.Equals(Group.Id, Entry.Key, StringComparison.Ordinal))
+                {
+                    IsGroupFrame = true;
+                    break;
+                }
+            }
+
+            if (IsGroupFrame
+                && (IsInsideGroup(Contract, SourceId, Entry.Key) || IsInsideGroup(Contract, TargetId, Entry.Key)))
+            {
+                continue;
+            }
+
+            if (FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(
+                    StartX,
+                    StartY,
+                    EndX,
+                    EndY,
+                    Entry.Value))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static (double X, double Y) StraightAttachPoint(BoxRef Box, string Side)
+    {
+        return Side switch
+        {
+            "top" => (Box.CenterX, Box.Top),
+            "bottom" => (Box.CenterX, Box.Bottom),
+            "left" => (Box.Left, Box.CenterY),
+            "right" => (Box.Right, Box.CenterY),
+            _ => (Box.CenterX, Box.CenterY)
+        };
+    }
+
+    private static bool TryAssignStraightPortSides(
+        BoxRef Source,
+        BoxRef Target,
+        FlowchartDirection Direction,
+        out string ExitSide,
+        out string EntrySide)
+    {
+        ExitSide = string.Empty;
+        EntrySide = string.Empty;
+        bool Horizontal = Direction == FlowchartDirection.LeftToRight
+            || Direction == FlowchartDirection.RightToLeft;
+        if (Horizontal)
+        {
+            if (Math.Abs(Source.CenterY - Target.CenterY) > DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
+            {
+                return false;
+            }
+
+            if (Source.CenterX > Target.CenterX)
+            {
+                ExitSide = "left";
+                EntrySide = "right";
+            }
+            else if (Source.CenterX < Target.CenterX)
+            {
+                ExitSide = "right";
+                EntrySide = "left";
+            }
+            else
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        if (Math.Abs(Source.CenterX - Target.CenterX) > DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
+        {
+            if (Target.IsFrame)
+            {
+                if (Source.CenterX < Target.Left - DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX
+                    || Source.CenterX > Target.Right + DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        if (Source.CenterY <= Target.CenterY)
+        {
+            return false;
+        }
+
+        ExitSide = "bottom";
+        EntrySide = "top";
+        return true;
+    }
+
+    private static string ChooseElbowExitSide(
+        DiagramContract Contract,
+        BoxRef Source,
+        BoxRef Target,
+        FlowchartDirection Direction,
+        HashSet<string> ReservedCenterPorts,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> ObstacleBounds,
+        string SourceId,
+        string TargetId)
+    {
+        bool Horizontal = Direction == FlowchartDirection.LeftToRight
+            || Direction == FlowchartDirection.RightToLeft;
+        if (Horizontal)
+        {
+            return FacingSide(Source, Target);
+        }
+
+        bool BottomReserved = ReservedCenterPorts.Contains(Source.Id + "|bottom");
+        if (!BottomReserved
+            && Target.CenterY < Source.CenterY
+            && StraightChordIsClear(Contract, Source, Target, "bottom", "top", ObstacleBounds, SourceId, TargetId))
+        {
+            return "bottom";
+        }
+
+        if (Target.CenterX < Source.CenterX - DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
+        {
+            return "left";
+        }
+
+        if (Target.CenterX > Source.CenterX + DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
+        {
+            return "right";
+        }
+
+        return BottomReserved ? "left" : "left";
+    }
+
+    private static string ChooseElbowEntrySide(
+        BoxRef Target,
+        BoxRef Source,
+        FlowchartDirection Direction,
+        string ExitSide)
+    {
+        bool Horizontal = Direction == FlowchartDirection.LeftToRight
+            || Direction == FlowchartDirection.RightToLeft;
+        if (Horizontal)
+        {
+            return FacingSide(Target, Source);
+        }
+
+        if (ExitSide == "left" || ExitSide == "right")
+        {
+            return Source.CenterY > Target.CenterY ? "top" : "bottom";
+        }
+
+        return FacingSide(Target, Source);
     }
 
     private static string FacingSide(BoxRef From, BoxRef To)

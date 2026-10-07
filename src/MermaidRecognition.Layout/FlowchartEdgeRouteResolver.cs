@@ -94,6 +94,25 @@ public static class FlowchartEdgeRouteResolver
         IReadOnlyDictionary<string, NodeContract> NodeById,
         FlowchartDirection Direction)
     {
+        return ResolveAllVisibleGuidePoints(Contract, null, BoundsById, NodeById, Direction);
+    }
+
+    /// <summary>
+    /// Resolves every visible edge, preferring precomputed grid routes when present.
+    /// </summary>
+    /// <param name="Contract">The diagram.</param>
+    /// <param name="Layout">Optional layout with grid edge routes.</param>
+    /// <param name="BoundsById">Node bounds, including group rectangles when present.</param>
+    /// <param name="NodeById">Nodes by id.</param>
+    /// <param name="Direction">Diagram direction.</param>
+    /// <returns>Resolved guides in contract edge order.</returns>
+    public static List<FlowchartResolvedGuide> ResolveAllVisibleGuidePoints(
+        DiagramContract Contract,
+        FlowchartLayoutResult? Layout,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        IReadOnlyDictionary<string, NodeContract> NodeById,
+        FlowchartDirection Direction)
+    {
         Dictionary<string, FlowchartLayoutNodeBounds> MutableBounds =
             new Dictionary<string, FlowchartLayoutNodeBounds>(StringComparer.Ordinal);
         foreach (KeyValuePair<string, FlowchartLayoutNodeBounds> Pair in BoundsById)
@@ -108,6 +127,13 @@ public static class FlowchartEdgeRouteResolver
         {
             if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
             {
+                continue;
+            }
+
+            if (Layout != null
+                && TryResolveGridLayoutPoints(Layout, Edge, out List<(double X, double Y)> GridPoints, out FlowchartEdgeRouteKind GridKind))
+            {
+                Guides.Add(new FlowchartResolvedGuide(Edge, GridPoints, GridKind));
                 continue;
             }
 
@@ -126,10 +152,43 @@ public static class FlowchartEdgeRouteResolver
             Guides.Add(new FlowchartResolvedGuide(Edge, Points, RouteKind));
         }
 
-        FlowchartSharedEdgeRouter.RouteAll(Contract, MutableBounds, NodeById, Direction, Guides);
+        if (!UsedGridLayoutRoutes(Layout, Guides))
+        {
+            FlowchartSharedEdgeRouter.RouteAll(Contract, MutableBounds, NodeById, Direction, Guides);
+        }
+
         _CachedRouteContract = Contract;
         _CachedRouteGuides = Guides;
         return Guides;
+    }
+
+    private static bool UsedGridLayoutRoutes(FlowchartLayoutResult? Layout, List<FlowchartResolvedGuide> Guides)
+    {
+        return Layout != null && Layout.EdgeRoutes.Count > 0;
+    }
+
+    /// <summary>
+    /// Returns guide points from a completed grid layout when the edge was routed there.
+    /// </summary>
+    internal static bool TryResolveGridLayoutPoints(
+        FlowchartLayoutResult Layout,
+        EdgeContract Edge,
+        out List<(double X, double Y)> LayoutPoints,
+        out FlowchartEdgeRouteKind RouteKind)
+    {
+        LayoutPoints = [];
+        RouteKind = FlowchartEdgeRouteKind.Unknown;
+        if (!Layout.TryCopyDrawnRoutePoints(Edge, out List<(double X, double Y)> Copied)
+            || Copied.Count < 2)
+        {
+            return false;
+        }
+
+        LayoutPoints = Copied;
+        RouteKind = LayoutPoints.Count == 2
+            ? FlowchartEdgeRouteKind.Straight
+            : FlowchartEdgeRouteKind.Grid;
+        return true;
     }
 
     private static bool TryResolveRawLayoutGuidePoints(
@@ -713,5 +772,10 @@ public enum FlowchartEdgeRouteKind
     /// <summary>
     /// Orthogonal exterior corridor with explicit waypoint fidelity (bypass / exception lanes).
     /// </summary>
-    Corridor
+    Corridor,
+
+    /// <summary>
+    /// Orthogonal grid route from <see cref="DiagramGridLayout"/> that must not be rewritten.
+    /// </summary>
+    Grid
 }
