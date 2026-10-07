@@ -23,36 +23,11 @@ internal static class DiagramGridPlacementHelper
         }
 
         Dictionary<string, DiagramGridLayout.GridNode> ById = IndexPlaced(Placed);
-        int SpineColumn = ResolveSpineColumn(Contract, Placed, ById);
-        ApplySpineColumns(Contract, Placed, ById, SpineColumn);
         ApplySingleChildColumns(Contract, ById);
         ApplyMultiParentColumns(Contract, ById);
         ApplyCrossLinkPairing(Contract, Placed, ById);
         ApplyManyToManyOrdering(Contract, Placed, ById);
         ApplyInRankCrossingSwaps(Contract, Placed, ById);
-    }
-
-    private static void ApplySpineColumns(
-        DiagramContract Contract,
-        List<DiagramGridLayout.GridNode> Placed,
-        Dictionary<string, DiagramGridLayout.GridNode> ById,
-        int SpineColumn)
-    {
-        List<string> Roots = FindRootIds(Contract, ById.Keys);
-        if (Roots.Count == 0)
-        {
-            return;
-        }
-
-        string RootId = SelectPrimaryRoot(Contract, Roots);
-        HashSet<string> SpineIds = BuildSpineNodeIds(Contract, RootId);
-        foreach (string SpineId in SpineIds)
-        {
-            if (ById.TryGetValue(SpineId, out DiagramGridLayout.GridNode? Node))
-            {
-                Node.Column = SpineColumn;
-            }
-        }
     }
 
     private static void ApplySingleChildColumns(DiagramContract Contract, Dictionary<string, DiagramGridLayout.GridNode> ById)
@@ -278,111 +253,6 @@ internal static class DiagramGridPlacementHelper
         }
     }
 
-    private static int ResolveSpineColumn(
-        DiagramContract Contract,
-        List<DiagramGridLayout.GridNode> Placed,
-        Dictionary<string, DiagramGridLayout.GridNode> ById)
-    {
-        List<string> Roots = FindRootIds(Contract, ById.Keys);
-        if (Roots.Count == 0)
-        {
-            return 0;
-        }
-
-        string RootId = SelectPrimaryRoot(Contract, Roots);
-        if (ById.TryGetValue(RootId, out DiagramGridLayout.GridNode? Root))
-        {
-            return Root.Column;
-        }
-
-        return 0;
-    }
-
-    private static HashSet<string> BuildSpineNodeIds(DiagramContract Contract, string RootId)
-    {
-        HashSet<string> SpineIds = new HashSet<string>(StringComparer.Ordinal);
-        string? CurrentId = RootId;
-        while (CurrentId != null)
-        {
-            if (!SpineIds.Add(CurrentId))
-            {
-                break;
-            }
-
-            CurrentId = SelectSpineChild(Contract, CurrentId);
-        }
-
-        return SpineIds;
-    }
-
-    private static string? SelectSpineChild(DiagramContract Contract, string SourceId)
-    {
-        List<EdgeContract> Outgoing = VisibleOutgoing(Contract, SourceId);
-        if (Outgoing.Count == 0)
-        {
-            return null;
-        }
-
-        if (Outgoing.Count == 1)
-        {
-            return Outgoing[0].TargetId;
-        }
-
-        string? BestTarget = null;
-        int BestDepth = -1;
-        int BestIndex = int.MaxValue;
-        foreach (EdgeContract Edge in Outgoing)
-        {
-            int Depth = LongestPathToSink(Contract, Edge.TargetId);
-            int Index = Edge.CreationIndex;
-            if (Depth > BestDepth || (Depth == BestDepth && Index < BestIndex))
-            {
-                BestDepth = Depth;
-                BestIndex = Index;
-                BestTarget = Edge.TargetId;
-            }
-        }
-
-        return BestTarget;
-    }
-
-    private static int LongestPathToSink(DiagramContract Contract, string StartId)
-    {
-        Dictionary<string, int> Memo = new Dictionary<string, int>(StringComparer.Ordinal);
-        return LongestPathToSinkCore(Contract, StartId, Memo);
-    }
-
-    private static int LongestPathToSinkCore(
-        DiagramContract Contract,
-        string NodeId,
-        Dictionary<string, int> Memo)
-    {
-        if (Memo.TryGetValue(NodeId, out int Cached))
-        {
-            return Cached;
-        }
-
-        List<EdgeContract> Outgoing = VisibleOutgoing(Contract, NodeId);
-        if (Outgoing.Count == 0)
-        {
-            Memo[NodeId] = 0;
-            return 0;
-        }
-
-        int Best = 0;
-        foreach (EdgeContract Edge in Outgoing)
-        {
-            int Depth = 1 + LongestPathToSinkCore(Contract, Edge.TargetId, Memo);
-            if (Depth > Best)
-            {
-                Best = Depth;
-            }
-        }
-
-        Memo[NodeId] = Best;
-        return Best;
-    }
-
     private static bool HasChildDirectlyBelow(
         DiagramContract Contract,
         Dictionary<string, DiagramGridLayout.GridNode> ById,
@@ -590,38 +460,6 @@ internal static class DiagramGridPlacementHelper
         }
 
         return Crossings;
-    }
-
-    private static List<string> FindRootIds(DiagramContract Contract, IEnumerable<string> NodeIds)
-    {
-        HashSet<string> Targets = new HashSet<string>(StringComparer.Ordinal);
-        foreach (EdgeContract Edge in Contract.Edges)
-        {
-            if (!IsInvisible(Edge))
-            {
-                Targets.Add(Edge.TargetId);
-            }
-        }
-
-        List<string> Roots = [];
-        foreach (string NodeId in NodeIds)
-        {
-            if (!Targets.Contains(NodeId))
-            {
-                Roots.Add(NodeId);
-            }
-        }
-
-        return Roots;
-    }
-
-    private static string SelectPrimaryRoot(DiagramContract Contract, List<string> Roots)
-    {
-        Roots.Sort(delegate(string Left, string Right)
-        {
-            return CreationIndex(Contract, Left).CompareTo(CreationIndex(Contract, Right));
-        });
-        return Roots[0];
     }
 
     private static List<string> VisibleChildren(DiagramContract Contract, string ParentId)
