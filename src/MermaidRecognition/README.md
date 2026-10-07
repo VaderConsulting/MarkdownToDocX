@@ -1,62 +1,62 @@
-# MermaidRecognition - Mermaid recognition and native render (Stage 11.A)
+# MermaidRecognition - Mermaid recognition and native render
 
-The Mermaid engine is the set of `MermaidRecognition*` projects under `src/`, with their tests under `tests/`. Related locations:
+The Mermaid engine is the set of `MermaidRecognition*` projects under `src/`, with their tests under `tests/`.
 
 | Location | Role |
 | --- | --- |
 | `src/MDConverter/`, `src/md2docx/`, `src/Converter/` | DOCX conversion pipeline. `MDConverter` calls this engine for flowcharts. |
 | `tests/MDConverter.Tests/` | DOCX pipeline tests |
-| `extern/Naiad/` | Vendored renderer, **frozen**. Still renders every non-flowchart diagram; also used for output comparison against the native render (§12). |
-| `mermaid/packages/mermaid/` | **Authoritative** vendored Mermaid 11.14.0: detectors, grammar, config (investigate here, not Naiad) |
+| `extern/Naiad/` | Vendored renderer, **frozen**. Still renders every non-flowchart diagram; also used for output comparison against the native render. |
+| `mermaid/packages/mermaid/` | **Authoritative** vendored Mermaid 11.14.0: detectors, grammar, config |
 
-The adopted MSAGL Sugiyama code lives only in `src/MermaidRecognition.Layout/Sugiyama/`. The verbatim `extern/Microsoft.AGL/` snapshot has been removed (see `SUGIYAMA_ADOPTION.md`).
+The adopted MSAGL Sugiyama code lives in `src/MermaidRecognition.Layout/Sugiyama/`. Flowchart placement on `master` uses the dagre port in `src/MermaidRecognition.Layout/Dagre/` (see `FlowchartDagrePlacement.cs`).
 
-## Stage 11.A scope (authoritative)
+## Recognition scope
 
-**Multi-kind recognition** with **per-diagram gates** — see `spec.md` §4.2, §7.4, §11.1.13 (Stage 11.A), §11.1.14 (line-type catalogues).
+**Multi-kind recognition** with **per-diagram gates** - see `spec.md` section 7.4 and section 11.1.14 (line-type catalogues).
 
 | Target | Meaning |
 | --- | --- |
-| **All kinds (L1)** | Every §3.18.2 diagram: detect, config, diagnostics, one smoke fixture |
-| **Flowchart (L3)** | **Current phase target-state:** full line-type catalogue + axis gates (styles, metadata, subgraphs, …) |
-| **Catalogue** | Every source line form documented (`flowchart.link.grouped`, `sequence.message`, …) — see §11.1.14.1 exemplar |
+| **All kinds (L1)** | Every section 3.18.2 diagram: detect, config, diagnostics, one smoke fixture |
+| **Started kinds (L4)** | Flowchart, sequence, class, state, ER, pie, gantt, mindmap, git graph at minimum G12 slice |
+| **Catalogue** | Every source line form documented - see section 11.1.14.1 exemplar |
 
-Flowchart-only code today is **slice 1** toward flowchart **L3**, not Stage 11.A complete.
-
-## Layout (`MermaidRecognition`)
-
-Recognition code is grouped by **aspect**, not only by diagram kind:
+## Project layout
 
 ```text
 src/MermaidRecognition/
   Core/           MermaidRecognizer, KindRecognizerRegistry, IKindRecognizer
-  Contract/       DiagramContract, NodeContract, EdgeContract, ContractSnapshot, …
-  Config/         DiagramConfigContract, MermaidPinnedDefaults (spec §3.17), MermaidConfigurationPipeline
+  Contract/       DiagramContract, NodeContract, EdgeContract, ContractSnapshot
+  Config/         DiagramConfigContract, MermaidPinnedDefaults, MermaidConfigurationPipeline
   Detection/      DiagramKindDetector (vendored orchestration order)
   Diagnostics/    MermaidDiagnostic, source spans
-  Render/         FlowchartRouter, NativeFlowchartSvgRenderer, NativeRenderCapabilities (Stage 11.B pilot)
+  Render/         FlowchartRouter, NativeRenderCapabilities
   Kinds/
-    Flowchart/    deepest implementation (L3 target)
-    Sequence/     L2 catalogue + recogniser
-    Class/, State/, Er/, Pie/
-    LinePattern/   L1 stubs for gantt, mindmap, C4, …; MermaidOnlyKindRecognizer; YamlFrontMatterKindRecognizer
+    Flowchart/    deepest implementation
+    Sequence/     L4 recogniser
+    Class/, State/, Er/, Pie/, Gantt/, Mindmap/, GitGraph/
+    LinePattern/  L1 stubs for additional kinds
 
 src/MermaidRecognition.Layout/
-  FlowchartGeometryGraphBuilder, FlowchartSugiyamaLayoutEngine  →  adopted Sugiyama (`Sugiyama/`, namespace `MermaidRecognition.Layout.Sugiyama.*`)
-  Sugiyama/                       # copied MSAGL sources (503 files); see SUGIYAMA_ADOPTION.md
+  Dagre/                          C# dagre port (flowchart placement on master)
+  FlowchartDagrePlacement.cs      DiagramContract to dagre graph
+  FlowchartSugiyamaSvgRenderer.cs Native SVG output
+  FlowchartCurvePathBuilder.cs    Edge path data (curveBasis, rounded corners)
+  Sugiyama/                       Adopted MSAGL sources (alternate layout path)
 ```
 
-**Tests** (under `tests/`): `MermaidRecognition.Tests/` (840+; includes `Gates/DiagramKindEdgeCaseTests`), `MermaidRecognition.Layout.Tests/`, `MermaidRecognition.NaiadAdapter.Tests/`, `MermaidRecognition.RuleValidation.Tests/`.
+## Tests
 
-**Flowchart regression:** `tests/FlowchartRegression/approved/` holds the approved SVG for every `flow.md` fixture. Run `.\tools\FixtureProbe\Compare-Fixtures.ps1` to check that none has changed.
+| Project | Role |
+| --- | --- |
+| `tests/MermaidRecognition.Tests/` | Recognition gates, fixtures, truthfulness checklist |
+| `tests/MermaidRecognition.Layout.Tests/` | Layout, routing, and render regression |
+| `tests/MermaidRecognition.NaiadAdapter.Tests/` | Legacy comparison bridge |
+| `tests/MermaidRecognition.RuleValidation.Tests/` | Structural rule-validation pipeline |
 
-**Gate registry:** run `.\tools\Generate-DiagramGateRegistry.ps1` → `spec-gates/registry.generated.md`.
+**Flowchart regression:** `tests/FlowchartRegression/approved/` holds approved SVG for `flow.md` fixtures. Run `tools/FixtureProbe/Compare-Fixtures.ps1` to check for drift.
 
-**Naiad adapter:** `src/MermaidRecognition.NaiadAdapter/` maps `DiagramContract` to the Naiad `FlowchartModel`. `MDConverter` uses its `FlowchartRecognitionRenderBridge` when rendering flowcharts, and it also supports side-by-side comparison of recognition against the Naiad parse and render.
-
-**§12:** [`spec-gates/naiad-render-baseline.md`](../../spec-gates/naiad-render-baseline.md) - legacy comparison inventory (not parse authority).
-
-Do **not** store `.mmd` / `.verified.json` fixtures inside the library project — only under `MermaidRecognition.Tests/`.
+**Gate registry:** run `tools/Generate-DiagramGateRegistry.ps1` to regenerate `spec-gates/registry.generated.md`.
 
 ## Build and test
 
@@ -65,7 +65,7 @@ dotnet build src/MermaidRecognition/MermaidRecognition.csproj
 dotnet test tests/MermaidRecognition.Tests/MermaidRecognition.Tests.csproj
 ```
 
-Fixture writer tests are explicit and are skipped during normal verification. Regenerate verified JSON after intentional parser changes by selecting the writers:
+Regenerate verified JSON after intentional parser changes:
 
 ```powershell
 dotnet test tests/MermaidRecognition.Tests/MermaidRecognition.Tests.csproj --filter "FullyQualifiedName~Write_"
@@ -75,6 +75,6 @@ dotnet test tests/MermaidRecognition.Tests/MermaidRecognition.Tests.csproj --fil
 
 - `MermaidRecognition` must **not** reference Naiad or `src/MDConverter`.
 - Only `MermaidRecognition.NaiadAdapter` (and its tests) may reference Naiad from within the engine.
-- `src/MDConverter` references `MermaidRecognition`, `MermaidRecognition.Layout` and `MermaidRecognition.NaiadAdapter` (see spec §11.1.8).
+- `src/MDConverter` references `MermaidRecognition`, `MermaidRecognition.Layout`, and `MermaidRecognition.NaiadAdapter`.
 
-See `spec.md` §7.4 (gate dimensions), §11.1.14 (line-type catalogues), §11.1.14.1 (flowchart line types).
+See `spec.md` section 7.4 (gate dimensions) and section 11.1.14 (line-type catalogues).

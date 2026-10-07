@@ -2,7 +2,7 @@
 
 Progressive Mermaid **sequenceDiagram** scenarios for recognition and render regression (Markdown → DOCX). Each section increases complexity; scenarios within a section are ordered from simplest to hardest.
 
-**Spec mapping:** line types in `spec.md` §11.1.14.2; recognition fixtures in `new_src/MermaidRecognition.Tests/SequenceRecognition/`.
+**Spec mapping:** line types in `spec.md` §11.1.14.2; recognition fixtures in `tests/MermaidRecognition.Tests/SequenceRecognition/`.
 
 **Programme note:** Naiad is an interim render baseline only. Recognition truth lives in `MermaidRecognition`; eventual render must not depend on extending Naiad sequence parsers.
 
@@ -11,49 +11,49 @@ Progressive Mermaid **sequenceDiagram** scenarios for recognition and render reg
 | Id | Level | Line types / axis | Recognition fixture | Naiad sample |
 | --- | --- | --- | --- | --- |
 | S01 | 1 | header, message | `simple` | Simple |
-| S02 | 1 | implicit participants | `implicit-participants` | — |
-| S03 | 1 | multi-hop messages | `multi-hop` | — |
+| S02 | 1 | implicit participants | `implicit-participants` | - |
+| S03 | 1 | multi-hop messages | `multi-hop` | - |
 | S04 | 2 | participant | `participants` | Participants |
 | S05 | 2 | actor, participant | `actor-participant` | Actors |
-| S06 | 2 | participant order | `participant-order` | — |
-| S07 | 3 | solid/dotted closed arrows | `closed-arrows` | — |
+| S06 | 2 | participant order | `participant-order` | - |
+| S07 | 3 | solid/dotted closed arrows | `closed-arrows` | - |
 | S08 | 3 | open/cross arrows | `open-cross-arrows` | DifferentArrows |
 | S09 | 4 | message activation `+`/`-` | `activation` | Activation |
-| S10 | 4 | activate, deactivate | `activate-deactivate` | — |
+| S10 | 4 | activate, deactivate | `activate-deactivate` | - |
 | S11 | 5 | note (left/right/over) | `notes` | Notes |
 | S12 | 6 | title | `title` | Title |
 | S13 | 6 | autonumber | `autonumber` | AutoNumber |
 | S14 | 7 | alt, else, end | `alt-else-blocks` | AltElseBlocks |
-| S15 | 7 | loop, end | `loop-control` | — |
-| S16 | 7 | opt, end | `opt-block` | — |
-| S17 | 7 | par, and, end | `par-block` | — |
-| S18 | 7 | critical, option, end | `critical-block` | — |
-| S19 | 8 | box | `box-rgb` | — |
-| S20 | 8 | create, destroy | `lifecycle-create` | — |
-| S21 | 8 | accTitle, accDescr | `sequence-accessibility` | — |
-| S22 | 8 | comment | `comment` | — |
+| S15 | 7 | loop, end | `loop-control` | - |
+| S16 | 7 | opt, end | `opt-block` | - |
+| S17 | 7 | par, and, end | `par-block` | - |
+| S18 | 7 | critical, option, end | `critical-block` | - |
+| S19 | 8 | box | `box-rgb` | - |
+| S20 | 8 | create, destroy | `lifecycle-create` | - |
+| S21 | 8 | accTitle, accDescr | `sequence-accessibility` | - |
+| S22 | 8 | comment | `comment` | - |
 | S23 | 8 | combined render smoke | `auth-smoke` | Complex |
-| S24 | 8 | init (G1) | `init-leading` | — |
-| S25 | 8 | break, end | `break-block` | — |
-| S26 | 8 | rect, end | `rect-block` | — |
-| S27 | 8 | nested blocks | `nested-blocks` | — |
-| S28 | 8 | accDescr block | `accDescr-block` | — |
-| S29 | 3 | self-message | `self-message` | — |
-| S30 | 3 | long message label | `long-message-label` | — |
-| S31 | 3 | quoted message label | `quoted-message-label` | — |
-| S32 | 7 | else-only branch | `else-only` | — |
+| S24 | 8 | init (G1) | `init-leading` | - |
+| S25 | 8 | break, end | `break-block` | - |
+| S26 | 8 | rect, end | `rect-block` | - |
+| S27 | 8 | nested blocks | `nested-blocks` | - |
+| S28 | 8 | accDescr block | `accDescr-block` | - |
+| S29 | 3 | self-message | `self-message` | - |
+| S30 | 3 | long message label | `long-message-label` | - |
+| S31 | 3 | quoted message label | `quoted-message-label` | - |
+| S32 | 7 | else-only branch | `else-only` | - |
 
 **§11.1.14.2 line-type coverage:** every row is **parsed** except `sequence.body` (must not appear in catalogue scenarios).
 
 ## How to use
 
-This file is the **complete** sequence regression catalogue: **isolated diagrams (S01–S32)**. Levels 1–7 cover visual/render smoke aligned with `extern/Naiad/src/test-renders/Sequence.md`. Level 8 adds remaining recognition axes from §11.1.14.2.
+This file is the **complete** sequence regression catalogue: **isolated diagrams (S01-S32)**. Levels 1-7 cover visual/render smoke aligned with `extern/Naiad/src/test-renders/Sequence.md`. Level 8 adds remaining recognition axes from §11.1.14.2.
 
 ### Remarked scenarios (`%%`)
 
-Diagrams that **do not render** on [mermaid.live](https://mermaid.live) remain in this file with **every source line prefixed by `%%`**. That marks them as **considered but rejected** for the render gate — **do not re-add** them because the catalogue looks incomplete. SvgHarness and DOCX visual review skip remarked blocks. See §9.1 in `spec.md`.
+Diagrams that **do not render** on [mermaid.live](https://mermaid.live) remain in this file with **every source line prefixed by `%%`**. That marks them as **considered but rejected** for the render gate - **do not re-add** them because the catalogue looks incomplete. SvgHarness and DOCX visual review skip remarked blocks. See §9.1 in `spec.md`.
 
-**Currently remarked:** *(none yet — add ids here when you remark a scenario.)*
+**Currently remarked:** *(none yet - add ids here when you remark a scenario.)*
 
 ### SvgHarness (visual / structural gate)
 
@@ -73,7 +73,7 @@ Exit code **0** only when all **active** (non-remarked) scenarios PASS.
 ### Recognition contract gate
 
 ```powershell
-dotnet test new_src/MermaidRecognition.Tests/MermaidRecognition.Tests.csproj --filter "FullyQualifiedName~SequenceRecognition"
+dotnet test tests/MermaidRecognition.Tests/MermaidRecognition.Tests.csproj --filter "FullyQualifiedName~SequenceRecognition"
 ```
 
 Official catalogue scenarios must not produce silent `sequence.body` fallback (see `SequenceRecognitionFixtureTests`).
@@ -94,9 +94,9 @@ dotnet run --project src/md2docx/md2docx.csproj -- sequence.md sequence.docx
 
 ---
 
-## Level 1 — Header and basic messages
+## Level 1 - Header and basic messages
 
-### S01 — Minimal header and solid messages
+### S01 - Minimal header and solid messages
 
 ```mermaid
 sequenceDiagram
@@ -106,7 +106,7 @@ sequenceDiagram
 
 *Maps:* `sequence.header`, `sequence.message` · fixture: `simple` · Naiad: Simple*
 
-### S02 — Implicit participants (first use in message)
+### S02 - Implicit participants (first use in message)
 
 ```mermaid
 sequenceDiagram
@@ -114,7 +114,7 @@ sequenceDiagram
     Server-->>Client: Response
 ```
 
-### S03 — Three-party chain
+### S03 - Three-party chain
 
 ```mermaid
 sequenceDiagram
@@ -125,9 +125,9 @@ sequenceDiagram
 
 ---
 
-## Level 2 — Participants and actors
+## Level 2 - Participants and actors
 
-### S04 — Named participants
+### S04 - Named participants
 
 ```mermaid
 sequenceDiagram
@@ -139,7 +139,7 @@ sequenceDiagram
 
 *Fixture:* `participants` · Naiad: Participants*
 
-### S05 — Actor lifeline
+### S05 - Actor lifeline
 
 ```mermaid
 sequenceDiagram
@@ -151,7 +151,7 @@ sequenceDiagram
 
 *Naiad: Actors*
 
-### S06 — Mixed actor and participant order
+### S06 - Mixed actor and participant order
 
 ```mermaid
 sequenceDiagram
@@ -162,9 +162,9 @@ sequenceDiagram
 
 ---
 
-## Level 3 — Message arrow variants and labels
+## Level 3 - Message arrow variants and labels
 
-### S07 — Solid and dotted (closed)
+### S07 - Solid and dotted (closed)
 
 ```mermaid
 sequenceDiagram
@@ -172,7 +172,7 @@ sequenceDiagram
     A-->>B: Dotted
 ```
 
-### S08 — Open and cross endings
+### S08 - Open and cross endings
 
 ```mermaid
 sequenceDiagram
@@ -184,7 +184,7 @@ sequenceDiagram
 
 *Naiad: DifferentArrows*
 
-### S29 — Self-message
+### S29 - Self-message
 
 ```mermaid
 sequenceDiagram
@@ -192,14 +192,14 @@ sequenceDiagram
     A->>A: Reflect
 ```
 
-### S30 — Long message label
+### S30 - Long message label
 
 ```mermaid
 sequenceDiagram
     A->>B: This message label is intentionally long so wrapping and clearance from activation bars can be verified in Word and SVG output.
 ```
 
-### S31 — Quoted message label
+### S31 - Quoted message label
 
 ```mermaid
 sequenceDiagram
@@ -208,9 +208,9 @@ sequenceDiagram
 
 ---
 
-## Level 4 — Activation
+## Level 4 - Activation
 
-### S09 — Inline activation markers
+### S09 - Inline activation markers
 
 ```mermaid
 sequenceDiagram
@@ -220,7 +220,7 @@ sequenceDiagram
 
 *Fixture:* `activation` · Naiad: Activation*
 
-### S10 — Explicit activate / deactivate
+### S10 - Explicit activate / deactivate
 
 ```mermaid
 sequenceDiagram
@@ -236,9 +236,9 @@ sequenceDiagram
 
 ---
 
-## Level 5 — Notes
+## Level 5 - Notes
 
-### S11 — Note positions
+### S11 - Note positions
 
 ```mermaid
 sequenceDiagram
@@ -254,9 +254,9 @@ sequenceDiagram
 
 ---
 
-## Level 6 — Title and autonumber
+## Level 6 - Title and autonumber
 
-### S12 — Diagram title
+### S12 - Diagram title
 
 ```mermaid
 sequenceDiagram
@@ -267,7 +267,7 @@ sequenceDiagram
 
 *Fixture:* `title` · Naiad: Title*
 
-### S13 — Autonumber
+### S13 - Autonumber
 
 ```mermaid
 sequenceDiagram
@@ -281,9 +281,9 @@ sequenceDiagram
 
 ---
 
-## Level 7 — Control blocks
+## Level 7 - Control blocks
 
-### S14 — Alt / else
+### S14 - Alt / else
 
 ```mermaid
 sequenceDiagram
@@ -299,7 +299,7 @@ sequenceDiagram
 
 *Maps:* `sequence.block`, `sequence.end` · fixture: `alt-else-blocks` · Naiad: AltElseBlocks*
 
-### S15 — Loop
+### S15 - Loop
 
 ```mermaid
 sequenceDiagram
@@ -310,7 +310,7 @@ sequenceDiagram
 
 *Fixture:* `loop-control`*
 
-### S16 — Opt
+### S16 - Opt
 
 ```mermaid
 sequenceDiagram
@@ -322,7 +322,7 @@ sequenceDiagram
 
 *Fixture:* `opt-block`*
 
-### S17 — Par / and
+### S17 - Par / and
 
 ```mermaid
 sequenceDiagram
@@ -335,7 +335,7 @@ sequenceDiagram
 
 *Fixture:* `par-block`*
 
-### S18 — Critical / option
+### S18 - Critical / option
 
 ```mermaid
 sequenceDiagram
@@ -348,7 +348,7 @@ sequenceDiagram
 
 *Fixture:* `critical-block`*
 
-### S25 — Break
+### S25 - Break
 
 ```mermaid
 sequenceDiagram
@@ -361,7 +361,7 @@ sequenceDiagram
 
 *Maps:* `sequence.block` (break)*
 
-### S26 — Rect framing
+### S26 - Rect framing
 
 ```mermaid
 sequenceDiagram
@@ -372,7 +372,7 @@ sequenceDiagram
 
 *Maps:* `sequence.block` (rect)*
 
-### S27 — Nested alt inside loop
+### S27 - Nested alt inside loop
 
 ```mermaid
 sequenceDiagram
@@ -386,7 +386,7 @@ sequenceDiagram
     end
 ```
 
-### S32 — Else-only (single branch label)
+### S32 - Else-only (single branch label)
 
 ```mermaid
 sequenceDiagram
@@ -398,9 +398,9 @@ sequenceDiagram
 
 ---
 
-## Level 8 — Recognition axes (contract / render)
+## Level 8 - Recognition axes (contract / render)
 
-### S19 — Participant box (rgb)
+### S19 - Participant box (rgb)
 
 ```mermaid
 sequenceDiagram
@@ -413,7 +413,7 @@ sequenceDiagram
 
 *Fixture:* `box-rgb`*
 
-### S20 — Create / destroy lifecycle
+### S20 - Create / destroy lifecycle
 
 ```mermaid
 sequenceDiagram
@@ -425,7 +425,7 @@ sequenceDiagram
 
 *Fixture:* `lifecycle-create`*
 
-### S21 — Accessibility (inline accDescr)
+### S21 - Accessibility (inline accDescr)
 
 ```mermaid
 sequenceDiagram
@@ -436,7 +436,7 @@ sequenceDiagram
 
 *Fixture:* `sequence-accessibility`*
 
-### S28 — Accessibility (accDescr block)
+### S28 - Accessibility (accDescr block)
 
 ```mermaid
 sequenceDiagram
@@ -450,7 +450,7 @@ sequenceDiagram
 
 *Maps:* `sequence.accDescr` (block form)*
 
-### S22 — Comment lines (no model fact)
+### S22 - Comment lines (no model fact)
 
 ```mermaid
 sequenceDiagram
@@ -460,7 +460,7 @@ sequenceDiagram
 
 *Maps:* `sequence.comment`*
 
-### S24 — Init block (leading config)
+### S24 - Init block (leading config)
 
 ```mermaid
 %%{init: {'theme': 'base'}}%%
@@ -470,7 +470,7 @@ sequenceDiagram
 
 *Maps:* G1 config*
 
-### S23 — Combined smoke (Naiad Complex sample)
+### S23 - Combined smoke (Naiad Complex sample)
 
 ```mermaid
 sequenceDiagram
@@ -509,4 +509,4 @@ sequenceDiagram
 | Render | SvgHarness PASS against mermaid.ink for **active** scenarios only (remarked `%%` blocks excluded) |
 | Remarked `%%` | Considered but rejected on mermaid.live; do not treat as missing |
 
-Do not treat this file as the recognition specification — it samples axes from `spec.md`. Machine-readable truth remains `*.verified.json` under `SequenceRecognition/`.
+Do not treat this file as the recognition specification - it samples axes from `spec.md`. Machine-readable truth remains `*.verified.json` under `SequenceRecognition/`.

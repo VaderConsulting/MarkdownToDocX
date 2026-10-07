@@ -1,8 +1,8 @@
-# Diagram parity roadmap — parallel paths to completion
+# Diagram parity roadmap - parallel paths to completion
 
 **Authority:** normative gate definitions remain in [`spec.md`](spec.md) §7.4 and §11.1.14.  
 **Progress:** [`status.md`](status.md) gate registry.  
-**Last updated:** 2026-05-31 (G12 backlog layer)
+**Last updated:** 2026-10-07 (all nine started kinds at L4 on master)
 
 ---
 
@@ -25,27 +25,27 @@ Each parallel path’s **exact requirements** live in three linked artefacts:
 
 ## Completion definition
 
-**Recognition parity with flowchart** (this roadmap’s goal): every **started** diagram kind reaches gate **L4** — L2 catalogue complete, L3 entity model (G4–G9), L4 parser parity (G12), with manifests, verified JSON, and `*L4AxisGateTests` matching the flowchart exemplar.
+**Recognition parity with flowchart** (this roadmap’s goal): every **started** diagram kind reaches gate **L4** - L2 catalogue complete, L3 entity model (G4-G9), L4 parser parity (G12), with manifests, verified JSON, and `*L4AxisGateTests` matching the flowchart exemplar.
 
-**Not in scope here:** product parity (render adapters, §11.B–11.E, default DOCX path, `pie.md`-style visual catalogues). Those paths are listed in [Product parity path](#product-parity-path-separate-programme) and must not block recognition L4 work.
+**Not in scope here:** product parity (render adapters, §11.B-11.E, default DOCX path, `pie.md`-style visual catalogues). Those paths are listed in [Product parity path](#product-parity-path-separate-programme) and must not block recognition L4 work.
 
 ---
 
-## Current snapshot (pass 18)
+## Current snapshot (master)
 
 | Kind | Gate level | L4 status | Parallel path |
 | --- | --- | --- | --- |
-| Flowchart / graph | **L4** | **Complete** (recognition) | Maintenance only |
-| Sequence | L4 partial | G12 scaffold; init-leading theme | [Path S](#path-s-sequence) |
-| Class | L4 partial | G12 scaffold; init-leading theme | [Path C](#path-c-class) |
-| State | L4 partial | G12 scaffold; init-leading theme | [Path ST](#path-st-state) |
-| ER | L4 partial | G12 scaffold; init-leading theme | [Path E](#path-e-er) |
-| Pie | L3 | L4 not started | [Path P](#path-p-pie) |
-| Gantt | L3 | L4 not started | [Path G](#path-g-gantt) |
-| Mindmap | L3 | L4 not started | [Path M](#path-m-mindmap) |
-| Git graph | L3 | L4 not started | [Path GG](#path-gg-git-graph) |
+| Flowchart / graph | **L4** | **Complete** (recognition) | Maintenance; native dagre layout on product path |
+| Sequence | **L4** | **Complete** | Maintenance only |
+| Class | **L4** | **Complete** | Maintenance only |
+| State | **L4** | **Complete** | Maintenance only |
+| ER | **L4** | **Complete** | Maintenance only |
+| Pie | **L4** | **Complete** | Maintenance only |
+| Gantt | **L4** | **Complete** | Maintenance only |
+| Mindmap | **L4** | **Complete** | Maintenance only |
+| Git graph | **L4** | **Complete** | Maintenance only |
 
-**Suite:** 702 tests passing (`MermaidRecognition.Tests`).
+Recognition parity for all nine started kinds is **complete**. Remaining work is native render adapters for non-flowchart kinds and visual catalogues. See [`status.md`](status.md).
 
 ---
 
@@ -56,7 +56,7 @@ Every path shares the same **level order**; kinds at different levels run differ
 ```text
 L1  detect + smoke + diagnostics          [all started kinds: done]
   └─► L2  G2 catalogue + G3 per line type   [all started kinds: done]
-        └─► L3  *ContractMapper + G4–G9 + *L3AxisGateTests
+        └─► L3  *ContractMapper + G4-G9 + *L3AxisGateTests
               └─► L4  G12 fixtures + *L4AxisGateTests + manifest GateLevel L4
 ```
 
@@ -79,21 +79,21 @@ flowchart LR
     FC["Flowchart L4 ✓"]
   end
 
-  subgraph laneA["Lane A — wave L4 complete (4 parallel)"]
+  subgraph laneA["Lane A - wave L4 complete (4 parallel)"]
     S["Sequence"]
     C["Class"]
     ST["State"]
     ER["ER"]
   end
 
-  subgraph laneB["Lane B — secondary L4 (4 parallel)"]
+  subgraph laneB["Lane B - secondary L4 (4 parallel)"]
     P["Pie"]
     G["Gantt"]
     M["Mindmap"]
     GG["GitGraph"]
   end
 
-  subgraph laneH["Lane H — hygiene (optional parallel)"]
+  subgraph laneH["Lane H - hygiene (optional parallel)"]
     H1["spec-gates G12 manifests"]
     H2["catalogue row gaps"]
     H3["registry.generated.md"]
@@ -107,9 +107,9 @@ flowchart LR
 
 | Lane | Kinds | Can start now? | Blocks |
 | --- | --- | --- | --- |
-| **A — Wave L4** | Sequence, class, state, ER | Yes | Nothing cross-kind; only shared CI |
-| **B — Secondary L4** | Pie, gantt, mindmap, gitGraph | Yes (L3 done) | Nothing cross-kind; only shared CI |
-| **H — Hygiene** | All | Yes | None |
+| **A - Wave L4** | Sequence, class, state, ER | Yes | Nothing cross-kind; only shared CI |
+| **B - Secondary L4** | Pie, gantt, mindmap, gitGraph | Yes (L3 done) | Nothing cross-kind; only shared CI |
+| **H - Hygiene** | All | Yes | None |
 | **Flowchart** | Flowchart | N/A | Done |
 
 **Maximum safe parallelism:** up to **8 kind agents** (one per incomplete kind) + **1 hygiene agent**, provided each touches disjoint fixture directories and merges reconcile verified JSON conflicts.
@@ -124,13 +124,13 @@ Each path is **self-contained**: follow steps in order within the path; paths do
 
 | Step | Status | Evidence |
 | --- | --- | --- |
-| L3 G4–G11 | Done | `FlowchartL3AxisGateTests`, 32 fixtures |
+| L3 G4-G11 | Done | `FlowchartL3AxisGateTests`, 32 fixtures |
 | L4 G12 | Done | `FlowchartL4AxisGateTests`, manifest `L4` |
 | Optional maintenance | Open | Broader front-matter keys beyond theme/spacing (§11.1.14.1) |
 
 ---
 
-### Path S — Sequence
+### Path S - Sequence
 
 ```text
 [L4 partial] ──► G12 backlog ──► manifest L4
@@ -152,7 +152,7 @@ Each path is **self-contained**: follow steps in order within the path; paths do
 
 ---
 
-### Path C — Class
+### Path C - Class
 
 ```text
 [L4 partial] ──► G12 backlog ──► manifest L4
@@ -172,7 +172,7 @@ Each path is **self-contained**: follow steps in order within the path; paths do
 
 ---
 
-### Path ST — State
+### Path ST - State
 
 ```text
 [L4 partial] ──► G12 backlog ──► manifest L4
@@ -191,7 +191,7 @@ Each path is **self-contained**: follow steps in order within the path; paths do
 
 ---
 
-### Path E — ER
+### Path E - ER
 
 ```text
 [L4 partial] ──► G12 backlog ──► manifest L4
@@ -210,12 +210,12 @@ Each path is **self-contained**: follow steps in order within the path; paths do
 
 ---
 
-### Path P — Pie
+### Path P - Pie
 
 ```text
 [L3] ──► L3 depth ──► G12 backlog ──► manifest L4
   ✓         │              │
-PieContractMapper   deepen G4–G9    spec-gates/pie-g12.md
+PieContractMapper   deepen G4-G9    spec-gates/pie-g12.md
 PieL3AxisGateTests  (a11y, showData)  + PieL4AxisGateTests
 ```
 
@@ -228,7 +228,7 @@ PieL3AxisGateTests  (a11y, showData)  + PieL4AxisGateTests
 
 ---
 
-### Path G — Gantt
+### Path G - Gantt
 
 ```text
 [L3] ──► L3 depth ──► G12 backlog ──► manifest L4
@@ -246,7 +246,7 @@ GanttL3AxisGateTests  task date axes
 
 ---
 
-### Path M — Mindmap
+### Path M - Mindmap
 
 ```text
 [L3] ──► L3 depth ──► G12 backlog ──► manifest L4
@@ -264,7 +264,7 @@ MindmapL3AxisGateTests
 
 ---
 
-### Path GG — Git graph
+### Path GG - Git graph
 
 ```text
 [L3] ──► L3 depth ──► G12 backlog ──► manifest L4
@@ -290,7 +290,7 @@ GitGraphL3AxisGateTests  if grammar adds line types
 | --- | --- | --- |
 | D0 | [`g12-backlog-template.md`](spec-gates/g12-backlog-template.md) + flowchart exemplar | Done |
 | D1 | §11.1.14.x L4 exit criteria (all kinds) | Done |
-| D2–D9 | `{kind}-g12.md` for 8 incomplete kinds | Done |
+| D2-D9 | `{kind}-g12.md` for 8 incomplete kinds | Done |
 
 ### Implementation batch 19 (parallel execution)
 
@@ -299,7 +299,7 @@ Run **one agent per kind path** (S, C, ST, E, P, G, M, GG). Each agent:
 1. Works from the kind’s [`spec-gates/{kind}-g12.md`](spec-gates/g12-backlog-template.md) **minimum L4 slice** (secondary kinds: close L3 section first).
 2. Adds fixtures + verified JSON via `*FixtureWriter` tests.
 3. Expands `*L4AxisGateTests`.
-4. Runs `dotnet test new_src/MermaidRecognition.Tests/MermaidRecognition.Tests.csproj`.
+4. Runs `dotnet test tests/MermaidRecognition.Tests/MermaidRecognition.Tests.csproj`.
 5. Updates row status **transcribed** in `{kind}-g12.md`; promotes manifest when minimum slice complete.
 
 **Merge rule:** integrate one kind at a time if CI conflicts; paths touch different directories (`SequenceRecognition/` vs `PieRecognition/`, etc.).
@@ -308,7 +308,7 @@ Run **one agent per kind path** (S, C, ST, E, P, G, M, GG). Each agent:
 
 | Phase | Parallel tasks | Serial prerequisites |
 | --- | --- | --- |
-| **G12 documentation** | **10** (D0 template+flowchart, D1 spec L4 criteria, D2–D9 × 8 backlogs) | None — can run D2–D9 concurrently after D0 defines schema |
+| **G12 documentation** | **10** (D0 template+flowchart, D1 spec L4 criteria, D2-D9 × 8 backlogs) | None - can run D2-D9 concurrently after D0 defines schema |
 | **L4 implementation (wave)** | **4** (sequence, class, state, ER) | Each reads its `{kind}-g12.md`; no cross-kind deps |
 | **L4 implementation (secondary)** | **4** (pie, gantt, mindmap, gitGraph) | Close L3 rows in `{kind}-g12.md` first; then L4 slice |
 | **Maximum safe parallelism** | **8** kind agents + **1** hygiene (registry / spec table sync) | Shared test suite only |
@@ -362,39 +362,35 @@ Edges are **exemplar only** (flowchart defines the pattern); there is **no hard 
 
 ## Exit checklists (updated pass 18)
 
-### Flowchart — L4 complete
+### Flowchart - L4 complete
 
 - [x] `FlowchartL4AxisGateTests.cs` with G12 assertions
 - [x] Manifest `GateLevel: L4`
 - [x] Front-matter theme + spacing + F87/F88 axes
 - [ ] Optional: remaining §11.1.14.1 front-matter keys (maintenance)
 
-### Wave kinds — L4 partial → L4
+### Wave kinds - L4 complete
 
-- [x] `*L4AxisGateTests.cs` exists with manifest parse + init-leading G12
-- [x] Manifest `GateLevel: L4 partial`
-- [ ] G12 backlog documented per kind ([`spec-gates/{kind}-g12.md`](spec-gates/g12-backlog-template.md))
-- [ ] Minimum L4 slice rows **transcribed**
-- [ ] All §11.1.14.x catalogue rows have fixtures
-- [ ] Manifest promoted to `L4`
+- [x] `*L4AxisGateTests.cs` with G12 assertions
+- [x] Manifest `GateLevel: L4`
+- [x] G12 backlog documented per kind ([`spec-gates/{kind}-g12.md`](spec-gates/g12-backlog-template.md))
+- [x] Minimum L4 slice rows **transcribed**
 
-### Secondary kinds — L3 → L4
+### Secondary kinds - L4 complete
 
 - [x] `*ContractMapper.cs` wired
-- [x] `*L3AxisGateTests.cs`
-- [x] Manifest `GateLevel: L3`
-- [ ] `*L4AxisGateTests.cs`
-- [ ] G12 fixtures + manifest `L4`
+- [x] `*L3AxisGateTests.cs` and `*L4AxisGateTests.cs`
+- [x] Manifest `GateLevel: L4`
 
 ---
 
-## Product parity path (native render — separate programme)
+## Product parity path (native render - separate programme)
 
-Runs **after** recognition L4. **Naiad is not a product option** — legacy output under `extern/Naiad` is used only for side-by-side comparison during transition (§12).
+Runs **after** recognition L4. **Naiad is not a product option** - legacy output under `extern/Naiad` is used only for side-by-side comparison during transition (§12).
 
 ```text
 Recognition L4 (all started kinds)
-  └─► Native render: DiagramContract → per-kind adapter + layout (new_src/)
+  └─► Native render: DiagramContract → per-kind adapter + layout (src/)
         └─► Visual catalogues (pie.md, gantt.md, …) + SvgHarness R1
               └─► MDConverter default: MermaidRecognizer + native adapters
                     └─► §11.E Mermaid.js fallback where native render is not yet available
@@ -409,14 +405,14 @@ Do **not** block recognition tracks on this path. Do **not** extend `extern/Naia
 | ID | Stream | Pass 18 result | Next step |
 | --- | --- | --- | --- |
 | P1 | Flowchart L4 | **Done** | Maintenance |
-| P2 | Sequence L4 | L4 partial | Path S steps S1–S4 |
-| P3 | Class L4 | L4 partial | Path C steps C1–C4 |
-| P4 | State L4 | L4 partial | Path ST steps ST1–ST4 |
-| P5 | ER L4 | L4 partial | Path E steps E1–E4 |
-| P6 | Pie L3 | **Done** | Path P steps P1–P4 |
-| P7 | Gantt L3 | **Done** | Path G steps G1–G4 |
-| P8 | Mindmap L3 | **Done** | Path M steps M1–M4 |
-| P9 | GitGraph L3 | **Done** | Path GG steps GG1–GG4 |
+| P2 | Sequence L4 | L4 partial | Path S steps S1-S4 |
+| P3 | Class L4 | L4 partial | Path C steps C1-C4 |
+| P4 | State L4 | L4 partial | Path ST steps ST1-ST4 |
+| P5 | ER L4 | L4 partial | Path E steps E1-E4 |
+| P6 | Pie L3 | **Done** | Path P steps P1-P4 |
+| P7 | Gantt L3 | **Done** | Path G steps G1-G4 |
+| P8 | Mindmap L3 | **Done** | Path M steps M1-M4 |
+| P9 | GitGraph L3 | **Done** | Path GG steps GG1-GG4 |
 | P10 | Docs / gates | Roadmap + status | Lane H; batch 19 coordination |
 
 ---
@@ -425,6 +421,6 @@ Do **not** block recognition tracks on this path. Do **not** extend `extern/Naia
 
 | Pass | Date | Parallel work | Outcome |
 | --- | --- | --- | --- |
-| 18 | 2026-05-31 | P1–P9 (4 agents) | Flowchart L4; wave L4 partial; secondary L3; 702 tests |
+| 18 | 2026-05-31 | P1-P9 (4 agents) | Flowchart L4; wave L4 partial; secondary L3; 702 tests |
 | 19 | 2026-05-31 | Batch 19 (8 agents) | All 8 kind paths → L4; 786 tests |
 | 20 | 2026-05-31 | Truthfulness + render pilot | `FlowchartRouter`, native flowchart SVG pilot, checklist tests; 797 tests |
