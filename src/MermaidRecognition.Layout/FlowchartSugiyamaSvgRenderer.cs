@@ -2447,9 +2447,31 @@ public static class FlowchartSugiyamaSvgRenderer
             SvgPoints.Add(LayoutToSvgPoint(LayoutX, LayoutY, MinLeft, MaxTop, DiagramPaddingPx));
         }
 
-        string PathData = FlowchartCurvePathBuilder.BuildRoundedCornerPathData(
-            SvgPoints,
-            DiagramGridRouteBuilder.CORNER_RADIUS_PX);
+        bool SourceIsDecision = FlowchartDiamondAttachHelper.IsDiamondShape(SourceShape);
+        List<(double X, double Y)> OrthogonalLayoutPoints =
+            FlowchartPaddedVisibilityRouter.EnsureOrthogonal(LayoutPoints);
+        bool StubsOnlyDiagonal = !FlowchartPerpendicularRouteBuilder.IsOrthogonalPolyline(LayoutPoints)
+            && FlowchartPerpendicularRouteBuilder.IsOrthogonalPolyline(OrthogonalLayoutPoints);
+        bool UseGridCorridor = !SourceIsDecision && StubsOnlyDiagonal;
+
+        string PathData;
+        FlowchartRenderedPathKind RenderedPathKind;
+        if (UseGridCorridor)
+        {
+            PathData = FlowchartCurvePathBuilder.BuildCorridorRoutePathData(SvgPoints, FlowchartEdgeRouteKind.Grid);
+            RenderedPathKind = FlowchartCurvePathBuilder.ResolveRenderedPathKind(
+                LayoutPoints,
+                FlowchartEdgeRouteKind.Grid,
+                Direction);
+        }
+        else
+        {
+            PathData = FlowchartCurvePathBuilder.BuildRoundedCornerPathData(
+                SvgPoints,
+                DiagramGridRouteBuilder.CORNER_RADIUS_PX);
+            RenderedPathKind = FlowchartRenderedPathKind.Corridor;
+        }
+
         AppendStyledEdgePath(Builder, PathData, EdgeStyle, Edge.SourceId, Edge.TargetId);
         if (SvgPoints.Count >= 2)
         {
@@ -2458,7 +2480,7 @@ public static class FlowchartSugiyamaSvgRenderer
                 Edge,
                 PathData,
                 SvgPoints,
-                FlowchartRenderedPathKind.Corridor,
+                RenderedPathKind,
                 EdgeStyle);
         }
 
