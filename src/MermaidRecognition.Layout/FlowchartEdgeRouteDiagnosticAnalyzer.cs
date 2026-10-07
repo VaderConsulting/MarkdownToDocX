@@ -96,14 +96,17 @@ public static class FlowchartEdgeRouteDiagnosticAnalyzer
                 continue;
             }
 
-            if (!FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
+            List<(double X, double Y)> LayoutPoints;
+            FlowchartEdgeRouteKind RouteKind;
+            if (!TryResolveGridLayoutPoints(Layout, Edge, out LayoutPoints, out RouteKind)
+                && !FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
                     Edge,
                     Contract,
                     BoundsById,
                     NodeById,
                     Direction,
-                    out List<(double X, double Y)> LayoutPoints,
-                    out FlowchartEdgeRouteKind RouteKind))
+                    out LayoutPoints,
+                    out RouteKind))
             {
                 continue;
             }
@@ -1001,5 +1004,40 @@ public static class FlowchartEdgeRouteDiagnosticAnalyzer
         string Normalised = Shape.Trim();
         return string.Equals(Normalised, "diamond", StringComparison.OrdinalIgnoreCase)
             || string.Equals(Normalised, "rhombus", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool TryResolveGridLayoutPoints(
+        FlowchartLayoutResult Layout,
+        EdgeContract Edge,
+        out List<(double X, double Y)> LayoutPoints,
+        out FlowchartEdgeRouteKind RouteKind)
+    {
+        LayoutPoints = [];
+        RouteKind = FlowchartEdgeRouteKind.Unknown;
+        foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
+        {
+            if (!string.Equals(Route.SourceId, Edge.SourceId, StringComparison.Ordinal)
+                || !string.Equals(Route.TargetId, Edge.TargetId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (Route.Points.Count < 2)
+            {
+                return false;
+            }
+
+            foreach (FlowchartLayoutPoint Point in Route.Points)
+            {
+                LayoutPoints.Add((Point.X, Point.Y));
+            }
+
+            RouteKind = LayoutPoints.Count == 2
+                ? FlowchartEdgeRouteKind.Straight
+                : FlowchartEdgeRouteKind.Corridor;
+            return true;
+        }
+
+        return false;
     }
 }

@@ -66,10 +66,13 @@ public static class DiagramGridLayout
         GrowCrowdedSides(Placed, Copy, BoxWidth, BoxHeight);
         SeparateOverlaps(Placed, Horizontal);
         List<GridFrame> Frames = new List<GridFrame>();
+        CenterLoneNestedGroups(Contract, Placed, Horizontal);
         FitFrames(Contract, Placed, Frames, Horizontal);
-        RewriteRoutes(Copy, Placed, Frames);
         FlipToYUp(Placed, Frames, Copy);
-        AssignPortsAndTracks(Copy, Placed, Frames, Nodes);
+        AssignPortSides(Copy, Placed, Frames, Nodes, Direction);
+        DiagramGridRouteBuilder.RebuildAllRoutes(Copy, Placed, Nodes, Direction);
+        SeparateTracks(Copy, Placed);
+        PushPointsOutOfNodes(Copy, Placed);
         WriteBack(Copy, Placed, Frames);
         return Copy;
     }
@@ -561,6 +564,76 @@ public static class DiagramGridLayout
         }
     }
 
+    private static void CenterLoneNestedGroups(DiagramContract Contract, List<GridNode> Placed, bool Horizontal)
+    {
+        foreach (GroupContract Parent in Contract.Groups)
+        {
+            if (Parent.ChildGroupIds.Count != 1)
+            {
+                continue;
+            }
+
+            string ChildGroupId = Parent.ChildGroupIds[0];
+            List<GridNode> Members = new List<GridNode>();
+            foreach (GridNode Node in Placed)
+            {
+                if (IsInsideGroup(Contract, Node.Id, ChildGroupId))
+                {
+                    Members.Add(Node);
+                }
+            }
+
+            if (Members.Count == 0)
+            {
+                continue;
+            }
+
+            double ContentLeft = double.PositiveInfinity;
+            double ContentRight = double.NegativeInfinity;
+            foreach (GridNode Node in Members)
+            {
+                ContentLeft = Math.Min(ContentLeft, Node.X - (Node.Width / 2.0));
+                ContentRight = Math.Max(ContentRight, Node.X + (Node.Width / 2.0));
+            }
+
+            List<GridNode> ParentRank = new List<GridNode>();
+            foreach (GridNode Node in Placed)
+            {
+                if (string.Equals(GroupOf(Contract, Node.Id), Parent.Id, StringComparison.Ordinal)
+                    && !IsInsideGroup(Contract, Node.Id, ChildGroupId))
+                {
+                    ParentRank.Add(Node);
+                }
+            }
+
+            double ParentLeft = double.PositiveInfinity;
+            double ParentRight = double.NegativeInfinity;
+            foreach (GridNode Node in ParentRank)
+            {
+                ParentLeft = Math.Min(ParentLeft, Node.X - (Node.Width / 2.0));
+                ParentRight = Math.Max(ParentRight, Node.X + (Node.Width / 2.0));
+            }
+
+            if (ParentLeft > ContentRight || ParentRight < ContentLeft)
+            {
+                continue;
+            }
+
+            double ContentCentre = (ContentLeft + ContentRight) / 2.0;
+            double ParentCentre = (ParentLeft + ParentRight) / 2.0;
+            int Shift = (int)Math.Round(ParentCentre - ContentCentre);
+            if (Shift == 0)
+            {
+                continue;
+            }
+
+            foreach (GridNode Node in Members)
+            {
+                SetCross(Node, (int)Math.Round(Cross(Node, Horizontal, Old: false)) + Shift, Horizontal);
+            }
+        }
+    }
+
     private static void FitFrames(DiagramContract Contract, List<GridNode> Placed, List<GridFrame> Frames, bool Horizontal)
     {
         for (int Pass = 0; Pass < MAX_SEPARATION_PASSES; Pass++)
@@ -885,12 +958,15 @@ public static class DiagramGridLayout
         }
     }
 
-    private static void AssignPortsAndTracks(
+    private static void AssignPortSides(
         FlowchartLayoutResult Copy,
         List<GridNode> Placed,
         List<GridFrame> Frames,
-        Dictionary<string, NodeContract> Nodes)
+        Dictionary<string, NodeContract> Nodes,
+        FlowchartDirection Direction)
     {
+        bool Horizontal = Direction == FlowchartDirection.LeftToRight
+            || Direction == FlowchartDirection.RightToLeft;
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
         Dictionary<string, GridFrame> FrameById = new Dictionary<string, GridFrame>(StringComparer.Ordinal);
         foreach (GridFrame Frame in Frames)
@@ -901,11 +977,6 @@ public static class DiagramGridLayout
         List<PortEnd> Ends = new List<PortEnd>();
         foreach (FlowchartLayoutEdgeRoute Route in Copy.EdgeRoutes)
         {
-            if (Route.Points.Count < 2)
-            {
-                continue;
-            }
-
             if (!TryBox(Route.SourceId, ById, FrameById, out BoxRef Source) || !TryBox(Route.TargetId, ById, FrameById, out BoxRef Target))
             {
                 continue;
@@ -913,6 +984,19 @@ public static class DiagramGridLayout
 
             string Exit = string.IsNullOrEmpty(Route.ExitSide) ? FacingSide(Source, Target) : Route.ExitSide;
             string Entry = string.IsNullOrEmpty(Route.EntrySide) ? FacingSide(Target, Source) : Route.EntrySide;
+            if (!Horizontal
+                && Math.Abs(Source.CenterX - Target.CenterX) <= DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
+            {
+                Exit = Target.CenterY < Source.CenterY ? "bottom" : "top";
+                Entry = Source.CenterY > Target.CenterY ? "top" : "bottom";
+            }
+            else if (Horizontal
+                && Math.Abs(Source.CenterY - Target.CenterY) <= DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
+            {
+                Exit = Target.CenterX < Source.CenterX ? "left" : "right";
+                Entry = Source.CenterX > Target.CenterX ? "left" : "right";
+            }
+
             Route.ExitSide = Exit;
             Route.EntrySide = Entry;
             Ends.Add(new PortEnd
@@ -962,30 +1046,6 @@ public static class DiagramGridLayout
 
             ApplySlots(Group, Nodes);
         }
-
-        foreach (FlowchartLayoutEdgeRoute Route in Copy.EdgeRoutes)
-        {
-            if (Route.Points.Count < 2)
-            {
-                continue;
-            }
-
-            FlowchartLayoutPoint Start = Route.Points[0];
-            FlowchartLayoutPoint End = Route.Points[Route.Points.Count - 1];
-            if (Math.Abs(Start.X - End.X) <= 0.5 || Math.Abs(Start.Y - End.Y) <= 0.5)
-            {
-                Route.Points.Clear();
-                Route.Points.Add(Start);
-                Route.Points.Add(End);
-                continue;
-            }
-
-            EnsureStub(Route, AtStart: true);
-            EnsureStub(Route, AtStart: false);
-        }
-
-        SeparateTracks(Copy, Placed);
-        PushPointsOutOfNodes(Copy, Placed);
     }
 
     private static void ApplySlots(List<PortEnd> Group, Dictionary<string, NodeContract> Nodes)
@@ -1677,7 +1737,7 @@ public static class DiagramGridLayout
         return Copy;
     }
 
-    private sealed class GridNode
+    internal sealed class GridNode
     {
         public string Id = string.Empty;
 

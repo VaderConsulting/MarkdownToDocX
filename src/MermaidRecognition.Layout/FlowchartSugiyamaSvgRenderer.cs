@@ -2444,7 +2444,9 @@ public static class FlowchartSugiyamaSvgRenderer
             SvgPoints.Add(LayoutToSvgPoint(LayoutX, LayoutY, MinLeft, MaxTop, DiagramPaddingPx));
         }
 
-        string PathData = FlowchartCurvePathBuilder.BuildPureD3CurveBasisPathData(SvgPoints);
+        string PathData = FlowchartCurvePathBuilder.BuildRoundedCornerPathData(
+            SvgPoints,
+            DiagramGridRouteBuilder.CORNER_RADIUS_PX);
         AppendStyledEdgePath(Builder, PathData, EdgeStyle, Edge.SourceId, Edge.TargetId);
         if (SvgPoints.Count >= 2)
         {
@@ -2453,7 +2455,7 @@ public static class FlowchartSugiyamaSvgRenderer
                 Edge,
                 PathData,
                 SvgPoints,
-                FlowchartRenderedPathKind.CurveBasisFromGuidePoints,
+                FlowchartRenderedPathKind.Corridor,
                 EdgeStyle);
         }
 

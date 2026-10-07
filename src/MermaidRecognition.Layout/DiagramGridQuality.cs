@@ -138,16 +138,41 @@ public static class DiagramGridQuality
 
             if (!Aligned && Route.Points.Count == 2)
             {
-                Violations.Add(Failure(
-                    "LineShape",
-                    Route.SourceId + "->" + Route.TargetId + " is a straight diagonal instead of a smooth curve",
-                    Route.SourceId,
-                    Route.TargetId));
+                bool Diagonal = Math.Abs(Start.X - End.X) > 0.5 && Math.Abs(Start.Y - End.Y) > 0.5;
+                if (Diagonal)
+                {
+                    Violations.Add(Failure(
+                        "LineShape",
+                        Route.SourceId + "->" + Route.TargetId + " is a diagonal instead of an orthogonal route",
+                        Route.SourceId,
+                        Route.TargetId));
+                }
+
                 continue;
             }
 
             if (!Aligned)
             {
+                if (!IsOrthogonalPolyline(Route.Points))
+                {
+                    Violations.Add(Failure(
+                        "LineShape",
+                        Route.SourceId + "->" + Route.TargetId + " is not an orthogonal polyline",
+                        Route.SourceId,
+                        Route.TargetId));
+                    continue;
+                }
+
+                int Corners = CountOrthogonalCorners(Route.Points);
+                if (Corners > 2)
+                {
+                    Violations.Add(Failure(
+                        "LineShape",
+                        Route.SourceId + "->" + Route.TargetId + " has more than two corners",
+                        Route.SourceId,
+                        Route.TargetId));
+                }
+
                 FlowchartLayoutPoint Second = Route.Points[1];
                 FlowchartLayoutPoint Penultimate = Route.Points[Route.Points.Count - 2];
                 bool LeavesStraight = Math.Abs(Second.X - Start.X) <= 0.5 || Math.Abs(Second.Y - Start.Y) <= 0.5;
@@ -570,5 +595,51 @@ public static class DiagramGridQuality
     private static FlowchartLayoutQualityFailure Failure(string Kind, string Description, params string[] Ids)
     {
         return new FlowchartLayoutQualityFailure(Kind, Description, Ids, null);
+    }
+
+    private static bool IsOrthogonalPolyline(IReadOnlyList<FlowchartLayoutPoint> Points)
+    {
+        if (Points.Count < 2)
+        {
+            return true;
+        }
+
+        for (int Index = 1; Index < Points.Count; Index++)
+        {
+            double DeltaX = Math.Abs(Points[Index].X - Points[Index - 1].X);
+            double DeltaY = Math.Abs(Points[Index].Y - Points[Index - 1].Y);
+            if (DeltaX <= 0.75 && DeltaY <= 0.75)
+            {
+                return false;
+            }
+
+            if (DeltaX > 0.75 && DeltaY > 0.75)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static int CountOrthogonalCorners(IReadOnlyList<FlowchartLayoutPoint> Points)
+    {
+        if (Points.Count < 3)
+        {
+            return 0;
+        }
+
+        int Corners = 0;
+        for (int Index = 1; Index < Points.Count - 1; Index++)
+        {
+            bool IncomingHorizontal = Math.Abs(Points[Index].X - Points[Index - 1].X) > 0.75;
+            bool OutgoingHorizontal = Math.Abs(Points[Index + 1].X - Points[Index].X) > 0.75;
+            if (IncomingHorizontal != OutgoingHorizontal)
+            {
+                Corners++;
+            }
+        }
+
+        return Corners;
     }
 }
