@@ -403,6 +403,15 @@ public static class DiagramGridLayout
             RankCount = Math.Max(RankCount, Node.Rank + 1);
         }
 
+        List<RankPairGapPlan> GapPlans = BuildRankPairGapPlans(
+            Placed,
+            RankCount,
+            Horizontal,
+            MainPitch,
+            Copy,
+            Contract);
+        int UniformClearGap = ResolveUniformRankClearGap(GapPlans);
+
         int MainCursor = Horizontal ? BoxWidth / 2 : BoxHeight / 2;
         for (int Rank = 0; Rank < RankCount; Rank++)
         {
@@ -417,31 +426,9 @@ public static class DiagramGridLayout
                 continue;
             }
 
-            List<GridNode> NextNodes = NodesInRank(Placed, Rank + 1);
-            int HalfBelow = MaxHalf(RankNodes, Horizontal, Below: true);
-            int HalfAbove = MaxHalf(NextNodes, Horizontal, Below: false);
-            int Gap = DiagramGridMetrics.NODE_GAP_PX;
-            int Crossings = CountRankCrossings(Copy, RankNodes, NextNodes);
-            int TrackUnits = Math.Max(1, (Crossings + DiagramGridMetrics.TRACKS_PER_GAP - 1) / DiagramGridMetrics.TRACKS_PER_GAP);
-            Gap = Math.Max(Gap, TrackUnits * DiagramGridMetrics.GRID_UNIT_PX);
-            double MermaidDelta = MermaidMain(NextNodes, Horizontal) - MermaidMain(RankNodes, Horizontal);
-            if (MermaidDelta > MainPitch)
-            {
-                int MermaidSpan = DiagramGridMetrics.CeilToGrid(MermaidDelta);
-                int MermaidGap = MermaidSpan - HalfBelow - HalfAbove;
-                Gap = Math.Max(Gap, MermaidGap);
-            }
-
-            int LabelGapBoost = ComputeLabelledEdgeRankGapBoost(Contract, Rank, RankNodes, NextNodes);
-            Gap = Math.Max(Gap, LabelGapBoost);
-            int Span = HalfBelow + HalfAbove + Gap;
-            int PitchSpan = MainPitch;
-            if (Span < PitchSpan)
-            {
-                Span = PitchSpan;
-            }
-
-            MainCursor += Span;
+            RankPairGapPlan Plan = GapPlans[Rank];
+            int ClearGap = Math.Max(UniformClearGap, Plan.StructuralClearGap) + Plan.LabelClearGapBoost;
+            MainCursor += Plan.HalfBelow + Plan.HalfAbove + ClearGap;
         }
 
         SortedDictionary<int, List<GridNode>> ByColumn = new SortedDictionary<int, List<GridNode>>();
@@ -2791,6 +2778,70 @@ public static class DiagramGridLayout
         }
     }
 
+    /// <summary>
+    /// A8: the clear span between ranks is uniform; label boosts apply only to their own pair.
+    /// </summary>
+    private static List<RankPairGapPlan> BuildRankPairGapPlans(
+        List<GridNode> Placed,
+        int RankCount,
+        bool Horizontal,
+        int MainPitch,
+        FlowchartLayoutResult Copy,
+        DiagramContract Contract)
+    {
+        List<RankPairGapPlan> Plans = [];
+        for (int Rank = 0; Rank + 1 < RankCount; Rank++)
+        {
+            List<GridNode> RankNodes = NodesInRank(Placed, Rank);
+            List<GridNode> NextNodes = NodesInRank(Placed, Rank + 1);
+            int HalfBelow = MaxHalf(RankNodes, Horizontal, Below: true);
+            int HalfAbove = MaxHalf(NextNodes, Horizontal, Below: false);
+            int Gap = DiagramGridMetrics.NODE_GAP_PX;
+            int Crossings = CountRankCrossings(Copy, RankNodes, NextNodes);
+            int TrackUnits = Math.Max(1, (Crossings + DiagramGridMetrics.TRACKS_PER_GAP - 1) / DiagramGridMetrics.TRACKS_PER_GAP);
+            Gap = Math.Max(Gap, TrackUnits * DiagramGridMetrics.GRID_UNIT_PX);
+            double MermaidDelta = MermaidMain(NextNodes, Horizontal) - MermaidMain(RankNodes, Horizontal);
+            if (MermaidDelta > MainPitch)
+            {
+                int MermaidSpan = DiagramGridMetrics.CeilToGrid(MermaidDelta);
+                int MermaidGap = MermaidSpan - HalfBelow - HalfAbove;
+                Gap = Math.Max(Gap, MermaidGap);
+            }
+
+            int LabelGapBoost = ComputeLabelledEdgeRankGapBoost(Contract, Rank, RankNodes, NextNodes);
+            int Span = HalfBelow + HalfAbove + Gap;
+            if (Span < MainPitch)
+            {
+                Gap = Math.Max(Gap, MainPitch - HalfBelow - HalfAbove);
+                Span = MainPitch;
+            }
+
+            Plans.Add(new RankPairGapPlan
+            {
+                HalfBelow = HalfBelow,
+                HalfAbove = HalfAbove,
+                StructuralClearGap = Span - HalfBelow - HalfAbove,
+                LabelClearGapBoost = Math.Max(0, LabelGapBoost - Gap)
+            });
+        }
+
+        return Plans;
+    }
+
+    /// <summary>
+    /// A8: every rank pair shares the same base clear gap, measured from each rank's tallest node.
+    /// </summary>
+    private static int ResolveUniformRankClearGap(List<RankPairGapPlan> Plans)
+    {
+        int UniformClearGap = DiagramGridMetrics.NODE_GAP_PX;
+        foreach (RankPairGapPlan Plan in Plans)
+        {
+            UniformClearGap = Math.Max(UniformClearGap, Plan.StructuralClearGap);
+        }
+
+        return UniformClearGap;
+    }
+
     private static int ComputeLabelledEdgeRankGapBoost(
         DiagramContract Contract,
         int Rank,
@@ -2831,6 +2882,23 @@ public static class DiagramGridLayout
         }
 
         return MaxBoost;
+    }
+
+    private sealed class RankPairGapPlan
+    {
+        public int HalfBelow;
+
+        public int HalfAbove;
+
+        /// <summary>
+        /// Clear gap this pair needs before any diagram-wide uniform floor is applied.
+        /// </summary>
+        public int StructuralClearGap;
+
+        /// <summary>
+        /// Extra clear gap for labels on edges between these ranks only.
+        /// </summary>
+        public int LabelClearGapBoost;
     }
 
     private sealed class PortEnd
