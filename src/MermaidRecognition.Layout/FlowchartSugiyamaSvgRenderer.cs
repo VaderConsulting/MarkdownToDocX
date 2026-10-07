@@ -283,8 +283,8 @@ public static class FlowchartSugiyamaSvgRenderer
                 if (Layout.UsesGridRoutes
                     && GuideByEdge.TryGetValue(Edge, out FlowchartResolvedGuide? GridGuide)
                     && GridGuide.Points.Count >= 2
-                    && (GridGuide.RouteKind == FlowchartEdgeRouteKind.Grid
-                        || GridGuide.RouteKind == FlowchartEdgeRouteKind.Straight))
+                    && GridGuide.RouteKind == FlowchartEdgeRouteKind.Grid
+                    && IsFarChildSideExitGridRoute(DagreRoute))
                 {
                     RenderResolvedEdgeRoute(
                         Builder,
@@ -2504,6 +2504,17 @@ public static class FlowchartSugiyamaSvgRenderer
             DiagramPaddingPx,
             EdgeStyle,
             RenderOptions);
+    }
+
+    private static bool IsFarChildSideExitGridRoute(FlowchartLayoutEdgeRoute Route)
+    {
+        if (Route.Points.Count < 4)
+        {
+            return false;
+        }
+
+        return string.Equals(Route.ExitSide, "left", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(Route.ExitSide, "right", StringComparison.OrdinalIgnoreCase);
     }
 
     private static Dictionary<string, Queue<FlowchartLayoutEdgeRoute>> IndexDagreRoutes(FlowchartLayoutResult Layout)
