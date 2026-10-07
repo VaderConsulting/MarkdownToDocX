@@ -2509,18 +2509,52 @@ public static class DiagramGridLayout
                 continue;
             }
 
-            if (!FlowchartLoopBackRouteHelper.TryResolveDecisionLoopBackRoute(
+            string? SourceShape = Nodes.TryGetValue(Route.SourceId, out NodeContract? SourceNode) ? SourceNode.Shape : null;
+            string? TargetShape = Nodes.TryGetValue(Route.TargetId, out NodeContract? TargetNode) ? TargetNode.Shape : null;
+            List<(double X, double Y)> LayoutPoints = [];
+            bool Resolved = false;
+
+            if (HorizontalFlow
+                && BoundsById.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds LrSourceBounds)
+                && BoundsById.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds LrTargetBounds)
+                && FlowchartEdgePathBuilder.IsLrRetryLoopEdge(
+                    Edge,
+                    Contract,
+                    LrSourceBounds,
+                    LrTargetBounds,
+                    SourceShape,
+                    TargetShape))
+            {
+                Resolved = FlowchartEdgePathBuilder.TryBuildNestedLrRetryLoopPath(
+                        Edge,
+                        Contract,
+                        BoundsById,
+                        Nodes,
+                        Direction,
+                        out LayoutPoints)
+                    || FlowchartEdgePathBuilder.TryBuildLrRetryLoopPath(
+                        LrSourceBounds,
+                        LrTargetBounds,
+                        BoundsById.Values.ToList(),
+                        Direction,
+                        out LayoutPoints,
+                        Edge.MarkerStart,
+                        Edge.MarkerEnd);
+            }
+
+            if (!Resolved
+                && !FlowchartLoopBackRouteHelper.TryResolveDecisionLoopBackRoute(
                     Edge,
                     Contract,
                     BoundsById,
                     Nodes,
                     Direction,
-                    out List<(double X, double Y)> LayoutPoints)
+                    out LayoutPoints)
                 && !FlowchartFanInPortAllocator.TryResolveLoopBackRoute(
                     Edge,
                     Contract,
                     BoundsById,
-                    Nodes.TryGetValue(Route.TargetId, out NodeContract? TargetNode) ? TargetNode.Shape : null,
+                    TargetShape,
                     Direction,
                     out LayoutPoints))
             {

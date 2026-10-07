@@ -281,6 +281,48 @@ public static class FlowchartSugiyamaSvgRenderer
                 string? DagreSourceShape = NodeById.TryGetValue(DagreRoute.SourceId, out NodeContract? DagreSourceNode)
                     ? DagreSourceNode.Shape
                     : "rect";
+                string? DagreTargetShape = NodeById.TryGetValue(DagreRoute.TargetId, out NodeContract? DagreTargetNode)
+                    ? DagreTargetNode.Shape
+                    : "rect";
+                if (FlowchartEdgePathBuilder.IsLrRetryLoopEdge(
+                        Edge,
+                        Contract,
+                        DagreSource,
+                        DagreTarget,
+                        DagreSourceShape,
+                        DagreTargetShape)
+                    && TryBuildRetryLoopLayoutPoints(
+                        Edge,
+                        Contract,
+                        BoundsById,
+                        NodeById,
+                        Layout.NodeBounds,
+                        Direction,
+                        out List<(double X, double Y)> RetryLayoutPoints))
+                {
+                    List<(double X, double Y)> SvgPoints = [];
+                    foreach ((double LayoutX, double LayoutY) in RetryLayoutPoints)
+                    {
+                        SvgPoints.Add(LayoutToSvgPoint(LayoutX, LayoutY, MinLeft, MaxTop, DiagramPaddingPx));
+                    }
+
+                    string PathData = FlowchartCurvePathBuilder.BuildRetryLoopPathData(SvgPoints);
+                    AppendStyledEdgePath(Builder, PathData, EdgeStyle, Edge.SourceId, Edge.TargetId);
+
+                    if (SvgPoints.Count >= 2)
+                    {
+                        AppendCurvedEdgeMarkers(
+                            Builder,
+                            Edge,
+                            PathData,
+                            SvgPoints,
+                            FlowchartRenderedPathKind.RetryLoop,
+                            EdgeStyle);
+                    }
+
+                    continue;
+                }
+
                 if (Layout.UsesGridRoutes
                     && GuideByEdge.TryGetValue(Edge, out FlowchartResolvedGuide? GridGuide)
                     && GridGuide.Points.Count >= 2
@@ -1127,7 +1169,7 @@ public static class FlowchartSugiyamaSvgRenderer
 
     /// <summary>
     /// Builds the guide points for an LR/RL retry loop. Loops that share a node with another retry loop get nested corridors;
-    /// a lone loop uses the single corridor above the nodes (F34).
+    /// a lone loop uses the single corridor below the nodes (F34 / A10).
     /// </summary>
     private static bool TryBuildRetryLoopLayoutPoints(
         EdgeContract Edge,
