@@ -170,8 +170,16 @@ public static class FlowchartSugiyamaSvgRenderer
 
         FlowchartSubgraphBoundsRequest BoundsRequest =
             FlowchartSubgraphBoundsRequest.FromContract(Contract, RenderOptions);
-        List<FlowchartSubgraphLayoutRect> SubgraphRects =
-            FlowchartSubgraphBoundsBuilder.BuildOrderedRects(Contract, BoundsById, BoundsRequest);
+        List<FlowchartSubgraphLayoutRect> SubgraphRects = Layout.ClusterBounds.Count > 0
+            ? BuildDagreClusterRects(Contract, Layout)
+            : FlowchartSubgraphBoundsBuilder.BuildOrderedRects(Contract, BoundsById, BoundsRequest);
+        if (Layout.ClusterBounds.Count > 0)
+        {
+            foreach (FlowchartLayoutNodeBounds Cluster in Layout.ClusterBounds)
+            {
+                BoundsById[Cluster.NodeId] = Cluster;
+            }
+        }
         FlowchartSubgraphBoundsBuilder.ExpandLayoutExtents(
             SubgraphRects,
             ref MinLeft,
@@ -181,6 +189,12 @@ public static class FlowchartSugiyamaSvgRenderer
         ExpandLayoutBoundsForExteriorStrokes(
             ResolvedGuides,
             DiagramPaddingPx,
+            ref MinLeft,
+            ref MinBottom,
+            ref MaxRight,
+            ref MaxTop);
+        ExpandLayoutBoundsForDagreRoutes(
+            Layout,
             ref MinLeft,
             ref MinBottom,
             ref MaxRight,
@@ -242,8 +256,14 @@ public static class FlowchartSugiyamaSvgRenderer
             NodeLayoutById[Node.Id] = (Left, Top, Bounds.Width, Bounds.Height);
         }
 
+        Dictionary<string, Queue<FlowchartLayoutEdgeRoute>> DagreRoutes = IndexDagreRoutes(Layout);
+        int DagreEdgeIndex = 0;
         foreach (EdgeContract Edge in Contract.Edges)
         {
+            string DagreEdgeId = string.IsNullOrEmpty(Edge.Id)
+                ? "e" + DagreEdgeIndex.ToString(CultureInfo.InvariantCulture)
+                : Edge.Id;
+            DagreEdgeIndex++;
             if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
@@ -251,6 +271,33 @@ public static class FlowchartSugiyamaSvgRenderer
 
             string? RouteClass = TryResolveRouteClassName(Edge, RouteClassByEdgeKey);
             FlowchartResolvedStyle EdgeStyle = RenderOptions.ResolveEdgeStyle(Edge);
+            if (TryTakeDagreRoute(DagreRoutes, DagreEdgeId, out FlowchartLayoutEdgeRoute? DagreRoute)
+                && DagreRoute.Points.Count >= 2
+                && BoundsById.TryGetValue(DagreRoute.SourceId, out FlowchartLayoutNodeBounds DagreSource)
+                && BoundsById.TryGetValue(DagreRoute.TargetId, out FlowchartLayoutNodeBounds DagreTarget))
+            {
+                string? DagreSourceShape = NodeById.TryGetValue(DagreRoute.SourceId, out NodeContract? DagreSourceNode)
+                    ? DagreSourceNode.Shape
+                    : "rect";
+                RenderDagreBasisEdge(
+                    Builder,
+                    Edge,
+                    Contract,
+                    BoundsById,
+                    DagreSource,
+                    DagreTarget,
+                    DagreSourceShape,
+                    DagreRoute,
+                    Direction,
+                    RouteClass,
+                    MinLeft,
+                    MaxTop,
+                    DiagramPaddingPx,
+                    EdgeStyle,
+                    RenderOptions);
+                continue;
+            }
+
             bool SourceIsGroup = FlowchartCompoundEndpointHelper.IsGroupId(Contract, Edge.SourceId);
             bool TargetIsGroup = FlowchartCompoundEndpointHelper.IsGroupId(Contract, Edge.TargetId);
             if (SourceIsGroup || TargetIsGroup)
@@ -2272,6 +2319,185 @@ public static class FlowchartSugiyamaSvgRenderer
         MaxRight += NeedRight;
         MaxTop += NeedTop;
         MinBottom -= NeedBottom;
+    }
+
+    private static void RenderDagreBasisEdge(
+        StringBuilder Builder,
+        EdgeContract Edge,
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        FlowchartLayoutNodeBounds SourceBounds,
+        FlowchartLayoutNodeBounds TargetBounds,
+        string? SourceShape,
+        FlowchartLayoutEdgeRoute Route,
+        FlowchartDirection Direction,
+        string? RouteClass,
+        double MinLeft,
+        double MaxTop,
+        double DiagramPaddingPx,
+        FlowchartResolvedStyle EdgeStyle,
+        FlowchartRenderOptions RenderOptions)
+    {
+        List<(double X, double Y)> LayoutPoints = new List<(double X, double Y)>();
+        List<(double X, double Y)> SvgPoints = new List<(double X, double Y)>();
+        foreach (FlowchartLayoutPoint Point in Route.Points)
+        {
+            LayoutPoints.Add((Point.X, Point.Y));
+            SvgPoints.Add(LayoutToSvgPoint(Point.X, Point.Y, MinLeft, MaxTop, DiagramPaddingPx));
+        }
+
+        string PathData = FlowchartCurvePathBuilder.BuildPureD3CurveBasisPathData(SvgPoints);
+        AppendStyledEdgePath(Builder, PathData, EdgeStyle, Edge.SourceId, Edge.TargetId);
+        if (SvgPoints.Count >= 2)
+        {
+            AppendCurvedEdgeMarkers(
+                Builder,
+                Edge,
+                PathData,
+                SvgPoints,
+                FlowchartRenderedPathKind.CurveBasisFromGuidePoints,
+                EdgeStyle);
+        }
+
+        AppendResolvedEdgeLabel(
+            Builder,
+            Edge,
+            Contract,
+            BoundsById,
+            SourceBounds,
+            TargetBounds,
+            SourceShape,
+            LayoutPoints,
+            Direction,
+            RouteClass,
+            MinLeft,
+            MaxTop,
+            DiagramPaddingPx,
+            EdgeStyle,
+            RenderOptions);
+    }
+
+    private static Dictionary<string, Queue<FlowchartLayoutEdgeRoute>> IndexDagreRoutes(FlowchartLayoutResult Layout)
+    {
+        Dictionary<string, Queue<FlowchartLayoutEdgeRoute>> Routes =
+            new Dictionary<string, Queue<FlowchartLayoutEdgeRoute>>(StringComparer.Ordinal);
+        foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
+        {
+            if (string.IsNullOrEmpty(Route.EdgeId))
+            {
+                continue;
+            }
+
+            if (!Routes.TryGetValue(Route.EdgeId, out Queue<FlowchartLayoutEdgeRoute>? Queue))
+            {
+                Queue = new Queue<FlowchartLayoutEdgeRoute>();
+                Routes[Route.EdgeId] = Queue;
+            }
+
+            Queue.Enqueue(Route);
+        }
+
+        return Routes;
+    }
+
+    private static bool TryTakeDagreRoute(
+        Dictionary<string, Queue<FlowchartLayoutEdgeRoute>> Routes,
+        string EdgeId,
+        out FlowchartLayoutEdgeRoute? Route)
+    {
+        Route = null;
+        if (!Routes.TryGetValue(EdgeId, out Queue<FlowchartLayoutEdgeRoute>? Queue) || Queue.Count == 0)
+        {
+            return false;
+        }
+
+        Route = Queue.Dequeue();
+        return true;
+    }
+
+    private static List<FlowchartSubgraphLayoutRect> BuildDagreClusterRects(DiagramContract Contract, FlowchartLayoutResult Layout)
+    {
+        Dictionary<string, string?> Titles = new Dictionary<string, string?>(StringComparer.Ordinal);
+        Dictionary<string, int> Depth = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (GroupContract Group in Contract.Groups)
+        {
+            Titles[Group.Id] = Group.Title;
+            int Level = 0;
+            string? Parent = Group.ParentGroupId;
+            while (!string.IsNullOrEmpty(Parent))
+            {
+                Level++;
+                string? Next = null;
+                foreach (GroupContract Candidate in Contract.Groups)
+                {
+                    if (Candidate.Id == Parent)
+                    {
+                        Next = Candidate.ParentGroupId;
+                        break;
+                    }
+                }
+
+                Parent = Next;
+            }
+
+            Depth[Group.Id] = Level;
+        }
+
+        List<FlowchartSubgraphLayoutRect> Rects = new List<FlowchartSubgraphLayoutRect>();
+        foreach (FlowchartLayoutNodeBounds Bounds in Layout.ClusterBounds)
+        {
+            Rects.Add(new FlowchartSubgraphLayoutRect
+            {
+                GroupId = Bounds.NodeId,
+                Left = Bounds.CenterX - (Bounds.Width / 2.0),
+                Right = Bounds.CenterX + (Bounds.Width / 2.0),
+                Bottom = Bounds.CenterY - (Bounds.Height / 2.0),
+                Top = Bounds.CenterY + (Bounds.Height / 2.0),
+                Title = Titles.TryGetValue(Bounds.NodeId, out string? Title) ? Title : Bounds.NodeId
+            });
+        }
+
+        Rects.Sort((Left, Right) =>
+        {
+            int LeftDepth = Depth.TryGetValue(Left.GroupId, out int LeftLevel) ? LeftLevel : 0;
+            int RightDepth = Depth.TryGetValue(Right.GroupId, out int RightLevel) ? RightLevel : 0;
+            return RightDepth.CompareTo(LeftDepth);
+        });
+        return Rects;
+    }
+
+    private static void ExpandLayoutBoundsForDagreRoutes(
+        FlowchartLayoutResult Layout,
+        ref double MinLeft,
+        ref double MinBottom,
+        ref double MaxRight,
+        ref double MaxTop)
+    {
+        foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
+        {
+            foreach (FlowchartLayoutPoint Point in Route.Points)
+            {
+                if (Point.X < MinLeft)
+                {
+                    MinLeft = Point.X;
+                }
+
+                if (Point.X > MaxRight)
+                {
+                    MaxRight = Point.X;
+                }
+
+                if (Point.Y < MinBottom)
+                {
+                    MinBottom = Point.Y;
+                }
+
+                if (Point.Y > MaxTop)
+                {
+                    MaxTop = Point.Y;
+                }
+            }
+        }
     }
 
     private static (double X, double Y) LayoutToSvgPoint(
