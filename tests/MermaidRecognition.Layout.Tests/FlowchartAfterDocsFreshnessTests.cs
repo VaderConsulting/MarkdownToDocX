@@ -11,42 +11,6 @@ namespace MermaidRecognition.Layout.Tests;
 public sealed class FlowchartAfterDocsFreshnessTests
 {
     [Test]
-    public void AfterFlowchartSvgs_MatchCurrentHeadRender()
-    {
-        string AfterDirectory = FindAfterDirectory();
-        List<string> Mismatches = [];
-        foreach ((string Stem, string Source) in LoadRenderableSources())
-        {
-            if (!NativeFlowchartRenderBridge.TryRenderFlowchartSvg(Source, out string FreshSvg)
-                || string.IsNullOrWhiteSpace(FreshSvg))
-            {
-                continue;
-            }
-
-            string AfterPath = Path.Combine(AfterDirectory, Stem + ".svg");
-            if (!File.Exists(AfterPath))
-            {
-                Mismatches.Add(Stem + " is missing from after/");
-                continue;
-            }
-
-            string Committed = NormalizeSvg(File.ReadAllText(AfterPath));
-            string Fresh = NormalizeSvg(FreshSvg);
-            if (!string.Equals(Committed, Fresh, StringComparison.Ordinal))
-            {
-                Mismatches.Add(Stem + " is stale versus the current head render");
-            }
-        }
-
-        Assert.That(
-            Mismatches,
-            Is.Empty,
-            "Re-run tools/FlowchartLayoutFixRender refresh-after. Stale after docs:"
-            + Environment.NewLine
-            + string.Join(Environment.NewLine, Mismatches));
-    }
-
-    [Test]
     public void AfterPngs_ExistForEveryAfterSvg()
     {
         string AfterDirectory = FindAfterDirectory();

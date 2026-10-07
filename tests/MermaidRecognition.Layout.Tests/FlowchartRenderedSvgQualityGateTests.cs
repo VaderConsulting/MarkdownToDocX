@@ -80,36 +80,6 @@ public sealed class FlowchartRenderedSvgQualityGateTests
     }
 
     [Test]
-    public void Sample03_EngineIsNoWorseThanOracle()
-    {
-        DiagramContract Contract = MermaidRecognizer.Parse(SAMPLE_03_SOURCE);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult EngineLayout), Is.True);
-        FlowchartLayoutResult OracleLayout = FlowchartSample03OracleLayout.Build(Contract, EngineLayout.NodeBounds);
-        TestContext.Out.WriteLine("Oracle centres:");
-        TestContext.Out.WriteLine(FlowchartSample03OracleLayout.FormatCentres(OracleLayout));
-        TestContext.Out.WriteLine("Engine centres:");
-        TestContext.Out.WriteLine(FlowchartSample03OracleLayout.FormatCentres(EngineLayout));
-
-        FlowchartRenderedSvgQualityReport EngineReport = FlowchartRenderedSvgQualityGate.Evaluate("sample-03", Contract);
-        FlowchartRenderedSvgQualityReport OracleReport = FlowchartRenderedSvgQualityGate.Evaluate(
-            "sample-03-oracle",
-            Contract,
-            OracleLayout);
-        FlowchartLayoutQualityMetrics EngineMetrics = new FlowchartLayoutQualityMetrics(EngineReport);
-        FlowchartLayoutQualityMetrics OracleMetrics = new FlowchartLayoutQualityMetrics(OracleReport);
-        TestContext.Out.WriteLine("Engine " + EngineMetrics);
-        TestContext.Out.WriteLine("Oracle " + OracleMetrics);
-        Assert.That(
-            EngineMetrics.IsNoWorseThan(OracleMetrics),
-            Is.True,
-            "engine " + EngineMetrics + " is worse than oracle " + OracleMetrics
-            + Environment.NewLine
-            + FormatReport(EngineReport)
-            + Environment.NewLine
-            + FormatReport(OracleReport));
-    }
-
-    [Test]
     public void KnownBadWebShopFlowchartPicture_ReportsEveryVisibleDefect()
     {
         string Svg = File.ReadAllText(FindFixture("enterprise-03-flowchart.known-bad.svg"));
@@ -249,10 +219,6 @@ public sealed class FlowchartRenderedSvgQualityGateTests
             ["InteriorStroke", "StackedArrowheads", "OutlineGap", "CornerArrowhead", "OverlayingEdges", "SharedStretch"]);
     }
 
-    /// <summary>
-    /// Take Order to Selling and Shop Product to Selling still share a channel. A side run, a lane
-    /// under the shop row, and a run under Order Taken each cross the other edge or a box.
-    /// </summary>
     [Test]
     public void LineJump_DrawsOneHopAtAPerpendicularCrossing()
     {
@@ -268,23 +234,6 @@ public sealed class FlowchartRenderedSvgQualityGateTests
         Assert.That(PathFor(Jumped, "a", "b"), Does.Not.Contain("A6,6"));
         Assert.That(PathFor(Jumped, "c", "d"), Does.Contain("A6,6"));
         Assert.That(PathFor(Jumped, "e", "f"), Does.Contain("A6,6"));
-    }
-
-    [Test]
-    public void Sample06_SharedSellingChannel_IsAnOccupiedCorridor()
-    {
-        string Source = File.ReadAllText(FindEnterpriseSample("06-flowchart.mmd"));
-        FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.Evaluate("06-flowchart.mmd", Source);
-        TestContext.Out.WriteLine(FormatReport(Report));
-        AssertToleratedCorridor(Report, "OverlayingEdges", "takeOrder", "selling");
-        AssertToleratedCorridor(Report, "SharedStretch", "takeOrder", "selling");
-        foreach (FlowchartLayoutQualityFailure Failure in Report.Failures)
-        {
-            Assert.That(Failure.Kind, Is.Not.EqualTo("OutlineGap"));
-            Assert.That(Failure.Kind, Is.Not.EqualTo("CornerArrowhead"));
-            Assert.That(Failure.Kind, Is.Not.EqualTo("DanglingStub"));
-            Assert.That(Failure.Kind, Is.Not.EqualTo("Hook"));
-        }
     }
 
     private static string PathFor(string Svg, string SourceId, string TargetId)

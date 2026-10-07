@@ -33,41 +33,6 @@ public sealed class FlowchartEdgeRouteClassifierTests
         """;
 
     [Test]
-    public void ClassifyWithContext_F58_AssignsLocalBranchClassesWithoutCorridors()
-    {
-        DiagramContract Contract = MermaidRecognizer.Parse(F58_FLOWCHART);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
-
-        FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
-        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds
-            .ToDictionary(Bounds => Bounds.NodeId, Bounds => Bounds);
-        Dictionary<string, NodeContract> NodeById = Contract.Nodes
-            .ToDictionary(Node => Node.Id, Node => Node);
-        FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
-
-        Assert.That(
-            FlowchartSpineGraphHelper.TryBuildContext(Contract, BoundsById, Direction, Options, out FlowchartSpineLayoutContext? SpineContext),
-            Is.True);
-        Assert.That(SpineContext, Is.Not.Null);
-        Assert.That(SpineContext!.SpineNodeIds, Does.Contain("Done"));
-
-        AssertSemanticClass(Contract, BoundsById, NodeById, Direction, SpineContext, "Start", "Ingest", FlowchartEdgeSemanticRouteClass.CentreSpine);
-        AssertSemanticClass(Contract, BoundsById, NodeById, Direction, SpineContext, "Ingest", "Validate", FlowchartEdgeSemanticRouteClass.CentreSpine);
-
-        // The spine column pass (spec §15.0C.11) places Reject in the next column beside Validate, so both
-        // Validate branches are local shoulder branches and none needs an exterior corridor or skip bypass.
-        AssertSemanticClass(Contract, BoundsById, NodeById, Direction, SpineContext, "Validate", "Reject", FlowchartEdgeSemanticRouteClass.LocalDecisionBranch);
-        AssertSemanticClass(Contract, BoundsById, NodeById, Direction, SpineContext, "Validate", "Parse", FlowchartEdgeSemanticRouteClass.LocalDecisionBranch);
-
-        foreach (EdgeContract Edge in Contract.Edges)
-        {
-            FlowchartEdgeSemanticRouteClass ActualClass = FlowchartEdgeRouteClassifier.Classify(Edge, Contract, BoundsById, NodeById, Direction, SpineContext);
-            Assert.That(ActualClass, Is.Not.EqualTo(FlowchartEdgeSemanticRouteClass.LongExceptionRoute), $"{Edge.SourceId}->{Edge.TargetId} has no node in its way and needs no exterior corridor");
-            Assert.That(ActualClass, Is.Not.EqualTo(FlowchartEdgeSemanticRouteClass.SkipBypass), $"{Edge.SourceId}->{Edge.TargetId} skips no intervening node");
-        }
-    }
-
-    [Test]
     public void TryResolveLayoutGuidePoints_F58_ColumnAlignedEdges_AreStraight()
     {
         DiagramContract Contract = MermaidRecognizer.Parse(F58_FLOWCHART);

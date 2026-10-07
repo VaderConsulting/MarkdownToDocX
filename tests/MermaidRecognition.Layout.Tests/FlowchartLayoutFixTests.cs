@@ -285,9 +285,15 @@ public sealed class FlowchartLayoutFixTests
 
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById =
             Layout.NodeBounds.ToDictionary(Bounds => Bounds.NodeId, StringComparer.Ordinal);
-        List<FlowchartSubgraphLayoutRect> Rects =
-            FlowchartSubgraphBoundsBuilder.BuildOrderedRects(Contract, BoundsById);
-        FlowchartSubgraphLayoutRect Store = Rects.Single(Rect => Rect.GroupId == "store");
+        FlowchartLayoutNodeBounds StoreBounds = Layout.ClusterBounds.Single(Bounds => Bounds.NodeId == "store");
+        FlowchartSubgraphLayoutRect Store = new FlowchartSubgraphLayoutRect
+        {
+            GroupId = StoreBounds.NodeId,
+            Left = StoreBounds.CenterX - (StoreBounds.Width / 2.0),
+            Right = StoreBounds.CenterX + (StoreBounds.Width / 2.0),
+            Bottom = StoreBounds.CenterY - (StoreBounds.Height / 2.0),
+            Top = StoreBounds.CenterY + (StoreBounds.Height / 2.0)
+        };
 
         double MemberLeft = double.MaxValue;
         double MemberRight = double.MinValue;

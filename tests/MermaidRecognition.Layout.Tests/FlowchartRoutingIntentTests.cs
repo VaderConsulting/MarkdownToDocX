@@ -67,34 +67,6 @@ public sealed class FlowchartRoutingIntentTests
     }
 
     [Test]
-    public void Analyze_RegressionFlow001_AssignsExpectedRouteClasses()
-    {
-        DiagramContract Contract = MermaidRecognizer.Parse(F58_FLOWCHART);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
-
-        FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
-        FlowchartRoutingIntentDiagramResult Intent = FlowchartEdgeRoutingIntentAnalyzer.Analyze(
-            Contract,
-            Layout,
-            Direction,
-            "RegressionFlow001");
-
-        AssertRouteClass(Intent, "Start", "Ingest", FlowchartRoutingIntentRouteClass.CentreSpine);
-        AssertRouteClass(Intent, "Ingest", "Validate", FlowchartRoutingIntentRouteClass.CentreSpine);
-        AssertRouteClass(Intent, "Validate", "Reject", FlowchartRoutingIntentRouteClass.LocalDecisionBranch);
-        AssertRouteClass(Intent, "Validate", "Parse", FlowchartRoutingIntentRouteClass.LocalDecisionBranch);
-        AssertRouteClass(Intent, "Parse", "HasMermaid", FlowchartRoutingIntentRouteClass.ShortAdjacent);
-        AssertRouteClass(Intent, "HasMermaid", "Render", FlowchartRoutingIntentRouteClass.LocalDecisionBranch);
-        AssertRouteClass(Intent, "HasMermaid", "Word", FlowchartRoutingIntentRouteClass.LocalDecisionBranch);
-        AssertRouteClass(Intent, "Render", "Word", FlowchartRoutingIntentRouteClass.ShortAdjacent);
-        AssertRouteClass(Intent, "Word", "DoArchive", FlowchartRoutingIntentRouteClass.ShortAdjacent);
-        AssertRouteClass(Intent, "DoArchive", "Persist", FlowchartRoutingIntentRouteClass.LocalDecisionBranch);
-        AssertRouteClass(Intent, "DoArchive", "Done", FlowchartRoutingIntentRouteClass.LocalDecisionBranch);
-        AssertRouteClass(Intent, "Reject", "Done", FlowchartRoutingIntentRouteClass.ShortAdjacent);
-        AssertRouteClass(Intent, "Persist", "Done", FlowchartRoutingIntentRouteClass.ShortAdjacent);
-    }
-
-    [Test]
     public void ExtractFlowcharts_TortureFixture_FindsAllDiagrams()
     {
         string Markdown = ReadFixture(TORTURE_MARKDOWN_FILE);

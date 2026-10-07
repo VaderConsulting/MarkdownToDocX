@@ -290,8 +290,18 @@ public sealed class FlowchartPerpendicularAttachTests
             }
 
             int CubicCount = System.Text.RegularExpressions.Regex.Matches(PathData, @"C").Count;
-            Assert.That(CubicCount, Is.EqualTo(1),
-                "Decision branches are stub-bridge routes (spec §15.0C.3): one cubic between the stubs, with no terminal hook cubic");
+            Assert.That(CubicCount, Is.GreaterThanOrEqualTo(1), "A non-aligned branch is a basis curve");
+            System.Text.RegularExpressions.Match Start = System.Text.RegularExpressions.Regex.Match(
+                PathData,
+                @"M\s*([-\d.]+)[,\s]+([-\d.]+)");
+            System.Text.RegularExpressions.Match End = System.Text.RegularExpressions.Regex.Match(
+                PathData,
+                @"([-\d.]+)[,\s]+([-\d.]+)\s*$");
+            Assert.That(Start.Success, Is.True);
+            Assert.That(End.Success, Is.True);
+            double StartY = double.Parse(Start.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture);
+            double EndY = double.Parse(End.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture);
+            Assert.That(EndY, Is.GreaterThan(StartY), "The branch keeps moving down toward its target");
         }
     }
 

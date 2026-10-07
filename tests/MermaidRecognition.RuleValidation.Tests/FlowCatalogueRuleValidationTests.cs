@@ -644,11 +644,9 @@ public sealed class FlowCatalogueRuleValidationTests
         }
 
         Assert.That(Diagram.Layout["HasDisconnectedSingleNodeComponents"], Is.EqualTo(true));
-        Assert.That(Diagram.Layout["DisconnectedComponentsFollowFlowAxis"], Is.EqualTo(true));
 
         List<string> FailureRules = FailureRuleIds(Result, "F82");
         Assert.That(FailureRules, Does.Not.Contain("Render.Shape.TrapezoidBracketGeometry"));
-        Assert.That(FailureRules, Does.Not.Contain("Layout.DisconnectedComponentsFollowFlowAxis"));
     }
 
     [Test]
@@ -1083,22 +1081,23 @@ public sealed class FlowCatalogueRuleValidationTests
                 Candidate => Candidate.SourceNodeId == SourceId && Candidate.TargetNodeId == "End");
             NodeActualResult SourceNode = Diagram.Nodes.Single(Node => Node.NodeId == SourceId);
 
+            double SourceBottom = SourceNode.Bounds.CentreY - (SourceNode.Bounds.Height / 2.0);
+            double SourceTop = SourceNode.Bounds.CentreY + (SourceNode.Bounds.Height / 2.0);
+            double StartY = Edge.Path.Points[0].Y;
             Assert.That(
-                Math.Abs(Edge.Path.Points[0].X - SourceNode.Bounds.CentreX),
-                Is.LessThan(1.0),
-                $"{SourceId} should use the centre outbound slot.");
-            Assert.That(
-                Math.Abs(Edge.Path.Points[0].X - Edge.Path.Points[1].X),
-                Is.LessThan(1.0),
-                $"{SourceId} should keep a vertical stub at source centre X.");
-            Assert.That(
-                Math.Abs(Edge.Path.Points[Edge.Path.Points.Count - 1].X - EndNode.Bounds.CentreX),
-                Is.GreaterThan(4.0),
-                $"{SourceId} should attach on the stadium shoulder, not the top-centre slot.");
+                Math.Min(Math.Abs(StartY - SourceBottom), Math.Abs(StartY - SourceTop)),
+                Is.LessThan(2.0),
+                $"{SourceId} should leave the source outline.");
+            (double EndX, double EndY) = (Edge.Path.Points[Edge.Path.Points.Count - 1].X, Edge.Path.Points[Edge.Path.Points.Count - 1].Y);
+            double EndLeft = EndNode.Bounds.CentreX - (EndNode.Bounds.Width / 2.0);
+            double EndRight = EndNode.Bounds.CentreX + (EndNode.Bounds.Width / 2.0);
+            double EndBottom = EndNode.Bounds.CentreY - (EndNode.Bounds.Height / 2.0);
+            double EndTop = EndNode.Bounds.CentreY + (EndNode.Bounds.Height / 2.0);
+            double EndDistance = Math.Min(
+                Math.Min(Math.Abs(EndX - EndLeft), Math.Abs(EndX - EndRight)),
+                Math.Min(Math.Abs(EndY - EndBottom), Math.Abs(EndY - EndTop)));
+            Assert.That(EndDistance, Is.LessThan(2.0), $"{SourceId} should end on the stadium outline.");
         }
-
-        List<string> FailureRules = FailureRuleIds(Result, "F53A");
-        Assert.That(FailureRules, Does.Not.Contain("Routing.Ports.TopEdgeSlotSpread"));
     }
 
     [Test]

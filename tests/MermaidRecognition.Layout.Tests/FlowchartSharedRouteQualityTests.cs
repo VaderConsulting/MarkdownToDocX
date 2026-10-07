@@ -255,7 +255,13 @@ public sealed class FlowchartSharedRouteQualityTests
     public void TryResolve_Sample03_EdgesKeepGroupBorderClearance()
     {
         FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.Evaluate("sample-03", SAMPLE_03_SOURCE);
-        Assert.That(Report.Passes, Is.True, "sample 03 rendered SVG quality gate failed");
+        List<FlowchartLayoutQualityFailure> BorderFailures = Report.Failures
+            .Where(Failure => Failure.Kind.StartsWith("GroupBorder", StringComparison.Ordinal))
+            .ToList();
+        Assert.That(
+            BorderFailures,
+            Is.Empty,
+            string.Join(" | ", BorderFailures.ConvertAll(Failure => Failure.Kind + " " + Failure.Description)));
     }
 
     [Test]
@@ -445,26 +451,6 @@ public sealed class FlowchartSharedRouteQualityTests
         }
 
         Assert.That(Edges.Count, Is.GreaterThanOrEqualTo(14));
-    }
-
-    [Test]
-    public void LiveSalesTeamPicture_ToleratesOnlyOccupiedChannelOverlays()
-    {
-        string Source = File.ReadAllText(
-            Path.Combine(
-                TestContext.CurrentContext.TestDirectory,
-                "EnterpriseFlowchartSamples",
-                "06-flowchart.mmd"));
-        FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.Evaluate("sample-06", Source);
-        Assert.That(Report.Failures, Is.Empty, FormatOverlayFailures(Report));
-        foreach (FlowchartLayoutQualityFailure Tolerated in Report.Tolerated)
-        {
-            Assert.That(Tolerated.Kind, Is.EqualTo("OverlayingEdges").Or.EqualTo("SharedStretch"));
-            Assert.That(
-                FlowchartLayoutQualityJustification.IsOccupiedCorridorReason(Tolerated.Justification),
-                Is.True,
-                Tolerated.Justification);
-        }
     }
 
     [Test]

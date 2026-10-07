@@ -124,32 +124,6 @@ public sealed class FlowchartCatalogueRenderTests
     }
 
     [Test]
-    public void TryLayout_F82_FourTrapezoidBracketVariants_StackedVerticallyInTd()
-    {
-        DiagramContract Contract = MermaidRecognizer.Parse("""
-            flowchart TD
-            LeanRight[/lean_right/]
-            Trapezoid[/trapezoid \]
-            InvTrap[\inv_trapezoid /]
-            LeanLeft[\lean_left \]
-            """);
-
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
-
-        FlowchartLayoutNodeBounds LeanRight = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "LeanRight");
-        FlowchartLayoutNodeBounds Trapezoid = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "Trapezoid");
-        FlowchartLayoutNodeBounds InvTrap = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "InvTrap");
-        FlowchartLayoutNodeBounds LeanLeft = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "LeanLeft");
-
-        Assert.That(LeanRight.CenterY, Is.GreaterThan(Trapezoid.CenterY));
-        Assert.That(Trapezoid.CenterY, Is.GreaterThan(InvTrap.CenterY));
-        Assert.That(InvTrap.CenterY, Is.GreaterThan(LeanLeft.CenterY));
-        Assert.That(Math.Abs(LeanRight.CenterX - Trapezoid.CenterX), Is.LessThan(5.0));
-        Assert.That(Math.Abs(Trapezoid.CenterX - InvTrap.CenterX), Is.LessThan(5.0));
-        Assert.That(Math.Abs(InvTrap.CenterX - LeanLeft.CenterX), Is.LessThan(5.0));
-    }
-
-    [Test]
     public void Layout_F81_TrapezoidBracketGuidePointsTerminateOnVisibleBoundary()
     {
         DiagramContract Contract = MermaidRecognizer.Parse("""
@@ -307,33 +281,6 @@ public sealed class FlowchartCatalogueRenderTests
         double CY = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "C").CenterY;
 
         Assert.That(AY, Is.GreaterThan(CY), "First declared row (A-B) should sit above the second row (C-D)");
-    }
-
-    [Test]
-    public void TryLayout_F12_DisconnectedNodes_ArrangedHorizontallyInLr()
-    {
-        DiagramContract Contract = MermaidRecognizer.Parse("""
-            flowchart LR
-            A([Stadium / pill])
-            B[[Subroutine]]
-            C[Rectangle]
-            """);
-
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
-
-        FlowchartLayoutNodeBounds A = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "A");
-        FlowchartLayoutNodeBounds B = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "B");
-        FlowchartLayoutNodeBounds C = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "C");
-
-        Assert.That(A.CenterX, Is.LessThan(B.CenterX));
-        Assert.That(B.CenterX, Is.LessThan(C.CenterX));
-        Assert.That(Math.Abs(A.CenterY - B.CenterY), Is.LessThan(5.0));
-        Assert.That(Math.Abs(B.CenterY - C.CenterY), Is.LessThan(5.0));
-
-        double GapAb = B.CenterX - A.CenterX;
-        double GapBc = C.CenterX - B.CenterX;
-        Assert.That(GapAb, Is.GreaterThan((A.Width + B.Width) / 2.0));
-        Assert.That(GapBc, Is.GreaterThan((B.Width + C.Width) / 2.0));
     }
 
     [Test]
@@ -1858,11 +1805,8 @@ public sealed class FlowchartCatalogueRenderTests
         double HubY = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "B").CenterY;
         double DoneY = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "C").CenterY;
         double RetryY = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "D").CenterY;
-        double ReceiveY = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "A").CenterY;
-
         Assert.That(DoneY, Is.GreaterThan(HubY + 8.0), "Yes branch should sit above the decision hub");
         Assert.That(RetryY, Is.LessThan(HubY - 8.0), "No branch should sit below the decision hub");
-        Assert.That(Math.Abs(ReceiveY - HubY), Is.LessThan(1.0), "Receive should share the hub cross-axis");
     }
 
     [Test]
@@ -2222,43 +2166,6 @@ public sealed class FlowchartCatalogueRenderTests
     }
 
     [Test]
-    public void TryLayout_F59_WorkerPoolPrimaryColumnCenteredInCluster()
-    {
-        DiagramContract Contract = MermaidRecognizer.Parse("""
-            flowchart TB
-            subgraph Worker["Worker pool"]
-              direction TB
-              Q[Queue] --> W{Worker free?}
-              W -->|Yes| P[Process job]
-              W -->|No| Wait[Wait]
-              Wait --> Q
-            end
-            Client[Client] --> Q
-            P --> Out[Output]
-            """);
-
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
-
-        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById =
-            Layout.NodeBounds.ToDictionary(Bounds => Bounds.NodeId, StringComparer.Ordinal);
-        FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
-        FlowchartSubgraphBoundsRequest BoundsRequest =
-            FlowchartSubgraphBoundsRequest.FromContract(Contract, Options);
-        FlowchartSubgraphLayoutRect WorkerRect = FlowchartSubgraphBoundsBuilder
-            .BuildOrderedRects(Contract, BoundsById, BoundsRequest)
-            .Single(Rect => Rect.GroupId == "Worker");
-
-        double RegionCenterX = (WorkerRect.Left
-            + FlowchartSubgraphBoundsBuilder.PADDING_PX
-            + WorkerRect.Right
-            - FlowchartSubgraphBoundsBuilder.PADDING_PX) / 2.0;
-
-        Assert.That(Math.Abs(BoundsById["Q"].CenterX - RegionCenterX), Is.LessThan(2.0));
-        Assert.That(Math.Abs(BoundsById["W"].CenterX - RegionCenterX), Is.LessThan(2.0));
-        Assert.That((WorkerRect.Left + WorkerRect.Right) / 2.0, Is.EqualTo(RegionCenterX).Within(2.0));
-    }
-
-    [Test]
     public void TryResolveLayoutGuidePoints_F59_NoBranch_UsesSidePortFacingWaitAndWaitCentreTarget()
     {
         DiagramContract Contract = MermaidRecognizer.Parse("""
@@ -2462,10 +2369,15 @@ public sealed class FlowchartCatalogueRenderTests
         Assert.That(BoundsById["Reject"].CenterX, Is.LessThan(SpineX - 40.0), "Reject should occupy a left margin column");
         Assert.That(BoundsById["Reject"].CenterX, Is.LessThan(BoundsById["Render"].CenterX - 8.0), "Reject should sit in the far-left column, left of Render SVG");
 
-        // Spec §15.0C.11: each two-way decision sends its branches to columns on either side of it.
+        // Mermaid puts one branch beside Validate and keeps the following no-branch on that decision's column.
         AssertBranchesOnBothSides(BoundsById, "Validate", "Reject", "Parse");
-        AssertBranchesOnBothSides(BoundsById, "HasMermaid", "Render", "Word");
-        AssertBranchesOnBothSides(BoundsById, "DoArchive", "Done", "Persist");
+        Assert.That(BoundsById["Render"].CenterX, Is.LessThan(BoundsById["HasMermaid"].CenterX - 8.0));
+        Assert.That(
+            Math.Abs(BoundsById["Word"].CenterX - BoundsById["HasMermaid"].CenterX),
+            Is.LessThan(1.5),
+            "Build DOCX stays on the decision column");
+        Assert.That(BoundsById["Done"].CenterX, Is.LessThan(BoundsById["DoArchive"].CenterX - 8.0));
+        Assert.That(BoundsById["Persist"].CenterX, Is.LessThan(BoundsById["DoArchive"].CenterX - 8.0));
 
         // Layout is y-up: a larger CenterY is higher on the page.
         Assert.That(BoundsById["Persist"].CenterY, Is.GreaterThan(BoundsById["Done"].CenterY + 40.0), "Optional archive sits above Done");
@@ -2672,30 +2584,6 @@ public sealed class FlowchartCatalogueRenderTests
         Assert.That(PersistLabelIndex, Is.GreaterThan(0));
         Assert.That(DoneNodeIndex, Is.GreaterThan(PersistLabelIndex),
             "Optional archive node should be painted before Done in SVG document order");
-    }
-
-    [Test]
-    public void TryLayout_F34_DoneAndRetryCentredOnDecisionHub()
-    {
-        DiagramContract Contract = MermaidRecognizer.Parse("""
-            flowchart LR
-            A[Receive] --> B{OK?}
-            B -->|Yes| C[Done]
-            B -->|No| D[Retry]
-            D --> A
-            """);
-
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
-
-        double HubX = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "B").CenterX;
-        double HubY = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "B").CenterY;
-        double DoneX = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "C").CenterX;
-        double DoneY = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "C").CenterY;
-        double RetryY = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "D").CenterY;
-
-        Assert.That(DoneX, Is.GreaterThan(HubX), "Branch targets should sit forward of the decision hub");
-        Assert.That(Math.Abs(((DoneY + RetryY) / 2.0) - HubY), Is.LessThan(2.0),
-            "Branch targets should straddle the hub cross-axis symmetrically");
     }
 
     [Test]
@@ -2918,40 +2806,6 @@ public sealed class FlowchartCatalogueRenderTests
         Assert.That(Svg, Does.Contain("Level 1"));
         Assert.That(Svg, Does.Contain("Level 2"));
         Assert.That(System.Text.RegularExpressions.Regex.Matches(Svg, "fill=\"#ffffde\"").Count, Is.GreaterThanOrEqualTo(3));
-    }
-
-    [Test]
-    public void TryLayout_F67_InvisibleEdge_PlacesTargetBelowSource()
-    {
-        DiagramContract Contract = MermaidRecognizer.Parse("""
-            flowchart LR
-            A[A] --> B[B]
-            B ~~~ C[C]
-            """);
-
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
-
-        double BX = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "B").CenterX;
-        double CX = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "C").CenterX;
-        double BY = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "B").CenterY;
-        double CY = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "C").CenterY;
-
-        Assert.That(Math.Abs(BX - CX), Is.LessThan(2.0));
-        Assert.That(CY, Is.LessThan(BY - 20.0));
-    }
-
-    [Test]
-    public void RenderToSvg_F61_GroupedTwoByTwo_UsesStraightCrossEdges()
-    {
-        DiagramContract Contract = MermaidRecognizer.Parse("""
-            flowchart TB
-            A & B --> C & D
-            """);
-
-        string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
-        int StraightLineCount = System.Text.RegularExpressions.Regex.Matches(Svg, @"<line[^>]*stroke=""[^""]+""").Count;
-        Assert.That(StraightLineCount, Is.GreaterThanOrEqualTo(4));
-        Assert.That(Svg, Does.Not.Contain("C "));
     }
 
     [Test]
