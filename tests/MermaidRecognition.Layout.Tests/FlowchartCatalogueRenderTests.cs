@@ -2533,31 +2533,14 @@ public sealed class FlowchartCatalogueRenderTests
         Assert.That(Svg, Does.Contain("Optional archive"));
         Assert.That(Regex.Matches(Svg, @"\sA[\d\.,]+").Count, Is.GreaterThanOrEqualTo(3),
             "Persist cylinder and stadium Start should expose arc segments");
-        Assert.That(Regex.Matches(Svg, @"<path d=""[^""]*C[^""]*"" fill=""none""").Count,
+        Assert.That(Svg, Does.Contain(@"data-edge-source=""Validate"" data-edge-target=""Reject"""));
+        Assert.That(Svg, Does.Contain(@"data-edge-source=""Reject"" data-edge-target=""Done"""));
+        Assert.That(Svg, Does.Contain(@"data-edge-source=""Persist"" data-edge-target=""Done"""));
+        Assert.That(Regex.IsMatch(Svg, @"<path d=""[^""]*S[^""]*"""), Is.False,
+            "Routes must not use smooth cubic continuation");
+        Assert.That(Regex.Matches(Svg, @"<path d=""[^""]+L[^""]+"" fill=""none""").Count,
             Is.GreaterThanOrEqualTo(2),
-            "Local decision branches and terminal collector routes should produce curved edges");
-
-        MatchCollection OrthogonalMatches = Regex.Matches(
-            Svg,
-            @"<path d=""(M[^""]*)"" fill=""none""");
-        List<string> OrthogonalPathSamples = [];
-        foreach (Match Match in OrthogonalMatches)
-        {
-            if (Match.Groups.Count > 1
-                && FlowchartCurvePathBuilder.IsMultiSegmentOrthogonalPathData(Match.Groups[1].Value))
-            {
-                OrthogonalPathSamples.Add(Match.Groups[1].Value);
-            }
-        }
-
-        Assert.That(
-            OrthogonalPathSamples,
-            Is.Empty,
-            "Default curveBasis diagrams must not render multi-segment orthogonal edge polylines: "
-            + string.Join(" | ", OrthogonalPathSamples));
-        Assert.That(Regex.Matches(Svg, @"<path d=""[^""]*C[^""]*"" fill=""none""").Count,
-            Is.GreaterThanOrEqualTo(5),
-            "Bypass, fan-in, and decision routes should render as smooth curveBasis paths");
+            "Decision branches and collector routes should use orthogonal straight runs");
 
         int PersistLabelIndex = Svg.IndexOf("Optional archive", StringComparison.Ordinal);
         int DoneNodeIndex = Svg.LastIndexOf("Done", StringComparison.Ordinal);
