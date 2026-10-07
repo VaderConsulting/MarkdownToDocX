@@ -18,6 +18,15 @@ public sealed class DiagramGridRankGapTests
             C3 --> DL
         """;
 
+    private const string PurgeRequestSource = """
+        flowchart TD
+            P[Purge request] --> V{Authorised + scoped?}
+            V -->|no| X[Reject / audit alert]
+            V -->|yes| E[Export optional archive]
+            E --> R[Remove messages]
+            R --> L[Log counts + ticket ref]
+        """;
+
     [Test]
     public void TryLayout_LoadBalance_UsesUniformRankClearGaps()
     {
@@ -56,6 +65,48 @@ public sealed class DiagramGridRankGapTests
         Assert.That(Svg, Does.Contain("data-edge-source=\"L\" data-edge-target=\"C1\""));
         Assert.That(Svg, Does.Contain("data-edge-source=\"C1\" data-edge-target=\"DL\""));
     }
+
+    [Test]
+    public void TryLayout_PurgeRequest_UsesUniformRankClearGapsAcrossSideChain()
+    {
+        DiagramContract Contract = MermaidRecognizer.Parse(PurgeRequestSource);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+
+        List<double> ClearGaps = MeasureClearGaps(Layout);
+        Assert.That(ClearGaps, Has.Count.EqualTo(4));
+        foreach (double Gap in ClearGaps)
+        {
+            Assert.That(Gap, Is.EqualTo(ClearGaps[0]).Within(1.0));
+        }
+
+        Assert.That(ClearGaps[0], Is.GreaterThan(DiagramGridMetrics.NODE_GAP_PX));
+    }
+
+    [Test]
+    public void TryLayout_PurgeRequest_RightChainMatchesDecisionBranchGap()
+    {
+        DiagramContract Contract = MermaidRecognizer.Parse(PurgeRequestSource);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+
+        FlowchartLayoutNodeBounds Export = Find(Layout, "E");
+        FlowchartLayoutNodeBounds Remove = Find(Layout, "R");
+        FlowchartLayoutNodeBounds Log = Find(Layout, "L");
+        FlowchartLayoutNodeBounds Decision = Find(Layout, "V");
+        FlowchartLayoutNodeBounds Reject = Find(Layout, "X");
+
+        double ExportToRemoveGap = BottomOf(Export) - TopOf(Remove);
+        double RemoveToLogGap = BottomOf(Remove) - TopOf(Log);
+        double DecisionToBranchGap = BottomOf(Decision) - TopOf(Reject);
+
+        Assert.That(ExportToRemoveGap, Is.EqualTo(DecisionToBranchGap).Within(1.0));
+        Assert.That(RemoveToLogGap, Is.EqualTo(DecisionToBranchGap).Within(1.0));
+    }
+
+    private static double BottomOf(FlowchartLayoutNodeBounds Bounds) =>
+        Bounds.CenterY - (Bounds.Height / 2.0);
+
+    private static double TopOf(FlowchartLayoutNodeBounds Bounds) =>
+        Bounds.CenterY + (Bounds.Height / 2.0);
 
     private static List<double> MeasureClearGaps(FlowchartLayoutResult Layout)
     {

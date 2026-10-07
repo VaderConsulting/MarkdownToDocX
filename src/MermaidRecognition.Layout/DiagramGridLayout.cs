@@ -769,8 +769,7 @@ public static class DiagramGridLayout
             }
 
             RankPairGapPlan Plan = GapPlans[Rank];
-            int ClearGap = Math.Max(UniformClearGap, Plan.StructuralClearGap) + Plan.LabelClearGapBoost;
-            MainCursor += Plan.HalfBelow + Plan.HalfAbove + ClearGap;
+            MainCursor += Plan.HalfBelow + Plan.HalfAbove + UniformClearGap;
         }
 
         SortedDictionary<int, List<GridNode>> ByColumn = new SortedDictionary<int, List<GridNode>>();
@@ -3203,7 +3202,9 @@ public static class DiagramGridLayout
         int UniformClearGap = DiagramGridMetrics.NODE_GAP_PX;
         foreach (RankPairGapPlan Plan in Plans)
         {
-            UniformClearGap = Math.Max(UniformClearGap, Plan.StructuralClearGap);
+            UniformClearGap = Math.Max(
+                UniformClearGap,
+                Plan.StructuralClearGap + Plan.LabelClearGapBoost);
         }
 
         return UniformClearGap;
