@@ -75,6 +75,7 @@ public static class DiagramGridLayout
         FlipToYUp(Placed, Frames, Copy);
         AssignPortSides(Contract, Copy, Placed, Frames, Nodes, Direction);
         DiagramGridRouteBuilder.RebuildAllRoutes(Copy, Placed, Nodes, Contract, Frames, Direction);
+        RebuildDecisionFanOutRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
         Copy.UsesGridRoutes = true;
         SeparateTracks(Copy, Placed);
         PushPointsOutOfNodes(Copy, Placed);
@@ -1806,6 +1807,116 @@ public static class DiagramGridLayout
         }
 
         return false;
+    }
+
+    private static Dictionary<string, FlowchartLayoutNodeBounds> BuildPlacedBounds(
+        List<GridNode> Placed,
+        List<GridFrame> Frames)
+    {
+        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById =
+            new Dictionary<string, FlowchartLayoutNodeBounds>(StringComparer.Ordinal);
+        foreach (GridNode Node in Placed)
+        {
+            BoundsById[Node.Id] = new FlowchartLayoutNodeBounds
+            {
+                NodeId = Node.Id,
+                CenterX = Node.X,
+                CenterY = Node.Y,
+                Width = Node.Width,
+                Height = Node.Height
+            };
+        }
+
+        foreach (GridFrame Frame in Frames)
+        {
+            BoundsById[Frame.Id] = new FlowchartLayoutNodeBounds
+            {
+                NodeId = Frame.Id,
+                CenterX = Frame.CenterX(),
+                CenterY = Frame.CenterY(),
+                Width = Frame.Right - Frame.Left,
+                Height = Frame.Top - Frame.Bottom
+            };
+        }
+
+        return BoundsById;
+    }
+
+    private static void RebuildDecisionFanOutRoutes(
+        DiagramContract Contract,
+        FlowchartLayoutResult Copy,
+        List<GridNode> Placed,
+        List<GridFrame> Frames,
+        Dictionary<string, NodeContract> Nodes,
+        FlowchartDirection Direction)
+    {
+        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = BuildPlacedBounds(Placed, Frames);
+
+        foreach (FlowchartLayoutEdgeRoute Route in Copy.EdgeRoutes)
+        {
+            if (!Nodes.TryGetValue(Route.SourceId, out NodeContract? SourceNode)
+                || !FlowchartDagrePresentation.IsDiamondShape(SourceNode.Shape))
+            {
+                continue;
+            }
+
+            int Outgoing = 0;
+            foreach (EdgeContract Candidate in Contract.Edges)
+            {
+                if (string.Equals(Candidate.SourceId, Route.SourceId, StringComparison.Ordinal)
+                    && !string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+                {
+                    Outgoing++;
+                }
+            }
+
+            if (Outgoing < 2)
+            {
+                continue;
+            }
+
+            EdgeContract? Edge = null;
+            foreach (EdgeContract Candidate in Contract.Edges)
+            {
+                if (string.Equals(Candidate.SourceId, Route.SourceId, StringComparison.Ordinal)
+                    && string.Equals(Candidate.TargetId, Route.TargetId, StringComparison.Ordinal))
+                {
+                    Edge = Candidate;
+                    break;
+                }
+            }
+
+            if (Edge == null)
+            {
+                continue;
+            }
+
+            string? TargetShape = Nodes.TryGetValue(Route.TargetId, out NodeContract? TargetNode)
+                ? TargetNode.Shape
+                : null;
+            if (!FlowchartDecisionPortAllocator.TryResolveEdgeRoute(
+                    Edge,
+                    Contract,
+                    BoundsById,
+                    SourceNode.Shape,
+                    TargetShape,
+                    Direction,
+                    out List<(double X, double Y)> LayoutPoints)
+                || LayoutPoints.Count < 2)
+            {
+                continue;
+            }
+
+            Route.Points.Clear();
+            foreach ((double PointX, double PointY) in LayoutPoints)
+            {
+                Route.Points.Add(new FlowchartLayoutPoint
+                {
+                    X = Math.Round(PointX),
+                    Y = Math.Round(PointY)
+                });
+            }
+        }
     }
 
     private static string ChooseElbowEntrySide(

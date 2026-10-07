@@ -98,7 +98,13 @@ public static class FlowchartEdgeRouteDiagnosticAnalyzer
 
             List<(double X, double Y)> LayoutPoints;
             FlowchartEdgeRouteKind RouteKind;
-            if (!FlowchartEdgeRouteResolver.TryResolveGridLayoutPoints(Layout, Edge, out LayoutPoints, out RouteKind)
+            if (!FlowchartEdgeRouteResolver.TryResolveGridLayoutPoints(
+                    Layout,
+                    Contract,
+                    NodeById,
+                    Edge,
+                    out LayoutPoints,
+                    out RouteKind)
                 && !FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
                     Edge,
                     Contract,
@@ -106,7 +112,8 @@ public static class FlowchartEdgeRouteDiagnosticAnalyzer
                     NodeById,
                     Direction,
                     out LayoutPoints,
-                    out RouteKind))
+                    out RouteKind,
+                    Layout))
             {
                 continue;
             }

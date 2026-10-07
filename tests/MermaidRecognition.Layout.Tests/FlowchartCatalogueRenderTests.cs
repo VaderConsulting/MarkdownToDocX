@@ -2424,6 +2424,7 @@ public sealed class FlowchartCatalogueRenderTests
         // Spec §15.0C.1: sources wholly beside Done join the middle of Done's facing side.
         AssertEdgeTargetFace(
             Contract,
+            Layout,
             BoundsById,
             NodeById,
             Direction,
@@ -2431,14 +2432,20 @@ public sealed class FlowchartCatalogueRenderTests
             "Done",
             FlowchartEdgeAttachFace.Left);
 
+        FlowchartLayoutNodeBounds PersistBounds = BoundsById["Persist"];
+        FlowchartLayoutNodeBounds DoneBounds = BoundsById["Done"];
+        FlowchartEdgeAttachFace PersistEntryFace = Math.Abs(PersistBounds.CenterX - DoneBounds.CenterX) <= 4.0
+            ? FlowchartEdgeAttachFace.Top
+            : FlowchartEdgeAttachFace.Right;
         AssertEdgeTargetFace(
             Contract,
+            Layout,
             BoundsById,
             NodeById,
             Direction,
             "Persist",
             "Done",
-            FlowchartEdgeAttachFace.Right);
+            PersistEntryFace);
     }
 
     [Test]
@@ -2472,6 +2479,7 @@ public sealed class FlowchartCatalogueRenderTests
 
         AssertHasMermaidBranchRoute(
             Contract,
+            Layout,
             BoundsById,
             NodeById,
             Direction,
@@ -2480,6 +2488,7 @@ public sealed class FlowchartCatalogueRenderTests
 
         AssertHasMermaidBranchRoute(
             Contract,
+            Layout,
             BoundsById,
             NodeById,
             Direction,
@@ -2517,12 +2526,12 @@ public sealed class FlowchartCatalogueRenderTests
             .ToDictionary(Node => Node.Id, Node => Node);
 
         // Two-way decisions leave from the shoulder that faces each target, never the bottom vertex.
-        AssertDecisionSourceAttachLeftOfHub(Contract, BoundsById, NodeById, Direction, "Validate", "Reject");
-        AssertDecisionSourceAttachRightOfHub(Contract, BoundsById, NodeById, Direction, "Validate", "Parse");
-        AssertDecisionSourceAttachLeftOfHub(Contract, BoundsById, NodeById, Direction, "HasMermaid", "Render");
-        AssertDecisionSourceAttachRightOfHub(Contract, BoundsById, NodeById, Direction, "HasMermaid", "Word");
-        AssertDecisionSourceAttachRightOfHub(Contract, BoundsById, NodeById, Direction, "DoArchive", "Persist");
-        AssertDecisionSourceAttachLeftOfHub(Contract, BoundsById, NodeById, Direction, "DoArchive", "Done");
+        AssertDecisionSourceAttachLeftOfHub(Contract, Layout, BoundsById, NodeById, Direction, "Validate", "Reject");
+        AssertDecisionSourceAttachRightOfHub(Contract, Layout, BoundsById, NodeById, Direction, "Validate", "Parse");
+        AssertDecisionSourceAttachLeftOfHub(Contract, Layout, BoundsById, NodeById, Direction, "HasMermaid", "Render");
+        AssertCollinearDecisionBranch(Contract, Layout, BoundsById, NodeById, Direction, "HasMermaid", "Word");
+        AssertDecisionSourceAttachLeftOfHub(Contract, Layout, BoundsById, NodeById, Direction, "DoArchive", "Persist");
+        AssertDecisionSourceAttachLeftOfHub(Contract, Layout, BoundsById, NodeById, Direction, "DoArchive", "Done");
     }
 
     [Test]
@@ -3048,45 +3057,49 @@ public sealed class FlowchartCatalogueRenderTests
 
     private static void AssertDecisionSourceAttachLeftOfHub(
         DiagramContract Contract,
+        FlowchartLayoutResult Layout,
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         Dictionary<string, NodeContract> NodeById,
         FlowchartDirection Direction,
         string SourceId,
         string TargetId)
     {
-        (double AttachX, _) = ResolveDecisionSourceAttach(Contract, BoundsById, NodeById, Direction, SourceId, TargetId);
+        (double AttachX, _) = ResolveDecisionSourceAttach(Contract, Layout, BoundsById, NodeById, Direction, SourceId, TargetId);
         double HubCentreX = BoundsById[SourceId].CenterX;
         Assert.That(AttachX, Is.LessThan(HubCentreX - 4.0), SourceId + "->" + TargetId + " should exit the left diamond port");
     }
 
     private static void AssertDecisionSourceAttachRightOfHub(
         DiagramContract Contract,
+        FlowchartLayoutResult Layout,
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         Dictionary<string, NodeContract> NodeById,
         FlowchartDirection Direction,
         string SourceId,
         string TargetId)
     {
-        (double AttachX, _) = ResolveDecisionSourceAttach(Contract, BoundsById, NodeById, Direction, SourceId, TargetId);
+        (double AttachX, _) = ResolveDecisionSourceAttach(Contract, Layout, BoundsById, NodeById, Direction, SourceId, TargetId);
         double HubCentreX = BoundsById[SourceId].CenterX;
         Assert.That(AttachX, Is.GreaterThan(HubCentreX + 4.0), SourceId + "->" + TargetId + " should exit the right diamond port");
     }
 
     private static void AssertDecisionSourceAttachBelowHub(
         DiagramContract Contract,
+        FlowchartLayoutResult Layout,
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         Dictionary<string, NodeContract> NodeById,
         FlowchartDirection Direction,
         string SourceId,
         string TargetId)
     {
-        (_, double AttachY) = ResolveDecisionSourceAttach(Contract, BoundsById, NodeById, Direction, SourceId, TargetId);
+        (_, double AttachY) = ResolveDecisionSourceAttach(Contract, Layout, BoundsById, NodeById, Direction, SourceId, TargetId);
         double HubCentreY = BoundsById[SourceId].CenterY;
         Assert.That(AttachY, Is.LessThan(HubCentreY - 4.0), SourceId + "->" + TargetId + " should exit the bottom diamond port");
     }
 
     private static (double X, double Y) ResolveDecisionSourceAttach(
         DiagramContract Contract,
+        FlowchartLayoutResult Layout,
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         Dictionary<string, NodeContract> NodeById,
         FlowchartDirection Direction,
@@ -3103,28 +3116,21 @@ public sealed class FlowchartCatalogueRenderTests
             NodeById,
             Direction,
             out List<(double X, double Y)> LayoutPoints,
-            out FlowchartEdgeRouteKind RouteKind);
+            out FlowchartEdgeRouteKind RouteKind,
+            Layout);
 
         Assert.That(Resolved, Is.True, SourceId + "->" + TargetId + " should resolve");
-        if (RouteKind == FlowchartEdgeRouteKind.Corridor)
-        {
-            Assert.That(LayoutPoints.Count, Is.GreaterThanOrEqualTo(5), SourceId + "->" + TargetId + " corridor route");
-        }
-        else
-        {
-            FlowchartEdgeRouteKind ExpectedRouteKind = LayoutPoints.Count == 2
-                ? FlowchartEdgeRouteKind.Straight
-                : LayoutPoints.Count >= 6
-                    ? FlowchartEdgeRouteKind.Curved
-                    : FlowchartEdgeRouteKind.Decision;
-            Assert.That(RouteKind, Is.EqualTo(ExpectedRouteKind), SourceId + "->" + TargetId + " route kind");
-        }
+        Assert.That(
+            RouteKind,
+            Is.EqualTo(FlowchartEdgeRouteKind.Decision).Or.EqualTo(FlowchartEdgeRouteKind.Straight),
+            SourceId + "->" + TargetId + " route kind");
 
         return LayoutPoints[0];
     }
 
     private static void AssertHasMermaidBranchRoute(
         DiagramContract Contract,
+        FlowchartLayoutResult Layout,
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         Dictionary<string, NodeContract> NodeById,
         FlowchartDirection Direction,
@@ -3141,13 +3147,21 @@ public sealed class FlowchartCatalogueRenderTests
             NodeById,
             Direction,
             out List<(double X, double Y)> LayoutPoints,
-            out FlowchartEdgeRouteKind RouteKind);
+            out FlowchartEdgeRouteKind RouteKind,
+            Layout);
 
         Assert.That(Resolved, Is.True, "HasMermaid->" + TargetId + " should resolve");
-        FlowchartEdgeRouteKind ExpectedRouteKind = ExpectStraight
-            ? FlowchartEdgeRouteKind.Straight
-            : FlowchartEdgeRouteKind.Decision;
-        Assert.That(RouteKind, Is.EqualTo(ExpectedRouteKind), "HasMermaid->" + TargetId + " route kind");
+        if (ExpectStraight)
+        {
+            Assert.That(RouteKind, Is.EqualTo(FlowchartEdgeRouteKind.Straight), "HasMermaid->" + TargetId + " route kind");
+        }
+        else
+        {
+            Assert.That(
+                RouteKind,
+                Is.EqualTo(FlowchartEdgeRouteKind.Decision).Or.EqualTo(FlowchartEdgeRouteKind.Straight),
+                "HasMermaid->" + TargetId + " route kind");
+        }
 
         if (ExpectStraight)
         {
@@ -3166,12 +3180,49 @@ public sealed class FlowchartCatalogueRenderTests
         }
         else
         {
-            Assert.That(LayoutPoints.Count, Is.EqualTo(5), "HasMermaid->" + TargetId + " should use a curved branch route");
+            Assert.That(LayoutPoints.Count, Is.GreaterThanOrEqualTo(2).And.LessThanOrEqualTo(3),
+                "HasMermaid->" + TargetId + " should use a single-elbow orthogonal branch (B12)");
         }
+    }
+
+    private static void AssertCollinearDecisionBranch(
+        DiagramContract Contract,
+        FlowchartLayoutResult Layout,
+        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        Dictionary<string, NodeContract> NodeById,
+        FlowchartDirection Direction,
+        string SourceId,
+        string TargetId)
+    {
+        EdgeContract Edge = Contract.Edges.First(
+            Candidate => Candidate.SourceId == SourceId && Candidate.TargetId == TargetId);
+
+        bool Resolved = FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
+            Edge,
+            Contract,
+            BoundsById,
+            NodeById,
+            Direction,
+            out List<(double X, double Y)> LayoutPoints,
+            out FlowchartEdgeRouteKind RouteKind,
+            Layout);
+
+        Assert.That(Resolved, Is.True, SourceId + "->" + TargetId + " should resolve");
+        Assert.That(
+            RouteKind,
+            Is.EqualTo(FlowchartEdgeRouteKind.Straight).Or.EqualTo(FlowchartEdgeRouteKind.Decision),
+            SourceId + "->" + TargetId + " collinear branch");
+        Assert.That(LayoutPoints.Count, Is.LessThanOrEqualTo(3), SourceId + "->" + TargetId + " uses at most one elbow");
+        FlowchartLayoutNodeBounds TargetBounds = BoundsById[TargetId];
+        Assert.That(
+            Math.Abs(TargetBounds.CenterX - BoundsById[SourceId].CenterX),
+            Is.LessThan(4.0),
+            SourceId + "->" + TargetId + " target shares the hub column");
     }
 
     private static void AssertEdgeTargetFace(
         DiagramContract Contract,
+        FlowchartLayoutResult Layout,
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         Dictionary<string, NodeContract> NodeById,
         FlowchartDirection Direction,
@@ -3189,7 +3240,8 @@ public sealed class FlowchartCatalogueRenderTests
             NodeById,
             Direction,
             out List<(double X, double Y)> LayoutPoints,
-            out _);
+            out _,
+            Layout);
 
         Assert.That(Resolved, Is.True, SourceId + "->" + TargetId + " should resolve");
 

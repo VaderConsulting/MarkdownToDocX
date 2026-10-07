@@ -48,6 +48,7 @@ public sealed class F124DecisionPortRenderTests
 
         (double YesAttachX, double YesAttachY) = ResolveDecisionSourceAttach(
             Contract,
+            Layout,
             BoundsById,
             NodeById,
             Direction,
@@ -55,6 +56,7 @@ public sealed class F124DecisionPortRenderTests
             "C");
         (double NoAttachX, double NoAttachY) = ResolveDecisionSourceAttach(
             Contract,
+            Layout,
             BoundsById,
             NodeById,
             Direction,
@@ -103,11 +105,11 @@ public sealed class F124DecisionPortRenderTests
             HubBounds.CenterY - (HalfHeight / 2.0));
 
         (double OneAttachX, double OneAttachY) = ResolveDecisionSourceAttach(
-            Contract, BoundsById, NodeById, Direction, "C", "D");
+            Contract, Layout, BoundsById, NodeById, Direction, "C", "D");
         (double TwoAttachX, double TwoAttachY) = ResolveDecisionSourceAttach(
-            Contract, BoundsById, NodeById, Direction, "C", "E");
+            Contract, Layout, BoundsById, NodeById, Direction, "C", "E");
         (double ThreeAttachX, double ThreeAttachY) = ResolveDecisionSourceAttach(
-            Contract, BoundsById, NodeById, Direction, "C", "F");
+            Contract, Layout, BoundsById, NodeById, Direction, "C", "F");
 
         Assert.That(OneAttachX, Is.EqualTo(LeftMidX).Within(1.0));
         Assert.That(OneAttachY, Is.EqualTo(LeftMidY).Within(1.0));
@@ -119,6 +121,7 @@ public sealed class F124DecisionPortRenderTests
 
     private static (double X, double Y) ResolveDecisionSourceAttach(
         DiagramContract Contract,
+        FlowchartLayoutResult Layout,
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         Dictionary<string, NodeContract> NodeById,
         FlowchartDirection Direction,
@@ -135,7 +138,8 @@ public sealed class F124DecisionPortRenderTests
             NodeById,
             Direction,
             out List<(double X, double Y)> LayoutPoints,
-            out FlowchartEdgeRouteKind _);
+            out FlowchartEdgeRouteKind _,
+            Layout);
 
         Assert.That(Resolved, Is.True, SourceId + "->" + TargetId + " should resolve");
         return LayoutPoints[0];

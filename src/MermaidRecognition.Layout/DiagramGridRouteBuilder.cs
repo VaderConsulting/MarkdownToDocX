@@ -42,13 +42,20 @@ public static class DiagramGridRouteBuilder
                 continue;
             }
 
+            if (Nodes.TryGetValue(Route.SourceId, out NodeContract? SourceNode)
+                && FlowchartDagrePresentation.IsDiamondShape(SourceNode.Shape)
+                && CountVisibleOutgoing(Contract, Route.SourceId) >= 2)
+            {
+                continue;
+            }
+
             if (!BoundsById.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds SourceBounds)
                 || !BoundsById.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
             {
                 continue;
             }
 
-            string? SourceShape = Nodes.TryGetValue(Route.SourceId, out NodeContract? SourceNode) ? SourceNode.Shape : null;
+            string? SourceShape = SourceNode?.Shape;
             string? TargetShape = Nodes.TryGetValue(Route.TargetId, out NodeContract? TargetNode) ? TargetNode.Shape : null;
 
             double StartX = Route.Points[0].X;
@@ -784,5 +791,20 @@ public static class DiagramGridRouteBuilder
         }
 
         return BoundsById;
+    }
+
+    private static int CountVisibleOutgoing(DiagramContract Contract, string SourceId)
+    {
+        int Count = 0;
+        foreach (EdgeContract Edge in Contract.Edges)
+        {
+            if (string.Equals(Edge.SourceId, SourceId, StringComparison.Ordinal)
+                && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+            {
+                Count++;
+            }
+        }
+
+        return Count;
     }
 }

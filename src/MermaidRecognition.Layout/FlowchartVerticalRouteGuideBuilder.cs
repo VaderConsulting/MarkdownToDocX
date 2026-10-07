@@ -430,37 +430,23 @@ public static class FlowchartVerticalRouteGuideBuilder
         FlowchartDecisionPortRole Role,
         bool IsInbound = false)
     {
-        (double SourceStubX, double SourceStubY) = ComputeStubOuterPoint(
-            SourceX,
-            SourceY,
-            SourceBounds,
-            SourceShape);
-        (double TargetStubX, double TargetStubY) = ComputeStubOuterPoint(
-            TargetX,
-            TargetY,
-            TargetBounds,
-            TargetShape);
-
-        (double GuideX, double GuideY) = IsInbound
-            ? BuildVerticalDecisionBranchGuidePoint(
-                HubCentreX,
-                TargetStubX,
-                TargetStubY,
-                SourceStubX,
-                SourceStubY,
-                Role)
-            : BuildVerticalDecisionBranchGuidePoint(
-                HubCentreX,
-                SourceStubX,
-                SourceStubY,
-                TargetStubX,
-                TargetStubY,
-                Role);
+        bool SpinePort = Role == FlowchartDecisionPortRole.BottomVertex
+            || Role == FlowchartDecisionPortRole.TopVertex;
+        bool AlignedTarget = Math.Abs(TargetX - HubCentreX) <= COLLINEAR_EPSILON_PX;
 
         Points.Add((SourceX, SourceY));
-        Points.Add((SourceStubX, SourceStubY));
-        Points.Add((GuideX, GuideY));
-        Points.Add((TargetStubX, TargetStubY));
+        if (SpinePort || AlignedTarget)
+        {
+            Points.Add((TargetX, TargetY));
+            return;
+        }
+
+        double CorridorX = TargetBounds.CenterX;
+        if (Math.Abs(SourceX - CorridorX) > COLLINEAR_EPSILON_PX)
+        {
+            Points.Add((CorridorX, SourceY));
+        }
+
         Points.Add((TargetX, TargetY));
     }
 

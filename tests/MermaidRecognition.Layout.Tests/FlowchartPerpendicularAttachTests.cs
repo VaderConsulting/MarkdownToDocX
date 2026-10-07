@@ -364,20 +364,23 @@ public sealed class FlowchartPerpendicularAttachTests
                 NodeById,
                 Direction,
                 out List<(double X, double Y)> LayoutPoints,
-                out FlowchartEdgeRouteKind RouteKind);
+                out FlowchartEdgeRouteKind RouteKind,
+                Layout);
 
             Assert.That(Resolved, Is.True);
             Assert.That(RouteKind, Is.EqualTo(FlowchartEdgeRouteKind.Decision));
-            Assert.That(LayoutPoints.Count, Is.EqualTo(5));
+            Assert.That(LayoutPoints.Count, Is.GreaterThanOrEqualTo(2).And.LessThanOrEqualTo(3),
+                "B12 decision branches use a single rounded elbow, not five-point curveBasis guides");
 
-            double TargetX = LayoutPoints[4].X;
-            double GuideX = LayoutPoints[2].X;
-            double ExpectedGuideX = TargetX < HubCentreX
-                ? HubCentreX - Math.Abs(TargetX - HubCentreX)
-                : HubCentreX + Math.Abs(TargetX - HubCentreX);
-
-            Assert.That(GuideX, Is.EqualTo(ExpectedGuideX).Within(0.75),
-                TargetId + " guide must sit at hubCentre ± |targetX − hubCentre| (spec §15 / Naiad TargetLeg)");
+            double SourceX = LayoutPoints[0].X;
+            if (string.Equals(TargetId, "OK", StringComparison.Ordinal))
+            {
+                Assert.That(SourceX, Is.LessThan(HubCentreX - 4.0), "Yes branch exits the left-facing diamond port");
+            }
+            else
+            {
+                Assert.That(SourceX, Is.GreaterThan(HubCentreX + 4.0), "No branch exits the right-facing diamond port");
+            }
         }
     }
 

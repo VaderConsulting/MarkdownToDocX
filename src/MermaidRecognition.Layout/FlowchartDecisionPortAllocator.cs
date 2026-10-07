@@ -649,25 +649,16 @@ public static class FlowchartDecisionPortAllocator
             double RightVertexY = CentreY;
             double LowerRightSlopeX = CentreX + (HalfWidth / 2.0);
             double LowerRightSlopeY = CentreY - (HalfHeight / 2.0);
+            double TargetDy = TargetBounds.CenterY - CentreY;
 
-            if (BranchCount == 2)
-            {
-                if (BranchIndex == 0)
-                {
-                    return (TopRightSlopeX, TopRightSlopeY, FlowchartDecisionPortRole.SideLeft);
-                }
-
-                return (LowerRightSlopeX, LowerRightSlopeY, FlowchartDecisionPortRole.SideRight);
-            }
-
-            if (BranchIndex == 0)
-            {
-                return (TopRightSlopeX, TopRightSlopeY, FlowchartDecisionPortRole.SideLeft);
-            }
-
-            if (BranchIndex == 1)
+            if (Math.Abs(TargetDy) <= DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
             {
                 return (RightVertexX, RightVertexY, FlowchartDecisionPortRole.BottomVertex);
+            }
+
+            if (TargetDy > 0.0)
+            {
+                return (TopRightSlopeX, TopRightSlopeY, FlowchartDecisionPortRole.SideLeft);
             }
 
             return (LowerRightSlopeX, LowerRightSlopeY, FlowchartDecisionPortRole.SideRight);
