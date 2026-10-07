@@ -63,6 +63,19 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
     /// <summary>Distance from message arrow (y) up to the label baseline (larger matches Mermaid spacing).</summary>
     const double MessageLabelOffsetAboveArrow = 15;
 
+    /// <summary>
+    /// Visual gap between a message arrow tip and the next diagram element.
+    /// Derived from <see cref="MessageSpacing"/> minus label and arrowhead extents.
+    /// </summary>
+    static double SequenceInterElementClearancePx =>
+        MessageSpacing - MessageLabelOffsetAboveArrow - GetSequenceMessageMarkerTipBeyondRefXPx(MessageType.SolidArrow);
+
+    /// <summary>
+    /// Bottom row margin below a note so the next message label clears the note box (Rule S1).
+    /// </summary>
+    static double NoteBottomRowMarginPx =>
+        MessageLabelOffsetAboveArrow + MermaidSequenceMessageFontSizePx + SequenceInterElementClearancePx;
+
     /// <summary>Extra clearance so message arrow tips stop before destination lifelines in Word.</summary>
     const double SequenceMessageLifelineClearancePx = 3.0;
 
@@ -235,7 +248,7 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
         element switch
         {
             Message => MessageSpacing,
-            Note note => MeasureNoteSize(note).Height + 10,
+            Note note => MeasureNoteSize(note).Height + NoteBottomRowMarginPx,
             Activation => 0, // Activations don't add height
             _ => MessageSpacing
         };
@@ -406,7 +419,7 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
                     break;
 
                 case Note note:
-                    DrawNote(builder, note, model, layout, yPositions, i, lifelineStartY, y, options);
+                    DrawNote(builder, note, layout, y, options);
                     break;
 
                 case Activation activation:
@@ -541,9 +554,8 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
         }
     }
 
-    static void DrawNote(SvgBuilder builder, Note note, SequenceModel model,
-        SequenceParticipantLayout layout, Dictionary<int, double> yPositions, int elementIndex,
-        double lifelineStartY, double y, RenderOptions options)
+    static void DrawNote(SvgBuilder builder, Note note,
+        SequenceParticipantLayout layout, double y, RenderOptions options)
     {
 #pragma warning disable IDE0007
         Size noteSize = MeasureNoteSize(note);
@@ -572,14 +584,6 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
                 }
 
                 break;
-        }
-
-        if (note.Position == NotePosition.Over
-            && string.IsNullOrEmpty(note.OverParticipantId2)
-            && TryGetNextMessageY(model, yPositions, elementIndex, out double nextMessageY))
-        {
-            double mid = (lifelineStartY + nextMessageY) / 2.0;
-            y = mid - (noteSize.Height / 2.0);
         }
 
         // Note box (folded corner style)
@@ -612,26 +616,6 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
             fontSizePx: MermaidSequenceNoteFontSizePx,
             opticalVerticalBiasEm: SequenceLabelOpticalVerticalBiasEm,
             extraVerticalOffsetPx: SequenceNodeLabelExtraVerticalOffsetPx);
-#pragma warning restore IDE0007
-    }
-
-    static bool TryGetNextMessageY(SequenceModel model, Dictionary<int, double> yPositions, int currentIndex, out double nextMessageY)
-    {
-#pragma warning disable IDE0007
-        for (int i = currentIndex + 1; i < model.Elements.Count; i++)
-        {
-            if (model.Elements[i] is Message)
-            {
-                if (yPositions.TryGetValue(i, out double y))
-                {
-                    nextMessageY = y;
-                    return true;
-                }
-            }
-        }
-
-        nextMessageY = 0;
-        return false;
 #pragma warning restore IDE0007
     }
 
