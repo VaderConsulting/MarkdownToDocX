@@ -16,4 +16,22 @@ public sealed class FlowchartLayoutResult
     public double GraphWidth { get; init; }
 
     public double GraphHeight { get; init; }
+
+    private readonly List<FlowchartLayoutEdgeRoute> _EdgeRoutes = [];
+
+    /// <summary>
+    /// Dagre edge polylines for the diagram.
+    /// </summary>
+    public IReadOnlyList<FlowchartLayoutEdgeRoute> EdgeRoutes => _EdgeRoutes;
+
+    internal List<FlowchartLayoutEdgeRoute> EdgeRoutesMutable => _EdgeRoutes;
+
+    private readonly List<FlowchartLayoutNodeBounds> _ClusterBounds = [];
+
+    /// <summary>
+    /// Subgraph bounds in the same coordinate system as <see cref="NodeBounds"/>.
+    /// </summary>
+    public IReadOnlyList<FlowchartLayoutNodeBounds> ClusterBounds => _ClusterBounds;
+
+    internal List<FlowchartLayoutNodeBounds> ClusterBoundsMutable => _ClusterBounds;
 }
