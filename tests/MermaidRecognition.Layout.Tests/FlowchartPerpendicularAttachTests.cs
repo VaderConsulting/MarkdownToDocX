@@ -257,13 +257,13 @@ public sealed class FlowchartPerpendicularAttachTests
 
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
         int StraightSpineCount = SvgStraightConnectorReader.Read(Svg).Count(Connector => Math.Abs(Connector.X1 - Connector.X2) < 0.5);
-        int CurvedBranchCount = Regex.Matches(
+        int OrthogonalBranchCount = Regex.Matches(
             Svg,
-            @"<path d=""M[^""C]+L[^""C]+C[^""]+L[^""C]+"" fill=""none""").Count;
+            @"data-edge-source=""Check"" data-edge-target=""(OK|Fail)""").Count;
 
         Assert.That(StraightSpineCount, Is.GreaterThanOrEqualTo(1), "Start→Valid? should be a straight vertical connector");
-        Assert.That(CurvedBranchCount, Is.GreaterThanOrEqualTo(2),
-            "Yes/No branches must use a smooth curved body with perpendicular terminal approach");
+        Assert.That(OrthogonalBranchCount, Is.GreaterThanOrEqualTo(4),
+            "B12a Yes/No branches use orthogonal horizontal/vertical runs with label gaps");
     }
 
     [Test]

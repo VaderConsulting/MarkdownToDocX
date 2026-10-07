@@ -313,17 +313,18 @@ public static class FlowchartSugiyamaSvgRenderer
                         DiagramPaddingPx,
                         RenderOptions);
 
-                    if (EarlyDecisionPoints.Count == 2)
+                    List<(double X, double Y)> DecisionRouteSvgPoints = EarlyDecisionSvgPoints;
+                    if (FlowchartDiamondAttachHelper.IsDiamondShape(EarlySourceShape))
                     {
                         (double LayoutBoundaryX, double LayoutBoundaryY) = EarlyDecisionPoints[0];
-                        (double LayoutTipX, double LayoutTipY) = EarlyDecisionPoints[1];
+                        (double LayoutTowardX, double LayoutTowardY) = EarlyDecisionPoints[1];
                         (double LayoutStartX, double LayoutStartY) = FlowchartEdgeTerminalStubExpander.ResolveExteriorStubPoint(
                             EarlySourceBounds,
                             EarlySourceShape,
                             LayoutBoundaryX,
                             LayoutBoundaryY,
-                            LayoutTipX,
-                            LayoutTipY);
+                            LayoutTowardX,
+                            LayoutTowardY);
                         (double DecisionBoundaryX, double DecisionBoundaryY) = LayoutToSvgPoint(
                             LayoutBoundaryX,
                             LayoutBoundaryY,
@@ -336,19 +337,27 @@ public static class FlowchartSugiyamaSvgRenderer
                             MinLeft,
                             MaxTop,
                             DiagramPaddingPx);
-                        (double DecisionTipX, double DecisionTipY) = LayoutToSvgPoint(
-                            LayoutTipX,
-                            LayoutTipY,
-                            MinLeft,
-                            MaxTop,
-                            DiagramPaddingPx);
                         AppendStyledLine(
                             Builder,
                             DecisionBoundaryX,
                             DecisionBoundaryY,
                             DecisionStartX,
                             DecisionStartY,
-                            EdgeStyle);
+                            EdgeStyle,
+                            "round",
+                            Edge.SourceId,
+                            Edge.TargetId);
+                        DecisionRouteSvgPoints =
+                        [
+                            (DecisionStartX, DecisionStartY),
+                            .. EarlyDecisionSvgPoints.Skip(1),
+                        ];
+                    }
+
+                    if (EarlyDecisionPoints.Count == 2)
+                    {
+                        (double DecisionTipX, double DecisionTipY) = DecisionRouteSvgPoints[DecisionRouteSvgPoints.Count - 1];
+                        (double DecisionStartX, double DecisionStartY) = DecisionRouteSvgPoints[0];
                         if (!TryRenderStraightEdgeSegmentWithLabelGap(
                                 Builder,
                                 Edge,
@@ -375,7 +384,7 @@ public static class FlowchartSugiyamaSvgRenderer
                     else if (!TryRenderOrthogonalRouteWithLabelGap(
                                  Builder,
                                  Edge,
-                                 EarlyDecisionSvgPoints,
+                                 DecisionRouteSvgPoints,
                                  FlowchartEdgeRouteKind.Corridor,
                                  Direction,
                                  LabelCentreSvgX,
@@ -384,17 +393,17 @@ public static class FlowchartSugiyamaSvgRenderer
                                  RenderOptions))
                     {
                         string DecisionPathData = FlowchartCurvePathBuilder.BuildRoundedCornerPathData(
-                            EarlyDecisionSvgPoints,
+                            DecisionRouteSvgPoints,
                             DiagramGridRouteBuilder.CORNER_RADIUS_PX);
                         AppendStyledEdgePath(Builder, DecisionPathData, EdgeStyle, Edge.SourceId, Edge.TargetId);
 
-                        if (EarlyDecisionSvgPoints.Count > 2)
+                        if (DecisionRouteSvgPoints.Count > 2)
                         {
                             AppendCurvedEdgeMarkers(
                                 Builder,
                                 Edge,
                                 DecisionPathData,
-                                EarlyDecisionSvgPoints,
+                                DecisionRouteSvgPoints,
                                 FlowchartRenderedPathKind.Corridor,
                                 EdgeStyle);
                         }

@@ -641,104 +641,125 @@ public static class FlowchartDecisionPortAllocator
         DiagramContract Contract,
         FlowchartLayoutNodeBounds TargetBounds)
     {
-        if (HorizontalFlow)
+        if (BranchCount >= 3)
         {
-            double TopRightSlopeX = CentreX + (HalfWidth / 2.0);
-            double TopRightSlopeY = CentreY + (HalfHeight / 2.0);
-            double RightVertexX = CentreX + HalfWidth;
-            double RightVertexY = CentreY;
-            double LowerRightSlopeX = CentreX + (HalfWidth / 2.0);
-            double LowerRightSlopeY = CentreY - (HalfHeight / 2.0);
-            double TargetDy = TargetBounds.CenterY - CentreY;
-
-            if (Math.Abs(TargetDy) <= DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
-            {
-                return (RightVertexX, RightVertexY, FlowchartDecisionPortRole.BottomVertex);
-            }
-
-            if (TargetDy > 0.0)
-            {
-                return (TopRightSlopeX, TopRightSlopeY, FlowchartDecisionPortRole.SideLeft);
-            }
-
-            return (LowerRightSlopeX, LowerRightSlopeY, FlowchartDecisionPortRole.SideRight);
-        }
-
-        double LeftMidX = CentreX - (HalfWidth / 2.0);
-        double RightMidX = CentreX + (HalfWidth / 2.0);
-        double MidVertexX = CentreX;
-        double LeftMidY;
-        double RightMidY;
-        double MidVertexY;
-
-        if (UseBottomFace)
-        {
-            LeftMidY = CentreY - (HalfHeight / 2.0);
-            RightMidY = CentreY - (HalfHeight / 2.0);
-            MidVertexY = CentreY - HalfHeight;
-        }
-        else
-        {
-            LeftMidY = CentreY + (HalfHeight / 2.0);
-            RightMidY = CentreY + (HalfHeight / 2.0);
-            MidVertexY = CentreY + HalfHeight;
-        }
-
-        if (BranchCount == 2 && UseBottomFace)
-        {
-            return ResolveVerticalTwoWayDecisionPort(
-                SourceBounds,
-                BoundsById,
-                Direction,
+            return ResolveIndexedDecisionFanOutPort(
                 CentreX,
                 CentreY,
                 HalfWidth,
                 HalfHeight,
                 UseBottomFace,
-                Edge,
-                Contract,
-                TargetBounds);
+                BranchIndex);
         }
 
-        if (BranchCount == 2)
-        {
-            if (BranchIndex == 0)
-            {
-                return (LeftMidX, LeftMidY, FlowchartDecisionPortRole.SideLeft);
-            }
-
-            return (RightMidX, RightMidY, FlowchartDecisionPortRole.SideRight);
-        }
-
-        if (BranchIndex == 0)
-        {
-            return (LeftMidX, LeftMidY, FlowchartDecisionPortRole.SideLeft);
-        }
-
-        if (BranchIndex == 1)
-        {
-            return (MidVertexX, MidVertexY, FlowchartDecisionPortRole.BottomVertex);
-        }
-
-        return (RightMidX, RightMidY, FlowchartDecisionPortRole.SideRight);
+        return ResolveFacingDecisionFanOutPort(
+            CentreX,
+            CentreY,
+            HalfWidth,
+            HalfHeight,
+            UseBottomFace,
+            HorizontalFlow,
+            Direction == FlowchartDirection.RightToLeft,
+            TargetBounds);
     }
 
-    private static (double X, double Y, FlowchartDecisionPortRole Role) ResolveVerticalTwoWayDecisionPort(
-        FlowchartLayoutNodeBounds SourceBounds,
-        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
-        FlowchartDirection Direction,
+    /// <summary>
+    /// B12 / B12a: pick the diamond edge centre that faces the target (LR, RL, TB, BT).
+    /// </summary>
+    private static (double X, double Y, FlowchartDecisionPortRole Role) ResolveFacingDecisionFanOutPort(
         double CentreX,
         double CentreY,
         double HalfWidth,
         double HalfHeight,
         bool UseBottomFace,
-        EdgeContract Edge,
-        DiagramContract Contract,
+        bool HorizontalFlow,
+        bool RightToLeft,
         FlowchartLayoutNodeBounds TargetBounds)
+    {
+        if (HorizontalFlow)
+        {
+            double TopSlopeX;
+            double TopSlopeY = CentreY + (HalfHeight / 2.0);
+            double SideVertexX;
+            double SideVertexY = CentreY;
+            double LowerSlopeX;
+            double LowerSlopeY = CentreY - (HalfHeight / 2.0);
+            if (RightToLeft)
+            {
+                TopSlopeX = CentreX - (HalfWidth / 2.0);
+                SideVertexX = CentreX - HalfWidth;
+                LowerSlopeX = CentreX - (HalfWidth / 2.0);
+            }
+            else
+            {
+                TopSlopeX = CentreX + (HalfWidth / 2.0);
+                SideVertexX = CentreX + HalfWidth;
+                LowerSlopeX = CentreX + (HalfWidth / 2.0);
+            }
+
+            double TargetDy = TargetBounds.CenterY - CentreY;
+            if (Math.Abs(TargetDy) <= DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
+            {
+                return (SideVertexX, SideVertexY, FlowchartDecisionPortRole.BottomVertex);
+            }
+
+            if (RightToLeft)
+            {
+                if (TargetDy > 0.0)
+                {
+                    return (TopSlopeX, TopSlopeY, FlowchartDecisionPortRole.SideRight);
+                }
+
+                return (LowerSlopeX, LowerSlopeY, FlowchartDecisionPortRole.SideLeft);
+            }
+
+            if (TargetDy > 0.0)
+            {
+                return (TopSlopeX, TopSlopeY, FlowchartDecisionPortRole.SideLeft);
+            }
+
+            return (LowerSlopeX, LowerSlopeY, FlowchartDecisionPortRole.SideRight);
+        }
+
+        double LeftMidX = CentreX - (HalfWidth / 2.0);
+        double RightMidX = CentreX + (HalfWidth / 2.0);
+        double LeftMidY = UseBottomFace
+            ? CentreY - (HalfHeight / 2.0)
+            : CentreY + (HalfHeight / 2.0);
+        double RightMidY = LeftMidY;
+        double VertexY = UseBottomFace
+            ? CentreY - HalfHeight
+            : CentreY + HalfHeight;
+
+        double TargetDx = TargetBounds.CenterX - CentreX;
+        if (Math.Abs(TargetDx) <= SIDE_BRANCH_CROSS_AXIS_EPSILON_PX)
+        {
+            return (
+                CentreX,
+                VertexY,
+                UseBottomFace
+                    ? FlowchartDecisionPortRole.BottomVertex
+                    : FlowchartDecisionPortRole.TopVertex);
+        }
+
+        if (TargetDx < 0.0)
+        {
+            return (LeftMidX, LeftMidY, FlowchartDecisionPortRole.SideLeft);
+        }
+
+        return (RightMidX, RightMidY, FlowchartDecisionPortRole.SideRight);
+    }
+
+    private static (double X, double Y, FlowchartDecisionPortRole Role) ResolveIndexedDecisionFanOutPort(
+        double CentreX,
+        double CentreY,
+        double HalfWidth,
+        double HalfHeight,
+        bool UseBottomFace,
+        int BranchIndex)
     {
         double LeftMidX = CentreX - (HalfWidth / 2.0);
         double RightMidX = CentreX + (HalfWidth / 2.0);
-        double MidVertexX = CentreX;
         double LeftMidY = UseBottomFace
             ? CentreY - (HalfHeight / 2.0)
             : CentreY + (HalfHeight / 2.0);
@@ -747,99 +768,17 @@ public static class FlowchartDecisionPortAllocator
             ? CentreY - HalfHeight
             : CentreY + HalfHeight;
 
-        double CrossDelta = TargetBounds.CenterX - CentreX;
-        if (CrossDelta < -SIDE_BRANCH_CROSS_AXIS_EPSILON_PX)
+        if (BranchIndex == 0)
         {
             return (LeftMidX, LeftMidY, FlowchartDecisionPortRole.SideLeft);
         }
 
-        if (CrossDelta > SIDE_BRANCH_CROSS_AXIS_EPSILON_PX)
+        if (BranchIndex == 1)
         {
-            return (RightMidX, RightMidY, FlowchartDecisionPortRole.SideRight);
+            return (CentreX, MidVertexY, FlowchartDecisionPortRole.BottomVertex);
         }
 
-        if (IsNoLabeledEdge(Edge))
-        {
-            FlowchartRenderOptions RenderOptions = FlowchartRenderOptions.FromContract(Contract);
-            if (FlowchartSpineGraphHelper.TryBuildContext(
-                    Contract,
-                    BoundsById,
-                    Direction,
-                    RenderOptions,
-                    out FlowchartSpineLayoutContext? SpineContext)
-                && SpineContext is not null
-                && HasInterveningSpineColumnNode(BoundsById, SpineContext, SourceBounds, TargetBounds))
-            {
-                return (RightMidX, RightMidY, FlowchartDecisionPortRole.SideRight);
-            }
-
-            return (LeftMidX, LeftMidY, FlowchartDecisionPortRole.SideLeft);
-        }
-
-        if (IsYesLabeledEdge(Edge))
-        {
-            return (MidVertexX, MidVertexY, FlowchartDecisionPortRole.BottomVertex);
-        }
-
-        return (MidVertexX, MidVertexY, FlowchartDecisionPortRole.BottomVertex);
-    }
-
-    private static bool HasInterveningSpineColumnNode(
-        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
-        FlowchartSpineLayoutContext SpineContext,
-        FlowchartLayoutNodeBounds SourceBounds,
-        FlowchartLayoutNodeBounds TargetBounds)
-    {
-        foreach (KeyValuePair<string, FlowchartLayoutNodeBounds> Entry in BoundsById)
-        {
-            FlowchartLayoutNodeBounds CandidateBounds = Entry.Value;
-            if (string.Equals(CandidateBounds.NodeId, SourceBounds.NodeId, StringComparison.Ordinal)
-                || string.Equals(CandidateBounds.NodeId, TargetBounds.NodeId, StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            if (!FlowchartSpineGraphHelper.IsOnSpineColumn(CandidateBounds, SpineContext))
-            {
-                continue;
-            }
-
-            if (CandidateBounds.CenterY >= SourceBounds.CenterY - FlowchartEdgeConnectionGeometry.ALIGN_TOLERANCE_PX)
-            {
-                continue;
-            }
-
-            if (CandidateBounds.CenterY <= TargetBounds.CenterY + FlowchartEdgeConnectionGeometry.ALIGN_TOLERANCE_PX)
-            {
-                continue;
-            }
-
-            return true;
-        }
-
-        return false;
-    }
-
-    private static bool IsNoLabeledEdge(EdgeContract? Edge)
-    {
-        if (Edge is null || string.IsNullOrWhiteSpace(Edge.Label))
-        {
-            return false;
-        }
-
-        return string.Equals(Edge.Label.Trim(), "No", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(Edge.Label.Trim(), "no", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsYesLabeledEdge(EdgeContract? Edge)
-    {
-        if (Edge is null || string.IsNullOrWhiteSpace(Edge.Label))
-        {
-            return false;
-        }
-
-        return string.Equals(Edge.Label.Trim(), "Yes", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(Edge.Label.Trim(), "yes", StringComparison.OrdinalIgnoreCase);
+        return (RightMidX, RightMidY, FlowchartDecisionPortRole.SideRight);
     }
 
     private static FlowchartDecisionPortRole ResolveDecisionFanInEntryRole(int BranchIndex, int BranchCount)
