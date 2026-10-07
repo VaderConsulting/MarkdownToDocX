@@ -368,7 +368,7 @@ public sealed class FlowchartPerpendicularAttachTests
                 Layout);
 
             Assert.That(Resolved, Is.True);
-            Assert.That(RouteKind, Is.EqualTo(FlowchartEdgeRouteKind.Decision));
+            Assert.That(RouteKind, Is.EqualTo(FlowchartEdgeRouteKind.Grid));
             Assert.That(LayoutPoints.Count, Is.GreaterThanOrEqualTo(2).And.LessThanOrEqualTo(3),
                 "B12 decision branches use a single rounded elbow, not five-point curveBasis guides");
 

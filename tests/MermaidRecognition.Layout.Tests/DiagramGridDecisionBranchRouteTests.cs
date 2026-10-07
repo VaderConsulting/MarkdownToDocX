@@ -22,6 +22,13 @@ public sealed class DiagramGridDecisionBranchRouteTests
             B -- Rule B --> D["Destination B"]
         """;
 
+    private const string MatchesFilterSource = """
+        flowchart TD
+            A["Incoming messages"] --> B{"Matches filter?"}
+            B -- Yes --> C["Forward"]
+            B -- No --> D["Discard / divert"]
+        """;
+
     [Test]
     public void TryLayout_ValidDecision_UsesFacingSidePorts()
     {
@@ -32,12 +39,12 @@ public sealed class DiagramGridDecisionBranchRouteTests
         FlowchartLayoutEdgeRoute NoRoute = FindRoute(Layout, "B", "D");
         FlowchartLayoutNodeBounds Diamond = Find(Layout, "B");
 
-        double TopRightY = Diamond.CenterY + (Diamond.Height / 4.0);
-        double LowerRightY = Diamond.CenterY - (Diamond.Height / 4.0);
-        Assert.That(YesRoute.Points[0].Y, Is.GreaterThan(Diamond.CenterY));
-        Assert.That(NoRoute.Points[0].Y, Is.LessThan(Diamond.CenterY));
-        Assert.That(YesRoute.Points[0].Y, Is.EqualTo(TopRightY).Within(2.0));
-        Assert.That(NoRoute.Points[0].Y, Is.EqualTo(LowerRightY).Within(2.0));
+        double TopVertexY = Diamond.CenterY + (Diamond.Height / 2.0);
+        double BottomVertexY = Diamond.CenterY - (Diamond.Height / 2.0);
+        Assert.That(YesRoute.Points[0].X, Is.EqualTo(Diamond.CenterX).Within(2.0));
+        Assert.That(NoRoute.Points[0].X, Is.EqualTo(Diamond.CenterX).Within(2.0));
+        Assert.That(YesRoute.Points[0].Y, Is.EqualTo(TopVertexY).Within(2.0));
+        Assert.That(NoRoute.Points[0].Y, Is.EqualTo(BottomVertexY).Within(2.0));
     }
 
     [Test]
@@ -66,7 +73,8 @@ public sealed class DiagramGridDecisionBranchRouteTests
 
         Assert.That(Svg, Does.Contain("data-edge-source=\"B\" data-edge-target=\"C\""));
         Assert.That(Svg, Does.Contain("data-edge-source=\"B\" data-edge-target=\"D\""));
-        Assert.That(Svg, Does.Contain("path d=\"M413,"), "B12 branches leave the diamond on a vertical run");
+        Assert.That(Svg, Does.Match(@"path d=""M368,\d+L368,53"""), "Yes leaves the top vertex vertically");
+        Assert.That(Svg, Does.Match(@"path d=""M368,\d+L368,383"""), "No leaves the bottom vertex vertically");
         Assert.That(Svg, Does.Contain("y2=\"53\""), "Yes branch runs horizontally into the target");
         Assert.That(Svg, Does.Contain("y2=\"383\""), "No branch runs horizontally into the target");
     }
@@ -81,15 +89,12 @@ public sealed class DiagramGridDecisionBranchRouteTests
         FlowchartLayoutEdgeRoute RuleBRoute = FindRoute(Layout, "B", "D");
         FlowchartLayoutNodeBounds Diamond = Find(Layout, "B");
 
-        double LowerLeftY = Diamond.CenterY - (Diamond.Height / 4.0);
-        double LowerRightY = Diamond.CenterY - (Diamond.Height / 4.0);
-        double BottomVertexY = Diamond.CenterY - (Diamond.Height / 2.0);
-        Assert.That(RuleARoute.Points[0].X, Is.LessThan(Diamond.CenterX));
-        Assert.That(RuleBRoute.Points[0].X, Is.GreaterThan(Diamond.CenterX));
-        Assert.That(RuleARoute.Points[0].Y, Is.EqualTo(LowerLeftY).Within(2.0));
-        Assert.That(RuleBRoute.Points[0].Y, Is.EqualTo(LowerRightY).Within(2.0));
-        Assert.That(RuleARoute.Points[0].Y, Is.GreaterThan(BottomVertexY));
-        Assert.That(RuleBRoute.Points[0].Y, Is.GreaterThan(BottomVertexY));
+        double LeftVertexX = Diamond.CenterX - (Diamond.Width / 2.0);
+        double RightVertexX = Diamond.CenterX + (Diamond.Width / 2.0);
+        Assert.That(RuleARoute.Points[0].X, Is.EqualTo(LeftVertexX).Within(2.0));
+        Assert.That(RuleBRoute.Points[0].X, Is.EqualTo(RightVertexX).Within(2.0));
+        Assert.That(RuleARoute.Points[0].Y, Is.EqualTo(Diamond.CenterY).Within(2.0));
+        Assert.That(RuleBRoute.Points[0].Y, Is.EqualTo(Diamond.CenterY).Within(2.0));
     }
 
     [Test]
@@ -112,30 +117,38 @@ public sealed class DiagramGridDecisionBranchRouteTests
     }
 
     [Test]
+    public void TryLayout_MatchesFilter_UsesLeftAndRightVertices()
+    {
+        DiagramContract Contract = MermaidRecognizer.Parse(MatchesFilterSource);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+
+        FlowchartLayoutNodeBounds Diamond = Find(Layout, "B");
+        FlowchartLayoutEdgeRoute YesRoute = FindRoute(Layout, "B", "C");
+        FlowchartLayoutEdgeRoute NoRoute = FindRoute(Layout, "B", "D");
+        double LeftVertexX = Diamond.CenterX - (Diamond.Width / 2.0);
+        double RightVertexX = Diamond.CenterX + (Diamond.Width / 2.0);
+        Assert.That(YesRoute.Points[0].X, Is.EqualTo(LeftVertexX).Within(2.0));
+        Assert.That(NoRoute.Points[0].X, Is.EqualTo(RightVertexX).Within(2.0));
+        Assert.That(YesRoute.Points[0].Y, Is.EqualTo(Diamond.CenterY).Within(2.0));
+        Assert.That(NoRoute.Points[0].Y, Is.EqualTo(Diamond.CenterY).Within(2.0));
+    }
+
+    [Test]
     public void RenderToSvg_InspectContent_BranchesUseOrthogonalRunsWithDiamondStub()
     {
         DiagramContract Contract = MermaidRecognizer.Parse(InspectContentSource);
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
 
-        AssertInspectContentBranchRendering(Svg, "C", ExpectedDropX: 98);
-        AssertInspectContentBranchRendering(Svg, "D", ExpectedDropX: 518);
+        AssertInspectContentBranchRendering(Svg, "C", ExpectedDropX: 98, ExpectedVertexX: 218);
+        AssertInspectContentBranchRendering(Svg, "D", ExpectedDropX: 518, ExpectedVertexX: 398);
     }
 
-    private static void AssertInspectContentBranchRendering(string Svg, string TargetId, int ExpectedDropX)
+    private static void AssertInspectContentBranchRendering(string Svg, string TargetId, int ExpectedDropX, int ExpectedVertexX)
     {
         string Marker = $"data-edge-source=\"B\" data-edge-target=\"{TargetId}\"";
         Assert.That(Svg, Does.Contain(Marker));
-        Assert.That(Svg, Does.Contain($"y1=\"278\""), "B12a horizontal run before the elbow");
-        Assert.That(
-            Svg,
-            Does.Contain(
-                "path d=\"M"
-                + ExpectedDropX
-                + ",278L"
-                + ExpectedDropX
-                + ",413\""
-                + " fill=\"none\" stroke=\"#333333\" stroke-width=\"1\" stroke-linejoin=\"round\" stroke-linecap=\"round\" "
-                + Marker));
+        Assert.That(Svg, Does.Contain($"M{ExpectedVertexX},233L{ExpectedDropX},233"), "B12b horizontal run leaves the side vertex");
+        Assert.That(Svg, Does.Contain($"x1=\"{ExpectedDropX}\" y1=\"233\""), "B12b vertical drop starts below the elbow");
     }
 
     private static void AssertRoundedOrthogonalBranchPath(string PathData)

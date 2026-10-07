@@ -220,7 +220,7 @@ public static class FlowchartEdgeRouteResolver
             && FlowchartDagrePresentation.IsDiamondShape(SourceNode.Shape)
             && CountVisibleOutgoing(Contract, Edge.SourceId) >= 2)
         {
-            RouteKind = FlowchartEdgeRouteKind.Decision;
+            RouteKind = FlowchartEdgeRouteKind.Grid;
             return true;
         }
 
@@ -305,7 +305,7 @@ public static class FlowchartEdgeRouteResolver
                 out List<(double X, double Y)> EarlyDecisionPoints))
         {
             LayoutPoints = EarlyDecisionPoints;
-            RouteKind = FlowchartEdgeRouteKind.Decision;
+            RouteKind = FlowchartEdgeRouteKind.Grid;
             return true;
         }
 

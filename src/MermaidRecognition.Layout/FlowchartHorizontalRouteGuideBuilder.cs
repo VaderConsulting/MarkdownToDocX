@@ -355,8 +355,7 @@ public static class FlowchartHorizontalRouteGuideBuilder
         FlowchartDecisionPortRole Role)
     {
         double CorridorY = TargetBounds.CenterY;
-        bool LevelTarget = Math.Abs(TargetBounds.CenterY - HubCentreY) <= COLLINEAR_EPSILON_PX
-            || Role == FlowchartDecisionPortRole.BottomVertex;
+        bool LevelTarget = Math.Abs(TargetBounds.CenterY - HubCentreY) <= COLLINEAR_EPSILON_PX;
 
         Points.Add((SourceX, SourceY));
         if (LevelTarget)
