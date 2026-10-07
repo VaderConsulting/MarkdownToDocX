@@ -77,6 +77,7 @@ public static class DiagramGridLayout
         FlipToYUp(Placed, Frames, Copy);
         AssignPortSides(Contract, Copy, Placed, Frames, Nodes, Direction);
         DiagramGridRouteBuilder.RebuildAllRoutes(Copy, Placed, Nodes, Contract, Frames, Direction);
+        DiagramGridCrossLinkRouteHelper.Apply(Contract, Copy, Placed, Direction);
         SeparateTracks(Copy, Placed);
         PushPointsOutOfNodes(Copy, Placed);
         FlowchartFanNestingRouteHelper.Apply(Contract, Copy, Placed, Nodes, Direction);
