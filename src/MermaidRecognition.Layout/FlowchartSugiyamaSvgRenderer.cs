@@ -1331,6 +1331,7 @@ public static class FlowchartSugiyamaSvgRenderer
                     RenderOptions))
             {
                 string PathData = RouteKind == FlowchartEdgeRouteKind.Decision
+                    || RouteKind == FlowchartEdgeRouteKind.Grid
                     ? FlowchartCurvePathBuilder.BuildRoundedCornerPathData(
                         RouteSvgPoints,
                         DiagramGridRouteBuilder.CORNER_RADIUS_PX)

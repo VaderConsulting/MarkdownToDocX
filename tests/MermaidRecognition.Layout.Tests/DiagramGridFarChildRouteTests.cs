@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Text.RegularExpressions;
+
 using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 using MermaidRecognition.Kinds.Flowchart;
@@ -95,10 +98,29 @@ public sealed class DiagramGridFarChildRouteTests
         Assert.That(Svg, Does.Contain("data-edge-source=\"H\" data-edge-target=\"T\""));
 
         string Path = ExtractEdgePath(Svg, "H", "T");
-        Assert.That(Path, Does.Not.Contain('C'), "B11 grid route must be orthogonal without curveBasis");
-        Assert.That(FlowchartCurvePathBuilder.IsMultiSegmentOrthogonalPathData(Path), Is.True);
-        Assert.That(Path, Does.EndWith("278"), "B11 route enters square-on at the child top");
+        Assert.That(Path, Does.Contain('C'), "Grid bends must have rounded corners.");
+        OrthogonalRouteTestHelper.AssertOrthogonalPathWithRoundedCorners(Path);
+
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        FlowchartLayoutEdgeRoute Route = FindRoute(Layout, "H", "T");
+        FlowchartLayoutNodeBounds Target = Find(Layout, "T");
+        double[] Start = ReadCoordinates(Regex.Match(Path, @"^M([^LC]+)").Groups[1].Value);
+        double OffsetX = Start[0] - Route.Points[0].X;
+        double OffsetY = Start[1] + Route.Points[0].Y;
+        Match Terminal = Regex.Match(Path, @"C([^LC]+)L([^LC]+)$");
+        Assert.That(Terminal.Success, Is.True, "The last rounded corner must end in a straight run.");
+        double[] CornerEnd = ReadCoordinates(Terminal.Groups[1].Value);
+        double[] End = ReadCoordinates(Terminal.Groups[2].Value);
+        Assert.That(End[0], Is.EqualTo(Target.CenterX + OffsetX).Within(0.5));
+        Assert.That(End[1], Is.EqualTo(-(Target.CenterY + Target.Height / 2) + OffsetY).Within(0.5),
+            "The connector must reach the actual child top, independent of diagram translation.");
+        Assert.That(CornerEnd[^2], Is.EqualTo(End[0]).Within(0.5), "The terminal run must be vertical.");
+        Assert.That(End[1] - CornerEnd[^1], Is.GreaterThanOrEqualTo(10),
+            "The arrowhead needs a straight approach to the child top.");
     }
+
+    private static double[] ReadCoordinates(string Text) => Regex.Matches(Text, @"-?\d+(?:\.\d+)?")
+        .Select(Value => double.Parse(Value.Value, CultureInfo.InvariantCulture)).ToArray();
 
     private static void AssertRouteIsOrthogonal(IReadOnlyList<FlowchartLayoutPoint> Points)
     {
