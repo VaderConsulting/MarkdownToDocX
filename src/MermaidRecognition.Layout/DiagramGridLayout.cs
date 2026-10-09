@@ -1538,6 +1538,7 @@ public static class DiagramGridLayout
                 {
                     Route = Route,
                     IsSource = true,
+                    KeepsCentre = true,
                     Side = StraightExit,
                     Box = Source,
                     Other = Target
@@ -1546,6 +1547,7 @@ public static class DiagramGridLayout
                 {
                     Route = Route,
                     IsSource = false,
+                    KeepsCentre = true,
                     Side = StraightEntry,
                     Box = Target,
                     Other = Source
@@ -1677,11 +1679,19 @@ public static class DiagramGridLayout
         bool VerticalSide = Side == "left" || Side == "right";
         int Length = (int)Math.Round(VerticalSide ? Box.Height : Box.Width);
         int SlotCount = Math.Max(DiagramGridMetrics.TRACKS_PER_GAP, Group.Count);
+        int CentreEnd = Group.FindIndex(End => End.KeepsCentre);
+        if (CentreEnd >= 0)
+        {
+            SlotCount = Math.Max(SlotCount, 2 * Math.Max(CentreEnd, Group.Count - CentreEnd - 1) + 1);
+            if (SlotCount % 2 == 0) { SlotCount++; }
+        }
         int[] Centres = DiagramGridMetrics.EqualCentres(Math.Max(1, Length), SlotCount);
         int[] Indexes = DiagramGridMetrics.SelectSlotIndexes(Group.Count, SlotCount);
         for (int Index = 0; Index < Group.Count; Index++)
         {
-            int Along = Centres[Indexes[Math.Min(Index, Indexes.Length - 1)]];
+            int Slot = CentreEnd >= 0
+                ? SlotCount / 2 + Index - CentreEnd : Indexes[Math.Min(Index, Indexes.Length - 1)];
+            int Along = Centres[Slot];
             int X;
             int Y;
             int OutX = 0;
@@ -2428,6 +2438,31 @@ public static class DiagramGridLayout
             {
                 Route.ExitSide = ExitSide;
                 Route.EntrySide = EntrySide;
+            }
+
+            // Preserve the ports allocated for the entire diagram, especially
+            // a centre slot reserved by a straight continuation of the spine.
+            if (Route.Points.Count >= 2)
+            {
+                FlowchartLayoutPoint Start = Route.Points[0];
+                FlowchartLayoutPoint End = Route.Points[^1];
+                LayoutPoints = [(Start.X, Start.Y)];
+                if (Direction == FlowchartDirection.LeftToRight || Direction == FlowchartDirection.RightToLeft)
+                {
+                    if (Math.Abs(Start.Y - End.Y) > 0.5)
+                    {
+                        double Track = (Start.X + End.X) / 2;
+                        LayoutPoints.Add((Track, Start.Y));
+                        LayoutPoints.Add((Track, End.Y));
+                    }
+                }
+                else if (Math.Abs(Start.X - End.X) > 0.5)
+                {
+                    double Track = (Start.Y + End.Y) / 2;
+                    LayoutPoints.Add((Start.X, Track));
+                    LayoutPoints.Add((End.X, Track));
+                }
+                LayoutPoints.Add((End.X, End.Y));
             }
 
             Route.Points.Clear();
@@ -3463,6 +3498,8 @@ public static class DiagramGridLayout
         public FlowchartLayoutEdgeRoute Route = null!;
 
         public bool IsSource;
+
+        public bool KeepsCentre;
 
         public string Side = string.Empty;
 

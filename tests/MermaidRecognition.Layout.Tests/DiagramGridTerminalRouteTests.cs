@@ -8,6 +8,25 @@ namespace MermaidRecognition.Layout.Tests;
 public sealed class DiagramGridTerminalRouteTests
 {
     [Test]
+    public void Layout_FanOut_KeepsTheStraightContinuationInTheCentreSlot()
+    {
+        DiagramContract Contract = MermaidRecognizer.Parse("""
+            flowchart TB
+            Source --> First
+            Source --> Second
+            Source --> Third
+            """);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        FlowchartLayoutNodeBounds Source = Layout.NodeBounds.Single(Node => Node.NodeId == "Source");
+        FlowchartLayoutEdgeRoute Straight = Layout.EdgeRoutes.Single(Edge => Edge.TargetId == "First");
+        Assert.That(Straight.Points.Count, Is.EqualTo(2));
+        Assert.That(Straight.Points[0].X, Is.EqualTo(Source.CenterX));
+        Assert.That(Straight.Points[1].X, Is.EqualTo(Source.CenterX));
+        Assert.That(Layout.EdgeRoutes.Select(Edge => (Edge.Points[0].X, Edge.Points[0].Y)).Distinct().Count(),
+            Is.EqualTo(3), "Every outgoing line keeps its own port.");
+    }
+
+    [Test]
     public void RebuildRoutes_NestedFrameExit_TurnsAfterTheOuterBorder()
     {
         DiagramContract Contract = MermaidRecognizer.Parse("""

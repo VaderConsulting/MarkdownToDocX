@@ -264,7 +264,7 @@ public static class DiagramGridRouteBuilder
                 "bottom" => Y - (Frame.CenterY - Frame.Height / 2),
                 _ => 0
             };
-            Minimum = Math.Max(Minimum, Distance + CORNER_RADIUS_PX);
+            Minimum = Math.Max(Minimum, Distance + DiagramGridMetrics.GRID_UNIT_PX);
         }
         return Minimum;
     }
