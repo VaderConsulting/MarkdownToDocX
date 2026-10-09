@@ -91,6 +91,7 @@ public static class DiagramGridLayout
         AlignTerminalDecisionTargets(Contract, Placed, Horizontal, CrossPitch, CoordinatesPlaced: true);
         CentreTerminalFans(Contract, Placed, Horizontal, CoordinatesPlaced: true);
         AlignUnbranchedDecisionInputs(Contract, Placed, Horizontal);
+        AlignHorizontalRetryOutcomes(Contract, Placed, Horizontal);
         CompactIndependentFanIn(Contract, Placed, Horizontal, CrossPitch);
 
         GrowCrowdedSides(Placed, Copy, BoxWidth, BoxHeight);
@@ -531,9 +532,57 @@ public static class DiagramGridLayout
     }
 
     /// <summary>
-    /// Independent inputs in one rank occupy neighbouring columns around their merge.
-    /// Empty columns inherited from the original placement need no reserved space.
+    /// A horizontal decision keeps its terminal outcome ahead and its retry below.
     /// </summary>
+    private static void AlignHorizontalRetryOutcomes(
+        DiagramContract Contract, List<GridNode> Placed, bool Horizontal)
+    {
+        if (!Horizontal)
+        {
+            return;
+        }
+
+        Dictionary<string, GridNode> ById = IndexPlaced(Placed);
+        List<EdgeContract> Visible = Contract.Edges.Where(Edge =>
+            !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
+        foreach (GridNode Decision in Placed.Where(Node => Node.IsDiamond))
+        {
+            List<EdgeContract> Incoming = Visible.Where(Edge => Edge.TargetId == Decision.Id).ToList();
+            List<EdgeContract> Outgoing = Visible.Where(Edge => Edge.SourceId == Decision.Id).ToList();
+            if (Incoming.Count != 1 || Outgoing.Count != 2
+                || !ById.TryGetValue(Incoming[0].SourceId, out GridNode? Input)
+                || Input.IsDiamond || Visible.Count(Edge => Edge.SourceId == Input.Id) != 1)
+            {
+                continue;
+            }
+
+            List<GridNode> Children = Outgoing.Where(Edge => ById.ContainsKey(Edge.TargetId))
+                .Select(Edge => ById[Edge.TargetId]).Distinct().ToList();
+            GridNode? Retry = Children.FirstOrDefault(Child =>
+                Visible.Count(Edge => Edge.SourceId == Child.Id) == 1
+                && Visible.Any(Edge => Edge.SourceId == Child.Id && Edge.TargetId == Input.Id));
+            GridNode? Finish = Children.FirstOrDefault(Child =>
+                !Visible.Any(Edge => Edge.SourceId == Child.Id));
+            if (Children.Count != 2 || Retry == null || Finish == null
+                || Children.Any(Child => Child.IsDiamond || Child.GroupId != Decision.GroupId
+                    || Visible.Count(Edge => Edge.TargetId == Child.Id) != 1)
+                || Input.GroupId != Decision.GroupId
+                || Visible.Count(Edge => Edge.TargetId == Input.Id) != 1)
+            {
+                continue;
+            }
+
+            // Keep the successful outcome on the declared flow axis. The
+            // returning branch occupies the side facing the lower return lane.
+            SetCross(Finish, (int)Math.Round(Decision.Y), Horizontal);
+            SetMain(Retry, (int)Math.Round(Decision.X), Horizontal);
+            Retry.Rank = Decision.Rank;
+            int Gap = DiagramGridMetrics.CeilToGrid(
+                Decision.Height / 2 + Retry.Height / 2 + 3 * DiagramGridMetrics.GRID_UNIT_PX);
+            SetCross(Retry, (int)Math.Round(Decision.Y) + Gap, Horizontal);
+        }
+    }
+
     private static void CompactIndependentFanIn(
         DiagramContract Contract, List<GridNode> Placed, bool Horizontal, int CrossPitch)
     {
@@ -2925,6 +2974,27 @@ public static class DiagramGridLayout
             bool Resolved = false;
 
             if (HorizontalFlow
+                && BoundsById.TryGetValue(Route.SourceId, out var RetryBounds)
+                && BoundsById.TryGetValue(Route.TargetId, out var InputBounds)
+                && RetryBounds.CenterY < InputBounds.CenterY
+                && Contract.Edges.Any(ParentEdge => ParentEdge.TargetId == Route.SourceId
+                    && Nodes.TryGetValue(ParentEdge.SourceId, out var ParentNode)
+                    && FlowchartDagrePresentation.IsDiamondShape(ParentNode.Shape)
+                    && BoundsById.TryGetValue(ParentEdge.SourceId, out var ParentBounds)
+                    && Math.Abs(ParentBounds.CenterX - RetryBounds.CenterX) < 0.5))
+            {
+                double StartY = RetryBounds.CenterY - RetryBounds.Height / 2
+                    - FlowchartEdgeAttachConstants.GetExteriorGapPx(Edge.MarkerStart);
+                double EndY = InputBounds.CenterY - InputBounds.Height / 2
+                    - FlowchartEdgeAttachConstants.GetExteriorGapPx(Edge.MarkerEnd);
+                double LaneY = BoundsById.Values.Min(Bounds => Bounds.CenterY - Bounds.Height / 2)
+                    - 2 * DiagramGridMetrics.GRID_UNIT_PX;
+                LayoutPoints = [(RetryBounds.CenterX, StartY), (RetryBounds.CenterX, LaneY),
+                    (InputBounds.CenterX, LaneY), (InputBounds.CenterX, EndY)];
+                Resolved = true;
+            }
+
+            if (!Resolved && HorizontalFlow
                 && BoundsById.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds LrSourceBounds)
                 && BoundsById.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds LrTargetBounds)
                 && FlowchartEdgePathBuilder.IsLrRetryLoopEdge(
