@@ -92,6 +92,7 @@ public static class DiagramGridLayout
         CentreTerminalFans(Contract, Placed, Horizontal, CoordinatesPlaced: true);
         AlignUnbranchedDecisionInputs(Contract, Placed, Horizontal);
         AlignHorizontalRetryOutcomes(Contract, Placed, Horizontal);
+        AlignSimpleDecisionMerges(Contract, Placed, Horizontal, CrossPitch);
         CompactIndependentFanIn(Contract, Placed, Horizontal, CrossPitch);
 
         GrowCrowdedSides(Placed, Copy, BoxWidth, BoxHeight);
@@ -106,6 +107,7 @@ public static class DiagramGridLayout
         RebuildDecisionFanOutRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
         RebuildSoleForwardDecisionBranchRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
         RebuildOrdinaryFanOutRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
+        RebuildSimpleDecisionMergeRoutes(Contract, Copy, Placed, Frames, Horizontal);
         RebuildLoopBackRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
         DiagramGridRouteBuilder.RebuildDiagonalBackRoutes(Copy, Placed, Nodes, Contract, Frames, Direction);
         Copy.UsesGridRoutes = true;
@@ -583,6 +585,83 @@ public static class DiagramGridLayout
         }
     }
 
+    private static IEnumerable<(GridNode Decision, GridNode Left, GridNode Right, GridNode Merge)>
+        SimpleDecisionMerges(DiagramContract Contract, List<GridNode> Placed, bool Horizontal)
+    {
+        var ById = IndexPlaced(Placed);
+        var Visible = Contract.Edges.Where(Edge =>
+            !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
+        foreach (var Decision in Placed.Where(Node => Node.IsDiamond))
+        {
+            var Branches = Visible.Where(Edge => Edge.SourceId == Decision.Id).ToList();
+            if (Branches.Count != 2 || Branches[0].TargetId == Branches[1].TargetId
+                || Branches.Any(Edge => !ById.ContainsKey(Edge.TargetId))) continue;
+            var Children = Branches.Select(Edge => ById[Edge.TargetId])
+                .OrderBy(Node => Cross(Node, Horizontal, Old: true)).ToArray();
+            if (Children.Any(Child => Child.IsDiamond || Child.GroupId != Decision.GroupId
+                || Visible.Count(Edge => Edge.TargetId == Child.Id) != 1
+                || Visible.Count(Edge => Edge.SourceId == Child.Id) != 1)) continue;
+            var Outputs = Children.Select(Child => Visible.Single(Edge => Edge.SourceId == Child.Id)).ToArray();
+            if (Outputs[0].TargetId != Outputs[1].TargetId
+                || !ById.TryGetValue(Outputs[0].TargetId, out var Merge)
+                || Merge.IsDiamond || Merge.GroupId != Decision.GroupId
+                || Visible.Any(Edge => Edge.SourceId == Merge.Id)
+                || Visible.Count(Edge => Edge.TargetId == Merge.Id) != 2
+                || Children[0].Rank != Children[1].Rank
+                || Children[0].Rank == Decision.Rank || Merge.Rank == Decision.Rank) continue;
+            yield return (Decision, Children[0], Children[1], Merge);
+        }
+    }
+
+    private static void AlignSimpleDecisionMerges(
+        DiagramContract Contract, List<GridNode> Placed, bool Horizontal, int CrossPitch)
+    {
+        foreach (var (Decision, Left, Right, Merge) in SimpleDecisionMerges(Contract, Placed, Horizontal))
+        {
+            int Pitch = Math.Max(CrossPitch, DiagramGridMetrics.CeilToGrid(
+                CrossHalf(Decision, Horizontal, Leading: true)
+                + Math.Max(CrossHalf(Left, Horizontal, Leading: true), CrossHalf(Right, Horizontal, Leading: true))
+                + DiagramGridMetrics.NODE_GAP_PX));
+            int Centre = (int)Math.Round(Cross(Decision, Horizontal, Old: false));
+            SetCross(Left, Centre - Pitch, Horizontal);
+            SetCross(Right, Centre + Pitch, Horizontal);
+            SetCross(Merge, Centre + Pitch, Horizontal);
+        }
+    }
+
+    private static void RebuildSimpleDecisionMergeRoutes(
+        DiagramContract Contract, FlowchartLayoutResult Copy, List<GridNode> Placed,
+        List<GridFrame> Frames, bool Horizontal)
+    {
+        var Bounds = BuildPlacedBounds(Placed, Frames);
+        foreach (var (_, First, Second, Merge) in SimpleDecisionMerges(Contract, Placed, Horizontal))
+        {
+            var Left = Math.Abs(Cross(First, Horizontal, Old: false) - Cross(Merge, Horizontal, Old: false)) > 0.5 ? First : Second;
+            var Edge = Contract.Edges.First(Edge => Edge.SourceId == Left.Id && Edge.TargetId == Merge.Id);
+            var Route = Copy.EdgeRoutes.FirstOrDefault(Route => Route.SourceId == Left.Id && Route.TargetId == Merge.Id);
+            if (Route == null) continue;
+            double MainSign = Math.Sign(Main(Merge, Horizontal, Old: false) - Main(Left, Horizontal, Old: false));
+            double CrossSign = Math.Sign(Cross(Left, Horizontal, Old: false) - Cross(Merge, Horizontal, Old: false));
+            double StartMain = Main(Left, Horizontal, Old: false) + MainSign
+                * (MainHalf(Left, Horizontal, Leading: true) + FlowchartEdgeAttachConstants.GetExteriorGapPx(Edge.MarkerStart));
+            double StartCross = Cross(Left, Horizontal, Old: false);
+            double EndMain = Main(Merge, Horizontal, Old: false);
+            double EndCross = Cross(Merge, Horizontal, Old: false) + CrossSign
+                * (CrossHalf(Merge, Horizontal, Leading: true) + FlowchartEdgeAttachConstants.GetExteriorGapPx(Edge.MarkerEnd));
+            (double X, double Y) Map(double Main, double Cross) => Horizontal ? (Main, Cross) : (Cross, Main);
+            var Path = new List<(double X, double Y)> { Map(StartMain, StartCross), Map(EndMain, StartCross), Map(EndMain, EndCross) };
+            if (Path.Zip(Path.Skip(1)).Any(Pair => FlowchartRouteObstacleHelper.SegmentIntersectsUnrelatedNodeBodies(
+                Pair.First.X, Pair.First.Y, Pair.Second.X, Pair.Second.Y, Bounds, Left.Id, Merge.Id))) continue;
+            SetRouteEndpointSides(Route, Bounds[Left.Id], Bounds[Merge.Id], Path, Horizontal);
+            Route.Points.Clear();
+            foreach (var Point in Path) Route.Points.Add(new() { X = Point.X, Y = Point.Y });
+        }
+    }
+
+    /// <summary>
+    /// Independent inputs in one rank occupy neighbouring columns around their merge.
+    /// Empty columns inherited from the original placement need no reserved space.
+    /// </summary>
     private static void CompactIndependentFanIn(
         DiagramContract Contract, List<GridNode> Placed, bool Horizontal, int CrossPitch)
     {
