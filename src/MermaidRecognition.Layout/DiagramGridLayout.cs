@@ -94,6 +94,7 @@ public static class DiagramGridLayout
         AlignHorizontalRetryOutcomes(Contract, Placed, Horizontal);
         AlignSimpleDecisionMerges(Contract, Placed, Horizontal, CrossPitch);
         AlignDecisionDetours(Contract, Placed, Horizontal, CrossPitch);
+        AlignVerticalLoopBranches(Contract, Placed, Horizontal, CrossPitch);
         CompactIndependentFanIn(Contract, Placed, Horizontal, CrossPitch);
 
         GrowCrowdedSides(Placed, Copy, BoxWidth, BoxHeight);
@@ -584,6 +585,43 @@ public static class DiagramGridLayout
             int Gap = DiagramGridMetrics.CeilToGrid(
                 Decision.Height / 2 + Retry.Height / 2 + 3 * DiagramGridMetrics.GRID_UNIT_PX);
             SetCross(Retry, (int)Math.Round(Decision.Y) + Gap, Horizontal);
+        }
+    }
+
+    private static void AlignVerticalLoopBranches(
+        DiagramContract Contract, List<GridNode> Placed, bool Horizontal, int CrossPitch)
+    {
+        if (Horizontal) return;
+        var ById = IndexPlaced(Placed);
+        var Back = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        var Forward = Contract.Edges.Where(Edge => !Back.Contains(Edge)
+            && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
+        foreach (var Decision in Placed.Where(Node => Node.IsDiamond))
+        {
+            var Incoming = Forward.Where(Edge => Edge.TargetId == Decision.Id).ToList();
+            var Outgoing = Forward.Where(Edge => Edge.SourceId == Decision.Id).ToList();
+            if (Incoming.Count != 1 || Outgoing.Count != 2) continue;
+            var Children = Outgoing.Where(Edge => ById.ContainsKey(Edge.TargetId)).Select(Edge => ById[Edge.TargetId]).ToList();
+            var Loop = Children.FirstOrDefault(Child => Back.Any(Edge => Edge.SourceId == Child.Id
+                && Edge.TargetId == Incoming[0].SourceId));
+            if (Children.Count != 2 || Children[0] == Children[1] || Loop == null
+                || Children.Any(Child => Child.IsDiamond || Child.GroupId != Decision.GroupId
+                    || Forward.Count(Edge => Edge.TargetId == Child.Id) != 1)) continue;
+            var Continuation = Children.First(Child => Child != Loop);
+            int Pitch = Math.Max(CrossPitch, DiagramGridMetrics.CeilToGrid(
+                (Decision.Width + Math.Max(Loop.Width, Continuation.Width)) / 2 + DiagramGridMetrics.NODE_GAP_PX));
+            SetCross(Loop, (int)Math.Round(Decision.X) + Pitch, Horizontal);
+            SetCross(Continuation, (int)Math.Round(Decision.X) - Pitch, Horizontal);
+            var Current = Continuation;
+            var Visited = new HashSet<string>();
+            while (Visited.Add(Current.Id))
+            {
+                var Next = Forward.Where(Edge => Edge.SourceId == Current.Id).ToList();
+                if (Next.Count != 1 || !ById.TryGetValue(Next[0].TargetId, out var Child)
+                    || Child.IsDiamond || Forward.Count(Edge => Edge.TargetId == Child.Id) != 1) break;
+                SetCross(Child, (int)Math.Round(Continuation.X), Horizontal);
+                Current = Child;
+            }
         }
     }
 
@@ -3381,7 +3419,7 @@ public static class DiagramGridLayout
             string? TargetShape = Nodes.TryGetValue(Route.TargetId, out NodeContract? TargetNode)
                 ? TargetNode.Shape
                 : null;
-            if (!FlowchartDecisionPortAllocator.TryResolveEdgeRoute(
+            FlowchartDecisionPortAllocator.TryResolveEdgeRoute(
                     Edge,
                     Contract,
                     BoundsById,
@@ -3391,11 +3429,41 @@ public static class DiagramGridLayout
                     out List<(double X, double Y)> LayoutPoints,
                     IncomingPorts: Copy.EdgeRoutes.Where(Inbound => Inbound.TargetId == Route.SourceId
                         && Inbound.Points.Count >= 2).Select(Inbound =>
-                            (Inbound.Points[^1].X, Inbound.Points[^1].Y)).ToList())
-                || LayoutPoints.Count < 2)
+                            (Inbound.Points[^1].X, Inbound.Points[^1].Y)).ToList());
+
+            bool Horizontal = Direction == FlowchartDirection.LeftToRight || Direction == FlowchartDirection.RightToLeft;
+            var Source = BoundsById[Route.SourceId];
+            var Target = BoundsById[Route.TargetId];
+            double Main(FlowchartLayoutNodeBounds Node) => Horizontal ? Node.CenterX : Node.CenterY;
+            double Cross(FlowchartLayoutNodeBounds Node) => Horizontal ? Node.CenterY : Node.CenterX;
+            double Side = Math.Sign(Cross(Target) - Cross(Source));
+            double Flow = Direction == FlowchartDirection.LeftToRight || Direction == FlowchartDirection.BottomToTop ? 1 : -1;
+            double SourceCross = Cross(Source) + Side * (Horizontal ? Source.Height : Source.Width) / 2;
+            double TargetMain = Main(Target) - Flow * (Horizontal ? Target.Width : Target.Height) / 2;
+            (double X, double Y) Map(double Main, double Cross) => Horizontal ? (Main, Cross) : (Cross, Main);
+            var Vertex = Map(Main(Source), SourceCross);
+            bool Occupied = Copy.EdgeRoutes.Any(Inbound => Inbound.TargetId == Route.SourceId
+                && Inbound.Points.Count >= 2 && Math.Abs(Inbound.Points[^1].X - Vertex.X) < 1
+                && Math.Abs(Inbound.Points[^1].Y - Vertex.Y) < 1);
+            int SameSide = Contract.Edges.Count(Candidate => Candidate.SourceId == Route.SourceId
+                && !BackEdges.Contains(Candidate) && BoundsById.TryGetValue(Candidate.TargetId, out var Other)
+                && Math.Sign(Cross(Other) - Cross(Source)) == Side);
+            if (Side != 0 && !Occupied && SameSide == 1
+                && !FlowchartDagrePresentation.IsDiamondShape(TargetShape)
+                && Math.Abs(Cross(Target) - SourceCross) >= 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX
+                && (TargetMain - Main(Source)) * Flow >= 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX)
             {
-                continue;
+                var Direct = new List<(double X, double Y)> { Vertex, Map(Main(Source), Cross(Target)), Map(TargetMain, Cross(Target)) };
+                if (!Direct.Zip(Direct.Skip(1)).Any(Pair => FlowchartRouteObstacleHelper.SegmentIntersectsUnrelatedNodeBodies(
+                    Pair.First.X, Pair.First.Y, Pair.Second.X, Pair.Second.Y, BoundsById.Where(Pair => !Frames.Any(Frame => Frame.Id == Pair.Key
+                        && IsInsideGroup(Contract, Route.SourceId, Frame.Id) && IsInsideGroup(Contract, Route.TargetId, Frame.Id)))
+                        .ToDictionary(Pair => Pair.Key, Pair => Pair.Value), Route.SourceId, Route.TargetId)))
+                {
+                    LayoutPoints = Direct;
+                    SetRouteEndpointSides(Route, Source, Target, Direct, Horizontal);
+                }
             }
+            if (LayoutPoints.Count < 2) continue;
 
             Route.Points.Clear();
             foreach ((double PointX, double PointY) in LayoutPoints)
