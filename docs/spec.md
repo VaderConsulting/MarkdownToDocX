@@ -1,4 +1,4 @@
-# Diagram Recognition Specification
+﻿# Diagram Recognition Specification
 
 - **Programme status:** [`currentstatus.md`](currentstatus.md) (implementation progress, gate registry, fixture counts - not normative).
 - **Scope:** recognising the individual aspects involved in turning text into diagrams without naming every scenario as a separate case.
@@ -1587,80 +1587,7 @@ Diagnostics are required for unsupported but recognised constructs. "Unknown" an
 
 ---
 
-## 5. Critical Assessment of `flow.md`
-
-### 5.1 What It Does Well
-
-`flow.md` gives a good progressive visual smoke suite for:
-
-- header aliases
-- basic directions
-- common legacy node shapes
-- common edge strokes and markers
-- labels and long wrapping text
-- fan-in/fan-out/cycles as layout consequences
-- single-level and nested subgraphs
-- some styling directives
-- some init overrides
-- DOCX embedding review
-
-It is especially useful because it isolates one visible pressure per scenario. That makes regressions easier to localise.
-
-### 5.2 What It Gets Wrong As a Specification
-
-It is scenario-led instead of grammar-led.
-
-The file says "one capability per scenario", but many scenarios are not one capability:
-
-- One scenario combines decision shape, multiple edge labels, fan-out, and mixed node shapes.
-- Another combines nested containment, group directions, chained edges, and cross-boundary membership.
-- The multi-route TB integration pattern (§5.5) combines shape variation, decision branches, persistence edge, and multiple terminal paths.
-- The LR sibling-subgraph pattern (§5.6) combines internal TB direction, cross-links, and dotted labelled edges.
-
-That is fine for regression. It is dangerous for recognition because it hides the actual independent variables.
-
-### 5.3 Major Coverage Gaps
-
-`flow.md` does not sufficiently cover:
-
-- grouped vertex expansion with `&`
-- user-defined edge ids
-- metadata shape data `@{ ... }`
-- edge metadata mutation by id
-- invisible edges
-- default `linkStyle`
-- edge curve interpolation
-- comments
-- interactions/click/href/tooltips
-- accessibility metadata
-- subgraph id/title variants beyond a narrow bracketed form
-- malformed syntax and expected diagnostics
-- duplicate declarations and merge rules
-- class application to comma-separated ids and subgraphs
-- class/style mutation order
-- modern shape catalogue through metadata
-- `htmlLabels` true/false interaction with measurement and wrapping
-- security-level effects
-- unsupported-feature downgrades for DOCX
-
-The consequence is severe: a renderer could pass `flow.md` while still failing ordinary Mermaid source from the upstream test suite.
-
-### 5.4 False Confidence Risks
-
-The visual gate against mermaid.ink is necessary but not sufficient.
-
-PNG comparison can miss:
-
-- wrong internal ids
-- wrong class assignments
-- wrong edge indices
-- dropped accessibility metadata
-- dropped interactions
-- incorrect source expansion trace
-- styles that appear equivalent in one theme but fail in another
-- label type mistakes hidden by identical visible text
-
-Structural comparison must include the recognised contract, not only extracted SVG shapes.
+## 5. Reference routing and layout contracts
 
 ### 5.5 Reference routing contract - multi-route TB integration
 
@@ -1698,7 +1625,7 @@ Persist[(Optional archive)] --> Done
 
 **Guide-point and render expectations:**
 
-- **`Validate→Reject`:** five-point exterior corridor; corridor lane X left of `FlowchartSpineCorridorBounds.Left`; rendered as smooth corridor (`BuildCorridorCurveBasisPathData`), not a multi-segment orthogonal polyline.
+- **`Validate→Reject`:** five-point exterior corridor; corridor lane X left of `FlowchartSpineCorridorBounds.Left`.
 - **`HasMermaid→Render`:** left diamond source port; **`HasMermaid→Word`:** bottom port.
 - **`DoArchive→Persist`:** bottom port; **`DoArchive→Done`:** right port when `Persist` intervenes on the spine between `DoArchive` and `Done`.
 - **`DoArchive→Done`:** six-point skip bypass; bypass chord outside spine column; rendered path clears unrelated node bodies (including the cylinder).
@@ -1734,7 +1661,6 @@ B -->|No| D[Retry]
 D --> A
 ```
 
-Corridor, skip-bypass, and merge-back routes use curveBasis with straight perpendicular terminal stubs; `ResolveCorridorCurveEndIndex` distinguishes horizontal-return-then-vertical-stub (skip bypass) from collinear vertical target approach (merge-back).
 
 **Applicable rule axes** (when this topology is present): `Header.Flowchart`, `Direction.TB`, diamond and cylinder shape recognition, `Recognition.Edge.LabelPipeSyntax`, `Routing.LocalDecisionBranch`, `Routing.MergeBack`, `Routing.Class.LongBypass`, `Routing.Class.SkipBypass`, plus render rules for obstacle clearance, perpendicular attach, and no orthogonal polylines under default curveBasis.
 
@@ -1987,7 +1913,7 @@ These dimensions apply to **all** kinds. Kind-specific detail lives in the **lin
 | **Diagnostics discipline** | G10 | No silent drop; `unknown` vs `unsupported` vs `kind-not-implemented` | §4.6, §7.3 | Negative fixtures |
 | **Contract fixtures** | G11 | Machine-readable expected output | §7.1, §9 | `*.verified.json` per gate cluster |
 | **Mermaid parity** | G12 | Subset of vendored parser tests transcribed | §3.18, upstream `*.spec.js` / `*.spec.ts` | the G12 minimum slice - minimum L4 slice rows **transcribed** |
-| **Native render smoke** | R0 | Legacy Naiad can render minimal sample (comparison only) | §11.1.3, §12 | Existing `*Tests.cs` or documented N/A |
+| **Native render smoke** | R0 | Legacy Naiad can render minimal sample (comparison only) | - | Existing `*Tests.cs` or documented N/A |
 | **Native render fidelity** | R1 | Visual/coordinate gates for native path | §7.2, `flow.md` | SvgHarness / coordinate tests |
 
 **Rule:** A kind cannot advance to level **L3** unless **G2 (line-type catalogue)** is written and **G3** covers every listed line type (parse or explicit diagnostic).
@@ -2363,51 +2289,6 @@ Stage 11.A config deliverable (§4.1): `DiagramConfigContract` with `RawDirectiv
 
 The parser contract can be made much stronger without disturbing the current renderer. Stage 11.C is deliberately incremental: every old helper must either be mapped to a structural route kind, retained temporarily as `Legacy*`, or deleted only after parity is proven.
 
-### 11.1.1 Executive summary (for reviewers and project managers)
-
-This subsection explains **what we are changing**, **why**, and **how we will not break what already works**.
-
-| Question | Short answer |
-| --- | --- |
-| What works today? | Legacy Naiad (`extern/Naiad`) still produces DOCX/SVG for many `flow.md` scenarios - usable as a **comparison baseline**, not the target architecture. |
-| What is weak today? | Legacy parse/render does not match Mermaid’s contract model (grouped nodes `&`, edge ids, metadata, accessibility, …). Legacy routing still branches on English words (`Yes` / `No`). |
-| What are we building? | **Recognition** (`DiagramContract`) - **done** for started kinds at L4 minimum - then **native render** from that contract in `src/`, with structural routing. |
-| What are we **not** doing? | Extending Naiad, big-bang ELK for `flowchart-elk`, or claiming “any Mermaid diagram” without diagnostics or §11.E fallback. |
-| What starts next? | **Native render pilot** (flowchart): `FlowchartRouter` + layout in `src/`. Legacy Naiad for comparison only. |
-
-**Product path (today vs target):**
-
-```mermaid
-flowchart LR
-  MD["User Markdown"]
-  CVT["MDConverter"]
-  LEG["Legacy Naiad\n(comparison / interim DOCX)"]
-  REC["MermaidRecognizer\n(DiagramContract)"]
-  NAT["Native render\n(src - target)"]
-  DOC["DOCX / SVG"]
-
-  MD --> CVT
-  CVT --> LEG --> DOC
-  MD --> REC --> NAT --> DOC
-```
-
-Legacy Naiad remains wired in MDConverter until native render passes acceptance gates. Recognition is authoritative for parse facts; legacy Naiad is not extended.
-
-**Delivery path (stages 11.B-E - native render):**
-
-```mermaid
-flowchart TB
-  A["11.A Recognition\n(complete for started kinds)"]
-  B["11.B Native routing\n(no label semantics)"]
-  C["11.C FlowchartRouter\n(src)"]
-  D["11.D Structural layout"]
-  E["11.E CanRender + fallback"]
-
-  A --> B --> C --> D --> E
-```
-
-Stages **B-E** must not all start at once. Each stage has exit criteria in the table in §11.1.
-
 ### 11.1.2 Reference model: how official Mermaid handles flowcharts
 
 Mermaid does **not** draw from the text in one step. It builds an in-memory **diagram database** (`flowDb`), then lays out, then renders. That separation is the reference for **native render** in this programme - not for extending legacy Naiad.
@@ -2478,63 +2359,6 @@ Naiad must reproduce this rule in Stage 11.A and tag the result in verified JSON
 
 **Why edge order matters:** `linkStyle 0` and `linkStyle default` refer to edges by **creation order** in the database. If Naiad expands `&` differently from Mermaid, styles attach to the wrong arrows even when the picture “looks fine”.
 
-### 11.1.3 Current Naiad behaviour (modified tree, today)
-
-Naiad’s flowchart path **already produces good pictures** for the regression catalogue, but it uses a **simpler parser** and a **long repair chain** after Dagre layout.
-
-```mermaid
-flowchart TB
-  IN["Markdown flowchart block"]
-  FP["FlowchartParser.cs\n(Sprache combinators)"]
-  FM["FlowchartModel\n(nodes, edges, subgraphs)"]
-  DAG["DagreLayoutEngine.cs\nrank + coordinates"]
-  CA["CoordinateAssignment.cs\nmany ApplyFlowchart* repairs"]
-  FR["FlowchartRenderer.cs\ncurves, markers, labels"]
-  SVG["SVG → embedded in DOCX"]
-
-  IN --> FP --> FM --> DAG --> CA --> FR --> SVG
-```
-
-**Entry point:** `extern/Naiad/src/Naiad/Mermaid.cs` dispatches `DiagramType.Flowchart` to `RenderFlowchart` (see switch around lines 70-72).
-
-**Parser today** (`extern/Naiad/src/Naiad/Diagrams/Flowchart/FlowchartParser.cs`):
-
-| Capability | Mermaid 11.14 | Naiad today (verified in tree) |
-| --- | --- | --- |
-| Chained edges `A --> B --> C` on one line | Yes | Yes - `StatementParser` (from line 271) builds a node list and edge list |
-| Grouped nodes `A & B --> C` | Yes | **No** - `&` is not part of the statement grammar |
-| Edge id `e1@-->` | Yes | **No** - no edge id field on `Edge` model |
-| Metadata `@{ shape: doc }` | Yes | **No** |
-| `linkStyle default` | Yes | Partial - indexed `linkStyle` exists; “default” semantics must match Mermaid |
-| `click` / `accTitle` | Stored in flowDb | **Accepted but discarded** - `clickDirective` and `initDirective` parse and ignore content (lines 333-349) |
-| `flowchart-elk` header | Uses ELK in Mermaid.js | **Not implemented in Naiad** - no ELK references under `extern/Naiad` (see §11.1.10, [`currentstatus.md`](currentstatus.md)) |
-
-**Edge model today** (`extern/Naiad/src/Naiad/Models/Edge.cs`): has `SourceId`, `TargetId`, `Label`, arrow style, `MinRankSpan`, layout `Points` - but **no** `Id`, `CreationIndex`, `IsUserDefinedId`, or metadata fields. That gap is what Stage 11.A fills.
-
-**Post-layout repairs today** (`extern/Naiad/src/Naiad/Layout/DagreLayoutEngine.cs`): after layout, Naiad calls helpers such as:
-
-- `ApplyFlowchartDiagramConnectorEndpointSnapping` (e.g. lines 49, 341, 378, 1193)
-- `ApplyFlowchartTbUpwardLoopEdgeOrthogonalSnapping` (e.g. lines 51, 343, 380)
-
-Those live in `CoordinateAssignment.cs` and are selected with many `IsFlowchart*` predicates (dozens of occurrences - see baseline table in §11.1). Comments often name regression scenarios (`F53`, `F58`). That approach saved visual parity but is what §11.C will replace gradually.
-
-**Label-semantic routing (problem to remove in 11.B)** - still present in layout code (`extern/Naiad/src/Naiad/Layout/CoordinateAssignment.cs`, `TryGetFlowchartHorizontalDecisionBranchEndpoints`, lines 2825-2835):
-
-```csharp
-if (label.StartsWith("Yes", StringComparison.OrdinalIgnoreCase))
-{
-    sourceAttach = new Position(centreX + half, centreY);
-    exitRole = FlowchartDecisionBranchExitRole.SideRight;
-}
-else if (label.StartsWith("No", StringComparison.OrdinalIgnoreCase))
-{
-    sourceAttach = new Position(centreX + (half / 2.0), centreY - (half / 2.0));
-    exitRole = FlowchartDecisionBranchExitRole.SideLeft;
-}
-```
-
-Similar checks exist in `FlowchartRenderer.cs` (grep `StartsWith("Yes"`). A diagram labelled `True` / `False` should use the **same ports** as `Yes` / `No` when topology is identical.
-
 ### 11.1.4 Target behaviour after migration
 
 The target is **not** “rewrite SVG from scratch.” It is:
@@ -2570,78 +2394,6 @@ flowchart TB
 
 Implementation status of each component: [`currentstatus.md`](currentstatus.md).
 
-### 11.1.5 Strangler migration: parallel paths during transition
-
-A **strangler** keeps the old path alive while the new path proves itself. That avoids breaking `flow.docx` while parser work proceeds.
-
-```mermaid
-flowchart TB
-  SRC["Same Mermaid source"]
-
-  subgraph today["Default today (keep until gates pass)"]
-    OLD_PARSE["Existing FlowchartParser"]
-    OLD_RENDER["Existing layout + CoordinateAssignment repairs + FlowchartRenderer"]
-  end
-
-  subgraph stageA["Stage 11.A (build now)"]
-    NEW_PARSE["New FlowchartDb parser"]
-    CONTRACT["Export / test contract JSON"]
-    ADAPTER["Optional adapter → existing FlowchartModel"]
-  end
-
-  SRC --> OLD_PARSE --> OLD_RENDER
-  SRC -.->|"feature flag"| NEW_PARSE --> CONTRACT
-  NEW_PARSE -.-> ADAPTER -.-> OLD_RENDER
-```
-
-**Rules during transition:**
-
-- **Default for MDConverter / Converter:** old parse → old render (no change to embedded images in Stage 11.A).
-- **CI for recognition:** new parser only; compare JSON to Mermaid-derived expectations; **no PNG comparison required** for those tests.
-- **CI for structural routing:** `RuleValidationHarness` on the flowchart regression catalogue must report `OverallResult: Pass` (fully remarked diagrams skipped) before SVG comparison.
-- **CI for visual regression:** existing SvgHarness on the flowchart catalogue (including stadium-merge coordinate gate per §5.6); do not delete scenarios because the contract parser exists.
-
-### 11.1.6 What each stage changes (detail)
-
-```mermaid
-sequenceDiagram
-  participant Dev as Developer
-  participant Parser as Parser path
-  participant Tests as Contract tests
-  participant Router as FlowchartRouter
-  participant Harness as SvgHarness
-
-  Note over Dev,Harness: Stage 11.A
-  Dev->>Parser: Add FlowchartDb behind flag
-  Dev->>Tests: Add verified JSON (F61-F88, expansion tables)
-  Tests-->>Dev: Pass without rendering
-  Note over Harness: flow.md SVG unchanged
-
-  Note over Dev,Harness: Stage 11.B
-  Dev->>Router: Replace Yes/No label branches
-  Dev->>Tests: Label-invariance tests
-  Tests-->>Dev: Same ports for Yes vs True vs 1
-
-  Note over Dev,Harness: Stage 11.C
-  loop Each route kind
-    Dev->>Router: Enable one RouteKind
-    Dev->>Harness: Parity gate for that topology
-    Harness-->>Dev: Pass or keep Legacy fallback
-  end
-
-  Note over Dev,Harness: Stage 11.E
-  Dev->>Parser: CanRender + product policy
-  Note over Dev: DOCX warnings / fallback documented
-```
-
-| Stage | Parser / contract | Layout / routing | Visual output | Product (DOCX) |
-| --- | --- | --- | --- | --- |
-| **11.A** | New facts, diagnostics, JSON tests | No change to default | **Unchanged** | **Unchanged** |
-| **11.B** | Same | Remove label semantics | Should match prior (tests) | Unchanged |
-| **11.C** | Same | Strangler router per route kind | Gated per kind | Unchanged unless gate fails |
-| **11.D** | Same | Delete `IsFlowchart*` as parity proven | Stable | Unchanged |
-| **11.E** | `CanRender` | Same | Native or fallback | Warnings / policy |
-
 ### 11.1.7 Recognition vs rendering vs routing (three layers)
 
 Project managers often conflate “parse”, “layout”, and “draw”. This project treats them separately:
@@ -2658,7 +2410,7 @@ flowchart LR
     RT1["Which ports and path shape?"]
   end
   subgraph D["Drawing (Renderer)"]
-    D1["SVG curves and labels"]
+    D1["SVG paths and labels"]
   end
 
   R --> L --> RT --> D
@@ -2669,7 +2421,6 @@ flowchart LR
 | Recognition | How many edges after `A & B --> C`? What is edge id `e1`? | Guessing from PNG |
 | Layout | Rank and node positions | Hard-coding F05 as a special case |
 | Routing | Which side of the diamond, loop outside cluster | Reading `"Yes"` on the label |
-| Drawing | curveBasis vs straight line | Changing parser because a curve looks wrong |
 
 ### 11.1.8 Assembly boundaries (recognition vs legacy render)
 
@@ -2683,34 +2434,6 @@ Stage 11.A and all new Mermaid recognition work live in a **separate project**, 
 | **MDConverter** (legacy) | `src/MDConverter/` | Markdown → DOCX; orchestrates recognition + render + fallback (§11.10) | MermaidRecognition + Naiad (adapter TBD) |
 
 Dependency rule: **MermaidRecognition must not reference Naiad.** Naiad may reference MermaidRecognition only for an explicit adapter (`ContractToFlowchartModel`) behind a feature flag; that adapter is Stage 11.A exit glue, not new recognition logic inside Naiad.
-
-### 11.1.8.1 Open decision: full replacement of Naiad
-
-The programme assumes Naiad remains the **legacy native renderer** (Dagre layout, SVG curves, DOCX embedding via adapter) while **MermaidRecognition** owns parse → contract. That split may be permanent or transitional; the decision is deferred until Stage 11.A-11.E discovery completes. Tracking: [`currentstatus.md`](currentstatus.md).
-
-| Discovery question | If yes → implication |
-| --- | --- |
-| Can recognition + a new layout/router layer match Mermaid parity without Naiad repairs? | Consider **deprecating Naiad** for flowcharts and eventually all diagram kinds |
-| Is Naiad’s value only historical SVG tuning (`CoordinateAssignment`, scenario predicates)? | Reimplement routing in MermaidRecognition.Rendering (or sibling project) with structural rules (§11.7-11.9) |
-| Do non-flowchart Naiad diagrams already meet DOCX needs? | Phased replacement: flowchart first, other kinds later |
-| Is maintaining two render stacks unacceptable? | Prioritise **MermaidRecognition.Render** (name TBD) and freeze Naiad |
-
-**Decision gate:** Do not remove Naiad from the solution or MDConverter until recognition fixtures are authoritative **and** a render path fed only from `DiagramContract` meets SvgHarness / DOCX acceptance for the agreed diagram subset (or explicit fallback policy is documented).
-
-Until the gate is met:
-
-- Keep Naiad on the default product path.
-- Build MermaidRecognition so it does **not** depend on Naiad types.
-- Optional adapter stays thin and removable.
-
-If full replacement is chosen later, expected end state:
-
-```text
-Markdown → MermaidRecognition (parse + contract + layout + SVG/DOCX)
-         ↘ (optional) official Mermaid.js fallback for unsupported kinds
-```
-
-Record outcomes of this investigation in spec revision history when the decision is resolved.
 
 ### 11.1.8.2 Repository layout (`src` vs legacy)
 
@@ -2873,10 +2596,6 @@ flowchart LR
 ```
 
 Implementation progress and adoption decision: [`currentstatus.md`](currentstatus.md).
-
-### 11.1.12 Review checklist
-
-When reviewing whether implementation matches this specification, use the checklist in [`currentstatus.md`](currentstatus.md) (truthfulness table). Update that file when repository facts change.
 
 ### 11.1.13 Stage 11.A - all Mermaid diagram kinds (recognition coverage)
 
@@ -3306,53 +3025,6 @@ Status values match §11.1.14.1.
 **Git graph L3 exit criteria:** L2 + `GitGraphContractMapper` populates commit and branch entities; `GitGraphL3AxisGateTests` covers G4; manifest **L3**.
 
 **Git graph L4 exit criteria (G12):** L3 + minimum slice in the G12 minimum slice transcribed, including at minimum: commits, branch/checkout history, merge, init leading, and accessibility - aligned with `gitGraph.spec.ts`. Manifest **L4**.
-
-### 11.2 Current Problem in Naiad
-
-Naiad already renders many flowcharts well. The weak point is not SVG drawing quality; it is the determination model.
-
-The current flowchart path is roughly:
-
-```text
-FlowchartParser.cs
-  parses a simplified statement model into FlowchartModel
-
-FlowchartRenderer.cs
-  measures nodes/labels
-  calls DagreLayoutEngine
-  chooses curve/render helpers
-
-DagreLayoutEngine.cs / CoordinateAssignment.cs
-  layout and many flowchart-specific endpoint repairs
-```
-
-This has two different recognition problems.
-
-First, `FlowchartParser.cs` does not yet produce a Mermaid-equivalent contract:
-
-- no label type (`text`, `string`, `markdown`)
-- no source spans or declaration records
-- no user-defined edge ids (`e1@-->`)
-- no grouped `&` expansion
-- no metadata shape data `@{ ... }`
-- no edge metadata mutation by id
-- no `linkStyle default`
-- no interaction model
-- no accessibility directives in the flowchart parser
-- no diagnostics for recognised-but-unsupported features
-- init is mostly handled outside the parser and accepted/stripped rather than represented as a source fact
-
-Second, layout/routing contains many case recognisers. Some are structural enough, but the overall approach is still fixture-shaped. Methods and comments refer to `F34`, `F53`, `F58`, "terminal collector", "stadium merge", "retry loop", and some decisions depend directly on labels such as `"Yes"` / `"No"`.
-
-The most concerning example is:
-
-```text
-TryGetFlowchartHorizontalDecisionBranchEndpoints(...)
-  if label starts with "Yes" => right vertex
-  else if label starts with "No" => upper-right slope
-```
-
-That is exactly the failure mode described earlier. The words on an edge are not semantics. They are labels. A diagram using `"True"`, `"OK"`, `"Pass"`, `"1"`, `"Approved"`, or translated text can have the same topology and should receive the same structural treatment.
 
 ### 11.3 Non-Negotiable Target
 
@@ -4661,19 +4333,6 @@ Product done: MDConverter either embeds native output or deterministic official 
 ```
 
 The key shift is simple: Naiad should keep its geometry work, but the trigger for that geometry must be a Mermaid-like diagram contract, not a catalogue of visual scenarios.
-
-### 11.14 Review acceptance criteria
-
-Section 11 is acceptable for implementation when it prevents these failure modes:
-
-- big-bang rewrite of the existing layout repair chain before parity gates exist
-- label-semantic routing (`"Yes"` / `"No"` / `"Done"` as port selectors)
-- scenario-led parser or router (`if F53 then …`)
-- silent DOCX feature loss when recognition cannot represent a construct
-- unsupported Mermaid claims without diagnostics or documented fallback
-- visual regression without SvgHarness or coordinate gates
-
-Implementation progress against §11.1.13 exit criteria: [`currentstatus.md`](currentstatus.md). Render migration (§11.B-§11.E) must not start until Stage 11.A recognition exit is met for the agreed kind slice.
 
 ### 11.15 Explicit Non-Goals for the First Migration
 
