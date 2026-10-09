@@ -27,20 +27,22 @@ public sealed class DiagramGridF34CycleReturnTests
         double DoneX = Find(Layout, "C").CenterX;
         double RetryX = Find(Layout, "D").CenterX;
 
-        Assert.That(DoneX, Is.EqualTo(RetryX).Within(1.0), "Done and Retry share the target rank column");
+        Assert.That(RetryX, Is.EqualTo(DecisionX).Within(1.0), "Retry sits directly below the decision");
         Assert.That(DecisionX - ReceiveX, Is.EqualTo(DoneX - DecisionX).Within(2.0), "Equal rank-column gaps");
     }
 
     [Test]
-    public void TryLayout_F34_RetryLoop_LeavesRightAndEntersTargetBottom()
+    public void TryLayout_F34_RetryLoop_LeavesBottomAndEntersTargetBottom()
     {
         DiagramContract Contract = MermaidRecognizer.Parse(F34Source);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartLayoutEdgeRoute Route = FindRoute(Layout, "D", "A");
-        Assert.That(Route.ExitSide, Is.EqualTo("right"));
+        Assert.That(Route.ExitSide, Is.EqualTo("bottom"));
         Assert.That(Route.EntrySide, Is.EqualTo("bottom"));
-        Assert.That(Route.Points, Has.Count.GreaterThanOrEqualTo(5));
+        Assert.That(Route.Points, Has.Count.EqualTo(4));
+        Assert.That(Route.Points[0].X, Is.EqualTo(Route.Points[1].X).Within(0.5));
+        Assert.That(Route.Points[^1].X, Is.EqualTo(Route.Points[^2].X).Within(0.5));
     }
 
     [Test]
@@ -71,8 +73,10 @@ public sealed class DiagramGridF34CycleReturnTests
         FlowchartLayoutEdgeRoute YesRoute = FindRoute(Layout, "B", "C");
         FlowchartLayoutEdgeRoute NoRoute = FindRoute(Layout, "B", "D");
 
-        Assert.That(YesRoute.Points[0].Y, Is.GreaterThan(Decision.CenterY + HalfHeight - 4.0));
-        Assert.That(NoRoute.Points[0].Y, Is.LessThan(Decision.CenterY - HalfHeight + 4.0));
+        Assert.That(YesRoute.Points[0].Y, Is.EqualTo(Decision.CenterY).Within(0.5));
+        Assert.That(YesRoute.Points[0].X, Is.EqualTo(Decision.CenterX + Decision.Width / 2).Within(0.5));
+        Assert.That(NoRoute.Points[0].Y, Is.EqualTo(Decision.CenterY - HalfHeight).Within(0.5));
+        Assert.That(NoRoute.Points[0].X, Is.EqualTo(Decision.CenterX).Within(0.5));
     }
 
     [Test]
@@ -85,6 +89,7 @@ public sealed class DiagramGridF34CycleReturnTests
             Svg,
             @"<path d=""([^""]+)"" fill=""none"" stroke=""[^""]+""[^>]*data-edge-source=""D"" data-edge-target=""A""");
         Assert.That(RetryPath.Success, Is.True);
+        Assert.That(RetryPath.Groups[1].Value, Does.Contain("C"), "Return bends stay rounded");
 
         MatchCollection Numbers = Regex.Matches(RetryPath.Groups[1].Value, @"-?\d+(?:\.\d+)?");
         List<double> YValues = [];

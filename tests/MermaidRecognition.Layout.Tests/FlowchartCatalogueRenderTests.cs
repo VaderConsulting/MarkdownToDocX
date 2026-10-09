@@ -1711,7 +1711,7 @@ public sealed class FlowchartCatalogueRenderTests
     }
 
     [Test]
-    public void TryLayout_F34_DoneAndRetryShareDecisionCrossAxis()
+    public void TryLayout_F34_DoneSharesDecisionRowAndRetrySitsBelow()
     {
         DiagramContract Contract = MermaidRecognizer.Parse("""
             flowchart LR
@@ -1726,12 +1726,12 @@ public sealed class FlowchartCatalogueRenderTests
         double HubY = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "B").CenterY;
         double DoneY = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "C").CenterY;
         double RetryY = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "D").CenterY;
-        Assert.That(DoneY, Is.GreaterThan(HubY + 8.0), "Yes branch should sit above the decision hub");
+        Assert.That(DoneY, Is.EqualTo(HubY).Within(0.5), "Yes branch continues straight ahead");
         Assert.That(RetryY, Is.LessThan(HubY - 8.0), "No branch should sit below the decision hub");
     }
 
     [Test]
-    public void TryLayout_F34_DoneAndRetryRemainHorizontallySeparated()
+    public void TryLayout_F34_DoneStaysAheadAndRetrySharesDecisionColumn()
     {
         DiagramContract Contract = MermaidRecognizer.Parse("""
             flowchart LR
@@ -1749,8 +1749,8 @@ public sealed class FlowchartCatalogueRenderTests
         double RetryX = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "D").CenterX;
 
         Assert.That(DoneX, Is.GreaterThan(HubX + HubHalfWidth + 20.0));
-        Assert.That(RetryX, Is.GreaterThan(HubX + HubHalfWidth + 20.0));
-        Assert.That(Math.Abs(DoneX - RetryX), Is.LessThan(1.0), "Branch targets share the forward column");
+        Assert.That(RetryX, Is.EqualTo(HubX).Within(0.5));
+        Assert.That(DoneX - RetryX, Is.GreaterThan(HubHalfWidth + 20.0), "The outcomes remain horizontally separated");
     }
 
     [Test]
