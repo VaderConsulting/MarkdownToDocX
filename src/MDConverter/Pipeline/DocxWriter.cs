@@ -669,6 +669,12 @@ public sealed class DocxWriter(EffectiveOptions Options, IConversionProgressRepo
 
     private Paragraph CreateMermaidParagraph(MermaidBlock MermaidBlock, StyleMapping Styles, int? ListLevel)
     {
+        if (MermaidBlock.Source.Split('\n').All(Line => string.IsNullOrWhiteSpace(Line)
+            || Line.TrimStart().StartsWith("%%", StringComparison.Ordinal)))
+        {
+            return CreateCodeBlockParagraph(new CodeBlock(MermaidBlock.Source), Styles, ListLevel);
+        }
+
         ParagraphProperties Properties = new ParagraphProperties(new ParagraphStyleId() { Val = Styles.ParagraphStyle });
         if (ListLevel.HasValue)
         {
