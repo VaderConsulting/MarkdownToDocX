@@ -3399,7 +3399,7 @@ public static class DiagramGridLayout
                 Gap = Math.Max(Gap, MermaidGap);
             }
 
-            int LabelGapBoost = ComputeLabelledEdgeRankGapBoost(Contract, Rank, RankNodes, NextNodes);
+            int LabelGapBoost = ComputeLabelledEdgeRankGapBoost(Contract, Rank, RankNodes, NextNodes, Horizontal);
             int Span = HalfBelow + HalfAbove + Gap;
             if (Span < MainPitch)
             {
@@ -3439,7 +3439,8 @@ public static class DiagramGridLayout
         DiagramContract Contract,
         int Rank,
         IReadOnlyList<GridNode> RankNodes,
-        IReadOnlyList<GridNode> NextNodes)
+        IReadOnlyList<GridNode> NextNodes,
+        bool Horizontal)
     {
         if (RankNodes.Count == 0 || NextNodes.Count == 0)
         {
@@ -3470,7 +3471,8 @@ public static class DiagramGridLayout
             int Required = DiagramGridMetrics.CeilToGrid(
                 FlowchartEdgeLabelGapHelper.ComputeRequiredSegmentLengthPx(
                     LabelDimensions,
-                    Options.EdgeLabelFontSizePx));
+                    Options.EdgeLabelFontSizePx,
+                    Horizontal));
             MaxBoost = Math.Max(MaxBoost, Required);
         }
 

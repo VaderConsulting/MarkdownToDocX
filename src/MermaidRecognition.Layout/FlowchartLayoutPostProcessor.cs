@@ -1831,7 +1831,8 @@ public static class FlowchartLayoutPostProcessor
                 Options.EdgeLabelFontSizePx);
             double RequiredFlowGap = FlowchartEdgeLabelGapHelper.ComputeRequiredSegmentLengthPx(
                     LabelDimensions,
-                    Options.EdgeLabelFontSizePx)
+                    Options.EdgeLabelFontSizePx,
+                    HorizontalFlow)
                 + EDGE_LABEL_FLOW_AXIS_MARGIN_PX;
 
             double SourceExtent = HorizontalFlow ? SourceBounds.Width : SourceBounds.Height;

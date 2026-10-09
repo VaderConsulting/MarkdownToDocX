@@ -19,10 +19,16 @@ public static class FlowchartEdgeLabelGapHelper
         FontSizePx * LABEL_CHAR_WIDTH_EM;
 
     public static double ComputeHalfGapWidthPx(FlowchartLabelDimensions LabelDimensions, double FontSizePx) =>
-        (LabelDimensions.Width / 2.0) + ComputeCharacterGapPx(FontSizePx);
+        ComputeHalfGapPx(LabelDimensions, FontSizePx, Horizontal: true);
 
-    public static double ComputeRequiredSegmentLengthPx(FlowchartLabelDimensions LabelDimensions, double FontSizePx) =>
-        LabelDimensions.Width + (2.0 * ComputeCharacterGapPx(FontSizePx));
+    public static double ComputeHalfGapPx(FlowchartLabelDimensions LabelDimensions, double FontSizePx, bool Horizontal) =>
+        ((Horizontal ? LabelDimensions.Width
+            : FlowchartEdgeLabelPlacementHelper.ComputeRenderedEdgeLabelHeight(LabelDimensions, FontSizePx)) / 2.0)
+        + ComputeCharacterGapPx(FontSizePx);
+
+    public static double ComputeRequiredSegmentLengthPx(
+        FlowchartLabelDimensions LabelDimensions, double FontSizePx, bool Horizontal = true) =>
+        2.0 * ComputeHalfGapPx(LabelDimensions, FontSizePx, Horizontal);
 
     public sealed record LabelSegmentBreak(
         int SegmentStartIndex,
@@ -44,7 +50,6 @@ public static class FlowchartEdgeLabelGapHelper
             return false;
         }
 
-        double RequiredLength = ComputeRequiredSegmentLengthPx(LabelDimensions, FontSizePx);
         int BestStart = -1;
         int BestEnd = -1;
         double BestLength = 0.0;
@@ -60,6 +65,7 @@ public static class FlowchartEdgeLabelGapHelper
 
                 double CornerClearance = Start > 0 || End < Points.Count - 1
                     ? 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX : 20;
+                double RequiredLength = ComputeRequiredSegmentLengthPx(LabelDimensions, FontSizePx, Horizontal);
                 if (Length < RequiredLength + CornerClearance || Length <= BestLength)
                 {
                     continue;
@@ -79,7 +85,7 @@ public static class FlowchartEdgeLabelGapHelper
         (double StartX, double StartY) = Points[BestStart];
         (double EndX, double EndY) = Points[BestEnd];
         bool SegmentHorizontal = Math.Abs(StartY - EndY) <= AXIS_ALIGNED_SEGMENT_EPSILON_PX;
-        double HalfGap = ComputeHalfGapWidthPx(LabelDimensions, FontSizePx);
+        double HalfGap = ComputeHalfGapPx(LabelDimensions, FontSizePx, SegmentHorizontal);
         Break = new LabelSegmentBreak(
             BestStart,
             BestEnd,
@@ -104,7 +110,6 @@ public static class FlowchartEdgeLabelGapHelper
         out (double X1, double Y1, double X2, double Y2) After,
         out bool HasAfter)
     {
-        double HalfGapWidthPx = ComputeHalfGapWidthPx(LabelDimensions, FontSizePx);
         if (Math.Abs(StartY - EndY) <= AXIS_ALIGNED_SEGMENT_EPSILON_PX)
         {
             double Left = Math.Min(StartX, EndX);
@@ -117,7 +122,7 @@ public static class FlowchartEdgeLabelGapHelper
                 EndY,
                 CentreX,
                 StartY,
-                HalfGapWidthPx,
+                ComputeHalfGapPx(LabelDimensions, FontSizePx, Horizontal: true),
                 out Before,
                 out HasBefore,
                 out After,
@@ -136,7 +141,7 @@ public static class FlowchartEdgeLabelGapHelper
                 EndY,
                 StartX,
                 CentreY,
-                HalfGapWidthPx,
+                ComputeHalfGapPx(LabelDimensions, FontSizePx, Horizontal: false),
                 out Before,
                 out HasBefore,
                 out After,

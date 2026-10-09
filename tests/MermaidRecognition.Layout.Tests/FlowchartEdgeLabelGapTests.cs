@@ -85,7 +85,10 @@ public sealed class FlowchartEdgeLabelGapTests
             Options.EdgeLabelFontSizePx,
             1.5);
 
-        AssertLabelHasStrokeGapAt(Svg, LabelX, LabelCentreY, HalfGap, Label);
+        double HalfHeightGap = FlowchartEdgeLabelPlacementHelper.ComputeRenderedEdgeLabelHeight(
+            Dimensions, Options.EdgeLabelFontSizePx) / 2.0
+            + FlowchartEdgeLabelGapHelper.ComputeCharacterGapPx(Options.EdgeLabelFontSizePx);
+        AssertLabelHasStrokeGapAt(Svg, LabelX, LabelCentreY, HalfGap, Label, HalfHeightGap);
     }
 
     internal static void AssertLabelHasStrokeGapAt(
@@ -93,15 +96,18 @@ public sealed class FlowchartEdgeLabelGapTests
         double LabelX,
         double LabelCentreY,
         double HalfGap,
-        string LabelName)
+        string LabelName,
+        double? HalfHeightGap = null)
     {
-        Assert.That(HasStrokeGapBesideLabel(Svg, LabelX, LabelCentreY, HalfGap), Is.True,
+        Assert.That(HasStrokeGapBesideLabel(Svg, LabelX, LabelCentreY, HalfGap, HalfHeightGap ?? HalfGap), Is.True,
             $"Expected a stroke gap on each side of label '{LabelName}'.");
     }
 
-    static bool HasStrokeGapBesideLabel(string Svg, double LabelX, double LabelCentreY, double HalfGap)
+    static bool HasStrokeGapBesideLabel(string Svg, double LabelX, double LabelCentreY, double HalfGap, double HalfHeightGap)
     {
         const double TolerancePx = 0.75;
+        bool HasBefore = false;
+        bool HasAfter = false;
         foreach (Match LineMatch in Regex.Matches(Svg, "<line[^>]+/>", RegexOptions.CultureInvariant))
         {
             string Line = LineMatch.Value;
@@ -119,20 +125,30 @@ public sealed class FlowchartEdgeLabelGapTests
                 && Math.Abs(X2 - (LabelX - HalfGap)) <= TolerancePx
                 && X2 < LabelX)
             {
-                return true;
+                HasBefore = true;
+            }
+
+            if (Horizontal && Math.Abs(X1 - (LabelX + HalfGap)) <= TolerancePx && X1 > LabelX)
+            {
+                HasAfter = true;
             }
 
             bool Vertical = Math.Abs(X1 - X2) <= TolerancePx
                 && Math.Abs(X1 - LabelX) <= TolerancePx;
             if (Vertical
-                && Math.Abs(Y2 - (LabelCentreY - HalfGap)) <= TolerancePx
+                && Math.Abs(Y2 - (LabelCentreY - HalfHeightGap)) <= TolerancePx
                 && Y2 < LabelCentreY)
             {
-                return true;
+                HasBefore = true;
+            }
+
+            if (Vertical && Math.Abs(Y1 - (LabelCentreY + HalfHeightGap)) <= TolerancePx && Y1 > LabelCentreY)
+            {
+                HasAfter = true;
             }
         }
 
-        return false;
+        return HasBefore && HasAfter;
     }
 
     static bool TryParseLineAttribute(string Line, string Attribute, out double Value)
