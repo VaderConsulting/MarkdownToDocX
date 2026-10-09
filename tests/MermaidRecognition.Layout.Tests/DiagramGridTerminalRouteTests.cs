@@ -45,7 +45,8 @@ public sealed class DiagramGridTerminalRouteTests
             """);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
         FlowchartLayoutNodeBounds Source = Layout.NodeBounds.Single(Node => Node.NodeId == "Source");
-        FlowchartLayoutEdgeRoute Straight = Layout.EdgeRoutes.Single(Edge => Edge.TargetId == "First");
+        // The centred terminal fan keeps its middle child on the straight continuation.
+        FlowchartLayoutEdgeRoute Straight = Layout.EdgeRoutes.Single(Edge => Edge.TargetId == "Second");
         Assert.That(Straight.Points.Count, Is.EqualTo(2));
         Assert.That(Straight.Points[0].X, Is.EqualTo(Source.CenterX));
         Assert.That(Straight.Points[1].X, Is.EqualTo(Source.CenterX));
