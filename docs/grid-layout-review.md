@@ -1,6 +1,6 @@
 # Grid layout review — 9 October 2026
 
-This review records the final code at `da36d97` on PR #9, branch `cursor/many-to-many-routing-3834`. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
+This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–11 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest code is `74fa83b`. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
 
 ## 1. Fresh test comparison
 
@@ -236,3 +236,25 @@ All five suites were rerun with build and restore on the source committed as `35
 The failing names are unchanged from `d214652`; section 8's lists still apply except for the corrected side-exit test noted in section 9. The two pre-existing regressions against master remain unresolved. Logs, current failure-name lists and focused results are in `out/grid-label-size/`; full TRX results are in `out/grid-label-size/final/`. Refreshed catalogue SVG/PNG pairs are in `out/grid-label-size/catalogue/`, the ten sample pairs in `out/grid-label-size/samples/`, and the focused F25 pair in `out/grid-label-size/render/`. `out/grid-label-size/manifest.txt` lists the generated paths. This follow-up visually checked F24 and F25; it does not constitute visual acceptance of the whole catalogue.
 
 The rebuilt executable was called directly to convert the original folder's `flow.md`. After the embedded-image checks, the new DOCX replaced that folder's `flow.docx`. The earlier pending defaults and frame-midline decision still require approval before any merge.
+
+## 11. Terminal decision outcomes
+
+Commit `74fa83b` implements the owner's F29 markup: Accept moves underneath the Yes branch, so that branch has one rounded elbow and enters the top of its target. Two independent terminal children of a diamond, in the same rank and group, now occupy opposite sides of that diamond in their original cross-axis order. The placement leaves room for the diamond's outward run. Decisions with continuing or shared children retain their other placement rules. The diff was checked for diagram-specific engine conditions; none were added.
+
+Four new geometry checks pass for TB, BT, LR and RL. They verify opposite-side placement, facing diamond vertices, one elbow and normal entry at each target's upstream face. The rebuilt executable converted the original folder's `flow.md` directly; the actual F29 image was extracted and visually checked before the DOCX replaced the original `flow.docx`. The checked image is retained as [F29 terminal targets](flowchart/layout-fixes/grid-review/F29-terminal-targets.png).
+
+All five suites were rerun with build and restore on the source committed as `74fa83b`:
+
+| Suite | Master passed / failed | Starting branch passed / failed | Latest passed / failed |
+| --- | ---: | ---: | ---: |
+| Layout | 234 / 34 | 280 / 38 | 320 / 32 |
+| Rule validation | 46 / 11 | 44 / 13 | 49 / 10 |
+| Recognition | 932 / 0 | 932 / 0 | 932 / 0 |
+| Naiad adapter | 47 / 0 | 47 / 0 | 47 / 0 |
+| Converter | 31 / 0 | 32 / 0 | 39 / 0 |
+
+The totals are unchanged from the preceding correction, but one failing name changed. `TryLayout_InspectContent_BranchesUseSingleElbowOrthogonalPaths` now passes. `ResolveEdgeLabelPosition_F29_DecisionBranch_LabelHorizontallyCentredOnConnector` now fails: its older helper chooses a horizontal-run midpoint while the test also requires that point to equal the midpoint of the entire polyline. Those points differ after the geometry is corrected. The rendered label follows the longest straight run, as the supplied rulebook requires. This existing test was left untouched and a request to update it is pending. It passed on master, so the report counts it explicitly alongside the two earlier regressions; the unchanged total must not hide it. No new failures appeared in the other suites.
+
+Section 8's Layout failure list applies with the resolved elbow check removed, the earlier side-exit check removed as recorded in section 9, and the newly failing F29 label-position check added. Rule-validation failures are unchanged. Logs, current failure-name lists and focused results are in `out/grid-terminal-decision/`; full TRX results are in `out/grid-terminal-decision/final/`. Refreshed catalogue SVG/PNG pairs are in `out/grid-terminal-decision/catalogue/`, the ten sample pairs in `out/grid-terminal-decision/samples/`, and the focused F29 pair in `out/grid-terminal-decision/render/`. `out/grid-terminal-decision/manifest.txt` lists the generated paths. Only F29 received a new visual review in this correction.
+
+The fix is pushed, but the conflicting assertion still needs the owner's decision. The six provisional defaults and frame-midline rule also remain pending; nothing was merged.
