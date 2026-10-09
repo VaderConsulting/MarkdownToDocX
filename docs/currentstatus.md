@@ -7,7 +7,7 @@ Updated 9 October 2026. This is the single maintained status file for the soluti
 | Area | Current state |
 | --- | --- |
 | Master | `f09cb89`; the earlier documentation relocation and spec trim are merged. |
-| Grid routing | PR #9, branch `cursor/many-to-many-routing-3834`; code fixes through `d214652` are pushed. This work is not merged. |
+| Grid routing | PR #9, branch `cursor/many-to-many-routing-3834`; code fixes through `3570465` are pushed. This work is not merged. |
 | Active local checkout | The PR #9 branch is in the sibling `MarkdownToDocX-pr9` worktree. The original laptop folder remains on its pre-existing documentation branch. |
 | Earlier documentation refresh | The original worktree retains its earlier documentation commits; this pass did not publish or merge them. PR #9 predates the spec relocation, so some normative files still sit at the root on this branch. |
 | Enterprise / ArchiMate | Existing work is on PR #1. It is not integrated into the measured master or grid branch. |
@@ -20,22 +20,22 @@ Updated 9 October 2026. This is the single maintained status file for the soluti
 - Flowcharts use the native Sugiyama layout. PR #9 adds grid placement and horizontal/vertical routing with rounded corners; this implementation remains incomplete.
 - Other diagram kinds still use the vendored Naiad renderer. Native replacement of those renderers remains future work.
 - The grid branch now preserves normal terminal runs, whole-run track movements, free facing diamond vertices and centre ports for straight continuations. Labels share an anchor with their connector breaks. Grid output omits hop arcs. Diagonal back-edge guides are replaced when a valid orthogonal route fits their allocated ports and the three-corner limit.
-- Side-exit grid connectors now retain rounded bends when their edge label cannot fit a stroke gap. The regenerated `flow.docx` was checked at F24; label overlap on that example remains unresolved.
+- Side-exit grid connectors now retain rounded bends when their edge label cannot fit a stroke gap. Label breaks and rank-space calculations use rendered text height for vertical connectors and text width for horizontal connectors. The regenerated `flow.docx` was checked at F24 and F25: the excessive F25 breaks and the F24 label overlap are resolved.
 - Sequence rows now measure message labels, arrowheads and note boxes to give notes the same conservative clear spacing as consecutive messages, including returning self messages. The canvas includes notes beyond either outer participant.
 
 ## 3. Verified test state
 
-Measured on Windows with plain `dotnet test` on each project, including build and restore. Master and starting-branch baselines were collected before behavioural edits. All five suites were rerun on the source committed as `d214652` after the reported F24 corner regression was fixed.
+Measured on Windows with plain `dotnet test` on each project, including build and restore. Master and starting-branch baselines were collected before behavioural edits. All five suites were rerun on the source committed as `3570465` after the reported F25 label-spacing defect was fixed.
 
 | Suite | Master failures | Starting PR #9 failures | Final PR #9 passed / failed |
 | --- | ---: | ---: | ---: |
-| Layout | 34 | 38 | 306 / 32 |
+| Layout | 34 | 38 | 316 / 32 |
 | Rule validation | 11 | 13 | 49 / 10 |
 | Recognition | 0 | 0 | 932 / 0 |
 | Naiad adapter | 0 | 0 | 47 / 0 |
 | Converter | 0 | 0 | 39 / 0 |
 
-No new failing test names were introduced against the starting branch or the preceding code at `da36d97`. Twelve explicit recognition fixture-writing tests are not executed by the ordinary suite. Latest logs and TRX files are in `out/grid-corner-fix/` and `out/grid-corner-fix/final/` in the PR worktree; the [review](grid-layout-review.md#9-side-exit-corner-regression) records the follow-up evidence. Two existing Layout tests still fail on the branch while passing on master; lower totals alone do not resolve those regressions.
+No new failing test names were introduced against the starting branch, `da36d97` or the preceding code at `d214652`. Twelve explicit recognition fixture-writing tests are not executed by the ordinary suite. Latest logs and TRX files are in `out/grid-label-size/` and `out/grid-label-size/final/` in the PR worktree; the [review](grid-layout-review.md#10-label-spacing-along-the-connector) records the follow-up evidence. Two existing Layout tests still fail on the branch while passing on master; lower totals alone do not resolve those regressions.
 
 The final counts meet the fresh master-count comparison, but **the solution does not pass all acceptance tests and the rendered diagrams are not ready for merge approval**.
 

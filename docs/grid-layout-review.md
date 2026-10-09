@@ -214,3 +214,25 @@ There are no newly failing names relative to `da36d97`. The failure lists in sec
 Logs are in `out/grid-corner-fix/*.log`; TRX results are in `out/grid-corner-fix/final/`. The catalogue SVG/PNG pairs are in `out/grid-corner-fix/catalogue/`, the ten sample pairs in `out/grid-corner-fix/samples/`, and the focused F24 pair in `out/grid-corner-fix/render/`. `out/grid-corner-fix/manifest.txt` lists the generated paths.
 
 The rebuilt `md2docx.exe` was called directly with the original folder's `flow.md` and a temporary output filename. F24's actual embedded DOCX image was extracted and visually checked before replacing the original folder's `flow.docx`. The checked image is retained as [F24 with rounded corners](flowchart/layout-fixes/grid-review/F24-rounded.png). Label overlap is still visible where the label-gap calculation cannot fit a break; the corner fix does not resolve that separate defect. The refreshed catalogue and samples were rendered but have not all received a new visual acceptance review. Merge approval remains outstanding.
+
+## 10. Label spacing along the connector
+
+Commit `3570465` corrects the excessive breaks around F25's labels. The label-gap helper had used text width for both horizontal and vertical connectors. It now measures the text along the connector: width horizontally, rendered height vertically, with the existing character-width clearance on each side. Run selection, grid rank spacing and the older layout postprocessor share this calculation. No engine condition uses a diagram name, identifier or label; the diff was checked before committing.
+
+F25's two stroke breaks fell from 147.456 px and 153.6 px to 24.288 px each. The clear rank gaps fell from 180 px to 120 px. This also lets F24's vertical runs hold their labels without drawing through the text. Both actual embedded images were extracted from the regenerated DOCX and visually checked: [F25 label gaps](flowchart/layout-fixes/grid-review/F25-label-gap.png) and [F24 label gaps](flowchart/layout-fixes/grid-review/F24-label-gap.png). The F24 label-overlap finding in section 9 describes the earlier output and is now resolved.
+
+The owner authorised correcting the existing label-gap checks to use the appropriate text dimension. Those checks now verify that the stroke resumes on both sides of the label. Ten additional cases cover single-line and multiline breaks in all four directions and confirm that wider single-line text does not inflate vertical rank gaps. All thirty focused checks passed, including the earlier corner checks.
+
+All five suites were rerun with build and restore on the source committed as `3570465`:
+
+| Suite | Master passed / failed | Starting branch passed / failed | Latest passed / failed |
+| --- | ---: | ---: | ---: |
+| Layout | 234 / 34 | 280 / 38 | 316 / 32 |
+| Rule validation | 46 / 11 | 44 / 13 | 49 / 10 |
+| Recognition | 932 / 0 | 932 / 0 | 932 / 0 |
+| Naiad adapter | 47 / 0 | 47 / 0 | 47 / 0 |
+| Converter | 31 / 0 | 32 / 0 | 39 / 0 |
+
+The failing names are unchanged from `d214652`; section 8's lists still apply except for the corrected side-exit test noted in section 9. The two pre-existing regressions against master remain unresolved. Logs, current failure-name lists and focused results are in `out/grid-label-size/`; full TRX results are in `out/grid-label-size/final/`. Refreshed catalogue SVG/PNG pairs are in `out/grid-label-size/catalogue/`, the ten sample pairs in `out/grid-label-size/samples/`, and the focused F25 pair in `out/grid-label-size/render/`. `out/grid-label-size/manifest.txt` lists the generated paths. This follow-up visually checked F24 and F25; it does not constitute visual acceptance of the whole catalogue.
+
+The rebuilt executable was called directly to convert the original folder's `flow.md`. After the embedded-image checks, the new DOCX replaced that folder's `flow.docx`. The earlier pending defaults and frame-midline decision still require approval before any merge.
