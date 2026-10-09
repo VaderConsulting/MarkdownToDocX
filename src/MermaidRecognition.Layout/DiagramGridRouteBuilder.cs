@@ -97,10 +97,12 @@ public static class DiagramGridRouteBuilder
                 StartY,
                 SourceBounds,
                 SourceShape,
+                Route.ExitSide,
                 EndX,
                 EndY,
                 TargetBounds,
                 TargetShape,
+                Route.EntrySide,
                 BoundsById,
                 Route.SourceId,
                 Route.TargetId,
@@ -125,10 +127,12 @@ public static class DiagramGridRouteBuilder
         double StartY,
         FlowchartLayoutNodeBounds SourceBounds,
         string? SourceShape,
+        string? ExitSide,
         double EndX,
         double EndY,
         FlowchartLayoutNodeBounds TargetBounds,
         string? TargetShape,
+        string? EntrySide,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         string SourceId,
         string TargetId,
@@ -136,7 +140,18 @@ public static class DiagramGridRouteBuilder
         FlowchartDirection Direction,
         bool Horizontal)
     {
+        // The rounded corner consumes one radius of the terminal segment.
+        // Keep another radius at the source and an arrow length at the target.
+        double SourceStubLength = CORNER_RADIUS_PX * 2;
+        double TargetStubLength = CORNER_RADIUS_PX + 10;
+        (double SourceStubX, double SourceStubY) = ResolvePortStub(
+            StartX, StartY, SourceBounds, SourceShape, ExitSide, SourceStubLength);
+        (double TargetStubX, double TargetStubY) = ResolvePortStub(
+            EndX, EndY, TargetBounds, TargetShape, EntrySide, TargetStubLength);
+
         if (FlowchartEdgeConnectionGeometry.ShouldRenderStraightConnector(StartX, StartY, EndX, EndY)
+            && HasNormalTerminals([(StartX, StartY), (EndX, EndY)],
+                SourceStubX, SourceStubY, TargetStubX, TargetStubY)
             && !FlowchartRouteObstacleHelper.SegmentIntersectsUnrelatedNodeBodies(
                 StartX,
                 StartY,
@@ -148,21 +163,6 @@ public static class DiagramGridRouteBuilder
         {
             return [(StartX, StartY), (EndX, EndY)];
         }
-
-        double SourceStubLength = FlowchartEdgeTerminalStubExpander.ComputeTerminalStubLength(SourceBounds);
-        double TargetStubLength = FlowchartEdgeTerminalStubExpander.ComputeTerminalStubLength(TargetBounds);
-        (double SourceStubX, double SourceStubY) = FlowchartPerpendicularRouteBuilder.ResolveStubOuterPoint(
-            StartX,
-            StartY,
-            SourceBounds,
-            SourceShape,
-            SourceStubLength);
-        (double TargetStubX, double TargetStubY) = FlowchartPerpendicularRouteBuilder.ResolveStubOuterPoint(
-            EndX,
-            EndY,
-            TargetBounds,
-            TargetShape,
-            TargetStubLength);
 
         List<(double X, double Y)> Best = [];
         int BestScore = int.MaxValue;
@@ -183,7 +183,8 @@ public static class DiagramGridRouteBuilder
                      Horizontal))
         {
             List<(double X, double Y)> Simplified = SimplifyCollinear(Candidate);
-            if (!PathIsValid(Simplified, BoundsById, SourceId, TargetId, Contract))
+            if (!HasNormalTerminals(Simplified, SourceStubX, SourceStubY, TargetStubX, TargetStubY)
+                || !PathIsValid(Simplified, BoundsById, SourceId, TargetId, Contract))
             {
                 continue;
             }
@@ -217,7 +218,8 @@ public static class DiagramGridRouteBuilder
             SourceId,
             TargetId);
         List<(double X, double Y)> SimplifiedFallback = SimplifyCollinear(Fallback);
-        if (PathIsValid(SimplifiedFallback, BoundsById, SourceId, TargetId, Contract))
+        if (HasNormalTerminals(SimplifiedFallback, SourceStubX, SourceStubY, TargetStubX, TargetStubY)
+            && PathIsValid(SimplifiedFallback, BoundsById, SourceId, TargetId, Contract))
         {
             return SimplifiedFallback;
         }
@@ -236,6 +238,44 @@ public static class DiagramGridRouteBuilder
             TargetId,
             Contract,
             Horizontal);
+    }
+
+    private static (double X, double Y) ResolvePortStub(
+        double X, double Y, FlowchartLayoutNodeBounds Bounds, string? Shape,
+        string? Side, double Length)
+    {
+        return Side switch
+        {
+            "left" => (X - Length, Y),
+            "right" => (X + Length, Y),
+            "top" => (X, Y + Length),
+            "bottom" => (X, Y - Length),
+            _ => FlowchartPerpendicularRouteBuilder.ResolveStubOuterPoint(X, Y, Bounds, Shape, Length)
+        };
+    }
+
+    private static bool HasNormalTerminals(
+        IReadOnlyList<(double X, double Y)> Path,
+        double SourceStubX, double SourceStubY, double TargetStubX, double TargetStubY)
+    {
+        if (Path.Count < 2)
+        {
+            return false;
+        }
+
+        return FollowsNormal(Path[0], Path[1], (SourceStubX, SourceStubY))
+            && FollowsNormal(Path[^1], Path[^2], (TargetStubX, TargetStubY));
+    }
+
+    private static bool FollowsNormal(
+        (double X, double Y) Port, (double X, double Y) Next, (double X, double Y) Stub)
+    {
+        double Dx = Next.X - Port.X;
+        double Dy = Next.Y - Port.Y;
+        double NormalX = Stub.X - Port.X;
+        double NormalY = Stub.Y - Port.Y;
+        return Math.Abs((Dx * NormalY) - (Dy * NormalX)) < COLLINEAR_EPSILON_PX
+            && (Dx * NormalX) + (Dy * NormalY) > 0;
     }
 
     private static List<(double X, double Y)> BuildForcedCorridorRoute(
