@@ -192,3 +192,25 @@ The frame-midline placement and reserved-midline-track rules remain unimplemente
 - `Pipeline_F59_PrimarySubgraphColumnCenteredInWorkerCluster`
 - `Pipeline_F60_SiblingSubgraphsAlignedForHorizontalCrossStageRouting`
 - `Pipeline_F81_TrapezoidBracketEdgesTerminateAtVisibleBoundary`
+
+## 9. Side-exit corner regression
+
+Commit `d214652` fixes the sharp bends reported in F24 of the regenerated DOCX. A side-exit grid route used the legacy linear corridor renderer whenever its label could not fit a stroke gap. Grid routes now use the shared rounded-corner builder in that branch too. This is a generic route-kind correction; no engine check depends on an example, identifier or label.
+
+The owner explicitly authorised updating the existing test that prohibited rounded corners. Its replacement checks rounded bends, axis-aligned runs, the actual target's top-centre attachment and a straight terminal approach long enough for the arrowhead. Twelve additional rendering cases cover four flow directions with absent, short and longer labels. All sixteen focused cases passed.
+
+All five suites were rerun with build and restore on the source committed as `d214652`:
+
+| Suite | Master passed / failed | Starting branch passed / failed | Latest passed / failed |
+| --- | ---: | ---: | ---: |
+| Layout | 234 / 34 | 280 / 38 | 306 / 32 |
+| Rule validation | 46 / 11 | 44 / 13 | 49 / 10 |
+| Recognition | 932 / 0 | 932 / 0 | 932 / 0 |
+| Naiad adapter | 47 / 0 | 47 / 0 | 47 / 0 |
+| Converter | 31 / 0 | 32 / 0 | 39 / 0 |
+
+There are no newly failing names relative to `da36d97`. The failure lists in section 8 remain current except that `RenderToSvg_LayeredView_FarChildRouteIsOrthogonal` now passes. The two regressions against master identified earlier remain unresolved.
+
+Logs are in `out/grid-corner-fix/*.log`; TRX results are in `out/grid-corner-fix/final/`. The catalogue SVG/PNG pairs are in `out/grid-corner-fix/catalogue/`, the ten sample pairs in `out/grid-corner-fix/samples/`, and the focused F24 pair in `out/grid-corner-fix/render/`. `out/grid-corner-fix/manifest.txt` lists the generated paths.
+
+The rebuilt `md2docx.exe` was called directly with the original folder's `flow.md` and a temporary output filename. F24's actual embedded DOCX image was extracted and visually checked before replacing the original folder's `flow.docx`. The checked image is retained as [F24 with rounded corners](flowchart/layout-fixes/grid-review/F24-rounded.png). Label overlap is still visible where the label-gap calculation cannot fit a break; the corner fix does not resolve that separate defect. The refreshed catalogue and samples were rendered but have not all received a new visual acceptance review. Merge approval remains outstanding.
