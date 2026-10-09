@@ -14,6 +14,50 @@ public sealed class SequenceNoteSpacingTests
     const double InterElementClearancePx = MessageSpacing - MessageLabelOffsetAboveArrow - MessageArrowTipPx;
 
     [TestMethod]
+    [DataRow("Note over Q: A short note")]
+    [DataRow("Note left of Q: A longer note that wraps across several lines in its measured box")]
+    [DataRow("Note right of Q: Another note")]
+    public void Render_SequenceRows_UseEqualClearanceForMessagesAndNotes(string Note)
+    {
+        string Source = "sequenceDiagram\nparticipant P\nparticipant Q\n"
+            + "P->>Q: First\nQ->>P: Second\n" + Note + "\nP->>Q: Third";
+        string Svg = Mermaid.Render(Source, RenderOptions.Default);
+        double First = GetHorizontalMessageLineY(Svg, 0);
+        double Second = GetHorizontalMessageLineY(Svg, 1);
+        double Third = GetHorizontalMessageLineY(Svg, 2);
+        (double Top, double Bottom) = GetNoteVerticalBounds(Svg);
+        double BetweenMessages = Second - MessageLabelOffsetAboveArrow - MessageFontSizePx
+            - First - MessageArrowTipPx;
+        double AboveNote = Top - Second - MessageArrowTipPx;
+        double BelowNote = Third - MessageLabelOffsetAboveArrow - MessageFontSizePx - Bottom;
+
+        Assert.AreEqual(InterElementClearancePx, BetweenMessages, 0.5);
+        Assert.AreEqual(BetweenMessages, AboveNote, 0.5);
+        Assert.AreEqual(BetweenMessages, BelowNote, 0.5);
+    }
+
+    [TestMethod]
+    public void Render_NoteAfterSelfMessage_ClearsTheReturningArrow()
+    {
+        string Svg = Mermaid.Render("""
+            sequenceDiagram
+            participant P
+            participant Q
+            P->>P: Internal work
+            Note over P: Work completed
+            P->>Q: Continue
+            """, RenderOptions.Default);
+        Match SelfPath = Regex.Match(Svg, @"<path d=""M[\d.]+,(?<y>[\d.]+)\s+C");
+        Assert.IsTrue(SelfPath.Success);
+        double SelfStart = double.Parse(SelfPath.Groups["y"].Value, CultureInfo.InvariantCulture);
+        (double Top, double Bottom) = GetNoteVerticalBounds(Svg);
+        double Following = GetHorizontalMessageLineY(Svg, 0);
+        Assert.AreEqual(InterElementClearancePx, Top - SelfStart - 20 - MessageArrowTipPx, 0.5);
+        Assert.AreEqual(InterElementClearancePx,
+            Following - MessageLabelOffsetAboveArrow - MessageFontSizePx - Bottom, 0.5);
+    }
+
+    [TestMethod]
     public void Render_SequenceNoteOver_KeepsClearanceFromAdjacentMessages()
     {
         const string Source = """

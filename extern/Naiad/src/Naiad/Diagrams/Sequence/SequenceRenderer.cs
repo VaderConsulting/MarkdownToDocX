@@ -70,12 +70,6 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
     static double SequenceInterElementClearancePx =>
         MessageSpacing - MessageLabelOffsetAboveArrow - GetSequenceMessageMarkerTipBeyondRefXPx(MessageType.SolidArrow);
 
-    /// <summary>
-    /// Bottom row margin below a note so the next message label clears the note box (Rule S1).
-    /// </summary>
-    static double NoteBottomRowMarginPx =>
-        MessageLabelOffsetAboveArrow + MermaidSequenceMessageFontSizePx + SequenceInterElementClearancePx;
-
     /// <summary>Extra clearance so message arrow tips stop before destination lifelines in Word.</summary>
     const double SequenceMessageLifelineClearancePx = 3.0;
 
@@ -233,24 +227,42 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
         var elementYPositions = new Dictionary<int, double>();
         var y = MermaidSequenceDiagramMarginYPx + maxParticipantHeaderHeight + MessageSpacing;
         var titleOffset = string.IsNullOrEmpty(model.Title) ? 0 : 30;
+        double? previousBottom = null;
 
         for (var i = 0; i < model.Elements.Count; i++)
         {
+            var element = model.Elements[i];
+            if (element is Activation)
+            {
+                elementYPositions[i] = y + titleOffset;
+                continue;
+            }
+
+            var (top, bottom) = GetElementVerticalExtents(element, options, model.AutoNumber);
+            if (previousBottom.HasValue)
+            {
+                y = previousBottom.Value + SequenceInterElementClearancePx - top;
+            }
             elementYPositions[i] = y + titleOffset;
-            y += GetElementHeight(model.Elements[i], options);
+            previousBottom = y + bottom;
         }
 
-        var totalHeight = y + maxParticipantHeaderHeight + MermaidSequenceDiagramMarginYPx + titleOffset;
+        var totalHeight = (previousBottom ?? y) + SequenceInterElementClearancePx
+            + maxParticipantHeaderHeight + MermaidSequenceDiagramMarginYPx + titleOffset;
         return (totalHeight, elementYPositions);
     }
 
-    static double GetElementHeight(SequenceElement element, RenderOptions options) =>
-        element switch
+    static (double top, double bottom) GetElementVerticalExtents(
+        SequenceElement element, RenderOptions options, bool autoNumber) => element switch
         {
-            Message => MessageSpacing,
-            Note note => MeasureNoteSize(note).Height + NoteBottomRowMarginPx,
-            Activation => 0, // Activations don't add height
-            _ => MessageSpacing
+            Message message => (
+                !string.IsNullOrEmpty(message.Text) || autoNumber
+                    ? -MessageLabelOffsetAboveArrow - options.FontSize
+                    : -GetSequenceMessageMarkerTipBeyondRefXPx(message.Type),
+                (message.FromId == message.ToId ? 20 : 0)
+                    + GetSequenceMessageMarkerTipBeyondRefXPx(message.Type)),
+            Note note => (0, MeasureNoteSize(note).Height),
+            _ => (0, MessageSpacing)
         };
 
     /// <summary>Uses a slightly wide per-glyph estimate so boxes stay comfortable in Word (SVG text often renders wider than 0.55×).</summary>
