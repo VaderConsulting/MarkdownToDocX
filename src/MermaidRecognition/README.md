@@ -56,7 +56,6 @@ src/MermaidRecognition.Layout/
 
 **Flowchart regression:** `tests/FlowchartRegression/approved/` holds approved SVG for `flow.md` fixtures. Run `tools/FixtureProbe/Compare-Fixtures.ps1` to check for drift.
 
-**Gate registry:** run `tools/Generate-DiagramGateRegistry.ps1` to regenerate `spec-gates/registry.generated.md`.
 
 ## Build and test
 

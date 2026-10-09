@@ -7,7 +7,7 @@ using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Render;
 
 /// <summary>
-/// Automated checks aligned with <c>status.md</c> truthfulness checklist (pass 20).
+/// Automated checks aligned with <c>docs/currentstatus.md</c>.
 /// </summary>
 [TestFixture]
 public sealed class TruthfulnessChecklistTests

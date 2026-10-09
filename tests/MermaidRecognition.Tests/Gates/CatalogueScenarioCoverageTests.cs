@@ -50,7 +50,7 @@ public sealed class CatalogueScenarioCoverageTests
     private static void AssertCatalogueFixturesExist(string CatalogueFileName, string FixtureDirectory)
     {
         string ProjectDirectory = RecognitionFixturePaths.GetProjectDirectory();
-        string CataloguePath = Path.GetFullPath(Path.Combine(ProjectDirectory, "..", "..", CatalogueFileName));
+        string CataloguePath = Path.GetFullPath(Path.Combine(ProjectDirectory, "..", "..", "docs", CatalogueFileName));
         Assert.That(File.Exists(CataloguePath), Is.True, "Missing catalogue: " + CataloguePath);
 
         string Markdown = File.ReadAllText(CataloguePath);

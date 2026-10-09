@@ -1,4 +1,4 @@
-﻿# MarkdownToDocX
+# MarkdownToDocX
 
 A .NET library and command-line tool that converts Markdown files to Word `.docx` documents. Mermaid diagram fences are parsed by a vendored Mermaid 11.14.0 grammar, recognised into a typed contract model, and rendered to SVG for embedding in the document.
 
@@ -18,7 +18,7 @@ A .NET library and command-line tool that converts Markdown files to Word `.docx
 
 Nine diagram kinds have recognition gates at level L4 (flowchart, sequence, class, state, entity-relationship, gantt, pie, mindmap, and git graph). The recogniser detects diagram kind, parses source into `DiagramContract` (nodes, edges, groups, styles, and configuration), and feeds the render pipeline.
 
-Many additional kinds are detected at level L1 smoke only. See [`status.md`](status.md) for the full gate registry.
+Many additional kinds are detected at level L1 smoke only. See [`currentstatus.md`](currentstatus.md) for the full gate registry.
 
 ### Flowchart layout and routing (native path)
 
@@ -186,10 +186,9 @@ FlowchartLayoutFixRender dump-svg-gate <file.mmd> <file.svg>
 
 | File | Description |
 | --- | --- |
-| [`spec.md`](spec.md) | Normative recognition and rendering specification |
-| [`status.md`](status.md) | Implementation progress, gate registry, and test summary |
-| [`parity-roadmap.md`](parity-roadmap.md) | Recognition parity plan for started diagram kinds |
-| [`Mermaid_Specification.md`](Mermaid_Specification.md) | Flowchart geometry and routing rules |
+| [`docs/spec.md`](docs/spec.md) | Normative recognition and rendering specification |
+| [`currentstatus.md`](currentstatus.md) | Implementation progress, gate registry, and test summary |
+| [`docs/Mermaid_Specification.md`](docs/Mermaid_Specification.md) | Flowchart geometry and routing rules |
 | [`src/MermaidRecognition/README.md`](src/MermaidRecognition/README.md) | Recogniser scope and architecture |
 | [`src/MermaidRecognition.Layout/SUGIYAMA_ADOPTION.md`](src/MermaidRecognition.Layout/SUGIYAMA_ADOPTION.md) | Adopted MSAGL Sugiyama slice policy |
 | [`docs/flowchart/layout-fixes/README.md`](docs/flowchart/layout-fixes/README.md) | Before/after images for flowchart layout changes |

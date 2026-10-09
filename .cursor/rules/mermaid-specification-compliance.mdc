@@ -1,25 +1,25 @@
 ---
-description: Follow Mermaid_Specification.md as authoritative; document deviations with good reason
+description: Follow docs/Mermaid_Specification.md as authoritative; document deviations with good reason
 alwaysApply: true
 ---
 
 # Mermaid specification compliance
 
-**Authoritative document:** `MarkdownToDocX/Mermaid_Specification.md`
+**Authoritative document:** `MarkdownToDocX/docs/Mermaid_Specification.md`
 
 All Mermaid flowchart geometry, edge routing, port selection, curve rendering, line-end markers, shape catalogue, and layout/render behaviour in this project must follow that file unless there is a documented, justified deviation.
 
 ## Precedence
 
-1. **`Mermaid_Specification.md`** — consolidated flowchart geometry and rendering rules (TS-traced where marked `closed`).
-2. **`spec.md`** — recognition contract, parser behaviour, and broader MarkdownToDocX scope. Where it conflicts with `Mermaid_Specification.md` on **drawing geometry**, prefer `Mermaid_Specification.md`.
+1. **`docs/Mermaid_Specification.md`** — consolidated flowchart geometry and rendering rules (TS-traced where marked `closed`).
+2. **`docs/spec.md`** — recognition contract, parser behaviour, and broader MarkdownToDocX scope. Where it conflicts with `docs/Mermaid_Specification.md` on **drawing geometry**, prefer `docs/Mermaid_Specification.md`.
 3. **Fixture catalogue (`flow.md`)** — visual regression only; not a substitute for the specification.
 
-Where amalgamated sources conflict inside `Mermaid_Specification.md`, the **newest** cited source wins (see §1).
+Where amalgamated sources conflict inside `docs/Mermaid_Specification.md`, the **newest** cited source wins (see §1).
 
 ## Before changing behaviour
 
-1. Read the relevant section in `Mermaid_Specification.md` (search by fixture id, diagram type, or topic).
+1. Read the relevant section in `docs/Mermaid_Specification.md` (search by fixture id, diagram type, or topic).
 2. Trace upstream `mermaid/` sources when the spec cites them and the rule is marked `closed`.
 3. Implement to match the spec rule, not an ad hoc visual preference.
 4. Validate against the cited fixture in `flow.md` / `flow.docx` when the spec references one (F29, F30, F31, F32, etc.).
@@ -35,7 +35,7 @@ Do **not** deviate silently. A deviation is acceptable only when:
 When deviating:
 
 - state **what** diverges and **why** (one or two sentences);
-- prefer updating `Mermaid_Specification.md` with a **Naiad** / parity note per §1.1 if the deviation is intentional and permanent;
+- prefer updating `docs/Mermaid_Specification.md` with a **Naiad** / parity note per §1.1 if the deviation is intentional and permanent;
 - do not replace spec-compliant routing with a simpler heuristic that breaks closed rules (e.g. all fan-out from bottom edge, `curveBasis` on two-point chords, `minlen` from label width).
 
 ## Flowchart rules to honour (non-exhaustive)
@@ -55,8 +55,8 @@ When deviating:
 
 ## Native layout note
 
-`src/MermaidRecognition.Layout` implements native Sugiyama flowchart layout and SVG render. It must still satisfy the **geometry and routing outcomes** in `Mermaid_Specification.md` even when the internal pipeline differs from Dagre (guide points, `FlowchartFanOutPortAllocator`, `FlowchartDecisionPortAllocator`, `FlowchartCurvePathBuilder`, etc.).
+`src/MermaidRecognition.Layout` implements native Sugiyama flowchart layout and SVG render. It must still satisfy the **geometry and routing outcomes** in `docs/Mermaid_Specification.md` even when the internal pipeline differs from Dagre (guide points, `FlowchartFanOutPortAllocator`, `FlowchartDecisionPortAllocator`, `FlowchartCurvePathBuilder`, etc.).
 
 ## Recording new rules
 
-Per §1.1: rules traced from Mermaid TypeScript must be added to `Mermaid_Specification.md` under the correct diagram-type section (with Source, Rule, Closure, optional Naiad note) before the work is considered complete.
+Per §1.1: rules traced from Mermaid TypeScript must be added to `docs/Mermaid_Specification.md` under the correct diagram-type section (with Source, Rule, Closure, optional Naiad note) before the work is considered complete.
