@@ -1214,8 +1214,10 @@ public static class DiagramGridLayout
             double ContentRight = double.NegativeInfinity;
             foreach (GridNode Node in Members)
             {
-                ContentLeft = Math.Min(ContentLeft, Node.X - (Node.Width / 2.0));
-                ContentRight = Math.Max(ContentRight, Node.X + (Node.Width / 2.0));
+                double Centre = Cross(Node, Horizontal, Old: false);
+                double Half = CrossHalf(Node, Horizontal, Leading: true);
+                ContentLeft = Math.Min(ContentLeft, Centre - Half);
+                ContentRight = Math.Max(ContentRight, Centre + Half);
             }
 
             List<GridNode> ParentRank = new List<GridNode>();
@@ -1232,11 +1234,13 @@ public static class DiagramGridLayout
             double ParentRight = double.NegativeInfinity;
             foreach (GridNode Node in ParentRank)
             {
-                ParentLeft = Math.Min(ParentLeft, Node.X - (Node.Width / 2.0));
-                ParentRight = Math.Max(ParentRight, Node.X + (Node.Width / 2.0));
+                double Centre = Cross(Node, Horizontal, Old: false);
+                double Half = CrossHalf(Node, Horizontal, Leading: true);
+                ParentLeft = Math.Min(ParentLeft, Centre - Half);
+                ParentRight = Math.Max(ParentRight, Centre + Half);
             }
 
-            if (ParentLeft > ContentRight || ParentRight < ContentLeft)
+            if (ParentRank.Count == 0)
             {
                 continue;
             }
