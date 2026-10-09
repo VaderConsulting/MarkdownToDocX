@@ -142,8 +142,10 @@ public static class DiagramGridRouteBuilder
     {
         // The rounded corner consumes one radius of the terminal segment.
         // Keep another radius at the source and an arrow length at the target.
-        double SourceStubLength = CORNER_RADIUS_PX * 2;
-        double TargetStubLength = CORNER_RADIUS_PX + 10;
+        double SourceStubLength = ResolveFrameExitLength(StartX, StartY, ExitSide,
+            CORNER_RADIUS_PX * 2, SourceId, TargetId, Contract, BoundsById);
+        double TargetStubLength = ResolveFrameExitLength(EndX, EndY, EntrySide,
+            CORNER_RADIUS_PX + 10, TargetId, SourceId, Contract, BoundsById);
         (double SourceStubX, double SourceStubY) = ResolvePortStub(
             StartX, StartY, SourceBounds, SourceShape, ExitSide, SourceStubLength);
         (double TargetStubX, double TargetStubY) = ResolvePortStub(
@@ -238,6 +240,33 @@ public static class DiagramGridRouteBuilder
             TargetId,
             Contract,
             Horizontal);
+    }
+
+    private static double ResolveFrameExitLength(
+        double X, double Y, string? Side, double Minimum,
+        string EndpointId, string OtherId, DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById)
+    {
+        foreach (GroupContract Group in Contract.Groups)
+        {
+            if (!DiagramGridLayout.IsInsideGroup(Contract, EndpointId, Group.Id)
+                || DiagramGridLayout.IsInsideGroup(Contract, OtherId, Group.Id)
+                || !BoundsById.TryGetValue(Group.Id, out FlowchartLayoutNodeBounds Frame))
+            {
+                continue;
+            }
+
+            double Distance = Side switch
+            {
+                "left" => X - (Frame.CenterX - Frame.Width / 2),
+                "right" => Frame.CenterX + Frame.Width / 2 - X,
+                "top" => Frame.CenterY + Frame.Height / 2 - Y,
+                "bottom" => Y - (Frame.CenterY - Frame.Height / 2),
+                _ => 0
+            };
+            Minimum = Math.Max(Minimum, Distance + CORNER_RADIUS_PX);
+        }
+        return Minimum;
     }
 
     private static (double X, double Y) ResolvePortStub(

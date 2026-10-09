@@ -3069,7 +3069,7 @@ public static class DiagramGridLayout
 
     internal static bool IsInsideGroup(DiagramContract Contract, string NodeId, string GroupId)
     {
-        string? Current = GroupOf(Contract, NodeId);
+        string? Current = FlowchartSubgraphMembershipHelper.FindInnermostGroupId(NodeId, Contract);
         int Guard = 0;
         while (!string.IsNullOrEmpty(Current) && Guard < 32)
         {

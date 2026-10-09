@@ -8,6 +8,41 @@ namespace MermaidRecognition.Layout.Tests;
 public sealed class DiagramGridTerminalRouteTests
 {
     [Test]
+    public void RebuildRoutes_NestedFrameExit_TurnsAfterTheOuterBorder()
+    {
+        DiagramContract Contract = MermaidRecognizer.Parse("""
+            flowchart TB
+            subgraph Outer
+                subgraph Inner
+                    A[Source]
+                end
+            end
+            A --> B[Target]
+            """);
+        FlowchartLayoutEdgeRoute Route = new()
+        {
+            SourceId = "A", TargetId = "B", ExitSide = "bottom", EntrySide = "top"
+        };
+        Route.Points.Add(new() { X = 100, Y = 270 });
+        Route.Points.Add(new() { X = 400, Y = 90 });
+        FlowchartLayoutResult Layout = new();
+        Layout.EdgeRoutesMutable.Add(Route);
+        List<DiagramGridLayout.GridNode> Nodes =
+        [new() { Id = "A", X = 100, Y = 300, Width = 150, Height = 60 },
+         new() { Id = "B", X = 400, Y = 60, Width = 150, Height = 60 }];
+        List<DiagramGridLayout.GridFrame> Frames =
+        [new() { Id = "Inner", Left = 0, Right = 200, Top = 400, Bottom = 240 },
+         new() { Id = "Outer", Left = -30, Right = 230, Top = 460, Bottom = 210 }];
+
+        DiagramGridRouteBuilder.RebuildAllRoutes(Layout, Nodes,
+            Contract.Nodes.ToDictionary(Node => Node.Id), Contract, Frames, FlowchartDirection.TopToBottom);
+
+        Assert.That(Route.Points[1].X, Is.EqualTo(100));
+        Assert.That(Route.Points[1].Y + DiagramGridRouteBuilder.CORNER_RADIUS_PX, Is.LessThanOrEqualTo(210));
+        Assert.That(DiagramGridLayout.IsInsideGroup(Contract, "Inner", "Outer"), Is.True);
+    }
+
+    [Test]
     public void TranslateTrack_RejectsAnObstacleWithoutChangingTheRoute()
     {
         FlowchartLayoutEdgeRoute Route = new() { SourceId = "Source", TargetId = "Target" };
