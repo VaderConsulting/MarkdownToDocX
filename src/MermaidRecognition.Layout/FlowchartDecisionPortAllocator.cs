@@ -768,21 +768,6 @@ public static class FlowchartDecisionPortAllocator
             {
                 Preferred = BypassVertex;
             }
-            bool HasCoRankedSibling = Outgoing.Count == 2
-                && TryHasCoRankedDecisionSibling(Outgoing, OutgoingEdge, BoundsById);
-            if (HasCoRankedSibling
-                && (Preferred == DiamondVertexKind.Left || Preferred == DiamondVertexKind.Right))
-            {
-                PortsByTarget[OutgoingEdge.TargetId] = ResolveEdgeCentreFallbackAttach(
-                    Preferred,
-                    CentreX,
-                    CentreY,
-                    HalfWidth,
-                    HalfHeight,
-                    UseBottomFace);
-                continue;
-            }
-
             if (ShouldUseSlantedEdgeCentrePort(
                     Preferred,
                     TargetBounds,
