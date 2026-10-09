@@ -93,6 +93,7 @@ public static class DiagramGridLayout
         AlignUnbranchedDecisionInputs(Contract, Placed, Horizontal);
         AlignHorizontalRetryOutcomes(Contract, Placed, Horizontal);
         AlignSimpleDecisionMerges(Contract, Placed, Horizontal, CrossPitch);
+        AlignDecisionDetours(Contract, Placed, Horizontal, CrossPitch);
         CompactIndependentFanIn(Contract, Placed, Horizontal, CrossPitch);
 
         GrowCrowdedSides(Placed, Copy, BoxWidth, BoxHeight);
@@ -108,6 +109,7 @@ public static class DiagramGridLayout
         RebuildSoleForwardDecisionBranchRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
         RebuildOrdinaryFanOutRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
         RebuildSimpleDecisionMergeRoutes(Contract, Copy, Placed, Frames, Horizontal);
+        RebuildDecisionDetourRoutes(Contract, Copy, Placed, Frames, Horizontal);
         RebuildLoopBackRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
         DiagramGridRouteBuilder.RebuildDiagonalBackRoutes(Copy, Placed, Nodes, Contract, Frames, Direction);
         Copy.UsesGridRoutes = true;
@@ -582,6 +584,136 @@ public static class DiagramGridLayout
             int Gap = DiagramGridMetrics.CeilToGrid(
                 Decision.Height / 2 + Retry.Height / 2 + 3 * DiagramGridMetrics.GRID_UNIT_PX);
             SetCross(Retry, (int)Math.Round(Decision.Y) + Gap, Horizontal);
+        }
+    }
+
+    private static IEnumerable<(GridNode Decision, GridNode Detour, GridNode Merge)>
+        DecisionDetours(DiagramContract Contract, List<GridNode> Placed)
+    {
+        var ById = IndexPlaced(Placed);
+        var Visible = Contract.Edges.Where(Edge =>
+            !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
+        var Back = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        foreach (var Decision in Placed.Where(Node => Node.IsDiamond))
+        {
+            var Branches = Visible.Where(Edge => Edge.SourceId == Decision.Id && !Back.Contains(Edge)).ToList();
+            if (Branches.Count != 2) continue;
+            foreach (var Branch in Branches)
+            {
+                if (!ById.TryGetValue(Branch.TargetId, out var Detour) || Detour.IsDiamond
+                    || Detour.GroupId != Decision.GroupId
+                    || Visible.Count(Edge => Edge.TargetId == Detour.Id) != 1) continue;
+                var Outputs = Visible.Where(Edge => Edge.SourceId == Detour.Id).ToList();
+                if (Outputs.Count != 1 || Back.Contains(Outputs[0])
+                    || !Branches.Any(Edge => Edge.TargetId == Outputs[0].TargetId)
+                    || !ById.TryGetValue(Outputs[0].TargetId, out var Merge)
+                    || Merge.IsDiamond || Merge.GroupId != Decision.GroupId) continue;
+                yield return (Decision, Detour, Merge);
+            }
+        }
+    }
+
+    private static void AlignDecisionDetours(
+        DiagramContract Contract, List<GridNode> Placed, bool Horizontal, int CrossPitch)
+    {
+        var Visible = Contract.Edges.Where(Edge =>
+            !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
+        foreach (var (Decision, Detour, Merge) in DecisionDetours(Contract, Placed))
+        {
+            int Centre = (int)Math.Round(Cross(Decision, Horizontal, Old: false));
+            int Pitch = Math.Max(CrossPitch, DiagramGridMetrics.CeilToGrid(
+                CrossHalf(Decision, Horizontal, Leading: true)
+                + CrossHalf(Detour, Horizontal, Leading: true) + DiagramGridMetrics.NODE_GAP_PX));
+            bool Terminal = !Visible.Any(Edge => Edge.SourceId == Merge.Id);
+            SetCross(Detour, Centre + (Terminal ? Pitch : -Pitch), Horizontal);
+            SetCross(Merge, Centre - (Terminal ? Pitch : 0), Horizontal);
+            if (Terminal)
+            {
+                foreach (var Incoming in Visible.Where(Edge => Edge.TargetId == Merge.Id
+                    && Edge.SourceId != Decision.Id && Edge.SourceId != Detour.Id))
+                {
+                    var EarlyExit = Placed.FirstOrDefault(Node => Node.Id == Incoming.SourceId);
+                    if (EarlyExit == null || EarlyExit.IsDiamond || EarlyExit.GroupId != Merge.GroupId
+                        || Visible.Count(Edge => Edge.SourceId == EarlyExit.Id) != 1
+                        || Visible.Count(Edge => Edge.TargetId == EarlyExit.Id) != 1) continue;
+                    var ParentEdge = Visible.Single(Edge => Edge.TargetId == EarlyExit.Id);
+                    var Parent = Placed.FirstOrDefault(Node => Node.Id == ParentEdge.SourceId);
+                    if (Parent == null || !Parent.IsDiamond || Math.Abs(Parent.Rank - Decision.Rank) < 2) continue;
+                    SetCross(EarlyExit, Centre - 2 * Pitch, Horizontal);
+                    SetMain(EarlyExit, (int)Math.Round(Main(Merge, Horizontal, Old: false)), Horizontal);
+                    EarlyExit.Rank = Merge.Rank;
+                }
+            }
+        }
+    }
+
+    private static void RebuildDecisionDetourRoutes(
+        DiagramContract Contract, FlowchartLayoutResult Copy, List<GridNode> Placed,
+        List<GridFrame> Frames, bool Horizontal)
+    {
+        var Bounds = BuildPlacedBounds(Placed, Frames);
+        foreach (var (Decision, Detour, Merge) in DecisionDetours(Contract, Placed))
+        {
+            double Flow = Math.Sign(Main(Merge, Horizontal, Old: false) - Main(Decision, Horizontal, Old: false));
+            double Side = Math.Sign(Cross(Detour, Horizontal, Old: false) - Cross(Merge, Horizontal, Old: false));
+            (double X, double Y) Map(double Main, double Cross) => Horizontal ? (Main, Cross) : (Cross, Main);
+            foreach (var Source in new[] { Decision, Detour })
+            {
+                var Route = Copy.EdgeRoutes.FirstOrDefault(Route => Route.SourceId == Source.Id && Route.TargetId == Merge.Id);
+                if (Route == null) continue;
+                double StartMain = Main(Source, Horizontal, Old: false);
+                double StartCross = Cross(Source, Horizontal, Old: false);
+                double EndMain = Main(Merge, Horizontal, Old: false);
+                double EndCross = Cross(Merge, Horizontal, Old: false);
+                var Path = new List<(double X, double Y)>();
+                if (Source == Detour)
+                {
+                    StartMain += Flow * MainHalf(Source, Horizontal, Leading: true);
+                    EndCross += Side * CrossHalf(Merge, Horizontal, Leading: true);
+                    Path = [Map(StartMain, StartCross), Map(EndMain, StartCross), Map(EndMain, EndCross)];
+                }
+                else if (Math.Abs(StartCross - EndCross) < 0.5)
+                {
+                    StartMain += Flow * MainHalf(Source, Horizontal, Leading: true);
+                    EndMain -= Flow * MainHalf(Merge, Horizontal, Leading: true);
+                    Path = [Map(StartMain, StartCross), Map(EndMain, EndCross)];
+                }
+                else
+                {
+                    StartCross += Math.Sign(EndCross - StartCross) * CrossHalf(Source, Horizontal, Leading: true);
+                    EndMain -= Flow * MainHalf(Merge, Horizontal, Leading: true);
+                    Path = [Map(StartMain, StartCross), Map(StartMain, EndCross), Map(EndMain, EndCross)];
+                }
+                if (Path.Zip(Path.Skip(1)).Any(Pair => FlowchartRouteObstacleHelper.SegmentIntersectsUnrelatedNodeBodies(
+                    Pair.First.X, Pair.First.Y, Pair.Second.X, Pair.Second.Y, Bounds, Source.Id, Merge.Id))) continue;
+                SetRouteEndpointSides(Route, Bounds[Source.Id], Bounds[Merge.Id], Path, Horizontal);
+                Route.Points.Clear();
+                foreach (var Point in Path) Route.Points.Add(new() { X = Point.X, Y = Point.Y });
+            }
+            foreach (var EarlyExit in Placed.Where(Node => Node.Id != Detour.Id
+                && Node.GroupId == Merge.GroupId && Node.Rank == Merge.Rank
+                && Contract.Edges.Count(Edge => Edge.SourceId == Node.Id) == 1
+                && Contract.Edges.Any(Edge => Edge.SourceId == Node.Id && Edge.TargetId == Merge.Id)))
+            {
+                var Incoming = Contract.Edges.Where(Edge => Edge.TargetId == EarlyExit.Id).ToList();
+                if (Incoming.Count != 1) continue;
+                var Parent = Placed.FirstOrDefault(Node => Node.Id == Incoming[0].SourceId);
+                if (Parent == null || !Parent.IsDiamond || Math.Abs(Parent.Rank - Decision.Rank) < 2) continue;
+                var Route = Copy.EdgeRoutes.FirstOrDefault(Route => Route.SourceId == Parent.Id && Route.TargetId == EarlyExit.Id);
+                if (Route == null) continue;
+                double StartMain = Main(Parent, Horizontal, Old: false);
+                double StartCross = Cross(Parent, Horizontal, Old: false) + Math.Sign(
+                    Cross(EarlyExit, Horizontal, Old: false) - Cross(Parent, Horizontal, Old: false))
+                    * CrossHalf(Parent, Horizontal, Leading: true);
+                double EndMain = Main(EarlyExit, Horizontal, Old: false) - Flow * MainHalf(EarlyExit, Horizontal, Leading: true);
+                double EndCross = Cross(EarlyExit, Horizontal, Old: false);
+                var Path = new List<(double X, double Y)> { Map(StartMain, StartCross), Map(StartMain, EndCross), Map(EndMain, EndCross) };
+                if (Path.Zip(Path.Skip(1)).Any(Pair => FlowchartRouteObstacleHelper.SegmentIntersectsUnrelatedNodeBodies(
+                    Pair.First.X, Pair.First.Y, Pair.Second.X, Pair.Second.Y, Bounds, Parent.Id, EarlyExit.Id))) continue;
+                SetRouteEndpointSides(Route, Bounds[Parent.Id], Bounds[EarlyExit.Id], Path, Horizontal);
+                Route.Points.Clear();
+                foreach (var Point in Path) Route.Points.Add(new() { X = Point.X, Y = Point.Y });
+            }
         }
     }
 

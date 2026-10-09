@@ -1711,7 +1711,7 @@ public sealed class FlowchartCatalogueRenderTests
     }
 
     [Test]
-    public void TryLayout_F34_DoneSharesDecisionRowAndRetrySitsBelow()
+    public void TryLayout_HorizontalRetry_DoneSharesDecisionRowAndRetrySitsBelow()
     {
         DiagramContract Contract = MermaidRecognizer.Parse("""
             flowchart LR
@@ -1731,7 +1731,7 @@ public sealed class FlowchartCatalogueRenderTests
     }
 
     [Test]
-    public void TryLayout_F34_DoneStaysAheadAndRetrySharesDecisionColumn()
+    public void TryLayout_HorizontalRetry_DoneStaysAheadAndRetrySharesDecisionColumn()
     {
         DiagramContract Contract = MermaidRecognizer.Parse("""
             flowchart LR

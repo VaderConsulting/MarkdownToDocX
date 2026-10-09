@@ -6,9 +6,9 @@ using MermaidRecognition.Layout;
 namespace MermaidRecognition.Layout.Tests;
 
 [TestFixture]
-public sealed class DiagramGridF34CycleReturnTests
+public sealed class HorizontalRetryReturnTests
 {
-    private const string F34Source = """
+    private const string RetrySource = """
         flowchart LR
         A[Receive] --> B{OK?}
         B -->|Yes| C[Done]
@@ -17,9 +17,9 @@ public sealed class DiagramGridF34CycleReturnTests
         """;
 
     [Test]
-    public void TryLayout_F34_RanksAreEqualSpacedGridColumns()
+    public void TryLayout_HorizontalRetry_RanksAreEqualSpacedGridColumns()
     {
-        DiagramContract Contract = MermaidRecognizer.Parse(F34Source);
+        DiagramContract Contract = MermaidRecognizer.Parse(RetrySource);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
 
         double ReceiveX = Find(Layout, "A").CenterX;
@@ -32,9 +32,9 @@ public sealed class DiagramGridF34CycleReturnTests
     }
 
     [Test]
-    public void TryLayout_F34_RetryLoop_LeavesBottomAndEntersTargetBottom()
+    public void TryLayout_HorizontalRetry_RetryLoop_LeavesBottomAndEntersTargetBottom()
     {
-        DiagramContract Contract = MermaidRecognizer.Parse(F34Source);
+        DiagramContract Contract = MermaidRecognizer.Parse(RetrySource);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartLayoutEdgeRoute Route = FindRoute(Layout, "D", "A");
@@ -46,9 +46,9 @@ public sealed class DiagramGridF34CycleReturnTests
     }
 
     [Test]
-    public void TryLayout_F34_RetryLoop_RunsBelowAllNodes()
+    public void TryLayout_HorizontalRetry_RetryLoop_RunsBelowAllNodes()
     {
-        DiagramContract Contract = MermaidRecognizer.Parse(F34Source);
+        DiagramContract Contract = MermaidRecognizer.Parse(RetrySource);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
 
         double LowestNodeBottom = Layout.NodeBounds
@@ -63,9 +63,9 @@ public sealed class DiagramGridF34CycleReturnTests
     }
 
     [Test]
-    public void TryLayout_F34_DecisionBranches_UseVertexExits()
+    public void TryLayout_HorizontalRetry_DecisionBranches_UseVertexExits()
     {
-        DiagramContract Contract = MermaidRecognizer.Parse(F34Source);
+        DiagramContract Contract = MermaidRecognizer.Parse(RetrySource);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartLayoutNodeBounds Decision = Find(Layout, "B");
@@ -80,9 +80,9 @@ public sealed class DiagramGridF34CycleReturnTests
     }
 
     [Test]
-    public void RenderToSvg_F34_RetryLoop_RoutesBelowNodes()
+    public void RenderToSvg_HorizontalRetry_RetryLoop_RoutesBelowNodes()
     {
-        DiagramContract Contract = MermaidRecognizer.Parse(F34Source);
+        DiagramContract Contract = MermaidRecognizer.Parse(RetrySource);
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
 
         Match RetryPath = Regex.Match(
