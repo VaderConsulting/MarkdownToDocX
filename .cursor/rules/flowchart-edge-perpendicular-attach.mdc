@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Flowchart edge routing
 
-**Specification:** `Mermaid_Specification.md` §8, §10, §15.0, §15 (Decision branch links), and fixture rules F29–F32. See also `.cursor/rules/mermaid-specification-compliance.mdc`.
+**Specification:** `docs/Mermaid_Specification.md` §8, §10, §15.0, §15 (Decision branch links), and fixture rules F29–F32. See also `.cursor/rules/mermaid-specification-compliance.mdc`.
 
 The intended routing style must be preserved and must match the consolidated specification unless a documented deviation applies.
 Do **not** revert to earlier over-curved or hooked routing.
@@ -128,7 +128,7 @@ Use the simplest valid route that satisfies the intended style:
 * Exterior corridor, skip-bypass, and merge-back routes use `BuildCorridorCurveBasisPathData` — straight perpendicular terminal stubs plus smooth curveBasis body.
 * `ShouldUseOrthogonalPolylinePathData` applies only to `RetryLoop` topologies (`A→B→D→A` LR cycle), not corridor/bypass/fan routes.
 * TB collinear negative branch on two-way diamonds: `SideLeft` when unobstructed (`W→Wait` on subgraph spine); `SideRight` when `HasInterveningSpineColumnNode` (`DoArchive→Done` bypassing intervening cylinder).
-* Authoritative Mermaid source patterns: `spec.md` §5.5–§5.6, `Mermaid_Specification.md` §17.5.
+* Authoritative Mermaid source patterns: `docs/spec.md` §5.5–§5.6, `docs/Mermaid_Specification.md` §17.5.
 
 ## Primary code
 
