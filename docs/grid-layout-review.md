@@ -1,6 +1,6 @@
 # Grid layout review — 9 October 2026
 
-This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–11 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest code is `74fa83b`. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
+This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–12 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `c05455a`, with corrected checks through `d0436e0`. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
 
 ## 1. Fresh test comparison
 
@@ -253,10 +253,60 @@ All five suites were rerun with build and restore on the source committed as `74
 | Naiad adapter | 47 / 0 | 47 / 0 | 47 / 0 |
 | Converter | 31 / 0 | 32 / 0 | 39 / 0 |
 
-The totals are unchanged from the preceding correction, but one failing name changed. `TryLayout_InspectContent_BranchesUseSingleElbowOrthogonalPaths` now passes. `ResolveEdgeLabelPosition_F29_DecisionBranch_LabelHorizontallyCentredOnConnector` now fails: its older helper chooses a horizontal-run midpoint while the test also requires that point to equal the midpoint of the entire polyline. Those points differ after the geometry is corrected. The rendered label follows the longest straight run, as the supplied rulebook requires. This existing test was left untouched and a request to update it is pending. It passed on master, so the report counts it explicitly alongside the two earlier regressions; the unchanged total must not hide it. No new failures appeared in the other suites.
+The totals are unchanged from the preceding correction, but one failing name changed. `TryLayout_InspectContent_BranchesUseSingleElbowOrthogonalPaths` now passes. `ResolveEdgeLabelPosition_F29_DecisionBranch_LabelHorizontallyCentredOnConnector` now fails: its older helper chooses a horizontal-run midpoint while the test also requires that point to equal the midpoint of the entire polyline. Those points differ after the geometry is corrected. The rendered label follows the longest straight run, as the supplied rulebook requires. At this checkpoint the existing test was left untouched and a request to update it was pending; section 12 records the subsequent approval and passing replacement. It passed on master, so the report counts it explicitly alongside the two earlier regressions; the unchanged total must not hide it. No new failures appeared in the other suites.
 
 Section 8's Layout failure list applies with the resolved elbow check removed, the earlier side-exit check removed as recorded in section 9, and the newly failing F29 label-position check added. Rule-validation failures are unchanged. Logs, current failure-name lists and focused results are in `out/grid-terminal-decision/`; full TRX results are in `out/grid-terminal-decision/final/`. Refreshed catalogue SVG/PNG pairs are in `out/grid-terminal-decision/catalogue/`, the ten sample pairs in `out/grid-terminal-decision/samples/`, and the focused F29 pair in `out/grid-terminal-decision/render/`. `out/grid-terminal-decision/manifest.txt` lists the generated paths. Only F29 received a new visual review in this correction.
 
-The fix is pushed, but the conflicting assertion still needs the owner's decision. The six provisional defaults and frame-midline rule also remain pending; nothing was merged.
+At this checkpoint the fix was pushed and the conflicting assertion still needed a decision; that assertion is now resolved in section 12. The six provisional defaults and frame-midline rule also remain pending; nothing was merged.
 
 The subsequent F30 markup showed excessive breaks around Get money, One, Two and Three. The general label-dimension correction from section 10 already resolves all four in the current DOCX: each break is 24.288 px, and the connector resumes on both sides. The actual embedded image was extracted from `out/grid-terminal-decision/flow-terminals.docx` and visually checked; it is retained as [F30 label gaps](flowchart/layout-fixes/grid-review/F30-label-gaps.png). This verification required no further code changes; the measured source remains `74fa83b`.
+
+## 12. Fan, merge-input and nested-frame placement
+
+This follow-up implements the F31, F34, F35 and F46 markup and the authorised F29 label-check correction. The changes are generic structural and geometric rules. The engine diffs were checked for diagram-specific identifiers, labels, filenames and fixture conditions; none were introduced.
+
+| Commit | Subject |
+| --- | --- |
+| `dcca8dd` | Check decision labels against their fitting straight run |
+| `d4af9cf` | Centre ordinary terminal fans on their middle child |
+| `085c762` | Align an unbranched input with its decision |
+| `b41bb54` | Centre nested groups across the direction of flow |
+| `c05455a` | Keep independent merge inputs close and use distinct ports |
+| `d0436e0` | Check the middle child for a terminal fan continuation |
+
+F31 now centres Hub over Worker 2, with a straight centre connection and matching rounded outer branches. The same placement applies to odd fans of independent terminal children in one rank and group, including an unbranched ordinary input chain. The owner's middle-child markup replaces the first-created-child assumption in the directly conflicting fan checks; the straight-route, attachment and distinct-port assertions remain. Six new cases cover three- and five-child fans and all four flow directions.
+
+F34 now places Receive level with its decision and uses a straight input into the upstream vertex. A return edge into an ordinary input no longer pulls it off that row or column. Four new retry-loop cases check alignment, straight input and the diamond attachment in all four directions. This correction does not establish acceptance of every retry-loop rule; the existing F34 rule-validation failures remain.
+
+F35's independent input nodes now occupy adjacent columns around Merge. Their spacing fell from 400 px to 180 px in the catalogue render. Its centre incoming edge uses the upstream diamond vertex; the outer edges use the side vertices. Outgoing branches respect those actual allocated incoming ports and use the downstream slanted-edge centres when the side vertices are occupied. Continue already benefits from the opposite-side terminal placement introduced in section 11. Four placement cases and two distinct-port cases cover the new rules.
+
+The older F35 guide test still fails, as it did before this pass. Three stages were checked: compacting the inputs; respecting actual incoming endpoints when allocating outgoing ports; and assigning the three co-ranked incoming vertices together. These stages corrected the rendered geometry, but the older guide test still requests route kind `Decision` while the shared legacy resolver returns `Corridor`. It was left unchanged after the third attempt. The final suite records its failure; no further variations were attempted.
+
+F46's nested-group centring had measured X bounds and applied the resulting distance to Y during horizontal flow. It now measures and moves on the same cross axis. All five chain nodes share one row and each connection crosses the inner frame straight. Four new directional cases verify the chain and frame padding.
+
+The approved F29 replacement checks the actual drawn route independently for its longest fitting run, requires the label at that run's midpoint, and verifies character-width clearance on both sides of the stroke break. All eleven F29-focused checks pass. The temporary failing fan assertion found during the full run was corrected to select the middle child required by the markup, retaining its original straight-route and distinct-port checks.
+
+All five suites were run with build and restore on the final behavioural source at `c05455a`. Layout was run again after the directly conflicting centre-child assertion was corrected and pushed as `d0436e0`; no application source changed between those two commits. Master was not rerun.
+
+| Suite | Master passed / failed | Starting branch passed / failed | Current passed / failed |
+| --- | ---: | ---: | ---: |
+| Layout | 234 / 34 | 280 / 38 | 341 / 31 |
+| Rule validation | 46 / 11 | 44 / 13 | 49 / 10 |
+| Recognition | 932 / 0 | 932 / 0 | 932 / 0 |
+| Naiad adapter | 47 / 0 | 47 / 0 | 47 / 0 |
+| Converter | 31 / 0 | 32 / 0 | 39 / 0 |
+
+There are no newly failing names against the preceding `74fa83b` source; the authorised F29 check is now resolved. Six current Layout failures are absent from master's failing list:
+
+- `LiveSamples_ClearTheListedPictureDefects` — existing regression, still unresolved.
+- `RenderToSvg_Sample03_StrokeQualityMatchesSharedRules` — existing regression, still unresolved; its earlier three-attempt investigation remains recorded in section 5.
+- `RenderToSvg_InspectContent_BranchesUseOrthogonalRunsWithDiamondStub` — test added on the grid branch.
+- `RenderToSvg_MessageFilter_BranchesEnterLeftSideWithRoundedZ` — test added on the grid branch.
+- `RenderToSvg_TypeDecision_NoSharedBottomStub` — test added on the grid branch.
+- `RenderToSvg_ValidDecision_BranchesUseOrthogonalRunsWithDiamondStub` — test added on the grid branch.
+
+Rule-validation failing names are unchanged and none are additional to master's list. Full logs, TRX files and current failure-name comparisons are under `out/grid-picture-placement/final/`. Section 8's Layout list remains applicable after removing the two resolved checks recorded in sections 9 and 11. The F29 check added in section 11 also now passes.
+
+The rebuilt `md2docx.exe` was called directly with the original folder's `flow.md` and `out/grid-picture-placement/flow-placement.docx`. Its actual embedded images were extracted and visually checked at F24, F25, F29, F31, F34, F35 and F46. The checked output replaced the original folder's `flow.docx`. The copy completed and the destination size matches; an additional destination hash check was blocked by the open document's file lock. The new retained comparison images are [F31](flowchart/layout-fixes/grid-review/F31-centred-hub.png), [F34](flowchart/layout-fixes/grid-review/F34-aligned-input.png), [F35](flowchart/layout-fixes/grid-review/F35-compact-merge.png) and [F46](flowchart/layout-fixes/grid-review/F46-aligned-chain.png).
+
+The active catalogue and ten samples were also regenerated as SVG/PNG pairs under `out/grid-picture-placement/catalogue/` and `out/grid-picture-placement/samples/`. The manifest at `out/grid-picture-placement/manifest.txt` lists every generated picture path. These broader renders do not constitute a new visual acceptance review of every diagram. No merge was performed; the remaining defects, six provisional defaults and on-hold frame-midline decision remain outstanding.

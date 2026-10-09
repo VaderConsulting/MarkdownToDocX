@@ -7,7 +7,7 @@ Updated 9 October 2026. This is the single maintained status file for the soluti
 | Area | Current state |
 | --- | --- |
 | Master | `f09cb89`; the earlier documentation relocation and spec trim are merged. |
-| Grid routing | PR #9, branch `cursor/many-to-many-routing-3834`; code fixes through `74fa83b` are pushed. This work is not merged. |
+| Grid routing | PR #9, branch `cursor/many-to-many-routing-3834`; code fixes through `c05455a` and corrected checks through `d0436e0` are pushed. This work is not merged. |
 | Active local checkout | The PR #9 branch is in the sibling `MarkdownToDocX-pr9` worktree. The original laptop folder remains on its pre-existing documentation branch. |
 | Earlier documentation refresh | The original worktree retains its earlier documentation commits; this pass did not publish or merge them. PR #9 predates the spec relocation, so some normative files still sit at the root on this branch. |
 | Enterprise / ArchiMate | Existing work is on PR #1. It is not integrated into the measured master or grid branch. |
@@ -21,22 +21,23 @@ Updated 9 October 2026. This is the single maintained status file for the soluti
 - Other diagram kinds still use the vendored Naiad renderer. Native replacement of those renderers remains future work.
 - The grid branch now preserves normal terminal runs, whole-run track movements, free facing diamond vertices and centre ports for straight continuations. Labels share an anchor with their connector breaks. Grid output omits hop arcs. Diagonal back-edge guides are replaced when a valid orthogonal route fits their allocated ports and the three-corner limit.
 - Side-exit grid connectors now retain rounded bends when their edge label cannot fit a stroke gap. Label breaks and rank-space calculations use rendered text height for vertical connectors and text width for horizontal connectors. The regenerated `flow.docx` was checked at F24, F25 and F30: the excessive vertical label breaks and the F24 label overlap are resolved.
-- Binary decisions with two independent terminal outcomes in the same group place those outcomes on opposite sides. F29 now puts Accept beneath Yes and enters its top with one rounded elbow. The actual embedded DOCX image was checked; approval to update a conflicting older label-position assertion is pending.
+- Binary decisions with two independent terminal outcomes in the same group place those outcomes on opposite sides. F29 now puts Accept beneath Yes and enters its top with one rounded elbow. The actual embedded DOCX image was checked. The authorised label-position check now verifies the longest fitting straight run and character clearance on both sides of the label.
+- Ordinary odd fans of independent terminal children now centre their parent on the middle child. Sole forward inputs align with their decision even when a return edge enters the input. Independent three-way merge inputs use adjacent columns and distinct diamond vertices; outgoing branches respect those occupied ports. Nested-group centring now consistently measures across the flow direction. The actual embedded F31, F34, F35 and F46 pictures were checked in the regenerated `flow.docx`.
 - Sequence rows now measure message labels, arrowheads and note boxes to give notes the same conservative clear spacing as consecutive messages, including returning self messages. The canvas includes notes beyond either outer participant.
 
 ## 3. Verified test state
 
-Measured on Windows with plain `dotnet test` on each project, including build and restore. Master and starting-branch baselines were collected before behavioural edits. All five suites were rerun on the source committed as `74fa83b` after the marked-up F29 terminal placement was implemented.
+Measured on Windows with plain `dotnet test` on each project, including build and restore. Master and starting-branch baselines were collected before behavioural edits. All five suites were rerun on the final behavioural source committed as `c05455a`. The final Layout run includes the corrected centre-child assertion committed as `d0436e0`; the other suites use the same unchanged application source.
 
 | Suite | Master failures | Starting PR #9 failures | Final PR #9 passed / failed |
 | --- | ---: | ---: | ---: |
-| Layout | 34 | 38 | 320 / 32 |
+| Layout | 34 | 38 | 341 / 31 |
 | Rule validation | 11 | 13 | 49 / 10 |
 | Recognition | 0 | 0 | 932 / 0 |
 | Naiad adapter | 0 | 0 | 47 / 0 |
 | Converter | 0 | 0 | 39 / 0 |
 
-The F29 placement fixes `TryLayout_InspectContent_BranchesUseSingleElbowOrthogonalPaths` and introduces one failing name: `ResolveEdgeLabelPosition_F29_DecisionBranch_LabelHorizontallyCentredOnConnector`. The latter asserts a midpoint of the entire connector rather than the longest straight run; permission to update that existing expectation is pending. Together with the two earlier regressions, three existing tests now fail while passing on master. Twelve explicit recognition fixture-writing tests are not executed by the ordinary suite. Latest logs, failure names and TRX files are in `out/grid-terminal-decision/` and `out/grid-terminal-decision/final/`; the [review](grid-layout-review.md#11-terminal-decision-outcomes) records the evidence. Equal failure totals do not resolve the changed failing names.
+The approved F29 label check now passes. There are no newly failing names relative to the preceding picture corrections. Two existing tests still fail while passing on master: `LiveSamples_ClearTheListedPictureDefects` and `RenderToSvg_Sample03_StrokeQualityMatchesSharedRules`. Four other failing Layout tests were added on the grid branch and are absent from master. Rule-validation failures are unchanged. Twelve explicit recognition fixture-writing tests are not executed by the ordinary suite. Latest logs, failure names, comparisons and TRX files are in `out/grid-picture-placement/final/`; the [review](grid-layout-review.md#12-fan-merge-input-and-nested-frame-placement) records the evidence and checked pictures.
 
 The final counts meet the fresh master-count comparison, but **the solution does not pass all acceptance tests and the rendered diagrams are not ready for merge approval**.
 
