@@ -58,7 +58,9 @@ public static class FlowchartEdgeLabelGapHelper
                     break;
                 }
 
-                if (Length < RequiredLength || Length <= BestLength)
+                double CornerClearance = Start > 0 || End < Points.Count - 1
+                    ? 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX : 20;
+                if (Length < RequiredLength + CornerClearance || Length <= BestLength)
                 {
                     continue;
                 }
