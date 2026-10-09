@@ -737,7 +737,8 @@ public static class DiagramGridLayout
             int Pitch = Math.Max(CrossPitch, DiagramGridMetrics.CeilToGrid(
                 CrossHalf(Decision, Horizontal, Leading: true)
                 + CrossHalf(Detour, Horizontal, Leading: true) + DiagramGridMetrics.NODE_GAP_PX));
-            bool Terminal = !Visible.Any(Edge => Edge.SourceId == Merge.Id);
+            bool Terminal = !Visible.Any(Edge => Edge.SourceId == Merge.Id)
+                && Visible.Count(Edge => Edge.TargetId == Merge.Id) > 2;
             SetCross(Detour, Centre + (Terminal ? Pitch : -Pitch), Horizontal);
             SetCross(Merge, Centre - (Terminal ? Pitch : 0), Horizontal);
             if (Terminal)

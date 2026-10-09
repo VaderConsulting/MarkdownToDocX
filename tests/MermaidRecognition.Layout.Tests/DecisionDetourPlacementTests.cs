@@ -13,7 +13,8 @@ public sealed class DecisionDetourPlacementTests
     {
         var Contract = MermaidRecognizer.Parse($$"""
             flowchart {{Direction}}
-            Root[Root] --> First{First}
+            Root{Root} --> First{First}
+            Root -->|exit| Earlier[Earlier] --> End
             First -->|detour| Side[Side]
             First -->|direct| Join[Join]
             Side --> Join
