@@ -7,7 +7,7 @@ Updated 9 October 2026. This is the single maintained status file for the soluti
 | Area | Current state |
 | --- | --- |
 | Master | `f09cb89`; the earlier documentation relocation and spec trim are merged. |
-| Grid routing | PR #9, branch `cursor/many-to-many-routing-3834`; code fixes through `0ce271a` are pushed. This work is not merged. |
+| Grid routing | PR #9, branch `cursor/many-to-many-routing-3834`; code fixes through `65deb18` are pushed. This work is not merged. |
 | Active local checkout | The PR #9 branch is in the sibling `MarkdownToDocX-pr9` worktree. The original laptop folder remains on its pre-existing documentation branch. |
 | Earlier documentation refresh | The original worktree retains its earlier documentation commits; this pass did not publish or merge them. PR #9 predates the spec relocation, so some normative files still sit at the root on this branch. |
 | Enterprise / ArchiMate | Existing work is on PR #1. It is not integrated into the measured master or grid branch. |
@@ -26,20 +26,22 @@ Updated 9 October 2026. This is the single maintained status file for the soluti
 - Sloping diamond attachments now follow the actual edge normal before joining their horizontal/vertical track with a circular fillet. This implements the square-attachment instruction for F35; short diagonal terminal runs take precedence over the older no-diagonals requirement at these connections. The actual F35 DOCX image was checked. Other unresolved routing and attachment defects remain listed below.
 - Sequence rows now measure message labels, arrowheads and note boxes to give notes the same conservative clear spacing as consecutive messages, including returning self messages. The canvas includes notes beyond either outer participant.
 
+The latest picture pass corrects horizontal retry outcomes, independent decision merges, local detours, grouped loop branches, paired ranks, sibling frame clearance and wide fan ports. The converter preserves fully commented Mermaid blocks as code without a render warning. Rules use topology and geometry; no catalogue number or node text selects an engine rule. The revised retry checks have structural names. Details and checked DOCX pictures are in [review section 14](grid-layout-review.md#14-retry-outcomes-detours-group-clearance-and-crossings).
 ## 3. Verified test state
 
-Measured on Windows with plain `dotnet test` on each project, including build and restore. Master and starting-branch baselines were collected before behavioural edits. All five suites were rerun on the final pushed application source committed as `0ce271a`.
+Measured on Windows with plain `dotnet test` on each project, including build and restore. Master and starting-branch baselines were collected before behavioural edits. All five suites were rerun on the final pushed application source committed as `65deb18`.
 
 | Suite | Master failures | Starting PR #9 failures | Final PR #9 passed / failed |
 | --- | ---: | ---: | ---: |
-| Layout | 34 | 38 | 349 / 31 |
+| Layout | 34 | 38 | 370 / 32 |
 | Rule validation | 11 | 13 | 49 / 10 |
 | Recognition | 0 | 0 | 932 / 0 |
 | Naiad adapter | 0 | 0 | 47 / 0 |
-| Converter | 0 | 0 | 39 / 0 |
+| Converter | 0 | 0 | 42 / 0 |
 
-The approved F29 label check now passes. There are no newly failing names relative to the preceding picture corrections. Two existing tests still fail while passing on master: `LiveSamples_ClearTheListedPictureDefects` and `RenderToSvg_Sample03_StrokeQualityMatchesSharedRules`. Four other failing Layout tests were added on the grid branch and are absent from master. Rule-validation failures are unchanged. Twelve explicit recognition fixture-writing tests are not executed by the ordinary suite. Latest logs, failure names and TRX files are in `out/grid-surface-normals/final/`; the failing names are unchanged from `out/grid-picture-placement/final/`. The [review](grid-layout-review.md#13-square-attachments-on-sloping-diamond-edges) records the evidence and checked picture.
+The new structural tests pass. The only new failing name relative to the preceding picture pass is `TryLayout_F58_MaintainsMultipleVerticalColumns`: it requires Done on the central spine and Reject above it, contrary to the latest marked arrangement. Approval to update that existing expectation is pending. The two simple-detour regressions exposed by the wider run were fixed without changing their assertions.
 
+Three tests now fail while passing on master: that pending pipeline check, `LiveSamples_ClearTheListedPictureDefects` and `RenderToSvg_Sample03_StrokeQualityMatchesSharedRules`. The four pre-existing grid-only failures absent from master remain. No rule-validation regression was added. Recognition's twelve explicit fixture writers are excluded from ordinary test execution. Logs, TRX files, complete failing-name lists and master regression comparisons are in `out/grid-retry-arrangement/verified/`.
 The final counts meet the fresh master-count comparison, but **the solution does not pass all acceptance tests and the rendered diagrams are not ready for merge approval**.
 
 ## 4. Remaining work

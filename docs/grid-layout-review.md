@@ -1,6 +1,6 @@
 # Grid layout review — 9 October 2026
 
-This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–13 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `0ce271a`. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
+This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `65deb18`. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
 
 ## 1. Fresh test comparison
 
@@ -336,3 +336,62 @@ Failing names are unchanged from section 12. The existing master-passing regress
 Full logs, TRX files and failing-name lists are under `out/grid-surface-normals/final/`. The active catalogue and ten samples were regenerated into `out/grid-surface-normals/catalogue/` and `out/grid-surface-normals/samples/`; `out/grid-surface-normals/manifest.txt` lists every generated picture path. This pass visually reviewed F35, rather than accepting the whole catalogue.
 
 The rebuilt executable converted the original folder's `flow.md` directly to `out/grid-surface-normals/flow-normals.docx`. Its actual embedded F35 picture was extracted and checked, then the output replaced the original folder's `flow.docx` after the owner closed Word. Source and destination DOCX hashes match. The checked [F35 square attachments](flowchart/layout-fixes/grid-review/F35-square-attachments.png) supersede the outgoing attachment geometry in section 12's earlier picture. Extracted F24, F25, F29, F31, F34 and F46 images are byte-identical to the preceding checked output. README and current status describe the terminal exception. The generic engine diff was checked for diagram-specific conditions before committing. No merge was performed; the previous unresolved decisions remain outstanding.
+
+## 14. Retry outcomes, detours, group clearance and crossings
+
+The subsequent marked pictures define the following generic situations:
+
+- A horizontal retry decision keeps its terminal outcome straight ahead and places its returning sibling below. The return leaves the sibling's bottom and enters the input from below. The declared LR/RL direction is preserved.
+- Independent binary outcomes feeding one terminal collector straddle their decision. The collector continues below one branch and receives the other through its facing side.
+- A local detour sits beside the continuation it rejoins. Direct continuations use upstream centre ports; detours use a single elbow into the rejoin's side. A final optional detour and a collector with an earlier exit occupy opposite sides of their decision, with the earlier exit beside the collector in the outer column. Simple two-input rejoins remain on the spine.
+- A vertical loop branch and its continuing sibling straddle the decision, with the continuing chain under its child. Shared frames contain both branches. A free facing diamond vertex reaches its child with one clear elbow; shared containing frames are not treated as solid node obstacles.
+- Sequential sibling frames leave room for rounded bends and straight border crossings. Parallel frames retain a grid step of clearance. Unbranched external ends move with their group.
+- Paired ranks with two parents sharing two children align one child under each parent. Direct links use centre ports. Crossed links use separate normal ports and staggered orthogonal tracks, with their crossing outside rounded corners.
+- Ordinary hubs with more than three widely spread branches use their facing top/bottom or left/right sides, and large collectors receive those branches through their facing cross-axis sides.
+- Mermaid fences containing only comments and blank lines remain code blocks without render diagnostics. Active invalid content still reports its rendering failure.
+
+The rules inspect edges, degree, rank, group membership, free vertices and coordinates. The engine diff was checked for conditions on catalogue numbers, node IDs, node text and diagram names; none were introduced. New regression fixtures use structural names and cover mirrored directions. The five directly conflicting retry expectations were updated with explicit owner approval, preserving spacing, vertex exits, rounded returns and square endpoints. The existing pipeline-column expectation has not been changed: approval is pending because it requires the terminal on the central spine and the early exit above it, whereas the marked arrangement places the terminal below-left and the early exit beside it.
+
+Pushed commits in this pass:
+
+| Commit | Subject |
+| --- | --- |
+| `92c6b4a` | Place horizontal retry outcomes on their natural axes |
+| `7b0883f` | Keep independent decision branches beside their shared exit |
+| `a52e41e` | Match retry layout checks to the approved arrangement |
+| `9ce2972` | Keep detours beside the continuation they rejoin |
+| `cd7eb71` | Keep grouped loop branches on opposite sides of their decision |
+| `da003ea` | Preserve fully commented Mermaid blocks as source text |
+| `4ba7af7` | Use facing sides for widely spread parallel branches |
+| `503b036` | Leave clearance between sibling group frames |
+| `7291be3` | Align paired ranks and separate their crossing tracks |
+| `65deb18` | Keep simple detour rejoins on the spine |
+
+All five suites ran on the final pushed application source, `65deb18`, with build and restore. Concurrent project builds initially collided on shared DLL outputs; those attempts did not execute tests. The affected suites were run sequentially. The later scope correction required a final verification on the corrected source. Master was not rerun.
+
+| Suite | Master passed / failed | Starting branch passed / failed | Current passed / failed |
+| --- | ---: | ---: | ---: |
+| Layout | 234 / 34 | 280 / 38 | 370 / 32 |
+| Rule validation | 46 / 11 | 44 / 13 | 49 / 10 |
+| Recognition | 932 / 0 | 932 / 0 | 932 / 0 |
+| Naiad adapter | 47 / 0 | 47 / 0 | 47 / 0 |
+| Converter | 31 / 0 | 32 / 0 | 42 / 0 |
+
+The only additional failure relative to section 13 is the pending pipeline-column check. Together with the two existing regressions `LiveSamples_ClearTheListedPictureDefects` and `RenderToSvg_Sample03_StrokeQualityMatchesSharedRules`, it makes three master-passing regressions. Rule-validation failing names are unchanged. Logs, TRX files, failure lists and master regression lists are under `out/grid-retry-arrangement/verified/`. Earlier diagnostic runs are retained separately in `final/` and `completed/`; they are not the final comparison. The previously exhausted three-attempt investigations in section 5 remain unchanged.
+
+The rebuilt executable directly converted the original folder's `flow.md` to `out/grid-retry-arrangement/flow-corrected.docx`. The actual embedded pictures were extracted and inspected, then the checked output replaced the original folder's `flow.docx`. Both files have SHA256 `B35DB296E39EF809EF6F75E17D72FB2808BAD7DFB7D3B56CD6920D6C81F63C49`. The older F24, F25, F29, F31, F35 and F46 embedded pictures are byte-identical to section 13's checked output. The fully commented F65 and F70 fences contain preserved source without the old warning.
+
+Checked embedded picture copies:
+
+- [Horizontal retry](flowchart/layout-fixes/grid-review/F34-current.png)
+- [Independent outcomes and shared exit](flowchart/layout-fixes/grid-review/F53-current.png)
+- [Pipeline detours and early exit](flowchart/layout-fixes/grid-review/F58-current.png)
+- [Grouped loop branches](flowchart/layout-fixes/grid-review/F59-current.png)
+- [Sequential group crossings](flowchart/layout-fixes/grid-review/F60-current.png)
+- [Paired rank crossings](flowchart/layout-fixes/grid-review/F61-current.png)
+- [Parallel group clearance](flowchart/layout-fixes/grid-review/F73-current.png)
+- [Wide parallel fan](flowchart/layout-fixes/grid-review/F113-current.png)
+
+The active catalogue has 126 rendered diagrams under `out/grid-retry-arrangement/catalogue/`; ten sample pairs are under `out/grid-retry-arrangement/samples/`. `out/grid-retry-arrangement/manifest.txt` lists every SVG and PNG path. This pass visually inspected the eight changed embedded pictures; regeneration of the rest is not acceptance of every picture. The PR branch's catalogue prose now describes the graph-based grid rules instead of obsolete curve-basis requirements. The original worktree's Markdown and the supplied instruction files remain untouched.
+
+No merge was performed. The six defaults, frame-midline decision, broader unresolved acceptance failures and the pending pipeline expectation still require resolution before merge approval.
