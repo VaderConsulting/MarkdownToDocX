@@ -99,6 +99,7 @@ public static class DiagramGridLayout
         RebuildSoleForwardDecisionBranchRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
         RebuildOrdinaryFanOutRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
         RebuildLoopBackRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
+        DiagramGridRouteBuilder.RebuildDiagonalBackRoutes(Copy, Placed, Nodes, Contract, Frames, Direction);
         Copy.UsesGridRoutes = true;
         SeparateTracks(Copy, Placed);
         PushPointsOutOfNodes(Copy, Placed);

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 using MermaidRecognition.Contract;
 using MermaidRecognition.Kinds.Flowchart;
@@ -19,6 +20,84 @@ public static class DiagramGridRouteBuilder
     private const double COLLINEAR_EPSILON_PX = 0.75;
 
     private const double HOOK_DOT_PRODUCT_THRESHOLD = -0.15;
+
+    /// <summary>
+    /// Replaces diagonal legacy back-edge guides when a valid orthogonal route
+    /// fits the already allocated ports without exceeding three corners.
+    /// </summary>
+    internal static void RebuildDiagonalBackRoutes(
+        FlowchartLayoutResult Layout,
+        List<DiagramGridLayout.GridNode> Placed,
+        Dictionary<string, NodeContract> Nodes,
+        DiagramContract Contract,
+        IReadOnlyList<DiagramGridLayout.GridFrame> Frames,
+        FlowchartDirection Direction)
+    {
+        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = BuildBounds(Placed, Frames);
+        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        bool Horizontal = Direction == FlowchartDirection.LeftToRight
+            || Direction == FlowchartDirection.RightToLeft;
+        foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
+        {
+            if (Route.Points.Count < 2
+                || !BackEdges.Any(Edge => Edge.SourceId == Route.SourceId && Edge.TargetId == Route.TargetId)
+                || !Route.Points.Zip(Route.Points.Skip(1)).Any(Pair =>
+                    Math.Abs(Pair.First.X - Pair.Second.X) > COLLINEAR_EPSILON_PX
+                    && Math.Abs(Pair.First.Y - Pair.Second.Y) > COLLINEAR_EPSILON_PX)
+                || !BoundsById.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds Source)
+                || !BoundsById.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds Target))
+            {
+                continue;
+            }
+
+            Nodes.TryGetValue(Route.SourceId, out NodeContract? SourceNode);
+            Nodes.TryGetValue(Route.TargetId, out NodeContract? TargetNode);
+            List<(double X, double Y)> Path = BuildRoute(
+                Route.Points[0].X, Route.Points[0].Y, Source, SourceNode?.Shape, Route.ExitSide,
+                Route.Points[^1].X, Route.Points[^1].Y, Target, TargetNode?.Shape, Route.EntrySide,
+                BoundsById, Route.SourceId, Route.TargetId, Contract, Direction, Horizontal);
+            (double SourceStubX, double SourceStubY) = ResolvePortStub(
+                Path[0].X, Path[0].Y, Source, SourceNode?.Shape, Route.ExitSide, 1);
+            (double TargetStubX, double TargetStubY) = ResolvePortStub(
+                Path[^1].X, Path[^1].Y, Target, TargetNode?.Shape, Route.EntrySide, 1);
+            if (CountCorners(Path) > 3
+                || !HasNormalTerminals(Path, SourceStubX, SourceStubY, TargetStubX, TargetStubY)
+                || !PathIsValid(Path, BoundsById, Route.SourceId, Route.TargetId, Contract)
+                || !StaysInsideSharedFrames(Path, Route, Contract, BoundsById))
+            {
+                continue;
+            }
+
+            Route.Points.Clear();
+            foreach ((double X, double Y) in Path)
+            {
+                Route.Points.Add(new() { X = Math.Round(X), Y = Math.Round(Y) });
+            }
+        }
+    }
+
+    private static bool StaysInsideSharedFrames(
+        List<(double X, double Y)> Path, FlowchartLayoutEdgeRoute Route,
+        DiagramContract Contract, Dictionary<string, FlowchartLayoutNodeBounds> BoundsById)
+    {
+        foreach (GroupContract Group in Contract.Groups)
+        {
+            if (!DiagramGridLayout.IsInsideGroup(Contract, Route.SourceId, Group.Id)
+                || !DiagramGridLayout.IsInsideGroup(Contract, Route.TargetId, Group.Id)
+                || !BoundsById.TryGetValue(Group.Id, out FlowchartLayoutNodeBounds Frame))
+            {
+                continue;
+            }
+            if (Path.Any(Point => Point.X < Frame.CenterX - Frame.Width / 2
+                || Point.X > Frame.CenterX + Frame.Width / 2
+                || Point.Y < Frame.CenterY - Frame.Height / 2
+                || Point.Y > Frame.CenterY + Frame.Height / 2))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
 
     /// <summary>
     /// Rebuilds every edge route from assigned ports using obstacle-aware orthogonal routing.

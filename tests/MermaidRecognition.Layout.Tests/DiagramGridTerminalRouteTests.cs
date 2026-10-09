@@ -7,6 +7,33 @@ namespace MermaidRecognition.Layout.Tests;
 [TestFixture]
 public sealed class DiagramGridTerminalRouteTests
 {
+    [TestCase("TB")]
+    [TestCase("BT")]
+    [TestCase("LR")]
+    [TestCase("RL")]
+    public void Layout_ReciprocalReturn_UsesOnlyOrthogonalRuns(string Direction)
+    {
+        DiagramContract Contract = MermaidRecognizer.Parse("flowchart " + Direction + "\n"
+            + "Input[Input] --> Hub([Hub])\nHub --> Branch([Branch])\n"
+            + "Other([Other]) --> Hub\nBranch --> Hub");
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        FlowchartLayoutEdgeRoute Route = Layout.EdgeRoutes.Single(Edge => Edge.SourceId == "Branch" && Edge.TargetId == "Hub");
+        List<bool> RunAxes = [];
+        foreach (var Pair in Route.Points.Zip(Route.Points.Skip(1)))
+        {
+            Assert.That(Math.Abs(Pair.First.X - Pair.Second.X) <= 0.75
+                || Math.Abs(Pair.First.Y - Pair.Second.Y) <= 0.75, Is.True,
+                $"Diagonal from ({Pair.First.X},{Pair.First.Y}) to ({Pair.Second.X},{Pair.Second.Y}).");
+            if (Math.Abs(Pair.First.X - Pair.Second.X) > 0.75
+                || Math.Abs(Pair.First.Y - Pair.Second.Y) > 0.75)
+            {
+                RunAxes.Add(Math.Abs(Pair.First.X - Pair.Second.X) > 0.75);
+            }
+        }
+        int Corners = RunAxes.Zip(RunAxes.Skip(1)).Count(Pair => Pair.First != Pair.Second);
+        Assert.That(Corners, Is.LessThanOrEqualTo(3), "A back edge has at most three corners.");
+    }
+
     [Test]
     public void Layout_FanOut_KeepsTheStraightContinuationInTheCentreSlot()
     {
