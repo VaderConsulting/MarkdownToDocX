@@ -51,7 +51,7 @@ public sealed class IndependentFanInPlacementTests
         Assert.That(Inbound.Count(Edge => Math.Abs(Edge.Points[^1].Y - Diamond.CenterY) < 0.5), Is.EqualTo(2));
         foreach (var Edge in Inbound.Concat(Outbound))
         {
-            for (int Index = 1; Index < Edge.Points.Count; Index++)
+            for (int Index = 2; Index < Edge.Points.Count - 1; Index++)
             {
                 var A = Edge.Points[Index - 1];
                 var B = Edge.Points[Index];
@@ -61,8 +61,15 @@ public sealed class IndependentFanInPlacementTests
         foreach (var Edge in Outbound)
         {
             var Start = Edge.Points[0];
+            var Next = Edge.Points[1];
+            Assert.That(FlowchartDiamondAttachHelper.TryResolveOutwardNormal(Diamond, Start.X, Start.Y, out double Nx, out double Ny), Is.True);
+            double Dx = Next.X - Start.X;
+            double Dy = Next.Y - Start.Y;
+            double Length = Math.Sqrt(Dx * Dx + Dy * Dy);
+            Assert.That((Dx * Nx + Dy * Ny) / Length, Is.EqualTo(1).Within(0.0001), "The terminal is square to the sloping edge.");
             Assert.That(Math.Abs(Start.X - Diamond.CenterX), Is.EqualTo(Diamond.Width / 4).Within(0.5));
             Assert.That(Math.Abs(Start.Y - Diamond.CenterY), Is.EqualTo(Diamond.Height / 4).Within(0.5));
             Assert.That((Start.Y - Diamond.CenterY) * (Direction == "TB" ? -1 : 1), Is.GreaterThan(0));
         }
-    }}
+    }
+}

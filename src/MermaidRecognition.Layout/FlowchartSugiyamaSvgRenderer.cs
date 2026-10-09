@@ -1535,7 +1535,7 @@ public static class FlowchartSugiyamaSvgRenderer
         FlowchartEdgeRouteKind RouteKind = FlowchartEdgeRouteKind.Curved)
     {
         FlowchartLabelDimensions LabelDimensions = FlowchartNodeSizeEstimator.MeasureWrappedLabel(Edge.Label ?? string.Empty, RenderOptions, RenderOptions.EdgeLabelFontSizePx);
-        if (IsAxisAlignedPolyline(LayoutPoints)
+        if ((IsAxisAlignedPolyline(LayoutPoints) || FlowchartGridTerminalNormalizer.HasAxisAlignedInterior(LayoutPoints))
             && FlowchartEdgeLabelGapHelper.TryResolveLabelSegmentBreak(
                 LayoutPoints, LabelDimensions, RenderOptions.EdgeLabelFontSizePx,
                 out FlowchartEdgeLabelGapHelper.LabelSegmentBreak LabelBreak))

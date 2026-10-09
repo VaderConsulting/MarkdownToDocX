@@ -110,6 +110,7 @@ public static class DiagramGridLayout
         Copy.UsesGridRoutes = true;
         SeparateTracks(Copy, Placed);
         PushPointsOutOfNodes(Copy, Placed);
+        FlowchartGridTerminalNormalizer.Apply(Copy, BuildPlacedBounds(Placed, Frames), Nodes);
         WriteBack(Copy, Placed, Frames);
         return Copy;
     }
