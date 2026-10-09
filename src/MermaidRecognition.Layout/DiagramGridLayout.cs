@@ -10,7 +10,7 @@ namespace MermaidRecognition.Layout;
 
 /// <summary>
 /// Tidies a Mermaid dagre placement onto the shared grid.
-/// Rank order, group membership, and the side each line uses stay as Mermaid decided them.
+/// Group membership is preserved; placement and ports follow the grid routing rules.
 /// </summary>
 public static class DiagramGridLayout
 {
@@ -20,7 +20,7 @@ public static class DiagramGridLayout
 
     /// <summary>
     /// Returns a Y-up copy of <paramref name="LaidOut"/> with shared box sizes, grid positions,
-    /// group frames that include a title strip, and smooth routes from the new ports.
+    /// group frames that include a title strip, and orthogonal routes from the new ports.
     /// </summary>
     /// <param name="Contract">The diagram contract.</param>
     /// <param name="LaidOut">Mermaid dagre placement in Y-down coordinates.</param>

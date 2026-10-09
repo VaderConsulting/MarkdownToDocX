@@ -284,7 +284,7 @@ public static class FlowchartSugiyamaSvgRenderer
                 string? DagreTargetShape = NodeById.TryGetValue(DagreRoute.TargetId, out NodeContract? DagreTargetNode)
                     ? DagreTargetNode.Shape
                     : "rect";
-                if (FlowchartEdgePathBuilder.IsLrRetryLoopEdge(
+                if (!Layout.UsesGridRoutes && FlowchartEdgePathBuilder.IsLrRetryLoopEdge(
                         Edge,
                         Contract,
                         DagreSource,
@@ -798,7 +798,7 @@ public static class FlowchartSugiyamaSvgRenderer
         }
 
         Builder.Append("</svg>");
-        return FlowchartSvgLineJump.Apply(Builder.ToString());
+        return FlowchartSvgLineJump.Apply(Builder.ToString(), InsertHops: !Layout.UsesGridRoutes);
         }
         finally
         {
