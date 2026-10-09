@@ -822,60 +822,36 @@ public sealed class FlowchartCatalogueRenderTests
             .ToDictionary(Node => Node.Id, Node => Node);
         FlowchartLayoutNodeBounds HubBounds = BoundsById["Hub"];
 
-        // Spec §15.0C.1: workers wholly beside the hub leave from the middle of the hub's facing side.
-        AssertEdgeSourceFace(
-            Contract,
-            BoundsById,
-            NodeById,
-            Direction,
-            "Hub",
-            "W1",
-            FlowchartEdgeAttachFace.Bottom,
-            FlowchartEdgeRouteKind.Straight);
-
-        AssertEdgeSourceFace(
-            Contract,
-            BoundsById,
-            NodeById,
-            Direction,
-            "Hub",
-            "W2",
-            FlowchartEdgeAttachFace.Right,
-            FlowchartEdgeRouteKind.Corridor);
-
-        AssertEdgeSourceFace(
-            Contract,
-            BoundsById,
-            NodeById,
-            Direction,
-            "Hub",
-            "W3",
-            FlowchartEdgeAttachFace.Right,
-            FlowchartEdgeRouteKind.Corridor);
-
         foreach (string WorkerId in new[] { "W1", "W2", "W3" })
         {
             bool Resolved = FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
-                Contract.Edges.First(Edge => Edge.SourceId == "Hub" && Edge.TargetId == WorkerId),
-                Contract,
-                BoundsById,
-                NodeById,
-                Direction,
-                out List<(double X, double Y)> LayoutPoints,
-                out FlowchartEdgeRouteKind RouteKind);
-
+                Contract.Edges.Single(Edge => Edge.SourceId == "Hub" && Edge.TargetId == WorkerId),
+                Contract, BoundsById, NodeById, Direction,
+                out var Points, out _, Layout);
             Assert.That(Resolved, Is.True);
-            FlowchartEdgeAttachFace TargetFace = FlowchartPerpendicularAttachValidator.ResolveAttachFace(
-                BoundsById[WorkerId],
-                LayoutPoints[LayoutPoints.Count - 1].X,
-                LayoutPoints[LayoutPoints.Count - 1].Y);
-            FlowchartEdgeAttachFace ExpectedFace = string.Equals(WorkerId, "W1", StringComparison.Ordinal)
-                ? FlowchartEdgeAttachFace.Top
-                : FlowchartEdgeAttachFace.Left;
-            Assert.That(TargetFace, Is.EqualTo(ExpectedFace), WorkerId + " should be entered from the facing side");
+            var ExpectedSourceFace = WorkerId switch
+            {
+                "W1" => FlowchartEdgeAttachFace.Left,
+                "W2" => FlowchartEdgeAttachFace.Bottom,
+                _ => FlowchartEdgeAttachFace.Right
+            };
+            Assert.That(FlowchartPerpendicularAttachValidator.ResolveAttachFace(
+                HubBounds, Points[0].X, Points[0].Y), Is.EqualTo(ExpectedSourceFace));
+            Assert.That(FlowchartPerpendicularAttachValidator.ResolveAttachFace(
+                BoundsById[WorkerId], Points[^1].X, Points[^1].Y), Is.EqualTo(FlowchartEdgeAttachFace.Top));
+            for (int Index = 1; Index < Points.Count; Index++)
+            {
+                Assert.That(Math.Abs(Points[Index].X - Points[Index - 1].X) < 0.5
+                    || Math.Abs(Points[Index].Y - Points[Index - 1].Y) < 0.5, Is.True);
+            }
+            if (WorkerId == "W2")
+            {
+                Assert.That(Points.All(Point => Math.Abs(Point.X - HubBounds.CenterX) < 0.5), Is.True);
+            }
         }
-
-        Assert.That(HubBounds.CenterX, Is.EqualTo(BoundsById["W1"].CenterX).Within(1.0));
+        Assert.That(HubBounds.CenterX, Is.EqualTo(BoundsById["W2"].CenterX).Within(0.5));
+        Assert.That(BoundsById["W1"].CenterX + BoundsById["W3"].CenterX,
+            Is.EqualTo(2 * HubBounds.CenterX).Within(0.5));
     }
 
     [Test]
@@ -889,8 +865,8 @@ public sealed class FlowchartCatalogueRenderTests
             """);
 
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
-        string CentrePath = OrthogonalRouteTestHelper.ExtractEdgePath(Svg, "Hub", "W1");
-        string SidePathTwo = OrthogonalRouteTestHelper.ExtractEdgePath(Svg, "Hub", "W2");
+        string CentrePath = OrthogonalRouteTestHelper.ExtractEdgePath(Svg, "Hub", "W2");
+        string SidePathTwo = OrthogonalRouteTestHelper.ExtractEdgePath(Svg, "Hub", "W1");
         string SidePathThree = OrthogonalRouteTestHelper.ExtractEdgePath(Svg, "Hub", "W3");
 
         OrthogonalRouteTestHelper.AssertOrthogonalPathWithRoundedCorners(CentrePath);
@@ -913,7 +889,7 @@ public sealed class FlowchartCatalogueRenderTests
             """);
 
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
-        foreach (string TargetId in new[] { "W2", "W3" })
+        foreach (string TargetId in new[] { "W1", "W3" })
         {
             string PathData = OrthogonalRouteTestHelper.ExtractEdgePath(Svg, "Hub", TargetId);
             OrthogonalRouteTestHelper.AssertOrthogonalPathWithRoundedCorners(PathData);

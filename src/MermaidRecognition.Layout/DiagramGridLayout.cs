@@ -80,6 +80,7 @@ public static class DiagramGridLayout
         AlignBypassDetourColumns(Contract, Placed, Horizontal);
         AlignDecisionCentreChildColumn(Contract, Placed, Horizontal);
         AlignTerminalDecisionTargets(Contract, Placed, Horizontal, CrossPitch, CoordinatesPlaced: false);
+        CentreTerminalFans(Contract, Placed, Horizontal, CoordinatesPlaced: false);
         CascadeColumns(Placed);
         PlaceOnGrid(Placed, Horizontal, BoxWidth, BoxHeight, MainPitch, CrossPitch, Copy, Contract);
         if (!Horizontal)
@@ -88,6 +89,7 @@ public static class DiagramGridLayout
         }
 
         AlignTerminalDecisionTargets(Contract, Placed, Horizontal, CrossPitch, CoordinatesPlaced: true);
+        CentreTerminalFans(Contract, Placed, Horizontal, CoordinatesPlaced: true);
 
         GrowCrowdedSides(Placed, Copy, BoxWidth, BoxHeight);
         SeparateOverlaps(Placed, Horizontal);
@@ -431,6 +433,59 @@ public static class DiagramGridLayout
                     SetCross(Children[Index], (int)Math.Round(Cross(Parent, Horizontal, Old: false))
                         + Side * Pitch, Horizontal);
                 }
+            }
+        }
+    }
+
+    /// <summary>
+    /// An odd fan of independent terminal children has a centre branch.
+    /// Centre its ordinary parent, and any unbranched input chain, on that child.
+    /// </summary>
+    private static void CentreTerminalFans(
+        DiagramContract Contract, List<GridNode> Placed, bool Horizontal, bool CoordinatesPlaced)
+    {
+        Dictionary<string, GridNode> ById = IndexPlaced(Placed);
+        List<EdgeContract> Visible = Contract.Edges.Where(Edge =>
+            !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
+        foreach (GridNode Parent in Placed.Where(Node => !Node.IsDiamond))
+        {
+            List<EdgeContract> Outgoing = Visible.Where(Edge => Edge.SourceId == Parent.Id).ToList();
+            if (Outgoing.Count < 3 || Outgoing.Count % 2 == 0
+                || Outgoing.Select(Edge => Edge.TargetId).Distinct().Count() != Outgoing.Count)
+            {
+                continue;
+            }
+
+            List<GridNode> Children = Outgoing.Where(Edge => ById.ContainsKey(Edge.TargetId))
+                .Select(Edge => ById[Edge.TargetId]).ToList();
+            if (Children.Count != Outgoing.Count || Children.Select(Node => Node.Rank).Distinct().Count() != 1
+                || Children.Any(Child => Child.Rank == Parent.Rank || Child.GroupId != Parent.GroupId
+                    || Visible.Any(Edge => Edge.SourceId == Child.Id)
+                    || Visible.Count(Edge => Edge.TargetId == Child.Id) != 1))
+            {
+                continue;
+            }
+
+            GridNode Middle = Children.OrderBy(Node => CoordinatesPlaced
+                ? Cross(Node, Horizontal, Old: false) : Node.Column).ElementAt(Children.Count / 2);
+            GridNode Current = Parent;
+            HashSet<string> Visited = [];
+            while (Visited.Add(Current.Id))
+            {
+                Current.Column = Middle.Column;
+                if (CoordinatesPlaced)
+                {
+                    SetCross(Current, (int)Math.Round(Cross(Middle, Horizontal, Old: false)), Horizontal);
+                }
+
+                List<EdgeContract> Incoming = Visible.Where(Edge => Edge.TargetId == Current.Id).ToList();
+                if (Incoming.Count != 1 || !ById.TryGetValue(Incoming[0].SourceId, out GridNode? Previous)
+                    || Previous.IsDiamond || Previous.GroupId != Parent.GroupId
+                    || Visible.Count(Edge => Edge.SourceId == Previous.Id) != 1)
+                {
+                    break;
+                }
+                Current = Previous;
             }
         }
     }
