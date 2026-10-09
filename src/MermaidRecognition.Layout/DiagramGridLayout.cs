@@ -3338,7 +3338,20 @@ public static class DiagramGridLayout
             List<GridNode> NextNodes = NodesInRank(Placed, Rank + 1);
             int HalfBelow = MaxHalf(RankNodes, Horizontal, Below: true);
             int HalfAbove = MaxHalf(NextNodes, Horizontal, Below: false);
-            int Gap = DiagramGridMetrics.NODE_GAP_PX;
+            int Gap = 2 * DiagramGridMetrics.GRID_UNIT_PX;
+            foreach (EdgeContract Edge in Contract.Edges)
+            {
+                GridNode? Source = RankNodes.Find(Node => Node.Id == Edge.SourceId);
+                GridNode? Target = NextNodes.Find(Node => Node.Id == Edge.TargetId);
+                if (Source != null && Target != null && Source.Column != Target.Column
+                    && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Two rounded turns need a source run, two radii and an
+                    // arrow-length target run. Grow the gap in whole units.
+                    Gap = Math.Max(Gap, DiagramGridMetrics.CeilToGrid(
+                        (3 * DiagramGridRouteBuilder.CORNER_RADIUS_PX) + 10));
+                }
+            }
             int Crossings = CountRankCrossings(Copy, RankNodes, NextNodes);
             int TrackUnits = Math.Max(1, (Crossings + DiagramGridMetrics.TRACKS_PER_GAP - 1) / DiagramGridMetrics.TRACKS_PER_GAP);
             Gap = Math.Max(Gap, TrackUnits * DiagramGridMetrics.GRID_UNIT_PX);
