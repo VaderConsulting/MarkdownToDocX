@@ -1657,11 +1657,74 @@ public static class DiagramGridLayout
                 }
             }
 
-            if (!Moved)
+            if (!Moved && !SeparateSiblingFrames(Contract, Placed, Frames, Horizontal))
             {
                 break;
             }
         }
+    }
+
+    private static bool SeparateSiblingFrames(
+        DiagramContract Contract, List<GridNode> Placed, List<GridFrame> Frames, bool Horizontal)
+    {
+        bool Ancestor(string Parent, string Child)
+        {
+            string? Current = ParentGroup(Contract, Child);
+            while (Current != null)
+            {
+                if (Current == Parent) return true;
+                Current = ParentGroup(Contract, Current);
+            }
+            return false;
+        }
+        for (int First = 0; First < Frames.Count; First++)
+        for (int Second = First + 1; Second < Frames.Count; Second++)
+        {
+            var A = Frames[First];
+            var B = Frames[Second];
+            if (Ancestor(A.Id, B.Id) || Ancestor(B.Id, A.Id)) continue;
+            double MainMin(GridFrame Frame) => Horizontal ? Frame.Left : Frame.Top;
+            double MainMax(GridFrame Frame) => Horizontal ? Frame.Right : Frame.Bottom;
+            double CrossMin(GridFrame Frame) => Horizontal ? Frame.Top : Frame.Left;
+            double CrossMax(GridFrame Frame) => Horizontal ? Frame.Bottom : Frame.Right;
+            double MainGap = Math.Max(MainMin(A), MainMin(B)) - Math.Min(MainMax(A), MainMax(B));
+            double CrossGap = Math.Max(CrossMin(A), CrossMin(B)) - Math.Min(CrossMax(A), CrossMax(B));
+            var AMembers = Placed.Where(Node => IsInsideGroup(Contract, Node.Id, A.Id)).ToArray();
+            var BMembers = Placed.Where(Node => IsInsideGroup(Contract, Node.Id, B.Id)).ToArray();
+            bool Sequential = AMembers.Length > 0 && BMembers.Length > 0
+                && (AMembers.Max(Node => Node.Rank) < BMembers.Min(Node => Node.Rank)
+                    || BMembers.Max(Node => Node.Rank) < AMembers.Min(Node => Node.Rank));
+            bool AlongMain = CrossGap <= 0 && (MainGap >= 0 || Sequential);
+            double Needed = AlongMain ? 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX + DiagramGridMetrics.GRID_UNIT_PX
+                : DiagramGridMetrics.GRID_UNIT_PX;
+            double Gap = AlongMain ? MainGap : CrossGap;
+            if (Gap >= Needed || (!AlongMain && MainGap >= 0)) continue;
+            var Moving = AlongMain ? (MainMin(A) > MainMin(B) ? A : B)
+                : (CrossMin(A) < CrossMin(B) ? A : B);
+            int Shift = DiagramGridMetrics.CeilToGrid(Needed - Gap) * (AlongMain ? 1 : -1);
+            var Members = Placed.Where(Node => IsInsideGroup(Contract, Node.Id, Moving.Id)).ToHashSet();
+            var Visible = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
+            bool Added;
+            do
+            {
+                Added = false;
+                foreach (var Node in Placed.Where(Node => Node.GroupId == null && !Members.Contains(Node)))
+                {
+                    if (Visible.Count(Edge => Edge.SourceId == Node.Id) <= 1
+                        && Visible.Count(Edge => Edge.TargetId == Node.Id) <= 1
+                        && Visible.Any(Edge => (Edge.SourceId == Node.Id && Members.Any(Member => Member.Id == Edge.TargetId))
+                            || (Edge.TargetId == Node.Id && Members.Any(Member => Member.Id == Edge.SourceId))))
+                        Added |= Members.Add(Node);
+                }
+            } while (Added);
+            foreach (var Node in Members)
+            {
+                if (AlongMain) SetMain(Node, (int)Math.Round(Main(Node, Horizontal, Old: false)) + Shift, Horizontal);
+                else SetCross(Node, (int)Math.Round(Cross(Node, Horizontal, Old: false)) + Shift, Horizontal);
+            }
+            return true;
+        }
+        return false;
     }
 
     /// <summary>
