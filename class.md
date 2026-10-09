@@ -2,7 +2,7 @@
 
 Progressive Mermaid **classDiagram** scenarios for recognition and render regression (Markdown → DOCX). Each section increases complexity; scenarios within a section are ordered from simplest to hardest.
 
-**Spec mapping:** line types in `spec.md` §11.1.14.3; recognition fixtures in `new_src/MermaidRecognition.Tests/ClassRecognition/`.
+**Spec mapping:** line types in `spec.md` §11.1.14.3; recognition fixtures in `tests/MermaidRecognition.Tests/ClassRecognition/`.
 
 **Programme note:** Naiad is an interim render baseline only. L2 recognition classifies lines in `ClassKindRecognizer`; L3 entity mapping and non-Naiad render are planned in `MermaidRecognition` (see §11.1.14.3).
 
@@ -11,37 +11,37 @@ Progressive Mermaid **classDiagram** scenarios for recognition and render regres
 | Id | Level | Line types / axis | Recognition fixture | Naiad sample |
 | --- | --- | --- | --- | --- |
 | C01 | 1 | header, class | `simple` | Simple |
-| C02 | 1 | multiple classes | `multiple-classes` | — |
+| C02 | 1 | multiple classes | `multiple-classes` | - |
 | C03 | 2 | structOpen, member, structClose | `members` | Members |
 | C04 | 2 | methods | `methods-only` | Methods |
 | C05 | 2 | members + methods | `members-and-methods` | MembersAndMethods |
-| C06 | 2 | visibility prefixes | `visibility-modifiers` | — |
+| C06 | 2 | visibility prefixes | `visibility-modifiers` | - |
 | C07 | 3 | relation `<\|--` | `inheritance` | Inheritance |
-| C08 | 3 | multi-level inheritance | `multi-level-inheritance` | — |
+| C08 | 3 | multi-level inheritance | `multi-level-inheritance` | - |
 | C09 | 3 | relation `*--` | `relation-composition` | Composition |
 | C10 | 3 | relation `o--` | `relation-aggregation` | Aggregation |
 | C11 | 3 | relation `-->` + label | `relation-association` | Association |
-| C12 | 3 | relation `..>` | `relation-dependency` | — |
-| C13 | 3 | relation `<\|..` | `relation-realization` | — |
-| C14 | 3 | relation `<--` | `relation-reverse-association` | — |
-| C15 | 3 | relation `--` link | `relation-solid-link` | — |
-| C16 | 3 | relation `..` dotted link | `relation-dotted-link` | — |
-| C17 | 3 | cardinality labels on relation | `relation-cardinality` | — |
+| C12 | 3 | relation `..>` | `relation-dependency` | - |
+| C13 | 3 | relation `<\|..` | `relation-realization` | - |
+| C14 | 3 | relation `<--` | `relation-reverse-association` | - |
+| C15 | 3 | relation `--` link | `relation-solid-link` | - |
+| C16 | 3 | relation `..` dotted link | `relation-dotted-link` | - |
+| C17 | 3 | cardinality labels on relation | `relation-cardinality` | - |
 | C18 | 4 | annotation `<<interface>>` | `interface-annotation` | InterfaceAnnotation |
-| C19 | 4 | annotation `<<abstract>>` | `abstract-stereotype` | — |
+| C19 | 4 | annotation `<<abstract>>` | `abstract-stereotype` | - |
 | C20 | 4 | annotation `<<enumeration>>`, `<<service>>` | `enum-service-stereotype` | Complex |
-| C21 | 4 | note | `note` | — |
-| C22 | 5 | classDef, class apply | `classDef-style` | — |
-| C23 | 5 | style | `inline-style` | — |
-| C24 | 5 | cssClass (**remarked**) | — | — |
-| C25 | 6 | direction | `direction` | — |
-| C26 | 6 | namespace | `namespace` | — |
-| C27 | 7 | comment | `comment` | — |
-| C28 | 7 | click / link | `click-href` | — |
-| C29 | 7 | accTitle, accDescr inline | `accessibility-inline` | — |
-| C30 | 7 | accDescr block | `accessibility` | — |
-| C31 | 7 | init (G1) | `init-leading` | — |
-| C32 | 7 | header `classDiagram-v2` | `header-v2` | — |
+| C21 | 4 | note | `note` | - |
+| C22 | 5 | classDef, class apply | `classDef-style` | - |
+| C23 | 5 | style | `inline-style` | - |
+| C24 | 5 | cssClass (**remarked**) | - | - |
+| C25 | 6 | direction | `direction` | - |
+| C26 | 6 | namespace | `namespace` | - |
+| C27 | 7 | comment | `comment` | - |
+| C28 | 7 | click / link | `click-href` | - |
+| C29 | 7 | accTitle, accDescr inline | `accessibility-inline` | - |
+| C30 | 7 | accDescr block | `accessibility` | - |
+| C31 | 7 | init (G1) | `init-leading` | - |
+| C32 | 7 | header `classDiagram-v2` | `header-v2` | - |
 | C33 | 8 | generics `Class~T~` | `generic-class` | Complex |
 | C34 | 8 | static member `$` | `static-members` | Complex |
 | C35 | 8 | combined render smoke | `complex-smoke` | Complex |
@@ -50,11 +50,11 @@ Progressive Mermaid **classDiagram** scenarios for recognition and render regres
 
 ## How to use
 
-This file is the **complete** class diagram regression catalogue: **isolated diagrams (C01–C35)**. Levels 1–6 align with `extern/Naiad/src/test-renders/Class.md`. Level 7–8 add remaining §11.1.14.3 axes and the Naiad Complex sample.
+This file is the **complete** class diagram regression catalogue: **isolated diagrams (C01-C35)**. Levels 1-6 align with `extern/Naiad/src/test-renders/Class.md`. Level 7-8 add remaining §11.1.14.3 axes and the Naiad Complex sample.
 
 ### Remarked scenarios (`%%`)
 
-Diagrams that **do not render** on [mermaid.live](https://mermaid.live) remain in this file with **every source line prefixed by `%%`**. That marks them as **considered but rejected** for the render gate — **do not re-add** them because the catalogue looks incomplete. SvgHarness and DOCX visual review skip remarked blocks. See §9.1 in `spec.md`.
+Diagrams that **do not render** on [mermaid.live](https://mermaid.live) remain in this file with **every source line prefixed by `%%`**. That marks them as **considered but rejected** for the render gate - **do not re-add** them because the catalogue looks incomplete. SvgHarness and DOCX visual review skip remarked blocks. See §9.1 in `spec.md`.
 
 **Currently remarked:** C24 (`cssClass`).
 
@@ -74,7 +74,7 @@ dotnet run --project src/SvgHarness/SvgHarness.csproj -c Release -- class.md out
 ### Recognition contract gate
 
 ```powershell
-dotnet test new_src/MermaidRecognition.Tests/MermaidRecognition.Tests.csproj --filter "FullyQualifiedName~ClassRecognition"
+dotnet test tests/MermaidRecognition.Tests/MermaidRecognition.Tests.csproj --filter "FullyQualifiedName~ClassRecognition"
 ```
 
 Catalogue scenarios must not produce silent `classDiagram.body` fallback.
@@ -95,9 +95,9 @@ dotnet run --project src/md2docx/md2docx.csproj -- class.md class.docx
 
 ---
 
-## Level 1 — Header and single class
+## Level 1 - Header and single class
 
-### C01 — Minimal class declaration
+### C01 - Minimal class declaration
 
 ```mermaid
 classDiagram
@@ -106,7 +106,7 @@ classDiagram
 
 *Fixture:* `simple` · Naiad: Simple*
 
-### C02 — Two classes (no relation)
+### C02 - Two classes (no relation)
 
 ```mermaid
 classDiagram
@@ -116,9 +116,9 @@ classDiagram
 
 ---
 
-## Level 2 — Class body (members and methods)
+## Level 2 - Class body (members and methods)
 
-### C03 — Fields only
+### C03 - Fields only
 
 ```mermaid
 classDiagram
@@ -130,7 +130,7 @@ classDiagram
 
 *Fixture:* `members` · Naiad: Members*
 
-### C04 — Methods only
+### C04 - Methods only
 
 ```mermaid
 classDiagram
@@ -142,7 +142,7 @@ classDiagram
 
 *Naiad: Methods*
 
-### C05 — Fields and methods combined
+### C05 - Fields and methods combined
 
 ```mermaid
 classDiagram
@@ -156,7 +156,7 @@ classDiagram
 
 *Naiad: MembersAndMethods*
 
-### C06 — Visibility and modifiers
+### C06 - Visibility and modifiers
 
 ```mermaid
 classDiagram
@@ -170,9 +170,9 @@ classDiagram
 
 ---
 
-## Level 3 — Relations (one token per scenario)
+## Level 3 - Relations (one token per scenario)
 
-### C07 — Inheritance
+### C07 - Inheritance
 
 ```mermaid
 classDiagram
@@ -182,7 +182,7 @@ classDiagram
 
 *Fixture:* `relations` · token: `<|--` · Naiad: Inheritance*
 
-### C08 — Multi-level inheritance
+### C08 - Multi-level inheritance
 
 ```mermaid
 classDiagram
@@ -190,7 +190,7 @@ classDiagram
     Duck <|-- Mallard
 ```
 
-### C09 — Composition
+### C09 - Composition
 
 ```mermaid
 classDiagram
@@ -200,7 +200,7 @@ classDiagram
 
 *Token:* `*--` · Naiad: Composition*
 
-### C10 — Aggregation
+### C10 - Aggregation
 
 ```mermaid
 classDiagram
@@ -209,7 +209,7 @@ classDiagram
 
 *Token:* `o--` · Naiad: Aggregation*
 
-### C11 — Association with label
+### C11 - Association with label
 
 ```mermaid
 classDiagram
@@ -218,7 +218,7 @@ classDiagram
 
 *Token:* `-->` · Naiad: Association*
 
-### C12 — Dependency (dotted arrow)
+### C12 - Dependency (dotted arrow)
 
 ```mermaid
 classDiagram
@@ -227,7 +227,7 @@ classDiagram
 
 *Token:* `..>`*
 
-### C13 — Realization (dotted inheritance)
+### C13 - Realization (dotted inheritance)
 
 ```mermaid
 classDiagram
@@ -236,7 +236,7 @@ classDiagram
 
 *Token:* `<|..`*
 
-### C14 — Reverse association
+### C14 - Reverse association
 
 ```mermaid
 classDiagram
@@ -245,7 +245,7 @@ classDiagram
 
 *Token:* `<--`*
 
-### C15 — Solid link (no arrowhead)
+### C15 - Solid link (no arrowhead)
 
 ```mermaid
 classDiagram
@@ -254,7 +254,7 @@ classDiagram
 
 *Token:* `--`*
 
-### C16 — Dotted link
+### C16 - Dotted link
 
 ```mermaid
 classDiagram
@@ -263,7 +263,7 @@ classDiagram
 
 *Token:* `..`*
 
-### C17 — Cardinality labels on relation
+### C17 - Cardinality labels on relation
 
 ```mermaid
 classDiagram
@@ -276,9 +276,9 @@ classDiagram
 
 ---
 
-## Level 4 — Annotations and notes
+## Level 4 - Annotations and notes
 
-### C18 — Interface stereotype
+### C18 - Interface stereotype
 
 ```mermaid
 classDiagram
@@ -290,7 +290,7 @@ classDiagram
 
 *Naiad: InterfaceAnnotation*
 
-### C19 — Abstract stereotype
+### C19 - Abstract stereotype
 
 ```mermaid
 classDiagram
@@ -300,7 +300,7 @@ classDiagram
     }
 ```
 
-### C20 — Enumeration and service stereotypes
+### C20 - Enumeration and service stereotypes
 
 ```mermaid
 classDiagram
@@ -315,7 +315,7 @@ classDiagram
     }
 ```
 
-### C21 — Note
+### C21 - Note
 
 ```mermaid
 classDiagram
@@ -327,9 +327,9 @@ classDiagram
 
 ---
 
-## Level 5 — Styles and classDef
+## Level 5 - Styles and classDef
 
-### C22 — classDef and class apply
+### C22 - classDef and class apply
 
 ```mermaid
 classDiagram
@@ -340,7 +340,7 @@ classDiagram
 
 *Fixture:* `classDef-style` · maps: `classDef`, `classApply` (partial)*
 
-### C23 — Inline style directive
+### C23 - Inline style directive
 
 ```mermaid
 classDiagram
@@ -350,7 +350,7 @@ classDiagram
 
 *Maps:* `classDiagram.styleDirective`*
 
-### C24 — cssClass directive (remarked)
+### C24 - cssClass directive (remarked)
 
 ```mermaid
 %%     classDiagram
@@ -359,13 +359,13 @@ classDiagram
 %%     cssClass Animal highlight
 ```
 
-*Maps:* `classDiagram.cssClass` · **remarked** — does not render on mermaid.live; recognition axis may still be tracked in spec/fixtures.*
+*Maps:* `classDiagram.cssClass` · **remarked** - does not render on mermaid.live; recognition axis may still be tracked in spec/fixtures.*
 
 ---
 
-## Level 6 — Layout and structure
+## Level 6 - Layout and structure
 
-### C25 — Direction
+### C25 - Direction
 
 ```mermaid
 classDiagram
@@ -373,7 +373,7 @@ classDiagram
     Animal <|-- Dog
 ```
 
-### C26 — Namespace block
+### C26 - Namespace block
 
 ```mermaid
 classDiagram
@@ -385,9 +385,9 @@ classDiagram
 
 ---
 
-## Level 7 — Recognition axes
+## Level 7 - Recognition axes
 
-### C27 — Comment lines
+### C27 - Comment lines
 
 ```mermaid
 classDiagram
@@ -395,7 +395,7 @@ classDiagram
     class Animal
 ```
 
-### C28 — Click / hyperlink
+### C28 - Click / hyperlink
 
 ```mermaid
 classDiagram
@@ -405,7 +405,7 @@ classDiagram
 
 *Callback forms emit diagnostic at render policy; href is recognition target.*
 
-### C29 — Accessibility (inline)
+### C29 - Accessibility (inline)
 
 ```mermaid
 classDiagram
@@ -414,7 +414,7 @@ classDiagram
     class Animal
 ```
 
-### C30 — Accessibility (accDescr block)
+### C30 - Accessibility (accDescr block)
 
 ```mermaid
 classDiagram
@@ -426,7 +426,7 @@ classDiagram
     class Animal
 ```
 
-### C31 — Leading init block
+### C31 - Leading init block
 
 ```mermaid
 %%{init: {'theme': 'base'}}%%
@@ -434,7 +434,7 @@ classDiagram
     class Animal
 ```
 
-### C32 — classDiagram-v2 header
+### C32 - classDiagram-v2 header
 
 ```mermaid
 classDiagram-v2
@@ -443,9 +443,9 @@ classDiagram-v2
 
 ---
 
-## Level 8 — Advanced syntax and combined smoke
+## Level 8 - Advanced syntax and combined smoke
 
-### C33 — Generic type parameter
+### C33 - Generic type parameter
 
 ```mermaid
 classDiagram
@@ -455,7 +455,7 @@ classDiagram
     }
 ```
 
-### C34 — Static members
+### C34 - Static members
 
 ```mermaid
 classDiagram
@@ -465,7 +465,7 @@ classDiagram
     }
 ```
 
-### C35 — Combined render smoke (Naiad Complex sample)
+### C35 - Combined render smoke (Naiad Complex sample)
 
 ```mermaid
 classDiagram
@@ -525,4 +525,4 @@ classDiagram
 | Render | SvgHarness PASS for **active** scenarios only (remarked `%%` blocks excluded) |
 | Remarked `%%` | Considered but rejected on mermaid.live; do not treat as missing |
 
-Do not extend Naiad `ClassParser` to close recognition gaps — extend `MermaidRecognition` and this catalogue instead.
+Do not extend Naiad `ClassParser` to close recognition gaps - extend `MermaidRecognition` and this catalogue instead.

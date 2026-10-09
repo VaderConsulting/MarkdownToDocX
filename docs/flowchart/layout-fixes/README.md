@@ -1,10 +1,10 @@
-# Flowchart layout fixes — before and after
+# Flowchart layout fixes - before and after
 
-Shared Sugiyama layout changes on `flowchart-layout-fixes` (from `master`; this repo has no `main`). Enterprise diagrams keep using this layout exactly. PR #1 (`enterprise-diagram`) was not modified.
+Before and after images for native flowchart layout changes merged to `master` in [PR #4](https://github.com/VaderConsulting/MarkdownToDocX/pull/4) (dagre placement and shared route quality). Enterprise diagrams on PR #1 (`enterprise-diagram`) are out of scope for `master` and were not modified here.
 
-**Befores** are native renders from `master` @ `6da24f1`, except `enterprise-NN-enterprise.png`, which are the existing PR #1 parity rasters. **Afters** are this branch. Enterprise after-pairs were produced on a local `enterprise-diagram` worktree with these layout files copied in; that worktree was not committed or pushed.
+**Befores** are native renders from `master` at `6da24f1`, except `enterprise-NN-enterprise.png`, which are the existing PR #1 parity rasters. **Afters** are the current native renderer on `master`. Enterprise after-pairs were produced on a local `enterprise-diagram` worktree with layout files copied in; that worktree was not committed or pushed.
 
-Geometry parity on that local worktree: samples 01–03 and 06–12 match flowchart vs enterprise within 2 px (0 mismatches).
+Geometry parity on that local worktree: samples 01-03 and 06-12 match flowchart vs enterprise within 2 px (0 mismatches).
 
 ## What to eyeball first
 
@@ -18,20 +18,20 @@ Geometry parity on that local worktree: samples 01–03 and 06–12 match flowch
 | F60 | [before/F60.png](before/F60.png) | [after/F60.png](after/F60.png) | Tighter stage boxes. Dotted audit corridor unchanged. |
 | F40 | [before/F40.png](before/F40.png) | [after/F40.png](after/F40.png) | Tighter sibling subgraph boxes. |
 
-## Behaviour changes Dave should review
+## Behaviour changes to review
 
-1. **Subgraph membership (03, F43–F47, nested fixtures).** A cluster box contains only members. Non-members are packed out of member holes or evicted. Dummy subgraph-id nodes are not placed or painted.
+1. **Subgraph membership (03, F43-F47, nested fixtures).** A cluster box contains only members. Non-members are packed out of member holes or evicted. Dummy subgraph-id nodes are not placed or painted.
 2. **Root ranking (12).** Each root is one rank beyond its facing successor. The old “all roots share the bottom rank” pass is gone; no catalogue test required it.
 3. **Compound edges (03).** Edges to/from a subgraph id attach to the facing rectangle. A clear chord stays a two-point clip. An obstructed chord keeps those attach points and uses an inside corridor so it does not pierce unrelated nodes or wrap outside the canvas.
 4. **LAN → Load Balancer (03).** Source is LAN, target is Load Balancer.
 5. **Cluster slack (11, F111, F59, F60).** Bottom content slack is 8 px (was 26 px). Title band stays 26 px. Column-led spine centring (F59) is unchanged unless the expand would cover a non-member.
-6. **Shared route quality (03).** Non-endpoint nodes are obstacles with 16 px clearance. Incoming and outgoing ports that share a face are spread. Labels sit on their own edge (HTTPS). Near-aligned noisy guides collapse so `checkout --> order` is one path. Parallel overlapping runs stay at least 12 px apart (Web Shop → Hosting / Database Service). Routes keep 12 px from group borders or cross them cleanly (Shop Web UI, PostgreSQL → orders table, DC LAN, shop.war). One diagram uses one flowchart style — straight when aligned, smooth `curveBasis` when not — not mixed orthogonal corridors and loose curves. Designed retry, decision, and grouped routes stay on their builders.
+6. **Shared route quality (03).** Non-endpoint nodes are obstacles with 16 px clearance. Incoming and outgoing ports that share a face are spread. Labels sit on their own edge (HTTPS). Near-aligned noisy guides collapse so `checkout --> order` is one path. Parallel overlapping runs stay at least 12 px apart (Web Shop → Hosting / Database Service). Routes keep 12 px from group borders or cross them cleanly (Shop Web UI, PostgreSQL → orders table, DC LAN, shop.war). One diagram uses one flowchart style - straight when aligned, smooth `curveBasis` when not - not mixed orthogonal corridors and loose curves. Designed retry, decision, and grouped routes stay on their builders.
 
 ## `flow.md` fixtures
 
 Remarked (not rendered): F65, F70, F87, F88.
 
-Unchanged (byte-identical PNG vs the `5ced07c` after): F01–F23, F25–F30, F34, F35, F36–F57, F61, F63–F64, F66–F69, F71–F82, F84–F86, F89–F97, F99–F105, F110, F112, F114–F120, F124–F133.
+Unchanged (byte-identical PNG vs the `5ced07c` after): F01-F23, F25-F30, F34, F35, F36-F57, F61, F63-F64, F66-F69, F71-F82, F84-F86, F89-F97, F99-F105, F110, F112, F114-F120, F124-F133.
 
 Changed vs `5ced07c` (shared route-quality widen):
 
@@ -59,7 +59,7 @@ Unchanged except:
 | subgraph-nested | Tighter nested boxes. |
 | subgraph-direction | Tighter box slack. |
 
-## Enterprise parity pairs (01–03, 06–12)
+## Enterprise parity pairs (01-03, 06-12)
 
 | Id | Flowchart | Enterprise |
 | --- | --- | --- |
@@ -74,7 +74,7 @@ Unchanged except:
 | 11 | Store Cluster slack; junctions outside. | Same geometry as the flowchart after. |
 | 12 | Board above Raise Revenue. | Same geometry as the flowchart after. |
 
-Local 2 px geometry check after the layout copy (including this quality widen): **0 mismatches** on 01–03 and 06–12. After rasters changed vs `5ced07c` for 01–03, 06–09 and 11; 10 and 12 are byte-identical.
+Local 2 px geometry check after the layout copy (including this quality widen): **0 mismatches** on 01-03 and 06-12. After rasters changed vs `5ced07c` for 01-03, 06-09 and 11; 10 and 12 are byte-identical.
 
 ## How to regenerate
 

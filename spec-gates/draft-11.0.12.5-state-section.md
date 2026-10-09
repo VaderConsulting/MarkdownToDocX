@@ -1,8 +1,8 @@
 #### 11.1.14.4 State diagram line-type catalogue (L2)
 
-Dedicated recogniser: `new_src/MermaidRecognition/Kinds/State/StateKindRecognizer.cs`. Source: `mermaid/packages/mermaid/src/diagrams/state/parser/stateDiagram.jison` (shared by `stateDiagram` and `stateDiagram-v2` detectors).
+Dedicated recogniser: `src/MermaidRecognition/Kinds/State/StateKindRecognizer.cs`. Source: `mermaid/packages/mermaid/src/diagrams/state/parser/stateDiagram.jison` (shared by `stateDiagram` and `stateDiagram-v2` detectors).
 
-**Render policy (Naiad replacement programme):** L2 classifies every source line into `SourceStatementContract.LineTypeId` only. Populating state entities (`NodeContract`, `EdgeContract`, composite regions, fork/join/choice pseudo-states, notes) in `DiagramContract` is **L3 (G4)** work in `MermaidRecognition`, then a **new render adapter** (or official Mermaid fallback per §11.E). **Do not** extend Naiad `StateParser` / `StateRenderer` for recognition gaps — Naiad is a temporary render baseline only (§12). Evidence scenarios: `extern/Naiad/src/test-renders/State.md` (Simple, MultipleStates, TransitionLabels, Description, ForkJoinState, ChoiceState, StateWithNote, StateDiagramV1, Complex).
+**Render policy (Naiad replacement programme):** L2 classifies every source line into `SourceStatementContract.LineTypeId` only. Populating state entities (`NodeContract`, `EdgeContract`, composite regions, fork/join/choice pseudo-states, notes) in `DiagramContract` is **L3 (G4)** work in `MermaidRecognition`, then a **new render adapter** (or official Mermaid fallback per §11.E). **Do not** extend Naiad `StateParser` / `StateRenderer` for recognition gaps - Naiad is a temporary render baseline only (§12). Evidence scenarios: `extern/Naiad/src/test-renders/State.md` (Simple, MultipleStates, TransitionLabels, Description, ForkJoinState, ChoiceState, StateWithNote, StateDiagramV1, Complex).
 
 Status values match §11.1.14.1: **parsed**, **partial**, **diagnostic**, **not-implemented**.
 
@@ -18,7 +18,7 @@ Status values match §11.1.14.1: **parsed**, **partial**, **diagnostic**, **not-
 | `stateDiagram.hideEmpty` | `hide empty description` | `SourceStatements[]` | **parsed** | jison `HIDE_EMPTY`; no fixture yet |
 | `stateDiagram.note` | `note right of Active : text`, `note left of Error : handling` | `SourceStatements[]` | **parsed** | `note`; Naiad StateWithNote, Complex |
 | `stateDiagram.classDef` | `classDef highlight fill:#f9f,stroke:#333` | `SourceStatements[]` | **parsed** | jison `classDefStatement`; no L2 fixture yet |
-| `stateDiagram.style` | `style State2 fill:#f9f` | `SourceStatements[]` | **parsed** | — |
+| `stateDiagram.style` | `style State2 fill:#f9f` | `SourceStatements[]` | **parsed** | - |
 | `stateDiagram.cssClass` | `class State1 highlight` | `SourceStatements[]` | **parsed** | jison `cssClassStatement` (`applyClass`); distinct from `.classDef` |
 | `stateDiagram.click` | `click State1 href "url" "tooltip"` | `SourceStatements[]` | **parsed** | callback forms → diagnostic at L3 render policy (mirror class) |
 | `stateDiagram.direction` | `direction TB` / `LR` / `RL` / `BT` | `SourceStatements[]` (direction fact) | **parsed** | jison `direction_*` tokens |
@@ -30,7 +30,7 @@ Status values match §11.1.14.1: **parsed**, **partial**, **diagnostic**, **not-
 
 **State L2 exit:** table published (this section); tests in `StateRecognition/` (**3** fixtures: `simple`, `composite`, `note`); manifest `Gates/manifests/state.gate-manifest.json` aligned; no silent `stateDiagram.body` on fixture samples; every row **parsed**, **partial**, or **diagnostic** (no **not-implemented**).
 
-**State L3 target (G4–G9, not started):** map classified lines to state entities in `DiagramContract` (states, transitions, composite `doc`, notes, styles); add fixtures per G4–G9 axis and Naiad `State.md` scenarios not yet in `StateRecognition/`; wire render outside Naiad.
+**State L3 target (G4-G9, not started):** map classified lines to state entities in `DiagramContract` (states, transitions, composite `doc`, notes, styles); add fixtures per G4-G9 axis and Naiad `State.md` scenarios not yet in `StateRecognition/`; wire render outside Naiad.
 
 | Gate | Applies to state? | L3 evidence (planned) |
 | --- | --- | --- |

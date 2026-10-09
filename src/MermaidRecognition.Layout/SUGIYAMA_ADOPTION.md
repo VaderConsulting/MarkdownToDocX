@@ -1,4 +1,4 @@
-# Sugiyama layout — MSAGL adoption (not verbatim vendor)
+# Sugiyama layout - MSAGL adoption (not verbatim vendor)
 
 ## Intent
 
@@ -53,9 +53,11 @@ src/MermaidRecognition.Layout/
 
 Adapter and product code stay in `MermaidRecognition.Layout` and call the adopted types directly.
 
-## What we use today (R1 pilot)
+## What we use today
 
-`FlowchartSugiyamaLayoutEngine` calls:
+On `master`, flowchart **placement** uses the dagre port (`FlowchartDagrePlacement` in `Dagre/`). The adopted MSAGL Sugiyama engine remains available through `FlowchartSugiyamaLayoutEngine.TryLayoutSugiyama` for alternate layout experiments.
+
+`FlowchartSugiyamaLayoutEngine.TryLayoutSugiyama` calls:
 
 - `GeometryGraph`, `Node`, `Edge`, `CurveFactory`, `Point`, `Rectangle`
 - `SugiyamaLayoutSettings`, `LayeredLayout` → `LayeredLayoutEngine.Run()`
@@ -74,14 +76,14 @@ When a class is copied into `Sugiyama/`:
    - Debug-only `BinaryFormatter` paths unless still required for a test harness we keep
 4. **Do not copy** unrelated MSAGL subsystems: LargeGraphLayout, MDS, routing bundling, WPF/GDI viewers, persistence/recovery unless a compile error forces a minimal stub.
 5. **Preserve MIT licence** header on copied files; summarise in `THIRD_PARTY_NOTICES.md`.
-6. **Match programme C# conventions** when editing for modernisation (explicit types, braces, `_Field` naming on new wrapper code — adopt MSAGL internals gradually, do not mass-rename MSAGL in one pass unless required).
+6. **Match programme C# conventions** when editing for modernisation (explicit types, braces, `_Field` naming on new wrapper code - adopt MSAGL internals gradually, do not mass-rename MSAGL in one pass unless required).
 
 ## Migration phases
 
 | Phase | Deliverable | Exit |
 | --- | --- | --- |
 | **0 (done)** | Adapter + spike via `extern/Microsoft.AGL` | R1 layout tests green |
-| **1–2 (done)** | Copy MSAGL into flat `Sugiyama/`; `MermaidRecognition.Layout` builds **without** `extern` project reference | `dotnet build MermaidRecognition.Layout.csproj` |
+| **1-2 (done)** | Copy MSAGL into flat `Sugiyama/`; `MermaidRecognition.Layout` builds **without** `extern` project reference | `dotnet build MermaidRecognition.Layout.csproj` |
 | **3 (done)** | Remove `extern/Microsoft.AGL` | No copy of MSAGL outside `Sugiyama/` |
 | **4** | Trim unused copied files; add adoption tests | Smallest maintained slice documented in this file |
 

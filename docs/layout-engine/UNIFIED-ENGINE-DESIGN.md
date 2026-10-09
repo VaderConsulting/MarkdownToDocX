@@ -1,13 +1,13 @@
-# Unified layout engine — design
+# Unified layout engine - design
 
 **Status:** Design only. No implementation in this document.  
 **Branch:** `flowchart-layout-fixes`  
 **Date:** 5 October 2026  
-**Audience:** Dave and anyone extending markdown2docx layout
+**Audience:** Anyone extending MarkdownToDocX layout
 
-Dave’s goal: **one configurable layout engine** in markdown2docx that understands every diagram type, instead of a separate layout per type.
+**Goal:** **one configurable layout engine** in MarkdownToDocX that understands every diagram type, instead of a separate layout per type.
 
-**Extra rule (Dave):** wherever diagram types overlap — containment, ranking, edge routing, arrowheads, label placement, text measuring, padding, colours, and fonts — there is **exactly one implementation and one set of decisions**, shared by every type. No duplicated or parallel code paths for the same job. A per-type profile may only **choose options** from that shared code (spacing, routing style, marker set, font size). It must not reimplement the job, copy the formula, or keep a private helper that does the same work.
+**Extra rule:** wherever diagram types overlap - containment, ranking, edge routing, arrowheads, label placement, text measuring, padding, colours, and fonts - there is **exactly one implementation and one set of decisions**, shared by every type. No duplicated or parallel code paths for the same job. A per-type profile may only **choose options** from that shared code (spacing, routing style, marker set, font size). It must not reimplement the job, copy the formula, or keep a private helper that does the same work.
 
 This note surveys what the product renders today, lists every current duplication of those overlapping jobs (file paths and the single replacement), and how to grow the native flowchart Sugiyama path into that engine without breaking existing pictures. The gate for every stage is **before/after renders**, the same way `docs/flowchart/layout-fixes/` proved the shared flowchart fixes.
 
@@ -44,7 +44,7 @@ These are **node + edge** diagrams. They already think in ranks, order, and conn
 | **ER** | `Naiad` `ERRenderer` | Convert to graph, **same** Dagre. Spacing 100 / 100 (Mermaid `erRenderer.js`) | Dagre routes; cardinality markers; slotted face attach | No clusters |
 | **Enterprise** (PR #1) | `EnterpriseSvgRenderer` on the flowchart contract | **Flowchart Sugiyama exactly.** Mapper emits subgraphs for groups/locations/junctions; leaf sizes come from ArchiMate boxes | Same resolver and curve builder as flowchart. Only markers and dashes stay ArchiMate | Same membership / compound-edge rules as flowchart |
 
-**Important:** class, state, and ER already share **Naiad Dagre**, not native Sugiyama. Unifying them means moving those three off Dagre onto the native engine, with a profile — not inventing graph layout for them from scratch.
+**Important:** class, state, and ER already share **Naiad Dagre**, not native Sugiyama. Unifying them means moving those three off Dagre onto the native engine, with a profile - not inventing graph layout for them from scratch.
 
 ### 2.2 Own layout code (graph-shaped, but not Dagre / Sugiyama)
 
@@ -56,11 +56,11 @@ These still have nodes, groups, and edges, but they pack with a **specialised al
 | **Architecture** | Fixed **service grid** (columns × rows) plus group padding | Straight arrows, optional both ends | Medium. Groups ≈ clusters. Grid is a rank/order special case |
 | **Requirement** | Two **columns** (requirements left, elements right), stacked by index | Straight arrows between the two sides | Easy as a two-column profile; poor as a free Sugiyama graph |
 | **Block** | Author **column count** → cell grid | Straight, optional arrow | Easy as a grid profile |
-| **Mindmap** | Recursive **tree**: measure, subtree height, then place | Parent–child curves | Tree profile (one root, no cycles). Not a general DAG |
+| **Mindmap** | Recursive **tree**: measure, subtree height, then place | Parent-child curves | Tree profile (one root, no cycles). Not a general DAG |
 | **Git graph** | Compute commit DAG, then place on a **branch-row × time-column** grid | Branch lines and merges | Special layered profile (rows = branches, ranks = time) |
 | **Sankey** | Assign columns from the flow, scale node **height by value** | Width-coded ribbons | Related to layered layout, but geometry is driven by values, not rank gaps |
 
-### 2.3 Not graph layouts — stay specialised
+### 2.3 Not graph layouts - stay specialised
 
 These do not rank nodes or route free edges. They must **not** be forced through Sugiyama. They plug in as **specialised layout modules** behind the same façade (same options object, same before/after gate, own `Layout` method).
 
@@ -105,7 +105,7 @@ Each row is one overlapping job. **Keep** is the implementation every type must 
 | Current copies | Keep |
 | --- | --- |
 | `src/MermaidRecognition.Layout/FlowchartSubgraphBoundsBuilder.cs` (padding 18, title 26, slack **8**, nested gap 24) + `FlowchartSubgraphLayoutPostProcessor.cs` + `FlowchartSubgraphMembershipHelper.cs` + `FlowchartCompoundEndpointHelper.cs` | **This.** Membership, evict-non-members, spine expand, facing-side clip. Profiles set `Cluster.PaddingPx`, `TitleBandPx`, `BottomSlackPx`, `NestedGapPx` only. |
-| `extern/Naiad/src/Naiad/Layout/DagreLayoutEngine.cs` `LayoutFlowchartWithSubgraphs` and pack helpers (padding 18, title 26, slack **26** — already a second decision) | Delete the Naiad pack. Slack 8 is the one decision (this branch). |
+| `extern/Naiad/src/Naiad/Layout/DagreLayoutEngine.cs` `LayoutFlowchartWithSubgraphs` and pack helpers (padding 18, title 26, slack **26** - already a second decision) | Delete the Naiad pack. Slack 8 is the one decision (this branch). |
 | `extern/Naiad/src/Naiad/Diagrams/C4/C4Renderer.cs` (`BoundaryPadding = 15`, bottom-up boundary pack) | Same cluster builder. C4 supplies a **row-pack post-pass** option, not its own box math. |
 | `extern/Naiad/src/Naiad/Diagrams/Architecture/ArchitectureRenderer.cs` (`GroupPadding = 20`) | Same cluster builder. Grid ranker is an option, not a second containment path. |
 | Enterprise (PR #1) already maps groups onto flowchart subgraphs | Keep mapping; **no** enterprise cluster formula. |
@@ -164,7 +164,7 @@ Every type that sizes a box from a string has invented its own `length × fontSi
 | `extern/Naiad/src/Naiad/Diagrams/Treemap/TreemapRenderer.cs` wrap | 0.60 |
 | `extern/Naiad/src/Naiad/Diagrams/Quadrant/QuadrantRenderer.cs` axis margin | 0.60 |
 
-**Keep:** one **`DiagramTextMeasurer`**, grown from `FlowchartNodeSizeEstimator` and `FlowchartRichLabelSvgWriter` (those are the spec-traced metrics). Input is text, font size, weight, family, wrap width. Every renderer — including sequence, gantt, pie, timeline — calls it. Private `MeasureText` methods are deleted. A profile may pass size and weight; it may not pick a different em factor.
+**Keep:** one **`DiagramTextMeasurer`**, grown from `FlowchartNodeSizeEstimator` and `FlowchartRichLabelSvgWriter` (those are the spec-traced metrics). Input is text, font size, weight, family, wrap width. Every renderer - including sequence, gantt, pie, timeline - calls it. Private `MeasureText` methods are deleted. A profile may pass size and weight; it may not pick a different em factor.
 
 Node **shape** extras (diamond `S = W0 + H0`, class compartments, ER header + rows, ArchiMate box sizes on PR #1) are profile `NodeMeasurer` arithmetic **on top of** the shared text measure and shared padding. `EnterpriseNodeSizer` (PR #1) must not remain a second text path.
 
@@ -208,7 +208,7 @@ Node **shape** extras (diamond `S = W0 + H0`, class compartments, ER header + ro
 
 | Current copies | Keep |
 | --- | --- |
-| Native `StringBuilder` in `FlowchartSugiyamaSvgRenderer.cs` | One **`DiagramSvgBuilder`**. Use Naiad `extern/Naiad/src/Naiad/Rendering/SvgBuilder.cs` as the document/defs shell if it is the more complete model, but path, marker, label, and style **must** come from the shared helpers above — not a second write of the same geometry. |
+| Native `StringBuilder` in `FlowchartSugiyamaSvgRenderer.cs` | One **`DiagramSvgBuilder`**. Use Naiad `extern/Naiad/src/Naiad/Rendering/SvgBuilder.cs` as the document/defs shell if it is the more complete model, but path, marker, label, and style **must** come from the shared helpers above - not a second write of the same geometry. |
 | Naiad `SvgBuilder` / `SvgDocument` used by every Naiad renderer | Same builder. Do not keep two ways to emit a path, a rectangle, or a viewBox. |
 
 ### 3.2 What a profile may and may not do
@@ -373,7 +373,7 @@ That is “one engine” from the product’s point of view without lying about 
 
 ---
 
-## 6. What cannot be a graph — how it plugs in
+## 6. What cannot be a graph - how it plugs in
 
 | Type | Plug-in | Stay separate forever? |
 | --- | --- | --- |
@@ -399,15 +399,15 @@ Specialised does **not** mean a private theme, font, measurer, or arrow. Those j
 
 Every stage lands on its own branch, with **before PNGs from the previous green renderer** and **after PNGs from the new path**, plus tests. Do not flip the DOCX default for a type until its catalogue is identical within the agreed pixel tolerance (flowchart/enterprise geometry: **2 px**; visual slack for charts can be looser if labels match).
 
-### Stage 0 — Substrate (this branch)
+### Stage 0 - Substrate (this branch)
 
 Native flowchart Sugiyama is the core: ranking, facing-successor roots, membership containment, compound-edge clip, curved/straight/orthogonal routing, label offset. Before/after already lives in `docs/flowchart/layout-fixes/`. **Do not start type ports until this is merged or explicitly baselined.**
 
-### Stage 1 — Façade, no behaviour change
+### Stage 1 - Façade, no behaviour change
 
 Introduce `LayoutProfile` + `IUnifiedLayoutEngine.TryLayout(graph, profile)` as a wrapper around the existing flowchart pipeline. Name the shared owners from §3 (`DiagramTextMeasurer`, `DiagramTheme`, `DiagramMarkerPainter`, `DiagramLabelPlacer`, `DiagramTextWriter`, `DiagramShapePathGenerator`) even if they first wrap today’s flowchart files. Flowchart and enterprise (when PR #1 is rebased onto this work) call the façade. Default profile values are today’s flowchart numbers. Gate: byte-stable flowchart fixtures (or 2 px). No second copy of any §3 job is added.
 
-### Stage 2 — Class, state, ER onto the core
+### Stage 2 - Class, state, ER onto the core
 
 Map each Naiad model to the layout graph. Profiles from §5.1. Delete each type’s private `MeasureText`, `DrawArrowhead`, and centre-to-centre router in the same change as the port. Keep Naiad as fallback only until the before/after gate is green.
 
@@ -420,23 +420,23 @@ Gate per type:
 
 Class and ER start with `RoutingStyle = Direct` so we do not suddenly curve UML/ER lines. State may keep curves for back-edges via `Orthogonal` or `Curved` on those edges only.
 
-### Stage 3 — Enterprise stays a profile
+### Stage 3 - Enterprise stays a profile
 
 When PR #1 needs these layout fixes, **rebase or merge `flowchart-layout-fixes` into `enterprise-diagram`** (not the other way around). Enterprise profile = flowchart + ArchiMate markers and sizes. Re-run `docs/enterprise/rendered/parity/` and the 2 px geometry tests. No enterprise-only router.
 
-### Stage 4 — Grid / nested-boundary types
+### Stage 4 - Grid / nested-boundary types
 
 C4, architecture, requirement, block. Add cluster strategies (row pack, fixed columns) as **named post-passes**, not new engines. Same before/after gate against today’s Naiad pictures.
 
-### Stage 5 — Tree and weighted flow (optional)
+### Stage 5 - Tree and weighted flow (optional)
 
 Mindmap, git graph, sankey. Only if the core has tree-order and value-weighted sizes. Otherwise leave them specialised.
 
-### Stage 6 — Specialised modules behind the façade
+### Stage 6 - Specialised modules behind the façade
 
 Sequence, gantt, pie, timeline, and the charts. Move code onto the façade and **replace** each private `MeasureText`, hex colour, font-family emit, and message arrow with the shared implementations. Do not change geometry except where the old private factor was a bug relative to the one measurer. Gate: identical rasters, then tighten once the shared measurer is the only one. The win is one options object, one DOCX entry point, one place to hang before/after.
 
-### Stage 7 — Retire Naiad Dagre for graph types
+### Stage 7 - Retire Naiad Dagre for graph types
 
 When flowchart, class, state, ER, and enterprise are native-only and green, stop calling `DagreLayoutEngine` for those kinds. Keep Naiad renderers for specialised types until Stage 6 is done. Do not delete Naiad in the same change as a layout port.
 
@@ -445,7 +445,7 @@ When flowchart, class, state, ER, and enterprise are native-only and green, stop
 1. Capture **before** from the currently shipping renderer, not from a dirty tree.
 2. Check in before/after PNGs under `docs/layout-engine/<stage>/<type>/before|after/`.
 3. Existing unit and catalogue tests stay green.
-4. Add tests for the invariant that stage claims (membership, root rank, compound clip, edge direction — already the flowchart pattern).
+4. Add tests for the invariant that stage claims (membership, root rank, compound clip, edge direction - already the flowchart pattern).
 5. DOCX default flips **last**, behind the existing `UseNativeSugiyamaRenderer`-style flag if needed.
 6. If a before/after pair regresses, the type stays on the old path.
 7. A stage that ports a type must **delete** that type’s copy of every overlapping job in §3 in the same change. Two live implementations of ranking, routing, measuring, markers, labels, padding, colours, or fonts is a failed stage.
@@ -455,7 +455,7 @@ When flowchart, class, state, ER, and enterprise are native-only and green, stop
 ## 8. What we will not do
 
 - A second enterprise router, or any type-specific “corridor” engine that bypasses the shared resolver.
-- A second copy of ranking, containment, routing, arrowheads, label placement, text measuring, padding, colours, or fonts — including “just for this type” helpers and leftover Naiad paths after a port.
+- A second copy of ranking, containment, routing, arrowheads, label placement, text measuring, padding, colours, or fonts - including “just for this type” helpers and leftover Naiad paths after a port.
 - Profiles that reimplement a shared job instead of choosing an option.
 - Running sequence, gantt, pie, or timeline through Sugiyama “so everything is a graph”.
 - Changing flowchart defaults to please a later type. Later types get a profile.
