@@ -2082,6 +2082,25 @@ public static class DiagramGridLayout
                     ? ChooseElbowEntrySide(Item.Target, Item.Source, Direction, Exit)
                     : Item.Route.EntrySide;
             }
+            double SourceCross = Horizontal ? Item.Source.CenterY : Item.Source.CenterX;
+            double TargetCross = Horizontal ? Item.Target.CenterY : Item.Target.CenterX;
+            double CrossGap = Math.Abs(TargetCross - SourceCross)
+                - (Horizontal ? Item.Source.Height + Item.Target.Height : Item.Source.Width + Item.Target.Width) / 2;
+            if (CrossGap > 0)
+            {
+                if (!Item.Source.IsFrame && Nodes.TryGetValue(Item.Source.Id, out var HubNode)
+                    && !FlowchartDagrePresentation.IsDiamondShape(HubNode.Shape)
+                    && Contract.Edges.Count(Edge => Edge.SourceId == Item.Source.Id
+                        && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)) > 3)
+                    Exit = Horizontal ? (TargetCross > SourceCross ? "top" : "bottom")
+                        : (TargetCross > SourceCross ? "right" : "left");
+                if (!Item.Target.IsFrame && Nodes.TryGetValue(Item.Target.Id, out var CollectorNode)
+                    && !FlowchartDagrePresentation.IsDiamondShape(CollectorNode.Shape)
+                    && Contract.Edges.Count(Edge => Edge.TargetId == Item.Target.Id
+                        && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)) > 3)
+                    Entry = Horizontal ? (SourceCross > TargetCross ? "top" : "bottom")
+                        : (SourceCross > TargetCross ? "right" : "left");
+            }
             Item.Route.ExitSide = Exit;
             Item.Route.EntrySide = Entry;
             Ends.Add(new PortEnd
