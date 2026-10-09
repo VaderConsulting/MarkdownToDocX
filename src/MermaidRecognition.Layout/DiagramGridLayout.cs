@@ -79,12 +79,15 @@ public static class DiagramGridLayout
 
         AlignBypassDetourColumns(Contract, Placed, Horizontal);
         AlignDecisionCentreChildColumn(Contract, Placed, Horizontal);
+        AlignTerminalDecisionTargets(Contract, Placed, Horizontal, CrossPitch, CoordinatesPlaced: false);
         CascadeColumns(Placed);
         PlaceOnGrid(Placed, Horizontal, BoxWidth, BoxHeight, MainPitch, CrossPitch, Copy, Contract);
         if (!Horizontal)
         {
             ApplySpineColumnAdjustments(Contract, Placed, Direction);
         }
+
+        AlignTerminalDecisionTargets(Contract, Placed, Horizontal, CrossPitch, CoordinatesPlaced: true);
 
         GrowCrowdedSides(Placed, Copy, BoxWidth, BoxHeight);
         SeparateOverlaps(Placed, Horizontal);
@@ -378,6 +381,57 @@ public static class DiagramGridLayout
             Children.Sort((Left, Right) => Left.OldX.CompareTo(Right.OldX));
             Children[0].Column = Decision.Column - 2;
             Children[1].Column = Decision.Column + 1;
+        }
+    }
+
+    /// <summary>
+    /// Two terminal outcomes belong on opposite sides of their diamond, so
+    /// each facing vertex can reach its target with one rounded elbow.
+    /// Preserve decisions whose children continue or participate in a merge.
+    /// </summary>
+    private static void AlignTerminalDecisionTargets(
+        DiagramContract Contract,
+        List<GridNode> Placed,
+        bool Horizontal,
+        int CrossPitch,
+        bool CoordinatesPlaced)
+    {
+        Dictionary<string, GridNode> ById = IndexPlaced(Placed);
+        List<EdgeContract> Visible = Contract.Edges.Where(Edge =>
+            !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
+        foreach (GridNode Parent in Placed.Where(Node => Node.IsDiamond))
+        {
+            List<EdgeContract> Outgoing = Visible.Where(Edge => Edge.SourceId == Parent.Id).ToList();
+            if (Outgoing.Count != 2 || Outgoing[0].TargetId == Outgoing[1].TargetId)
+            {
+                continue;
+            }
+
+            List<GridNode> Children = Outgoing.Where(Edge => ById.ContainsKey(Edge.TargetId))
+                .Select(Edge => ById[Edge.TargetId]).ToList();
+            if (Children.Count != 2 || Children[0].Rank != Children[1].Rank
+                || Children.Any(Child => Child.Rank == Parent.Rank || Child.GroupId != Parent.GroupId
+                    || Visible.Any(Edge => Edge.SourceId == Child.Id)
+                    || Visible.Count(Edge => Edge.TargetId == Child.Id) != 1))
+            {
+                continue;
+            }
+
+            Children.Sort((Left, Right) => Cross(Left, Horizontal, Old: true)
+                .CompareTo(Cross(Right, Horizontal, Old: true)));
+            for (int Index = 0; Index < Children.Count; Index++)
+            {
+                int Side = Index == 0 ? -1 : 1;
+                Children[Index].Column = Parent.Column + Side;
+                if (CoordinatesPlaced)
+                {
+                    int Pitch = Math.Max(CrossPitch, DiagramGridMetrics.CeilToGrid(
+                        CrossHalf(Parent, Horizontal, Leading: true)
+                        + DiagramGridRouteBuilder.CORNER_RADIUS_PX + DiagramGridMetrics.GRID_UNIT_PX));
+                    SetCross(Children[Index], (int)Math.Round(Cross(Parent, Horizontal, Old: false))
+                        + Side * Pitch, Horizontal);
+                }
+            }
         }
     }
 
