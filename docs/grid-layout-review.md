@@ -1,6 +1,6 @@
 # Grid layout review — 9 October 2026
 
-This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–12 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `c05455a`, with corrected checks through `d0436e0`. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
+This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–13 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `0ce271a`. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
 
 ## 1. Fresh test comparison
 
@@ -310,3 +310,29 @@ Rule-validation failing names are unchanged and none are additional to master's 
 The rebuilt `md2docx.exe` was called directly with the original folder's `flow.md` and `out/grid-picture-placement/flow-placement.docx`. Its actual embedded images were extracted and visually checked at F24, F25, F29, F31, F34, F35 and F46. The checked output replaced the original folder's `flow.docx`. The copy completed and the destination size matches; an additional destination hash check was blocked by the open document's file lock. The new retained comparison images are [F31](flowchart/layout-fixes/grid-review/F31-centred-hub.png), [F34](flowchart/layout-fixes/grid-review/F34-aligned-input.png), [F35](flowchart/layout-fixes/grid-review/F35-compact-merge.png) and [F46](flowchart/layout-fixes/grid-review/F46-aligned-chain.png).
 
 The active catalogue and ten samples were also regenerated as SVG/PNG pairs under `out/grid-picture-placement/catalogue/` and `out/grid-picture-placement/samples/`. The manifest at `out/grid-picture-placement/manifest.txt` lists every generated picture path. These broader renders do not constitute a new visual acceptance review of every diagram. No merge was performed; the remaining defects, six provisional defaults and on-hold frame-midline decision remain outstanding.
+
+## 13. Square attachments on sloping diamond edges
+
+Commit `0ce271a` — **Meet sloping diamond edges along their surface normals** — corrects the F35 outgoing attachments identified after the placement review. The previous picture left the lower diamond slopes horizontally. Those runs were not perpendicular to the actual outline.
+
+The owner's latest instruction requires every line to meet the node edge at a right angle. At a sloping edge, that requires a diagonal terminal run, so this instruction supersedes rulebook 4.1's prohibition on diagonals and rule 3.8's horizontal exit from a sloping-edge centre at the attachment. The supplied instruction files remain unchanged. Diamond vertices keep their existing axis/bisector convention.
+
+The grid route now replaces an eligible axis-aligned terminal with a surface-normal run and joins it to the adjoining track. The rule applies geometrically to sloping diamond source and target attachments; it contains no diagram-specific identifiers or labels. Circular fillets use the actual turn angle for these joins while existing 90-degree corners retain their previous geometry. Label placement continues to choose a fitting straight run. Existing allocation, placement and node sizes are preserved.
+
+Eight new cases check both source and target attachments across all four diamond quadrants, using a non-square diamond. They verify the actual outline normal, outward straight-run length, the retained opposite endpoint and horizontal/vertical body segments. The merge check now requires the sloping terminal to follow that normal; only its directly conflicting assertion that every segment must be horizontal/vertical was changed under the owner's new instruction. All 27 focused cases passed.
+
+All five suites were run once with build and restore on the pushed application source at `0ce271a`:
+
+| Suite | Master passed / failed | Starting branch passed / failed | Current passed / failed |
+| --- | ---: | ---: | ---: |
+| Layout | 234 / 34 | 280 / 38 | 349 / 31 |
+| Rule validation | 46 / 11 | 44 / 13 | 49 / 10 |
+| Recognition | 932 / 0 | 932 / 0 | 932 / 0 |
+| Naiad adapter | 47 / 0 | 47 / 0 | 47 / 0 |
+| Converter | 31 / 0 | 32 / 0 | 39 / 0 |
+
+Failing names are unchanged from section 12. The existing master-passing regressions remain `LiveSamples_ClearTheListedPictureDefects` and `RenderToSvg_Sample03_StrokeQualityMatchesSharedRules`; section 12 lists the four additional grid-only failures absent from master. No existing failing test was weakened or removed to improve these totals. This correction does not resolve the broader routing failures or establish square attachment for every remaining defective diagram.
+
+Full logs, TRX files and failing-name lists are under `out/grid-surface-normals/final/`. The active catalogue and ten samples were regenerated into `out/grid-surface-normals/catalogue/` and `out/grid-surface-normals/samples/`; `out/grid-surface-normals/manifest.txt` lists every generated picture path. This pass visually reviewed F35, rather than accepting the whole catalogue.
+
+The rebuilt executable converted the original folder's `flow.md` directly to `out/grid-surface-normals/flow-normals.docx`. Its actual embedded F35 picture was extracted and checked, then the output replaced the original folder's `flow.docx` after the owner closed Word. Source and destination DOCX hashes match. The checked [F35 square attachments](flowchart/layout-fixes/grid-review/F35-square-attachments.png) supersede the outgoing attachment geometry in section 12's earlier picture. Extracted F24, F25, F29, F31, F34 and F46 images are byte-identical to the preceding checked output. README and current status describe the terminal exception. The generic engine diff was checked for diagram-specific conditions before committing. No merge was performed; the previous unresolved decisions remain outstanding.

@@ -15,7 +15,7 @@ The repo has two layers:
 | DOCX pipeline | `src/md2docx/`, `src/MDConverter/`, `src/Converter/` | Converts Markdown files to `.docx` using OpenXml |
 | Mermaid recogniser and renderer | `src/MermaidRecognition*/` | Mermaid diagram parser → recognition model → native layout and SVG render |
 
-Flowcharts render through the native Sugiyama layout in `src/MermaidRecognition.Layout`. On the grid branch, connectors use horizontal and vertical straight runs joined by rounded corners. The routing work remains incomplete; see [current solution status](docs/currentstatus.md) and the [grid layout review](docs/grid-layout-review.md). Other diagram types still use the vendored Naiad renderer in `extern/Naiad`.
+Flowcharts render through the native Sugiyama layout in `src/MermaidRecognition.Layout`. On the grid branch, connectors use horizontal and vertical straight runs joined by rounded corners. At sloping diamond edges, short terminal runs follow the surface normal so the line meets the outline at a right angle. The routing work remains incomplete; see [current solution status](docs/currentstatus.md) and the [grid layout review](docs/grid-layout-review.md). Other diagram types still use the vendored Naiad renderer in `extern/Naiad`.
 
 ## Repository Layout
 

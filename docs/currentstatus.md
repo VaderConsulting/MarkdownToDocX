@@ -7,7 +7,7 @@ Updated 9 October 2026. This is the single maintained status file for the soluti
 | Area | Current state |
 | --- | --- |
 | Master | `f09cb89`; the earlier documentation relocation and spec trim are merged. |
-| Grid routing | PR #9, branch `cursor/many-to-many-routing-3834`; code fixes through `c05455a` and corrected checks through `d0436e0` are pushed. This work is not merged. |
+| Grid routing | PR #9, branch `cursor/many-to-many-routing-3834`; code fixes through `0ce271a` are pushed. This work is not merged. |
 | Active local checkout | The PR #9 branch is in the sibling `MarkdownToDocX-pr9` worktree. The original laptop folder remains on its pre-existing documentation branch. |
 | Earlier documentation refresh | The original worktree retains its earlier documentation commits; this pass did not publish or merge them. PR #9 predates the spec relocation, so some normative files still sit at the root on this branch. |
 | Enterprise / ArchiMate | Existing work is on PR #1. It is not integrated into the measured master or grid branch. |
@@ -23,21 +23,22 @@ Updated 9 October 2026. This is the single maintained status file for the soluti
 - Side-exit grid connectors now retain rounded bends when their edge label cannot fit a stroke gap. Label breaks and rank-space calculations use rendered text height for vertical connectors and text width for horizontal connectors. The regenerated `flow.docx` was checked at F24, F25 and F30: the excessive vertical label breaks and the F24 label overlap are resolved.
 - Binary decisions with two independent terminal outcomes in the same group place those outcomes on opposite sides. F29 now puts Accept beneath Yes and enters its top with one rounded elbow. The actual embedded DOCX image was checked. The authorised label-position check now verifies the longest fitting straight run and character clearance on both sides of the label.
 - Ordinary odd fans of independent terminal children now centre their parent on the middle child. Sole forward inputs align with their decision even when a return edge enters the input. Independent three-way merge inputs use adjacent columns and distinct diamond vertices; outgoing branches respect those occupied ports. Nested-group centring now consistently measures across the flow direction. The actual embedded F31, F34, F35 and F46 pictures were checked in the regenerated `flow.docx`.
+- Sloping diamond attachments now follow the actual edge normal before joining their horizontal/vertical track with a circular fillet. This implements the square-attachment instruction for F35; short diagonal terminal runs take precedence over the older no-diagonals requirement at these connections. The actual F35 DOCX image was checked. Other unresolved routing and attachment defects remain listed below.
 - Sequence rows now measure message labels, arrowheads and note boxes to give notes the same conservative clear spacing as consecutive messages, including returning self messages. The canvas includes notes beyond either outer participant.
 
 ## 3. Verified test state
 
-Measured on Windows with plain `dotnet test` on each project, including build and restore. Master and starting-branch baselines were collected before behavioural edits. All five suites were rerun on the final behavioural source committed as `c05455a`. The final Layout run includes the corrected centre-child assertion committed as `d0436e0`; the other suites use the same unchanged application source.
+Measured on Windows with plain `dotnet test` on each project, including build and restore. Master and starting-branch baselines were collected before behavioural edits. All five suites were rerun on the final pushed application source committed as `0ce271a`.
 
 | Suite | Master failures | Starting PR #9 failures | Final PR #9 passed / failed |
 | --- | ---: | ---: | ---: |
-| Layout | 34 | 38 | 341 / 31 |
+| Layout | 34 | 38 | 349 / 31 |
 | Rule validation | 11 | 13 | 49 / 10 |
 | Recognition | 0 | 0 | 932 / 0 |
 | Naiad adapter | 0 | 0 | 47 / 0 |
 | Converter | 0 | 0 | 39 / 0 |
 
-The approved F29 label check now passes. There are no newly failing names relative to the preceding picture corrections. Two existing tests still fail while passing on master: `LiveSamples_ClearTheListedPictureDefects` and `RenderToSvg_Sample03_StrokeQualityMatchesSharedRules`. Four other failing Layout tests were added on the grid branch and are absent from master. Rule-validation failures are unchanged. Twelve explicit recognition fixture-writing tests are not executed by the ordinary suite. Latest logs, failure names, comparisons and TRX files are in `out/grid-picture-placement/final/`; the [review](grid-layout-review.md#12-fan-merge-input-and-nested-frame-placement) records the evidence and checked pictures.
+The approved F29 label check now passes. There are no newly failing names relative to the preceding picture corrections. Two existing tests still fail while passing on master: `LiveSamples_ClearTheListedPictureDefects` and `RenderToSvg_Sample03_StrokeQualityMatchesSharedRules`. Four other failing Layout tests were added on the grid branch and are absent from master. Rule-validation failures are unchanged. Twelve explicit recognition fixture-writing tests are not executed by the ordinary suite. Latest logs, failure names and TRX files are in `out/grid-surface-normals/final/`; the failing names are unchanged from `out/grid-picture-placement/final/`. The [review](grid-layout-review.md#13-square-attachments-on-sloping-diamond-edges) records the evidence and checked picture.
 
 The final counts meet the fresh master-count comparison, but **the solution does not pass all acceptance tests and the rendered diagrams are not ready for merge approval**.
 
