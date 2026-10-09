@@ -90,6 +90,7 @@ public static class DiagramGridLayout
 
         AlignTerminalDecisionTargets(Contract, Placed, Horizontal, CrossPitch, CoordinatesPlaced: true);
         CentreTerminalFans(Contract, Placed, Horizontal, CoordinatesPlaced: true);
+        AlignUnbranchedDecisionInputs(Contract, Placed, Horizontal);
 
         GrowCrowdedSides(Placed, Copy, BoxWidth, BoxHeight);
         SeparateOverlaps(Placed, Horizontal);
@@ -486,6 +487,43 @@ public static class DiagramGridLayout
                     break;
                 }
                 Current = Previous;
+            }
+        }
+    }
+
+    /// <summary>
+    /// A sole forward input enters a decision straight on its upstream vertex.
+    /// Return edges into that input do not displace it from the decision's row.
+    /// </summary>
+    private static void AlignUnbranchedDecisionInputs(
+        DiagramContract Contract, List<GridNode> Placed, bool Horizontal)
+    {
+        Dictionary<string, GridNode> ById = IndexPlaced(Placed);
+        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        List<EdgeContract> Forward = Contract.Edges.Where(Edge => !BackEdges.Contains(Edge)
+            && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
+        foreach (GridNode Decision in Placed.Where(Node => Node.IsDiamond))
+        {
+            List<EdgeContract> Incoming = Forward.Where(Edge => Edge.TargetId == Decision.Id).ToList();
+            if (Incoming.Count != 1 || !ById.TryGetValue(Incoming[0].SourceId, out GridNode? Input)
+                || Input.IsDiamond || Input.GroupId != Decision.GroupId
+                || Forward.Count(Edge => Edge.SourceId == Input.Id) != 1)
+            {
+                continue;
+            }
+
+            HashSet<string> Visited = [];
+            while (Visited.Add(Input.Id))
+            {
+                SetCross(Input, (int)Math.Round(Cross(Decision, Horizontal, Old: false)), Horizontal);
+                Incoming = Forward.Where(Edge => Edge.TargetId == Input.Id).ToList();
+                if (Incoming.Count != 1 || !ById.TryGetValue(Incoming[0].SourceId, out GridNode? Previous)
+                    || Previous.IsDiamond || Previous.GroupId != Decision.GroupId
+                    || Forward.Count(Edge => Edge.SourceId == Previous.Id) != 1)
+                {
+                    break;
+                }
+                Input = Previous;
             }
         }
     }
