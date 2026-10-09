@@ -96,7 +96,7 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
         RenderOptions actorOptions = CloneOptions(options, MermaidSequenceMessageFontFamily, MermaidSequenceActorFontSizePx);
 #pragma warning restore IDE0007
 
-        var layout = CalculateParticipantLayout(model, actorOptions);
+        var layout = ExpandLayoutForNotes(model, CalculateParticipantLayout(model, actorOptions));
         var (height, elementYPositions) = CalculateHeight(model, messageOptions, layout.MaxHeaderHeight);
         var width = layout.TotalWidth;
 
@@ -219,6 +219,30 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
 
         var totalWidth = leftEdge + MermaidSequenceDiagramMarginXPx;
         return new SequenceParticipantLayout(centers, widths, heights, maxHeaderHeight, totalWidth);
+    }
+
+    static SequenceParticipantLayout ExpandLayoutForNotes(SequenceModel model, SequenceParticipantLayout layout)
+    {
+        var left = MermaidSequenceDiagramMarginXPx;
+        var right = layout.TotalWidth - MermaidSequenceDiagramMarginXPx;
+        foreach (var element in model.Elements)
+        {
+            if (element is not Note note || !layout.Centers.ContainsKey(note.ParticipantId))
+            {
+                continue;
+            }
+            var size = MeasureNoteSize(note);
+            var noteX = ResolveNoteX(note, layout, size.Width);
+            left = Math.Min(left, noteX);
+            right = Math.Max(right, noteX + size.Width);
+        }
+        var shift = MermaidSequenceDiagramMarginXPx - left;
+        var centers = new Dictionary<string, double>();
+        foreach (var entry in layout.Centers)
+        {
+            centers[entry.Key] = entry.Value + shift;
+        }
+        return layout with { Centers = centers, TotalWidth = right + shift + MermaidSequenceDiagramMarginXPx };
     }
 
     static (double height, Dictionary<int, double> elementYPositions) CalculateHeight(
@@ -571,32 +595,7 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
     {
 #pragma warning disable IDE0007
         Size noteSize = MeasureNoteSize(note);
-        var participantX = layout.Centers[note.ParticipantId];
-        var participantHalfWidth = layout.Widths[note.ParticipantId] / 2;
-        double noteX;
-
-        switch (note.Position)
-        {
-            case NotePosition.RightOf:
-                noteX = participantX + participantHalfWidth + 10;
-                break;
-            case NotePosition.LeftOf:
-                noteX = participantX - participantHalfWidth - noteSize.Width - 10;
-                break;
-            case NotePosition.Over:
-            default:
-                if (!string.IsNullOrEmpty(note.OverParticipantId2) &&
-                    layout.Centers.TryGetValue(note.OverParticipantId2, out var participant2X))
-                {
-                    noteX = (participantX + participant2X) / 2 - noteSize.Width / 2;
-                }
-                else
-                {
-                    noteX = participantX - noteSize.Width / 2;
-                }
-
-                break;
-        }
+        var noteX = ResolveNoteX(note, layout, noteSize.Width);
 
         // Note box (folded corner style)
         var foldSize = 8;
@@ -629,6 +628,38 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
             opticalVerticalBiasEm: SequenceLabelOpticalVerticalBiasEm,
             extraVerticalOffsetPx: SequenceNodeLabelExtraVerticalOffsetPx);
 #pragma warning restore IDE0007
+    }
+
+    static double ResolveNoteX(Note note, SequenceParticipantLayout layout, double noteWidth)
+    {
+        var participantX = layout.Centers[note.ParticipantId];
+        var participantHalfWidth = layout.Widths[note.ParticipantId] / 2;
+        double noteX;
+
+        switch (note.Position)
+        {
+            case NotePosition.RightOf:
+                noteX = participantX + participantHalfWidth + 10;
+                break;
+            case NotePosition.LeftOf:
+                noteX = participantX - participantHalfWidth - noteWidth - 10;
+                break;
+            case NotePosition.Over:
+            default:
+                if (!string.IsNullOrEmpty(note.OverParticipantId2) &&
+                    layout.Centers.TryGetValue(note.OverParticipantId2, out var participant2X))
+                {
+                    noteX = (participantX + participant2X) / 2 - noteWidth / 2;
+                }
+                else
+                {
+                    noteX = participantX - noteWidth / 2;
+                }
+
+                break;
+        }
+
+        return noteX;
     }
 
     static Size MeasureNoteSize(Note note)

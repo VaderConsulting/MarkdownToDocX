@@ -14,6 +14,27 @@ public sealed class SequenceNoteSpacingTests
     const double InterElementClearancePx = MessageSpacing - MessageLabelOffsetAboveArrow - MessageArrowTipPx;
 
     [TestMethod]
+    [DataRow("Note left of P: A note beyond the first participant")]
+    [DataRow("Note right of Q: A note beyond the final participant")]
+    [DataRow("Note over P,Q: A note spanning both participants")]
+    public void Render_SequenceNotes_StayInsideTheCanvas(string Note)
+    {
+        string Svg = Mermaid.Render("sequenceDiagram\nparticipant P\nparticipant Q\n"
+            + "P->>Q: First\n" + Note + "\nQ->>P: Second", RenderOptions.Default);
+        var Document = System.Xml.Linq.XDocument.Parse(Svg);
+        string[] ViewBox = Document.Root!.Attribute("viewBox")!.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        double Width = double.Parse(ViewBox[2], CultureInfo.InvariantCulture);
+        var NotePath = Document.Descendants().Single(Element => Element.Name.LocalName == "path"
+            && (string?)Element.Attribute("fill") == "#FFF2B3");
+        MatchCollection Coordinates = Regex.Matches(NotePath.Attribute("d")!.Value, @"-?\d+(?:\.\d+)?");
+        for (int Index = 0; Index < Coordinates.Count; Index += 2)
+        {
+            double X = double.Parse(Coordinates[Index].Value, CultureInfo.InvariantCulture);
+            Assert.IsTrue(X >= 1 && X <= Width - 1, $"Note outline at {X} is outside a {Width} px canvas.");
+        }
+    }
+
+    [TestMethod]
     [DataRow("Note over Q: A short note")]
     [DataRow("Note left of Q: A longer note that wraps across several lines in its measured box")]
     [DataRow("Note right of Q: Another note")]
