@@ -562,52 +562,39 @@ public sealed class FlowchartCatalogueRenderTests
 
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
 
-        FlowchartDirection Direction = FlowchartDirection.TopToBottom;
-        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds
-            .ToDictionary(Bounds => Bounds.NodeId, Bounds => Bounds);
-        Dictionary<string, NodeContract> NodeById = Contract.Nodes
-            .ToDictionary(Node => Node.Id, Node => Node);
-        EdgeContract YesEdge = Contract.Edges.First(Edge => string.Equals(Edge.Label, "Yes", StringComparison.Ordinal));
-
-        Assert.That(
-            FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
-                YesEdge,
-                Contract,
-                BoundsById,
-                NodeById,
-                Direction,
-                out List<(double X, double Y)> GuidePoints,
-                out FlowchartEdgeRouteKind _),
-            Is.True);
-
-        FlowchartLayoutNodeBounds CheckBounds = BoundsById["Check"];
-        FlowchartLayoutNodeBounds AcceptBounds = BoundsById["OK"];
-        (double ExpectedX, double ExpectedY) =
-            FlowchartEdgeLabelPlacementHelper.ComputeLocalDecisionBranchLabelExpectedPosition(
-                GuidePoints,
-                CheckBounds,
-                "Yes",
-                Direction);
-        (double ActualX, double ActualY) = FlowchartEdgeLabelPlacementHelper.ResolveEdgeLabelPosition(
-            CheckBounds,
-            AcceptBounds,
-            GuidePoints,
-            Direction,
-            "diamond",
-            "Yes",
-            YesEdge,
-            Contract,
-            BoundsById,
-            "LocalDecisionBranch");
-
-        Assert.That(ActualX, Is.EqualTo(ExpectedX).Within(0.5));
-        Assert.That(ActualY, Is.EqualTo(ExpectedY).Within(0.5));
-
-        (double HalfPolylineX, double HalfPolylineY) =
-            FlowchartEdgeLabelPlacementHelper.ComputePolylineHalfDistancePosition(
-                FlowchartEdgeLabelPlacementHelper.BuildDecisionBranchLabelPolyline(GuidePoints));
-        Assert.That(ActualX, Is.EqualTo(HalfPolylineX).Within(0.5));
-        Assert.That(ActualY, Is.EqualTo(HalfPolylineY).Within(0.5));
+        var BoundsById = Layout.NodeBounds.ToDictionary(Node => Node.NodeId);
+        EdgeContract Edge = Contract.Edges.Single(Candidate => Candidate.Label == "Yes");
+        Assert.That(Layout.TryCopyDrawnRoutePoints(Edge, out var Points), Is.True);
+        var Options = FlowchartRenderOptions.FromContract(Contract);
+        var Dimensions = FlowchartNodeSizeEstimator.MeasureWrappedLabel("Yes", Options, Options.EdgeLabelFontSizePx);
+        double Gap = FlowchartEdgeLabelGapHelper.ComputeCharacterGapPx(Options.EdgeLabelFontSizePx);
+        double Height = FlowchartEdgeLabelPlacementHelper.ComputeRenderedEdgeLabelHeight(Dimensions, Options.EdgeLabelFontSizePx);
+        var Runs = Enumerable.Range(0, Points.Count - 1).Select(Index =>
+        {
+            var Start = Points[Index];
+            var End = Points[Index + 1];
+            bool Horizontal = Math.Abs(Start.Y - End.Y) < 0.5;
+            double Length = Math.Abs(End.X - Start.X) + Math.Abs(End.Y - Start.Y);
+            double TextExtent = Horizontal ? Dimensions.Width : Height;
+            return new { Index, Start, End, Horizontal, Length, TextExtent };
+        }).Where(Run => Run.Length >= Run.TextExtent + 2 * Gap + 40)
+          .OrderByDescending(Run => Run.Length).ThenBy(Run => Run.Index).ToArray();
+        Assert.That(Runs, Is.Not.Empty, "A branch must provide a fitting straight run.");
+        var Longest = Runs[0];
+        var Centre = FlowchartSugiyamaSvgRenderer.ResolveDrawnEdgeLabelCentre(
+            Edge, Contract, BoundsById, BoundsById["Check"], BoundsById["OK"], "diamond",
+            Points, FlowchartDirection.TopToBottom, "LocalDecisionBranch", Options, FlowchartEdgeRouteKind.Grid);
+        Assert.That(Centre.X, Is.EqualTo((Longest.Start.X + Longest.End.X) / 2).Within(0.5));
+        Assert.That(Centre.Y, Is.EqualTo((Longest.Start.Y + Longest.End.Y) / 2).Within(0.5));
+        Assert.That(FlowchartEdgeLabelGapHelper.TryComputeBrokenSegmentSpansForLabelCentre(
+            Longest.Start.X, Longest.Start.Y, Longest.End.X, Longest.End.Y,
+            Centre.X, Centre.Y, Dimensions, Options.EdgeLabelFontSizePx,
+            out var Before, out bool HasBefore, out var After, out bool HasAfter), Is.True);
+        Assert.That(HasBefore && HasAfter, Is.True, "Both sides retain a straight stroke.");
+        double BeforeDistance = Math.Abs(Before.X2 - Centre.X) + Math.Abs(Before.Y2 - Centre.Y);
+        double AfterDistance = Math.Abs(After.X1 - Centre.X) + Math.Abs(After.Y1 - Centre.Y);
+        Assert.That(BeforeDistance - Longest.TextExtent / 2, Is.EqualTo(Gap).Within(0.5));
+        Assert.That(AfterDistance - Longest.TextExtent / 2, Is.EqualTo(Gap).Within(0.5));
     }
 
     [Test]
