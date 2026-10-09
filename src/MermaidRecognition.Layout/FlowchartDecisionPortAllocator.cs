@@ -29,7 +29,8 @@ public static class FlowchartDecisionPortAllocator
         string? SourceShape,
         string? TargetShape,
         FlowchartDirection Direction,
-        out List<(double X, double Y)> LayoutPoints)
+        out List<(double X, double Y)> LayoutPoints,
+        IReadOnlyList<(double X, double Y)>? IncomingPorts = null)
     {
         LayoutPoints = [];
 
@@ -56,7 +57,8 @@ public static class FlowchartDecisionPortAllocator
                 SourceShape,
                 TargetShape,
                 Direction,
-                LayoutPoints);
+                LayoutPoints,
+                IncomingPorts);
         }
 
         if (IsDecisionShape(TargetShape)
@@ -193,7 +195,8 @@ public static class FlowchartDecisionPortAllocator
         string? SourceShape,
         string? TargetShape,
         FlowchartDirection Direction,
-        List<(double X, double Y)> LayoutPoints)
+        List<(double X, double Y)> LayoutPoints,
+        IReadOnlyList<(double X, double Y)>? IncomingPorts = null)
     {
         FlowchartRenderOptions RenderOptions = FlowchartRenderOptions.FromContract(Contract);
         FlowchartSpineGraphHelper.TryBuildContext(
@@ -235,7 +238,8 @@ public static class FlowchartDecisionPortAllocator
             SourceShape,
             TargetShape,
             Direction,
-            LayoutPoints);
+            LayoutPoints,
+            IncomingPorts);
     }
 
     private static bool TryPrepareDecisionFanOutBranch(
@@ -304,7 +308,8 @@ public static class FlowchartDecisionPortAllocator
         string? SourceShape,
         string? TargetShape,
         FlowchartDirection Direction,
-        List<(double X, double Y)> LayoutPoints)
+        List<(double X, double Y)> LayoutPoints,
+        IReadOnlyList<(double X, double Y)>? IncomingPorts = null)
     {
         if (!TryPrepareDecisionFanOutBranch(
                 Edge,
@@ -341,7 +346,8 @@ public static class FlowchartDecisionPortAllocator
             UseOppositeVerticalPorts,
             Edge,
             Contract,
-            TargetBounds);
+            TargetBounds,
+            IncomingPorts);
 
         (double TargetX, double TargetY) = ResolveFanOutTargetAttach(
             TargetBounds,
@@ -670,7 +676,8 @@ public static class FlowchartDecisionPortAllocator
         bool UseOppositeVerticalPorts,
         EdgeContract Edge,
         DiagramContract Contract,
-        FlowchartLayoutNodeBounds TargetBounds)
+        FlowchartLayoutNodeBounds TargetBounds,
+        IReadOnlyList<(double X, double Y)>? IncomingPorts = null)
     {
         List<EdgeContract> Outgoing = GetVisibleEdgesFromSource(Contract, Edge.SourceId);
         if (UseOppositeVerticalPorts)
@@ -698,7 +705,8 @@ public static class FlowchartDecisionPortAllocator
                 HalfHeight,
                 UseBottomFace,
                 HorizontalFlow,
-                Outgoing);
+                Outgoing,
+                IncomingPorts);
 
         if (PortsByTarget.TryGetValue(Edge.TargetId, out (double X, double Y, FlowchartDecisionPortRole Role) Port))
         {
@@ -728,18 +736,32 @@ public static class FlowchartDecisionPortAllocator
         double HalfHeight,
         bool UseBottomFace,
         bool HorizontalFlow,
-        List<EdgeContract> Outgoing)
+        List<EdgeContract> Outgoing,
+        IReadOnlyList<(double X, double Y)>? IncomingPorts = null)
     {
         bool RightToLeft = Direction == FlowchartDirection.RightToLeft;
-        DiamondVertexOccupancy Taken = ResolveIncomingVertexOccupancy(
-            Contract,
-            BoundsById,
-            SourceBounds,
-            CentreX,
-            CentreY,
-            HalfWidth,
-            HalfHeight,
-            HorizontalFlow);
+        DiamondVertexOccupancy Taken = DiamondVertexOccupancy.None;
+        if (IncomingPorts is null)
+        {
+            Taken = ResolveIncomingVertexOccupancy(Contract, BoundsById, SourceBounds,
+                CentreX, CentreY, HalfWidth, HalfHeight, HorizontalFlow);
+        }
+        else
+        {
+            // Grid routes have already allocated their inbound ports. Use those
+            // endpoints rather than inferring a vertex from the parent's centre.
+            foreach (var Port in IncomingPorts)
+            {
+                if (Math.Abs(Port.X - (CentreX - HalfWidth)) < 1 && Math.Abs(Port.Y - CentreY) < 1)
+                    Taken |= DiamondVertexOccupancy.Left;
+                if (Math.Abs(Port.X - (CentreX + HalfWidth)) < 1 && Math.Abs(Port.Y - CentreY) < 1)
+                    Taken |= DiamondVertexOccupancy.Right;
+                if (Math.Abs(Port.Y - (CentreY - HalfHeight)) < 1 && Math.Abs(Port.X - CentreX) < 1)
+                    Taken |= DiamondVertexOccupancy.Bottom;
+                if (Math.Abs(Port.Y - (CentreY + HalfHeight)) < 1 && Math.Abs(Port.X - CentreX) < 1)
+                    Taken |= DiamondVertexOccupancy.Top;
+            }
+        }
 
         Dictionary<string, (double X, double Y, FlowchartDecisionPortRole Role)> PortsByTarget =
             new Dictionary<string, (double X, double Y, FlowchartDecisionPortRole Role)>(StringComparer.Ordinal);

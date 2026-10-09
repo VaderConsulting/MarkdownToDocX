@@ -91,6 +91,7 @@ public static class DiagramGridLayout
         AlignTerminalDecisionTargets(Contract, Placed, Horizontal, CrossPitch, CoordinatesPlaced: true);
         CentreTerminalFans(Contract, Placed, Horizontal, CoordinatesPlaced: true);
         AlignUnbranchedDecisionInputs(Contract, Placed, Horizontal);
+        CompactIndependentFanIn(Contract, Placed, Horizontal, CrossPitch);
 
         GrowCrowdedSides(Placed, Copy, BoxWidth, BoxHeight);
         SeparateOverlaps(Placed, Horizontal);
@@ -524,6 +525,44 @@ public static class DiagramGridLayout
                     break;
                 }
                 Input = Previous;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Independent inputs in one rank occupy neighbouring columns around their merge.
+    /// Empty columns inherited from the original placement need no reserved space.
+    /// </summary>
+    private static void CompactIndependentFanIn(
+        DiagramContract Contract, List<GridNode> Placed, bool Horizontal, int CrossPitch)
+    {
+        Dictionary<string, GridNode> ById = IndexPlaced(Placed);
+        List<EdgeContract> Visible = Contract.Edges.Where(Edge =>
+            !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
+        foreach (GridNode Target in Placed)
+        {
+            List<EdgeContract> Incoming = Visible.Where(Edge => Edge.TargetId == Target.Id).ToList();
+            if (Incoming.Count < 3 || Incoming.Count % 2 == 0
+                || Incoming.Select(Edge => Edge.SourceId).Distinct().Count() != Incoming.Count)
+            {
+                continue;
+            }
+            List<GridNode> Parents = Incoming.Where(Edge => ById.ContainsKey(Edge.SourceId))
+                .Select(Edge => ById[Edge.SourceId]).OrderBy(Node => Cross(Node, Horizontal, Old: false)).ToList();
+            if (Parents.Count != Incoming.Count || Parents.Select(Node => Node.Rank).Distinct().Count() != 1
+                || Parents.Any(Parent => Parent.Rank == Target.Rank || Parent.GroupId != Target.GroupId
+                    || Visible.Any(Edge => Edge.TargetId == Parent.Id)
+                    || Visible.Count(Edge => Edge.SourceId == Parent.Id) != 1)
+                || Placed.Any(Node => Node.Rank == Parents[0].Rank && !Parents.Contains(Node)))
+            {
+                continue;
+            }
+            int Pitch = Math.Max(CrossPitch, DiagramGridMetrics.CeilToGrid(
+                Parents.Max(Node => 2 * CrossHalf(Node, Horizontal, Leading: true)) + DiagramGridMetrics.NODE_GAP_PX));
+            for (int Index = 0; Index < Parents.Count; Index++)
+            {
+                SetCross(Parents[Index], (int)Math.Round(Cross(Target, Horizontal, Old: false))
+                    + (Index - Parents.Count / 2) * Pitch, Horizontal);
             }
         }
     }
@@ -1793,6 +1832,47 @@ public static class DiagramGridLayout
 
             ApplySlots(Group, Nodes);
         }
+
+        // A co-ranked three-way fan-in uses the upstream vertex for its
+        // middle input and the two side vertices for the outer inputs.
+        // Allocating each side separately can otherwise claim the same vertex.
+        foreach (var Inbound in Ends.Where(End => !End.IsSource)
+            .GroupBy(End => End.Box.Id))
+        {
+            List<PortEnd> Inputs = Inbound.ToList();
+            BoxRef Box = Inputs[0].Box;
+            if (Inputs.Count != 3 || Box.IsFrame
+                || !Nodes.TryGetValue(Box.Id, out NodeContract? DiamondNode)
+                || !FlowchartDagrePresentation.IsDiamondShape(DiamondNode.Shape))
+            {
+                continue;
+            }
+            double Main(BoxRef Bounds) => Horizontal ? Bounds.CenterX : Bounds.CenterY;
+            double Cross(BoxRef Bounds) => Horizontal ? Bounds.CenterY : Bounds.CenterX;
+            double ParentMain = Main(Inputs[0].Other);
+            bool PositiveFlow = Direction == FlowchartDirection.LeftToRight || Direction == FlowchartDirection.BottomToTop;
+            if (Inputs.Any(End => Math.Abs(Main(End.Other) - ParentMain) > 0.5)
+                || (Main(Box) - ParentMain) * (PositiveFlow ? 1 : -1) <= 0)
+            {
+                continue;
+            }
+            Inputs.Sort((Left, Right) => Cross(Left.Other).CompareTo(Cross(Right.Other)));
+            for (int Index = 0; Index < Inputs.Count; Index++)
+            {
+                int OutX = 0;
+                int OutY = 0;
+                if (Index == 1)
+                {
+                    if (Horizontal) OutX = PositiveFlow ? -1 : 1;
+                    else OutY = PositiveFlow ? -1 : 1;
+                }
+                else if (Horizontal) OutY = Index == 0 ? -1 : 1;
+                else OutX = Index == 0 ? -1 : 1;
+                Inputs[Index].Route.EntrySide = OutX < 0 ? "left" : OutX > 0 ? "right" : OutY < 0 ? "bottom" : "top";
+                SetEnd(Inputs[Index], (int)Math.Round(Box.CenterX + OutX * Box.Width / 2),
+                    (int)Math.Round(Box.CenterY + OutY * Box.Height / 2), OutX, OutY);
+            }
+        }
     }
 
     private static void ApplySlots(List<PortEnd> Group, Dictionary<string, NodeContract> Nodes)
@@ -3026,7 +3106,10 @@ public static class DiagramGridLayout
                     SourceNode.Shape,
                     TargetShape,
                     Direction,
-                    out List<(double X, double Y)> LayoutPoints)
+                    out List<(double X, double Y)> LayoutPoints,
+                    IncomingPorts: Copy.EdgeRoutes.Where(Inbound => Inbound.TargetId == Route.SourceId
+                        && Inbound.Points.Count >= 2).Select(Inbound =>
+                            (Inbound.Points[^1].X, Inbound.Points[^1].Y)).ToList())
                 || LayoutPoints.Count < 2)
             {
                 continue;
