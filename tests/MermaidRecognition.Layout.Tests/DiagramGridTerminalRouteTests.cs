@@ -8,6 +8,28 @@ namespace MermaidRecognition.Layout.Tests;
 public sealed class DiagramGridTerminalRouteTests
 {
     [Test]
+    public void TranslateTrack_RejectsAnObstacleWithoutChangingTheRoute()
+    {
+        FlowchartLayoutEdgeRoute Route = new() { SourceId = "Source", TargetId = "Target" };
+        foreach ((double X, double Y) in new[] { (0d, 100d), (50d, 100d), (50d, 0d), (0d, 0d) })
+        {
+            Route.Points.Add(new() { X = X, Y = Y });
+        }
+        List<DiagramGridLayout.GridNode> Obstacles =
+        [
+            new() { Id = "Obstacle", X = 75, Y = 50, Width = 20, Height = 20 }
+        ];
+
+        Assert.That(DiagramGridLayout.TryTranslateInternalRun(Route, 1, true, 25, Obstacles), Is.False);
+        Assert.That(Route.Points.Select(Point => (Point.X, Point.Y)),
+            Is.EqualTo(new[] { (0d, 100d), (50d, 100d), (50d, 0d), (0d, 0d) }));
+
+        Assert.That(DiagramGridLayout.TryTranslateInternalRun(Route, 1, true, 6, Obstacles), Is.True);
+        Assert.That(Route.Points.Select(Point => (Point.X, Point.Y)),
+            Is.EqualTo(new[] { (0d, 100d), (56d, 100d), (56d, 0d), (0d, 0d) }));
+    }
+
+    [Test]
     public void RebuildRoutes_AlignedSidePorts_LeaveAndEnterNormally()
     {
         DiagramContract Contract = MermaidRecognizer.Parse("flowchart TB\nA[Source] --> B[Target]");

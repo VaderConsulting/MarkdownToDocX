@@ -1877,50 +1877,110 @@ public static class DiagramGridLayout
 
     private static void NudgeOffSharedRun(FlowchartLayoutEdgeRoute Stay, FlowchartLayoutEdgeRoute Mover, List<GridNode> Placed)
     {
-        if (Mover.Points.Count < 3 || Stay.Points.Count < 2)
+        const double TrackSeparation = 6;
+        for (int Index = 1; Index < Mover.Points.Count - 2; Index++)
         {
-            return;
-        }
-
-        int Shared = 0;
-        for (int Index = 1; Index < Mover.Points.Count - 1; Index++)
-        {
-            FlowchartLayoutPoint Point = Mover.Points[Index];
-            if (DistanceToRoute(Point.X, Point.Y, Stay) < (DiagramGridMetrics.GRID_UNIT_PX / 2.0))
-            {
-                Shared++;
-            }
-        }
-
-        if (Shared == 0)
-        {
-            return;
-        }
-
-        int Offset = DiagramGridMetrics.TrackOffsets(2, DiagramGridMetrics.GRID_UNIT_PX)[1]
-            - DiagramGridMetrics.TrackOffsets(1, DiagramGridMetrics.GRID_UNIT_PX)[0];
-        if (Offset == 0)
-        {
-            Offset = 6;
-        }
-
-        for (int Index = 1; Index < Mover.Points.Count - 1; Index++)
-        {
-            FlowchartLayoutPoint Point = Mover.Points[Index];
-            if (DistanceToRoute(Point.X, Point.Y, Stay) >= (DiagramGridMetrics.GRID_UNIT_PX / 2.0))
+            FlowchartLayoutPoint Start = Mover.Points[Index];
+            FlowchartLayoutPoint End = Mover.Points[Index + 1];
+            bool Vertical = Math.Abs(Start.X - End.X) < 0.5;
+            bool Horizontal = Math.Abs(Start.Y - End.Y) < 0.5;
+            if (!Vertical && !Horizontal)
             {
                 continue;
             }
 
-            if (InsideAny(Placed, Point.X + Offset, Point.Y))
+            for (int OtherIndex = 1; OtherIndex < Stay.Points.Count; OtherIndex++)
             {
-                Point.X -= Offset;
-            }
-            else
-            {
-                Point.X += Offset;
+                FlowchartLayoutPoint OtherStart = Stay.Points[OtherIndex - 1];
+                FlowchartLayoutPoint OtherEnd = Stay.Points[OtherIndex];
+                bool Parallel = Vertical
+                    ? Math.Abs(OtherStart.X - OtherEnd.X) < 0.5
+                    : Math.Abs(OtherStart.Y - OtherEnd.Y) < 0.5;
+                double Gap = Vertical ? Start.X - OtherStart.X : Start.Y - OtherStart.Y;
+                double Overlap = Vertical
+                    ? Math.Min(Math.Max(Start.Y, End.Y), Math.Max(OtherStart.Y, OtherEnd.Y))
+                        - Math.Max(Math.Min(Start.Y, End.Y), Math.Min(OtherStart.Y, OtherEnd.Y))
+                    : Math.Min(Math.Max(Start.X, End.X), Math.Max(OtherStart.X, OtherEnd.X))
+                        - Math.Max(Math.Min(Start.X, End.X), Math.Min(OtherStart.X, OtherEnd.X));
+                if (!Parallel || Overlap <= 0 || Math.Abs(Gap) >= TrackSeparation)
+                {
+                    continue;
+                }
+
+                double Offset = (Gap < 0 ? -TrackSeparation : TrackSeparation) - Gap;
+                if (!TryTranslateInternalRun(Mover, Index, Vertical, Offset, Placed))
+                {
+                    TryTranslateInternalRun(Mover, Index, Vertical, -Offset, Placed);
+                }
             }
         }
+    }
+
+    // A bend belongs to both adjoining runs. Moving just one point creates a
+    // diagonal, so only translate a complete internal run between two elbows.
+    internal static bool TryTranslateInternalRun(
+        FlowchartLayoutEdgeRoute Route, int Index, bool Vertical, double Offset, List<GridNode> Placed)
+    {
+        if (Index < 1 || Index + 2 >= Route.Points.Count)
+        {
+            return false;
+        }
+
+        FlowchartLayoutPoint Before = Route.Points[Index - 1];
+        FlowchartLayoutPoint Start = Route.Points[Index];
+        FlowchartLayoutPoint End = Route.Points[Index + 1];
+        FlowchartLayoutPoint After = Route.Points[Index + 2];
+        if (Vertical
+            ? Math.Abs(Start.X - End.X) > 0.5 || Math.Abs(Before.Y - Start.Y) > 0.5 || Math.Abs(End.Y - After.Y) > 0.5
+            : Math.Abs(Start.Y - End.Y) > 0.5 || Math.Abs(Before.X - Start.X) > 0.5 || Math.Abs(End.X - After.X) > 0.5)
+        {
+            return false;
+        }
+
+        double OldStart = Vertical ? Start.X : Start.Y;
+        double OldEnd = Vertical ? End.X : End.Y;
+        if (Vertical)
+        {
+            Start.X += Offset;
+            End.X += Offset;
+        }
+        else
+        {
+            Start.Y += Offset;
+            End.Y += Offset;
+        }
+
+        bool Clear = true;
+        for (int Segment = Index; Segment <= Index + 2 && Clear; Segment++)
+        {
+            foreach (GridNode Node in Placed)
+            {
+                if (Node.Id == Route.SourceId || Node.Id == Route.TargetId)
+                {
+                    continue;
+                }
+
+                FlowchartLayoutNodeBounds Bounds = new()
+                {
+                    CenterX = Node.X, CenterY = Node.Y, Width = Node.Width, Height = Node.Height
+                };
+                FlowchartLayoutPoint A = Route.Points[Segment - 1];
+                FlowchartLayoutPoint B = Route.Points[Segment];
+                if (FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(A.X, A.Y, B.X, B.Y, Bounds))
+                {
+                    Clear = false;
+                    break;
+                }
+            }
+        }
+
+        if (!Clear)
+        {
+            if (Vertical) { Start.X = OldStart; End.X = OldEnd; }
+            else { Start.Y = OldStart; End.Y = OldEnd; }
+        }
+
+        return Clear;
     }
 
     private static bool InsideAny(List<GridNode> Placed, double X, double Y)
@@ -1993,26 +2053,17 @@ public static class DiagramGridLayout
                         continue;
                     }
 
-                    double ToLeft = Point.X - Left;
-                    double ToRight = Right - Point.X;
-                    double ToBottom = Point.Y - Bottom;
-                    double ToTop = Top - Point.Y;
-                    double Best = Math.Min(Math.Min(ToLeft, ToRight), Math.Min(ToBottom, ToTop));
-                    if (Best == ToLeft)
+                    for (int Run = Math.Max(1, Index - 1); Run <= Index && Run < Route.Points.Count - 2; Run++)
                     {
-                        Point.X = Math.Round(Left - STUB_PX);
-                    }
-                    else if (Best == ToRight)
-                    {
-                        Point.X = Math.Round(Right + STUB_PX);
-                    }
-                    else if (Best == ToBottom)
-                    {
-                        Point.Y = Math.Round(Bottom - STUB_PX);
-                    }
-                    else
-                    {
-                        Point.Y = Math.Round(Top + STUB_PX);
+                        bool Vertical = Math.Abs(Route.Points[Run].X - Route.Points[Run + 1].X) < 0.5;
+                        double Near = Vertical ? Left - STUB_PX - Point.X : Bottom - STUB_PX - Point.Y;
+                        double Far = Vertical ? Right + STUB_PX - Point.X : Top + STUB_PX - Point.Y;
+                        if (Math.Abs(Far) < Math.Abs(Near)) { (Near, Far) = (Far, Near); }
+                        if (TryTranslateInternalRun(Route, Run, Vertical, Near, Placed)
+                            || TryTranslateInternalRun(Route, Run, Vertical, Far, Placed))
+                        {
+                            break;
+                        }
                     }
                 }
             }
