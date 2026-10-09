@@ -1,6 +1,6 @@
-# Flowchart layout fixes — before and after
+# Historical flowchart layout comparisons
 
-Shared Sugiyama layout changes on `flowchart-layout-fixes` (from `master`; this repo has no `main`). Enterprise diagrams keep using this layout exactly. PR #1 (`enterprise-diagram`) was not modified.
+These images and the notes below record earlier changes on `flowchart-layout-fixes`, before the current grid routing policy. They are retained as historical comparison evidence. They do not describe current requirements or establish acceptance of PR #9. See the [current solution status](../../currentstatus.md) and the [grid layout review](../../grid-layout-review.md) for the measured state and new comparison pictures. PR #1 was not modified in this pass.
 
 **Befores** are native renders from `master` @ `6da24f1`, except `enterprise-NN-enterprise.png`, which are the existing PR #1 parity rasters. **Afters** are this branch. Enterprise after-pairs were produced on a local `enterprise-diagram` worktree with these layout files copied in; that worktree was not committed or pushed.
 

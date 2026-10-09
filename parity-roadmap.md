@@ -1,8 +1,8 @@
 # Diagram parity roadmap — parallel paths to completion
 
 **Authority:** normative gate definitions remain in [`spec.md`](spec.md) §7.4 and §11.1.14.  
-**Progress:** [`status.md`](status.md) gate registry.  
-**Last updated:** 2026-05-31 (G12 backlog layer)
+**Progress:** [`docs/currentstatus.md`](docs/currentstatus.md) current solution state.
+**G12 snapshot date:** 2026-05-31. The historical gate snapshot below does not establish current rendering acceptance; use the current status link above for measured solution results.
 
 ---
 
@@ -27,7 +27,7 @@ Each parallel path’s **exact requirements** live in three linked artefacts:
 
 **Recognition parity with flowchart** (this roadmap’s goal): every **started** diagram kind reaches gate **L4** — L2 catalogue complete, L3 entity model (G4–G9), L4 parser parity (G12), with manifests, verified JSON, and `*L4AxisGateTests` matching the flowchart exemplar.
 
-**Not in scope here:** product parity (render adapters, §11.B–11.E, default DOCX path, `pie.md`-style visual catalogues). Those paths are listed in [Product parity path](#product-parity-path-separate-programme) and must not block recognition L4 work.
+**Not in scope here:** product parity (render adapters, §11.B–11.E, default DOCX path, `pie.md`-style visual catalogues). Those paths are listed in [Product parity path](#product-parity-path-native-render--separate-programme) and must not block recognition L4 work.
 
 ---
 
@@ -36,14 +36,14 @@ Each parallel path’s **exact requirements** live in three linked artefacts:
 | Kind | Gate level | L4 status | Parallel path |
 | --- | --- | --- | --- |
 | Flowchart / graph | **L4** | **Complete** (recognition) | Maintenance only |
-| Sequence | L4 partial | G12 scaffold; init-leading theme | [Path S](#path-s-sequence) |
-| Class | L4 partial | G12 scaffold; init-leading theme | [Path C](#path-c-class) |
-| State | L4 partial | G12 scaffold; init-leading theme | [Path ST](#path-st-state) |
-| ER | L4 partial | G12 scaffold; init-leading theme | [Path E](#path-e-er) |
-| Pie | L3 | L4 not started | [Path P](#path-p-pie) |
-| Gantt | L3 | L4 not started | [Path G](#path-g-gantt) |
-| Mindmap | L3 | L4 not started | [Path M](#path-m-mindmap) |
-| Git graph | L3 | L4 not started | [Path GG](#path-gg-git-graph) |
+| Sequence | L4 partial | G12 scaffold; init-leading theme | [Path S](#path-s--sequence) |
+| Class | L4 partial | G12 scaffold; init-leading theme | [Path C](#path-c--class) |
+| State | L4 partial | G12 scaffold; init-leading theme | [Path ST](#path-st--state) |
+| ER | L4 partial | G12 scaffold; init-leading theme | [Path E](#path-e--er) |
+| Pie | L3 | L4 not started | [Path P](#path-p--pie) |
+| Gantt | L3 | L4 not started | [Path G](#path-g--gantt) |
+| Mindmap | L3 | L4 not started | [Path M](#path-m--mindmap) |
+| Git graph | L3 | L4 not started | [Path GG](#path-gg--git-graph) |
 
 **Suite:** 702 tests passing (`MermaidRecognition.Tests`).
 
@@ -324,7 +324,7 @@ When **all eight paths** promote to manifest `L4`:
 | Recognition parity | All 9 started kinds at manifest `GateLevel: L4` |
 | Spec alignment | Every §11.1.14.x row for started kinds has fixture column filled |
 | Tests | Full suite green; `CatalogueScenarioCoverageTests` still passes for S/C/ST/E |
-| Status | [`status.md`](status.md) pass bump; truthfulness table updated |
+| Status | [`docs/currentstatus.md`](docs/currentstatus.md) verified test state and remaining work updated |
 
 ---
 

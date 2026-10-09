@@ -83,7 +83,7 @@ function Repair-MojibakeText
 
 $TargetPaths = @(
     (Join-Path $PSScriptRoot '..\spec.md')
-    (Join-Path $PSScriptRoot '..\status.md')
+    (Join-Path $PSScriptRoot '..\docs\currentstatus.md')
 )
 
 foreach ($TargetPath in $TargetPaths)

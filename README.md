@@ -1,4 +1,4 @@
-﻿# MarkdownToDocX - Mermaid Diagram Recognition & DOCX Renderer
+# MarkdownToDocX - Mermaid Diagram Recognition & DOCX Renderer
 
 A research-grade .NET platform for **parsing, recognising, and rendering Mermaid diagram source text** into SVG and DOCX, built on a vendored Mermaid 11.14.0 parser and a Sugiyama graph-layout engine derived from Microsoft MSAGL.
 
@@ -15,7 +15,7 @@ The repo has two layers:
 | DOCX pipeline | `src/md2docx/`, `src/MDConverter/`, `src/Converter/` | Converts Markdown files to `.docx` using OpenXml |
 | Mermaid recogniser and renderer | `src/MermaidRecognition*/` | Mermaid diagram parser → recognition model → native layout and SVG render |
 
-Flowcharts render through the native Sugiyama layout in `src/MermaidRecognition.Layout`. Every other diagram type still renders through the vendored Naiad renderer in `extern/Naiad`, which will be removed once the native renderer covers each type.
+Flowcharts render through the native Sugiyama layout in `src/MermaidRecognition.Layout`. On the grid branch, connectors use horizontal and vertical straight runs joined by rounded corners. The routing work remains incomplete; see [current solution status](docs/currentstatus.md) and the [grid layout review](docs/grid-layout-review.md). Other diagram types still use the vendored Naiad renderer in `extern/Naiad`.
 
 ## Repository Layout
 
@@ -36,7 +36,7 @@ Flowcharts render through the native Sugiyama layout in `src/MermaidRecognition.
 | `MermaidRecognition` | Core recogniser - parses Mermaid source into a typed diagram contract (vertices, edges, groups, styles, interactions) |
 | `MermaidRecognition.Layout` | Graph layout engine; Sugiyama implementation derived from Microsoft MSAGL (MIT) - see [Third-party notices](src/MermaidRecognition.Layout/THIRD_PARTY_NOTICES.md) |
 | `MermaidRecognition.NaiadAdapter` | Bridge between the new recognition model and the legacy Naiad SVG renderer |
-| `MermaidRecognition.RuleValidation` | Validation pipeline generating SVG facts and checking orthogonal / smooth path rules |
+| `MermaidRecognition.RuleValidation` | Validation pipeline checking rendered geometry, labels, ports and arrowheads |
 | `MermaidRecognition.Tests` | Fixture-driven recognition tests; gate registry (`G12`) across 9 diagram kinds |
 | `MermaidRecognition.Layout.Tests` | Layout-specific render tests (fan-out, fan-in, decision ports, edge labels, subgraph) |
 | `md2docx` | Legacy Markdown to DOCX conversion CLI |
@@ -100,7 +100,8 @@ See [`src/MermaidRecognition.Layout/THIRD_PARTY_NOTICES.md`](src/MermaidRecognit
 | File | Description |
 |------|-------------|
 | `spec.md` | Normative recognition specification |
-| `status.md` | Live implementation progress, gate registry, fixture counts |
+| [docs/currentstatus.md](docs/currentstatus.md) | Current implementation state, measured test results and remaining work |
+| [docs/grid-layout-review.md](docs/grid-layout-review.md) | PR #9 changes, remaining failures and rendered comparisons |
 | `flow.md` | Flowchart visual regression catalogue (F01-F130+) |
 | `src/MermaidRecognition/README.md` | Mermaid recogniser scope and architecture |
 | `Mermaid_Specification.md` | Flowchart geometry and routing rules, including Word-first parity notes |

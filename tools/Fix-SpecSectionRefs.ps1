@@ -19,7 +19,7 @@ function Fix-LegacySectionRefs {
 
 $Paths = @(
     (Join-Path $Root 'spec.md')
-    (Join-Path $Root 'status.md')
+    (Join-Path $Root 'docs\currentstatus.md')
     (Join-Path $Root 'sequence.md')
     (Join-Path $Root 'class.md')
     (Join-Path $Root 'state.md')

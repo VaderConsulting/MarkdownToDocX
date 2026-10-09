@@ -112,7 +112,7 @@ function Update-SectionReferences {
 
 $IncludePaths = @(
     (Join-Path $Root 'spec.md')
-    (Join-Path $Root 'status.md')
+    (Join-Path $Root 'docs\currentstatus.md')
     (Join-Path $Root 'sequence.md')
     (Join-Path $Root 'class.md')
     (Join-Path $Root 'state.md')
@@ -167,7 +167,7 @@ if ($Spec -match $Pattern812 -and $Spec -match $Pattern811) {
 }
 
 # ELK cross-ref should point to 11.1.10 not 11.1.9 (code map)
-$Spec = $Spec -replace '\(see §11\.1\.9, \[`status\.md`\]\(status\.md\)\)', '(see §11.1.10, [`status.md`](status.md))'
+$Spec = $Spec -replace '\(see §11\.1\.9, \[`docs/currentstatus\.md`\]\(docs/currentstatus\.md\)\)', '(see §11.1.10, [`docs/currentstatus.md`](docs/currentstatus.md))'
 $Spec = $Spec -replace 'not Naiad''s current engine \(§11\.1\.9\)', 'not Naiad''s current engine (§11.1.10)'
 
 [System.IO.File]::WriteAllText($SpecPath, $Spec)

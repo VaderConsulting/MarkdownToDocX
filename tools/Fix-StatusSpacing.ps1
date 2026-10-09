@@ -1,4 +1,4 @@
-# Tightens status.md: removes blank lines between table rows, inside code fences, and loose list items.
+# Tightens docs/currentstatus.md: removes blank lines between table rows, inside code fences, and loose list items.
 $ErrorActionPreference = 'Stop'
 $Utf8 = [System.Text.UTF8Encoding]::new($false)
 
@@ -227,7 +227,7 @@ function Fix-StatusSpacing
     }
 }
 
-$TargetPath = Join-Path $PSScriptRoot '..\status.md'
+$TargetPath = Join-Path $PSScriptRoot '..\docs\currentstatus.md'
 $OriginalLines = [System.IO.File]::ReadAllLines($TargetPath)
 $FixResult = Fix-StatusSpacing -Lines $OriginalLines
 
