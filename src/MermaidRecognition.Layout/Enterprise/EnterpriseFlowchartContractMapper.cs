@@ -256,7 +256,9 @@ public static class EnterpriseFlowchartContractMapper
 
         if (Metadata.Aspect == EnterpriseAspect.Behaviour)
         {
-            return "stadium";
+            // Behaviour elements have short rounded corners, not semicircular
+            // ends. Side ports must stay on the drawn rectangle's flat edge.
+            return "rounded";
         }
 
         return "rect";

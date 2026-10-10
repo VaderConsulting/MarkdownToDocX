@@ -2609,6 +2609,10 @@ public static class DiagramGridLayout
 
         bool VerticalSide = Side == "left" || Side == "right";
         int Length = (int)Math.Round(VerticalSide ? Box.Height : Box.Width);
+        int CornerInset = !Box.IsFrame && Nodes.TryGetValue(Box.Id, out var RoundedNode)
+            && (string.Equals(RoundedNode.Shape, "rounded", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(RoundedNode.Shape, "round", StringComparison.OrdinalIgnoreCase))
+            ? Math.Min(STUB_PX, Length / 4) : 0;
         int SlotCount = Math.Max(DiagramGridMetrics.TRACKS_PER_GAP, Group.Count);
         int CentreEnd = Group.FindIndex(End => End.KeepsCentre);
         if (CentreEnd >= 0)
@@ -2616,13 +2620,13 @@ public static class DiagramGridLayout
             SlotCount = Math.Max(SlotCount, 2 * Math.Max(CentreEnd, Group.Count - CentreEnd - 1) + 1);
             if (SlotCount % 2 == 0) { SlotCount++; }
         }
-        int[] Centres = DiagramGridMetrics.EqualCentres(Math.Max(1, Length), SlotCount);
+        int[] Centres = DiagramGridMetrics.EqualCentres(Math.Max(1, Length - 2 * CornerInset), SlotCount);
         int[] Indexes = DiagramGridMetrics.SelectSlotIndexes(Group.Count, SlotCount);
         for (int Index = 0; Index < Group.Count; Index++)
         {
             int Slot = CentreEnd >= 0
                 ? SlotCount / 2 + Index - CentreEnd : Indexes[Math.Min(Index, Indexes.Length - 1)];
-            int Along = Centres[Slot];
+            int Along = CornerInset + Centres[Slot];
             int X;
             int Y;
             int OutX = 0;
