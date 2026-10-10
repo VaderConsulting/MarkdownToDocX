@@ -97,6 +97,7 @@ public static class DiagramGridLayout
         AlignVerticalLoopBranches(Contract, Placed, Horizontal, CrossPitch);
         AlignPairedRanks(Contract, Placed, Horizontal);
         CompactIndependentFanIn(Contract, Placed, Horizontal, CrossPitch);
+        var SharedFanSources = AlignSharedFanSourcesAndTails(Contract, Placed, Horizontal);
 
         GrowCrowdedSides(Placed, Copy, BoxWidth, BoxHeight);
         SeparateOverlaps(Placed, Horizontal);
@@ -105,7 +106,7 @@ public static class DiagramGridLayout
         FitFrames(Contract, Placed, Frames, Horizontal);
         FlipToYUp(Placed, Frames, Copy);
         EnsureBackEdgeRoutes(Contract, Copy, Placed);
-        AssignPortSides(Contract, Copy, Placed, Frames, Nodes, Direction);
+        AssignPortSides(Contract, Copy, Placed, Frames, Nodes, Direction, SharedFanSources);
         DiagramGridRouteBuilder.RebuildAllRoutes(Copy, Placed, Nodes, Contract, Frames, Direction);
         RebuildDecisionFanOutRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
         RebuildSoleForwardDecisionBranchRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
@@ -990,6 +991,65 @@ public static class DiagramGridLayout
                 SetCross(Parents[Index], (int)Math.Round(Cross(Target, Horizontal, Old: false))
                     + (Index - Parents.Count / 2) * Pitch, Horizontal);
             }
+        }
+    }
+
+    /// <summary>Centres a shared fan between independent inputs and straightens its unbranched tails.</summary>
+    internal static HashSet<string> AlignSharedFanSourcesAndTails(DiagramContract Contract, List<GridNode> Placed, bool Horizontal)
+    {
+        var Aligned = new HashSet<string>(StringComparer.Ordinal);
+        var ById = IndexPlaced(Placed);
+        var BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        var Visible = Contract.Edges.Where(Edge => !BackEdges.Contains(Edge)
+            && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
+        foreach (var Source in Placed.Where(Node => !Node.IsDiamond))
+        {
+            if (Visible.Any(Edge => Edge.TargetId == Source.Id)) continue;
+            var Children = Visible.Where(Edge => Edge.SourceId == Source.Id && ById.ContainsKey(Edge.TargetId))
+                .Select(Edge => ById[Edge.TargetId]).Distinct().ToList();
+            if (Children.Count < 2 || Children.Select(Node => Node.Rank).Distinct().Count() != 1
+                || Children.Any(Node => Node.IsDiamond || Node.Rank == Source.Rank || Node.GroupId != Source.GroupId)) continue;
+            bool IndependentInputs = Children.All(Child =>
+            {
+                var Others = Visible.Where(Edge => Edge.TargetId == Child.Id && Edge.SourceId != Source.Id).ToList();
+                return Others.Count > 0 && Others.All(Edge => ById.TryGetValue(Edge.SourceId, out var Parent)
+                    && Parent.Rank == Source.Rank && Parent.GroupId == Source.GroupId && !Parent.IsDiamond
+                    && !Visible.Any(Incoming => Incoming.TargetId == Parent.Id)
+                    && Visible.Count(Outgoing => Outgoing.SourceId == Parent.Id) == 1);
+            });
+            if (!IndependentInputs) continue;
+            double Centre = (Children.Min(Node => Cross(Node, Horizontal, Old: false))
+                + Children.Max(Node => Cross(Node, Horizontal, Old: false))) / 2;
+            double Anchor = Cross(Children[0], Horizontal, Old: false);
+            int Position = (int)(Anchor + Math.Round((Centre - Anchor) / DiagramGridMetrics.GRID_UNIT_PX)
+                * DiagramGridMetrics.GRID_UNIT_PX);
+            if (TryMove(Source, Position)) Aligned.Add(Source.Id);
+            foreach (var Child in Children)
+            {
+                var Current = Child;
+                var Seen = new HashSet<string>();
+                while (Seen.Add(Current.Id))
+                {
+                    var Outgoing = Visible.Where(Edge => Edge.SourceId == Current.Id).ToList();
+                    if (Outgoing.Count != 1 || !ById.TryGetValue(Outgoing[0].TargetId, out var Next)
+                        || Next.IsDiamond || Next.Rank == Current.Rank || Next.GroupId != Current.GroupId
+                        || Visible.Count(Edge => Edge.TargetId == Next.Id) != 1) break;
+                    if (!TryMove(Next, (int)Cross(Current, Horizontal, Old: false))) break;
+                    Current = Next;
+                }
+            }
+        }
+
+        return Aligned;
+
+        bool TryMove(GridNode Node, int Position)
+        {
+            if (Placed.Any(Other => Other != Node && Math.Abs(Main(Other, Horizontal, Old: false) - Main(Node, Horizontal, Old: false))
+                < MainHalf(Other, Horizontal, Leading: true) + MainHalf(Node, Horizontal, Leading: true)
+                && Math.Abs(Cross(Other, Horizontal, Old: false) - Position)
+                < CrossHalf(Other, Horizontal, Leading: true) + CrossHalf(Node, Horizontal, Leading: true) + DiagramGridMetrics.NODE_GAP_PX)) return false;
+            SetCross(Node, Position, Horizontal);
+            return true;
         }
     }
 
@@ -2212,7 +2272,8 @@ public static class DiagramGridLayout
         List<GridNode> Placed,
         List<GridFrame> Frames,
         Dictionary<string, NodeContract> Nodes,
-        FlowchartDirection Direction)
+        FlowchartDirection Direction,
+        HashSet<string> SharedFanSources)
     {
         bool Horizontal = Direction == FlowchartDirection.LeftToRight
             || Direction == FlowchartDirection.RightToLeft;
@@ -2280,12 +2341,12 @@ public static class DiagramGridLayout
             string Entry;
             if (FlowchartOrdinaryFanOutRouteBuilder.TryGetFlowSides(Direction, out string FanOutExit, out string FanOutEntry)
                 && Nodes.TryGetValue(Item.Source.Id, out NodeContract? SourceNode)
-                && FlowchartOrdinaryFanOutRouteBuilder.TryIsOrdinaryFanOutHub(
+                && (SharedFanSources.Contains(Item.Source.Id) || FlowchartOrdinaryFanOutRouteBuilder.TryIsOrdinaryFanOutHub(
                     Contract,
                     Item.Source.Id,
                     SourceNode.Shape,
                     Direction,
-                    FanOutBoundsById))
+                    FanOutBoundsById)))
             {
                 Exit = FanOutExit;
                 Entry = FanOutEntry;
