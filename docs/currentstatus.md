@@ -132,4 +132,3 @@ fixes; these limitations are recorded rather than treated as accepted defects.
 
 Original `docs/Instructions/`, `docs/briefs/`, supplied Markdown and editor
 settings are left as supplied. The old root status file remains superseded.
-
