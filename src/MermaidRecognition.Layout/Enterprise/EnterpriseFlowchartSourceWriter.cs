@@ -99,6 +99,8 @@ public static class EnterpriseFlowchartSourceWriter
         Builder.Append("[\"");
         Builder.Append(EscapeLabel(EnterpriseFlowchartContractMapper.ContainerTitle(Document, ContainerId)));
         Builder.Append("\"]\n");
+        if (Document.Groups.TryGetValue(ContainerId, out var Group) && Group.Direction.HasValue)
+            Builder.Append(Indent).Append("  direction ").Append(Group.Direction.Value.ToString().ToUpperInvariant()).Append('\n');
         foreach (string ChildId in EnterpriseFlowchartContractMapper.ChildIds(Document, ContainerId))
         {
             if (Containers.Contains(ChildId))

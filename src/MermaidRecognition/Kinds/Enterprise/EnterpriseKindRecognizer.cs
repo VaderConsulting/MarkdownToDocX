@@ -26,7 +26,8 @@ public sealed class EnterpriseKindRecognizer : IKindRecognizer
             {
                 Id = Group.Id,
                 Title = Group.Label,
-                ParentGroupId = Group.ParentId
+                ParentGroupId = Group.ParentId,
+                Direction = Group.Direction?.ToString().ToUpperInvariant()
             };
             Contract.GroupsMutable.Add(GroupContract);
         }

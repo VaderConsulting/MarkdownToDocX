@@ -99,7 +99,9 @@ public static class EnterpriseFlowchartContractMapper
         {
             Id = ContainerId,
             Title = string.Join("\n", EnterpriseNodeSizer.Wrap(ContainerTitle(Document, ContainerId))),
-            ParentGroupId = ParentContainerId(Document, ContainerId, Containers)
+            ParentGroupId = ParentContainerId(Document, ContainerId, Containers),
+            Direction = Document.Groups.TryGetValue(ContainerId, out var DeclaredGroup)
+                ? DeclaredGroup.Direction?.ToString().ToUpperInvariant() : null
         };
         Contract.GroupsMutable.Add(Group);
         foreach (string ChildId in ChildIds(Document, ContainerId))

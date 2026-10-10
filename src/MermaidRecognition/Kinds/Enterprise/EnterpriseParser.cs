@@ -29,7 +29,7 @@ public static class EnterpriseParser
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex DirectionRegex = new Regex(
-        @"^direction\s+(TB|LR)$",
+        @"^direction\s+(TB|TD|BT|LR|RL)$",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex GroupRegex = new Regex(
@@ -95,6 +95,7 @@ public static class EnterpriseParser
         bool SeenHeader = false;
         bool InDescription = false;
         List<string> DescriptionLines = new();
+        Stack<string> GroupScope = new();
 
         foreach ((string RawLine, int LineNumber) in EnterpriseStatements.Read(Normalised))
         {
@@ -112,6 +113,12 @@ public static class EnterpriseParser
             string Line = WithoutComment.Trim();
             if (Line.Length == 0)
             {
+                continue;
+            }
+
+            if (SeenHeader && (Line == "}" || Line.Equals("end", StringComparison.OrdinalIgnoreCase)) && GroupScope.Count > 0)
+            {
+                GroupScope.Pop();
                 continue;
             }
 
@@ -164,15 +171,25 @@ public static class EnterpriseParser
             Match DirectionMatch = DirectionRegex.Match(Line);
             if (DirectionMatch.Success)
             {
-                string DirectionText = DirectionMatch.Groups[1].Value.ToUpperInvariant();
-                Document.Direction = DirectionText == "LR" ? EnterpriseDiagramDirection.Lr : EnterpriseDiagramDirection.Tb;
+                var Direction = ParseDirection(DirectionMatch.Groups[1].Value);
+                if (GroupScope.TryPeek(out string? GroupId)) Document.Groups[GroupId].Direction = Direction;
+                else Document.Direction = Direction;
                 continue;
             }
 
-            Match GroupMatch = GroupRegex.Match(Line);
+            bool OpensGroup = Line.EndsWith('{');
+            Match GroupMatch = GroupRegex.Match(OpensGroup ? Line[..^1].TrimEnd() : Line);
             if (GroupMatch.Success)
             {
                 AddGroup(Document, Diagnostics, GroupMatch, LineNumber);
+                string GroupId = GroupMatch.Groups[1].Value;
+                if (GroupScope.TryPeek(out string? ParentId) && Document.Groups.TryGetValue(GroupId, out var Group)
+                    && Group.ParentId == null)
+                {
+                    Group.ParentId = ParentId;
+                    Document.Elements[GroupId].ParentId = ParentId;
+                }
+                if (OpensGroup && Document.Groups.ContainsKey(GroupId)) GroupScope.Push(GroupId);
                 continue;
             }
 
@@ -187,6 +204,9 @@ public static class EnterpriseParser
             if (ElementMatch.Success)
             {
                 AddElement(Document, Diagnostics, ElementMatch, LineNumber);
+                if (GroupScope.TryPeek(out string? ParentId)
+                    && Document.Elements.TryGetValue(ElementMatch.Groups[2].Value, out var Element) && Element.ParentId == null)
+                    Element.ParentId = ParentId;
                 continue;
             }
 

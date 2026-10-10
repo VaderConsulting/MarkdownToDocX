@@ -6,6 +6,14 @@ namespace MermaidRecognition.Layout.Tests.Enterprise;
 [TestFixture]
 public sealed class EnterpriseDirectionTests
 {
+    [Test]
+    public void LocalDirection_IsCarriedToGroupContractsAndSource()
+    {
+        var Document = EnterpriseParser.Parse("enterprise LR\ngroup container {\ndirection BT\napplication-component first\napplication-component second\nfirst -flow-> second\n}").Document;
+        Assert.That(EnterpriseFlowchartContractMapper.Build(Document).Groups.Single().Direction, Is.EqualTo("BT"));
+        Assert.That(EnterpriseFlowchartSourceWriter.Write(Document), Does.Contain("direction BT"));
+    }
+
     [TestCase("TB", false, -1)]
     [TestCase("BT", false, 1)]
     [TestCase("LR", true, 1)]
