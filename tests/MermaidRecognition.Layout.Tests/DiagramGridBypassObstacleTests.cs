@@ -10,6 +10,54 @@ public sealed class DiagramGridBypassObstacleTests
 {
     [TestCase(false)]
     [TestCase(true)]
+    public void FrameEntry_TurnsBeforeAnUnrelatedMemberInsteadOfExtendingThroughIt(bool Mirrored)
+    {
+        DiagramContract Contract = MermaidRecognizer.Parse("""
+            flowchart TB
+              a[Input]
+              subgraph g[Container]
+                b[Output]
+                c[Blocker]
+              end
+              a --> b
+            """);
+        double Sign = Mirrored ? -1 : 1;
+        FlowchartLayoutEdgeRoute Route = new()
+        {
+            SourceId = "a", TargetId = "b",
+            ExitSide = Mirrored ? "right" : "left", EntrySide = Mirrored ? "right" : "left"
+        };
+        Route.Points.Add(new() { X = Sign * 700, Y = 0 });
+        Route.Points.Add(new() { X = Sign * 850, Y = 200 });
+        FlowchartLayoutResult Layout = new();
+        Layout.EdgeRoutesMutable.Add(Route);
+        List<DiagramGridLayout.GridNode> Nodes =
+        [
+            new() { Id = "a", X = Sign * 750, Y = 0, Width = 100, Height = 60 },
+            new() { Id = "b", X = Sign * 900, Y = 200, Width = 100, Height = 60 },
+            new() { Id = "c", X = Sign * 600, Y = 200, Width = 100, Height = 60 }
+        ];
+        List<DiagramGridLayout.GridFrame> Frames =
+        [new() { Id = "g", Left = Mirrored ? -1000 : 400, Right = Mirrored ? -400 : 1000, Top = 400, Bottom = 100 }];
+        DiagramGridRouteBuilder.RebuildAllRoutes(Layout, Nodes, Contract.Nodes.ToDictionary(Node => Node.Id),
+            Contract, Frames, FlowchartDirection.TopToBottom);
+        FlowchartLayoutNodeBounds Blocker = new()
+        { NodeId = "c", CenterX = Sign * 600, CenterY = 200, Width = 100, Height = 60 };
+        foreach (var Pair in Route.Points.Zip(Route.Points.Skip(1)))
+        {
+            Assert.That(FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(
+                Pair.First.X, Pair.First.Y, Pair.Second.X, Pair.Second.Y, Blocker), Is.False);
+        }
+        List<bool> Axes = Route.Points.Zip(Route.Points.Skip(1))
+            .Where(Pair => Math.Abs(Pair.First.X - Pair.Second.X) + Math.Abs(Pair.First.Y - Pair.Second.Y) > 0.5)
+            .Select(Pair => Math.Abs(Pair.First.X - Pair.Second.X) > 0.5).ToList();
+        Assert.That(Axes.Zip(Axes.Skip(1)).Count(Pair => Pair.First != Pair.Second), Is.LessThanOrEqualTo(2));
+        Assert.That(Route.Points[^1].X, Is.EqualTo(Sign * 850));
+        Assert.That(Route.Points[^1].Y, Is.EqualTo(200));
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
     public void RoundTargetInsideItsBounds_KeepsObstacleAvoidanceAtTheTerminal(bool Mirrored)
     {
         DiagramContract Contract = MermaidRecognizer.Parse("flowchart LR\n a[Input] --> b((Output))\n c[Blocker]");

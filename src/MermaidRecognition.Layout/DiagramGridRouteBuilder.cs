@@ -326,6 +326,7 @@ public static class DiagramGridRouteBuilder
         string EndpointId, string OtherId, DiagramContract Contract,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById)
     {
+        double TerminalMinimum = Minimum;
         foreach (GroupContract Group in Contract.Groups)
         {
             if (!DiagramGridLayout.IsInsideGroup(Contract, EndpointId, Group.Id)
@@ -344,6 +345,33 @@ public static class DiagramGridRouteBuilder
                 _ => 0
             };
             Minimum = Math.Max(Minimum, Distance + DiagramGridMetrics.GRID_UNIT_PX);
+        }
+        if (Minimum <= TerminalMinimum) return Minimum;
+
+        // A containing frame must not extend a normal terminal through
+        // another member. Leave room to turn before the nearest body;
+        // the remaining route can cross the frame on a clear grid run.
+        foreach (FlowchartLayoutNodeBounds Node in BoundsById.Values)
+        {
+            if (Node.NodeId == EndpointId || Node.NodeId == OtherId
+                || Contract.Groups.Any(Group => Group.Id == Node.NodeId)
+                || !Contract.Groups.Any(Group => DiagramGridLayout.IsInsideGroup(Contract, EndpointId, Group.Id)
+                    && DiagramGridLayout.IsInsideGroup(Contract, Node.NodeId, Group.Id)
+                    && !DiagramGridLayout.IsInsideGroup(Contract, OtherId, Group.Id))) continue;
+            double Left = Node.CenterX - Node.Width / 2;
+            double Right = Node.CenterX + Node.Width / 2;
+            double Bottom = Node.CenterY - Node.Height / 2;
+            double Top = Node.CenterY + Node.Height / 2;
+            double Distance = Side switch
+            {
+                "left" when Y > Bottom && Y < Top && Right < X => X - Right,
+                "right" when Y > Bottom && Y < Top && Left > X => Left - X,
+                "top" when X > Left && X < Right && Bottom > Y => Bottom - Y,
+                "bottom" when X > Left && X < Right && Top < Y => Y - Top,
+                _ => double.PositiveInfinity
+            };
+            Minimum = Math.Min(Minimum,
+                Math.Max(TerminalMinimum, Distance - DiagramGridMetrics.GRID_UNIT_PX));
         }
         return Minimum;
     }
