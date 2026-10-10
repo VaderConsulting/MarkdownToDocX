@@ -12,7 +12,7 @@ public static class EnterpriseParser
     /// <summary>Default rule-table version when the source omits <c>version</c>.</summary>
     public const string DEFAULT_VERSION = "3.2";
 
-    private const string ID_PATTERN = @"[A-Za-z_][\w.]*";
+    private const string ID_PATTERN = @"[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*";
 
     private const string STRING_PATTERN = @"""((?:[^""\\]|\\.)*)""";
 
