@@ -1,0 +1,13 @@
+enterprise
+  title Physical elements in the Technology layer
+  direction TB
+
+  equipment            press   "Packing Press"
+  facility             warehouse "Warehouse"
+  distribution-network fleet   "Delivery Fleet"
+  material             carton  "Carton"
+
+  warehouse -composition-> press
+  warehouse -assignment-> carton
+  fleet -aggregation-> warehouse
+  press -access(write)-> carton

@@ -1,0 +1,28 @@
+enterprise
+  title Application layer - all nine element types
+  direction TB
+
+  application-collaboration orderSuite "Order Management Suite"
+  application-component     webShop    "Web Shop"
+  application-component     orderMgr   "Order Manager"
+  application-interface     shopApi    "Shop REST API"
+  application-function      checkout   "Checkout"
+  application-interaction   orderSync  "Order Synchronisation"
+  application-process       placeOrder "Place Order"
+  application-event         orderPlaced "Order Placed"
+  application-service       orderSvc   "Order Service"
+  data-object               order      "Order"
+
+  orderSuite -aggregation-> webShop
+  orderSuite -aggregation-> orderMgr
+  orderSuite -assignment-> orderSync
+  webShop -composition-> shopApi
+  webShop -assignment-> checkout
+  checkout -realization-> orderSvc
+  shopApi -assignment-> orderSvc
+  placeOrder -triggering-> orderPlaced
+  orderPlaced -triggering-> orderSync
+  checkout -flow-> orderSync "order details"
+  placeOrder -access(write)-> order
+  orderSync -access(readwrite)-> order
+  orderSvc -serving-> placeOrder
