@@ -38,7 +38,7 @@ public static class DiagramGridRouteBuilder
             double Across(FlowchartLayoutPoint Point) => Horizontal ? Point.Y : Point.X;
             double Sign = Math.Sign(Along(Next) - Along(Start));
             if (Sign == 0 || Math.Sign(Along(End) - Along(Previous)) != Sign
-                || (Along(End) - Along(Start)) * Sign < 50
+                || (Along(End) - Along(Start)) * Sign < 3 * CORNER_RADIUS_PX + 10
                 || Math.Abs(Across(End) - Across(Start)) < 2 * CORNER_RADIUS_PX) continue;
             (double X, double Y) Map(double AlongValue, double AcrossValue) => Horizontal
                 ? (AlongValue, AcrossValue) : (AcrossValue, AlongValue);
@@ -46,7 +46,7 @@ public static class DiagramGridRouteBuilder
                 .Prepend(Math.Round((Along(Start) + Along(End)) / 2)).Distinct();
             foreach (double Track in Tracks)
             {
-                if ((Track - Along(Start)) * Sign < CORNER_RADIUS_PX
+                if ((Track - Along(Start)) * Sign < 2 * CORNER_RADIUS_PX
                     || (Along(End) - Track) * Sign < CORNER_RADIUS_PX + 10) continue;
                 List<(double X, double Y)> Candidate = [(Start.X, Start.Y), Map(Track, Across(Start)),
                     Map(Track, Across(End)), (End.X, End.Y)];

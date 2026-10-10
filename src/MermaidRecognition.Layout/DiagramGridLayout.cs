@@ -120,9 +120,55 @@ public static class DiagramGridLayout
         PushPointsOutOfNodes(Copy, Placed);
         DiagramGridRouteBuilder.RebuildContainedBackRoutes(Copy, Placed, Nodes, Contract, Frames, Direction);
         FlowchartGridTerminalNormalizer.Apply(Copy, BuildPlacedBounds(Placed, Frames), Nodes);
+        GrowFacingDoglegGaps(Copy, Contract, Placed, Frames);
         DiagramGridRouteBuilder.RemoveClearForwardDoglegs(Copy, Contract, BuildPlacedBounds(Placed, Frames));
         WriteBack(Copy, Placed, Frames);
         return Copy;
+    }
+
+    internal static void GrowFacingDoglegGaps(FlowchartLayoutResult Layout, DiagramContract Contract,
+        List<GridNode> Placed, List<GridFrame> Frames)
+    {
+        var BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        foreach (var Route in Layout.EdgeRoutes)
+        {
+            if (Route.Points.Count < 6 || BackEdges.Any(Edge => Edge.SourceId == Route.SourceId && Edge.TargetId == Route.TargetId)) continue;
+            var Source = Placed.Find(Node => Node.Id == Route.SourceId);
+            var Target = Placed.Find(Node => Node.Id == Route.TargetId);
+            if (Source == null || Target == null || Source.IsDiamond || Target.IsDiamond) continue;
+            var Start = Route.Points[0]; var Next = Route.Points[1];
+            var End = Route.Points[^1]; var Previous = Route.Points[^2];
+            bool Horizontal = Math.Abs(Start.Y - Next.Y) < 0.5 && Math.Abs(Previous.Y - End.Y) < 0.5;
+            bool Vertical = Math.Abs(Start.X - Next.X) < 0.5 && Math.Abs(Previous.X - End.X) < 0.5;
+            if (!Horizontal && !Vertical) continue;
+            double Along(FlowchartLayoutPoint Point) => Horizontal ? Point.X : Point.Y;
+            double Across(FlowchartLayoutPoint Point) => Horizontal ? Point.Y : Point.X;
+            double Sign = Math.Sign(Along(Next) - Along(Start));
+            double Gap = (Along(End) - Along(Start)) * Sign;
+            double Needed = 3 * DiagramGridRouteBuilder.CORNER_RADIUS_PX + 10;
+            if (Sign == 0 || Math.Sign(Along(End) - Along(Previous)) != Sign || Gap <= 0 || Gap >= Needed
+                || Math.Abs(Across(End) - Across(Start)) < 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX) continue;
+            double Cut = (Along(Start) + Along(End)) / 2;
+            // Only open a genuine shared gap: never split a node body.
+            if (Placed.Any(Node => (Horizontal ? Node.X - Node.Width / 2.0 : Node.Y - Node.Height / 2.0) < Cut
+                && (Horizontal ? Node.X + Node.Width / 2.0 : Node.Y + Node.Height / 2.0) > Cut)) continue;
+            int Shift = (int)Sign * DiagramGridMetrics.CeilToGrid(Needed - Gap);
+            double Move(double Value) => (Value - Cut) * Sign >= 0 ? Value + Shift : Value;
+            foreach (var Node in Placed)
+            {
+                if (Horizontal) Node.X = (int)Move(Node.X); else Node.Y = (int)Move(Node.Y);
+            }
+            foreach (var Frame in Frames)
+            {
+                if (Horizontal) { Frame.Left = (int)Move(Frame.Left); Frame.Right = (int)Move(Frame.Right); }
+                else { Frame.Top = (int)Move(Frame.Top); Frame.Bottom = (int)Move(Frame.Bottom); }
+            }
+            foreach (var Other in Layout.EdgeRoutes)
+            foreach (var Point in Other.Points)
+            {
+                if (Horizontal) Point.X = Move(Point.X); else Point.Y = Move(Point.Y);
+            }
+        }
     }
 
     /// <summary>
