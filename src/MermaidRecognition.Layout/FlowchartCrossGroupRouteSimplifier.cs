@@ -136,4 +136,3 @@ internal static class FlowchartCrossGroupRouteSimplifier
         }
     }
 }
-
