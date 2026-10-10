@@ -1,6 +1,6 @@
 # Grid layout review — 9 October 2026
 
-This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `9d36297`; section 21 records junction caption clearance. Section 20 records plain relationship label measurement and elliptical attachments. Section 19 records the generic forward-dogleg correction. Section 18 records approved decisions, native Enterprise/pie integration, local spacing and frame fixes. Sections 16–17 retain the earlier routing evidence. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
+This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `4ce8e85`; section 22 records shared input fan placement and continuation alignment. Section 21 records junction caption clearance. Section 20 records plain relationship label measurement and elliptical attachments. Section 19 records the generic forward-dogleg correction. Section 18 records approved decisions, native Enterprise/pie integration, local spacing and frame fixes. Sections 16–17 retain the earlier routing evidence. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
 
 ## 1. Fresh test comparison
 
@@ -750,3 +750,51 @@ Its embedded junction picture was extracted and inspected: the caption is
 above the outgoing dashed stroke and is no longer crossed by it. This is a
 picture check, not a full Word pagination review or catalogue acceptance.
 Supplied files and editor settings remain untouched, and no merge was made.
+
+## 22. Shared input fans and continuation alignment — 10 October 2026
+
+The influence diagram retained a branching source outside its two targets and
+an unbranched continuation offset from its sole parent. Generic placement now
+recognises a root fan whose targets also have independent same-rank inputs.
+It centres that source between its targets on the shared grid and aligns each
+single-parent, unbranched tail with its parent. Moves are rejected when they
+would violate node clearance. Group membership and flow-axis ranks remain
+unchanged; independent inputs and the shared targets retain their positions.
+
+The centred source uses free downstream ports into the targets' upstream
+ports. This avoids an inherited side exit introducing an unnecessary detour
+after the source move. Rounded bends and normal endpoint runs are retained.
+No rule selects an Enterprise type, influence sign, diagram name or node label.
+
+`4ce8e85` — Centre shared branch sources and align their continuations.
+
+Focused verification passed 52 placement/Enterprise checks, followed by nine
+structural checks including complete routing in all four flow directions.
+The checks cover mirrored placement, occupied destinations and downstream
+port use with no more than two bends. Existing assertions were not changed.
+The engine diff was checked for diagram-specific selectors before committing.
+
+The supplied work architecture picture is a visual reference for subsequent
+improvements: compact titled groups, consistent node sizes and alignment,
+local routing within groups, readable nested integration groups and cross-group
+routes through clear space. It is a visual target, not evidence that these
+qualities have been achieved across the catalogue; its business-specific
+names must not become layout selectors.
+
+All five suites ran on pushed application commit `4ce8e85`: Layout 469 passed
+/ 32 failed, rule validation 49 / 10, recognition 1008 / 0, Naiad adapter 47 / 0,
+and converter 52 / 0. No new failing names appeared against `9d36297`.
+The two master-passing Layout regressions remain stopped as recorded above;
+master's baseline was not rerun.
+
+Final evidence is under `out/influence-placement/final/`: suite logs/TRX,
+failure comparison and picture manifest, 126 rendered flowchart catalogue
+cases with four commented skips, ten rendered Enterprise samples with the
+same two expected rejections, and the marked influence example. The rebuilt
+WinForms executable generated `enterprise.docx` with `-in` and `-out`.
+It retains 94 drawings and 36 explicit warnings. The embedded influence
+picture was extracted and inspected: its branching source sits between the
+other inputs, the continuation is under its parent, and both branches have
+two rounded bends with label breaks. This is not full catalogue acceptance
+or a Word pagination review. Supplied files remain untouched; no merge was
+performed.
