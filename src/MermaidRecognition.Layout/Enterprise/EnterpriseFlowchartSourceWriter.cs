@@ -27,7 +27,7 @@ public static class EnterpriseFlowchartSourceWriter
 
         HashSet<string> Containers = EnterpriseFlowchartContractMapper.CollectContainers(Document);
         StringBuilder Builder = new StringBuilder();
-        Builder.Append(Document.Direction == EnterpriseDiagramDirection.Lr ? "flowchart LR" : "flowchart TB");
+        Builder.Append("flowchart ").Append(Document.Direction.ToString().ToUpperInvariant());
         Builder.Append('\n');
 
         HashSet<string> WrittenNodes = new HashSet<string>(StringComparer.Ordinal);

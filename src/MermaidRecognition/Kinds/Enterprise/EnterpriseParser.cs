@@ -17,7 +17,7 @@ public static class EnterpriseParser
     private const string STRING_PATTERN = @"""((?:[^""\\]|\\.)*)""";
 
     private static readonly Regex HeaderRegex = new Regex(
-        @"^enterprise(-beta)?$",
+        @"^enterprise(-beta)?(?:\s+(TB|TD|BT|LR|RL))?$",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex TitleRegex = new Regex(
@@ -61,8 +61,7 @@ public static class EnterpriseParser
         }
 
         string DetectionText = RecognitionSourcePreprocessor.PrepareForDetection(Source);
-        string[] Lines = DetectionText.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n').Split('\n');
-        foreach (string Line in Lines)
+        foreach ((string Line, _) in EnterpriseStatements.Read(DetectionText))
         {
             string Trimmed = Line.Trim();
             if (Trimmed.Length == 0)
@@ -125,6 +124,9 @@ public static class EnterpriseParser
                 }
 
                 SeenHeader = true;
+                Match HeaderMatch = HeaderRegex.Match(Line);
+                if (HeaderMatch.Groups[2].Success)
+                    Document.Direction = ParseDirection(HeaderMatch.Groups[2].Value);
                 continue;
             }
 
@@ -468,6 +470,14 @@ public static class EnterpriseParser
     {
         return EnterpriseLabelText.DecodeQuoted(Value);
     }
+
+    private static EnterpriseDiagramDirection ParseDirection(string Value) => Value.ToUpperInvariant() switch
+    {
+        "LR" => EnterpriseDiagramDirection.Lr,
+        "RL" => EnterpriseDiagramDirection.Rl,
+        "BT" => EnterpriseDiagramDirection.Bt,
+        _ => EnterpriseDiagramDirection.Tb
+    };
 
     private static EnterpriseDiagnostic CreateError(int LineNumber, string Message)
     {

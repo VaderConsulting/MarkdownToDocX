@@ -15,7 +15,7 @@ public sealed class EnterpriseKindRecognizer : IKindRecognizer
         {
             Kind = "enterprise",
             Header = "enterprise",
-            Direction = Analysis.Document.Direction == EnterpriseDiagramDirection.Lr ? "LR" : "TB"
+            Direction = Analysis.Document.Direction.ToString().ToUpperInvariant()
         };
         Contract.Accessibility.Title = Analysis.Document.AccessibilityTitle;
         Contract.Accessibility.Description = Analysis.Document.AccessibilityDescription;

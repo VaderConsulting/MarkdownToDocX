@@ -30,7 +30,7 @@ public static class EnterpriseFlowchartContractMapper
         {
             Kind = "flowchart",
             Header = "flowchart",
-            Direction = Document.Direction == EnterpriseDiagramDirection.Lr ? "LR" : "TB"
+            Direction = Document.Direction.ToString().ToUpperInvariant()
         };
 
         HashSet<string> Containers = CollectContainers(Document);
