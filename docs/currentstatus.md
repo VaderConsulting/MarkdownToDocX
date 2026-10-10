@@ -7,7 +7,7 @@ Updated 10 October 2026. This is the single maintained status file for the solut
 | Area | Current state |
 | --- | --- |
 | Master | `f09cb89`; the earlier documentation relocation and spec trim are merged. |
-| Grid routing | PR #9, branch `cursor/many-to-many-routing-3834`; code fixes through `591adcf` are pushed. This work is not merged. |
+| Grid routing | PR #9, branch `cursor/many-to-many-routing-3834`; code fixes through `98af3a8` are pushed. This work is not merged. |
 | Active local checkout | The PR #9 branch is in the sibling `MarkdownToDocX-pr9` worktree. The original laptop folder remains on its pre-existing documentation branch. |
 | Earlier documentation refresh | The original worktree retains its earlier documentation commits; this pass did not publish or merge them. PR #9 predates the spec relocation, so some normative files still sit at the root on this branch. |
 | Enterprise / ArchiMate | Existing work is on PR #1. It is not integrated into the measured master or grid branch. The regenerated `enterprise.docx` contains zero diagrams and 130 unknown-type warnings because PR #9 does not support `enterprise` blocks. |
@@ -28,13 +28,15 @@ Updated 10 October 2026. This is the single maintained status file for the solut
 
 The latest picture pass corrects horizontal retry outcomes, independent decision merges, local detours, grouped loop branches, paired ranks, sibling frame clearance and wide fan ports. The converter preserves fully commented Mermaid blocks as code without a render warning. Rules use topology and geometry; no catalogue number or node text selects an engine rule. The revised retry and pipeline checks have structural names. Details and checked DOCX pictures are in [review section 14](grid-layout-review.md#14-retry-outcomes-detours-group-clearance-and-crossings), with the approved pipeline expectation recorded in [section 15](grid-layout-review.md#15-approved-pipeline-expectation--10-october-2026).
 
+The latest routing fixes preserve obstacle avoidance for skip links alongside a forward chain, recognise the final target segment correctly, and shorten frame-entry reservations around unrelated members and nearer frame faces. The ten rendered sample gate reports no longer report node intersections. This does not establish that every connector or diagram is correct. The latest SVG/PNG evidence is in review section 17; the original `flow.docx` remains the earlier checked output from `65deb18`.
+
 ## 3. Verified test state
 
-Measured on Windows with plain `dotnet test` on each project, including build and restore. Master and starting-branch baselines were collected before behavioural edits. All five suites were rerun on pushed application commit `591adcf`. The final verification follows a picture-driven refinement to preserve straight group approaches; master was not rerun.
+Measured on Windows with plain `dotnet test` on each project, including build and restore. Master and starting-branch baselines were collected before behavioural edits. All five suites were rerun on pushed application commit `98af3a8`. The final verification includes the generic bypass and frame-entry fixes; master was not rerun.
 
 | Suite | Master failures | Starting PR #9 failures | Final PR #9 passed / failed |
 | --- | ---: | ---: | ---: |
-| Layout | 34 | 38 | 376 / 30 |
+| Layout | 34 | 38 | 386 / 30 |
 | Rule validation | 11 | 13 | 49 / 10 |
 | Recognition | 0 | 0 | 932 / 0 |
 | Naiad adapter | 0 | 0 | 47 / 0 |
@@ -42,14 +44,14 @@ Measured on Windows with plain `dotnet test` on each project, including build an
 
 The new structural tests pass. Group top-edge attachments now reserve the measured title band, retain separate positions, and use a straight approach from the source column when it is clear. SVG outline checks retain every visible connector fragment without joining across label gaps; genuinely detached terminals still fail. These checks do not establish that all other rendered geometry is correct. The owner-approved pipeline check now verifies opposite final branches and the early exit beside the collector, while retaining the other spine and clearance checks. The two simple-detour regressions exposed by the wider run were fixed without changing their assertions.
 
-One test now fails while passing on master: `RenderToSvg_Sample03_StrokeQualityMatchesSharedRules`. The live-picture test passes after correcting fragmented-edge outline diagnostics and reserving group title clearance. The HTTPS stroke-distance investigation remains stopped under the three-attempt rule; its threshold and whitespace requirements are unchanged. The four pre-existing grid-only failures absent from master remain. No rule-validation regression was added. Recognition's twelve explicit fixture writers are excluded from ordinary test execution. Latest logs, TRX files, complete failing-name lists and master regression comparisons are in `out/live-picture-investigation/verified/`. Details and final pictures are in [review section 16](grid-layout-review.md#16-live-picture-regression-investigation--10-october-2026).
+One test now fails while passing on master: `RenderToSvg_Sample03_StrokeQualityMatchesSharedRules`. The live-picture test passes after correcting fragmented-edge outline diagnostics and reserving group title clearance. The HTTPS stroke-distance investigation remains stopped under the three-attempt rule; its threshold and whitespace requirements are unchanged. The four pre-existing grid-only failures absent from master remain. No rule-validation regression was added. Recognition's twelve explicit fixture writers are excluded from ordinary test execution. Latest logs, TRX files, complete failing-name lists and master regression comparisons are in `out/bypass-routing/verified/`. Details and final pictures are in [review section 17](grid-layout-review.md#17-bypasses-and-shorter-frame-entries--10-october-2026).
 
 The final counts meet the fresh master-count comparison, but **the solution does not pass all acceptance tests and the rendered diagrams are not ready for merge approval**.
 
 ## 4. Remaining work
 
 1. Resolve the remaining layout and rule-validation failures without weakening their assertions. Some existing tests still describe older routing policies; reconcile those explicitly with the supplied rulebook.
-2. Fix the visible bypasses through nodes, remaining legacy return routing, wrong or detached outline attachments, excessive return tracks and the webshop spine alignment. Ten samples and the active flowchart catalogue have been rendered. All ten samples were inspected; the [review](grid-layout-review.md#6-rendered-evidence) identifies the remaining defects.
+2. Continue the generic visual routing work: crossing and shared tracks, remaining legacy return routing, wrong or detached outline attachments, port choices, excessive corners and the webshop spine alignment. The recorded sample node intersections are cleared. Ten samples and the active catalogue were regenerated; the four changed samples and changed dense-graph picture were inspected. [Review section 17](grid-layout-review.md#17-bypasses-and-shorter-frame-entries--10-october-2026) records the remaining defects.
 3. Finish rulebook sections 1–5, local label gap growth and collision handling in section 6, and whole-grid frame growth and internal return containment in section 7. Section 8 now has shared sequence-row spacing, canvas growth for notes and regression coverage. The frame-midline rule remains on hold.
 4. Obtain approval for the [six provisional defaults](grid-layout-review.md#7-decisions-before-a-future-merge) and a redefinition of the on-hold frame-midline rules before a future merge. Approval of the defaults does not by itself accept the remaining visual defects.
 5. Integrate and verify Enterprise / ArchiMate work separately. Continue native renderer replacement for other diagram kinds and verify fallback, accessibility and unsupported-feature diagnostics.

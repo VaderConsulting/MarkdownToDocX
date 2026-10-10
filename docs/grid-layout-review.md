@@ -1,6 +1,6 @@
 # Grid layout review — 9 October 2026
 
-This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `591adcf`; section 16 records the live-picture regression investigation. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
+This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `98af3a8`; section 16 records the live-picture regression investigation and section 17 records the subsequent bypass and frame-entry fixes. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
 
 ## 1. Fresh test comparison
 
@@ -451,3 +451,47 @@ The rebuilt rendering executable produced ten sample SVG/PNG pairs under `out/li
 The engine diff was checked for diagram selectors: the rules use frame geometry, measured title width, source position and occupied slots. No sample number, label value or particular node ID selects behaviour. The supplied instructions, briefs and editor settings remain untouched. No merge was performed.
 
 The requested regeneration of the original folder's `enterprise.md` used the rebuilt WinForms executable directly, with the input filename and a short lock timeout. It successfully replaced `enterprise.docx`, but DOCX inspection found zero embedded media files and 130 render warnings saying `Unknown diagram type in: enterprise`. The current PR #9 converter does not support that diagram kind; the separate enterprise renderer work from PR #1 has not been integrated. This regeneration is evidence of the current limitation, not a successful diagram render. The original Markdown was unchanged.
+
+## 17. Bypasses and shorter frame entries — 10 October 2026
+
+The owner deferred reconciliation of conflicting checks and requested progress on generic visual routing defects. No existing test assertion, threshold or fixture was changed. The stopped HTTPS investigation was not resumed.
+
+Four fixes use topology and geometry:
+
+1. An ordinary fan-out shortcut no longer replaces an obstacle-aware route when its targets are connected by a forward path. This keeps skip links alongside a chain clear of intermediate nodes.
+2. Grid validation now identifies the final segment by its actual segment index. A target port inside a round node's rectangular bounds can retain its valid normal attachment instead of falling back to an unchecked route through another node.
+3. Extended frame reservations stop before unrelated internal members, while retaining the minimum terminal run. The first variation also capped reservations against external nodes and introduced a border-hugging approach; the second restricts the cap to internal members.
+4. A terminal reserves space beyond a frame face only when the other endpoint lies beyond that face. Entry from beside a frame can turn inside it after crossing the nearer face instead of detouring beyond the opposite side. Existing nested-frame exit checks still pass. This does not implement the on-hold midline rule.
+
+| Commit | Subject |
+| --- | --- |
+| `b72e274` | Keep chain bypasses on obstacle-aware routes |
+| `93e66e7` | Validate the final route segment as a target attachment |
+| `ab76278` | Keep frame reservations clear of unrelated members |
+| `98af3a8` | Enter group frames through the nearer face |
+
+Ten new structural cases cover forward-chain bypasses in four directions, mirrored round-target attachments, mirrored frame-member clearance and mirrored entry from beside a frame. The bypass, target-segment and nearer-face fixes each took one implementation attempt after reproduction; the internal reservation fix took two. No new failing test exhausted the three-attempt allowance. The engine diff was checked for sample numbers, node labels and diagram selectors; none selects these rules.
+
+All five suites ran sequentially with build and restore on pushed application commit `98af3a8`. Master was not rerun.
+
+| Suite | Master passed / failed | Starting branch passed / failed | Current passed / failed |
+| --- | ---: | ---: | ---: |
+| Layout | 234 / 34 | 280 / 38 | 386 / 30 |
+| Rule validation | 46 / 11 | 44 / 13 | 49 / 10 |
+| Recognition | 932 / 0 | 932 / 0 | 932 / 0 |
+| Naiad adapter | 47 / 0 | 47 / 0 | 47 / 0 |
+| Converter | 31 / 0 | 32 / 0 | 42 / 0 |
+
+Failure names are unchanged from section 16. The sole master-passing regression remains `RenderToSvg_Sample03_StrokeQualityMatchesSharedRules`; its assertions remain untouched. The four pre-existing grid-only failures absent from master remain. Final logs, TRX files and failure comparisons are under `out/bypass-routing/verified/`. Reproductions and focused attempts are retained under `out/bypass-routing/`.
+
+The rebuilt rendering executable regenerated ten sample SVG/PNG pairs and 126 catalogue pairs under `out/bypass-routing/samples/` and `out/bypass-routing/catalogue/`. `out/bypass-routing/manifest.txt` lists every absolute SVG, PNG and sample gate-log path. Only four sample PNGs and one catalogue PNG changed against section 16; all five were visually inspected:
+
+- [Forward-chain bypasses](flowchart/layout-fixes/grid-review/01-bypasses.png): skip routes clear the intermediate nodes; long tracks and crowded crossings remain.
+- [Round-target bypass](flowchart/layout-fixes/grid-review/07-bypass.png): the connector clears the intervening node; wide spacing and convergence crossings remain.
+- [Chain skip link](flowchart/layout-fixes/grid-review/09-bypass.png): the route clears the intermediate node but still has four rounded bends with its allocated ports. The corner-limit and line-alignment issue is unresolved.
+- [Shorter frame entries](flowchart/layout-fixes/grid-review/11-shorter-entries.png): the previous body intersections and far-face detours are gone. A crossing between other connectors and circle-attachment diagnostics remain.
+- [Dense frame entries](flowchart/layout-fixes/grid-review/F111-frame-entries.png): routes changed under the nearer-face rule. Crowded corners, overlapping arcs and a crossing through the right frame title remain; this picture is not accepted.
+
+None of the ten sample gate logs reports `NodeIntersection`. Other diagnostics remain, including mixed line styles, attachment reports and line-shape failures. Some diagonal reports describe flattened rounded bends. The chain-skip canvas report uses a node-union margin although the actual expanded SVG contains the route. These diagnostics were recorded without changing their thresholds or treating them as resolved acceptance checks.
+
+The original `flow.docx` was not regenerated and remains section 14's checked output from `65deb18`. The unsupported enterprise-renderer state is unchanged. Supplied instructions, briefs and editor settings were left untouched. No merge was performed; the six defaults, midline decision and broader acceptance work remain outstanding.
