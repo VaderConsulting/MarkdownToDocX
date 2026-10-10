@@ -1,0 +1,18 @@
+enterprise
+  title Grouping, Location and Junction
+  direction TB
+
+  location     london   "London"
+  grouping     store    "Store Cluster"
+  business-actor clerk  "Clerk" in store
+  business-event start  "Start" in store
+  and-junction both     "Both"
+  or-junction  either   "Either"
+  business-event finish "Finish" in store
+
+  london -composition-> clerk
+  store -aggregation-> clerk
+  start -triggering-> both
+  both -triggering-> finish
+  start -flow-> either
+  either -flow-> finish

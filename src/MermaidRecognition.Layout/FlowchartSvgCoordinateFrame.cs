@@ -131,6 +131,7 @@ public static class FlowchartSvgCoordinateFrameResolver
         FlowchartCompoundEndpointHelper.AddGroupBounds(Contract, BoundsById);
         List<FlowchartResolvedGuide> ResolvedGuides = FlowchartEdgeRouteResolver.ResolveAllVisibleGuidePoints(
             Contract,
+            Layout,
             BoundsById,
             NodeById,
             Direction);

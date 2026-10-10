@@ -63,6 +63,13 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
     /// <summary>Distance from message arrow (y) up to the label baseline (larger matches Mermaid spacing).</summary>
     const double MessageLabelOffsetAboveArrow = 15;
 
+    /// <summary>
+    /// Visual gap between a message arrow tip and the next diagram element.
+    /// Derived from <see cref="MessageSpacing"/> minus label and arrowhead extents.
+    /// </summary>
+    static double SequenceInterElementClearancePx =>
+        MessageSpacing - MessageLabelOffsetAboveArrow - GetSequenceMessageMarkerTipBeyondRefXPx(MessageType.SolidArrow);
+
     /// <summary>Extra clearance so message arrow tips stop before destination lifelines in Word.</summary>
     const double SequenceMessageLifelineClearancePx = 3.0;
 
@@ -89,7 +96,7 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
         RenderOptions actorOptions = CloneOptions(options, MermaidSequenceMessageFontFamily, MermaidSequenceActorFontSizePx);
 #pragma warning restore IDE0007
 
-        var layout = CalculateParticipantLayout(model, actorOptions);
+        var layout = ExpandLayoutForNotes(model, CalculateParticipantLayout(model, actorOptions));
         var (height, elementYPositions) = CalculateHeight(model, messageOptions, layout.MaxHeaderHeight);
         var width = layout.TotalWidth;
 
@@ -214,30 +221,72 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
         return new SequenceParticipantLayout(centers, widths, heights, maxHeaderHeight, totalWidth);
     }
 
+    static SequenceParticipantLayout ExpandLayoutForNotes(SequenceModel model, SequenceParticipantLayout layout)
+    {
+        var left = MermaidSequenceDiagramMarginXPx;
+        var right = layout.TotalWidth - MermaidSequenceDiagramMarginXPx;
+        foreach (var element in model.Elements)
+        {
+            if (element is not Note note || !layout.Centers.ContainsKey(note.ParticipantId))
+            {
+                continue;
+            }
+            var size = MeasureNoteSize(note);
+            var noteX = ResolveNoteX(note, layout, size.Width);
+            left = Math.Min(left, noteX);
+            right = Math.Max(right, noteX + size.Width);
+        }
+        var shift = MermaidSequenceDiagramMarginXPx - left;
+        var centers = new Dictionary<string, double>();
+        foreach (var entry in layout.Centers)
+        {
+            centers[entry.Key] = entry.Value + shift;
+        }
+        return layout with { Centers = centers, TotalWidth = right + shift + MermaidSequenceDiagramMarginXPx };
+    }
+
     static (double height, Dictionary<int, double> elementYPositions) CalculateHeight(
         SequenceModel model, RenderOptions options, double maxParticipantHeaderHeight)
     {
         var elementYPositions = new Dictionary<int, double>();
         var y = MermaidSequenceDiagramMarginYPx + maxParticipantHeaderHeight + MessageSpacing;
         var titleOffset = string.IsNullOrEmpty(model.Title) ? 0 : 30;
+        double? previousBottom = null;
 
         for (var i = 0; i < model.Elements.Count; i++)
         {
+            var element = model.Elements[i];
+            if (element is Activation)
+            {
+                elementYPositions[i] = y + titleOffset;
+                continue;
+            }
+
+            var (top, bottom) = GetElementVerticalExtents(element, options, model.AutoNumber);
+            if (previousBottom.HasValue)
+            {
+                y = previousBottom.Value + SequenceInterElementClearancePx - top;
+            }
             elementYPositions[i] = y + titleOffset;
-            y += GetElementHeight(model.Elements[i], options);
+            previousBottom = y + bottom;
         }
 
-        var totalHeight = y + maxParticipantHeaderHeight + MermaidSequenceDiagramMarginYPx + titleOffset;
+        var totalHeight = (previousBottom ?? y) + SequenceInterElementClearancePx
+            + maxParticipantHeaderHeight + MermaidSequenceDiagramMarginYPx + titleOffset;
         return (totalHeight, elementYPositions);
     }
 
-    static double GetElementHeight(SequenceElement element, RenderOptions options) =>
-        element switch
+    static (double top, double bottom) GetElementVerticalExtents(
+        SequenceElement element, RenderOptions options, bool autoNumber) => element switch
         {
-            Message => MessageSpacing,
-            Note note => MeasureNoteSize(note).Height + 10,
-            Activation => 0, // Activations don't add height
-            _ => MessageSpacing
+            Message message => (
+                !string.IsNullOrEmpty(message.Text) || autoNumber
+                    ? -MessageLabelOffsetAboveArrow - options.FontSize
+                    : -GetSequenceMessageMarkerTipBeyondRefXPx(message.Type),
+                (message.FromId == message.ToId ? 20 : 0)
+                    + GetSequenceMessageMarkerTipBeyondRefXPx(message.Type)),
+            Note note => (0, MeasureNoteSize(note).Height),
+            _ => (0, MessageSpacing)
         };
 
     /// <summary>Uses a slightly wide per-glyph estimate so boxes stay comfortable in Word (SVG text often renders wider than 0.55×).</summary>
@@ -406,7 +455,7 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
                     break;
 
                 case Note note:
-                    DrawNote(builder, note, model, layout, yPositions, i, lifelineStartY, y, options);
+                    DrawNote(builder, note, layout, y, options);
                     break;
 
                 case Activation activation:
@@ -541,46 +590,12 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
         }
     }
 
-    static void DrawNote(SvgBuilder builder, Note note, SequenceModel model,
-        SequenceParticipantLayout layout, Dictionary<int, double> yPositions, int elementIndex,
-        double lifelineStartY, double y, RenderOptions options)
+    static void DrawNote(SvgBuilder builder, Note note,
+        SequenceParticipantLayout layout, double y, RenderOptions options)
     {
 #pragma warning disable IDE0007
         Size noteSize = MeasureNoteSize(note);
-        var participantX = layout.Centers[note.ParticipantId];
-        var participantHalfWidth = layout.Widths[note.ParticipantId] / 2;
-        double noteX;
-
-        switch (note.Position)
-        {
-            case NotePosition.RightOf:
-                noteX = participantX + participantHalfWidth + 10;
-                break;
-            case NotePosition.LeftOf:
-                noteX = participantX - participantHalfWidth - noteSize.Width - 10;
-                break;
-            case NotePosition.Over:
-            default:
-                if (!string.IsNullOrEmpty(note.OverParticipantId2) &&
-                    layout.Centers.TryGetValue(note.OverParticipantId2, out var participant2X))
-                {
-                    noteX = (participantX + participant2X) / 2 - noteSize.Width / 2;
-                }
-                else
-                {
-                    noteX = participantX - noteSize.Width / 2;
-                }
-
-                break;
-        }
-
-        if (note.Position == NotePosition.Over
-            && string.IsNullOrEmpty(note.OverParticipantId2)
-            && TryGetNextMessageY(model, yPositions, elementIndex, out double nextMessageY))
-        {
-            double mid = (lifelineStartY + nextMessageY) / 2.0;
-            y = mid - (noteSize.Height / 2.0);
-        }
+        var noteX = ResolveNoteX(note, layout, noteSize.Width);
 
         // Note box (folded corner style)
         var foldSize = 8;
@@ -615,24 +630,36 @@ public class SequenceRenderer : IDiagramRenderer<SequenceModel>
 #pragma warning restore IDE0007
     }
 
-    static bool TryGetNextMessageY(SequenceModel model, Dictionary<int, double> yPositions, int currentIndex, out double nextMessageY)
+    static double ResolveNoteX(Note note, SequenceParticipantLayout layout, double noteWidth)
     {
-#pragma warning disable IDE0007
-        for (int i = currentIndex + 1; i < model.Elements.Count; i++)
+        var participantX = layout.Centers[note.ParticipantId];
+        var participantHalfWidth = layout.Widths[note.ParticipantId] / 2;
+        double noteX;
+
+        switch (note.Position)
         {
-            if (model.Elements[i] is Message)
-            {
-                if (yPositions.TryGetValue(i, out double y))
+            case NotePosition.RightOf:
+                noteX = participantX + participantHalfWidth + 10;
+                break;
+            case NotePosition.LeftOf:
+                noteX = participantX - participantHalfWidth - noteWidth - 10;
+                break;
+            case NotePosition.Over:
+            default:
+                if (!string.IsNullOrEmpty(note.OverParticipantId2) &&
+                    layout.Centers.TryGetValue(note.OverParticipantId2, out var participant2X))
                 {
-                    nextMessageY = y;
-                    return true;
+                    noteX = (participantX + participant2X) / 2 - noteWidth / 2;
                 }
-            }
+                else
+                {
+                    noteX = participantX - noteWidth / 2;
+                }
+
+                break;
         }
 
-        nextMessageY = 0;
-        return false;
-#pragma warning restore IDE0007
+        return noteX;
     }
 
     static Size MeasureNoteSize(Note note)

@@ -47,6 +47,12 @@ public sealed class NodeContract
         get => _ParentGroupId; set => _ParentGroupId = value;
     }
 
+    /// <summary>Explicit measured width supplied by a native diagram adapter.</summary>
+    public double LayoutWidth { get; set; }
+
+    /// <summary>Explicit measured height supplied by a native diagram adapter.</summary>
+    public double LayoutHeight { get; set; }
+
     private readonly List<MermaidDeclaration> _Declarations = [];
 
     public IReadOnlyList<MermaidDeclaration> Declarations => _Declarations;

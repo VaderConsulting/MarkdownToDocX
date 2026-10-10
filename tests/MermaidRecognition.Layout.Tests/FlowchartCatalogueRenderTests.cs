@@ -412,12 +412,15 @@ public sealed class FlowchartCatalogueRenderTests
         FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
 
-        SvgStraightConnector HorizontalSpineLine = SvgStraightConnectorReader.Read(Svg)
-            .Where(Connector => Math.Abs(Connector.Y1 - Connector.Y2) < 0.5 && Math.Abs(Connector.X2 - Connector.X1) > 50.0)
-            .OrderByDescending(Connector => Math.Abs(Connector.X2 - Connector.X1))
-            .First();
+        List<SvgStraightConnector> HorizontalSpineLines = SvgStraightConnectorReader.Read(Svg)
+            .Where(Connector => Math.Abs(Connector.Y1 - Connector.Y2) < 0.5)
+            .ToList();
+        Assert.That(HorizontalSpineLines, Is.Not.Empty, "Expected horizontal connector segments for the labelled edge.");
 
-        double SpineMidSvgY = (HorizontalSpineLine.Y1 + HorizontalSpineLine.Y2) / 2.0;
+        double SpineMidSvgY = (HorizontalSpineLines[0].Y1 + HorizontalSpineLines[0].Y2) / 2.0;
+        double ConnectorMinSvgX = HorizontalSpineLines.Min(Connector => Math.Min(Connector.X1, Connector.X2));
+        double ConnectorMaxSvgX = HorizontalSpineLines.Max(Connector => Math.Max(Connector.X1, Connector.X2));
+        double ConnectorMidSvgX = (ConnectorMinSvgX + ConnectorMaxSvgX) / 2.0;
 
         Match? LabelText = Regex.Matches(
                 Svg,
@@ -437,11 +440,23 @@ public sealed class FlowchartCatalogueRenderTests
         double LabelCentreSvgY = FlowchartRichLabelSvgWriter.ComputeLabelBlockCentreY(FirstLineSvgY, LineCount, Options.EdgeLabelFontSizePx, 1.5);
         double LabelHalfHeight = (LineCount * Options.EdgeLabelFontSizePx * 1.5) / 2.0;
         double LabelCentreSvgX = double.Parse(LabelText.Groups[1].Value, CultureInfo.InvariantCulture);
-        double ConnectorMidSvgX = (HorizontalSpineLine.X1 + HorizontalSpineLine.X2) / 2.0;
 
-        // The wrapped label sits above or below the connector (spec §15.0C.8), centred along it.
-        AssertLabelEdgeBesideLine(LabelCentreSvgY - LabelHalfHeight, LabelCentreSvgY + LabelHalfHeight, SpineMidSvgY);
+        Assert.That(LabelCentreSvgY, Is.EqualTo(SpineMidSvgY).Within(1.5),
+            "Rule B13: wrapped edge labels sit centred on the connector.");
         Assert.That(LabelCentreSvgX, Is.EqualTo(ConnectorMidSvgX).Within(2.0));
+        FlowchartLabelDimensions LabelDimensions = FlowchartNodeSizeEstimator.MeasureWrappedLabel(
+            LongLabel,
+            Options,
+            Options.EdgeLabelFontSizePx);
+        double HalfGap = FlowchartEdgeLabelGapHelper.ComputeHalfGapWidthPx(
+            LabelDimensions,
+            Options.EdgeLabelFontSizePx);
+        FlowchartEdgeLabelGapTests.AssertLabelHasStrokeGapAt(
+            Svg,
+            LabelCentreSvgX,
+            LabelCentreSvgY,
+            HalfGap,
+            LongLabel);
     }
 
     [Test]
@@ -490,13 +505,14 @@ public sealed class FlowchartCatalogueRenderTests
         double SpineSvgX = VerticalSpineLineXValues
             .OrderBy(X => Math.Abs(X - Step1TextX))
             .First();
-
-        // Labels sit beside the spine, not on it (spec §15.0C.8): the near edge clears the line and stays close to it.
         FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
-        double Step1HalfWidth = FlowchartNodeSizeEstimator.MeasureWrappedLabel("Step 1: validate input", Options, Options.EdgeLabelFontSizePx).Width / 2.0;
-        double Step2HalfWidth = FlowchartNodeSizeEstimator.MeasureWrappedLabel("Step 2: persist (async)", Options, Options.EdgeLabelFontSizePx).Width / 2.0;
-        AssertLabelEdgeBesideLine(Step1TextX - Step1HalfWidth, Step1TextX + Step1HalfWidth, SpineSvgX);
-        AssertLabelEdgeBesideLine(Step2TextX - Step2HalfWidth, Step2TextX + Step2HalfWidth, SpineSvgX);
+
+        Assert.That(Step1TextX, Is.EqualTo(SpineSvgX).Within(2.0),
+            "Rule B13: Step 1 label is centred on the spine connector.");
+        Assert.That(Step2TextX, Is.EqualTo(SpineSvgX).Within(2.0),
+            "Rule B13: Step 2 label is centred on the spine connector.");
+        FlowchartEdgeLabelGapTests.AssertLabelHasStrokeGap(Svg, "Step 1: validate input", Options);
+        FlowchartEdgeLabelGapTests.AssertLabelHasStrokeGap(Svg, "Step 2: persist (async)", Options);
 
         Dictionary<string, NodeContract> NodeById = Contract.Nodes
             .ToDictionary(Node => Node.Id, Node => Node);
@@ -525,28 +541,11 @@ public sealed class FlowchartCatalogueRenderTests
                 out FlowchartEdgeRouteKind _),
             Is.True);
 
-        double Step1TextY = double.Parse(Step1Text.Groups[2].Value, CultureInfo.InvariantCulture);
-        double Step2TextY = double.Parse(Step2Text.Groups[2].Value, CultureInfo.InvariantCulture);
         double ExpectedStep1PortMidLayoutY =
             (Step1GuidePoints[0].Y + Step1GuidePoints[Step1GuidePoints.Count - 1].Y) / 2.0;
         double ExpectedStep2PortMidLayoutY =
             (Step2GuidePoints[0].Y + Step2GuidePoints[Step2GuidePoints.Count - 1].Y) / 2.0;
 
-        List<SvgStraightConnector> VerticalLines = SvgStraightConnectorReader.Read(Svg)
-            .Where(Connector => Math.Abs(Connector.X1 - Connector.X2) < 0.5)
-            .ToList();
-        SvgStraightConnector Step1SpineLine = VerticalLines
-            .OrderBy(Connector => Math.Abs(((Connector.Y1 + Connector.Y2) / 2.0) - Step1TextY))
-            .First();
-        SvgStraightConnector Step2SpineLine = VerticalLines
-            .OrderBy(Connector => Math.Abs(((Connector.Y1 + Connector.Y2) / 2.0) - Step2TextY))
-            .First();
-
-        double Step1LineMidSvgY = (Step1SpineLine.Y1 + Step1SpineLine.Y2) / 2.0;
-        double Step2LineMidSvgY = (Step2SpineLine.Y1 + Step2SpineLine.Y2) / 2.0;
-
-        Assert.That(Step1TextY, Is.EqualTo(Step1LineMidSvgY).Within(10.0));
-        Assert.That(Step2TextY, Is.EqualTo(Step2LineMidSvgY).Within(10.0));
         Assert.That(ExpectedStep1PortMidLayoutY, Is.GreaterThan(Validator.CenterY));
         Assert.That(ExpectedStep2PortMidLayoutY, Is.GreaterThan(Store.CenterY));
     }
@@ -563,52 +562,39 @@ public sealed class FlowchartCatalogueRenderTests
 
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
 
-        FlowchartDirection Direction = FlowchartDirection.TopToBottom;
-        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds
-            .ToDictionary(Bounds => Bounds.NodeId, Bounds => Bounds);
-        Dictionary<string, NodeContract> NodeById = Contract.Nodes
-            .ToDictionary(Node => Node.Id, Node => Node);
-        EdgeContract YesEdge = Contract.Edges.First(Edge => string.Equals(Edge.Label, "Yes", StringComparison.Ordinal));
-
-        Assert.That(
-            FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
-                YesEdge,
-                Contract,
-                BoundsById,
-                NodeById,
-                Direction,
-                out List<(double X, double Y)> GuidePoints,
-                out FlowchartEdgeRouteKind _),
-            Is.True);
-
-        FlowchartLayoutNodeBounds CheckBounds = BoundsById["Check"];
-        FlowchartLayoutNodeBounds AcceptBounds = BoundsById["OK"];
-        (double ExpectedX, double ExpectedY) =
-            FlowchartEdgeLabelPlacementHelper.ComputeLocalDecisionBranchLabelExpectedPosition(
-                GuidePoints,
-                CheckBounds,
-                "Yes",
-                Direction);
-        (double ActualX, double ActualY) = FlowchartEdgeLabelPlacementHelper.ResolveEdgeLabelPosition(
-            CheckBounds,
-            AcceptBounds,
-            GuidePoints,
-            Direction,
-            "diamond",
-            "Yes",
-            YesEdge,
-            Contract,
-            BoundsById,
-            "LocalDecisionBranch");
-
-        Assert.That(ActualX, Is.EqualTo(ExpectedX).Within(0.5));
-        Assert.That(ActualY, Is.EqualTo(ExpectedY).Within(0.5));
-
-        (double HalfPolylineX, double HalfPolylineY) =
-            FlowchartEdgeLabelPlacementHelper.ComputePolylineHalfDistancePosition(
-                FlowchartEdgeLabelPlacementHelper.BuildDecisionBranchLabelPolyline(GuidePoints));
-        Assert.That(ActualX, Is.EqualTo(HalfPolylineX).Within(0.5));
-        Assert.That(ActualY, Is.EqualTo(HalfPolylineY).Within(0.5));
+        var BoundsById = Layout.NodeBounds.ToDictionary(Node => Node.NodeId);
+        EdgeContract Edge = Contract.Edges.Single(Candidate => Candidate.Label == "Yes");
+        Assert.That(Layout.TryCopyDrawnRoutePoints(Edge, out var Points), Is.True);
+        var Options = FlowchartRenderOptions.FromContract(Contract);
+        var Dimensions = FlowchartNodeSizeEstimator.MeasureWrappedLabel("Yes", Options, Options.EdgeLabelFontSizePx);
+        double Gap = FlowchartEdgeLabelGapHelper.ComputeCharacterGapPx(Options.EdgeLabelFontSizePx);
+        double Height = FlowchartEdgeLabelPlacementHelper.ComputeRenderedEdgeLabelHeight(Dimensions, Options.EdgeLabelFontSizePx);
+        var Runs = Enumerable.Range(0, Points.Count - 1).Select(Index =>
+        {
+            var Start = Points[Index];
+            var End = Points[Index + 1];
+            bool Horizontal = Math.Abs(Start.Y - End.Y) < 0.5;
+            double Length = Math.Abs(End.X - Start.X) + Math.Abs(End.Y - Start.Y);
+            double TextExtent = Horizontal ? Dimensions.Width : Height;
+            return new { Index, Start, End, Horizontal, Length, TextExtent };
+        }).Where(Run => Run.Length >= Run.TextExtent + 2 * Gap + 40)
+          .OrderByDescending(Run => Run.Length).ThenBy(Run => Run.Index).ToArray();
+        Assert.That(Runs, Is.Not.Empty, "A branch must provide a fitting straight run.");
+        var Longest = Runs[0];
+        var Centre = FlowchartSugiyamaSvgRenderer.ResolveDrawnEdgeLabelCentre(
+            Edge, Contract, BoundsById, BoundsById["Check"], BoundsById["OK"], "diamond",
+            Points, FlowchartDirection.TopToBottom, "LocalDecisionBranch", Options, FlowchartEdgeRouteKind.Grid);
+        Assert.That(Centre.X, Is.EqualTo((Longest.Start.X + Longest.End.X) / 2).Within(0.5));
+        Assert.That(Centre.Y, Is.EqualTo((Longest.Start.Y + Longest.End.Y) / 2).Within(0.5));
+        Assert.That(FlowchartEdgeLabelGapHelper.TryComputeBrokenSegmentSpansForLabelCentre(
+            Longest.Start.X, Longest.Start.Y, Longest.End.X, Longest.End.Y,
+            Centre.X, Centre.Y, Dimensions, Options.EdgeLabelFontSizePx,
+            out var Before, out bool HasBefore, out var After, out bool HasAfter), Is.True);
+        Assert.That(HasBefore && HasAfter, Is.True, "Both sides retain a straight stroke.");
+        double BeforeDistance = Math.Abs(Before.X2 - Centre.X) + Math.Abs(Before.Y2 - Centre.Y);
+        double AfterDistance = Math.Abs(After.X1 - Centre.X) + Math.Abs(After.Y1 - Centre.Y);
+        Assert.That(BeforeDistance - Longest.TextExtent / 2, Is.EqualTo(Gap).Within(0.5));
+        Assert.That(AfterDistance - Longest.TextExtent / 2, Is.EqualTo(Gap).Within(0.5));
     }
 
     [Test]
@@ -622,36 +608,13 @@ public sealed class FlowchartCatalogueRenderTests
             """);
 
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
-
-        FlowchartDirection Direction = FlowchartDirection.TopToBottom;
-        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds
-            .ToDictionary(Bounds => Bounds.NodeId, Bounds => Bounds);
-        Dictionary<string, NodeContract> NodeById = Contract.Nodes
-            .ToDictionary(Node => Node.Id, Node => Node);
-        FlowchartLayoutNodeBounds CheckBounds = BoundsById["Check"];
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
 
         foreach (EdgeContract Edge in Contract.Edges.Where(
                      Candidate => string.Equals(Candidate.SourceId, "Check", StringComparison.Ordinal)
                          && !string.IsNullOrWhiteSpace(Candidate.Label)))
         {
-            Assert.That(
-                FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
-                    Edge,
-                    Contract,
-                    BoundsById,
-                    NodeById,
-                    Direction,
-                    out List<(double X, double Y)> GuidePoints,
-                    out FlowchartEdgeRouteKind _),
-                Is.True);
-
-            (double ExpectedLayoutX, double _) =
-                FlowchartEdgeLabelPlacementHelper.ComputeLocalDecisionBranchLabelExpectedPosition(
-                    GuidePoints,
-                    CheckBounds,
-                    Edge.Label,
-                    Direction);
+            (double ExpectedSvgX, double ExpectedSvgY) = DrawnEdgeLabelLocator.ResolveSvgCentre(Contract, Layout, Edge);
 
             Match? LabelText = Regex.Matches(
                     Svg,
@@ -661,18 +624,9 @@ public sealed class FlowchartCatalogueRenderTests
                 .FirstOrDefault(Candidate => Candidate.Groups[3].Value.Contains(Edge.Label!, StringComparison.Ordinal));
 
             Assert.That(LabelText, Is.Not.Null);
-            Assert.That(LabelText!.Success, Is.True, "Could not locate " + Edge.Label + " edge label in SVG.");
-
-            double LabelSvgX = double.Parse(LabelText.Groups[1].Value, CultureInfo.InvariantCulture);
-            Assert.That(FlowchartSvgLayoutCoordinateMapper.TryCreate(Contract, Layout, out FlowchartSvgLayoutCoordinateMapper? Mapper), Is.True);
-            (double PlacementSvgX, double _) = Mapper!.LayoutToSvg(ExpectedLayoutX, 0.0);
-            (double DiamondSvgX, double _) = Mapper.LayoutToSvg(CheckBounds.CenterX, 0.0);
-            (double DrawnSvgX, double _) = DrawnEdgeLabelLocator.ResolveSvgCentre(Contract, Layout, Edge);
-
-            // The label is drawn at the decision placement point moved clear of the connector and the diamond
-            // (spec §15.0C.8 and the EIP 2.56 addendum), so it stays on the outer side of its branch.
-            Assert.That(LabelSvgX, Is.EqualTo(DrawnSvgX).Within(2.0));
-            Assert.That(Math.Sign(LabelSvgX - DiamondSvgX), Is.EqualTo(Math.Sign(PlacementSvgX - DiamondSvgX)), $"{Edge.Label} should stay on its branch side.");
+            double LabelSvgX = double.Parse(LabelText!.Groups[1].Value, CultureInfo.InvariantCulture);
+            Assert.That(LabelSvgX, Is.EqualTo(ExpectedSvgX).Within(2.0),
+                Edge.Label + " should be centred on the branch straight run");
         }
     }
 
@@ -868,57 +822,36 @@ public sealed class FlowchartCatalogueRenderTests
             .ToDictionary(Node => Node.Id, Node => Node);
         FlowchartLayoutNodeBounds HubBounds = BoundsById["Hub"];
 
-        // Spec §15.0C.1: workers wholly beside the hub leave from the middle of the hub's facing side.
-        AssertEdgeSourceFace(
-            Contract,
-            BoundsById,
-            NodeById,
-            Direction,
-            "Hub",
-            "W1",
-            FlowchartEdgeAttachFace.Left,
-            FlowchartEdgeRouteKind.Curved);
-
-        AssertEdgeSourceFace(
-            Contract,
-            BoundsById,
-            NodeById,
-            Direction,
-            "Hub",
-            "W2",
-            FlowchartEdgeAttachFace.Bottom,
-            FlowchartEdgeRouteKind.Straight);
-
-        AssertEdgeSourceFace(
-            Contract,
-            BoundsById,
-            NodeById,
-            Direction,
-            "Hub",
-            "W3",
-            FlowchartEdgeAttachFace.Right,
-            FlowchartEdgeRouteKind.Curved);
-
         foreach (string WorkerId in new[] { "W1", "W2", "W3" })
         {
             bool Resolved = FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
-                Contract.Edges.First(Edge => Edge.SourceId == "Hub" && Edge.TargetId == WorkerId),
-                Contract,
-                BoundsById,
-                NodeById,
-                Direction,
-                out List<(double X, double Y)> LayoutPoints,
-                out FlowchartEdgeRouteKind RouteKind);
-
+                Contract.Edges.Single(Edge => Edge.SourceId == "Hub" && Edge.TargetId == WorkerId),
+                Contract, BoundsById, NodeById, Direction,
+                out var Points, out _, Layout);
             Assert.That(Resolved, Is.True);
-            FlowchartEdgeAttachFace TargetFace = FlowchartPerpendicularAttachValidator.ResolveAttachFace(
-                BoundsById[WorkerId],
-                LayoutPoints[LayoutPoints.Count - 1].X,
-                LayoutPoints[LayoutPoints.Count - 1].Y);
-            Assert.That(TargetFace, Is.EqualTo(FlowchartEdgeAttachFace.Top), WorkerId + " should be entered from the top");
+            var ExpectedSourceFace = WorkerId switch
+            {
+                "W1" => FlowchartEdgeAttachFace.Left,
+                "W2" => FlowchartEdgeAttachFace.Bottom,
+                _ => FlowchartEdgeAttachFace.Right
+            };
+            Assert.That(FlowchartPerpendicularAttachValidator.ResolveAttachFace(
+                HubBounds, Points[0].X, Points[0].Y), Is.EqualTo(ExpectedSourceFace));
+            Assert.That(FlowchartPerpendicularAttachValidator.ResolveAttachFace(
+                BoundsById[WorkerId], Points[^1].X, Points[^1].Y), Is.EqualTo(FlowchartEdgeAttachFace.Top));
+            for (int Index = 1; Index < Points.Count; Index++)
+            {
+                Assert.That(Math.Abs(Points[Index].X - Points[Index - 1].X) < 0.5
+                    || Math.Abs(Points[Index].Y - Points[Index - 1].Y) < 0.5, Is.True);
+            }
+            if (WorkerId == "W2")
+            {
+                Assert.That(Points.All(Point => Math.Abs(Point.X - HubBounds.CenterX) < 0.5), Is.True);
+            }
         }
-
-        Assert.That(HubBounds.CenterX, Is.EqualTo(BoundsById["W2"].CenterX).Within(1.0));
+        Assert.That(HubBounds.CenterX, Is.EqualTo(BoundsById["W2"].CenterX).Within(0.5));
+        Assert.That(BoundsById["W1"].CenterX + BoundsById["W3"].CenterX,
+            Is.EqualTo(2 * HubBounds.CenterX).Within(0.5));
     }
 
     [Test]
@@ -932,16 +865,17 @@ public sealed class FlowchartCatalogueRenderTests
             """);
 
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
-        int StraightLineCount = System.Text.RegularExpressions.Regex.Matches(
-            Svg,
-            @"<line[^>]+stroke-linecap=""butt""").Count;
-        int CurvedPathCount = System.Text.RegularExpressions.Regex.Matches(
-            Svg,
-            @"<path d=""[^""]*C[^""]*"" fill=""none""").Count;
+        string CentrePath = OrthogonalRouteTestHelper.ExtractEdgePath(Svg, "Hub", "W2");
+        string SidePathTwo = OrthogonalRouteTestHelper.ExtractEdgePath(Svg, "Hub", "W1");
+        string SidePathThree = OrthogonalRouteTestHelper.ExtractEdgePath(Svg, "Hub", "W3");
 
-        Assert.That(StraightLineCount, Is.EqualTo(1), "Hub→Worker 2 should be a straight vertical connector");
-        Assert.That(CurvedPathCount, Is.GreaterThanOrEqualTo(2),
-            "Hub→Worker 1 and Hub→Worker 3 should leave from side ports with smooth curves");
+        OrthogonalRouteTestHelper.AssertOrthogonalPathWithRoundedCorners(CentrePath);
+        OrthogonalRouteTestHelper.AssertOrthogonalPathWithRoundedCorners(SidePathTwo);
+        OrthogonalRouteTestHelper.AssertOrthogonalPathWithRoundedCorners(SidePathThree);
+        Assert.That(
+            OrthogonalRouteTestHelper.LongestHorizontalRunMidpoint(SidePathThree),
+            Is.Not.Null,
+            "Outermost fan branch should include a horizontal run before turning down");
     }
 
     [Test]
@@ -955,30 +889,13 @@ public sealed class FlowchartCatalogueRenderTests
             """);
 
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
-        System.Text.RegularExpressions.MatchCollection CurvedPaths = System.Text.RegularExpressions.Regex.Matches(
-            Svg,
-            @"<path d=""([^""]+)"" fill=""none""");
-
-        int SideBranchPathCount = 0;
-        foreach (System.Text.RegularExpressions.Match Match in CurvedPaths)
+        foreach (string TargetId in new[] { "W1", "W3" })
         {
-            string PathData = Match.Groups[1].Value;
-            if (!PathData.Contains('C'))
-            {
-                continue;
-            }
-
-            SideBranchPathCount++;
-            int CubicCount = System.Text.RegularExpressions.Regex.Matches(PathData, @"C").Count;
-            Assert.That(CubicCount, Is.GreaterThanOrEqualTo(1),
-                "Side fan-out branches use stub-expanded guides with a curved body between terminal stubs");
+            string PathData = OrthogonalRouteTestHelper.ExtractEdgePath(Svg, "Hub", TargetId);
+            OrthogonalRouteTestHelper.AssertOrthogonalPathWithRoundedCorners(PathData);
             Assert.That(PathData, Does.Match(@"^M[^""]+L[^""]+"),
-                "Stub-expanded fan routes must begin with a perpendicular source stub");
-            Assert.That(PathData, Does.Contain("C"),
-                "Side fan-out branches must use a smooth curved body between terminal stubs");
+                "Offset fan-out branches begin with a perpendicular source stub");
         }
-
-        Assert.That(SideBranchPathCount, Is.EqualTo(2), "Hub→Worker 1 and Hub→Worker 3 should be curved side branches");
     }
 
     [Test]
@@ -1355,12 +1272,16 @@ public sealed class FlowchartCatalogueRenderTests
             """);
 
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
-        int CurvedBranchCount = System.Text.RegularExpressions.Regex.Matches(
-            Svg,
-            @"<path d=""M[^""C]+L[^""C]+C[^""]+L[^""C]+"" fill=""none""").Count;
+        Assert.That(OrthogonalRouteTestHelper.IsStraightVerticalConnector(Svg, "C", "E"), Is.True,
+            "Centre branch should be a straight vertical connector");
 
-        Assert.That(CurvedBranchCount, Is.GreaterThanOrEqualTo(2),
-            "Left and right decision branches should use curved S-routes with perpendicular terminal stubs (one stub-bridge cubic, spec §15.0C.3)");
+        foreach (string TargetId in new[] { "D", "F" })
+        {
+            string PathData = OrthogonalRouteTestHelper.ExtractEdgePath(Svg, "C", TargetId);
+            OrthogonalRouteTestHelper.AssertOrthogonalPathWithRoundedCorners(PathData);
+            Assert.That(PathData, Does.Match(@"^M[^""]+L[^""]+"),
+                "Side branches leave the diamond horizontally before turning down");
+        }
     }
 
     [Test]
@@ -1790,7 +1711,7 @@ public sealed class FlowchartCatalogueRenderTests
     }
 
     [Test]
-    public void TryLayout_F34_DoneAndRetryShareDecisionCrossAxis()
+    public void TryLayout_HorizontalRetry_DoneSharesDecisionRowAndRetrySitsBelow()
     {
         DiagramContract Contract = MermaidRecognizer.Parse("""
             flowchart LR
@@ -1805,12 +1726,12 @@ public sealed class FlowchartCatalogueRenderTests
         double HubY = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "B").CenterY;
         double DoneY = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "C").CenterY;
         double RetryY = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "D").CenterY;
-        Assert.That(DoneY, Is.GreaterThan(HubY + 8.0), "Yes branch should sit above the decision hub");
+        Assert.That(DoneY, Is.EqualTo(HubY).Within(0.5), "Yes branch continues straight ahead");
         Assert.That(RetryY, Is.LessThan(HubY - 8.0), "No branch should sit below the decision hub");
     }
 
     [Test]
-    public void TryLayout_F34_DoneAndRetryRemainHorizontallySeparated()
+    public void TryLayout_HorizontalRetry_DoneStaysAheadAndRetrySharesDecisionColumn()
     {
         DiagramContract Contract = MermaidRecognizer.Parse("""
             flowchart LR
@@ -1828,8 +1749,8 @@ public sealed class FlowchartCatalogueRenderTests
         double RetryX = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "D").CenterX;
 
         Assert.That(DoneX, Is.GreaterThan(HubX + HubHalfWidth + 20.0));
-        Assert.That(RetryX, Is.GreaterThan(HubX + HubHalfWidth + 20.0));
-        Assert.That(Math.Abs(DoneX - RetryX), Is.LessThan(1.0), "Branch targets share the forward column");
+        Assert.That(RetryX, Is.EqualTo(HubX).Within(0.5));
+        Assert.That(DoneX - RetryX, Is.GreaterThan(HubHalfWidth + 20.0), "The outcomes remain horizontally separated");
     }
 
     [Test]
@@ -2341,7 +2262,7 @@ public sealed class FlowchartCatalogueRenderTests
     }
 
     [Test]
-    public void TryLayout_F58_MaintainsMultipleVerticalColumns()
+    public void TryLayout_PipelineWithEarlyExit_PreservesSpineAndSeparatesFinalBranches()
     {
         DiagramContract Contract = MermaidRecognizer.Parse("""
             flowchart TD
@@ -2365,24 +2286,40 @@ public sealed class FlowchartCatalogueRenderTests
 
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds.ToDictionary(Bounds => Bounds.NodeId, Bounds => Bounds);
         double SpineX = BoundsById["Start"].CenterX;
+        HashSet<double> DistinctColumns = Layout.NodeBounds
+            .Select(Bounds => Math.Round(Bounds.CenterX / 30.0) * 30.0)
+            .ToHashSet();
 
-        Assert.That(BoundsById["Reject"].CenterX, Is.LessThan(SpineX - 40.0), "Reject should occupy a left margin column");
-        Assert.That(BoundsById["Reject"].CenterX, Is.LessThan(BoundsById["Render"].CenterX - 8.0), "Reject should sit in the far-left column, left of Render SVG");
+        Assert.That(DistinctColumns.Count, Is.GreaterThanOrEqualTo(3), "Diagram should use several vertical columns");
 
-        // Mermaid puts one branch beside Validate and keeps the following no-branch on that decision's column.
-        AssertBranchesOnBothSides(BoundsById, "Validate", "Reject", "Parse");
-        Assert.That(BoundsById["Render"].CenterX, Is.LessThan(BoundsById["HasMermaid"].CenterX - 8.0));
-        Assert.That(
-            Math.Abs(BoundsById["Word"].CenterX - BoundsById["HasMermaid"].CenterX),
-            Is.LessThan(1.5),
-            "Build DOCX stays on the decision column");
-        Assert.That(BoundsById["Done"].CenterX, Is.LessThan(BoundsById["DoArchive"].CenterX - 8.0));
-        Assert.That(BoundsById["Persist"].CenterX, Is.LessThan(BoundsById["DoArchive"].CenterX - 8.0));
+        foreach (string SpineNodeId in new[] { "Start", "Ingest", "Validate", "Parse", "HasMermaid", "Word", "DoArchive" })
+        {
+            Assert.That(BoundsById[SpineNodeId].CenterX, Is.EqualTo(SpineX).Within(1.5),
+                SpineNodeId + " should stay on the spine column");
+        }
 
-        // Layout is y-up: a larger CenterY is higher on the page.
-        Assert.That(BoundsById["Persist"].CenterY, Is.GreaterThan(BoundsById["Done"].CenterY + 40.0), "Optional archive sits above Done");
-        Assert.That(BoundsById["Reject"].CenterY, Is.GreaterThan(BoundsById["Done"].CenterY + 40.0), "Reject sits above Done so its merge runs down into Done");
-        Assert.That(BoundsById["Validate"].CenterY, Is.GreaterThan(BoundsById["Reject"].CenterY + 40.0), "Validate stays above the reject branch row");
+        Assert.That(BoundsById["Reject"].CenterX, Is.LessThan(BoundsById["Render"].CenterX - 40.0),
+            "Early exit should sit in the outermost side column");
+        Assert.That(BoundsById["Render"].CenterX, Is.LessThan(SpineX - 40.0),
+            "Detour should sit in the column beside the spine");
+        Assert.That(BoundsById["Reject"].CenterX, Is.LessThan(SpineX - 40.0),
+            "Early exit should sit left of the spine");
+
+        Assert.That(BoundsById["Persist"].CenterY, Is.GreaterThan(BoundsById["Done"].CenterY + 40.0),
+            "Optional archive sits above the terminal collector");
+        AssertBranchesOnBothSides(BoundsById, "DoArchive", "Done", "Persist");
+        Assert.That(BoundsById["Done"].CenterX, Is.LessThan(SpineX - 40.0),
+            "Terminal collector sits beside the final decision");
+        Assert.That(BoundsById["Persist"].CenterX, Is.GreaterThan(SpineX + 40.0),
+            "Optional detour sits opposite the terminal collector");
+        Assert.That(BoundsById["Reject"].CenterY, Is.EqualTo(BoundsById["Done"].CenterY).Within(1.5),
+            "Early exit sits beside the terminal collector");
+        double EarlyExitRight = BoundsById["Reject"].CenterX + BoundsById["Reject"].Width / 2.0;
+        double CollectorLeft = BoundsById["Done"].CenterX - BoundsById["Done"].Width / 2.0;
+        Assert.That(CollectorLeft - EarlyExitRight, Is.GreaterThanOrEqualTo(30.0 - 0.01),
+            "Early exit and terminal collector retain a grid step of clearance");
+        Assert.That(BoundsById["Validate"].CenterY, Is.GreaterThan(BoundsById["Reject"].CenterY + 40.0),
+            "Validate stays above the early-exit branch row");
     }
 
     private static void AssertBranchesOnBothSides(Dictionary<string, FlowchartLayoutNodeBounds> BoundsById, string DecisionId, string LeftTargetId, string RightTargetId)
@@ -2424,6 +2361,7 @@ public sealed class FlowchartCatalogueRenderTests
         // Spec §15.0C.1: sources wholly beside Done join the middle of Done's facing side.
         AssertEdgeTargetFace(
             Contract,
+            Layout,
             BoundsById,
             NodeById,
             Direction,
@@ -2431,14 +2369,20 @@ public sealed class FlowchartCatalogueRenderTests
             "Done",
             FlowchartEdgeAttachFace.Left);
 
+        FlowchartLayoutNodeBounds PersistBounds = BoundsById["Persist"];
+        FlowchartLayoutNodeBounds DoneBounds = BoundsById["Done"];
+        FlowchartEdgeAttachFace PersistEntryFace = Math.Abs(PersistBounds.CenterX - DoneBounds.CenterX) <= 4.0
+            ? FlowchartEdgeAttachFace.Top
+            : FlowchartEdgeAttachFace.Right;
         AssertEdgeTargetFace(
             Contract,
+            Layout,
             BoundsById,
             NodeById,
             Direction,
             "Persist",
             "Done",
-            FlowchartEdgeAttachFace.Right);
+            PersistEntryFace);
     }
 
     [Test]
@@ -2472,6 +2416,7 @@ public sealed class FlowchartCatalogueRenderTests
 
         AssertHasMermaidBranchRoute(
             Contract,
+            Layout,
             BoundsById,
             NodeById,
             Direction,
@@ -2480,6 +2425,7 @@ public sealed class FlowchartCatalogueRenderTests
 
         AssertHasMermaidBranchRoute(
             Contract,
+            Layout,
             BoundsById,
             NodeById,
             Direction,
@@ -2517,12 +2463,12 @@ public sealed class FlowchartCatalogueRenderTests
             .ToDictionary(Node => Node.Id, Node => Node);
 
         // Two-way decisions leave from the shoulder that faces each target, never the bottom vertex.
-        AssertDecisionSourceAttachLeftOfHub(Contract, BoundsById, NodeById, Direction, "Validate", "Reject");
-        AssertDecisionSourceAttachRightOfHub(Contract, BoundsById, NodeById, Direction, "Validate", "Parse");
-        AssertDecisionSourceAttachLeftOfHub(Contract, BoundsById, NodeById, Direction, "HasMermaid", "Render");
-        AssertDecisionSourceAttachRightOfHub(Contract, BoundsById, NodeById, Direction, "HasMermaid", "Word");
-        AssertDecisionSourceAttachRightOfHub(Contract, BoundsById, NodeById, Direction, "DoArchive", "Persist");
-        AssertDecisionSourceAttachLeftOfHub(Contract, BoundsById, NodeById, Direction, "DoArchive", "Done");
+        AssertDecisionSourceAttachLeftOfHub(Contract, Layout, BoundsById, NodeById, Direction, "Validate", "Reject");
+        AssertDecisionSourceAttachRightOfHub(Contract, Layout, BoundsById, NodeById, Direction, "Validate", "Parse");
+        AssertDecisionSourceAttachLeftOfHub(Contract, Layout, BoundsById, NodeById, Direction, "HasMermaid", "Render");
+        AssertCollinearDecisionBranch(Contract, Layout, BoundsById, NodeById, Direction, "HasMermaid", "Word");
+        AssertDecisionSourceAttachLeftOfHub(Contract, Layout, BoundsById, NodeById, Direction, "DoArchive", "Persist");
+        AssertDecisionSourceAttachLeftOfHub(Contract, Layout, BoundsById, NodeById, Direction, "DoArchive", "Done");
     }
 
     [Test]
@@ -2553,31 +2499,14 @@ public sealed class FlowchartCatalogueRenderTests
         Assert.That(Svg, Does.Contain("Optional archive"));
         Assert.That(Regex.Matches(Svg, @"\sA[\d\.,]+").Count, Is.GreaterThanOrEqualTo(3),
             "Persist cylinder and stadium Start should expose arc segments");
-        Assert.That(Regex.Matches(Svg, @"<path d=""[^""]*C[^""]*"" fill=""none""").Count,
+        Assert.That(Svg, Does.Contain(@"data-edge-source=""Validate"" data-edge-target=""Reject"""));
+        Assert.That(Svg, Does.Contain(@"data-edge-source=""Reject"" data-edge-target=""Done"""));
+        Assert.That(Svg, Does.Contain(@"data-edge-source=""Persist"" data-edge-target=""Done"""));
+        Assert.That(Regex.IsMatch(Svg, @"<path d=""[^""]*S[^""]*"""), Is.False,
+            "Routes must not use smooth cubic continuation");
+        Assert.That(Regex.Matches(Svg, @"<path d=""[^""]+L[^""]+"" fill=""none""").Count,
             Is.GreaterThanOrEqualTo(2),
-            "Local decision branches and terminal collector routes should produce curved edges");
-
-        MatchCollection OrthogonalMatches = Regex.Matches(
-            Svg,
-            @"<path d=""(M[^""]*)"" fill=""none""");
-        List<string> OrthogonalPathSamples = [];
-        foreach (Match Match in OrthogonalMatches)
-        {
-            if (Match.Groups.Count > 1
-                && FlowchartCurvePathBuilder.IsMultiSegmentOrthogonalPathData(Match.Groups[1].Value))
-            {
-                OrthogonalPathSamples.Add(Match.Groups[1].Value);
-            }
-        }
-
-        Assert.That(
-            OrthogonalPathSamples,
-            Is.Empty,
-            "Default curveBasis diagrams must not render multi-segment orthogonal edge polylines: "
-            + string.Join(" | ", OrthogonalPathSamples));
-        Assert.That(Regex.Matches(Svg, @"<path d=""[^""]*C[^""]*"" fill=""none""").Count,
-            Is.GreaterThanOrEqualTo(5),
-            "Bypass, fan-in, and decision routes should render as smooth curveBasis paths");
+            "Decision branches and collector routes should use orthogonal straight runs");
 
         int PersistLabelIndex = Svg.IndexOf("Optional archive", StringComparison.Ordinal);
         int DoneNodeIndex = Svg.LastIndexOf("Done", StringComparison.Ordinal);
@@ -3048,45 +2977,49 @@ public sealed class FlowchartCatalogueRenderTests
 
     private static void AssertDecisionSourceAttachLeftOfHub(
         DiagramContract Contract,
+        FlowchartLayoutResult Layout,
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         Dictionary<string, NodeContract> NodeById,
         FlowchartDirection Direction,
         string SourceId,
         string TargetId)
     {
-        (double AttachX, _) = ResolveDecisionSourceAttach(Contract, BoundsById, NodeById, Direction, SourceId, TargetId);
+        (double AttachX, _) = ResolveDecisionSourceAttach(Contract, Layout, BoundsById, NodeById, Direction, SourceId, TargetId);
         double HubCentreX = BoundsById[SourceId].CenterX;
         Assert.That(AttachX, Is.LessThan(HubCentreX - 4.0), SourceId + "->" + TargetId + " should exit the left diamond port");
     }
 
     private static void AssertDecisionSourceAttachRightOfHub(
         DiagramContract Contract,
+        FlowchartLayoutResult Layout,
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         Dictionary<string, NodeContract> NodeById,
         FlowchartDirection Direction,
         string SourceId,
         string TargetId)
     {
-        (double AttachX, _) = ResolveDecisionSourceAttach(Contract, BoundsById, NodeById, Direction, SourceId, TargetId);
+        (double AttachX, _) = ResolveDecisionSourceAttach(Contract, Layout, BoundsById, NodeById, Direction, SourceId, TargetId);
         double HubCentreX = BoundsById[SourceId].CenterX;
         Assert.That(AttachX, Is.GreaterThan(HubCentreX + 4.0), SourceId + "->" + TargetId + " should exit the right diamond port");
     }
 
     private static void AssertDecisionSourceAttachBelowHub(
         DiagramContract Contract,
+        FlowchartLayoutResult Layout,
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         Dictionary<string, NodeContract> NodeById,
         FlowchartDirection Direction,
         string SourceId,
         string TargetId)
     {
-        (_, double AttachY) = ResolveDecisionSourceAttach(Contract, BoundsById, NodeById, Direction, SourceId, TargetId);
+        (_, double AttachY) = ResolveDecisionSourceAttach(Contract, Layout, BoundsById, NodeById, Direction, SourceId, TargetId);
         double HubCentreY = BoundsById[SourceId].CenterY;
         Assert.That(AttachY, Is.LessThan(HubCentreY - 4.0), SourceId + "->" + TargetId + " should exit the bottom diamond port");
     }
 
     private static (double X, double Y) ResolveDecisionSourceAttach(
         DiagramContract Contract,
+        FlowchartLayoutResult Layout,
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         Dictionary<string, NodeContract> NodeById,
         FlowchartDirection Direction,
@@ -3103,28 +3036,21 @@ public sealed class FlowchartCatalogueRenderTests
             NodeById,
             Direction,
             out List<(double X, double Y)> LayoutPoints,
-            out FlowchartEdgeRouteKind RouteKind);
+            out FlowchartEdgeRouteKind RouteKind,
+            Layout);
 
         Assert.That(Resolved, Is.True, SourceId + "->" + TargetId + " should resolve");
-        if (RouteKind == FlowchartEdgeRouteKind.Corridor)
-        {
-            Assert.That(LayoutPoints.Count, Is.GreaterThanOrEqualTo(5), SourceId + "->" + TargetId + " corridor route");
-        }
-        else
-        {
-            FlowchartEdgeRouteKind ExpectedRouteKind = LayoutPoints.Count == 2
-                ? FlowchartEdgeRouteKind.Straight
-                : LayoutPoints.Count >= 6
-                    ? FlowchartEdgeRouteKind.Curved
-                    : FlowchartEdgeRouteKind.Decision;
-            Assert.That(RouteKind, Is.EqualTo(ExpectedRouteKind), SourceId + "->" + TargetId + " route kind");
-        }
+        Assert.That(
+            RouteKind,
+            Is.EqualTo(FlowchartEdgeRouteKind.Decision).Or.EqualTo(FlowchartEdgeRouteKind.Straight),
+            SourceId + "->" + TargetId + " route kind");
 
         return LayoutPoints[0];
     }
 
     private static void AssertHasMermaidBranchRoute(
         DiagramContract Contract,
+        FlowchartLayoutResult Layout,
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         Dictionary<string, NodeContract> NodeById,
         FlowchartDirection Direction,
@@ -3141,13 +3067,21 @@ public sealed class FlowchartCatalogueRenderTests
             NodeById,
             Direction,
             out List<(double X, double Y)> LayoutPoints,
-            out FlowchartEdgeRouteKind RouteKind);
+            out FlowchartEdgeRouteKind RouteKind,
+            Layout);
 
         Assert.That(Resolved, Is.True, "HasMermaid->" + TargetId + " should resolve");
-        FlowchartEdgeRouteKind ExpectedRouteKind = ExpectStraight
-            ? FlowchartEdgeRouteKind.Straight
-            : FlowchartEdgeRouteKind.Decision;
-        Assert.That(RouteKind, Is.EqualTo(ExpectedRouteKind), "HasMermaid->" + TargetId + " route kind");
+        if (ExpectStraight)
+        {
+            Assert.That(RouteKind, Is.EqualTo(FlowchartEdgeRouteKind.Straight), "HasMermaid->" + TargetId + " route kind");
+        }
+        else
+        {
+            Assert.That(
+                RouteKind,
+                Is.EqualTo(FlowchartEdgeRouteKind.Decision).Or.EqualTo(FlowchartEdgeRouteKind.Straight),
+                "HasMermaid->" + TargetId + " route kind");
+        }
 
         if (ExpectStraight)
         {
@@ -3166,12 +3100,49 @@ public sealed class FlowchartCatalogueRenderTests
         }
         else
         {
-            Assert.That(LayoutPoints.Count, Is.EqualTo(5), "HasMermaid->" + TargetId + " should use a curved branch route");
+            Assert.That(LayoutPoints.Count, Is.GreaterThanOrEqualTo(2).And.LessThanOrEqualTo(3),
+                "HasMermaid->" + TargetId + " should use a single-elbow orthogonal branch (B12)");
         }
+    }
+
+    private static void AssertCollinearDecisionBranch(
+        DiagramContract Contract,
+        FlowchartLayoutResult Layout,
+        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        Dictionary<string, NodeContract> NodeById,
+        FlowchartDirection Direction,
+        string SourceId,
+        string TargetId)
+    {
+        EdgeContract Edge = Contract.Edges.First(
+            Candidate => Candidate.SourceId == SourceId && Candidate.TargetId == TargetId);
+
+        bool Resolved = FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
+            Edge,
+            Contract,
+            BoundsById,
+            NodeById,
+            Direction,
+            out List<(double X, double Y)> LayoutPoints,
+            out FlowchartEdgeRouteKind RouteKind,
+            Layout);
+
+        Assert.That(Resolved, Is.True, SourceId + "->" + TargetId + " should resolve");
+        Assert.That(
+            RouteKind,
+            Is.EqualTo(FlowchartEdgeRouteKind.Straight).Or.EqualTo(FlowchartEdgeRouteKind.Decision),
+            SourceId + "->" + TargetId + " collinear branch");
+        Assert.That(LayoutPoints.Count, Is.LessThanOrEqualTo(3), SourceId + "->" + TargetId + " uses at most one elbow");
+        FlowchartLayoutNodeBounds TargetBounds = BoundsById[TargetId];
+        Assert.That(
+            Math.Abs(TargetBounds.CenterX - BoundsById[SourceId].CenterX),
+            Is.LessThan(4.0),
+            SourceId + "->" + TargetId + " target shares the hub column");
     }
 
     private static void AssertEdgeTargetFace(
         DiagramContract Contract,
+        FlowchartLayoutResult Layout,
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         Dictionary<string, NodeContract> NodeById,
         FlowchartDirection Direction,
@@ -3189,7 +3160,8 @@ public sealed class FlowchartCatalogueRenderTests
             NodeById,
             Direction,
             out List<(double X, double Y)> LayoutPoints,
-            out _);
+            out _,
+            Layout);
 
         Assert.That(Resolved, Is.True, SourceId + "->" + TargetId + " should resolve");
 

@@ -392,10 +392,11 @@ public static class FlowchartSpineGraphHelper
 
     private static List<EdgeContract> GetVisibleOutgoingEdges(DiagramContract Contract, string SourceNodeId)
     {
+        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         List<EdgeContract> OutgoingEdges = [];
         foreach (EdgeContract Edge in Contract.Edges)
         {
-            if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase) || BackEdges.Contains(Edge))
             {
                 continue;
             }

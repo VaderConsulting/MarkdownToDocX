@@ -1442,31 +1442,38 @@ public static class FlowchartSharedRouteQualityHelper
         out (double X, double Y) Anchor)
     {
         Anchor = (0.0, 0.0);
-        int BestIndex = -1;
-        double BestLength = 0.0;
-        for (int Index = 1; Index < LayoutPoints.Count; Index++)
+        FlowchartLabelDimensions LabelDimensions = new FlowchartLabelDimensions
         {
-            double Length = Math.Sqrt(
-                Math.Pow(LayoutPoints[Index].X - LayoutPoints[Index - 1].X, 2.0)
-                + Math.Pow(LayoutPoints[Index].Y - LayoutPoints[Index - 1].Y, 2.0));
-            if (Length < 16.0 || Length <= BestLength)
-            {
-                continue;
-            }
-
-            BestLength = Length;
-            BestIndex = Index;
-        }
-
-        if (BestIndex < 1)
+            Width = LabelWidth,
+            Height = LabelHeight,
+            DisplayText = string.Empty
+        };
+        if (!FlowchartEdgeLabelGapHelper.TryResolveLabelSegmentBreak(
+                LayoutPoints,
+                LabelDimensions,
+                LabelHeight,
+                out FlowchartEdgeLabelGapHelper.LabelSegmentBreak SegmentBreak))
         {
             return false;
         }
 
-        double MidX = (LayoutPoints[BestIndex - 1].X + LayoutPoints[BestIndex].X) / 2.0;
-        double MidY = (LayoutPoints[BestIndex - 1].Y + LayoutPoints[BestIndex].Y) / 2.0;
-        double DeltaX = LayoutPoints[BestIndex].X - LayoutPoints[BestIndex - 1].X;
-        double DeltaY = LayoutPoints[BestIndex].Y - LayoutPoints[BestIndex - 1].Y;
+        double MidX = SegmentBreak.CentreX;
+        double MidY = SegmentBreak.CentreY;
+        if (Math.Abs(OffsetPx) <= 1e-6)
+        {
+            if (!LabelOverlapsUnrelatedNode(MidX, MidY, LabelWidth, LabelHeight, BoundsById, SourceNodeId, TargetNodeId))
+            {
+                Anchor = (MidX, MidY);
+                return true;
+            }
+
+            return false;
+        }
+
+        (double StartX, double StartY) = LayoutPoints[SegmentBreak.SegmentStartIndex];
+        (double EndX, double EndY) = LayoutPoints[SegmentBreak.SegmentEndIndex];
+        double DeltaX = EndX - StartX;
+        double DeltaY = EndY - StartY;
         (double OffsetX, double OffsetY) = OffsetPerpendicular(MidX, MidY, DeltaX, DeltaY, OffsetPx);
         if (!LabelOverlapsUnrelatedNode(OffsetX, OffsetY, LabelWidth, LabelHeight, BoundsById, SourceNodeId, TargetNodeId))
         {

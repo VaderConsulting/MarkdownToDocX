@@ -154,6 +154,36 @@ public static class FlowchartEdgeLabelPlacementHelper
         return BestLength > 0.0;
     }
 
+    private static bool TryGetDecisionBranchHorizontalLabelMidpoint(
+        IReadOnlyList<(double X, double Y)> LayoutPoints,
+        out double MidX,
+        out double MidY)
+    {
+        MidX = 0.0;
+        MidY = 0.0;
+        for (int Index = 0; Index < LayoutPoints.Count - 1; Index++)
+        {
+            (double StartX, double StartY) = LayoutPoints[Index];
+            (double EndX, double EndY) = LayoutPoints[Index + 1];
+            if (Math.Abs(StartY - EndY) > AXIS_ALIGNED_SEGMENT_EPSILON_PX)
+            {
+                continue;
+            }
+
+            double SegmentLength = Math.Abs(EndX - StartX);
+            if (SegmentLength < MIN_LABELLED_SEGMENT_LENGTH_PX)
+            {
+                continue;
+            }
+
+            MidX = (StartX + EndX) / 2.0;
+            MidY = (StartY + EndY) / 2.0;
+            return true;
+        }
+
+        return false;
+    }
+
     /// <summary>
     /// Resolves edge-label placement for any routed connector.
     /// </summary>
@@ -223,16 +253,6 @@ public static class FlowchartEdgeLabelPlacementHelper
         double LabelY;
         if (IsDecisionShape(SourceShape)
             && !string.IsNullOrWhiteSpace(EdgeLabel)
-            && LayoutPoints.Count >= 4
-            && string.Equals(RouteClass, "LocalDecisionBranch", StringComparison.Ordinal)
-            && HasExteriorCorridorDetour(LayoutPoints, Direction)
-            && TryGetExteriorCorridorLabelPosition(LayoutPoints, Direction, out (double CorridorX, double CorridorY) ExteriorLabel))
-        {
-            return ExteriorLabel;
-        }
-
-        if (IsDecisionShape(SourceShape)
-            && !string.IsNullOrWhiteSpace(EdgeLabel)
             && LayoutPoints.Count >= 2
             && string.Equals(RouteClass, "LocalDecisionBranch", StringComparison.Ordinal))
         {
@@ -241,6 +261,15 @@ public static class FlowchartEdgeLabelPlacementHelper
                 SourceBounds,
                 EdgeLabel,
                 Direction);
+        }
+        else if (IsDecisionShape(SourceShape)
+            && !string.IsNullOrWhiteSpace(EdgeLabel)
+            && LayoutPoints.Count >= 4
+            && string.Equals(RouteClass, "LocalDecisionBranch", StringComparison.Ordinal)
+            && HasExteriorCorridorDetour(LayoutPoints, Direction)
+            && TryGetExteriorCorridorLabelPosition(LayoutPoints, Direction, out (double CorridorX, double CorridorY) ExteriorLabel))
+        {
+            return ExteriorLabel;
         }
         else if (LayoutPoints.Count >= 2
             && FlowchartEdgeConnectionGeometry.ShouldRenderStraightConnector(
@@ -403,7 +432,7 @@ public static class FlowchartEdgeLabelPlacementHelper
 
     /// <summary>
     /// Returns the canonical expected anchor for a local decision-branch label (validation / F29–F30).
-    /// TB branches use half-polyline placement on the guided S-route (Naiad parity); LR branches offset perpendicular.
+    /// TB branches centre on the longest horizontal straight run; LR branches offset perpendicular.
     /// </summary>
     public static (double X, double Y) ComputeLocalDecisionBranchLabelExpectedPosition(
         IReadOnlyList<(double X, double Y)> GuidePoints,
@@ -420,6 +449,16 @@ public static class FlowchartEdgeLabelPlacementHelper
 
         if (!HorizontalFlow)
         {
+            if (TryGetDecisionBranchHorizontalLabelMidpoint(LabelPolyline, out double MidX, out double MidY))
+            {
+                return (MidX, MidY);
+            }
+
+            if (TryGetLongestAxisAlignedSegmentMidpoint(LabelPolyline, true, out MidX, out MidY))
+            {
+                return (MidX, MidY);
+            }
+
             return (AnchorX, AnchorY);
         }
 

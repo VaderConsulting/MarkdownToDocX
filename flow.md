@@ -721,28 +721,7 @@ Reject --> Done
 Persist[(Optional archive)] --> Done
 ```
 
-**Routing contract (structural — not scenario-named selectors).** After layout, `FlowchartEdgeRouteClassifier` assigns semantic route classes; `FlowchartEdgeRouteResolver` builds guide points and `FlowchartSugiyamaSvgRenderer` renders corridor/bypass/fan routes as **curveBasis** with perpendicular terminal stubs (see `Mermaid_Specification.md` §17.5, `spec.md` §5.5).
-
-| Edge | Semantic class | Route kind (typical) | Structural requirement |
-| --- | --- | --- | --- |
-| Start → Ingest | `CentreSpine` | Straight | Two-point spine attach |
-| Ingest → Validate | `CentreSpine` | Straight | Centre spine |
-| Validate → \|No\| Reject | `LongExceptionRoute` | Corridor | Five-point exterior corridor; far-margin lane left of spine |
-| Validate → \|Yes\| Parse | `CentreSpine` | Straight | Centre spine |
-| Parse → HasMermaid | `CentreSpine` | Straight | Centre spine |
-| HasMermaid → \|Yes\| Render | `LocalDecisionBranch` | Decision | Left diamond port |
-| HasMermaid → \|No\| Word | `LocalDecisionBranch` | Decision | Bottom diamond port |
-| Render → Word | `MergeBack` | Corridor | Six-point merge-back from margin column; smooth curve, perpendicular stubs |
-| Word → DoArchive | `CentreSpine` | Straight | Centre spine |
-| DoArchive → \|Yes\| Persist | `CentreSpine` | Straight | Bottom diamond port |
-| DoArchive → \|No\| Done | `SkipBypass` | Corridor | Right diamond port; six-point bypass **outside** spine column around Persist cylinder; must not intersect Persist body |
-| Reject → Done | `MergeBack` | Curved | Terminal collector fan-in to Done |
-| Persist → Done | `CentreSpine` | Straight | Centre spine into Done |
-
-**Decision port rule (TB two-branch, collinear `No` target on spine):** use **left** port when no intervening spine-column node sits between source and target (see worker-pool pattern in `spec.md` §5.5). Use **right** port when a spine-column obstacle lies between source and collinear `No` target (`DoArchive → Done` bypasses `Persist` above). Implemented in `FlowchartDecisionPortAllocator.ResolveVerticalTwoWayDecisionPort` via `HasInterveningSpineColumnNode`.
-
-**Render rules exercised:** `Routing.Path.NoOrthogonalPolylineWhenCurveBasisDefault`, `Render.Ports.PerpendicularAttach`, `Routing.Obstacle.NoNodeBodyIntersection` (see `Rule Specification/ruleset.json`).
-
+**Grid routing.** Local detours stay beside the continuation they rejoin and enter its facing side. The direct continuation uses the upstream centre port. When an optional final detour and an earlier exit share a terminal collector, the final branches straddle their decision and the early exit sits beside the collector in the outer column. Forward connectors use straight runs and rounded bends, with square node attachment and breaks around labels. Placement follows the graph structure; catalogue numbers and node text do not select rules.
 ### F59 — Subgraph + decision + retry loop
 
 ```mermaid
@@ -758,7 +737,7 @@ Client[Client] --> Q
 P --> Out[Output]
 ```
 
-**Routing note:** `W →|No| Wait` is collinear on the worker subgraph spine with no intervening spine-column node between `W` and `Wait`; the `No` branch uses the **left** diamond port (contrast `DoArchive →|No| Done` in the multi-route TB integration pattern, which uses the **right** port to bypass `Persist`). See `spec.md` §5.5.
+**Grid routing.** A loop child and its continuing sibling occupy opposite sides of their decision. The continuation stays aligned with its downstream chain, and the frame contains both branches and the return track. Free facing diamond vertices use clear rounded elbows into the children.
 
 ### F60 — LR diagram with nested TB and cross-links (integration)
 
@@ -783,7 +762,7 @@ P2 --> Sink[Sink]
 I2 -.->|audit copy| P2
 ```
 
-**Layout contract (native).** Sibling TB subgraphs align cross-boundary member rows to a shared spine so primary cross-group edges (`I2→T1`, `T2→P1`, `Source→I1`, `P2→Sink`) can run horizontally at aligned row centres. The dotted audit cross-link (`I2 -.-> P2`) routes via an exterior corridor (`FlowchartCrossSubgraphRouteHelper`) and must not wander through unrelated subgraph bodies when a horizontal span at the aligned row is available. See `spec.md` §5.6 LR sibling subgraphs with cross-links.
+**Grid routing.** Sequential sibling frames leave enough space for rounded bends and straight border crossings. Primary cross-group links preserve square node attachments; a labelled cross-link keeps its own route and label break.
 
 ---
 
@@ -793,7 +772,7 @@ Axes called out in `spec.md` §3–§10 and §5.3 (coverage gaps). Each block sh
 
 ### F61 — Grouped vertex expansion (`&`)
 
-Expands `A & B --> C & D` to four edges (complete bipartite 2×2). In TB layout, Naiad routes **same-column** pairs (`A→C`, `B→D`) as vertical drops from the **bottom-centre** of the source to the **top-centre** of the target. **Cross-column** pairs (`A→D`, `B→C`) use **straight** diagonals from the **SE** corner of the source to the **NW** corner of the target, and from the **SW** corner to the **NE** corner respectively.
+Expands `A & B --> C & D` to four edges. In a paired rank, each child sits directly under one parent. Same-column links use centre ports; crossed links use separate normal ports and rounded horizontal/vertical tracks with one right-angle crossing.
 
 ```mermaid
 flowchart TB
@@ -905,7 +884,7 @@ Ingress[Ingress] --> a1
 b2 --> Egress[Egress]
 ```
 
-**Layout contract (native).** Parallel subgraph columns align row centres across `one` and `two` (`Ingress` with `b1`, `a1` with `b2`, `a2` with `Egress`) while preserving horizontal column separation. See `spec.md` §5.6 parallel subgraph columns.
+**Grid placement.** Parallel sibling frames keep at least one grid step of clearance. Their unbranched external ends move with the group so each chain stays aligned.
 
 ### F74 — Subgraph explicit id and quoted title
 

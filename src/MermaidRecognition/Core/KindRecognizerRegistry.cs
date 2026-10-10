@@ -62,6 +62,7 @@ public static class KindRecognizerRegistry
         Registry["state"] = StateRecognizer;
 
         Registry["erDiagram"] = new ErKindRecognizer();
+        Registry["enterprise"] = new MermaidRecognition.Kinds.Enterprise.EnterpriseKindRecognizer();
         RegisterLinePatternWithMapper(
             Registry,
             "gantt",

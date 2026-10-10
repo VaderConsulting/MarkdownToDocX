@@ -48,6 +48,7 @@ public sealed class F124DecisionPortRenderTests
 
         (double YesAttachX, double YesAttachY) = ResolveDecisionSourceAttach(
             Contract,
+            Layout,
             BoundsById,
             NodeById,
             Direction,
@@ -55,6 +56,7 @@ public sealed class F124DecisionPortRenderTests
             "C");
         (double NoAttachX, double NoAttachY) = ResolveDecisionSourceAttach(
             Contract,
+            Layout,
             BoundsById,
             NodeById,
             Direction,
@@ -92,33 +94,34 @@ public sealed class F124DecisionPortRenderTests
         double HalfWidth = HubBounds.Width / 2.0;
         double HalfHeight = HubBounds.Height / 2.0;
 
-        (double LeftMidX, double LeftMidY) = (
-            HubBounds.CenterX - (HalfWidth / 2.0),
-            HubBounds.CenterY - (HalfHeight / 2.0));
+        (double LeftVertexX, double LeftVertexY) = (
+            HubBounds.CenterX - HalfWidth,
+            HubBounds.CenterY);
         (double BottomVertexX, double BottomVertexY) = (
             HubBounds.CenterX,
             HubBounds.CenterY - HalfHeight);
-        (double RightMidX, double RightMidY) = (
-            HubBounds.CenterX + (HalfWidth / 2.0),
-            HubBounds.CenterY - (HalfHeight / 2.0));
+        (double RightVertexX, double RightVertexY) = (
+            HubBounds.CenterX + HalfWidth,
+            HubBounds.CenterY);
 
         (double OneAttachX, double OneAttachY) = ResolveDecisionSourceAttach(
-            Contract, BoundsById, NodeById, Direction, "C", "D");
+            Contract, Layout, BoundsById, NodeById, Direction, "C", "D");
         (double TwoAttachX, double TwoAttachY) = ResolveDecisionSourceAttach(
-            Contract, BoundsById, NodeById, Direction, "C", "E");
+            Contract, Layout, BoundsById, NodeById, Direction, "C", "E");
         (double ThreeAttachX, double ThreeAttachY) = ResolveDecisionSourceAttach(
-            Contract, BoundsById, NodeById, Direction, "C", "F");
+            Contract, Layout, BoundsById, NodeById, Direction, "C", "F");
 
-        Assert.That(OneAttachX, Is.EqualTo(LeftMidX).Within(1.0));
-        Assert.That(OneAttachY, Is.EqualTo(LeftMidY).Within(1.0));
+        Assert.That(OneAttachX, Is.EqualTo(LeftVertexX).Within(1.0));
+        Assert.That(OneAttachY, Is.EqualTo(LeftVertexY).Within(1.0));
         Assert.That(TwoAttachX, Is.EqualTo(BottomVertexX).Within(1.0));
         Assert.That(TwoAttachY, Is.EqualTo(BottomVertexY).Within(1.0));
-        Assert.That(ThreeAttachX, Is.EqualTo(RightMidX).Within(1.0));
-        Assert.That(ThreeAttachY, Is.EqualTo(RightMidY).Within(1.0));
+        Assert.That(ThreeAttachX, Is.EqualTo(RightVertexX).Within(1.0));
+        Assert.That(ThreeAttachY, Is.EqualTo(RightVertexY).Within(1.0));
     }
 
     private static (double X, double Y) ResolveDecisionSourceAttach(
         DiagramContract Contract,
+        FlowchartLayoutResult Layout,
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         Dictionary<string, NodeContract> NodeById,
         FlowchartDirection Direction,
@@ -135,7 +138,8 @@ public sealed class F124DecisionPortRenderTests
             NodeById,
             Direction,
             out List<(double X, double Y)> LayoutPoints,
-            out FlowchartEdgeRouteKind _);
+            out FlowchartEdgeRouteKind _,
+            Layout);
 
         Assert.That(Resolved, Is.True, SourceId + "->" + TargetId + " should resolve");
         return LayoutPoints[0];

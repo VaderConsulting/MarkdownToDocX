@@ -41,11 +41,12 @@ public static class FlowchartSvgLineJump
     /// Rewrites <paramref name="Svg"/> so each genuine perpendicular crossing carries one hop.
     /// </summary>
     /// <param name="Svg">Rendered SVG.</param>
+    /// <param name="InsertHops">False for grid routes, which retain plain right-angle crossings.</param>
     /// <returns>SVG with hop arcs inserted.</returns>
-    public static string Apply(string Svg)
+    public static string Apply(string Svg, bool InsertHops = true)
     {
         _LastJumps = [];
-        if (string.IsNullOrWhiteSpace(Svg))
+        if (!InsertHops || string.IsNullOrWhiteSpace(Svg))
         {
             return Svg;
         }

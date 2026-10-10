@@ -1,31 +1,47 @@
 # MarkdownToDocX - current status
 
-**Last updated:** 9 October 2026. Master is at `911d7c0`. This is the only status file; it describes what is true today and replaces the old pass-by-pass history, which remains in git.
+**Last updated:** 10 October 2026. This is the only status file; it describes what is true today. History stays in git.
 
 ## What the product does today
 
 - `md2docx` converts Markdown with Mermaid diagrams to DOCX.
-- Flowcharts use the native path: Mermaid recognition, dagre placement, native routing and an SVG render. If that fails, the converter falls back to the frozen Naiad renderer.
+- Flowcharts use the native path: Mermaid recognition, shared grid layout, native routing and an SVG render. If that fails, the converter falls back to the frozen Naiad renderer.
+- The grid layout draws straight runs with rounded corners and a straight centre spine, and it avoids needless crossings. The rules are in `layout-engine/APPROVED-GRID-DECISIONS.md`; the dated evidence is in `grid-layout-review.md`.
+- Enterprise (ArchiMate) diagrams render natively. They use a `mermaid` code fence only. The `enterprise` fence tag is not supported.
 - All other diagram kinds still render through Naiad.
 - Recognition reaches level L4 for the nine started kinds (flowchart, sequence, class, state, ER, pie, gantt, mindmap, git graph) and L1 for the rest.
 
+## Known failing Layout tests
+
+These five Layout tests pass on master and fail now. They are known and accepted.
+
+- `RenderToSvg_Sample03_StrokeQualityMatchesSharedRules`
+- `RenderToSvg_InspectContent_BranchesUseOrthogonalRunsWithDiamondStub`
+- `RenderToSvg_ValidDecision_BranchesUseOrthogonalRunsWithDiamondStub`
+- `RenderToSvg_TypeDecision_NoSharedBottomStub`
+- `RenderToSvg_MessageFilter_BranchesEnterLeftSideWithRoundedZ`
+
+Four of them still expect the old branch layout (orthogonal runs and stubs). The grid layout routes branches differently. The same change fixes eight other Layout tests that fail on master.
+
 ## Open work
 
-1. **Grid layout and routing** (PR #9, unmerged). One shared grid, straight runs with rounded corners, a straight centre spine and no needless crossings, following the rulebook. At the last check Layout had 5 failures that master does not have (rank order, store cluster frame clearance, a corner arrowhead, one edge label distance, diagonal routes through group borders) and 3 extra rule-validation failures. The label, group-frame and sequence sections of the rulebook are unfinished.
-2. **Native render for the other kinds** (sequence, class, state, ER, pie, gantt, mindmap, git graph).
-3. **Enterprise (ArchiMate) renderer** in PR #1, and the later Mermaid plugin.
+1. **Grid layout and routing**: the label, group-frame and sequence parts of the rulebook are unfinished. Crowded corners and container-title obstacles remain.
+2. **Enterprise syntax**: styling and configuration are only partly supported, and the ArchiMate 3.2 relationship table needs verifying.
+3. **Native render for the other kinds** (sequence, class, state, ER, pie, gantt, mindmap, git graph).
 4. **Housekeeping**: the vendored Mermaid pin is dirty and should be cleaned.
 5. **`flowchart-elk`** is deferred.
 
-## Test results on master (last measured 7 October 2026)
+## Test results
 
-| Suite | Passing | Failing |
-| --- | --- | --- |
-| `MermaidRecognition.Tests` | 921 | 11 |
-| `MermaidRecognition.Layout.Tests` | 235 | 33 |
-| `MermaidRecognition.RuleValidation.Tests` | 46 | 11 |
-| `MermaidRecognition.NaiadAdapter.Tests` | 47 | 0 |
-| `MDConverter.Tests` | not recorded | 7 |
+Measured on Linux on 10 October 2026 with `dotnet test`. Windows counts differ.
+
+| Suite | Passing | Failing | Failing on master |
+| --- | --- | --- | --- |
+| `MermaidRecognition.Tests` | 1014 | 11 | 11 |
+| `MermaidRecognition.Layout.Tests` | 519 | 30 | 33 |
+| `MermaidRecognition.RuleValidation.Tests` | 49 | 10 | 11 |
+| `MermaidRecognition.NaiadAdapter.Tests` | 47 | 0 | 0 |
+| `MDConverter.Tests` | 18 | 1 | 7 |
 
 ## Compatibility pin
 
@@ -42,7 +58,7 @@ If the vendored Mermaid changes, update this pin, the recognition fixtures and `
 - `spec.md` is the normative recognition and rendering specification.
 - `Mermaid_Specification.md` holds the flowchart geometry and routing rules.
 - `Rule Specification/` (repository root) holds the rule validation rules and scripts.
-- `flow.md`, `EIP.md` and `enterprise.md` (repository root) are the stress-test inputs. `sequence.md`, `class.md`, `state.md` and `entityrelationship.md` in this folder are the other catalogues.
+- `flow.md` and `EIP.md` (repository root) and `enterprise/samples/` in this folder are the stress-test inputs. `sequence.md`, `class.md`, `state.md` and `entityrelationship.md` in this folder are the other catalogues.
 
 ## Maintenance rule
 

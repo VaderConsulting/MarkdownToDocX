@@ -354,30 +354,22 @@ public static class FlowchartHorizontalRouteGuideBuilder
         double HubCentreY,
         FlowchartDecisionPortRole Role)
     {
-        (double SourceStubX, double SourceStubY) = ComputeStubOuterPoint(
-            SourceX,
-            SourceY,
-            SourceBounds,
-            SourceShape);
-        (double TargetStubX, double TargetStubY) = ComputeStubOuterPoint(
-            TargetX,
-            TargetY,
-            TargetBounds,
-            TargetShape);
-
-        (double GuideX, double GuideY) = BuildHorizontalDecisionBranchGuidePoint(
-            HubCentreY,
-            SourceStubX,
-            SourceStubY,
-            TargetStubX,
-            TargetStubY,
-            Role);
+        double CorridorY = TargetBounds.CenterY;
+        bool LevelTarget = Math.Abs(TargetBounds.CenterY - HubCentreY) <= COLLINEAR_EPSILON_PX;
 
         Points.Add((SourceX, SourceY));
-        Points.Add((SourceStubX, SourceStubY));
-        Points.Add((GuideX, GuideY));
-        Points.Add((TargetStubX, TargetStubY));
-        Points.Add((TargetX, TargetY));
+        if (LevelTarget)
+        {
+            Points.Add((TargetX, HubCentreY));
+            return;
+        }
+
+        if (Math.Abs(SourceY - CorridorY) > COLLINEAR_EPSILON_PX)
+        {
+            Points.Add((SourceX, CorridorY));
+        }
+
+        Points.Add((TargetX, CorridorY));
     }
 
     /// <summary>

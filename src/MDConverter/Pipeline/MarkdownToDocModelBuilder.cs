@@ -533,7 +533,8 @@ public sealed class MarkdownToDocModelBuilder(MarkdownOptions markdownOptions)
     private static bool IsMermaidLanguage(string Language)
     {
         string FirstToken = (Language ?? string.Empty).Trim().Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? string.Empty;
-        return string.Equals(FirstToken, "mermaid", StringComparison.OrdinalIgnoreCase);
+        return string.Equals(FirstToken, "mermaid", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(FirstToken, "enterprise", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string ExtractCodeBlockContent(MCodeBlock CodeBlock)

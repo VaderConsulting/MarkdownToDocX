@@ -354,7 +354,8 @@ public static class FlowchartCurvePathBuilder
     }
 
     /// <summary>
-    /// Builds a polyline path whose interior corners are replaced by quarter-circle cubics of up to <paramref name="MaxRadius"/>.
+    /// Builds a polyline path with circular fillets of up to <paramref name="MaxRadius"/>.
+    /// Axis-aligned corners are quarter circles; surface-normal terminal joins use their actual turn angle.
     /// Collinear guide points are dropped first, and each radius is capped at half of the shorter adjoining segment.
     /// </summary>
     public static string BuildRoundedCornerPathData(IReadOnlyList<(double X, double Y)> Points, double MaxRadius)
@@ -392,11 +393,25 @@ public static class FlowchartCurvePathBuilder
             OutX /= OutLength;
             OutY /= OutLength;
 
+            double Handle = Radius * CIRCLE_CUBIC_HANDLE_RATIO;
+            double Cosine = Math.Clamp(InX * OutX + InY * OutY, -1.0, 1.0);
+            if (Math.Abs(Cosine) > 1e-6 && Cosine > -0.999999)
+            {
+                // A surface-normal terminal can meet its axis-aligned track
+                // at an acute angle. Use that angle's circular fillet geometry.
+                double Angle = Math.Acos(Cosine);
+                double Tangent = Math.Tan(Angle / 2);
+                if (Tangent > 1e-6)
+                {
+                    Radius = Math.Min(MaxRadius * Tangent, Math.Min(IncomingLimit, OutgoingLimit));
+                    Handle = (4.0 / 3) * (Radius / Tangent) * Math.Tan(Angle / 4);
+                }
+            }
+
             double ArcStartX = CornerX - (InX * Radius);
             double ArcStartY = CornerY - (InY * Radius);
             double ArcEndX = CornerX + (OutX * Radius);
             double ArcEndY = CornerY + (OutY * Radius);
-            double Handle = Radius * CIRCLE_CUBIC_HANDLE_RATIO;
 
             Builder.Append('L');
             Builder.Append(FormatCoordinate(ArcStartX));
@@ -625,7 +640,8 @@ public static class FlowchartCurvePathBuilder
             return FlowchartRenderedPathKind.RetryLoop;
         }
 
-        if (RouteKind == FlowchartEdgeRouteKind.Corridor)
+        if (RouteKind == FlowchartEdgeRouteKind.Corridor
+            || RouteKind == FlowchartEdgeRouteKind.Grid)
         {
             return FlowchartRenderedPathKind.Corridor;
         }

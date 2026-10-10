@@ -16,4 +16,8 @@
     <AnalysisLevel>none</AnalysisLevel>
   </PropertyGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\docs\enterprise\enterprise-rules.json" LogicalName="MermaidRecognition.Enterprise.enterprise-rules.json" />
+    <None Include="..\..\THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" Pack="true" PackagePath="" />
+  </ItemGroup>
 </Project>

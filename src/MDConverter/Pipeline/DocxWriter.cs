@@ -669,6 +669,12 @@ public sealed class DocxWriter(EffectiveOptions Options, IConversionProgressRepo
 
     private Paragraph CreateMermaidParagraph(MermaidBlock MermaidBlock, StyleMapping Styles, int? ListLevel)
     {
+        if (MermaidBlock.Source.Split('\n').All(Line => string.IsNullOrWhiteSpace(Line)
+            || Line.TrimStart().StartsWith("%%", StringComparison.Ordinal)))
+        {
+            return CreateCodeBlockParagraph(new CodeBlock(MermaidBlock.Source), Styles, ListLevel);
+        }
+
         ParagraphProperties Properties = new ParagraphProperties(new ParagraphStyleId() { Val = Styles.ParagraphStyle });
         if (ListLevel.HasValue)
         {
@@ -706,6 +712,12 @@ public sealed class DocxWriter(EffectiveOptions Options, IConversionProgressRepo
 
     private string RenderMermaidSvg(string MermaidSource)
     {
+        if (MermaidRecognition.Layout.NativeDiagramRenderBridge.TryRenderSvg(
+                MermaidSource, out string NativeSvg))
+        {
+            return NativeSvg;
+        }
+
         RenderOptions RenderOptions = RenderOptions.Default;
         if (_Options.Mermaid.UseFlowchartRecognitionParser
             && FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
@@ -1264,7 +1276,12 @@ public sealed class DocxWriter(EffectiveOptions Options, IConversionProgressRepo
         RenderOptions RenderOptions = RenderOptions.Default;
 
         string Svg;
-        if (FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+        if (MermaidRecognition.Layout.NativeDiagramRenderBridge.TryRenderSvg(
+                MermaidSource, out string NativeSvg))
+        {
+            Svg = NativeSvg;
+        }
+        else if (FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
                 MermaidSource,
                 RenderOptions,
                 UseNativeSugiyamaRenderer: true,

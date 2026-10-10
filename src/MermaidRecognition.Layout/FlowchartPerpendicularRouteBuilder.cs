@@ -195,6 +195,19 @@ public static class FlowchartPerpendicularRouteBuilder
             return (BoundaryX + (NormalX * StubLength), BoundaryY + (NormalY * StubLength));
         }
 
+        if (IsCircleShape(Shape))
+        {
+            double DeltaX = BoundaryX - Bounds.CenterX;
+            double DeltaY = BoundaryY - Bounds.CenterY;
+            double Length = Math.Sqrt((DeltaX * DeltaX) + (DeltaY * DeltaY));
+            if (Length > 1e-6)
+            {
+                return (
+                    BoundaryX + ((DeltaX / Length) * StubLength),
+                    BoundaryY + ((DeltaY / Length) * StubLength));
+            }
+        }
+
         FlowchartEdgeAttachFace Face = FlowchartPerpendicularAttachValidator.ResolveAttachFace(
             Bounds,
             BoundaryX,
@@ -428,6 +441,19 @@ public static class FlowchartPerpendicularRouteBuilder
             return true;
         }
 
+        if (IsCircleShape(Shape))
+        {
+            double DeltaX = BoundaryX - Bounds.CenterX;
+            double DeltaY = BoundaryY - Bounds.CenterY;
+            double Length = Math.Sqrt((DeltaX * DeltaX) + (DeltaY * DeltaY));
+            if (Length > 1e-6)
+            {
+                NormalX = DeltaX / Length;
+                NormalY = DeltaY / Length;
+                return true;
+            }
+        }
+
         FlowchartEdgeAttachFace Face = FlowchartPerpendicularAttachValidator.ResolveAttachFace(
             Bounds,
             BoundaryX,
@@ -458,5 +484,17 @@ public static class FlowchartPerpendicularRouteBuilder
             default:
                 return false;
         }
+    }
+
+    private static bool IsCircleShape(string? Shape)
+    {
+        if (string.IsNullOrWhiteSpace(Shape))
+        {
+            return false;
+        }
+
+        string Normalised = Shape.Trim();
+        return string.Equals(Normalised, "circle", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(Normalised, "doublecircle", StringComparison.OrdinalIgnoreCase);
     }
 }
