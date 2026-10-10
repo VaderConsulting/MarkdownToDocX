@@ -6,21 +6,24 @@ namespace MermaidRecognition.Layout.Tests;
 [TestFixture]
 public sealed class FlowchartBranchRouteOrderTests
 {
-    [TestCase(false, false, false)]
-    [TestCase(true, false, false)]
-    [TestCase(false, true, false)]
-    [TestCase(true, true, false)]
-    [TestCase(false, false, true)]
-    [TestCase(true, false, true)]
-    public void CrossedFanPorts_AreSwappedOnlyWhenOtherRoutesRemainClear(bool Rotate, bool Incoming, bool BlockingRoute)
+    [TestCase(false, false, false, true)]
+    [TestCase(true, false, false, true)]
+    [TestCase(false, true, false, true)]
+    [TestCase(true, true, false, true)]
+    [TestCase(false, false, true, true)]
+    [TestCase(true, false, true, true)]
+    [TestCase(false, false, false, false)]
+    [TestCase(true, true, false, false)]
+    public void CrossedFanPorts_AreSwappedOnlyWhenOtherRoutesAndAllocatedFacesRemainClear(bool Rotate, bool Incoming, bool BlockingRoute, bool Circle)
     {
         var Contract = new DiagramContract { Direction = Rotate ? "LR" : "TB" };
         var Bounds = new Dictionary<string, FlowchartLayoutNodeBounds>();
-        AddNode("hub", 0, 300, 100, 60);
+        AddNode("hub", 0, 300, Circle ? 60 : 100, 60);
+        Contract.NodesMutable[0].Shape = Circle ? "circle" : "rect";
         AddNode("near", 200, 0, 100, 60);
         AddNode("far", 400, -200, 100, 60);
         var Layout = new FlowchartLayoutResult();
-        AddRoute("first", "near", "right", [(50, 300), (200, 300), (200, 30)]);
+        AddRoute("first", "near", "right", [(Circle ? 30 : 50, 300), (200, 300), (200, 30)]);
         AddRoute("second", "far", "bottom", [(0, 270), (0, 150), (400, 150), (400, -170)]);
         if (BlockingRoute)
         {
@@ -36,10 +39,10 @@ public sealed class FlowchartBranchRouteOrderTests
         FlowchartBranchRouteOrder.RemoveAvoidableCrossings(Layout, Contract, Bounds,
             Contract.Nodes.ToDictionary(Node => Node.Id), Rotate ? FlowchartDirection.LeftToRight : FlowchartDirection.TopToBottom);
         Assert.That(FlowchartBranchRouteOrder.Intersections(Path(Routes[0]), Path(Routes[1])).Crossings,
-            BlockingRoute ? Is.GreaterThan(0) : Is.EqualTo(0));
+            BlockingRoute || !Circle ? Is.GreaterThan(0) : Is.EqualTo(0));
         Assert.That(Routes.Select(Route => (Route.EdgeId, Route.SourceId, Route.TargetId)), Is.EqualTo(Identities));
         Assert.That(Routes.Select(Route => Incoming ? Path(Route)[0] : Path(Route)[^1]), Is.EqualTo(FixedEnds));
-        Assert.That(Routes.Select(Route => Incoming ? Path(Route)[^1] : Path(Route)[0]), Is.EqualTo(BlockingRoute ? Ports : Ports.Reverse()));
+        Assert.That(Routes.Select(Route => Incoming ? Path(Route)[^1] : Path(Route)[0]), Is.EqualTo(BlockingRoute || !Circle ? Ports : Ports.Reverse()));
 
         (double X, double Y) Map(double X, double Y) => Rotate ? (Y, X) : (X, Y);
         void AddNode(string Id, double X, double Y, double Width, double Height)

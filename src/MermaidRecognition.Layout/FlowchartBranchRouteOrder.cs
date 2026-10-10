@@ -32,6 +32,10 @@ internal static class FlowchartBranchRouteOrder
             {
                 var A = Branches[First]; var B = Branches[Second];
                 if (A.SourceId == B.SourceId && A.TargetId == B.TargetId) continue;
+                // Retain the flow-facing sides allocated to ordinary boxes.
+                // Circular junctions may exchange their free cardinal sides.
+                if (Nodes[Fan.Key].Shape != "circle"
+                    && (SourceEnd ? A.ExitSide != B.ExitSide : A.EntrySide != B.EntrySide)) continue;
                 var OldA = Points(A); var OldB = Points(B);
                 if (Intersections(OldA, OldB).Crossings == 0) continue;
                 var NewA = Rebuild(A, B, SourceEnd); var NewB = Rebuild(B, A, SourceEnd);
