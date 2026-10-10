@@ -114,9 +114,9 @@ public static class EnterpriseSvgRenderer
 
             if (Routed.Label.Length > 0)
             {
-                double LabelWidth = (Routed.Label.Length * 7.0) + 8;
+                double LabelWidth = Routed.LabelWidth;
                 Width = Math.Max(Width, Routed.LabelX + (LabelWidth / 2.0) + 8);
-                Height = Math.Max(Height, Routed.LabelY + TitleHeight + 16);
+                Height = Math.Max(Height, Routed.LabelY + Routed.LabelHeight / 2 + TitleHeight + 16);
             }
         }
     }

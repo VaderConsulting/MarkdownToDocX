@@ -66,8 +66,8 @@ internal static class EnterpriseJunctionCaptionLayout
         foreach (var Edge in Edges)
         {
             if (Edge.Label.Length > 0 && Overlaps(Candidate,
-                Edge.LabelX - Edge.Label.Length * 3.6, Edge.LabelY - 6,
-                Edge.Label.Length * 7.2, 12)) return false;
+                Edge.LabelX - Edge.LabelWidth / 2, Edge.LabelY - Edge.LabelHeight / 2,
+                Edge.LabelWidth, Edge.LabelHeight)) return false;
             for (int Index = 1; Index < Edge.SvgPoints.Count; Index++)
             {
                 var A = Edge.SvgPoints[Index - 1];

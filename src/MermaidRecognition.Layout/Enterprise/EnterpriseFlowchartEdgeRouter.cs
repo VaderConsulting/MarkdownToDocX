@@ -141,6 +141,7 @@ internal static class EnterpriseFlowchartEdgeRouter
                 LabelY));
         }
 
+        EnterpriseRelationshipLabelLayout.Place(Routed, Nodes);
         return Routed;
     }
 
@@ -233,10 +234,15 @@ internal static class EnterpriseFlowchartEdgeRouter
             Builder.Append("<text x=\"")
                 .Append(EnterpriseSvgFormat.Number(Routed.LabelX))
                 .Append("\" y=\"")
-                .Append(EnterpriseSvgFormat.Number(Routed.LabelY + 4))
-                .Append("\" text-anchor=\"middle\" font-size=\"12\" font-family=\"&quot;trebuchet ms&quot;, verdana, arial, sans-serif\" fill=\"#333\">")
-                .Append(EnterpriseSvgFormat.Escape(Routed.Label))
-                .Append("</text>");
+                .Append(EnterpriseSvgFormat.Number(Routed.LabelY - (Routed.LabelLines.Count - 1) * 7.5 + 4))
+                .Append("\" text-anchor=\"middle\" font-size=\"12\" font-family=\"&quot;trebuchet ms&quot;, verdana, arial, sans-serif\" fill=\"#333\">");
+            for (int Index = 0; Index < Routed.LabelLines.Count; Index++)
+            {
+                Builder.Append("<tspan x=\"").Append(EnterpriseSvgFormat.Number(Routed.LabelX))
+                    .Append("\" dy=\"").Append(Index == 0 ? "0" : "15").Append("\">")
+                    .Append(EnterpriseSvgFormat.Escape(Routed.LabelLines[Index])).Append("</tspan>");
+            }
+            Builder.Append("</text>");
         }
 
         Builder.Append("</g>");
@@ -245,9 +251,8 @@ internal static class EnterpriseFlowchartEdgeRouter
     private static string VisiblePath(EnterpriseRoutedEdge Routed)
     {
         if (string.IsNullOrWhiteSpace(Routed.Label)) return Routed.PathData;
-        FlowchartLabelDimensions Dimensions = MeasureRelationshipLabel(Routed.Label);
-        if (!FlowchartEdgeLabelGapHelper.TryResolveLabelSegmentBreak(Routed.SvgPoints, Dimensions,
-            RELATIONSHIP_LABEL_FONT_SIZE_PX, out var Gap)) return Routed.PathData;
+        var Gap = Routed.LabelBreak;
+        if (Gap == null) return Routed.PathData;
         var Start = Routed.SvgPoints[Gap.SegmentStartIndex];
         var End = Routed.SvgPoints[Gap.SegmentEndIndex];
         double Dx = Math.Sign(End.X - Start.X), Dy = Math.Sign(End.Y - Start.Y);
@@ -554,7 +559,12 @@ internal sealed class EnterpriseRoutedEdge
 
     internal string Label { get; }
 
-    internal double LabelX { get; }
+    internal double LabelX { get; set; }
 
-    internal double LabelY { get; }
+    internal double LabelY { get; set; }
+
+    internal List<string> LabelLines { get; set; } = new();
+    internal double LabelWidth { get; set; }
+    internal double LabelHeight { get; set; }
+    internal FlowchartEdgeLabelGapHelper.LabelSegmentBreak? LabelBreak { get; set; }
 }
