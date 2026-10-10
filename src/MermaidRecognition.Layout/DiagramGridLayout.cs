@@ -116,6 +116,7 @@ public static class DiagramGridLayout
         RebuildDecisionFanOutRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
         RebuildSoleForwardDecisionBranchRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
         RebuildOrdinaryFanOutRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
+        FlowchartForwardRouteSimplifier.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction);
         FlowchartPartnerRankLayout.Route(Contract, Copy, Placed, Frames, PartnerRanks, Horizontal);
         RebuildSimpleDecisionMergeRoutes(Contract, Copy, Placed, Frames, Horizontal);
         RebuildDecisionDetourRoutes(Contract, Copy, Placed, Frames, Horizontal);
