@@ -112,7 +112,7 @@ public static class EnterpriseSvgRenderer
         }
 
         Builder.Append("</g></svg>");
-        return Builder.ToString();
+        return FlowchartSvgLineJump.Apply(Builder.ToString());
     }
 
     private static void ExpandForRoutedEdges(

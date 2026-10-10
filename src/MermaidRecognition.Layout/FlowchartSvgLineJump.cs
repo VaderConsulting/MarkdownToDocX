@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -13,8 +14,6 @@ namespace MermaidRecognition.Layout;
 public static class FlowchartSvgLineJump
 {
     private const double HOP_RADIUS_PX = 6.0;
-
-    private const double MIN_CLEAR_PX = 8.0;
 
     private static readonly Regex EdgeRegex = new Regex(
         "<(?:path|line)\\b[^>]*>",
@@ -41,7 +40,7 @@ public static class FlowchartSvgLineJump
     /// Rewrites <paramref name="Svg"/> so each genuine perpendicular crossing carries one hop.
     /// </summary>
     /// <param name="Svg">Rendered SVG.</param>
-    /// <param name="InsertHops">False for grid routes, which retain plain right-angle crossings.</param>
+    /// <param name="InsertHops">Whether to insert hops at perpendicular crossings.</param>
     /// <returns>SVG with hop arcs inserted.</returns>
     public static string Apply(string Svg, bool InsertHops = true)
     {
@@ -140,28 +139,20 @@ public static class FlowchartSvgLineJump
                             continue;
                         }
 
-                        if (Ua <= 0.08 || Ua >= 0.92 || Ub <= 0.08 || Ub >= 0.92)
-                        {
-                            continue;
-                        }
-
-                        if (Distance(CrossX, CrossY, AX, AY) < MIN_CLEAR_PX + HOP_RADIUS_PX
-                            || Distance(CrossX, CrossY, BX, BY) < MIN_CLEAR_PX + HOP_RADIUS_PX
-                            || Distance(CrossX, CrossY, CX, CY) < MIN_CLEAR_PX + HOP_RADIUS_PX
-                            || Distance(CrossX, CrossY, DX, DY) < MIN_CLEAR_PX + HOP_RADIUS_PX)
-                        {
-                            continue;
-                        }
-
-                        int Hopper = RightIndex;
-                        int HopSegment = RightSegment;
+                        // Endpoints are junctions. Pick a stroke with enough
+                        // straight space for a bridge beside a nearby corner.
+                        if (Ua <= 1e-6 || Ua >= 1 - 1e-6 || Ub <= 1e-6 || Ub >= 1 - 1e-6) continue;
+                        double LeftClear = Math.Min(Distance(CrossX, CrossY, AX, AY), Distance(CrossX, CrossY, BX, BY));
+                        double RightClear = Math.Min(Distance(CrossX, CrossY, CX, CY), Distance(CrossX, CrossY, DX, DY));
+                        int Hopper = RightClear >= HOP_RADIUS_PX || RightClear >= LeftClear ? RightIndex : LeftIndex;
+                        int HopSegment = Hopper == RightIndex ? RightSegment : LeftSegment;
                         string Reason = FindReason(Left, Right);
                         Crossings.Add(new Crossing(Hopper, HopSegment, CrossX, CrossY));
                         _LastJumps.Add(new DrawnJump(
-                            Right.SourceId,
-                            Right.TargetId,
-                            Left.SourceId,
-                            Left.TargetId,
+                            Strokes[Hopper].SourceId,
+                            Strokes[Hopper].TargetId,
+                            Strokes[Hopper == RightIndex ? LeftIndex : RightIndex].SourceId,
+                            Strokes[Hopper == RightIndex ? LeftIndex : RightIndex].TargetId,
                             CrossX,
                             CrossY,
                             Reason));
@@ -223,168 +214,114 @@ public static class FlowchartSvgLineJump
 
     private static string RewriteWithHops(EdgeStroke Stroke, List<Crossing> Hops)
     {
-        List<(double X, double Y)> Points = Stroke.Points;
-        StringBuilder Data = new StringBuilder();
-        Data.Append("M");
-        Data.Append(Format(Points[0].X));
-        Data.Append(',');
-        Data.Append(Format(Points[0].Y));
-        for (int Segment = 1; Segment < Points.Count; Segment++)
+        // Edit straight commands only, preserving the actual rounded corners.
+        string Original = Stroke.Attributes.TryGetValue("d", out string? Path) ? Path
+            : "M" + Format(Stroke.Points[0].X) + "," + Format(Stroke.Points[0].Y)
+                + "L" + Format(Stroke.Points[^1].X) + "," + Format(Stroke.Points[^1].Y);
+        var Data = new StringBuilder();
+        foreach (var Command in ReadCommands(Original))
         {
-            (double X1, double Y1) = Points[Segment - 1];
-            (double X2, double Y2) = Points[Segment];
-            List<Crossing> OnSegment = [];
-            foreach (Crossing Hop in Hops)
+            double X = Command.X, Y = Command.Y, Nx = Command.Nx, Ny = Command.Ny;
+            var OnSegment = Hops.Where(Hop => (Command.Kind is 'L' or 'H' or 'V')
+                && Distance(X, Y, Hop.X, Hop.Y) + Distance(Hop.X, Hop.Y, Nx, Ny)
+                    <= Distance(X, Y, Nx, Ny) + 0.001)
+                .GroupBy(Hop => (Hop.X, Hop.Y)).Select(Group => Group.First())
+                .OrderBy(Hop => Distance(X, Y, Hop.X, Hop.Y)).ToList();
+            if (OnSegment.Count == 0) Data.Append(Command.Markup);
+            else
             {
-                if (Hop.Segment == Segment)
+                for (int Index = 0; Index < OnSegment.Count; Index++)
                 {
-                    OnSegment.Add(Hop);
+                    var Hop = OnSegment[Index];
+                    double Radius = Math.Min(HOP_RADIUS_PX, Math.Min(Distance(X, Y, Hop.X, Hop.Y), Distance(Nx, Ny, Hop.X, Hop.Y)) / 2);
+                    if (Index > 0) Radius = Math.Min(Radius, Distance(Hop.X, Hop.Y, OnSegment[Index - 1].X, OnSegment[Index - 1].Y) / 2.5);
+                    if (Index + 1 < OnSegment.Count) Radius = Math.Min(Radius, Distance(Hop.X, Hop.Y, OnSegment[Index + 1].X, OnSegment[Index + 1].Y) / 2.5);
+                    AppendHop(Data, X, Y, Nx, Ny, Hop.X, Hop.Y, Radius);
                 }
+                Data.Append('L').Append(Format(Nx)).Append(',').Append(Format(Ny));
             }
-
-            OnSegment.Sort((Left, Right) =>
-                Distance(X1, Y1, Left.X, Left.Y).CompareTo(Distance(X1, Y1, Right.X, Right.Y)));
-            double CursorX = X1;
-            double CursorY = Y1;
-            double Previous = -1.0;
-            foreach (Crossing Hop in OnSegment)
-            {
-                double Along = Distance(X1, Y1, Hop.X, Hop.Y);
-                if (Along - Previous < (HOP_RADIUS_PX * 2.0))
-                {
-                    continue;
-                }
-
-                Previous = Along;
-                AppendHop(Data, CursorX, CursorY, X2, Y2, Hop.X, Hop.Y);
-                double DirectionX = X2 - X1;
-                double DirectionY = Y2 - Y1;
-                double Length = Math.Sqrt((DirectionX * DirectionX) + (DirectionY * DirectionY));
-                DirectionX /= Length;
-                DirectionY /= Length;
-                CursorX = Hop.X + (DirectionX * HOP_RADIUS_PX);
-                CursorY = Hop.Y + (DirectionY * HOP_RADIUS_PX);
-            }
-
-            Data.Append('L');
-            Data.Append(Format(X2));
-            Data.Append(',');
-            Data.Append(Format(Y2));
         }
-
-        return BuildPathTag(Stroke, Data.ToString());
-    }
-
-    private static void AppendHop(
-        StringBuilder Data,
-        double FromX,
-        double FromY,
-        double ToX,
-        double ToY,
-        double CrossX,
-        double CrossY)
-    {
-        double DirectionX = ToX - FromX;
-        double DirectionY = ToY - FromY;
-        double Length = Math.Sqrt((DirectionX * DirectionX) + (DirectionY * DirectionY));
-        if (Length < 1.0)
+        var Builder = new StringBuilder("<path d=\"");
+        Builder.Append(Data).Append('"');
+        foreach (var Attribute in Stroke.Attributes)
         {
-            return;
+            if (Attribute.Key is "d" or "x1" or "x2" or "y1" or "y2") continue;
+            Builder.Append(' ').Append(Attribute.Key).Append("=\"").Append(Attribute.Value).Append('"');
         }
-
-        DirectionX /= Length;
-        DirectionY /= Length;
-        double StartX = CrossX - (DirectionX * HOP_RADIUS_PX);
-        double StartY = CrossY - (DirectionY * HOP_RADIUS_PX);
-        double EndX = CrossX + (DirectionX * HOP_RADIUS_PX);
-        double EndY = CrossY + (DirectionY * HOP_RADIUS_PX);
-        double PerpX = DirectionY;
-        double PerpY = -DirectionX;
-        double BulgeX = CrossX + (PerpX * HOP_RADIUS_PX);
-        double BulgeY = CrossY + (PerpY * HOP_RADIUS_PX);
-        double Cross = ((EndX - StartX) * (BulgeY - StartY)) - ((EndY - StartY) * (BulgeX - StartX));
-        int Sweep = Cross < 0.0 ? 1 : 0;
-        Data.Append('L');
-        Data.Append(Format(StartX));
-        Data.Append(',');
-        Data.Append(Format(StartY));
-        Data.Append("A");
-        Data.Append(Format(HOP_RADIUS_PX));
-        Data.Append(',');
-        Data.Append(Format(HOP_RADIUS_PX));
-        Data.Append(" 0 0 ");
-        Data.Append(Sweep.ToString(CultureInfo.InvariantCulture));
-        Data.Append(' ');
-        Data.Append(Format(EndX));
-        Data.Append(',');
-        Data.Append(Format(EndY));
+        return Builder.Append("/>").ToString();
     }
 
-    private static string BuildPathTag(EdgeStroke Stroke, string PathData)
+    private static void AppendHop(StringBuilder Data, double FromX, double FromY,
+        double ToX, double ToY, double CrossX, double CrossY, double Radius)
     {
-        StringBuilder Builder = new StringBuilder();
-        Builder.Append("<path d=\"");
-        Builder.Append(PathData);
-        Builder.Append("\" fill=\"none\"");
-        AppendAttr(Builder, Stroke.Attributes, "stroke", "#333333");
-        AppendAttr(Builder, Stroke.Attributes, "stroke-width", "1");
-        Builder.Append(" stroke-linejoin=\"round\" stroke-linecap=\"round\"");
-        Builder.Append(" data-edge-source=\"");
-        Builder.Append(Escape(Stroke.SourceId));
-        Builder.Append("\" data-edge-target=\"");
-        Builder.Append(Escape(Stroke.TargetId));
-        Builder.Append('"');
-        if (Stroke.Attributes.TryGetValue("stroke-dasharray", out string? Dash))
-        {
-            Builder.Append(" stroke-dasharray=\"");
-            Builder.Append(Escape(Dash));
-            Builder.Append('"');
-        }
-
-        Builder.Append("/>");
-        return Builder.ToString();
-    }
-
-    private static void AppendAttr(StringBuilder Builder, Dictionary<string, string> Attributes, string Name, string Fallback)
-    {
-        string Value = Attributes.TryGetValue(Name, out string? Found) ? Found : Fallback;
-        Builder.Append(' ');
-        Builder.Append(Name);
-        Builder.Append("=\"");
-        Builder.Append(Escape(Value));
-        Builder.Append('"');
+        double Length = Distance(FromX, FromY, ToX, ToY);
+        double DirectionX = (ToX - FromX) / Length, DirectionY = (ToY - FromY) / Length;
+        Data.Append('L').Append(Format(CrossX - DirectionX * Radius)).Append(',').Append(Format(CrossY - DirectionY * Radius));
+        Data.Append('A').Append(Format(Radius)).Append(',').Append(Format(Radius)).Append(" 0 0 1 ")
+            .Append(Format(CrossX + DirectionX * Radius)).Append(',').Append(Format(CrossY + DirectionY * Radius));
     }
 
     private static bool TryReadPoints(Dictionary<string, string> Attributes, out List<(double X, double Y)> Points)
     {
         Points = [];
-        if (Attributes.TryGetValue("d", out string? PathData)
-            && FlowchartSvgPathGeometryHelper.TryFlattenPathData(PathData, out Points)
-            && Points.Count >= 2)
+        if (Attributes.TryGetValue("d", out string? PathData))
         {
-            return true;
+            foreach (var Command in ReadCommands(PathData))
+            {
+                if (Command.Kind is not ('L' or 'H' or 'V')) continue;
+                // Never treat a move or a rounded corner as a straight chord.
+                Points.Add((double.NaN, double.NaN));
+                Points.Add((Command.X, Command.Y));
+                Points.Add((Command.Nx, Command.Ny));
+            }
+            return Points.Count >= 3;
         }
-
         if (Attributes.TryGetValue("x1", out string? X1Text)
             && Attributes.TryGetValue("y1", out string? Y1Text)
             && Attributes.TryGetValue("x2", out string? X2Text)
             && Attributes.TryGetValue("y2", out string? Y2Text)
-            && TryParse(X1Text, out double X1)
-            && TryParse(Y1Text, out double Y1)
-            && TryParse(X2Text, out double X2)
-            && TryParse(Y2Text, out double Y2))
+            && TryParse(X1Text, out double X1) && TryParse(Y1Text, out double Y1)
+            && TryParse(X2Text, out double X2) && TryParse(Y2Text, out double Y2))
         {
-            Points = [(X1, Y1), (X2, Y2)];
-            return true;
+            Points = [(X1, Y1), (X2, Y2)]; return true;
         }
-
         return false;
+    }
+
+    private static IEnumerable<(char Kind, double X, double Y, double Nx, double Ny, string Markup)> ReadCommands(string Path)
+    {
+        double X = 0, Y = 0, StartX = 0, StartY = 0;
+        foreach (Match Command in Regex.Matches(Path, @"[MLHVCSQTAZmlhvcsqtaz][^MLHVCSQTAZmlhvcsqtaz]*"))
+        {
+            char Kind = char.ToUpperInvariant(Command.Value[0]);
+            var Values = Regex.Matches(Command.Value.Substring(1), @"[-+]?(?:\d*\.)?\d+(?:[eE][-+]?\d+)?");
+            double Nx = X, Ny = Y;
+            if (Kind == 'Z') { Nx = StartX; Ny = StartY; }
+            else if (Values.Count > 0)
+            {
+                double Last = double.Parse(Values[^1].Value, CultureInfo.InvariantCulture);
+                if (Kind == 'H') Nx = Last;
+                else if (Kind == 'V') Ny = Last;
+                else if (Values.Count >= 2)
+                {
+                    Nx = double.Parse(Values[^2].Value, CultureInfo.InvariantCulture); Ny = Last;
+                }
+                if (char.IsLower(Command.Value[0]))
+                {
+                    if (Kind != 'V') Nx += X;
+                    if (Kind != 'H') Ny += Y;
+                }
+            }
+            yield return (Kind, X, Y, Nx, Ny, Command.Value);
+            X = Nx; Y = Ny;
+            if (Kind == 'M') { StartX = X; StartY = Y; }
+        }
     }
 
     private static bool IsAxisSegment(double X1, double Y1, double X2, double Y2, out bool Horizontal)
     {
-        Horizontal = Math.Abs(Y2 - Y1) <= 1.5 && Math.Abs(X2 - X1) >= 16.0;
-        bool Vertical = Math.Abs(X2 - X1) <= 1.5 && Math.Abs(Y2 - Y1) >= 16.0;
+        Horizontal = Math.Abs(Y2 - Y1) <= 0.001 && Math.Abs(X2 - X1) > 0.001;
+        bool Vertical = Math.Abs(X2 - X1) <= 0.001 && Math.Abs(Y2 - Y1) > 0.001;
         return Horizontal || Vertical;
     }
 
@@ -414,7 +351,7 @@ public static class FlowchartSvgLineJump
 
         Ua = (((CX - AX) * (DY - CY)) - ((CY - AY) * (DX - CX))) / Denominator;
         Ub = (((CX - AX) * (BY - AY)) - ((CY - AY) * (BX - AX))) / Denominator;
-        if (Ua <= 0.02 || Ua >= 0.98 || Ub <= 0.02 || Ub >= 0.98)
+        if (Ua <= 1e-6 || Ua >= 1 - 1e-6 || Ub <= 1e-6 || Ub >= 1 - 1e-6)
         {
             return false;
         }

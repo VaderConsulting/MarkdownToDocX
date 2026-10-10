@@ -799,7 +799,7 @@ public static class FlowchartSugiyamaSvgRenderer
         }
 
         Builder.Append("</svg>");
-        return FlowchartSvgLineJump.Apply(Builder.ToString(), InsertHops: !Layout.UsesGridRoutes);
+        return FlowchartSvgLineJump.Apply(Builder.ToString());
         }
         finally
         {

@@ -245,7 +245,11 @@ internal static class EnterpriseFlowchartEdgeRouter
             .Append(EnterpriseSvgFormat.Escape(Routed.Relationship.SourceId))
             .Append("\" data-target=\"")
             .Append(EnterpriseSvgFormat.Escape(Routed.Relationship.TargetId))
-            .Append("\"><path d=\"")
+            .Append("\"><path data-edge-source=\"")
+            .Append(EnterpriseSvgFormat.Escape(Routed.Relationship.SourceId))
+            .Append("\" data-edge-target=\"")
+            .Append(EnterpriseSvgFormat.Escape(Routed.Relationship.TargetId))
+            .Append("\" d=\"")
             .Append(VisiblePath(Routed))
             .Append("\" fill=\"none\" stroke=\"#000\" stroke-width=\"1\"");
         if (Routed.DashArray != null)
