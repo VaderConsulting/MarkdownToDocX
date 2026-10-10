@@ -32,6 +32,9 @@ internal static class FlowchartBranchRouteOrder
             {
                 var A = Branches[First]; var B = Branches[Second];
                 if (A.SourceId == B.SourceId && A.TargetId == B.TargetId) continue;
+                // A straight continuation owns its centre slot before crossings
+                // are considered. Exchanging it would break the aligned drop.
+                if (A.Points.Count == 2 || B.Points.Count == 2) continue;
                 // Retain the flow-facing sides allocated to ordinary boxes.
                 // Circular junctions may exchange their free cardinal sides.
                 if (Nodes[Fan.Key].Shape != "circle"

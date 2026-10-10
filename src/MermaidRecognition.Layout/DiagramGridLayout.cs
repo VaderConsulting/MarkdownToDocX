@@ -95,7 +95,8 @@ public static class DiagramGridLayout
         AlignSimpleDecisionMerges(Contract, Placed, Horizontal, CrossPitch);
         AlignDecisionDetours(Contract, Placed, Horizontal, CrossPitch);
         AlignVerticalLoopBranches(Contract, Placed, Horizontal, CrossPitch);
-        AlignPairedRanks(Contract, Placed, Horizontal);
+        var PartnerRanks = FlowchartPartnerRankLayout.Find(Contract, Placed, Horizontal);
+        FlowchartPartnerRankLayout.Prepare(PartnerRanks, Horizontal);
         CompactIndependentFanIn(Contract, Placed, Horizontal, CrossPitch);
         var SharedFanSources = AlignSharedFanSourcesAndTails(Contract, Placed, Horizontal);
         FlowchartCircularJunctionLayout.AlignFans(Contract, Placed, Horizontal);
@@ -106,6 +107,8 @@ public static class DiagramGridLayout
         List<GridFrame> Frames = new List<GridFrame>();
         CenterLoneNestedGroups(Contract, Placed, Horizontal);
         FitFrames(Contract, Placed, Frames, Horizontal);
+        if (FlowchartPartnerRankLayout.GrowGaps(Contract, Placed, Frames, PartnerRanks, Horizontal))
+            FitFrames(Contract, Placed, Frames, Horizontal);
         FlipToYUp(Placed, Frames, Copy);
         EnsureBackEdgeRoutes(Contract, Copy, Placed);
         AssignPortSides(Contract, Copy, Placed, Frames, Nodes, Direction, SharedFanSources);
@@ -113,7 +116,7 @@ public static class DiagramGridLayout
         RebuildDecisionFanOutRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
         RebuildSoleForwardDecisionBranchRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
         RebuildOrdinaryFanOutRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
-        RebuildPairedRankRoutes(Contract, Copy, Placed, Horizontal);
+        FlowchartPartnerRankLayout.Route(Contract, Copy, Placed, Frames, PartnerRanks, Horizontal);
         RebuildSimpleDecisionMergeRoutes(Contract, Copy, Placed, Frames, Horizontal);
         RebuildDecisionDetourRoutes(Contract, Copy, Placed, Frames, Horizontal);
         RebuildLoopBackRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
@@ -644,79 +647,6 @@ public static class DiagramGridLayout
             int Gap = DiagramGridMetrics.CeilToGrid(
                 Decision.Height / 2 + Retry.Height / 2 + 3 * DiagramGridMetrics.GRID_UNIT_PX);
             SetCross(Retry, (int)Math.Round(Decision.Y) + Gap, Horizontal);
-        }
-    }
-
-    private static IEnumerable<(GridNode[] Parents, GridNode[] Children)> PairedRanks(
-        DiagramContract Contract, List<GridNode> Placed, bool Horizontal)
-    {
-        var Visible = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
-        var ById = IndexPlaced(Placed);
-        var Used = new HashSet<GridNode>();
-        foreach (var Parent in Placed.Where(Node => !Node.IsDiamond))
-        {
-            if (Used.Contains(Parent)) continue;
-            var Outgoing = Visible.Where(Edge => Edge.SourceId == Parent.Id).ToList();
-            if (Outgoing.Count != 2 || Outgoing[0].TargetId == Outgoing[1].TargetId
-                || Outgoing.Any(Edge => !ById.ContainsKey(Edge.TargetId))) continue;
-            var Children = Outgoing.Select(Edge => ById[Edge.TargetId]).OrderBy(Node => Cross(Node, Horizontal, Old: true)).ToArray();
-            if (Children.Any(Node => Node.IsDiamond || Node.GroupId != Parent.GroupId)
-                || Children[0].Rank != Children[1].Rank || Children[0].Rank == Parent.Rank) continue;
-            var Incoming = Visible.Where(Edge => Edge.TargetId == Children[0].Id).ToList();
-            if (Incoming.Count != 2) continue;
-            var OtherEdge = Incoming.FirstOrDefault(Edge => Edge.SourceId != Parent.Id);
-            if (OtherEdge == null || !ById.TryGetValue(OtherEdge.SourceId, out var Other)
-                || Other.IsDiamond || Other.Rank != Parent.Rank || Other.GroupId != Parent.GroupId
-                || Visible.Count(Edge => Edge.SourceId == Other.Id) != 2
-                || !Visible.Any(Edge => Edge.SourceId == Other.Id && Edge.TargetId == Children[1].Id)
-                || Visible.Count(Edge => Edge.TargetId == Children[1].Id) != 2) continue;
-            Used.Add(Parent);
-            Used.Add(Other);
-            yield return (new[] { Parent, Other }.OrderBy(Node => Cross(Node, Horizontal, Old: true)).ToArray(), Children);
-        }
-    }
-
-    private static void AlignPairedRanks(DiagramContract Contract, List<GridNode> Placed, bool Horizontal)
-    {
-        foreach (var (Parents, Children) in PairedRanks(Contract, Placed, Horizontal))
-            for (int Index = 0; Index < 2; Index++)
-                SetCross(Children[Index], (int)Math.Round(Cross(Parents[Index], Horizontal, Old: false)), Horizontal);
-    }
-
-    private static void RebuildPairedRankRoutes(
-        DiagramContract Contract, FlowchartLayoutResult Copy, List<GridNode> Placed, bool Horizontal)
-    {
-        foreach (var (Parents, Children) in PairedRanks(Contract, Placed, Horizontal))
-        for (int ParentIndex = 0; ParentIndex < 2; ParentIndex++)
-        for (int ChildIndex = 0; ChildIndex < 2; ChildIndex++)
-        {
-            var Parent = Parents[ParentIndex];
-            var Child = Children[ChildIndex];
-            var Route = Copy.EdgeRoutes.FirstOrDefault(Route => Route.SourceId == Parent.Id && Route.TargetId == Child.Id);
-            if (Route == null) continue;
-            double Flow = Math.Sign(Main(Child, Horizontal, Old: false) - Main(Parent, Horizontal, Old: false));
-            double StartMain = Main(Parent, Horizontal, Old: false) + Flow * MainHalf(Parent, Horizontal, Leading: true);
-            double EndMain = Main(Child, Horizontal, Old: false) - Flow * MainHalf(Child, Horizontal, Leading: true);
-            double StartCross = Cross(Parent, Horizontal, Old: false);
-            double EndCross = Cross(Child, Horizontal, Old: false);
-            (double X, double Y) Map(double Main, double Cross) => Horizontal ? (Main, Cross) : (Cross, Main);
-            var Path = new List<(double X, double Y)>();
-            if (Math.Abs(StartCross - EndCross) < 0.5)
-                Path = [Map(StartMain, StartCross), Map(EndMain, EndCross)];
-            else
-            {
-                double Side = Math.Sign(EndCross - StartCross);
-                StartCross += Side * CrossHalf(Parent, Horizontal, Leading: true) / 3;
-                EndCross -= Side * CrossHalf(Child, Horizontal, Leading: true) * 2 / 3;
-                double Lane = (StartMain + EndMain) / 2 + (ParentIndex == 0 ? -1 : 1) * Flow * DiagramGridMetrics.GRID_UNIT_PX / 2;
-                Path = [Map(StartMain, StartCross), Map(Lane, StartCross), Map(Lane, EndCross), Map(EndMain, EndCross)];
-            }
-            if (Path.Zip(Path.Skip(1)).Any(Pair => FlowchartRouteObstacleHelper.SegmentIntersectsUnrelatedNodeBodies(
-                Pair.First.X, Pair.First.Y, Pair.Second.X, Pair.Second.Y,
-                BuildPlacedBounds(Placed, []), Parent.Id, Child.Id))) continue;
-            SetRouteEndpointSides(Route, BuildPlacedBounds(Placed, [])[Parent.Id], BuildPlacedBounds(Placed, [])[Child.Id], Path, Horizontal);
-            Route.Points.Clear();
-            foreach (var Point in Path) Route.Points.Add(new() { X = Point.X, Y = Point.Y });
         }
     }
 
