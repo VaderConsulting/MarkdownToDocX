@@ -1,6 +1,6 @@
 # Grid layout review — 9 October 2026
 
-This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `a34ebb9`; section 18 records approved decisions, native Enterprise/pie integration, local spacing and frame fixes. Sections 16–17 retain the earlier routing evidence. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
+This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `23787e8`; section 19 records the generic forward-dogleg correction. Section 18 records approved decisions, native Enterprise/pie integration, local spacing and frame fixes. Sections 16–17 retain the earlier routing evidence. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
 
 ## 1. Fresh test comparison
 
@@ -628,3 +628,47 @@ Only Enterprise and ordinary pie adapters were added in this pass; the other
 native replacements remain future work. All engine diffs were checked for
 sample, node-label and diagram-specific selectors. Supplied files and editor
 settings were preserved. No merge, rebase or new PR was performed.
+
+## 19. Clear forward doglegs — 10 October 2026
+
+The circled technology-layer connector retained four bends, including a short
+backward step, although its facing ports allowed a two-bend route. The generic
+post-routing simplifier now preserves both ports and removes the unnecessary
+step only when the alternative clears node bodies, shared frames and reserved
+tracks. Existing shortened terminal tracks do not count as new conflicts.
+
+An initial simplification exposed insufficient straight clearance beside the
+rounded corners. The follow-up grows a genuine shared gap by whole 30 px steps
+before simplifying; it rejects cuts through node bodies. Aligned nodes, frame
+bounds and existing routes move together. The result retains 20 px corners,
+at least 20 px of straight source run and at least 10 px before the target.
+The marked connector now has two bends and 25 px straight runs at both ends.
+A source relationship diamond therefore remains clear of the first corner.
+
+- `b03bf69` — Remove unnecessary backward steps from forward routes.
+- `23787e8` — Grow narrow route gaps before removing backward steps.
+
+Enterprise rendering also passes the completed grid layout to the shared route
+resolver rather than resolving from bounds alone. No engine rule or new test
+selects a catalogue number, node label or named diagram. New structural checks
+cover horizontal/vertical and mirrored simplification, blocked shortcuts,
+reserved tracks and whole-column gap growth. Existing assertions are intact.
+
+Focused verification passed 43 Enterprise/simplification checks, followed by
+8 structural checks including the new shared-gap cases. An earlier broad
+Enterprise-name filter also selected two already-failing legacy quality tests;
+those were recorded and were not changed. All five full suites were rerun on
+pushed application commit `23787e8`; no new failing names were introduced:
+Layout 450 passed / 32 failed, rule validation 49 / 10, recognition 1008 / 0,
+Naiad adapter 47 / 0, converter 52 / 0. Master's baseline remains unchanged.
+The two master-passing Layout regressions recorded in section 18 remain.
+
+Final-source evidence is local under `out/enterprise-route-context/final/`:
+full-suite logs/TRX, failure-name comparison, complete picture manifest,
+flowchart catalogue/sample renders, Enterprise samples, the marked technology
+source render and regenerated `enterprise.docx`. The WinForms executable was
+rebuilt and invoked directly. The DOCX still has 94 drawings and 36 explicit
+warnings; this routing change does not extend Enterprise syntax support.
+The actual embedded technology-layer image was extracted for the visual check.
+Broader acceptance failures and remaining visual defects are not resolved by
+this correction. No merge was performed and supplied files remain untouched.

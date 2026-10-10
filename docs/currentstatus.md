@@ -8,7 +8,7 @@ solution. Historical evidence is in the [grid layout review](grid-layout-review.
 | Area | Current state |
 | --- | --- |
 | Master | Baseline `f09cb89`; not changed or remeasured in this pass. |
-| Grid work | PR #9, `cursor/many-to-many-routing-3834`; application fixes through `a34ebb9` pushed, not merged. |
+| Grid work | PR #9, `cursor/many-to-many-routing-3834`; application fixes through `23787e8` pushed, not merged. |
 | Active checkout | Sibling `MarkdownToDocX-pr9` worktree. The original folder retains its documentation branch and supplied files. |
 | Enterprise / ArchiMate | Selected parser, validation, notation and renderer code from PR #1 integrated into PR #9. Neither PR was merged. |
 | Decisions | All six defaults approved. The held frame-midline rule is replaced by fitting frames on the shared grid and growing shared gaps. |
@@ -25,6 +25,9 @@ solution. Historical evidence is in the [grid layout review](grid-layout-review.
 - Frames reserve title space, nested clearance and additional internal-return
   padding. Outside aligned columns or rows move together. Generic internal
   return cases are contained in their shared frame in all four directions.
+- Clear forward doglegs between facing parallel ports are replaced by two
+  bends when a shorter path is unobstructed. Narrow facing gaps grow by whole
+  grid steps first, preserving straight terminal runs and aligned columns.
 - Sequence row spacing accounts for notes, message labels and arrowheads;
   outer notes enlarge the canvas. This shared spacing work predates this pass.
 - Enterprise blocks have native parsing, relationship validation and SVG/DOCX
@@ -49,11 +52,11 @@ in existing PR #9 tests during this pass.
 ## 3. Verified tests
 
 Plain `dotnet test`, including build/restore, on pushed application commit
-`a34ebb9`. Baselines were measured before behavioural edits and retained.
+`23787e8`. Baselines were measured before behavioural edits and retained.
 
 | Suite | Master passed / failed | Starting PR #9 passed / failed | Current passed / failed |
 | --- | ---: | ---: | ---: |
-| Layout | 234 / 34 | 280 / 38 | 442 / 32 |
+| Layout | 234 / 34 | 280 / 38 | 450 / 32 |
 | Rule validation | 46 / 11 | 44 / 13 | 49 / 10 |
 | Recognition | 932 / 0 | 932 / 0 | 1008 / 0 |
 | Naiad adapter | 47 / 0 | 47 / 0 | 47 / 0 |
@@ -76,6 +79,7 @@ were corrected without changing their assertions.
 
 Final logs, TRX files, exact failure-name comparisons, renders, DOCX outputs
 and a complete picture manifest are local evidence under
+`out/enterprise-route-context/final/` (latest), with earlier evidence under
 `out/rulebook-completion/a34ebb9/`. Recognition's twelve explicit fixture
 writers remain excluded from ordinary execution. **Acceptance is incomplete;
 passing-count targets do not establish visual correctness or merge readiness.**
