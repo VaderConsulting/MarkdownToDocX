@@ -1287,3 +1287,53 @@ lines retain separate ports and rounded bends. The boxes are wider to reserve
 these corridors. The render set contains 126 flowchart pictures with four
 commented skips and ten Enterprise samples with the same two expected
 rejections. This is not full catalogue acceptance or a Word pagination review.
+## 33. Visible nested-container ports and final track separation — 10 October 2026
+
+The marked deep nesting graph had two external network relationships ending
+at obsolete routing-frame boundaries, outside their drawn cluster targets.
+Shared routing now reattaches such endpoints to facing visible borders,
+reserves distinct repaired ports and rebuilds orthogonal approaches with
+normal terminal runs. The Enterprise adapter passes its final visible frame
+bounds to the shared helper rather than leaving dangling endpoints.
+
+The final visible routes also run through shared track separation. Caption
+measurements enlarge separation where a labelled connector competes with
+another run. Ancestor frames remain legitimate boundary crossings while
+unrelated node bodies block movement. This removes the packed central bends
+and separates the two incoming arrows and replication caption in the marked
+example. The artifact-to-artifact association still descends through a parent
+container title; title obstacles and exhausted corridors remain open work.
+
+`02e1610` — Join nested relationships to their visible containers.
+
+This builds directly on `f2ad523`, retaining previous application fixes.
+The engine diff was audited for diagram-specific selectors: visible bounds,
+group ancestry, free port positions, normals and caption dimensions select
+these rules. No catalogue number, diagram name, fixed identifier or label
+selects a rule. Existing assertions and fixtures were unchanged. Four new
+structural cases exercise incoming and outgoing links through two nesting
+depths; they check every compound terminal, square approaches, distinct ports,
+orthogonal interior runs and caption clearance from the surrounding bundle.
+The focused Enterprise run passed 81 checks with the same two existing
+quality-gate failures; the broader focused routing set passed all 15 checks.
+
+All five suites ran once on pushed application commit `02e1610`: Layout 507
+passed / 32 failed, rule validation 49 / 10, recognition 1025 / 0, Naiad adapter
+47 / 0, converter 52 / 0. No new failing names appeared against `a406884`.
+The retained master baseline was not rerun. The two stopped master-passing
+Layout regressions in section 18 remain unchanged. Full rulebook and catalogue
+acceptance remain incomplete.
+
+Final evidence is under `out/deep-containers/final/`: logs/TRX, exact
+failure-name comparison, the marked example, flowchart and Enterprise sample
+renders, package inspection and the complete `picture-manifest.txt`.
+The rebuilt WinForms executable saves the regenerated document to
+`C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX-pr9\out\deep-containers\final\enterprise.docx`.
+Supplied files remain untouched and nothing was merged.
+Package inspection found 96 drawings and 34 source-preserving warnings. The
+marked diagram's embedded image was extracted and viewed, confirming visible
+cluster attachments, separated incoming arrows and a clear replication
+caption. The remaining artifact path through its parent title is visible and
+recorded above. The render set contains 126 flowcharts with four commented
+skips and ten Enterprise samples with the same two expected rejections.
+This does not establish full catalogue correctness or Word pagination acceptance.
