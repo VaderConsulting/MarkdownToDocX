@@ -1,71 +1,115 @@
 # MarkdownToDocX — current solution status
 
-Updated 10 October 2026. This is the single maintained status file for the solution. Detailed validation evidence for this work is in the [grid layout review](grid-layout-review.md).
+Updated 10 October 2026. This is the single maintained status file for the
+solution. Historical evidence is in the [grid layout review](grid-layout-review.md).
 
 ## 1. Repository and delivery state
 
 | Area | Current state |
 | --- | --- |
-| Master | `f09cb89`; the earlier documentation relocation and spec trim are merged. |
-| Grid routing | PR #9, branch `cursor/many-to-many-routing-3834`; code fixes through `98af3a8` are pushed. This work is not merged. |
-| Active local checkout | The PR #9 branch is in the sibling `MarkdownToDocX-pr9` worktree. The original laptop folder remains on its pre-existing documentation branch. |
-| Earlier documentation refresh | The original worktree retains its earlier documentation commits; this pass did not publish or merge them. PR #9 predates the spec relocation, so some normative files still sit at the root on this branch. |
-| Enterprise / ArchiMate | Existing work is on PR #1. It is not integrated into the measured master or grid branch. The regenerated `enterprise.docx` contains zero diagrams and 130 unknown-type warnings because PR #9 does not support `enterprise` blocks. |
-| Supplied files | The original folder's untracked instructions, briefs, documents and editor settings remain untouched. |
+| Master | Baseline `f09cb89`; not changed or remeasured in this pass. |
+| Grid work | PR #9, `cursor/many-to-many-routing-3834`; application fixes through `a34ebb9` pushed, not merged. |
+| Active checkout | Sibling `MarkdownToDocX-pr9` worktree. The original folder retains its documentation branch and supplied files. |
+| Enterprise / ArchiMate | Selected parser, validation, notation and renderer code from PR #1 integrated into PR #9. Neither PR was merged. |
+| Decisions | All six defaults approved. The held frame-midline rule is replaced by fitting frames on the shared grid and growing shared gaps. |
 
-## 2. What the solution currently does
+## 2. Current behaviour
 
-- The converter builds DOCX output using OpenXml.
-- Mermaid recognition covers flowchart, sequence, class, state, ER, Gantt, pie, mindmap and git graph contracts. Passing recognition tests do not establish rendering parity for every kind.
-- Flowcharts use the native Sugiyama layout. PR #9 adds grid placement and horizontal/vertical routing with rounded corners; this implementation remains incomplete.
-- Other diagram kinds still use the vendored Naiad renderer. Native replacement of those renderers remains future work.
-- The grid branch now preserves normal terminal runs, whole-run track movements, free facing diamond vertices and centre ports for straight continuations. Labels share an anchor with their connector breaks. Grid output omits hop arcs. Diagonal back-edge guides are replaced when a valid orthogonal route fits their allocated ports and the three-corner limit.
-- Side-exit grid connectors now retain rounded bends when their edge label cannot fit a stroke gap. Label breaks and rank-space calculations use rendered text height for vertical connectors and text width for horizontal connectors. The regenerated `flow.docx` was checked at F24, F25 and F30: the excessive vertical label breaks and the F24 label overlap are resolved.
-- Binary decisions with two independent terminal outcomes in the same group place those outcomes on opposite sides. F29 now puts Accept beneath Yes and enters its top with one rounded elbow. The actual embedded DOCX image was checked. The authorised label-position check now verifies the longest fitting straight run and character clearance on both sides of the label.
-- Ordinary odd fans of independent terminal children now centre their parent on the middle child. Sole forward inputs align with their decision even when a return edge enters the input. Independent three-way merge inputs use adjacent columns and distinct diamond vertices; outgoing branches respect those occupied ports. Nested-group centring now consistently measures across the flow direction. The actual embedded F31, F34, F35 and F46 pictures were checked in the regenerated `flow.docx`.
-- Sloping diamond attachments now follow the actual edge normal before joining their horizontal/vertical track with a circular fillet. This implements the square-attachment instruction for F35; short diagonal terminal runs take precedence over the older no-diagonals requirement at these connections. The actual F35 DOCX image was checked. Other unresolved routing and attachment defects remain listed below.
-- Sequence rows now measure message labels, arrowheads and note boxes to give notes the same conservative clear spacing as consecutive messages, including returning self messages. The canvas includes notes beyond either outer participant.
+- Markdown converts to DOCX through OpenXml and the WinForms executable's CLI.
+- Flowcharts use native Sugiyama/grid layout with rounded orthogonal bends.
+  Sloping diamond attachments use short terminal normals to meet their outlines
+  squarely, as explicitly directed by the owner.
+- Rank gaps now grow locally for routing and labels. Explicit larger
+  `rankSpacing` settings remain minimums. Label gaps measure text height
+  vertically and text width horizontally, with corner clearance reserved.
+- Frames reserve title space, nested clearance and additional internal-return
+  padding. Outside aligned columns or rows move together. Generic internal
+  return cases are contained in their shared frame in all four directions.
+- Sequence row spacing accounts for notes, message labels and arrowheads;
+  outer notes enlarge the canvas. This shared spacing work predates this pass.
+- Enterprise blocks have native parsing, relationship validation and SVG/DOCX
+  rendering, with accessibility metadata and explicit errors. This is partial
+  support, not complete ArchiMate conformance. The supplied 130-block catalogue
+  produces **94 diagrams and 36 source-preserving warnings**. Unsupported
+  styling/configuration, quoted comment handling and rejected relationships
+  remain; the provisional 3.2 relationship table needs further verification.
+- Ordinary pie diagrams render natively with declaration order, duplicate-key
+  handling, tiny-slice filtering, legends and accessibility metadata. Explicit
+  pie configuration retains legacy fallback. Invalid pie statements report an
+  error instead of silently producing a blank legacy image.
+- Sequence, class, state, ER, Gantt, mindmap and git graph still use Naiad for
+  rendering. Recognition coverage does not establish rendering parity.
 
-The latest picture pass corrects horizontal retry outcomes, independent decision merges, local detours, grouped loop branches, paired ranks, sibling frame clearance and wide fan ports. The converter preserves fully commented Mermaid blocks as code without a render warning. Rules use topology and geometry; no catalogue number or node text selects an engine rule. The revised retry and pipeline checks have structural names. Details and checked DOCX pictures are in [review section 14](grid-layout-review.md#14-retry-outcomes-detours-group-clearance-and-crossings), with the approved pipeline expectation recorded in [section 15](grid-layout-review.md#15-approved-pipeline-expectation--10-october-2026).
+The [approved decisions](layout-engine/APPROVED-GRID-DECISIONS.md) preserve the
+owner's choices without modifying the supplied Instructions files. Engine
+changes were checked for diagram-specific selectors; rules use topology and
+geometry. Only the explicitly approved uniform-gap expectations were changed
+in existing PR #9 tests during this pass.
 
-The latest routing fixes preserve obstacle avoidance for skip links alongside a forward chain, recognise the final target segment correctly, and shorten frame-entry reservations around unrelated members and nearer frame faces. The ten rendered sample gate reports no longer report node intersections. This does not establish that every connector or diagram is correct. The latest SVG/PNG evidence is in review section 17; the original `flow.docx` remains the earlier checked output from `65deb18`.
+## 3. Verified tests
 
-## 3. Verified test state
+Plain `dotnet test`, including build/restore, on pushed application commit
+`a34ebb9`. Baselines were measured before behavioural edits and retained.
 
-Measured on Windows with plain `dotnet test` on each project, including build and restore. Master and starting-branch baselines were collected before behavioural edits. All five suites were rerun on pushed application commit `98af3a8`. The final verification includes the generic bypass and frame-entry fixes; master was not rerun.
-
-| Suite | Master failures | Starting PR #9 failures | Final PR #9 passed / failed |
+| Suite | Master passed / failed | Starting PR #9 passed / failed | Current passed / failed |
 | --- | ---: | ---: | ---: |
-| Layout | 34 | 38 | 386 / 30 |
-| Rule validation | 11 | 13 | 49 / 10 |
-| Recognition | 0 | 0 | 932 / 0 |
-| Naiad adapter | 0 | 0 | 47 / 0 |
-| Converter | 0 | 0 | 42 / 0 |
+| Layout | 234 / 34 | 280 / 38 | 442 / 32 |
+| Rule validation | 46 / 11 | 44 / 13 | 49 / 10 |
+| Recognition | 932 / 0 | 932 / 0 | 1008 / 0 |
+| Naiad adapter | 47 / 0 | 47 / 0 | 47 / 0 |
+| Converter | 31 / 0 | 32 / 0 | 52 / 0 |
 
-The new structural tests pass. Group top-edge attachments now reserve the measured title band, retain separate positions, and use a straight approach from the source column when it is clear. SVG outline checks retain every visible connector fragment without joining across label gaps; genuinely detached terminals still fail. These checks do not establish that all other rendered geometry is correct. The owner-approved pipeline check now verifies opposite final branches and the early exit beside the collector, while retaining the other spine and clearance checks. The two simple-detour regressions exposed by the wider run were fixed without changing their assertions.
+Counts are below or equal to master, but two master-passing Layout tests fail:
 
-One test now fails while passing on master: `RenderToSvg_Sample03_StrokeQualityMatchesSharedRules`. The live-picture test passes after correcting fragmented-edge outline diagnostics and reserving group title clearance. The HTTPS stroke-distance investigation remains stopped under the three-attempt rule; its threshold and whitespace requirements are unchanged. The four pre-existing grid-only failures absent from master remain. No rule-validation regression was added. Recognition's twelve explicit fixture writers are excluded from ordinary test execution. Latest logs, TRX files, complete failing-name lists and master regression comparisons are in `out/bypass-routing/verified/`. Details and final pictures are in [review section 17](grid-layout-review.md#17-bypasses-and-shorter-frame-entries--10-october-2026).
+- `RenderToSvg_Sample03_StrokeQualityMatchesSharedRules`: prior HTTPS
+  stroke-distance investigation remains stopped after three attempts.
+- `TryResolve_Sample03_EdgesKeepGroupBorderClearance`: one group-target route
+  re-enters its target frame. Three attempts reduced six border failures to
+  one; the bounded investigation is stopped and recorded in review section 18.
 
-The final counts meet the fresh master-count comparison, but **the solution does not pass all acceptance tests and the rendered diagrams are not ready for merge approval**.
+Four other failing Layout checks are absent from master and retain old branch
+coordinate/policy expectations. `TryResolveLayoutGuidePoints_F113_ParallelBranchFanIn_UsesExteriorCorridor`
+also regressed against the previous PR #9 checkpoint, although it already
+failed on master. No master-passing rule-validation regression remains. The
+nested-frame Layout and rule-validation regressions exposed during this pass
+were corrected without changing their assertions.
 
-## 4. Remaining work
+Final logs, TRX files, exact failure-name comparisons, renders, DOCX outputs
+and a complete picture manifest are local evidence under
+`out/rulebook-completion/a34ebb9/`. Recognition's twelve explicit fixture
+writers remain excluded from ordinary execution. **Acceptance is incomplete;
+passing-count targets do not establish visual correctness or merge readiness.**
 
-1. Resolve the remaining layout and rule-validation failures without weakening their assertions. Some existing tests still describe older routing policies; reconcile those explicitly with the supplied rulebook.
-2. Continue the generic visual routing work: crossing and shared tracks, remaining legacy return routing, wrong or detached outline attachments, port choices, excessive corners and the webshop spine alignment. The recorded sample node intersections are cleared. Ten samples and the active catalogue were regenerated; the four changed samples and changed dense-graph picture were inspected. [Review section 17](grid-layout-review.md#17-bypasses-and-shorter-frame-entries--10-october-2026) records the remaining defects.
-3. Finish rulebook sections 1–5, local label gap growth and collision handling in section 6, and whole-grid frame growth and internal return containment in section 7. Section 8 now has shared sequence-row spacing, canvas growth for notes and regression coverage. The frame-midline rule remains on hold.
-4. Obtain approval for the [six provisional defaults](grid-layout-review.md#7-decisions-before-a-future-merge) and a redefinition of the on-hold frame-midline rules before a future merge. Approval of the defaults does not by itself accept the remaining visual defects.
-5. Integrate and verify Enterprise / ArchiMate work separately. Continue native renderer replacement for other diagram kinds and verify fallback, accessibility and unsupported-feature diagnostics.
+## 4. Work to fix forward
+
+1. Complete the remaining rulebook implementation: collision-free label plans
+   across connectors, automatic growth when no clear label run exists, crowded
+   internal-return tracks and remaining placement, port and crossing rules.
+   Local gaps, frame fitting and sequence spacing are implemented with coverage;
+   this does not complete every rule in sections 1–8.
+2. Resolve the recorded Layout/rule-validation failures and visual defects.
+   The two stopped investigations need a fresh approach; existing thresholds
+   and unrelated assertions remain intact. No merge is authorised.
+3. Expand Enterprise syntax/configuration and verify provisional relationship
+   rules. Review catalogue warnings individually; keep invalid-input diagnostics.
+4. Continue native adapters for the remaining diagram kinds, retaining fallback
+   until each adapter has recognition, accessibility and conversion evidence.
+
+The policy decisions are complete. Rulebook acceptance and full native renderer
+replacement remain unfinished. The owner directed forward progress followed by
+fixes; these limitations are recorded rather than treated as accepted defects.
 
 ## 5. Documentation ownership
 
-| Material | Purpose |
+| File | Purpose |
 | --- | --- |
-| [README](../README.md) | Entry point, build structure and documentation navigation. |
-| This file | Current solution status and outstanding work. |
-| [Grid layout review](grid-layout-review.md) | Dated evidence, commits, failure names, picture comparisons and unresolved decisions for PR #9. |
-| [Recognition specification](../spec.md) | Normative recognition, contract and acceptance requirements at this branch's existing path. |
-| [Parity roadmap](../parity-roadmap.md) | Remaining native-rendering plan. |
-| [Flowchart catalogue](../flow.md) | Diagram inputs and catalogue scenarios. |
-| [Historical comparison images](flowchart/layout-fixes/README.md) | Earlier render evidence; their recorded commits and routing policy identify their scope. |
+| [README](../README.md) | Entry point and current rendering paths. |
+| This file | Current solution state and remaining work. |
+| [Grid layout review](grid-layout-review.md) | Dated evidence, commits and bounded investigations. |
+| [Approved decisions](layout-engine/APPROVED-GRID-DECISIONS.md) | Owner-approved defaults and replacement frame rule. |
+| [Recognition specification](../spec.md) | Normative recognition requirements at this branch's existing path. |
+| [Parity roadmap](../parity-roadmap.md) | Historical recognition roadmap and native rendering programme. |
+| [Flowchart catalogue](../flow.md) | Inputs and scenarios, not engine selectors. |
 
-The supplied files under `docs/Instructions/` and `docs/briefs/` belong to the original laptop folder and are left as supplied. This branch does not copy or rewrite them. The old root `status.md` was replaced by this file because its pass history and test claims no longer described the current solution.
+Original `docs/Instructions/`, `docs/briefs/`, supplied Markdown and editor
+settings are left as supplied. The old root status file remains superseded.

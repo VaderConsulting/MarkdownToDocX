@@ -2,6 +2,8 @@
 
 **Authority:** normative gate definitions remain in [`spec.md`](spec.md) §7.4 and §11.1.14.  
 **Progress:** [`docs/currentstatus.md`](docs/currentstatus.md) current solution state.
+**Native rendering update (10 October 2026, PR #9):** Enterprise / ArchiMate and ordinary pie now have native conversion paths. Configured pie and other supported kinds retain Naiad fallback. This does not promote the historical recognition gates below or establish full rendering parity; see current status for unsupported features and measured evidence.
+
 **G12 snapshot date:** 2026-05-31. The historical gate snapshot below does not establish current rendering acceptance; use the current status link above for measured solution results.
 
 ---

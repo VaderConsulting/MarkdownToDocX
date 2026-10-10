@@ -1,6 +1,6 @@
 # Grid layout review — 9 October 2026
 
-This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `98af3a8`; section 16 records the live-picture regression investigation and section 17 records the subsequent bypass and frame-entry fixes. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
+This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `a34ebb9`; section 18 records approved decisions, native Enterprise/pie integration, local spacing and frame fixes. Sections 16–17 retain the earlier routing evidence. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
 
 ## 1. Fresh test comparison
 
@@ -131,7 +131,7 @@ Gate failure counts are evidence to investigate, not an acceptance score: 01=33,
 
 ## 7. Decisions before a future merge
 
-The following six supplied defaults still need the owner's approval:
+The owner approved all six supplied defaults on 10 October 2026:
 
 1. Offset next-rank children use downstream-to-upstream Z routes while downstream ports are free; facing-side elbows follow only when those ports are occupied.
 2. The 50 px pre-corner straight minimum applies to diamond branches. Other terminals reserve the corner radius at the source and the arrowhead length at the target. Base rank gap is 60 px.
@@ -140,7 +140,7 @@ The following six supplied defaults still need the owner's approval:
 5. Tie choices are branches left, returns right, facing diamond vertex before lower edge centre, one “n” width of label whitespace, and 30 px frame padding.
 6. Arrangement checks allow the specific reordering in rulebook section 2.
 
-The frame-midline placement and reserved-midline-track rules remain unimplemented pending redefinition. These decisions do not establish visual acceptance: the defects and incomplete sections above must also be resolved or explicitly accepted before a merge.
+The owner approved replacing the held frame-midline rules: fit frames around their members and title on the shared grid, grow shared gaps to preserve padding and routing clearance, and treat frame edges as obstacles without reserving the centre track. The maintained [approved decisions](layout-engine/APPROVED-GRID-DECISIONS.md) record this replacement. Approval does not establish visual acceptance or authorise a merge. Earlier sections record historical checkpoints; section 18 supersedes their pending-decision status.
 
 ## 8. Final failure names
 
@@ -495,3 +495,136 @@ The rebuilt rendering executable regenerated ten sample SVG/PNG pairs and 126 ca
 None of the ten sample gate logs reports `NodeIntersection`. Other diagnostics remain, including mixed line styles, attachment reports and line-shape failures. Some diagonal reports describe flattened rounded bends. The chain-skip canvas report uses a node-union margin although the actual expanded SVG contains the route. These diagnostics were recorded without changing their thresholds or treating them as resolved acceptance checks.
 
 The original `flow.docx` was not regenerated and remains section 14's checked output from `65deb18`. The unsupported enterprise-renderer state is unchanged. Supplied instructions, briefs and editor settings were left untouched. No merge was performed; the six defaults, midline decision and broader acceptance work remain outstanding.
+
+## 18. Approved decisions and native renderers — 10 October 2026
+
+The owner approved the six defaults in section 7, the replacement frame rule,
+and changing conflicting uniform-rank-gap assertions to check local growth.
+The supplied Instructions files remain untouched. The maintained
+[approved decisions](layout-engine/APPROVED-GRID-DECISIONS.md) record precedence
+and implementation limits. The owner's later instruction was to move forward
+and fix forward; this checkpoint does not approve a merge or accept defects.
+
+### Commits pushed
+
+| Commit | Subject |
+| --- | --- |
+| `7e17a14` | Render Enterprise diagrams through the native pipeline |
+| `21155ac` | Render recognised pie data with a native SVG adapter |
+| `7057418` | Report invalid pie statements before legacy fallback |
+| `e008601` | Grow rank gaps only where routing or labels need space |
+| `1ab95ab` | Grow frame clearance and contain internal return tracks |
+| `99c7cc8` | Respect configured rank clearance during local gap planning |
+| `a34ebb9` | Preserve nested frame clearance during grid compaction |
+
+Enterprise integration selected the parser, validator, notation renderer,
+relationship tables, samples and tests from PR #1 without merging that branch
+or replacing PR #9's routing with its older code. Native Enterprise paths use
+rounded bends, break visible strokes around labels and include junction
+captions in canvas bounds. Accessibility metadata reaches SVG and DOCX.
+Imported tests were adapted to generic structural fixtures rather than
+assertions keyed to a sample name. Complete ArchiMate conformance is not claimed.
+
+The pie adapter consumes the recognition contract. It preserves declaration
+order, first duplicate values, original-total percentages and legends for tiny
+slices, while omitting arcs below the vendored renderer's one-percent cutoff.
+Zero/empty data and a full-circle slice remain finite. Explicit configuration
+falls back. Malformed input preserves a source diagnostic instead of the
+legacy renderer's blank image. Colours are native defaults; pixel parity is
+not claimed. Existing non-native sequence conversion still passes.
+
+Grid gap planning now retains 60 px base clearance and grows only affected
+rank gaps. Larger explicit rank spacing remains a minimum. Box heights keep
+mixed diamond/box centres on whole grid coordinates. Label rank planning
+includes corner clearance. Frame fitting moves aligned outside columns/rows
+together, reserves extra internal-return padding and rebuilds clear contained
+returns. Nested frame/member clearance uses the shared spacing thresholds.
+
+### Final suite comparison
+
+All five projects were run with plain `dotnet test` on pushed application
+commit `a34ebb9`, including build and restore. Master was not rerun.
+Earlier full verification exposed an ignored explicit rank-spacing setting
+and nested-frame clearance regressions; both were fixed and focused checks
+passed before the final source verification below. Existing nested-clearance
+assertions were preserved. The additionally corrected retry rank-gap assertion
+was covered by the owner's explicit uniform-gap approval.
+
+| Suite | Master passed / failed | Starting PR #9 passed / failed | Final passed / failed |
+| --- | ---: | ---: | ---: |
+| Layout | 234 / 34 | 280 / 38 | 442 / 32 |
+| Rule validation | 46 / 11 | 44 / 13 | 49 / 10 |
+| Recognition | 932 / 0 | 932 / 0 | 1008 / 0 |
+| Naiad adapter | 47 / 0 | 47 / 0 | 47 / 0 |
+| Converter | 31 / 0 | 32 / 0 | 52 / 0 |
+
+Two existing master-passing failures remain:
+
+- `RenderToSvg_Sample03_StrokeQualityMatchesSharedRules`: the previous HTTPS
+  investigation stays deferred under its already-recorded three-attempt stop.
+- `TryResolve_Sample03_EdgesKeepGroupBorderClearance`: the group-target route
+  still crosses its target frame more than once. This is a new regression
+  against the preceding PR #9 checkpoint.
+
+Four branch-only policy/coordinate checks still fail:
+`RenderToSvg_InspectContent_BranchesUseOrthogonalRunsWithDiamondStub`,
+`RenderToSvg_MessageFilter_BranchesEnterLeftSideWithRoundedZ`,
+`RenderToSvg_TypeDecision_NoSharedBottomStub`, and
+`RenderToSvg_ValidDecision_BranchesUseOrthogonalRunsWithDiamondStub`.
+The new failing name `TryResolveLayoutGuidePoints_F113_ParallelBranchFanIn_UsesExteriorCorridor`
+already failed on master; its centre-side departure expectation now differs
+from the compact downstream route. It was not weakened. No extra
+rule-validation failure name remains against master or the previous checkpoint.
+
+### Bounded group-border investigation
+
+1. Whole-grid half-space eviction plus internal-return padding left six border
+   failures: re-entry and runs along borders. It also exposed a store-frame
+   member overlap where no safe half-space could move.
+2. Moving aligned non-member rows/columns when no safe half-space exists fixed
+   the store-frame overlap. The six border failures remained.
+3. Reserving 30 px exterior clearance, or 60 px where a connector occupies the
+   gap, cleared five border failures. The group-target re-entry remains because
+   its route detours back through the target frame after its first crossing.
+
+The test was stopped after these three implementation attempts. The later
+nested-frame fix addresses a separate shared-threshold regression; it does
+not claim to solve the stopped route. A fallback row/column mutation-order
+bug was also corrected by capturing the original grid coordinate before moves.
+No target-specific selector or assertion relaxation was introduced.
+
+### Pictures, conversion and remaining acceptance
+
+Final source renders and logs are under `out/rulebook-completion/a34ebb9/`:
+`catalogue/`, `samples/`, `enterprise/`, `pie/`, and the two DOCX files. The
+picture manifest lists every generated SVG/PNG path. Ten flowchart samples and
+126 active catalogue entries render; ten valid Enterprise samples render.
+Enterprise sample 04 deliberately rejects invalid relationships; sample 05
+rejects a provisional 3.2 relationship. Rejections are retained as evidence.
+
+The built WinForms `Converter.exe` was called directly with `-in` and `-out`.
+The supplied Enterprise catalogue produces 94 embedded diagrams and 36
+source-preserving warnings; its previous output had zero diagrams and 130
+unknown-type warnings. Unsupported quoted-comment, styling and configuration
+syntax remain alongside invalid/provisional relationship cases. This result
+must not be reported as complete Enterprise catalogue support. The flow DOCX
+contains 128 drawings and no render warnings. Counts come from inspecting the
+actual DOCX package; they do not certify Word pagination or visual acceptance.
+
+Picture checks confirm rounded bends and label breaks in the side-exit case,
+compact height-based breaks on vertical labels, the approved horizontal retry
+arrangement and the pipeline early exit beside its collector. Native Enterprise
+pictures show notation and relationship markers with rounded paths, but wide
+layouts, target-frame attachment gaps and awkward/shared tracks remain. The
+junction caption now stays inside the canvas. The pie legend retains the tiny
+slice while the visible wedges follow the cutoff. These are representative
+checks, not approval of every picture. Later final-source picture notes and
+DOCX inspection results are in the local evidence folder.
+
+Rulebook implementation remains incomplete: global label/connector collision
+planning, automatic growth for exhausted label runs, crowded multi-return
+allocation and remaining placement/port/crossing defects still need work.
+Only Enterprise and ordinary pie adapters were added in this pass; the other
+native replacements remain future work. All engine diffs were checked for
+sample, node-label and diagram-specific selectors. Supplied files and editor
+settings were preserved. No merge, rebase or new PR was performed.

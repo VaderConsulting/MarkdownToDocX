@@ -15,7 +15,7 @@ The repo has two layers:
 | DOCX pipeline | `src/md2docx/`, `src/MDConverter/`, `src/Converter/` | Converts Markdown files to `.docx` using OpenXml |
 | Mermaid recogniser and renderer | `src/MermaidRecognition*/` | Mermaid diagram parser → recognition model → native layout and SVG render |
 
-Flowcharts render through the native Sugiyama layout in `src/MermaidRecognition.Layout`. On the grid branch, connectors use horizontal and vertical straight runs joined by rounded corners. At sloping diamond edges, short terminal runs follow the surface normal so the line meets the outline at a right angle. The routing work remains incomplete; see [current solution status](docs/currentstatus.md) and the [grid layout review](docs/grid-layout-review.md). Other diagram types still use the vendored Naiad renderer in `extern/Naiad`.
+Flowcharts render through the native Sugiyama layout in `src/MermaidRecognition.Layout`. On the grid branch, connectors use horizontal and vertical straight runs joined by rounded corners. At sloping diamond edges, short terminal runs follow the surface normal so the line meets the outline at a right angle. The routing work remains incomplete; see [current solution status](docs/currentstatus.md) and the [grid layout review](docs/grid-layout-review.md). Enterprise / ArchiMate blocks now use a native parser, validator and renderer. Ordinary pie diagrams also render natively; explicitly configured pie diagrams retain Naiad fallback. Other supported diagram types continue through the vendored Naiad renderer in `extern/Naiad`. These paths are under active verification.
 
 ## Repository Layout
 
@@ -24,7 +24,7 @@ Flowcharts render through the native Sugiyama layout in `src/MermaidRecognition.
 | `src/` | Product code: the DOCX converter (`md2docx`, `MDConverter`, `Converter` GUI) and the Mermaid engine (`MermaidRecognition*`) |
 | `tests/` | Test projects for every product project, plus `FlowchartRegression/approved` (the approved SVG for each `flow.md` fixture) |
 | `tools/` | `FixtureProbe` (renders `flow.md` fixtures; `Compare-Fixtures.ps1` checks them against the approved SVGs), `NativeCompareDocx`, `RuleValidationHarness`, and maintenance scripts |
-| `extern/Naiad/` | Vendored Naiad renderer, still used for non-flowchart diagrams |
+| `extern/Naiad/` | Vendored Naiad renderer, fallback for diagram kinds without a native adapter |
 | `mermaid/` | Vendored Mermaid 11.14.0 TypeScript source, used as the reference for tracing behaviour |
 
 ---
@@ -46,7 +46,7 @@ Flowcharts render through the native Sugiyama layout in `src/MermaidRecognition.
 
 ## Supported Diagram Kinds
 
-Flowchart, Sequence, Class, State, Entity-Relationship (ER), Gantt, Pie, Mindmap, GitGraph
+Flowchart, Sequence, Class, State, Entity-Relationship (ER), Gantt, Pie, Mindmap, GitGraph, Enterprise / ArchiMate
 
 ---
 
