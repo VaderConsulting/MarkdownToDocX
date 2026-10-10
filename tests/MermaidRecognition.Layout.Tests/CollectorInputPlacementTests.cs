@@ -52,7 +52,7 @@ public sealed class CollectorInputPlacementTests
     public void IndependentTerminalInput_UsesOuterSideWithoutCrossingMainInput(bool Horizontal, bool Mirror)
     {
         int Sign = Mirror ? -1 : 1;
-        var Contract = MermaidRecognizer.Parse("flowchart TB\nupstream --> parent\nparent --> terminal\nroot --> terminal");
+        var Contract = MermaidRecognizer.Parse("flowchart TB\nupstream --> parent\nparent --> terminal\nparent --> tail\nroot --> terminal");
         var Nodes = new List<DiagramGridLayout.GridNode>();
         DiagramGridLayout.GridNode Add(string Id, int Rank, int Cross)
         {
@@ -62,12 +62,30 @@ public sealed class CollectorInputPlacementTests
             Nodes.Add(Node); return Node;
         }
         Add("upstream", 0, 0); Add("parent", 1, 0);
+        Add("tail", 2, 0);
         var Target = Add("terminal", 2, Sign * 210);
         var Root = Add("root", 1, -Sign * 210);
         FlowchartTerminalInputPlacement.Apply(Contract, Nodes, Horizontal, 210);
         Assert.That(Root.Rank, Is.EqualTo(Target.Rank));
         Assert.That(Horizontal ? Root.X : Root.Y, Is.EqualTo(Horizontal ? Target.X : Target.Y));
         Assert.That(Horizontal ? Root.Y : Root.X, Is.EqualTo(Sign * 420));
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void MainPathTerminal_KeepsItsIndependentInputUpstream(bool Horizontal)
+    {
+        var Contract = MermaidRecognizer.Parse("flowchart TB\nupstream --> parent\nparent --> terminal\nroot --> terminal");
+        var Nodes = new List<DiagramGridLayout.GridNode>
+        {
+            new() { Id = "upstream", Rank = 0 }, new() { Id = "parent", Rank = 1 },
+            new() { Id = "terminal", Rank = 2, X = 210, Y = 300 },
+            new() { Id = "root", Rank = 1, X = -210, Y = -210 }
+        };
+        FlowchartTerminalInputPlacement.Apply(Contract, Nodes, Horizontal, 210);
+        Assert.That(Nodes[^1].Rank, Is.EqualTo(1));
+        Assert.That(Nodes[^1].X, Is.EqualTo(-210));
+        Assert.That(Nodes[^1].Y, Is.EqualTo(-210));
     }
 
     [TestCase(false)]

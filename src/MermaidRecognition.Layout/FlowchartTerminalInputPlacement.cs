@@ -28,6 +28,9 @@ internal static class FlowchartTerminalInputPlacement
             if (Others.Count == 0 || Others.Any(Edge => Back.Contains(Edge)
                 || !ById.TryGetValue(Edge.SourceId, out var Parent) || Parent.GroupId != Root.GroupId
                 || Parent.Rank >= Target.Rank || !Edges.Any(Incoming => Incoming.TargetId == Parent.Id))) continue;
+            // Keep a main path's terminal input upstream. Only a side branch
+            // leaves a separate straight continuation to preserve on the spine.
+            if (!Others.Any(Edge => Edges.Count(Outgoing => Outgoing.SourceId == Edge.SourceId) > 1)) continue;
             double Centre = Cross(Target);
             int Side = Math.Sign(Centre - Others.Average(Edge => Cross(ById[Edge.SourceId])));
             if (Side == 0) continue;
