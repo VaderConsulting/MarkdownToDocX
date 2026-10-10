@@ -65,8 +65,39 @@ public static class FlowchartOrdinaryFanOutRouteBuilder
             return false;
         }
 
-        return AllTargetsAreDownstream(Outgoing, BoundsById, SourceBounds, Direction)
+        return !HasForwardPathBetweenTargets(Contract, Outgoing)
+            && AllTargetsAreDownstream(Outgoing, BoundsById, SourceBounds, Direction)
             && AllTargetsFavorDownstreamFace(Outgoing, BoundsById, SourceBounds, Direction);
+    }
+
+    private static bool HasForwardPathBetweenTargets(DiagramContract Contract, List<EdgeContract> Outgoing)
+    {
+        // A direct link that skips part of a chain is a bypass, not an
+        // independent fan-out branch. Keep it on obstacle-aware routing.
+        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        HashSet<string> Targets = new(Outgoing.ConvertAll(Edge => Edge.TargetId), StringComparer.Ordinal);
+        foreach (string Target in Targets)
+        {
+            HashSet<string> Visited = new(StringComparer.Ordinal) { Target, Outgoing[0].SourceId };
+            Queue<string> Pending = new();
+            Pending.Enqueue(Target);
+            while (Pending.Count > 0)
+            {
+                string Current = Pending.Dequeue();
+                foreach (EdgeContract Edge in Contract.Edges)
+                {
+                    if (Edge.SourceId != Current || BackEdges.Contains(Edge)
+                        || string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
+                        || !Visited.Add(Edge.TargetId))
+                    {
+                        continue;
+                    }
+                    if (Targets.Contains(Edge.TargetId)) return true;
+                    Pending.Enqueue(Edge.TargetId);
+                }
+            }
+        }
+        return false;
     }
 
     /// <summary>
