@@ -5,6 +5,9 @@ namespace MermaidRecognition.Kinds.Enterprise;
 /// </summary>
 public sealed class EnterpriseGroup
 {
+    /// <summary>Gets or sets whether the label uses Mermaid markdown-string formatting.</summary>
+    public bool IsMarkdownLabel { get; set; }
+
     /// <summary>Gets or sets the optional local layout direction.</summary>
     public EnterpriseDiagramDirection? Direction { get; set; }
 

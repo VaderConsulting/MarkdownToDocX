@@ -14,7 +14,7 @@ public static class EnterpriseParser
 
     private const string ID_PATTERN = @"[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*";
 
-    private const string STRING_PATTERN = @"""((?:[^""\\]|\\.)*)""";
+    private const string STRING_PATTERN = @"(""(?:[^""\\]|\\.)*""|'(?:[^'\\]|\\.)*')";
 
     private static readonly Regex HeaderRegex = new Regex(
         @"^enterprise(-beta)?(?:\s+(TB|TD|BT|LR|RL))?$",
@@ -34,15 +34,15 @@ public static class EnterpriseParser
 
     private static readonly Regex GroupRegex = new Regex(
         @"^group\s+(" + ID_PATTERN + @")(?:\s+" + STRING_PATTERN + @")?(?:\s+in\s+(" + ID_PATTERN + @"))?$",
-        RegexOptions.Compiled);
+        RegexOptions.Compiled | RegexOptions.Singleline);
 
     private static readonly Regex RelationshipRegex = new Regex(
         @"^(" + ID_PATTERN + @")\s+-([A-Za-z]+)(?:\(([^)]*)\))?->\s+(" + ID_PATTERN + @")(?:\s+" + STRING_PATTERN + @")?$",
-        RegexOptions.Compiled);
+        RegexOptions.Compiled | RegexOptions.Singleline);
 
     private static readonly Regex ElementRegex = new Regex(
         @"^([A-Za-z-]+)\s+(" + ID_PATTERN + @")(?:\s+" + STRING_PATTERN + @")?(?:\s+in\s+(" + ID_PATTERN + @"))?$",
-        RegexOptions.Compiled);
+        RegexOptions.Compiled | RegexOptions.Singleline);
 
     private static readonly Regex InfluenceQualifierRegex = new Regex(
         @"^[+-]{1,2}$|^[+-]?\d+$",
@@ -246,6 +246,7 @@ public static class EnterpriseParser
         {
             Id = Id,
             Label = QuotedLabel ?? Id,
+            IsMarkdownLabel = IsMarkdown(GroupMatch.Groups[2].Value),
             ParentId = ParentId,
             LineNumber = LineNumber
         };
@@ -255,6 +256,7 @@ public static class EnterpriseParser
             Id = Id,
             ElementType = EnterpriseElementType.Grouping,
             Label = QuotedLabel ?? Id,
+            IsMarkdownLabel = Group.IsMarkdownLabel,
             ParentId = ParentId,
             LineNumber = LineNumber
         };
@@ -289,6 +291,7 @@ public static class EnterpriseParser
             Id = Id,
             ElementType = ElementType,
             Label = QuotedLabel ?? Id,
+            IsMarkdownLabel = IsMarkdown(ElementMatch.Groups[3].Value),
             ParentId = ParentId,
             LineNumber = LineNumber
         };
@@ -343,6 +346,7 @@ public static class EnterpriseParser
             TargetId = TargetId,
             Kind = Kind,
             Label = QuotedLabel ?? string.Empty,
+            IsMarkdownLabel = IsMarkdown(RelationshipMatch.Groups[5].Value),
             LineNumber = LineNumber
         };
 
@@ -471,16 +475,20 @@ public static class EnterpriseParser
     {
         // Titles are the rest of the line, not quoted-label statements.
         bool IsTitle = TitleRegex.IsMatch(Line.TrimStart());
-        bool InQuotes = false;
+        char Quote = '\0';
         for (int Index = 0; Index < Line.Length; Index++)
         {
-            if (!IsTitle && InQuotes && Line[Index] == '\\')
+            if (!IsTitle && Quote != '\0' && Line[Index] == '\\')
             {
                 Index++;
                 continue;
             }
-            if (!IsTitle && Line[Index] == '"') InQuotes = !InQuotes;
-            if (!InQuotes && Line[Index] == '%' && Index + 1 < Line.Length && Line[Index + 1] == '%')
+            if (!IsTitle && (Line[Index] == '"' || Line[Index] == '\''))
+            {
+                if (Quote == '\0') Quote = Line[Index];
+                else if (Quote == Line[Index]) Quote = '\0';
+            }
+            if (Quote == '\0' && Line[Index] == '%' && Index + 1 < Line.Length && Line[Index + 1] == '%')
                 return Line.Substring(0, Index);
         }
         return Line;
@@ -488,8 +496,12 @@ public static class EnterpriseParser
 
     private static string Unquote(string Value)
     {
-        return EnterpriseLabelText.DecodeQuoted(Value);
+        string Body = Value[1..^1];
+        if (IsMarkdown(Value)) Body = Body[1..^1];
+        return EnterpriseLabelText.DecodeQuoted(Body);
     }
+
+    private static bool IsMarkdown(string Value) => Value.Length >= 4 && Value[1] == '`' && Value[^2] == '`';
 
     private static EnterpriseDiagramDirection ParseDirection(string Value) => Value.ToUpperInvariant() switch
     {
