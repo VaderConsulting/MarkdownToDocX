@@ -336,6 +336,22 @@ public static class DiagramGridRouteBuilder
                 continue;
             }
 
+            if (BoundsById.TryGetValue(OtherId, out FlowchartLayoutNodeBounds Other))
+            {
+                bool BeyondSide = Side switch
+                {
+                    "left" => Other.CenterX < Frame.CenterX - Frame.Width / 2,
+                    "right" => Other.CenterX > Frame.CenterX + Frame.Width / 2,
+                    "top" => Other.CenterY > Frame.CenterY + Frame.Height / 2,
+                    "bottom" => Other.CenterY < Frame.CenterY - Frame.Height / 2,
+                    _ => false
+                };
+                // If the other end approaches a different face, the route
+                // may turn inside the frame after crossing that nearer face.
+                // Forcing this terminal past the far border causes reentry.
+                if (!BeyondSide) continue;
+            }
+
             double Distance = Side switch
             {
                 "left" => X - (Frame.CenterX - Frame.Width / 2),
