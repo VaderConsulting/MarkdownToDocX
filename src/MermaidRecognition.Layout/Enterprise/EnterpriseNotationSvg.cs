@@ -43,6 +43,12 @@ public static class EnterpriseNotationSvg
     /// <returns>SVG fragment.</returns>
     public static string IconSvg(string? Icon, double X, double Y, string Fill)
     {
+        string Svg = DrawIcon(Icon, X, Y, Fill);
+        return Svg.Length == 0 ? Svg : "<g class=\"notation-icon\">" + Svg + "</g>";
+    }
+
+    private static string DrawIcon(string? Icon, double X, double Y, string Fill)
+    {
         if (string.IsNullOrEmpty(Icon))
         {
             return string.Empty;

@@ -182,6 +182,21 @@ public static class EnterpriseParser
                 continue;
             }
 
+            if (Document.Styles.Read(Line, LineNumber)) continue;
+            string? TrailingClass = null;
+            Line = Regex.Replace(Line, STRING_PATTERN + @"|(?<id>" + ID_PATTERN + @"):::(?<class>[\w-]+)", Match =>
+            {
+                if (!Match.Groups["id"].Success) return Match.Value;
+                Document.Styles.AddInlineClass(Match.Groups["id"].Value, Match.Groups["class"].Value);
+                return Match.Groups["id"].Value;
+            }, RegexOptions.Singleline);
+            Match SuffixClass = Regex.Match(Line, @":::([\w-]+)$");
+            if (SuffixClass.Success)
+            {
+                TrailingClass = SuffixClass.Groups[1].Value;
+                Line = Line[..SuffixClass.Index].TrimEnd();
+            }
+
             bool OpensGroup = Line.EndsWith('{');
             Match GroupMatch = GroupRegex.Match(OpensGroup ? Line[..^1].TrimEnd() : Line);
             if (GroupMatch.Success)
@@ -209,6 +224,7 @@ public static class EnterpriseParser
             if (ElementMatch.Success)
             {
                 AddElement(Document, Diagnostics, ElementMatch, LineNumber);
+                if (TrailingClass != null) Document.Styles.AddInlineClass(ElementMatch.Groups[2].Value, TrailingClass);
                 if (GroupScope.TryPeek(out string? ParentId)
                     && Document.Elements.TryGetValue(ElementMatch.Groups[2].Value, out var Element) && Element.ParentId == null)
                     Element.ParentId = ParentId;
@@ -229,6 +245,7 @@ public static class EnterpriseParser
             Diagnostics.Add(CreateError(Lines.Length, "unterminated accessibility description"));
         }
         ValidateReferences(Document, Diagnostics);
+        Document.Styles.Resolve(Document, Diagnostics);
         return new EnterpriseParseResult(Document, Diagnostics);
     }
 

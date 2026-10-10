@@ -5,6 +5,9 @@ namespace MermaidRecognition.Kinds.Enterprise;
 /// </summary>
 public sealed class EnterpriseDocument
 {
+    /// <summary>Gets the resolved element and relationship styles.</summary>
+    public EnterpriseStyles Styles { get; } = new();
+
     /// <summary>Gets flattened Mermaid configuration; unsupported keys are ignored by rendering.</summary>
     public Dictionary<string, string> Configuration { get; } = new(StringComparer.OrdinalIgnoreCase);
 
