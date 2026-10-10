@@ -104,6 +104,7 @@ public static class DiagramGridLayout
         GrowCrowdedSides(Placed, Copy, BoxWidth, BoxHeight);
         GrowParallelRelationshipSides(Contract, Placed, Horizontal);
         SeparateOverlaps(Placed, Horizontal);
+        FlowchartTerminalBranchPlacement.Apply(Contract, Placed, Horizontal, CrossPitch);
         List<GridFrame> Frames = new List<GridFrame>();
         CenterLoneNestedGroups(Contract, Placed, Horizontal);
         FitFrames(Contract, Placed, Frames, Horizontal);

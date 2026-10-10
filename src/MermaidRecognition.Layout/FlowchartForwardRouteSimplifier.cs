@@ -51,13 +51,15 @@ internal static class FlowchartForwardRouteSimplifier
                 && Route.ExitSide == Side(Math.Sign(T.U - S.U), 0)) continue;
             // Independent branches at different ranks retain their existing
             // fan allocation. A chain bypass has dependent children instead.
-            if (!OrdinaryFan && Children.Count > 1
+            if (!OrdinaryFan && Route.Points.Count <= 4 && Children.Count > 1
                 && !FlowchartOrdinaryFanOutRouteBuilder.HasForwardPathBetweenTargets(Contract, Outgoing)) continue;
             bool SkipsRank = Bounds.Values.Any(Obstacle =>
                 Local(Obstacle.CenterX, Obstacle.CenterY).V > S.V + Sh
                 && Local(Obstacle.CenterX, Obstacle.CenterY).V < T.V - Th);
             bool DownstreamTaken = Layout.EdgeRoutes.Any(Other => Other != Route && Other.SourceId == Route.SourceId
                 && Other.Points.Count == 2 && Other.ExitSide == Side(0, 1));
+            bool UpstreamTaken = Layout.EdgeRoutes.Any(Other => Other != Route && Other.TargetId == Route.TargetId
+                && Other.Points.Count == 2 && Other.EntrySide == Side(0, -1));
             foreach (int Offset in new[] { 0, -1, 1, -2, 2 })
             foreach (int TargetOffset in new[] { 0, -1, 1, -2, 2 })
             {
@@ -71,6 +73,14 @@ internal static class FlowchartForwardRouteSimplifier
                 if (!OrdinaryFan && DownstreamTaken && Sh - Math.Abs(SideStart - S.V) >= 20
                     && Facing != 0 && Math.Abs(T.U - S.U) > Sw + Tw)
                     Consider([(S.U + Facing * Sw, SideStart), (Tu, SideStart), (Tu, T.V - Th)], Side(Facing, 0), Side(0, -1));
+                if (!OrdinaryFan && UpstreamTaken)
+                {
+                    int Near = Math.Sign(S.U - T.U);
+                    double Tv = T.V + TargetOffset * Th / 3;
+                    if (Near != 0 && Near * (Su - T.U - Near * Tw) >= 40
+                        && Th - Math.Abs(Tv - T.V) >= 20)
+                        Consider([(Su, S.V + Sh), (Su, Tv), (T.U + Near * Tw, Tv)], Side(0, 1), Side(Near, 0));
+                }
                 if (OrdinaryFan || !SkipsRank) continue;
                 foreach (int Outside in new[] { -1, 1 })
                 {
@@ -131,7 +141,14 @@ internal static class FlowchartForwardRouteSimplifier
                 }
                 double Length(List<(double X, double Y)> Points) => Points.Zip(Points.Skip(1))
                     .Sum(Pair => Math.Abs(Pair.First.X - Pair.Second.X) + Math.Abs(Pair.First.Y - Pair.Second.Y));
-                if (After == Before && Path.Count == Best.Count && Length(Path) >= Length(Best) - 0.01) return;
+                double PortOffset(List<(double X, double Y)> Points, string? ExitSide, string? EntrySide) =>
+                    (ExitSide is "left" or "right" ? Math.Abs(Points[0].Y - Source.CenterY) : Math.Abs(Points[0].X - Source.CenterX))
+                    + (EntrySide is "left" or "right" ? Math.Abs(Points[^1].Y - Target.CenterY) : Math.Abs(Points[^1].X - Target.CenterX));
+                if (After == Before && Path.Count == Best.Count)
+                {
+                    double OffsetCost = PortOffset(Path, Exit, Entry) - PortOffset(Best, BestExit, BestEntry);
+                    if (OffsetCost > 0.01 || Math.Abs(OffsetCost) < 0.01 && Length(Path) >= Length(Best) - 0.01) return;
+                }
                 Best = Path; BestExit = Exit; BestEntry = Entry;
             }
         }

@@ -11,6 +11,28 @@ public sealed class ForwardRouteSimplifierTests
     [TestCase(FlowchartDirection.BottomToTop)]
     [TestCase(FlowchartDirection.LeftToRight)]
     [TestCase(FlowchartDirection.RightToLeft)]
+    public void ReservedUpstreamCentre_OffsetInputUsesClearNearSideElbow(FlowchartDirection Direction)
+    {
+        var Context = Create(Direction, "a --> c\nb --> c",
+            [("a", 240, 0), ("b", 0, -180), ("c", 0, -360)]);
+        var Straight = Add(Context, "b", "c", [(0, -210), (0, -330)]);
+        var Offset = Add(Context, "a", "c", [(240, -30), (240, -270), (20, -270), (20, -330)]);
+        var Original = Straight.Points.Select(Point => (Point.X, Point.Y)).ToArray();
+        Apply(Context, Direction);
+        Assert.That(Offset.Points, Has.Count.EqualTo(3));
+        var Start = Context.Unmap(Offset.Points[0].X, Offset.Points[0].Y);
+        var End = Context.Unmap(Offset.Points[^1].X, Offset.Points[^1].Y);
+        Assert.That(Start.Y, Is.EqualTo(-30));
+        Assert.That(End.X, Is.EqualTo(60));
+        Assert.That(End.Y, Is.EqualTo(-360));
+        Assert.That(Straight.Points.Select(Point => (Point.X, Point.Y)), Is.EqualTo(Original));
+        AssertClear(Context);
+    }
+
+    [TestCase(FlowchartDirection.TopToBottom)]
+    [TestCase(FlowchartDirection.BottomToTop)]
+    [TestCase(FlowchartDirection.LeftToRight)]
+    [TestCase(FlowchartDirection.RightToLeft)]
     public void OccupiedCentreAndLongerBypass_ShortBranchUsesClearSideElbow(FlowchartDirection Direction)
     {
         var Context = Create(Direction, "a --> b\na --> c\na --> d\nb --> d",
