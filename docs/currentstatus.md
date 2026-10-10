@@ -8,7 +8,7 @@ solution. Historical evidence is in the [grid layout review](grid-layout-review.
 | Area | Current state |
 | --- | --- |
 | Master | Baseline `f09cb89`; not changed or remeasured in this pass. |
-| Grid work | PR #9, `cursor/many-to-many-routing-3834`; application fixes through `36c152b` pushed, not merged. |
+| Grid work | PR #9, `cursor/many-to-many-routing-3834`; application fixes through `d4b6206` pushed, not merged. |
 | Active checkout | Sibling `MarkdownToDocX-pr9` worktree. The original folder retains its documentation branch and supplied files. |
 | Enterprise / ArchiMate | Selected parser, validation, notation and renderer code from PR #1 integrated into PR #9. Neither PR was merged. |
 | Decisions | All six defaults approved. The held frame-midline rule is replaced by fitting frames on the shared grid and growing shared gaps. |
@@ -34,6 +34,8 @@ solution. Historical evidence is in the [grid layout review](grid-layout-review.
 - Relationship captions wrap and search clear straight-run positions. Nearby
   parallel captions stagger, and connector breaks follow their text. Exhausted
   local corridors retain visible fallback text; automatic gap growth remains open.
+- Enterprise titles reserve canvas width for literal bold text, including
+  punctuation and Unicode; narrow diagrams centre below wide titles.
 - External junction captions choose nearby positions clear of routed lines,
   node bodies and other labels. The canvas includes the selected text bounds.
 - Shared branching inputs centre between their targets when the other inputs
@@ -67,11 +69,11 @@ in existing PR #9 tests during this pass.
 ## 3. Verified tests
 
 Plain `dotnet test`, including build/restore, on pushed application commit
-`36c152b`. Baselines were measured before behavioural edits and retained.
+`d4b6206`. Baselines were measured before behavioural edits and retained.
 
 | Suite | Master passed / failed | Starting PR #9 passed / failed | Current passed / failed |
 | --- | ---: | ---: | ---: |
-| Layout | 234 / 34 | 280 / 38 | 473 / 32 |
+| Layout | 234 / 34 | 280 / 38 | 476 / 32 |
 | Rule validation | 46 / 11 | 44 / 13 | 49 / 10 |
 | Recognition | 932 / 0 | 932 / 0 | 1008 / 0 |
 | Naiad adapter | 47 / 0 | 47 / 0 | 47 / 0 |
@@ -94,7 +96,7 @@ were corrected without changing their assertions.
 
 Final logs, TRX files, exact failure-name comparisons, renders, DOCX outputs
 and a complete picture manifest are local evidence under
-`out/relationship-labels/final/` (latest), with earlier evidence under
+`out/enterprise-title/final/` (latest), with earlier evidence under
 `out/rulebook-completion/a34ebb9/`. Recognition's twelve explicit fixture
 writers remain excluded from ordinary execution. **Acceptance is incomplete;
 passing-count targets do not establish visual correctness or merge readiness.**

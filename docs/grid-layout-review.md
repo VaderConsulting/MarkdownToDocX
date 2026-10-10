@@ -1,6 +1,6 @@
 # Grid layout review — 9 October 2026
 
-This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `36c152b`; section 24 records relationship caption staggering. Section 23 records aligned vertical return ports. Section 22 records shared input fan placement and continuation alignment. Section 21 records junction caption clearance. Section 20 records plain relationship label measurement and elliptical attachments. Section 19 records the generic forward-dogleg correction. Section 18 records approved decisions, native Enterprise/pie integration, local spacing and frame fixes. Sections 16–17 retain the earlier routing evidence. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
+This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `d4b6206`; section 25 records title canvas sizing. Section 24 records relationship caption staggering. Section 23 records aligned vertical return ports. Section 22 records shared input fan placement and continuation alignment. Section 21 records junction caption clearance. Section 20 records plain relationship label measurement and elliptical attachments. Section 19 records the generic forward-dogleg correction. Section 18 records approved decisions, native Enterprise/pie integration, local spacing and frame fixes. Sections 16–17 retain the earlier routing evidence. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
 
 ## 1. Fresh test comparison
 
@@ -897,3 +897,42 @@ the long caption wraps, the neighbouring return caption sits above it, and
 all displayed captions have breaks in their own connectors. This is not a
 full catalogue acceptance or Word pagination review. Supplied files remain
 untouched and nothing was merged.
+
+## 25. Literal title canvas sizing — 10 October 2026
+
+Long titles were centred inside a viewport sized only for nodes and routes.
+The rasterizer clipped both ends. The renderer now reserves width for the
+literal bold title with outer padding and translates the unchanged diagram
+horizontally to centre it below the title. Punctuation, quotes and Unicode
+remain literal SVG-escaped text rather than inline Markdown. The conservative
+glyph-width estimate avoids adding a native font dependency to the layout
+library; exact typographic measurement remains outside this change.
+
+`d4b6206` — Fit enterprise titles inside the diagram canvas.
+
+The engine diff was checked for diagram-specific selectors. Title sizing
+uses only text glyphs and bounds; no title content or diagram identifier is
+selected. Existing assertions and fixtures remain unchanged. Three generic
+checks cover long literal punctuation/Unicode titles, wide Latin glyphs and
+CJK text, viewport growth, title centring and preservation of node geometry.
+All 24 focused title and Enterprise renderer checks passed. The marked title
+was rendered and visually inspected before committing; every character is
+visible, including the final check mark.
+
+All five suites ran once on pushed application commit `d4b6206`: Layout 476
+passed / 32 failed, rule validation 49 / 10, recognition 1008 / 0, Naiad adapter
+47 / 0, converter 52 / 0. Failure names are unchanged from `36c152b`; the two
+stopped master-passing Layout regressions in section 18 remain. The retained
+master baseline was not rerun.
+
+Final evidence is under `out/enterprise-title/final/`: suite logs/TRX,
+failure-name comparison, the marked title picture, 126 flowchart renders with
+four commented skips, and ten Enterprise samples with the same two expected
+rejections. `picture-manifest.txt` lists all rendered picture paths.
+
+The rebuilt WinForms executable regenerated `final/enterprise.docx` successfully
+with 94 drawings and 36 source-preserving warnings. The marked title's embedded
+picture was extracted and visually inspected: the complete literal title is
+visible, and both nodes remain centred below it. This is not a full catalogue
+acceptance or Word pagination review. Supplied files remain untouched and
+nothing was merged.
