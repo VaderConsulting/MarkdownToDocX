@@ -2290,6 +2290,8 @@ public static class DiagramGridLayout
             ApplySlots(Group, Nodes);
         }
 
+        KeepFramePortsClearOfTitles(Contract, Ends);
+
         // A co-ranked three-way fan-in uses the upstream vertex for its
         // middle input and the two side vertices for the outer inputs.
         // Allocating each side separately can otherwise claim the same vertex.
@@ -2328,6 +2330,49 @@ public static class DiagramGridLayout
                 Inputs[Index].Route.EntrySide = OutX < 0 ? "left" : OutX > 0 ? "right" : OutY < 0 ? "bottom" : "top";
                 SetEnd(Inputs[Index], (int)Math.Round(Box.CenterX + OutX * Box.Width / 2),
                     (int)Math.Round(Box.CenterY + OutY * Box.Height / 2), OutX, OutY);
+            }
+        }
+    }
+
+    private static void KeepFramePortsClearOfTitles(DiagramContract Contract, List<PortEnd> Ends)
+    {
+        FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
+        foreach (var FrameEnds in Ends.Where(End => End.Box.IsFrame && End.Side == "top")
+            .GroupBy(End => End.Box.Id))
+        {
+            GroupContract? Frame = Contract.Groups.FirstOrDefault(Group => Group.Id == FrameEnds.Key);
+            if (Frame is null) continue;
+            string Title = string.IsNullOrWhiteSpace(Frame.Title) ? Frame.Id : Frame.Title;
+            double HalfTitle = Math.Max(
+                FlowchartRichLabelSvgWriter.EstimateLineWidthPx(Title, Options.FontSizePx),
+                Title.Length * Options.FontSizePx * 0.58) / 2;
+            double Offset = HalfTitle + STUB_PX;
+            List<double> Used = FrameEnds.Select(End =>
+                (End.IsSource ? End.Route.Points[0] : End.Route.Points[^1]).X)
+                .Where(X => Math.Abs(X - FrameEnds.First().Box.CenterX) >= Offset).ToList();
+            foreach (PortEnd End in FrameEnds)
+            {
+                FlowchartLayoutPoint Point = End.IsSource ? End.Route.Points[0] : End.Route.Points[^1];
+                if (Math.Abs(Point.X - End.Box.CenterX) >= Offset)
+                {
+                    continue;
+                }
+                // Reserve the title band before routing, while endpoints can
+                // still be moved together with their normal terminal runs.
+                List<double> Candidates = [];
+                for (double Step = Offset; Step <= End.Box.Width / 2 - STUB_PX; Step += STUB_PX)
+                {
+                    Candidates.Add(End.Box.CenterX - Step);
+                    Candidates.Add(End.Box.CenterX + Step);
+                }
+                double? X = Candidates.OrderBy(Value => Math.Abs(Value - End.Other.CenterX))
+                    .Where(Value => Used.All(Existing => Math.Abs(Value - Existing) >= STUB_PX))
+                    .Select(Value => (double?)Value).FirstOrDefault();
+                if (X.HasValue)
+                {
+                    SetEnd(End, (int)Math.Round(X.Value), (int)Math.Round(End.Box.Top), 0, 1);
+                    Used.Add(X.Value);
+                }
             }
         }
     }

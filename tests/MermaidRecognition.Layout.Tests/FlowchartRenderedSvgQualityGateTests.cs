@@ -241,6 +241,26 @@ public sealed class FlowchartRenderedSvgQualityGateTests
             FormatReport(Report));
     }
 
+    [TestCase("Service boundary")]
+    [TestCase("A longer nested service boundary")]
+    public void ConnectorToTitledGroup_KeepsTitleClearance(string Title)
+    {
+        string Source = $$"""
+            flowchart TB
+              subgraph outer[Container]
+                a[Input]
+                subgraph inner["{{Title}}"]
+                  b[First] --> c[Second]
+                end
+              end
+              a -->|link| inner
+            """;
+        FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.Evaluate(
+            "nested-group-attachment", Source);
+        Assert.That(Report.Failures.Where(Failure => Failure.Kind == "TitleClearance"), Is.Empty,
+            FormatReport(Report));
+    }
+
     [Test]
     public void LineJump_DrawsOneHopAtAPerpendicularCrossing()
     {
