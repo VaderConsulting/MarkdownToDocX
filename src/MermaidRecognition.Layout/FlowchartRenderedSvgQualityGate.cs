@@ -2138,7 +2138,9 @@ public static class FlowchartRenderedSvgQualityGate
         List<ParsedEdgeStroke> Strokes = [];
         foreach (FlowchartRenderedSvgStroke Stroke in Document.Strokes)
         {
-            Strokes.Add(new ParsedEdgeStroke(Stroke.SourceId, Stroke.TargetId, Stroke.Samples));
+            ParsedEdgeStroke Parsed = new(Stroke.SourceId, Stroke.TargetId, Stroke.Samples);
+            Parsed.Fragments.AddRange(Stroke.Fragments);
+            Strokes.Add(Parsed);
         }
 
         return Strokes;
@@ -3072,6 +3074,30 @@ public static class FlowchartRenderedSvgQualityGate
                 continue;
             }
 
+            // SVG label breaks create multiple visible pieces of one edge.
+            // Check the actual terminal nearest this node, not the end of
+            // whichever piece happens to be longest. Never bridge the gap.
+            if (Stroke.Fragments.Count > 1)
+            {
+                double BestDistance = double.PositiveInfinity;
+                foreach (List<(double X, double Y)> Fragment in Stroke.Fragments)
+                {
+                    if (Fragment.Count < 2)
+                    {
+                        continue;
+                    }
+                    foreach ((double CandidateX, double CandidateY) in new[] { Fragment[0], Fragment[^1] })
+                    {
+                        double CandidateDistance = DistanceOutsideRounded(CandidateX, CandidateY, Box, Radius);
+                        if (CandidateDistance < BestDistance)
+                        {
+                            BestDistance = CandidateDistance;
+                            X = CandidateX;
+                            Y = CandidateY;
+                        }
+                    }
+                }
+            }
             double Gap = DistanceOutsideRounded(X, Y, Box, Radius);
             double Limit = AtStart ? 2.5 : 12.0;
             if (Gap <= Limit)
@@ -4089,6 +4115,8 @@ public static class FlowchartRenderedSvgQualityGate
         public string TargetId { get; }
 
         public List<(double X, double Y)> Samples { get; }
+
+        public List<List<(double X, double Y)>> Fragments { get; } = [];
     }
 
     private sealed class ParsedLabel

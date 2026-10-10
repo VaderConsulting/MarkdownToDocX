@@ -237,6 +237,7 @@ public sealed class FlowchartRenderedSvgDocument
                     continue;
                 }
 
+                Existing.Fragments.Add(new List<(double X, double Y)>(Samples));
                 if (PathLength(Samples) > PathLength(Existing.Samples))
                 {
                     Existing.Samples.Clear();
@@ -651,6 +652,7 @@ public sealed class FlowchartRenderedSvgStroke
         this.SourceId = SourceId;
         this.TargetId = TargetId;
         this.Samples = Samples;
+        Fragments.Add(new List<(double X, double Y)>(Samples));
     }
 
     /// <summary>
@@ -667,6 +669,11 @@ public sealed class FlowchartRenderedSvgStroke
     /// Flattened path samples.
     /// </summary>
     public List<(double X, double Y)> Samples { get; }
+
+    /// <summary>
+    /// Separate visible pieces, including both sides of intentional label gaps.
+    /// </summary>
+    public List<List<(double X, double Y)>> Fragments { get; } = [];
 }
 
 /// <summary>
