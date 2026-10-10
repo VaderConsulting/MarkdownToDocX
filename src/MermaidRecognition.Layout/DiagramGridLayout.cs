@@ -2275,6 +2275,7 @@ public static class DiagramGridLayout
         FlowchartDirection Direction,
         HashSet<string> SharedFanSources)
     {
+        var BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         bool Horizontal = Direction == FlowchartDirection.LeftToRight
             || Direction == FlowchartDirection.RightToLeft;
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
@@ -2370,6 +2371,17 @@ public static class DiagramGridLayout
             }
             double SourceCross = Horizontal ? Item.Source.CenterY : Item.Source.CenterX;
             double TargetCross = Horizontal ? Item.Target.CenterY : Item.Target.CenterX;
+            if (!Horizontal && !Item.Source.IsFrame && !Item.Target.IsFrame
+                && Math.Abs(SourceCross - TargetCross) <= DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX
+                && Nodes.TryGetValue(Item.Source.Id, out var ReturnSource)
+                && Nodes.TryGetValue(Item.Target.Id, out var ReturnTarget)
+                && !FlowchartDagrePresentation.IsDiamondShape(ReturnSource.Shape)
+                && !FlowchartDagrePresentation.IsDiamondShape(ReturnTarget.Shape)
+                && BackEdges.Any(Edge => Edge.SourceId == Item.Source.Id && Edge.TargetId == Item.Target.Id))
+            {
+                // An aligned return shares a clear side corridor, not inward-facing rank ports.
+                Exit = Entry = Horizontal ? "bottom" : "right";
+            }
             double CrossGap = Math.Abs(TargetCross - SourceCross)
                 - (Horizontal ? Item.Source.Height + Item.Target.Height : Item.Source.Width + Item.Target.Width) / 2;
             if (CrossGap > 0)
@@ -3589,6 +3601,22 @@ public static class DiagramGridLayout
 
             string? SourceShape = Nodes.TryGetValue(Route.SourceId, out NodeContract? SourceNode) ? SourceNode.Shape : null;
             string? TargetShape = Nodes.TryGetValue(Route.TargetId, out NodeContract? TargetNode) ? TargetNode.Shape : null;
+            string ReturnSide = HorizontalFlow ? "bottom" : "right";
+            if (!HorizontalFlow && Route.ExitSide == ReturnSide && Route.EntrySide == ReturnSide
+                && BoundsById.TryGetValue(Route.SourceId, out var AlignedSource)
+                && BoundsById.TryGetValue(Route.TargetId, out var AlignedTarget)
+                && Math.Abs(HorizontalFlow ? AlignedSource.CenterY - AlignedTarget.CenterY
+                    : AlignedSource.CenterX - AlignedTarget.CenterX) <= DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX
+                && Route.Points.Count is >= 4 and <= 5
+                && Route.Points.Zip(Route.Points.Skip(1)).All(Pair =>
+                    (Math.Abs(Pair.First.X - Pair.Second.X) < 0.5 || Math.Abs(Pair.First.Y - Pair.Second.Y) < 0.5)
+                    && !FlowchartRouteObstacleHelper.SegmentIntersectsUnrelatedNodeBodies(
+                        Pair.First.X, Pair.First.Y, Pair.Second.X, Pair.Second.Y,
+                        BoundsById, Route.SourceId, Route.TargetId)))
+            {
+                // Keep the side ports allocated with the other ends in the diagram.
+                continue;
+            }
             List<(double X, double Y)> LayoutPoints = [];
             bool Resolved = false;
 
