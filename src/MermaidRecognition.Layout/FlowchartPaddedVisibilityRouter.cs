@@ -54,6 +54,8 @@ public static class FlowchartPaddedVisibilityRouter
     /// <param name="SourceBounds">Source box, or null when the port is already off the box.</param>
     /// <param name="TargetBounds">Target box, or null when the port is already off the box.</param>
     /// <param name="Points">Guide points when this method returns true.</param>
+    /// <param name="PortStubPx">Straight clearance reserved outside each endpoint.</param>
+    /// <param name="ObstaclePaddingPx">Clearance reserved around obstacle bodies.</param>
     /// <returns>True when a path exists.</returns>
     public static bool TryRoute(
         double StartX,
