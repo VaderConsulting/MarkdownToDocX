@@ -1698,6 +1698,10 @@ public static class DiagramGridLayout
                         (Edge.SourceId == Node.Id && (Edge.TargetId == Frame.Id || IsInsideGroup(Contract, Edge.TargetId, Frame.Id)))
                         || (Edge.TargetId == Node.Id && (Edge.SourceId == Frame.Id || IsInsideGroup(Contract, Edge.SourceId, Frame.Id))))
                         ? 2 * DiagramGridMetrics.GRID_UNIT_PX : DiagramGridMetrics.GRID_UNIT_PX;
+                    string? ParentFrame = ParentGroup(Contract, Frame.Id);
+                    if (ParentFrame != null && IsInsideGroup(Contract, Node.Id, ParentFrame))
+                        Clearance = Math.Max(Clearance, DiagramGridMetrics.CeilToGrid(
+                            FlowchartSubgraphGapThresholds.ResolveDirectMemberNestedGapPx(FlowchartRenderOptions.FromContract(Contract))));
                     if (!Overlaps(Node, Frame, Clearance))
                     {
                         continue;
@@ -1940,6 +1944,9 @@ public static class DiagramGridLayout
                 Strip = DiagramGridMetrics.CeilToGrid(LineHeight);
             }
             int Padding = DiagramGridMetrics.NODE_GAP_PX;
+            if (Group.ChildGroupIds.Count > 0)
+                Padding = Math.Max(Padding, DiagramGridMetrics.CeilToGrid(
+                    FlowchartSubgraphGapThresholds.ResolveNestedFlowAxisGapPx(Options)));
             int InternalReturns = FlowchartBackEdgeHelper.FindBackEdges(Contract).Count(Edge =>
                 IsInsideGroup(Contract, Edge.SourceId, Group.Id) && IsInsideGroup(Contract, Edge.TargetId, Group.Id));
             if (InternalReturns > 0)
