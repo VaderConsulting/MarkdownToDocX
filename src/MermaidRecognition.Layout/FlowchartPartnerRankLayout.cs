@@ -9,6 +9,9 @@ namespace MermaidRecognition.Layout;
 internal static class FlowchartPartnerRankLayout
 {
     private const int TRACK_PITCH = 6;
+    // Reserve enough track slots that a crossing stays on the straight part
+    // of a connector rather than intersecting its rounded corner.
+    private const int CORNER_TRACK_PITCH = ((DiagramGridRouteBuilder.CORNER_RADIUS_PX + TRACK_PITCH - 1) / TRACK_PITCH) * TRACK_PITCH;
     private const int TERMINAL_RESERVE = 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX;
 
     internal sealed record Partners(DiagramGridLayout.GridNode[] Parents,
@@ -37,7 +40,7 @@ internal static class FlowchartPartnerRankLayout
                 || Parent.Rank == Children[0].Rank
                 || Parents.Any(Node => !Outgoing[Node.Id].Select(Edge => Edge.TargetId).Order().SequenceEqual(Targets.Order()))
                 || Children.Any(Node => !Incoming[Node.Id].Select(Edge => Edge.SourceId).Order().SequenceEqual(Sources.Order()))) continue;
-            int Pitch = Math.Max(TRACK_PITCH, Parents.Concat(Children).Min(Node => CrossSize(Node, Horizontal)) / 6);
+            int Pitch = Math.Max(CORNER_TRACK_PITCH, Parents.Concat(Children).Min(Node => CrossSize(Node, Horizontal)) / 6);
             Result.Add(new(Parents, Children, Pitch));
             foreach (var Node in Parents) Used.Add(Node.Id);
         }
@@ -70,7 +73,7 @@ internal static class FlowchartPartnerRankLayout
         {
             var (Start, End, Flow) = Limits(Contract, Frames, Block, Horizontal);
             int Tracks = Block.Parents.Length * (Block.Children.Length - 1);
-            int Extra = DiagramGridMetrics.CeilToGrid(2 * TERMINAL_RESERVE + (Tracks - 1) * TRACK_PITCH - (End - Start));
+            int Extra = DiagramGridMetrics.CeilToGrid(2 * TERMINAL_RESERVE + (Tracks - 1) * CORNER_TRACK_PITCH - (End - Start));
             if (Extra == 0) continue;
             int LaterRank = Math.Max(Block.Parents[0].Rank, Block.Children[0].Rank);
             double Cut = (Main(Block.Parents[0], Horizontal) + Main(Block.Children[0], Horizontal)) / 2;
@@ -112,7 +115,7 @@ internal static class FlowchartPartnerRankLayout
             // on arrival. The opposite half uses the mirrored order.
             var Crossed = Pairs.Where(Pair => Pair.Child > Pair.Parent).OrderByDescending(Pair => Pair.Parent).ThenByDescending(Pair => Pair.Child)
                 .Concat(Pairs.Where(Pair => Pair.Child < Pair.Parent).OrderBy(Pair => Pair.Parent).ThenBy(Pair => Pair.Child)).ToList();
-            var Tracks = Crossed.Select((Pair, Index) => (Pair, Lane: Flow * (Start + TERMINAL_RESERVE + Index * TRACK_PITCH)))
+            var Tracks = Crossed.Select((Pair, Index) => (Pair, Lane: Flow * (Start + TERMINAL_RESERVE + Index * CORNER_TRACK_PITCH)))
                 .ToDictionary(Item => Item.Pair, Item => Item.Lane);
             foreach (var Pair in Pairs)
             {

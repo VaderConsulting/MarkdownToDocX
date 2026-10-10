@@ -83,6 +83,7 @@ public sealed class PartnerRankRoutingTests
             Assert.That(Intersections.Overlap, Is.Zero, "No two connectors may share a run.");
             if (A.SourceId == B.SourceId || A.TargetId == B.TargetId)
                 Assert.That(Intersections.Crossings, Is.Zero, "Individual fans must nest without crossings.");
+            AssertCrossingsClearOfCorners(A, B);
         }
         if (Grouped)
         {
@@ -133,6 +134,26 @@ public sealed class PartnerRankRoutingTests
     }
 
     private static double Number(XElement Element, string Name) => double.Parse((string)Element.Attribute(Name)!, CultureInfo.InvariantCulture);
+
+    private static void AssertCrossingsClearOfCorners(FlowchartLayoutEdgeRoute First, FlowchartLayoutEdgeRoute Second)
+    {
+        for (int I = 1; I < First.Points.Count; I++)
+        for (int J = 1; J < Second.Points.Count; J++)
+        {
+            var A = First.Points[I - 1]; var B = First.Points[I];
+            var C = Second.Points[J - 1]; var D = Second.Points[J];
+            bool Vertical = Math.Abs(A.X - B.X) < 0.01;
+            if (Vertical == (Math.Abs(C.X - D.X) < 0.01)) continue;
+            double X = Vertical ? A.X : C.X, Y = Vertical ? C.Y : A.Y;
+            if (X < Math.Min(A.X, B.X) - 0.01 || X > Math.Max(A.X, B.X) + 0.01
+                || X < Math.Min(C.X, D.X) - 0.01 || X > Math.Max(C.X, D.X) + 0.01
+                || Y < Math.Min(A.Y, B.Y) - 0.01 || Y > Math.Max(A.Y, B.Y) + 0.01
+                || Y < Math.Min(C.Y, D.Y) - 0.01 || Y > Math.Max(C.Y, D.Y) + 0.01) continue;
+            foreach (var Corner in First.Points.Skip(1).SkipLast(1).Concat(Second.Points.Skip(1).SkipLast(1)))
+                Assert.That(Math.Abs(X - Corner.X) + Math.Abs(Y - Corner.Y), Is.GreaterThanOrEqualTo(20 - 0.01),
+                    "Crossings must stay outside rounded corners so the rendered lines meet at right angles.");
+        }
+    }
 
     internal static string Source(string Direction, int Count, bool Grouped)
     {
