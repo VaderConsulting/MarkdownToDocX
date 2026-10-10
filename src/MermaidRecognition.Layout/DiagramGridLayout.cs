@@ -120,6 +120,7 @@ public static class DiagramGridLayout
         PushPointsOutOfNodes(Copy, Placed);
         DiagramGridRouteBuilder.RebuildContainedBackRoutes(Copy, Placed, Nodes, Contract, Frames, Direction);
         FlowchartGridTerminalNormalizer.Apply(Copy, BuildPlacedBounds(Placed, Frames), Nodes);
+        DiagramGridRouteBuilder.RemoveClearForwardDoglegs(Copy, Contract, BuildPlacedBounds(Placed, Frames));
         WriteBack(Copy, Placed, Frames);
         return Copy;
     }

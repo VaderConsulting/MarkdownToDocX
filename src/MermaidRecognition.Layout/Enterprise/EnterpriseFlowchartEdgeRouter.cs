@@ -55,7 +55,8 @@ internal static class EnterpriseFlowchartEdgeRouter
                     Context.NodeById,
                     Context.Direction,
                     out List<(double X, double Y)> LayoutPoints,
-                    out FlowchartEdgeRouteKind RouteKind)
+                    out FlowchartEdgeRouteKind RouteKind,
+                    Context.Layout)
                 || LayoutPoints.Count < 2)
             {
                 continue;
@@ -151,7 +152,8 @@ internal static class EnterpriseFlowchartEdgeRouter
                     Context.NodeById,
                     Context.Direction,
                     out List<(double X, double Y)> LayoutPoints,
-                    out FlowchartEdgeRouteKind RouteKind)
+                    out FlowchartEdgeRouteKind RouteKind,
+                    Context.Layout)
                 || LayoutPoints.Count < 2)
             {
                 continue;

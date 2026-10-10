@@ -21,6 +21,62 @@ public static class DiagramGridRouteBuilder
 
     private const double HOOK_DOT_PRODUCT_THRESHOLD = -0.15;
 
+    /// <summary>Removes unnecessary backward steps between facing parallel ports.</summary>
+    internal static void RemoveClearForwardDoglegs(FlowchartLayoutResult Layout, DiagramContract Contract,
+        Dictionary<string, FlowchartLayoutNodeBounds> Bounds)
+    {
+        var BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        foreach (var Route in Layout.EdgeRoutes)
+        {
+            if (Route.Points.Count < 6 || BackEdges.Any(Edge => Edge.SourceId == Route.SourceId && Edge.TargetId == Route.TargetId)) continue;
+            var Start = Route.Points[0]; var Next = Route.Points[1];
+            var End = Route.Points[^1]; var Previous = Route.Points[^2];
+            bool Horizontal = Math.Abs(Start.Y - Next.Y) < 0.5 && Math.Abs(Previous.Y - End.Y) < 0.5;
+            bool Vertical = Math.Abs(Start.X - Next.X) < 0.5 && Math.Abs(Previous.X - End.X) < 0.5;
+            if (!Horizontal && !Vertical) continue;
+            double Along(FlowchartLayoutPoint Point) => Horizontal ? Point.X : Point.Y;
+            double Across(FlowchartLayoutPoint Point) => Horizontal ? Point.Y : Point.X;
+            double Sign = Math.Sign(Along(Next) - Along(Start));
+            if (Sign == 0 || Math.Sign(Along(End) - Along(Previous)) != Sign
+                || (Along(End) - Along(Start)) * Sign < 50
+                || Math.Abs(Across(End) - Across(Start)) < 2 * CORNER_RADIUS_PX) continue;
+            (double X, double Y) Map(double AlongValue, double AcrossValue) => Horizontal
+                ? (AlongValue, AcrossValue) : (AcrossValue, AlongValue);
+            var Tracks = Route.Points.Skip(1).SkipLast(1).Select(Along)
+                .Prepend(Math.Round((Along(Start) + Along(End)) / 2)).Distinct();
+            foreach (double Track in Tracks)
+            {
+                if ((Track - Along(Start)) * Sign < CORNER_RADIUS_PX
+                    || (Along(End) - Track) * Sign < CORNER_RADIUS_PX + 10) continue;
+                List<(double X, double Y)> Candidate = [(Start.X, Start.Y), Map(Track, Across(Start)),
+                    Map(Track, Across(End)), (End.X, End.Y)];
+                if (!PathIsValid(Candidate, Bounds, Route.SourceId, Route.TargetId, Contract)
+                    || !StaysInsideSharedFrames(Candidate, Route, Contract, Bounds)) continue;
+                bool Crowded = false;
+                foreach (var Other in Layout.EdgeRoutes.Where(Other => Other != Route))
+                for (int A = 1; A < Candidate.Count; A++)
+                for (int B = 1; B < Other.Points.Count; B++)
+                {
+                    // Shortened terminal runs occupy only their existing track.
+                    if ((A == 1 && Math.Abs(Track - Along(Start)) <= Math.Abs(Along(Next) - Along(Start)))
+                        || (A == Candidate.Count - 1 && Math.Abs(Along(End) - Track) <= Math.Abs(Along(End) - Along(Previous)))) continue;
+                    var P = Candidate[A - 1]; var Q = Candidate[A];
+                    var R = Other.Points[B - 1]; var S = Other.Points[B];
+                    bool H = Math.Abs(P.Y - Q.Y) < 0.5;
+                    if (H != (Math.Abs(R.Y - S.Y) < 0.5)) continue;
+                    double Gap = H ? Math.Abs(P.Y - R.Y) : Math.Abs(P.X - R.X);
+                    double Overlap = H ? Math.Min(Math.Max(P.X, Q.X), Math.Max(R.X, S.X)) - Math.Max(Math.Min(P.X, Q.X), Math.Min(R.X, S.X))
+                        : Math.Min(Math.Max(P.Y, Q.Y), Math.Max(R.Y, S.Y)) - Math.Max(Math.Min(P.Y, Q.Y), Math.Min(R.Y, S.Y));
+                    if (Gap < 6 && Overlap > 0.5) Crowded = true;
+                }
+                if (Crowded) continue;
+                Route.Points.Clear();
+                foreach (var Point in Candidate) Route.Points.Add(new() { X = Point.X, Y = Point.Y });
+                break;
+            }
+        }
+    }
+
     /// <summary>Rebuilds internal returns on clear tracks inside their common frame.</summary>
     internal static void RebuildContainedBackRoutes(FlowchartLayoutResult Layout,
         List<DiagramGridLayout.GridNode> Placed, Dictionary<string, NodeContract> Nodes,
