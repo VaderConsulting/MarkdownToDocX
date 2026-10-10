@@ -1,6 +1,6 @@
 # Grid layout review — 9 October 2026
 
-This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `65deb18`. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
+This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `591adcf`; section 16 records the live-picture regression investigation. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
 
 ## 1. Fresh test comparison
 
@@ -415,3 +415,39 @@ The two remaining master-passing regressions are `LiveSamples_ClearTheListedPict
 The application source is unchanged from `65deb18`, so section 14's inspected DOCX and picture artifacts remain the applicable rendering evidence. This test-only update did not regenerate or replace the document. The supplied instructions and untracked files were left untouched.
 
 This approval resolves the pending pipeline expectation in section 14. It does not approve a merge, the six provisional defaults or the on-hold frame-midline rule. The broader acceptance failures and visual defects remain outstanding.
+
+## 16. Live-picture regression investigation — 10 October 2026
+
+`LiveSamples_ClearTheListedPictureDefects` now passes. This is the combined enterprise-sample check for 01, 03 and 06, rather than a test of an F-numbered catalogue entry. No existing assertion, threshold or fixture was changed.
+
+The bounded investigation proceeded as follows:
+
+1. The SVG parser kept only the longest visible fragment of a connector broken around its label. The outline check consequently reported a false 438 px target gap. Retaining all fragments lets that check inspect actual terminal endpoints without inventing a stroke across the text break. New structural cases verify both a valid split connector and a genuinely missing terminal. Sample 01 then cleared the listed forbidden kinds. Its other reported intersections remain unresolved.
+2. Sample 03 then exposed a real top-centre group attachment beside its nested frame title. Group port allocation now reserves the measured title band and allocates distinct positions outside it before rebuilding routes. Two new structural cases cover attachments to differently sized titles inside a containing group. The combined live-picture check then passed. This does not implement general obstacle routing around an ancestor title when an edge crosses that ancestor on its way to a deeper target.
+3. Picture inspection found a small sideways step where a moved group port almost aligned with its source. The allocation now prefers the source column when it is inside the free part of the frame. The final picture retains a straight approach and the combined check passes.
+
+The HTTPS stroke-distance investigation had already exhausted three different attempts in section 5. No further variations were attempted. Final verification still reports **31.640302400577646 px against the unchanged 28 px limit** in `RenderToSvg_Sample03_StrokeQualityMatchesSharedRules`. Its font, label whitespace and assertions remain unchanged. This is now the only failing name that passes on master.
+
+| Commit | Subject |
+| --- | --- |
+| `58c6a76` | Check connector outlines across label break fragments |
+| `1413f9f` | Keep group attachments clear of their titles |
+| `591adcf` | Preserve straight approaches to clear group ports |
+
+All five suites ran sequentially with build and restore on pushed commit `591adcf`. An earlier verification on `1413f9f` was superseded after picture inspection exposed the small approach step. Master was not rerun.
+
+| Suite | Master passed / failed | Starting branch passed / failed | Current passed / failed |
+| --- | ---: | ---: | ---: |
+| Layout | 234 / 34 | 280 / 38 | 376 / 30 |
+| Rule validation | 46 / 11 | 44 / 13 | 49 / 10 |
+| Recognition | 932 / 0 | 932 / 0 | 932 / 0 |
+| Naiad adapter | 47 / 0 | 47 / 0 | 47 / 0 |
+| Converter | 31 / 0 | 32 / 0 | 42 / 0 |
+
+There are no new failing names against the preceding checkpoint, and the four pre-existing grid-only failures absent from master remain. Logs, TRX files and complete failure/regression lists are under `out/live-picture-investigation/verified/`. Earlier `final/` logs describe the pre-refinement checkpoint, not the final source.
+
+The rebuilt rendering executable produced ten sample SVG/PNG pairs under `out/live-picture-investigation/samples/` and 126 catalogue pairs under `out/live-picture-investigation/catalogue/`. `out/live-picture-investigation/manifest.txt` lists every absolute artifact path. The [final sample 03 picture](flowchart/layout-fixes/grid-review/03-title-ports.png) was visually inspected: the title is clear and the source approach is straight. Sample 01 and 06 PNGs, and all catalogue PNGs, are byte-identical to section 14's output. Their broader unresolved visual defects remain; passing the listed-kind check is not acceptance of the whole diagram.
+
+The engine diff was checked for diagram selectors: the rules use frame geometry, measured title width, source position and occupied slots. No sample number, label value or particular node ID selects behaviour. The supplied instructions, briefs and editor settings remain untouched. No merge was performed.
+
+The requested regeneration of the original folder's `enterprise.md` used the rebuilt WinForms executable directly, with the input filename and a short lock timeout. It successfully replaced `enterprise.docx`, but DOCX inspection found zero embedded media files and 130 render warnings saying `Unknown diagram type in: enterprise`. The current PR #9 converter does not support that diagram kind; the separate enterprise renderer work from PR #1 has not been integrated. This regeneration is evidence of the current limitation, not a successful diagram render. The original Markdown was unchanged.

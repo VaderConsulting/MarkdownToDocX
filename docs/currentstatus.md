@@ -7,10 +7,10 @@ Updated 10 October 2026. This is the single maintained status file for the solut
 | Area | Current state |
 | --- | --- |
 | Master | `f09cb89`; the earlier documentation relocation and spec trim are merged. |
-| Grid routing | PR #9, branch `cursor/many-to-many-routing-3834`; code fixes through `65deb18` are pushed. This work is not merged. |
+| Grid routing | PR #9, branch `cursor/many-to-many-routing-3834`; code fixes through `591adcf` are pushed. This work is not merged. |
 | Active local checkout | The PR #9 branch is in the sibling `MarkdownToDocX-pr9` worktree. The original laptop folder remains on its pre-existing documentation branch. |
 | Earlier documentation refresh | The original worktree retains its earlier documentation commits; this pass did not publish or merge them. PR #9 predates the spec relocation, so some normative files still sit at the root on this branch. |
-| Enterprise / ArchiMate | Existing work is on PR #1. It is not integrated into the measured master or grid branch. |
+| Enterprise / ArchiMate | Existing work is on PR #1. It is not integrated into the measured master or grid branch. The regenerated `enterprise.docx` contains zero diagrams and 130 unknown-type warnings because PR #9 does not support `enterprise` blocks. |
 | Supplied files | The original folder's untracked instructions, briefs, documents and editor settings remain untouched. |
 
 ## 2. What the solution currently does
@@ -30,19 +30,19 @@ The latest picture pass corrects horizontal retry outcomes, independent decision
 
 ## 3. Verified test state
 
-Measured on Windows with plain `dotnet test` on each project, including build and restore. Master and starting-branch baselines were collected before behavioural edits. All five suites were rerun on pushed commit `b31b498`; application source remains at `65deb18`.
+Measured on Windows with plain `dotnet test` on each project, including build and restore. Master and starting-branch baselines were collected before behavioural edits. All five suites were rerun on pushed application commit `591adcf`. The final verification follows a picture-driven refinement to preserve straight group approaches; master was not rerun.
 
 | Suite | Master failures | Starting PR #9 failures | Final PR #9 passed / failed |
 | --- | ---: | ---: | ---: |
-| Layout | 34 | 38 | 371 / 31 |
+| Layout | 34 | 38 | 376 / 30 |
 | Rule validation | 11 | 13 | 49 / 10 |
 | Recognition | 0 | 0 | 932 / 0 |
 | Naiad adapter | 0 | 0 | 47 / 0 |
 | Converter | 0 | 0 | 42 / 0 |
 
-The new structural tests pass. The owner-approved pipeline check now verifies opposite final branches and the early exit beside the collector, while retaining the other spine and clearance checks. The two simple-detour regressions exposed by the wider run were fixed without changing their assertions.
+The new structural tests pass. Group top-edge attachments now reserve the measured title band, retain separate positions, and use a straight approach from the source column when it is clear. SVG outline checks retain every visible connector fragment without joining across label gaps; genuinely detached terminals still fail. These checks do not establish that all other rendered geometry is correct. The owner-approved pipeline check now verifies opposite final branches and the early exit beside the collector, while retaining the other spine and clearance checks. The two simple-detour regressions exposed by the wider run were fixed without changing their assertions.
 
-Two tests now fail while passing on master: `LiveSamples_ClearTheListedPictureDefects` and `RenderToSvg_Sample03_StrokeQualityMatchesSharedRules`. The four pre-existing grid-only failures absent from master remain. No rule-validation regression was added. Recognition's twelve explicit fixture writers are excluded from ordinary test execution. Latest logs, TRX files, complete failing-name lists and master regression comparisons are in `out/approved-pipeline/`.
+One test now fails while passing on master: `RenderToSvg_Sample03_StrokeQualityMatchesSharedRules`. The live-picture test passes after correcting fragmented-edge outline diagnostics and reserving group title clearance. The HTTPS stroke-distance investigation remains stopped under the three-attempt rule; its threshold and whitespace requirements are unchanged. The four pre-existing grid-only failures absent from master remain. No rule-validation regression was added. Recognition's twelve explicit fixture writers are excluded from ordinary test execution. Latest logs, TRX files, complete failing-name lists and master regression comparisons are in `out/live-picture-investigation/verified/`. Details and final pictures are in [review section 16](grid-layout-review.md#16-live-picture-regression-investigation--10-october-2026).
 
 The final counts meet the fresh master-count comparison, but **the solution does not pass all acceptance tests and the rendered diagrams are not ready for merge approval**.
 
