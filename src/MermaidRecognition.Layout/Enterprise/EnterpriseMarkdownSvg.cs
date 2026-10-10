@@ -37,6 +37,7 @@ internal static class EnterpriseMarkdownSvg
         bool Bold = false, Italic = false;
         foreach (var Text in Group.Descendants().Where(Item => Item.Name.LocalName == "text").ToArray())
         {
+            Text.SetAttributeValue(XNamespace.Xml + "space", "preserve");
             var Lines = Text.Elements().Any() ? Text.Elements().ToArray() : new[] { Text };
             foreach (var Line in Lines)
             {
