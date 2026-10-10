@@ -166,7 +166,15 @@ public sealed class FlowchartEdgeRouteClassifierTests
 
         foreach (EdgeContract Edge in Contract.Edges)
         {
-            bool Resolved = FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(Edge, Contract, BoundsById, NodeById, Direction, out List<(double X, double Y)> LayoutPoints, out FlowchartEdgeRouteKind RouteKind);
+            bool Resolved = FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
+                Edge,
+                Contract,
+                BoundsById,
+                NodeById,
+                Direction,
+                out List<(double X, double Y)> LayoutPoints,
+                out FlowchartEdgeRouteKind RouteKind,
+                Layout);
             string EdgeKey = $"{Edge.SourceId}->{Edge.TargetId}";
             Assert.That(Resolved, Is.True, $"{EdgeKey} should resolve");
             AssertRouteClearsUnrelatedNodes(EdgeKey, Edge, LayoutPoints, BoundsById);
@@ -179,7 +187,11 @@ public sealed class FlowchartEdgeRouteClassifierTests
             FlowchartLayoutNodeBounds SourceBounds = BoundsById[Edge.SourceId];
             FlowchartLayoutNodeBounds TargetBounds = BoundsById[Edge.TargetId];
             double TargetSide = Math.Sign(TargetBounds.CenterX - SourceBounds.CenterX);
-            Assert.That(TargetSide, Is.Not.EqualTo(0.0), $"{EdgeKey} target should sit beside the decision");
+            if (Math.Abs(TargetSide) < 0.5)
+            {
+                Assert.That(RouteKind, Is.EqualTo(FlowchartEdgeRouteKind.Straight), $"{EdgeKey} collinear branch stays straight");
+                continue;
+            }
             Assert.That(RouteKind, Is.EqualTo(FlowchartEdgeRouteKind.Decision), $"{EdgeKey} route kind");
             Assert.That((LayoutPoints[0].X - SourceBounds.CenterX) * TargetSide, Is.GreaterThan(4.0), $"{EdgeKey} should leave the diamond shoulder that faces its target");
             Assert.That(LayoutPoints[LayoutPoints.Count - 1].X, Is.EqualTo(TargetBounds.CenterX).Within(1.0), $"{EdgeKey} should enter the top centre of its target");

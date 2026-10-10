@@ -133,6 +133,53 @@ public static class FlowchartRouteObstacleHelper
     }
 
     /// <summary>
+    /// Resolves a corridor Y below intervening node bodies on a horizontal span.
+    /// </summary>
+    public static double ResolveCorridorYBelowHorizontalObstacles(
+        double StartX,
+        double ChordY,
+        double EndX,
+        string SourceNodeId,
+        string TargetNodeId,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        double ClearancePx)
+    {
+        double FlowMinX = Math.Min(StartX, EndX);
+        double FlowMaxX = Math.Max(StartX, EndX);
+        double CorridorY = ChordY;
+
+        foreach (KeyValuePair<string, FlowchartLayoutNodeBounds> Entry in BoundsById)
+        {
+            FlowchartLayoutNodeBounds CandidateBounds = Entry.Value;
+            if (string.Equals(CandidateBounds.NodeId, SourceNodeId, StringComparison.Ordinal)
+                || string.Equals(CandidateBounds.NodeId, TargetNodeId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            double NodeLeft = CandidateBounds.CenterX - (CandidateBounds.Width / 2.0);
+            double NodeRight = CandidateBounds.CenterX + (CandidateBounds.Width / 2.0);
+            if (NodeRight <= FlowMinX || NodeLeft >= FlowMaxX)
+            {
+                continue;
+            }
+
+            if (!SegmentIntersectsNodeInterior(StartX, ChordY, EndX, ChordY, CandidateBounds))
+            {
+                continue;
+            }
+
+            double NodeBottom = CandidateBounds.CenterY - (CandidateBounds.Height / 2.0);
+            if (NodeBottom < CorridorY)
+            {
+                CorridorY = NodeBottom;
+            }
+        }
+
+        return CorridorY - ClearancePx;
+    }
+
+    /// <summary>
     /// Returns true when a line segment intersects a node bounding box interior (excluding attach tolerance).
     /// </summary>
     public static bool SegmentIntersectsNodeInterior(

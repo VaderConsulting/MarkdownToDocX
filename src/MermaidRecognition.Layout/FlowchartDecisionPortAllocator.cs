@@ -29,12 +29,18 @@ public static class FlowchartDecisionPortAllocator
         string? SourceShape,
         string? TargetShape,
         FlowchartDirection Direction,
-        out List<(double X, double Y)> LayoutPoints)
+        out List<(double X, double Y)> LayoutPoints,
+        IReadOnlyList<(double X, double Y)>? IncomingPorts = null)
     {
         LayoutPoints = [];
 
         if (!BoundsById.TryGetValue(Edge.SourceId, out FlowchartLayoutNodeBounds SourceBounds)
             || !BoundsById.TryGetValue(Edge.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
+        {
+            return false;
+        }
+
+        if (FlowchartBackEdgeHelper.FindBackEdges(Contract).Contains(Edge))
         {
             return false;
         }
@@ -51,7 +57,8 @@ public static class FlowchartDecisionPortAllocator
                 SourceShape,
                 TargetShape,
                 Direction,
-                LayoutPoints);
+                LayoutPoints,
+                IncomingPorts);
         }
 
         if (IsDecisionShape(TargetShape)
@@ -188,7 +195,8 @@ public static class FlowchartDecisionPortAllocator
         string? SourceShape,
         string? TargetShape,
         FlowchartDirection Direction,
-        List<(double X, double Y)> LayoutPoints)
+        List<(double X, double Y)> LayoutPoints,
+        IReadOnlyList<(double X, double Y)>? IncomingPorts = null)
     {
         FlowchartRenderOptions RenderOptions = FlowchartRenderOptions.FromContract(Contract);
         FlowchartSpineGraphHelper.TryBuildContext(
@@ -230,7 +238,8 @@ public static class FlowchartDecisionPortAllocator
             SourceShape,
             TargetShape,
             Direction,
-            LayoutPoints);
+            LayoutPoints,
+            IncomingPorts);
     }
 
     private static bool TryPrepareDecisionFanOutBranch(
@@ -299,7 +308,8 @@ public static class FlowchartDecisionPortAllocator
         string? SourceShape,
         string? TargetShape,
         FlowchartDirection Direction,
-        List<(double X, double Y)> LayoutPoints)
+        List<(double X, double Y)> LayoutPoints,
+        IReadOnlyList<(double X, double Y)>? IncomingPorts = null)
     {
         if (!TryPrepareDecisionFanOutBranch(
                 Edge,
@@ -336,7 +346,8 @@ public static class FlowchartDecisionPortAllocator
             UseOppositeVerticalPorts,
             Edge,
             Contract,
-            TargetBounds);
+            TargetBounds,
+            IncomingPorts);
 
         (double TargetX, double TargetY) = ResolveFanOutTargetAttach(
             TargetBounds,
@@ -353,7 +364,15 @@ public static class FlowchartDecisionPortAllocator
             Direction,
             RenderOptions,
             out FlowchartSpineLayoutContext? SpineContext);
-        bool UseSpreadTopPort = SpineContext is not null
+        bool IsBypassRejoinFanOut = TryResolveBypassRejoinFanOutVertex(
+            Edge,
+            Outgoing,
+            BoundsById,
+            CentreX,
+            HorizontalFlow,
+            out _);
+        bool UseSpreadTopPort = !IsBypassRejoinFanOut
+            && SpineContext is not null
             && FlowchartMultiIncomingTargetPortAllocator.TargetHasBranchAndMergeIncoming(
                 Contract,
                 BoundsById,
@@ -624,6 +643,24 @@ public static class FlowchartDecisionPortAllocator
 
     private const double SAME_COLUMN_CROSS_AXIS_EPSILON_PX = 30.0;
 
+    [Flags]
+    private enum DiamondVertexOccupancy
+    {
+        None = 0,
+        Top = 1,
+        Bottom = 2,
+        Left = 4,
+        Right = 8
+    }
+
+    private enum DiamondVertexKind
+    {
+        Top,
+        Bottom,
+        Left,
+        Right
+    }
+
     private static (double X, double Y, FlowchartDecisionPortRole Role) ResolveDecisionFanOutAttach(
         FlowchartLayoutNodeBounds SourceBounds,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
@@ -639,216 +676,480 @@ public static class FlowchartDecisionPortAllocator
         bool UseOppositeVerticalPorts,
         EdgeContract Edge,
         DiagramContract Contract,
-        FlowchartLayoutNodeBounds TargetBounds)
+        FlowchartLayoutNodeBounds TargetBounds,
+        IReadOnlyList<(double X, double Y)>? IncomingPorts = null)
     {
-        if (HorizontalFlow)
+        List<EdgeContract> Outgoing = GetVisibleEdgesFromSource(Contract, Edge.SourceId);
+        if (UseOppositeVerticalPorts)
         {
-            double TopRightSlopeX = CentreX + (HalfWidth / 2.0);
-            double TopRightSlopeY = CentreY + (HalfHeight / 2.0);
-            double RightVertexX = CentreX + HalfWidth;
-            double RightVertexY = CentreY;
-            double LowerRightSlopeX = CentreX + (HalfWidth / 2.0);
-            double LowerRightSlopeY = CentreY - (HalfHeight / 2.0);
-
-            if (BranchCount == 2)
-            {
-                if (BranchIndex == 0)
-                {
-                    return (TopRightSlopeX, TopRightSlopeY, FlowchartDecisionPortRole.SideLeft);
-                }
-
-                return (LowerRightSlopeX, LowerRightSlopeY, FlowchartDecisionPortRole.SideRight);
-            }
-
-            if (BranchIndex == 0)
-            {
-                return (TopRightSlopeX, TopRightSlopeY, FlowchartDecisionPortRole.SideLeft);
-            }
-
-            if (BranchIndex == 1)
-            {
-                return (RightVertexX, RightVertexY, FlowchartDecisionPortRole.BottomVertex);
-            }
-
-            return (LowerRightSlopeX, LowerRightSlopeY, FlowchartDecisionPortRole.SideRight);
+            Outgoing.Sort((Left, Right) => Left.CreationIndex.CompareTo(Right.CreationIndex));
         }
-
-        double LeftMidX = CentreX - (HalfWidth / 2.0);
-        double RightMidX = CentreX + (HalfWidth / 2.0);
-        double MidVertexX = CentreX;
-        double LeftMidY;
-        double RightMidY;
-        double MidVertexY;
-
-        if (UseBottomFace)
+        else if (HorizontalFlow)
         {
-            LeftMidY = CentreY - (HalfHeight / 2.0);
-            RightMidY = CentreY - (HalfHeight / 2.0);
-            MidVertexY = CentreY - HalfHeight;
+            SortOutgoingByTargetCrossAxis(Outgoing, BoundsById, UseDescendingCrossAxis: true, UseCrossAxisY: true);
         }
         else
         {
-            LeftMidY = CentreY + (HalfHeight / 2.0);
-            RightMidY = CentreY + (HalfHeight / 2.0);
-            MidVertexY = CentreY + HalfHeight;
+            SortOutgoingByTargetCrossAxis(Outgoing, BoundsById, UseDescendingCrossAxis: false, UseCrossAxisY: false);
         }
 
-        if (BranchCount == 2 && UseBottomFace)
-        {
-            return ResolveVerticalTwoWayDecisionPort(
+        Dictionary<string, (double X, double Y, FlowchartDecisionPortRole Role)> PortsByTarget =
+            BuildVertexFirstFanOutPorts(
                 SourceBounds,
                 BoundsById,
+                Contract,
                 Direction,
                 CentreX,
                 CentreY,
                 HalfWidth,
                 HalfHeight,
                 UseBottomFace,
-                Edge,
-                Contract,
-                TargetBounds);
-        }
+                HorizontalFlow,
+                Outgoing,
+                IncomingPorts);
 
-        if (BranchCount == 2)
+        if (PortsByTarget.TryGetValue(Edge.TargetId, out (double X, double Y, FlowchartDecisionPortRole Role) Port))
         {
-            if (BranchIndex == 0)
-            {
-                return (LeftMidX, LeftMidY, FlowchartDecisionPortRole.SideLeft);
-            }
-
-            return (RightMidX, RightMidY, FlowchartDecisionPortRole.SideRight);
+            return Port;
         }
 
-        if (BranchIndex == 0)
-        {
-            return (LeftMidX, LeftMidY, FlowchartDecisionPortRole.SideLeft);
-        }
-
-        if (BranchIndex == 1)
-        {
-            return (MidVertexX, MidVertexY, FlowchartDecisionPortRole.BottomVertex);
-        }
-
-        return (RightMidX, RightMidY, FlowchartDecisionPortRole.SideRight);
+        return ResolveVertexAttach(
+            DiamondVertexKind.Bottom,
+            CentreX,
+            CentreY,
+            HalfWidth,
+            HalfHeight,
+            UseBottomFace);
     }
 
-    private static (double X, double Y, FlowchartDecisionPortRole Role) ResolveVerticalTwoWayDecisionPort(
+    /// <summary>
+    /// B12b: diamond vertices are first ports; edge centres only when suitable vertices are taken.
+    /// </summary>
+    private static Dictionary<string, (double X, double Y, FlowchartDecisionPortRole Role)> BuildVertexFirstFanOutPorts(
         FlowchartLayoutNodeBounds SourceBounds,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        DiagramContract Contract,
         FlowchartDirection Direction,
         double CentreX,
         double CentreY,
         double HalfWidth,
         double HalfHeight,
         bool UseBottomFace,
-        EdgeContract Edge,
-        DiagramContract Contract,
-        FlowchartLayoutNodeBounds TargetBounds)
+        bool HorizontalFlow,
+        List<EdgeContract> Outgoing,
+        IReadOnlyList<(double X, double Y)>? IncomingPorts = null)
     {
-        double LeftMidX = CentreX - (HalfWidth / 2.0);
-        double RightMidX = CentreX + (HalfWidth / 2.0);
-        double MidVertexX = CentreX;
-        double LeftMidY = UseBottomFace
-            ? CentreY - (HalfHeight / 2.0)
-            : CentreY + (HalfHeight / 2.0);
-        double RightMidY = LeftMidY;
-        double MidVertexY = UseBottomFace
-            ? CentreY - HalfHeight
-            : CentreY + HalfHeight;
-
-        double CrossDelta = TargetBounds.CenterX - CentreX;
-        if (CrossDelta < -SIDE_BRANCH_CROSS_AXIS_EPSILON_PX)
+        bool RightToLeft = Direction == FlowchartDirection.RightToLeft;
+        DiamondVertexOccupancy Taken = DiamondVertexOccupancy.None;
+        if (IncomingPorts is null)
         {
-            return (LeftMidX, LeftMidY, FlowchartDecisionPortRole.SideLeft);
+            Taken = ResolveIncomingVertexOccupancy(Contract, BoundsById, SourceBounds,
+                CentreX, CentreY, HalfWidth, HalfHeight, HorizontalFlow);
         }
-
-        if (CrossDelta > SIDE_BRANCH_CROSS_AXIS_EPSILON_PX)
+        else
         {
-            return (RightMidX, RightMidY, FlowchartDecisionPortRole.SideRight);
-        }
-
-        if (IsNoLabeledEdge(Edge))
-        {
-            FlowchartRenderOptions RenderOptions = FlowchartRenderOptions.FromContract(Contract);
-            if (FlowchartSpineGraphHelper.TryBuildContext(
-                    Contract,
-                    BoundsById,
-                    Direction,
-                    RenderOptions,
-                    out FlowchartSpineLayoutContext? SpineContext)
-                && SpineContext is not null
-                && HasInterveningSpineColumnNode(BoundsById, SpineContext, SourceBounds, TargetBounds))
+            // Grid routes have already allocated their inbound ports. Use those
+            // endpoints rather than inferring a vertex from the parent's centre.
+            foreach (var Port in IncomingPorts)
             {
-                return (RightMidX, RightMidY, FlowchartDecisionPortRole.SideRight);
+                if (Math.Abs(Port.X - (CentreX - HalfWidth)) < 1 && Math.Abs(Port.Y - CentreY) < 1)
+                    Taken |= DiamondVertexOccupancy.Left;
+                if (Math.Abs(Port.X - (CentreX + HalfWidth)) < 1 && Math.Abs(Port.Y - CentreY) < 1)
+                    Taken |= DiamondVertexOccupancy.Right;
+                if (Math.Abs(Port.Y - (CentreY - HalfHeight)) < 1 && Math.Abs(Port.X - CentreX) < 1)
+                    Taken |= DiamondVertexOccupancy.Bottom;
+                if (Math.Abs(Port.Y - (CentreY + HalfHeight)) < 1 && Math.Abs(Port.X - CentreX) < 1)
+                    Taken |= DiamondVertexOccupancy.Top;
+            }
+        }
+
+        Dictionary<string, (double X, double Y, FlowchartDecisionPortRole Role)> PortsByTarget =
+            new Dictionary<string, (double X, double Y, FlowchartDecisionPortRole Role)>(StringComparer.Ordinal);
+
+        foreach (EdgeContract OutgoingEdge in Outgoing)
+        {
+            if (!BoundsById.TryGetValue(OutgoingEdge.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
+            {
+                continue;
             }
 
-            return (LeftMidX, LeftMidY, FlowchartDecisionPortRole.SideLeft);
+            DiamondVertexKind Preferred = ResolvePreferredVertexForTarget(
+                TargetBounds,
+                CentreX,
+                CentreY,
+                UseBottomFace,
+                HorizontalFlow,
+                RightToLeft);
+            if (TryResolveBypassRejoinFanOutVertex(
+                    OutgoingEdge,
+                    Outgoing,
+                    BoundsById,
+                    CentreX,
+                    HorizontalFlow,
+                    out DiamondVertexKind BypassVertex))
+            {
+                Preferred = BypassVertex;
+            }
+            if (ShouldUseSlantedEdgeCentrePort(
+                    Preferred,
+                    TargetBounds,
+                    CentreX,
+                    CentreY,
+                    HalfWidth,
+                    HorizontalFlow))
+            {
+                PortsByTarget[OutgoingEdge.TargetId] = ResolveEdgeCentreFallbackAttach(
+                    Preferred,
+                    CentreX,
+                    CentreY,
+                    HalfWidth,
+                    HalfHeight,
+                    UseBottomFace);
+                continue;
+            }
+
+            PortsByTarget[OutgoingEdge.TargetId] = AllocatePreferredVertexAttach(
+                Preferred,
+                ref Taken,
+                CentreX,
+                CentreY,
+                HalfWidth,
+                HalfHeight,
+                UseBottomFace);
         }
 
-        if (IsYesLabeledEdge(Edge))
-        {
-            return (MidVertexX, MidVertexY, FlowchartDecisionPortRole.BottomVertex);
-        }
-
-        return (MidVertexX, MidVertexY, FlowchartDecisionPortRole.BottomVertex);
+        return PortsByTarget;
     }
 
-    private static bool HasInterveningSpineColumnNode(
-        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
-        FlowchartSpineLayoutContext SpineContext,
-        FlowchartLayoutNodeBounds SourceBounds,
-        FlowchartLayoutNodeBounds TargetBounds)
+    private static bool TryHasCoRankedDecisionSibling(
+        List<EdgeContract> Outgoing,
+        EdgeContract Edge,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById)
     {
-        foreach (KeyValuePair<string, FlowchartLayoutNodeBounds> Entry in BoundsById)
+        if (!BoundsById.TryGetValue(Edge.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
         {
-            FlowchartLayoutNodeBounds CandidateBounds = Entry.Value;
-            if (string.Equals(CandidateBounds.NodeId, SourceBounds.NodeId, StringComparison.Ordinal)
-                || string.Equals(CandidateBounds.NodeId, TargetBounds.NodeId, StringComparison.Ordinal))
+            return false;
+        }
+
+        foreach (EdgeContract OtherEdge in Outgoing)
+        {
+            if (string.Equals(OtherEdge.TargetId, Edge.TargetId, StringComparison.Ordinal))
             {
                 continue;
             }
 
-            if (!FlowchartSpineGraphHelper.IsOnSpineColumn(CandidateBounds, SpineContext))
+            if (!BoundsById.TryGetValue(OtherEdge.TargetId, out FlowchartLayoutNodeBounds CandidateBounds))
             {
                 continue;
             }
 
-            if (CandidateBounds.CenterY >= SourceBounds.CenterY - FlowchartEdgeConnectionGeometry.ALIGN_TOLERANCE_PX)
+            if (Math.Abs(CandidateBounds.CenterY - TargetBounds.CenterY) <= COLLINEAR_EPSILON_PX)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// A9: when a bypass target shares a rank with a sibling branch child, pick the side port
+    /// facing that target instead of treating it as a collinear spine drop.
+    /// </summary>
+    private static bool TryResolveBypassRejoinFanOutVertex(
+        EdgeContract Edge,
+        List<EdgeContract> Outgoing,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        double CentreX,
+        bool HorizontalFlow,
+        out DiamondVertexKind Vertex)
+    {
+        Vertex = DiamondVertexKind.Bottom;
+        if (HorizontalFlow || Outgoing.Count != 2)
+        {
+            return false;
+        }
+
+        if (!BoundsById.TryGetValue(Edge.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
+        {
+            return false;
+        }
+
+        FlowchartLayoutNodeBounds? SiblingBounds = null;
+        foreach (EdgeContract OtherEdge in Outgoing)
+        {
+            if (string.Equals(OtherEdge.TargetId, Edge.TargetId, StringComparison.Ordinal))
             {
                 continue;
             }
 
-            if (CandidateBounds.CenterY <= TargetBounds.CenterY + FlowchartEdgeConnectionGeometry.ALIGN_TOLERANCE_PX)
+            if (!BoundsById.TryGetValue(OtherEdge.TargetId, out FlowchartLayoutNodeBounds CandidateBounds))
             {
                 continue;
             }
 
+            if (Math.Abs(CandidateBounds.CenterY - TargetBounds.CenterY) <= COLLINEAR_EPSILON_PX)
+            {
+                SiblingBounds = CandidateBounds;
+                break;
+            }
+        }
+
+        if (SiblingBounds is null)
+        {
+            return false;
+        }
+
+        double TargetDx = TargetBounds.CenterX - CentreX;
+        if (TargetDx < -SIDE_BRANCH_CROSS_AXIS_EPSILON_PX)
+        {
+            Vertex = DiamondVertexKind.Left;
+            return true;
+        }
+
+        if (TargetDx > SIDE_BRANCH_CROSS_AXIS_EPSILON_PX)
+        {
+            Vertex = DiamondVertexKind.Right;
+            return true;
+        }
+
+        double SiblingDx = SiblingBounds.CenterX - CentreX;
+        if (SiblingDx < -SIDE_BRANCH_CROSS_AXIS_EPSILON_PX)
+        {
+            Vertex = DiamondVertexKind.Right;
+            return true;
+        }
+
+        if (SiblingDx > SIDE_BRANCH_CROSS_AXIS_EPSILON_PX)
+        {
+            Vertex = DiamondVertexKind.Left;
             return true;
         }
 
         return false;
     }
 
-    private static bool IsNoLabeledEdge(EdgeContract? Edge)
+    /// <summary>
+    /// B16: when a side vertex would turn downward immediately, use the lower slanted edge centre
+    /// so the first corner sits at least one corner radius plus one grid step from the vertex.
+    /// </summary>
+    private static bool ShouldUseSlantedEdgeCentrePort(
+        DiamondVertexKind Preferred,
+        FlowchartLayoutNodeBounds TargetBounds,
+        double CentreX,
+        double CentreY,
+        double HalfWidth,
+        bool HorizontalFlow)
     {
-        if (Edge is null || string.IsNullOrWhiteSpace(Edge.Label))
+        if (HorizontalFlow)
         {
             return false;
         }
 
-        return string.Equals(Edge.Label.Trim(), "No", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(Edge.Label.Trim(), "no", StringComparison.OrdinalIgnoreCase);
+        if (Preferred != DiamondVertexKind.Left && Preferred != DiamondVertexKind.Right)
+        {
+            return false;
+        }
+
+        double MinimumStubPx = DiagramGridRouteBuilder.CORNER_RADIUS_PX + DiagramGridMetrics.GRID_UNIT_PX;
+        if (TargetBounds.CenterY >= CentreY - COLLINEAR_EPSILON_PX)
+        {
+            return false;
+        }
+
+        double VertexX = Preferred == DiamondVertexKind.Left ? CentreX - HalfWidth : CentreX + HalfWidth;
+        double HorizontalSpan = Math.Abs(TargetBounds.CenterX - VertexX);
+        return HorizontalSpan < MinimumStubPx;
     }
 
-    private static bool IsYesLabeledEdge(EdgeContract? Edge)
+    private static DiamondVertexOccupancy ResolveIncomingVertexOccupancy(
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        FlowchartLayoutNodeBounds SourceBounds,
+        double CentreX,
+        double CentreY,
+        double HalfWidth,
+        double HalfHeight,
+        bool HorizontalFlow)
     {
-        if (Edge is null || string.IsNullOrWhiteSpace(Edge.Label))
+        DiamondVertexOccupancy Taken = DiamondVertexOccupancy.None;
+        foreach (EdgeContract IncomingEdge in Contract.Edges)
         {
-            return false;
+            if (!string.Equals(IncomingEdge.TargetId, SourceBounds.NodeId, StringComparison.Ordinal)
+                || string.Equals(IncomingEdge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (!BoundsById.TryGetValue(IncomingEdge.SourceId, out FlowchartLayoutNodeBounds InboundSource))
+            {
+                continue;
+            }
+
+            Taken |= InferIncomingVertex(
+                InboundSource,
+                CentreX,
+                CentreY,
+                HalfWidth,
+                HalfHeight,
+                HorizontalFlow);
         }
 
-        return string.Equals(Edge.Label.Trim(), "Yes", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(Edge.Label.Trim(), "yes", StringComparison.OrdinalIgnoreCase);
+        return Taken;
+    }
+
+    private static DiamondVertexOccupancy InferIncomingVertex(
+        FlowchartLayoutNodeBounds InboundSource,
+        double CentreX,
+        double CentreY,
+        double HalfWidth,
+        double HalfHeight,
+        bool HorizontalFlow)
+    {
+        double DeltaX = InboundSource.CenterX - CentreX;
+        double DeltaY = InboundSource.CenterY - CentreY;
+        if (HorizontalFlow)
+        {
+            if (DeltaX < -HalfWidth * 0.35)
+            {
+                return DiamondVertexOccupancy.Left;
+            }
+
+            if (DeltaX > HalfWidth * 0.35)
+            {
+                return DiamondVertexOccupancy.Right;
+            }
+
+            if (Math.Abs(DeltaY) <= DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
+            {
+                return DiamondVertexOccupancy.Left;
+            }
+
+            return DeltaY > 0.0 ? DiamondVertexOccupancy.Top : DiamondVertexOccupancy.Bottom;
+        }
+
+        if (DeltaY > HalfHeight * 0.35)
+        {
+            return DiamondVertexOccupancy.Top;
+        }
+
+        if (DeltaY < -HalfHeight * 0.35)
+        {
+            return DiamondVertexOccupancy.Bottom;
+        }
+
+        if (Math.Abs(DeltaX) <= SIDE_BRANCH_CROSS_AXIS_EPSILON_PX)
+        {
+            return DiamondVertexOccupancy.Top;
+        }
+
+        return DeltaX < 0.0 ? DiamondVertexOccupancy.Left : DiamondVertexOccupancy.Right;
+    }
+
+    private static DiamondVertexKind ResolvePreferredVertexForTarget(
+        FlowchartLayoutNodeBounds TargetBounds,
+        double CentreX,
+        double CentreY,
+        bool UseBottomFace,
+        bool HorizontalFlow,
+        bool RightToLeft)
+    {
+        if (HorizontalFlow)
+        {
+            double TargetDy = TargetBounds.CenterY - CentreY;
+            if (Math.Abs(TargetDy) <= DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
+            {
+                return RightToLeft ? DiamondVertexKind.Left : DiamondVertexKind.Right;
+            }
+
+            return TargetDy > 0.0 ? DiamondVertexKind.Top : DiamondVertexKind.Bottom;
+        }
+
+        double TargetDx = TargetBounds.CenterX - CentreX;
+        if (Math.Abs(TargetDx) <= SIDE_BRANCH_CROSS_AXIS_EPSILON_PX)
+        {
+            return UseBottomFace ? DiamondVertexKind.Bottom : DiamondVertexKind.Top;
+        }
+
+        return TargetDx < 0.0 ? DiamondVertexKind.Left : DiamondVertexKind.Right;
+    }
+
+    private static (double X, double Y, FlowchartDecisionPortRole Role) AllocatePreferredVertexAttach(
+        DiamondVertexKind Preferred,
+        ref DiamondVertexOccupancy Taken,
+        double CentreX,
+        double CentreY,
+        double HalfWidth,
+        double HalfHeight,
+        bool UseBottomFace)
+    {
+        if (!IsVertexTaken(Taken, Preferred))
+        {
+            Taken |= VertexToOccupancy(Preferred);
+            return ResolveVertexAttach(Preferred, CentreX, CentreY, HalfWidth, HalfHeight, UseBottomFace);
+        }
+
+        return ResolveEdgeCentreFallbackAttach(Preferred, CentreX, CentreY, HalfWidth, HalfHeight, UseBottomFace);
+    }
+
+    private static bool IsVertexTaken(DiamondVertexOccupancy Taken, DiamondVertexKind Vertex) =>
+        (Taken & VertexToOccupancy(Vertex)) != 0;
+
+    private static DiamondVertexOccupancy VertexToOccupancy(DiamondVertexKind Vertex) => Vertex switch
+    {
+        DiamondVertexKind.Top => DiamondVertexOccupancy.Top,
+        DiamondVertexKind.Bottom => DiamondVertexOccupancy.Bottom,
+        DiamondVertexKind.Left => DiamondVertexOccupancy.Left,
+        DiamondVertexKind.Right => DiamondVertexOccupancy.Right,
+        _ => DiamondVertexOccupancy.None
+    };
+
+    private static (double X, double Y, FlowchartDecisionPortRole Role) ResolveVertexAttach(
+        DiamondVertexKind Vertex,
+        double CentreX,
+        double CentreY,
+        double HalfWidth,
+        double HalfHeight,
+        bool UseBottomFace)
+    {
+        return Vertex switch
+        {
+            DiamondVertexKind.Top => (CentreX, CentreY + HalfHeight, FlowchartDecisionPortRole.TopVertex),
+            DiamondVertexKind.Bottom => (CentreX, CentreY - HalfHeight, FlowchartDecisionPortRole.BottomVertex),
+            DiamondVertexKind.Left => (CentreX - HalfWidth, CentreY, FlowchartDecisionPortRole.SideLeft),
+            DiamondVertexKind.Right => (CentreX + HalfWidth, CentreY, FlowchartDecisionPortRole.SideRight),
+            _ => (CentreX, UseBottomFace ? CentreY - HalfHeight : CentreY + HalfHeight, FlowchartDecisionPortRole.BottomVertex)
+        };
+    }
+
+    private static (double X, double Y, FlowchartDecisionPortRole Role) ResolveEdgeCentreFallbackAttach(
+        DiamondVertexKind Side,
+        double CentreX,
+        double CentreY,
+        double HalfWidth,
+        double HalfHeight,
+        bool UseBottomFace)
+    {
+        return Side switch
+        {
+            DiamondVertexKind.Top => (
+                CentreX,
+                CentreY + (HalfHeight / 2.0),
+                FlowchartDecisionPortRole.TopVertex),
+            DiamondVertexKind.Bottom => (
+                CentreX,
+                CentreY - (HalfHeight / 2.0),
+                FlowchartDecisionPortRole.BottomVertex),
+            DiamondVertexKind.Left => (
+                CentreX - (HalfWidth / 2.0),
+                UseBottomFace ? CentreY - (HalfHeight / 2.0) : CentreY + (HalfHeight / 2.0),
+                FlowchartDecisionPortRole.SideLeft),
+            DiamondVertexKind.Right => (
+                CentreX + (HalfWidth / 2.0),
+                UseBottomFace ? CentreY - (HalfHeight / 2.0) : CentreY + (HalfHeight / 2.0),
+                FlowchartDecisionPortRole.SideRight),
+            _ => (CentreX, CentreY - HalfHeight, FlowchartDecisionPortRole.BottomVertex)
+        };
     }
 
     private static FlowchartDecisionPortRole ResolveDecisionFanInEntryRole(int BranchIndex, int BranchCount)

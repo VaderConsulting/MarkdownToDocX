@@ -209,7 +209,8 @@ public static class FlowchartSharedEdgeRouter
     {
         return RouteKind == FlowchartEdgeRouteKind.Decision
             || RouteKind == FlowchartEdgeRouteKind.RetryLoop
-            || RouteKind == FlowchartEdgeRouteKind.GroupedTwoByTwo;
+            || RouteKind == FlowchartEdgeRouteKind.GroupedTwoByTwo
+            || RouteKind == FlowchartEdgeRouteKind.Grid;
     }
 
     /// <summary>
@@ -254,7 +255,9 @@ public static class FlowchartSharedEdgeRouter
         FlowchartResolvedGuide Guide,
         bool PenaliseCrossings)
     {
-        if (Guide.Points.Count < 2 || IsDesignedRoute(Guide.RouteKind))
+        if (Guide.Points.Count < 2
+            || Guide.RouteKind == FlowchartEdgeRouteKind.Grid
+            || IsDesignedRoute(Guide.RouteKind))
         {
             return;
         }
@@ -1089,7 +1092,7 @@ public static class FlowchartSharedEdgeRouter
             new Dictionary<string, List<FlowchartResolvedGuide>>(StringComparer.Ordinal);
         foreach (FlowchartResolvedGuide Guide in Guides)
         {
-            if (Guide.Points.Count < 2)
+            if (Guide.Points.Count < 2 || Guide.RouteKind == FlowchartEdgeRouteKind.Grid)
             {
                 continue;
             }
@@ -1105,7 +1108,8 @@ public static class FlowchartSharedEdgeRouter
 
         foreach (FlowchartResolvedGuide Guide in Guides)
         {
-            if (Guide.Points.Count < 2
+            if (Guide.RouteKind == FlowchartEdgeRouteKind.Grid
+                || Guide.Points.Count < 2
                 || !BoundsById.TryGetValue(Guide.Edge.SourceId, out FlowchartLayoutNodeBounds SourceBounds)
                 || !BoundsById.TryGetValue(Guide.Edge.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
             {
@@ -1243,12 +1247,9 @@ public static class FlowchartSharedEdgeRouter
             new Dictionary<string, List<PortUse>>(StringComparer.Ordinal);
         foreach (FlowchartResolvedGuide Guide in Guides)
         {
-            if (Guide.Points.Count < 2)
-            {
-                continue;
-            }
-
-            if (SkipDesigned && IsDesignedRoute(Guide.RouteKind))
+            if (Guide.Points.Count < 2
+                || Guide.RouteKind == FlowchartEdgeRouteKind.Grid
+                || (SkipDesigned && IsDesignedRoute(Guide.RouteKind)))
             {
                 continue;
             }
@@ -1570,6 +1571,12 @@ public static class FlowchartSharedEdgeRouter
         double ShiftX,
         double ShiftY)
     {
+        if (Guide.RouteKind == FlowchartEdgeRouteKind.Grid
+            || Other.RouteKind == FlowchartEdgeRouteKind.Grid)
+        {
+            return false;
+        }
+
         if (Math.Abs(ShiftX) < 0.01 && Math.Abs(ShiftY) < 0.01)
         {
             return false;
@@ -2507,7 +2514,9 @@ public static class FlowchartSharedEdgeRouter
         FlowchartResolvedGuide Guide,
         FlowchartResolvedGuide Other)
     {
-        if (Guide.Points.Count < 3)
+        if (Guide.RouteKind == FlowchartEdgeRouteKind.Grid
+            || Other.RouteKind == FlowchartEdgeRouteKind.Grid
+            || Guide.Points.Count < 3)
         {
             return false;
         }

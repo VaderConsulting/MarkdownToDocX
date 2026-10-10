@@ -296,10 +296,11 @@ public static class FlowchartDecisionShoulderLayoutPostProcessor
 
     private static List<string> GetVisibleSuccessorIds(DiagramContract Contract, string NodeId)
     {
+        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         List<string> SuccessorIds = [];
         foreach (EdgeContract Edge in Contract.Edges)
         {
-            if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase) || BackEdges.Contains(Edge))
             {
                 continue;
             }

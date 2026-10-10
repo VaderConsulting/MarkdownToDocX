@@ -86,33 +86,33 @@ public static class FlowchartEdgePathBuilder
         double SourceAttachX;
         double SourceAttachY = SourceBounds.CenterY;
         double TargetAttachX = TargetBounds.CenterX;
-        double TargetAttachY;
+        // A10/B17: enter the middle of the target's free side facing the below return track (bottom in LR).
+        double TargetAttachY = TargetBounds.CenterY - TargetHalfHeight - TargetGapPx;
 
         if (RightToLeft)
         {
             SourceAttachX = SourceBounds.CenterX - SourceHalfWidth - SourceGapPx;
-            TargetAttachY = TargetBounds.CenterY + TargetHalfHeight + TargetGapPx;
         }
         else
         {
             SourceAttachX = SourceBounds.CenterX + SourceHalfWidth + SourceGapPx;
-            TargetAttachY = TargetBounds.CenterY + TargetHalfHeight + TargetGapPx;
         }
 
-        double TopY = Math.Min(SourceAttachY, TargetAttachY);
+        // A10/B17: return track runs below every node (layout Y-up: smaller Y is visually lower).
+        double CorridorY = Math.Min(SourceAttachY, TargetAttachY);
         foreach (FlowchartLayoutNodeBounds Bounds in AllBounds)
         {
-            double NodeTop = Bounds.CenterY + (Bounds.Height / 2.0);
-            if (NodeTop > TopY)
+            double NodeBottom = Bounds.CenterY - (Bounds.Height / 2.0);
+            if (NodeBottom < CorridorY)
             {
-                TopY = NodeTop;
+                CorridorY = NodeBottom;
             }
         }
 
-        TopY += LR_RETRY_LOOP_CLEARANCE_PX;
+        CorridorY -= LR_RETRY_LOOP_CLEARANCE_PX;
 
-        double ExitCornerY = InterpolateRetryLoopCornerY(SourceAttachY, TopY);
-        double EntryCornerY = InterpolateRetryLoopCornerY(TopY, TargetAttachY);
+        double ExitCornerY = InterpolateRetryLoopCornerY(SourceAttachY, CorridorY);
+        double EntryCornerY = InterpolateRetryLoopCornerY(CorridorY, TargetAttachY);
         double SourceStubX = RightToLeft
             ? SourceAttachX - LR_RETRY_LOOP_FACE_STUB_PX
             : SourceAttachX + LR_RETRY_LOOP_FACE_STUB_PX;
@@ -120,8 +120,8 @@ public static class FlowchartEdgePathBuilder
         AddLayoutPointIfDistinct(LayoutPoints, SourceAttachX, SourceAttachY);
         AddLayoutPointIfDistinct(LayoutPoints, SourceStubX, SourceAttachY);
         AddLayoutPointIfDistinct(LayoutPoints, SourceStubX, ExitCornerY);
-        AddLayoutPointIfDistinct(LayoutPoints, SourceStubX, TopY);
-        AddLayoutPointIfDistinct(LayoutPoints, TargetAttachX, TopY);
+        AddLayoutPointIfDistinct(LayoutPoints, SourceStubX, CorridorY);
+        AddLayoutPointIfDistinct(LayoutPoints, TargetAttachX, CorridorY);
         AddLayoutPointIfDistinct(LayoutPoints, TargetAttachX, EntryCornerY);
         AddLayoutPointIfDistinct(LayoutPoints, TargetAttachX, TargetAttachY);
 
@@ -172,6 +172,7 @@ public static class FlowchartEdgePathBuilder
         }
 
         double NodeTop = double.MinValue;
+        double NodeBottom = double.MaxValue;
         foreach (FlowchartLayoutNodeBounds Bounds in BoundsById.Values)
         {
             double Left = Bounds.CenterX - (Bounds.Width / 2.0);
@@ -179,18 +180,22 @@ public static class FlowchartEdgePathBuilder
             if (Right >= GroupLeft && Left <= GroupRight)
             {
                 NodeTop = Math.Max(NodeTop, Bounds.CenterY + (Bounds.Height / 2.0));
+                NodeBottom = Math.Min(NodeBottom, Bounds.CenterY - (Bounds.Height / 2.0));
             }
         }
 
         int CorridorLevel = ResolveCorridorLevel(Edge, Ordered, Contract, Loops, BoundsById, DownstreamSign);
-        double CorridorY = NodeTop + NESTED_LR_RETRY_LOOP_FIRST_CORRIDOR_PX + (NESTED_LR_RETRY_LOOP_LEVEL_STEP_PX * CorridorLevel);
+        bool LeavesFromTop = LoopLeavesFromTop(Edge, Contract, Loops);
+        double CorridorY = LeavesFromTop
+            ? NodeTop + NESTED_LR_RETRY_LOOP_FIRST_CORRIDOR_PX + (NESTED_LR_RETRY_LOOP_LEVEL_STEP_PX * CorridorLevel)
+            : NodeBottom - NESTED_LR_RETRY_LOOP_FIRST_CORRIDOR_PX - (NESTED_LR_RETRY_LOOP_LEVEL_STEP_PX * CorridorLevel);
         FlowchartLayoutNodeBounds SourceBounds = BoundsById[Edge.SourceId];
         FlowchartLayoutNodeBounds TargetBounds = BoundsById[Edge.TargetId];
         double TargetPortX = ResolveTopPortX(Edge.TargetId, Edge, Loops, Contract, BoundsById);
         double TargetAttachY = TargetBounds.CenterY + (TargetBounds.Height / 2.0) + FlowchartEdgeAttachConstants.GetExteriorGapPx(Edge.MarkerEnd);
         double SourceRunX = ResolveLoopSourceRunX(Edge, Contract, Loops, BoundsById, DownstreamSign);
 
-        if (LoopLeavesFromTop(Edge, Contract, Loops))
+        if (LeavesFromTop)
         {
             double SourceAttachY = SourceBounds.CenterY + (SourceBounds.Height / 2.0) + FlowchartEdgeAttachConstants.GetExteriorGapPx(Edge.MarkerStart);
             AddLayoutPointIfDistinct(LayoutPoints, SourceRunX, SourceAttachY);
@@ -205,7 +210,18 @@ public static class FlowchartEdgePathBuilder
         }
 
         AddLayoutPointIfDistinct(LayoutPoints, TargetPortX, CorridorY);
-        AddLayoutPointIfDistinct(LayoutPoints, TargetPortX, TargetAttachY);
+        if (LeavesFromTop)
+        {
+            AddLayoutPointIfDistinct(LayoutPoints, TargetPortX, TargetAttachY);
+        }
+        else
+        {
+            double TargetAttachX = TargetBounds.CenterX;
+            double TargetAttachYBottom = TargetBounds.CenterY - (TargetBounds.Height / 2.0) - FlowchartEdgeAttachConstants.GetExteriorGapPx(Edge.MarkerEnd);
+            double EntryCornerY = InterpolateRetryLoopCornerY(CorridorY, TargetAttachYBottom);
+            AddLayoutPointIfDistinct(LayoutPoints, TargetPortX, EntryCornerY);
+            AddLayoutPointIfDistinct(LayoutPoints, TargetAttachX, TargetAttachYBottom);
+        }
         return LayoutPoints.Count >= 3;
     }
 

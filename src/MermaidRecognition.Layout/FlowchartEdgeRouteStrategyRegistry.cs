@@ -54,9 +54,7 @@ public static class FlowchartEdgeRouteStrategyRegistry
                 {
                     RouteKind = LayoutPoints.Count == 2
                         ? FlowchartEdgeRouteKind.Straight
-                        : FlowchartPerpendicularRouteBuilder.IsOrthogonalPolyline(LayoutPoints)
-                            ? FlowchartEdgeRouteKind.Corridor
-                            : FlowchartEdgeRouteKind.Decision;
+                        : FlowchartEdgeRouteKind.Decision;
                     return true;
                 }
 

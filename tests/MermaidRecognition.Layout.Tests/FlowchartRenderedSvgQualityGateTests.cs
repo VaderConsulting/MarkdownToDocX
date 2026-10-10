@@ -219,6 +219,48 @@ public sealed class FlowchartRenderedSvgQualityGateTests
             ["InteriorStroke", "StackedArrowheads", "OutlineGap", "CornerArrowhead", "OverlayingEdges", "SharedStretch"]);
     }
 
+    [TestCase(200, false)]
+    [TestCase(150, true)]
+    public void SplitConnector_OutlineChecksUseAllVisiblePieces(int TerminalX, bool ExpectGap)
+    {
+        const string Source = "flowchart LR\n a([Alpha]) -->|message| b([Beta])";
+        string Svg = $$"""
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 150">
+              <g data-id="a"><rect x="20" y="50" width="60" height="40" rx="20" fill="#eee"/></g>
+              <g data-id="b"><rect x="200" y="50" width="60" height="40" rx="20" fill="#eee"/></g>
+              <path d="M80,70 L140,70" fill="none" stroke="#333" data-edge-source="a" data-edge-target="b"/>
+              <line x1="{{TerminalX}}" y1="70" x2="160" y2="70" fill="none" stroke="#333" data-edge-source="a" data-edge-target="b"/>
+            </svg>
+            """;
+        DiagramContract Contract = MermaidRecognizer.Parse(Source);
+        FlowchartRenderedSvgDocument Document = FlowchartRenderedSvgDocument.Parse(Svg, Contract);
+        Assert.That(Document.Strokes.Single().Fragments, Has.Count.EqualTo(2));
+        FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.EvaluateRenderedSvg(
+            "split-connector", Source, Svg);
+        Assert.That(Report.Failures.Any(Failure => Failure.Kind == "OutlineGap"), Is.EqualTo(ExpectGap),
+            FormatReport(Report));
+    }
+
+    [TestCase("Service boundary")]
+    [TestCase("A longer nested service boundary")]
+    public void ConnectorToTitledGroup_KeepsTitleClearance(string Title)
+    {
+        string Source = $$"""
+            flowchart TB
+              subgraph outer[Container]
+                a[Input]
+                subgraph inner["{{Title}}"]
+                  b[First] --> c[Second]
+                end
+              end
+              a -->|link| inner
+            """;
+        FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.Evaluate(
+            "nested-group-attachment", Source);
+        Assert.That(Report.Failures.Where(Failure => Failure.Kind == "TitleClearance"), Is.Empty,
+            FormatReport(Report));
+    }
+
     [Test]
     public void LineJump_DrawsOneHopAtAPerpendicularCrossing()
     {

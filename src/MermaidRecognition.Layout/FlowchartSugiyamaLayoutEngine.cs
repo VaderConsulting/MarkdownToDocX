@@ -39,7 +39,7 @@ public static class FlowchartSugiyamaLayoutEngine
             return false;
         }
 
-        Result = FlowchartDagrePresentation.Apply(Contract, Placed);
+        Result = DiagramGridLayout.Apply(Contract, Placed);
         return Result.NodeBounds.Count > 0;
     }
 

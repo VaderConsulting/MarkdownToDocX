@@ -27,27 +27,14 @@ public static class FlowchartSvgMarkerTangentFactsHelper
             return;
         }
 
-        if (!FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout))
-        {
-            return;
-        }
-
-        FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
-        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds
-            .ToDictionary(Bounds => Bounds.NodeId, Bounds => Bounds, StringComparer.Ordinal);
-        Dictionary<string, NodeContract> NodeById = Contract.Nodes
-            .ToDictionary(Node => Node.Id, Node => Node, StringComparer.Ordinal);
-
-        List<string> EdgePathData = ExtractRenderedEdgePathData(Svg);
-        List<(double X1, double Y1, double X2, double Y2)> EdgeLineSegments = ExtractRenderedEdgeLineSegments(Svg);
         List<RenderedArrowPolygon> ArrowPolygons = ExtractRenderedArrowPolygons(Svg);
 
         List<EdgeContract> VisibleEdges = Contract.Edges
             .Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        int PathIndex = 0;
-        int LineIndex = 0;
+
+
         int ArrowIndex = 0;
 
         foreach (EdgeContract Edge in VisibleEdges)
@@ -60,36 +47,6 @@ public static class FlowchartSvgMarkerTangentFactsHelper
             if (EdgeResult is null || !EdgeResult.IsVisible)
             {
                 continue;
-            }
-
-            bool RendersAsPath = FlowchartSvgEdgeStrokeClassifier.RendersAsSvgPath(
-                Edge,
-                Contract,
-                BoundsById,
-                NodeById,
-                Direction);
-
-            string? PathData = null;
-            (double LineX1, double LineY1, double LineX2, double LineY2)? LineSegment = null;
-
-            if (RendersAsPath)
-            {
-                while (PathIndex < EdgePathData.Count
-                    && !EdgePathData[PathIndex].StartsWith("M", StringComparison.OrdinalIgnoreCase))
-                {
-                    PathIndex++;
-                }
-
-                if (PathIndex < EdgePathData.Count)
-                {
-                    PathData = EdgePathData[PathIndex];
-                    PathIndex++;
-                }
-            }
-            else if (LineIndex < EdgeLineSegments.Count)
-            {
-                LineSegment = EdgeLineSegments[LineIndex];
-                LineIndex++;
             }
 
             bool HasEndArrow = Edge.MarkerEnd == EdgeEndpointMarker.Point
@@ -108,6 +65,7 @@ public static class FlowchartSvgMarkerTangentFactsHelper
                 {
                     RenderedArrowPolygon Arrow = ArrowPolygons[ArrowIndex];
                     ArrowIndex++;
+                    ResolveTaggedStroke(Svg, Edge, Arrow, true, out string? PathData, out var LineSegment);
                     bool Aligned = ValidateArrowPolygonAlignsWithStroke(
                         Arrow,
                         PathData,
@@ -133,6 +91,7 @@ public static class FlowchartSvgMarkerTangentFactsHelper
                 {
                     RenderedArrowPolygon Arrow = ArrowPolygons[ArrowIndex];
                     ArrowIndex++;
+                    ResolveTaggedStroke(Svg, Edge, Arrow, false, out string? PathData, out var LineSegment);
                     bool Aligned = ValidateArrowPolygonAlignsWithStroke(
                         Arrow,
                         PathData,
@@ -148,6 +107,51 @@ public static class FlowchartSvgMarkerTangentFactsHelper
             }
         }
     }
+
+    private static void ResolveTaggedStroke(
+        string Svg, EdgeContract Edge, RenderedArrowPolygon Arrow, bool AtTargetEnd,
+        out string? PathData, out (double X1, double Y1, double X2, double Y2)? LineSegment)
+    {
+        PathData = null;
+        LineSegment = null;
+        double BestDistance = double.MaxValue;
+        string Source = Regex.Escape(System.Net.WebUtility.HtmlEncode(Edge.SourceId));
+        string Target = Regex.Escape(System.Net.WebUtility.HtmlEncode(Edge.TargetId));
+        foreach (Match Stroke in Regex.Matches(Svg,
+            $@"<(?:path|line)\b[^>]*data-edge-source=""{Source}"" data-edge-target=""{Target}""[^>]*>"))
+        {
+            List<string> Paths = ExtractRenderedEdgePathData(Stroke.Value);
+            if (Paths.Count > 0
+                && FlowchartSvgPathGeometryHelper.TryFlattenPathData(Paths[0], out List<(double X, double Y)> Points)
+                && Points.Count >= 2)
+            {
+                double Distance = Math.Min(DistanceToArrow(Points[0], Arrow), DistanceToArrow(Points[^1], Arrow));
+                if (Distance < BestDistance)
+                {
+                    BestDistance = Distance;
+                    PathData = Paths[0];
+                    LineSegment = null;
+                }
+            }
+            foreach (var Line in ExtractRenderedEdgeLineSegments(Stroke.Value))
+            {
+                double StartDistance = DistanceToArrow((Line.X1, Line.Y1), Arrow);
+                double EndDistance = DistanceToArrow((Line.X2, Line.Y2), Arrow);
+                if (Math.Min(StartDistance, EndDistance) < BestDistance)
+                {
+                    BestDistance = Math.Min(StartDistance, EndDistance);
+                    PathData = null;
+                    // Orient the line towards the arrow; the SVG may store
+                    // a label-gap fragment in ascending coordinate order.
+                    LineSegment = (StartDistance < EndDistance) == AtTargetEnd
+                        ? (Line.X2, Line.Y2, Line.X1, Line.Y1) : Line;
+                }
+            }
+        }
+    }
+
+    private static double DistanceToArrow((double X, double Y) Point, RenderedArrowPolygon Arrow) =>
+        Math.Sqrt(Math.Pow(Point.X - Arrow.TipX, 2) + Math.Pow(Point.Y - Arrow.TipY, 2));
 
     private static bool ValidateArrowPolygonAlignsWithStroke(
         RenderedArrowPolygon Arrow,

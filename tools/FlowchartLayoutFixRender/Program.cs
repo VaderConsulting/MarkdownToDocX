@@ -247,7 +247,8 @@ static void RenderOne(string Stem, string Mermaid, string OutputDirectory)
 {
     try
     {
-        if (!NativeFlowchartRenderBridge.TryRenderFlowchartSvg(Mermaid, out string Svg) || string.IsNullOrWhiteSpace(Svg))
+        if (!(NativeDiagramRenderBridge.TryRenderSvg(Mermaid, out string Svg)
+            || NativeFlowchartRenderBridge.TryRenderFlowchartSvg(Mermaid, out Svg)) || string.IsNullOrWhiteSpace(Svg))
         {
             Console.WriteLine("SKIP " + Stem);
             return;

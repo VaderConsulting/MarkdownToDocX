@@ -1,0 +1,39 @@
+enterprise
+  title Web shop - application and technology view
+  direction TB
+
+  group dc "Primary data centre"
+
+  application-component webShop  "Web Shop"
+  application-interface shopUi   "Shop Web UI"
+  application-function  checkout "Checkout" in webShop
+  application-service   ordering "Online Ordering"
+  data-object           order    "Order"
+
+  technology-service    hosting  "Java Application Hosting"
+  technology-service    dbSvc    "Database Service"
+  node                  appNode  "App Server Node" in dc
+  system-software       jvm      "Java VM" in appNode
+  system-software       pg       "PostgreSQL" in dc
+  device                lb       "Load Balancer" in dc
+  communication-network lan      "DC LAN" in dc
+  artifact              war      "shop.war" in appNode
+  artifact              orderTbl "orders table"
+
+  webShop -composition-> shopUi
+  webShop -assignment-> checkout
+  checkout -realization-> ordering
+  shopUi -assignment-> ordering
+  checkout -access(write)-> order
+  appNode -composition-> jvm
+  appNode -assignment-> war
+  war -realization-> webShop
+  orderTbl -realization-> order
+  jvm -realization-> hosting
+  pg -realization-> dbSvc
+  hosting -serving-> webShop
+  dbSvc -serving-> webShop
+  pg -assignment-> orderTbl
+  lb -serving-> appNode "HTTPS"
+  lan -association-> lb
+  lan -association-> appNode

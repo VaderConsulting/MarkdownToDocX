@@ -44,6 +44,23 @@ public sealed class F94EdgeLabelRenderTests
             $"Spine Y: {SpineMidSvgY}, Label centre Y: {LabelCentreSvgY}, Middle line centre Y: {MiddleLineCentreSvgY}, First line Y: {FirstLineSvgY}");
         Assert.That(LineCount, Is.EqualTo(3));
         Assert.That(MiddleLineCentreSvgY, Is.EqualTo(LabelCentreSvgY).Within(0.5), "The middle line should sit at the centre of the label block.");
-        FlowchartCatalogueRenderTests.AssertLabelEdgeBesideLine(LabelCentreSvgY - LabelHalfHeight, LabelCentreSvgY + LabelHalfHeight, SpineMidSvgY);
+        Assert.That(LabelCentreSvgY, Is.EqualTo(SpineMidSvgY).Within(1.0),
+            "Rule B13: multiline edge labels sit centred on the connector.");
+        FlowchartLabelDimensions LabelDimensions = FlowchartNodeSizeEstimator.MeasureWrappedLabel(
+            "Line 1<br/>Line 2<br/>Line 3",
+            Options,
+            Options.EdgeLabelFontSizePx);
+        double HalfGap = FlowchartEdgeLabelGapHelper.ComputeHalfGapWidthPx(
+            LabelDimensions,
+            Options.EdgeLabelFontSizePx);
+        Match FirstTspan = Regex.Match(LabelText.Value, @"<tspan x=""([^""]+)""", RegexOptions.CultureInvariant);
+        double LabelCentreSvgX = double.Parse(FirstTspan.Groups[1].Value, CultureInfo.InvariantCulture)
+            + (LabelDimensions.Width / 2.0);
+        FlowchartEdgeLabelGapTests.AssertLabelHasStrokeGapAt(
+            Svg,
+            LabelCentreSvgX,
+            LabelCentreSvgY,
+            HalfGap,
+            "Line 1");
     }
 }

@@ -133,6 +133,7 @@ public static class FlowchartSugiyamaSvgRenderer
         FlowchartCompoundEndpointHelper.AddGroupBounds(Contract, BoundsById);
         List<FlowchartResolvedGuide> ResolvedGuides = FlowchartEdgeRouteResolver.ResolveAllVisibleGuidePoints(
             Contract,
+            Layout,
             BoundsById,
             NodeById,
             Direction);
@@ -271,6 +272,7 @@ public static class FlowchartSugiyamaSvgRenderer
 
             string? RouteClass = TryResolveRouteClassName(Edge, RouteClassByEdgeKey);
             FlowchartResolvedStyle EdgeStyle = RenderOptions.ResolveEdgeStyle(Edge);
+
             if (TryTakeDagreRoute(DagreRoutes, DagreEdgeId, out FlowchartLayoutEdgeRoute? DagreRoute)
                 && DagreRoute.Points.Count >= 2
                 && BoundsById.TryGetValue(DagreRoute.SourceId, out FlowchartLayoutNodeBounds DagreSource)
@@ -279,6 +281,74 @@ public static class FlowchartSugiyamaSvgRenderer
                 string? DagreSourceShape = NodeById.TryGetValue(DagreRoute.SourceId, out NodeContract? DagreSourceNode)
                     ? DagreSourceNode.Shape
                     : "rect";
+                string? DagreTargetShape = NodeById.TryGetValue(DagreRoute.TargetId, out NodeContract? DagreTargetNode)
+                    ? DagreTargetNode.Shape
+                    : "rect";
+                if (!Layout.UsesGridRoutes && FlowchartEdgePathBuilder.IsLrRetryLoopEdge(
+                        Edge,
+                        Contract,
+                        DagreSource,
+                        DagreTarget,
+                        DagreSourceShape,
+                        DagreTargetShape)
+                    && TryBuildRetryLoopLayoutPoints(
+                        Edge,
+                        Contract,
+                        BoundsById,
+                        NodeById,
+                        Layout.NodeBounds,
+                        Direction,
+                        out List<(double X, double Y)> RetryLayoutPoints))
+                {
+                    List<(double X, double Y)> SvgPoints = [];
+                    foreach ((double LayoutX, double LayoutY) in RetryLayoutPoints)
+                    {
+                        SvgPoints.Add(LayoutToSvgPoint(LayoutX, LayoutY, MinLeft, MaxTop, DiagramPaddingPx));
+                    }
+
+                    string PathData = FlowchartCurvePathBuilder.BuildRetryLoopPathData(SvgPoints);
+                    AppendStyledEdgePath(Builder, PathData, EdgeStyle, Edge.SourceId, Edge.TargetId);
+
+                    if (SvgPoints.Count >= 2)
+                    {
+                        AppendCurvedEdgeMarkers(
+                            Builder,
+                            Edge,
+                            PathData,
+                            SvgPoints,
+                            FlowchartRenderedPathKind.RetryLoop,
+                            EdgeStyle);
+                    }
+
+                    continue;
+                }
+
+                if (Layout.UsesGridRoutes
+                    && GuideByEdge.TryGetValue(Edge, out FlowchartResolvedGuide? GridGuide)
+                    && GridGuide.Points.Count >= 2
+                    && GridGuide.RouteKind == FlowchartEdgeRouteKind.Grid
+                    && IsFarChildSideExitGridRoute(DagreRoute))
+                {
+                    RenderResolvedEdgeRoute(
+                        Builder,
+                        Edge,
+                        Contract,
+                        BoundsById,
+                        DagreSource,
+                        DagreTarget,
+                        DagreSourceShape,
+                        GridGuide.Points,
+                        GridGuide.RouteKind,
+                        Direction,
+                        RouteClass,
+                        MinLeft,
+                        MaxTop,
+                        DiagramPaddingPx,
+                        EdgeStyle,
+                        RenderOptions);
+                    continue;
+                }
+
                 RenderDagreBasisEdge(
                     Builder,
                     Edge,
@@ -452,6 +522,39 @@ public static class FlowchartSugiyamaSvgRenderer
                 continue;
             }
 
+            if (FlowchartOrdinaryFanOutRouteBuilder.TryBuildEdgeRoute(
+                    Edge,
+                    Contract,
+                    BoundsById,
+                    SourceShape,
+                    TargetShape,
+                    Direction,
+                    out List<(double X, double Y)> OrdinaryFanOutLayoutPoints)
+                && OrdinaryFanOutLayoutPoints.Count >= 2)
+            {
+                RenderResolvedEdgeRoute(
+                    Builder,
+                    Edge,
+                    Contract,
+                    BoundsById,
+                    SourceBounds,
+                    TargetBounds,
+                    SourceShape,
+                    OrdinaryFanOutLayoutPoints,
+                    FlowchartEdgeConnectionGeometry.IsCollinearStubStraightRoute(OrdinaryFanOutLayoutPoints)
+                        || OrdinaryFanOutLayoutPoints.Count == 2
+                        ? FlowchartEdgeRouteKind.Straight
+                        : FlowchartEdgeRouteKind.Grid,
+                    Direction,
+                    RouteClass,
+                    MinLeft,
+                    MaxTop,
+                    DiagramPaddingPx,
+                    EdgeStyle,
+                    RenderOptions);
+                continue;
+            }
+
             if (FlowchartFanOutPortAllocator.TryResolveEdgeRoute(
                     Edge,
                     Contract,
@@ -598,105 +701,6 @@ public static class FlowchartSugiyamaSvgRenderer
                 continue;
             }
 
-            if (FlowchartDecisionPortAllocator.TryResolveEdgeRoute(
-                    Edge,
-                    Contract,
-                    BoundsById,
-                    SourceShape,
-                    TargetShape,
-                    Direction,
-                    out List<(double X, double Y)> DecisionLayoutPoints)
-                && DecisionLayoutPoints.Count >= 2)
-            {
-                List<(double X, double Y)> DecisionSvgPoints = [];
-                foreach ((double LayoutX, double LayoutY) in DecisionLayoutPoints)
-                {
-                    DecisionSvgPoints.Add(LayoutToSvgPoint(LayoutX, LayoutY, MinLeft, MaxTop, DiagramPaddingPx));
-                }
-
-                if (DecisionLayoutPoints.Count == 2)
-                {
-                    (double LayoutBoundaryX, double LayoutBoundaryY) = DecisionLayoutPoints[0];
-                    (double LayoutTipX, double LayoutTipY) = DecisionLayoutPoints[1];
-                    (double LayoutStartX, double LayoutStartY) = FlowchartEdgeTerminalStubExpander.ResolveExteriorStubPoint(
-                        SourceBounds,
-                        SourceShape,
-                        LayoutBoundaryX,
-                        LayoutBoundaryY,
-                        LayoutTipX,
-                        LayoutTipY);
-                    (double DecisionBoundaryX, double DecisionBoundaryY) = LayoutToSvgPoint(
-                        LayoutBoundaryX,
-                        LayoutBoundaryY,
-                        MinLeft,
-                        MaxTop,
-                        DiagramPaddingPx);
-                    (double DecisionStartX, double DecisionStartY) = LayoutToSvgPoint(
-                        LayoutStartX,
-                        LayoutStartY,
-                        MinLeft,
-                        MaxTop,
-                        DiagramPaddingPx);
-                    (double DecisionTipX, double DecisionTipY) = LayoutToSvgPoint(
-                        LayoutTipX,
-                        LayoutTipY,
-                        MinLeft,
-                        MaxTop,
-                        DiagramPaddingPx);
-                    AppendStyledLine(
-                        Builder,
-                        DecisionBoundaryX,
-                        DecisionBoundaryY,
-                        DecisionStartX,
-                        DecisionStartY,
-                        EdgeStyle);
-                    RenderStraightEdgeSegment(
-                        Builder,
-                        Edge,
-                        DecisionStartX,
-                        DecisionStartY,
-                        DecisionTipX,
-                        DecisionTipY,
-                        EdgeStyle,
-                        RenderOptions);
-                }
-                else
-                {
-                    string DecisionPathData = FlowchartCurvePathBuilder.BuildDecisionBranchPathData(DecisionSvgPoints);
-                    AppendStyledEdgePath(Builder, DecisionPathData, EdgeStyle, Edge.SourceId, Edge.TargetId);
-
-                    if (DecisionSvgPoints.Count > 2)
-                    {
-                        AppendCurvedEdgeMarkers(
-                            Builder,
-                            Edge,
-                            DecisionPathData,
-                            DecisionSvgPoints,
-                            FlowchartRenderedPathKind.DecisionBranch,
-                            EdgeStyle);
-                    }
-                }
-
-                AppendResolvedEdgeLabel(
-                    Builder,
-                    Edge,
-                    Contract,
-                    BoundsById,
-                    SourceBounds,
-                    TargetBounds,
-                    SourceShape,
-                    DecisionLayoutPoints,
-                    Direction,
-                    RouteClass,
-                    MinLeft,
-                    MaxTop,
-                    DiagramPaddingPx,
-                    EdgeStyle,
-                    RenderOptions);
-
-                continue;
-            }
-
             if (FlowchartTerminalCollectorPortAllocator.TryResolveEdgeRoute(
                     Edge,
                     Contract,
@@ -794,7 +798,7 @@ public static class FlowchartSugiyamaSvgRenderer
         }
 
         Builder.Append("</svg>");
-        return FlowchartSvgLineJump.Apply(Builder.ToString());
+        return FlowchartSvgLineJump.Apply(Builder.ToString(), InsertHops: !Layout.UsesGridRoutes);
         }
         finally
         {
@@ -1012,17 +1016,6 @@ public static class FlowchartSugiyamaSvgRenderer
 
         string[] Lines = LabelDimensions.DisplayText.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
         double EdgeLabelFontSizePx = Options.EdgeLabelFontSizePx;
-        double GapWidth = Math.Max(12.0, LabelDimensions.Width + 6.0);
-        double GapHeight = Math.Max(EdgeLabelFontSizePx, LabelDimensions.Height) + 4.0;
-        Builder.Append("<rect x=\"");
-        Builder.Append((CentreX - (GapWidth / 2.0)).ToString(CultureInfo.InvariantCulture));
-        Builder.Append("\" y=\"");
-        Builder.Append((CentreY - (GapHeight / 2.0)).ToString(CultureInfo.InvariantCulture));
-        Builder.Append("\" width=\"");
-        Builder.Append(GapWidth.ToString(CultureInfo.InvariantCulture));
-        Builder.Append("\" height=\"");
-        Builder.Append(GapHeight.ToString(CultureInfo.InvariantCulture));
-        Builder.Append("\" fill=\"#ffffff\" stroke=\"none\"/>");
         double LineHeightPx = EdgeLabelFontSizePx * FLOWCHART_MULTILINE_LINE_HEIGHT_FACTOR;
         double FirstLineY = FlowchartRichLabelSvgWriter.ComputeFirstBaselineY(
             CentreY,
@@ -1176,7 +1169,7 @@ public static class FlowchartSugiyamaSvgRenderer
 
     /// <summary>
     /// Builds the guide points for an LR/RL retry loop. Loops that share a node with another retry loop get nested corridors;
-    /// a lone loop uses the single corridor above the nodes (F34).
+    /// a lone loop uses the single corridor below the nodes (F34 / A10).
     /// </summary>
     private static bool TryBuildRetryLoopLayoutPoints(
         EdgeContract Edge,
@@ -1219,6 +1212,22 @@ public static class FlowchartSugiyamaSvgRenderer
             GuideSvgPoints.Add(LayoutToSvgPoint(LayoutX, LayoutY, MinLeft, MaxTop, DiagramPaddingPx));
         }
 
+        (double LabelCentreSvgX, double LabelCentreSvgY) = ResolveSvgLabelCentre(
+            Edge,
+            Contract,
+            BoundsById,
+            SourceBounds,
+            TargetBounds,
+            SourceShape,
+            LayoutPoints,
+            RouteKind,
+            Direction,
+            RouteClass,
+            MinLeft,
+            MaxTop,
+            DiagramPaddingPx,
+            RenderOptions);
+
         bool StraightIsAxisAligned = RouteKind == FlowchartEdgeRouteKind.Straight
             && GuideSvgPoints.Count >= 2
             && (Math.Abs(GuideSvgPoints[0].X - GuideSvgPoints[GuideSvgPoints.Count - 1].X) <= 0.6
@@ -1244,62 +1253,106 @@ public static class FlowchartSugiyamaSvgRenderer
                 AppendStyledLine(Builder, BoundaryX, BoundaryY, X1, Y1, EdgeStyle);
             }
 
-            RenderStraightEdgeSegment(
-                Builder,
-                Edge,
-                X1,
-                Y1,
-                TipX,
-                TipY,
-                EdgeStyle,
-                RenderOptions);
-        }
-        else if (RouteKind == FlowchartEdgeRouteKind.Corridor)
-        {
-            string PathData = FlowchartCurvePathBuilder.BuildCorridorRoutePathData(GuideSvgPoints, RouteKind);
-            AppendStyledEdgePath(Builder, PathData, EdgeStyle, Edge.SourceId, Edge.TargetId);
-
-            if (GuideSvgPoints.Count >= 2)
-            {
-                FlowchartRenderedPathKind PathKind = FlowchartCurvePathBuilder.ResolveRenderedPathKind(
-                    LayoutPoints,
-                    RouteKind,
-                    Direction);
-                AppendCurvedEdgeMarkers(
+            if (!TryRenderStraightEdgeSegmentWithLabelGap(
                     Builder,
                     Edge,
-                    PathData,
-                    GuideSvgPoints,
-                    PathKind,
-                    EdgeStyle);
+                    X1,
+                    Y1,
+                    TipX,
+                    TipY,
+                    LabelCentreSvgX,
+                    LabelCentreSvgY,
+                    EdgeStyle,
+                    RenderOptions))
+            {
+                RenderStraightEdgeSegment(
+                    Builder,
+                    Edge,
+                    X1,
+                    Y1,
+                    TipX,
+                    TipY,
+                    EdgeStyle,
+                    RenderOptions);
             }
         }
-        else if (RouteKind == FlowchartEdgeRouteKind.Decision && LayoutPoints.Count == 2)
+        else if (RouteKind == FlowchartEdgeRouteKind.Corridor
+            || RouteKind == FlowchartEdgeRouteKind.Grid
+            || RouteKind == FlowchartEdgeRouteKind.Decision)
         {
-            (double LayoutBoundaryX, double LayoutBoundaryY) = LayoutPoints[0];
-            (double LayoutTipX, double LayoutTipY) = LayoutPoints[1];
-            (double LayoutStartX, double LayoutStartY) = FlowchartEdgeTerminalStubExpander.ResolveExteriorStubPoint(
-                SourceBounds,
-                SourceShape,
-                LayoutBoundaryX,
-                LayoutBoundaryY,
-                LayoutTipX,
-                LayoutTipY);
-            (double BoundaryX, double BoundaryY) = LayoutToSvgPoint(
-                LayoutBoundaryX,
-                LayoutBoundaryY,
-                MinLeft,
-                MaxTop,
-                DiagramPaddingPx);
-            (double StartX, double StartY) = LayoutToSvgPoint(
-                LayoutStartX,
-                LayoutStartY,
-                MinLeft,
-                MaxTop,
-                DiagramPaddingPx);
-            (double TipX, double TipY) = GuideSvgPoints[1];
-            AppendStyledLine(Builder, BoundaryX, BoundaryY, StartX, StartY, EdgeStyle);
-            RenderStraightEdgeSegment(Builder, Edge, StartX, StartY, TipX, TipY, EdgeStyle, RenderOptions);
+            List<(double X, double Y)> RouteSvgPoints = GuideSvgPoints;
+            if (FlowchartDiamondAttachHelper.IsDiamondShape(SourceShape) && LayoutPoints.Count >= 2)
+            {
+                (double LayoutBoundaryX, double LayoutBoundaryY) = LayoutPoints[0];
+                (double LayoutTowardX, double LayoutTowardY) = LayoutPoints[1];
+                (double LayoutStartX, double LayoutStartY) = FlowchartEdgeTerminalStubExpander.ResolveExteriorStubPoint(
+                    SourceBounds,
+                    SourceShape,
+                    LayoutBoundaryX,
+                    LayoutBoundaryY,
+                    LayoutTowardX,
+                    LayoutTowardY);
+                (double BoundaryX, double BoundaryY) = GuideSvgPoints[0];
+                (double StartX, double StartY) = LayoutToSvgPoint(
+                    LayoutStartX,
+                    LayoutStartY,
+                    MinLeft,
+                    MaxTop,
+                    DiagramPaddingPx);
+                AppendStyledLine(
+                    Builder,
+                    BoundaryX,
+                    BoundaryY,
+                    StartX,
+                    StartY,
+                    EdgeStyle,
+                    "round",
+                    Edge.SourceId,
+                    Edge.TargetId);
+                RouteSvgPoints =
+                [
+                    (StartX, StartY),
+                    .. GuideSvgPoints.Skip(1),
+                ];
+            }
+
+            FlowchartEdgeRouteKind RenderKind = RouteKind == FlowchartEdgeRouteKind.Decision
+                ? FlowchartEdgeRouteKind.Grid
+                : RouteKind;
+            if (!TryRenderOrthogonalRouteWithLabelGap(
+                    Builder,
+                    Edge,
+                    RouteSvgPoints,
+                    RenderKind,
+                    Direction,
+                    LabelCentreSvgX,
+                    LabelCentreSvgY,
+                    EdgeStyle,
+                    RenderOptions))
+            {
+                string PathData = RouteKind == FlowchartEdgeRouteKind.Decision
+                    || RouteKind == FlowchartEdgeRouteKind.Grid
+                    ? FlowchartCurvePathBuilder.BuildRoundedCornerPathData(
+                        RouteSvgPoints,
+                        DiagramGridRouteBuilder.CORNER_RADIUS_PX)
+                    : FlowchartCurvePathBuilder.BuildCorridorRoutePathData(RouteSvgPoints, RenderKind);
+                AppendStyledEdgePath(Builder, PathData, EdgeStyle, Edge.SourceId, Edge.TargetId);
+
+                if (RouteSvgPoints.Count >= 2)
+                {
+                    FlowchartRenderedPathKind PathKind = FlowchartCurvePathBuilder.ResolveRenderedPathKind(
+                        LayoutPoints,
+                        RenderKind,
+                        Direction);
+                    AppendCurvedEdgeMarkers(
+                        Builder,
+                        Edge,
+                        PathData,
+                        RouteSvgPoints,
+                        PathKind,
+                        EdgeStyle);
+                }
+            }
         }
         else
         {
@@ -1350,6 +1403,37 @@ public static class FlowchartSugiyamaSvgRenderer
             DiagramPaddingPx,
             EdgeStyle,
             RenderOptions);
+    }
+
+    private static (double X, double Y) ResolveSvgLabelCentre(
+        EdgeContract Edge,
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        FlowchartLayoutNodeBounds SourceBounds,
+        FlowchartLayoutNodeBounds TargetBounds,
+        string? SourceShape,
+        IReadOnlyList<(double X, double Y)> LayoutPoints,
+        FlowchartEdgeRouteKind RouteKind,
+        FlowchartDirection Direction,
+        string? RouteClass,
+        double MinLeft,
+        double MaxTop,
+        double DiagramPaddingPx,
+        FlowchartRenderOptions RenderOptions)
+    {
+        (double LabelX, double LabelY) = ResolveDrawnEdgeLabelCentre(
+            Edge,
+            Contract,
+            BoundsById,
+            SourceBounds,
+            TargetBounds,
+            SourceShape,
+            LayoutPoints,
+            Direction,
+            RouteClass,
+            RenderOptions,
+            RouteKind);
+        return LayoutToSvgPoint(LabelX, LabelY, MinLeft, MaxTop, DiagramPaddingPx);
     }
 
     private static void AppendResolvedEdgeLabel(
@@ -1451,6 +1535,14 @@ public static class FlowchartSugiyamaSvgRenderer
         FlowchartEdgeRouteKind RouteKind = FlowchartEdgeRouteKind.Curved)
     {
         FlowchartLabelDimensions LabelDimensions = FlowchartNodeSizeEstimator.MeasureWrappedLabel(Edge.Label ?? string.Empty, RenderOptions, RenderOptions.EdgeLabelFontSizePx);
+        if ((IsAxisAlignedPolyline(LayoutPoints) || FlowchartGridTerminalNormalizer.HasAxisAlignedInterior(LayoutPoints))
+            && FlowchartEdgeLabelGapHelper.TryResolveLabelSegmentBreak(
+                LayoutPoints, LabelDimensions, RenderOptions.EdgeLabelFontSizePx,
+                out FlowchartEdgeLabelGapHelper.LabelSegmentBreak LabelBreak))
+        {
+            return (LabelBreak.CentreX, LabelBreak.CentreY);
+        }
+
         (double LabelX, double LabelY) = FlowchartEdgeLabelPlacementHelper.ResolveEdgeLabelPosition(
             SourceBounds,
             TargetBounds,
@@ -1489,7 +1581,8 @@ public static class FlowchartSugiyamaSvgRenderer
             Direction);
         if (RenderedSamples.Count >= 2
             && (FlowchartSharedRouteQualityHelper.LooksLikeOrthogonalCorridor(LayoutPoints)
-                || IsAxisAlignedPolyline(LayoutPoints)))
+                || IsAxisAlignedPolyline(LayoutPoints))
+            && !string.Equals(RouteClass, "LocalDecisionBranch", StringComparison.Ordinal))
         {
             return FlowchartSharedRouteQualityHelper.ResolveLabelOnOwnEdge(
                 RenderedSamples,
@@ -1503,7 +1596,8 @@ public static class FlowchartSugiyamaSvgRenderer
 
         if (RenderedSamples.Count >= 2
             && FlowchartSharedRouteQualityHelper.DistanceFromPointToPolyline(ClearedX, ClearedY, RenderedSamples)
-            > 6.5)
+            > 6.5
+            && !string.Equals(RouteClass, "LocalDecisionBranch", StringComparison.Ordinal))
         {
             return FlowchartSharedRouteQualityHelper.ResolveLabelOnOwnEdge(
                 RenderedSamples,
@@ -1739,6 +1833,159 @@ public static class FlowchartSugiyamaSvgRenderer
         return -1.0;
     }
 
+    private static bool TryRenderStraightEdgeSegmentWithLabelGap(
+        StringBuilder Builder,
+        EdgeContract Edge,
+        double X1,
+        double Y1,
+        double TipX,
+        double TipY,
+        double LabelCentreX,
+        double LabelCentreY,
+        FlowchartResolvedStyle EdgeStyle,
+        FlowchartRenderOptions RenderOptions)
+    {
+        if (string.IsNullOrWhiteSpace(Edge.Label))
+        {
+            return false;
+        }
+
+        FlowchartLabelDimensions LabelDimensions = FlowchartNodeSizeEstimator.MeasureWrappedLabel(
+            Edge.Label,
+            RenderOptions,
+            RenderOptions.EdgeLabelFontSizePx);
+        List<(double X, double Y)> Segment = [(X1, Y1), (TipX, TipY)];
+        if (!FlowchartEdgeLabelGapHelper.TryResolveLabelSegmentBreak(
+                Segment,
+                LabelDimensions,
+                RenderOptions.EdgeLabelFontSizePx,
+                out FlowchartEdgeLabelGapHelper.LabelSegmentBreak SegmentBreak))
+        {
+            return false;
+        }
+
+        (double StartX, double StartY) = Segment[SegmentBreak.SegmentStartIndex];
+        (double EndX, double EndY) = Segment[SegmentBreak.SegmentEndIndex];
+        if (!FlowchartEdgeLabelGapHelper.TryComputeBrokenSegmentSpansForLabelCentre(
+                StartX,
+                StartY,
+                EndX,
+                EndY,
+                LabelCentreX,
+                LabelCentreY,
+                LabelDimensions,
+                RenderOptions.EdgeLabelFontSizePx,
+                out (double X1, double Y1, double X2, double Y2) Before,
+                out bool HasBefore,
+                out (double X1, double Y1, double X2, double Y2) After,
+                out bool HasAfter))
+        {
+            return false;
+        }
+
+        if (HasBefore)
+        {
+            AppendStyledLine(Builder, Before.X1, Before.Y1, Before.X2, Before.Y2, EdgeStyle, "butt", Edge.SourceId, Edge.TargetId);
+        }
+
+        if (HasAfter)
+        {
+            AppendStyledLine(Builder, After.X1, After.Y1, After.X2, After.Y2, EdgeStyle, "butt", Edge.SourceId, Edge.TargetId);
+        }
+
+        RenderStraightEdgeMarkers(Builder, Edge, X1, Y1, TipX, TipY, EdgeStyle);
+        return true;
+    }
+
+    private static bool TryRenderOrthogonalRouteWithLabelGap(
+        StringBuilder Builder,
+        EdgeContract Edge,
+        IReadOnlyList<(double X, double Y)> GuideSvgPoints,
+        FlowchartEdgeRouteKind RouteKind,
+        FlowchartDirection Direction,
+        double LabelCentreX,
+        double LabelCentreY,
+        FlowchartResolvedStyle EdgeStyle,
+        FlowchartRenderOptions RenderOptions)
+    {
+        if (string.IsNullOrWhiteSpace(Edge.Label) || GuideSvgPoints.Count < 2)
+        {
+            return false;
+        }
+
+        FlowchartLabelDimensions LabelDimensions = FlowchartNodeSizeEstimator.MeasureWrappedLabel(
+            Edge.Label,
+            RenderOptions,
+            RenderOptions.EdgeLabelFontSizePx);
+        if (!FlowchartEdgeLabelGapHelper.TryResolveLabelSegmentBreak(
+                GuideSvgPoints,
+                LabelDimensions,
+                RenderOptions.EdgeLabelFontSizePx,
+                out FlowchartEdgeLabelGapHelper.LabelSegmentBreak SegmentBreak))
+        {
+            return false;
+        }
+
+        (double StartX, double StartY) = GuideSvgPoints[SegmentBreak.SegmentStartIndex];
+        (double EndX, double EndY) = GuideSvgPoints[SegmentBreak.SegmentEndIndex];
+        double Length = Math.Abs(EndX - StartX) + Math.Abs(EndY - StartY);
+        double DirX = (EndX - StartX) / Length;
+        double DirY = (EndY - StartY) / Length;
+        double Radius = DiagramGridRouteBuilder.CORNER_RADIUS_PX;
+        bool HasPrefix = SegmentBreak.SegmentStartIndex > 0;
+        bool HasSuffix = SegmentBreak.SegmentEndIndex < GuideSvgPoints.Count - 1;
+        (double X, double Y) BeforeStart = HasPrefix
+            ? (StartX + DirX * Radius, StartY + DirY * Radius) : (StartX, StartY);
+        (double X, double Y) AfterEnd = HasSuffix
+            ? (EndX - DirX * Radius, EndY - DirY * Radius) : (EndX, EndY);
+        (double X, double Y) GapStart =
+            (SegmentBreak.CentreX - DirX * SegmentBreak.HalfGapWidthPx,
+             SegmentBreak.CentreY - DirY * SegmentBreak.HalfGapWidthPx);
+        (double X, double Y) GapEnd =
+            (SegmentBreak.CentreX + DirX * SegmentBreak.HalfGapWidthPx,
+             SegmentBreak.CentreY + DirY * SegmentBreak.HalfGapWidthPx);
+
+        if (HasPrefix)
+        {
+            List<(double X, double Y)> Prefix = GuideSvgPoints.Take(SegmentBreak.SegmentStartIndex + 1).ToList();
+            Prefix.Add(BeforeStart);
+            AppendStyledEdgePath(Builder,
+                FlowchartCurvePathBuilder.BuildRoundedCornerPathData(Prefix, Radius),
+                EdgeStyle, Edge.SourceId, Edge.TargetId);
+        }
+
+        AppendLabelGapRun(Builder, BeforeStart, GapStart, EdgeStyle, Edge);
+        AppendLabelGapRun(Builder, GapEnd, AfterEnd, EdgeStyle, Edge);
+
+        if (HasSuffix)
+        {
+            List<(double X, double Y)> Suffix = [AfterEnd, .. GuideSvgPoints.Skip(SegmentBreak.SegmentEndIndex)];
+            AppendStyledEdgePath(Builder,
+                FlowchartCurvePathBuilder.BuildRoundedCornerPathData(Suffix, Radius),
+                EdgeStyle, Edge.SourceId, Edge.TargetId);
+        }
+
+        // Markers use the complete route, including its true terminal tangent.
+        string FullPath = FlowchartCurvePathBuilder.BuildRoundedCornerPathData(GuideSvgPoints, Radius);
+        AppendCurvedEdgeMarkers(Builder, Edge, FullPath, GuideSvgPoints,
+            FlowchartCurvePathBuilder.ResolveRenderedPathKind(GuideSvgPoints, RouteKind, Direction), EdgeStyle);
+        return true;
+    }
+
+    private static void AppendLabelGapRun(
+        StringBuilder Builder, (double X, double Y) Start, (double X, double Y) End,
+        FlowchartResolvedStyle Style, EdgeContract Edge)
+    {
+        // A consistent line ordering also makes SVG inspection independent of
+        // whether the connector travels forwards or backwards on this axis.
+        if (Start.X > End.X || (Start.X == End.X && Start.Y > End.Y))
+        {
+            (Start, End) = (End, Start);
+        }
+        AppendStyledLine(Builder, Start.X, Start.Y, End.X, End.Y, Style,
+            "butt", Edge.SourceId, Edge.TargetId);
+    }
+
     private static void RenderStraightEdgeSegment(
         StringBuilder Builder,
         EdgeContract Edge,
@@ -1776,6 +2023,41 @@ public static class FlowchartSugiyamaSvgRenderer
         }
 
         AppendStyledLine(Builder, LineStartX, LineStartY, LineEndX, LineEndY, EdgeStyle, "butt", Edge.SourceId, Edge.TargetId);
+        RenderStraightEdgeMarkers(Builder, Edge, X1, Y1, TipX, TipY, EdgeStyle);
+    }
+
+    private static void RenderStraightEdgeMarkers(
+        StringBuilder Builder,
+        EdgeContract Edge,
+        double X1,
+        double Y1,
+        double TipX,
+        double TipY,
+        FlowchartResolvedStyle EdgeStyle)
+    {
+        (double DirX, double DirY) = GetUnitDirection(X1, Y1, TipX, TipY);
+        double LineStartX = X1;
+        double LineStartY = Y1;
+        double LineEndX = TipX;
+        double LineEndY = TipY;
+        double StartInset = GetMarkerInset(Edge.MarkerStart);
+        double EndInset = GetMarkerInset(Edge.MarkerEnd);
+        if (StartInset > 0.0)
+        {
+            (LineStartX, LineStartY) = ShortenSegmentFromStart(LineStartX, LineStartY, LineEndX, LineEndY, StartInset);
+        }
+
+        double RenderTipX = TipX;
+        double RenderTipY = TipY;
+        if (Edge.MarkerEnd == EdgeEndpointMarker.Point)
+        {
+            (RenderTipX, RenderTipY) = InsetArrowTipIntoNode(TipX, TipY, DirX, DirY);
+        }
+
+        if (EndInset > 0.0)
+        {
+            (LineEndX, LineEndY) = ShortenSegmentForArrowhead(LineStartX, LineStartY, RenderTipX, RenderTipY, EndInset);
+        }
 
         if (Edge.MarkerEnd == EdgeEndpointMarker.Point)
         {
@@ -2396,7 +2678,8 @@ public static class FlowchartSugiyamaSvgRenderer
             LayoutPoints.Add((Point.X, Point.Y));
         }
 
-        if (FlowchartCurvePathBuilder.TryCollapseAxisAlignedEndpoints(LayoutPoints, out List<(double X, double Y)> StraightSegment))
+        if (LayoutPoints.Count == 2
+            && FlowchartCurvePathBuilder.TryCollapseAxisAlignedEndpoints(LayoutPoints, out List<(double X, double Y)> StraightSegment))
         {
             (double StraightStartX, double StraightStartY) = LayoutToSvgPoint(
                 StraightSegment[0].X,
@@ -2410,15 +2693,44 @@ public static class FlowchartSugiyamaSvgRenderer
                 MinLeft,
                 MaxTop,
                 DiagramPaddingPx);
-            RenderStraightEdgeSegment(
-                Builder,
+            (double StraightLabelCentreSvgX, double StraightLabelCentreSvgY) = ResolveSvgLabelCentre(
                 Edge,
-                StraightStartX,
-                StraightStartY,
-                StraightEndX,
-                StraightEndY,
-                EdgeStyle,
+                Contract,
+                BoundsById,
+                SourceBounds,
+                TargetBounds,
+                SourceShape,
+                StraightSegment,
+                FlowchartEdgeRouteKind.Straight,
+                Direction,
+                RouteClass,
+                MinLeft,
+                MaxTop,
+                DiagramPaddingPx,
                 RenderOptions);
+            if (!TryRenderStraightEdgeSegmentWithLabelGap(
+                    Builder,
+                    Edge,
+                    StraightStartX,
+                    StraightStartY,
+                    StraightEndX,
+                    StraightEndY,
+                    StraightLabelCentreSvgX,
+                    StraightLabelCentreSvgY,
+                    EdgeStyle,
+                    RenderOptions))
+            {
+                RenderStraightEdgeSegment(
+                    Builder,
+                    Edge,
+                    StraightStartX,
+                    StraightStartY,
+                    StraightEndX,
+                    StraightEndY,
+                    EdgeStyle,
+                    RenderOptions);
+            }
+
             AppendResolvedEdgeLabel(
                 Builder,
                 Edge,
@@ -2444,17 +2756,47 @@ public static class FlowchartSugiyamaSvgRenderer
             SvgPoints.Add(LayoutToSvgPoint(LayoutX, LayoutY, MinLeft, MaxTop, DiagramPaddingPx));
         }
 
-        string PathData = FlowchartCurvePathBuilder.BuildPureD3CurveBasisPathData(SvgPoints);
-        AppendStyledEdgePath(Builder, PathData, EdgeStyle, Edge.SourceId, Edge.TargetId);
-        if (SvgPoints.Count >= 2)
-        {
-            AppendCurvedEdgeMarkers(
+        (double LabelCentreSvgX, double LabelCentreSvgY) = ResolveSvgLabelCentre(
+            Edge,
+            Contract,
+            BoundsById,
+            SourceBounds,
+            TargetBounds,
+            SourceShape,
+            LayoutPoints,
+            FlowchartEdgeRouteKind.Grid,
+            Direction,
+            RouteClass,
+            MinLeft,
+            MaxTop,
+            DiagramPaddingPx,
+            RenderOptions);
+
+        if (!TryRenderOrthogonalRouteWithLabelGap(
                 Builder,
                 Edge,
-                PathData,
                 SvgPoints,
-                FlowchartRenderedPathKind.CurveBasisFromGuidePoints,
-                EdgeStyle);
+                FlowchartEdgeRouteKind.Grid,
+                Direction,
+                LabelCentreSvgX,
+                LabelCentreSvgY,
+                EdgeStyle,
+                RenderOptions))
+        {
+            string PathData = FlowchartCurvePathBuilder.BuildRoundedCornerPathData(
+                SvgPoints,
+                DiagramGridRouteBuilder.CORNER_RADIUS_PX);
+            AppendStyledEdgePath(Builder, PathData, EdgeStyle, Edge.SourceId, Edge.TargetId);
+            if (SvgPoints.Count >= 2)
+            {
+                AppendCurvedEdgeMarkers(
+                    Builder,
+                    Edge,
+                    PathData,
+                    SvgPoints,
+                    FlowchartRenderedPathKind.Corridor,
+                    EdgeStyle);
+            }
         }
 
         AppendResolvedEdgeLabel(
@@ -2473,6 +2815,17 @@ public static class FlowchartSugiyamaSvgRenderer
             DiagramPaddingPx,
             EdgeStyle,
             RenderOptions);
+    }
+
+    private static bool IsFarChildSideExitGridRoute(FlowchartLayoutEdgeRoute Route)
+    {
+        if (Route.Points.Count < 4)
+        {
+            return false;
+        }
+
+        return string.Equals(Route.ExitSide, "left", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(Route.ExitSide, "right", StringComparison.OrdinalIgnoreCase);
     }
 
     private static Dictionary<string, Queue<FlowchartLayoutEdgeRoute>> IndexDagreRoutes(FlowchartLayoutResult Layout)

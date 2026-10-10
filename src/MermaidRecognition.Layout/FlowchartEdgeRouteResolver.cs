@@ -29,10 +29,12 @@ public static class FlowchartEdgeRouteResolver
         IReadOnlyDictionary<string, NodeContract> NodeById,
         FlowchartDirection Direction,
         out List<(double X, double Y)> LayoutPoints,
-        out FlowchartEdgeRouteKind RouteKind)
+        out FlowchartEdgeRouteKind RouteKind,
+        FlowchartLayoutResult? Layout = null)
     {
         List<FlowchartResolvedGuide> Guides = GetOrResolveAllVisibleGuidePoints(
             Contract,
+            Layout,
             BoundsById,
             NodeById,
             Direction);
@@ -55,25 +57,39 @@ public static class FlowchartEdgeRouteResolver
 
     private static List<FlowchartResolvedGuide> GetOrResolveAllVisibleGuidePoints(
         DiagramContract Contract,
+        FlowchartLayoutResult? Layout,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         IReadOnlyDictionary<string, NodeContract> NodeById,
         FlowchartDirection Direction)
     {
-        if (_CachedRouteGuides != null && ReferenceEquals(_CachedRouteContract, Contract))
+        if (Layout == null
+            && _CachedRouteGuides != null
+            && ReferenceEquals(_CachedRouteContract, Contract))
         {
             return _CachedRouteGuides;
         }
 
-        return ResolveAllVisibleGuidePoints(Contract, BoundsById, NodeById, Direction);
+        List<FlowchartResolvedGuide> Guides = ResolveAllVisibleGuidePoints(
+            Contract,
+            Layout,
+            BoundsById,
+            NodeById,
+            Direction);
+        if (Layout == null)
+        {
+            _CachedRouteContract = Contract;
+            _CachedRouteGuides = Guides;
+        }
+
+        return Guides;
     }
 
     private static bool IsSameEdge(EdgeContract Left, EdgeContract Right)
     {
         if (!string.IsNullOrEmpty(Left.Id)
-            && !string.IsNullOrEmpty(Right.Id)
-            && string.Equals(Left.Id, Right.Id, StringComparison.Ordinal))
+            && !string.IsNullOrEmpty(Right.Id))
         {
-            return true;
+            return string.Equals(Left.Id, Right.Id, StringComparison.Ordinal);
         }
 
         return string.Equals(Left.SourceId, Right.SourceId, StringComparison.Ordinal)
@@ -90,6 +106,25 @@ public static class FlowchartEdgeRouteResolver
     /// <returns>Resolved guides in contract edge order.</returns>
     public static List<FlowchartResolvedGuide> ResolveAllVisibleGuidePoints(
         DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        IReadOnlyDictionary<string, NodeContract> NodeById,
+        FlowchartDirection Direction)
+    {
+        return ResolveAllVisibleGuidePoints(Contract, null, BoundsById, NodeById, Direction);
+    }
+
+    /// <summary>
+    /// Resolves every visible edge, preferring precomputed grid routes when present.
+    /// </summary>
+    /// <param name="Contract">The diagram.</param>
+    /// <param name="Layout">Optional layout with grid edge routes.</param>
+    /// <param name="BoundsById">Node bounds, including group rectangles when present.</param>
+    /// <param name="NodeById">Nodes by id.</param>
+    /// <param name="Direction">Diagram direction.</param>
+    /// <returns>Resolved guides in contract edge order.</returns>
+    public static List<FlowchartResolvedGuide> ResolveAllVisibleGuidePoints(
+        DiagramContract Contract,
+        FlowchartLayoutResult? Layout,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         IReadOnlyDictionary<string, NodeContract> NodeById,
         FlowchartDirection Direction)
@@ -111,6 +146,19 @@ public static class FlowchartEdgeRouteResolver
                 continue;
             }
 
+            if (Layout != null
+                && TryResolveGridLayoutPoints(
+                    Layout,
+                    Contract,
+                    NodeById,
+                    Edge,
+                    out List<(double X, double Y)> GridPoints,
+                    out FlowchartEdgeRouteKind GridKind))
+            {
+                Guides.Add(new FlowchartResolvedGuide(Edge, GridPoints, GridKind));
+                continue;
+            }
+
             if (!TryResolveRawLayoutGuidePoints(
                     Edge,
                     Contract,
@@ -126,10 +174,98 @@ public static class FlowchartEdgeRouteResolver
             Guides.Add(new FlowchartResolvedGuide(Edge, Points, RouteKind));
         }
 
-        FlowchartSharedEdgeRouter.RouteAll(Contract, MutableBounds, NodeById, Direction, Guides);
+        if (!UsedGridLayoutRoutes(Layout, Guides))
+        {
+            FlowchartSharedEdgeRouter.RouteAll(Contract, MutableBounds, NodeById, Direction, Guides);
+        }
+
         _CachedRouteContract = Contract;
         _CachedRouteGuides = Guides;
         return Guides;
+    }
+
+    private static bool UsedGridLayoutRoutes(FlowchartLayoutResult? Layout, List<FlowchartResolvedGuide> Guides)
+    {
+        return Layout != null && Layout.EdgeRoutes.Count > 0;
+    }
+
+    /// <summary>
+    /// Returns guide points from a completed grid layout when the edge was routed there.
+    /// </summary>
+    internal static bool TryResolveGridLayoutPoints(
+        FlowchartLayoutResult Layout,
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, NodeContract> NodeById,
+        EdgeContract Edge,
+        out List<(double X, double Y)> LayoutPoints,
+        out FlowchartEdgeRouteKind RouteKind)
+    {
+        LayoutPoints = [];
+        RouteKind = FlowchartEdgeRouteKind.Unknown;
+        if (!Layout.TryCopyDrawnRoutePoints(Edge, out List<(double X, double Y)> Copied)
+            || Copied.Count < 2)
+        {
+            return false;
+        }
+
+        LayoutPoints = Copied;
+        if (FlowchartBackEdgeHelper.FindBackEdges(Contract).Contains(Edge))
+        {
+            RouteKind = FlowchartEdgeRouteKind.RetryLoop;
+            return true;
+        }
+
+        if (LayoutPoints.Count == 2)
+        {
+            RouteKind = FlowchartEdgeRouteKind.Straight;
+            return true;
+        }
+
+        if (NodeById.TryGetValue(Edge.SourceId, out NodeContract? SourceNode))
+        {
+            if (FlowchartDagrePresentation.IsDiamondShape(SourceNode.Shape)
+                && CountVisibleOutgoing(Contract, Edge.SourceId) >= 2)
+            {
+                RouteKind = FlowchartEdgeRouteKind.Grid;
+                return true;
+            }
+
+            Dictionary<string, FlowchartLayoutNodeBounds> BoundsById =
+                new Dictionary<string, FlowchartLayoutNodeBounds>(StringComparer.Ordinal);
+            foreach (FlowchartLayoutNodeBounds Bounds in Layout.NodeBounds)
+            {
+                BoundsById[Bounds.NodeId] = Bounds;
+            }
+
+            if (FlowchartOrdinaryFanOutRouteBuilder.TryIsOrdinaryFanOutHub(
+                    Contract,
+                    Edge.SourceId,
+                    SourceNode.Shape,
+                    FlowchartDirectionNormalizer.Normalize(Contract.Direction),
+                    BoundsById))
+            {
+                RouteKind = FlowchartEdgeRouteKind.Grid;
+                return true;
+            }
+        }
+
+        RouteKind = FlowchartEdgeRouteKind.Grid;
+        return true;
+    }
+
+    private static int CountVisibleOutgoing(DiagramContract Contract, string SourceId)
+    {
+        int Count = 0;
+        foreach (EdgeContract Candidate in Contract.Edges)
+        {
+            if (string.Equals(Candidate.SourceId, SourceId, StringComparison.Ordinal)
+                && !string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+            {
+                Count++;
+            }
+        }
+
+        return Count;
     }
 
     private static bool TryResolveRawLayoutGuidePoints(
@@ -184,6 +320,34 @@ public static class FlowchartEdgeRouteResolver
         string? SourceShape = NodeById.TryGetValue(Edge.SourceId, out NodeContract? SourceNode) ? SourceNode.Shape : null;
         string? TargetShape = NodeById.TryGetValue(Edge.TargetId, out NodeContract? TargetNode) ? TargetNode.Shape : null;
 
+        if (FlowchartLoopBackRouteHelper.TryResolveDecisionLoopBackRoute(Edge, Contract, EffectiveBounds, NodeById, Direction, out List<(double X, double Y)> DecisionLoopPoints))
+        {
+            LayoutPoints = DecisionLoopPoints;
+            RouteKind = FlowchartEdgeRouteKind.RetryLoop;
+            return true;
+        }
+
+        if (FlowchartLoopBackRouteHelper.TryResolveSoleForwardDecisionBranch(Edge, Contract, EffectiveBounds, NodeById, Direction, out List<(double X, double Y)> SoleBranchPoints))
+        {
+            LayoutPoints = SoleBranchPoints;
+            RouteKind = FlowchartEdgeRouteKind.Straight;
+            return true;
+        }
+
+        if (FlowchartDecisionPortAllocator.TryResolveEdgeRoute(
+                Edge,
+                Contract,
+                EffectiveBounds,
+                SourceShape,
+                TargetShape,
+                Direction,
+                out List<(double X, double Y)> EarlyDecisionPoints))
+        {
+            LayoutPoints = EarlyDecisionPoints;
+            RouteKind = FlowchartEdgeRouteKind.Grid;
+            return true;
+        }
+
         if (FlowchartEdgePathBuilder.IsLrRetryLoopEdge(
                 Edge,
                 Contract,
@@ -215,20 +379,6 @@ public static class FlowchartEdgeRouteResolver
         {
             LayoutPoints = GroupedPoints;
             RouteKind = FlowchartEdgeRouteKind.GroupedTwoByTwo;
-            return true;
-        }
-
-        if (FlowchartLoopBackRouteHelper.TryResolveDecisionLoopBackRoute(Edge, Contract, BoundsById, NodeById, Direction, out List<(double X, double Y)> DecisionLoopPoints))
-        {
-            LayoutPoints = DecisionLoopPoints;
-            RouteKind = FlowchartEdgeRouteKind.RetryLoop;
-            return true;
-        }
-
-        if (FlowchartLoopBackRouteHelper.TryResolveSoleForwardDecisionBranch(Edge, Contract, BoundsById, NodeById, Direction, out List<(double X, double Y)> SoleBranchPoints))
-        {
-            LayoutPoints = SoleBranchPoints;
-            RouteKind = FlowchartEdgeRouteKind.Straight;
             return true;
         }
 
@@ -354,37 +504,6 @@ public static class FlowchartEdgeRouteResolver
             return true;
         }
 
-        if (FlowchartDecisionPortAllocator.TryResolveEdgeRoute(
-                Edge,
-                Contract,
-                BoundsById,
-                SourceShape,
-                TargetShape,
-                Direction,
-                out List<(double X, double Y)> DecisionPoints))
-        {
-            LayoutPoints = DecisionPoints;
-            RouteKind = FlowchartEdgeRouteKind.Decision;
-            return true;
-        }
-
-        if (FlowchartTerminalCollectorPortAllocator.TryResolveEdgeRoute(
-                Edge,
-                Contract,
-                BoundsById,
-                SourceShape,
-                TargetShape,
-                Direction,
-                out List<(double X, double Y)> TerminalCollectorPoints))
-        {
-            LayoutPoints = TerminalCollectorPoints;
-            RouteKind = TerminalCollectorPoints.Count == 2
-                || FlowchartTerminalCollectorPortAllocator.IsSpineStraightRoute(TerminalCollectorPoints)
-                ? FlowchartEdgeRouteKind.Straight
-                : FlowchartEdgeRouteKind.Curved;
-            return true;
-        }
-
         if (FlowchartParallelBranchHubPortHelper.TryResolveEdgeRoute(Edge, Contract, BoundsById, NodeById, Direction, out List<(double X, double Y)> ParallelBranchPoints, out bool _))
         {
             LayoutPoints = ParallelBranchPoints;
@@ -413,6 +532,23 @@ public static class FlowchartEdgeRouteResolver
                 || FanInPoints.Count == 2
                 ? FlowchartEdgeRouteKind.Straight
                 : FlowchartEdgeRouteKind.Curved;
+            return true;
+        }
+
+        if (FlowchartOrdinaryFanOutRouteBuilder.TryBuildEdgeRoute(
+                Edge,
+                Contract,
+                BoundsById,
+                SourceShape,
+                TargetShape,
+                Direction,
+                out List<(double X, double Y)> OrdinaryFanOutPoints))
+        {
+            LayoutPoints = OrdinaryFanOutPoints;
+            RouteKind = FlowchartEdgeConnectionGeometry.IsCollinearStubStraightRoute(OrdinaryFanOutPoints)
+                || OrdinaryFanOutPoints.Count == 2
+                ? FlowchartEdgeRouteKind.Straight
+                : FlowchartEdgeRouteKind.Grid;
             return true;
         }
 
@@ -713,5 +849,10 @@ public enum FlowchartEdgeRouteKind
     /// <summary>
     /// Orthogonal exterior corridor with explicit waypoint fidelity (bypass / exception lanes).
     /// </summary>
-    Corridor
+    Corridor,
+
+    /// <summary>
+    /// Orthogonal grid route from <see cref="DiagramGridLayout"/> that must not be rewritten.
+    /// </summary>
+    Grid
 }

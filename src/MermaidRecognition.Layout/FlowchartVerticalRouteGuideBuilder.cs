@@ -430,37 +430,55 @@ public static class FlowchartVerticalRouteGuideBuilder
         FlowchartDecisionPortRole Role,
         bool IsInbound = false)
     {
-        (double SourceStubX, double SourceStubY) = ComputeStubOuterPoint(
-            SourceX,
-            SourceY,
-            SourceBounds,
-            SourceShape);
-        (double TargetStubX, double TargetStubY) = ComputeStubOuterPoint(
-            TargetX,
-            TargetY,
-            TargetBounds,
-            TargetShape);
-
-        (double GuideX, double GuideY) = IsInbound
-            ? BuildVerticalDecisionBranchGuidePoint(
-                HubCentreX,
-                TargetStubX,
-                TargetStubY,
-                SourceStubX,
-                SourceStubY,
-                Role)
-            : BuildVerticalDecisionBranchGuidePoint(
-                HubCentreX,
-                SourceStubX,
-                SourceStubY,
-                TargetStubX,
-                TargetStubY,
-                Role);
+        bool SpinePort = Role == FlowchartDecisionPortRole.BottomVertex
+            || Role == FlowchartDecisionPortRole.TopVertex;
+        bool AlignedTarget = Math.Abs(TargetX - HubCentreX) <= COLLINEAR_EPSILON_PX;
+        bool CentreAlignedSource = Math.Abs(SourceX - HubCentreX) <= COLLINEAR_EPSILON_PX;
 
         Points.Add((SourceX, SourceY));
-        Points.Add((SourceStubX, SourceStubY));
-        Points.Add((GuideX, GuideY));
-        Points.Add((TargetStubX, TargetStubY));
+        if (SpinePort || (AlignedTarget && CentreAlignedSource))
+        {
+            Points.Add((TargetX, TargetY));
+            return;
+        }
+
+        double MinimumStubPx = DiagramGridRouteBuilder.CORNER_RADIUS_PX + DiagramGridMetrics.GRID_UNIT_PX;
+        if (Role == FlowchartDecisionPortRole.SideRight
+            && SourceX > HubCentreX + COLLINEAR_EPSILON_PX
+            && TargetX < SourceX - COLLINEAR_EPSILON_PX)
+        {
+            double OutwardX = SourceX + MinimumStubPx;
+            Points.Add((OutwardX, SourceY));
+            Points.Add((OutwardX, TargetY));
+            if (Math.Abs(TargetX - OutwardX) > COLLINEAR_EPSILON_PX)
+            {
+                Points.Add((TargetX, TargetY));
+            }
+
+            return;
+        }
+
+        if (Role == FlowchartDecisionPortRole.SideLeft
+            && SourceX < HubCentreX - COLLINEAR_EPSILON_PX
+            && TargetX > SourceX + COLLINEAR_EPSILON_PX)
+        {
+            double OutwardX = SourceX - MinimumStubPx;
+            Points.Add((OutwardX, SourceY));
+            Points.Add((OutwardX, TargetY));
+            if (Math.Abs(TargetX - OutwardX) > COLLINEAR_EPSILON_PX)
+            {
+                Points.Add((TargetX, TargetY));
+            }
+
+            return;
+        }
+
+        double CorridorX = TargetBounds.CenterX;
+        if (Math.Abs(SourceX - CorridorX) > COLLINEAR_EPSILON_PX)
+        {
+            Points.Add((CorridorX, SourceY));
+        }
+
         Points.Add((TargetX, TargetY));
     }
 
