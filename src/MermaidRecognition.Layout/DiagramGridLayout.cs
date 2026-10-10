@@ -133,6 +133,7 @@ public static class DiagramGridLayout
             FitFrames(Contract, Placed, Frames, Horizontal);
         if (!Open && FlowchartExternalLeafPlacement.Apply(Contract, Placed, Frames, Horizontal))
             FitFrames(Contract, Placed, Frames, Horizontal);
+        if (!Open) FlowchartIntergroupNodePlacement.Apply(Contract, Placed, Frames, Horizontal);
         FlipToYUp(Placed, Frames, Copy);
         EnsureBackEdgeRoutes(Contract, Copy, Placed);
         AssignPortSides(Contract, Copy, Placed, Frames, Nodes, Direction, SharedFanSources);
@@ -160,6 +161,7 @@ public static class DiagramGridLayout
         FlowchartObstacleRouteRepair.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
         FlowchartReturnRouteOrder.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
         FlowchartNestedCounterflowTracks.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
+        FlowchartCrossGroupRouteSimplifier.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
         WriteBack(Copy, Placed, Frames);
         return Copy;
     }

@@ -182,6 +182,10 @@ internal static class EnterpriseFlowchartEdgeRouter
             Node => new FlowchartLayoutNodeBounds { NodeId = Node.Id,
                 CenterX = Node.AbsoluteX + Node.Width / 2, CenterY = Node.AbsoluteY + Node.Height / 2,
                 Width = Node.Width, Height = Node.Height }, StringComparer.Ordinal));
+        FlowchartCrossGroupRouteSimplifier.Apply(Layout, Contract, Nodes.Values.ToDictionary(Node => Node.Id,
+            Node => new FlowchartLayoutNodeBounds { NodeId = Node.Id,
+                CenterX = Node.AbsoluteX + Node.Width / 2, CenterY = Node.AbsoluteY + Node.Height / 2,
+                Width = Node.Width, Height = Node.Height }, StringComparer.Ordinal));
         for (int Index = 0; Index < Edges.Count; Index++)
         {
             var Edge = Edges[Index];
