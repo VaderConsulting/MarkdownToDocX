@@ -43,7 +43,9 @@ internal static class EnterpriseFlowchartEdgeRouter
         }
 
         HashSet<string> UsedEdgeIds = new HashSet<string>(StringComparer.Ordinal);
+        var CompoundPorts = new Dictionary<string, List<(double X, double Y)>>(StringComparer.Ordinal);
         List<EnterpriseRoutedEdge> Routed = new List<EnterpriseRoutedEdge>();
+        var RoutedContracts = new List<EdgeContract>();
         foreach (EnterpriseRelationship Relationship in Document.Relationships)
         {
             if (Relationship.HiddenByNesting)
@@ -72,6 +74,8 @@ internal static class EnterpriseFlowchartEdgeRouter
                 continue;
             }
 
+            FlowchartCompoundEndpointHelper.ReattachVisiblePorts(Edge, Context.Contract, Context.Layout,
+                Context.BoundsById, Context.NodeById, Context.Direction, LayoutPoints, CompoundPorts);
             List<(double X, double Y)> SvgPoints = new List<(double X, double Y)>();
             foreach ((double LayoutX, double LayoutY) in LayoutPoints)
             {
@@ -145,10 +149,37 @@ internal static class EnterpriseFlowchartEdgeRouter
                 Label,
                 LabelX,
                 LabelY));
+            RoutedContracts.Add(Edge);
         }
 
+        SeparateVisibleTracks(Routed, RoutedContracts, Nodes, Context.Contract);
         EnterpriseRelationshipLabelLayout.Place(Routed, Nodes);
         return Routed;
+    }
+
+    private static void SeparateVisibleTracks(List<EnterpriseRoutedEdge> Edges, List<EdgeContract> Contracts,
+        Dictionary<string, EnterpriseLayoutNode> Nodes, DiagramContract Contract)
+    {
+        var Layout = new FlowchartLayoutResult();
+        for (int Index = 0; Index < Edges.Count; Index++)
+        {
+            var Route = new FlowchartLayoutEdgeRoute { EdgeId = Contracts[Index].Id ?? string.Empty,
+                SourceId = Contracts[Index].SourceId, TargetId = Contracts[Index].TargetId };
+            foreach (var Point in Edges[Index].SvgPoints) Route.Points.Add(new() { X = Point.X, Y = Point.Y });
+            Layout.EdgeRoutesMutable.Add(Route);
+        }
+        var Obstacles = new List<DiagramGridLayout.GridNode>();
+        foreach (var Node in Nodes.Values) Obstacles.Add(new() { Id = Node.Id,
+            X = Node.AbsoluteX + Node.Width / 2, Y = Node.AbsoluteY + Node.Height / 2,
+            Width = (int)Math.Ceiling(Node.Width), Height = (int)Math.Ceiling(Node.Height) });
+        DiagramGridLayout.SeparateTracks(Layout, Obstacles, Contract);
+        for (int Index = 0; Index < Edges.Count; Index++)
+        {
+            var Edge = Edges[Index];
+            Edge.SvgPoints.Clear();
+            foreach (var Point in Layout.EdgeRoutes[Index].Points) Edge.SvgPoints.Add((Point.X, Point.Y));
+            Edge.PathData = FlowchartCurvePathBuilder.BuildRoundedCornerPathData(Edge.SvgPoints, DiagramGridRouteBuilder.CORNER_RADIUS_PX);
+        }
     }
 
     /// <summary>
@@ -621,7 +652,7 @@ internal sealed class EnterpriseRoutedEdge
 
     internal EnterpriseRelationship Relationship { get; }
 
-    internal string PathData { get; }
+    internal string PathData { get; set; }
 
     internal List<(double X, double Y)> SvgPoints { get; }
 

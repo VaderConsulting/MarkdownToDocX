@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 using MermaidRecognition.Contract;
 using MermaidRecognition.Kinds.Flowchart;
@@ -12,6 +13,73 @@ namespace MermaidRecognition.Layout;
 /// </summary>
 public static class FlowchartCompoundEndpointHelper
 {
+    internal static void ReattachVisiblePorts(EdgeContract Edge, DiagramContract Contract,
+        FlowchartLayoutResult Layout, IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds,
+        IReadOnlyDictionary<string, NodeContract> Nodes, FlowchartDirection Direction,
+        List<(double X, double Y)> Points, Dictionary<string, List<(double X, double Y)>> UsedPorts)
+    {
+        if (Points.Count < 2 || !Bounds.TryGetValue(Edge.SourceId, out var Source)
+            || !Bounds.TryGetValue(Edge.TargetId, out var Target)) return;
+        var Route = Layout.EdgeRoutes.FirstOrDefault(Route => Route.EdgeId == Edge.Id);
+        if (Route == null) return;
+        string? Exit = Route.ExitSide, Entry = Route.EntrySide;
+        var Start = Points[0]; var End = Points[^1];
+        bool Repair(string Id, FlowchartLayoutNodeBounds Box, (double X, double Y) Other,
+            ref (double X, double Y) Port, ref string? Side)
+        {
+            if (!IsGroupId(Contract, Id)) return false;
+            if (!UsedPorts.TryGetValue(Id, out var Ports)) UsedPorts[Id] = Ports = new();
+            double Left = Box.CenterX - Box.Width / 2, Right = Box.CenterX + Box.Width / 2;
+            double Bottom = Box.CenterY - Box.Height / 2, Top = Box.CenterY + Box.Height / 2;
+            if (Port.X >= Left - 0.5 && Port.X <= Right + 0.5 && Port.Y >= Bottom - 0.5 && Port.Y <= Top + 0.5
+                && (Math.Abs(Port.X - Left) < 0.5 || Math.Abs(Port.X - Right) < 0.5
+                    || Math.Abs(Port.Y - Top) < 0.5 || Math.Abs(Port.Y - Bottom) < 0.5))
+            {
+                Ports.Add(Port);
+                return false;
+            }
+            // Recomputed visible frames can be smaller than the routing frames.
+            // Choose a facing border, reserving the title band on vertical sides.
+            if (Other.X < Left || Other.X > Right)
+            {
+                Side = Other.X < Left ? "left" : "right";
+                Port = (Other.X < Left ? Left : Right,
+                    Math.Clamp(Port.Y, Bottom + Math.Min(15, Box.Height / 4), Top - Math.Min(40, Box.Height / 2)));
+            }
+            else
+            {
+                Side = Other.Y > Top ? "top" : "bottom";
+                Port = (Math.Clamp(Port.X, Left + Math.Min(15, Box.Width / 4), Right - Math.Min(15, Box.Width / 4)),
+                    Other.Y > Top ? Top : Bottom);
+            }
+            var Preferred = Port;
+            bool Vertical = Side is "left" or "right";
+            double Low = Vertical ? Bottom + Math.Min(15, Box.Height / 4) : Left + Math.Min(15, Box.Width / 4);
+            double High = Vertical ? Top - Math.Min(40, Box.Height / 2) : Right - Math.Min(15, Box.Width / 4);
+            for (int Step = 0; Step <= (int)((High - Low) / 15) * 2 + 2; Step++)
+            {
+                double Offset = Step == 0 ? 0 : ((Step + 1) / 2) * 15 * (Step % 2 == 1 ? -1 : 1);
+                var Candidate = Vertical ? (X: Preferred.X, Y: Preferred.Y + Offset) : (X: Preferred.X + Offset, Y: Preferred.Y);
+                double Along = Vertical ? Candidate.Y : Candidate.X;
+                if (Along < Low || Along > High || Ports.Any(Used => Math.Abs(Used.X - Candidate.X) + Math.Abs(Used.Y - Candidate.Y) < 15)) continue;
+                Port = Candidate;
+                break;
+            }
+            Ports.Add(Port);
+            return true;
+        }
+        bool Changed = Repair(Edge.SourceId, Source, End, ref Start, ref Exit);
+        Changed |= Repair(Edge.TargetId, Target, Start, ref End, ref Entry);
+        if (!Changed) return;
+        Nodes.TryGetValue(Edge.SourceId, out var SourceNode);
+        Nodes.TryGetValue(Edge.TargetId, out var TargetNode);
+        var Rebuilt = DiagramGridRouteBuilder.BuildRoute(Start.X, Start.Y, Source, SourceNode?.Shape ?? "rect", Exit,
+            End.X, End.Y, Target, TargetNode?.Shape ?? "rect", Entry, Bounds, Edge.SourceId, Edge.TargetId,
+            Contract, Direction, Direction is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft);
+        Points.Clear();
+        Points.AddRange(Rebuilt);
+    }
+
     internal static bool Contains(DiagramContract Contract, string GroupId, string ChildId)
     {
         string? Parent = null;

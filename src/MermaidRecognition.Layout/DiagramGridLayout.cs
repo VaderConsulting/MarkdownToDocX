@@ -2896,7 +2896,7 @@ public static class DiagramGridLayout
         }
     }
 
-    private static void SeparateTracks(FlowchartLayoutResult Copy, List<GridNode> Placed)
+    internal static void SeparateTracks(FlowchartLayoutResult Copy, List<GridNode> Placed, DiagramContract? Contract = null)
     {
         List<FlowchartLayoutEdgeRoute> Routes = new List<FlowchartLayoutEdgeRoute>();
         foreach (FlowchartLayoutEdgeRoute Route in Copy.EdgeRoutes)
@@ -2922,14 +2922,13 @@ public static class DiagramGridLayout
         {
             for (int RightIndex = LeftIndex + 1; RightIndex < Routes.Count; RightIndex++)
             {
-                NudgeOffSharedRun(Routes[LeftIndex], Routes[RightIndex], Placed);
+                NudgeOffSharedRun(Routes[LeftIndex], Routes[RightIndex], Placed, Contract);
             }
         }
     }
 
-    private static void NudgeOffSharedRun(FlowchartLayoutEdgeRoute Stay, FlowchartLayoutEdgeRoute Mover, List<GridNode> Placed)
+    private static void NudgeOffSharedRun(FlowchartLayoutEdgeRoute Stay, FlowchartLayoutEdgeRoute Mover, List<GridNode> Placed, DiagramContract? Contract)
     {
-        const double TrackSeparation = 6;
         for (int Index = 1; Index < Mover.Points.Count - 2; Index++)
         {
             FlowchartLayoutPoint Start = Mover.Points[Index];
@@ -2939,6 +2938,19 @@ public static class DiagramGridLayout
             if (!Vertical && !Horizontal)
             {
                 continue;
+            }
+            double TrackSeparation = 6;
+            if (Contract != null)
+            {
+                var Options = FlowchartRenderOptions.FromContract(Contract);
+                double CaptionHalf(FlowchartLayoutEdgeRoute Route)
+                {
+                    var Edge = Contract.Edges.FirstOrDefault(Edge => Edge.Id == Route.EdgeId);
+                    if (string.IsNullOrWhiteSpace(Edge?.Label)) return 0;
+                    var Size = FlowchartNodeSizeEstimator.MeasureWrappedLabel(Edge.Label, Options, Options.EdgeLabelFontSizePx);
+                    return (Vertical ? Size.Width : Size.Height) / 2;
+                }
+                TrackSeparation = Math.Max(6, CaptionHalf(Stay) + CaptionHalf(Mover) + 6);
             }
 
             for (int OtherIndex = 1; OtherIndex < Stay.Points.Count; OtherIndex++)
@@ -2960,9 +2972,12 @@ public static class DiagramGridLayout
                 }
 
                 double Offset = (Gap < 0 ? -TrackSeparation : TrackSeparation) - Gap;
-                if (!TryTranslateInternalRun(Mover, Index, Vertical, Offset, Placed))
+                var Obstacles = Contract == null ? Placed : Placed.Where(Node =>
+                    !FlowchartCompoundEndpointHelper.Contains(Contract, Node.Id, Mover.SourceId)
+                    && !FlowchartCompoundEndpointHelper.Contains(Contract, Node.Id, Mover.TargetId)).ToList();
+                if (!TryTranslateInternalRun(Mover, Index, Vertical, Offset, Obstacles))
                 {
-                    TryTranslateInternalRun(Mover, Index, Vertical, -Offset, Placed);
+                    TryTranslateInternalRun(Mover, Index, Vertical, -Offset, Obstacles);
                 }
             }
         }

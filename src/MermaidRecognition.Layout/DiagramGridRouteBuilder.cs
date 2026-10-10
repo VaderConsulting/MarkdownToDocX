@@ -311,7 +311,7 @@ public static class DiagramGridRouteBuilder
         }
     }
 
-    private static List<(double X, double Y)> BuildRoute(
+    internal static List<(double X, double Y)> BuildRoute(
         double StartX,
         double StartY,
         FlowchartLayoutNodeBounds SourceBounds,
