@@ -98,6 +98,7 @@ internal static class FlowchartCrossGroupRouteSimplifier
             }
             void Consider(List<(double X, double Y)> Path)
             {
+                if (!PortClear(Path[0], Path[1], Source) || !PortClear(Path[^1], Path[^2], Target)) return;
                 foreach (var Pair in Path.Zip(Path.Skip(1)))
                 {
                     if (Math.Abs(Pair.First.X - Pair.Second.X) + Math.Abs(Pair.First.Y - Pair.Second.Y) < 20) return;
@@ -112,6 +113,9 @@ internal static class FlowchartCrossGroupRouteSimplifier
                         if (Math.Abs(End.X - Path[0].X) + Math.Abs(End.Y - Path[0].Y) < 6
                             || Math.Abs(End.X - Path[^1].X) + Math.Abs(End.Y - Path[^1].Y) < 6) return;
                     var Points = Other.Points.Select(Point => (Point.X, Point.Y)).ToList();
+                    var OtherEdge = Contract.Edges.FirstOrDefault(Item => Item.Id == Other.EdgeId);
+                    if (CaptionConflict(Path, Points, Edge.Label, OtherEdge?.Label)
+                        > CaptionConflict(Best, Points, Edge.Label, OtherEdge?.Label) + 0.01) return;
                     var Old = FlowchartBranchRouteOrder.Intersections(Best, Points);
                     var New = FlowchartBranchRouteOrder.Intersections(Path, Points);
                     if (New.Overlap > Old.Overlap + 0.01) return;
@@ -134,5 +138,36 @@ internal static class FlowchartCrossGroupRouteSimplifier
                 Best = Path; BestCost = CandidateCost;
             }
         }
+    }
+
+    private static bool PortClear((double X, double Y) End, (double X, double Y) Next, FlowchartLayoutNodeBounds Box)
+    {
+        bool Horizontal = Math.Abs(End.Y - Next.Y) < 0.01;
+        double Face = Horizontal ? Box.Height : Box.Width;
+        double Offset = Horizontal ? Math.Abs(End.Y - Box.CenterY) : Math.Abs(End.X - Box.CenterX);
+        return Face / 2 - Offset >= Math.Min(Face / 2, Face >= 100 ? 24 : 12) - 0.01;
+    }
+
+    // Keep parallel bundles far enough apart for a caption on either connector.
+    private static double CaptionConflict(List<(double X, double Y)> Path, List<(double X, double Y)> Other,
+        string? Label, string? OtherLabel)
+    {
+        if (string.IsNullOrWhiteSpace(Label) && string.IsNullOrWhiteSpace(OtherLabel)) return 0;
+        double Width = Math.Max(Label?.Length ?? 0, OtherLabel?.Length ?? 0) * 12 * FlowchartEdgeLabelGapHelper.LABEL_CHAR_WIDTH_EM;
+        double Conflict = 0;
+        foreach (var A in Path.Zip(Path.Skip(1)))
+        foreach (var B in Other.Zip(Other.Skip(1)))
+        {
+            bool Vertical = Math.Abs(A.First.X - A.Second.X) < 0.01;
+            if (Vertical != (Math.Abs(B.First.X - B.Second.X) < 0.01)) continue;
+            double Separation = Vertical ? Math.Abs(A.First.X - B.First.X) : Math.Abs(A.First.Y - B.First.Y);
+            double Clearance = (Vertical ? Width : 12) / 2 + 6;
+            if (Separation >= Clearance) continue;
+            double Overlap = Vertical
+                ? Math.Min(Math.Max(A.First.Y, A.Second.Y), Math.Max(B.First.Y, B.Second.Y)) - Math.Max(Math.Min(A.First.Y, A.Second.Y), Math.Min(B.First.Y, B.Second.Y))
+                : Math.Min(Math.Max(A.First.X, A.Second.X), Math.Max(B.First.X, B.Second.X)) - Math.Max(Math.Min(A.First.X, A.Second.X), Math.Min(B.First.X, B.Second.X));
+            Conflict += Math.Max(0, Overlap) * (Clearance - Separation);
+        }
+        return Conflict;
     }
 }
