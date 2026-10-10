@@ -38,9 +38,9 @@ public sealed class ContainerCompactionTests
         {
             Source.AppendLine($"subgraph group{Group}\nnode{Group}a --> node{Group}b\nend");
             Raw.NodeBoundsMutable.Add(new() { NodeId = $"node{Group}a", CenterX = Group * 600,
-                CenterY = 0, Width = 150, Height = 60 });
+                CenterY = Group % 2 == 0 ? 0 : 180, Width = 150, Height = 60 });
             Raw.NodeBoundsMutable.Add(new() { NodeId = $"node{Group}b", CenterX = (Count - Group - 1) * 600,
-                CenterY = 180, Width = 150, Height = 60 });
+                CenterY = Group % 2 == 0 ? 180 : 0, Width = 150, Height = 60 });
         }
         Source.AppendLine("outside --> node0a");
         Raw.NodeBoundsMutable.Add(new() { NodeId = "outside", CenterX = Count * 2000,
@@ -53,6 +53,7 @@ public sealed class ContainerCompactionTests
         foreach (var Frame in Layout.ClusterBounds)
         {
             Assert.That(Frame.Width, Is.LessThanOrEqualTo(2 * BoxWidth + 180));
+            Assert.That(Frame.Height, Is.LessThanOrEqualTo(3 * Layout.NodeBounds.Max(Node => Node.Height) + 180));
             foreach (var Other in Layout.ClusterBounds.Where(Other => Other != Frame))
                 Assert.That(Math.Abs(Frame.CenterX - Other.CenterX) >= (Frame.Width + Other.Width) / 2 + 30
                     || Math.Abs(Frame.CenterY - Other.CenterY) >= (Frame.Height + Other.Height) / 2 + 30, Is.True);

@@ -1868,6 +1868,8 @@ public static class DiagramGridLayout
             }
             FlowchartGridCompaction.Apply(Members, Horizontal, 2 * DiagramGridMetrics.GRID_UNIT_PX);
             FlowchartGridCompaction.Apply(Members, !Horizontal, 2 * DiagramGridMetrics.GRID_UNIT_PX);
+            foreach (var Member in Members) { Member.OldX = Member.X; Member.OldY = Member.Y; }
+            AssignRanks(Members, Horizontal);
             SeparateOverlaps(Members, Horizontal);
             FitFrames(Contract, Members, new List<GridFrame>(), Horizontal);
         }
@@ -1892,6 +1894,8 @@ public static class DiagramGridLayout
         }
         FlowchartContainerPacking.Apply(Contract, Roots.Select(Root => new FlowchartContainerPacking.Unit(Root,
             Placed.Where(Node => Node.Id == Root.Id || IsInsideGroup(Contract, Node.Id, Root.Id)).ToList())).ToList());
+        foreach (var Node in Placed) { Node.OldX = Node.X; Node.OldY = Node.Y; }
+        AssignRanks(Placed, Horizontal);
         Frames.Clear();
     }
 
