@@ -1,0 +1,119 @@
+enterprise
+  title Web shop - layered view
+  %% motivation and strategy
+  stakeholder customers "Online Customers"
+  goal convert "Raise Online Conversion"
+  requirement fastCheckout "Checkout in Under a Minute"
+  capability onlineSales "Online Sales"
+  capability fulfilment "Order Fulfilment"
+  %% business layer
+  business-actor customer "Customer"
+  business-role buyer "Buyer"
+  business-actor warehouseTeam "Warehouse Team"
+  business-role picker "Picker"
+  business-interface website "Shop Website"
+  business-service browseSvc "Product Browsing"
+  business-service orderSvc "Online Ordering"
+  business-service deliverySvc "Home Delivery"
+  business-process placeOrder "Place Order"
+  business-process fulfilOrder "Fulfil Order"
+  business-event orderPlaced "Order Placed"
+  business-object orderBo "Order"
+  business-object invoiceBo "Invoice"
+  %% application layer
+  application-component shop "Web Shop"
+  application-component orderMgr "Order Manager"
+  application-component wms "Warehouse System"
+  application-component payHub "Payment Hub"
+  application-interface shopUi "Shop Web UI"
+  application-interface orderApi "Order API"
+  application-service catalogueSvc "Catalogue Service"
+  application-service checkoutSvc "Checkout Service"
+  application-service paymentSvc "Payment Service"
+  application-service pickSvc "Pick List Service"
+  application-function checkout "Checkout"
+  data-object orderDo "Order Record"
+  data-object invoiceDo "Invoice Record"
+  %% technology layer
+  technology-service webHosting "Web Hosting"
+  technology-service dbSvc "Database Service"
+  technology-service queueSvc "Message Queue"
+  node webNode "Web Server Cluster"
+  node appNode "Application Server"
+  node dbNode "Database Server"
+  system-software webRuntime "Web Runtime"
+  system-software dbms "Relational Database"
+  system-software broker "Message Broker"
+  artifact shopBundle "shop-frontend.zip"
+  artifact orderJar "order-manager.jar"
+  artifact orderSchema "orders schema"
+  communication-network lan "Data Centre LAN"
+  device scanner "Handheld Scanner"
+  %% motivation and strategy relationships
+  customers -association-> convert
+  fastCheckout -realization-> convert
+  checkoutSvc -realization-> fastCheckout
+  placeOrder -realization-> onlineSales
+  fulfilOrder -realization-> fulfilment
+  %% business relationships
+  customer -assignment-> buyer
+  warehouseTeam -assignment-> picker
+  buyer -assignment-> placeOrder
+  picker -assignment-> fulfilOrder
+  website -assignment-> orderSvc
+  website -serving-> buyer
+  placeOrder -realization-> orderSvc
+  fulfilOrder -realization-> deliverySvc
+  browseSvc -serving-> buyer
+  orderSvc -serving-> buyer
+  deliverySvc -serving-> buyer
+  placeOrder -triggering-> orderPlaced
+  orderPlaced -triggering-> fulfilOrder
+  placeOrder -access(write)-> orderBo
+  fulfilOrder -access(read)-> orderBo
+  fulfilOrder -access(write)-> invoiceBo
+  %% application to business
+  catalogueSvc -serving-> placeOrder
+  checkoutSvc -serving-> placeOrder
+  paymentSvc -serving-> placeOrder
+  pickSvc -serving-> fulfilOrder
+  shopUi -serving-> buyer
+  wms -serving-> picker
+  orderDo -realization-> orderBo
+  invoiceDo -realization-> invoiceBo
+  %% application relationships
+  shop -composition-> shopUi
+  orderMgr -composition-> orderApi
+  shop -assignment-> checkout
+  checkout -realization-> checkoutSvc
+  shop -realization-> catalogueSvc
+  payHub -realization-> paymentSvc
+  wms -realization-> pickSvc
+  orderApi -serving-> shop
+  paymentSvc -serving-> checkout
+  shop -flow-> orderMgr "order"
+  orderMgr -flow-> wms "pick list"
+  orderMgr -access(write)-> orderDo
+  orderMgr -access(write)-> invoiceDo
+  %% technology relationships
+  webNode -composition-> webRuntime
+  appNode -composition-> broker
+  dbNode -composition-> dbms
+  webNode -assignment-> shopBundle
+  appNode -assignment-> orderJar
+  dbms -assignment-> orderSchema
+  webRuntime -realization-> webHosting
+  dbms -realization-> dbSvc
+  broker -realization-> queueSvc
+  webHosting -serving-> shop
+  dbSvc -serving-> orderMgr
+  queueSvc -serving-> orderMgr
+  queueSvc -serving-> wms
+  shopBundle -realization-> shop
+  orderJar -realization-> orderMgr
+  orderSchema -realization-> orderDo
+  lan -association-> webNode
+  lan -association-> appNode
+  lan -association-> dbNode
+  scanner -serving-> picker
+
