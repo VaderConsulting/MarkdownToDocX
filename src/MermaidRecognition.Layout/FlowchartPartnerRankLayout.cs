@@ -65,6 +65,13 @@ internal static class FlowchartPartnerRankLayout
         }
     }
 
+    internal static HashSet<FlowchartLayoutEdgeRoute> StraightRoutes(FlowchartLayoutResult Layout, List<Partners> Blocks)
+    {
+        var Pairs = Blocks.SelectMany(Block => Block.Parents.Select((Parent, Index) =>
+            (Parent.Id, Block.Children[Index].Id))).ToHashSet();
+        return Layout.EdgeRoutes.Where(Route => Pairs.Contains((Route.SourceId, Route.TargetId))).ToHashSet();
+    }
+
     internal static bool GrowGaps(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes,
         List<DiagramGridLayout.GridFrame> Frames, List<Partners> Blocks, bool Horizontal)
     {

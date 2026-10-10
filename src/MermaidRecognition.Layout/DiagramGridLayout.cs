@@ -130,7 +130,8 @@ public static class DiagramGridLayout
         FlowchartGridTerminalNormalizer.Apply(Copy, BuildPlacedBounds(Placed, Frames), Nodes);
         GrowFacingDoglegGaps(Copy, Contract, Placed, Frames);
         DiagramGridRouteBuilder.RemoveClearForwardDoglegs(Copy, Contract, BuildPlacedBounds(Placed, Frames));
-        FlowchartBranchRouteOrder.RemoveAvoidableCrossings(Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction);
+        FlowchartBranchRouteOrder.RemoveAvoidableCrossings(Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction,
+            FlowchartPartnerRankLayout.StraightRoutes(Copy, PartnerRanks));
         WriteBack(Copy, Placed, Frames);
         return Copy;
     }
