@@ -28,20 +28,21 @@ public sealed class DiagramGridRankGapTests
         """;
 
     [Test]
-    public void TryLayout_LoadBalance_UsesUniformRankClearGaps()
+    public void FanAndMerge_GrowOnlyTheGapsThatNeedOffsetRoutes()
     {
         DiagramContract Contract = MermaidRecognizer.Parse(LoadBalanceSource);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
 
         List<double> ClearGaps = MeasureClearGaps(Layout);
         Assert.That(ClearGaps, Has.Count.EqualTo(3));
-        Assert.That(ClearGaps[0], Is.EqualTo(ClearGaps[1]).Within(1.0));
+        Assert.That(ClearGaps[0], Is.EqualTo(60).Within(1.0));
+        Assert.That(ClearGaps[1], Is.GreaterThanOrEqualTo(ClearGaps[0]));
         Assert.That(ClearGaps[1], Is.EqualTo(ClearGaps[2]).Within(1.0));
         Assert.That(ClearGaps[2], Is.GreaterThan(DiagramGridMetrics.NODE_GAP_PX));
     }
 
     [Test]
-    public void TryLayout_LoadBalance_MeasuresClearGapFromTallestNodePerRank()
+    public void MixedShapes_MeasureClearGapFromTheTallestNodePerRank()
     {
         DiagramContract Contract = MermaidRecognizer.Parse(LoadBalanceSource);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
@@ -58,7 +59,7 @@ public sealed class DiagramGridRankGapTests
     }
 
     [Test]
-    public void RenderToSvg_LoadBalance_WritesArtifact()
+    public void FanAndMerge_RenderEveryDeclaredConnection()
     {
         DiagramContract Contract = MermaidRecognizer.Parse(LoadBalanceSource);
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
@@ -67,7 +68,7 @@ public sealed class DiagramGridRankGapTests
     }
 
     [Test]
-    public void TryLayout_PurgeRequest_UsesUniformRankClearGapsAcrossSideChain()
+    public void BinaryDecisionWithSideChain_PreservesBaseGapsOutsideTheBranch()
     {
         DiagramContract Contract = MermaidRecognizer.Parse(PurgeRequestSource);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
@@ -76,14 +77,15 @@ public sealed class DiagramGridRankGapTests
         Assert.That(ClearGaps, Has.Count.EqualTo(4));
         foreach (double Gap in ClearGaps)
         {
-            Assert.That(Gap, Is.EqualTo(ClearGaps[0]).Within(1.0));
+            Assert.That(Gap, Is.GreaterThanOrEqualTo(60));
+            Assert.That(Gap % DiagramGridMetrics.GRID_UNIT_PX, Is.EqualTo(0).Within(1.0));
         }
 
         Assert.That(ClearGaps[0], Is.GreaterThan(DiagramGridMetrics.NODE_GAP_PX));
     }
 
     [Test]
-    public void TryLayout_PurgeRequest_RightChainMatchesDecisionBranchGap()
+    public void BinaryDecisionWithSideChain_ReservesExtraSpaceOnlyAtTheBranch()
     {
         DiagramContract Contract = MermaidRecognizer.Parse(PurgeRequestSource);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
@@ -98,8 +100,9 @@ public sealed class DiagramGridRankGapTests
         double RemoveToLogGap = BottomOf(Remove) - TopOf(Log);
         double DecisionToBranchGap = BottomOf(Decision) - TopOf(Reject);
 
-        Assert.That(ExportToRemoveGap, Is.EqualTo(DecisionToBranchGap).Within(1.0));
-        Assert.That(RemoveToLogGap, Is.EqualTo(DecisionToBranchGap).Within(1.0));
+        Assert.That(ExportToRemoveGap, Is.EqualTo(60).Within(1.0));
+        Assert.That(DecisionToBranchGap, Is.GreaterThanOrEqualTo(ExportToRemoveGap));
+        Assert.That(RemoveToLogGap, Is.EqualTo(60).Within(1.0));
     }
 
     private static double BottomOf(FlowchartLayoutNodeBounds Bounds) =>

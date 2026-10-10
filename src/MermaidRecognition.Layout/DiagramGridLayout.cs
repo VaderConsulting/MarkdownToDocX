@@ -175,6 +175,9 @@ public static class DiagramGridLayout
             HeightPx = Math.Max(HeightPx, DiagramGridMetrics.NODE_HEIGHT_PX);
         }
 
+        // A diamond has twice the box height. Even grid-unit box heights keep
+        // both centre-to-centre spans on the same grid with whole-unit gaps.
+        HeightPx = 2 * DiagramGridMetrics.CeilToGrid(HeightPx / 2.0);
         return (WidthPx, HeightPx);
     }
 
@@ -1343,7 +1346,6 @@ public static class DiagramGridLayout
             MainPitch,
             Copy,
             Contract);
-        int UniformClearGap = ResolveUniformRankClearGap(GapPlans);
 
         int MainCursor = Horizontal ? BoxWidth / 2 : BoxHeight / 2;
         for (int Rank = 0; Rank < RankCount; Rank++)
@@ -1360,7 +1362,8 @@ public static class DiagramGridLayout
             }
 
             RankPairGapPlan Plan = GapPlans[Rank];
-            MainCursor += Plan.HalfBelow + Plan.HalfAbove + UniformClearGap;
+            MainCursor += DiagramGridMetrics.CeilToGrid(Plan.HalfBelow + Plan.HalfAbove
+                + Plan.StructuralClearGap + Plan.LabelClearGapBoost);
         }
 
         SortedDictionary<int, List<GridNode>> ByColumn = new SortedDictionary<int, List<GridNode>>();
@@ -1389,7 +1392,7 @@ public static class DiagramGridLayout
                 int MinimumCrossClearGap = Math.Max(
                     DiagramGridMetrics.NODE_GAP_PX,
                     (int)Math.Round(FlowchartRenderOptions.FromContract(Contract).NodeSpacingPx));
-                int Span = Math.Max(PitchSpan, HalfBefore + HalfAfter + MinimumCrossClearGap);
+                int Span = DiagramGridMetrics.CeilToGrid(Math.Max(PitchSpan, HalfBefore + HalfAfter + MinimumCrossClearGap));
                 CrossCursor += Span;
             }
 
@@ -4170,8 +4173,8 @@ public static class DiagramGridLayout
             int Gap = 2 * DiagramGridMetrics.GRID_UNIT_PX;
             foreach (EdgeContract Edge in Contract.Edges)
             {
-                GridNode? Source = RankNodes.Find(Node => Node.Id == Edge.SourceId);
-                GridNode? Target = NextNodes.Find(Node => Node.Id == Edge.TargetId);
+                GridNode? Source = RankNodes.Find(Node => Node.Id == Edge.SourceId || Node.Id == Edge.TargetId);
+                GridNode? Target = NextNodes.Find(Node => Node.Id == Edge.TargetId || Node.Id == Edge.SourceId);
                 if (Source != null && Target != null && Source.Column != Target.Column
                     && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
                 {
@@ -4185,7 +4188,10 @@ public static class DiagramGridLayout
             int TrackUnits = Math.Max(1, (Crossings + DiagramGridMetrics.TRACKS_PER_GAP - 1) / DiagramGridMetrics.TRACKS_PER_GAP);
             Gap = Math.Max(Gap, TrackUnits * DiagramGridMetrics.GRID_UNIT_PX);
             double MermaidDelta = MermaidMain(NextNodes, Horizontal) - MermaidMain(RankNodes, Horizontal);
-            if (MermaidDelta > MainPitch)
+            bool HasExplicitLength = Contract.Edges.Any(Edge => Edge.MinLength > 1
+                && RankNodes.Any(Node => Node.Id == Edge.SourceId || Node.Id == Edge.TargetId)
+                && NextNodes.Any(Node => Node.Id == Edge.TargetId || Node.Id == Edge.SourceId));
+            if (HasExplicitLength && MermaidDelta > MainPitch)
             {
                 int MermaidSpan = DiagramGridMetrics.CeilToGrid(MermaidDelta);
                 int MermaidGap = MermaidSpan - HalfBelow - HalfAbove;
@@ -4212,22 +4218,6 @@ public static class DiagramGridLayout
         return Plans;
     }
 
-    /// <summary>
-    /// A8: every rank pair shares the same base clear gap, measured from each rank's tallest node.
-    /// </summary>
-    private static int ResolveUniformRankClearGap(List<RankPairGapPlan> Plans)
-    {
-        int UniformClearGap = DiagramGridMetrics.NODE_GAP_PX;
-        foreach (RankPairGapPlan Plan in Plans)
-        {
-            UniformClearGap = Math.Max(
-                UniformClearGap,
-                Plan.StructuralClearGap + Plan.LabelClearGapBoost);
-        }
-
-        return UniformClearGap;
-    }
-
     private static int ComputeLabelledEdgeRankGapBoost(
         DiagramContract Contract,
         int Rank,
@@ -4252,7 +4242,8 @@ public static class DiagramGridLayout
                 continue;
             }
 
-            if (!RankIds.Contains(Edge.SourceId) || !NextIds.Contains(Edge.TargetId))
+            if (!(RankIds.Contains(Edge.SourceId) && NextIds.Contains(Edge.TargetId))
+                && !(RankIds.Contains(Edge.TargetId) && NextIds.Contains(Edge.SourceId)))
             {
                 continue;
             }
