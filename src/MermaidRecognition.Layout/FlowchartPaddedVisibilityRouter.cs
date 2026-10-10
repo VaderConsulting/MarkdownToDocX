@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 using MermaidRecognition.Contract;
 
@@ -243,7 +244,9 @@ public static class FlowchartPaddedVisibilityRouter
                     continue;
                 }
 
-                AddVertex(Vertices, X, Y);
+                if ((Math.Abs(X - StartX) <= VERTEX_MERGE_PX && Math.Abs(Y - StartY) <= VERTEX_MERGE_PX)
+                    || (Math.Abs(X - EndX) <= VERTEX_MERGE_PX && Math.Abs(Y - EndY) <= VERTEX_MERGE_PX)) continue;
+                Vertices.Add((X, Y));
             }
         }
 
@@ -259,10 +262,13 @@ public static class FlowchartPaddedVisibilityRouter
             Neighbours[Index] = [];
         }
 
-        for (int Left = 0; Left < Count; Left++)
+        void Connect(bool Vertical)
         {
-            for (int Right = Left + 1; Right < Count; Right++)
+            var Ordered = Enumerable.Range(0, Count).OrderBy(Index => Vertical ? Vertices[Index].X : Vertices[Index].Y)
+                .ThenBy(Index => Vertical ? Vertices[Index].Y : Vertices[Index].X).ToArray();
+            for (int Index = 1; Index < Ordered.Length; Index++)
             {
+                int Left = Ordered[Index - 1], Right = Ordered[Index];
                 if (!IsAxisAligned(Vertices[Left].X, Vertices[Left].Y, Vertices[Right].X, Vertices[Right].Y))
                 {
                     continue;
@@ -277,6 +283,8 @@ public static class FlowchartPaddedVisibilityRouter
                 Neighbours[Right].Add(Left);
             }
         }
+        Connect(true);
+        Connect(false);
 
         double Manhattan = Math.Abs(EndX - StartX) + Math.Abs(EndY - StartY);
         double BendCost = Math.Max(1.0, Manhattan * BEND_PENALTY_FRACTION);
@@ -563,20 +571,12 @@ public static class FlowchartPaddedVisibilityRouter
         }
 
         Distance[Source] = 0.0;
-        for (int Step = 0; Step < Count; Step++)
+        var Queue = new PriorityQueue<int, (double Cost, int Index)>();
+        Queue.Enqueue(Source, (0, Source));
+        while (Queue.TryDequeue(out int Current, out var Priority))
         {
-            int Current = -1;
-            double Best = double.PositiveInfinity;
-            for (int Index = 0; Index < Count; Index++)
-            {
-                if (!Visited[Index] && Distance[Index] < Best)
-                {
-                    Best = Distance[Index];
-                    Current = Index;
-                }
-            }
-
-            if (Current < 0 || Current == Target)
+            if (Visited[Current] || Priority.Cost > Distance[Current]) continue;
+            if (Current == Target)
             {
                 break;
             }
@@ -608,6 +608,7 @@ public static class FlowchartPaddedVisibilityRouter
                     Distance[Next] = Candidate;
                     Previous[Next] = Current;
                     Incoming[Next] = Current;
+                    Queue.Enqueue(Next, (Candidate, Next));
                 }
             }
         }
