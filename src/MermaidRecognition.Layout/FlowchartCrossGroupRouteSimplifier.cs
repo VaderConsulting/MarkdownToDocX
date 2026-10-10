@@ -43,7 +43,12 @@ internal static class FlowchartCrossGroupRouteSimplifier
                     && (FlowchartCompoundEndpointHelper.Contains(Contract, Group.Id, Route.SourceId)
                         || FlowchartCompoundEndpointHelper.Contains(Contract, Group.Id, Route.TargetId)))).ToList();
             var Best = Route.Points.Select(Point => (Point.X, Point.Y)).ToList();
-            double BestCost = SelfCut ? double.PositiveInfinity : Cost(Best);
+            bool Diagonal = Best.Zip(Best.Skip(1)).Any(Pair => Math.Abs(Pair.First.X - Pair.Second.X) > 0.5
+                && Math.Abs(Pair.First.Y - Pair.Second.Y) > 0.5);
+            bool Blocked = Best.Zip(Best.Skip(1)).Any(Pair => Obstacles.Any(Box =>
+                FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(Pair.First.X, Pair.First.Y,
+                    Pair.Second.X, Pair.Second.Y, Box)));
+            double BestCost = SelfCut || Diagonal || Blocked ? double.PositiveInfinity : Cost(Best);
             foreach (bool Transpose in new[] { false, true })
             {
                 double U(FlowchartLayoutNodeBounds Box) => Transpose ? Box.CenterY : Box.CenterX;
@@ -60,7 +65,11 @@ internal static class FlowchartCrossGroupRouteSimplifier
                 foreach (int Outside in new[] { -1, 1 })
                 {
                     double Sv = V(Source) + Outside * H(Source), Tv = V(Target) + Outside * H(Target);
-                    double Track = (Outside < 0 ? Math.Min(Sv, Tv) : Math.Max(Sv, Tv)) + Outside * 40;
+                    double NearTrack = (Outside < 0 ? Math.Min(Sv, Tv) : Math.Max(Sv, Tv)) + Outside * 40;
+                    double OuterTrack = Outside < 0
+                        ? Obstacles.Select(Box => V(Box) - H(Box)).Append(Math.Min(Sv, Tv)).Min() - 40
+                        : Obstacles.Select(Box => V(Box) + H(Box)).Append(Math.Max(Sv, Tv)).Max() + 40;
+                    foreach (double Track in new[] { NearTrack, OuterTrack })
                     foreach (int SourceOffset in new[] { 0, -1, 1 })
                     foreach (int TargetOffset in new[] { 0, -1, 1 })
                     {
@@ -83,6 +92,31 @@ internal static class FlowchartCrossGroupRouteSimplifier
                     if (SourceNear != 0)
                         Consider([World(U(Source), V(Source) + SourceNear * H(Source)), World(U(Source), Tv), World(EndU, Tv)]);
                 }
+                // A deep container may need an outer corridor and a separate
+                // approach track to avoid a neighbouring service at its end.
+                foreach (int SourceSide in new[] { -1, 1 })
+                foreach (int TargetSide in new[] { -1, 1 })
+                foreach (double Sv in SourceVs)
+                foreach (int Offset in new[] { 0, -1, 1 })
+                foreach (int TrackIndex in new[] { 0, 1, 2 })
+                {
+                    double Outer = SourceSide < 0
+                        ? Obstacles.Select(Box => U(Box) - W(Box)).Append(U(Source) - W(Source)).Min() - 40 - TrackIndex * DiagramGridMetrics.GRID_UNIT_PX
+                        : Obstacles.Select(Box => U(Box) + W(Box)).Append(U(Source) + W(Source)).Max() + 40 + TrackIndex * DiagramGridMetrics.GRID_UNIT_PX;
+                    double Tu = U(Target) + Offset * W(Target) / 3;
+                    double Tv = V(Target) + TargetSide * H(Target);
+                    double Approach = Tv + TargetSide * 40;
+                    Consider([World(U(Source) + SourceSide * W(Source), Sv), World(Outer, Sv),
+                        World(Outer, Approach), World(Tu, Approach), World(Tu, Tv)]);
+                }
+            }
+            if (double.IsPositiveInfinity(BestCost))
+            {
+                var RoutingObstacles = Obstacles.Append(Source).Append(Target).ToList();
+                foreach (var Start in Ports(Source))
+                foreach (var End in Ports(Target))
+                    if (FlowchartPaddedVisibilityRouter.TryRoute(Start.X, Start.Y, End.X, End.Y,
+                        RoutingObstacles, Source, Target, out var Detour, 30, 20)) Consider(Detour);
             }
             Route.Points.Clear();
             foreach (var Point in Best) Route.Points.Add(new() { X = Point.X, Y = Point.Y });
@@ -140,6 +174,14 @@ internal static class FlowchartCrossGroupRouteSimplifier
                 Best = Path; BestCost = CandidateCost;
             }
         }
+    }
+
+    private static IEnumerable<(double X, double Y)> Ports(FlowchartLayoutNodeBounds Box)
+    {
+        yield return (Box.CenterX - Box.Width / 2, Box.CenterY);
+        yield return (Box.CenterX + Box.Width / 2, Box.CenterY);
+        yield return (Box.CenterX, Box.CenterY - Box.Height / 2);
+        yield return (Box.CenterX, Box.CenterY + Box.Height / 2);
     }
 
     private static bool PortClear((double X, double Y) End, (double X, double Y) Next, FlowchartLayoutNodeBounds Box)
