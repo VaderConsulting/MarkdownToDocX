@@ -16,6 +16,11 @@ public static class EnterpriseParser
 
     private const string STRING_PATTERN = @"(""(?:[^""\\]|\\.)*""|'(?:[^'\\]|\\.)*')";
 
+    private static readonly HashSet<string> ReservedIds = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "title", "version", "direction", "group", "in", "classDef", "class", "style", "linkStyle", "accTitle", "accDescr"
+    };
+
     private static readonly Regex HeaderRegex = new Regex(
         @"^enterprise(-beta)?(?:\s+(TB|TD|BT|LR|RL))?$",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -234,6 +239,11 @@ public static class EnterpriseParser
         int LineNumber)
     {
         string Id = GroupMatch.Groups[1].Value;
+        if (ReservedIds.Contains(Id))
+        {
+            Diagnostics.Add(CreateError(LineNumber, "reserved word cannot be an id: \"" + Id + "\""));
+            return;
+        }
         if (Document.HasContainer(Id))
         {
             Diagnostics.Add(CreateError(LineNumber, "duplicate id \"" + Id + "\""));
@@ -278,8 +288,29 @@ public static class EnterpriseParser
         }
 
         string Id = ElementMatch.Groups[2].Value;
+        if (ReservedIds.Contains(Id))
+        {
+            Diagnostics.Add(CreateError(LineNumber, "reserved word cannot be an id: \"" + Id + "\""));
+            return;
+        }
         if (Document.HasContainer(Id))
         {
+            if (Document.Elements.TryGetValue(Id, out var Existing) && Existing.ElementType == ElementType)
+            {
+                if (ElementMatch.Groups[3].Success)
+                {
+                    Existing.Label = Unquote(ElementMatch.Groups[3].Value);
+                    Existing.IsMarkdownLabel = IsMarkdown(ElementMatch.Groups[3].Value);
+                }
+                if (ElementMatch.Groups[4].Success) Existing.ParentId = ElementMatch.Groups[4].Value;
+                if (Document.Groups.TryGetValue(Id, out var Group))
+                {
+                    Group.Label = Existing.Label;
+                    Group.IsMarkdownLabel = Existing.IsMarkdownLabel;
+                    Group.ParentId = Existing.ParentId;
+                }
+                return;
+            }
             Diagnostics.Add(CreateError(LineNumber, "duplicate element id \"" + Id + "\""));
             return;
         }
