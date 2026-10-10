@@ -1,6 +1,6 @@
 # Grid layout review — 9 October 2026
 
-This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `caead11`; section 23 records aligned vertical return ports. Section 22 records shared input fan placement and continuation alignment. Section 21 records junction caption clearance. Section 20 records plain relationship label measurement and elliptical attachments. Section 19 records the generic forward-dogleg correction. Section 18 records approved decisions, native Enterprise/pie integration, local spacing and frame fixes. Sections 16–17 retain the earlier routing evidence. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
+This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `36c152b`; section 24 records relationship caption staggering. Section 23 records aligned vertical return ports. Section 22 records shared input fan placement and continuation alignment. Section 21 records junction caption clearance. Section 20 records plain relationship label measurement and elliptical attachments. Section 19 records the generic forward-dogleg correction. Section 18 records approved decisions, native Enterprise/pie integration, local spacing and frame fixes. Sections 16–17 retain the earlier routing evidence. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
 
 ## 1. Fresh test comparison
 
@@ -847,3 +847,53 @@ the right side with two rounded bends and square side attachments, clearing
 the intervening object. This is not a full Word pagination review or catalogue
 acceptance. The picture inventory is in `final/picture-manifest.txt`. Supplied
 files remain untouched; no merge was performed.
+
+## 24. Relationship caption staggering — 10 October 2026
+
+Nearby relationships previously put their labels at the same straight-run
+midpoint. The marked long caption overlapped the adjacent return's caption.
+Relationship text now wraps at word boundaries, tries progressively narrower
+lines when necessary, and searches straight runs from their midpoint outward.
+Placement reserves node bodies, frame titles, other captions and neighbouring
+connector envelopes. Captions on nearby parallel runs use distinct levels.
+Each connector's break follows its chosen text bounds, and multiline bounds
+also feed canvas expansion and external junction-caption placement.
+
+`36c152b` — Stagger relationship labels along clear straight runs.
+
+The engine diff was checked for diagram-specific selectors. The rule uses
+text dimensions, segment directions, node/frame bounds and available clearance;
+it does not select diagram names, catalogue numbers or node labels/identifiers.
+Existing tests and fixtures remain unchanged. Two new synthetic structural
+checks cover horizontal and vertical parallel corridors, label separation,
+other-line clearance, word preservation and breaks at the selected caption.
+Twelve focused label, outline and junction-caption checks passed.
+
+The initial exploratory synthetic vertical fixture placed full-length parallel
+lines only 15 pixels apart. No centred word-sized caption could clear the other
+line anywhere in that corridor, so the new neighbour-line check correctly
+exposed an exhausted corridor. The new fixture was corrected to provide usable
+space while still requiring wrapping and staggering; existing fixtures were not
+changed. No claim is made that every crowded corridor can be solved locally.
+If the bounded search is exhausted, visible fallback text remains rather than
+being hidden; automatic route-gap growth and global label planning remain open.
+
+All five suites ran once on pushed application commit `36c152b`: Layout 473
+passed / 32 failed, rule validation 49 / 10, recognition 1008 / 0, Naiad adapter
+47 / 0, converter 52 / 0. There are no new failing names against `caead11`.
+The master baseline was not rerun. The two stopped master-passing Layout
+regressions listed in section 18 remain unchanged.
+
+Evidence is under `out/relationship-labels/final/`: all suite logs/TRX,
+failure-name comparison, the marked relationship picture, the flowchart
+catalogue and Enterprise samples. Rendering again produced 126 flowcharts
+with four commented skips, and ten Enterprise samples with the same two
+expected rejections. Picture paths are listed in `picture-manifest.txt`.
+
+The rebuilt WinForms executable regenerated `final/enterprise.docx` with 94
+drawings and 36 source-preserving warnings, unchanged from the previous pass.
+The marked diagram's embedded picture was extracted and visually inspected:
+the long caption wraps, the neighbouring return caption sits above it, and
+all displayed captions have breaks in their own connectors. This is not a
+full catalogue acceptance or Word pagination review. Supplied files remain
+untouched and nothing was merged.
