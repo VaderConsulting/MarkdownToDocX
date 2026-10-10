@@ -1558,7 +1558,7 @@ public static class DiagramGridLayout
         }
     }
 
-    private static void SeparateParallelReturnTracks(DiagramContract Contract, FlowchartLayoutResult Layout,
+    internal static void SeparateParallelReturnTracks(DiagramContract Contract, FlowchartLayoutResult Layout,
         Dictionary<string, FlowchartLayoutNodeBounds> Bounds)
     {
         var BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
@@ -1571,17 +1571,21 @@ public static class DiagramGridLayout
             bool Vertical = Group.Key.ExitSide is "left" or "right";
             double Sign = Group.Key.ExitSide is "right" or "top" ? 1 : -1;
             double Across(FlowchartLayoutPoint Point) => Vertical ? Point.X : Point.Y;
-            var Routes = Group.OrderBy(Route => Across(Route.Points[1]) * Sign).ToList();
-            double Track = Across(Routes[0].Points[1]);
+            double Along(FlowchartLayoutPoint Point) => Vertical ? Point.Y : Point.X;
+            double AlongSign = Math.Sign(Along(Group.First().Points[0]) - Along(Group.First().Points[^1]));
+            if (AlongSign == 0) continue;
+            var Routes = Group.OrderBy(Route => Along(Route.Points[0]) * AlongSign).ToList();
+            var Ends = Routes.Select(Route => Route.Points[^1]).OrderByDescending(Point => Along(Point) * AlongSign).ToList();
+            double Track = Group.Min(Route => Across(Route.Points[1]) * Sign) * Sign;
             double PreviousHalf = 0;
-            var Candidates = new List<(FlowchartLayoutEdgeRoute Route, double Track)>();
+            var Candidates = new List<(FlowchartLayoutEdgeRoute Route, double Track, FlowchartLayoutPoint End)>();
             foreach (var Route in Routes)
             {
                 var Edge = Contract.Edges.First(Edge => Edge.Id == Route.EdgeId);
                 var Size = FlowchartNodeSizeEstimator.MeasureWrappedLabel(Edge.Label ?? string.Empty, Options, Options.EdgeLabelFontSizePx);
                 double Half = string.IsNullOrWhiteSpace(Edge.Label) ? 0 : (Vertical ? Size.Width : Size.Height) / 2;
                 if (Route != Routes[0]) Track += Sign * DiagramGridMetrics.CeilToGrid(Math.Max(6, PreviousHalf + Half + 12));
-                Candidates.Add((Route, Track));
+                Candidates.Add((Route, Track, Ends[Candidates.Count]));
                 PreviousHalf = Half;
             }
             bool Clear = Candidates.All(Candidate =>
@@ -1589,7 +1593,15 @@ public static class DiagramGridLayout
                 var Route = Candidate.Route;
                 var Points = Route.Points.Select(Point => (Point.X, Point.Y)).ToList();
                 Points[1] = Vertical ? (Candidate.Track, Points[1].Y) : (Points[1].X, Candidate.Track);
-                Points[2] = Vertical ? (Candidate.Track, Points[2].Y) : (Points[2].X, Candidate.Track);
+                Points[2] = Vertical ? (Candidate.Track, Candidate.End.Y) : (Candidate.End.X, Candidate.Track);
+                Points[3] = (Candidate.End.X, Candidate.End.Y);
+                foreach (var Other in Layout.EdgeRoutes.Where(Other => !Routes.Contains(Other)))
+                {
+                    var Path = Other.Points.Select(Point => (Point.X, Point.Y)).ToList();
+                    var Old = FlowchartBranchRouteOrder.Intersections(Route.Points.Select(Point => (Point.X, Point.Y)).ToList(), Path);
+                    var New = FlowchartBranchRouteOrder.Intersections(Points, Path);
+                    if (New.Crossings > Old.Crossings || New.Overlap > Old.Overlap + 0.01) return false;
+                }
                 foreach (var Frame in Contract.Groups.Where(Frame => IsInsideGroup(Contract, Route.SourceId, Frame.Id)
                     && IsInsideGroup(Contract, Route.TargetId, Frame.Id)))
                     if (Bounds.TryGetValue(Frame.Id, out var Box) && Points.Any(Point =>
@@ -1604,8 +1616,17 @@ public static class DiagramGridLayout
             if (!Clear) continue;
             foreach (var Candidate in Candidates)
             {
-                if (Vertical) Candidate.Route.Points[1].X = Candidate.Route.Points[2].X = Candidate.Track;
-                else Candidate.Route.Points[1].Y = Candidate.Route.Points[2].Y = Candidate.Track;
+                if (Vertical)
+                {
+                    Candidate.Route.Points[1].X = Candidate.Route.Points[2].X = Candidate.Track;
+                    Candidate.Route.Points[2].Y = Candidate.End.Y;
+                }
+                else
+                {
+                    Candidate.Route.Points[1].Y = Candidate.Route.Points[2].Y = Candidate.Track;
+                    Candidate.Route.Points[2].X = Candidate.End.X;
+                }
+                Candidate.Route.Points[3] = new() { X = Candidate.End.X, Y = Candidate.End.Y };
             }
         }
     }
