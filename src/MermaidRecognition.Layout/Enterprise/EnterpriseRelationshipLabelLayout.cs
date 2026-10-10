@@ -47,7 +47,11 @@ internal static class EnterpriseRelationshipLabelLayout
                     if (!Horizontal && Math.Abs(A.X - B.X) >= 0.5) continue;
                     double Length = Distance(A, B);
                     double HalfGap = (Horizontal ? Edge.LabelWidth : Edge.LabelHeight) / 2 + Clearance;
-                    double Margin = HalfGap + (Edge.SvgPoints.Count == 2 ? 10 : DiagramGridRouteBuilder.CORNER_RADIUS_PX);
+                    double StartClearance = Index == 0 ? 10 : Math.Min(DiagramGridRouteBuilder.CORNER_RADIUS_PX,
+                        Distance(Edge.SvgPoints[Index - 1], A) / 2);
+                    double EndClearance = Index + 2 == Edge.SvgPoints.Count ? 10 : Math.Min(DiagramGridRouteBuilder.CORNER_RADIUS_PX,
+                        Distance(B, Edge.SvgPoints[Index + 2]) / 2);
+                    double Margin = HalfGap + Math.Max(StartClearance, EndClearance);
                     if (Length < 2 * Margin) continue;
                     for (int Step = 0; Step <= (int)(Length / Clearance) && !Found; Step++)
                     {
