@@ -27,6 +27,21 @@ public sealed class GridCompactionTests
 
     [TestCase(false)]
     [TestCase(true)]
+    public void ReservedCorridor_IsKeptWhileSurplusSpaceCloses(bool Horizontal)
+    {
+        var Nodes = new List<DiagramGridLayout.GridNode>
+        {
+            new() { Width = 180, Height = 180 },
+            new() { X = Horizontal ? 0 : 300, Y = Horizontal ? 300 : 0, Width = 180, Height = 180 },
+            new() { X = Horizontal ? 0 : 900, Y = Horizontal ? 900 : 0, Width = 180, Height = 180 }
+        };
+        FlowchartGridCompaction.Apply(Nodes, Horizontal, 210);
+        Assert.That(Horizontal ? Nodes[1].Y : Nodes[1].X, Is.EqualTo(300));
+        Assert.That(Horizontal ? Nodes[2].Y : Nodes[2].X, Is.EqualTo(690));
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
     public void OverlappingCrossBands_AreNeverCompressed(bool Horizontal)
     {
         var Nodes = new List<DiagramGridLayout.GridNode>

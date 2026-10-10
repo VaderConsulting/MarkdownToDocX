@@ -44,6 +44,23 @@ public sealed class TerminalBranchPlacementTests
 
     [TestCase(false)]
     [TestCase(true)]
+    public void TerminalChild_BesideLongerBypassKeepsItsCorridor(bool Horizontal)
+    {
+        var Contract = MermaidRecognizer.Parse("flowchart TB\np --> c\nc --> tail\np --> terminal\np --> tail");
+        var Nodes = new List<DiagramGridLayout.GridNode>
+        {
+            new() { Id = "p", Rank = 0, Width = 180, Height = 60 },
+            new() { Id = "c", Rank = 1, Width = 180, Height = 60 },
+            new() { Id = "tail", Rank = 2, Width = 180, Height = 60 },
+            new() { Id = "terminal", Rank = 1, X = -630, Y = -630, Width = 180, Height = 60 }
+        };
+        FlowchartTerminalBranchPlacement.Apply(Contract, Nodes, Horizontal, 210);
+        Assert.That(Nodes[^1].X, Is.EqualTo(-630));
+        Assert.That(Nodes[^1].Y, Is.EqualTo(-630));
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
     public void TerminalChild_InAnotherGroupKeepsItsPlacement(bool Horizontal)
     {
         var Contract = MermaidRecognizer.Parse("flowchart TB\np --> c\nc --> tail\np --> terminal");

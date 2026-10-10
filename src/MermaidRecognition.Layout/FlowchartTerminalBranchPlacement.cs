@@ -23,6 +23,10 @@ internal static class FlowchartTerminalBranchPlacement
             var Incoming = Edges.Where(Edge => Edge.TargetId == Leaf.Id).ToList();
             if (Incoming.Count != 1 || !ById.TryGetValue(Incoming[0].SourceId, out var Parent)
                 || Parent.IsDiamond || Parent.Rank >= Leaf.Rank || Parent.GroupId != Leaf.GroupId) continue;
+            // A parent's longer bypass owns the space beside its intermediate
+            // ranks. Only compact a fan whose children share the same rank.
+            if (Edges.Any(Edge => Edge.SourceId == Parent.Id
+                && ById.TryGetValue(Edge.TargetId, out var Child) && Child.Rank != Leaf.Rank)) continue;
             bool HasContinuation = Edges.Any(Edge => Edge.SourceId == Parent.Id && Edge.TargetId != Leaf.Id
                 && ById.TryGetValue(Edge.TargetId, out var Child) && Child.Rank == Leaf.Rank
                 && Child.GroupId == Leaf.GroupId && Math.Abs(Cross(Child) - Cross(Parent)) < 0.5
