@@ -1849,13 +1849,7 @@ public static class DiagramGridLayout
             var Local = new DiagramContract { Kind = Contract.Kind, Header = Contract.Header,
                 Direction = Contract.Direction, LayoutMode = Contract.LayoutMode };
             var Ids = Members.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
-            Local.NodesMutable.AddRange(Contract.Nodes.Where(Node => Ids.Contains(Node.Id)).Select(Node =>
-            {
-                var Member = Members.Find(Member => Member.Id == Node.Id)!;
-                return new NodeContract { Id = Node.Id, Label = Node.Label, LabelType = Node.LabelType,
-                    Shape = Node.Shape, ParentGroupId = Node.ParentGroupId,
-                    LayoutWidth = Member.Width, LayoutHeight = Member.Height };
-            }));
+            Local.NodesMutable.AddRange(Contract.Nodes.Where(Node => Ids.Contains(Node.Id)));
             Local.GroupsMutable.AddRange(Contract.Groups.Where(Group => Group.Id == Root.Id
                 || Members.Any(Node => IsInsideGroup(Contract, Node.Id, Group.Id))
                     && IsInsideGroup(Contract, Group.Id, Root.Id)));
