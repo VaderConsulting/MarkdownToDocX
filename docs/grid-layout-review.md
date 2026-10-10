@@ -1241,3 +1241,49 @@ is separate. The small retry self-loop caption still crosses its short path;
 that exhausted local label corridor needs additional space and remains open.
 This is not full catalogue acceptance or a Word pagination review. Supplied
 files remain untouched and nothing was merged.
+## 32. Parallel relationship identities and caption corridors — 10 October 2026
+
+The marked two-component graph drew repeated relationships on the first
+matching route. The shared resolver now matches nonempty relationship ids
+exactly; endpoint matching remains the fallback when an identity is absent.
+Repeated forward relationships reserve side length from measured caption
+words and spread same-peer ports symmetrically. Parallel four-point returns
+reserve caption space between tracks only when their candidate paths clear
+unrelated nodes and remain inside shared frames. Blocked corridors retain
+their previous routes and still need broader gap growth.
+
+Caption placement retains its six-pixel text and connector clearance. A
+second, excessive exclusion band was removed because it rejected positions
+that already met those requirements and forced overlapping fallback text.
+
+`a406884` — Keep parallel relationships and their captions distinct.
+
+This builds directly on `45a4e0b`, preserving previous application fixes.
+Engine changes were audited for diagram-specific selectors: identity matching,
+relationship multiplicity, side geometry, measured text and obstacle bounds
+select the rules. No catalogue number, diagram name, fixed identifier or label
+selects a rule. Existing tests, fixtures and assertions were unchanged. Two
+new structural cases cover repeated forward and return relationships in both
+supported Enterprise directions, requiring distinct paths, caption gaps and
+clearance from every neighbouring connector. All 18 focused checks passed.
+
+All five suites ran once on pushed application commit `a406884`: Layout 503
+passed / 32 failed, rule validation 49 / 10, recognition 1025 / 0, Naiad adapter
+47 / 0, converter 52 / 0. No new failing names appeared against `db30bd7`.
+The retained master baseline was not rerun. The two stopped master-passing
+Layout regressions in section 18 remain unchanged. Rulebook acceptance and
+full visual correctness remain incomplete.
+
+Final evidence is under `out/parallel-relations/final/`: logs/TRX, exact
+failure-name comparison, the marked example, flowchart and Enterprise sample
+renders, package inspection and `picture-manifest.txt`, which lists every
+rendered picture path. The rebuilt WinForms executable saves the document to
+`C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX-pr9\out\parallel-relations\final\enterprise.docx`.
+Supplied files remain untouched and nothing was merged.
+Package inspection found 96 drawings and 34 source-preserving warnings. The
+marked diagram's embedded image was extracted and viewed: forward captions
+have separate gaps, return captions are distinct, and the parallel return
+lines retain separate ports and rounded bends. The boxes are wider to reserve
+these corridors. The render set contains 126 flowchart pictures with four
+commented skips and ten Enterprise samples with the same two expected
+rejections. This is not full catalogue acceptance or a Word pagination review.

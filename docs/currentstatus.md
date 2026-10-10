@@ -8,7 +8,7 @@ solution. Historical evidence is in the [grid layout review](grid-layout-review.
 | Area | Current state |
 | --- | --- |
 | Master | Baseline `f09cb89`; not changed or remeasured in this pass. |
-| Grid work | PR #9, `cursor/many-to-many-routing-3834`; application fixes through `db30bd7` pushed, not merged. |
+| Grid work | PR #9, `cursor/many-to-many-routing-3834`; application fixes through `a406884` pushed, not merged. |
 | Active checkout | Sibling `MarkdownToDocX-pr9` worktree. The original folder retains its documentation branch and supplied files. |
 | Enterprise / ArchiMate | Selected parser, validation, notation and renderer code from PR #1 integrated into PR #9. Neither PR was merged. |
 | Decisions | All six defaults approved. The held frame-midline rule is replaced by fitting frames on the shared grid and growing shared gaps. |
@@ -38,6 +38,12 @@ solution. Historical evidence is in the [grid layout review](grid-layout-review.
 - Relationship captions wrap and search clear straight-run positions. Nearby
   parallel captions stagger, and connector breaks follow their text. Exhausted
   local corridors retain visible fallback text; automatic gap growth remains open.
+- Parallel relationship lookups respect distinct identities even when both
+  endpoints repeat. Repeated forward relationships reserve side length from
+  measured caption words, and same-peer ports spread symmetrically. Parallel
+  return tracks reserve caption width where node and frame clearance allows.
+  Caption placement uses the required six-pixel clearance without a second,
+  excessive exclusion band.
 - Short straight runs reserve arrowhead clearance without an unused bend
   allowance; caption searches use finer steps to stagger text in bounded gaps.
 - Enterprise element, group, relationship and junction captions honour
@@ -92,11 +98,11 @@ in existing PR #9 tests during this pass.
 ## 3. Verified tests
 
 Plain `dotnet test`, including build/restore, on pushed application commit
-`db30bd7`. Baselines were measured before behavioural edits and retained.
+`a406884`. Baselines were measured before behavioural edits and retained.
 
 | Suite | Master passed / failed | Starting PR #9 passed / failed | Current passed / failed |
 | --- | ---: | ---: | ---: |
-| Layout | 234 / 34 | 280 / 38 | 501 / 32 |
+| Layout | 234 / 34 | 280 / 38 | 503 / 32 |
 | Rule validation | 46 / 11 | 44 / 13 | 49 / 10 |
 | Recognition | 932 / 0 | 932 / 0 | 1025 / 0 |
 | Naiad adapter | 47 / 0 | 47 / 0 | 47 / 0 |
@@ -119,7 +125,7 @@ were corrected without changing their assertions.
 
 Final logs, TRX files, exact failure-name comparisons, renders, DOCX outputs
 and a complete picture manifest are local evidence under
-`out/cycle-corridors/final/` (latest), with earlier evidence under
+`out/parallel-relations/final/` (latest), with earlier evidence under
 `out/rulebook-completion/a34ebb9/`. Recognition's twelve explicit fixture
 writers remain excluded from ordinary execution. **Acceptance is incomplete;
 passing-count targets do not establish visual correctness or merge readiness.**
