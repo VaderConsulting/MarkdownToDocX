@@ -2360,6 +2360,12 @@ public static class DiagramGridLayout
                 // Reserve the title band before routing, while endpoints can
                 // still be moved together with their normal terminal runs.
                 List<double> Candidates = [];
+                if (Math.Abs(End.Other.CenterX - End.Box.CenterX) >= Offset
+                    && End.Other.CenterX >= End.Box.Left + STUB_PX
+                    && End.Other.CenterX <= End.Box.Right - STUB_PX)
+                {
+                    Candidates.Add(End.Other.CenterX);
+                }
                 for (double Step = Offset; Step <= End.Box.Width / 2 - STUB_PX; Step += STUB_PX)
                 {
                     Candidates.Add(End.Box.CenterX - Step);
