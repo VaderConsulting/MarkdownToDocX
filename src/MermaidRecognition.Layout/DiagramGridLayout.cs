@@ -129,6 +129,8 @@ public static class DiagramGridLayout
         FitFrames(Contract, Placed, Frames, Horizontal);
         if (FlowchartPartnerRankLayout.GrowGaps(Contract, Placed, Frames, PartnerRanks, Horizontal))
             FitFrames(Contract, Placed, Frames, Horizontal);
+        if (!Open && FlowchartGroupedLeafPlacement.Apply(Contract, Placed, Frames, Horizontal))
+            FitFrames(Contract, Placed, Frames, Horizontal);
         if (!Open && FlowchartExternalLeafPlacement.Apply(Contract, Placed, Frames, Horizontal))
             FitFrames(Contract, Placed, Frames, Horizontal);
         FlipToYUp(Placed, Frames, Copy);
