@@ -30,6 +30,7 @@ public static class EnterpriseFlowchartContractMapper
         {
             Kind = "flowchart",
             Header = "flowchart",
+            LayoutMode = Document.LayoutMode,
             Direction = Document.Direction.ToString().ToUpperInvariant()
         };
 

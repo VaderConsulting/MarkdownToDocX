@@ -96,6 +96,8 @@ public static class EnterpriseParser
         }
 
         string Normalised = EnterpriseConfiguration.Prepare(Source, Document).Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
+        Document.LayoutMode = MermaidRecognition.Config.DiagramLayoutSettings.Resolve(Document.Configuration,
+            Message => Diagnostics.Add(new EnterpriseDiagnostic(MermaidDiagnosticSeverity.Warning, 0, Message)));
         string[] Lines = Normalised.Split('\n');
         bool SeenHeader = false;
         bool InDescription = false;

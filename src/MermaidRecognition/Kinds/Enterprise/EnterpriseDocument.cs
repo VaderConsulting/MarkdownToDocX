@@ -5,6 +5,9 @@ namespace MermaidRecognition.Kinds.Enterprise;
 /// </summary>
 public sealed class EnterpriseDocument
 {
+    /// <summary>Gets or sets the shared placement mode.</summary>
+    public MermaidRecognition.Config.DiagramLayoutMode LayoutMode { get; set; }
+
     /// <summary>Gets the resolved element and relationship styles.</summary>
     public EnterpriseStyles Styles { get; } = new();
 
