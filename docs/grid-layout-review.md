@@ -1,6 +1,6 @@
 # Grid layout review — 9 October 2026
 
-This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `4c6505b`; section 26 records explicit label breaks. Section 25 records title canvas sizing. Section 24 records relationship caption staggering. Section 23 records aligned vertical return ports. Section 22 records shared input fan placement and continuation alignment. Section 21 records junction caption clearance. Section 20 records plain relationship label measurement and elliptical attachments. Section 19 records the generic forward-dogleg correction. Section 18 records approved decisions, native Enterprise/pie integration, local spacing and frame fixes. Sections 16–17 retain the earlier routing evidence. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
+This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `2f29eab`; section 27 records quoted comments and entity decoding. Section 26 records explicit label breaks. Section 25 records title canvas sizing. Section 24 records relationship caption staggering. Section 23 records aligned vertical return ports. Section 22 records shared input fan placement and continuation alignment. Section 21 records junction caption clearance. Section 20 records plain relationship label measurement and elliptical attachments. Section 19 records the generic forward-dogleg correction. Section 18 records approved decisions, native Enterprise/pie integration, local spacing and frame fixes. Sections 16–17 retain the earlier routing evidence. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
 
 ## 1. Fresh test comparison
 
@@ -992,3 +992,56 @@ reserves that border, but its visible fallback is not a clearance guarantee;
 this remains a fix-forward item for automatic corridor growth. This is not a
 full catalogue acceptance or Word pagination review. Supplied files remain
 untouched; nothing was merged. This commit builds on the previous PR #9 work.
+
+## 27. Quoted comments and label entities — 10 October 2026
+
+Comment stripping previously truncated every statement at the first percent
+pair, including pairs inside quoted labels. The scanner now respects quoted
+labels, escaped quotes and escaped backslashes. Percent pairs outside quotes
+still start comments. Titles remain rest-of-line text and retain their special
+comment rule even when the title contains quote characters.
+
+Quoted label decoding now resolves named HTML and decimal Unicode entity
+codes once, after escape and explicit-break handling. Unknown names, numeric
+overflow, invalid Unicode scalars and XML-invalid controls remain visible as
+source text. Decoded angle brackets are escaped when SVG is written, and
+entity results are not decoded again or reinterpreted as break tags/escapes.
+The named-code set is the runtime HTML decoder's supported set; this change
+does not claim every HTML5 named entity is supported.
+
+`2f29eab` — Preserve quoted comments and decode label entity codes.
+
+This builds directly on `8357c88`, preserving the prior PR #9 fixes. The engine
+diff was audited for diagram-specific selectors: parsing depends only on
+quote/escape syntax and entity validity, with no catalogue numbers, diagram
+names or node labels/identifiers. Existing tests and fixtures were unchanged.
+Nine new parser checks cover group/element/relationship comments, quote and
+backslash escapes, title comments, named/decimal/supplementary entities, invalid
+codes and decoding exactly once. A new renderer check verifies safe literal
+text across groups, nodes and relationships. All 71 focused parser checks and
+28 focused render/explicit-break checks passed. The marked example rendered
+and was visually inspected: percent pairs, embedded quotes, decoded symbols
+and the Windows path are visible, and the title comment is omitted.
+
+Regeneration reports now include the full absolute DOCX output path, as
+requested. This pass saves to
+`C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX-pr9\out\quoted-labels\final\enterprise.docx`.
+
+All five suites ran once on pushed application commit `2f29eab`: Layout 483
+passed / 32 failed, rule validation 49 / 10, recognition 1025 / 0, Naiad adapter
+47 / 0, converter 52 / 0. No new failing names appeared against `4c6505b`.
+The retained master baseline was not rerun. The two stopped master-passing
+Layout regressions listed in section 18 remain unchanged.
+
+Final evidence is under `out/quoted-labels/final/`: suite logs/TRX, exact
+failure-name comparison, the marked quoted-label example, 126 flowchart
+renders with four commented skips, and ten Enterprise samples with the same
+two expected rejections. `picture-manifest.txt` lists all rendered picture paths.
+
+The rebuilt WinForms executable regenerated the DOCX at the absolute path
+above with 96 drawings and 34 source-preserving warnings, improving the prior
+94/36 split by two diagrams. The marked diagram's embedded picture was
+extracted and visually inspected: it renders with quoted text, percent pairs,
+decoded entities and preserved Windows backslashes. This is not full catalogue
+acceptance or a Word pagination review. Supplied files remain untouched and
+nothing was merged.

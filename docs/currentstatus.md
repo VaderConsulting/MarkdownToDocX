@@ -8,7 +8,7 @@ solution. Historical evidence is in the [grid layout review](grid-layout-review.
 | Area | Current state |
 | --- | --- |
 | Master | Baseline `f09cb89`; not changed or remeasured in this pass. |
-| Grid work | PR #9, `cursor/many-to-many-routing-3834`; application fixes through `4c6505b` pushed, not merged. |
+| Grid work | PR #9, `cursor/many-to-many-routing-3834`; application fixes through `2f29eab` pushed, not merged. |
 | Active checkout | Sibling `MarkdownToDocX-pr9` worktree. The original folder retains its documentation branch and supplied files. |
 | Enterprise / ArchiMate | Selected parser, validation, notation and renderer code from PR #1 integrated into PR #9. Neither PR was merged. |
 | Decisions | All six defaults approved. The held frame-midline rule is replaced by fitting frames on the shared grid and growing shared gaps. |
@@ -37,6 +37,10 @@ solution. Historical evidence is in the [grid layout review](grid-layout-review.
 - Enterprise element, group, relationship and junction captions honour
   explicit break tags and newline escapes. Each line wraps independently;
   escaped literal backslashes survive. Multiline group tabs reserve height.
+- Quoted Enterprise labels retain percent-pair text; trailing comments outside
+  quotes are ignored. Title lines keep their rest-of-line comment rule.
+  Named and decimal entity codes decode once into literal text; unknown or
+  invalid codes remain visible. Escaped quotes and backslashes are preserved.
 - Enterprise titles reserve canvas width for literal bold text, including
   punctuation and Unicode; narrow diagrams centre below wide titles.
 - External junction captions choose nearby positions clear of routed lines,
@@ -53,8 +57,8 @@ solution. Historical evidence is in the [grid layout review](grid-layout-review.
 - Enterprise blocks have native parsing, relationship validation and SVG/DOCX
   rendering, with accessibility metadata and explicit errors. This is partial
   support, not complete ArchiMate conformance. The supplied 130-block catalogue
-  produces **94 diagrams and 36 source-preserving warnings**. Unsupported
-  styling/configuration, quoted comment handling and rejected relationships
+  produces **96 diagrams and 34 source-preserving warnings**. Unsupported
+  styling/configuration and rejected relationships
   remain; the provisional 3.2 relationship table needs further verification.
 - Ordinary pie diagrams render natively with declaration order, duplicate-key
   handling, tiny-slice filtering, legends and accessibility metadata. Explicit
@@ -72,13 +76,13 @@ in existing PR #9 tests during this pass.
 ## 3. Verified tests
 
 Plain `dotnet test`, including build/restore, on pushed application commit
-`4c6505b`. Baselines were measured before behavioural edits and retained.
+`2f29eab`. Baselines were measured before behavioural edits and retained.
 
 | Suite | Master passed / failed | Starting PR #9 passed / failed | Current passed / failed |
 | --- | ---: | ---: | ---: |
-| Layout | 234 / 34 | 280 / 38 | 482 / 32 |
+| Layout | 234 / 34 | 280 / 38 | 483 / 32 |
 | Rule validation | 46 / 11 | 44 / 13 | 49 / 10 |
-| Recognition | 932 / 0 | 932 / 0 | 1016 / 0 |
+| Recognition | 932 / 0 | 932 / 0 | 1025 / 0 |
 | Naiad adapter | 47 / 0 | 47 / 0 | 47 / 0 |
 | Converter | 31 / 0 | 32 / 0 | 52 / 0 |
 
@@ -99,7 +103,7 @@ were corrected without changing their assertions.
 
 Final logs, TRX files, exact failure-name comparisons, renders, DOCX outputs
 and a complete picture manifest are local evidence under
-`out/explicit-label-breaks/final/` (latest), with earlier evidence under
+`out/quoted-labels/final/` (latest), with earlier evidence under
 `out/rulebook-completion/a34ebb9/`. Recognition's twelve explicit fixture
 writers remain excluded from ordinary execution. **Acceptance is incomplete;
 passing-count targets do not establish visual correctness or merge readiness.**
