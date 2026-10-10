@@ -449,13 +449,21 @@ public static class EnterpriseParser
 
     private static string StripTrailingComment(string Line)
     {
-        int CommentIndex = Line.IndexOf("%%", StringComparison.Ordinal);
-        if (CommentIndex < 0)
+        // Titles are the rest of the line, not quoted-label statements.
+        bool IsTitle = TitleRegex.IsMatch(Line.TrimStart());
+        bool InQuotes = false;
+        for (int Index = 0; Index < Line.Length; Index++)
         {
-            return Line;
+            if (!IsTitle && InQuotes && Line[Index] == '\\')
+            {
+                Index++;
+                continue;
+            }
+            if (!IsTitle && Line[Index] == '"') InQuotes = !InQuotes;
+            if (!InQuotes && Line[Index] == '%' && Index + 1 < Line.Length && Line[Index + 1] == '%')
+                return Line.Substring(0, Index);
         }
-
-        return Line.Substring(0, CommentIndex);
+        return Line;
     }
 
     private static string Unquote(string Value)
