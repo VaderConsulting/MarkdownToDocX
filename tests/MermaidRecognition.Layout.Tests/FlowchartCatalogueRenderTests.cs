@@ -2262,7 +2262,7 @@ public sealed class FlowchartCatalogueRenderTests
     }
 
     [Test]
-    public void TryLayout_F58_MaintainsMultipleVerticalColumns()
+    public void TryLayout_PipelineWithEarlyExit_PreservesSpineAndSeparatesFinalBranches()
     {
         DiagramContract Contract = MermaidRecognizer.Parse("""
             flowchart TD
@@ -2292,7 +2292,7 @@ public sealed class FlowchartCatalogueRenderTests
 
         Assert.That(DistinctColumns.Count, Is.GreaterThanOrEqualTo(3), "Diagram should use several vertical columns");
 
-        foreach (string SpineNodeId in new[] { "Start", "Ingest", "Validate", "Parse", "HasMermaid", "Word", "DoArchive", "Done" })
+        foreach (string SpineNodeId in new[] { "Start", "Ingest", "Validate", "Parse", "HasMermaid", "Word", "DoArchive" })
         {
             Assert.That(BoundsById[SpineNodeId].CenterX, Is.EqualTo(SpineX).Within(1.5),
                 SpineNodeId + " should stay on the spine column");
@@ -2307,8 +2307,17 @@ public sealed class FlowchartCatalogueRenderTests
 
         Assert.That(BoundsById["Persist"].CenterY, Is.GreaterThan(BoundsById["Done"].CenterY + 40.0),
             "Optional archive sits above the terminal collector");
-        Assert.That(BoundsById["Reject"].CenterY, Is.GreaterThan(BoundsById["Done"].CenterY + 40.0),
-            "Early exit sits above the terminal collector so its merge runs down");
+        AssertBranchesOnBothSides(BoundsById, "DoArchive", "Done", "Persist");
+        Assert.That(BoundsById["Done"].CenterX, Is.LessThan(SpineX - 40.0),
+            "Terminal collector sits beside the final decision");
+        Assert.That(BoundsById["Persist"].CenterX, Is.GreaterThan(SpineX + 40.0),
+            "Optional detour sits opposite the terminal collector");
+        Assert.That(BoundsById["Reject"].CenterY, Is.EqualTo(BoundsById["Done"].CenterY).Within(1.5),
+            "Early exit sits beside the terminal collector");
+        double EarlyExitRight = BoundsById["Reject"].CenterX + BoundsById["Reject"].Width / 2.0;
+        double CollectorLeft = BoundsById["Done"].CenterX - BoundsById["Done"].Width / 2.0;
+        Assert.That(CollectorLeft - EarlyExitRight, Is.GreaterThanOrEqualTo(30.0 - 0.01),
+            "Early exit and terminal collector retain a grid step of clearance");
         Assert.That(BoundsById["Validate"].CenterY, Is.GreaterThan(BoundsById["Reject"].CenterY + 40.0),
             "Validate stays above the early-exit branch row");
     }
