@@ -8,7 +8,7 @@ solution. Historical evidence is in the [grid layout review](grid-layout-review.
 | Area | Current state |
 | --- | --- |
 | Master | Baseline `f09cb89`; not changed or remeasured in this pass. |
-| Grid work | PR #9, `cursor/many-to-many-routing-3834`; application fixes through `ca5adab` pushed, not merged. |
+| Grid work | PR #9, `cursor/many-to-many-routing-3834`; application fixes through `db30bd7` pushed, not merged. |
 | Active checkout | Sibling `MarkdownToDocX-pr9` worktree. The original folder retains its documentation branch and supplied files. |
 | Enterprise / ArchiMate | Selected parser, validation, notation and renderer code from PR #1 integrated into PR #9. Neither PR was merged. |
 | Decisions | All six defaults approved. The held frame-midline rule is replaced by fitting frames on the shared grid and growing shared gaps. |
@@ -38,6 +38,8 @@ solution. Historical evidence is in the [grid layout review](grid-layout-review.
 - Relationship captions wrap and search clear straight-run positions. Nearby
   parallel captions stagger, and connector breaks follow their text. Exhausted
   local corridors retain visible fallback text; automatic gap growth remains open.
+- Short straight runs reserve arrowhead clearance without an unused bend
+  allowance; caption searches use finer steps to stagger text in bounded gaps.
 - Enterprise element, group, relationship and junction captions honour
   explicit break tags and newline escapes. Each line wraps independently;
   escaped literal backslashes survive. Multiline group tabs reserve height.
@@ -61,7 +63,10 @@ solution. Historical evidence is in the [grid layout review](grid-layout-review.
   and the centred source uses free flow-facing ports for two-bend routes.
 - Aligned vertical returns between non-diamond nodes use shared side ports,
   preserving clear orthogonal routes and square terminal runs through the
-  later legacy loop-routing pass. Horizontal cyclic return routing remains
+  later legacy loop-routing pass. The longest of several aligned returns to
+  one ancestor uses the opposite side from shorter returns. Circular feedback
+  bypasses inward-facing straight ports and keeps a clear side corridor.
+  Horizontal cyclic return routing remains
   incomplete and is outside this correction.
 - Sequence row spacing accounts for notes, message labels and arrowheads;
   outer notes enlarge the canvas. This shared spacing work predates this pass.
@@ -87,11 +92,11 @@ in existing PR #9 tests during this pass.
 ## 3. Verified tests
 
 Plain `dotnet test`, including build/restore, on pushed application commit
-`ca5adab`. Baselines were measured before behavioural edits and retained.
+`db30bd7`. Baselines were measured before behavioural edits and retained.
 
 | Suite | Master passed / failed | Starting PR #9 passed / failed | Current passed / failed |
 | --- | ---: | ---: | ---: |
-| Layout | 234 / 34 | 280 / 38 | 497 / 32 |
+| Layout | 234 / 34 | 280 / 38 | 501 / 32 |
 | Rule validation | 46 / 11 | 44 / 13 | 49 / 10 |
 | Recognition | 932 / 0 | 932 / 0 | 1025 / 0 |
 | Naiad adapter | 47 / 0 | 47 / 0 | 47 / 0 |
@@ -114,7 +119,7 @@ were corrected without changing their assertions.
 
 Final logs, TRX files, exact failure-name comparisons, renders, DOCX outputs
 and a complete picture manifest are local evidence under
-`out/fan-ports/verified/` (latest), with earlier evidence under
+`out/cycle-corridors/final/` (latest), with earlier evidence under
 `out/rulebook-completion/a34ebb9/`. Recognition's twelve explicit fixture
 writers remain excluded from ordinary execution. **Acceptance is incomplete;
 passing-count targets do not establish visual correctness or merge readiness.**

@@ -1,6 +1,6 @@
 # Grid layout review — 9 October 2026
 
-This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `ca5adab`; section 30 records rounded behaviour box ports and equivalent source. Section 29 records visible internal parent-child relationships. Section 28 records facing container ports and visible compound attachments. Section 27 records quoted comments and entity decoding. Section 26 records explicit label breaks. Section 25 records title canvas sizing. Section 24 records relationship caption staggering. Section 23 records aligned vertical return ports. Section 22 records shared input fan placement and continuation alignment. Section 21 records junction caption clearance. Section 20 records plain relationship label measurement and elliptical attachments. Section 19 records the generic forward-dogleg correction. Section 18 records approved decisions, native Enterprise/pie integration, local spacing and frame fixes. Sections 16–17 retain the earlier routing evidence. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
+This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `db30bd7`; section 31 records nested return corridors and short-run caption placement. Section 30 records rounded behaviour box ports and equivalent source. Section 29 records visible internal parent-child relationships. Section 28 records facing container ports and visible compound attachments. Section 27 records quoted comments and entity decoding. Section 26 records explicit label breaks. Section 25 records title canvas sizing. Section 24 records relationship caption staggering. Section 23 records aligned vertical return ports. Section 22 records shared input fan placement and continuation alignment. Section 21 records junction caption clearance. Section 20 records plain relationship label measurement and elliptical attachments. Section 19 records the generic forward-dogleg correction. Section 18 records approved decisions, native Enterprise/pie integration, local spacing and frame fixes. Sections 16–17 retain the earlier routing evidence. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
 
 ## 1. Fresh test comparison
 
@@ -1188,3 +1188,56 @@ rounded corners, with normal terminal runs. The panoramic row remains wide
 and is reduced substantially on a document page; this pass does not change
 that placement or complete Word pagination review. Supplied files remain
 untouched and nothing was merged.
+## 31. Nested return corridors and short captions — 10 October 2026
+
+The marked cyclic graph had its long chain return crowded between components,
+a diagonal circular feedback approach and overlapping captions on neighbouring
+flows. The longest aligned return to a shared ancestor now uses the opposite
+side from shorter aligned returns. Allocated clear side routes on either side
+survive the legacy loop-routing pass. Circular back edges bypass inward-facing
+straight port selection and use a side corridor with normal terminal runs.
+
+Caption searches now advance by the existing clearance distance rather than
+coarse fifteen-pixel steps. A two-point straight connector reserves arrowhead
+clearance without an unused corner allowance, allowing nearby captions to
+stagger in a bounded gap. Wrapped captions and their line breaks remain tied
+to their selected straight segments.
+
+`db30bd7` — Separate nested returns and clear their terminal runs.
+
+This builds directly on `89142c7`, preserving previous application fixes. The
+engine diff was checked for diagram-specific selectors; rules use aligned
+bounds, return spans, shared targets, circular outlines and text clearance.
+No catalogue number, diagram name, identifier or label selects a rule.
+Existing assertions and fixtures were unchanged. Four new structural checks
+cover the aligned long/short return, circular returns in both vertical
+directions and caption staggering on short parallel runs. All 29 focused
+checks passed.
+
+An exploratory bottom-to-top version of the long/short test did not meet its
+alignment precondition: the shorter return's source was in a different column.
+That uncommitted fixture was excluded from the aligned-case check rather than
+broadening the rule to unrelated geometry. The implemented rule remains limited
+to aligned nested returns; the two circular-return direction checks remain.
+
+All five suites ran once on pushed application commit `db30bd7`: Layout 501
+passed / 32 failed, rule validation 49 / 10, recognition 1025 / 0, Naiad adapter
+47 / 0, converter 52 / 0. No new failing names appeared against `ca5adab`.
+The retained master baseline was not rerun. The two stopped master-passing
+Layout regressions in section 18 remain unchanged. Rulebook acceptance and
+full visual correctness remain incomplete.
+
+Final evidence is under `out/cycle-corridors/final/`: logs/TRX, exact failure-name
+comparison, the marked example, 126 flowchart renders with four commented
+skips and ten Enterprise samples with the same two expected rejections.
+`picture-manifest.txt` lists every rendered picture path. The rebuilt WinForms
+executable saves the regenerated document to
+`C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX-pr9\out\cycle-corridors\final\enterprise.docx`.
+Package inspection found 96 drawings and 34 source-preserving warnings. The
+marked diagram's embedded picture was extracted and visually inspected: the
+long return is outside on the left, the shorter return stays right, circular
+feedback has rounded bends and square terminal runs, and order/status text
+is separate. The small retry self-loop caption still crosses its short path;
+that exhausted local label corridor needs additional space and remains open.
+This is not full catalogue acceptance or a Word pagination review. Supplied
+files remain untouched and nothing was merged.
