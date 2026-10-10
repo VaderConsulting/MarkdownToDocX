@@ -23,6 +23,7 @@ public static class NativePieRenderBridge
         DiagramContract Contract = MermaidRecognizer.Parse(Source);
         if (Contract.Kind != "pie" || Contract.Diagnostics.Any(Diagnostic => Diagnostic.Code == "recognition.pie.unclassified-line")
             || Source.Contains("%%{", StringComparison.Ordinal) || Source.TrimStart().StartsWith("---", StringComparison.Ordinal)) return false;
+        if (Contract.SourceStatements.Count(Statement => Statement.LineTypeId == "pie.section") != Contract.Nodes.Count) return false;
         var Sections = new List<(string Label, double Value)>();
         var Seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (NodeContract Node in Contract.Nodes)

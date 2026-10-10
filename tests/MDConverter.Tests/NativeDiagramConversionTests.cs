@@ -34,7 +34,7 @@ public sealed class NativeDiagramConversionTests
     public void MalformedPie_RetainsTheDiagnosticAndSource()
     {
         const string Source = "pie\nunsupported statement";
-        Assert.IsFalse(NativeDiagramRenderBridge.TryRenderSvg(Source, out _));
+        Assert.ThrowsExactly<InvalidOperationException>(() => NativeDiagramRenderBridge.TryRenderSvg(Source, out _));
         using var Document = Convert(Source);
         StringAssert.Contains(Document.MainDocumentPart!.Document!.InnerText, "Mermaid diagram not rendered");
         StringAssert.Contains(Document.MainDocumentPart.Document.InnerText, "unsupported statement");
