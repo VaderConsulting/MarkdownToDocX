@@ -2558,6 +2558,20 @@ public static class DiagramGridLayout
 
     private static (int X, int Y) ProjectToOutline(BoxRef Box, string? Shape, int SlotX, int SlotY, int OutX, int OutY)
     {
+        if (string.Equals(Shape, "ellipse", StringComparison.OrdinalIgnoreCase))
+        {
+            double Rx = Box.Width / 2.0, Ry = Box.Height / 2.0;
+            if (OutX != 0)
+            {
+                double Dy = (SlotY - Box.CenterY) / Ry;
+                double Offset = Rx * Math.Sqrt(Math.Max(0, 1 - Dy * Dy));
+                return ((int)Math.Round(Box.CenterX + OutX * Offset), SlotY);
+            }
+            double Dx = (SlotX - Box.CenterX) / Rx;
+            double VerticalOffset = Ry * Math.Sqrt(Math.Max(0, 1 - Dx * Dx));
+            return (SlotX, (int)Math.Round(Box.CenterY + OutY * VerticalOffset));
+        }
+
         if (string.Equals(Shape, "circle", StringComparison.OrdinalIgnoreCase)
             || string.Equals(Shape, "doublecircle", StringComparison.OrdinalIgnoreCase))
         {

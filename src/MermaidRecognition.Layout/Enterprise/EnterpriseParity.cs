@@ -182,6 +182,10 @@ public static class EnterpriseParity
             (double Width, double Height) Size = EnterpriseNodeSizer.MeasureElement(Element);
             Node.LayoutWidth = Size.Width;
             Node.LayoutHeight = Size.Height;
+            if (EnterpriseElementCatalog.Elements[Element.ElementType].BoxKind == EnterpriseBoxKind.Ellipse)
+            {
+                Node.Shape = EnterpriseFlowchartContractMapper.RoutingShape(Element);
+            }
             if (Element.ElementType == EnterpriseElementType.Junction)
             {
                 Node.Label = " ";

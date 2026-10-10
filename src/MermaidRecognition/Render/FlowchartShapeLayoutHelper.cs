@@ -39,6 +39,7 @@ public static class FlowchartShapeLayoutHelper
         double Height)
     {
         string Normalised = NormaliseShape(Shape);
+
         double H6 = Height / 6.0;
         double SlantExtension = 2.0 * H6;
 
@@ -99,6 +100,13 @@ public static class FlowchartShapeLayoutHelper
         double DirY)
     {
         string Normalised = NormaliseShape(Shape);
+
+        if (string.Equals(Normalised, "ellipse", StringComparison.Ordinal))
+        {
+            double Rx = Math.Max(0.001, Width / 2.0), Ry = Math.Max(0.001, Height / 2.0);
+            double Scale = 1.0 / Math.Sqrt(DirX * DirX / (Rx * Rx) + DirY * DirY / (Ry * Ry));
+            return (CenterX + DirX * Scale, CenterY + DirY * Scale);
+        }
 
         if (string.Equals(Normalised, "diamond", StringComparison.Ordinal)
             || string.Equals(Normalised, "rhombus", StringComparison.Ordinal))

@@ -17,6 +17,16 @@ namespace MermaidRecognition.Layout.Enterprise;
 /// </summary>
 internal static class EnterpriseFlowchartEdgeRouter
 {
+    private const double RELATIONSHIP_LABEL_FONT_SIZE_PX = 12;
+
+    // Plain SVG text has no HTML label box or minimum browser box width.
+    private static FlowchartLabelDimensions MeasureRelationshipLabel(string Label) => new()
+    {
+        DisplayText = Label,
+        Width = Label.Length * RELATIONSHIP_LABEL_FONT_SIZE_PX * FlowchartEdgeLabelGapHelper.LABEL_CHAR_WIDTH_EM,
+        Height = RELATIONSHIP_LABEL_FONT_SIZE_PX
+    };
+
     /// <summary>
     /// Resolves every visible relationship using flowchart layout and routing.
     /// </summary>
@@ -109,6 +119,13 @@ internal static class EnterpriseFlowchartEdgeRouter
                     RouteClass,
                     Context.RenderOptions);
                 (LabelX, LabelY) = Context.Frame.LayoutToSvg(LayoutLabelX, LayoutLabelY);
+            }
+
+            if (Label.Length > 0 && FlowchartEdgeLabelGapHelper.TryResolveLabelSegmentBreak(
+                SvgPoints, MeasureRelationshipLabel(Label), RELATIONSHIP_LABEL_FONT_SIZE_PX, out var LabelBreak))
+            {
+                LabelX = LabelBreak.CentreX;
+                LabelY = LabelBreak.CentreY;
             }
 
             ResolveArchiMateMarkers(Relationship, out string? StartMarker, out string? EndMarker);
@@ -228,10 +245,9 @@ internal static class EnterpriseFlowchartEdgeRouter
     private static string VisiblePath(EnterpriseRoutedEdge Routed)
     {
         if (string.IsNullOrWhiteSpace(Routed.Label)) return Routed.PathData;
-        FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(new DiagramContract());
-        FlowchartLabelDimensions Dimensions = FlowchartNodeSizeEstimator.MeasureWrappedLabel(Routed.Label, Options, Options.EdgeLabelFontSizePx);
+        FlowchartLabelDimensions Dimensions = MeasureRelationshipLabel(Routed.Label);
         if (!FlowchartEdgeLabelGapHelper.TryResolveLabelSegmentBreak(Routed.SvgPoints, Dimensions,
-            Options.EdgeLabelFontSizePx, out var Gap)) return Routed.PathData;
+            RELATIONSHIP_LABEL_FONT_SIZE_PX, out var Gap)) return Routed.PathData;
         var Start = Routed.SvgPoints[Gap.SegmentStartIndex];
         var End = Routed.SvgPoints[Gap.SegmentEndIndex];
         double Dx = Math.Sign(End.X - Start.X), Dy = Math.Sign(End.Y - Start.Y);

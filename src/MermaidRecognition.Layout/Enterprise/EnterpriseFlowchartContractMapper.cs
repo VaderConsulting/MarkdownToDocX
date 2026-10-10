@@ -251,7 +251,7 @@ public static class EnterpriseFlowchartContractMapper
         EnterpriseElementMetadata Metadata = EnterpriseElementCatalog.Elements[Element.ElementType];
         if (Metadata.BoxKind == EnterpriseBoxKind.Ellipse)
         {
-            return "circle";
+            return "ellipse";
         }
 
         if (Metadata.Aspect == EnterpriseAspect.Behaviour)
