@@ -13,9 +13,11 @@ internal static class FlowchartCrossGroupRouteSimplifier
     {
         var Roots = Contract.Groups.Where(Group => !Contract.Groups.Any(Other => Other.Id != Group.Id
             && FlowchartCompoundEndpointHelper.Contains(Contract, Other.Id, Group.Id))).ToList();
-        if (Roots.Count < 2) return;
+        if (Roots.Count == 0) return;
         string? Owner(string Id) => Roots.FirstOrDefault(Group => Group.Id == Id
             || FlowchartCompoundEndpointHelper.Contains(Contract, Group.Id, Id))?.Id;
+        string? Parent(string Id) => Contract.Groups.FirstOrDefault(Group => Group.ChildNodeIds.Contains(Id)
+            || Group.ChildGroupIds.Contains(Id))?.Id;
         for (int Pass = 0; Pass < 3; Pass++)
         foreach (var Route in Layout.EdgeRoutes)
         {
@@ -33,7 +35,7 @@ internal static class FlowchartCrossGroupRouteSimplifier
             bool SelfCut = Route.Points.Zip(Route.Points.Skip(1)).Any(Pair =>
                 FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(Pair.First.X, Pair.First.Y, Pair.Second.X, Pair.Second.Y, Source)
                 || FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(Pair.First.X, Pair.First.Y, Pair.Second.X, Pair.Second.Y, Target));
-            if (AOwner == BOwner && !SelfCut) continue;
+            if (AOwner == BOwner && Parent(Route.SourceId) == Parent(Route.TargetId) && !SelfCut) continue;
             if (Contract.Nodes.Any(Node => (Node.Id == Route.SourceId || Node.Id == Route.TargetId)
                 && Node.Shape is not (null or "" or "rect" or "rounded" or "round"))) continue;
             var Obstacles = FlowchartPaddedVisibilityRouter.CollectObstacles(Contract, Bounds, Edge)
