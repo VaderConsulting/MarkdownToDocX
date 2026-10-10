@@ -131,11 +131,11 @@ public static class EnterpriseFlowchartSourceWriter
             return;
         }
 
-        if (Shape == "stadium")
+        if (Shape == "rounded")
         {
-            Builder.Append("([\"");
+            Builder.Append("(\"");
             Builder.Append(Label);
-            Builder.Append("\"])\n");
+            Builder.Append("\")\n");
             return;
         }
 
