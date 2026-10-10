@@ -329,7 +329,7 @@ public static class FlowchartSubgraphBoundsBuilder
             Left = MinLeft - PADDING_PX,
             Bottom = MinBottom - PADDING_PX - VERTICAL_CONTENT_SLACK_PX,
             Right = MaxRight + PADDING_PX,
-            Top = MaxTop + PADDING_PX + TITLE_BAND_PX,
+            Top = MaxTop + PADDING_PX + TITLE_BAND_PX + 15 * ((Group.Title ?? string.Empty).Split('\n').Length - 1),
             Title = string.IsNullOrWhiteSpace(Group.Title) ? Group.Id : Group.Title
         };
         return Result;

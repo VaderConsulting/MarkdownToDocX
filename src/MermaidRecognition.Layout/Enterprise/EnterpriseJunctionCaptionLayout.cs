@@ -21,7 +21,10 @@ internal static class EnterpriseJunctionCaptionLayout
             if (Node.Element?.ElementType != EnterpriseElementType.Junction
                 || string.IsNullOrEmpty(Node.Element.Label)
                 || string.Equals(Node.Element.Label, Node.Element.Id, StringComparison.Ordinal)) continue;
-            double Width = FlowchartRichLabelSvgWriter.EstimateLineWidthPx(Node.Element.Label, FontSize);
+            double Width = 0;
+            foreach (var Line in Node.LabelLines)
+                Width = Math.Max(Width, FlowchartRichLabelSvgWriter.EstimateLineWidthPx(Line, FontSize));
+            double TextHeight = FontSize + 15 * (Node.LabelLines.Count - 1);
             double CentreY = Node.AbsoluteY + Node.Height / 2;
             Caption? Selected = null;
             // Search nearest positions first; captions never alter connector geometry.
@@ -30,10 +33,10 @@ internal static class EnterpriseJunctionCaptionLayout
                 double Offset = Step * 15;
                 Caption[] Candidates =
                 {
-                    new(Node.AbsoluteX + Node.Width + Clearance, CentreY - FontSize - Clearance - Offset, Width, FontSize),
-                    new(Node.AbsoluteX + Node.Width + Clearance, CentreY + Clearance + Offset, Width, FontSize),
-                    new(Node.AbsoluteX - Width - Clearance, CentreY - FontSize - Clearance - Offset, Width, FontSize),
-                    new(Node.AbsoluteX - Width - Clearance, CentreY + Clearance + Offset, Width, FontSize)
+                    new(Node.AbsoluteX + Node.Width + Clearance, CentreY - TextHeight - Clearance - Offset, Width, TextHeight),
+                    new(Node.AbsoluteX + Node.Width + Clearance, CentreY + Clearance + Offset, Width, TextHeight),
+                    new(Node.AbsoluteX - Width - Clearance, CentreY - TextHeight - Clearance - Offset, Width, TextHeight),
+                    new(Node.AbsoluteX - Width - Clearance, CentreY + Clearance + Offset, Width, TextHeight)
                 };
                 foreach (var Candidate in Candidates)
                 {
@@ -46,7 +49,7 @@ internal static class EnterpriseJunctionCaptionLayout
             }
             // An exhausted search remains visible for diagnosis, rather than hiding text.
             Captions[Node.Id] = Selected ?? new(Node.AbsoluteX + Node.Width + Clearance,
-                CentreY - FontSize - Clearance, Width, FontSize);
+                CentreY - TextHeight - Clearance, Width, TextHeight);
         }
         return Captions;
     }
@@ -58,7 +61,7 @@ internal static class EnterpriseJunctionCaptionLayout
         foreach (var Node in Nodes.Values)
         {
             // Frame interiors are available; their title strips are occupied.
-            double Height = Node.IsGroup ? 20 : Node.Height;
+            double Height = Node.IsGroup ? 18 + 15 * (Node.LabelLines.Count - 1) : Node.Height;
             if (Overlaps(Candidate, Node.AbsoluteX, Node.AbsoluteY, Node.Width, Height)) return false;
         }
         foreach (var Existing in Captions)

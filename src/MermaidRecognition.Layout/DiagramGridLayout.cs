@@ -2043,9 +2043,9 @@ public static class DiagramGridLayout
             }
 
             string Title = string.IsNullOrWhiteSpace(Group.Title) ? Group.Id : Group.Title;
-            double TitleWidth = FlowchartRichLabelSvgWriter.EstimateLineWidthPx(Title, Options.FontSizePx);
+            double TitleWidth = Title.Split('\n').Max(Line => FlowchartRichLabelSvgWriter.EstimateLineWidthPx(Line, Options.FontSizePx));
             int Strip = DiagramGridMetrics.GRID_UNIT_PX;
-            double LineHeight = Options.FontSizePx * DiagramGridMetrics.TEXT_LINE_HEIGHT_EM;
+            double LineHeight = Options.FontSizePx * DiagramGridMetrics.TEXT_LINE_HEIGHT_EM * Title.Split('\n').Length;
             if (LineHeight > Strip)
             {
                 Strip = DiagramGridMetrics.CeilToGrid(LineHeight);

@@ -460,7 +460,7 @@ public static class EnterpriseParser
 
     private static string Unquote(string Value)
     {
-        return Regex.Replace(Value, @"\\(.)", "$1");
+        return EnterpriseLabelText.DecodeQuoted(Value);
     }
 
     private static EnterpriseDiagnostic CreateError(int LineNumber, string Message)

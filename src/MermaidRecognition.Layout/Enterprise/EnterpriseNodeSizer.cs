@@ -58,43 +58,7 @@ internal static class EnterpriseNodeSizer
         return (Width, Height);
     }
 
-    internal static List<string> Wrap(string Label)
-    {
-        List<string> Lines = new List<string>();
-        if (string.IsNullOrEmpty(Label))
-        {
-            Lines.Add(string.Empty);
-            return Lines;
-        }
-
-        string[] Words = Label.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-        string Current = string.Empty;
-        foreach (string Word in Words)
-        {
-            string Candidate = Current.Length == 0 ? Word : Current + " " + Word;
-            if (Current.Length > 0 && Candidate.Length > MAX_CHARS)
-            {
-                Lines.Add(Current);
-                Current = Word;
-            }
-            else
-            {
-                Current = Candidate;
-            }
-        }
-
-        if (Current.Length > 0)
-        {
-            Lines.Add(Current);
-        }
-
-        if (Lines.Count == 0)
-        {
-            Lines.Add(Label);
-        }
-
-        return Lines;
-    }
+    internal static List<string> Wrap(string Label) => EnterpriseLabelText.Wrap(Label, MAX_CHARS);
 
     internal static double MaxLineWidth(List<string> Lines)
     {

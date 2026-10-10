@@ -98,7 +98,7 @@ public static class EnterpriseFlowchartContractMapper
         GroupContract Group = new GroupContract
         {
             Id = ContainerId,
-            Title = ContainerTitle(Document, ContainerId),
+            Title = string.Join("\n", EnterpriseNodeSizer.Wrap(ContainerTitle(Document, ContainerId))),
             ParentGroupId = ParentContainerId(Document, ContainerId, Containers)
         };
         Contract.GroupsMutable.Add(Group);

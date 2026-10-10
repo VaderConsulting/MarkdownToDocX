@@ -331,37 +331,42 @@ public static class EnterpriseNotationSvg
     public static string GroupingTabSvg(double X, double Y, double Width, double Height, string Label)
     {
         string SafeLabel = Label ?? string.Empty;
-        double TabWidth = Math.Max(60, (SafeLabel.Length * 6.6) + 16);
+        var Lines = EnterpriseNodeSizer.Wrap(SafeLabel);
+        double TabWidth = Math.Max(60, EnterpriseNodeSizer.MaxLineWidth(Lines) + 16);
+        double TabHeight = 18 + (Lines.Count - 1) * 15;
         StringBuilder Builder = new StringBuilder();
         Builder.Append("<path d=\"M")
             .Append(N(X))
             .Append(',')
-            .Append(N(Y + 18))
+            .Append(N(Y + TabHeight))
             .Append(" V")
             .Append(N(Y))
             .Append(" H")
             .Append(N(X + TabWidth))
             .Append(" V")
-            .Append(N(Y + 18))
+            .Append(N(Y + TabHeight))
             .Append("\" fill=\"none\" stroke=\"#000\" stroke-dasharray=\"5 3\"/>")
             .Append("<rect x=\"")
             .Append(N(X))
             .Append("\" y=\"")
-            .Append(N(Y + 18))
+            .Append(N(Y + TabHeight))
             .Append("\" width=\"")
             .Append(N(Width))
             .Append("\" height=\"")
-            .Append(N(Math.Max(10, Height - 18)))
+            .Append(N(Math.Max(10, Height - TabHeight)))
             .Append("\" fill=\"none\" stroke=\"#000\" stroke-dasharray=\"5 3\"/>");
         if (SafeLabel.Length > 0)
         {
-            Builder.Append("<text x=\"")
+            for (int Index = 0; Index < Lines.Count; Index++)
+            {
+                Builder.Append("<text x=\"")
                 .Append(N(X + 6))
                 .Append("\" y=\"")
-                .Append(N(Y + 13))
+                .Append(N(Y + 13 + Index * 15))
                 .Append("\">")
-                .Append(EnterpriseSvgFormat.Escape(SafeLabel))
+                .Append(EnterpriseSvgFormat.Escape(Lines[Index]))
                 .Append("</text>");
+            }
         }
 
         return Builder.ToString();

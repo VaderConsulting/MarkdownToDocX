@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using MermaidRecognition.Render;
+using MermaidRecognition.Kinds.Enterprise;
 
 namespace MermaidRecognition.Layout.Enterprise;
 
@@ -19,11 +20,11 @@ internal static class EnterpriseRelationshipLabelLayout
             Edge.LabelLines = Wrap(Edge.Label);
             Edge.LabelWidth = Edge.LabelLines.Count == 0 ? 0 : Edge.LabelLines.Max(Line =>
                 Line.Length * FontSize * FlowchartEdgeLabelGapHelper.LABEL_CHAR_WIDTH_EM);
-            Edge.LabelHeight = Edge.LabelLines.Count == 0 ? 0 : FontSize + 15 * (Edge.LabelLines.Count - 1);
+            Edge.LabelHeight = string.IsNullOrWhiteSpace(Edge.Label) ? 0 : FontSize + 15 * (Edge.LabelLines.Count - 1);
         }
         List<EnterpriseRoutedEdge> Placed = new();
         // Reserve the most constrained text first. Stable ordering resolves equal sizes.
-        foreach (var Edge in Edges.Where(Edge => Edge.LabelLines.Count > 0)
+        foreach (var Edge in Edges.Where(Edge => !string.IsNullOrWhiteSpace(Edge.Label))
             .OrderByDescending(Edge => Edge.LabelWidth * Edge.LabelHeight))
         {
             FlowchartEdgeLabelGapHelper.LabelSegmentBreak? Preferred = null;
@@ -101,7 +102,12 @@ internal static class EnterpriseRelationshipLabelLayout
             X - Width / 2 < Left + OtherWidth + Clearance && X + Width / 2 > Left - Clearance
             && Y - Height / 2 < Top + OtherHeight + Clearance && Y + Height / 2 > Top - Clearance;
         foreach (var Node in Nodes.Values)
-            if (Overlaps(Node.AbsoluteX, Node.AbsoluteY, Node.Width, Node.IsGroup ? 20 : Node.Height)) return false;
+        {
+            if (Overlaps(Node.AbsoluteX, Node.AbsoluteY, Node.Width, Node.IsGroup ? 18 + 15 * (Node.LabelLines.Count - 1) : Node.Height)) return false;
+            if (Node.IsGroup && (Overlaps(Node.AbsoluteX, Node.AbsoluteY, 0, Node.Height)
+                || Overlaps(Node.AbsoluteX + Node.Width, Node.AbsoluteY, 0, Node.Height)
+                || Overlaps(Node.AbsoluteX, Node.AbsoluteY + Node.Height, Node.Width, 0))) return false;
+        }
         foreach (var Other in Placed)
             if (Overlaps(Other.LabelX - Other.LabelWidth / 2, Other.LabelY - Other.LabelHeight / 2,
                 Other.LabelWidth, Other.LabelHeight)) return false;
@@ -111,20 +117,5 @@ internal static class EnterpriseRelationshipLabelLayout
     private static double Distance((double X, double Y) A, (double X, double Y) B) =>
         Math.Abs(B.X - A.X) + Math.Abs(B.Y - A.Y);
 
-    private static List<string> Wrap(string Text, int Width = 32)
-    {
-        List<string> Lines = new();
-        string Line = string.Empty;
-        foreach (string Word in Text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
-        {
-            if (Line.Length > 0 && Line.Length + 1 + Word.Length > Width)
-            {
-                Lines.Add(Line);
-                Line = string.Empty;
-            }
-            Line = Line.Length == 0 ? Word : Line + " " + Word;
-        }
-        if (Line.Length > 0) Lines.Add(Line);
-        return Lines;
-    }
+    private static List<string> Wrap(string Text, int Width = 32) => EnterpriseLabelText.Wrap(Text, Width);
 }

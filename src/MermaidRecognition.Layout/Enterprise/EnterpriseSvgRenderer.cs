@@ -179,13 +179,16 @@ public static class EnterpriseSvgRenderer
             string JunctionLabel = Element.Label;
             if (Caption != null)
             {
+                for (int Index = 0; Index < Node.LabelLines.Count; Index++)
+                {
                 Builder.Append("<text x=\"")
                     .Append(EnterpriseSvgFormat.Number(Caption.X))
                     .Append("\" y=\"")
-                    .Append(EnterpriseSvgFormat.Number(Caption.Y + Caption.Height))
+                    .Append(EnterpriseSvgFormat.Number(Caption.Y + EnterpriseJunctionCaptionLayout.FontSize + Index * LINE_HEIGHT))
                     .Append("\" font-size=\"11\">")
-                    .Append(EnterpriseSvgFormat.Escape(JunctionLabel))
+                    .Append(EnterpriseSvgFormat.Escape(Node.LabelLines[Index]))
                     .Append("</text>");
+                }
             }
 
             Builder.Append("</g>");
