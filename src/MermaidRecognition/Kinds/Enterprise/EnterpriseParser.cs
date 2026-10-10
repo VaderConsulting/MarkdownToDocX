@@ -97,10 +97,8 @@ public static class EnterpriseParser
         bool InDescription = false;
         List<string> DescriptionLines = new();
 
-        for (int Index = 0; Index < Lines.Length; Index++)
+        foreach ((string RawLine, int LineNumber) in EnterpriseStatements.Read(Normalised))
         {
-            int LineNumber = Index + 1;
-            string RawLine = Lines[Index];
             if (InDescription)
             {
                 if (RawLine.Trim() == "}")
