@@ -105,6 +105,7 @@ public static class DiagramGridLayout
         GrowParallelRelationshipSides(Contract, Placed, Horizontal);
         SeparateOverlaps(Placed, Horizontal);
         FlowchartTerminalBranchPlacement.Apply(Contract, Placed, Horizontal, CrossPitch);
+        FlowchartTerminalInputPlacement.Apply(Contract, Placed, Horizontal, CrossPitch);
         FlowchartGridCompaction.Apply(Placed, Horizontal, Math.Max(CrossPitch, Contract.Groups.Count > 0 ? 60 : DiagramGridMetrics.NODE_GAP_PX));
         List<GridFrame> Frames = new List<GridFrame>();
         CenterLoneNestedGroups(Contract, Placed, Horizontal);
@@ -899,7 +900,7 @@ public static class DiagramGridLayout
     /// Independent inputs in one rank occupy neighbouring columns around their merge.
     /// Empty columns inherited from the original placement need no reserved space.
     /// </summary>
-    private static void CompactIndependentFanIn(
+    internal static void CompactIndependentFanIn(
         DiagramContract Contract, List<GridNode> Placed, bool Horizontal, int CrossPitch)
     {
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
@@ -917,7 +918,6 @@ public static class DiagramGridLayout
                 .Select(Edge => ById[Edge.SourceId]).OrderBy(Node => Cross(Node, Horizontal, Old: false)).ToList();
             if (Parents.Count != Incoming.Count || Parents.Select(Node => Node.Rank).Distinct().Count() != 1
                 || Parents.Any(Parent => Parent.Rank == Target.Rank || Parent.GroupId != Target.GroupId
-                    || Visible.Any(Edge => Edge.TargetId == Parent.Id)
                     || Visible.Count(Edge => Edge.SourceId == Parent.Id) != 1)
                 || Placed.Any(Node => Node.Rank == Parents[0].Rank && !Parents.Contains(Node)))
             {
@@ -925,6 +925,17 @@ public static class DiagramGridLayout
             }
             int Pitch = Math.Max(CrossPitch, DiagramGridMetrics.CeilToGrid(
                 Parents.Max(Node => 2 * CrossHalf(Node, Horizontal, Leading: true)) + DiagramGridMetrics.NODE_GAP_PX));
+            var Anchored = Parents.Where(Parent => Visible.Any(Edge => Edge.TargetId == Parent.Id)).ToList();
+            foreach (var Parent in Anchored)
+            {
+                int Offset = Parents.IndexOf(Parent) - Parents.Count / 2;
+                if (Offset != 0) Pitch = Math.Max(Pitch, DiagramGridMetrics.CeilToGrid(
+                    Math.Abs(Cross(Parent, Horizontal, Old: false) - Cross(Target, Horizontal, Old: false)) / Math.Abs(Offset)));
+            }
+            // An upstream chain anchors its parent. Independent inputs may
+            // close around that anchor when it already occupies its fan slot.
+            if (Anchored.Any(Parent => Math.Abs(Cross(Parent, Horizontal, Old: false)
+                    - (Cross(Target, Horizontal, Old: false) + (Parents.IndexOf(Parent) - Parents.Count / 2) * Pitch)) > 0.5)) continue;
             for (int Index = 0; Index < Parents.Count; Index++)
             {
                 SetCross(Parents[Index], (int)Math.Round(Cross(Target, Horizontal, Old: false))
