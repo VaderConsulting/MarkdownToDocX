@@ -326,9 +326,12 @@ public static class FlowchartSubgraphBoundsBuilder
         FlowchartSubgraphLayoutRect Result = new FlowchartSubgraphLayoutRect
         {
             GroupId = Group.Id,
-            Left = MinLeft - PADDING_PX,
-            Bottom = MinBottom - PADDING_PX - VERTICAL_CONTENT_SLACK_PX,
-            Right = MaxRight + PADDING_PX,
+            Left = MinLeft - Math.Max(PADDING_PX,
+                FlowchartCompoundEndpointHelper.InternalBoundaryPadding(Contract, Group.Id)),
+            Bottom = MinBottom - Math.Max(PADDING_PX,
+                FlowchartCompoundEndpointHelper.InternalBoundaryPadding(Contract, Group.Id)) - VERTICAL_CONTENT_SLACK_PX,
+            Right = MaxRight + Math.Max(PADDING_PX,
+                FlowchartCompoundEndpointHelper.InternalBoundaryPadding(Contract, Group.Id)),
             Top = MaxTop + PADDING_PX + TITLE_BAND_PX + 15 * ((Group.Title ?? string.Empty).Split('\n').Length - 1),
             Title = string.IsNullOrWhiteSpace(Group.Title) ? Group.Id : Group.Title
         };

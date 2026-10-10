@@ -2058,10 +2058,12 @@ public static class DiagramGridLayout
                 IsInsideGroup(Contract, Edge.SourceId, Group.Id) && IsInsideGroup(Contract, Edge.TargetId, Group.Id));
             if (InternalReturns > 0)
                 Padding += DiagramGridMetrics.CeilToGrid(DiagramGridRouteBuilder.CORNER_RADIUS_PX + 6 * InternalReturns);
-            int FrameLeft = (int)Math.Floor(Left) - Padding;
-            int FrameRight = (int)Math.Ceiling(Right) + Padding;
+            int BoundaryPadding = FlowchartCompoundEndpointHelper.InternalBoundaryPadding(Contract, Group.Id);
+            int FrameLeft = (int)Math.Floor(Left) - Math.Max(Padding, BoundaryPadding);
+            int FrameRight = (int)Math.Ceiling(Right) + Math.Max(Padding, BoundaryPadding);
             int FrameTop = (int)Math.Floor(Top) - Padding - Strip;
-            int FrameBottom = (int)Math.Ceiling(Bottom) + Padding;
+            int FrameBottom = (int)Math.Ceiling(Bottom) + Math.Max(Padding,
+                FlowchartCompoundEndpointHelper.InternalBoundaryPadding(Contract, Group.Id));
             int NeededWidth = DiagramGridMetrics.CeilToGrid(TitleWidth + (2.0 * Padding));
             int HaveWidth = FrameRight - FrameLeft;
             if (NeededWidth > HaveWidth)

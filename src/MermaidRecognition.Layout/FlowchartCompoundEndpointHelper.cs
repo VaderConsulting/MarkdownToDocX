@@ -12,6 +12,42 @@ namespace MermaidRecognition.Layout;
 /// </summary>
 public static class FlowchartCompoundEndpointHelper
 {
+    internal static bool Contains(DiagramContract Contract, string GroupId, string ChildId)
+    {
+        string? Parent = null;
+        foreach (var Node in Contract.Nodes)
+            if (Node.Id == ChildId) { Parent = Node.ParentGroupId; break; }
+        foreach (var Group in Contract.Groups)
+            if (Group.Id == ChildId) { Parent = Group.ParentGroupId; break; }
+        var Seen = new HashSet<string>(StringComparer.Ordinal);
+        while (!string.IsNullOrEmpty(Parent) && Seen.Add(Parent))
+        {
+            if (Parent == GroupId) return true;
+            string? Next = null;
+            foreach (var Group in Contract.Groups)
+                if (Group.Id == Parent) { Next = Group.ParentGroupId; break; }
+            Parent = Next;
+        }
+        return false;
+    }
+
+    internal static int InternalBoundaryPadding(DiagramContract Contract, string GroupId)
+    {
+        int Padding = 0;
+        foreach (var Edge in Contract.Edges)
+        {
+            if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)) continue;
+            if ((Edge.SourceId == GroupId && Contains(Contract, GroupId, Edge.TargetId))
+                || (Edge.TargetId == GroupId && Contains(Contract, GroupId, Edge.SourceId)))
+            {
+                var Label = FlowchartNodeSizeEstimator.MeasureWrappedLabel(Edge.Label ?? "",
+                    FlowchartRenderOptions.FromContract(Contract));
+                Padding = Math.Max(Padding, DiagramGridMetrics.CeilToGrid(Label.Height + 70));
+            }
+        }
+        return Padding;
+    }
+
     /// <summary>
     /// True when <paramref name="Id"/> is a declared subgraph id.
     /// </summary>

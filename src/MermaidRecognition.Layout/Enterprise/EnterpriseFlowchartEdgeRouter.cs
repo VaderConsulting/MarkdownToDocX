@@ -78,8 +78,11 @@ internal static class EnterpriseFlowchartEdgeRouter
                 SvgPoints.Add(Context.Frame.LayoutToSvg(LayoutX, LayoutY));
             }
 
-            AttachCompoundEnd(Relationship.SourceId, SvgPoints, true, Nodes);
-            AttachCompoundEnd(Relationship.TargetId, SvgPoints, false, Nodes);
+            if (!TryRouteInsideContainer(Edge, Context.Contract, Nodes, SvgPoints))
+            {
+                AttachCompoundEnd(Relationship.SourceId, SvgPoints, true, Nodes);
+                AttachCompoundEnd(Relationship.TargetId, SvgPoints, false, Nodes);
+            }
 
             string PathData = FlowchartCurvePathBuilder.BuildRoundedCornerPathData(SvgPoints, DiagramGridRouteBuilder.CORNER_RADIUS_PX);
             if (string.IsNullOrWhiteSpace(PathData))
@@ -249,6 +252,53 @@ internal static class EnterpriseFlowchartEdgeRouter
         }
 
         Builder.Append("</g>");
+    }
+
+    private static bool TryRouteInsideContainer(EdgeContract Edge, DiagramContract Contract,
+        Dictionary<string, EnterpriseLayoutNode> Nodes, List<(double X, double Y)> Points)
+    {
+        bool ParentSource = FlowchartCompoundEndpointHelper.Contains(Contract, Edge.SourceId, Edge.TargetId);
+        bool ParentTarget = FlowchartCompoundEndpointHelper.Contains(Contract, Edge.TargetId, Edge.SourceId);
+        if ((!ParentSource && !ParentTarget)
+            || !Nodes.TryGetValue(ParentSource ? Edge.SourceId : Edge.TargetId, out var Parent)
+            || !Nodes.TryGetValue(ParentSource ? Edge.TargetId : Edge.SourceId, out var Child)) return false;
+        // Prefer a direct normal into the reserved lower corridor. When a
+        // sibling blocks it, use a side corridor with one rounded bend.
+        double X = Child.AbsoluteX + Child.Width / 2;
+        double StartY = Child.AbsoluteY + Child.Height;
+        double EndY = Parent.AbsoluteY + Parent.Height;
+        if (EndY - StartY < 60) return false;
+        var Candidates = new List<List<(double X, double Y)>>
+        {
+            new() { (X, StartY), (X, EndY) },
+            new() { (Child.AbsoluteX, Child.AbsoluteY + Child.Height / 2),
+                (Parent.AbsoluteX + 40, Child.AbsoluteY + Child.Height / 2), (Parent.AbsoluteX + 40, EndY) },
+            new() { (Child.AbsoluteX + Child.Width, Child.AbsoluteY + Child.Height / 2),
+                (Parent.AbsoluteX + Parent.Width - 40, Child.AbsoluteY + Child.Height / 2),
+                (Parent.AbsoluteX + Parent.Width - 40, EndY) }
+        };
+        foreach (var Candidate in Candidates)
+        {
+            bool Clear = true;
+            foreach (var Other in Nodes.Values)
+            {
+                if (Other.Id == Child.Id || Other.Id == Parent.Id
+                    || FlowchartCompoundEndpointHelper.Contains(Contract, Other.Id, Child.Id)) continue;
+                for (int Index = 1; Index < Candidate.Count; Index++)
+                {
+                    var A = Candidate[Index - 1]; var B = Candidate[Index];
+                    if (Math.Max(A.X, B.X) > Other.AbsoluteX - 6 && Math.Min(A.X, B.X) < Other.AbsoluteX + Other.Width + 6
+                        && Math.Max(A.Y, B.Y) > Other.AbsoluteY - 6 && Math.Min(A.Y, B.Y) < Other.AbsoluteY + Other.Height + 6)
+                        Clear = false;
+                }
+            }
+            if (!Clear) continue;
+            Points.Clear();
+            if (ParentSource) Candidate.Reverse();
+            Points.AddRange(Candidate);
+            return true;
+        }
+        return false;
     }
 
     private static void AttachCompoundEnd(string Id, List<(double X, double Y)> Points,

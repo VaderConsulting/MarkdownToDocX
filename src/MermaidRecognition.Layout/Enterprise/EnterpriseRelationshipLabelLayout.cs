@@ -103,8 +103,9 @@ internal static class EnterpriseRelationshipLabelLayout
             && Y - Height / 2 < Top + OtherHeight + Clearance && Y + Height / 2 > Top - Clearance;
         foreach (var Node in Nodes.Values)
         {
-            if (Overlaps(Node.AbsoluteX, Node.AbsoluteY, Node.Width, Node.IsGroup ? 18 + 15 * (Node.LabelLines.Count - 1) : Node.Height)) return false;
-            if (Node.IsGroup && (Overlaps(Node.AbsoluteX, Node.AbsoluteY, 0, Node.Height)
+            if (Overlaps(Node.AbsoluteX, Node.AbsoluteY, Node.Width, Node.IsGroup ? 18 + 15 * (Node.LabelLines.Count - 1)
+                : Node.IsCompound ? 36 + 15 * (Node.LabelLines.Count - 1) : Node.Height)) return false;
+            if ((Node.IsGroup || Node.IsCompound) && (Overlaps(Node.AbsoluteX, Node.AbsoluteY, 0, Node.Height)
                 || Overlaps(Node.AbsoluteX + Node.Width, Node.AbsoluteY, 0, Node.Height)
                 || Overlaps(Node.AbsoluteX, Node.AbsoluteY + Node.Height, Node.Width, 0))) return false;
         }
