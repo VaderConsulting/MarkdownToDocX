@@ -765,7 +765,7 @@ public static class DiagramGridRouteBuilder
             (double SegmentEndX, double SegmentEndY) = Path[Index];
             if (SegmentCrossesAnyNodeInterior(
                     Index - 1,
-                    Path.Count - 1,
+                    Path.Count - 2,
                     SegmentStartX,
                     SegmentStartY,
                     SegmentEndX,
