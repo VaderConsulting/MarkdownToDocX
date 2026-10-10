@@ -1,6 +1,6 @@
 # Grid layout review — 9 October 2026
 
-This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `23787e8`; section 19 records the generic forward-dogleg correction. Section 18 records approved decisions, native Enterprise/pie integration, local spacing and frame fixes. Sections 16–17 retain the earlier routing evidence. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
+This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `f0cccc1`; section 20 records plain relationship label measurement and elliptical attachments. Section 19 records the generic forward-dogleg correction. Section 18 records approved decisions, native Enterprise/pie integration, local spacing and frame fixes. Sections 16–17 retain the earlier routing evidence. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
 
 ## 1. Fresh test comparison
 
@@ -672,3 +672,43 @@ warnings; this routing change does not extend Enterprise syntax support.
 The actual embedded technology-layer image was extracted for the visual check.
 Broader acceptance failures and remaining visual defects are not resolved by
 this correction. No merge was performed and supplied files remain untouched.
+
+## 20. Plain relationship labels and elliptical attachments — 10 October 2026
+
+The marked motivation diagram exposed two generic notation mismatches. Plain
+SVG relationship text inherited the minimum width of an HTML label box, so a
+single influence sign reserved a disproportionately large break. The renderer
+now estimates plain glyph width at its actual 12 px font size, retains one
+character of clearance on each side, and uses the same measurement to select
+the label position and break. Node label sizing is unchanged.
+
+Elliptical elements were mapped to circular routing outlines. The mapper now
+preserves the elliptical shape, and shared grid port projection uses both
+ellipse radii. The shared ray/outline helper also understands ellipses. The
+geometry parity adapter preserves that actual outline when applying Enterprise
+sizes. Incoming and outgoing connectors therefore end on the drawn outline.
+
+`f0cccc1` — Match relationship gaps and attachments to the drawn notation.
+
+The focused Enterprise run passed all 43 checks. Six new generic checks cover
+positive/negative influence signs and multiple incoming/outgoing relationships
+on ellipses in both horizontal and vertical layouts. Existing tests and their
+assertions were not weakened. The engine diff was searched for diagram names,
+catalogue numbers, node ids and labels; no diagram-specific rule was added.
+
+All five suites ran on pushed application commit `f0cccc1`: Layout 456 passed
+/ 32 failed, rule validation 49 / 10, recognition 1008 / 0, Naiad adapter 47 / 0,
+and converter 52 / 0. There are no new failing names against `23787e8`.
+Master's baseline was not rerun. The two master-passing Layout regressions
+recorded above remain stopped; this correction does not resolve them.
+
+Final evidence is under `out/enterprise-outline-label/final/`: full-suite logs
+and TRX files, failure comparison, picture manifest, 126 rendered flowchart
+catalogue cases (four commented cases skipped), ten rendered Enterprise samples
+and the same two expected sample rejections. The marked motivation source and
+its rendered picture are included. The rebuilt WinForms executable generated
+`enterprise.docx` directly using `-in` and `-out`; it retains 94 drawings and
+36 explicit warnings. The actual embedded motivation picture was extracted
+and inspected: the influence break is compact, and the ellipse connector stops
+at its left outline. This is not a full Word pagination review or acceptance
+of all catalogue diagrams. No merge was performed.
