@@ -40,6 +40,21 @@ public static class EnterpriseSvgRenderer
             Width = Math.Max(Width, Caption.X + Caption.Width + 20);
             Height = Math.Max(Height, Caption.Y + Caption.Height + TitleHeight + 20);
         }
+        double DiagramWidth = Width;
+        if (!string.IsNullOrEmpty(Document.Title))
+        {
+            // Reserve the literal bold title, including punctuation and Unicode.
+            // Do not feed it through the inline-Markdown label estimator.
+            double TitleWidth = 0;
+            foreach (Rune Glyph in Document.Title.EnumerateRunes())
+            {
+                double Em = Glyph.Value == ' ' ? 0.35
+                    : Glyph.Value is 'i' or 'l' or 'I' ? 0.4
+                    : Glyph.Value is 'W' or 'M' or '@' || Glyph.Value > 127 ? 1.0 : 0.75;
+                TitleWidth += 15 * Em;
+            }
+            Width = Math.Ceiling(Math.Max(Width, TitleWidth + 40));
+        }
         StringBuilder Builder = new StringBuilder();
         Builder.Append("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"")
             .Append(EnterpriseSvgFormat.Number(Width))
@@ -70,7 +85,9 @@ public static class EnterpriseSvgRenderer
                 .Append("</text>");
         }
 
-        Builder.Append("<g transform=\"translate(0,")
+        Builder.Append("<g transform=\"translate(")
+            .Append(EnterpriseSvgFormat.Number((Width - DiagramWidth) / 2.0))
+            .Append(',')
             .Append(EnterpriseSvgFormat.Number(TitleHeight))
             .Append(")\">");
 
