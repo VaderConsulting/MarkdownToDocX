@@ -6,6 +6,27 @@ namespace MermaidRecognition.Layout.Tests;
 [TestFixture]
 public sealed class ContainerCompactionTests
 {
+    [TestCase("TB")]
+    [TestCase("LR")]
+    public void OppositeDeclarationOrder_PlacesRelatedPairsAlongTheFlowAxis(string Direction)
+    {
+        var Contract = MermaidRecognizer.Parse($"flowchart {Direction}\nfirst --> fourth\nsecond --> third");
+        var Units = new List<FlowchartContainerPacking.Unit>();
+        foreach (var Node in Contract.Nodes.OrderBy(Node => Node.Id))
+        {
+            var Member = new DiagramGridLayout.GridNode { Id = Node.Id, X = 75, Y = 30, Width = 150, Height = 60 };
+            Units.Add(new(new() { Id = Node.Id, Left = 0, Top = 0, Right = 150, Bottom = 60 }, [Member]));
+        }
+        FlowchartContainerPacking.Apply(Contract, Units);
+        var ById = Units.SelectMany(Unit => Unit.Members).ToDictionary(Node => Node.Id);
+        foreach (var Edge in Contract.Edges)
+        {
+            var Source = ById[Edge.SourceId]; var Target = ById[Edge.TargetId];
+            Assert.That(Direction == "TB" ? Target.X : Target.Y, Is.EqualTo(Direction == "TB" ? Source.X : Source.Y));
+            Assert.That(Direction == "TB" ? Target.Y : Target.X, Is.GreaterThan(Direction == "TB" ? Source.Y : Source.X));
+        }
+    }
+
     [TestCase(3)]
     [TestCase(8)]
     [TestCase(20)]

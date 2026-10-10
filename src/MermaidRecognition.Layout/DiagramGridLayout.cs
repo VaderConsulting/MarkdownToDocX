@@ -1845,8 +1845,35 @@ public static class DiagramGridLayout
         foreach (var Root in Roots)
         {
             var Members = Placed.Where(Node => IsInsideGroup(Contract, Node.Id, Root.Id)).ToList();
+            var Local = new DiagramContract { Kind = Contract.Kind, Header = Contract.Header,
+                Direction = Contract.Direction, LayoutMode = Contract.LayoutMode };
+            var Ids = Members.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
+            Local.NodesMutable.AddRange(Contract.Nodes.Where(Node => Ids.Contains(Node.Id)).Select(Node =>
+            {
+                var Member = Members.Find(Member => Member.Id == Node.Id)!;
+                return new NodeContract { Id = Node.Id, Label = Node.Label, LabelType = Node.LabelType,
+                    Shape = Node.Shape, ParentGroupId = Node.ParentGroupId,
+                    LayoutWidth = Member.Width, LayoutHeight = Member.Height };
+            }));
+            Local.GroupsMutable.AddRange(Contract.Groups.Where(Group => Group.Id == Root.Id
+                || Members.Any(Node => IsInsideGroup(Contract, Node.Id, Group.Id))
+                    && IsInsideGroup(Contract, Group.Id, Root.Id)));
+            var Endpoints = Ids.Concat(Local.Groups.Select(Group => Group.Id)).ToHashSet(StringComparer.Ordinal);
+            Local.EdgesMutable.AddRange(Contract.Edges.Where(Edge => Endpoints.Contains(Edge.SourceId)
+                && Endpoints.Contains(Edge.TargetId)));
+            if (FlowchartDagrePlacement.TryPlace(Local, out var LocalRaw))
+            {
+                var LocalLayout = Apply(Local, LocalRaw);
+                foreach (var Bounds in LocalLayout.NodeBounds)
+                {
+                    var Member = Members.Find(Node => Node.Id == Bounds.NodeId)!;
+                    Member.X = Bounds.CenterX;
+                    Member.Y = -Bounds.CenterY;
+                }
+            }
             FlowchartGridCompaction.Apply(Members, Horizontal, 2 * DiagramGridMetrics.GRID_UNIT_PX);
             FlowchartGridCompaction.Apply(Members, !Horizontal, 2 * DiagramGridMetrics.GRID_UNIT_PX);
+            SeparateOverlaps(Members, Horizontal);
             FitFrames(Contract, Members, new List<GridFrame>(), Horizontal);
         }
         Frames.Clear();
@@ -1868,32 +1895,8 @@ public static class DiagramGridLayout
             if (Neighbour.Links > 0) Roots.Insert(Roots.IndexOf(Neighbour.Frame) + 1, Unit);
             else Roots.Add(Unit);
         }
-        int Gap = 3 * DiagramGridMetrics.GRID_UNIT_PX;
-        double Area = Roots.Sum(Frame => (double)(Frame.Right - Frame.Left + Gap) * (Frame.Bottom - Frame.Top + Gap));
-        int RowWidth = DiagramGridMetrics.CeilToGrid(Math.Sqrt(Area));
-        int X = 0, Y = 0, RowHeight = 0;
-        foreach (var Root in Roots)
-        {
-            int Width = DiagramGridMetrics.CeilToGrid(Root.Right - Root.Left);
-            int Height = DiagramGridMetrics.CeilToGrid(Root.Bottom - Root.Top);
-            if (X > 0 && X + Width > RowWidth)
-            {
-                X = 0;
-                Y += RowHeight + Gap;
-                RowHeight = 0;
-            }
-            int Dx = DiagramGridMetrics.CeilToGrid(Math.Max(0, X - Root.Left))
-                - DiagramGridMetrics.CeilToGrid(Math.Max(0, Root.Left - X));
-            int Dy = DiagramGridMetrics.CeilToGrid(Math.Max(0, Y - Root.Top))
-                - DiagramGridMetrics.CeilToGrid(Math.Max(0, Root.Top - Y));
-            foreach (var Node in Placed.Where(Node => Node.Id == Root.Id || IsInsideGroup(Contract, Node.Id, Root.Id)))
-            {
-                Node.X += Dx;
-                Node.Y += Dy;
-            }
-            X += Width + Gap;
-            RowHeight = Math.Max(RowHeight, Height);
-        }
+        FlowchartContainerPacking.Apply(Contract, Roots.Select(Root => new FlowchartContainerPacking.Unit(Root,
+            Placed.Where(Node => Node.Id == Root.Id || IsInsideGroup(Contract, Node.Id, Root.Id)).ToList())).ToList());
         Frames.Clear();
     }
 
