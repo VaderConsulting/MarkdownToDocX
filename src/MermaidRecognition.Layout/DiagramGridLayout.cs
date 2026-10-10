@@ -100,6 +100,7 @@ public static class DiagramGridLayout
         var SharedFanSources = AlignSharedFanSourcesAndTails(Contract, Placed, Horizontal);
 
         GrowCrowdedSides(Placed, Copy, BoxWidth, BoxHeight);
+        GrowParallelRelationshipSides(Contract, Placed, Horizontal);
         SeparateOverlaps(Placed, Horizontal);
         List<GridFrame> Frames = new List<GridFrame>();
         CenterLoneNestedGroups(Contract, Placed, Horizontal);
@@ -118,6 +119,7 @@ public static class DiagramGridLayout
         DiagramGridRouteBuilder.RebuildDiagonalBackRoutes(Copy, Placed, Nodes, Contract, Frames, Direction);
         Copy.UsesGridRoutes = true;
         SeparateTracks(Copy, Placed);
+        SeparateParallelReturnTracks(Contract, Copy, BuildPlacedBounds(Placed, Frames));
         PushPointsOutOfNodes(Copy, Placed);
         DiagramGridRouteBuilder.RebuildContainedBackRoutes(Copy, Placed, Nodes, Contract, Frames, Direction);
         FlowchartGridTerminalNormalizer.Apply(Copy, BuildPlacedBounds(Placed, Frames), Nodes);
@@ -1558,6 +1560,84 @@ public static class DiagramGridLayout
         return Count;
     }
 
+    private static void GrowParallelRelationshipSides(DiagramContract Contract, List<GridNode> Placed, bool Horizontal)
+    {
+        var ById = IndexPlaced(Placed);
+        var BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        var Options = FlowchartRenderOptions.FromContract(Contract);
+        foreach (var Group in Contract.Edges.Where(Edge => Edge.SourceId != Edge.TargetId
+            && !BackEdges.Contains(Edge) && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+            .GroupBy(Edge => (Edge.SourceId, Edge.TargetId)).Where(Group => Group.Count() > 1))
+        {
+            if (!ById.TryGetValue(Group.Key.SourceId, out var Source)
+                || !ById.TryGetValue(Group.Key.TargetId, out var Target)
+                || Source.IsDiamond || Target.IsDiamond) continue;
+            double Pitch = Group.Max(Edge =>
+            {
+                var Size = FlowchartNodeSizeEstimator.MeasureWrappedLabel(Edge.Label ?? string.Empty, Options, Options.EdgeLabelFontSizePx);
+                double WordWidth = Size.DisplayText.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(Word => Word.Length * Options.EdgeLabelFontSizePx * FlowchartEdgeLabelGapHelper.LABEL_CHAR_WIDTH_EM)
+                    .DefaultIfEmpty(0).Max();
+                return (Horizontal ? Size.Height : WordWidth) + 12;
+            });
+            int Needed = DiagramGridMetrics.CeilToGrid(Group.Count() * Pitch + 30);
+            if (Horizontal) Source.Height = Target.Height = Math.Max(Needed, Math.Max(Source.Height, Target.Height));
+            else Source.Width = Target.Width = Math.Max(Needed, Math.Max(Source.Width, Target.Width));
+        }
+    }
+
+    private static void SeparateParallelReturnTracks(DiagramContract Contract, FlowchartLayoutResult Layout,
+        Dictionary<string, FlowchartLayoutNodeBounds> Bounds)
+    {
+        var BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        var Options = FlowchartRenderOptions.FromContract(Contract);
+        foreach (var Group in Layout.EdgeRoutes.Where(Route => Route.Points.Count == 4
+            && Route.ExitSide == Route.EntrySide && Route.ExitSide is "left" or "right" or "top" or "bottom"
+            && BackEdges.Any(Edge => Edge.Id == Route.EdgeId))
+            .GroupBy(Route => (Route.SourceId, Route.TargetId, Route.ExitSide)).Where(Group => Group.Count() > 1))
+        {
+            bool Vertical = Group.Key.ExitSide is "left" or "right";
+            double Sign = Group.Key.ExitSide is "right" or "top" ? 1 : -1;
+            double Across(FlowchartLayoutPoint Point) => Vertical ? Point.X : Point.Y;
+            var Routes = Group.OrderBy(Route => Across(Route.Points[1]) * Sign).ToList();
+            double Track = Across(Routes[0].Points[1]);
+            double PreviousHalf = 0;
+            var Candidates = new List<(FlowchartLayoutEdgeRoute Route, double Track)>();
+            foreach (var Route in Routes)
+            {
+                var Edge = Contract.Edges.First(Edge => Edge.Id == Route.EdgeId);
+                var Size = FlowchartNodeSizeEstimator.MeasureWrappedLabel(Edge.Label ?? string.Empty, Options, Options.EdgeLabelFontSizePx);
+                double Half = string.IsNullOrWhiteSpace(Edge.Label) ? 0 : (Vertical ? Size.Width : Size.Height) / 2;
+                if (Route != Routes[0]) Track += Sign * DiagramGridMetrics.CeilToGrid(Math.Max(6, PreviousHalf + Half + 12));
+                Candidates.Add((Route, Track));
+                PreviousHalf = Half;
+            }
+            bool Clear = Candidates.All(Candidate =>
+            {
+                var Route = Candidate.Route;
+                var Points = Route.Points.Select(Point => (Point.X, Point.Y)).ToList();
+                Points[1] = Vertical ? (Candidate.Track, Points[1].Y) : (Points[1].X, Candidate.Track);
+                Points[2] = Vertical ? (Candidate.Track, Points[2].Y) : (Points[2].X, Candidate.Track);
+                foreach (var Frame in Contract.Groups.Where(Frame => IsInsideGroup(Contract, Route.SourceId, Frame.Id)
+                    && IsInsideGroup(Contract, Route.TargetId, Frame.Id)))
+                    if (Bounds.TryGetValue(Frame.Id, out var Box) && Points.Any(Point =>
+                        Point.X < Box.CenterX - Box.Width / 2 || Point.X > Box.CenterX + Box.Width / 2
+                        || Point.Y < Box.CenterY - Box.Height / 2 || Point.Y > Box.CenterY + Box.Height / 2)) return false;
+                var Obstacles = Bounds.Where(Pair => !Contract.Groups.Any(Frame => Frame.Id == Pair.Key
+                    && (IsInsideGroup(Contract, Route.SourceId, Frame.Id) || IsInsideGroup(Contract, Route.TargetId, Frame.Id))))
+                    .ToDictionary(Pair => Pair.Key, Pair => Pair.Value);
+                return Points.Zip(Points.Skip(1)).All(Segment => !FlowchartRouteObstacleHelper.SegmentIntersectsUnrelatedNodeBodies(
+                    Segment.First.X, Segment.First.Y, Segment.Second.X, Segment.Second.Y, Obstacles, Route.SourceId, Route.TargetId));
+            });
+            if (!Clear) continue;
+            foreach (var Candidate in Candidates)
+            {
+                if (Vertical) Candidate.Route.Points[1].X = Candidate.Route.Points[2].X = Candidate.Track;
+                else Candidate.Route.Points[1].Y = Candidate.Route.Points[2].Y = Candidate.Track;
+            }
+        }
+    }
+
     private static void GrowCrowdedSides(List<GridNode> Placed, FlowchartLayoutResult Copy, int BoxWidth, int BoxHeight)
     {
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
@@ -2625,6 +2705,8 @@ public static class DiagramGridLayout
                 || string.Equals(RoundedNode.Shape, "round", StringComparison.OrdinalIgnoreCase))
             ? Math.Min(STUB_PX, Length / 4) : 0;
         int SlotCount = Math.Max(DiagramGridMetrics.TRACKS_PER_GAP, Group.Count);
+        if (Group.Count > 1 && Group.All(End => End.Other.Id == Group[0].Other.Id))
+            foreach (var End in Group) End.KeepsCentre = false;
         int CentreEnd = Group.FindIndex(End => End.KeepsCentre);
         if (CentreEnd >= 0)
         {

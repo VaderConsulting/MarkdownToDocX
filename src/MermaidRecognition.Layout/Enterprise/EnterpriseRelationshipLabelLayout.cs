@@ -57,11 +57,6 @@ internal static class EnterpriseRelationshipLabelLayout
                         double X = A.X + (B.X - A.X) * Along / Length;
                         double Y = A.Y + (B.Y - A.Y) * Along / Length;
                         if (!IsClear(X, Y, Edge.LabelWidth, Edge.LabelHeight, Nodes, Placed)) continue;
-                        if (Placed.Any(Other => Other.LabelBreak?.Horizontal == Horizontal && (Horizontal
-                            ? Math.Abs(Y - Other.LabelY) < Edge.LabelHeight + Other.LabelHeight + Clearance
-                                && Math.Abs(X - Other.LabelX) < (Edge.LabelWidth + Other.LabelWidth) / 2 + Clearance
-                            : Math.Abs(X - Other.LabelX) < Edge.LabelWidth + Other.LabelWidth + Clearance
-                                && Math.Abs(Y - Other.LabelY) < (Edge.LabelHeight + Other.LabelHeight) / 2 + Clearance))) continue;
                         // No other connector may strike through the text.
                         bool Crosses = Edges.Where(Other => Other != Edge).Any(Other =>
                             Enumerable.Range(0, Other.SvgPoints.Count - 1).Any(Segment =>

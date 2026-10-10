@@ -87,10 +87,9 @@ public static class FlowchartEdgeRouteResolver
     private static bool IsSameEdge(EdgeContract Left, EdgeContract Right)
     {
         if (!string.IsNullOrEmpty(Left.Id)
-            && !string.IsNullOrEmpty(Right.Id)
-            && string.Equals(Left.Id, Right.Id, StringComparison.Ordinal))
+            && !string.IsNullOrEmpty(Right.Id))
         {
-            return true;
+            return string.Equals(Left.Id, Right.Id, StringComparison.Ordinal);
         }
 
         return string.Equals(Left.SourceId, Right.SourceId, StringComparison.Ordinal)
