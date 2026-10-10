@@ -31,7 +31,33 @@ internal static class FlowchartTerminalBranchPlacement
                 && ById.TryGetValue(Edge.TargetId, out var Child) && Child.Rank == Leaf.Rank
                 && Child.GroupId == Leaf.GroupId && Math.Abs(Cross(Child) - Cross(Parent)) < 0.5
                 && Edges.Any(Next => Next.SourceId == Child.Id));
-            if (!HasContinuation) continue;
+            if (!HasContinuation)
+            {
+                // A shared collector owns the side towards its other inputs.
+                // Keep a singly connected terminal on the parent's opposite side.
+                var Collectors = Edges.Where(Edge => Edge.SourceId == Parent.Id && Edge.TargetId != Leaf.Id)
+                    .Select(Edge => ById.GetValueOrDefault(Edge.TargetId))
+                    .Where(Child => Child != null && Child.Rank == Leaf.Rank && Child.GroupId == Leaf.GroupId
+                        && !Child.IsDiamond && !Edges.Any(Next => Next.SourceId == Child.Id)
+                        && Edges.Any(Incoming => Incoming.TargetId == Child.Id && Incoming.SourceId != Parent.Id
+                            && ById.TryGetValue(Incoming.SourceId, out var Input) && Input.Rank == Parent.Rank
+                            && Input.GroupId == Parent.GroupId)).ToList();
+                if (Collectors.Count == 0) continue;
+                int Side = -Math.Sign(Collectors.Average(Child => Cross(Child!)) - Cross(Parent));
+                if (Side == 0 || Collectors.Any(Child => Math.Sign(Cross(Child!) - Cross(Parent)) != -Side)) continue;
+                for (int Step = 1; Step <= Nodes.Count + 1; Step++)
+                {
+                    int Pitch = Math.Max(CrossPitch, DiagramGridMetrics.CeilToGrid(Half(Parent) + Half(Leaf)
+                        + 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX));
+                    double Candidate = Cross(Parent) + Side * Step * Pitch;
+                    if (Math.Abs(Candidate - Cross(Parent)) > Math.Abs(Cross(Leaf) - Cross(Parent)) + 0.5) break;
+                    if (Nodes.Any(Other => Other != Leaf && Other.Rank == Leaf.Rank
+                        && Math.Abs(Cross(Other) - Candidate) < Half(Other) + Half(Leaf) + DiagramGridMetrics.NODE_GAP_PX)) continue;
+                    if (Horizontal) Leaf.Y = (int)Math.Round(Candidate); else Leaf.X = (int)Math.Round(Candidate);
+                    break;
+                }
+                continue;
+            }
             double Best = Cross(Leaf), Centre = Cross(Parent);
             int Preferred = Math.Sign(Best - Centre);
             foreach (int Step in Enumerable.Range(1, Nodes.Count + 1))

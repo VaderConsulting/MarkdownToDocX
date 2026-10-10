@@ -42,13 +42,17 @@ internal static class FlowchartForwardRouteSimplifier
                 && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
                 && Bounds.ContainsKey(Edge.TargetId)).ToList();
             var Children = Outgoing.Select(Edge => Bounds[Edge.TargetId]).ToList();
+            bool CollectorFan = Children.Count >= 2 && Children.Select(Child => Local(Child.CenterX, Child.CenterY).V).Distinct().Count() == 1
+                && Children.All(Child => !Contract.Edges.Any(Edge => Edge.SourceId == Child.NodeId))
+                && Children.Any(Child => Contract.Edges.Count(Edge => Edge.TargetId == Child.NodeId) == 1)
+                && Children.Any(Child => Contract.Edges.Count(Edge => Edge.TargetId == Child.NodeId) > 1);
             OrdinaryFan |= Children.Count >= 2 && Children.Select(Child =>
                 Local(Child.CenterX, Child.CenterY).V).Distinct().Count() == 1;
             // A fan that already has at most two bends owns its allocated
             // tracks and ports. Only simplify its longer detours.
-            if (OrdinaryFan && Route.Points.Count <= 4) continue;
+            if (OrdinaryFan && Route.Points.Count <= 4 && !CollectorFan) continue;
             if (OrdinaryFan && Math.Abs(T.U - S.U) > Sw + Tw
-                && Route.ExitSide == Side(Math.Sign(T.U - S.U), 0)) continue;
+                && Route.ExitSide == Side(Math.Sign(T.U - S.U), 0) && !CollectorFan) continue;
             // Independent branches at different ranks retain their existing
             // fan allocation. A chain bypass has dependent children instead.
             if (!OrdinaryFan && Route.Points.Count <= 4 && Children.Count > 1
@@ -73,7 +77,7 @@ internal static class FlowchartForwardRouteSimplifier
                 if (!OrdinaryFan && DownstreamTaken && Sh - Math.Abs(SideStart - S.V) >= 20
                     && Facing != 0 && Math.Abs(T.U - S.U) > Sw + Tw)
                     Consider([(S.U + Facing * Sw, SideStart), (Tu, SideStart), (Tu, T.V - Th)], Side(Facing, 0), Side(0, -1));
-                if (!OrdinaryFan && UpstreamTaken)
+                if ((!OrdinaryFan || CollectorFan) && UpstreamTaken)
                 {
                     int Near = Math.Sign(S.U - T.U);
                     double Tv = T.V + TargetOffset * Th / 3;
@@ -104,18 +108,27 @@ internal static class FlowchartForwardRouteSimplifier
                         Consider([(Su, S.V + Sh), (Su, Turn), (Track, Turn), (Track, Tv), (T.U + Outside * Tw, Tv)], Side(0, 1), Side(Outside, 0));
                 }
             }
+            if (CollectorFan && Contract.Edges.Count(Edge => Edge.TargetId == Route.TargetId) == 1)
+            {
+                int Facing = Math.Sign(T.U - S.U);
+                double StartU = S.U + Facing * Sw, EndU = T.U - Facing * Tw;
+                double Track = (StartU + EndU) / 2;
+                if (Facing != 0 && Facing * (EndU - StartU) >= 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX)
+                    Consider([(StartU, S.V), (Track, S.V), (Track, T.V), (EndU, T.V)],
+                        Side(Facing, 0), Side(-Facing, 0), DiagramGridRouteBuilder.CORNER_RADIUS_PX);
+            }
             Route.ExitSide = BestExit; Route.EntrySide = BestEntry;
             Route.Points.Clear();
             foreach (var Point in Best) Route.Points.Add(new() { X = Point.X, Y = Point.Y });
 
-            void Consider(List<(double U, double V)> LocalPath, string Exit, string Entry)
+            void Consider(List<(double U, double V)> LocalPath, string Exit, string Entry, double MinimumRun = 40)
             {
                 var Path = LocalPath.Select(Point => World(Point.U, Point.V)).ToList();
                 if (Path.Count > Best.Count) return;
                 for (int Index = 1; Index < Path.Count; Index++)
                 {
                     var A = Path[Index - 1]; var B = Path[Index];
-                    if (Math.Abs(A.X - B.X) + Math.Abs(A.Y - B.Y) < 40) return;
+                    if (Math.Abs(A.X - B.X) + Math.Abs(A.Y - B.Y) < MinimumRun) return;
                     if (FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(A.X, A.Y, B.X, B.Y, Source)
                         || FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(A.X, A.Y, B.X, B.Y, Target)) return;
                     foreach (var Obstacle in Bounds.Values)
