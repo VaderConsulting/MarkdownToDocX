@@ -30,15 +30,15 @@ public static class EnterpriseSvgRenderer
 
         EnterpriseLayoutResult Layout = EnterpriseLayoutEngine.Layout(Document);
         List<EnterpriseRoutedEdge> RoutedEdges = EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes);
+        var Captions = EnterpriseJunctionCaptionLayout.Place(Layout.Nodes, RoutedEdges);
         double TitleHeight = string.IsNullOrEmpty(Document.Title) ? 0 : 30;
         double Width = Math.Ceiling(Math.Max(Layout.Width, 40));
         double Height = Math.Ceiling(Math.Max(Layout.Height, 40) + TitleHeight);
         ExpandForRoutedEdges(RoutedEdges, ref Width, ref Height, TitleHeight);
-        foreach (EnterpriseLayoutNode Node in Layout.Nodes.Values)
+        foreach (var Caption in Captions.Values)
         {
-            if (Node.Element?.ElementType != EnterpriseElementType.Junction) continue;
-            Width = Math.Max(Width, Node.AbsoluteX + Node.Width + 6
-                + FlowchartRichLabelSvgWriter.EstimateLineWidthPx(Node.DisplayLabel, 11) + 20);
+            Width = Math.Max(Width, Caption.X + Caption.Width + 20);
+            Height = Math.Max(Height, Caption.Y + Caption.Height + TitleHeight + 20);
         }
         StringBuilder Builder = new StringBuilder();
         Builder.Append("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"")
@@ -84,7 +84,8 @@ public static class EnterpriseSvgRenderer
             }
             else
             {
-                AppendElement(Builder, Node);
+                Captions.TryGetValue(Node.Id, out var Caption);
+                AppendElement(Builder, Node, Caption);
             }
         }
 
@@ -143,7 +144,8 @@ public static class EnterpriseSvgRenderer
             .Append("</g>");
     }
 
-    private static void AppendElement(StringBuilder Builder, EnterpriseLayoutNode Node)
+    private static void AppendElement(StringBuilder Builder, EnterpriseLayoutNode Node,
+        EnterpriseJunctionCaptionLayout.Caption? Caption)
     {
         EnterpriseElement Element = Node.Element!;
         double X = Node.AbsoluteX;
@@ -158,12 +160,12 @@ public static class EnterpriseSvgRenderer
         if (Element.ElementType == EnterpriseElementType.Junction)
         {
             string JunctionLabel = Element.Label;
-            if (!string.IsNullOrEmpty(JunctionLabel) && !string.Equals(JunctionLabel, Element.Id, StringComparison.Ordinal))
+            if (Caption != null)
             {
                 Builder.Append("<text x=\"")
-                    .Append(EnterpriseSvgFormat.Number(X + Node.Width + 6))
+                    .Append(EnterpriseSvgFormat.Number(Caption.X))
                     .Append("\" y=\"")
-                    .Append(EnterpriseSvgFormat.Number(Y + (Node.Height / 2.0) + 4))
+                    .Append(EnterpriseSvgFormat.Number(Caption.Y + Caption.Height))
                     .Append("\" font-size=\"11\">")
                     .Append(EnterpriseSvgFormat.Escape(JunctionLabel))
                     .Append("</text>");
