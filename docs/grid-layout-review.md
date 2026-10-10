@@ -1,6 +1,6 @@
 # Grid layout review — 9 October 2026
 
-This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `303ff6d`; section 29 records visible internal parent-child relationships. Section 28 records facing container ports and visible compound attachments. Section 27 records quoted comments and entity decoding. Section 26 records explicit label breaks. Section 25 records title canvas sizing. Section 24 records relationship caption staggering. Section 23 records aligned vertical return ports. Section 22 records shared input fan placement and continuation alignment. Section 21 records junction caption clearance. Section 20 records plain relationship label measurement and elliptical attachments. Section 19 records the generic forward-dogleg correction. Section 18 records approved decisions, native Enterprise/pie integration, local spacing and frame fixes. Sections 16–17 retain the earlier routing evidence. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
+This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `ca5adab`; section 30 records rounded behaviour box ports and equivalent source. Section 29 records visible internal parent-child relationships. Section 28 records facing container ports and visible compound attachments. Section 27 records quoted comments and entity decoding. Section 26 records explicit label breaks. Section 25 records title canvas sizing. Section 24 records relationship caption staggering. Section 23 records aligned vertical return ports. Section 22 records shared input fan placement and continuation alignment. Section 21 records junction caption clearance. Section 20 records plain relationship label measurement and elliptical attachments. Section 19 records the generic forward-dogleg correction. Section 18 records approved decisions, native Enterprise/pie integration, local spacing and frame fixes. Sections 16–17 retain the earlier routing evidence. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
 
 ## 1. Fresh test comparison
 
@@ -1137,4 +1137,54 @@ line remains separate and the visible terminal runs meet borders squarely.
 This is not full catalogue acceptance or a Word pagination review. More
 crowded parent-child cases that exhaust these corridors retain existing
 fallback behaviour and need further routing work. Supplied files remain
+untouched and nothing was merged.
+## 30. Rounded behaviour box ports — 10 October 2026
+
+The marked high-fan picture showed terminals starting inside both sides of
+the service box. Enterprise behaviour elements were mapped to stadiums for
+routing, although their drawn boxes have short rounded corners. The mapper
+now selects a rounded rectangle. Rounded port allocation reserves a corner
+inset so crowded ports remain on flat edges and terminal runs meet those
+edges normally. The inset is a shared geometric rule for rounded boxes.
+
+`22fd00b` — Attach behaviour relationships to their visible borders.
+
+`ca5adab` — Preserve rounded boxes in equivalent flowchart source.
+
+Both commits build on `cb23b2d`, retaining the previous application work.
+The engine diffs were checked for diagram-specific selectors: shape geometry
+and port occupancy determine placement, without catalogue numbers, diagram
+names, identifiers or labels selecting a rule. Existing tests and fixtures
+were unchanged. Eight new structural cases cover crowded inputs and outputs
+in both diagram directions, with two fan sizes. The first focused run exposed
+ports too close to corners; the inset corrected all cases on the second run.
+All 35 focused render/outline checks then passed.
+
+The initial full verification found three new equivalent-flowchart geometry
+failures in the business, strategy and grouping samples. The source writer
+had no rounded-shape branch and emitted plain rectangles after the mapper
+changed. It now writes the corresponding Mermaid rounded-node syntax. All
+24 focused parity/rounded-port checks passed without assertion changes.
+The initial verification is retained under `out/fan-ports/final/`.
+
+The corrected application commit is verified separately under
+`out/fan-ports/verified/`. All five suites ran once on pushed commit `ca5adab`:
+Layout 497 passed / 32 failed, rule validation 49 / 10, recognition 1025 / 0,
+Naiad adapter 47 / 0, converter 52 / 0. No new failing names remain against
+`303ff6d`. The retained master baseline was not rerun. The two stopped
+master-passing Layout regressions in section 18 remain unchanged; full
+rulebook and visual acceptance remain incomplete.
+
+The verified evidence includes suite logs/TRX, exact failure-name comparison,
+the marked fan example, 126 flowchart renders with four commented skips and
+ten Enterprise samples with the same two expected rejections. Every rendered
+picture path is listed in `picture-manifest.txt`. The rebuilt WinForms
+executable saves the final document to
+`C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX-pr9\out\fan-ports\verified\enterprise.docx`.
+Package inspection found 96 drawings and 34 source-preserving warnings. The
+marked diagram's embedded image was extracted and viewed; SVG coordinates
+and structural checks confirm distinct ports on flat borders, clear of the
+rounded corners, with normal terminal runs. The panoramic row remains wide
+and is reduced substantially on a document page; this pass does not change
+that placement or complete Word pagination review. Supplied files remain
 untouched and nothing was merged.
