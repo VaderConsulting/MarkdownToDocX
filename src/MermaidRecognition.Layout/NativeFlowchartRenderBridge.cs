@@ -17,6 +17,9 @@ public static class NativeFlowchartRenderBridge
     /// <param name="Svg">Rendered SVG when this method returns true.</param>
     /// <returns>True when native Sugiyama render succeeded.</returns>
     public static bool TryRenderFlowchartSvg(string Source, out string Svg)
+        => TryRenderFlowchartSvg(Source, out Svg, null);
+
+    public static bool TryRenderFlowchartSvg(string Source, out string Svg, MermaidRecognition.Config.DiagramLayoutMode? DefaultLayout)
     {
         Svg = string.Empty;
         if (string.IsNullOrWhiteSpace(Source))
@@ -25,6 +28,8 @@ public static class NativeFlowchartRenderBridge
         }
 
         DiagramContract Contract = MermaidRecognizer.Parse(Source);
+        if (DefaultLayout.HasValue && !Contract.Configuration.RawDirectiveValues.ContainsKey("layout"))
+            Contract.LayoutMode = DefaultLayout.Value;
         if (!string.Equals(Contract.Kind, "flowchart", StringComparison.OrdinalIgnoreCase)
             && !string.Equals(Contract.Kind, "graph", StringComparison.OrdinalIgnoreCase))
         {

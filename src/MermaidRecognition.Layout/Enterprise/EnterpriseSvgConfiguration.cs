@@ -10,7 +10,8 @@ internal static class EnterpriseSvgConfiguration
 {
     internal static string Apply(string Svg, EnterpriseDocument Document)
     {
-        if (Document.Configuration.Count == 0) return Svg;
+        if (!Document.Configuration.Keys.Any(Key => Key is "themeVariables.fontFamily" or "fontFamily"
+            or "themeVariables.background" or "themeVariables.fontSize" or "fontSize")) return Svg;
         var Xml = XDocument.Parse(Svg);
         var Root = Xml.Root!;
         if (Document.Configuration.TryGetValue("themeVariables.fontFamily", out string? Family)

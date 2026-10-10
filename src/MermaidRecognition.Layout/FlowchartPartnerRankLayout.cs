@@ -47,17 +47,25 @@ internal static class FlowchartPartnerRankLayout
         return Result;
     }
 
-    internal static void Prepare(List<Partners> Blocks, bool Horizontal)
+    internal static void Prepare(List<Partners> Blocks, bool Horizontal, bool Align = true)
     {
-        foreach (var Block in Blocks)
+        for (int BlockIndex = 0; BlockIndex < Blocks.Count; BlockIndex++)
         {
+            var Block = Blocks[BlockIndex];
+            if (!Align)
+            {
+                double Displacement = Enumerable.Range(0, Block.Parents.Length)
+                    .Max(Index => Math.Abs(Cross(Block.Parents[Index], Horizontal) - Cross(Block.Children[Index], Horizontal)));
+                int Pitch = (int)Math.Ceiling((Block.PortPitch + Displacement) / TRACK_PITCH) * TRACK_PITCH;
+                Blocks[BlockIndex] = Block = Block with { PortPitch = Pitch };
+            }
             int Needed = DiagramGridMetrics.CeilToGrid(4 * (Block.Parents.Length - 1) * Block.PortPitch + DiagramGridMetrics.GRID_UNIT_PX);
             foreach (var Node in Block.Parents.Concat(Block.Children))
             {
                 if (Horizontal) Node.Height = Math.Max(Node.Height, Needed);
                 else Node.Width = Math.Max(Node.Width, Needed);
             }
-            for (int Index = 0; Index < Block.Children.Length; Index++)
+            for (int Index = 0; Align && Index < Block.Children.Length; Index++)
             {
                 if (Horizontal) Block.Children[Index].Y = Block.Parents[Index].Y;
                 else Block.Children[Index].X = Block.Parents[Index].X;
@@ -135,9 +143,22 @@ internal static class FlowchartPartnerRankLayout
                 double StartCross = Cross(Source, Horizontal) + Math.Sign(Difference) * (2 * Math.Abs(Difference) - 1) * Block.PortPitch;
                 double EndCross = Cross(Target, Horizontal) - 2 * Difference * Block.PortPitch;
                 if (Difference == 0) StartCross = Cross(Source, Horizontal);
+                if (Difference == 0 && Math.Abs(StartCross - EndCross) > 0.01)
+                {
+                    double SharedCross = (StartCross + EndCross) / 2;
+                    if (Math.Abs(SharedCross - StartCross) < CrossSize(Source, Horizontal) / 2
+                        && Math.Abs(SharedCross - EndCross) < CrossSize(Target, Horizontal) / 2)
+                        StartCross = EndCross = SharedCross;
+                }
                 (double X, double Y) Map(double MainValue, double CrossValue) => Horizontal ? (MainValue, CrossValue) : (CrossValue, MainValue);
                 var Path = new List<(double X, double Y)> { Map(StartMain, StartCross) };
                 if (Difference != 0) { Path.Add(Map(Tracks[Pair], StartCross)); Path.Add(Map(Tracks[Pair], EndCross)); }
+                else if (Math.Abs(StartCross - EndCross) > 0.01)
+                {
+                    double Track = (StartMain + EndMain) / 2;
+                    Path.Add(Map(Track, StartCross));
+                    Path.Add(Map(Track, EndCross));
+                }
                 Path.Add(Map(EndMain, EndCross));
                 if (Path.Zip(Path.Skip(1)).Any(Segment => FlowchartRouteObstacleHelper.SegmentIntersectsUnrelatedNodeBodies(
                     Segment.First.X, Segment.First.Y, Segment.Second.X, Segment.Second.Y, Bounds, Source.Id, Target.Id))) continue;

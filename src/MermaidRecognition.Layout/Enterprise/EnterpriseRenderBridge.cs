@@ -28,6 +28,9 @@ public static class EnterpriseRenderBridge
     /// <param name="Svg">Rendered SVG when the method returns true.</param>
     /// <returns>True when render succeeded.</returns>
     public static bool TryRenderEnterpriseSvg(string? Source, out string Svg)
+        => TryRenderEnterpriseSvg(Source, out Svg, null);
+
+    public static bool TryRenderEnterpriseSvg(string? Source, out string Svg, MermaidRecognition.Config.DiagramLayoutMode? DefaultLayout)
     {
         Svg = string.Empty;
         if (!IsEnterpriseSource(Source))
@@ -36,6 +39,8 @@ public static class EnterpriseRenderBridge
         }
 
         EnterpriseAnalysisResult Analysis = EnterpriseValidator.Analyze(Source ?? string.Empty);
+        if (DefaultLayout.HasValue && !Analysis.Document.Configuration.ContainsKey("layout"))
+            Analysis.Document.LayoutMode = DefaultLayout.Value;
         if (Analysis.HasErrors)
         {
             throw new InvalidOperationException(FormatErrors(Analysis));

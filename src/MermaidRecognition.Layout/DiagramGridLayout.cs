@@ -36,6 +36,7 @@ public static class DiagramGridLayout
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         bool Horizontal = Direction == FlowchartDirection.LeftToRight
             || Direction == FlowchartDirection.RightToLeft;
+        bool Open = Contract.LayoutMode == MermaidRecognition.Config.DiagramLayoutMode.Open;
         (int BoxWidth, int BoxHeight) = ResolveStandardBox(Contract);
         int DiamondHeight = BoxHeight * FlowchartDagrePresentation.DIAMOND_HEIGHT_FACTOR;
         int MainPitch = Horizontal
@@ -56,8 +57,10 @@ public static class DiagramGridLayout
                 GroupId = GroupOf(Contract, Bounds.NodeId),
                 OldX = Bounds.CenterX,
                 OldY = Bounds.CenterY,
-                Width = Diamond ? BoxWidth : BoxWidth,
-                Height = Diamond ? DiamondHeight : BoxHeight,
+                X = Bounds.CenterX,
+                Y = Bounds.CenterY,
+                Width = Open ? (int)Math.Ceiling(Bounds.Width) : BoxWidth,
+                Height = Open ? (int)Math.Ceiling(Bounds.Height) : Diamond ? DiamondHeight : BoxHeight,
                 IsDiamond = Diamond
             };
             Placed.Add(Item);
@@ -65,50 +68,63 @@ public static class DiagramGridLayout
 
         AssignRanks(Placed, Horizontal);
         AssignColumns(Placed, Horizontal, CrossPitch);
-        ResolveVerticalChordBlockers(Contract, Placed);
-        if (!ShouldUseSpineColumnLayout(Contract, Placed, Direction))
+        var PartnerRanks = new List<FlowchartPartnerRankLayout.Partners>();
+        var SharedFanSources = new HashSet<string>(StringComparer.Ordinal);
+        if (!Open)
         {
-            AlignForwardMainChainColumn(Contract, Placed, Horizontal);
-        }
+            ResolveVerticalChordBlockers(Contract, Placed);
+            if (!ShouldUseSpineColumnLayout(Contract, Placed, Direction))
+            {
+                AlignForwardMainChainColumn(Contract, Placed, Horizontal);
+            }
 
-        AlignFanInMergeColumn(Contract, Placed, Horizontal);
-        if (ShouldUseSpineColumnLayout(Contract, Placed, Direction))
+            AlignFanInMergeColumn(Contract, Placed, Horizontal);
+            if (ShouldUseSpineColumnLayout(Contract, Placed, Direction))
+            {
+                AlignTwoWayDecisionSideTargets(Contract, Placed);
+            }
+
+            AlignBypassDetourColumns(Contract, Placed, Horizontal);
+            AlignDecisionCentreChildColumn(Contract, Placed, Horizontal);
+            AlignTerminalDecisionTargets(Contract, Placed, Horizontal, CrossPitch, CoordinatesPlaced: false);
+            CentreTerminalFans(Contract, Placed, Horizontal, CoordinatesPlaced: false);
+            CascadeColumns(Placed);
+            PlaceOnGrid(Placed, Horizontal, BoxWidth, BoxHeight, MainPitch, CrossPitch, Copy, Contract);
+            if (!Horizontal)
+            {
+                ApplySpineColumnAdjustments(Contract, Placed, Direction);
+            }
+
+            AlignTerminalDecisionTargets(Contract, Placed, Horizontal, CrossPitch, CoordinatesPlaced: true);
+            CentreTerminalFans(Contract, Placed, Horizontal, CoordinatesPlaced: true);
+            AlignUnbranchedDecisionInputs(Contract, Placed, Horizontal);
+            AlignHorizontalRetryOutcomes(Contract, Placed, Horizontal);
+            AlignSimpleDecisionMerges(Contract, Placed, Horizontal, CrossPitch);
+            AlignDecisionDetours(Contract, Placed, Horizontal, CrossPitch);
+            AlignVerticalLoopBranches(Contract, Placed, Horizontal, CrossPitch);
+            PartnerRanks = FlowchartPartnerRankLayout.Find(Contract, Placed, Horizontal);
+            FlowchartPartnerRankLayout.Prepare(PartnerRanks, Horizontal);
+            CompactIndependentFanIn(Contract, Placed, Horizontal, CrossPitch);
+            SharedFanSources = AlignSharedFanSourcesAndTails(Contract, Placed, Horizontal);
+            FlowchartCircularJunctionLayout.AlignFans(Contract, Placed, Horizontal);
+        }
+        else
         {
-            AlignTwoWayDecisionSideTargets(Contract, Placed);
+            PartnerRanks = FlowchartPartnerRankLayout.Find(Contract, Placed, Horizontal);
+            FlowchartPartnerRankLayout.Prepare(PartnerRanks, Horizontal, Align: false);
         }
-
-        AlignBypassDetourColumns(Contract, Placed, Horizontal);
-        AlignDecisionCentreChildColumn(Contract, Placed, Horizontal);
-        AlignTerminalDecisionTargets(Contract, Placed, Horizontal, CrossPitch, CoordinatesPlaced: false);
-        CentreTerminalFans(Contract, Placed, Horizontal, CoordinatesPlaced: false);
-        CascadeColumns(Placed);
-        PlaceOnGrid(Placed, Horizontal, BoxWidth, BoxHeight, MainPitch, CrossPitch, Copy, Contract);
-        if (!Horizontal)
-        {
-            ApplySpineColumnAdjustments(Contract, Placed, Direction);
-        }
-
-        AlignTerminalDecisionTargets(Contract, Placed, Horizontal, CrossPitch, CoordinatesPlaced: true);
-        CentreTerminalFans(Contract, Placed, Horizontal, CoordinatesPlaced: true);
-        AlignUnbranchedDecisionInputs(Contract, Placed, Horizontal);
-        AlignHorizontalRetryOutcomes(Contract, Placed, Horizontal);
-        AlignSimpleDecisionMerges(Contract, Placed, Horizontal, CrossPitch);
-        AlignDecisionDetours(Contract, Placed, Horizontal, CrossPitch);
-        AlignVerticalLoopBranches(Contract, Placed, Horizontal, CrossPitch);
-        var PartnerRanks = FlowchartPartnerRankLayout.Find(Contract, Placed, Horizontal);
-        FlowchartPartnerRankLayout.Prepare(PartnerRanks, Horizontal);
-        CompactIndependentFanIn(Contract, Placed, Horizontal, CrossPitch);
-        var SharedFanSources = AlignSharedFanSourcesAndTails(Contract, Placed, Horizontal);
-        FlowchartCircularJunctionLayout.AlignFans(Contract, Placed, Horizontal);
 
         GrowCrowdedSides(Placed, Copy, BoxWidth, BoxHeight);
         GrowParallelRelationshipSides(Contract, Placed, Horizontal);
         SeparateOverlaps(Placed, Horizontal);
-        FlowchartTerminalBranchPlacement.Apply(Contract, Placed, Horizontal, CrossPitch);
-        FlowchartTerminalInputPlacement.Apply(Contract, Placed, Horizontal, CrossPitch);
-        FlowchartGridCompaction.Apply(Placed, Horizontal, Math.Max(CrossPitch, Contract.Groups.Count > 0 ? 60 : DiagramGridMetrics.NODE_GAP_PX));
+        if (!Open)
+        {
+            FlowchartTerminalBranchPlacement.Apply(Contract, Placed, Horizontal, CrossPitch);
+            FlowchartTerminalInputPlacement.Apply(Contract, Placed, Horizontal, CrossPitch);
+            FlowchartGridCompaction.Apply(Placed, Horizontal, Math.Max(CrossPitch, Contract.Groups.Count > 0 ? 60 : DiagramGridMetrics.NODE_GAP_PX));
+        }
         List<GridFrame> Frames = new List<GridFrame>();
-        CenterLoneNestedGroups(Contract, Placed, Horizontal);
+        if (!Open) CenterLoneNestedGroups(Contract, Placed, Horizontal);
         FitFrames(Contract, Placed, Frames, Horizontal);
         if (FlowchartPartnerRankLayout.GrowGaps(Contract, Placed, Frames, PartnerRanks, Horizontal))
             FitFrames(Contract, Placed, Frames, Horizontal);
