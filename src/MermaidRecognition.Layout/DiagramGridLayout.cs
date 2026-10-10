@@ -122,6 +122,7 @@ public static class DiagramGridLayout
             FlowchartTerminalBranchPlacement.Apply(Contract, Placed, Horizontal, CrossPitch);
             FlowchartTerminalInputPlacement.Apply(Contract, Placed, Horizontal, CrossPitch);
             FlowchartGridCompaction.Apply(Placed, Horizontal, Math.Max(CrossPitch, Contract.Groups.Count > 0 ? 60 : DiagramGridMetrics.NODE_GAP_PX));
+            FlowchartJunctionBranchCompaction.Apply(Contract, Placed, Horizontal);
         }
         List<GridFrame> Frames = new List<GridFrame>();
         if (!Open) CenterLoneNestedGroups(Contract, Placed, Horizontal);
