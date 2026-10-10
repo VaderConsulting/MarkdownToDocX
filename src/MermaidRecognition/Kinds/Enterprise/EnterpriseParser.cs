@@ -90,7 +90,7 @@ public static class EnterpriseParser
             return new EnterpriseParseResult(Document, Diagnostics);
         }
 
-        string Normalised = Source.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
+        string Normalised = EnterpriseConfiguration.Prepare(Source, Document).Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
         string[] Lines = Normalised.Split('\n');
         bool SeenHeader = false;
         bool InDescription = false;

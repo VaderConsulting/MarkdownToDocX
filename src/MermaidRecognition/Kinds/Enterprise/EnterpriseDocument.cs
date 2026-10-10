@@ -5,6 +5,9 @@ namespace MermaidRecognition.Kinds.Enterprise;
 /// </summary>
 public sealed class EnterpriseDocument
 {
+    /// <summary>Gets flattened Mermaid configuration; unsupported keys are ignored by rendering.</summary>
+    public Dictionary<string, string> Configuration { get; } = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>Accessible title provided by the source.</summary>
     public string? AccessibilityTitle { get; set; }
 
