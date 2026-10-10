@@ -8,6 +8,23 @@ namespace MermaidRecognition.Layout.Tests.Enterprise;
 [TestFixture]
 public sealed class EnterpriseRelationshipLabelLayoutTests
 {
+    [Test]
+    public void ShortParallelRuns_StaggerLabelsWithinAvailableTerminalClearance()
+    {
+        var A = new EnterpriseRoutedEdge(new EnterpriseRelationship { Kind = EnterpriseRelationshipKind.Flow },
+            "", new() { (200, 50), (200, 140) }, null, null, "6 4", "alpha", 0, 0);
+        var B = new EnterpriseRoutedEdge(new EnterpriseRelationship { Kind = EnterpriseRelationshipKind.Flow },
+            "", new() { (230, 140), (230, 50) }, null, null, "6 4", "beta", 0, 0);
+        EnterpriseRelationshipLabelLayout.Place(new() { A, B }, new());
+        Assert.That(Math.Abs(A.LabelY - B.LabelY), Is.GreaterThanOrEqualTo(18));
+        foreach (var Edge in new[] { A, B })
+        {
+            Assert.That(Edge.LabelBreak, Is.Not.Null);
+            Assert.That(Edge.LabelY, Is.InRange(72, 118));
+            Assert.That(Edge.LabelBreak!.CentreY, Is.EqualTo(Edge.LabelY));
+        }
+    }
+
     [TestCase(false)]
     [TestCase(true)]
     public void NearbyParallelConnectors_StaggerTextAndKeepBreaksAtTheirLabels(bool Horizontal)

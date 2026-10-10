@@ -2298,7 +2298,10 @@ public static class DiagramGridLayout
                 continue;
             }
 
-            if (TryAssignStraightPortSides(Source, Target, Direction, out string StraightExit, out string StraightEntry)
+            bool CircularReturn = BackEdges.Any(Edge => Edge.SourceId == Route.SourceId && Edge.TargetId == Route.TargetId)
+                && (Nodes.TryGetValue(Route.SourceId, out var CircularSource) && CircularSource.Shape == "circle"
+                    || Nodes.TryGetValue(Route.TargetId, out var CircularTarget) && CircularTarget.Shape == "circle");
+            if (!CircularReturn && TryAssignStraightPortSides(Source, Target, Direction, out string StraightExit, out string StraightEntry)
                 && StraightChordIsClear(
                     Contract,
                     Source,
@@ -2382,7 +2385,15 @@ public static class DiagramGridLayout
                 && BackEdges.Any(Edge => Edge.SourceId == Item.Source.Id && Edge.TargetId == Item.Target.Id))
             {
                 // An aligned return shares a clear side corridor, not inward-facing rank ports.
-                Exit = Entry = Horizontal ? "bottom" : "right";
+                double Span = Math.Abs(Item.Source.CenterY - Item.Target.CenterY);
+                var OtherSpans = BackEdges.Where(Edge => Edge.TargetId == Item.Target.Id && Edge.SourceId != Item.Source.Id
+                    && ById.ContainsKey(Edge.SourceId))
+                    .Select(Edge => ById[Edge.SourceId])
+                    .Where(Other => Math.Abs(Other.X - Item.Target.CenterX) <= DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
+                    .Select(Other => Math.Abs(Other.Y - Item.Target.CenterY)).ToList();
+                // Keep the longest return outside the shorter nested returns.
+                Exit = Entry = OtherSpans.Any(Other => Other < Span - 0.5)
+                    && OtherSpans.All(Other => Other <= Span + 0.5) ? "left" : "right";
             }
             double CrossGap = Math.Abs(TargetCross - SourceCross)
                 - (Horizontal ? Item.Source.Height + Item.Target.Height : Item.Source.Width + Item.Target.Width) / 2;
@@ -3637,8 +3648,7 @@ public static class DiagramGridLayout
 
             string? SourceShape = Nodes.TryGetValue(Route.SourceId, out NodeContract? SourceNode) ? SourceNode.Shape : null;
             string? TargetShape = Nodes.TryGetValue(Route.TargetId, out NodeContract? TargetNode) ? TargetNode.Shape : null;
-            string ReturnSide = HorizontalFlow ? "bottom" : "right";
-            if (!HorizontalFlow && Route.ExitSide == ReturnSide && Route.EntrySide == ReturnSide
+            if (!HorizontalFlow && Route.ExitSide is "left" or "right" && Route.EntrySide == Route.ExitSide
                 && BoundsById.TryGetValue(Route.SourceId, out var AlignedSource)
                 && BoundsById.TryGetValue(Route.TargetId, out var AlignedTarget)
                 && Math.Abs(HorizontalFlow ? AlignedSource.CenterY - AlignedTarget.CenterY
