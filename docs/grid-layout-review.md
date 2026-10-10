@@ -1,6 +1,6 @@
 # Grid layout review — 9 October 2026
 
-This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `2f29eab`; section 27 records quoted comments and entity decoding. Section 26 records explicit label breaks. Section 25 records title canvas sizing. Section 24 records relationship caption staggering. Section 23 records aligned vertical return ports. Section 22 records shared input fan placement and continuation alignment. Section 21 records junction caption clearance. Section 20 records plain relationship label measurement and elliptical attachments. Section 19 records the generic forward-dogleg correction. Section 18 records approved decisions, native Enterprise/pie integration, local spacing and frame fixes. Sections 16–17 retain the earlier routing evidence. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
+This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `76da489`; section 28 records facing container ports and visible compound attachments. Section 27 records quoted comments and entity decoding. Section 26 records explicit label breaks. Section 25 records title canvas sizing. Section 24 records relationship caption staggering. Section 23 records aligned vertical return ports. Section 22 records shared input fan placement and continuation alignment. Section 21 records junction caption clearance. Section 20 records plain relationship label measurement and elliptical attachments. Section 19 records the generic forward-dogleg correction. Section 18 records approved decisions, native Enterprise/pie integration, local spacing and frame fixes. Sections 16–17 retain the earlier routing evidence. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
 
 ## 1. Fresh test comparison
 
@@ -1045,3 +1045,47 @@ extracted and visually inspected: it renders with quoted text, percent pairs,
 decoded entities and preserved Windows backslashes. This is not full catalogue
 acceptance or a Word pagination review. Supplied files remain untouched and
 nothing was merged.
+
+## 28. Facing container ports — 10 October 2026
+
+The marked cross-container return had a small backstep because title clearance
+moved its source port without moving the facing target port. Aligned vertical
+frames now share that displaced track when the facing port is free and the
+segment clears unrelated bodies and frames. Ancestor frames remain legitimate
+crossings. This preserves the separate track used by the internal forward flow.
+
+The picture inspection also exposed gaps between compound terminals and the
+visible boxes: the layout frame includes a title band that differs from the
+drawn compound bounds. Normal terminal runs now meet the visible rectangular
+compound border, with a margin around rounded corners. Other shape outlines
+retain their existing attachment rules.
+
+`76da489` — Align container return lines with their facing ports.
+
+This builds directly on `20d64f9`, retaining all prior application fixes. The
+engine diff was checked for diagram-specific selectors; the rules use frame
+geometry, nesting, port occupancy and box shape, without catalogue numbers,
+diagram names, identifiers or labels as selectors. Existing assertions and
+fixtures were unchanged. Two new structural checks cover aligned containers
+with an internal forward flow and different title widths, verifying a straight
+separate return and square attachments to the visible borders. The focused
+run had 72 passes and the same two pre-existing Enterprise quality failures.
+
+All five suites ran once on pushed application commit `76da489`: Layout 485
+passed / 32 failed, rule validation 49 / 10, recognition 1025 / 0, Naiad adapter
+47 / 0, converter 52 / 0. No new failing names appeared against `2f29eab`.
+The retained master baseline was not rerun. The two stopped master-passing
+Layout regressions in section 18 remain unchanged; this does not establish
+merge readiness or complete visual acceptance.
+
+Final evidence is under `out/container-return/final/`: suite logs/TRX, exact
+failure-name comparison, the marked container example, 126 flowchart renders
+with four commented skips and ten Enterprise samples with the same two
+expected rejections. `picture-manifest.txt` lists every rendered picture path.
+The rebuilt WinForms executable saves the regenerated document to
+`C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX-pr9\out\container-return\final\enterprise.docx`.
+Package inspection found 96 drawings and 34 source-preserving warnings. The
+marked diagram's embedded picture was extracted and visually inspected: the
+return is straight beside the labelled forward flow and meets both visible
+compound borders squarely. This is not full catalogue acceptance or a Word
+pagination review. Supplied files remain untouched and nothing was merged.
