@@ -1,6 +1,6 @@
 # Grid layout review — 9 October 2026
 
-This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `f0cccc1`; section 20 records plain relationship label measurement and elliptical attachments. Section 19 records the generic forward-dogleg correction. Section 18 records approved decisions, native Enterprise/pie integration, local spacing and frame fixes. Sections 16–17 retain the earlier routing evidence. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
+This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `9d36297`; section 21 records junction caption clearance. Section 20 records plain relationship label measurement and elliptical attachments. Section 19 records the generic forward-dogleg correction. Section 18 records approved decisions, native Enterprise/pie integration, local spacing and frame fixes. Sections 16–17 retain the earlier routing evidence. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
 
 ## 1. Fresh test comparison
 
@@ -712,3 +712,41 @@ its rendered picture are included. The rebuilt WinForms executable generated
 and inspected: the influence break is compact, and the ellipse connector stops
 at its left outline. This is not a full Word pagination review or acceptance
 of all catalogue diagrams. No merge was performed.
+
+## 21. Junction caption clearance — 10 October 2026
+
+A junction caption occupied a fixed position beside its circle, independent of
+routing, and the outgoing dashed connector ran through the text. External
+captions now choose a nearby position after routes are complete. The search
+reserves clearance from route segment envelopes, node bodies, frame title
+strips, relationship labels and earlier junction captions. The canvas grows to
+include the selected caption bounds. Connector geometry and markers are
+unchanged; this is caption placement rather than an edge-label break.
+
+`9d36297` — Keep junction captions clear of routed connectors.
+
+Four new generic split/join checks cover filled and hollow junctions in both
+layout directions. They inspect the rendered paths, including arrowheads,
+for caption clearance and verify canvas containment. All 47 focused Enterprise
+checks pass. Existing assertions were preserved, and the engine diff contains
+no catalogue, diagram-name or node-label selectors. The bounded caption search
+retains visible text if it exhausts its candidates; global label planning and
+exhausted-space growth remain part of the incomplete rulebook work.
+
+All five suites ran on pushed application commit `9d36297`: Layout 460 passed
+/ 32 failed, rule validation 49 / 10, recognition 1008 / 0, Naiad adapter 47 / 0,
+and converter 52 / 0. No new failing names appeared against `f0cccc1`.
+The two master-passing Layout regressions remain stopped as recorded above;
+master was not rerun. No test expectations were changed.
+
+Evidence is under `out/junction-caption/final/`: suite logs/TRX, failure-name
+comparison, picture manifest, 126 rendered flowchart catalogue cases with four
+commented skips, ten rendered Enterprise samples and the same two expected
+sample rejections. The marked junction example is rendered separately.
+
+The rebuilt WinForms executable generated `enterprise.docx` directly with
+`-in` and `-out`. The DOCX still contains 94 drawings and 36 explicit warnings.
+Its embedded junction picture was extracted and inspected: the caption is
+above the outgoing dashed stroke and is no longer crossed by it. This is a
+picture check, not a full Word pagination review or catalogue acceptance.
+Supplied files and editor settings remain untouched, and no merge was made.
