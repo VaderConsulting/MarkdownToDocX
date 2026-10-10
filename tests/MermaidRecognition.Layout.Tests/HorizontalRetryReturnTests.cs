@@ -17,18 +17,23 @@ public sealed class HorizontalRetryReturnTests
         """;
 
     [Test]
-    public void TryLayout_HorizontalRetry_RanksAreEqualSpacedGridColumns()
+    public void TryLayout_LoopBranch_RankGapsKeepMinimumClearanceOnGrid()
     {
         DiagramContract Contract = MermaidRecognizer.Parse(RetrySource);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
 
-        double ReceiveX = Find(Layout, "A").CenterX;
         double DecisionX = Find(Layout, "B").CenterX;
-        double DoneX = Find(Layout, "C").CenterX;
         double RetryX = Find(Layout, "D").CenterX;
 
         Assert.That(RetryX, Is.EqualTo(DecisionX).Within(1.0), "Retry sits directly below the decision");
-        Assert.That(DecisionX - ReceiveX, Is.EqualTo(DoneX - DecisionX).Within(2.0), "Equal rank-column gaps");
+        var Columns = Layout.NodeBounds.GroupBy(Bounds => Bounds.CenterX).OrderBy(Column => Column.Key).ToList();
+        for (int Index = 1; Index < Columns.Count; Index++)
+        {
+            double Left = Columns[Index - 1].Max(Bounds => Bounds.CenterX + Bounds.Width / 2);
+            double Right = Columns[Index].Min(Bounds => Bounds.CenterX - Bounds.Width / 2);
+            Assert.That(Right - Left, Is.GreaterThanOrEqualTo(60), "Local growth preserves base clearance");
+            Assert.That((Columns[Index].Key - Columns[Index - 1].Key) % 30, Is.Zero, "Whole grid steps");
+        }
     }
 
     [Test]

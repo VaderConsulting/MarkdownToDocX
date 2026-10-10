@@ -4199,7 +4199,8 @@ public static class DiagramGridLayout
             List<GridNode> NextNodes = NodesInRank(Placed, Rank + 1);
             int HalfBelow = MaxHalf(RankNodes, Horizontal, Below: true);
             int HalfAbove = MaxHalf(NextNodes, Horizontal, Below: false);
-            int Gap = 2 * DiagramGridMetrics.GRID_UNIT_PX;
+            int Gap = Math.Max(2 * DiagramGridMetrics.GRID_UNIT_PX,
+                DiagramGridMetrics.CeilToGrid(FlowchartRenderOptions.FromContract(Contract).RankSpacingPx));
             foreach (EdgeContract Edge in Contract.Edges)
             {
                 GridNode? Source = RankNodes.Find(Node => Node.Id == Edge.SourceId || Node.Id == Edge.TargetId);
