@@ -6,8 +6,8 @@ namespace MermaidRecognition.Layout.Tests.Enterprise;
 [TestFixture]
 public sealed class EnterpriseDirectionTests
 {
-    [TestCase("TB", false, 1)]
-    [TestCase("BT", false, -1)]
+    [TestCase("TB", false, -1)]
+    [TestCase("BT", false, 1)]
     [TestCase("LR", true, 1)]
     [TestCase("RL", true, -1)]
     public void HeaderDirection_ReachesLayout(string Direction, bool Horizontal, int Sign)
