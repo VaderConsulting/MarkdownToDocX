@@ -19,7 +19,7 @@ internal static class FlowchartObstacleRouteRepair
             var Obstacles = FlowchartPaddedVisibilityRouter.CollectObstacles(Contract, Bounds, Edge);
             bool Blocked = Route.Points.Zip(Route.Points.Skip(1)).Any(Pair => Obstacles.Any(Box =>
                 FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(
-                    Pair.First.X, Pair.First.Y, Pair.Second.X, Pair.Second.Y, Box)));
+                    Pair.First.X, Pair.First.Y, Pair.Second.X, Pair.Second.Y, Box, 0)));
             if (!Blocked) continue;
             Bounds.TryGetValue(Route.SourceId, out var Source);
             Bounds.TryGetValue(Route.TargetId, out var Target);
