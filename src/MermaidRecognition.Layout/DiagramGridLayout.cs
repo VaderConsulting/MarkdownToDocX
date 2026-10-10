@@ -154,6 +154,7 @@ public static class DiagramGridLayout
         FlowchartBranchRouteOrder.RemoveAvoidableCrossings(Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction,
             FlowchartPartnerRankLayout.StraightRoutes(Copy, PartnerRanks));
         FlowchartObstacleRouteRepair.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
+        FlowchartReturnRouteOrder.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
         WriteBack(Copy, Placed, Frames);
         return Copy;
     }
