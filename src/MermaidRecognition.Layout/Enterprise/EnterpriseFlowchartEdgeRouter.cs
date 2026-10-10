@@ -78,6 +78,9 @@ internal static class EnterpriseFlowchartEdgeRouter
                 SvgPoints.Add(Context.Frame.LayoutToSvg(LayoutX, LayoutY));
             }
 
+            AttachCompoundEnd(Relationship.SourceId, SvgPoints, true, Nodes);
+            AttachCompoundEnd(Relationship.TargetId, SvgPoints, false, Nodes);
+
             string PathData = FlowchartCurvePathBuilder.BuildRoundedCornerPathData(SvgPoints, DiagramGridRouteBuilder.CORNER_RADIUS_PX);
             if (string.IsNullOrWhiteSpace(PathData))
             {
@@ -246,6 +249,27 @@ internal static class EnterpriseFlowchartEdgeRouter
         }
 
         Builder.Append("</g>");
+    }
+
+    private static void AttachCompoundEnd(string Id, List<(double X, double Y)> Points,
+        bool AtStart, Dictionary<string, EnterpriseLayoutNode> Nodes)
+    {
+        if (!Nodes.TryGetValue(Id, out EnterpriseLayoutNode? Node) || !Node.IsCompound
+            || Node.IsGroup || Node.Element is null
+            || EnterpriseElementCatalog.Elements[Node.Element.ElementType].BoxKind
+                is not (EnterpriseBoxKind.Rectangle or EnterpriseBoxKind.Object))
+            return;
+        int Index = AtStart ? 0 : Points.Count - 1;
+        var End = Points[Index];
+        var Next = Points[AtStart ? 1 : Points.Count - 2];
+        // The shared frame includes its title band. The drawn compound box
+        // can be smaller, so extend a normal terminal run to its visible edge.
+        if (Math.Abs(End.X - Next.X) < 0.01
+            && End.X >= Node.AbsoluteX + 10 && End.X <= Node.AbsoluteX + Node.Width - 10)
+            Points[Index] = (End.X, Next.Y < End.Y ? Node.AbsoluteY : Node.AbsoluteY + Node.Height);
+        else if (Math.Abs(End.Y - Next.Y) < 0.01
+            && End.Y >= Node.AbsoluteY + 10 && End.Y <= Node.AbsoluteY + Node.Height - 10)
+            Points[Index] = (Next.X < End.X ? Node.AbsoluteX : Node.AbsoluteX + Node.Width, End.Y);
     }
 
     private static string VisiblePath(EnterpriseRoutedEdge Routed)

@@ -2450,6 +2450,7 @@ public static class DiagramGridLayout
         }
 
         KeepFramePortsClearOfTitles(Contract, Ends);
+        AlignFacingFramePorts(Contract, Ends, ObstacleBounds);
 
         // A co-ranked three-way fan-in uses the upstream vertex for its
         // middle input and the two side vertices for the outer inputs.
@@ -2490,6 +2491,35 @@ public static class DiagramGridLayout
                 SetEnd(Inputs[Index], (int)Math.Round(Box.CenterX + OutX * Box.Width / 2),
                     (int)Math.Round(Box.CenterY + OutY * Box.Height / 2), OutX, OutY);
             }
+        }
+    }
+
+    private static void AlignFacingFramePorts(DiagramContract Contract, List<PortEnd> Ends,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Obstacles)
+    {
+        foreach (PortEnd Top in Ends.Where(End => End.Box.IsFrame && End.Side == "top"))
+        {
+            PortEnd? Bottom = Ends.FirstOrDefault(End => ReferenceEquals(End.Route, Top.Route)
+                && End.IsSource != Top.IsSource && End.Box.IsFrame && End.Side == "bottom");
+            if (Bottom is null || Top.Box.Top >= Bottom.Box.Bottom
+                || Math.Abs(Top.Box.CenterX - Bottom.Box.CenterX) > DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
+                continue;
+            // A title can displace one end of an otherwise straight frame-to-frame
+            // connection. Carry that track to the facing port if it is still free.
+            double X = (Top.IsSource ? Top.Route.Points[0] : Top.Route.Points[^1]).X;
+            if (X < Bottom.Box.Left + STUB_PX || X > Bottom.Box.Right - STUB_PX
+                || Ends.Any(End => !ReferenceEquals(End.Route, Top.Route)
+                    && End.Box.Id == Bottom.Box.Id && End.Side == "bottom"
+                    && Math.Abs((End.IsSource ? End.Route.Points[0] : End.Route.Points[^1]).X - X) < STUB_PX))
+                continue;
+            bool Clear = Obstacles.All(Obstacle => Obstacle.Key == Top.Box.Id || Obstacle.Key == Bottom.Box.Id
+                || (Contract.Groups.Any(Group => Group.Id == Obstacle.Key)
+                    && (IsInsideGroup(Contract, Top.Box.Id, Obstacle.Key)
+                        || IsInsideGroup(Contract, Bottom.Box.Id, Obstacle.Key)))
+                || !FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(
+                    X, Top.Box.Top, X, Bottom.Box.Bottom, Obstacle.Value));
+            if (Clear)
+                SetEnd(Bottom, (int)Math.Round(X), (int)Math.Round(Bottom.Box.Bottom), 0, -1);
         }
     }
 
