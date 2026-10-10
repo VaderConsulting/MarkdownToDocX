@@ -5,6 +5,9 @@ namespace MDConverter.Options;
 /// </summary>
 public sealed class MermaidOptions
 {
+    /// <summary>Gets or sets the run-wide placement default; diagram configuration takes precedence.</summary>
+    public MermaidRecognition.Config.DiagramLayoutMode? DefaultLayout { get; set; }
+
     private bool _UseFlowchartRecognitionParser;
 
     private bool _UseNativeSugiyamaRenderer;

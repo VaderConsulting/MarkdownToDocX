@@ -713,7 +713,7 @@ public sealed class DocxWriter(EffectiveOptions Options, IConversionProgressRepo
     private string RenderMermaidSvg(string MermaidSource)
     {
         if (MermaidRecognition.Layout.NativeDiagramRenderBridge.TryRenderSvg(
-                MermaidSource, out string NativeSvg))
+                MermaidSource, out string NativeSvg, _Options.Mermaid.DefaultLayout))
         {
             return NativeSvg;
         }
