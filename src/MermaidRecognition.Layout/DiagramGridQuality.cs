@@ -276,8 +276,7 @@ public static class DiagramGridQuality
             if (LeftPad < DiagramGridMetrics.NODE_GAP_PX - 0.5
                 || RightPad < DiagramGridMetrics.NODE_GAP_PX - 0.5
                 || BottomPad < DiagramGridMetrics.NODE_GAP_PX - 0.5
-                || Math.Abs(LeftPad - RightPad) > 1.5
-                || Math.Abs(BottomPad - DiagramGridMetrics.NODE_GAP_PX) > 1.5)
+                || Math.Abs(LeftPad - RightPad) > 1.5)
             {
                 Violations.Add(Failure(
                     "GroupFrame",

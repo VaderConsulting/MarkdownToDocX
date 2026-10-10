@@ -21,6 +21,60 @@ public static class DiagramGridRouteBuilder
 
     private const double HOOK_DOT_PRODUCT_THRESHOLD = -0.15;
 
+    /// <summary>Rebuilds internal returns on clear tracks inside their common frame.</summary>
+    internal static void RebuildContainedBackRoutes(FlowchartLayoutResult Layout,
+        List<DiagramGridLayout.GridNode> Placed, Dictionary<string, NodeContract> Nodes,
+        DiagramContract Contract, IReadOnlyList<DiagramGridLayout.GridFrame> Frames, FlowchartDirection Direction)
+    {
+        var Bounds = BuildBounds(Placed, Frames);
+        var BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        bool Horizontal = Direction is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft;
+        double Flow = Direction is FlowchartDirection.LeftToRight or FlowchartDirection.BottomToTop ? 1 : -1;
+        string Downstream = Horizontal ? (Flow > 0 ? "right" : "left") : (Flow > 0 ? "top" : "bottom");
+        double Main(FlowchartLayoutNodeBounds Node) => Horizontal ? Node.CenterX : Node.CenterY;
+        double Cross(FlowchartLayoutNodeBounds Node) => Horizontal ? Node.CenterY : Node.CenterX;
+        (double X, double Y) Map(double Main, double Cross) => Horizontal ? (Main, Cross) : (Cross, Main);
+        foreach (var Route in Layout.EdgeRoutes)
+        {
+            var Edge = BackEdges.FirstOrDefault(Edge => Edge.SourceId == Route.SourceId && Edge.TargetId == Route.TargetId);
+            if (Edge == null || !Bounds.TryGetValue(Route.SourceId, out var Source) || !Bounds.TryGetValue(Route.TargetId, out var Target)) continue;
+            var Shared = Frames.Where(Frame => DiagramGridLayout.IsInsideGroup(Contract, Route.SourceId, Frame.Id)
+                && DiagramGridLayout.IsInsideGroup(Contract, Route.TargetId, Frame.Id)).OrderBy(Frame => (Frame.Right - Frame.Left) * (Frame.Top - Frame.Bottom)).FirstOrDefault();
+            if (Shared == null || StaysInsideSharedFrames(Route.Points.Select(Point => (Point.X, Point.Y)).ToList(), Route, Contract, Bounds)) continue;
+            Nodes.TryGetValue(Route.SourceId, out var SourceNode);
+            Nodes.TryGetValue(Route.TargetId, out var TargetNode);
+            double Preferred = Math.Sign(Cross(Source) - Cross(Target));
+            if (Preferred == 0) Preferred = Horizontal ? -1 : 1;
+            foreach (double Side in new[] { Preferred, -Preferred })
+            {
+                var TowardSource = Map(Main(Source) + Flow * 1000, Cross(Source));
+                var TowardTarget = Map(Main(Target), Cross(Target) + Side * 1000);
+                if (!FlowchartShapeBoundaryAttachHelper.TryResolveOutboundAttach(Source, SourceNode?.Shape,
+                        TowardSource.X, TowardSource.Y, Edge.MarkerStart, out double Sx, out double Sy)
+                    || !FlowchartShapeBoundaryAttachHelper.TryResolveInboundAttach(Target, TargetNode?.Shape,
+                        TowardTarget.X, TowardTarget.Y, Edge.MarkerEnd, out double Tx, out double Ty)) continue;
+                bool Occupied = Layout.EdgeRoutes.Any(Other => Other != Route && Other.Points.Count > 1
+                    && ((Other.SourceId == Route.SourceId && Math.Abs(Other.Points[0].X - Sx) < 1 && Math.Abs(Other.Points[0].Y - Sy) < 1)
+                        || (Other.TargetId == Route.TargetId && Math.Abs(Other.Points[^1].X - Tx) < 1 && Math.Abs(Other.Points[^1].Y - Ty) < 1)));
+                if (Occupied) continue;
+                var Members = Placed.Where(Node => DiagramGridLayout.IsInsideGroup(Contract, Node.Id, Shared.Id)).ToList();
+                double Lane = Side > 0 ? Members.Max(Node => Horizontal ? Node.Y + Node.Height / 2.0 : Node.X + Node.Width / 2.0) + 40
+                    : Members.Min(Node => Horizontal ? Node.Y - Node.Height / 2.0 : Node.X - Node.Width / 2.0) - 40;
+                double StartMain = (Horizontal ? Sx : Sy) + Flow * 40;
+                List<(double X, double Y)> Path = [(Sx, Sy), Map(StartMain, Horizontal ? Sy : Sx),
+                    Map(StartMain, Lane), Map(Main(Target), Lane), (Tx, Ty)];
+                Path = SimplifyCollinear(Path);
+                if (CountCorners(Path) > 3 || !PathIsValid(Path, Bounds, Route.SourceId, Route.TargetId, Contract)
+                    || !StaysInsideSharedFrames(Path, Route, Contract, Bounds)) continue;
+                Route.ExitSide = Downstream;
+                Route.EntrySide = Horizontal ? (Side > 0 ? "top" : "bottom") : (Side > 0 ? "right" : "left");
+                Route.Points.Clear();
+                foreach (var Point in Path) Route.Points.Add(new() { X = Math.Round(Point.X), Y = Math.Round(Point.Y) });
+                break;
+            }
+        }
+    }
+
     /// <summary>
     /// Replaces diagonal legacy back-edge guides when a valid orthogonal route
     /// fits the already allocated ports without exceeding three corners.

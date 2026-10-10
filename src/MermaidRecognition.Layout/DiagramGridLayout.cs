@@ -118,6 +118,7 @@ public static class DiagramGridLayout
         Copy.UsesGridRoutes = true;
         SeparateTracks(Copy, Placed);
         PushPointsOutOfNodes(Copy, Placed);
+        DiagramGridRouteBuilder.RebuildContainedBackRoutes(Copy, Placed, Nodes, Contract, Frames, Direction);
         FlowchartGridTerminalNormalizer.Apply(Copy, BuildPlacedBounds(Placed, Frames), Nodes);
         WriteBack(Copy, Placed, Frames);
         return Copy;
@@ -1693,12 +1694,16 @@ public static class DiagramGridLayout
                         continue;
                     }
 
-                    if (!Overlaps(Node, Frame))
+                    int Clearance = Contract.Edges.Any(Edge =>
+                        (Edge.SourceId == Node.Id && (Edge.TargetId == Frame.Id || IsInsideGroup(Contract, Edge.TargetId, Frame.Id)))
+                        || (Edge.TargetId == Node.Id && (Edge.SourceId == Frame.Id || IsInsideGroup(Contract, Edge.SourceId, Frame.Id))))
+                        ? 2 * DiagramGridMetrics.GRID_UNIT_PX : DiagramGridMetrics.GRID_UNIT_PX;
+                    if (!Overlaps(Node, Frame, Clearance))
                     {
                         continue;
                     }
 
-                    if (TryEvictNodeFromFrame(Node, Frame))
+                    if (TryEvictNodeFromFrame(Contract, Placed, Node, Frame, Clearance))
                     {
                         Moved = true;
                         break;
@@ -1809,14 +1814,14 @@ public static class DiagramGridLayout
     /// <summary>
     /// Moves a non-member node just outside a group frame with at least one grid step of clearance (rulebook 7.3).
     /// </summary>
-    private static bool TryEvictNodeFromFrame(GridNode Node, GridFrame Frame)
+    internal static bool TryEvictNodeFromFrame(DiagramContract Contract, List<GridNode> Placed, GridNode Node, GridFrame Frame,
+        int Gap = DiagramGridMetrics.GRID_UNIT_PX)
     {
-        if (!Overlaps(Node, Frame))
+        if (!Overlaps(Node, Frame, Gap))
         {
             return false;
         }
 
-        int Gap = DiagramGridMetrics.GRID_UNIT_PX;
         double ShiftUp = Frame.Top - Gap - (Node.Height / 2.0) - Node.Y;
         double ShiftDown = Frame.Bottom + Gap + (Node.Height / 2.0) - Node.Y;
         double ShiftLeft = Frame.Left - Gap - (Node.Width / 2.0) - Node.X;
@@ -1824,17 +1829,36 @@ public static class DiagramGridLayout
         double Best = double.MaxValue;
         double ChosenX = 0.0;
         double ChosenY = 0.0;
-        ConsiderEviction(0.0, ShiftUp, ref Best, ref ChosenX, ref ChosenY);
-        ConsiderEviction(0.0, ShiftDown, ref Best, ref ChosenX, ref ChosenY);
-        ConsiderEviction(ShiftLeft, 0.0, ref Best, ref ChosenX, ref ChosenY);
-        ConsiderEviction(ShiftRight, 0.0, ref Best, ref ChosenX, ref ChosenY);
+        var Members = Placed.Where(Member => IsInsideGroup(Contract, Member.Id, Frame.Id)).ToList();
+        double Snap(double Delta) => Math.Sign(Delta) * DiagramGridMetrics.CeilToGrid(Math.Abs(Delta));
+        if (Members.All(Member => Member.Y > Node.Y)) ConsiderEviction(0.0, Snap(ShiftUp), ref Best, ref ChosenX, ref ChosenY);
+        if (Members.All(Member => Member.Y < Node.Y)) ConsiderEviction(0.0, Snap(ShiftDown), ref Best, ref ChosenX, ref ChosenY);
+        if (Members.All(Member => Member.X > Node.X)) ConsiderEviction(Snap(ShiftLeft), 0.0, ref Best, ref ChosenX, ref ChosenY);
+        if (Members.All(Member => Member.X < Node.X)) ConsiderEviction(Snap(ShiftRight), 0.0, ref Best, ref ChosenX, ref ChosenY);
         if (Best == double.MaxValue)
         {
-            return false;
+            // A non-member inside the members' extent needs a separate grid
+            // line. Move its aligned outside column or row together; members
+            // keep their existing grid positions and the frame is refitted.
+            ConsiderEviction(0.0, Snap(ShiftUp), ref Best, ref ChosenX, ref ChosenY);
+            ConsiderEviction(0.0, Snap(ShiftDown), ref Best, ref ChosenX, ref ChosenY);
+            ConsiderEviction(Snap(ShiftLeft), 0.0, ref Best, ref ChosenX, ref ChosenY);
+            ConsiderEviction(Snap(ShiftRight), 0.0, ref Best, ref ChosenX, ref ChosenY);
+            double OutsideColumn = Node.X, OutsideRow = Node.Y;
+            foreach (var Other in Placed.Where(Other => !Members.Contains(Other)))
+            {
+                if (ChosenX != 0 && Other.X == OutsideColumn) Other.X += (int)ChosenX;
+                if (ChosenY != 0 && Other.Y == OutsideRow) Other.Y += (int)ChosenY;
+            }
+            return true;
         }
 
-        Node.X += ChosenX;
-        Node.Y += ChosenY;
+        double CutX = Node.X, CutY = Node.Y;
+        foreach (var Other in Placed)
+        {
+            if ((ChosenX < 0 && Other.X <= CutX) || (ChosenX > 0 && Other.X >= CutX)) Other.X += (int)ChosenX;
+            if ((ChosenY < 0 && Other.Y <= CutY) || (ChosenY > 0 && Other.Y >= CutY)) Other.Y += (int)ChosenY;
+        }
         return true;
     }
 
@@ -1916,6 +1940,10 @@ public static class DiagramGridLayout
                 Strip = DiagramGridMetrics.CeilToGrid(LineHeight);
             }
             int Padding = DiagramGridMetrics.NODE_GAP_PX;
+            int InternalReturns = FlowchartBackEdgeHelper.FindBackEdges(Contract).Count(Edge =>
+                IsInsideGroup(Contract, Edge.SourceId, Group.Id) && IsInsideGroup(Contract, Edge.TargetId, Group.Id));
+            if (InternalReturns > 0)
+                Padding += DiagramGridMetrics.CeilToGrid(DiagramGridRouteBuilder.CORNER_RADIUS_PX + 6 * InternalReturns);
             int FrameLeft = (int)Math.Floor(Left) - Padding;
             int FrameRight = (int)Math.Ceiling(Right) + Padding;
             int FrameTop = (int)Math.Floor(Top) - Padding - Strip;
@@ -1991,13 +2019,14 @@ public static class DiagramGridLayout
         Bottom = Math.Max(Bottom, RectBottom);
     }
 
-    private static bool Overlaps(GridNode Node, GridFrame Frame)
+    private static bool Overlaps(GridNode Node, GridFrame Frame, int Clearance = 0)
     {
         double Left = Node.X - (Node.Width / 2.0);
         double Right = Node.X + (Node.Width / 2.0);
         double Top = Node.Y - (Node.Height / 2.0);
         double Bottom = Node.Y + (Node.Height / 2.0);
-        return Right > Frame.Left && Left < Frame.Right && Bottom > Frame.Top && Top < Frame.Bottom;
+        return Right > Frame.Left - Clearance && Left < Frame.Right + Clearance
+            && Bottom > Frame.Top - Clearance && Top < Frame.Bottom + Clearance;
     }
 
     private static void RewriteRoutes(FlowchartLayoutResult Copy, List<GridNode> Placed, List<GridFrame> Frames)
@@ -4256,7 +4285,7 @@ public static class DiagramGridLayout
                 FlowchartEdgeLabelGapHelper.ComputeRequiredSegmentLengthPx(
                     LabelDimensions,
                     Options.EdgeLabelFontSizePx,
-                    Horizontal));
+                    Horizontal) + 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX);
             MaxBoost = Math.Max(MaxBoost, Required);
         }
 
