@@ -411,8 +411,7 @@ internal static class EnterpriseFlowchartEdgeRouter
         FlowchartRenderOptions RenderOptions = FlowchartRenderOptions.FromContract(Contract);
         FlowchartSubgraphBoundsRequest BoundsRequest =
             FlowchartSubgraphBoundsRequest.FromContract(Contract, RenderOptions);
-        List<FlowchartSubgraphLayoutRect> SubgraphRects = Document.LayoutMode == MermaidRecognition.Config.DiagramLayoutMode.Open
-            && Layout.ClusterBounds.Count > 0
+        List<FlowchartSubgraphLayoutRect> SubgraphRects = Layout.ClusterBounds.Count > 0
             ? FlowchartSugiyamaSvgRenderer.BuildDagreClusterRects(Contract, Layout)
             : FlowchartSubgraphBoundsBuilder.BuildOrderedRects(
             Contract,

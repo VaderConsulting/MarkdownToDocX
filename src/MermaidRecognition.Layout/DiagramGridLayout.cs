@@ -125,6 +125,7 @@ public static class DiagramGridLayout
         }
         List<GridFrame> Frames = new List<GridFrame>();
         if (!Open) CenterLoneNestedGroups(Contract, Placed, Horizontal);
+        if (!Open) CompactOverlappingRootGroups(Contract, Placed, Frames, Horizontal);
         FitFrames(Contract, Placed, Frames, Horizontal);
         if (FlowchartPartnerRankLayout.GrowGaps(Contract, Placed, Frames, PartnerRanks, Horizontal))
             FitFrames(Contract, Placed, Frames, Horizontal);
@@ -1829,12 +1830,82 @@ public static class DiagramGridLayout
         }
     }
 
+    private static void CompactOverlappingRootGroups(DiagramContract Contract, List<GridNode> Placed,
+        List<GridFrame> Frames, bool Horizontal)
+    {
+        BuildFrames(Contract, Placed, Frames);
+        var Roots = Frames.Where(Frame => ParentGroup(Contract, Frame.Id) == null).ToList();
+        bool Overlapping = Roots.Any(First => Roots.Any(Second => First != Second
+            && First.Left < Second.Right && First.Right > Second.Left
+            && First.Top < Second.Bottom && First.Bottom > Second.Top));
+        if (!Overlapping) return;
+
+        // Global ranks can scatter a container's members between other containers.
+        // Close those empty strips locally, then move each container as one unit.
+        foreach (var Root in Roots)
+        {
+            var Members = Placed.Where(Node => IsInsideGroup(Contract, Node.Id, Root.Id)).ToList();
+            FlowchartGridCompaction.Apply(Members, Horizontal, 2 * DiagramGridMetrics.GRID_UNIT_PX);
+            FlowchartGridCompaction.Apply(Members, !Horizontal, 2 * DiagramGridMetrics.GRID_UNIT_PX);
+            FitFrames(Contract, Members, new List<GridFrame>(), Horizontal);
+        }
+        Frames.Clear();
+        BuildFrames(Contract, Placed, Frames);
+        Roots = Contract.Groups.Where(Group => Group.ParentGroupId == null)
+            .Select(Group => Frames.Find(Frame => Frame.Id == Group.Id)).Where(Frame => Frame != null)
+            .Cast<GridFrame>().ToList();
+        foreach (var Node in Placed.Where(Node => Node.GroupId == null))
+        {
+            var Neighbour = Roots.Select(Frame => (Frame, Links: Contract.Edges.Count(Edge =>
+                Edge.SourceId == Node.Id && IsInsideGroup(Contract, Edge.TargetId, Frame.Id)
+                || Edge.TargetId == Node.Id && IsInsideGroup(Contract, Edge.SourceId, Frame.Id))))
+                .OrderByDescending(Item => Item.Links).FirstOrDefault();
+            var Unit = new GridFrame { Id = Node.Id,
+                Left = (int)Math.Floor(Node.X - Node.Width / 2.0),
+                Right = (int)Math.Ceiling(Node.X + Node.Width / 2.0),
+                Top = (int)Math.Floor(Node.Y - Node.Height / 2.0),
+                Bottom = (int)Math.Ceiling(Node.Y + Node.Height / 2.0) };
+            if (Neighbour.Links > 0) Roots.Insert(Roots.IndexOf(Neighbour.Frame) + 1, Unit);
+            else Roots.Add(Unit);
+        }
+        int Gap = 3 * DiagramGridMetrics.GRID_UNIT_PX;
+        double Area = Roots.Sum(Frame => (double)(Frame.Right - Frame.Left + Gap) * (Frame.Bottom - Frame.Top + Gap));
+        int RowWidth = DiagramGridMetrics.CeilToGrid(Math.Sqrt(Area));
+        int X = 0, Y = 0, RowHeight = 0;
+        foreach (var Root in Roots)
+        {
+            int Width = DiagramGridMetrics.CeilToGrid(Root.Right - Root.Left);
+            int Height = DiagramGridMetrics.CeilToGrid(Root.Bottom - Root.Top);
+            if (X > 0 && X + Width > RowWidth)
+            {
+                X = 0;
+                Y += RowHeight + Gap;
+                RowHeight = 0;
+            }
+            int Dx = DiagramGridMetrics.CeilToGrid(Math.Max(0, X - Root.Left))
+                - DiagramGridMetrics.CeilToGrid(Math.Max(0, Root.Left - X));
+            int Dy = DiagramGridMetrics.CeilToGrid(Math.Max(0, Y - Root.Top))
+                - DiagramGridMetrics.CeilToGrid(Math.Max(0, Root.Top - Y));
+            foreach (var Node in Placed.Where(Node => Node.Id == Root.Id || IsInsideGroup(Contract, Node.Id, Root.Id)))
+            {
+                Node.X += Dx;
+                Node.Y += Dy;
+            }
+            X += Width + Gap;
+            RowHeight = Math.Max(RowHeight, Height);
+        }
+        Frames.Clear();
+    }
+
     private static void FitFrames(DiagramContract Contract, List<GridNode> Placed, List<GridFrame> Frames, bool Horizontal)
     {
         for (int Pass = 0; Pass < MAX_SEPARATION_PASSES; Pass++)
         {
             Frames.Clear();
             BuildFrames(Contract, Placed, Frames);
+            // Keep sibling containers intact before clearing individual outsiders.
+            // Evicting their members first can stretch both frames repeatedly.
+            if (SeparateSiblingFrames(Contract, Placed, Frames, Horizontal)) continue;
             bool Moved = false;
             foreach (GridFrame Frame in Frames)
             {
