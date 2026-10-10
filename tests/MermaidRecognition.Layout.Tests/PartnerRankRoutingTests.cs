@@ -1,5 +1,8 @@
 using System.Text;
+using System.Globalization;
+using System.Xml.Linq;
 using MermaidRecognition.Core;
+using MermaidRecognition.Render;
 
 namespace MermaidRecognition.Layout.Tests;
 
@@ -90,6 +93,46 @@ public sealed class PartnerRankRoutingTests
                     "Cross-rank tracks must occupy the clear gap between frames.");
         }
     }
+
+    [TestCase("TB", 3)]
+    [TestCase("BT", 3)]
+    [TestCase("LR", 3)]
+    [TestCase("RL", 3)]
+    [TestCase("TB", 6)]
+    public void GroupedPartnerRanks_RenderTitlesClearOfEveryConnector(string Direction, int Count)
+    {
+        var Contract = MermaidRecognizer.Parse(Source(Direction, Count, true));
+        var Svg = XDocument.Parse(FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract));
+        var Titles = Svg.Descendants().Where(Element => Element.Name.LocalName == "text" && Element.Value == "Partners").ToList();
+        Assert.That(Titles, Has.Count.EqualTo(2));
+        var Edges = Svg.Descendants().Where(Element => Element.Attribute("data-edge-source") != null).ToList();
+        foreach (var Title in Titles)
+        {
+            double X = Number(Title, "x"), Y = Number(Title, "y");
+            double Font = double.Parse(((string)Title.Attribute("font-size")!).Replace("px", ""), CultureInfo.InvariantCulture);
+            double HalfWidth = FlowchartRichLabelSvgWriter.EstimateLineWidthPx(Title.Value, Font) / 2;
+            double CentreY = Y - FlowchartRichLabelSvgWriter.ComputeBaselineOffsetPx(Font);
+            foreach (var Edge in Edges)
+            {
+                List<(double X, double Y)> Points;
+                if (Edge.Name.LocalName == "line")
+                    Points = [(Number(Edge, "x1"), Number(Edge, "y1")), (Number(Edge, "x2"), Number(Edge, "y2"))];
+                else if (Edge.Name.LocalName == "path")
+                {
+                    Assert.That(FlowchartSvgPathGeometryHelper.TryFlattenPathData((string)Edge.Attribute("d")!, out Points), Is.True);
+                }
+                else continue;
+                foreach (var Segment in Points.Zip(Points.Skip(1)))
+                    Assert.That(Math.Max(Segment.First.X, Segment.Second.X) > X - HalfWidth - 6 + 0.01
+                        && Math.Min(Segment.First.X, Segment.Second.X) < X + HalfWidth + 6 - 0.01
+                        && Math.Max(Segment.First.Y, Segment.Second.Y) > CentreY - Font / 2 - 6 + 0.01
+                        && Math.Min(Segment.First.Y, Segment.Second.Y) < CentreY + Font / 2 + 6 - 0.01,
+                        Is.False, "A connector must leave clear space around each group title.");
+            }
+        }
+    }
+
+    private static double Number(XElement Element, string Name) => double.Parse((string)Element.Attribute(Name)!, CultureInfo.InvariantCulture);
 
     internal static string Source(string Direction, int Count, bool Grouped)
     {
