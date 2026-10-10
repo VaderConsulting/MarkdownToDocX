@@ -1,6 +1,6 @@
 # Grid layout review — 9 October 2026
 
-This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `4ce8e85`; section 22 records shared input fan placement and continuation alignment. Section 21 records junction caption clearance. Section 20 records plain relationship label measurement and elliptical attachments. Section 19 records the generic forward-dogleg correction. Section 18 records approved decisions, native Enterprise/pie integration, local spacing and frame fixes. Sections 16–17 retain the earlier routing evidence. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
+This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `caead11`; section 23 records aligned vertical return ports. Section 22 records shared input fan placement and continuation alignment. Section 21 records junction caption clearance. Section 20 records plain relationship label measurement and elliptical attachments. Section 19 records the generic forward-dogleg correction. Section 18 records approved decisions, native Enterprise/pie integration, local spacing and frame fixes. Sections 16–17 retain the earlier routing evidence. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
 
 ## 1. Fresh test comparison
 
@@ -798,3 +798,52 @@ other inputs, the continuation is under its parent, and both branches have
 two rounded bends with label breaks. This is not full catalogue acceptance
 or a Word pagination review. Supplied files remain untouched; no merge was
 performed.
+
+## 23. Aligned vertical return ports — 10 October 2026
+
+The marked association return inherited inward-facing top/bottom ports and
+approached both rectangular elements diagonally. Aligned vertical returns
+between non-diamond nodes now use shared side ports. A clear orthogonal route
+keeps those allocated ports when the legacy loop pass runs later. The marked
+return uses the right-hand corridor with two rounded bends, straight terminal
+runs and square attachments; it clears the intervening object.
+
+`caead11` — Route aligned vertical returns through side ports.
+
+The rule uses back-edge topology, alignment and shape geometry. It does not
+select an Enterprise relationship type, catalogue number, diagram name or node
+label. The engine diff was audited before committing. Existing assertions and
+fixtures were not changed. Focused verification passed 57 structural and
+Enterprise checks; new checks cover vertical cyclic returns in both directions,
+node clearance, orthogonal segments and square terminal runs.
+
+Horizontal exploration was stopped and excluded from this fix. Allocating
+side ports alone did not survive legacy loop routing; preserving completed
+side routes still left the straight-route prepass and other horizontal loop
+forms outside that condition. A controlled alignment fixture was then moved
+by the chord-blocker placement rule, so it did not establish the intended
+blocked-chord precondition. The observed horizontal routes can still contain
+seven guide points. Those exploratory cases are retained in local logs rather
+than being presented as passing coverage. The final regression tests cover
+the corrected vertical situation; no existing test was weakened. A separate
+horizontal return investigation is deferred rather than trying more variants.
+
+All five suites ran on pushed application commit `caead11`: Layout 471 passed
+/ 32 failed, rule validation 49 / 10, recognition 1008 / 0, Naiad adapter 47 / 0,
+and converter 52 / 0. No new failing names appeared against `4ce8e85`.
+Master was not rerun. The two master-passing Layout regressions recorded in
+section 18 remain stopped; this change does not resolve them.
+
+Final local evidence is under `out/association-return/final/`: suite logs/TRX,
+failure comparison, 126 rendered flowchart catalogue cases with four commented
+skips, ten Enterprise samples with the same two expected rejections, and the
+marked association example plus the exploratory horizontal cyclic example.
+
+The rebuilt WinForms executable regenerated `final/enterprise.docx` successfully
+from the supplied Markdown. It contains 94 drawings and 36 source-preserving
+warnings, unchanged from the previous conversion. The marked association's
+embedded picture was extracted and visually inspected: the return runs around
+the right side with two rounded bends and square side attachments, clearing
+the intervening object. This is not a full Word pagination review or catalogue
+acceptance. The picture inventory is in `final/picture-manifest.txt`. Supplied
+files remain untouched; no merge was performed.

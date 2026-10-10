@@ -8,7 +8,7 @@ solution. Historical evidence is in the [grid layout review](grid-layout-review.
 | Area | Current state |
 | --- | --- |
 | Master | Baseline `f09cb89`; not changed or remeasured in this pass. |
-| Grid work | PR #9, `cursor/many-to-many-routing-3834`; application fixes through `4ce8e85` pushed, not merged. |
+| Grid work | PR #9, `cursor/many-to-many-routing-3834`; application fixes through `caead11` pushed, not merged. |
 | Active checkout | Sibling `MarkdownToDocX-pr9` worktree. The original folder retains its documentation branch and supplied files. |
 | Enterprise / ArchiMate | Selected parser, validation, notation and renderer code from PR #1 integrated into PR #9. Neither PR was merged. |
 | Decisions | All six defaults approved. The held frame-midline rule is replaced by fitting frames on the shared grid and growing shared gaps. |
@@ -36,6 +36,10 @@ solution. Historical evidence is in the [grid layout review](grid-layout-review.
 - Shared branching inputs centre between their targets when the other inputs
   are independent. Their unbranched tails align with their parent when clear,
   and the centred source uses free flow-facing ports for two-bend routes.
+- Aligned vertical returns between non-diamond nodes use shared side ports,
+  preserving clear orthogonal routes and square terminal runs through the
+  later legacy loop-routing pass. Horizontal cyclic return routing remains
+  incomplete and is outside this correction.
 - Sequence row spacing accounts for notes, message labels and arrowheads;
   outer notes enlarge the canvas. This shared spacing work predates this pass.
 - Enterprise blocks have native parsing, relationship validation and SVG/DOCX
@@ -60,11 +64,11 @@ in existing PR #9 tests during this pass.
 ## 3. Verified tests
 
 Plain `dotnet test`, including build/restore, on pushed application commit
-`4ce8e85`. Baselines were measured before behavioural edits and retained.
+`caead11`. Baselines were measured before behavioural edits and retained.
 
 | Suite | Master passed / failed | Starting PR #9 passed / failed | Current passed / failed |
 | --- | ---: | ---: | ---: |
-| Layout | 234 / 34 | 280 / 38 | 469 / 32 |
+| Layout | 234 / 34 | 280 / 38 | 471 / 32 |
 | Rule validation | 46 / 11 | 44 / 13 | 49 / 10 |
 | Recognition | 932 / 0 | 932 / 0 | 1008 / 0 |
 | Naiad adapter | 47 / 0 | 47 / 0 | 47 / 0 |
@@ -87,7 +91,7 @@ were corrected without changing their assertions.
 
 Final logs, TRX files, exact failure-name comparisons, renders, DOCX outputs
 and a complete picture manifest are local evidence under
-`out/influence-placement/final/` (latest), with earlier evidence under
+`out/association-return/final/` (latest), with earlier evidence under
 `out/rulebook-completion/a34ebb9/`. Recognition's twelve explicit fixture
 writers remain excluded from ordinary execution. **Acceptance is incomplete;
 passing-count targets do not establish visual correctness or merge readiness.**
