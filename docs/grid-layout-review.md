@@ -1,6 +1,6 @@
 # Grid layout review — 9 October 2026
 
-This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `65deb18`. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
+This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `65deb18`. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
 
 ## 1. Fresh test comparison
 
@@ -395,3 +395,23 @@ Checked embedded picture copies:
 The active catalogue has 126 rendered diagrams under `out/grid-retry-arrangement/catalogue/`; ten sample pairs are under `out/grid-retry-arrangement/samples/`. `out/grid-retry-arrangement/manifest.txt` lists every SVG and PNG path. This pass visually inspected the eight changed embedded pictures; regeneration of the rest is not acceptance of every picture. The PR branch's catalogue prose now describes the graph-based grid rules instead of obsolete curve-basis requirements. The original worktree's Markdown and the supplied instruction files remain untouched.
 
 No merge was performed. The six defaults, frame-midline decision, broader unresolved acceptance failures and the pending pipeline expectation still require resolution before merge approval.
+
+## 15. Approved pipeline expectation — 10 October 2026
+
+Commit `b31b498` updates the existing pipeline expectation following explicit approval. The check now describes its structural situation in its name. The final collector and optional detour occupy opposite sides of their decision, and the early exit sits beside the collector with at least one grid step of clearance. The other spine alignment, detour separation and vertical clearance assertions remain. No application source or rendering rule changed; the engine still uses the generic topology and geometry described in section 14.
+
+All five suites ran sequentially with build and restore on pushed commit `b31b498`. Master was not rerun.
+
+| Suite | Master passed / failed | Starting branch passed / failed | Current passed / failed |
+| --- | ---: | ---: | ---: |
+| Layout | 234 / 34 | 280 / 38 | 371 / 31 |
+| Rule validation | 46 / 11 | 44 / 13 | 49 / 10 |
+| Recognition | 932 / 0 | 932 / 0 | 932 / 0 |
+| Naiad adapter | 47 / 0 | 47 / 0 | 47 / 0 |
+| Converter | 31 / 0 | 32 / 0 | 42 / 0 |
+
+The two remaining master-passing regressions are `LiveSamples_ClearTheListedPictureDefects` and `RenderToSvg_Sample03_StrokeQualityMatchesSharedRules`. The four pre-existing grid-only failing names absent from master remain unchanged. Rule validation has no regression against master. Logs, TRX files, complete failure names and comparisons are under `out/approved-pipeline/`, with one `<Suite>.log`, `<Suite>.trx`, `<Suite>.failures.txt`, `<Suite>.regressions.txt` and `<Suite>.new-failures.txt` per suite. Counts above are the ordinary test runner results.
+
+The application source is unchanged from `65deb18`, so section 14's inspected DOCX and picture artifacts remain the applicable rendering evidence. This test-only update did not regenerate or replace the document. The supplied instructions and untracked files were left untouched.
+
+This approval resolves the pending pipeline expectation in section 14. It does not approve a merge, the six provisional defaults or the on-hold frame-midline rule. The broader acceptance failures and visual defects remain outstanding.

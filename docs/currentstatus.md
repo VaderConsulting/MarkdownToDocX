@@ -1,6 +1,6 @@
 # MarkdownToDocX — current solution status
 
-Updated 9 October 2026. This is the single maintained status file for the solution. Detailed validation evidence for this work is in the [grid layout review](grid-layout-review.md).
+Updated 10 October 2026. This is the single maintained status file for the solution. Detailed validation evidence for this work is in the [grid layout review](grid-layout-review.md).
 
 ## 1. Repository and delivery state
 
@@ -26,22 +26,24 @@ Updated 9 October 2026. This is the single maintained status file for the soluti
 - Sloping diamond attachments now follow the actual edge normal before joining their horizontal/vertical track with a circular fillet. This implements the square-attachment instruction for F35; short diagonal terminal runs take precedence over the older no-diagonals requirement at these connections. The actual F35 DOCX image was checked. Other unresolved routing and attachment defects remain listed below.
 - Sequence rows now measure message labels, arrowheads and note boxes to give notes the same conservative clear spacing as consecutive messages, including returning self messages. The canvas includes notes beyond either outer participant.
 
-The latest picture pass corrects horizontal retry outcomes, independent decision merges, local detours, grouped loop branches, paired ranks, sibling frame clearance and wide fan ports. The converter preserves fully commented Mermaid blocks as code without a render warning. Rules use topology and geometry; no catalogue number or node text selects an engine rule. The revised retry checks have structural names. Details and checked DOCX pictures are in [review section 14](grid-layout-review.md#14-retry-outcomes-detours-group-clearance-and-crossings).
+The latest picture pass corrects horizontal retry outcomes, independent decision merges, local detours, grouped loop branches, paired ranks, sibling frame clearance and wide fan ports. The converter preserves fully commented Mermaid blocks as code without a render warning. Rules use topology and geometry; no catalogue number or node text selects an engine rule. The revised retry and pipeline checks have structural names. Details and checked DOCX pictures are in [review section 14](grid-layout-review.md#14-retry-outcomes-detours-group-clearance-and-crossings), with the approved pipeline expectation recorded in [section 15](grid-layout-review.md#15-approved-pipeline-expectation--10-october-2026).
+
 ## 3. Verified test state
 
-Measured on Windows with plain `dotnet test` on each project, including build and restore. Master and starting-branch baselines were collected before behavioural edits. All five suites were rerun on the final pushed application source committed as `65deb18`.
+Measured on Windows with plain `dotnet test` on each project, including build and restore. Master and starting-branch baselines were collected before behavioural edits. All five suites were rerun on pushed commit `b31b498`; application source remains at `65deb18`.
 
 | Suite | Master failures | Starting PR #9 failures | Final PR #9 passed / failed |
 | --- | ---: | ---: | ---: |
-| Layout | 34 | 38 | 370 / 32 |
+| Layout | 34 | 38 | 371 / 31 |
 | Rule validation | 11 | 13 | 49 / 10 |
 | Recognition | 0 | 0 | 932 / 0 |
 | Naiad adapter | 0 | 0 | 47 / 0 |
 | Converter | 0 | 0 | 42 / 0 |
 
-The new structural tests pass. The only new failing name relative to the preceding picture pass is `TryLayout_F58_MaintainsMultipleVerticalColumns`: it requires Done on the central spine and Reject above it, contrary to the latest marked arrangement. Approval to update that existing expectation is pending. The two simple-detour regressions exposed by the wider run were fixed without changing their assertions.
+The new structural tests pass. The owner-approved pipeline check now verifies opposite final branches and the early exit beside the collector, while retaining the other spine and clearance checks. The two simple-detour regressions exposed by the wider run were fixed without changing their assertions.
 
-Three tests now fail while passing on master: that pending pipeline check, `LiveSamples_ClearTheListedPictureDefects` and `RenderToSvg_Sample03_StrokeQualityMatchesSharedRules`. The four pre-existing grid-only failures absent from master remain. No rule-validation regression was added. Recognition's twelve explicit fixture writers are excluded from ordinary test execution. Logs, TRX files, complete failing-name lists and master regression comparisons are in `out/grid-retry-arrangement/verified/`.
+Two tests now fail while passing on master: `LiveSamples_ClearTheListedPictureDefects` and `RenderToSvg_Sample03_StrokeQualityMatchesSharedRules`. The four pre-existing grid-only failures absent from master remain. No rule-validation regression was added. Recognition's twelve explicit fixture writers are excluded from ordinary test execution. Latest logs, TRX files, complete failing-name lists and master regression comparisons are in `out/approved-pipeline/`.
+
 The final counts meet the fresh master-count comparison, but **the solution does not pass all acceptance tests and the rendered diagrams are not ready for merge approval**.
 
 ## 4. Remaining work
