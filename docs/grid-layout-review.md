@@ -1,6 +1,6 @@
 # Grid layout review — 9 October 2026
 
-This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `76da489`; section 28 records facing container ports and visible compound attachments. Section 27 records quoted comments and entity decoding. Section 26 records explicit label breaks. Section 25 records title canvas sizing. Section 24 records relationship caption staggering. Section 23 records aligned vertical return ports. Section 22 records shared input fan placement and continuation alignment. Section 21 records junction caption clearance. Section 20 records plain relationship label measurement and elliptical attachments. Section 19 records the generic forward-dogleg correction. Section 18 records approved decisions, native Enterprise/pie integration, local spacing and frame fixes. Sections 16–17 retain the earlier routing evidence. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
+This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `303ff6d`; section 29 records visible internal parent-child relationships. Section 28 records facing container ports and visible compound attachments. Section 27 records quoted comments and entity decoding. Section 26 records explicit label breaks. Section 25 records title canvas sizing. Section 24 records relationship caption staggering. Section 23 records aligned vertical return ports. Section 22 records shared input fan placement and continuation alignment. Section 21 records junction caption clearance. Section 20 records plain relationship label measurement and elliptical attachments. Section 19 records the generic forward-dogleg correction. Section 18 records approved decisions, native Enterprise/pie integration, local spacing and frame fixes. Sections 16–17 retain the earlier routing evidence. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
 
 ## 1. Fresh test comparison
 
@@ -1089,3 +1089,52 @@ marked diagram's embedded picture was extracted and visually inspected: the
 return is straight beside the labelled forward flow and meets both visible
 compound borders squarely. This is not full catalogue acceptance or a Word
 pagination review. Supplied files remain untouched and nothing was merged.
+## 29. Visible internal parent-child relationships — 10 October 2026
+
+The marked parent-child relationships were treated as ordinary external
+compound edges. One route crossed its child body, and the other approached
+its child diagonally. Caption placement also treated the entire compound
+interior as an obstacle and retained overlapping fallback text.
+
+Frames with visible ancestor-descendant edges now reserve internal side and
+lower corridors sized from their labels and terminal clearance. The shared
+frame fitting and rendered bounds both include that space. Enterprise routes
+prefer a clear vertical normal to the lower border; a blocked direct route
+uses a clear side corridor with a rounded bend. Caption placement permits
+clear compound interiors while preserving title, border and child-body
+clearance. Hidden nesting assignments remain hidden.
+
+`303ff6d` — Keep visible parent-child relationships inside containers.
+
+This builds directly on `3ef1fbb`, retaining the previous fixes. The engine
+diff was checked for diagram-specific selectors; routing and frame space
+use ancestry, geometry, labels as measured text and obstacles. No catalogue
+numbers, diagram names or node identifiers/labels select a rule. Existing
+tests and fixtures were unchanged. Four new structural cases cover both
+relationship directions in vertical and horizontal diagram arrangements.
+The horizontal child-to-parent case exposed a sibling blocking the direct
+route; the side corridor corrected that case on the second test attempt.
+All 29 focused checks passed after the correction.
+
+All five suites ran once on pushed application commit `303ff6d`: Layout 489
+passed / 32 failed, rule validation 49 / 10, recognition 1025 / 0, Naiad adapter
+47 / 0, converter 52 / 0. No new failing names appeared against `76da489`.
+The retained master baseline was not rerun. The two stopped master-passing
+Layout regressions in section 18 remain unchanged. This does not establish
+merge readiness or complete rulebook acceptance.
+
+Final evidence is under `out/parent-child/final/`: logs/TRX, exact failure-name
+comparison, the marked example, 126 flowchart renders with four commented
+skips and ten Enterprise samples with the same two expected rejections.
+`picture-manifest.txt` lists every rendered picture path. The rebuilt WinForms
+executable regenerated the document at
+`C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX-pr9\out\parent-child\final\enterprise.docx`.
+
+Package inspection found 96 drawings and 34 source-preserving warnings. The
+marked diagram's embedded picture was extracted and visually inspected. Both
+captions have line breaks on their own internal routes; the child-to-child
+line remains separate and the visible terminal runs meet borders squarely.
+This is not full catalogue acceptance or a Word pagination review. More
+crowded parent-child cases that exhaust these corridors retain existing
+fallback behaviour and need further routing work. Supplied files remain
+untouched and nothing was merged.
