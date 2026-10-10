@@ -1337,3 +1337,63 @@ caption. The remaining artifact path through its parent title is visible and
 recorded above. The render set contains 126 flowcharts with four commented
 skips and ten Enterprise samples with the same two expected rejections.
 This does not establish full catalogue correctness or Word pagination acceptance.
+
+## 34. Circular fans and crossing-free branch swaps — 10 October 2026
+
+The marked expense-claim mesh exposed inward-looking split bends, overlapping
+merge approaches and inverted near/far branch tracks. The owner confirmed the
+route swap and directed a generic rule: swap when doing so removes crossings.
+Shared routing now exchanges allocated branch ports only when rebuilt routes
+remove the pair's crossings, do not increase crossings or shared runs against
+any other connector, and retain node clearance. Relationship identities and
+destinations stay intact. Ordinary boxes retain their allocated sides; circular
+junctions may exchange distinct cardinal sides. Swaps on the same box side
+remain available. Labels are placed after routing against the final paths.
+
+Small circular split and merge fans centre on their peers when the rank has
+space. Unbranched upstream and downstream tails follow when clear. Fans with
+two or three distinct cardinal directions use radial terminal runs rather than
+packed same-side slots. Larger fans and obstructed swaps retain their existing
+routing; this is not a global crossing-free layout guarantee.
+
+Application commits, both built directly on the previous work:
+- `3ca494f` — Remove avoidable crossings between branch routes.
+- `9e34f59` — Preserve allocated box sides when swapping branch ports.
+
+No existing assertion or fixture changed. Ten new structural cases cover
+incoming/outgoing swaps, rotated geometry, an external crossing that must block
+a swap, protected rectangle faces, and three-way circular splits/merges.
+The focused correction set passed all 19 checks. The first circular placement
+attempt left the split on a boundary column; centring only the collector did
+not fix it. Centring both fans and their clear unbranched tails resolved that
+failure. The first full verification exposed one new bottom-to-top fan-side
+regression. Preserving ordinary box sides fixed it without changing that check.
+The first milestone's logs remain under `out/junction-fans/final/`.
+
+All five suites then ran once on pushed application commit `9e34f59`: Layout
+518 passed / 31 failed, rule validation 49 / 10, recognition 1025 / 0, Naiad
+adapter 47 / 0, converter 52 / 0. No new failing names remain against `02e1610`.
+The master baseline was retained, not rerun. The previously stopped group-border
+clearance check now passes as a result of these generic changes; its bounded
+investigation was not resumed. The stopped stroke-quality check remains the
+one master-passing regression. Other prior acceptance failures remain recorded.
+
+Engine changes were checked for diagram-specific selectors: fan connectivity,
+shape, rank, free geometry, normals, intersections and overlap select the rules.
+No catalogue number, diagram name, fixed identifier or text selects behaviour.
+Supplied Markdown, Instructions files and editor settings were left untouched.
+Nothing was merged.
+
+Verified evidence is under `out/junction-fans/verified/`: full logs/TRX, exact
+failure-name comparison, the marked picture, Enterprise and flowchart sample
+renders, package inspection and `picture-manifest.txt` listing every image path.
+The rebuilt executable saves the latest document to
+`C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX-pr9\out\junction-fans\verified\enterprise.docx`.
+The embedded marked image was extracted and viewed: split branches depart
+outward, merge arrows use separate normal ports, and the policy-breach route
+is above the under-limit route with no crossing. The package contains 96
+diagrams and 34 source-preserving warnings. The sample render set contains
+126 flowcharts with four commented skips and ten Enterprise pictures with
+the same two expected rejections. This is not full catalogue acceptance or
+Word pagination review. Exhausted caption corridors, container-title obstacles
+and the remaining acceptance failures still require work.

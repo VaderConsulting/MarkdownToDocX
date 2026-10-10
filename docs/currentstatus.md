@@ -8,7 +8,7 @@ solution. Historical evidence is in the [grid layout review](grid-layout-review.
 | Area | Current state |
 | --- | --- |
 | Master | Baseline `f09cb89`; not changed or remeasured in this pass. |
-| Grid work | PR #9, `cursor/many-to-many-routing-3834`; application fixes through `02e1610` pushed, not merged. |
+| Grid work | PR #9, `cursor/many-to-many-routing-3834`; application fixes through `9e34f59` pushed, not merged. |
 | Active checkout | Sibling `MarkdownToDocX-pr9` worktree. The original folder retains its documentation branch and supplied files. |
 | Enterprise / ArchiMate | Selected parser, validation, notation and renderer code from PR #1 integrated into PR #9. Neither PR was merged. |
 | Decisions | All six defaults approved. The held frame-midline rule is replaced by fitting frames on the shared grid and growing shared gaps. |
@@ -67,6 +67,10 @@ solution. Historical evidence is in the [grid layout review](grid-layout-review.
   internal normal runs, with a rounded side route when a sibling blocks the
   direct route. Captions can occupy clear compound interiors while avoiding
   titles, borders and child bodies. Exhausted corridors still need further work.
+- Clear branch-port swaps remove crossings without increasing crossings or
+  shared runs elsewhere. Ordinary boxes retain their allocated sides; circles
+  may exchange cardinal ports. Small circular fans centre on their peers and
+  use distinct radial terminal runs.
 - External junction captions choose nearby positions clear of routed lines,
   node bodies and other labels. The canvas includes the selected text bounds.
 - Shared branching inputs centre between their targets when the other inputs
@@ -103,23 +107,24 @@ in existing PR #9 tests during this pass.
 ## 3. Verified tests
 
 Plain `dotnet test`, including build/restore, on pushed application commit
-`02e1610`. Baselines were measured before behavioural edits and retained.
+`9e34f59`. Baselines were measured before behavioural edits and retained.
 
 | Suite | Master passed / failed | Starting PR #9 passed / failed | Current passed / failed |
 | --- | ---: | ---: | ---: |
-| Layout | 234 / 34 | 280 / 38 | 507 / 32 |
+| Layout | 234 / 34 | 280 / 38 | 518 / 31 |
 | Rule validation | 46 / 11 | 44 / 13 | 49 / 10 |
 | Recognition | 932 / 0 | 932 / 0 | 1025 / 0 |
 | Naiad adapter | 47 / 0 | 47 / 0 | 47 / 0 |
 | Converter | 31 / 0 | 32 / 0 | 52 / 0 |
 
-Counts are below or equal to master, but two master-passing Layout tests fail:
+Counts are below or equal to master, but one master-passing Layout test fails:
 
 - `RenderToSvg_Sample03_StrokeQualityMatchesSharedRules`: prior HTTPS
   stroke-distance investigation remains stopped after three attempts.
-- `TryResolve_Sample03_EdgesKeepGroupBorderClearance`: one group-target route
-  re-enters its target frame. Three attempts reduced six border failures to
-  one; the bounded investigation is stopped and recorded in review section 18.
+
+The previously stopped `TryResolve_Sample03_EdgesKeepGroupBorderClearance`
+now passes following the generic branch-port correction. Its old investigation
+was not resumed. The failure-name comparison records the improvement.
 
 Four other failing Layout checks are absent from master and retain old branch
 coordinate/policy expectations. `TryResolveLayoutGuidePoints_F113_ParallelBranchFanIn_UsesExteriorCorridor`
@@ -130,7 +135,7 @@ were corrected without changing their assertions.
 
 Final logs, TRX files, exact failure-name comparisons, renders, DOCX outputs
 and a complete picture manifest are local evidence under
-`out/deep-containers/final/` (latest), with earlier evidence under
+`out/junction-fans/verified/` (latest), with earlier evidence under
 `out/rulebook-completion/a34ebb9/`. Recognition's twelve explicit fixture
 writers remain excluded from ordinary execution. **Acceptance is incomplete;
 passing-count targets do not establish visual correctness or merge readiness.**
@@ -143,8 +148,8 @@ passing-count targets do not establish visual correctness or merge readiness.**
    Local gaps, frame fitting and sequence spacing are implemented with coverage;
    this does not complete every rule in sections 1–8.
 2. Resolve the recorded Layout/rule-validation failures and visual defects.
-   The two stopped investigations need a fresh approach; existing thresholds
-   and unrelated assertions remain intact. No merge is authorised.
+   The remaining stopped investigation needs a fresh approach. Existing
+   thresholds and unrelated assertions remain intact. No merge is authorised.
 3. Expand Enterprise syntax/configuration and verify provisional relationship
    rules. Review catalogue warnings individually; keep invalid-input diagnostics.
 4. Continue native adapters for the remaining diagram kinds, retaining fallback

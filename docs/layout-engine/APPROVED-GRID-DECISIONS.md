@@ -46,3 +46,13 @@ See [current solution status](../currentstatus.md) for the measured checkpoint
 and [review section 18](../grid-layout-review.md#18-approved-decisions-and-native-renderers--10-october-2026)
 for evidence and bounded investigations. Existing acceptance thresholds are
 retained; the owner authorised the uniform-gap expectation changes explicitly.
+
+## 4. Remove avoidable branch crossings
+
+Swap branch routes when geometry shows that the swap removes their crossing
+without increasing crossings or shared runs against any other connector.
+Preserve relationship identities, destinations, normal terminals and node
+clearance. Keep ordinary boxes on their allocated sides; swaps may exchange
+positions along a side. Circular junctions may exchange free cardinal sides.
+Small circular splits and collectors centre on their peers where space permits
+and use separate cardinal ports. These rules use topology and geometry only.
