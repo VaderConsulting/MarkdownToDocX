@@ -712,10 +712,10 @@ public sealed class DocxWriter(EffectiveOptions Options, IConversionProgressRepo
 
     private string RenderMermaidSvg(string MermaidSource)
     {
-        if (MermaidRecognition.Layout.Enterprise.EnterpriseRenderBridge.TryRenderEnterpriseSvg(
-                MermaidSource, out string EnterpriseSvg))
+        if (MermaidRecognition.Layout.NativeDiagramRenderBridge.TryRenderSvg(
+                MermaidSource, out string NativeSvg))
         {
-            return EnterpriseSvg;
+            return NativeSvg;
         }
 
         RenderOptions RenderOptions = RenderOptions.Default;
@@ -1276,10 +1276,10 @@ public sealed class DocxWriter(EffectiveOptions Options, IConversionProgressRepo
         RenderOptions RenderOptions = RenderOptions.Default;
 
         string Svg;
-        if (MermaidRecognition.Layout.Enterprise.EnterpriseRenderBridge.TryRenderEnterpriseSvg(
-                MermaidSource, out string EnterpriseSvg))
+        if (MermaidRecognition.Layout.NativeDiagramRenderBridge.TryRenderSvg(
+                MermaidSource, out string NativeSvg))
         {
-            Svg = EnterpriseSvg;
+            Svg = NativeSvg;
         }
         else if (FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
                 MermaidSource,

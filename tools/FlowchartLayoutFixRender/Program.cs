@@ -247,7 +247,7 @@ static void RenderOne(string Stem, string Mermaid, string OutputDirectory)
 {
     try
     {
-        if (!(MermaidRecognition.Layout.Enterprise.EnterpriseRenderBridge.TryRenderEnterpriseSvg(Mermaid, out string Svg)
+        if (!(NativeDiagramRenderBridge.TryRenderSvg(Mermaid, out string Svg)
             || NativeFlowchartRenderBridge.TryRenderFlowchartSvg(Mermaid, out Svg)) || string.IsNullOrWhiteSpace(Svg))
         {
             Console.WriteLine("SKIP " + Stem);
