@@ -1,6 +1,6 @@
 # Grid layout review — 9 October 2026
 
-This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `d4b6206`; section 25 records title canvas sizing. Section 24 records relationship caption staggering. Section 23 records aligned vertical return ports. Section 22 records shared input fan placement and continuation alignment. Section 21 records junction caption clearance. Section 20 records plain relationship label measurement and elliptical attachments. Section 19 records the generic forward-dogleg correction. Section 18 records approved decisions, native Enterprise/pie integration, local spacing and frame fixes. Sections 16–17 retain the earlier routing evidence. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
+This review records the initial verification at `da36d97` and the subsequent picture-driven corrections in sections 9–14 and the approved pipeline expectation in section 15 on PR #9, branch `cursor/many-to-many-routing-3834`. The latest behavioural code is `4c6505b`; section 26 records explicit label breaks. Section 25 records title canvas sizing. Section 24 records relationship caption staggering. Section 23 records aligned vertical return ports. Section 22 records shared input fan placement and continuation alignment. Section 21 records junction caption clearance. Section 20 records plain relationship label measurement and elliptical attachments. Section 19 records the generic forward-dogleg correction. Section 18 records approved decisions, native Enterprise/pie integration, local spacing and frame fixes. Sections 16–17 retain the earlier routing evidence. It is a measured improvement, but the visual acceptance work and the rulebook implementation are incomplete. Master remains at `f09cb89`. No merge or rebase was performed.
 
 ## 1. Fresh test comparison
 
@@ -936,3 +936,59 @@ picture was extracted and visually inspected: the complete literal title is
 visible, and both nodes remain centred below it. This is not a full catalogue
 acceptance or Word pagination review. Supplied files remain untouched and
 nothing was merged.
+
+## 26. Explicit label breaks — 10 October 2026
+
+The quoted-label parser removed the backslash from newline escapes, node and
+relationship wrapping ignored explicit lines, and group tabs wrote raw tags
+as one line. Quoted labels now decode supported escapes once, preserving
+escaped literal backslashes and unknown escape sequences. Case-insensitive
+break tags become explicit newlines. A shared wrapper preserves each explicit
+line, including blank lines, and applies automatic wrapping independently.
+Element measurements, group tabs, relationship gaps and external junction
+captions use the resulting lines. Shared frame title bands grow with the
+line count, while relationship captions also avoid group side/bottom borders.
+
+`4c6505b` — Render explicit breaks consistently in enterprise labels.
+
+The engine diff was audited for diagram-specific selectors. Rules use only
+escape syntax, text dimensions, line counts and geometry; they do not select
+catalogue numbers, diagram names or node labels/identifiers. Existing tests
+and fixtures remain unchanged. Eight new recognition checks cover all label
+statement kinds, break variants, escaped literals, unknown backslashes,
+quotes, independent wrapping and blank lines. Six new layout checks cover
+separate SVG lines, member/tab clearance, growing node height and external
+junction captions without increasing the symbol's normal layout size.
+The initial new junction assertion assumed its nominal 26-pixel size; shared
+grid quantisation makes the normal isolated layout size 60 pixels, so the new
+assertion compares against the unchanged single-line layout instead. Existing
+assertions were not changed. All 62 focused parser checks and 33 focused
+layout/render checks passed.
+
+The marked example was rendered and visually inspected before committing:
+no break tags remain visible, both node labels and the group tab break at the
+requested places, and relationship captions have separate lines and matching
+connector gaps. Local caption search can still exhaust a crowded corridor;
+automatic gap growth/global label planning remains open.
+
+All five suites ran once on pushed application commit `4c6505b`: Layout 482
+passed / 32 failed, rule validation 49 / 10, recognition 1016 / 0, Naiad adapter
+47 / 0, converter 52 / 0. No new failing names appeared against `d4b6206`.
+The two stopped master-passing Layout regressions in section 18 remain
+unchanged. Master was not rerun.
+
+Final local evidence is under `out/explicit-label-breaks/final/`: suite
+logs/TRX, failure-name comparison, the marked break example, 126 flowchart
+renders with four commented skips, and ten Enterprise samples with the same
+two expected rejections. `picture-manifest.txt` lists all picture paths.
+
+The rebuilt WinForms executable regenerated `final/enterprise.docx` with 94
+drawings and 36 source-preserving warnings. The marked diagram's embedded
+picture was extracted and visually inspected: group, node and relationship
+labels show explicit lines instead of raw tags or a dropped newline escape.
+The right-hand relationship caption still crosses the group border when the
+local placement search exhausts its available straight runs. The search now
+reserves that border, but its visible fallback is not a clearance guarantee;
+this remains a fix-forward item for automatic corridor growth. This is not a
+full catalogue acceptance or Word pagination review. Supplied files remain
+untouched; nothing was merged. This commit builds on the previous PR #9 work.
