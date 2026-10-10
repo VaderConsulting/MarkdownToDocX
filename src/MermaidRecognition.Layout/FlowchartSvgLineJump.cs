@@ -242,10 +242,11 @@ public static class FlowchartSvgLineJump
             }
         }
         var Builder = new StringBuilder("<path d=\"");
-        Builder.Append(Data).Append('"');
+        Builder.Append(Data).Append("\" fill=\"none\" stroke=\"")
+            .Append(Stroke.Attributes.TryGetValue("stroke", out string? Colour) ? Colour : "#333333").Append('"');
         foreach (var Attribute in Stroke.Attributes)
         {
-            if (Attribute.Key is "d" or "x1" or "x2" or "y1" or "y2") continue;
+            if (Attribute.Key is "d" or "x1" or "x2" or "y1" or "y2" or "fill" or "stroke") continue;
             Builder.Append(' ').Append(Attribute.Key).Append("=\"").Append(Attribute.Value).Append('"');
         }
         return Builder.Append("/>").ToString();
