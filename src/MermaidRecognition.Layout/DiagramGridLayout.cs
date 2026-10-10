@@ -98,6 +98,7 @@ public static class DiagramGridLayout
         AlignPairedRanks(Contract, Placed, Horizontal);
         CompactIndependentFanIn(Contract, Placed, Horizontal, CrossPitch);
         var SharedFanSources = AlignSharedFanSourcesAndTails(Contract, Placed, Horizontal);
+        FlowchartCircularJunctionLayout.AlignFans(Contract, Placed, Horizontal);
 
         GrowCrowdedSides(Placed, Copy, BoxWidth, BoxHeight);
         GrowParallelRelationshipSides(Contract, Placed, Horizontal);
@@ -117,6 +118,7 @@ public static class DiagramGridLayout
         RebuildDecisionDetourRoutes(Contract, Copy, Placed, Frames, Horizontal);
         RebuildLoopBackRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
         DiagramGridRouteBuilder.RebuildDiagonalBackRoutes(Copy, Placed, Nodes, Contract, Frames, Direction);
+        FlowchartCircularJunctionLayout.RebuildFans(Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction);
         Copy.UsesGridRoutes = true;
         SeparateTracks(Copy, Placed);
         SeparateParallelReturnTracks(Contract, Copy, BuildPlacedBounds(Placed, Frames));
@@ -125,6 +127,7 @@ public static class DiagramGridLayout
         FlowchartGridTerminalNormalizer.Apply(Copy, BuildPlacedBounds(Placed, Frames), Nodes);
         GrowFacingDoglegGaps(Copy, Contract, Placed, Frames);
         DiagramGridRouteBuilder.RemoveClearForwardDoglegs(Copy, Contract, BuildPlacedBounds(Placed, Frames));
+        FlowchartBranchRouteOrder.RemoveAvoidableCrossings(Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction);
         WriteBack(Copy, Placed, Frames);
         return Copy;
     }
