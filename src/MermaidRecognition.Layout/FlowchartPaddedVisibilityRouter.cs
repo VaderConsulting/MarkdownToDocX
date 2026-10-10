@@ -63,17 +63,19 @@ public static class FlowchartPaddedVisibilityRouter
         IReadOnlyList<FlowchartLayoutNodeBounds> Obstacles,
         FlowchartLayoutNodeBounds? SourceBounds,
         FlowchartLayoutNodeBounds? TargetBounds,
-        out List<(double X, double Y)> Points)
+        out List<(double X, double Y)> Points,
+        double PortStubPx = PORT_STUB_PX,
+        double ObstaclePaddingPx = OBSTACLE_PADDING_PX)
     {
         Points = [];
         List<PaddedBox> Boxes = [];
         foreach (FlowchartLayoutNodeBounds Obstacle in Obstacles)
         {
-            Boxes.Add(Pad(Obstacle, OBSTACLE_PADDING_PX));
+            Boxes.Add(Pad(Obstacle, ObstaclePaddingPx));
         }
 
-        (double RouteStartX, double RouteStartY) = OffsetPortOutward(StartX, StartY, SourceBounds, PORT_STUB_PX);
-        (double RouteEndX, double RouteEndY) = OffsetPortOutward(EndX, EndY, TargetBounds, PORT_STUB_PX);
+        (double RouteStartX, double RouteStartY) = OffsetPortOutward(StartX, StartY, SourceBounds, PortStubPx);
+        (double RouteEndX, double RouteEndY) = OffsetPortOutward(EndX, EndY, TargetBounds, PortStubPx);
         if (PointInsideAny(RouteStartX, RouteStartY, Boxes))
         {
             RouteStartX = StartX;

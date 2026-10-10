@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 using MermaidRecognition.Contract;
@@ -173,6 +174,10 @@ internal static class EnterpriseFlowchartEdgeRouter
             X = Node.AbsoluteX + Node.Width / 2, Y = Node.AbsoluteY + Node.Height / 2,
             Width = (int)Math.Ceiling(Node.Width), Height = (int)Math.Ceiling(Node.Height) });
         DiagramGridLayout.SeparateTracks(Layout, Obstacles, Contract);
+        FlowchartObstacleRouteRepair.Apply(Layout, Contract, Nodes.Values.ToDictionary(Node => Node.Id,
+            Node => new FlowchartLayoutNodeBounds { NodeId = Node.Id,
+                CenterX = Node.AbsoluteX + Node.Width / 2, CenterY = Node.AbsoluteY + Node.Height / 2,
+                Width = Node.Width, Height = Node.Height }, StringComparer.Ordinal));
         for (int Index = 0; Index < Edges.Count; Index++)
         {
             var Edge = Edges[Index];
