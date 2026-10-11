@@ -125,6 +125,7 @@ public static class DiagramGridLayout
             FlowchartSparseRankCompaction.Apply(Contract, Placed, Horizontal);
             FlowchartJunctionBranchCompaction.Apply(Contract, Placed, Horizontal);
             FlowchartTerminalRowPlacement.Apply(Contract, Placed, Horizontal);
+            FlowchartChainWrapping.Apply(Contract, Placed, Horizontal);
         }
         List<GridFrame> Frames = new List<GridFrame>();
         if (!Open) CenterLoneNestedGroups(Contract, Placed, Horizontal);
