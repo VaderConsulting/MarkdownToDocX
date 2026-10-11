@@ -74,7 +74,22 @@ internal static class FlowchartJunctionBranchCompaction
             if (Nodes.Any(Other => Other != Collector
                 && Math.Abs(Main(Other) - Main(Collector)) < HalfMain(Other) + HalfMain(Collector) + DiagramGridMetrics.NODE_GAP_PX
                 && Math.Abs(Cross(Other) - Candidate) < HalfCross(Other) + HalfCross(Collector) + DiagramGridMetrics.NODE_GAP_PX)) continue;
-            if (Horizontal) Collector.Y = Candidate; else Collector.X = Candidate;
+            var Tail = new List<DiagramGridLayout.GridNode> { Collector };
+            var Current = Collector;
+            while (true)
+            {
+                var NextEdges = Edges.Where(Edge => Edge.SourceId == Current.Id).ToList();
+                if (NextEdges.Count != 1) break;
+                var Next = ById[NextEdges[0].TargetId];
+                if (Next.GroupId != null || Next.Rank == Current.Rank || Tail.Contains(Next)
+                    || Edges.Count(Edge => Edge.TargetId == Next.Id) != 1) break;
+                Tail.Add(Next); Current = Next;
+            }
+            if (Tail.Any(Node => Nodes.Any(Other => !Tail.Contains(Other)
+                && Math.Abs(Main(Other) - Main(Node)) < HalfMain(Other) + HalfMain(Node) + DiagramGridMetrics.NODE_GAP_PX
+                && Math.Abs(Cross(Other) - Candidate) < HalfCross(Other) + HalfCross(Node) + DiagramGridMetrics.NODE_GAP_PX))) continue;
+            foreach (var Node in Tail)
+                if (Horizontal) Node.Y = Candidate; else Node.X = Candidate;
         }
     }
 }
