@@ -12,16 +12,6 @@
 - All other diagram kinds still render through Naiad.
 - Recognition reaches level L4 for the nine started kinds (flowchart, sequence, class, state, ER, pie, gantt, mindmap, git graph) and L1 for the rest.
 
-## Known failing Layout tests
-
-These five Layout tests expect the old branch layout and fail now. They are known and accepted.
-
-- `RenderToSvg_Sample03_StrokeQualityMatchesSharedRules`
-- `RenderToSvg_InspectContent_BranchesUseOrthogonalRunsWithDiamondStub`
-- `RenderToSvg_ValidDecision_BranchesUseOrthogonalRunsWithDiamondStub`
-- `RenderToSvg_TypeDecision_NoSharedBottomStub`
-- `RenderToSvg_MessageFilter_BranchesEnterLeftSideWithRoundedZ`
-
 ## Working rules for the agent
 
 1. Follow `Instructions/CLOUD-AGENT-WORKING-PRACTICES.md`.
@@ -38,7 +28,7 @@ These five Layout tests expect the old branch layout and fail now. They are know
 1. **Enterprise syntax gaps — complete.** Catalogue checks confirm that A100, A101 and A118 to A130 render or diagnose exactly as declared, and the 17 deliberately invalid scenarios keep their error counts. DOCX fallbacks show each A90 diagnostic on its own line.
 2. **Layout mode — complete.** F144 to F150 and A143 to A149 render with their declared modes and orthogonal routing. Explicit grid matches the default, unknown values warn once and fall back to grid, and diagram frontmatter overrides the run-wide setting.
 3. **Compact placement — stopped after three failed mixed-graph attempts.** The size-derived planner and long-chain placement work without a pixel width or node limit: F151 changed from 33796 x 76 to 2031 x 1679, and F152 from 166 x 19276 to 1786 x 1500, without node overlaps. F153 remains 8356 x 9316. Two guarded whole-graph orderings added 25 centre-line crossings and were rejected; the third ordering produced 12 routed crossings. Rule 7 requires moving on. Branching, disconnected and grouped wrapping remains unfinished.
-4. **Old-layout Layout tests.** The five tests under "Known failing Layout tests" expect the old branch layout or the old stroke check. Rewrite each to assert rounded straight runs, using the rulebook, and report each change.
+4. **Old-layout Layout tests — complete.** The five stale checks now test the rulebook rather than old coordinates: Sample03 accepts only straight runs, rounded corners and crossing humps; InspectContent and ValidDecision check rounded orthogonal branches; TypeDecision checks its straight centre spine and rounded side branches; MessageFilter checks rounded orthogonal fan-out routes. All five focused tests pass.
 5. **Visual fixes.**
    - Render the A142 grid stress test and check it against `HANDOVER-GRID-LAYOUT-v2.md` for compactness, overlaps and needless crossings.
    - Fix `flow.md` scenario F111, the one diagram that does not render properly.

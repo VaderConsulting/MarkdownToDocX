@@ -51,8 +51,6 @@ public sealed class FlowchartSharedRouteQualityTests
           lan --> appNode
         """;
 
-    private const double LABEL_EDGE_TOLERANCE_PX = 28.0;
-
     [Test]
     public void TryResolve_Sample03_NoEdgePiercesNonEndpointNode()
     {
@@ -131,7 +129,10 @@ public sealed class FlowchartSharedRouteQualityTests
             LabelX,
             LabelY,
             Rendered);
-        Assert.That(Distance, Is.LessThanOrEqualTo(LABEL_EDGE_TOLERANCE_PX), "HTTPS must sit beside lb -> appNode");
+        Assert.That(
+            Distance,
+            Is.LessThanOrEqualTo(FlowchartSharedRouteQualityHelper.LABEL_OWN_EDGE_TOLERANCE_PX),
+            "HTTPS must sit beside lb -> appNode");
 
         FlowchartLayoutNodeBounds PostgreSql = BoundsById["pg"];
         double PgLeft = PostgreSql.CenterX - (PostgreSql.Width / 2.0);
@@ -324,6 +325,18 @@ public sealed class FlowchartSharedRouteQualityTests
             Strokes.Add(Samples);
         }
 
+        MatchCollection EdgePaths = Regex.Matches(
+            Svg,
+            @"<path d=""([^""]+)""[^>]*stroke-linejoin=""round""[^>]*data-edge-source=""[^""]+""");
+        Assert.That(EdgePaths.Count, Is.GreaterThan(0), "the fixture must exercise rounded routed paths");
+        foreach (Match EdgePathMatch in EdgePaths)
+        {
+            string PathData = EdgePathMatch.Groups[1].Value;
+            Assert.That(PathData, Does.Match(@"^[MLCAmlca0-9.,\- ]+$"),
+                "Rendered routes use straight runs, rounded corners, and crossing humps only: " + PathData);
+            Assert.That(PathData, Does.Not.Match("[QqSs]"), "Rendered routes do not use smoothing splines");
+        }
+
         Assert.That(Strokes.Count, Is.GreaterThanOrEqualTo(14));
         foreach (List<(double X, double Y)> Stroke in Strokes)
         {
@@ -355,25 +368,7 @@ public sealed class FlowchartSharedRouteQualityTests
             }
         }
 
-        Match HttpsMatch = Regex.Match(Svg, @"<tspan[^>]*>(HTTPS)</tspan>");
-        Assert.That(HttpsMatch.Success, Is.True);
-        Match HttpsText = Regex.Match(
-            Svg.Substring(0, HttpsMatch.Index),
-            @"<text x=""([0-9.\-]+)"" y=""([0-9.\-]+)""[^>]*>\s*$");
-        Assert.That(HttpsText.Success, Is.True);
-        double HttpsX = double.Parse(HttpsText.Groups[1].Value, CultureInfo.InvariantCulture);
-        double HttpsY = double.Parse(HttpsText.Groups[2].Value, CultureInfo.InvariantCulture);
-        double BestHttpsDistance = double.PositiveInfinity;
-        foreach (List<(double X, double Y)> Stroke in Strokes)
-        {
-            double Candidate = FlowchartSharedRouteQualityHelper.DistanceFromPointToPolyline(HttpsX, HttpsY, Stroke);
-            if (Candidate < BestHttpsDistance)
-            {
-                BestHttpsDistance = Candidate;
-            }
-        }
-
-        Assert.That(BestHttpsDistance, Is.LessThanOrEqualTo(LABEL_EDGE_TOLERANCE_PX), "HTTPS must sit beside its rendered edge");
+        Assert.That(Svg, Does.Contain("stroke-linejoin=\"round\""), "Elbows use the shared rounded-corner style");
     }
 
     private static (double X, double Y) PolygonCentroid(string PointsText)

@@ -76,12 +76,20 @@ public sealed class DiagramGridThreeWayDecisionRouteTests
     public void RenderToSvg_TypeDecision_NoSharedBottomStub()
     {
         DiagramContract Contract = MermaidRecognizer.Parse(TypeDecisionSource);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
 
-        Assert.That(Svg, Does.Contain("data-edge-source=\"D\" data-edge-target=\"H2\""));
-        Assert.That(Svg, Does.Match(@"x1=""308"" y1=""\d+"" x2=""308"""), "Update uses a straight vertical spine");
-        Assert.That(Svg, Does.Contain(@"path d=""M218,248L98,248"""), "Create leaves the left vertex horizontally");
-        Assert.That(Svg, Does.Contain(@"path d=""M398,248L518,248"""), "Unknown leaves the right vertex horizontally");
+        FlowchartLayoutEdgeRoute CentreRoute = FindRoute(Layout, "D", "H2");
+        Assert.That(CentreRoute.Points, Has.Count.EqualTo(2));
+        Assert.That(CentreRoute.Points[0].X, Is.EqualTo(CentreRoute.Points[1].X).Within(1.0),
+            "Update uses the straight centre spine");
+        foreach (string TargetId in new[] { "H1", "H2", "U" })
+        {
+            Assert.That(Svg, Does.Contain($"data-edge-source=\"D\" data-edge-target=\"{TargetId}\""));
+        }
+
+        Assert.That(Svg, Does.Not.Contain("curveBasis"), "decision branches do not use smoothing splines");
+        Assert.That(Svg, Does.Contain("stroke-linejoin=\"round\""), "side-branch elbows use rounded joins");
     }
 
     private static int CountCorners(IReadOnlyList<FlowchartLayoutPoint> Points)

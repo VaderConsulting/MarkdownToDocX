@@ -71,12 +71,8 @@ public sealed class DiagramGridDecisionBranchRouteTests
         DiagramContract Contract = MermaidRecognizer.Parse(ValidDecisionSource);
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
 
-        Assert.That(Svg, Does.Contain("data-edge-source=\"B\" data-edge-target=\"C\""));
-        Assert.That(Svg, Does.Contain("data-edge-source=\"B\" data-edge-target=\"D\""));
-        Assert.That(Svg, Does.Match(@"path d=""M368,\d+L368,53"""), "Yes leaves the top vertex vertically");
-        Assert.That(Svg, Does.Match(@"path d=""M368,\d+L368,383"""), "No leaves the bottom vertex vertically");
-        Assert.That(Svg, Does.Contain("y2=\"53\""), "Yes branch runs horizontally into the target");
-        Assert.That(Svg, Does.Contain("y2=\"383\""), "No branch runs horizontally into the target");
+        AssertRoundedOrthogonalBranchPath(ExtractEdgePath(Svg, "B", "C"));
+        AssertRoundedOrthogonalBranchPath(ExtractEdgePath(Svg, "B", "D"));
     }
 
     [Test]
@@ -139,16 +135,13 @@ public sealed class DiagramGridDecisionBranchRouteTests
         DiagramContract Contract = MermaidRecognizer.Parse(InspectContentSource);
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
 
-        AssertInspectContentBranchRendering(Svg, "C", ExpectedDropX: 98, ExpectedVertexX: 218);
-        AssertInspectContentBranchRendering(Svg, "D", ExpectedDropX: 518, ExpectedVertexX: 398);
+        AssertInspectContentBranchRendering(Svg, "C");
+        AssertInspectContentBranchRendering(Svg, "D");
     }
 
-    private static void AssertInspectContentBranchRendering(string Svg, string TargetId, int ExpectedDropX, int ExpectedVertexX)
+    private static void AssertInspectContentBranchRendering(string Svg, string TargetId)
     {
-        string Marker = $"data-edge-source=\"B\" data-edge-target=\"{TargetId}\"";
-        Assert.That(Svg, Does.Contain(Marker));
-        Assert.That(Svg, Does.Contain($"M{ExpectedVertexX},233L{ExpectedDropX},233"), "B12b horizontal run leaves the side vertex");
-        Assert.That(Svg, Does.Contain($"x1=\"{ExpectedDropX}\" y1=\"233\""), "B12b vertical drop starts below the elbow");
+        AssertRoundedOrthogonalBranchPath(ExtractEdgePath(Svg, "B", TargetId));
     }
 
     private static void AssertRoundedOrthogonalBranchPath(string PathData)

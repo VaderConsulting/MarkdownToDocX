@@ -89,12 +89,26 @@ public sealed class DiagramGridOrdinaryFanOutRouteTests
         Assert.That(Svg, Does.Contain($"data-edge-source=\"F\" data-edge-target=\"OK\""));
         Assert.That(Svg, Does.Contain($"data-edge-source=\"F\" data-edge-target=\"T\""));
         Assert.That(Svg, Does.Not.Contain("curveBasis"), "B14 must not use curved fan routing");
-        Assert.That(Svg, Does.Match(@"x1=""477"" y1=""\d+"" x2=""477"""),
-            "pass vertical run sits at the rank-gap midpoint");
-        Assert.That(Svg, Does.Contain(@"path d=""M477,38L537,38"""),
-            "pass finishes with a horizontal run into Core consumer left side");
-        Assert.That(Svg, Does.Contain(@"path d=""M477,218L537,218"""),
-            "drop finishes with a horizontal run into Telemetry only left side");
+        AssertRoundedStraightRuns(ExtractEdgePath(Svg, "F", "OK"));
+        AssertRoundedStraightRuns(ExtractEdgePath(Svg, "F", "T"));
+    }
+
+    private static void AssertRoundedStraightRuns(string PathData)
+    {
+        Assert.That(PathData, Does.Contain('L'), "B14 branches use straight orthogonal runs");
+        Assert.That(PathData.Count(Character => Character == 'C' || Character == 'c'), Is.InRange(1, 2),
+            "B14 rounds the Z-route elbows without a smoothing spline");
+        Assert.That(PathData, Does.Not.Contain('S'), "B14 does not use a smoothing spline");
+    }
+
+    private static string ExtractEdgePath(string Svg, string SourceId, string TargetId)
+    {
+        string Marker = $"data-edge-source=\"{SourceId}\" data-edge-target=\"{TargetId}\"";
+        int Index = Svg.IndexOf(Marker, StringComparison.OrdinalIgnoreCase);
+        Assert.That(Index, Is.GreaterThan(0), "missing edge path");
+        int PathStart = Svg.LastIndexOf("d=\"", Index);
+        int PathEnd = Svg.IndexOf('"', PathStart + 3);
+        return Svg.Substring(PathStart + 3, PathEnd - PathStart - 3);
     }
 
     private static int CountCorners(IReadOnlyList<FlowchartLayoutPoint> Points)
