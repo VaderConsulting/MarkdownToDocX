@@ -32,7 +32,7 @@
 5. **Visual fixes — stopped after three failed placement attempts.** The regenerated documents confirm that F111 now renders as aligned three-by-three partner ranks (25 focused tests pass), A14 follows the application-layer stack, and the retry routes are orthogonal. A142 and its Web Shop, Order Manager and Payment Hub regions remain sparse and tangled. Its 179-node branching layout measures 5158 x 7846. The same three whole-graph placements recorded in task 3 either added crossings or failed the crossing guard, so rule 7 requires moving on.
 6. **Remaining test failures — reviewed.** Recognition is clean at 1069/0 and MDConverter is clean at 60/0, including `ConvertFile_LockedDestinationRemainsIntact`. RuleValidation remains at its 49/10 baseline. Those tests require old curved/default routes, old shoulder coordinates or layouts that conflict with the current orthogonal grid rulebook; rule 6 does not permit rewriting them. The catalogue-wide terminal check also exposes real perpendicular-attachment faults, including several F153 edges. Three investigations (isolated rerun, terminal-normalizer trace, and rulebook comparison) did not produce a safe shared fix, so rule 7 requires moving on.
 7. **Housekeeping — complete.** The vendored Mermaid tree has no tracked differences, package version 11.14.0 matches the pin, and `flowchart-elk` remains deferred.
-8. **Final check.** Run all five suites on Windows, report the counts next to the baseline, and confirm this file is short and true.
+8. **Final check — complete.** All five suites were run sequentially on Windows. The results are recorded below. This file describes the current branch, including the task 3, task 5 and task 6 limits.
 
 ## Stretch goals
 
@@ -44,13 +44,13 @@ These must be done, but not yet. Start them only when Dave says so.
 
 Windows baseline measured on 11 October 2026 with `dotnet test`, before task 1 implementation.
 
-| Suite | Passing | Failing |
-| --- | ---: | ---: |
-| `MermaidRecognition.Tests` | 1069 | 0 |
-| `MermaidRecognition.Layout.Tests` | 724 | 31 |
-| `MermaidRecognition.RuleValidation.Tests` | 49 | 10 |
-| `MermaidRecognition.NaiadAdapter.Tests` | 47 | 0 |
-| `MDConverter.Tests` | 59 | 0 |
+| Suite | Baseline pass | Baseline fail | Current pass | Current fail |
+| --- | ---: | ---: | ---: | ---: |
+| `MermaidRecognition.Tests` | 1069 | 0 | 1069 | 0 |
+| `MermaidRecognition.Layout.Tests` | 724 | 31 | 785 | 26 |
+| `MermaidRecognition.RuleValidation.Tests` | 49 | 10 | 49 | 10 |
+| `MermaidRecognition.NaiadAdapter.Tests` | 47 | 0 | 47 | 0 |
+| `MDConverter.Tests` | 59 | 0 | 60 | 0 |
 
 ## Compatibility pin
 
