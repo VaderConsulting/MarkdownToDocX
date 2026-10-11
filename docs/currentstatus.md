@@ -22,16 +22,36 @@ These five Layout tests expect the old branch layout and fail now. They are know
 - `RenderToSvg_TypeDecision_NoSharedBottomStub`
 - `RenderToSvg_MessageFilter_BranchesEnterLeftSideWithRoundedZ`
 
-## Open work
+## Working rules for the agent
 
-1. **Enterprise syntax gaps**: 14 scenarios in `enterprise.md` do not render (A100, A101, A118 to A130). The converter lacks hyphenated ids, semicolons, enterprise headers and direction, frontmatter and init directives, `classDef`, `class`, `style` and `linkStyle`, quoted labels, and redeclared ids. See `BRIEF-ENTERPRISE-SYNTAX-GAPS.md`.
-2. **Layout mode**: each diagram will choose `layout: grid` or `layout: open` in its frontmatter. The default is `grid`. `open` changes only how nodes and groups are placed; line rules stay the same. Scenarios F144 to F150 in `flow.md` and A143 to A149 in `enterprise.md` test it. It needs the frontmatter reader from item 1. See `BRIEF-LAYOUT-MODE.md`.
-3. **Visual checks**: the grid stress test A142 in `enterprise.md` converts but has not been checked by eye for compactness and crossings. F111 is the one `flow.md` diagram that does not render properly.
-4. **Rulebook gaps**: the label, group-frame and sequence sections are unfinished. The frame-midline rule is on hold, and six defaults await confirmation. See `Instructions/LAYOUT-RULEBOOK.md`.
-5. **Native render for the other kinds** (sequence, class, state, ER, pie, gantt, mindmap, git graph).
-6. **Housekeeping**: the vendored Mermaid pin is dirty and should be cleaned.
-7. **`flowchart-elk`** is deferred.
+1. Follow `Instructions/CLOUD-AGENT-WORKING-PRACTICES.md`.
+2. Work in the main `MarkdownToDocX` folder only. Do not create other local folders.
+3. Use one branch from master and one pull request. Do not merge; Dave approves the merge.
+4. Run the baseline test suites first, so that no new failure goes unnoticed.
+5. Work in small steps. After each working step, commit and push, update this file in the same commit, and start the next step from that pushed commit.
+6. Never change an existing test to make it pass, except where a task below says to rewrite it. List clashes for Dave to decide.
+7. Stop on a task after three failed attempts, and say what failed and why.
 
+## Tasks, in order
+
+1. **Enterprise syntax gaps.** Make the 14 scenarios A100, A101 and A118 to A130 in `enterprise.md` render. The converter lacks hyphenated ids, semicolons, enterprise headers and direction, frontmatter and init directives, `classDef`, `class`, `style` and `linkStyle`, quoted labels, and redeclared ids. Also find out why A90 shows three error lines when it expects four. See `BRIEF-ENTERPRISE-SYNTAX-GAPS.md`.
+2. **Layout mode.** Each diagram chooses `layout: grid` or `layout: open` in its frontmatter. The default is `grid`. `open` changes only how nodes and groups are placed; line rules stay the same. Use the frontmatter reader from task 1. Scenarios F144 to F150 in `flow.md` and A143 to A149 in `enterprise.md` must behave as their Expected lines say. See `BRIEF-LAYOUT-MODE.md`.
+3. **Old-layout Layout tests.** The five tests under "Known failing Layout tests" expect the old branch layout or the old stroke check. Rewrite each to assert rounded straight runs, using the rulebook, and report each change.
+4. **Visual fixes.**
+   - Render the A142 grid stress test and check it against `HANDOVER-GRID-LAYOUT-v2.md` for compactness, overlaps and needless crossings.
+   - Fix `flow.md` scenario F111, the one diagram that does not render properly.
+   - Fix the A14 diagram in `enterprise.md`.
+   - Fix the tangled lines in the Web Shop, Order Manager and Payment Hub diagram, the curved retry loop with its label on the line, and the very wide strips that cannot be read at document size.
+5. **Remaining test failures.** Work through the rule-validation failures (10), the recognition failures (11) and the converter failure `ConvertFile_LockedDestinationRemainsIntact`. Fix real faults. If a failure comes only from Linux behaviour, say so and leave it.
+6. **Housekeeping.** Clean the vendored Mermaid pin and update the compatibility pin below. `flowchart-elk` stays deferred.
+7. **Final check.** Run all five suites on Windows, report the counts next to the baseline, and confirm this file is short and true.
+
+## Stretch goals
+
+These must be done, but not yet. Start them only when Dave says so.
+
+1. **Rulebook gaps.** Finish the label, group-frame and sequence sections of `Instructions/LAYOUT-RULEBOOK.md`. Do not build the two rules on hold (frame on the midline, reserved midline). Ask Dave about the six unconfirmed defaults and wait for the answer.
+2. **Native render for the other kinds** (sequence, class, state, ER, pie, gantt, mindmap, git graph). Do one kind at a time, in its own commit, and keep the Naiad fallback until a kind passes its scenarios.
 ## Test results
 
 Measured on Linux on 11 October 2026 with `dotnet test`. Windows runs are still to do, and the counts may differ.
