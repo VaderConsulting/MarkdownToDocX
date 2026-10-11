@@ -12,7 +12,7 @@ internal static class FlowchartBranchRouteOrder
 {
     internal static void RemoveAvoidableCrossings(FlowchartLayoutResult Layout, DiagramContract Contract,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds, Dictionary<string, NodeContract> Nodes,
-        FlowchartDirection Direction)
+        FlowchartDirection Direction, IReadOnlySet<FlowchartLayoutEdgeRoute>? ReservedStraightRoutes = null)
     {
         bool Horizontal = Direction == FlowchartDirection.LeftToRight || Direction == FlowchartDirection.RightToLeft;
         var Back = FlowchartBackEdgeHelper.FindBackEdges(Contract);
@@ -32,6 +32,9 @@ internal static class FlowchartBranchRouteOrder
             {
                 var A = Branches[First]; var B = Branches[Second];
                 if (A.SourceId == B.SourceId && A.TargetId == B.TargetId) continue;
+                // Matched partner continuations own their centre slots before
+                // crossings are considered. Other routes may need frame repair.
+                if (ReservedStraightRoutes?.Contains(A) == true || ReservedStraightRoutes?.Contains(B) == true) continue;
                 // Retain the flow-facing sides allocated to ordinary boxes.
                 // Circular junctions may exchange their free cardinal sides.
                 if (Nodes[Fan.Key].Shape != "circle"

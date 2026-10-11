@@ -5,9 +5,13 @@ public static class NativeDiagramRenderBridge
 {
     /// <summary>Returns false when a source needs another renderer; malformed Enterprise input reports its diagnostic.</summary>
     public static bool TryRenderSvg(string Source, out string Svg)
+        => TryRenderSvg(Source, out Svg, null);
+
+    public static bool TryRenderSvg(string Source, out string Svg, MermaidRecognition.Config.DiagramLayoutMode? DefaultLayout)
     {
-        if (Enterprise.EnterpriseRenderBridge.TryRenderEnterpriseSvg(Source, out Svg)
+        if (Enterprise.EnterpriseRenderBridge.TryRenderEnterpriseSvg(Source, out Svg, DefaultLayout)
             || NativePieRenderBridge.TryRenderSvg(Source, out Svg)) return true;
+        if (DefaultLayout.HasValue && NativeFlowchartRenderBridge.TryRenderFlowchartSvg(Source, out Svg, DefaultLayout)) return true;
         if (System.Text.RegularExpressions.Regex.IsMatch(Source, @"^\s*(?:%%[^\r\n]*[\r\n]\s*)*pie\b",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase))
         {

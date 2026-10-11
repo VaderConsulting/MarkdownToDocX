@@ -5,6 +5,9 @@ namespace MermaidRecognition.Kinds.Enterprise;
 /// </summary>
 public sealed class EnterpriseElement
 {
+    /// <summary>Gets or sets whether the label uses Mermaid markdown-string formatting.</summary>
+    public bool IsMarkdownLabel { get; set; }
+
     private string _Id = string.Empty;
 
     private EnterpriseElementType _ElementType;

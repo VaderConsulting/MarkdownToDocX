@@ -5,6 +5,9 @@ namespace MermaidRecognition.Kinds.Enterprise;
 /// </summary>
 public sealed class EnterpriseRelationship
 {
+    /// <summary>Gets or sets whether the label uses Mermaid markdown-string formatting.</summary>
+    public bool IsMarkdownLabel { get; set; }
+
     private string _SourceId = string.Empty;
 
     private string _TargetId = string.Empty;

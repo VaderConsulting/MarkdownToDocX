@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 using MermaidRecognition.Contract;
@@ -161,6 +162,7 @@ internal static class EnterpriseFlowchartEdgeRouter
         Dictionary<string, EnterpriseLayoutNode> Nodes, DiagramContract Contract)
     {
         var Layout = new FlowchartLayoutResult();
+
         for (int Index = 0; Index < Edges.Count; Index++)
         {
             var Route = new FlowchartLayoutEdgeRoute { EdgeId = Contracts[Index].Id ?? string.Empty,
@@ -173,6 +175,26 @@ internal static class EnterpriseFlowchartEdgeRouter
             X = Node.AbsoluteX + Node.Width / 2, Y = Node.AbsoluteY + Node.Height / 2,
             Width = (int)Math.Ceiling(Node.Width), Height = (int)Math.Ceiling(Node.Height) });
         DiagramGridLayout.SeparateTracks(Layout, Obstacles, Contract);
+        FlowchartObstacleRouteRepair.Apply(Layout, Contract, Nodes.Values.ToDictionary(Node => Node.Id,
+            Node => new FlowchartLayoutNodeBounds { NodeId = Node.Id,
+                CenterX = Node.AbsoluteX + Node.Width / 2, CenterY = Node.AbsoluteY + Node.Height / 2,
+                Width = Node.Width, Height = Node.Height }, StringComparer.Ordinal));
+        FlowchartNestedCounterflowTracks.Apply(Layout, Contract, Nodes.Values.ToDictionary(Node => Node.Id,
+            Node => new FlowchartLayoutNodeBounds { NodeId = Node.Id,
+                CenterX = Node.AbsoluteX + Node.Width / 2, CenterY = Node.AbsoluteY + Node.Height / 2,
+                Width = Node.Width, Height = Node.Height }, StringComparer.Ordinal));
+        FlowchartCrossGroupRouteSimplifier.Apply(Layout, Contract, Nodes.Values.ToDictionary(Node => Node.Id,
+            Node => new FlowchartLayoutNodeBounds { NodeId = Node.Id,
+                CenterX = Node.AbsoluteX + Node.Width / 2, CenterY = Node.AbsoluteY + Node.Height / 2,
+                Width = Node.Width, Height = Node.Height }, StringComparer.Ordinal));
+        FlowchartAlignedCounterflowRoutes.Apply(Layout, Contract, Nodes.Values.ToDictionary(Node => Node.Id,
+            Node => new FlowchartLayoutNodeBounds { NodeId = Node.Id,
+                CenterX = Node.AbsoluteX + Node.Width / 2, CenterY = Node.AbsoluteY + Node.Height / 2,
+                Width = Node.Width, Height = Node.Height }, StringComparer.Ordinal));
+        FlowchartTerminalFanBypass.Apply(Layout, Contract, Nodes.Values.ToDictionary(Node => Node.Id,
+            Node => new FlowchartLayoutNodeBounds { NodeId = Node.Id,
+                CenterX = Node.AbsoluteX + Node.Width / 2, CenterY = Node.AbsoluteY + Node.Height / 2,
+                Width = Node.Width, Height = Node.Height }, StringComparer.Ordinal));
         for (int Index = 0; Index < Edges.Count; Index++)
         {
             var Edge = Edges[Index];
@@ -245,7 +267,11 @@ internal static class EnterpriseFlowchartEdgeRouter
             .Append(EnterpriseSvgFormat.Escape(Routed.Relationship.SourceId))
             .Append("\" data-target=\"")
             .Append(EnterpriseSvgFormat.Escape(Routed.Relationship.TargetId))
-            .Append("\"><path d=\"")
+            .Append("\"><path data-edge-source=\"")
+            .Append(EnterpriseSvgFormat.Escape(Routed.Relationship.SourceId))
+            .Append("\" data-edge-target=\"")
+            .Append(EnterpriseSvgFormat.Escape(Routed.Relationship.TargetId))
+            .Append("\" d=\"")
             .Append(VisiblePath(Routed))
             .Append("\" fill=\"none\" stroke=\"#000\" stroke-width=\"1\"");
         if (Routed.DashArray != null)
@@ -407,7 +433,9 @@ internal static class EnterpriseFlowchartEdgeRouter
         FlowchartRenderOptions RenderOptions = FlowchartRenderOptions.FromContract(Contract);
         FlowchartSubgraphBoundsRequest BoundsRequest =
             FlowchartSubgraphBoundsRequest.FromContract(Contract, RenderOptions);
-        List<FlowchartSubgraphLayoutRect> SubgraphRects = FlowchartSubgraphBoundsBuilder.BuildOrderedRects(
+        List<FlowchartSubgraphLayoutRect> SubgraphRects = Layout.ClusterBounds.Count > 0
+            ? FlowchartSugiyamaSvgRenderer.BuildDagreClusterRects(Contract, Layout)
+            : FlowchartSubgraphBoundsBuilder.BuildOrderedRects(
             Contract,
             BoundsById,
             BoundsRequest);

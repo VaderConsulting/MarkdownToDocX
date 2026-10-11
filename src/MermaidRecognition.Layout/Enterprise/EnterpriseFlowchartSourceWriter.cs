@@ -27,7 +27,7 @@ public static class EnterpriseFlowchartSourceWriter
 
         HashSet<string> Containers = EnterpriseFlowchartContractMapper.CollectContainers(Document);
         StringBuilder Builder = new StringBuilder();
-        Builder.Append(Document.Direction == EnterpriseDiagramDirection.Lr ? "flowchart LR" : "flowchart TB");
+        Builder.Append("flowchart ").Append(Document.Direction.ToString().ToUpperInvariant());
         Builder.Append('\n');
 
         HashSet<string> WrittenNodes = new HashSet<string>(StringComparer.Ordinal);
@@ -99,6 +99,8 @@ public static class EnterpriseFlowchartSourceWriter
         Builder.Append("[\"");
         Builder.Append(EscapeLabel(EnterpriseFlowchartContractMapper.ContainerTitle(Document, ContainerId)));
         Builder.Append("\"]\n");
+        if (Document.Groups.TryGetValue(ContainerId, out var Group) && Group.Direction.HasValue)
+            Builder.Append(Indent).Append("  direction ").Append(Group.Direction.Value.ToString().ToUpperInvariant()).Append('\n');
         foreach (string ChildId in EnterpriseFlowchartContractMapper.ChildIds(Document, ContainerId))
         {
             if (Containers.Contains(ChildId))

@@ -30,7 +30,8 @@ public static class EnterpriseFlowchartContractMapper
         {
             Kind = "flowchart",
             Header = "flowchart",
-            Direction = Document.Direction == EnterpriseDiagramDirection.Lr ? "LR" : "TB"
+            LayoutMode = Document.LayoutMode,
+            Direction = Document.Direction.ToString().ToUpperInvariant()
         };
 
         HashSet<string> Containers = CollectContainers(Document);
@@ -99,7 +100,9 @@ public static class EnterpriseFlowchartContractMapper
         {
             Id = ContainerId,
             Title = string.Join("\n", EnterpriseNodeSizer.Wrap(ContainerTitle(Document, ContainerId))),
-            ParentGroupId = ParentContainerId(Document, ContainerId, Containers)
+            ParentGroupId = ParentContainerId(Document, ContainerId, Containers),
+            Direction = Document.Groups.TryGetValue(ContainerId, out var DeclaredGroup)
+                ? DeclaredGroup.Direction?.ToString().ToUpperInvariant() : null
         };
         Contract.GroupsMutable.Add(Group);
         foreach (string ChildId in ChildIds(Document, ContainerId))

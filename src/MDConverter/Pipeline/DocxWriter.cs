@@ -713,7 +713,7 @@ public sealed class DocxWriter(EffectiveOptions Options, IConversionProgressRepo
     private string RenderMermaidSvg(string MermaidSource)
     {
         if (MermaidRecognition.Layout.NativeDiagramRenderBridge.TryRenderSvg(
-                MermaidSource, out string NativeSvg))
+                MermaidSource, out string NativeSvg, _Options.Mermaid.DefaultLayout))
         {
             return NativeSvg;
         }
@@ -1311,16 +1311,18 @@ public sealed class DocxWriter(EffectiveOptions Options, IConversionProgressRepo
                 return TryRasterizeSvgToPngViaHarness(SvgForRaster);
             }
 
-            // Use the SVG viewBox (includes diagram padding and marker margin from Naiad). Skia's CullRect
-            // is tight to path geometry and clips marker arrowheads at the bitmap edge.
+            // Skia applies the viewBox transform when building the picture. Its
+            // drawing coordinates therefore use the root viewport, which may
+            // differ from the viewBox after configuration scales the SVG.
+            // Retain viewport padding rather than using the tight CullRect.
             SKRect DrawBounds = Picture.CullRect;
-            if (TryGetSvgViewBoxBounds(Svg, out SKRect ViewBoxBounds))
-            {
-                DrawBounds = ViewBoxBounds;
-            }
-            else if (TryGetSvgRootSizeBounds(Svg, out SKRect RootSizeBounds))
+            if (TryGetSvgRootSizeBounds(Svg, out SKRect RootSizeBounds))
             {
                 DrawBounds = RootSizeBounds;
+            }
+            else if (TryGetSvgViewBoxBounds(Svg, out SKRect ViewBoxBounds))
+            {
+                DrawBounds = ViewBoxBounds;
             }
             else
             {

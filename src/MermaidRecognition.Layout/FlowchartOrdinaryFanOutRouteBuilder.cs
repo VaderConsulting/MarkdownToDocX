@@ -70,7 +70,7 @@ public static class FlowchartOrdinaryFanOutRouteBuilder
             && AllTargetsFavorDownstreamFace(Outgoing, BoundsById, SourceBounds, Direction);
     }
 
-    private static bool HasForwardPathBetweenTargets(DiagramContract Contract, List<EdgeContract> Outgoing)
+    internal static bool HasForwardPathBetweenTargets(DiagramContract Contract, List<EdgeContract> Outgoing)
     {
         // A direct link that skips part of a chain is a bypass, not an
         // independent fan-out branch. Keep it on obstacle-aware routing.

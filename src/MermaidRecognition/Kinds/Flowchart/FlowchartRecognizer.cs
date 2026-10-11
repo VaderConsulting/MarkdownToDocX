@@ -57,7 +57,11 @@ public static class FlowchartRecognizer
 
         MermaidConfigurationPipeline.BuildEffectiveConfiguration(Configuration, "flowchart");
 
-        return FlowchartContractMapper.ToContract(Database, Configuration);
+        var Contract = FlowchartContractMapper.ToContract(Database, Configuration);
+        Contract.LayoutMode = DiagramLayoutSettings.Resolve(Configuration.RawDirectiveValues,
+            Message => Contract.DiagnosticsMutable.Add(new MermaidDiagnostic(MermaidDiagnosticSeverity.Warning,
+                "configuration.layout.unknown", Message, null, null)));
+        return Contract;
     }
 
     static string StripLeadingInitBlocks(string Source)

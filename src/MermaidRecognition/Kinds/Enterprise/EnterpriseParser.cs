@@ -12,12 +12,17 @@ public static class EnterpriseParser
     /// <summary>Default rule-table version when the source omits <c>version</c>.</summary>
     public const string DEFAULT_VERSION = "3.2";
 
-    private const string ID_PATTERN = @"[A-Za-z_][\w.]*";
+    private const string ID_PATTERN = @"[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*";
 
-    private const string STRING_PATTERN = @"""((?:[^""\\]|\\.)*)""";
+    private const string STRING_PATTERN = @"(""(?:[^""\\]|\\.)*""|'(?:[^'\\]|\\.)*')";
+
+    private static readonly HashSet<string> ReservedIds = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "title", "version", "direction", "group", "in", "classDef", "class", "style", "linkStyle", "accTitle", "accDescr"
+    };
 
     private static readonly Regex HeaderRegex = new Regex(
-        @"^enterprise(-beta)?$",
+        @"^enterprise(-beta)?(?:\s+(TB|TD|BT|LR|RL))?$",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex TitleRegex = new Regex(
@@ -29,20 +34,20 @@ public static class EnterpriseParser
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex DirectionRegex = new Regex(
-        @"^direction\s+(TB|LR)$",
+        @"^direction\s+(TB|TD|BT|LR|RL)$",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex GroupRegex = new Regex(
         @"^group\s+(" + ID_PATTERN + @")(?:\s+" + STRING_PATTERN + @")?(?:\s+in\s+(" + ID_PATTERN + @"))?$",
-        RegexOptions.Compiled);
+        RegexOptions.Compiled | RegexOptions.Singleline);
 
     private static readonly Regex RelationshipRegex = new Regex(
         @"^(" + ID_PATTERN + @")\s+-([A-Za-z]+)(?:\(([^)]*)\))?->\s+(" + ID_PATTERN + @")(?:\s+" + STRING_PATTERN + @")?$",
-        RegexOptions.Compiled);
+        RegexOptions.Compiled | RegexOptions.Singleline);
 
     private static readonly Regex ElementRegex = new Regex(
         @"^([A-Za-z-]+)\s+(" + ID_PATTERN + @")(?:\s+" + STRING_PATTERN + @")?(?:\s+in\s+(" + ID_PATTERN + @"))?$",
-        RegexOptions.Compiled);
+        RegexOptions.Compiled | RegexOptions.Singleline);
 
     private static readonly Regex InfluenceQualifierRegex = new Regex(
         @"^[+-]{1,2}$|^[+-]?\d+$",
@@ -61,8 +66,7 @@ public static class EnterpriseParser
         }
 
         string DetectionText = RecognitionSourcePreprocessor.PrepareForDetection(Source);
-        string[] Lines = DetectionText.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n').Split('\n');
-        foreach (string Line in Lines)
+        foreach ((string Line, _) in EnterpriseStatements.Read(DetectionText))
         {
             string Trimmed = Line.Trim();
             if (Trimmed.Length == 0)
@@ -91,16 +95,17 @@ public static class EnterpriseParser
             return new EnterpriseParseResult(Document, Diagnostics);
         }
 
-        string Normalised = Source.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
+        string Normalised = EnterpriseConfiguration.Prepare(Source, Document).Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
+        Document.LayoutMode = MermaidRecognition.Config.DiagramLayoutSettings.Resolve(Document.Configuration,
+            Message => Diagnostics.Add(new EnterpriseDiagnostic(MermaidDiagnosticSeverity.Warning, 0, Message)));
         string[] Lines = Normalised.Split('\n');
         bool SeenHeader = false;
         bool InDescription = false;
         List<string> DescriptionLines = new();
+        Stack<string> GroupScope = new();
 
-        for (int Index = 0; Index < Lines.Length; Index++)
+        foreach ((string RawLine, int LineNumber) in EnterpriseStatements.Read(Normalised))
         {
-            int LineNumber = Index + 1;
-            string RawLine = Lines[Index];
             if (InDescription)
             {
                 if (RawLine.Trim() == "}")
@@ -118,6 +123,12 @@ public static class EnterpriseParser
                 continue;
             }
 
+            if (SeenHeader && (Line == "}" || Line.Equals("end", StringComparison.OrdinalIgnoreCase)) && GroupScope.Count > 0)
+            {
+                GroupScope.Pop();
+                continue;
+            }
+
             if (!SeenHeader)
             {
                 if (!HeaderRegex.IsMatch(Line))
@@ -127,6 +138,9 @@ public static class EnterpriseParser
                 }
 
                 SeenHeader = true;
+                Match HeaderMatch = HeaderRegex.Match(Line);
+                if (HeaderMatch.Groups[2].Success)
+                    Document.Direction = ParseDirection(HeaderMatch.Groups[2].Value);
                 continue;
             }
 
@@ -164,15 +178,40 @@ public static class EnterpriseParser
             Match DirectionMatch = DirectionRegex.Match(Line);
             if (DirectionMatch.Success)
             {
-                string DirectionText = DirectionMatch.Groups[1].Value.ToUpperInvariant();
-                Document.Direction = DirectionText == "LR" ? EnterpriseDiagramDirection.Lr : EnterpriseDiagramDirection.Tb;
+                var Direction = ParseDirection(DirectionMatch.Groups[1].Value);
+                if (GroupScope.TryPeek(out string? GroupId)) Document.Groups[GroupId].Direction = Direction;
+                else Document.Direction = Direction;
                 continue;
             }
 
-            Match GroupMatch = GroupRegex.Match(Line);
+            if (Document.Styles.Read(Line, LineNumber)) continue;
+            string? TrailingClass = null;
+            Line = Regex.Replace(Line, STRING_PATTERN + @"|(?<id>" + ID_PATTERN + @"):::(?<class>[\w-]+)", Match =>
+            {
+                if (!Match.Groups["id"].Success) return Match.Value;
+                Document.Styles.AddInlineClass(Match.Groups["id"].Value, Match.Groups["class"].Value);
+                return Match.Groups["id"].Value;
+            }, RegexOptions.Singleline);
+            Match SuffixClass = Regex.Match(Line, @":::([\w-]+)$");
+            if (SuffixClass.Success)
+            {
+                TrailingClass = SuffixClass.Groups[1].Value;
+                Line = Line[..SuffixClass.Index].TrimEnd();
+            }
+
+            bool OpensGroup = Line.EndsWith('{');
+            Match GroupMatch = GroupRegex.Match(OpensGroup ? Line[..^1].TrimEnd() : Line);
             if (GroupMatch.Success)
             {
                 AddGroup(Document, Diagnostics, GroupMatch, LineNumber);
+                string GroupId = GroupMatch.Groups[1].Value;
+                if (GroupScope.TryPeek(out string? ParentId) && Document.Groups.TryGetValue(GroupId, out var Group)
+                    && Group.ParentId == null)
+                {
+                    Group.ParentId = ParentId;
+                    Document.Elements[GroupId].ParentId = ParentId;
+                }
+                if (OpensGroup && Document.Groups.ContainsKey(GroupId)) GroupScope.Push(GroupId);
                 continue;
             }
 
@@ -187,6 +226,10 @@ public static class EnterpriseParser
             if (ElementMatch.Success)
             {
                 AddElement(Document, Diagnostics, ElementMatch, LineNumber);
+                if (TrailingClass != null) Document.Styles.AddInlineClass(ElementMatch.Groups[2].Value, TrailingClass);
+                if (GroupScope.TryPeek(out string? ParentId)
+                    && Document.Elements.TryGetValue(ElementMatch.Groups[2].Value, out var Element) && Element.ParentId == null)
+                    Element.ParentId = ParentId;
                 continue;
             }
 
@@ -204,6 +247,7 @@ public static class EnterpriseParser
             Diagnostics.Add(CreateError(Lines.Length, "unterminated accessibility description"));
         }
         ValidateReferences(Document, Diagnostics);
+        Document.Styles.Resolve(Document, Diagnostics);
         return new EnterpriseParseResult(Document, Diagnostics);
     }
 
@@ -214,6 +258,11 @@ public static class EnterpriseParser
         int LineNumber)
     {
         string Id = GroupMatch.Groups[1].Value;
+        if (ReservedIds.Contains(Id))
+        {
+            Diagnostics.Add(CreateError(LineNumber, "reserved word cannot be an id: \"" + Id + "\""));
+            return;
+        }
         if (Document.HasContainer(Id))
         {
             Diagnostics.Add(CreateError(LineNumber, "duplicate id \"" + Id + "\""));
@@ -226,6 +275,7 @@ public static class EnterpriseParser
         {
             Id = Id,
             Label = QuotedLabel ?? Id,
+            IsMarkdownLabel = IsMarkdown(GroupMatch.Groups[2].Value),
             ParentId = ParentId,
             LineNumber = LineNumber
         };
@@ -235,6 +285,7 @@ public static class EnterpriseParser
             Id = Id,
             ElementType = EnterpriseElementType.Grouping,
             Label = QuotedLabel ?? Id,
+            IsMarkdownLabel = Group.IsMarkdownLabel,
             ParentId = ParentId,
             LineNumber = LineNumber
         };
@@ -256,8 +307,29 @@ public static class EnterpriseParser
         }
 
         string Id = ElementMatch.Groups[2].Value;
+        if (ReservedIds.Contains(Id))
+        {
+            Diagnostics.Add(CreateError(LineNumber, "reserved word cannot be an id: \"" + Id + "\""));
+            return;
+        }
         if (Document.HasContainer(Id))
         {
+            if (Document.Elements.TryGetValue(Id, out var Existing) && Existing.ElementType == ElementType)
+            {
+                if (ElementMatch.Groups[3].Success)
+                {
+                    Existing.Label = Unquote(ElementMatch.Groups[3].Value);
+                    Existing.IsMarkdownLabel = IsMarkdown(ElementMatch.Groups[3].Value);
+                }
+                if (ElementMatch.Groups[4].Success) Existing.ParentId = ElementMatch.Groups[4].Value;
+                if (Document.Groups.TryGetValue(Id, out var Group))
+                {
+                    Group.Label = Existing.Label;
+                    Group.IsMarkdownLabel = Existing.IsMarkdownLabel;
+                    Group.ParentId = Existing.ParentId;
+                }
+                return;
+            }
             Diagnostics.Add(CreateError(LineNumber, "duplicate element id \"" + Id + "\""));
             return;
         }
@@ -269,6 +341,7 @@ public static class EnterpriseParser
             Id = Id,
             ElementType = ElementType,
             Label = QuotedLabel ?? Id,
+            IsMarkdownLabel = IsMarkdown(ElementMatch.Groups[3].Value),
             ParentId = ParentId,
             LineNumber = LineNumber
         };
@@ -323,6 +396,7 @@ public static class EnterpriseParser
             TargetId = TargetId,
             Kind = Kind,
             Label = QuotedLabel ?? string.Empty,
+            IsMarkdownLabel = IsMarkdown(RelationshipMatch.Groups[5].Value),
             LineNumber = LineNumber
         };
 
@@ -451,16 +525,20 @@ public static class EnterpriseParser
     {
         // Titles are the rest of the line, not quoted-label statements.
         bool IsTitle = TitleRegex.IsMatch(Line.TrimStart());
-        bool InQuotes = false;
+        char Quote = '\0';
         for (int Index = 0; Index < Line.Length; Index++)
         {
-            if (!IsTitle && InQuotes && Line[Index] == '\\')
+            if (!IsTitle && Quote != '\0' && Line[Index] == '\\')
             {
                 Index++;
                 continue;
             }
-            if (!IsTitle && Line[Index] == '"') InQuotes = !InQuotes;
-            if (!InQuotes && Line[Index] == '%' && Index + 1 < Line.Length && Line[Index + 1] == '%')
+            if (!IsTitle && (Line[Index] == '"' || Line[Index] == '\''))
+            {
+                if (Quote == '\0') Quote = Line[Index];
+                else if (Quote == Line[Index]) Quote = '\0';
+            }
+            if (Quote == '\0' && Line[Index] == '%' && Index + 1 < Line.Length && Line[Index + 1] == '%')
                 return Line.Substring(0, Index);
         }
         return Line;
@@ -468,8 +546,20 @@ public static class EnterpriseParser
 
     private static string Unquote(string Value)
     {
-        return EnterpriseLabelText.DecodeQuoted(Value);
+        string Body = Value[1..^1];
+        if (IsMarkdown(Value)) Body = Body[1..^1];
+        return EnterpriseLabelText.DecodeQuoted(Body);
     }
+
+    private static bool IsMarkdown(string Value) => Value.Length >= 4 && Value[1] == '`' && Value[^2] == '`';
+
+    private static EnterpriseDiagramDirection ParseDirection(string Value) => Value.ToUpperInvariant() switch
+    {
+        "LR" => EnterpriseDiagramDirection.Lr,
+        "RL" => EnterpriseDiagramDirection.Rl,
+        "BT" => EnterpriseDiagramDirection.Bt,
+        _ => EnterpriseDiagramDirection.Tb
+    };
 
     private static EnterpriseDiagnostic CreateError(int LineNumber, string Message)
     {

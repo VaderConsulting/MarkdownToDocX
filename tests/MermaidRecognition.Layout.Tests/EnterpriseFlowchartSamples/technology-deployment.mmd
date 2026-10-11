@@ -1,0 +1,100 @@
+enterprise
+  title Web shop hosting - technology deployment
+  location perth "Perth"
+  location sydney "Sydney"
+  facility perthDc "Perth Data Centre" in perth
+  facility sydneyDc "Sydney Data Centre" in sydney
+  node perthEdge "Edge Cluster" in perthDc
+  device perthLb1 "Load Balancer A" in perthEdge
+  device perthLb2 "Load Balancer B" in perthEdge
+  technology-interface httpsIn "HTTPS 443" in perthEdge
+  node perthApp "Application Cluster" in perthDc
+  node perthApp1 "App Host 1" in perthApp
+  node perthApp2 "App Host 2" in perthApp
+  system-software perthRt1 "Container Runtime" in perthApp1
+  system-software perthRt2 "Container Runtime" in perthApp2
+  artifact shopImg1 "shop-image:2.4" in perthRt1
+  artifact shopImg2 "shop-image:2.4" in perthRt2
+  node perthData "Data Cluster" in perthDc
+  system-software perthDb "Database Primary" in perthData
+  artifact perthOrders "orders.db" in perthDb
+  system-software perthMq "Message Broker" in perthData
+  node sydneyApp "Standby Application Cluster" in sydneyDc
+  system-software sydneyRt "Container Runtime" in sydneyApp
+  artifact shopImg3 "shop-image:2.4" in sydneyRt
+  node sydneyData "Standby Data Cluster" in sydneyDc
+  system-software sydneyDb "Database Replica" in sydneyData
+  artifact sydneyOrders "orders-replica.db" in sydneyDb
+  communication-network perthLan "Perth LAN"
+  communication-network sydneyLan "Sydney LAN"
+  communication-network internet "Internet"
+  communication-network wan "Inter-site WAN"
+  path replication "Replication Link"
+  technology-service lbSvc "Load Balancing"
+  technology-service containerSvc "Container Hosting"
+  technology-service dbSvc "Database Service"
+  technology-service mqSvc "Messaging"
+  technology-service drSvc "Disaster Recovery"
+  technology-function failover "Failover"
+  technology-process backup "Nightly Backup"
+  technology-event backupDue "Backup Window Opens"
+  artifact backupSet "Backup Set"
+  device adminLaptop "Operator Laptop"
+  application-component shop "Web Shop"
+  application-component orderMgr "Order Manager"
+  perth -aggregation-> perthDc
+  sydney -aggregation-> sydneyDc
+  perthDc -composition-> perthEdge
+  perthDc -composition-> perthApp
+  perthDc -composition-> perthData
+  sydneyDc -composition-> sydneyApp
+  sydneyDc -composition-> sydneyData
+  perthEdge -composition-> perthLb1
+  perthEdge -composition-> perthLb2
+  perthEdge -composition-> httpsIn
+  perthApp -composition-> perthApp1
+  perthApp -composition-> perthApp2
+  perthApp1 -composition-> perthRt1
+  perthApp2 -composition-> perthRt2
+  perthRt1 -assignment-> shopImg1
+  perthRt2 -assignment-> shopImg2
+  perthData -composition-> perthDb
+  perthData -composition-> perthMq
+  perthDb -assignment-> perthOrders
+  sydneyApp -composition-> sydneyRt
+  sydneyRt -assignment-> shopImg3
+  sydneyData -composition-> sydneyDb
+  sydneyDb -assignment-> sydneyOrders
+  internet -association-> perthEdge
+  perthLan -association-> perthEdge
+  perthLan -association-> perthApp
+  perthLan -association-> perthData
+  sydneyLan -association-> sydneyApp
+  sydneyLan -association-> sydneyData
+  wan -realization-> replication
+  replication -association-> perthData
+  replication -association-> sydneyData
+  perthDb -flow-> sydneyDb "log shipping"
+  perthLb1 -realization-> lbSvc
+  perthLb2 -realization-> lbSvc
+  httpsIn -assignment-> lbSvc
+  perthRt1 -realization-> containerSvc
+  perthRt2 -realization-> containerSvc
+  sydneyRt -realization-> drSvc
+  perthDb -realization-> dbSvc
+  perthMq -realization-> mqSvc
+  lbSvc -serving-> shop
+  containerSvc -serving-> shop
+  containerSvc -serving-> orderMgr
+  dbSvc -serving-> orderMgr
+  mqSvc -serving-> orderMgr
+  drSvc -serving-> shop
+  shopImg1 -realization-> shop
+  shopImg2 -realization-> shop
+  shopImg3 -realization-> shop
+  sydneyData -assignment-> failover
+  failover -realization-> drSvc
+  backupDue -triggering-> backup
+  perthData -assignment-> backup
+  backup -access(write)-> backupSet
+  adminLaptop -association-> internet

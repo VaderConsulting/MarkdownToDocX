@@ -41,9 +41,22 @@ internal static class Program
         bool ForceRecognitionFlowchartParser = false;
         bool ForceLegacyFlowchartParser = false;
         bool ForceLegacyFlowchartRenderer = false;
+        MermaidRecognition.Config.DiagramLayoutMode? DefaultLayout = null;
 
         for (int I = FlagStartIndex; I < Args.Length; I++)
         {
+            if (Args[I] == "--layout")
+            {
+                if (I + 1 >= Args.Length)
+                {
+                    Console.Error.WriteLine("--layout requires grid or open.");
+                    return 1;
+                }
+                if (!MermaidRecognition.Config.DiagramLayoutSettings.TryParse(Args[++I], out var Layout))
+                    Console.Error.WriteLine("Warning: Unknown layout value \"" + Args[I] + "\"; using grid.");
+                DefaultLayout = Layout;
+                continue;
+            }
             if (Args[I] == "--profile" && I + 1 < Args.Length)
             {
                 Profile = Args[I + 1];
@@ -95,6 +108,11 @@ internal static class Program
             Profile = Profile,
             Mermaid = CreateMermaidOptions(ForceRecognitionFlowchartParser, ForceLegacyFlowchartParser, ForceLegacyFlowchartRenderer)
         };
+        if (DefaultLayout.HasValue)
+        {
+            Options.Mermaid ??= new MermaidOptions();
+            Options.Mermaid.DefaultLayout = DefaultLayout;
+        }
 
         try
         {
@@ -120,6 +138,7 @@ internal static class Program
         Console.Error.WriteLine("  --use-legacy-flowchart-renderer Forces legacy Naiad SVG render (skips Sugiyama).");
         Console.Error.WriteLine("  --use-flowchart-recognition     Forces MermaidRecognition for flowcharts (kept for backwards compatibility).");
         Console.Error.WriteLine("  --lock-timeout-seconds  Optional. When omitted, a normal lock prompt is shown (no auto-cancel).");
+        Console.Error.WriteLine("  --layout grid|open      Sets the run-wide placement default; diagram frontmatter wins.");
     }
 
     private static MermaidOptions? CreateMermaidOptions(

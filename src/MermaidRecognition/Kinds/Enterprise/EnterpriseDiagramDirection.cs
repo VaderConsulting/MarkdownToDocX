@@ -6,5 +6,7 @@ namespace MermaidRecognition.Kinds.Enterprise;
 public enum EnterpriseDiagramDirection
 {
     Tb,
-    Lr
+    Lr,
+    Bt,
+    Rl
 }

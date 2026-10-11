@@ -230,7 +230,8 @@ public static class FlowchartSugiyamaSvgRenderer
             MinLeft,
             MaxTop,
             DiagramPaddingPx,
-            RenderOptions);
+            RenderOptions,
+            Layout.EdgeRoutes);
 
         Dictionary<string, (double Left, double Top, double Width, double Height)> NodeLayoutById =
             new Dictionary<string, (double Left, double Top, double Width, double Height)>(StringComparer.Ordinal);
@@ -798,7 +799,7 @@ public static class FlowchartSugiyamaSvgRenderer
         }
 
         Builder.Append("</svg>");
-        return FlowchartSvgLineJump.Apply(Builder.ToString(), InsertHops: !Layout.UsesGridRoutes);
+        return FlowchartSvgLineJump.Apply(Builder.ToString());
         }
         finally
         {

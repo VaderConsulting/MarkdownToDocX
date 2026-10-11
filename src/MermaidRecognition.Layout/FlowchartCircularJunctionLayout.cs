@@ -114,6 +114,37 @@ internal static class FlowchartCircularJunctionLayout
                 Change.Value.Exit, End.Item1, End.Item2, Target,
                 Nodes.TryGetValue(Route.TargetId, out var TargetNode) ? TargetNode.Shape : "rect", Change.Value.Entry,
                 Bounds, Route.SourceId, Route.TargetId, Contract, Direction, Horizontal);
+            // A side port can feed an offset flow-facing port with one bend.
+            // Keep a full grid run before the corner and room beside the arrow.
+            if (Nodes.TryGetValue(Route.SourceId, out var JunctionNode) && JunctionNode.Shape == "circle"
+                && Nodes.TryGetValue(Route.TargetId, out var TargetBox) && TargetBox.Shape is null or "" or "rect" or "rounded" or "round"
+                && Change.Value.Exit != Down && Change.Value.Exit != Up && Change.Value.Entry == Up
+                && !Contract.Edges.Any(Edge => Edge.Id == Route.EdgeId && !string.IsNullOrEmpty(Edge.Label)))
+            {
+                int Side = Change.Value.Exit is "right" or "top" ? 1 : -1;
+                double Track = (Horizontal ? Start.Item2 : Start.Item1) + Side * DiagramGridMetrics.GRID_UNIT_PX;
+                double Half = (Horizontal ? Target.Height : Target.Width) / 2;
+                var OffsetEnd = Horizontal ? (End.Item1, Track) : (Track, End.Item2);
+                var Corner = Horizontal ? (Start.Item1, Track) : (Track, Start.Item2);
+                var Candidate = new List<(double X, double Y)> { Start, Corner, OffsetEnd };
+                var Edge = Contract.Edges.First(Item => Item.Id == Route.EdgeId);
+                var Obstacles = FlowchartPaddedVisibilityRouter.CollectObstacles(Contract, Bounds, Edge);
+                bool Clear = Math.Abs(Track - Cross(Target)) <= Half - 20
+                    && Math.Abs(Main(Target) - Main(Source)) - (Horizontal ? Target.Width : Target.Height) / 2 >= 40
+                    && Candidate.Zip(Candidate.Skip(1)).All(Segment => !Obstacles.Any(Box =>
+                        FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(Segment.First.X, Segment.First.Y,
+                            Segment.Second.X, Segment.Second.Y, Box, -6)));
+                foreach (var Peer in Layout.EdgeRoutes.Where(Peer => Peer != Route && Peer.Points.Count >= 2))
+                {
+                    var Points = Peer.Points.Select(Point => (Point.X, Point.Y)).ToList();
+                    var Before = FlowchartBranchRouteOrder.Intersections(Path, Points);
+                    var After = FlowchartBranchRouteOrder.Intersections(Candidate, Points);
+                    if (After.Crossings > Before.Crossings || After.Overlap > Before.Overlap + 0.01
+                        || new[] { Points[0], Points[^1] }.Any(Point => Math.Abs(Point.X - OffsetEnd.Item1)
+                            + Math.Abs(Point.Y - OffsetEnd.Item2) < 6)) Clear = false;
+                }
+                if (Clear && Candidate.Count < Path.Count) Path = Candidate;
+            }
             Route.ExitSide = Change.Value.Exit; Route.EntrySide = Change.Value.Entry;
             Route.Points.Clear();
             foreach (var Point in Path) Route.Points.Add(new() { X = Point.X, Y = Point.Y });

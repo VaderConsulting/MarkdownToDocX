@@ -15,7 +15,8 @@ public sealed class EnterpriseKindRecognizer : IKindRecognizer
         {
             Kind = "enterprise",
             Header = "enterprise",
-            Direction = Analysis.Document.Direction == EnterpriseDiagramDirection.Lr ? "LR" : "TB"
+            LayoutMode = Analysis.Document.LayoutMode,
+            Direction = Analysis.Document.Direction.ToString().ToUpperInvariant()
         };
         Contract.Accessibility.Title = Analysis.Document.AccessibilityTitle;
         Contract.Accessibility.Description = Analysis.Document.AccessibilityDescription;
@@ -26,7 +27,8 @@ public sealed class EnterpriseKindRecognizer : IKindRecognizer
             {
                 Id = Group.Id,
                 Title = Group.Label,
-                ParentGroupId = Group.ParentId
+                ParentGroupId = Group.ParentId,
+                Direction = Group.Direction?.ToString().ToUpperInvariant()
             };
             Contract.GroupsMutable.Add(GroupContract);
         }

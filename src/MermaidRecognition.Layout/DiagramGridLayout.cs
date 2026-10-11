@@ -36,6 +36,7 @@ public static class DiagramGridLayout
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         bool Horizontal = Direction == FlowchartDirection.LeftToRight
             || Direction == FlowchartDirection.RightToLeft;
+        bool Open = Contract.LayoutMode == MermaidRecognition.Config.DiagramLayoutMode.Open;
         (int BoxWidth, int BoxHeight) = ResolveStandardBox(Contract);
         int DiamondHeight = BoxHeight * FlowchartDagrePresentation.DIAMOND_HEIGHT_FACTOR;
         int MainPitch = Horizontal
@@ -56,8 +57,10 @@ public static class DiagramGridLayout
                 GroupId = GroupOf(Contract, Bounds.NodeId),
                 OldX = Bounds.CenterX,
                 OldY = Bounds.CenterY,
-                Width = Diamond ? BoxWidth : BoxWidth,
-                Height = Diamond ? DiamondHeight : BoxHeight,
+                X = Bounds.CenterX,
+                Y = Bounds.CenterY,
+                Width = Open ? (int)Math.Ceiling(Bounds.Width) : BoxWidth,
+                Height = Open ? (int)Math.Ceiling(Bounds.Height) : Diamond ? DiamondHeight : BoxHeight,
                 IsDiamond = Diamond
             };
             Placed.Add(Item);
@@ -65,47 +68,75 @@ public static class DiagramGridLayout
 
         AssignRanks(Placed, Horizontal);
         AssignColumns(Placed, Horizontal, CrossPitch);
-        ResolveVerticalChordBlockers(Contract, Placed);
-        if (!ShouldUseSpineColumnLayout(Contract, Placed, Direction))
+        var PartnerRanks = new List<FlowchartPartnerRankLayout.Partners>();
+        var SharedFanSources = new HashSet<string>(StringComparer.Ordinal);
+        if (!Open)
         {
-            AlignForwardMainChainColumn(Contract, Placed, Horizontal);
-        }
+            ResolveVerticalChordBlockers(Contract, Placed);
+            if (!ShouldUseSpineColumnLayout(Contract, Placed, Direction))
+            {
+                AlignForwardMainChainColumn(Contract, Placed, Horizontal);
+            }
 
-        AlignFanInMergeColumn(Contract, Placed, Horizontal);
-        if (ShouldUseSpineColumnLayout(Contract, Placed, Direction))
+            AlignFanInMergeColumn(Contract, Placed, Horizontal);
+            if (ShouldUseSpineColumnLayout(Contract, Placed, Direction))
+            {
+                AlignTwoWayDecisionSideTargets(Contract, Placed);
+            }
+
+            AlignBypassDetourColumns(Contract, Placed, Horizontal);
+            AlignDecisionCentreChildColumn(Contract, Placed, Horizontal);
+            AlignTerminalDecisionTargets(Contract, Placed, Horizontal, CrossPitch, CoordinatesPlaced: false);
+            CentreTerminalFans(Contract, Placed, Horizontal, CoordinatesPlaced: false);
+            CascadeColumns(Placed);
+            PlaceOnGrid(Placed, Horizontal, BoxWidth, BoxHeight, MainPitch, CrossPitch, Copy, Contract);
+            if (!Horizontal)
+            {
+                ApplySpineColumnAdjustments(Contract, Placed, Direction);
+            }
+
+            AlignTerminalDecisionTargets(Contract, Placed, Horizontal, CrossPitch, CoordinatesPlaced: true);
+            CentreTerminalFans(Contract, Placed, Horizontal, CoordinatesPlaced: true);
+            AlignUnbranchedDecisionInputs(Contract, Placed, Horizontal);
+            AlignHorizontalRetryOutcomes(Contract, Placed, Horizontal);
+            AlignSimpleDecisionMerges(Contract, Placed, Horizontal, CrossPitch);
+            AlignDecisionDetours(Contract, Placed, Horizontal, CrossPitch);
+            AlignVerticalLoopBranches(Contract, Placed, Horizontal, CrossPitch);
+            PartnerRanks = FlowchartPartnerRankLayout.Find(Contract, Placed, Horizontal);
+            FlowchartPartnerRankLayout.Prepare(PartnerRanks, Horizontal);
+            CompactIndependentFanIn(Contract, Placed, Horizontal, CrossPitch);
+            SharedFanSources = AlignSharedFanSourcesAndTails(Contract, Placed, Horizontal);
+            FlowchartCircularJunctionLayout.AlignFans(Contract, Placed, Horizontal);
+        }
+        else
         {
-            AlignTwoWayDecisionSideTargets(Contract, Placed);
+            PartnerRanks = FlowchartPartnerRankLayout.Find(Contract, Placed, Horizontal);
+            FlowchartPartnerRankLayout.Prepare(PartnerRanks, Horizontal, Align: false);
         }
-
-        AlignBypassDetourColumns(Contract, Placed, Horizontal);
-        AlignDecisionCentreChildColumn(Contract, Placed, Horizontal);
-        AlignTerminalDecisionTargets(Contract, Placed, Horizontal, CrossPitch, CoordinatesPlaced: false);
-        CentreTerminalFans(Contract, Placed, Horizontal, CoordinatesPlaced: false);
-        CascadeColumns(Placed);
-        PlaceOnGrid(Placed, Horizontal, BoxWidth, BoxHeight, MainPitch, CrossPitch, Copy, Contract);
-        if (!Horizontal)
-        {
-            ApplySpineColumnAdjustments(Contract, Placed, Direction);
-        }
-
-        AlignTerminalDecisionTargets(Contract, Placed, Horizontal, CrossPitch, CoordinatesPlaced: true);
-        CentreTerminalFans(Contract, Placed, Horizontal, CoordinatesPlaced: true);
-        AlignUnbranchedDecisionInputs(Contract, Placed, Horizontal);
-        AlignHorizontalRetryOutcomes(Contract, Placed, Horizontal);
-        AlignSimpleDecisionMerges(Contract, Placed, Horizontal, CrossPitch);
-        AlignDecisionDetours(Contract, Placed, Horizontal, CrossPitch);
-        AlignVerticalLoopBranches(Contract, Placed, Horizontal, CrossPitch);
-        AlignPairedRanks(Contract, Placed, Horizontal);
-        CompactIndependentFanIn(Contract, Placed, Horizontal, CrossPitch);
-        var SharedFanSources = AlignSharedFanSourcesAndTails(Contract, Placed, Horizontal);
-        FlowchartCircularJunctionLayout.AlignFans(Contract, Placed, Horizontal);
 
         GrowCrowdedSides(Placed, Copy, BoxWidth, BoxHeight);
         GrowParallelRelationshipSides(Contract, Placed, Horizontal);
         SeparateOverlaps(Placed, Horizontal);
+        if (!Open)
+        {
+            FlowchartTerminalBranchPlacement.Apply(Contract, Placed, Horizontal, CrossPitch);
+            FlowchartTerminalInputPlacement.Apply(Contract, Placed, Horizontal, CrossPitch);
+            FlowchartGridCompaction.Apply(Placed, Horizontal, Math.Max(CrossPitch, Contract.Groups.Count > 0 ? 60 : DiagramGridMetrics.NODE_GAP_PX));
+            FlowchartSparseRankCompaction.Apply(Contract, Placed, Horizontal);
+            FlowchartJunctionBranchCompaction.Apply(Contract, Placed, Horizontal);
+            FlowchartTerminalRowPlacement.Apply(Contract, Placed, Horizontal);
+        }
         List<GridFrame> Frames = new List<GridFrame>();
-        CenterLoneNestedGroups(Contract, Placed, Horizontal);
+        if (!Open) CenterLoneNestedGroups(Contract, Placed, Horizontal);
+        if (!Open) CompactOverlappingRootGroups(Contract, Placed, Frames, Horizontal);
         FitFrames(Contract, Placed, Frames, Horizontal);
+        if (FlowchartPartnerRankLayout.GrowGaps(Contract, Placed, Frames, PartnerRanks, Horizontal))
+            FitFrames(Contract, Placed, Frames, Horizontal);
+        if (!Open && FlowchartGroupedLeafPlacement.Apply(Contract, Placed, Frames, Horizontal))
+            FitFrames(Contract, Placed, Frames, Horizontal);
+        if (!Open && FlowchartExternalLeafPlacement.Apply(Contract, Placed, Frames, Horizontal))
+            FitFrames(Contract, Placed, Frames, Horizontal);
+        if (!Open) FlowchartIntergroupNodePlacement.Apply(Contract, Placed, Frames, Horizontal);
         FlipToYUp(Placed, Frames, Copy);
         EnsureBackEdgeRoutes(Contract, Copy, Placed);
         AssignPortSides(Contract, Copy, Placed, Frames, Nodes, Direction, SharedFanSources);
@@ -113,7 +144,8 @@ public static class DiagramGridLayout
         RebuildDecisionFanOutRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
         RebuildSoleForwardDecisionBranchRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
         RebuildOrdinaryFanOutRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
-        RebuildPairedRankRoutes(Contract, Copy, Placed, Horizontal);
+        FlowchartForwardRouteSimplifier.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction);
+        FlowchartPartnerRankLayout.Route(Contract, Copy, Placed, Frames, PartnerRanks, Horizontal);
         RebuildSimpleDecisionMergeRoutes(Contract, Copy, Placed, Frames, Horizontal);
         RebuildDecisionDetourRoutes(Contract, Copy, Placed, Frames, Horizontal);
         RebuildLoopBackRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
@@ -127,7 +159,14 @@ public static class DiagramGridLayout
         FlowchartGridTerminalNormalizer.Apply(Copy, BuildPlacedBounds(Placed, Frames), Nodes);
         GrowFacingDoglegGaps(Copy, Contract, Placed, Frames);
         DiagramGridRouteBuilder.RemoveClearForwardDoglegs(Copy, Contract, BuildPlacedBounds(Placed, Frames));
-        FlowchartBranchRouteOrder.RemoveAvoidableCrossings(Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction);
+        FlowchartBranchRouteOrder.RemoveAvoidableCrossings(Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction,
+            FlowchartPartnerRankLayout.StraightRoutes(Copy, PartnerRanks));
+        FlowchartObstacleRouteRepair.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
+        FlowchartReturnRouteOrder.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
+        FlowchartNestedCounterflowTracks.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
+        FlowchartCrossGroupRouteSimplifier.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
+        FlowchartAlignedCounterflowRoutes.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
+        FlowchartTerminalFanBypass.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
         WriteBack(Copy, Placed, Frames);
         return Copy;
     }
@@ -647,79 +686,6 @@ public static class DiagramGridLayout
         }
     }
 
-    private static IEnumerable<(GridNode[] Parents, GridNode[] Children)> PairedRanks(
-        DiagramContract Contract, List<GridNode> Placed, bool Horizontal)
-    {
-        var Visible = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
-        var ById = IndexPlaced(Placed);
-        var Used = new HashSet<GridNode>();
-        foreach (var Parent in Placed.Where(Node => !Node.IsDiamond))
-        {
-            if (Used.Contains(Parent)) continue;
-            var Outgoing = Visible.Where(Edge => Edge.SourceId == Parent.Id).ToList();
-            if (Outgoing.Count != 2 || Outgoing[0].TargetId == Outgoing[1].TargetId
-                || Outgoing.Any(Edge => !ById.ContainsKey(Edge.TargetId))) continue;
-            var Children = Outgoing.Select(Edge => ById[Edge.TargetId]).OrderBy(Node => Cross(Node, Horizontal, Old: true)).ToArray();
-            if (Children.Any(Node => Node.IsDiamond || Node.GroupId != Parent.GroupId)
-                || Children[0].Rank != Children[1].Rank || Children[0].Rank == Parent.Rank) continue;
-            var Incoming = Visible.Where(Edge => Edge.TargetId == Children[0].Id).ToList();
-            if (Incoming.Count != 2) continue;
-            var OtherEdge = Incoming.FirstOrDefault(Edge => Edge.SourceId != Parent.Id);
-            if (OtherEdge == null || !ById.TryGetValue(OtherEdge.SourceId, out var Other)
-                || Other.IsDiamond || Other.Rank != Parent.Rank || Other.GroupId != Parent.GroupId
-                || Visible.Count(Edge => Edge.SourceId == Other.Id) != 2
-                || !Visible.Any(Edge => Edge.SourceId == Other.Id && Edge.TargetId == Children[1].Id)
-                || Visible.Count(Edge => Edge.TargetId == Children[1].Id) != 2) continue;
-            Used.Add(Parent);
-            Used.Add(Other);
-            yield return (new[] { Parent, Other }.OrderBy(Node => Cross(Node, Horizontal, Old: true)).ToArray(), Children);
-        }
-    }
-
-    private static void AlignPairedRanks(DiagramContract Contract, List<GridNode> Placed, bool Horizontal)
-    {
-        foreach (var (Parents, Children) in PairedRanks(Contract, Placed, Horizontal))
-            for (int Index = 0; Index < 2; Index++)
-                SetCross(Children[Index], (int)Math.Round(Cross(Parents[Index], Horizontal, Old: false)), Horizontal);
-    }
-
-    private static void RebuildPairedRankRoutes(
-        DiagramContract Contract, FlowchartLayoutResult Copy, List<GridNode> Placed, bool Horizontal)
-    {
-        foreach (var (Parents, Children) in PairedRanks(Contract, Placed, Horizontal))
-        for (int ParentIndex = 0; ParentIndex < 2; ParentIndex++)
-        for (int ChildIndex = 0; ChildIndex < 2; ChildIndex++)
-        {
-            var Parent = Parents[ParentIndex];
-            var Child = Children[ChildIndex];
-            var Route = Copy.EdgeRoutes.FirstOrDefault(Route => Route.SourceId == Parent.Id && Route.TargetId == Child.Id);
-            if (Route == null) continue;
-            double Flow = Math.Sign(Main(Child, Horizontal, Old: false) - Main(Parent, Horizontal, Old: false));
-            double StartMain = Main(Parent, Horizontal, Old: false) + Flow * MainHalf(Parent, Horizontal, Leading: true);
-            double EndMain = Main(Child, Horizontal, Old: false) - Flow * MainHalf(Child, Horizontal, Leading: true);
-            double StartCross = Cross(Parent, Horizontal, Old: false);
-            double EndCross = Cross(Child, Horizontal, Old: false);
-            (double X, double Y) Map(double Main, double Cross) => Horizontal ? (Main, Cross) : (Cross, Main);
-            var Path = new List<(double X, double Y)>();
-            if (Math.Abs(StartCross - EndCross) < 0.5)
-                Path = [Map(StartMain, StartCross), Map(EndMain, EndCross)];
-            else
-            {
-                double Side = Math.Sign(EndCross - StartCross);
-                StartCross += Side * CrossHalf(Parent, Horizontal, Leading: true) / 3;
-                EndCross -= Side * CrossHalf(Child, Horizontal, Leading: true) * 2 / 3;
-                double Lane = (StartMain + EndMain) / 2 + (ParentIndex == 0 ? -1 : 1) * Flow * DiagramGridMetrics.GRID_UNIT_PX / 2;
-                Path = [Map(StartMain, StartCross), Map(Lane, StartCross), Map(Lane, EndCross), Map(EndMain, EndCross)];
-            }
-            if (Path.Zip(Path.Skip(1)).Any(Pair => FlowchartRouteObstacleHelper.SegmentIntersectsUnrelatedNodeBodies(
-                Pair.First.X, Pair.First.Y, Pair.Second.X, Pair.Second.Y,
-                BuildPlacedBounds(Placed, []), Parent.Id, Child.Id))) continue;
-            SetRouteEndpointSides(Route, BuildPlacedBounds(Placed, [])[Parent.Id], BuildPlacedBounds(Placed, [])[Child.Id], Path, Horizontal);
-            Route.Points.Clear();
-            foreach (var Point in Path) Route.Points.Add(new() { X = Point.X, Y = Point.Y });
-        }
-    }
-
     private static void AlignVerticalLoopBranches(
         DiagramContract Contract, List<GridNode> Placed, bool Horizontal, int CrossPitch)
     {
@@ -965,7 +931,7 @@ public static class DiagramGridLayout
     /// Independent inputs in one rank occupy neighbouring columns around their merge.
     /// Empty columns inherited from the original placement need no reserved space.
     /// </summary>
-    private static void CompactIndependentFanIn(
+    internal static void CompactIndependentFanIn(
         DiagramContract Contract, List<GridNode> Placed, bool Horizontal, int CrossPitch)
     {
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
@@ -983,7 +949,6 @@ public static class DiagramGridLayout
                 .Select(Edge => ById[Edge.SourceId]).OrderBy(Node => Cross(Node, Horizontal, Old: false)).ToList();
             if (Parents.Count != Incoming.Count || Parents.Select(Node => Node.Rank).Distinct().Count() != 1
                 || Parents.Any(Parent => Parent.Rank == Target.Rank || Parent.GroupId != Target.GroupId
-                    || Visible.Any(Edge => Edge.TargetId == Parent.Id)
                     || Visible.Count(Edge => Edge.SourceId == Parent.Id) != 1)
                 || Placed.Any(Node => Node.Rank == Parents[0].Rank && !Parents.Contains(Node)))
             {
@@ -991,6 +956,17 @@ public static class DiagramGridLayout
             }
             int Pitch = Math.Max(CrossPitch, DiagramGridMetrics.CeilToGrid(
                 Parents.Max(Node => 2 * CrossHalf(Node, Horizontal, Leading: true)) + DiagramGridMetrics.NODE_GAP_PX));
+            var Anchored = Parents.Where(Parent => Visible.Any(Edge => Edge.TargetId == Parent.Id)).ToList();
+            foreach (var Parent in Anchored)
+            {
+                int Offset = Parents.IndexOf(Parent) - Parents.Count / 2;
+                if (Offset != 0) Pitch = Math.Max(Pitch, DiagramGridMetrics.CeilToGrid(
+                    Math.Abs(Cross(Parent, Horizontal, Old: false) - Cross(Target, Horizontal, Old: false)) / Math.Abs(Offset)));
+            }
+            // An upstream chain anchors its parent. Independent inputs may
+            // close around that anchor when it already occupies its fan slot.
+            if (Anchored.Any(Parent => Math.Abs(Cross(Parent, Horizontal, Old: false)
+                    - (Cross(Target, Horizontal, Old: false) + (Parents.IndexOf(Parent) - Parents.Count / 2) * Pitch)) > 0.5)) continue;
             for (int Index = 0; Index < Parents.Count; Index++)
             {
                 SetCross(Parents[Index], (int)Math.Round(Cross(Target, Horizontal, Old: false))
@@ -1589,7 +1565,7 @@ public static class DiagramGridLayout
         }
     }
 
-    private static void SeparateParallelReturnTracks(DiagramContract Contract, FlowchartLayoutResult Layout,
+    internal static void SeparateParallelReturnTracks(DiagramContract Contract, FlowchartLayoutResult Layout,
         Dictionary<string, FlowchartLayoutNodeBounds> Bounds)
     {
         var BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
@@ -1602,17 +1578,21 @@ public static class DiagramGridLayout
             bool Vertical = Group.Key.ExitSide is "left" or "right";
             double Sign = Group.Key.ExitSide is "right" or "top" ? 1 : -1;
             double Across(FlowchartLayoutPoint Point) => Vertical ? Point.X : Point.Y;
-            var Routes = Group.OrderBy(Route => Across(Route.Points[1]) * Sign).ToList();
-            double Track = Across(Routes[0].Points[1]);
+            double Along(FlowchartLayoutPoint Point) => Vertical ? Point.Y : Point.X;
+            double AlongSign = Math.Sign(Along(Group.First().Points[0]) - Along(Group.First().Points[^1]));
+            if (AlongSign == 0) continue;
+            var Routes = Group.OrderBy(Route => Along(Route.Points[0]) * AlongSign).ToList();
+            var Ends = Routes.Select(Route => Route.Points[^1]).OrderByDescending(Point => Along(Point) * AlongSign).ToList();
+            double Track = Group.Min(Route => Across(Route.Points[1]) * Sign) * Sign;
             double PreviousHalf = 0;
-            var Candidates = new List<(FlowchartLayoutEdgeRoute Route, double Track)>();
+            var Candidates = new List<(FlowchartLayoutEdgeRoute Route, double Track, FlowchartLayoutPoint End)>();
             foreach (var Route in Routes)
             {
                 var Edge = Contract.Edges.First(Edge => Edge.Id == Route.EdgeId);
                 var Size = FlowchartNodeSizeEstimator.MeasureWrappedLabel(Edge.Label ?? string.Empty, Options, Options.EdgeLabelFontSizePx);
                 double Half = string.IsNullOrWhiteSpace(Edge.Label) ? 0 : (Vertical ? Size.Width : Size.Height) / 2;
                 if (Route != Routes[0]) Track += Sign * DiagramGridMetrics.CeilToGrid(Math.Max(6, PreviousHalf + Half + 12));
-                Candidates.Add((Route, Track));
+                Candidates.Add((Route, Track, Ends[Candidates.Count]));
                 PreviousHalf = Half;
             }
             bool Clear = Candidates.All(Candidate =>
@@ -1620,7 +1600,15 @@ public static class DiagramGridLayout
                 var Route = Candidate.Route;
                 var Points = Route.Points.Select(Point => (Point.X, Point.Y)).ToList();
                 Points[1] = Vertical ? (Candidate.Track, Points[1].Y) : (Points[1].X, Candidate.Track);
-                Points[2] = Vertical ? (Candidate.Track, Points[2].Y) : (Points[2].X, Candidate.Track);
+                Points[2] = Vertical ? (Candidate.Track, Candidate.End.Y) : (Candidate.End.X, Candidate.Track);
+                Points[3] = (Candidate.End.X, Candidate.End.Y);
+                foreach (var Other in Layout.EdgeRoutes.Where(Other => !Routes.Contains(Other)))
+                {
+                    var Path = Other.Points.Select(Point => (Point.X, Point.Y)).ToList();
+                    var Old = FlowchartBranchRouteOrder.Intersections(Route.Points.Select(Point => (Point.X, Point.Y)).ToList(), Path);
+                    var New = FlowchartBranchRouteOrder.Intersections(Points, Path);
+                    if (New.Crossings > Old.Crossings || New.Overlap > Old.Overlap + 0.01) return false;
+                }
                 foreach (var Frame in Contract.Groups.Where(Frame => IsInsideGroup(Contract, Route.SourceId, Frame.Id)
                     && IsInsideGroup(Contract, Route.TargetId, Frame.Id)))
                     if (Bounds.TryGetValue(Frame.Id, out var Box) && Points.Any(Point =>
@@ -1635,8 +1623,17 @@ public static class DiagramGridLayout
             if (!Clear) continue;
             foreach (var Candidate in Candidates)
             {
-                if (Vertical) Candidate.Route.Points[1].X = Candidate.Route.Points[2].X = Candidate.Track;
-                else Candidate.Route.Points[1].Y = Candidate.Route.Points[2].Y = Candidate.Track;
+                if (Vertical)
+                {
+                    Candidate.Route.Points[1].X = Candidate.Route.Points[2].X = Candidate.Track;
+                    Candidate.Route.Points[2].Y = Candidate.End.Y;
+                }
+                else
+                {
+                    Candidate.Route.Points[1].Y = Candidate.Route.Points[2].Y = Candidate.Track;
+                    Candidate.Route.Points[2].X = Candidate.End.X;
+                }
+                Candidate.Route.Points[3] = new() { X = Candidate.End.X, Y = Candidate.End.Y };
             }
         }
     }
@@ -1868,12 +1865,83 @@ public static class DiagramGridLayout
         }
     }
 
+    private static void CompactOverlappingRootGroups(DiagramContract Contract, List<GridNode> Placed,
+        List<GridFrame> Frames, bool Horizontal)
+    {
+        BuildFrames(Contract, Placed, Frames);
+        var Roots = Frames.Where(Frame => ParentGroup(Contract, Frame.Id) == null).ToList();
+        bool Overlapping = Roots.Any(First => Roots.Any(Second => First != Second
+            && First.Left < Second.Right && First.Right > Second.Left
+            && First.Top < Second.Bottom && First.Bottom > Second.Top));
+        if (!Overlapping) return;
+
+        // Global ranks can scatter a container's members between other containers.
+        // Close those empty strips locally, then move each container as one unit.
+        foreach (var Root in Roots)
+        {
+            var Members = Placed.Where(Node => IsInsideGroup(Contract, Node.Id, Root.Id)).ToList();
+            var Local = new DiagramContract { Kind = Contract.Kind, Header = Contract.Header,
+                Direction = Contract.Direction, LayoutMode = Contract.LayoutMode };
+            var Ids = Members.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
+            Local.NodesMutable.AddRange(Contract.Nodes.Where(Node => Ids.Contains(Node.Id)));
+            Local.GroupsMutable.AddRange(Contract.Groups.Where(Group => Group.Id == Root.Id
+                || Members.Any(Node => IsInsideGroup(Contract, Node.Id, Group.Id))
+                    && IsInsideGroup(Contract, Group.Id, Root.Id)));
+            var Endpoints = Ids.Concat(Local.Groups.Select(Group => Group.Id)).ToHashSet(StringComparer.Ordinal);
+            Local.EdgesMutable.AddRange(Contract.Edges.Where(Edge => Endpoints.Contains(Edge.SourceId)
+                && Endpoints.Contains(Edge.TargetId)));
+            if (FlowchartDagrePlacement.TryPlace(Local, out var LocalRaw))
+            {
+                var LocalLayout = Apply(Local, LocalRaw);
+                foreach (var Bounds in LocalLayout.NodeBounds)
+                {
+                    var Member = Members.Find(Node => Node.Id == Bounds.NodeId)!;
+                    Member.X = Bounds.CenterX;
+                    Member.Y = -Bounds.CenterY;
+                }
+            }
+            FlowchartGridCompaction.Apply(Members, Horizontal, 2 * DiagramGridMetrics.GRID_UNIT_PX);
+            FlowchartGridCompaction.Apply(Members, !Horizontal, 2 * DiagramGridMetrics.GRID_UNIT_PX);
+            foreach (var Member in Members) { Member.OldX = Member.X; Member.OldY = Member.Y; }
+            AssignRanks(Members, Horizontal);
+            SeparateOverlaps(Members, Horizontal);
+            FitFrames(Contract, Members, new List<GridFrame>(), Horizontal);
+        }
+        Frames.Clear();
+        BuildFrames(Contract, Placed, Frames);
+        Roots = Contract.Groups.Where(Group => Group.ParentGroupId == null)
+            .Select(Group => Frames.Find(Frame => Frame.Id == Group.Id)).Where(Frame => Frame != null)
+            .Cast<GridFrame>().ToList();
+        foreach (var Node in Placed.Where(Node => Node.GroupId == null))
+        {
+            var Neighbour = Roots.Select(Frame => (Frame, Links: Contract.Edges.Count(Edge =>
+                Edge.SourceId == Node.Id && IsInsideGroup(Contract, Edge.TargetId, Frame.Id)
+                || Edge.TargetId == Node.Id && IsInsideGroup(Contract, Edge.SourceId, Frame.Id))))
+                .OrderByDescending(Item => Item.Links).FirstOrDefault();
+            var Unit = new GridFrame { Id = Node.Id,
+                Left = (int)Math.Floor(Node.X - Node.Width / 2.0),
+                Right = (int)Math.Ceiling(Node.X + Node.Width / 2.0),
+                Top = (int)Math.Floor(Node.Y - Node.Height / 2.0),
+                Bottom = (int)Math.Ceiling(Node.Y + Node.Height / 2.0) };
+            if (Neighbour.Links > 0) Roots.Insert(Roots.IndexOf(Neighbour.Frame) + 1, Unit);
+            else Roots.Add(Unit);
+        }
+        FlowchartContainerPacking.Apply(Contract, Roots.Select(Root => new FlowchartContainerPacking.Unit(Root,
+            Placed.Where(Node => Node.Id == Root.Id || IsInsideGroup(Contract, Node.Id, Root.Id)).ToList())).ToList());
+        foreach (var Node in Placed) { Node.OldX = Node.X; Node.OldY = Node.Y; }
+        AssignRanks(Placed, Horizontal);
+        Frames.Clear();
+    }
+
     private static void FitFrames(DiagramContract Contract, List<GridNode> Placed, List<GridFrame> Frames, bool Horizontal)
     {
         for (int Pass = 0; Pass < MAX_SEPARATION_PASSES; Pass++)
         {
             Frames.Clear();
             BuildFrames(Contract, Placed, Frames);
+            // Keep sibling containers intact before clearing individual outsiders.
+            // Evicting their members first can stretch both frames repeatedly.
+            if (SeparateSiblingFrames(Contract, Placed, Frames, Horizontal)) continue;
             bool Moved = false;
             foreach (GridFrame Frame in Frames)
             {

@@ -7,6 +7,9 @@ namespace MermaidRecognition.Contract;
 /// </summary>
 public sealed class DiagramContract
 {
+    /// <summary>Gets or sets placement mode; connector rules are independent of this choice.</summary>
+    public MermaidRecognition.Config.DiagramLayoutMode LayoutMode { get; set; }
+
     private string? _SourceHash;
 
     public string? SourceHash

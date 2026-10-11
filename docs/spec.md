@@ -11,6 +11,12 @@
 
 ## 1. Finding
 
+### Native placement setting
+
+Enterprise and flowchart diagrams accept `config.layout: grid` or `config.layout: open` in diagram frontmatter. The default is `grid`. An unknown value emits one warning and falls back to `grid`. The command-line option `--layout grid|open` sets the run default; explicit diagram configuration takes precedence.
+
+Grid mode uses one shared placement grid. Open mode skips shared-grid placement only. Both modes retain the same routing, ports, straight runs, rounded corners and crossing rules, and prevent boxes and unrelated group frames from overlapping.
+
 `flow.md` is a useful regression catalogue, but it is not a recognition strategy.
 
 It names examples (`F01` to `F60`) and groups them by topic. That is good for humans checking regressions. It is bad as an implementation basis because it tempts the renderer to recognise examples by scenario shape:
