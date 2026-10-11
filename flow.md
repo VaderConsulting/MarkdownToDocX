@@ -2027,7 +2027,7 @@ C --> D
 
 ### F151 - Wrap stress: one row of 160 nodes
 
-Stress test of rule 2.12 (wrapping) in `docs/Instructions/LAYOUT-RULEBOOK.md`. A single chain of 160 nodes, numbered 1 to 160, in left-to-right flow, so it is one very wide row. Expected once wrapping exists: the row is wrapped into rows, each new row directly under the previous one, with one joining line from the far right of each row to the top of the first node of the next row. The diagram is close to square, with no crossings and no failure because of size.
+Stress test of rule 2.12 (wrapping) in `docs/Instructions/LAYOUT-RULEBOOK.md`. A single chain of 160 nodes, numbered 1 to 160, in left-to-right flow, so it is one very wide row. Expected once wrapping exists: the row is wrapped into rows, each new row directly under the previous one, with one joining line from the far right of each row to the top of the first node of the next row. The diagram is as close to a 4:3 landscape shape (width 4 parts to height 3 parts) as possible, without adding a crossing, with no overlaps and no failure because of size.
 
 ```mermaid
 flowchart LR
@@ -2355,7 +2355,7 @@ n159 --> n160
 
 ### F152 - Wrap stress: one column of 160 nodes
 
-Stress test of rule 2.12 (wrapping) in `docs/Instructions/LAYOUT-RULEBOOK.md`. A single chain of 160 nodes, numbered 1 to 160, in top-to-bottom flow, so it is one very deep column. Expected once wrapping exists: the column is wrapped into columns, each new column directly to the right of the previous one, with one joining line from the right side of the bottom node to the left side of the first node of the next column. The diagram is close to square, with no crossings and no failure because of size.
+Stress test of rule 2.12 (wrapping) in `docs/Instructions/LAYOUT-RULEBOOK.md`. A single chain of 160 nodes, numbered 1 to 160, in top-to-bottom flow, so it is one very deep column. Expected once wrapping exists: the column is wrapped into columns, each new column directly to the right of the previous one, with one joining line from the right side of the bottom node to the left side of the first node of the next column. The diagram is as close to a 4:3 landscape shape (width 4 parts to height 3 parts) as possible, without adding a crossing, with no overlaps and no failure because of size.
 
 ```mermaid
 flowchart TD
@@ -2683,7 +2683,7 @@ n159 --> n160
 
 ### F153 - Wrap and compaction stress: mixed 160 nodes
 
-Stress test of rules 2.11 (compaction) and 2.12 (wrapping) in `docs/Instructions/LAYOUT-RULEBOOK.md`. 160 nodes numbered 1 to 160: a 30-way fan-out (a long row), two long chains (long columns), one three-way decision that merges again, a few cross links, and two unconnected chains (106 to 130 and 131 to 160). Expected once both rules exist: both wrapping directions are used, compaction repeats until nothing changes, unconnected parts sit side by side, there are no overlaps, no new crossings, and nothing is larger than before.
+Stress test of rules 2.11 (compaction) and 2.12 (wrapping) in `docs/Instructions/LAYOUT-RULEBOOK.md`. 160 nodes numbered 1 to 160: a 30-way fan-out (a long row), two long chains (long columns), one three-way decision that merges again, a few cross links, and two unconnected chains (106 to 130 and 131 to 160). Expected once both rules exist: both wrapping directions are used, compaction repeats until nothing changes, unconnected parts sit side by side, the diagram is as close to a 4:3 landscape shape (width 4 parts to height 3 parts) as possible, the diagram is as close to a 4:3 landscape shape (width 4 parts to height 3 parts) as possible, without adding a crossing, the diagram is as close to a 4:3 landscape shape (width 4 parts to height 3 parts) as possible, without adding a crossing, there are no overlaps, no new crossings, and nothing is larger than before.
 
 ```mermaid
 flowchart TD
