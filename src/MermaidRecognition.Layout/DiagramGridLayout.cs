@@ -178,6 +178,10 @@ public static class DiagramGridLayout
             FlowchartWrappedChainRoutes.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
         if (!Open)
             FlowchartWrappedFanRoutes.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
+        if (!Open)
+            FlowchartAlignedRouteStraightener.Apply(Copy, BuildPlacedBounds(Placed, Frames));
+        if (!Open)
+            FlowchartTwoCornerRouteRepair.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
         WriteBack(Copy, Placed, Frames);
         return Copy;
     }

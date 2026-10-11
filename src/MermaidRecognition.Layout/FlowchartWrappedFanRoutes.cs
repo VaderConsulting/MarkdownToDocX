@@ -29,18 +29,21 @@ internal static class FlowchartWrappedFanRoutes
                 .Select(Edge => Bounds[Edge.SourceId]).Distinct().ToList();
             bool FanOut = Out.Count >= MinimumFan && In.Count < MinimumFan;
             List<FlowchartLayoutNodeBounds> Leaves = FanOut ? Out : In;
-            if (Leaves.Count < MinimumFan || !SimpleComponent(Hub, Leaves, Visible)) continue;
+            if (Leaves.Count < MinimumFan) continue;
 
             double Main(FlowchartLayoutNodeBounds Box) => Horizontal ? Box.CenterX : Box.CenterY;
             double Cross(FlowchartLayoutNodeBounds Box) => Horizontal ? Box.CenterY : Box.CenterX;
             double MainHalf(FlowchartLayoutNodeBounds Box) => (Horizontal ? Box.Width : Box.Height) / 2.0;
             double CrossHalf(FlowchartLayoutNodeBounds Box) => (Horizontal ? Box.Height : Box.Width) / 2.0;
             List<IGrouping<double, FlowchartLayoutNodeBounds>> Ranks = Leaves
-                .GroupBy(Box => Main(Box)).OrderBy(Group => Math.Abs(Group.Key - Main(Hub))).ToList();
+                .Where(Box => Math.Abs(Main(Box) - Main(Hub)) > 0.5)
+                .GroupBy(Box => Main(Box)).Where(Group => Group.Count() > 1)
+                .OrderBy(Group => Math.Abs(Group.Key - Main(Hub))).ToList();
             if (Ranks.Count < 2) continue;
             double Sign = Math.Sign(Ranks[0].Key - Main(Hub));
             if (Sign == 0.0) continue;
-            var Columns = Leaves.GroupBy(Box => Cross(Box)).OrderBy(Group => Group.Key).ToList();
+            var WrappedLeaves = Ranks.SelectMany(Group => Group).ToList();
+            var Columns = WrappedLeaves.GroupBy(Box => Cross(Box)).OrderBy(Group => Group.Key).ToList();
             if (Columns.Count < 2) continue;
             var Gaps = new List<(double Low, double High, int Used, List<FlowchartLayoutNodeBounds> Leaves)>();
             for (int Index = 0; Index < Columns.Count - 1; Index++)
@@ -51,6 +54,21 @@ internal static class FlowchartWrappedFanRoutes
                     Gaps.Add((Low, High, 0, []));
             }
             if (Gaps.Count == 0) continue;
+            var Candidates = new Dictionary<FlowchartLayoutEdgeRoute, Candidate>();
+
+            foreach (FlowchartLayoutNodeBounds Leaf in Ranks[0].OrderBy(Cross))
+            {
+                FlowchartLayoutEdgeRoute? Route = FindRoute(Layout, Hub, Leaf, FanOut);
+                if (Route == null) continue;
+                double HubSide = Main(Hub) + Sign * MainHalf(Hub);
+                double LeafSide = Main(Leaf) - Sign * MainHalf(Leaf);
+                var Points = new List<FlowchartLayoutPoint>
+                {
+                    Point(HubSide, Cross(Leaf), Horizontal), Point(LeafSide, Cross(Leaf), Horizontal)
+                };
+                AddCandidate(Candidates, Route, Points, FanOut,
+                    MainSide(Horizontal, Sign), MainSide(Horizontal, -Sign));
+            }
 
             List<FlowchartLayoutNodeBounds> Inner = Ranks.Skip(1).SelectMany(Group => Group)
                 .OrderBy(Box => Math.Abs(Main(Box) - Main(Hub))).ThenBy(Cross).ToList();
@@ -58,8 +76,8 @@ internal static class FlowchartWrappedFanRoutes
             {
                 var Choices = Gaps.Select((Gap, Index) => (Gap, Index))
                     .Where(Item => Item.Gap.High <= Cross(Leaf) + 0.5 || Item.Gap.Low >= Cross(Leaf) - 0.5)
-                    .OrderBy(Item => Item.Gap.Leaves.Count)
-                    .ThenBy(Item => Distance(Item.Gap, Cross(Leaf))).ThenBy(Item => Item.Index).ToList();
+                    .OrderBy(Item => Distance(Item.Gap, Cross(Leaf)))
+                    .ThenBy(Item => Item.Gap.Leaves.Count).ThenBy(Item => Item.Index).ToList();
                 if (Choices.Count == 0) continue;
                 int Choice = Choices[0].Index;
                 Gaps[Choice].Leaves.Add(Leaf);
@@ -77,9 +95,7 @@ internal static class FlowchartWrappedFanRoutes
                     FlowchartLayoutNodeBounds Leaf = Ordered[Index];
                     double Track = Gap.Low + Offsets[Index];
                     if (Track <= HubCrossLow + 0.5 || Track >= HubCrossHigh - 0.5) continue;
-                    FlowchartLayoutEdgeRoute? Route = Layout.EdgeRoutes.FirstOrDefault(Edge => FanOut
-                        ? Edge.SourceId == Hub.NodeId && Edge.TargetId == Leaf.NodeId
-                        : Edge.SourceId == Leaf.NodeId && Edge.TargetId == Hub.NodeId);
+                    FlowchartLayoutEdgeRoute? Route = FindRoute(Layout, Hub, Leaf, FanOut);
                     if (Route == null) continue;
                     double HubSide = Main(Hub) + Sign * MainHalf(Hub);
                     double LeafSide = Cross(Leaf) + Math.Sign(Track - Cross(Leaf)) * CrossHalf(Leaf);
@@ -91,35 +107,82 @@ internal static class FlowchartWrappedFanRoutes
                     };
                     string HubSideName = MainSide(Horizontal, Sign);
                     string LeafSideName = CrossSide(Horizontal, Math.Sign(Track - Cross(Leaf)));
-                    Route.Points.Clear();
-                    if (FanOut)
-                    {
-                        Route.Points.AddRange(Points);
-                        Route.ExitSide = HubSideName;
-                        Route.EntrySide = LeafSideName;
-                    }
-                    else
-                    {
-                        Points.Reverse();
-                        Route.Points.AddRange(Points);
-                        Route.ExitSide = LeafSideName;
-                        Route.EntrySide = HubSideName;
-                    }
+                    AddCandidate(Candidates, Route, Points, FanOut, HubSideName, LeafSideName);
                 }
             }
+            TryReplaceFan(Layout, Bounds, Candidates);
         }
-    }
-
-    private static bool SimpleComponent(FlowchartLayoutNodeBounds Hub,
-        IReadOnlyCollection<FlowchartLayoutNodeBounds> Leaves, IReadOnlyCollection<EdgeContract> Edges)
-    {
-        var Ids = Leaves.Select(Node => Node.NodeId).Append(Hub.NodeId).ToHashSet(StringComparer.Ordinal);
-        return Edges.All(Edge => Ids.Contains(Edge.SourceId) == Ids.Contains(Edge.TargetId))
-            && Leaves.All(Leaf => Edges.Count(Edge => Edge.SourceId == Leaf.NodeId || Edge.TargetId == Leaf.NodeId) == 1);
     }
 
     private static double Distance((double Low, double High, int Used, List<FlowchartLayoutNodeBounds> Leaves) Gap,
         double Cross) => Cross < Gap.Low ? Gap.Low - Cross : Cross > Gap.High ? Cross - Gap.High : 0.0;
+
+    private static FlowchartLayoutEdgeRoute? FindRoute(FlowchartLayoutResult Layout,
+        FlowchartLayoutNodeBounds Hub, FlowchartLayoutNodeBounds Leaf, bool FanOut) =>
+        Layout.EdgeRoutes.FirstOrDefault(Edge => FanOut
+            ? Edge.SourceId == Hub.NodeId && Edge.TargetId == Leaf.NodeId
+            : Edge.SourceId == Leaf.NodeId && Edge.TargetId == Hub.NodeId);
+
+    private sealed record Candidate(List<FlowchartLayoutPoint> Points, string ExitSide, string EntrySide);
+
+    private static void AddCandidate(IDictionary<FlowchartLayoutEdgeRoute, Candidate> Candidates,
+        FlowchartLayoutEdgeRoute Route, List<FlowchartLayoutPoint> Points, bool FanOut,
+        string HubSide, string LeafSide)
+    {
+        if (!FanOut) Points.Reverse();
+        Candidates[Route] = new(Points, FanOut ? HubSide : LeafSide, FanOut ? LeafSide : HubSide);
+    }
+
+    private static void TryReplaceFan(FlowchartLayoutResult Layout,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds,
+        IReadOnlyDictionary<FlowchartLayoutEdgeRoute, Candidate> Candidates)
+    {
+        if (Candidates.Count == 0 || Candidates.Any(Item => HitsBox(Item.Value.Points, Item.Key, Bounds))) return;
+        int BeforeCrossings = 0, AfterCrossings = 0;
+        double BeforeOverlap = 0.0, AfterOverlap = 0.0;
+        for (int First = 0; First < Layout.EdgeRoutes.Count; First++)
+        for (int Second = First + 1; Second < Layout.EdgeRoutes.Count; Second++)
+        {
+            FlowchartLayoutEdgeRoute A = Layout.EdgeRoutes[First], B = Layout.EdgeRoutes[Second];
+            var Before = FlowchartBranchRouteOrder.Intersections(Tuples(A.Points), Tuples(B.Points));
+            var After = FlowchartBranchRouteOrder.Intersections(
+                Tuples(Candidates.TryGetValue(A, out Candidate? NewA) ? NewA.Points : A.Points),
+                Tuples(Candidates.TryGetValue(B, out Candidate? NewB) ? NewB.Points : B.Points));
+            BeforeCrossings += Before.Crossings; AfterCrossings += After.Crossings;
+            BeforeOverlap += Before.Overlap; AfterOverlap += After.Overlap;
+        }
+        if (AfterCrossings > BeforeCrossings || AfterOverlap > BeforeOverlap + 0.01) return;
+        foreach ((FlowchartLayoutEdgeRoute Route, Candidate Candidate) in Candidates)
+        {
+            Route.Points.Clear();
+            Route.Points.AddRange(Candidate.Points);
+            Route.ExitSide = Candidate.ExitSide;
+            Route.EntrySide = Candidate.EntrySide;
+        }
+    }
+
+    private static bool HitsBox(IReadOnlyList<FlowchartLayoutPoint> Points, FlowchartLayoutEdgeRoute Route,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds)
+    {
+        foreach (FlowchartLayoutNodeBounds Box in Bounds.Values)
+        {
+            if (Box.NodeId == Route.SourceId || Box.NodeId == Route.TargetId) continue;
+            double Left = Box.CenterX - Box.Width / 2.0, Right = Box.CenterX + Box.Width / 2.0;
+            double Bottom = Box.CenterY - Box.Height / 2.0, Top = Box.CenterY + Box.Height / 2.0;
+            for (int Index = 1; Index < Points.Count; Index++)
+            {
+                FlowchartLayoutPoint A = Points[Index - 1], B = Points[Index];
+                if (Math.Abs(A.X - B.X) < 0.5 && A.X > Left && A.X < Right
+                    && Math.Max(Math.Min(A.Y, B.Y), Bottom) < Math.Min(Math.Max(A.Y, B.Y), Top)) return true;
+                if (Math.Abs(A.Y - B.Y) < 0.5 && A.Y > Bottom && A.Y < Top
+                    && Math.Max(Math.Min(A.X, B.X), Left) < Math.Min(Math.Max(A.X, B.X), Right)) return true;
+            }
+        }
+        return false;
+    }
+
+    private static List<(double X, double Y)> Tuples(IEnumerable<FlowchartLayoutPoint> Points) =>
+        Points.Select(Point => (Point.X, Point.Y)).ToList();
 
     private static FlowchartLayoutPoint Point(double Main, double Cross, bool Horizontal) => Horizontal
         ? new FlowchartLayoutPoint { X = Main, Y = Cross }
@@ -132,4 +195,5 @@ internal static class FlowchartWrappedFanRoutes
     private static string CrossSide(bool Horizontal, double Sign) => Horizontal
         ? Sign > 0 ? "top" : "bottom"
         : Sign > 0 ? "right" : "left";
+
 }

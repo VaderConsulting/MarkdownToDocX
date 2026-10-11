@@ -23,8 +23,6 @@ internal static class FlowchartWrappedChainRoutes
         {
             if (!Bounds.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds? Source)
                 || !Bounds.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds? Target)) continue;
-            if (Visible.Count(Edge => Edge.SourceId == Source.NodeId) != 1
-                || Visible.Count(Edge => Edge.TargetId == Target.NodeId) != 1) continue;
             double MainSource = Horizontal ? Source.CenterX : Source.CenterY;
             double MainTarget = Horizontal ? Target.CenterX : Target.CenterY;
             double CrossSource = Horizontal ? Source.CenterY : Source.CenterX;
@@ -46,12 +44,31 @@ internal static class FlowchartWrappedChainRoutes
                 Point(MainTarget, TargetSide, Horizontal)
             };
             if (HitsOtherNode(Candidate, Source.NodeId, Target.NodeId, Bounds)) continue;
+            if (!NoWorse(Candidate, Route, Layout)) continue;
             Route.Points.Clear();
             Route.Points.AddRange(Candidate);
             Route.ExitSide = CrossSide(Horizontal, Sign);
             Route.EntrySide = CrossSide(Horizontal, -Sign);
         }
     }
+
+    private static bool NoWorse(IReadOnlyList<FlowchartLayoutPoint> Candidate,
+        FlowchartLayoutEdgeRoute Route, FlowchartLayoutResult Layout)
+    {
+        int BeforeCrossings = 0, AfterCrossings = 0;
+        double BeforeOverlap = 0.0, AfterOverlap = 0.0;
+        foreach (FlowchartLayoutEdgeRoute Other in Layout.EdgeRoutes.Where(Other => Other != Route))
+        {
+            var Before = FlowchartBranchRouteOrder.Intersections(Tuples(Route.Points), Tuples(Other.Points));
+            var After = FlowchartBranchRouteOrder.Intersections(Tuples(Candidate), Tuples(Other.Points));
+            BeforeCrossings += Before.Crossings; AfterCrossings += After.Crossings;
+            BeforeOverlap += Before.Overlap; AfterOverlap += After.Overlap;
+        }
+        return AfterCrossings <= BeforeCrossings && AfterOverlap <= BeforeOverlap + 0.01;
+    }
+
+    private static List<(double X, double Y)> Tuples(IEnumerable<FlowchartLayoutPoint> Points) =>
+        Points.Select(Point => (Point.X, Point.Y)).ToList();
 
     private static bool HitsOtherNode(IReadOnlyList<FlowchartLayoutPoint> Points, string SourceId, string TargetId,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds)

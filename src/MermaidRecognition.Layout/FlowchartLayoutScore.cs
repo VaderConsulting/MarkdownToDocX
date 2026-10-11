@@ -20,10 +20,31 @@ internal static class FlowchartLayoutScore
         int Overlaps = Violations.Count(Failure => Failure.Kind == "NodeOverlap");
         int Crossings = CountCrossings(Layout);
         double EmptyShare = EmptyAreaShare(Layout, Width, Height);
-        bool Rejected = Overlaps > 0 || Violations.Any(Failure => Failure.Kind != "NodeOverlap"
-            && Failure.Kind != "ArrangementKept");
+        var Back = FlowchartBackEdgeHelper.FindBackEdges(Contract)
+            .Select(Edge => (Edge.SourceId, Edge.TargetId)).ToHashSet();
+        bool Rejected = Overlaps > 0 || Violations.Any(Failure => Rejects(Failure, Layout, Back));
         double? Score = Rejected ? null : Calculate(Width, Height, Crossings, EmptyShare);
         return new(Width, Height, Overlaps, Crossings, EmptyShare, Score, Violations);
+    }
+
+    private static bool Rejects(FlowchartLayoutQualityFailure Failure, FlowchartLayoutResult Layout,
+        IReadOnlySet<(string SourceId, string TargetId)> Back)
+    {
+        if (Failure.Kind is "NodeOverlap" or "ArrangementKept") return false;
+        if (Failure.Kind != "LineShape" || !Failure.Description.Contains("more than two corners", StringComparison.Ordinal)
+            || Failure.InvolvedIds.Count < 2
+            || !Back.Contains((Failure.InvolvedIds[0], Failure.InvolvedIds[1]))) return true;
+        FlowchartLayoutEdgeRoute? Route = Layout.EdgeRoutes.FirstOrDefault(Edge =>
+            Edge.SourceId == Failure.InvolvedIds[0] && Edge.TargetId == Failure.InvolvedIds[1]);
+        if (Route == null) return true;
+        int Corners = 0;
+        for (int Index = 1; Index < Route.Points.Count - 1; Index++)
+        {
+            bool BeforeHorizontal = Math.Abs(Route.Points[Index].Y - Route.Points[Index - 1].Y) < 0.5;
+            bool AfterHorizontal = Math.Abs(Route.Points[Index + 1].Y - Route.Points[Index].Y) < 0.5;
+            if (BeforeHorizontal != AfterHorizontal) Corners++;
+        }
+        return Corners > 3;
     }
 
     internal static double Calculate(double Width, double Height, int Crossings, double EmptyShare)

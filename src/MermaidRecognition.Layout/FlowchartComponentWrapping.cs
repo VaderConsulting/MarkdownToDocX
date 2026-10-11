@@ -68,6 +68,8 @@ internal static class FlowchartComponentWrapping
         double FanLeft = NextX;
         Root.X = FanLeft + ((Best.FanColumns - 1) / 2.0) * ColumnPitch;
         Root.Y = Top - NodeHeight / 2.0;
+        Root.Width = Math.Max(Root.Width,
+            Best.FanColumns * NodeWidth + Math.Max(0, Best.FanColumns - 1) * (ColumnPitch - NodeWidth));
         for (int Index = 0; Index < FanGrid.Count; Index++)
         {
             FanGrid[Index].X = FanLeft + (Index % Best.FanColumns) * ColumnPitch;
@@ -124,8 +126,10 @@ internal static class FlowchartComponentWrapping
         var Candidates = new List<(Plan Plan, double Distance, int Alignment, int EndBalance)>();
         var TailIndex = Tail.Select((Node, Index) => (Node.Id, Index)).ToDictionary(Item => Item.Id, Item => Item.Index, StringComparer.Ordinal);
         int Maximum = Math.Max(Tail.Count, Components.Where(Component => Component != Main).DefaultIfEmpty([]).Max(Component => Component.Count));
+        int MinimumFanColumns = Math.Max(Math.Min(FanCount, FlowchartWrapPlan.MinimumRun),
+            DivideRoundUp(FanCount, DiagramGridMetrics.TRACKS_PER_GAP + 1));
         for (int Run = FlowchartWrapPlan.MinimumRun; Run <= Maximum; Run++)
-        for (int FanColumns = Math.Min(FanCount, FlowchartWrapPlan.MinimumRun); FanColumns <= Math.Max(1, FanCount); FanColumns++)
+        for (int FanColumns = MinimumFanColumns; FanColumns <= Math.Max(1, FanCount); FanColumns++)
         for (int Offset = 0; Offset < Run; Offset++)
         {
             int PackedColumns = FanColumns + 1 + DivideRoundUp(Tail.Count + Offset, Run) + RelationalLeafCount;
