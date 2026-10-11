@@ -18,8 +18,6 @@ internal static class FlowchartContainerPacking
     internal static void Apply(DiagramContract Contract, List<Unit> Units)
     {
         int Gap = 3 * DiagramGridMetrics.GRID_UNIT_PX;
-        int RowWidth = DiagramGridMetrics.CeilToGrid(Math.Sqrt(Units.Sum(Unit =>
-            (double)(Unit.Frame.Right - Unit.Frame.Left + Gap) * (Unit.Frame.Bottom - Unit.Frame.Top + Gap))));
         var Owner = new Dictionary<string, int>(StringComparer.Ordinal);
         var Offsets = new Dictionary<string, Position>(StringComparer.Ordinal);
         for (int Index = 0; Index < Units.Count; Index++)
@@ -45,22 +43,82 @@ internal static class FlowchartContainerPacking
 
         Position[] Place(int[] Order)
         {
-            var Positions = new Position[Units.Count];
-            int X = 0, Y = 0, RowHeight = 0;
+            var Candidates = new List<(Position[] Positions, double Distance, double Area, int Crossings)>();
+            var CandidateWidths = new HashSet<int>();
+            int OriginalRowWidth = DiagramGridMetrics.CeilToGrid(Math.Sqrt(Units.Sum(Unit =>
+                (double)(Unit.Frame.Right - Unit.Frame.Left + Gap) * (Unit.Frame.Bottom - Unit.Frame.Top + Gap))));
+            CandidateWidths.Add(OriginalRowWidth);
+            int RunningWidth = 0;
             foreach (int Index in Order)
             {
                 var Frame = Units[Index].Frame;
                 int Width = DiagramGridMetrics.CeilToGrid(Frame.Right - Frame.Left);
-                int Height = DiagramGridMetrics.CeilToGrid(Frame.Bottom - Frame.Top);
-                if (X > 0 && X + Width > RowWidth)
-                {
-                    X = 0; Y += RowHeight + Gap; RowHeight = 0;
-                }
-                Positions[Index] = new(X, Y);
-                X += Width + Gap;
-                RowHeight = Math.Max(RowHeight, Height);
+                RunningWidth += (RunningWidth == 0 ? 0 : Gap) + Width;
+                CandidateWidths.Add(RunningWidth);
+                CandidateWidths.Add(Width);
             }
-            return Positions;
+            if (Contract.Groups.Count(Group => string.IsNullOrEmpty(Group.ParentGroupId)) < FlowchartWrapPlan.MinimumRun)
+            {
+                CandidateWidths.Clear();
+                CandidateWidths.Add(OriginalRowWidth);
+            }
+            foreach (int RowWidth in CandidateWidths.OrderBy(Value => Value))
+            {
+                var Positions = new Position[Units.Count];
+                int X = 0, Y = 0, RowHeight = 0, UsedWidth = 0;
+                foreach (int Index in Order)
+                {
+                    var Frame = Units[Index].Frame;
+                    int Width = DiagramGridMetrics.CeilToGrid(Frame.Right - Frame.Left);
+                    int Height = DiagramGridMetrics.CeilToGrid(Frame.Bottom - Frame.Top);
+                    if (X > 0 && X + Width > RowWidth)
+                    {
+                        X = 0; Y += RowHeight + Gap; RowHeight = 0;
+                    }
+                    Positions[Index] = new(X, Y);
+                    X += Width + Gap;
+                    UsedWidth = Math.Max(UsedWidth, X - Gap);
+                    RowHeight = Math.Max(RowHeight, Height);
+                }
+                int UsedHeight = Y + RowHeight;
+                double Distance = Math.Abs(Math.Log((UsedWidth / (double)Math.Max(1, UsedHeight)) / (4.0 / 3.0)));
+                double Area = UsedWidth * (double)UsedHeight;
+                Candidates.Add((Positions, Distance, Area, EstimatedCrossings(Positions)));
+            }
+            double Closest = Candidates.Min(Candidate => Candidate.Distance);
+            return Candidates.Where(Candidate => Candidate.Distance <= Closest + 0.10)
+                .OrderBy(Candidate => Candidate.Crossings)
+                .ThenBy(Candidate => Candidate.Distance)
+                .ThenBy(Candidate => Candidate.Area)
+                .First().Positions;
+        }
+
+        int EstimatedCrossings(Position[] Positions)
+        {
+            var Runs = new List<(Position A, Position B, Link Link)>();
+            foreach (var Link in Links)
+            {
+                var A = new Position(Positions[Link.Source].X + Link.SourceOffset.X,
+                    Positions[Link.Source].Y + Link.SourceOffset.Y);
+                var B = new Position(Positions[Link.Target].X + Link.TargetOffset.X,
+                    Positions[Link.Target].Y + Link.TargetOffset.Y);
+                var FirstBend = Horizontal ? new Position((A.X + B.X) / 2, A.Y) : new Position(A.X, (A.Y + B.Y) / 2);
+                var SecondBend = Horizontal ? new Position(FirstBend.X, B.Y) : new Position(B.X, FirstBend.Y);
+                Runs.Add((A, FirstBend, Link)); Runs.Add((FirstBend, SecondBend, Link)); Runs.Add((SecondBend, B, Link));
+            }
+            int Result = 0;
+            for (int First = 0; First < Runs.Count; First++)
+            for (int Second = First + 1; Second < Runs.Count; Second++)
+            {
+                var A = Runs[First]; var B = Runs[Second];
+                if (A.Link == B.Link || A.Link.SourceId == B.Link.SourceId || A.Link.TargetId == B.Link.TargetId) continue;
+                bool AH = A.A.Y == A.B.Y, BH = B.A.Y == B.B.Y;
+                if (AH == BH) continue;
+                var H = AH ? A : B; var V = AH ? B : A;
+                if (V.A.X > Math.Min(H.A.X, H.B.X) && V.A.X < Math.Max(H.A.X, H.B.X)
+                    && H.A.Y > Math.Min(V.A.Y, V.B.Y) && H.A.Y < Math.Max(V.A.Y, V.B.Y)) Result++;
+            }
+            return Result;
         }
 
         double Cost(Position[] Positions)
@@ -90,7 +148,7 @@ internal static class FlowchartContainerPacking
                 var H = AH ? A : B; var V = AH ? B : A;
                 if (V.A.X > Math.Min(H.A.X, H.B.X) && V.A.X < Math.Max(H.A.X, H.B.X)
                     && H.A.Y > Math.Min(V.A.Y, V.B.Y) && H.A.Y < Math.Max(V.A.Y, V.B.Y))
-                    Result += 10 * Gap;
+                    Result += 1000000 * Gap;
             }
             return Result;
         }

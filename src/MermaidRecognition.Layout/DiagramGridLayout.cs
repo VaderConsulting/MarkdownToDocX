@@ -70,6 +70,7 @@ public static class DiagramGridLayout
         AssignColumns(Placed, Horizontal, CrossPitch);
         var PartnerRanks = new List<FlowchartPartnerRankLayout.Partners>();
         var SharedFanSources = new HashSet<string>(StringComparer.Ordinal);
+        bool RepairExteriorCrossings = false;
         if (!Open)
         {
             ResolveVerticalChordBlockers(Contract, Placed);
@@ -126,6 +127,7 @@ public static class DiagramGridLayout
             FlowchartJunctionBranchCompaction.Apply(Contract, Placed, Horizontal);
             FlowchartTerminalRowPlacement.Apply(Contract, Placed, Horizontal);
             FlowchartChainWrapping.Apply(Contract, Placed, Horizontal);
+            RepairExteriorCrossings = FlowchartComponentWrapping.Apply(Contract, Placed, Horizontal);
         }
         List<GridFrame> Frames = new List<GridFrame>();
         if (!Open) CenterLoneNestedGroups(Contract, Placed, Horizontal);
@@ -168,6 +170,8 @@ public static class DiagramGridLayout
         FlowchartCrossGroupRouteSimplifier.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
         FlowchartAlignedCounterflowRoutes.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
         FlowchartTerminalFanBypass.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
+        if (RepairExteriorCrossings)
+            FlowchartExteriorCrossingRepair.Apply(Copy, BuildPlacedBounds(Placed, Frames));
         WriteBack(Copy, Placed, Frames);
         return Copy;
     }
