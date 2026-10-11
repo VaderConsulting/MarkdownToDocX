@@ -137,7 +137,9 @@ internal static class FlowchartWrappedFanRoutes
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds,
         IReadOnlyDictionary<FlowchartLayoutEdgeRoute, Candidate> Candidates)
     {
-        if (Candidates.Count == 0 || Candidates.Any(Item => HitsBox(Item.Value.Points, Item.Key, Bounds))) return;
+        var Safe = Candidates.Where(Item => !HitsBox(Item.Value.Points, Item.Key, Bounds))
+            .ToDictionary(Item => Item.Key, Item => Item.Value);
+        if (Safe.Count == 0) return;
         int BeforeCrossings = 0, AfterCrossings = 0;
         double BeforeOverlap = 0.0, AfterOverlap = 0.0;
         for (int First = 0; First < Layout.EdgeRoutes.Count; First++)
@@ -146,13 +148,13 @@ internal static class FlowchartWrappedFanRoutes
             FlowchartLayoutEdgeRoute A = Layout.EdgeRoutes[First], B = Layout.EdgeRoutes[Second];
             var Before = FlowchartBranchRouteOrder.Intersections(Tuples(A.Points), Tuples(B.Points));
             var After = FlowchartBranchRouteOrder.Intersections(
-                Tuples(Candidates.TryGetValue(A, out Candidate? NewA) ? NewA.Points : A.Points),
-                Tuples(Candidates.TryGetValue(B, out Candidate? NewB) ? NewB.Points : B.Points));
+                Tuples(Safe.TryGetValue(A, out Candidate? NewA) ? NewA.Points : A.Points),
+                Tuples(Safe.TryGetValue(B, out Candidate? NewB) ? NewB.Points : B.Points));
             BeforeCrossings += Before.Crossings; AfterCrossings += After.Crossings;
             BeforeOverlap += Before.Overlap; AfterOverlap += After.Overlap;
         }
         if (AfterCrossings > BeforeCrossings || AfterOverlap > BeforeOverlap + 0.01) return;
-        foreach ((FlowchartLayoutEdgeRoute Route, Candidate Candidate) in Candidates)
+        foreach ((FlowchartLayoutEdgeRoute Route, Candidate Candidate) in Safe)
         {
             Route.Points.Clear();
             Route.Points.AddRange(Candidate.Points);
