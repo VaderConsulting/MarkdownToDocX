@@ -35,7 +35,7 @@ These five Layout tests expect the old branch layout and fail now. They are know
 ## Tasks, in order
 
 1. **Enterprise syntax gaps — complete.** Catalogue checks confirm that A100, A101 and A118 to A130 render or diagnose exactly as declared, and the 17 deliberately invalid scenarios keep their error counts. DOCX fallbacks show each A90 diagnostic on its own line.
-2. **Layout mode.** Each diagram chooses `layout: grid` or `layout: open` in its frontmatter. The default is `grid`. `open` changes only how nodes and groups are placed; line rules stay the same. Use the frontmatter reader from task 1. Scenarios F144 to F150 in `flow.md` and A143 to A149 in `enterprise.md` must behave as their Expected lines say. See `BRIEF-LAYOUT-MODE.md`.
+2. **Layout mode — complete.** F144 to F150 and A143 to A149 render with their declared modes and orthogonal routing. Explicit grid matches the default, unknown values warn once and fall back to grid, and diagram frontmatter overrides the run-wide setting.
 3. **Old-layout Layout tests.** The five tests under "Known failing Layout tests" expect the old branch layout or the old stroke check. Rewrite each to assert rounded straight runs, using the rulebook, and report each change.
 4. **Visual fixes.**
    - Render the A142 grid stress test and check it against `HANDOVER-GRID-LAYOUT-v2.md` for compactness, overlaps and needless crossings.
