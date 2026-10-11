@@ -166,6 +166,7 @@ public static class DiagramGridLayout
         FlowchartNestedCounterflowTracks.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
         FlowchartCrossGroupRouteSimplifier.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
         FlowchartAlignedCounterflowRoutes.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
+        FlowchartTerminalFanBypass.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
         WriteBack(Copy, Placed, Frames);
         return Copy;
     }
