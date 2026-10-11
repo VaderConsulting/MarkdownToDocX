@@ -12,9 +12,10 @@ internal static class FlowchartManyToManyRoutes
     internal static void Apply(FlowchartLayoutResult Layout, DiagramContract Contract,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds)
     {
-        if (!HasCompleteBlock(Contract)) return;
+        HashSet<(string SourceId, string TargetId)> CompletePairs = CompleteBlockPairs(Contract);
         var Routes = Layout.EdgeRoutes.Where(Route => Bounds.ContainsKey(Route.SourceId)
             && Bounds.ContainsKey(Route.TargetId)
+            && !CompletePairs.Contains((Route.SourceId, Route.TargetId))
             && Bounds[Route.SourceId].CenterY > Bounds[Route.TargetId].CenterY + 1).ToList();
         foreach (var Rank in Routes.GroupBy(Route => (
             Source: Math.Round(Bounds[Route.SourceId].CenterY),
@@ -97,14 +98,19 @@ internal static class FlowchartManyToManyRoutes
         }
     }
 
-    private static bool HasCompleteBlock(DiagramContract Contract)
+    private static HashSet<(string SourceId, string TargetId)> CompleteBlockPairs(DiagramContract Contract)
     {
         var Visible = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
-        return Visible.GroupBy(Edge => Edge.SourceId)
-            .Select(Group => Group.Select(Edge => Edge.TargetId).Distinct().Order().ToArray())
-            .Where(Targets => Targets.Length >= 3)
-            .GroupBy(Targets => string.Join("\u001f", Targets))
-            .Any(Group => Group.Count() >= 3 && Visible.Count > Group.Count() * Group.First().Length);
+        var Sources = Visible.GroupBy(Edge => Edge.SourceId).Select(Group => (SourceId: Group.Key,
+            Targets: Group.Select(Edge => Edge.TargetId).Distinct().Order().ToArray())).ToList();
+        var Result = new HashSet<(string SourceId, string TargetId)>();
+        foreach (var Block in Sources.Where(Item => Item.Targets.Length >= 2)
+            .GroupBy(Item => string.Join("\u001f", Item.Targets))
+            .Where(Group => Group.Count() == Group.First().Targets.Length))
+        foreach (var Source in Block)
+        foreach (string TargetId in Source.Targets)
+            Result.Add((Source.SourceId, TargetId));
+        return Result;
     }
 
     private static double Slot(FlowchartLayoutNodeBounds Box, int Index, int Count) => Math.Round(
