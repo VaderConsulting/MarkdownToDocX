@@ -30,14 +30,14 @@ These five Layout tests expect the old branch layout and fail now. They are know
 4. Run the baseline test suites first, so that no new failure goes unnoticed.
 5. Work in small steps. After each working step, commit and push, update this file in the same commit, and start the next step from that pushed commit.
 6. Never change an existing test to make it pass, except where a task below says to rewrite it. List clashes for Dave to decide.
-7. Stop on a task after three failed attempts, and say what failed and why.
+7. After three failed attempts at a task, stop work on that task. Record what failed and why in this file, and move on to the next task. Do not stop the whole list.
 8. After each completed task, regenerate `flow.docx`, `enterprise.docx` and `EIP.docx` in the main folder with the built converter. Dave reviews only these three files, periodically and at the end of each task list. Do not ask him to review anything else, and do not ask for review while work is in progress.
 
 ## Tasks, in order
 
 1. **Enterprise syntax gaps — complete.** Catalogue checks confirm that A100, A101 and A118 to A130 render or diagnose exactly as declared, and the 17 deliberately invalid scenarios keep their error counts. DOCX fallbacks show each A90 diagnostic on its own line.
 2. **Layout mode — complete.** F144 to F150 and A143 to A149 render with their declared modes and orthogonal routing. Explicit grid matches the default, unknown values warn once and fall back to grid, and diagram frontmatter overrides the run-wide setting.
-3. **Compact placement.** Diagrams are too wide and too deep because nothing packs nodes after ranking. Add the compaction step (rule 2.11 of `Instructions/LAYOUT-RULEBOOK.md`) to `grid`, on by default. Check the results yourself: no overlaps, no new crossings, and no diagram bigger than before in `flow.md`, `enterprise.md` and `EIP.md`. Report a short size summary, not diagrams. See `BRIEF-COMPACT-LAYOUT.md`.
+3. **Compact placement.** Diagrams are too wide and too deep because nothing packs nodes after ranking. Add the compaction step (rule 2.11 of `Instructions/LAYOUT-RULEBOOK.md`) to `grid`, on by default. Check the results yourself: no overlaps, no new crossings, and no diagram bigger than before in `flow.md`, `enterprise.md` and `EIP.md`. Report a short size summary, not diagrams. See `BRIEF-COMPACT-LAYOUT.md`. Also add wrapping (rule 2.12): long rows and columns wrap, with one joining line. The wrap length comes from the diagram, so there is no size limit.
 4. **Old-layout Layout tests.** The five tests under "Known failing Layout tests" expect the old branch layout or the old stroke check. Rewrite each to assert rounded straight runs, using the rulebook, and report each change.
 5. **Visual fixes.**
    - Render the A142 grid stress test and check it against `HANDOVER-GRID-LAYOUT-v2.md` for compactness, overlaps and needless crossings.
