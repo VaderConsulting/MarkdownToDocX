@@ -175,6 +175,8 @@ public static class DiagramGridLayout
         if (RepairExteriorCrossings)
             FlowchartExteriorCrossingRepair.Apply(Copy, BuildPlacedBounds(Placed, Frames));
         if (!Open)
+            FlowchartWrappedChainRoutes.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
+        if (!Open)
             FlowchartWrappedFanRoutes.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
         WriteBack(Copy, Placed, Frames);
         return Copy;
