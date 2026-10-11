@@ -186,7 +186,7 @@ internal static class EnterpriseFlowchartEdgeRouter
         FlowchartCrossGroupRouteSimplifier.Apply(Layout, Contract, Nodes.Values.ToDictionary(Node => Node.Id,
             Node => new FlowchartLayoutNodeBounds { NodeId = Node.Id,
                 CenterX = Node.AbsoluteX + Node.Width / 2, CenterY = Node.AbsoluteY + Node.Height / 2,
-                Width = Node.Width, Height = Node.Height }, StringComparer.Ordinal), YDown: true);
+                Width = Node.Width, Height = Node.Height }, StringComparer.Ordinal));
         FlowchartAlignedCounterflowRoutes.Apply(Layout, Contract, Nodes.Values.ToDictionary(Node => Node.Id,
             Node => new FlowchartLayoutNodeBounds { NodeId = Node.Id,
                 CenterX = Node.AbsoluteX + Node.Width / 2, CenterY = Node.AbsoluteY + Node.Height / 2,

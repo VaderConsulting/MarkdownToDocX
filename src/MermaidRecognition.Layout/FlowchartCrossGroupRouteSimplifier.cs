@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using MermaidRecognition.Contract;
-using MermaidRecognition.Render;
 
 namespace MermaidRecognition.Layout;
 
@@ -10,7 +9,7 @@ namespace MermaidRecognition.Layout;
 internal static class FlowchartCrossGroupRouteSimplifier
 {
     internal static void Apply(FlowchartLayoutResult Layout, DiagramContract Contract,
-        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds, bool YDown = false)
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds)
     {
         var Roots = Contract.Groups.Where(Group => !Contract.Groups.Any(Other => Other.Id != Group.Id
             && FlowchartCompoundEndpointHelper.Contains(Contract, Other.Id, Group.Id))).ToList();
@@ -60,10 +59,8 @@ internal static class FlowchartCrossGroupRouteSimplifier
                 int Sign = Math.Sign(U(Target) - U(Source));
                 if (Sign == 0 || Math.Abs(U(Target) - U(Source)) < W(Source) + W(Target) + 20) continue;
                 double StartU = U(Source) + Sign * W(Source), EndU = U(Target) - Sign * W(Target);
-                var SourceVs = new[] { V(Source), V(Source) - H(Source) / 3, V(Source) + H(Source) / 3,
-                    V(Source) - 2 * H(Source) / 3, V(Source) + 2 * H(Source) / 3 };
+                var SourceVs = new[] { V(Source), V(Source) - H(Source) / 3, V(Source) + H(Source) / 3 };
                 var TargetVs = new[] { V(Target), V(Target) - H(Target) / 3, V(Target) + H(Target) / 3,
-                    V(Target) - 2 * H(Target) / 3, V(Target) + 2 * H(Target) / 3,
                     V(Target) - H(Target) + 20, V(Target) + H(Target) - 20 };
                 foreach (int Outside in new[] { -1, 1 })
                 {
@@ -128,20 +125,6 @@ internal static class FlowchartCrossGroupRouteSimplifier
             {
                 double Result = Path.Count * 100 + Path.Zip(Path.Skip(1)).Sum(Pair =>
                     Math.Abs(Pair.First.X - Pair.Second.X) + Math.Abs(Pair.First.Y - Pair.Second.Y));
-                foreach (var Group in Contract.Groups)
-                {
-                    if (!Bounds.TryGetValue(Group.Id, out var Frame)) continue;
-                    double HalfTitle = (Group.Title ?? "").Split('\n').Max(Line =>
-                        FlowchartRichLabelSvgWriter.EstimateLineWidthPx(Line, 12)) / 2 + 6;
-                    foreach (var Run in Path.Zip(Path.Skip(1)))
-                    {
-                        if (Math.Abs(Run.First.X - Run.Second.X) > 0.01
-                            || Math.Abs(Run.First.X - Frame.CenterX) >= HalfTitle) continue;
-                        double Rim = Frame.CenterY + (YDown ? -1 : 1) * Frame.Height / 2;
-                        if (Math.Min(Run.First.Y, Run.Second.Y) < Rim + 24
-                            && Math.Max(Run.First.Y, Run.Second.Y) > Rim - 24) Result += 1000000;
-                    }
-                }
                 foreach (var Other in Layout.EdgeRoutes.Where(Other => Other != Route))
                 {
                     var Intersections = FlowchartBranchRouteOrder.Intersections(Path, Other.Points.Select(Point => (Point.X, Point.Y)).ToList());
