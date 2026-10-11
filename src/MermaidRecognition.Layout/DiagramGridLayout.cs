@@ -127,6 +127,7 @@ public static class DiagramGridLayout
             FlowchartJunctionBranchCompaction.Apply(Contract, Placed, Horizontal);
             FlowchartTerminalRowPlacement.Apply(Contract, Placed, Horizontal);
             FlowchartChainWrapping.Apply(Contract, Placed, Horizontal);
+            FlowchartFanPacking.Apply(Contract, Placed);
             RepairExteriorCrossings = FlowchartComponentWrapping.Apply(Contract, Placed, Horizontal);
             FlowchartDisconnectedPacking.Apply(Contract, Placed);
         }
@@ -173,6 +174,8 @@ public static class DiagramGridLayout
         FlowchartTerminalFanBypass.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
         if (RepairExteriorCrossings)
             FlowchartExteriorCrossingRepair.Apply(Copy, BuildPlacedBounds(Placed, Frames));
+        if (!Open)
+            FlowchartWrappedFanRoutes.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
         WriteBack(Copy, Placed, Frames);
         return Copy;
     }

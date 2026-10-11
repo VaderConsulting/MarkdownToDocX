@@ -1,0 +1,123 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+using MermaidRecognition.Contract;
+using MermaidRecognition.Kinds.Flowchart;
+using MermaidRecognition.Render;
+
+namespace MermaidRecognition.Layout;
+
+/// <summary>Wraps a simple many-side fan into a measured block beside its hub.</summary>
+internal static class FlowchartFanPacking
+{
+    private const int MinimumFan = DiagramGridMetrics.TRACKS_PER_GAP + 1;
+    private sealed record Plan(int Columns, int Rows, double Width, double Height, double Score);
+
+    internal static bool Apply(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes)
+    {
+        if (Nodes.Count <= MinimumFan || Nodes.Any(Node => Node.GroupId != null)) return false;
+        var ById = Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
+        var Visible = Contract.Edges.Where(Edge => ById.ContainsKey(Edge.SourceId)
+            && ById.ContainsKey(Edge.TargetId)
+            && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
+        var Order = Contract.Nodes.Select((Node, Index) => (Node.Id, Index))
+            .GroupBy(Item => Item.Id, StringComparer.Ordinal)
+            .ToDictionary(Group => Group.Key, Group => Group.First().Index, StringComparer.Ordinal);
+        bool Horizontal = FlowchartDirectionNormalizer.Normalize(Contract.Direction)
+            is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft;
+        bool Reverse = FlowchartDirectionNormalizer.Normalize(Contract.Direction)
+            is FlowchartDirection.RightToLeft or FlowchartDirection.BottomToTop;
+
+        foreach (DiagramGridLayout.GridNode Hub in Nodes.OrderBy(Node => Order.GetValueOrDefault(Node.Id, int.MaxValue)))
+        {
+            List<DiagramGridLayout.GridNode> Out = Visible.Where(Edge => Edge.SourceId == Hub.Id)
+                .Select(Edge => ById[Edge.TargetId]).Distinct().OrderBy(Node => Order.GetValueOrDefault(Node.Id, int.MaxValue)).ToList();
+            List<DiagramGridLayout.GridNode> In = Visible.Where(Edge => Edge.TargetId == Hub.Id)
+                .Select(Edge => ById[Edge.SourceId]).Distinct().OrderBy(Node => Order.GetValueOrDefault(Node.Id, int.MaxValue)).ToList();
+            bool FanOut = Out.Count >= MinimumFan && In.Count < MinimumFan;
+            List<DiagramGridLayout.GridNode> Leaves = FanOut ? Out : In;
+            if (Leaves.Count < MinimumFan || !SimpleComponent(Hub, Leaves, Visible)) continue;
+
+            int NodeWidth = Leaves.Max(Node => Node.Width);
+            int NodeHeight = Leaves.Max(Node => Node.Height);
+            int PortPitch = Math.Max(1, (Horizontal ? NodeHeight : NodeWidth) / DiagramGridMetrics.TRACKS_PER_GAP);
+            int NeededSide = DiagramGridMetrics.CeilToGrid(Leaves.Count * PortPitch);
+            if (Horizontal) Hub.Height = Math.Max(Hub.Height, NeededSide);
+            else Hub.Width = Math.Max(Hub.Width, NeededSide);
+            int ColumnPitch = NodeWidth + DiagramGridMetrics.NODE_GAP_PX;
+            int RowPitch = NodeHeight + DiagramGridMetrics.NODE_GAP_PX;
+            int TrackGap = Math.Max(DiagramGridMetrics.NODE_GAP_PX,
+                ((Leaves.Count + DiagramGridMetrics.TRACKS_PER_GAP - 1) / DiagramGridMetrics.TRACKS_PER_GAP)
+                    * DiagramGridMetrics.GRID_UNIT_PX);
+            Plan Best = Enumerable.Range(1, Leaves.Count).Select(Columns =>
+                Measure(Hub, Leaves.Count, Columns, NodeWidth, NodeHeight, ColumnPitch, RowPitch, TrackGap, Horizontal))
+                .OrderBy(Plan => Plan.Score).ThenBy(Plan => Plan.Columns).First();
+
+            double OldLeft = Leaves.Append(Hub).Min(Node => Node.X - Node.Width / 2.0);
+            double OldRight = Leaves.Append(Hub).Max(Node => Node.X + Node.Width / 2.0);
+            double OldTop = Leaves.Append(Hub).Min(Node => Node.Y - Node.Height / 2.0);
+            double OldBottom = Leaves.Append(Hub).Max(Node => Node.Y + Node.Height / 2.0);
+            double Used = Leaves.Sum(Node => (Node.Width + DiagramGridMetrics.NODE_GAP_PX)
+                    * (Node.Height + DiagramGridMetrics.NODE_GAP_PX))
+                + (Hub.Width + DiagramGridMetrics.NODE_GAP_PX) * (Hub.Height + DiagramGridMetrics.NODE_GAP_PX);
+            double OldEmpty = Math.Max(0.0, 1.0 - Used / Math.Max(1.0, (OldRight - OldLeft) * (OldBottom - OldTop)));
+            double OldScore = FlowchartLayoutScore.Calculate(OldRight - OldLeft, OldBottom - OldTop, 0, OldEmpty);
+            if (Best.Score >= OldScore - 0.0001) continue;
+
+            double BlockWidth = Best.Columns * NodeWidth + Math.Max(0, Best.Columns - 1) * DiagramGridMetrics.NODE_GAP_PX;
+            double BlockHeight = Best.Rows * NodeHeight + Math.Max(0, Best.Rows - 1) * DiagramGridMetrics.NODE_GAP_PX;
+            if (!Horizontal)
+            {
+                double BlockTop = Reverse == FanOut ? OldTop : OldTop + Hub.Height + TrackGap;
+                Hub.X = OldLeft + BlockWidth / 2.0;
+                Hub.Y = Reverse == FanOut ? BlockTop + BlockHeight + TrackGap + Hub.Height / 2.0 : OldTop + Hub.Height / 2.0;
+                Place(Leaves, OldLeft, BlockTop, Best.Columns, ColumnPitch, RowPitch, NodeWidth, NodeHeight);
+            }
+            else
+            {
+                double BlockLeft = Reverse == FanOut ? OldLeft : OldLeft + Hub.Width + TrackGap;
+                Hub.X = Reverse == FanOut ? BlockLeft + BlockWidth + TrackGap + Hub.Width / 2.0 : OldLeft + Hub.Width / 2.0;
+                Hub.Y = OldTop + BlockHeight / 2.0;
+                Place(Leaves, BlockLeft, OldTop, Best.Columns, ColumnPitch, RowPitch, NodeWidth, NodeHeight);
+            }
+            return true;
+        }
+        return false;
+    }
+
+    private static bool SimpleComponent(DiagramGridLayout.GridNode Hub,
+        IReadOnlyCollection<DiagramGridLayout.GridNode> Leaves, IReadOnlyCollection<EdgeContract> Edges)
+    {
+        var Ids = Leaves.Select(Node => Node.Id).Append(Hub.Id).ToHashSet(StringComparer.Ordinal);
+        return Edges.All(Edge => Ids.Contains(Edge.SourceId) == Ids.Contains(Edge.TargetId))
+            && Leaves.All(Leaf => Edges.Count(Edge => Edge.SourceId == Leaf.Id || Edge.TargetId == Leaf.Id) == 1);
+    }
+
+    private static Plan Measure(DiagramGridLayout.GridNode Hub, int Count, int Columns,
+        int NodeWidth, int NodeHeight, int ColumnPitch, int RowPitch, int TrackGap, bool Horizontal)
+    {
+        int Rows = (Count + Columns - 1) / Columns;
+        double BlockWidth = Columns * NodeWidth + Math.Max(0, Columns - 1) * (ColumnPitch - NodeWidth);
+        double BlockHeight = Rows * NodeHeight + Math.Max(0, Rows - 1) * (RowPitch - NodeHeight);
+        double Width = Horizontal ? Hub.Width + TrackGap + BlockWidth : Math.Max(Hub.Width, BlockWidth);
+        double Height = Horizontal ? Math.Max(Hub.Height, BlockHeight) : Hub.Height + TrackGap + BlockHeight;
+        double Used = Count * (NodeWidth + DiagramGridMetrics.NODE_GAP_PX)
+                * (NodeHeight + DiagramGridMetrics.NODE_GAP_PX)
+            + (Hub.Width + DiagramGridMetrics.NODE_GAP_PX) * (Hub.Height + DiagramGridMetrics.NODE_GAP_PX);
+        Used += Count * (Horizontal ? Width : Height) * DiagramGridMetrics.GRID_UNIT_PX;
+        double Empty = Math.Max(0.0, 1.0 - Used / Math.Max(1.0, Width * Height));
+        return new(Columns, Rows, Width, Height, FlowchartLayoutScore.Calculate(Width, Height, 0, Empty));
+    }
+
+    private static void Place(IReadOnlyList<DiagramGridLayout.GridNode> Leaves, double Left, double Top,
+        int Columns, int ColumnPitch, int RowPitch, int NodeWidth, int NodeHeight)
+    {
+        for (int Index = 0; Index < Leaves.Count; Index++)
+        {
+            int Column = Index % Columns, Row = Index / Columns;
+            Leaves[Index].X = Left + Column * ColumnPitch + NodeWidth / 2.0;
+            Leaves[Index].Y = Top + Row * RowPitch + NodeHeight / 2.0;
+        }
+    }
+}
