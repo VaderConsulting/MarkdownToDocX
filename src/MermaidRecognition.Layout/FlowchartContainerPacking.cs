@@ -93,6 +93,122 @@ internal static class FlowchartContainerPacking
                 .First().Positions;
         }
 
+        Position[] ImproveShape(Position[] Initial)
+        {
+            Position[] Current = Initial;
+            while (true)
+            {
+                (double Width, double Height) Size = Extents(Current);
+                double CurrentDistance = ShapeDistance(Size.Width, Size.Height);
+                int CurrentCrossings = EstimatedCrossings(Current);
+                Position[]? BestCandidate = null;
+                double BestDistance = CurrentDistance;
+                int BestCrossings = CurrentCrossings;
+                double BestBalance = RowBalance(Current);
+                for (int Index = 0; Index < Units.Count; Index++)
+                {
+                    double Right = Current[Index].X + WidthOf(Index);
+                    if (Enumerable.Range(0, Units.Count).Any(Other => Other != Index
+                        && Math.Abs(Current[Other].Y - Current[Index].Y) < 0.01
+                        && Current[Other].X + WidthOf(Other) > Right + 0.01)) continue;
+                    var CandidateYs = Current.Select(Position => Position.Y).Distinct().ToList();
+                    CandidateYs.Add(Size.Height + Gap);
+                    foreach (double Y in CandidateYs.Where(Y => Math.Abs(Y - Current[Index].Y) > 0.01))
+                    {
+                        var CandidateXs = new HashSet<double> { 0 };
+                        foreach (int Other in Enumerable.Range(0, Units.Count).Where(Other => Other != Index
+                            && Math.Abs(Current[Other].Y - Y) < 0.01))
+                            CandidateXs.Add(Current[Other].X + WidthOf(Other) + Gap);
+                        foreach (Link Link in Links.Where(Link => Link.Source == Index || Link.Target == Index))
+                        {
+                            int Other = Link.Source == Index ? Link.Target : Link.Source;
+                            CandidateXs.Add(Current[Other].X);
+                            CandidateXs.Add(Link.Source == Index
+                                ? Current[Other].X + Link.TargetOffset.X - Link.SourceOffset.X
+                                : Current[Other].X + Link.SourceOffset.X - Link.TargetOffset.X);
+                        }
+                        foreach (double X in CandidateXs.Where(X => X >= 0))
+                        {
+                            var Candidate = (Position[])Current.Clone();
+                            Candidate[Index] = new(X, Y);
+                            NormalizeRows(Candidate);
+                            if (Overlaps(Candidate) || !PreservesAlignedLinks(Current, Candidate)) continue;
+                            (double Width, double Height) CandidateSize = Extents(Candidate);
+                            double CandidateDistance = ShapeDistance(CandidateSize.Width, CandidateSize.Height);
+                            double CandidateBalance = RowBalance(Candidate);
+                            if (CandidateDistance > BestDistance + 0.0001
+                                || Math.Abs(CandidateDistance - BestDistance) <= 0.0001
+                                && CandidateBalance >= BestBalance - 0.01) continue;
+                            int CandidateCrossings = EstimatedCrossings(Candidate);
+                            if (CandidateCrossings > CurrentCrossings) continue;
+                            BestCandidate = Candidate;
+                            BestDistance = CandidateDistance;
+                            BestCrossings = CandidateCrossings;
+                            BestBalance = CandidateBalance;
+                        }
+                    }
+                }
+                if (BestCandidate == null) return Current;
+                Current = BestCandidate;
+            }
+        }
+
+        double WidthOf(int Index) => DiagramGridMetrics.CeilToGrid(Units[Index].Frame.Right - Units[Index].Frame.Left);
+        double HeightOf(int Index) => DiagramGridMetrics.CeilToGrid(Units[Index].Frame.Bottom - Units[Index].Frame.Top);
+        (double Width, double Height) Extents(Position[] Positions) =>
+            (Enumerable.Range(0, Units.Count).Max(Index => Positions[Index].X + WidthOf(Index)),
+             Enumerable.Range(0, Units.Count).Max(Index => Positions[Index].Y + HeightOf(Index)));
+        static double ShapeDistance(double Width, double Height) =>
+            Math.Abs(Math.Log((Width / Math.Max(1, Height)) / (4.0 / 3.0)));
+        double RowBalance(Position[] Positions) => Positions.Select(Position => Position.Y).Distinct()
+            .Sum(Y => Math.Pow(Enumerable.Range(0, Units.Count).Where(Index => Math.Abs(Positions[Index].Y - Y) < 0.01)
+                .Max(Index => Positions[Index].X + WidthOf(Index)), 2));
+        void NormalizeRows(Position[] Positions)
+        {
+            double NextY = 0;
+            foreach (double OldY in Positions.Select(Position => Position.Y).Distinct().OrderBy(Y => Y).ToList())
+            {
+                List<int> Row = Enumerable.Range(0, Units.Count)
+                    .Where(Index => Math.Abs(Positions[Index].Y - OldY) < 0.01).ToList();
+                foreach (int Index in Row) Positions[Index] = Positions[Index] with { Y = NextY };
+                NextY += Row.Max(HeightOf) + Gap;
+            }
+        }
+        bool Overlaps(Position[] Positions)
+        {
+            for (int A = 0; A < Units.Count; A++)
+            for (int B = A + 1; B < Units.Count; B++)
+                if (Positions[A].X < Positions[B].X + WidthOf(B) + Gap
+                    && Positions[A].X + WidthOf(A) + Gap > Positions[B].X
+                    && Positions[A].Y < Positions[B].Y + HeightOf(B) + Gap
+                    && Positions[A].Y + HeightOf(A) + Gap > Positions[B].Y) return true;
+            return false;
+        }
+        bool PreservesAlignedLinks(Position[] Before, Position[] After)
+        {
+            foreach (Link Link in Links)
+            {
+                double MainBefore = Horizontal
+                    ? Before[Link.Target].X + Link.TargetOffset.X - Before[Link.Source].X - Link.SourceOffset.X
+                    : Before[Link.Target].Y + Link.TargetOffset.Y - Before[Link.Source].Y - Link.SourceOffset.Y;
+                double MainAfter = Horizontal
+                    ? After[Link.Target].X + Link.TargetOffset.X - After[Link.Source].X - Link.SourceOffset.X
+                    : After[Link.Target].Y + Link.TargetOffset.Y - After[Link.Source].Y - Link.SourceOffset.Y;
+                if (MainBefore * Sign > 0.01 && MainAfter * Sign <= 0.01) return false;
+                double SourceBefore = Horizontal
+                    ? Before[Link.Source].Y + Link.SourceOffset.Y : Before[Link.Source].X + Link.SourceOffset.X;
+                double TargetBefore = Horizontal
+                    ? Before[Link.Target].Y + Link.TargetOffset.Y : Before[Link.Target].X + Link.TargetOffset.X;
+                if (Math.Abs(SourceBefore - TargetBefore) > 0.01) continue;
+                double SourceAfter = Horizontal
+                    ? After[Link.Source].Y + Link.SourceOffset.Y : After[Link.Source].X + Link.SourceOffset.X;
+                double TargetAfter = Horizontal
+                    ? After[Link.Target].Y + Link.TargetOffset.Y : After[Link.Target].X + Link.TargetOffset.X;
+                if (Math.Abs(SourceAfter - TargetAfter) > 0.01) return false;
+            }
+            return true;
+        }
+
         int EstimatedCrossings(Position[] Positions)
         {
             var Runs = new List<(Position A, Position B, Link Link)>();
@@ -168,7 +284,7 @@ internal static class FlowchartContainerPacking
             }
             if (!Changed) break;
         }
-        var Final = Place(Order);
+        var Final = ImproveShape(Place(Order));
         for (int Index = 0; Index < Units.Count; Index++)
         {
             var Unit = Units[Index];

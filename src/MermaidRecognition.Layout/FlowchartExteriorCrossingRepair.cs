@@ -36,7 +36,15 @@ internal static class FlowchartExteriorCrossingRepair
                     Exterior(Bounds[Route.SourceId], Bounds[Route.TargetId], "left", Left),
                     Exterior(Bounds[Route.SourceId], Bounds[Route.TargetId], "right", Right),
                     Exterior(Bounds[Route.SourceId], Bounds[Route.TargetId], "bottom", Bottom),
-                    Exterior(Bounds[Route.SourceId], Bounds[Route.TargetId], "top", Top)
+                    Exterior(Bounds[Route.SourceId], Bounds[Route.TargetId], "top", Top),
+                    ExteriorTurn(Bounds[Route.SourceId], Bounds[Route.TargetId], "top", Left),
+                    ExteriorTurn(Bounds[Route.SourceId], Bounds[Route.TargetId], "top", Right),
+                    ExteriorTurn(Bounds[Route.SourceId], Bounds[Route.TargetId], "bottom", Left),
+                    ExteriorTurn(Bounds[Route.SourceId], Bounds[Route.TargetId], "bottom", Right),
+                    ExteriorTurn(Bounds[Route.SourceId], Bounds[Route.TargetId], "left", Bottom),
+                    ExteriorTurn(Bounds[Route.SourceId], Bounds[Route.TargetId], "left", Top),
+                    ExteriorTurn(Bounds[Route.SourceId], Bounds[Route.TargetId], "right", Bottom),
+                    ExteriorTurn(Bounds[Route.SourceId], Bounds[Route.TargetId], "right", Top)
                 ];
                 var Best = Candidates.Where(Candidate => Clear(Candidate.Points, Route, Bounds))
                     .Select(Candidate => (Candidate.Points, Candidate.Side, Score: Score(Candidate.Points, Route, Layout.EdgeRoutes),
@@ -51,6 +59,34 @@ internal static class FlowchartExteriorCrossingRepair
                 Moved = true;
             }
         } while (Moved);
+    }
+
+    private static (List<(double X, double Y)> Points, string? Side) ExteriorTurn(
+        FlowchartLayoutNodeBounds Source, FlowchartLayoutNodeBounds Target, string Side, double Corridor)
+    {
+        double Radius = DiagramGridRouteBuilder.CORNER_RADIUS_PX + 5;
+        bool VerticalSide = Side is "top" or "bottom";
+        double Sign = Side is "top" or "right" ? 1 : -1;
+        (double X, double Y) Start = Side switch
+        {
+            "left" => (Source.CenterX - Source.Width / 2.0, Source.CenterY),
+            "right" => (Source.CenterX + Source.Width / 2.0, Source.CenterY),
+            "bottom" => (Source.CenterX, Source.CenterY - Source.Height / 2.0),
+            _ => (Source.CenterX, Source.CenterY + Source.Height / 2.0)
+        };
+        (double X, double Y) End = Side switch
+        {
+            "left" => (Target.CenterX - Target.Width / 2.0, Target.CenterY),
+            "right" => (Target.CenterX + Target.Width / 2.0, Target.CenterY),
+            "bottom" => (Target.CenterX, Target.CenterY - Target.Height / 2.0),
+            _ => (Target.CenterX, Target.CenterY + Target.Height / 2.0)
+        };
+        (double X, double Y) StartStub = VerticalSide ? (Start.X, Start.Y + Sign * Radius) : (Start.X + Sign * Radius, Start.Y);
+        (double X, double Y) EndStub = VerticalSide ? (End.X, End.Y + Sign * Radius) : (End.X + Sign * Radius, End.Y);
+        List<(double X, double Y)> Points = VerticalSide
+            ? Simplify([Start, StartStub, (Corridor, StartStub.Y), (Corridor, EndStub.Y), EndStub, End])
+            : Simplify([Start, StartStub, (StartStub.X, Corridor), (EndStub.X, Corridor), EndStub, End]);
+        return (Points, Side);
     }
 
     private static (List<(double X, double Y)> Points, string? Side) Exterior(

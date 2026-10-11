@@ -28,8 +28,18 @@ public sealed class CompactLayoutMetricTests
         int Overlaps = Violations.Count(Failure => Failure.Kind == "NodeOverlap");
         int Crossings = CountCrossings(Layout);
         double EmptyShare = EmptyAreaShare(Layout, Width, Height);
+        double Score = LayoutScore(Width, Height, Crossings, EmptyShare);
         TestContext.Out.WriteLine(
-            $"{Catalogue}{Number}: width={Width:0} height={Height:0} ratio={Width / Height:0.000} overlaps={Overlaps} crossings={Crossings} empty={EmptyShare:P1}");
+            $"{Catalogue}{Number}: width={Width:0} height={Height:0} ratio={Width / Height:0.000} overlaps={Overlaps} crossings={Crossings} empty={EmptyShare:P1} score={Score:0.0}");
+    }
+
+    private static double LayoutScore(double Width, double Height, int Crossings, double EmptyShare)
+    {
+        double TargetRatio = 4.0 / 3.0;
+        double Shape = Math.Abs((Width / Height) - TargetRatio) / TargetRatio * 100.0 * 0.4;
+        double EmptyPercent = EmptyShare * 100.0;
+        double Empty = EmptyPercent <= 30.0 ? EmptyPercent * 2.0 : 60.0 + (EmptyPercent - 30.0) * 8.0;
+        return Shape + Empty + Crossings * 20.0;
     }
 
     private static (double Width, double Height) Bounds(FlowchartLayoutResult Layout)
