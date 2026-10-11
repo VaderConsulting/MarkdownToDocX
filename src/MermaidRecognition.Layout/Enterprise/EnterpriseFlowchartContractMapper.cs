@@ -143,6 +143,8 @@ public static class EnterpriseFlowchartContractMapper
             LayoutWidth = Size.Width,
             LayoutHeight = Size.Height
         };
+        NodeContract.MetadataMutable["enterpriseElementType"] = new RawMetadata(
+            "enterpriseElementType", Element.ElementType.ToString());
         Contract.NodesMutable.Add(NodeContract);
     }
 

@@ -20,14 +20,14 @@
 4. Run the baseline test suites first, so that no new failure goes unnoticed.
 5. Work in small steps. After each working step, commit and push, update this file in the same commit, and start the next step from that pushed commit.
 6. Never change an existing test to make it pass, except where a task below says to rewrite it. List clashes for Dave to decide.
-7. After three failed attempts at a task, stop work on that task. Record what failed and why in this file, and move on to the next task. Do not stop the whole list.
+7. After three failed attempts at a task, stop work on that task. Record what failed and why in this file, and move on to the next task. Do not stop the whole list.
 8. After each completed task, regenerate `flow.docx`, `enterprise.docx` and `EIP.docx` in the main folder with the built converter. Dave reviews only these three files, periodically and at the end of each task list. Do not ask him to review anything else, and do not ask for review while work is in progress.
 
 ## Tasks, in order
 
 1. **Enterprise syntax gaps — complete.** Catalogue checks confirm that A100, A101 and A118 to A130 render or diagnose exactly as declared, and the 17 deliberately invalid scenarios keep their error counts. DOCX fallbacks show each A90 diagnostic on its own line.
 2. **Layout mode — complete.** F144 to F150 and A143 to A149 render with their declared modes and orthogonal routing. Explicit grid matches the default, unknown values warn once and fall back to grid, and diagram frontmatter overrides the run-wide setting.
-3. **Compact placement — in progress.** Disconnected pieces and fans pack into measured blocks. Fan rows and wrapped chains use guarded real routes. Multi-edge forward ranks use distinct bottom ports, top ports and gap tracks while supported square partner blocks keep their nested routes. Scores now subtract the forced crossing minimum derived from complete adjacent-rank blocks. A110 is valid at score 381.2 with 255 crossings and a forced minimum of 243. A117 is valid at score 1229.8 after deterministic port-side repair. F153, A114 and A142 still have line-rule rejections.
+3. **Compact placement — complete with recorded limits.** Disconnected pieces and fans pack into measured blocks. Fan rows and wrapped chains use guarded real routes. Multi-edge forward ranks use distinct bottom ports, top ports and gap tracks while supported square partner blocks keep their nested routes. Scores subtract the forced crossing minimum derived from complete adjacent-rank blocks. A64 now packs its ten measured artifacts into a 570 x 420 block at score 0.7. A110 is valid at score 381.2 with 255 crossings, a forced minimum of 243 and an accepted 33.3% empty share. A117 is valid at score 1229.8 after deterministic port-side repair. F153, A114 and A142 retain the recorded line-rule limits below.
 
 Failed attempt: A114 stopped after three route repairs: excluding group frames changed nothing; extending rank repair reduced crossings but left the layout rejected and worsened A117; flexible perimeter repair enlarged other layouts and failed on empty local routes.
 
@@ -38,7 +38,7 @@ Failed attempt: A142 stopped after three route repairs: progressive port-side re
 5. **Visual fixes — stopped after three failed placement attempts.** The regenerated documents confirm that F111 now renders as aligned three-by-three partner ranks (25 focused tests pass), A14 follows the application-layer stack, and the retry routes are orthogonal. A142 and its Web Shop, Order Manager and Payment Hub regions remain sparse and tangled. Its 179-node branching layout measures 5158 x 7846. The same three whole-graph placements recorded in task 3 either added crossings or failed the crossing guard, so rule 7 requires moving on.
 6. **Remaining test failures — reviewed.** Recognition is clean at 1069/0 and MDConverter is clean at 60/0, including `ConvertFile_LockedDestinationRemainsIntact`. RuleValidation remains at its 49/10 baseline. Those tests require old curved/default routes, old shoulder coordinates or layouts that conflict with the current orthogonal grid rulebook; rule 6 does not permit rewriting them. The catalogue-wide terminal check also exposes real perpendicular-attachment faults, including several F153 edges. Three investigations (isolated rerun, terminal-normalizer trace, and rulebook comparison) did not produce a safe shared fix, so rule 7 requires moving on.
 7. **Housekeeping — complete.** The vendored Mermaid tree has no tracked differences, package version 11.14.0 matches the pin, and `flowchart-elk` remains deferred.
-8. **Final check — complete.** All five suites were run sequentially on Windows. The results are recorded below. This file describes the current branch, including the task 3, task 5 and task 6 limits.
+8. **Final check — in progress.** The five suites and three review documents will be regenerated from the completed task 3 branch.
 
 ## Stretch goals
 

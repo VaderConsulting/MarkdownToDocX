@@ -130,6 +130,7 @@ public static class DiagramGridLayout
             FlowchartFanPacking.Apply(Contract, Placed);
             RepairExteriorCrossings = FlowchartComponentWrapping.Apply(Contract, Placed, Horizontal);
             FlowchartDisconnectedPacking.Apply(Contract, Placed);
+            FlowchartGroupMemberPacking.Apply(Contract, Placed);
         }
         List<GridFrame> Frames = new List<GridFrame>();
         if (!Open) CenterLoneNestedGroups(Contract, Placed, Horizontal);

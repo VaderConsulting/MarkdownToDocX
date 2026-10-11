@@ -37,6 +37,22 @@ public sealed class CompactLayoutMetricTests
     }
 
     [Test]
+    public void A64_IsolatedGroupMembers_PackAcrossRowsAndColumns()
+    {
+        string Source = ReadScenario("A", 64);
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Source).Document);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+
+        List<FlowchartLayoutNodeBounds> Members = Layout.NodeBounds.Where(Box => Box.NodeId.StartsWith("a", StringComparison.Ordinal)).ToList();
+        Assert.Multiple(() =>
+        {
+            Assert.That(Members.Select(Box => Box.CenterX).Distinct().Count(), Is.GreaterThan(1));
+            Assert.That(Members.Select(Box => Box.CenterY).Distinct().Count(), Is.GreaterThan(1));
+            Assert.That(FlowchartLayoutScore.Measure(Contract, Layout).Score, Is.Not.Null);
+        });
+    }
+
+    [Test]
     public void A117_PortSideRepair_RemovesLineRuleRejection()
     {
         string Source = ReadScenario("A", 117);
