@@ -735,9 +735,22 @@ public sealed class DocxWriter(EffectiveOptions Options, IConversionProgressRepo
     private static void AppendMermaidFallback(Paragraph Paragraph, string Message, string Source)
     {
         Paragraph.AppendChild(new Run(new RunProperties(new Bold()), CreateText("[Mermaid diagram not rendered] ")));
-        Paragraph.AppendChild(new Run(CreateText(Message)));
+        AppendTextWithBreaks(Paragraph, Message);
         Paragraph.AppendChild(new Run(new Break()));
         AppendCodeText(Paragraph, Source);
+    }
+
+    private static void AppendTextWithBreaks(Paragraph Paragraph, string Content)
+    {
+        string[] Lines = (Content ?? string.Empty).Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Replace('\r', '\n').Split('\n');
+        Run Run = new Run();
+        for (int Index = 0; Index < Lines.Length; Index++)
+        {
+            if (Index > 0) Run.AppendChild(new Break());
+            Run.AppendChild(CreateText(Lines[Index]));
+        }
+        Paragraph.AppendChild(Run);
     }
 
     private static void AppendCodeText(Paragraph Paragraph, string Content)

@@ -71,7 +71,7 @@ public static class EnterpriseRenderBridge
         Builder.Append("Enterprise diagram could not be rendered.");
         foreach (EnterpriseDiagnostic Diagnostic in Analysis.Errors)
         {
-            Builder.Append(' ');
+            Builder.Append('\n');
             Builder.Append(Diagnostic.Message);
         }
 

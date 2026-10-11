@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Xml.Linq;
 using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Wordprocessing;
 using MDConverter.Options;
 using MermaidRecognition.Layout.Enterprise;
 
@@ -82,6 +83,36 @@ public sealed class EnterpriseDocxTests
         string Text = Document.MainDocumentPart!.Document!.InnerText;
         StringAssert.Contains(Text, "Mermaid diagram not rendered");
         StringAssert.Contains(Text, "line 12");
+    }
+
+    [TestMethod]
+    public void ConvertText_MultipleEnterpriseErrors_UseOneVisibleLineEach()
+    {
+        string Source = """
+            enterprise
+              application-component shop "Web Shop"
+              application-service shop "Second Web Shop"
+              application-service ordering "Online Ordering"
+              basket -serving-> shop
+              ordering -serving-> checkout
+              data-object class "Class list"
+            """;
+        byte[] Bytes = new MarkdownToDocxConverter(new MarkdownToDocxOptions())
+            .ConvertText("```mermaid\n" + Source + "\n```", Environment.CurrentDirectory);
+        using MemoryStream Stream = new(Bytes);
+        using WordprocessingDocument Document = WordprocessingDocument.Open(Stream, false);
+        Paragraph Fallback = Document.MainDocumentPart!.Document!.Descendants<Paragraph>()
+            .Single(Item => Item.InnerText.Contains("Mermaid diagram not rendered", StringComparison.Ordinal));
+        List<Text> Diagnostics = Fallback.Descendants<Text>()
+            .Where(Item => Item.Text.StartsWith("line ", StringComparison.Ordinal)).ToList();
+        Assert.HasCount(4, Diagnostics);
+        foreach (Text Diagnostic in Diagnostics)
+        {
+            Run Run = (Run)Diagnostic.Parent!;
+            int Index = Run.ChildElements.ToList().IndexOf(Diagnostic);
+            Assert.IsGreaterThan(0, Index);
+            Assert.IsInstanceOfType<Break>(Run.ChildElements[Index - 1]);
+        }
     }
 
     [TestMethod]
