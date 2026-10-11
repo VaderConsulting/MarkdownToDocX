@@ -182,6 +182,8 @@ public static class DiagramGridLayout
             FlowchartAlignedRouteStraightener.Apply(Copy, BuildPlacedBounds(Placed, Frames));
         if (!Open)
             FlowchartTwoCornerRouteRepair.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
+        if (!Open)
+            FlowchartManyToManyRoutes.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
         WriteBack(Copy, Placed, Frames);
         return Copy;
     }
