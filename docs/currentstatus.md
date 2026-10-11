@@ -54,15 +54,15 @@ These must be done, but not yet. Start them only when Dave says so.
 2. **Native render for the other kinds** (sequence, class, state, ER, pie, gantt, mindmap, git graph). Do one kind at a time, in its own commit, and keep the Naiad fallback until a kind passes its scenarios.
 ## Test results
 
-Measured on Linux on 11 October 2026 with `dotnet test`. Windows runs are still to do, and the counts may differ.
+Windows baseline measured on 11 October 2026 with `dotnet test`, before task 1 implementation.
 
-| Suite | Failing |
-| --- | --- |
-| `MermaidRecognition.Tests` | 11 |
-| `MermaidRecognition.Layout.Tests` | 30 (includes the five above) |
-| `MermaidRecognition.RuleValidation.Tests` | 10 |
-| `MermaidRecognition.NaiadAdapter.Tests` | 0 |
-| `MDConverter.Tests` | 1 |
+| Suite | Passing | Failing |
+| --- | ---: | ---: |
+| `MermaidRecognition.Tests` | 1069 | 0 |
+| `MermaidRecognition.Layout.Tests` | 724 | 31 |
+| `MermaidRecognition.RuleValidation.Tests` | 49 | 10 |
+| `MermaidRecognition.NaiadAdapter.Tests` | 47 | 0 |
+| `MDConverter.Tests` | 59 | 0 |
 
 ## Compatibility pin
 
