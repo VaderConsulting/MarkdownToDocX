@@ -3,13 +3,15 @@ using System.Collections.Generic;
 using System.Linq;
 
 using MermaidRecognition.Contract;
+using MermaidRecognition.Kinds.Flowchart;
+using MermaidRecognition.Render;
 
 namespace MermaidRecognition.Layout;
 
 /// <summary>Measures a routed layout using rules 2.13 and 2.14.</summary>
 internal static class FlowchartLayoutScore
 {
-    internal sealed record Result(double Width, double Height, int Overlaps, int Crossings,
+    internal sealed record Result(double Width, double Height, int Overlaps, int Crossings, int ForcedMinimum,
         double EmptyShare, double? Score, IReadOnlyList<FlowchartLayoutQualityFailure> Violations);
 
     internal static Result Measure(DiagramContract Contract, FlowchartLayoutResult Layout)
@@ -19,12 +21,13 @@ internal static class FlowchartLayoutScore
         DiagramGridQuality.Collect(Contract, Layout, Violations);
         int Overlaps = Violations.Count(Failure => Failure.Kind == "NodeOverlap");
         int Crossings = CountCrossings(Layout);
+        int ForcedMinimum = ForcedCrossingMinimum(Contract, Layout);
         double EmptyShare = EmptyAreaShare(Layout, Width, Height);
         var Back = FlowchartBackEdgeHelper.FindBackEdges(Contract)
             .Select(Edge => (Edge.SourceId, Edge.TargetId)).ToHashSet();
         bool Rejected = Overlaps > 0 || Violations.Any(Failure => Rejects(Failure, Layout, Back));
-        double? Score = Rejected ? null : Calculate(Width, Height, Crossings, EmptyShare);
-        return new(Width, Height, Overlaps, Crossings, EmptyShare, Score, Violations);
+        double? Score = Rejected ? null : Calculate(Width, Height, Crossings, ForcedMinimum, EmptyShare);
+        return new(Width, Height, Overlaps, Crossings, ForcedMinimum, EmptyShare, Score, Violations);
     }
 
     private static bool Rejects(FlowchartLayoutQualityFailure Failure, FlowchartLayoutResult Layout,
@@ -48,13 +51,62 @@ internal static class FlowchartLayoutScore
     }
 
     internal static double Calculate(double Width, double Height, int Crossings, double EmptyShare)
+        => Calculate(Width, Height, Crossings, 0, EmptyShare);
+
+    internal static double Calculate(double Width, double Height, int Crossings, int ForcedMinimum, double EmptyShare)
     {
         const double TargetRatio = 4.0 / 3.0;
         double Shape = Math.Abs((Width / Math.Max(1.0, Height)) - TargetRatio) / TargetRatio * 100.0 * 0.4;
         double EmptyPercent = EmptyShare * 100.0;
         double Empty = EmptyPercent <= 30.0 ? EmptyPercent * 2.0 : 60.0 + (EmptyPercent - 30.0) * 8.0;
-        return Shape + Empty + Crossings * 20.0;
+        return Shape + Empty + Math.Max(0, Crossings - ForcedMinimum) * 20.0;
     }
+
+    private static int ForcedCrossingMinimum(DiagramContract Contract, FlowchartLayoutResult Layout)
+    {
+        var Bounds = Layout.NodeBounds.ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
+        bool Horizontal = FlowchartDirectionNormalizer.Normalize(Contract.Direction)
+            is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft;
+        double Rank(FlowchartLayoutNodeBounds Box) => Math.Round(Horizontal ? Box.CenterX : Box.CenterY);
+        List<double> Ranks = Bounds.Values.Select(Rank).Distinct().Order().ToList();
+        var RankIndex = Ranks.Select((Value, Index) => (Value, Index)).ToDictionary(Item => Item.Value, Item => Item.Index);
+        var Pairs = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
+                && Bounds.ContainsKey(Edge.SourceId) && Bounds.ContainsKey(Edge.TargetId)
+                && Math.Abs(RankIndex[Rank(Bounds[Edge.SourceId])] - RankIndex[Rank(Bounds[Edge.TargetId])]) == 1)
+            .Select(Edge => (Edge.SourceId, Edge.TargetId, SourceRank: Rank(Bounds[Edge.SourceId]),
+                TargetRank: Rank(Bounds[Edge.TargetId])))
+            .Distinct().GroupBy(Edge => (Edge.SourceRank, Edge.TargetRank));
+        int Result = 0;
+        foreach (var RankPair in Pairs)
+        {
+            var Edges = RankPair.Select(Edge => (Edge.SourceId, Edge.TargetId)).ToHashSet();
+            var RemainingSources = Edges.Select(Edge => Edge.SourceId).ToHashSet(StringComparer.Ordinal);
+            while (RemainingSources.Count > 0)
+            {
+                string Seed = RemainingSources.Order(StringComparer.Ordinal).First();
+                var Sources = new HashSet<string>(StringComparer.Ordinal) { Seed };
+                var Targets = new HashSet<string>(StringComparer.Ordinal);
+                bool Changed;
+                do
+                {
+                    Changed = false;
+                    foreach ((string SourceId, string TargetId) in Edges)
+                    {
+                        if (Sources.Contains(SourceId) && Targets.Add(TargetId)) Changed = true;
+                        if (Targets.Contains(TargetId) && Sources.Add(SourceId)) Changed = true;
+                    }
+                } while (Changed);
+                RemainingSources.ExceptWith(Sources);
+                if (Sources.Count < 2 || Targets.Count < 2) continue;
+                int Present = Edges.Count(Edge => Sources.Contains(Edge.SourceId) && Targets.Contains(Edge.TargetId));
+                if (Present != Sources.Count * Targets.Count) continue;
+                Result += ChooseTwo(Sources.Count) * ChooseTwo(Targets.Count);
+            }
+        }
+        return Result;
+    }
+
+    private static int ChooseTwo(int Count) => Count * (Count - 1) / 2;
 
     private static (double Width, double Height) Bounds(FlowchartLayoutResult Layout)
     {

@@ -32,7 +32,7 @@ public sealed class CompactLayoutMetricTests
         TestContext.Out.WriteLine(
             $"{Catalogue}{Number}: width={Metrics.Width:0} height={Metrics.Height:0} "
             + $"ratio={Metrics.Width / Metrics.Height:0.000} overlaps={Metrics.Overlaps} "
-            + $"crossings={Metrics.Crossings} empty={Metrics.EmptyShare:P1} "
+            + $"crossings={Metrics.Crossings} forcedMin={Metrics.ForcedMinimum} empty={Metrics.EmptyShare:P1} "
             + $"score={(Metrics.Score.HasValue ? Metrics.Score.Value.ToString("0.0") : "rejected")}");
     }
 
@@ -43,6 +43,15 @@ public sealed class CompactLayoutMetricTests
         DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Source).Document);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
         Assert.That(FlowchartLayoutScore.Measure(Contract, Layout).Score, Is.Not.Null);
+    }
+
+    [Test]
+    public void A110_ForcedMinimum_ComesFromItsCompleteAdjacentRankBlocks()
+    {
+        string Source = ReadScenario("A", 110);
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Source).Document);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartLayoutScore.Measure(Contract, Layout).ForcedMinimum, Is.EqualTo(243));
     }
 
     private static string ReadScenario(string Catalogue, int Number)
