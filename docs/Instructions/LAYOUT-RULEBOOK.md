@@ -4,7 +4,7 @@
 
 Enterprise and flowchart diagrams default to `grid`. Diagram frontmatter may set `config.layout` to `grid` or `open`. An unknown value gives one warning and uses `grid`. The command-line option `--layout grid|open` sets the run default; the diagram's own setting takes precedence.
 
-`grid` uses the shared grid and placement rules below. `open` skips shared-grid placement and permits free node and group positions. Both modes use the same routing, ports, straight runs, rounded corners and crossing rules. Boxes and unrelated group frames must not overlap in either mode.
+`grid` uses the shared grid and placement rules below. `grid` includes the compaction step in rule 2.11. `open` skips shared-grid placement and permits free node and group positions. Both modes use the same routing, ports, straight runs, rounded corners and crossing rules. Boxes and unrelated group frames must not overlap in either mode.
 
 > **Decisions applied (7 Oct 2026, these override any conflicting text below)**
 > 1. Offset child in the next rank: leave the downstream side and Z into the child's upstream side while the downstream side has a free port. Use the side facing the child (elbow into its top) only when every downstream port is taken.
@@ -53,6 +53,8 @@ Every rule is generic: it uses only structure and geometry, never a node id, lab
 2.8 A chain of nodes that each have one parent and one child stays in one column as it passes into and out of a group (see nested-chain-markup.png).
 2.9 When two nodes in one rank both link to the same two nodes in the next rank, put each child directly under one parent. Choose the pairing with fewer crossings (see cross-links-markup.png).
 2.10 Within a rank, swap two nodes if that removes a crossing and adds none. Where several lines run between two ranks, first order the lower rank by the mean column of each node's parents. Then put each lower node under the parent it has the most lines from; on a tie, use Mermaid's order (see many-to-many-markup.png).
+
+2.11 Compaction (applies in `grid`; `open` skips it). After rules 2.2 to 2.10, visit nodes in rank order and then left to right. Move each node up by whole rows and left by whole columns into the nearest free grid cell, so that it shares a row with its parent where the next cell is free. Keep a move only if all of these hold: no box or frame overlaps; every line of the node still meets sections 3 to 5; the move adds no crossing; and the node stays in the column of one of its parents or beside it. Place parts of the diagram that have no line between them side by side, one column gap apart. Compaction removes only rows and columns that hold no node, label, track or frame. It never shrinks a gap that holds a label, a Z, tracks or a frame (rule 1.4). A diagram is never wider or deeper after compaction than before it. This rule wins over rule 2.2.
 
 ## 3. Ports and diamonds
 3.1 Use one port per line, so lines never share a port or a first run. A line meets its port square-on and ends exactly on the drawn outline (see f11-straight-markup.png).
