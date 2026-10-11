@@ -187,7 +187,7 @@ FlowchartLayoutFixRender dump-svg-gate <file.mmd> <file.svg>
 | File | Description |
 | --- | --- |
 | [`docs/spec.md`](docs/spec.md) | Normative recognition and rendering specification |
-| [`currentstatus.md`](docs/currentstatus.md) | Implementation progress, gate registry, and test summary |
+| [`docs/currentstatus.md`](docs/currentstatus.md) | What is true today, open work and test results |
 | [`docs/Mermaid_Specification.md`](docs/Mermaid_Specification.md) | Flowchart geometry and routing rules |
 | [`src/MermaidRecognition/README.md`](src/MermaidRecognition/README.md) | Recogniser scope and architecture |
 | [`src/MermaidRecognition.Layout/SUGIYAMA_ADOPTION.md`](src/MermaidRecognition.Layout/SUGIYAMA_ADOPTION.md) | Adopted MSAGL Sugiyama slice policy |

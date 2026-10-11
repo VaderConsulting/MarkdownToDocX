@@ -1,19 +1,20 @@
 # MarkdownToDocX - current status
 
-**Last updated:** 10 October 2026. This is the only status file; it describes what is true today. History stays in git.
+**Last updated:** 11 October 2026. This is the only status file; it describes what is true today. History stays in git.
 
 ## What the product does today
 
 - `md2docx` converts Markdown with Mermaid diagrams to DOCX.
-- Flowcharts use the native path: Mermaid recognition, shared grid layout, native routing and an SVG render. If that fails, the converter falls back to the frozen Naiad renderer.
+- Flowcharts and enterprise (ArchiMate) diagrams use the native path: Mermaid recognition, one shared grid layout, native routing and an SVG render. If a flowchart fails natively, the converter falls back to the frozen Naiad renderer.
 - The grid layout draws straight runs with rounded corners and a straight centre spine, and it avoids needless crossings. The rules are in `layout-engine/APPROVED-GRID-DECISIONS.md`; the dated evidence is in `grid-layout-review.md`.
-- Enterprise (ArchiMate) diagrams render natively. They use a `mermaid` code fence only. The `enterprise` fence tag is not supported.
+- Enterprise diagrams use a `mermaid` code fence only. The `enterprise` fence tag is not supported.
+- Every diagram uses the grid. There is no layout setting yet.
 - All other diagram kinds still render through Naiad.
 - Recognition reaches level L4 for the nine started kinds (flowchart, sequence, class, state, ER, pie, gantt, mindmap, git graph) and L1 for the rest.
 
 ## Known failing Layout tests
 
-These five Layout tests pass on master and fail now. They are known and accepted.
+These five Layout tests expect the old branch layout and fail now. They are known and accepted.
 
 - `RenderToSvg_Sample03_StrokeQualityMatchesSharedRules`
 - `RenderToSvg_InspectContent_BranchesUseOrthogonalRunsWithDiamondStub`
@@ -21,27 +22,27 @@ These five Layout tests pass on master and fail now. They are known and accepted
 - `RenderToSvg_TypeDecision_NoSharedBottomStub`
 - `RenderToSvg_MessageFilter_BranchesEnterLeftSideWithRoundedZ`
 
-Four of them still expect the old branch layout (orthogonal runs and stubs). The grid layout routes branches differently. The same change fixes eight other Layout tests that fail on master.
-
 ## Open work
 
-1. **Grid layout and routing**: the label, group-frame and sequence parts of the rulebook are unfinished. Crowded corners and container-title obstacles remain.
-2. **Enterprise syntax**: styling and configuration are only partly supported, and the ArchiMate 3.2 relationship table needs verifying.
-3. **Native render for the other kinds** (sequence, class, state, ER, pie, gantt, mindmap, git graph).
-4. **Housekeeping**: the vendored Mermaid pin is dirty and should be cleaned.
-5. **`flowchart-elk`** is deferred.
+1. **Enterprise syntax gaps**: 14 scenarios in `enterprise.md` do not render (A100, A101, A118 to A130). The converter lacks hyphenated ids, semicolons, enterprise headers and direction, frontmatter and init directives, `classDef`, `class`, `style` and `linkStyle`, quoted labels, and redeclared ids. See `BRIEF-ENTERPRISE-SYNTAX-GAPS.md`.
+2. **Layout mode**: each diagram will choose `layout: grid` or `layout: open` in its frontmatter. The default is `grid`. `open` changes only how nodes and groups are placed; line rules stay the same. Scenarios F144 to F150 in `flow.md` and A143 to A149 in `enterprise.md` test it. It needs the frontmatter reader from item 1. See `BRIEF-LAYOUT-MODE.md`.
+3. **Visual checks**: the grid stress test A142 in `enterprise.md` converts but has not been checked by eye for compactness and crossings. F111 is the one `flow.md` diagram that does not render properly.
+4. **Rulebook gaps**: the label, group-frame and sequence sections are unfinished. The frame-midline rule is on hold, and six defaults await confirmation. See `Instructions/LAYOUT-RULEBOOK.md`.
+5. **Native render for the other kinds** (sequence, class, state, ER, pie, gantt, mindmap, git graph).
+6. **Housekeeping**: the vendored Mermaid pin is dirty and should be cleaned.
+7. **`flowchart-elk`** is deferred.
 
 ## Test results
 
-Measured on Linux on 10 October 2026 with `dotnet test`. Windows counts differ.
+Measured on Linux on 11 October 2026 with `dotnet test`. Windows runs are still to do, and the counts may differ.
 
-| Suite | Passing | Failing | Failing on master |
-| --- | --- | --- | --- |
-| `MermaidRecognition.Tests` | 1014 | 11 | 11 |
-| `MermaidRecognition.Layout.Tests` | 519 | 30 | 33 |
-| `MermaidRecognition.RuleValidation.Tests` | 49 | 10 | 11 |
-| `MermaidRecognition.NaiadAdapter.Tests` | 47 | 0 | 0 |
-| `MDConverter.Tests` | 18 | 1 | 7 |
+| Suite | Failing |
+| --- | --- |
+| `MermaidRecognition.Tests` | 11 |
+| `MermaidRecognition.Layout.Tests` | 30 (includes the five above) |
+| `MermaidRecognition.RuleValidation.Tests` | 10 |
+| `MermaidRecognition.NaiadAdapter.Tests` | 0 |
+| `MDConverter.Tests` | 1 |
 
 ## Compatibility pin
 
@@ -58,7 +59,11 @@ If the vendored Mermaid changes, update this pin, the recognition fixtures and `
 - `spec.md` is the normative recognition and rendering specification.
 - `Mermaid_Specification.md` holds the flowchart geometry and routing rules.
 - `Rule Specification/` (repository root) holds the rule validation rules and scripts.
-- `flow.md` and `EIP.md` (repository root) and `enterprise/samples/` in this folder are the stress-test inputs. `sequence.md`, `class.md`, `state.md` and `entityrelationship.md` in this folder are the other catalogues.
+- `HANDOVER-GRID-LAYOUT-v2.md` describes the grid layout that is required, including what "tight" means.
+- `Instructions/CLOUD-AGENT-WORKING-PRACTICES.md` holds the working rules for agents.
+- `Instructions/LAYOUT-RULEBOOK.md` is the layout rulebook.
+- `BRIEF-ENTERPRISE-SYNTAX-GAPS.md` and `BRIEF-LAYOUT-MODE.md` are the briefs for the two next build tasks.
+- `flow.md`, `enterprise.md` and `EIP.md` (repository root) and `enterprise/samples/` in this folder are the stress-test inputs. `sequence.md`, `class.md`, `state.md` and `entityrelationship.md` in this folder are the other catalogues.
 
 ## Maintenance rule
 
