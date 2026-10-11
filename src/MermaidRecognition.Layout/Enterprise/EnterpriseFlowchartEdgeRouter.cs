@@ -162,6 +162,7 @@ internal static class EnterpriseFlowchartEdgeRouter
         Dictionary<string, EnterpriseLayoutNode> Nodes, DiagramContract Contract)
     {
         var Layout = new FlowchartLayoutResult();
+
         for (int Index = 0; Index < Edges.Count; Index++)
         {
             var Route = new FlowchartLayoutEdgeRoute { EdgeId = Contracts[Index].Id ?? string.Empty,
@@ -183,6 +184,10 @@ internal static class EnterpriseFlowchartEdgeRouter
                 CenterX = Node.AbsoluteX + Node.Width / 2, CenterY = Node.AbsoluteY + Node.Height / 2,
                 Width = Node.Width, Height = Node.Height }, StringComparer.Ordinal));
         FlowchartCrossGroupRouteSimplifier.Apply(Layout, Contract, Nodes.Values.ToDictionary(Node => Node.Id,
+            Node => new FlowchartLayoutNodeBounds { NodeId = Node.Id,
+                CenterX = Node.AbsoluteX + Node.Width / 2, CenterY = Node.AbsoluteY + Node.Height / 2,
+                Width = Node.Width, Height = Node.Height }, StringComparer.Ordinal));
+        FlowchartAlignedCounterflowRoutes.Apply(Layout, Contract, Nodes.Values.ToDictionary(Node => Node.Id,
             Node => new FlowchartLayoutNodeBounds { NodeId = Node.Id,
                 CenterX = Node.AbsoluteX + Node.Width / 2, CenterY = Node.AbsoluteY + Node.Height / 2,
                 Width = Node.Width, Height = Node.Height }, StringComparer.Ordinal));
