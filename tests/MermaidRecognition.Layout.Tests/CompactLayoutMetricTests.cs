@@ -36,6 +36,15 @@ public sealed class CompactLayoutMetricTests
             + $"score={(Metrics.Score.HasValue ? Metrics.Score.Value.ToString("0.0") : "rejected")}");
     }
 
+    [Test]
+    public void A117_PortSideRepair_RemovesLineRuleRejection()
+    {
+        string Source = ReadScenario("A", 117);
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Source).Document);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartLayoutScore.Measure(Contract, Layout).Score, Is.Not.Null);
+    }
+
     private static string ReadScenario(string Catalogue, int Number)
     {
         string Markdown = File.ReadAllText(FindRepositoryFile(Catalogue == "F" ? "flow.md" : "enterprise.md"));

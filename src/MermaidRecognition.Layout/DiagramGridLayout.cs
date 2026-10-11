@@ -185,6 +185,8 @@ public static class DiagramGridLayout
         if (!Open)
             FlowchartManyToManyRoutes.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
         WriteBack(Copy, Placed, Frames);
+        if (!Open)
+            FlowchartPortSideRouteRepair.Apply(Copy, Contract);
         return Copy;
     }
 
