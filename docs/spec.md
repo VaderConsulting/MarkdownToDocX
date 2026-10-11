@@ -2233,7 +2233,7 @@ Target Mermaid compatibility:
 ```text
 Mermaid package version: 11.14.0
 Vendored source commit: 1bb6ba52937c21999e9ac89d11b82b0c56fd2739
-Vendored source state: dirty at time of this spec update
+Vendored source state: clean
 Minimum feature context: edge-level curve styling via edge ids exists in Mermaid v11.10.0+
 ```
 

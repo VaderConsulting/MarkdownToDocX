@@ -31,7 +31,7 @@
 4. **Old-layout Layout tests — complete.** The five stale checks now test the rulebook rather than old coordinates: Sample03 accepts only straight runs, rounded corners and crossing humps; InspectContent and ValidDecision check rounded orthogonal branches; TypeDecision checks its straight centre spine and rounded side branches; MessageFilter checks rounded orthogonal fan-out routes. All five focused tests pass.
 5. **Visual fixes — stopped after three failed placement attempts.** The regenerated documents confirm that F111 now renders as aligned three-by-three partner ranks (25 focused tests pass), A14 follows the application-layer stack, and the retry routes are orthogonal. A142 and its Web Shop, Order Manager and Payment Hub regions remain sparse and tangled. Its 179-node branching layout measures 5158 x 7846. The same three whole-graph placements recorded in task 3 either added crossings or failed the crossing guard, so rule 7 requires moving on.
 6. **Remaining test failures — reviewed.** Recognition is clean at 1069/0 and MDConverter is clean at 60/0, including `ConvertFile_LockedDestinationRemainsIntact`. RuleValidation remains at its 49/10 baseline. Those tests require old curved/default routes, old shoulder coordinates or layouts that conflict with the current orthogonal grid rulebook; rule 6 does not permit rewriting them. The catalogue-wide terminal check also exposes real perpendicular-attachment faults, including several F153 edges. Three investigations (isolated rerun, terminal-normalizer trace, and rulebook comparison) did not produce a safe shared fix, so rule 7 requires moving on.
-7. **Housekeeping.** Clean the vendored Mermaid pin and update the compatibility pin below. `flowchart-elk` stays deferred.
+7. **Housekeeping — complete.** The vendored Mermaid tree has no tracked differences, package version 11.14.0 matches the pin, and `flowchart-elk` remains deferred.
 8. **Final check.** Run all five suites on Windows, report the counts next to the baseline, and confirm this file is short and true.
 
 ## Stretch goals
@@ -57,7 +57,7 @@ Windows baseline measured on 11 October 2026 with `dotnet test`, before task 1 i
 ```text
 Mermaid package version: 11.14.0
 Vendored source commit: 1bb6ba52937c21999e9ac89d11b82b0c56fd2739
-Vendored source state: dirty - capture a clean baseline before claiming fixture immutability
+Vendored source state: clean
 ```
 
 If the vendored Mermaid changes, update this pin, the recognition fixtures and `spec.md` together.
