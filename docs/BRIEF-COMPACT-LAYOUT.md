@@ -14,7 +14,7 @@ Compaction is part of `grid` and is on by default. `open` does not use it. There
 ## Checking
 Do not ask Dave to review diagrams. Check the results yourself, with tests and measurements:
 - No box or frame overlaps and no new crossing in any diagram of `flow.md`, `enterprise.md` and `EIP.md`.
-- No diagram is wider or deeper than before. Measure the width and height of every diagram before and after.
+- Measure the width, height and layout score of every diagram before and after, and keep a layout only if its score is lower.
 - Report only a summary: the number of diagrams checked, the total change in area, and every diagram that did not shrink, with the reason. Fix any diagram that got bigger.
 
 ## Rules
