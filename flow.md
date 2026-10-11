@@ -1081,7 +1081,7 @@ A[A] --> B[B] --> C[C]
 | F77–F79 | 10 | Class/style mutations |
 | F80 | 10 | `flowchart-elk` header |
 | F85 | 10 | Edge label syntax variant |
-| F114–F133 | 16 | Nodes-first declaration (parse/layout equivalence) |
+| F114–F143 | 16 | Nodes-first declaration (parse/layout equivalence) |
 
 ---
 
@@ -1664,4 +1664,362 @@ App[Application]
 
 A --> B
 App --> Store
+```
+
+### F134 — Nodes first: mixed labelled and bare nodes, LR chain (equiv. F114 / F116)
+
+```mermaid
+flowchart LR
+Fetch[Fetch data]
+validate
+Store[(Archive)]
+notify([Notify owner])
+
+Fetch --> validate
+validate --> Store
+Store --> notify
+```
+
+### F135 — Nodes first: approval decision with a review detour (equiv. F119)
+
+```mermaid
+flowchart TB
+Start([Begin])
+check{Approved?}
+Ship[Ship order]
+review
+Reject[Reject order]
+End([Finish])
+
+Start --> check
+check -->|Yes| Ship
+check -->|No| review
+review --> Reject
+Ship --> End
+Reject --> End
+```
+
+### F136 — Nodes first: many to many, two feeds into three consumers
+
+Perpendicular attach stress: every source connects to every target.
+
+```mermaid
+flowchart LR
+Web[Web feed]
+Api[API feed]
+Index[Search index]
+Cache
+audit[Audit log]
+
+Web --> Index
+Web --> Cache
+Web --> audit
+Api --> Index
+Api --> Cache
+Api --> audit
+```
+
+### F137 — Nodes first: polling loop with back edge (equiv. F124)
+
+Perpendicular attach stress: labelled decision branches plus an unlabelled back edge.
+
+```mermaid
+flowchart TB
+Poll[Poll queue]
+Handle{Handled?}
+Ack[Acknowledge]
+backoff
+
+Poll --> Handle
+Handle -->|Yes| Ack
+Handle -->|No| backoff
+backoff --> Poll
+```
+
+### F138 — Nodes first: subgraph with bare and labelled members (equiv. F126)
+
+```mermaid
+flowchart LR
+subgraph Intake["Intake"]
+  receive
+  Scan[Scan document]
+end
+Source[Source]
+Archive[(Archive)]
+
+Source --> receive
+receive --> Scan
+Scan --> Archive
+```
+
+### F139 — Nodes first: sibling subgraphs with labelled cross-boundary edges (equiv. F129)
+
+Perpendicular attach stress: labelled edges leaving one subgraph for members of another.
+
+```mermaid
+flowchart LR
+subgraph Frontend["Frontend"]
+  direction TB
+  UI[Web UI]
+  gateway
+end
+subgraph Backend["Backend"]
+  direction TB
+  Orders[Orders]
+  billing
+end
+User([User])
+
+User --> UI
+UI --> gateway
+gateway -->|order| Orders
+gateway -->|invoice| billing
+Orders --> billing
+```
+
+### F140 — Nodes first: mixed edge styles with labels (equiv. F131)
+
+```mermaid
+flowchart LR
+A[Request]
+B[Primary]
+C
+D[Fallback]
+E[Log]
+
+A -->|try| B
+A -.->|if down| D
+B ==> C
+D --- C
+C --x E
+```
+
+### F141 — Nodes first: nested subgraphs with bare and labelled members (equiv. F132)
+
+Perpendicular attach stress: mixed directions and a chain crossing inner and outer cluster bounds.
+
+```mermaid
+flowchart TB
+subgraph Region["Region"]
+  direction TB
+  Gate[Gateway]
+  subgraph Zone["Zone"]
+    direction LR
+    web
+    App[App server]
+  end
+  Db[(Database)]
+end
+Client[Client]
+
+Client --> Gate
+Gate --> web
+web --> App
+App --> Db
+```
+
+### F142 — Nodes first: fan-in then fan-out through one collector (equiv. F121 / F122)
+
+Perpendicular attach stress: three incoming paths at one hub and three outgoing paths from it.
+
+```mermaid
+flowchart TB
+S1[Sensor 1]
+S2[Sensor 2]
+S3
+Hub[Collector]
+Store[(Time series)]
+Alert[Alert]
+Dash
+
+S1 --> Hub
+S2 --> Hub
+S3 --> Hub
+Hub --> Store
+Hub --> Alert
+Hub --> Dash
+```
+
+### F143 — Nodes first: three-way route then merge (equiv. F123)
+
+Perpendicular attach stress: labelled fan-out from a diamond and a three-way join.
+
+```mermaid
+flowchart LR
+Start([Start])
+split{Route?}
+Fast[Fast lane]
+slow
+Bulk[Bulk lane]
+Join[Merge]
+Done([Done])
+
+Start --> split
+split -->|small| Fast
+split -->|normal| slow
+split -->|large| Bulk
+Fast --> Join
+slow --> Join
+Bulk --> Join
+Join --> Done
+```
+
+### F144 - Layout mode: explicit grid on a small chain
+
+Layout mode feature. Frontmatter `config: layout: grid` selects the shared grid explicitly. Expected once the feature exists: nodes sit on one shared grid with straight runs and rounded corners, identical to the same chain with no setting (F146).
+
+```mermaid
+---
+config:
+  layout: grid
+---
+flowchart LR
+A[Receive]
+B[Check]
+C[Approve]
+D[Ship]
+
+A --> B
+B --> C
+C --> D
+```
+
+### F145 - Layout mode: explicit open on the same chain
+
+Layout mode feature. Same diagram as F144 with `layout: open`. Expected once the feature exists: nodes are placed freely with no shared grid; line routing follows the same rules (straight runs, rounded corners, no overlaps). Only node placement may differ from F144.
+
+```mermaid
+---
+config:
+  layout: open
+---
+flowchart LR
+A[Receive]
+B[Check]
+C[Approve]
+D[Ship]
+
+A --> B
+B --> C
+C --> D
+```
+
+### F146 - Layout mode: default with no setting
+
+Layout mode feature. Same diagram as F144 with no `layout` setting. Expected once the feature exists: `grid` is the default, so the result is the same as F144.
+
+```mermaid
+flowchart LR
+A[Receive]
+B[Check]
+C[Approve]
+D[Ship]
+
+A --> B
+B --> C
+C --> D
+```
+
+### F147 - Layout mode: open with nested subgraphs
+
+Layout mode feature. `layout: open` with nested subgraphs and bare and labelled members. Expected once the feature exists: nodes and subgraphs are placed freely, subgraph boxes never overlap, and lines use the usual routing rules.
+
+```mermaid
+---
+config:
+  layout: open
+---
+flowchart TB
+subgraph Region["Region"]
+  direction TB
+  Gate[Gateway]
+  subgraph Zone["Zone"]
+    direction LR
+    web
+    App[App server]
+  end
+  Db[(Database)]
+end
+Client[Client]
+
+Client --> Gate
+Gate --> web
+web --> App
+App --> Db
+```
+
+### F148 - Layout mode: grid with fan-out and many-to-many
+
+Layout mode feature. `layout: grid` with a fan-out and a many-to-many block. Expected once the feature exists: all nodes align to one shared grid, with straight runs, rounded corners and no overlapping lines.
+
+```mermaid
+---
+config:
+  layout: grid
+---
+flowchart TB
+Hub[Dispatcher]
+W1[Worker 1]
+W2[Worker 2]
+W3
+Out1[Queue A]
+Out2[Queue B]
+Out3
+
+Hub --> W1
+Hub --> W2
+Hub --> W3
+W1 --> Out1
+W1 --> Out2
+W2 --> Out2
+W2 --> Out3
+W3 --> Out1
+W3 --> Out3
+```
+
+### F149 - Layout mode: open with cross-boundary links
+
+Layout mode feature. `layout: open` with sibling subgraphs and labelled links that cross their boundaries. Expected once the feature exists: free placement of nodes and subgraphs, with links routed by the usual rules and labels sitting in breaks of their lines.
+
+```mermaid
+---
+config:
+  layout: open
+---
+flowchart LR
+subgraph Front["Front end"]
+  UI[Web UI]
+  Cache[(Cache)]
+end
+subgraph Back["Back end"]
+  Api[API]
+  Db[(Database)]
+end
+Audit[Audit log]
+
+UI -->|request| Api
+Api -->|read| Cache
+Api -->|write| Db
+Db -->|change| Audit
+UI -.->|event| Audit
+```
+
+### F150 - Layout mode: unknown value falls back to grid
+
+Layout mode feature. `layout: freeform` is not a known value. Expected once the feature exists: exactly one warning about the unknown layout value, then the diagram is laid out as `grid`, the same as F146.
+
+```mermaid
+---
+config:
+  layout: freeform
+---
+flowchart LR
+A[Receive]
+B[Check]
+C[Approve]
+D[Ship]
+
+A --> B
+B --> C
+C --> D
 ```
