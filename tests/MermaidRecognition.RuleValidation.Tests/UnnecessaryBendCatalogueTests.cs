@@ -120,6 +120,12 @@ public sealed class UnnecessaryBendCatalogueTests
         }
         int Total(char Check) => Results.Sum(Result => Result.Violations.Count(Violation => Violation.Check == Check));
         TestContext.Out.WriteLine($"Totals: a={Total('a')}, b={Total('b')}, c={Total('c')}, d={Total('d')}, e={Total('e')}");
+        foreach (ScenarioResult Result in Results.Where(Result => Result.Violations.Count > 0))
+        foreach (UnnecessaryBendViolation Violation in Result.Violations)
+            TestContext.Out.WriteLine($"{Result.Id} {Violation.LineId} check {Violation.Check}: "
+                + $"{Violation.RoutedCorners} corners, length {Violation.RoutedLength.ToString("0.#", CultureInfo.InvariantCulture)}; better "
+                + string.Join(" ", Violation.BetterRoute.Select(Point =>
+                    $"({Point.X.ToString("0.#", CultureInfo.InvariantCulture)},{Point.Y.ToString("0.#", CultureInfo.InvariantCulture)})")));
         TestContext.Out.WriteLine("Top 10: " + string.Join(", ", Results.OrderByDescending(Result => Result.Violations.Count)
             .ThenBy(Result => Result.Id, StringComparer.Ordinal).Take(10)
             .Select(Result => Result.Id + "=" + Result.Violations.Count.ToString(CultureInfo.InvariantCulture))));

@@ -41,7 +41,7 @@ Failed attempt: A142 stopped with the valid best at 51 crossings. A reproduced p
 8. **Housekeeping — complete.** The vendored Mermaid tree has no tracked differences, package version 11.14.0 matches the pin, and `flowchart-elk` remains deferred.
 9. **Final check — complete.** All five suites ran on Windows. The release converter regenerated `flow.docx`, `enterprise.docx` and `EIP.docx`; all three packages open as valid ZIP containers with document XML and 148, 151 and 342 embedded images respectively.
 10. **Code slop cleanup — complete with unsafe steps recorded.** Steps 1, 3 to 6, 8 and 10 are complete. They removed the Sample03 oracle and 251 duplicated allocator lines, isolated render state, narrowed fallback behavior, named geometry policy, documented the 21 route passes, and found no IDE0051, IDE0052, IDE0060 or CA1822 findings. Steps 2, 7 and 9 were not forced because they still changed behavior or required wider state and call-contract rewrites. All 321 metrics and suite counts stayed at 1074/0, 805/57, 49/10, 47/0 and 60/0.
-11. **Bend tests — steps 1 and 2 complete.** The generic checker compares each orthogonal route with legal straight, one-corner and two-corner alternatives using the same ports and sides. Seven hand-built tests cover aligned, perpendicular and same-side routes, zig-zags, short jogs, obstacles, hints and rechecking the returned better route. The 321-scenario catalogue baseline has seven detours: A153 has three; A113, A164, A94 and F136 have one each. Checks a, b, c and e have zero findings. Next: remove those routing causes generically and ratchet the baseline down.
+11. **Bend tests — steps 1 and 2 complete.** The generic checker compares each orthogonal route with legal straight, one-corner and two-corner alternatives using the same ports and sides. Seven hand-built tests cover aligned, perpendicular and same-side routes, zig-zags, short jogs, obstacles, hints and rechecking the returned better route. The 321-scenario catalogue baseline now has one detour, F136. Six false positives were removed by treating every other routed segment as an obstacle: A153 had three; A113, A164 and A94 had one each. Checks a, b, c and e have zero findings. Next: remove the remaining routing cause generically and ratchet the baseline to zero.
 
 ## Stretch goals
 
@@ -89,3 +89,4 @@ If the vendored Mermaid changes, update this pin, the recognition fixtures and `
 
 Update this file at the end of every completed task. Keep it short, and delete anything that is no longer true instead of adding history.
  New scenarios to check with rules 2.17, 2.18, 2.19, 4.7 and 4.8: Order Suite with Web Shop and Order Manager (aggregation), and Place Order with Basket Submitted, Pricing, Stock Check and Order Service.
+

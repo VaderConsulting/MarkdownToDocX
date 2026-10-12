@@ -11,6 +11,8 @@ public readonly record struct BendPoint(double X, double Y);
 
 public readonly record struct BendObstacle(string Id, double Left, double Bottom, double Right, double Top);
 
+public readonly record struct BendSegment(string LineId, BendPoint Start, BendPoint End);
+
 public sealed record BendRoute(
     string LineId,
     string SourceId,
@@ -59,7 +61,13 @@ public static class UnnecessaryBendChecker
             BendRoute Input = new(Route.EdgeId, Route.SourceId, Route.TargetId,
                 Route.ExitSide, Route.EntrySide,
                 Route.Points.Select(Point => new BendPoint(Point.X, Point.Y)).ToList(), HintNeeded);
-            UnnecessaryBendViolation? Finding = CheckRoute(DiagramId, Input, Obstacles);
+            List<BendSegment> OtherLines = Layout.EdgeRoutes.Where(Other => Other.EdgeId != Route.EdgeId)
+                .SelectMany(Other => Enumerable.Range(1, Other.Points.Count - 1).Select(Index =>
+                    new BendSegment(Other.EdgeId,
+                        new BendPoint(Other.Points[Index - 1].X, Other.Points[Index - 1].Y),
+                        new BendPoint(Other.Points[Index].X, Other.Points[Index].Y))))
+                .ToList();
+            UnnecessaryBendViolation? Finding = CheckRoute(DiagramId, Input, Obstacles, OtherLines);
             if (Finding != null) Result.Add(Finding);
         }
         return Result;
@@ -68,13 +76,14 @@ public static class UnnecessaryBendChecker
     public static UnnecessaryBendViolation? CheckRoute(
         string DiagramId,
         BendRoute Route,
-        IReadOnlyList<BendObstacle> Obstacles)
+        IReadOnlyList<BendObstacle> Obstacles,
+        IReadOnlyList<BendSegment>? OtherLines = null)
     {
         List<BendPoint> Routed = Normalize(Route.Points);
         if (Routed.Count < 2 || !IsOrthogonal(Routed)) return null;
         int RoutedCorners = Routed.Count - 2;
         double RoutedLength = Length(Routed);
-        List<BendPoint>? Best = FindBest(Route with { Points = Routed }, Obstacles);
+        List<BendPoint>? Best = FindBest(Route with { Points = Routed }, Obstacles, OtherLines ?? []);
         if (Best == null) return null;
         int BetterCorners = Best.Count - 2;
         double BetterLength = Length(Best);
@@ -90,7 +99,8 @@ public static class UnnecessaryBendChecker
             RoutedCorners, RoutedLength, Best);
     }
 
-    private static List<BendPoint>? FindBest(BendRoute Route, IReadOnlyList<BendObstacle> Obstacles)
+    private static List<BendPoint>? FindBest(BendRoute Route, IReadOnlyList<BendObstacle> Obstacles,
+        IReadOnlyList<BendSegment> OtherLines)
     {
         BendPoint Start = Route.Points[0];
         BendPoint End = Route.Points[^1];
@@ -117,7 +127,7 @@ public static class UnnecessaryBendChecker
         return Candidates.Select(Normalize)
             .Where(Candidate => Candidate.Count >= 2 && IsOrthogonal(Candidate)
                 && MatchesEndpointSides(Candidate, Route.ExitSide, Route.EntrySide)
-                && HasMinimumRuns(Candidate) && IsClear(Candidate, Obstacles))
+                && HasMinimumRuns(Candidate) && IsClear(Candidate, Obstacles, OtherLines))
             .OrderBy(Candidate => Candidate.Count - 2)
             .ThenBy(Length)
             .FirstOrDefault();
@@ -169,13 +179,43 @@ public static class UnnecessaryBendChecker
         _ => true
     };
 
-    private static bool IsClear(IReadOnlyList<BendPoint> Points, IReadOnlyList<BendObstacle> Obstacles)
+    private static bool IsClear(IReadOnlyList<BendPoint> Points, IReadOnlyList<BendObstacle> Obstacles,
+        IReadOnlyList<BendSegment> OtherLines)
     {
         for (int Index = 1; Index < Points.Count; Index++)
+        {
             foreach (BendObstacle Box in Obstacles)
                 if (SegmentCrossesInterior(Points[Index - 1], Points[Index], Box)) return false;
+            foreach (BendSegment Other in OtherLines)
+                if (SegmentsInterfere(Points[Index - 1], Points[Index], Other.Start, Other.End,
+                    Points[0], Points[^1])) return false;
+        }
         return true;
     }
+
+    private static bool SegmentsInterfere(BendPoint A, BendPoint B, BendPoint C, BendPoint D,
+        BendPoint RouteStart, BendPoint RouteEnd)
+    {
+        bool ABHorizontal = Math.Abs(A.Y - B.Y) <= Epsilon;
+        bool CDHorizontal = Math.Abs(C.Y - D.Y) <= Epsilon;
+        if (ABHorizontal == CDHorizontal)
+        {
+            if (ABHorizontal && Math.Abs(A.Y - C.Y) > Epsilon) return false;
+            if (!ABHorizontal && Math.Abs(A.X - C.X) > Epsilon) return false;
+            double A0 = ABHorizontal ? Math.Min(A.X, B.X) : Math.Min(A.Y, B.Y);
+            double A1 = ABHorizontal ? Math.Max(A.X, B.X) : Math.Max(A.Y, B.Y);
+            double C0 = ABHorizontal ? Math.Min(C.X, D.X) : Math.Min(C.Y, D.Y);
+            double C1 = ABHorizontal ? Math.Max(C.X, D.X) : Math.Max(C.Y, D.Y);
+            return Math.Max(A0, C0) < Math.Min(A1, C1) - Epsilon;
+        }
+        BendPoint Crossing = ABHorizontal ? new BendPoint(C.X, A.Y) : new BendPoint(A.X, C.Y);
+        bool OnAB = Between(Crossing.X, A.X, B.X) && Between(Crossing.Y, A.Y, B.Y);
+        bool OnCD = Between(Crossing.X, C.X, D.X) && Between(Crossing.Y, C.Y, D.Y);
+        return OnAB && OnCD && !Same(Crossing, RouteStart) && !Same(Crossing, RouteEnd);
+    }
+
+    private static bool Between(double Value, double A, double B) =>
+        Value >= Math.Min(A, B) - Epsilon && Value <= Math.Max(A, B) + Epsilon;
 
     private static bool SegmentCrossesInterior(BendPoint A, BendPoint B, BendObstacle Box)
     {

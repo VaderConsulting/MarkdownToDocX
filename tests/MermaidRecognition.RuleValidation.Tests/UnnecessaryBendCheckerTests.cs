@@ -59,6 +59,14 @@ public sealed class UnnecessaryBendCheckerTests
         Assert.That(Check(Bent with { Points = Finding.BetterRoute }), Is.Null);
     }
 
+    [Test]
+    public void ShorterRouteCrossingAnotherLine_DoesNotMakeTheDetourUnnecessary()
+    {
+        BendRoute Detour = Route("right", "left", (0, 0), (30, 0), (30, 90), (120, 90));
+        BendSegment BlockingLine = new("other", new BendPoint(75, 30), new BendPoint(75, 120));
+        Assert.That(UnnecessaryBendChecker.CheckRoute("unit", Detour, [], [BlockingLine]), Is.Null);
+    }
+
     private static UnnecessaryBendViolation? Check(BendRoute Route, IReadOnlyList<BendObstacle>? Obstacles = null) =>
         UnnecessaryBendChecker.CheckRoute("unit", Route, Obstacles ?? []);
 
