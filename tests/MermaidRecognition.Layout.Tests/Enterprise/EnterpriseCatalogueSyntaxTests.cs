@@ -24,9 +24,12 @@ public sealed class EnterpriseCatalogueSyntaxTests
     [TestCaseSource(nameof(PlacementHintScenarios))]
     public void PlacementHintScenario_ParsesWithoutErrors(int Number)
     {
-        EnterpriseAnalysisResult Analysis = EnterpriseValidator.Analyze(ReadScenario(Number));
+        string Source = ReadScenario(Number);
+        EnterpriseAnalysisResult Analysis = EnterpriseValidator.Analyze(Source);
         Assert.That(Analysis.Errors, Is.Empty,
             $"A{Number}: {string.Join("; ", Analysis.Errors.Select(Item => Item.Message))}");
+        Assert.That(EnterpriseRenderBridge.TryRenderEnterpriseSvg(Source, out string Svg), Is.True);
+        Assert.That(Svg, Does.StartWith("<svg"));
     }
 
     [TestCaseSource(nameof(ValidSyntaxScenarios))]

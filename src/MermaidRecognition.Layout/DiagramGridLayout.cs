@@ -91,6 +91,7 @@ public static class DiagramGridLayout
             CentreTerminalFans(Contract, Placed, Horizontal, CoordinatesPlaced: false);
             CascadeColumns(Placed);
             PlaceOnGrid(Placed, Horizontal, BoxWidth, BoxHeight, MainPitch, CrossPitch, Copy, Contract);
+            FlowchartPlacementHints.Apply(Contract, Placed);
             if (!Horizontal)
             {
                 ApplySpineColumnAdjustments(Contract, Placed, Direction);
@@ -131,6 +132,7 @@ public static class DiagramGridLayout
             RepairExteriorCrossings = FlowchartComponentWrapping.Apply(Contract, Placed, Horizontal);
             FlowchartDisconnectedPacking.Apply(Contract, Placed);
             FlowchartGroupMemberPacking.Apply(Contract, Placed);
+            FlowchartPlacementHints.Apply(Contract, Placed);
         }
         List<GridFrame> Frames = new List<GridFrame>();
         if (!Open) CenterLoneNestedGroups(Contract, Placed, Horizontal);
@@ -143,6 +145,8 @@ public static class DiagramGridLayout
         if (!Open && FlowchartExternalLeafPlacement.Apply(Contract, Placed, Frames, Horizontal))
             FitFrames(Contract, Placed, Frames, Horizontal);
         if (!Open) FlowchartIntergroupNodePlacement.Apply(Contract, Placed, Frames, Horizontal);
+        if (!Open && FlowchartPlacementHints.Apply(Contract, Placed))
+            FitFrames(Contract, Placed, Frames, Horizontal);
         FlipToYUp(Placed, Frames, Copy);
         EnsureBackEdgeRoutes(Contract, Copy, Placed);
         AssignPortSides(Contract, Copy, Placed, Frames, Nodes, Direction, SharedFanSources);
@@ -194,6 +198,11 @@ public static class DiagramGridLayout
     internal static void GrowFacingDoglegGaps(FlowchartLayoutResult Layout, DiagramContract Contract,
         List<GridNode> Placed, List<GridFrame> Frames)
     {
+        // Placement hints outrank automatic gap growth. Repositioning only later ranks
+        // would split a source-ordered hinted chain after placement has been finalised.
+        if (Contract.Nodes.Any(Node => Node.PlacementHint?.IsActive == true)
+            || Contract.Groups.Any(Group => Group.PlacementHint?.IsActive == true))
+            return;
         var BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         foreach (var Route in Layout.EdgeRoutes)
         {
