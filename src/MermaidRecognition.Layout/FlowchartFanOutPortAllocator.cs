@@ -34,7 +34,7 @@ public static class FlowchartFanOutPortAllocator
             return false;
         }
 
-        List<EdgeContract> Outgoing = GetVisibleEdgesFromSource(Contract, Edge.SourceId);
+        List<EdgeContract> Outgoing = FlowchartSharedPortAllocator.GetRoutableEdgesFromSource(Contract, Edge.SourceId);
         return TryIsHorizontalHubFanOut(Outgoing, BoundsById, SourceBounds, SourceShape, Direction);
     }
 
@@ -52,7 +52,7 @@ public static class FlowchartFanOutPortAllocator
     {
         LayoutPoints = [];
 
-        if (IsDecisionShape(SourceShape))
+        if (FlowchartSharedPortAllocator.IsDecisionShape(SourceShape))
         {
             return false;
         }
@@ -63,12 +63,12 @@ public static class FlowchartFanOutPortAllocator
             return false;
         }
 
-        if (CountVisibleEdges(Contract, Edge.SourceId, true) < 2)
+        if (FlowchartSharedPortAllocator.CountRoutableEdges(Contract, Edge.SourceId, true) < 2)
         {
             return false;
         }
 
-        List<EdgeContract> Outgoing = GetVisibleEdgesFromSource(Contract, Edge.SourceId);
+        List<EdgeContract> Outgoing = FlowchartSharedPortAllocator.GetRoutableEdgesFromSource(Contract, Edge.SourceId);
 
         bool RightToLeft = Direction == FlowchartDirection.RightToLeft;
         bool UseVerticalHubFanOutPorts = TryIsVerticalHubFanOut(
@@ -144,7 +144,7 @@ public static class FlowchartFanOutPortAllocator
                 Edge.MarkerStart,
                 OutgoingFromSource: Outgoing.Count);
 
-            List<EdgeContract> IncomingToTarget = GetVisibleEdgesToTarget(Contract, Edge.TargetId);
+            List<EdgeContract> IncomingToTarget = FlowchartSharedPortAllocator.GetRoutableEdgesToTarget(Contract, Edge.TargetId);
             bool UseFanInTargetPorts = TryIsVerticalHubFanIn(
                 IncomingToTarget,
                 BoundsById,
@@ -282,7 +282,7 @@ public static class FlowchartFanOutPortAllocator
             return false;
         }
 
-        if (IsDecisionShape(SourceShape))
+        if (FlowchartSharedPortAllocator.IsDecisionShape(SourceShape))
         {
             return false;
         }
@@ -329,7 +329,7 @@ public static class FlowchartFanOutPortAllocator
             return false;
         }
 
-        if (IsDecisionShape(SourceShape))
+        if (FlowchartSharedPortAllocator.IsDecisionShape(SourceShape))
         {
             return false;
         }
@@ -425,7 +425,7 @@ public static class FlowchartFanOutPortAllocator
             return false;
         }
 
-        if (IsDecisionShape(TargetShape))
+        if (FlowchartSharedPortAllocator.IsDecisionShape(TargetShape))
         {
             return false;
         }
@@ -474,44 +474,6 @@ public static class FlowchartFanOutPortAllocator
 
                                          return Left.CreationIndex.CompareTo(Right.CreationIndex);
                                      });
-
-    private static List<EdgeContract> GetVisibleEdgesToTarget(DiagramContract Contract, string TargetId)
-    {
-        List<EdgeContract> Edges = [];
-        foreach (EdgeContract Candidate in Contract.Edges)
-        {
-            if (string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase) || FlowchartEdgeGuidePointBuilder.UsesBottomFaceCorridor(Candidate, Contract))
-            {
-                continue;
-            }
-
-            if (string.Equals(Candidate.TargetId, TargetId, StringComparison.Ordinal))
-            {
-                Edges.Add(Candidate);
-            }
-        }
-
-        return Edges;
-    }
-
-    private static List<EdgeContract> GetVisibleEdgesFromSource(DiagramContract Contract, string SourceId)
-    {
-        List<EdgeContract> Edges = [];
-        foreach (EdgeContract Candidate in Contract.Edges)
-        {
-            if (string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase) || FlowchartEdgeGuidePointBuilder.UsesBottomFaceCorridor(Candidate, Contract))
-            {
-                continue;
-            }
-
-            if (string.Equals(Candidate.SourceId, SourceId, StringComparison.Ordinal))
-            {
-                Edges.Add(Candidate);
-            }
-        }
-
-        return Edges;
-    }
 
     private static (double X, double Y) ResolveFanOutSourceAttach(
         FlowchartLayoutNodeBounds SourceBounds,
@@ -739,41 +701,4 @@ public static class FlowchartFanOutPortAllocator
         return (TargetBounds.CenterX, TargetBounds.CenterY + HalfHeight + TargetGapPx);
     }
 
-    private static int CountVisibleEdges(DiagramContract Contract, string NodeId, bool Outgoing)
-    {
-        int Count = 0;
-        foreach (EdgeContract Candidate in Contract.Edges)
-        {
-            if (string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase) || FlowchartEdgeGuidePointBuilder.UsesBottomFaceCorridor(Candidate, Contract))
-            {
-                continue;
-            }
-
-            if (Outgoing)
-            {
-                if (string.Equals(Candidate.SourceId, NodeId, StringComparison.Ordinal))
-                {
-                    Count++;
-                }
-            }
-            else if (string.Equals(Candidate.TargetId, NodeId, StringComparison.Ordinal))
-            {
-                Count++;
-            }
-        }
-
-        return Count;
-    }
-
-    private static bool IsDecisionShape(string? Shape)
-    {
-        if (string.IsNullOrEmpty(Shape))
-        {
-            return false;
-        }
-
-        string Normalised = Shape.Trim();
-        return string.Equals(Normalised, "diamond", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(Normalised, "rhombus", StringComparison.OrdinalIgnoreCase);
-    }
 }

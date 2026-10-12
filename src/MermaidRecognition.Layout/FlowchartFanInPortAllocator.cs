@@ -46,7 +46,7 @@ public static class FlowchartFanInPortAllocator
             return false;
         }
 
-        if (IsDecisionShape(TargetShape))
+        if (FlowchartSharedPortAllocator.IsDecisionShape(TargetShape))
         {
             return false;
         }
@@ -56,7 +56,7 @@ public static class FlowchartFanInPortAllocator
             return false;
         }
 
-        if (FlowchartTerminalCollectorPortAllocator.ShouldApplyTerminalCollectorRouting(Contract, Edge.TargetId) || CountVisibleEdges(Contract, Edge.TargetId, false) < 2)
+        if (FlowchartTerminalCollectorPortAllocator.ShouldApplyTerminalCollectorRouting(Contract, Edge.TargetId) || FlowchartSharedPortAllocator.CountRoutableEdges(Contract, Edge.TargetId, false) < 2)
         {
             return false;
         }
@@ -163,7 +163,7 @@ public static class FlowchartFanInPortAllocator
     {
         LayoutPoints = [];
 
-        if (IsDecisionShape(TargetShape))
+        if (FlowchartSharedPortAllocator.IsDecisionShape(TargetShape))
         {
             return false;
         }
@@ -179,12 +179,12 @@ public static class FlowchartFanInPortAllocator
             return false;
         }
 
-        if (CountVisibleEdges(Contract, Edge.TargetId, false) < 2)
+        if (FlowchartSharedPortAllocator.CountRoutableEdges(Contract, Edge.TargetId, false) < 2)
         {
             return false;
         }
 
-        List<EdgeContract> Incoming = GetVisibleEdgesToTarget(Contract, Edge.TargetId);
+        List<EdgeContract> Incoming = FlowchartSharedPortAllocator.GetRoutableEdgesToTarget(Contract, Edge.TargetId);
         bool HorizontalFlow = Direction == FlowchartDirection.LeftToRight
             || Direction == FlowchartDirection.RightToLeft;
         if (HorizontalFlow)
@@ -294,7 +294,7 @@ public static class FlowchartFanInPortAllocator
 
         if (UseVerticalHubFanInPorts)
         {
-            List<EdgeContract> OutgoingFromSource = GetVisibleEdgesFromSource(Contract, Edge.SourceId);
+            List<EdgeContract> OutgoingFromSource = FlowchartSharedPortAllocator.GetRoutableEdgesFromSource(Contract, Edge.SourceId);
             bool UseFanOutSourcePorts = TryIsVerticalHubFanOut(
                 OutgoingFromSource,
                 BoundsById,
@@ -321,7 +321,7 @@ public static class FlowchartFanInPortAllocator
             }
             else
             {
-                int OutgoingFromSourceCount = CountVisibleEdges(Contract, Edge.SourceId, true);
+                int OutgoingFromSourceCount = FlowchartSharedPortAllocator.CountRoutableEdges(Contract, Edge.SourceId, true);
                 (SourceX, SourceY) = ResolveVerticalHubFanInSourceAttach(
                     SourceBounds,
                     BranchIndex,
@@ -451,7 +451,7 @@ public static class FlowchartFanInPortAllocator
             return false;
         }
 
-        if (IsDecisionShape(TargetShape))
+        if (FlowchartSharedPortAllocator.IsDecisionShape(TargetShape))
         {
             return false;
         }
@@ -497,7 +497,7 @@ public static class FlowchartFanInPortAllocator
             return false;
         }
 
-        if (IsDecisionShape(TargetShape))
+        if (FlowchartSharedPortAllocator.IsDecisionShape(TargetShape))
         {
             return false;
         }
@@ -617,7 +617,7 @@ public static class FlowchartFanInPortAllocator
             return false;
         }
 
-        if (IsDecisionShape(SourceShape))
+        if (FlowchartSharedPortAllocator.IsDecisionShape(SourceShape))
         {
             return false;
         }
@@ -649,25 +649,6 @@ public static class FlowchartFanInPortAllocator
         }
 
         return true;
-    }
-
-    private static List<EdgeContract> GetVisibleEdgesFromSource(DiagramContract Contract, string SourceId)
-    {
-        List<EdgeContract> Edges = [];
-        foreach (EdgeContract Candidate in Contract.Edges)
-        {
-            if (string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase) || FlowchartEdgeGuidePointBuilder.UsesBottomFaceCorridor(Candidate, Contract))
-            {
-                continue;
-            }
-
-            if (string.Equals(Candidate.SourceId, SourceId, StringComparison.Ordinal))
-            {
-                Edges.Add(Candidate);
-            }
-        }
-
-        return Edges;
     }
 
     private static void SortIncomingBySourceCrossAxis(
@@ -702,25 +683,6 @@ public static class FlowchartFanInPortAllocator
         }
 
         return 0.0;
-    }
-
-    private static List<EdgeContract> GetVisibleEdgesToTarget(DiagramContract Contract, string TargetId)
-    {
-        List<EdgeContract> Edges = [];
-        foreach (EdgeContract Candidate in Contract.Edges)
-        {
-            if (string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase) || FlowchartEdgeGuidePointBuilder.UsesBottomFaceCorridor(Candidate, Contract))
-            {
-                continue;
-            }
-
-            if (string.Equals(Candidate.TargetId, TargetId, StringComparison.Ordinal))
-            {
-                Edges.Add(Candidate);
-            }
-        }
-
-        return Edges;
     }
 
     /// <summary>
@@ -952,41 +914,4 @@ public static class FlowchartFanInPortAllocator
         return (TargetBounds.CenterX, TargetBounds.CenterY + HalfHeight + TargetGapPx);
     }
 
-    private static int CountVisibleEdges(DiagramContract Contract, string NodeId, bool Outgoing)
-    {
-        int Count = 0;
-        foreach (EdgeContract Candidate in Contract.Edges)
-        {
-            if (string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase) || FlowchartEdgeGuidePointBuilder.UsesBottomFaceCorridor(Candidate, Contract))
-            {
-                continue;
-            }
-
-            if (Outgoing)
-            {
-                if (string.Equals(Candidate.SourceId, NodeId, StringComparison.Ordinal))
-                {
-                    Count++;
-                }
-            }
-            else if (string.Equals(Candidate.TargetId, NodeId, StringComparison.Ordinal))
-            {
-                Count++;
-            }
-        }
-
-        return Count;
-    }
-
-    private static bool IsDecisionShape(string? Shape)
-    {
-        if (string.IsNullOrEmpty(Shape))
-        {
-            return false;
-        }
-
-        string Normalised = Shape.Trim();
-        return string.Equals(Normalised, "diamond", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(Normalised, "rhombus", StringComparison.OrdinalIgnoreCase);
-    }
 }
