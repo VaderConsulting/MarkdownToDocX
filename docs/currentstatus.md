@@ -47,6 +47,8 @@ Failed attempt: packing paired fans removed F113's 40 fan-side faults, but chang
 
 Failed attempt: extending the final two-corner repair to every diagram and to tracks beside other routed lines left the catalogue total at 251 and converted one fan fault into a new avoidable-crossing fault (i 134 to 133; j 4 to 5). The ratchet rejected the candidate, so it was discarded.
 
+Failed attempt: repeating that repair until no full pass lowered the score reduced check j from 4 to 3, but changed an acceptable A116 route into a new convergence fault and raised check h from 77 to 78. The total stayed at 251, so the candidate was discarded.
+
 ## Stretch goals
 
 These must be done, but not yet. Start them only when Dave says so.
