@@ -150,6 +150,8 @@ public static class DiagramGridLayout
             Frames.Clear();
             BuildFrames(Contract, Placed, Frames);
         }
+        if (GrowTerminalSameRankLabelGaps(Contract, Placed, Horizontal))
+            FitFrames(Contract, Placed, Frames, Horizontal);
         FlipToYUp(Placed, Frames, Copy);
         EnsureBackEdgeRoutes(Contract, Copy, Placed);
         AssignPortSides(Contract, Copy, Placed, Frames, Nodes, Direction, SharedFanSources);
@@ -208,6 +210,77 @@ public static class DiagramGridLayout
         if (!Open)
             ApplyScoreGuardedTwoCornerRepair(Copy, Contract, BuildPlacedBounds(Placed, Frames));
         return Copy;
+    }
+
+    /// <summary>
+    /// Gives a labelled straight cross-axis connection enough measured room without
+    /// disturbing the rest of its rank. Only a terminal target moves; connected
+    /// structures continue to be handled by the scored placement passes.
+    /// </summary>
+    private static bool GrowTerminalSameRankLabelGaps(
+        DiagramContract Contract,
+        List<GridNode> Placed,
+        bool HorizontalFlow)
+    {
+        bool Changed = false;
+        Dictionary<string, GridNode> ById = Placed.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
+        FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
+        foreach (EdgeContract Edge in Contract.Edges.OrderBy(Edge => Edge.CreationIndex))
+        {
+            if (string.IsNullOrWhiteSpace(Edge.Label)
+                || string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
+                || !ById.TryGetValue(Edge.SourceId, out GridNode? Source)
+                || !ById.TryGetValue(Edge.TargetId, out GridNode? Target)
+                || Contract.Edges.Any(Other => Other.SourceId == Target.Id
+                    && !string.Equals(Other.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            double SourceMain = HorizontalFlow ? Source.X : Source.Y;
+            double TargetMain = HorizontalFlow ? Target.X : Target.Y;
+            if (Math.Abs(SourceMain - TargetMain) > 0.5)
+            {
+                continue;
+            }
+
+            double SourceCross = HorizontalFlow ? Source.Y : Source.X;
+            double TargetCross = HorizontalFlow ? Target.Y : Target.X;
+            if (Math.Abs(TargetCross - SourceCross) < 0.5)
+            {
+                continue;
+            }
+
+            double SourceExtent = HorizontalFlow ? Source.Height : Source.Width;
+            double TargetExtent = HorizontalFlow ? Target.Height : Target.Width;
+            double ClearGap = Math.Abs(TargetCross - SourceCross) - (SourceExtent + TargetExtent) / 2.0;
+            FlowchartLabelDimensions Dimensions = FlowchartNodeSizeEstimator.MeasureWrappedLabel(
+                Edge.Label, Options, Options.EdgeLabelFontSizePx);
+            double RequiredGap = FlowchartEdgeLabelGapHelper.ComputeRequiredSegmentLengthPx(
+                    Dimensions, Options.EdgeLabelFontSizePx, Horizontal: !HorizontalFlow)
+                + DiagramGridRouteBuilder.CORNER_RADIUS_PX;
+            if (ClearGap + 0.5 >= RequiredGap)
+            {
+                continue;
+            }
+
+            double Delta = DiagramGridMetrics.CeilToGrid(RequiredGap - ClearGap);
+            double CandidateCross = TargetCross + Math.Sign(TargetCross - SourceCross) * Delta;
+            double CandidateX = HorizontalFlow ? Target.X : CandidateCross;
+            double CandidateY = HorizontalFlow ? CandidateCross : Target.Y;
+            bool Overlaps = Placed.Any(Other => Other != Target
+                && Math.Abs(CandidateX - Other.X) < (Target.Width + Other.Width) / 2.0
+                && Math.Abs(CandidateY - Other.Y) < (Target.Height + Other.Height) / 2.0);
+            if (Overlaps)
+            {
+                continue;
+            }
+
+            if (HorizontalFlow) Target.Y = CandidateCross;
+            else Target.X = CandidateCross;
+            Changed = true;
+        }
+        return Changed;
     }
 
     private static void ApplyScoreGuardedTwoCornerRepair(FlowchartLayoutResult Layout, DiagramContract Contract,
