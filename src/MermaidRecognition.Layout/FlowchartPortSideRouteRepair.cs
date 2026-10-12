@@ -47,7 +47,7 @@ internal static class FlowchartPortSideRouteRepair
             Candidate? Best = null;
             int BestFaults = BeforeFaults;
             double? BestScore = Before.Score;
-            foreach (Candidate Candidate in Candidates(Source, Target, Bounds.Values, Direction, RequireFacing: false)
+            foreach (Candidate Candidate in Candidates(Source, Target, Bounds.Values, Direction)
                          .Where(Candidate => Clear(Candidate.Points, Route, Bounds.Values)
                              && PortsAreFree(Candidate, Route, Layout)
                              && HasMinimumTerminalRuns(Candidate.Points)
@@ -68,6 +68,8 @@ internal static class FlowchartPortSideRouteRepair
                     Best = Candidate;
                     BestFaults = Faults;
                     BestScore = Measured.Score;
+                    Restore(Route, Original, OriginalExit, OriginalEntry);
+                    break;
                 }
                 Restore(Route, Original, OriginalExit, OriginalEntry);
             }
@@ -110,6 +112,8 @@ internal static class FlowchartPortSideRouteRepair
                 {
                     Best = Candidate;
                     BestFaults = Faults;
+                    Restore(Route, Original, OriginalExit, OriginalEntry);
+                    break;
                 }
                 Restore(Route, Original, OriginalExit, OriginalEntry);
             }
