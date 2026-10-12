@@ -20,6 +20,13 @@ internal static class FlowchartPlacementHints
         Dictionary<string, GroupContract> Groups = Contract.Groups.ToDictionary(Group => Group.Id, StringComparer.Ordinal);
         Dictionary<string, DiagramGridLayout.GridFrame> FrameById = CurrentFrames?.ToDictionary(Frame => Frame.Id, StringComparer.Ordinal)
             ?? new Dictionary<string, DiagramGridLayout.GridFrame>(StringComparer.Ordinal);
+        Dictionary<string, (Bounds Members, Bounds Frame)> InitialGroupGeometry = new(StringComparer.Ordinal);
+        foreach (GroupContract Group in Contract.Groups)
+        {
+            List<DiagramGridLayout.GridNode> Members = UnitNodes(Group.Id, true, Nodes, ById, Groups);
+            if (Members.Count > 0 && FrameById.TryGetValue(Group.Id, out DiagramGridLayout.GridFrame? Frame))
+                InitialGroupGeometry[Group.Id] = (Measure(Members), FromFrame(Frame));
+        }
         List<HintItem> Hints = Contract.Nodes
             .Where(Node => Node.PlacementHint?.IsActive == true && ById.ContainsKey(Node.Id))
             .Select(Node => new HintItem(Node.Id, Node.ParentGroupId, Node.PlacementHint!, false))
@@ -50,6 +57,13 @@ internal static class FlowchartPlacementHints
             }
 
             List<DiagramGridLayout.GridNode> Moving = AttachedUnitNodes(Item.Id, Item.IsGroup, Attached, Nodes, ById, Groups);
+            Bounds OwnerBounds = Measure(Moving);
+            if (Item.IsGroup && InitialGroupGeometry.TryGetValue(Item.Id, out var OwnerGeometry))
+            {
+                Bounds CurrentFrame = FollowMembers(OwnerGeometry.Members, OwnerGeometry.Frame,
+                    Measure(Owner));
+                OwnerBounds = Union(OwnerBounds, CurrentFrame);
+            }
             if (Item.Hint.Kind == PlacementHintKind.Push)
             {
                 Changed |= PushToBoundary(Item, Moving, Nodes, Groups);
@@ -71,9 +85,11 @@ internal static class FlowchartPlacementHints
                 Attached[PeerId] = Dependents;
             }
             Dependents.Add(Item.Id);
-            Bounds? PeerBounds = FrameById.TryGetValue(PeerId, out DiagramGridLayout.GridFrame? PeerFrame)
-                ? FromFrame(PeerFrame) : Peer.Count > 0 ? Measure(Peer) : null;
-            Changed |= PlaceRelative(Item.Hint, Moving, PeerBounds, Nodes);
+            Bounds? PeerBounds = InitialGroupGeometry.TryGetValue(PeerId, out var PeerGeometry)
+                ? FollowMembers(PeerGeometry.Members, PeerGeometry.Frame, Measure(Peer))
+                : FrameById.TryGetValue(PeerId, out DiagramGridLayout.GridFrame? PeerFrame)
+                    ? FromFrame(PeerFrame) : Peer.Count > 0 ? Measure(Peer) : null;
+            Changed |= PlaceRelative(Item.Hint, Moving, OwnerBounds, PeerBounds, Nodes);
         }
         return Changed;
     }
@@ -81,10 +97,10 @@ internal static class FlowchartPlacementHints
     private static bool PlaceRelative(
         PlacementHintContract Hint,
         List<DiagramGridLayout.GridNode> Moving,
+        Bounds Owner,
         Bounds? PeerBounds,
         List<DiagramGridLayout.GridNode> All)
     {
-        Bounds Owner = Measure(Moving);
         Bounds Anchor = PeerBounds ?? throw new InvalidOperationException("Placement peer has no measured bounds.");
         double TargetX = Owner.CenterX;
         double TargetY = Owner.CenterY;
@@ -271,4 +287,15 @@ internal static class FlowchartPlacementHints
 
     private static Bounds FromFrame(DiagramGridLayout.GridFrame Frame) =>
         new Bounds(Frame.Left, Frame.Top, Frame.Right, Frame.Bottom);
+
+    private static Bounds FollowMembers(Bounds InitialMembers, Bounds InitialFrame, Bounds CurrentMembers) =>
+        new Bounds(
+            CurrentMembers.Left + InitialFrame.Left - InitialMembers.Left,
+            CurrentMembers.Top + InitialFrame.Top - InitialMembers.Top,
+            CurrentMembers.Right + InitialFrame.Right - InitialMembers.Right,
+            CurrentMembers.Bottom + InitialFrame.Bottom - InitialMembers.Bottom);
+
+    private static Bounds Union(Bounds Left, Bounds Right) => new(
+        Math.Min(Left.Left, Right.Left), Math.Min(Left.Top, Right.Top),
+        Math.Max(Left.Right, Right.Right), Math.Max(Left.Bottom, Right.Bottom));
 }

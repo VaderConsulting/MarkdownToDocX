@@ -116,6 +116,68 @@ public sealed class PlacementHintLayoutTests
         });
     }
 
+    [Test]
+    public void LaterGroupHints_UseThePeersUpdatedFrame()
+    {
+        const string Source = """
+            enterprise TB
+              group first "First"
+              application-component a "A" in first
+              group second "Second" below first
+              application-component b "B" in second
+              group third "Third" below second
+              application-component c "C" in third
+              a -flow-> b
+              b -flow-> c
+            """;
+        EnterpriseDocument Document = EnterpriseValidator.Analyze(Source).Document;
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(Document);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Dictionary<string, FlowchartLayoutNodeBounds> Frames = Layout.ClusterBounds
+            .ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(Frames["first"].CenterY, Is.GreaterThan(Frames["second"].CenterY));
+            Assert.That(Frames["second"].CenterY, Is.GreaterThan(Frames["third"].CenterY));
+        });
+    }
+
+    [Test]
+    public void A168_HintedGroupStack_FollowsUpdatedPeerFrames()
+    {
+        const string Source = """
+            enterprise TB
+              group custodians "Custodians"
+              business-actor custodian in custodians
+              group trusted "Trusted" below custodians
+              business-actor trustedAdmin in trusted
+              group regRoles "Registered Roles" below trusted
+              business-role admin in regRoles
+              group landgateOp "Landgate Operation" below regRoles
+              business-actor landgateOwner in landgateOp
+              group vendorOp "Vendor Operation" right-of landgateOp
+              business-actor platformSupport in vendorOp
+              custodian -assignment-> admin
+              trustedAdmin -assignment-> admin
+              landgateOwner -assignment-> admin
+              platformSupport -assignment-> admin
+            """;
+        EnterpriseDocument Document = EnterpriseValidator.Analyze(Source).Document;
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(Document);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Dictionary<string, FlowchartLayoutNodeBounds> Frames = Layout.ClusterBounds
+            .ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(Frames["custodians"].CenterY, Is.GreaterThan(Frames["trusted"].CenterY));
+            Assert.That(Frames["trusted"].CenterY, Is.GreaterThan(Frames["regRoles"].CenterY));
+            Assert.That(Frames["regRoles"].CenterY, Is.GreaterThan(Frames["landgateOp"].CenterY));
+            Assert.That(Frames["vendorOp"].CenterX, Is.GreaterThan(Frames["landgateOp"].CenterX));
+        });
+    }
+
     private static Dictionary<string, FlowchartLayoutNodeBounds> LayoutOf(string Source) =>
         LayoutOf(EnterpriseValidator.Analyze(Source).Document);
 
