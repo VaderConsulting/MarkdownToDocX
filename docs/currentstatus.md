@@ -37,9 +37,10 @@ Failed attempt: A142 stopped with the valid best at 51 crossings. A reproduced p
 4. **Old-layout Layout tests — complete.** The five stale checks now test the rulebook rather than old coordinates: Sample03 accepts only straight runs, rounded corners and crossing humps; InspectContent and ValidDecision check rounded orthogonal branches; TypeDecision checks its straight centre spine and rounded side branches; MessageFilter checks rounded orthogonal fan-out routes. All five focused tests pass.
 5. **Placement hints - complete.** Node, group and line hints are parsed into typed contract data. Missing peers, cross-group peers and circular constraints produce nonfatal diagnostics; group ids are valid relationship endpoints. Source-ordered relative and push hints move nodes or whole groups and keep dependent chains. Hinted line sides reserve ports before automatic routing; `travel` selects a legal middle run and hinted routes may use the corners they need. The layout score counts bends and subtracts 30 points for each honoured placement hint and 15 for each honoured routing hint. Notes render as measured dog-ear boxes and plain connections render as undirected markerless lines. Both carry hints and remain outside the ArchiMate model. A154 to A169 parse and render; the earlier A166, A168 and A169 failures were the unsupported note and plain-connection statements.
 6. **Visual fixes — stopped after three failed placement attempts.** The regenerated documents confirm that F111 renders as aligned three-by-three partner ranks, A14 follows the application-layer stack, and retry routes are orthogonal. A142 and its Web Shop, Order Manager and Payment Hub regions remain sparse; the current routed result is 7750 x 5870 with 51 crossings and 45.8% empty area. The placement attempts added crossings or failed the line rules, so rule 7 requires moving on.
-7. **Remaining test failures — reviewed.** Recognition is 1072/0, NaiadAdapter 47/0 and MDConverter 60/0. RuleValidation remains at its 49/10 baseline. Layout is 799/57; its failures include old curved/default route expectations, old shoulder coordinates, quality-gate failures and the recorded perpendicular-attachment faults. Rule 6 does not permit rewriting those tests, and the recorded investigations did not produce a safe shared fix.
+7. **Remaining test failures — reviewed.** Recognition is 1074/0, NaiadAdapter 47/0 and MDConverter 60/0. RuleValidation remains at its 49/10 baseline. Layout is 805/57; its failures include old curved/default route expectations, old shoulder coordinates, quality-gate failures and the recorded perpendicular-attachment faults. Rule 6 does not permit rewriting those tests, and the recorded investigations did not produce a safe shared fix.
 8. **Housekeeping — complete.** The vendored Mermaid tree has no tracked differences, package version 11.14.0 matches the pin, and `flowchart-elk` remains deferred.
-9. **Final check — complete.** All five suites ran sequentially on Windows. The release converter regenerated `flow.docx`, `enterprise.docx` and `EIP.docx`; all three packages open as valid ZIP containers with document XML and 148, 148 and 342 embedded images respectively.
+9. **Final check — complete.** All five suites ran on Windows. The release converter regenerated `flow.docx`, `enterprise.docx` and `EIP.docx`; all three packages open as valid ZIP containers with document XML and 148, 151 and 342 embedded images respectively.
+10. **Code slop cleanup.** Refactor without changing output, as set out in docs/BRIEF-CODE-SLOP-CLEANUP.md. Start with the scenario-specific layout and the fixed caps. Report test counts before and after each step.
 
 ## Stretch goals
 
@@ -53,8 +54,8 @@ Windows baseline measured on 11 October 2026 with `dotnet test`, before task 1 i
 
 | Suite | Baseline pass | Baseline fail | Current pass | Current fail |
 | --- | ---: | ---: | ---: | ---: |
-| `MermaidRecognition.Tests` | 1069 | 0 | 1072 | 0 |
-| `MermaidRecognition.Layout.Tests` | 724 | 31 | 799 | 57 |
+| `MermaidRecognition.Tests` | 1069 | 0 | 1074 | 0 |
+| `MermaidRecognition.Layout.Tests` | 724 | 31 | 805 | 57 |
 | `MermaidRecognition.RuleValidation.Tests` | 49 | 10 | 49 | 10 |
 | `MermaidRecognition.NaiadAdapter.Tests` | 47 | 0 | 47 | 0 |
 | `MDConverter.Tests` | 59 | 0 | 60 | 0 |
@@ -79,6 +80,7 @@ If the vendored Mermaid changes, update this pin, the recognition fixtures and `
 - `Instructions/LAYOUT-RULEBOOK.md` is the layout rulebook.
 - `BRIEF-ENTERPRISE-SYNTAX-GAPS.md` and `BRIEF-LAYOUT-MODE.md` are the briefs for the two next build tasks.
 - `BRIEF-PLACEMENT-HINTS.md` is the brief for hint parsing, placement, routing and scoring (rule 2.21).
+- `BRIEF-CODE-SLOP-CLEANUP.md` is the brief for removing code clutter without changing output.
 - `flow.md`, `enterprise.md` and `EIP.md` (repository root) and `enterprise/samples/` in this folder are the stress-test inputs. `sequence.md`, `class.md`, `state.md` and `entityrelationship.md` in this folder are the other catalogues.
 
 ## Maintenance rule
