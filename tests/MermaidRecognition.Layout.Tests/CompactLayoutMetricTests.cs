@@ -77,8 +77,91 @@ public sealed class CompactLayoutMetricTests
         string Source = ReadScenario("A", 117);
         DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Source).Document);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
-        Assert.That(FlowchartLayoutScore.Measure(Contract, Layout).Score, Is.Not.Null);
+        FlowchartLayoutScore.Result Metrics = FlowchartLayoutScore.Measure(Contract, Layout);
+        Assert.That(Metrics.Score, Is.Not.Null,
+            string.Join("; ", Metrics.Violations.Select(Failure => Failure.Kind + ": " + Failure.Description)));
     }
+
+    [Test]
+    public void A72_DerivedSplitMerge_UsesStraightAndElbowRoutes()
+    {
+        FlowchartLayoutResult Layout = LayoutScenario(72, out DiagramContract Contract);
+        FlowchartLayoutScore.Result Metrics = FlowchartLayoutScore.Measure(Contract, Layout);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(Metrics.Disconnections, Is.Zero);
+            Assert.That(Metrics.Bends, Is.LessThanOrEqualTo(6));
+            Assert.That(Route(Layout, "checkout", "invoicing").Points, Has.Count.EqualTo(2));
+            Assert.That(Route(Layout, "pick", "pack").Points, Has.Count.EqualTo(2));
+        });
+    }
+
+    [Test]
+    public void A100_OffsetFans_UseAtMostOneCornerPerRelationship()
+    {
+        FlowchartLayoutResult Layout = LayoutScenario(100, out DiagramContract Contract);
+        FlowchartLayoutScore.Result Metrics = FlowchartLayoutScore.Measure(Contract, Layout);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(Metrics.Disconnections, Is.Zero);
+            Assert.That(Metrics.Bends, Is.LessThanOrEqualTo(5));
+            Assert.That(Layout.EdgeRoutes, Has.All.Matches<FlowchartLayoutEdgeRoute>(Route => Route.Points.Count <= 3));
+        });
+    }
+
+    [Test]
+    public void A112_JunctionMesh_HasNoDetachedEndsOrLoopingFans()
+    {
+        FlowchartLayoutResult Layout = LayoutScenario(112, out DiagramContract Contract);
+        FlowchartLayoutScore.Result Metrics = FlowchartLayoutScore.Measure(Contract, Layout);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(Metrics.Disconnections, Is.Zero);
+            Assert.That(Metrics.Bends, Is.LessThanOrEqualTo(16));
+            Assert.That(Route(Layout, "split2", "pay").Points, Has.Count.EqualTo(2));
+        });
+    }
+
+    [TestCase(150, "orderSuite", "webShop")]
+    [TestCase(151, "placeOrder", "orderSvc")]
+    public void PicturedMainSpines_AreStraightAndCentred(int Number, string Source, string Target)
+    {
+        FlowchartLayoutResult Layout = LayoutScenario(Number, out DiagramContract Contract);
+        FlowchartLayoutEdgeRoute Route = CompactLayoutMetricTests.Route(Layout, Source, Target);
+        FlowchartLayoutScore.Result Metrics = FlowchartLayoutScore.Measure(Contract, Layout);
+        Assert.Multiple(() =>
+        {
+            Assert.That(Route.Points, Has.Count.EqualTo(2));
+            Assert.That(Metrics.Disconnections, Is.Zero);
+        });
+    }
+
+    [Test]
+    public void A54_LabelledReturns_AttachPerpendicularlyAndRemainScoreable()
+    {
+        FlowchartLayoutResult Layout = LayoutScenario(54, out DiagramContract Contract);
+        FlowchartLayoutScore.Result Metrics = FlowchartLayoutScore.Measure(Contract, Layout);
+        Assert.Multiple(() =>
+        {
+            Assert.That(Metrics.Disconnections, Is.Zero);
+            Assert.That(Metrics.Score, Is.Not.Null,
+                string.Join("; ", Metrics.Violations.Select(Failure => Failure.Description)));
+        });
+    }
+
+    private static FlowchartLayoutResult LayoutScenario(int Number, out DiagramContract Contract)
+    {
+        Contract = EnterpriseFlowchartContractMapper.Build(
+            EnterpriseValidator.Analyze(ReadScenario("A", Number)).Document);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        return Layout;
+    }
+
+    private static FlowchartLayoutEdgeRoute Route(FlowchartLayoutResult Layout, string SourceId, string TargetId) =>
+        Layout.EdgeRoutes.Single(Route => Route.SourceId == SourceId && Route.TargetId == TargetId);
 
     [Test]
     public void A110_ForcedMinimum_ComesFromItsCompleteAdjacentRankBlocks()

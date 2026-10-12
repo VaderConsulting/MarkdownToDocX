@@ -11,6 +11,8 @@ namespace MermaidRecognition.Layout;
 /// <summary>Measures a routed layout using rules 2.13 and 2.14.</summary>
 internal static class FlowchartLayoutScore
 {
+    internal const double BEND_PENALTY = 10.0;
+
     internal sealed record Result(double Width, double Height, int Overlaps, int Crossings, int ForcedMinimum,
         int Bends, int Disconnections, int HintsHonoured, int HintsTotal, double EmptyShare, double? Score,
         IReadOnlyList<FlowchartLayoutQualityFailure> Violations);
@@ -32,7 +34,7 @@ internal static class FlowchartLayoutScore
         bool Rejected = Overlaps > 0 || Violations.Any(Failure => Rejects(Failure, Contract, Layout, Back));
         double? Score = Rejected ? null
             : Calculate(Width, Height, Crossings, ForcedMinimum, EmptyShare)
-                + Bends * 2.0 + Disconnections * 20.0 + HintScore;
+                + Bends * BEND_PENALTY + Disconnections * 20.0 + HintScore;
         return new(Width, Height, Overlaps, Crossings, ForcedMinimum, Bends, Disconnections,
             HintsHonoured, HintsTotal, EmptyShare, Score, Violations);
     }
@@ -206,6 +208,35 @@ internal static class FlowchartLayoutScore
     private static bool EndpointAttached(FlowchartLayoutPoint Endpoint, FlowchartLayoutPoint Neighbour,
         FlowchartLayoutNodeBounds Bounds, string? Shape, EdgeEndpointMarker Marker)
     {
+        bool BoxOutline = Shape is null or "" or "rect" or "rounded" or "round" or "stadium";
+        if (BoxOutline && Marker != EdgeEndpointMarker.Cross)
+        {
+            double Left = Bounds.CenterX - Bounds.Width / 2.0;
+            double Right = Bounds.CenterX + Bounds.Width / 2.0;
+            double Bottom = Bounds.CenterY - Bounds.Height / 2.0;
+            double Top = Bounds.CenterY + Bounds.Height / 2.0;
+            const double BoxTolerance = 1.0;
+            bool OnVertical = (Math.Abs(Endpoint.X - Left) <= BoxTolerance
+                    || Math.Abs(Endpoint.X - Right) <= BoxTolerance)
+                && Endpoint.Y >= Bottom - BoxTolerance && Endpoint.Y <= Top + BoxTolerance;
+            bool OnHorizontal = (Math.Abs(Endpoint.Y - Bottom) <= BoxTolerance
+                    || Math.Abs(Endpoint.Y - Top) <= BoxTolerance)
+                && Endpoint.X >= Left - BoxTolerance && Endpoint.X <= Right + BoxTolerance;
+            return OnVertical || OnHorizontal;
+        }
+
+        if (Shape is "circle" or "ellipse" && Marker == EdgeEndpointMarker.None)
+        {
+            double RadiusX = Shape == "circle" ? Math.Min(Bounds.Width, Bounds.Height) / 2.0 : Bounds.Width / 2.0;
+            double RadiusY = Shape == "circle" ? Math.Min(Bounds.Width, Bounds.Height) / 2.0 : Bounds.Height / 2.0;
+            if (RadiusX > 0.0 && RadiusY > 0.0)
+            {
+                double Dx = (Endpoint.X - Bounds.CenterX) / RadiusX;
+                double Dy = (Endpoint.Y - Bounds.CenterY) / RadiusY;
+                return Math.Abs(Dx * Dx + Dy * Dy - 1.0) <= 0.08;
+            }
+        }
+
         (double ExpectedX, double ExpectedY) = FlowchartShapeBoundaryAttachHelper.ClipToShapeOutline(
             Bounds, Shape, Neighbour.X, Neighbour.Y, Marker);
         const double Tolerance = 1.0;

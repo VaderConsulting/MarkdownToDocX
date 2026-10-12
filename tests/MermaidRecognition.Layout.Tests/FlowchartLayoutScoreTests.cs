@@ -6,6 +6,12 @@ namespace MermaidRecognition.Layout.Tests;
 public sealed class FlowchartLayoutScoreTests
 {
     [Test]
+    public void EachBendAddsTenPoints()
+    {
+        Assert.That(FlowchartLayoutScore.BEND_PENALTY, Is.EqualTo(10.0));
+    }
+
+    [Test]
     public void DisconnectedRelationshipEnds_AddTwentyPointsEach()
     {
         (DiagramContract Contract, FlowchartLayoutResult Connected) = BuildLayout(90, 30);

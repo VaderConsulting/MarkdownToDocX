@@ -126,9 +126,22 @@ public static class DiagramGridQuality
 
             FlowchartLayoutPoint Start = Route.Points[0];
             FlowchartLayoutPoint End = Route.Points[Route.Points.Count - 1];
+            if (!TerminalDirectionMatches(Route.Points[0], Route.Points[1], Route.ExitSide)
+                || !TerminalDirectionMatches(Route.Points[^1], Route.Points[^2], Route.EntrySide))
+            {
+                Violations.Add(Failure(
+                    "LineShape",
+                    Route.SourceId + "->" + Route.TargetId + " does not leave and enter perpendicular to its selected sides",
+                    Route.SourceId,
+                    Route.TargetId));
+                continue;
+            }
             bool Aligned = Math.Abs(Start.X - End.X) <= 0.5 || Math.Abs(Start.Y - End.Y) <= 0.5;
             if (Aligned && Route.Points.Count != 2)
             {
+                if (Route.ExitSide == Route.EntrySide && IsOrthogonalPolyline(Route.Points)
+                    && CountOrthogonalCorners(Route.Points) <= 2)
+                    continue;
                 bool DirectBlocked = Layout.NodeBounds.Any(Bounds =>
                     Bounds.NodeId != Route.SourceId && Bounds.NodeId != Route.TargetId
                     && SegmentTouchesBox(Start, End, Bounds));
@@ -195,6 +208,14 @@ public static class DiagramGridQuality
             }
         }
     }
+
+    private static bool TerminalDirectionMatches(FlowchartLayoutPoint End,
+        FlowchartLayoutPoint Neighbour, string? Side) => Side switch
+    {
+        "left" or "right" => Math.Abs(End.Y - Neighbour.Y) <= 0.5,
+        "top" or "bottom" => Math.Abs(End.X - Neighbour.X) <= 0.5,
+        _ => true
+    };
 
     private static bool SegmentTouchesBox(
         FlowchartLayoutPoint Start,

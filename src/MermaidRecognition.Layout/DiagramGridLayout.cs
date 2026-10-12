@@ -89,6 +89,7 @@ public static class DiagramGridLayout
             AlignDecisionCentreChildColumn(Contract, Placed, Horizontal);
             AlignTerminalDecisionTargets(Contract, Placed, Horizontal, CrossPitch, CoordinatesPlaced: false);
             CentreTerminalFans(Contract, Placed, Horizontal, CoordinatesPlaced: false);
+            AlignSingleTerminalChildren(Contract, Placed, Horizontal, CoordinatesPlaced: false);
             CascadeColumns(Placed);
             PlaceOnGrid(Placed, Horizontal, BoxWidth, BoxHeight, MainPitch, CrossPitch, Copy, Contract);
             FlowchartPlacementHints.Apply(Contract, Placed);
@@ -99,6 +100,7 @@ public static class DiagramGridLayout
 
             AlignTerminalDecisionTargets(Contract, Placed, Horizontal, CrossPitch, CoordinatesPlaced: true);
             CentreTerminalFans(Contract, Placed, Horizontal, CoordinatesPlaced: true);
+            AlignSingleTerminalChildren(Contract, Placed, Horizontal, CoordinatesPlaced: true);
             AlignUnbranchedDecisionInputs(Contract, Placed, Horizontal);
             AlignHorizontalRetryOutcomes(Contract, Placed, Horizontal);
             AlignSimpleDecisionMerges(Contract, Placed, Horizontal, CrossPitch);
@@ -210,6 +212,17 @@ public static class DiagramGridLayout
             FlowchartSelfLoopLabelRouteRepair.Apply(Copy, Contract);
         if (!Open)
             ApplyScoreGuardedTwoCornerRepair(Copy, Contract, BuildPlacedBounds(Placed, Frames));
+        if (!Open)
+        {
+            FlowchartAlignedRouteStraightener.RepairSameSideDirectRoutes(
+                Copy, BuildPlacedBounds(Placed, Frames));
+            FlowchartAlignedRouteStraightener.ApplyOneCornerCandidates(
+                Copy, BuildPlacedBounds(Placed, Frames));
+            FlowchartAlignedRouteStraightener.ApplyCenteredFacing(
+                Copy, BuildPlacedBounds(Placed, Frames));
+        }
+        FlowchartCircularJunctionLayout.RebuildFans(
+            Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction);
         return Copy;
     }
 
@@ -754,6 +767,30 @@ public static class DiagramGridLayout
                 }
                 Current = Previous;
             }
+        }
+    }
+
+    private static void AlignSingleTerminalChildren(DiagramContract Contract, List<GridNode> Placed,
+        bool Horizontal, bool CoordinatesPlaced)
+    {
+        Dictionary<string, GridNode> ById = IndexPlaced(Placed);
+        List<EdgeContract> Visible = Contract.Edges.Where(Edge =>
+            !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
+        foreach (GridNode Parent in Placed)
+        {
+            List<EdgeContract> Outgoing = Visible.Where(Edge => Edge.SourceId == Parent.Id).ToList();
+            if (Outgoing.Count != 1 || !ById.TryGetValue(Outgoing[0].TargetId, out GridNode? Child)
+                || Child.GroupId != Parent.GroupId || Child.Rank == Parent.Rank
+                || Visible.Count(Edge => Edge.TargetId == Child.Id) != 1
+                || Visible.Any(Edge => Edge.SourceId == Child.Id)) continue;
+            double Desired = CoordinatesPlaced ? Cross(Parent, Horizontal, Old: false) : Parent.Column;
+            bool Occupied = Placed.Any(Other => Other != Child && Other.Rank == Child.Rank
+                && Math.Abs((CoordinatesPlaced ? Cross(Other, Horizontal, Old: false) : Other.Column) - Desired)
+                    < (CoordinatesPlaced ? (CrossHalf(Other, Horizontal, true) + CrossHalf(Child, Horizontal, true)
+                        + DiagramGridMetrics.NODE_GAP_PX) : 1));
+            if (Occupied) continue;
+            Child.Column = Parent.Column;
+            if (CoordinatesPlaced) SetCross(Child, (int)Math.Round(Desired), Horizontal);
         }
     }
 

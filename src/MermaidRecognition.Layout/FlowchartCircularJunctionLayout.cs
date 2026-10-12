@@ -149,7 +149,99 @@ internal static class FlowchartCircularJunctionLayout
             Route.Points.Clear();
             foreach (var Point in Path) Route.Points.Add(new() { X = Point.X, Y = Point.Y });
         }
+        NormalizeCirclePorts(Layout, Bounds, Nodes);
     }
+
+    private static void NormalizeCirclePorts(FlowchartLayoutResult Layout,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds,
+        IReadOnlyDictionary<string, NodeContract> Nodes)
+    {
+        foreach (NodeContract Node in Nodes.Values.Where(Node => Node.Shape == "circle" && Bounds.ContainsKey(Node.Id)))
+        {
+            FlowchartLayoutNodeBounds Box = Bounds[Node.Id];
+            var Ends = Layout.EdgeRoutes.Where(Route => Route.Points.Count >= 2
+                    && (Route.SourceId == Node.Id || Route.TargetId == Node.Id))
+                .Select(Route => (Route, AtSource: Route.SourceId == Node.Id,
+                    Side: Route.SourceId == Node.Id ? Route.ExitSide : Route.EntrySide))
+                .GroupBy(End => End.Side, StringComparer.Ordinal);
+            foreach (var SideGroup in Ends)
+            {
+                var Ordered = SideGroup.OrderBy(End => OtherCross(End.Route, End.AtSource, SideGroup.Key, Bounds)).ToList();
+                for (int Index = 0; Index < Ordered.Count; Index++)
+                {
+                    double Fraction = (Index + 1.0) / (Ordered.Count + 1.0);
+                    SetCirclePort(Ordered[Index].Route, Ordered[Index].AtSource, SideGroup.Key, Box, Fraction);
+                }
+            }
+        }
+    }
+
+    private static double OtherCross(FlowchartLayoutEdgeRoute Route, bool AtSource, string Side,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds)
+    {
+        string OtherId = AtSource ? Route.TargetId : Route.SourceId;
+        if (!Bounds.TryGetValue(OtherId, out FlowchartLayoutNodeBounds? Other)) return 0;
+        return Side is "top" or "bottom" ? Other.CenterX : Other.CenterY;
+    }
+
+    private static void SetCirclePort(FlowchartLayoutEdgeRoute Route, bool AtSource, string Side,
+        FlowchartLayoutNodeBounds Box, double Fraction)
+    {
+        double Radius = Math.Min(Box.Width, Box.Height) / 2.0;
+        // Keep the outer slots away from the tangent, where rounding would leave no
+        // useful straight run. Additional lines divide the usable arc evenly.
+        double Along = (Fraction - 0.5) * 1.2 * Radius;
+        double Normal = Math.Sqrt(Math.Max(0, Radius * Radius - Along * Along));
+        FlowchartLayoutPoint Port = Side switch
+        {
+            "left" => NewPoint(Box.CenterX - Normal, Box.CenterY + Along),
+            "right" => NewPoint(Box.CenterX + Normal, Box.CenterY + Along),
+            "top" => NewPoint(Box.CenterX + Along, Box.CenterY + Normal),
+            _ => NewPoint(Box.CenterX + Along, Box.CenterY - Normal)
+        };
+        if (AtSource)
+        {
+            Route.Points[0] = Port;
+            MakeTerminalRunOrthogonal(Route.Points, AtStart: true, Side, Port);
+        }
+        else
+        {
+            Route.Points[^1] = Port;
+            MakeTerminalRunOrthogonal(Route.Points, AtStart: false, Side, Port);
+        }
+        CollapseRoute(Route.Points);
+    }
+
+    private static void MakeTerminalRunOrthogonal(List<FlowchartLayoutPoint> Points, bool AtStart,
+        string Side, FlowchartLayoutPoint Port)
+    {
+        int NeighbourIndex = AtStart ? 1 : Points.Count - 2;
+        FlowchartLayoutPoint Neighbour = Points[NeighbourIndex];
+        bool Horizontal = Side is "left" or "right";
+        if (Horizontal) Neighbour.Y = Port.Y; else Neighbour.X = Port.X;
+        Points[NeighbourIndex] = Neighbour;
+        if (Points.Count != 2) return;
+        FlowchartLayoutPoint Other = AtStart ? Points[^1] : Points[0];
+        if (Horizontal ? Math.Abs(Other.Y - Port.Y) < 0.5 : Math.Abs(Other.X - Port.X) < 0.5) return;
+        FlowchartLayoutPoint Corner = Horizontal
+            ? NewPoint(Other.X, Port.Y)
+            : NewPoint(Port.X, Other.Y);
+        Points.Insert(1, Corner);
+    }
+
+    private static void CollapseRoute(List<FlowchartLayoutPoint> Points)
+    {
+        for (int Index = Points.Count - 2; Index > 0; Index--)
+        {
+            FlowchartLayoutPoint A = Points[Index - 1], B = Points[Index], C = Points[Index + 1];
+            if ((Math.Abs(A.X - B.X) < 0.5 && Math.Abs(B.X - C.X) < 0.5)
+                || (Math.Abs(A.Y - B.Y) < 0.5 && Math.Abs(B.Y - C.Y) < 0.5))
+                Points.RemoveAt(Index);
+        }
+    }
+
+    private static FlowchartLayoutPoint NewPoint(double X, double Y) =>
+        new() { X = Math.Round(X), Y = Math.Round(Y) };
 
     private static (double X, double Y) Cardinal(FlowchartLayoutNodeBounds Box, string Side)
     {
