@@ -49,6 +49,8 @@ Failed attempt: extending the final two-corner repair to every diagram and to tr
 
 Failed attempt: repeating that repair until no full pass lowered the score reduced check j from 4 to 3, but changed an acceptable A116 route into a new convergence fault and raised check h from 77 to 78. The total stayed at 251, so the candidate was discarded.
 
+Failed attempt: requiring each track change to lower its own normalized crossing or corner count still transferred faults to other lines, producing six check-j findings and a new convergence fault. This was the third failed generic repair for avoidable crossings; the remaining four baseline check-j faults stay recorded while work moves to the next cause.
+
 ## Stretch goals
 
 These must be done, but not yet. Start them only when Dave says so.
