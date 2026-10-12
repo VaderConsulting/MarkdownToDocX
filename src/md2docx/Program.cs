@@ -42,6 +42,7 @@ internal static class Program
         bool ForceLegacyFlowchartParser = false;
         bool ForceLegacyFlowchartRenderer = false;
         MermaidRecognition.Config.DiagramLayoutMode? DefaultLayout = null;
+        string? DefaultLegend = null;
 
         for (int I = FlagStartIndex; I < Args.Length; I++)
         {
@@ -55,6 +56,16 @@ internal static class Program
                 if (!MermaidRecognition.Config.DiagramLayoutSettings.TryParse(Args[++I], out var Layout))
                     Console.Error.WriteLine("Warning: Unknown layout value \"" + Args[I] + "\"; using grid.");
                 DefaultLayout = Layout;
+                continue;
+            }
+            if (Args[I] == "--legend")
+            {
+                if (I + 1 >= Args.Length)
+                {
+                    Console.Error.WriteLine("--legend requires off, on, a position, or table.");
+                    return 1;
+                }
+                DefaultLegend = Args[++I];
                 continue;
             }
             if (Args[I] == "--profile" && I + 1 < Args.Length)
@@ -113,6 +124,11 @@ internal static class Program
             Options.Mermaid ??= new MermaidOptions();
             Options.Mermaid.DefaultLayout = DefaultLayout;
         }
+        if (!string.IsNullOrWhiteSpace(DefaultLegend))
+        {
+            Options.Mermaid ??= new MermaidOptions();
+            Options.Mermaid.DefaultLegend = DefaultLegend;
+        }
 
         try
         {
@@ -131,7 +147,7 @@ internal static class Program
 
     private static void WriteUsage()
     {
-        Console.Error.WriteLine("Usage: md2docx <input.md> [output.docx] [--profile <name>] [--use-legacy-flowchart-parser] [--use-legacy-flowchart-renderer] [--use-flowchart-recognition] [--lock-timeout-seconds <n>]");
+        Console.Error.WriteLine("Usage: md2docx <input.md> [output.docx] [--profile <name>] [--layout grid|open] [--legend off|on|<position>|table] [--use-legacy-flowchart-parser] [--use-legacy-flowchart-renderer] [--use-flowchart-recognition] [--lock-timeout-seconds <n>]");
         Console.Error.WriteLine("  When output.docx is omitted, writes alongside the input file with the same base name and a .docx extension.");
         Console.Error.WriteLine("  Default behaviour: flowcharts use MermaidRecognition + native Sugiyama layout (legacy Naiad fallback).");
         Console.Error.WriteLine("  --use-legacy-flowchart-parser   Forces the legacy Naiad flowchart parser (for comparison/regression only).");
@@ -139,6 +155,7 @@ internal static class Program
         Console.Error.WriteLine("  --use-flowchart-recognition     Forces MermaidRecognition for flowcharts (kept for backwards compatibility).");
         Console.Error.WriteLine("  --lock-timeout-seconds  Optional. When omitted, a normal lock prompt is shown (no auto-cancel).");
         Console.Error.WriteLine("  --layout grid|open      Sets the run-wide placement default; diagram frontmatter wins.");
+        Console.Error.WriteLine("  --legend <value>        Sets the run-wide legend default; diagram frontmatter wins.");
     }
 
     private static MermaidOptions? CreateMermaidOptions(

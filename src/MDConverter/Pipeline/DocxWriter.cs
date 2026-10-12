@@ -446,6 +446,12 @@ public sealed class DocxWriter(EffectiveOptions Options, IConversionProgressRepo
         if (Block is MermaidBlock Mermaid)
         {
             Parent.AppendChild(CreateMermaidParagraph(Mermaid, Styles, null));
+            if (MermaidRecognition.Layout.Enterprise.EnterpriseRenderBridge.TryGetLegendTableEntries(
+                    Mermaid.Source, _Options.Mermaid.DefaultLegend, out IReadOnlyList<string> LegendEntries))
+                Parent.AppendChild(CreateLegendTable(LegendEntries, Styles));
+            else if (MermaidRecognition.Layout.NativeFlowchartRenderBridge.TryGetLegendTableEntries(
+                    Mermaid.Source, _Options.Mermaid.DefaultLegend, out LegendEntries))
+                Parent.AppendChild(CreateLegendTable(LegendEntries, Styles));
             return;
         }
 
@@ -710,10 +716,32 @@ public sealed class DocxWriter(EffectiveOptions Options, IConversionProgressRepo
         return Paragraph;
     }
 
+    private static Table CreateLegendTable(IReadOnlyList<string> Entries, StyleMapping Styles)
+    {
+        Table Table = new(new TableProperties(
+            new TableStyle { Val = "TableGrid" },
+            new TableWidth { Type = TableWidthUnitValues.Auto, Width = "0" }));
+        Table.Append(new DocumentFormat.OpenXml.Wordprocessing.TableRow(
+            LegendCell("Symbol", Styles, BoldText: true),
+            LegendCell("Type", Styles, BoldText: true)));
+        foreach (string Entry in Entries)
+            Table.Append(new DocumentFormat.OpenXml.Wordprocessing.TableRow(LegendCell("◇ ─── ▷", Styles), LegendCell(Entry, Styles)));
+        return Table;
+    }
+
+    private static DocumentFormat.OpenXml.Wordprocessing.TableCell LegendCell(string Text, StyleMapping Styles, bool BoldText = false)
+    {
+        Run Run = new();
+        if (BoldText) Run.Append(new RunProperties(new Bold()));
+        Run.Append(new Text(Text));
+        return new DocumentFormat.OpenXml.Wordprocessing.TableCell(new Paragraph(new ParagraphProperties(
+            new ParagraphStyleId { Val = Styles.ParagraphStyle }), Run));
+    }
+
     private string RenderMermaidSvg(string MermaidSource)
     {
         if (MermaidRecognition.Layout.NativeDiagramRenderBridge.TryRenderSvg(
-                MermaidSource, out string NativeSvg, _Options.Mermaid.DefaultLayout))
+                MermaidSource, out string NativeSvg, _Options.Mermaid.DefaultLayout, _Options.Mermaid.DefaultLegend))
         {
             return NativeSvg;
         }

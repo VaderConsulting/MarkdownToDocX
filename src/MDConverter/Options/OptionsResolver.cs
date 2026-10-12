@@ -56,6 +56,7 @@ public static class OptionsResolver
     private static void OverlayMermaid(MermaidOptions Target, MermaidOptions Source)
     {
         Target.DefaultLayout = Source.DefaultLayout;
+        Target.DefaultLegend = Source.DefaultLegend;
         if (Source.HasUseFlowchartRecognitionParser)
         {
             Target.UseFlowchartRecognitionParser = Source.UseFlowchartRecognitionParser;

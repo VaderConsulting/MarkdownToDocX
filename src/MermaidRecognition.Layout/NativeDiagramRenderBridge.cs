@@ -8,10 +8,16 @@ public static class NativeDiagramRenderBridge
         => TryRenderSvg(Source, out Svg, null);
 
     public static bool TryRenderSvg(string Source, out string Svg, MermaidRecognition.Config.DiagramLayoutMode? DefaultLayout)
+        => TryRenderSvg(Source, out Svg, DefaultLayout, null);
+
+    public static bool TryRenderSvg(string Source, out string Svg,
+        MermaidRecognition.Config.DiagramLayoutMode? DefaultLayout, string? DefaultLegend)
     {
-        if (Enterprise.EnterpriseRenderBridge.TryRenderEnterpriseSvg(Source, out Svg, DefaultLayout)
+        if (Enterprise.EnterpriseRenderBridge.TryRenderEnterpriseSvg(Source, out Svg, DefaultLayout, DefaultLegend)
             || NativePieRenderBridge.TryRenderSvg(Source, out Svg)) return true;
-        if (DefaultLayout.HasValue && NativeFlowchartRenderBridge.TryRenderFlowchartSvg(Source, out Svg, DefaultLayout)) return true;
+        if ((DefaultLayout.HasValue || !string.IsNullOrWhiteSpace(DefaultLegend)
+                || System.Text.RegularExpressions.Regex.IsMatch(Source, @"(?im)^\s*legend\s*:"))
+            && NativeFlowchartRenderBridge.TryRenderFlowchartSvg(Source, out Svg, DefaultLayout, DefaultLegend)) return true;
         if (System.Text.RegularExpressions.Regex.IsMatch(Source, @"^\s*(?:%%[^\r\n]*[\r\n]\s*)*pie\b",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase))
         {

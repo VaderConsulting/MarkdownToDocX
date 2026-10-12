@@ -15,6 +15,8 @@
 
 Enterprise and flowchart diagrams accept `config.layout: grid` or `config.layout: open` in diagram frontmatter. The default is `grid`. An unknown value emits one warning and falls back to `grid`. The command-line option `--layout grid|open` sets the run default; explicit diagram configuration takes precedence.
 
+All diagram kinds accept optional `config.legend`. Values are `off` (default), `on` (`bottom-right`), `bottom-right`, `bottom-left`, `top-right`, `top-left`, `below`, `right`, `table`, or a placement hint such as `right-of id`. `--legend` sets the run default and diagram frontmatter wins. Image legends are added after layout outside the main bounds and do not change main geometry or score. Table mode adds a Symbol/Type table after the diagram and draws no image legend.
+
 Grid mode uses one shared placement grid. Open mode skips shared-grid placement only. Both modes retain the same routing, ports, straight runs, rounded corners and crossing rules, and prevent boxes and unrelated group frames from overlapping.
 
 `flow.md` is a useful regression catalogue, but it is not a recognition strategy.

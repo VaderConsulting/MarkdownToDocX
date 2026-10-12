@@ -6,6 +6,10 @@ Enterprise and flowchart diagrams default to `grid`. Diagram frontmatter may set
 
 `grid` uses the shared grid and placement rules below. `grid` includes the compaction step in rule 2.11. `open` skips shared-grid placement and permits free node and group positions. Both modes use the same routing, ports, straight runs, rounded corners and crossing rules. Boxes and unrelated group frames must not overlap in either mode.
 
+## Legend setting
+
+Diagram frontmatter may set `config.legend` to `off`, `on`, `bottom-right`, `bottom-left`, `top-right`, `top-left`, `below`, `right`, `table`, or a placement hint such as `right-of id`. It defaults to `off`; `on` means `bottom-right`. The command-line option `--legend` sets the run default and diagram frontmatter wins. An image legend is placed after the main layout and never changes its nodes, routes, labels or score. It contains only the distinct visible node and line types used by the diagram, in first-use order; invisible connectors are omitted. It sits outside the main bounds with one grid step of clearance. `table` draws no image legend and adds a two-column Symbol/Type table after the diagram. Main-layout legality and quality checks exclude legend samples; the legend may not overlap itself or the main diagram.
+
 > **Decisions applied (7 Oct 2026, these override any conflicting text below)**
 > 1. Offset child in the next rank: use one corner into the target, entering as rule 4.11 sets, as rule 4.8 says.
 > 2. Minimum straight run of 50 px applies to diamond branches before their first corner. Every other line end needs a straight run of at least the arrowhead length before its arrowhead and at least the corner radius after leaving a node. The base rank gap stays 2 grid steps.

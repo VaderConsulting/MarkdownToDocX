@@ -8,6 +8,9 @@ public sealed class MermaidOptions
     /// <summary>Gets or sets the run-wide placement default; diagram configuration takes precedence.</summary>
     public MermaidRecognition.Config.DiagramLayoutMode? DefaultLayout { get; set; }
 
+    /// <summary>Gets or sets the run-wide legend default; diagram configuration takes precedence.</summary>
+    public string? DefaultLegend { get; set; }
+
     private bool _UseFlowchartRecognitionParser;
 
     private bool _UseNativeSugiyamaRenderer;

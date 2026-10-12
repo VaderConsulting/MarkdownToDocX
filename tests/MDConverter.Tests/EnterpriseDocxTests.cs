@@ -72,6 +72,45 @@ public sealed class EnterpriseDocxTests
     }
 
     [TestMethod]
+    public void ConvertText_TableLegend_AddsTwoColumnTableAfterDiagram()
+    {
+        string Markdown = "```mermaid\n---\nconfig:\n  legend: table\n---\nenterprise\n"
+            + "  business-event received \"Order Received\"\n"
+            + "  business-process check \"Check Stock\"\n"
+            + "  received -triggering-> check\n```";
+        byte[] Bytes = new MarkdownToDocxConverter(new MarkdownToDocxOptions())
+            .ConvertText(Markdown, Environment.CurrentDirectory);
+        using MemoryStream Stream = new(Bytes);
+        using WordprocessingDocument Document = WordprocessingDocument.Open(Stream, false);
+        var Table = Document.MainDocumentPart!.Document!.Descendants<DocumentFormat.OpenXml.Wordprocessing.Table>().Single();
+        Assert.AreEqual("SymbolType◇ ─── ▷Business event◇ ─── ▷Business process◇ ─── ▷Triggering", Table.InnerText);
+    }
+
+    [TestMethod]
+    public void ConvertText_RunWideLegendDefault_IsOverriddenByDiagramSetting()
+    {
+        string Source = "enterprise\n  application-component a \"A\"";
+        var Options = new MarkdownToDocxOptions { Mermaid = new MermaidOptions { DefaultLegend = "table" } };
+        byte[] DefaultBytes = new MarkdownToDocxConverter(Options)
+            .ConvertText("```mermaid\n" + Source + "\n```", Environment.CurrentDirectory);
+        byte[] OverrideBytes = new MarkdownToDocxConverter(Options)
+            .ConvertText("```mermaid\n---\nconfig:\n  legend: off\n---\n" + Source + "\n```", Environment.CurrentDirectory);
+        using WordprocessingDocument DefaultDocument = WordprocessingDocument.Open(new MemoryStream(DefaultBytes), false);
+        using WordprocessingDocument OverrideDocument = WordprocessingDocument.Open(new MemoryStream(OverrideBytes), false);
+        Assert.HasCount(1, DefaultDocument.MainDocumentPart!.Document!.Descendants<DocumentFormat.OpenXml.Wordprocessing.Table>());
+        Assert.HasCount(0, OverrideDocument.MainDocumentPart!.Document!.Descendants<DocumentFormat.OpenXml.Wordprocessing.Table>());
+    }
+
+    [TestMethod]
+    public void ConvertText_FlowchartTableLegend_AddsTable()
+    {
+        string Markdown = "```mermaid\n---\nconfig:\n  legend: table\n---\nflowchart TB\na[Start] --> b(Work)\n```";
+        byte[] Bytes = new MarkdownToDocxConverter(new MarkdownToDocxOptions()).ConvertText(Markdown, Environment.CurrentDirectory);
+        using WordprocessingDocument Document = WordprocessingDocument.Open(new MemoryStream(Bytes), false);
+        Assert.HasCount(1, Document.MainDocumentPart!.Document!.Descendants<DocumentFormat.OpenXml.Wordprocessing.Table>());
+    }
+
+    [TestMethod]
     public void ConvertText_InvalidEnterprise_WritesFallbackMessage()
     {
         string SamplePath = FindSample("04-invalid-relationships.mmd");

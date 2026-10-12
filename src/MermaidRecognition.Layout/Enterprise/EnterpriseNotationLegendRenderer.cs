@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
+using System.Xml.Linq;
 
 using MermaidRecognition.Kinds.Enterprise;
 
@@ -12,6 +14,127 @@ namespace MermaidRecognition.Layout.Enterprise;
 /// </summary>
 public static class EnterpriseNotationLegendRenderer
 {
+    private const double COMPACT_WIDTH = 430;
+    private const double COMPACT_MARGIN = 18;
+
+    public static string ApplyToDiagram(EnterpriseDocument Document, string Svg)
+    {
+        if (!Document.Configuration.TryGetValue("legend", out string? Raw)) return Svg;
+        string Setting = (Raw ?? string.Empty).Trim().ToLowerInvariant();
+        if (Setting is "" or "off" or "false" or "table") return Svg;
+        if (Setting == "on" || Setting == "true") Setting = "bottom-right";
+        string Position = Setting.Split(' ', StringSplitOptions.RemoveEmptyEntries)[0];
+        if (Position is not ("bottom-right" or "bottom-left" or "top-right" or "top-left" or "below" or "right")
+            && !Position.EndsWith("-of", StringComparison.Ordinal)) Position = "bottom-right";
+
+        (string Body, double LegendHeight) = CompactBody(Document);
+        XDocument Xml = XDocument.Parse(Svg, LoadOptions.PreserveWhitespace);
+        XElement Root = Xml.Root ?? throw new InvalidOperationException("SVG has no root element.");
+        double MainWidth = double.Parse(Root.Attribute("width")?.Value ?? "0", System.Globalization.CultureInfo.InvariantCulture);
+        double MainHeight = double.Parse(Root.Attribute("height")?.Value ?? "0", System.Globalization.CultureInfo.InvariantCulture);
+        double Gap = DiagramGridMetrics.GRID_UNIT_PX;
+        double X, Y, MinX = 0, MinY = 0, Width = MainWidth, Height = MainHeight;
+        if (Position is "right" || Position.StartsWith("right-of", StringComparison.Ordinal))
+        {
+            X = MainWidth + Gap; Y = (MainHeight - LegendHeight) / 2.0;
+            Width = MainWidth + Gap + COMPACT_WIDTH; MinY = Math.Min(0, Y); Height = Math.Max(MainHeight, Y + LegendHeight) - MinY;
+        }
+        else if (Position == "below")
+        {
+            X = (MainWidth - COMPACT_WIDTH) / 2.0; Y = MainHeight + Gap;
+            MinX = Math.Min(0, X); Width = Math.Max(MainWidth, X + COMPACT_WIDTH) - MinX; Height = MainHeight + Gap + LegendHeight;
+        }
+        else
+        {
+            bool Left = Position.EndsWith("left", StringComparison.Ordinal);
+            bool Top = Position.StartsWith("top", StringComparison.Ordinal);
+            X = Left ? 0 : MainWidth - COMPACT_WIDTH;
+            Y = Top ? -LegendHeight - Gap : MainHeight + Gap;
+            MinX = Math.Min(0, X); MinY = Math.Min(0, Y);
+            Width = Math.Max(MainWidth, X + COMPACT_WIDTH) - MinX;
+            Height = Math.Max(MainHeight, Y + LegendHeight) - MinY;
+        }
+        XElement Legend = XElement.Parse("<g xmlns=\"http://www.w3.org/2000/svg\" class=\"diagram-legend\" transform=\"translate("
+            + EnterpriseSvgFormat.Number(X) + "," + EnterpriseSvgFormat.Number(Y) + ")\">" + Body + "</g>");
+        Root.Add(Legend);
+        Root.SetAttributeValue("width", EnterpriseSvgFormat.Number(Width));
+        Root.SetAttributeValue("height", EnterpriseSvgFormat.Number(Height));
+        Root.SetAttributeValue("viewBox", EnterpriseSvgFormat.Number(MinX) + " " + EnterpriseSvgFormat.Number(MinY)
+            + " " + EnterpriseSvgFormat.Number(Width) + " " + EnterpriseSvgFormat.Number(Height));
+        return Xml.ToString(SaveOptions.DisableFormatting);
+    }
+
+    public static IReadOnlyList<string> EntryNames(EnterpriseDocument Document)
+    {
+        var Items = new List<(int Line, string Key)>();
+        Items.AddRange(Document.Groups.Values.Select(Group => (Group.LineNumber, "Group")));
+        Items.AddRange(Document.Elements.Values.Select(Element => (Element.LineNumber,
+            Readable(Element.ElementType == EnterpriseElementType.Junction
+                ? "junction-" + Element.JunctionKind : EnterpriseElementCatalog.GetKebabName(Element.ElementType)))));
+        Items.AddRange(Document.Notes.Values.Select(Note => (Note.LineNumber, "Note")));
+        var Result = Items.OrderBy(Item => Item.Line).GroupBy(Item => Item.Key).Select(Group => Group.Key).ToList();
+        Result.AddRange(Document.Relationships.Where(Rel => !Rel.HiddenByNesting).OrderBy(Rel => Rel.LineNumber)
+            .GroupBy(Rel => Rel.Kind + ":" + Rel.AccessKind + ":" + Rel.DirectedAssociation)
+            .Select(Group => Readable(Group.First().Kind == EnterpriseRelationshipKind.Access
+                ? "access " + Group.First().AccessKind : Group.First().Kind.ToString())));
+        if (Document.PlainConnections.Count > 0) Result.Add("Plain connection");
+        return Result;
+    }
+
+    private static (string Body, double Height) CompactBody(EnterpriseDocument Document)
+    {
+        var NodeKinds = new List<(int Line, string Key, EnterpriseElementType? Type, EnterpriseJunctionKind? Junction)>();
+        NodeKinds.AddRange(Document.Groups.Values.Select(Group => (Group.LineNumber, "group", (EnterpriseElementType?)EnterpriseElementType.Grouping, (EnterpriseJunctionKind?)null)));
+        NodeKinds.AddRange(Document.Elements.Values.Select(Element => (Element.LineNumber,
+            Element.ElementType == EnterpriseElementType.Junction ? "junction-" + Element.JunctionKind : EnterpriseElementCatalog.GetKebabName(Element.ElementType),
+            (EnterpriseElementType?)Element.ElementType, Element.JunctionKind)));
+        NodeKinds.AddRange(Document.Notes.Values.Select(Note => (Note.LineNumber, "note", (EnterpriseElementType?)null, (EnterpriseJunctionKind?)null)));
+        var Nodes = NodeKinds.OrderBy(Item => Item.Line).GroupBy(Item => Item.Key).Select(Group => Group.First()).ToList();
+        var Lines = Document.Relationships.Where(Rel => !Rel.HiddenByNesting).Select(Rel => (Rel.LineNumber,
+            Key: Rel.Kind + ":" + Rel.AccessKind + ":" + Rel.DirectedAssociation, Rel)).OrderBy(Item => Item.LineNumber)
+            .GroupBy(Item => Item.Key).Select(Group => Group.First()).ToList();
+        bool Plain = Document.PlainConnections.Count > 0;
+        int NodeRows = (Nodes.Count + 1) / 2;
+        double Y = 38;
+        StringBuilder B = new();
+        B.Append("<rect x=\"0\" y=\"0\" width=\"").Append(COMPACT_WIDTH).Append("\" height=\"")
+            .Append(70 + NodeRows * 76 + (Lines.Count + (Plain ? 1 : 0)) * 42).Append("\" fill=\"white\" stroke=\"#333\"/>")
+            .Append("<text x=\"").Append(COMPACT_WIDTH / 2).Append("\" y=\"24\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"bold\">Legend</text>");
+        for (int Index = 0; Index < Nodes.Count; Index++)
+        {
+            double X = COMPACT_MARGIN + (Index % 2) * 205; double RowY = Y + (Index / 2) * 76;
+            var Item = Nodes[Index]; string Caption = Readable(Item.Key);
+            if (Item.Key == "note") B.Append(EnterpriseNotationSvg.NoteBoxSvg(X, RowY, 150, 48));
+            else if (Item.Type == EnterpriseElementType.Grouping) B.Append(EnterpriseNotationSvg.GroupingTabSvg(X, RowY, 150, 48, Caption));
+            else if (Item.Type == EnterpriseElementType.Junction) B.Append(EnterpriseNotationSvg.JunctionSvg(X + 62, RowY + 10, Item.Junction));
+            else B.Append(EnterpriseNotationSvg.ElementBoxSvg(Item.Type!.Value, X, RowY, 150, 48, Item.Junction));
+            if (Item.Type != EnterpriseElementType.Grouping)
+                B.Append("<text x=\"").Append(X + 75).Append("\" y=\"").Append(RowY + 64)
+                    .Append("\" text-anchor=\"middle\" font-size=\"10\">").Append(EnterpriseSvgFormat.Escape(Caption)).Append("</text>");
+        }
+        Y += NodeRows * 76;
+        foreach (var Item in Lines)
+        {
+            EnterpriseRelationship Rel = Item.Rel;
+            B.Append(RelationshipSampleSvg(new LegendRelationship(Rel.Kind, Rel.AccessKind, Rel.DirectedAssociation,
+                Readable(Rel.Kind == EnterpriseRelationshipKind.Access ? "access " + Rel.AccessKind : Rel.Kind.ToString())), COMPACT_MARGIN, Y, COMPACT_WIDTH - 2 * COMPACT_MARGIN));
+            Y += 42;
+        }
+        if (Plain)
+        {
+            B.Append("<line x1=\"40\" y1=\"").Append(Y + 8).Append("\" x2=\"270\" y2=\"").Append(Y + 8)
+                .Append("\" stroke=\"#000\"/><text x=\"330\" y=\"").Append(Y + 12).Append("\" text-anchor=\"middle\" font-size=\"10\">Plain connection</text>");
+            Y += 42;
+        }
+        return (B.ToString(), Y + 18);
+    }
+
+    private static string Readable(string Value)
+    {
+        string Text = Value.Replace("-", " ", StringComparison.Ordinal).Replace("_", " ", StringComparison.Ordinal);
+        if (Text.StartsWith("junction ", StringComparison.Ordinal)) Text = "junction (" + Text[9..] + ")";
+        return Text.Length == 0 ? Text : char.ToUpperInvariant(Text[0]) + Text[1..].ToLowerInvariant();
+    }
     private const double BOX_WIDTH = 196;
 
     private const double BOX_HEIGHT = 58;

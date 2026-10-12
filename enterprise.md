@@ -6,7 +6,7 @@ Progressive Mermaid **enterprise** diagram scenarios for Markdown → DOCX conve
 
 ## How to use
 
-This file (`enterprise.md`) is the **complete** enterprise regression catalogue: **130 scenarios** (`A01`–`A130`), mostly one recognition axis per scenario. Levels 1–9 introduce the header, directives and every element type, one layer per level. Level 10 covers every relationship type and qualifier, Levels 11–14 cover labels, nesting, cross-layer and derived relationships, styling and notation. **Level 15** holds scenarios that are **expected to fail validation**. Level 16 covers recognition edge cases, Level 17 layout stress and Level 18 large realistic viewpoints. Level 19 covers the general Mermaid conventions that the enterprise kind accepts, such as frontmatter, directives, accessibility statements and the `:::` shorthand.
+This file (`enterprise.md`) is the **complete** enterprise regression catalogue: **179 scenarios** (`A01`–`A179`), mostly one recognition axis per scenario. Levels 1–9 introduce the header, directives and every element type, one layer per level. Level 10 covers every relationship type and qualifier, Levels 11–14 cover labels, nesting, cross-layer and derived relationships, styling and notation. **Level 15** holds scenarios that are **expected to fail validation**. Level 16 covers recognition edge cases, Level 17 layout stress and Level 18 large realistic viewpoints. Level 19 covers the general Mermaid conventions that the enterprise kind accepts, such as frontmatter, directives, accessibility statements and the `:::` shorthand.
 
 Of the 130 scenarios, **110 active valid** diagrams must validate with no errors and no warnings, and **20 expected-diagnostic** diagrams must produce exactly the errors or warnings named on their `Expected` line: 16 in Level 15, the nesting warning in `A65`, the quoted identifiers in `A102`, and two in Level 19 (`A129` and `A130`). There are **0 remarked** diagrams: every syntax question has been decided (see [Syntax decisions](#syntax-decisions)). The guiding rule is that anything that is normal Mermaid syntax is accepted.
 
@@ -5771,4 +5771,250 @@ enterprise TB
   collabAdmin -specialization-> collaborator [leave E, enter W]
   otherAgencies --- collaborator
   analyst -serving-> collaborator "Subject to privilege"
+```
+
+### A170 - Legend: on, default bottom-right
+
+For the legend feature. A small business process with the legend turned on and no position.
+
+- **Recognition:** `Config.Frontmatter`, `Config.Legend.On`, `Business.Actor`, `Business.Process`, `Business.Service`, `Relationship.Assignment`, `Relationship.Triggering`, `Relationship.Realization`
+- **Rendering:** `Layout.Legend`
+- **Expected:** valid. The main layout is identical to the same diagram with no legend. A framed group titled Legend sits outside the bottom-right corner of the main bounds, one grid step clear. It lists Business actor, Business process, Business service, then Assignment, Triggering and Realization.
+
+```mermaid
+---
+config:
+  legend: on
+---
+enterprise
+  business-actor clerk "Claims Clerk"
+  business-process receive "Receive Claim"
+  business-process assess "Assess Claim"
+  business-process pay "Pay Claim"
+  business-service claims "Claims Handling"
+  clerk -assignment-> assess
+  receive -triggering-> assess
+  assess -triggering-> pay
+  pay -realization-> claims
+```
+
+### A171 - Legend: top-left
+
+For the legend feature. Application services realised by components, with the legend top-left.
+
+- **Recognition:** `Config.Legend.Position`, `Application.Component`, `Application.Service`, `Application.Interface`, `Relationship.Realization`, `Relationship.Serving`, `Relationship.Composition`
+- **Rendering:** `Layout.Legend`
+- **Expected:** valid. The legend sits outside the top-left corner of the main bounds, one grid step clear; the main layout is unchanged. It lists Application component, Application service, Application interface, then Realization, Composition and Serving.
+
+```mermaid
+---
+config:
+  legend: top-left
+---
+enterprise
+  application-component crm "CRM"
+  application-service custSvc "Customer Lookup"
+  application-service caseSvc "Case Management"
+  application-interface crmApi "CRM API"
+  application-component portal "Self-Service Portal"
+  crm -realization-> custSvc
+  crm -realization-> caseSvc
+  crm -composition-> crmApi
+  custSvc -serving-> portal
+  caseSvc -serving-> portal
+```
+
+### A172 - Legend: top-right
+
+For the legend feature. A small technology stack with the legend top-right.
+
+- **Recognition:** `Config.Legend.Position`, `Technology.Node`, `Technology.Device`, `Technology.SystemSoftware`, `Technology.Service`, `Relationship.Composition`, `Relationship.Assignment`, `Relationship.Realization`
+- **Rendering:** `Layout.Legend`
+- **Expected:** valid. The legend sits outside the top-right corner of the main bounds, one grid step clear; the main layout is unchanged. It lists Node, Device, System software, Technology service, then Composition, Assignment and Realization.
+
+```mermaid
+---
+config:
+  legend: top-right
+---
+enterprise
+  node web "Web Server"
+  device rack "Rack Server"
+  system-software os "Linux"
+  system-software nginx "Nginx"
+  technology-service hosting "Web Hosting"
+  web -composition-> rack
+  web -composition-> os
+  os -assignment-> nginx
+  nginx -realization-> hosting
+```
+
+### A173 - Legend: bottom-left
+
+For the legend feature. Data access by two applications, with the legend bottom-left.
+
+- **Recognition:** `Config.Legend.Position`, `Application.Component`, `Data.Object`, `Relationship.Access`, `Relationship.Flow`
+- **Rendering:** `Layout.Legend`
+- **Expected:** valid. The legend sits outside the bottom-left corner of the main bounds, one grid step clear; the main layout is unchanged. It lists Application component, Data object, then Access and Flow. Read and write access draw different arrowheads, so each is a separate Access entry (Access (write), Access (read)) in order of first use.
+
+```mermaid
+---
+config:
+  legend: bottom-left
+---
+enterprise
+  application-component orders "Order Manager"
+  application-component billing "Billing"
+  application-component warehouse "Warehouse System"
+  data-object order "Order"
+  data-object invoice "Invoice"
+  orders -access(write)-> order
+  billing -access(read)-> order
+  billing -access(write)-> invoice
+  orders -flow-> warehouse "pick list"
+```
+
+### A174 - Legend: below
+
+For the legend feature. Motivation elements with the legend centred below the diagram.
+
+- **Recognition:** `Config.Legend.Position`, `Motivation.Stakeholder`, `Motivation.Driver`, `Motivation.Goal`, `Relationship.Association`, `Relationship.Influence`
+- **Rendering:** `Layout.Legend`
+- **Expected:** valid. The legend is centred under the main bounds, one grid step clear; the main layout is unchanged. It lists Stakeholder, Driver, Goal, then Association and Influence.
+
+```mermaid
+---
+config:
+  legend: below
+---
+enterprise
+  stakeholder ceo "Chief Executive"
+  driver churn "Customer Churn"
+  driver cost "Rising Costs"
+  goal retain "Retain Customers"
+  goal efficient "Lower Cost to Serve"
+  ceo -association-> churn
+  ceo -association-> cost
+  churn -influence(+)-> retain
+  cost -influence(+)-> efficient
+```
+
+### A175 - Legend: right
+
+For the legend feature. Product composition and aggregation with the legend centred to the right of the diagram.
+
+- **Recognition:** `Config.Legend.Position`, `Business.Product`, `Business.Service`, `Business.Object`, `Relationship.Aggregation`, `Relationship.Composition`
+- **Rendering:** `Layout.Legend`
+- **Expected:** valid. The legend is centred beside the right edge of the main bounds, one grid step clear; the main layout is unchanged. It lists Product, Business service, Business object, then Aggregation and Composition.
+
+```mermaid
+---
+config:
+  legend: right
+---
+enterprise
+  product broadband "Home Broadband"
+  business-service install "Installation"
+  business-service support "Support"
+  business-object contract "Service Contract"
+  broadband -aggregation-> install
+  broadband -aggregation-> support
+  broadband -composition-> contract
+```
+
+### A176 - Legend: table mode
+
+For the legend feature. Event-driven ordering with the legend as a Word table.
+
+- **Recognition:** `Config.Legend.Table`, `Business.Event`, `Business.Process`, `Application.Service`, `Relationship.Triggering`, `Relationship.Serving`, `Relationship.Flow`
+- **Rendering:** `Layout.Legend`
+- **Expected:** valid. No legend is drawn in the image, and the image is identical to the same diagram with no legend. A two-column table (Symbol, Type) follows the diagram with rows Business event, Business process, Application service, Triggering, Flow and Serving.
+
+```mermaid
+---
+config:
+  legend: table
+---
+enterprise
+  business-event received "Order Received"
+  business-process check "Check Stock"
+  business-process ship "Ship Order"
+  application-service stock "Stock Query"
+  received -triggering-> check
+  check -flow-> ship "picked items"
+  stock -serving-> check
+```
+
+### A177 - Legend: hint position right-of a node
+
+For the legend feature. A two-layer chain with the legend placed by a hint beside one node.
+
+- **Recognition:** `Config.Legend.Hint`, `Business.Role`, `Business.Process`, `Application.Component`, `Relationship.Assignment`, `Relationship.Serving`
+- **Rendering:** `Layout.Legend`
+- **Expected:** valid. The legend sits to the right of node api, outside the right edge of the main bounds, one grid step clear; the main layout is unchanged. It lists Business role, Business process, Application component, then Assignment and Serving.
+
+```mermaid
+---
+config:
+  legend: right-of api
+---
+enterprise
+  business-role agent "Service Agent"
+  business-process resolve "Resolve Ticket"
+  application-component desk "Service Desk"
+  application-component api "Ticket API"
+  agent -assignment-> resolve
+  desk -serving-> resolve
+  api -serving-> desk
+```
+
+### A178 - Legend: explicitly off
+
+For the legend feature. The legend is set off explicitly.
+
+- **Recognition:** `Config.Legend.Off`, `Application.Component`, `Application.Service`, `Technology.Node`, `Technology.Service`, `Relationship.Realization`, `Relationship.Serving`
+- **Rendering:** `Layout.Legend`
+- **Expected:** valid. No legend and no table are produced. The output is identical to the same diagram with no legend setting.
+
+```mermaid
+---
+config:
+  legend: off
+---
+enterprise
+  application-component hr "HR System"
+  application-service payroll "Payroll"
+  node vm "Virtual Machine"
+  technology-service compute "Compute"
+  hr -realization-> payroll
+  vm -realization-> compute
+  compute -serving-> hr
+```
+
+### A179 - Legend: notes, plain connections and a group
+
+For the legend feature. A group of application components with a note, a plain connection and several relationship types, with the legend on.
+
+- **Recognition:** `Config.Legend.On`, `Group`, `Note`, `Connection.Plain`, `Application.Component`, `Application.Service`, `Data.Object`, `Relationship.Composition`, `Relationship.Realization`, `Relationship.Serving`, `Relationship.Access`, `Relationship.Flow`
+- **Rendering:** `Layout.Legend`
+- **Expected:** valid. The legend sits outside the bottom-right corner, one grid step clear; the main layout is unchanged. It lists Group, Application component, Application service, Data object, Note, then Composition, Realization, Access (readwrite), Flow, Serving and Plain connection.
+
+```mermaid
+---
+config:
+  legend: on
+---
+enterprise
+  group shop "Online Shop"
+  application-component front "Storefront" in shop
+  application-component cart "Basket" in shop right-of front
+  application-service checkout "Checkout"
+  data-object basket "Basket Contents"
+  note n1 "Basket is kept for 30 days"
+  front -composition-> cart
+  cart -realization-> checkout
+  cart -access(readwrite)-> basket
+  front -flow-> cart "items"
+  checkout -serving-> front
+  n1 --- basket
 ```

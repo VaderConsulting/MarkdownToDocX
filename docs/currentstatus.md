@@ -59,7 +59,7 @@ Failed attempt: repeating that repair until no full pass lowered the score reduc
 
 Failed attempt: requiring each track change to lower its own normalized crossing or corner count still transferred faults to other lines, producing six check-j findings and a new convergence fault. This was the third failed generic repair for avoidable crossings; the remaining four baseline check-j faults stay recorded while work moves to the next cause.
 
-12. **Optional diagram legend.** Implement `Instructions/BRIEF-LEGEND.md`. Off by default. Scenarios A170–A179 in enterprise.md exercise the legend. The source already has EnterpriseNotationLegendRenderer.cs; reuse or extend it rather than writing a second legend renderer.
+12. **Optional diagram legend — complete.** `config.legend` and `--legend` support off, on, six outside positions, placement-hint positions and Word table mode. Diagram settings override the run default. Enterprise/EIP legends reuse the notation renderer and list the visible node and relationship types in source order, including groups, notes and plain connections. Flowcharts use the same post-layout placement and table pipeline. The legend does not change main diagram geometry. A170–A179 and focused flowchart and DOCX tests pass.
 
 ## Stretch goals
 
@@ -108,4 +108,3 @@ If the vendored Mermaid changes, update this pin, the recognition fixtures and `
 
 Update this file at the end of every completed task. Keep it short, and delete anything that is no longer true instead of adding history.
  New scenarios to check with rules 2.17, 2.18, 2.19, 4.7 and 4.8: Order Suite with Web Shop and Order Manager (aggregation), and Place Order with Basket Submitted, Pricing, Stock Check and Order Service.
-
