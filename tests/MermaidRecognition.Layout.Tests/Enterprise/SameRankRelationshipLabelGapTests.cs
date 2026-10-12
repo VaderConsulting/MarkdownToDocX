@@ -9,6 +9,41 @@ namespace MermaidRecognition.Layout.Tests.Enterprise;
 public sealed class SameRankRelationshipLabelGapTests
 {
     [Test]
+    public void GroupEndpoint_RestoresLogicalIdAndKeepsLabelOnLegalRun()
+    {
+        const string Source = """
+            enterprise
+              application-component shop "Web Shop"
+              application-function checkout "Checkout" in shop
+              application-function search "Product Search" in shop
+              shop -assignment-> checkout
+              shop -assignment-> search
+              shop -flow-> checkout "session"
+              search -flow-> shop "results"
+              search -triggering-> checkout
+            """;
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(
+            EnterpriseValidator.Analyze(Source).Document);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        EdgeContract Edge = Contract.Edges.Single(Edge => Edge.SourceId == "search" && Edge.TargetId == "shop");
+        FlowchartLayoutEdgeRoute Route = Layout.EdgeRoutes.Single(Route => Route.EdgeId == Edge.Id);
+        FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
+        FlowchartLabelDimensions Dimensions = FlowchartNodeSizeEstimator.MeasureWrappedLabel(
+            Edge.Label!, Options, Options.EdgeLabelFontSizePx);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(Route.SourceId, Is.EqualTo("search"));
+            Assert.That(Route.TargetId, Is.EqualTo("shop"));
+            Assert.That(FlowchartEdgeLabelGapHelper.TryResolveLabelSegmentBreak(
+                Route.Points.Select(Point => (Point.X, Point.Y)).ToList(),
+                Dimensions,
+                Options.EdgeLabelFontSizePx,
+                out _), Is.True);
+        });
+    }
+
+    [Test]
     public void TerminalSameRankTarget_MovesByMeasuredLabelRoom()
     {
         const string Source = """

@@ -153,6 +153,7 @@ public static class DiagramGridLayout
         if (GrowTerminalSameRankLabelGaps(Contract, Placed, Horizontal))
             FitFrames(Contract, Placed, Frames, Horizontal);
         FlipToYUp(Placed, Frames, Copy);
+        RestoreContractRouteEndpoints(Contract, Copy);
         EnsureBackEdgeRoutes(Contract, Copy, Placed);
         AssignPortSides(Contract, Copy, Placed, Frames, Nodes, Direction, SharedFanSources);
         DiagramGridRouteBuilder.RebuildAllRoutes(Copy, Placed, Nodes, Contract, Frames, Direction);
@@ -210,6 +211,24 @@ public static class DiagramGridLayout
         if (!Open)
             ApplyScoreGuardedTwoCornerRepair(Copy, Contract, BuildPlacedBounds(Placed, Frames));
         return Copy;
+    }
+
+    private static void RestoreContractRouteEndpoints(DiagramContract Contract, FlowchartLayoutResult Layout)
+    {
+        Dictionary<string, EdgeContract> ById = Contract.Edges
+            .Where(Edge => !string.IsNullOrEmpty(Edge.Id))
+            .GroupBy(Edge => Edge.Id!, StringComparer.Ordinal)
+            .ToDictionary(Group => Group.Key, Group => Group.First(), StringComparer.Ordinal);
+        foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
+        {
+            if (!ById.TryGetValue(Route.EdgeId, out EdgeContract? Edge))
+            {
+                continue;
+            }
+
+            Route.SourceId = Edge.SourceId;
+            Route.TargetId = Edge.TargetId;
+        }
     }
 
     /// <summary>
