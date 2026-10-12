@@ -58,6 +58,13 @@ internal static class EnterpriseNodeSizer
         return (Width, Height);
     }
 
+    internal static (double Width, double Height) MeasureNote(EnterpriseNote Note)
+    {
+        List<string> Lines = Wrap(Note.Label);
+        return (Math.Max(MIN_WIDTH, MaxLineWidth(Lines) + 44),
+            Math.Max(ELEMENT_HEIGHT, (Lines.Count * LINE_HEIGHT) + 28));
+    }
+
     internal static List<string> Wrap(string Label) => EnterpriseLabelText.Wrap(Label, MAX_CHARS);
 
     internal static double MaxLineWidth(List<string> Lines)

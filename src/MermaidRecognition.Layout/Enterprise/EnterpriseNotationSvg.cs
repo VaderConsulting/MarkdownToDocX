@@ -187,6 +187,19 @@ public static class EnterpriseNotationSvg
         return ElementBoxSvg(ElementType, X, Y, Width, Height, null);
     }
 
+    /// <summary>Draws a free-text note with a folded top-right corner.</summary>
+    public static string NoteBoxSvg(double X, double Y, double Width, double Height)
+    {
+        const double Fold = 12;
+        return "<path fill=\"#fffca8\" stroke=\"#000000\" stroke-width=\"1\" d=\"M"
+            + N(X) + "," + N(Y) + " H" + N(X + Width - Fold)
+            + " L" + N(X + Width) + "," + N(Y + Fold)
+            + " V" + N(Y + Height) + " H" + N(X) + " Z\"/>"
+            + "<path fill=\"none\" stroke=\"#000000\" stroke-width=\"1\" d=\"M"
+            + N(X + Width - Fold) + "," + N(Y)
+            + " V" + N(Y + Fold) + " H" + N(X + Width) + "\"/>";
+    }
+
     /// <summary>
     /// Draws the element box and corner icon, including junction polarity.
     /// </summary>

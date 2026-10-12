@@ -47,7 +47,7 @@ internal static class EnterpriseFlowchartEdgeRouter
         var CompoundPorts = new Dictionary<string, List<(double X, double Y)>>(StringComparer.Ordinal);
         List<EnterpriseRoutedEdge> Routed = new List<EnterpriseRoutedEdge>();
         var RoutedContracts = new List<EdgeContract>();
-        foreach (EnterpriseRelationship Relationship in Document.Relationships)
+        foreach ((EnterpriseRelationship Relationship, bool IsPlainConnection) in DrawingLines(Document))
         {
             if (Relationship.HiddenByNesting)
             {
@@ -97,7 +97,7 @@ internal static class EnterpriseFlowchartEdgeRouter
                     Context.RenderOptions.Curve);
             }
 
-            string Label = EnterpriseFlowchartContractMapper.EdgeLabel(Relationship);
+            string Label = IsPlainConnection ? string.Empty : EnterpriseFlowchartContractMapper.EdgeLabel(Relationship);
             double LabelX = 0;
             double LabelY = 0;
             if (Label.Length > 0
@@ -139,14 +139,17 @@ internal static class EnterpriseFlowchartEdgeRouter
                 LabelY = LabelBreak.CentreY;
             }
 
-            ResolveArchiMateMarkers(Relationship, out string? StartMarker, out string? EndMarker);
+            string? StartMarker = null;
+            string? EndMarker = null;
+            if (!IsPlainConnection) ResolveArchiMateMarkers(Relationship, out StartMarker, out EndMarker);
             Routed.Add(new EnterpriseRoutedEdge(
                 Relationship,
+                IsPlainConnection,
                 PathData,
                 SvgPoints,
                 StartMarker,
                 EndMarker,
-                DashArray(Relationship),
+                IsPlainConnection ? null : DashArray(Relationship),
                 Label,
                 LabelX,
                 LabelY));
@@ -260,9 +263,11 @@ internal static class EnterpriseFlowchartEdgeRouter
         StringBuilder Builder,
         EnterpriseRoutedEdge Routed)
     {
-        EnterpriseRelationshipMetadata Spec = EnterpriseElementCatalog.Relationships[Routed.Relationship.Kind];
-        Builder.Append("<g class=\"relationship ")
-            .Append(Spec.Name)
+        string LineClass = Routed.IsPlainConnection
+            ? "plain-connection"
+            : "relationship " + EnterpriseElementCatalog.Relationships[Routed.Relationship.Kind].Name;
+        Builder.Append("<g class=\"")
+            .Append(LineClass)
             .Append("\" data-source=\"")
             .Append(EnterpriseSvgFormat.Escape(Routed.Relationship.SourceId))
             .Append("\" data-target=\"")
@@ -509,6 +514,24 @@ internal static class EnterpriseFlowchartEdgeRouter
         return null;
     }
 
+    private static IEnumerable<(EnterpriseRelationship Relationship, bool IsPlainConnection)> DrawingLines(
+        EnterpriseDocument Document)
+    {
+        foreach (EnterpriseRelationship Relationship in Document.Relationships)
+            yield return (Relationship, false);
+        foreach (EnterprisePlainConnection Connection in Document.PlainConnections)
+        {
+            yield return (new EnterpriseRelationship
+            {
+                SourceId = Connection.SourceId,
+                TargetId = Connection.TargetId,
+                Kind = EnterpriseRelationshipKind.Association,
+                LineNumber = Connection.LineNumber,
+                RoutingHint = Connection.RoutingHint
+            }, true);
+        }
+    }
+
     private static string? DashArray(EnterpriseRelationship Relationship)
     {
         string Style = EnterpriseElementCatalog.Relationships[Relationship.Kind].LineStyle;
@@ -666,8 +689,24 @@ internal sealed class EnterpriseRoutedEdge
         string Label,
         double LabelX,
         double LabelY)
+        : this(Relationship, false, PathData, SvgPoints, StartMarker, EndMarker, DashArray, Label, LabelX, LabelY)
+    {
+    }
+
+    internal EnterpriseRoutedEdge(
+        EnterpriseRelationship Relationship,
+        bool IsPlainConnection,
+        string PathData,
+        List<(double X, double Y)> SvgPoints,
+        string? StartMarker,
+        string? EndMarker,
+        string? DashArray,
+        string Label,
+        double LabelX,
+        double LabelY)
     {
         this.Relationship = Relationship;
+        this.IsPlainConnection = IsPlainConnection;
         this.PathData = PathData;
         this.SvgPoints = SvgPoints;
         this.StartMarker = StartMarker;
@@ -679,6 +718,8 @@ internal sealed class EnterpriseRoutedEdge
     }
 
     internal EnterpriseRelationship Relationship { get; }
+
+    internal bool IsPlainConnection { get; }
 
     internal string PathData { get; set; }
 

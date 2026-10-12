@@ -99,6 +99,10 @@ public static class EnterpriseSvgRenderer
             {
                 AppendGroup(Builder, Node);
             }
+            else if (Node.Note != null)
+            {
+                AppendNote(Builder, Node);
+            }
             else
             {
                 Captions.TryGetValue(Node.Id, out var Caption);
@@ -114,6 +118,28 @@ public static class EnterpriseSvgRenderer
         Builder.Append("</g></svg>");
         return EnterpriseSvgConfiguration.Apply(EnterpriseMarkdownSvg.Apply(
             EnterpriseStyleSvg.Apply(FlowchartSvgLineJump.Apply(Builder.ToString()), Document), Document), Document);
+    }
+
+    private static void AppendNote(StringBuilder Builder, EnterpriseLayoutNode Node)
+    {
+        double CentreX = Node.AbsoluteX + Node.Width / 2.0;
+        double Top = Node.AbsoluteY + Node.Height / 2.0
+            - ((Node.LabelLines.Count - 1) * LINE_HEIGHT) / 2.0 + 4;
+        Builder.Append("<g class=\"note\" data-id=\"")
+            .Append(EnterpriseSvgFormat.Escape(Node.Id))
+            .Append("\">")
+            .Append(EnterpriseNotationSvg.NoteBoxSvg(Node.AbsoluteX, Node.AbsoluteY, Node.Width, Node.Height));
+        for (int Index = 0; Index < Node.LabelLines.Count; Index++)
+        {
+            Builder.Append("<text x=\"")
+                .Append(EnterpriseSvgFormat.Number(CentreX))
+                .Append("\" y=\"")
+                .Append(EnterpriseSvgFormat.Number(Top + Index * LINE_HEIGHT))
+                .Append("\" text-anchor=\"middle\">")
+                .Append(EnterpriseSvgFormat.Escape(Node.LabelLines[Index]))
+                .Append("</text>");
+        }
+        Builder.Append("</g>");
     }
 
     private static void ExpandForRoutedEdges(

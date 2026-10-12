@@ -74,6 +74,14 @@ internal static class EnterpriseLayoutEngine
             Nodes[Element.Id] = Node;
         }
 
+        foreach (EnterpriseNote Note in Document.Notes.Values)
+        {
+            EnterpriseLayoutNode Node = new EnterpriseLayoutNode(Note.Id, false, null, null, Note);
+            Node.LabelLines.AddRange(Wrap(Note.Label));
+            (Node.Width, Node.Height) = EnterpriseNodeSizer.MeasureNote(Note);
+            Nodes[Note.Id] = Node;
+        }
+
         List<EnterpriseLayoutNode> Roots = new List<EnterpriseLayoutNode>();
         foreach (EnterpriseLayoutNode Node in Nodes.Values)
         {

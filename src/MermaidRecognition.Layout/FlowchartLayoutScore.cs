@@ -81,6 +81,7 @@ internal static class FlowchartLayoutScore
         List<double> Ranks = Bounds.Values.Select(Rank).Distinct().Order().ToList();
         var RankIndex = Ranks.Select((Value, Index) => (Value, Index)).ToDictionary(Item => Item.Value, Item => Item.Index);
         var Pairs = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
+                && !Edge.Metadata.ContainsKey("enterprisePlainConnection")
                 && Bounds.ContainsKey(Edge.SourceId) && Bounds.ContainsKey(Edge.TargetId)
                 && Math.Abs(RankIndex[Rank(Bounds[Edge.SourceId])] - RankIndex[Rank(Bounds[Edge.TargetId])]) == 1)
             .Select(Edge => (Edge.SourceId, Edge.TargetId, SourceRank: Rank(Bounds[Edge.SourceId]),

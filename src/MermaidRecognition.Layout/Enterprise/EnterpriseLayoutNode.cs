@@ -17,6 +17,8 @@ internal sealed class EnterpriseLayoutNode
 
     private readonly EnterpriseGroup? _Group;
 
+    private readonly EnterpriseNote? _Note;
+
     private readonly List<string> _LabelLines = new List<string>();
 
     private readonly List<EnterpriseLayoutNode> _Children = new List<EnterpriseLayoutNode>();
@@ -33,12 +35,14 @@ internal sealed class EnterpriseLayoutNode
 
     private double _AbsoluteY;
 
-    internal EnterpriseLayoutNode(string Id, bool IsGroup, EnterpriseElement? Element, EnterpriseGroup? Group)
+    internal EnterpriseLayoutNode(string Id, bool IsGroup, EnterpriseElement? Element, EnterpriseGroup? Group,
+        EnterpriseNote? Note = null)
     {
         _Id = Id;
         _IsGroup = IsGroup;
         _Element = Element;
         _Group = Group;
+        _Note = Note;
     }
 
     internal string Id
@@ -89,6 +93,8 @@ internal sealed class EnterpriseLayoutNode
             return _Group;
         }
     }
+
+    internal EnterpriseNote? Note => _Note;
 
     internal List<string> LabelLines
     {
@@ -192,6 +198,11 @@ internal sealed class EnterpriseLayoutNode
                 return _Element.Label;
             }
 
+            if (_Note != null)
+            {
+                return _Note.Label;
+            }
+
             return _Id;
         }
     }
@@ -208,6 +219,11 @@ internal sealed class EnterpriseLayoutNode
             if (_Element != null)
             {
                 return _Element.ParentId;
+            }
+
+            if (_Note != null)
+            {
+                return _Note.ParentId;
             }
 
             return null;

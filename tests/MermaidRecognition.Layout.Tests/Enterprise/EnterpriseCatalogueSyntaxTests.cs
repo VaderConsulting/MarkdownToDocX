@@ -32,6 +32,22 @@ public sealed class EnterpriseCatalogueSyntaxTests
         Assert.That(Svg, Does.StartWith("<svg"));
     }
 
+    [Test]
+    public void NoteAndPlainConnection_RenderAsDrawingItemsWithHints()
+    {
+        const string Source = """
+            enterprise
+            application-component shop "Web Shop"
+            note explanation "Read this note" right-of shop
+            explanation --- shop [leave W, enter E]
+            """;
+
+        Assert.That(EnterpriseRenderBridge.TryRenderEnterpriseSvg(Source, out string Svg), Is.True);
+        Assert.That(Svg, Does.Contain("class=\"note\" data-id=\"explanation\""));
+        Assert.That(Svg, Does.Contain("class=\"plain-connection\""));
+        Assert.That(Svg, Does.Not.Contain("class=\"relationship association\" data-source=\"explanation\""));
+    }
+
     [TestCaseSource(nameof(ValidSyntaxScenarios))]
     public void SyntaxGapScenario_RendersFromItsCatalogueSource(int Number)
     {

@@ -57,6 +57,11 @@ public static class EnterpriseFlowchartContractMapper
             AddLeafNode(Contract, Document, Element, Containers, WrittenNodes);
         }
 
+        foreach (EnterpriseNote Note in Document.Notes.Values)
+        {
+            if (!WrittenNodes.Contains(Note.Id)) AddNoteNode(Contract, Document, Note, Containers, WrittenNodes);
+        }
+
         int CreationIndex = 0;
         foreach (EnterpriseRelationship Relationship in Document.Relationships)
         {
@@ -77,6 +82,24 @@ public static class EnterpriseFlowchartContractMapper
                 CreationIndex = CreationIndex,
                 RoutingHint = Relationship.RoutingHint
             };
+            Contract.EdgesMutable.Add(Edge);
+            CreationIndex++;
+        }
+
+        foreach (EnterprisePlainConnection Connection in Document.PlainConnections)
+        {
+            EdgeContract Edge = new EdgeContract
+            {
+                Id = Connection.SourceId + "---" + Connection.TargetId + ":"
+                    + CreationIndex.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                SourceId = Connection.SourceId,
+                TargetId = Connection.TargetId,
+                MarkerStart = EdgeEndpointMarker.None,
+                MarkerEnd = EdgeEndpointMarker.None,
+                CreationIndex = CreationIndex,
+                RoutingHint = Connection.RoutingHint
+            };
+            Edge.MetadataMutable["enterprisePlainConnection"] = new RawMetadata("enterprisePlainConnection", "true");
             Contract.EdgesMutable.Add(Edge);
             CreationIndex++;
         }
@@ -119,7 +142,35 @@ public static class EnterpriseFlowchartContractMapper
                 Group.ChildNodeIdsMutable.Add(ChildId);
                 AddLeafNode(Contract, Document, Child, Containers, WrittenNodes);
             }
+            else if (Document.Notes.TryGetValue(ChildId, out EnterpriseNote? Note))
+            {
+                Group.ChildNodeIdsMutable.Add(ChildId);
+                AddNoteNode(Contract, Document, Note, Containers, WrittenNodes);
+            }
         }
+    }
+
+    private static void AddNoteNode(
+        DiagramContract Contract,
+        EnterpriseDocument Document,
+        EnterpriseNote Note,
+        HashSet<string> Containers,
+        HashSet<string> WrittenNodes)
+    {
+        if (!WrittenNodes.Add(Note.Id)) return;
+        (double Width, double Height) Size = EnterpriseNodeSizer.MeasureNote(Note);
+        NodeContract Node = new NodeContract
+        {
+            Id = Note.Id,
+            Label = Note.Label,
+            Shape = "note",
+            ParentGroupId = ParentContainerId(Document, Note.Id, Containers),
+            LayoutWidth = Size.Width,
+            LayoutHeight = Size.Height,
+            PlacementHint = Note.PlacementHint
+        };
+        Node.MetadataMutable["enterpriseNote"] = new RawMetadata("enterpriseNote", "true");
+        Contract.NodesMutable.Add(Node);
     }
 
     private static void AddLeafNode(
@@ -184,6 +235,11 @@ public static class EnterpriseFlowchartContractMapper
             }
         }
 
+        foreach (EnterpriseNote Note in Document.Notes.Values)
+        {
+            if (!string.IsNullOrEmpty(Note.ParentId)) Containers.Add(Note.ParentId);
+        }
+
         return Containers;
     }
 
@@ -217,6 +273,10 @@ public static class EnterpriseFlowchartContractMapper
         {
             ParentId = Element.ParentId;
         }
+        else if (Document.Notes.TryGetValue(Id, out EnterpriseNote? Note))
+        {
+            ParentId = Note.ParentId;
+        }
 
         if (string.IsNullOrEmpty(ParentId) || !Containers.Contains(ParentId))
         {
@@ -244,6 +304,12 @@ public static class EnterpriseFlowchartContractMapper
             {
                 Children.Add(Element.Id);
             }
+        }
+
+        foreach (EnterpriseNote Note in Document.Notes.Values)
+        {
+            if (string.Equals(Note.ParentId, ContainerId, StringComparison.Ordinal)
+                && !Children.Contains(Note.Id)) Children.Add(Note.Id);
         }
 
         return Children;

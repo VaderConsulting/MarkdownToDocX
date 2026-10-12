@@ -19,7 +19,7 @@ public static class EnterpriseParser
 
     private static readonly HashSet<string> ReservedIds = new(StringComparer.OrdinalIgnoreCase)
     {
-        "title", "version", "direction", "group", "note", "in", "classDef", "class", "style", "linkStyle", "accTitle", "accDescr"
+        "title", "version", "direction", "group", "in", "classDef", "class", "style", "linkStyle", "accTitle", "accDescr"
     };
 
     private static readonly Regex HeaderRegex = new Regex(
