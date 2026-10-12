@@ -72,7 +72,7 @@ internal static class FlowchartLayoutScore
         return Shape + Empty + Math.Max(0, Crossings - ForcedMinimum) * 20.0;
     }
 
-    private static int ForcedCrossingMinimum(DiagramContract Contract, FlowchartLayoutResult Layout)
+    internal static int ForcedCrossingMinimum(DiagramContract Contract, FlowchartLayoutResult Layout)
     {
         var Bounds = Layout.NodeBounds.ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
         bool Horizontal = FlowchartDirectionNormalizer.Normalize(Contract.Direction)
@@ -136,7 +136,7 @@ internal static class FlowchartLayoutScore
         return X.Count == 0 ? (0.0, 0.0) : (X.Max() - X.Min(), Y.Max() - Y.Min());
     }
 
-    private static int CountCrossings(FlowchartLayoutResult Layout)
+    internal static int CountCrossings(FlowchartLayoutResult Layout)
     {
         int Result = 0;
         for (int Left = 0; Left < Layout.EdgeRoutes.Count; Left++)

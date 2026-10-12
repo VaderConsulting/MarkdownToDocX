@@ -67,6 +67,15 @@ public sealed class UnnecessaryBendCheckerTests
         Assert.That(UnnecessaryBendChecker.CheckRoute("unit", Detour, [], [BlockingLine]), Is.Null);
     }
 
+    [Test]
+    public void CrossingWithinForcedBudget_IsReportedAsCrossingAvoidanceBend()
+    {
+        BendRoute Detour = Route("right", "left", (0, 0), (30, 0), (30, 60), (90, 60), (90, 0), (120, 0))
+            with { AllowedCrossings = 1 };
+        BendSegment CrossingLine = new("other", new BendPoint(75, -30), new BendPoint(75, 30));
+        Assert.That(UnnecessaryBendChecker.CheckRoute("unit", Detour, [], [CrossingLine])?.Check, Is.EqualTo('e'));
+    }
+
     private static UnnecessaryBendViolation? Check(BendRoute Route, IReadOnlyList<BendObstacle>? Obstacles = null) =>
         UnnecessaryBendChecker.CheckRoute("unit", Route, Obstacles ?? []);
 

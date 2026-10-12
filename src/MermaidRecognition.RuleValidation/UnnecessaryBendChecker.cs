@@ -20,7 +20,9 @@ public sealed record BendRoute(
     string ExitSide,
     string EntrySide,
     IReadOnlyList<BendPoint> Points,
-    bool HintNeedsExtraCorners = false);
+    bool HintNeedsExtraCorners = false,
+    int RoutedCrossings = 0,
+    int AllowedCrossings = 0);
 
 public sealed record UnnecessaryBendViolation(
     string DiagramId,
@@ -48,6 +50,7 @@ public static class UnnecessaryBendChecker
             .GroupBy(Edge => Edge.Id!, StringComparer.Ordinal)
             .ToDictionary(Group => Group.Key, Group => Group.First(), StringComparer.Ordinal);
         List<UnnecessaryBendViolation> Result = [];
+        (int TotalCrossings, int ForcedMinimum) = FlowchartCrossingBudget.Measure(Contract, Layout);
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
         {
             if (Route.Points.Count < 2) continue;
@@ -58,15 +61,17 @@ public static class UnnecessaryBendChecker
                 .ToList();
             bool HintNeeded = Edges.TryGetValue(Route.EdgeId, out EdgeContract? Edge)
                 && Edge.RoutingHint?.IsActive == true;
-            BendRoute Input = new(Route.EdgeId, Route.SourceId, Route.TargetId,
-                Route.ExitSide, Route.EntrySide,
-                Route.Points.Select(Point => new BendPoint(Point.X, Point.Y)).ToList(), HintNeeded);
             List<BendSegment> OtherLines = Layout.EdgeRoutes.Where(Other => Other.EdgeId != Route.EdgeId)
                 .SelectMany(Other => Enumerable.Range(1, Other.Points.Count - 1).Select(Index =>
                     new BendSegment(Other.EdgeId,
                         new BendPoint(Other.Points[Index - 1].X, Other.Points[Index - 1].Y),
                         new BendPoint(Other.Points[Index].X, Other.Points[Index].Y))))
                 .ToList();
+            List<BendPoint> RoutedPoints = Route.Points.Select(Point => new BendPoint(Point.X, Point.Y)).ToList();
+            int RoutedCrossings = LineInteraction(RoutedPoints, OtherLines).Crossings;
+            int AllowedCrossings = RoutedCrossings + Math.Max(0, ForcedMinimum - TotalCrossings);
+            BendRoute Input = new(Route.EdgeId, Route.SourceId, Route.TargetId,
+                Route.ExitSide, Route.EntrySide, RoutedPoints, HintNeeded, RoutedCrossings, AllowedCrossings);
             UnnecessaryBendViolation? Finding = CheckRoute(DiagramId, Input, Obstacles, OtherLines);
             if (Finding != null) Result.Add(Finding);
         }
@@ -92,7 +97,7 @@ public static class UnnecessaryBendChecker
             && RoutedLength - BetterLength > DiagramGridMetrics.GRID_UNIT_PX + Epsilon;
         if (!FewerCorners && !MeaningfullyShorter) return null;
         if (Route.HintNeedsExtraCorners && HintDirectionsSatisfied(Route, Routed)) return null;
-        char Check = FewerCorners
+        char Check = LineInteraction(Best, OtherLines ?? []).Crossings > Route.RoutedCrossings ? 'e' : FewerCorners
             ? HasShortSideStep(Routed) ? 'c' : HasCancellingPair(Routed) ? 'b' : 'a'
             : 'd';
         return new UnnecessaryBendViolation(DiagramId, Route.LineId, Check,
@@ -105,6 +110,15 @@ public static class UnnecessaryBendChecker
         BendPoint Start = Route.Points[0];
         BendPoint End = Route.Points[^1];
         List<List<BendPoint>> Candidates = [];
+        for (int Index = 1; Index + 2 < Route.Points.Count; Index++)
+        {
+            BendPoint Before = Route.Points[Index - 1];
+            BendPoint After = Route.Points[Index + 2];
+            List<BendPoint> Prefix = Route.Points.Take(Index).ToList();
+            List<BendPoint> Suffix = Route.Points.Skip(Index + 2).ToList();
+            AddCandidate(Candidates, Prefix.Concat([new BendPoint(After.X, Before.Y)]).Concat(Suffix).ToList());
+            AddCandidate(Candidates, Prefix.Concat([new BendPoint(Before.X, After.Y)]).Concat(Suffix).ToList());
+        }
         AddCandidate(Candidates, [Start, End]);
         AddCandidate(Candidates, [Start, new BendPoint(End.X, Start.Y), End]);
         AddCandidate(Candidates, [Start, new BendPoint(Start.X, End.Y), End]);
@@ -127,7 +141,8 @@ public static class UnnecessaryBendChecker
         return Candidates.Select(Normalize)
             .Where(Candidate => Candidate.Count >= 2 && IsOrthogonal(Candidate)
                 && MatchesEndpointSides(Candidate, Route.ExitSide, Route.EntrySide)
-                && HasMinimumRuns(Candidate) && IsClear(Candidate, Obstacles, OtherLines))
+                && HasMinimumRuns(Candidate) && IsClear(Candidate, Obstacles)
+                && LegalLineInteraction(Candidate, OtherLines, Route.RoutedCrossings, Route.AllowedCrossings))
             .OrderBy(Candidate => Candidate.Count - 2)
             .ThenBy(Length)
             .FirstOrDefault();
@@ -179,39 +194,51 @@ public static class UnnecessaryBendChecker
         _ => true
     };
 
-    private static bool IsClear(IReadOnlyList<BendPoint> Points, IReadOnlyList<BendObstacle> Obstacles,
-        IReadOnlyList<BendSegment> OtherLines)
+    private static bool IsClear(IReadOnlyList<BendPoint> Points, IReadOnlyList<BendObstacle> Obstacles)
     {
         for (int Index = 1; Index < Points.Count; Index++)
         {
             foreach (BendObstacle Box in Obstacles)
                 if (SegmentCrossesInterior(Points[Index - 1], Points[Index], Box)) return false;
-            foreach (BendSegment Other in OtherLines)
-                if (SegmentsInterfere(Points[Index - 1], Points[Index], Other.Start, Other.End,
-                    Points[0], Points[^1])) return false;
         }
         return true;
     }
 
-    private static bool SegmentsInterfere(BendPoint A, BendPoint B, BendPoint C, BendPoint D,
-        BendPoint RouteStart, BendPoint RouteEnd)
+    private static bool LegalLineInteraction(IReadOnlyList<BendPoint> Points,
+        IReadOnlyList<BendSegment> OtherLines, int RoutedCrossings, int AllowedCrossings)
     {
-        bool ABHorizontal = Math.Abs(A.Y - B.Y) <= Epsilon;
-        bool CDHorizontal = Math.Abs(C.Y - D.Y) <= Epsilon;
-        if (ABHorizontal == CDHorizontal)
+        (int Crossings, bool Overlap) = LineInteraction(Points, OtherLines);
+        return !Overlap && (Crossings == 0 || Crossings > RoutedCrossings && Crossings <= AllowedCrossings);
+    }
+
+    private static (int Crossings, bool Overlap) LineInteraction(IReadOnlyList<BendPoint> Points,
+        IReadOnlyList<BendSegment> OtherLines)
+    {
+        HashSet<(long X, long Y, string Line)> Crossings = [];
+        for (int Index = 1; Index < Points.Count; Index++)
+        foreach (BendSegment Other in OtherLines)
         {
-            if (ABHorizontal && Math.Abs(A.Y - C.Y) > Epsilon) return false;
-            if (!ABHorizontal && Math.Abs(A.X - C.X) > Epsilon) return false;
-            double A0 = ABHorizontal ? Math.Min(A.X, B.X) : Math.Min(A.Y, B.Y);
-            double A1 = ABHorizontal ? Math.Max(A.X, B.X) : Math.Max(A.Y, B.Y);
-            double C0 = ABHorizontal ? Math.Min(C.X, D.X) : Math.Min(C.Y, D.Y);
-            double C1 = ABHorizontal ? Math.Max(C.X, D.X) : Math.Max(C.Y, D.Y);
-            return Math.Max(A0, C0) < Math.Min(A1, C1) - Epsilon;
+            BendPoint A = Points[Index - 1], B = Points[Index], C = Other.Start, D = Other.End;
+            bool ABHorizontal = Math.Abs(A.Y - B.Y) <= Epsilon;
+            bool CDHorizontal = Math.Abs(C.Y - D.Y) <= Epsilon;
+            if (ABHorizontal == CDHorizontal)
+            {
+                if (ABHorizontal && Math.Abs(A.Y - C.Y) > Epsilon
+                    || !ABHorizontal && Math.Abs(A.X - C.X) > Epsilon) continue;
+                double A0 = ABHorizontal ? Math.Min(A.X, B.X) : Math.Min(A.Y, B.Y);
+                double A1 = ABHorizontal ? Math.Max(A.X, B.X) : Math.Max(A.Y, B.Y);
+                double C0 = ABHorizontal ? Math.Min(C.X, D.X) : Math.Min(C.Y, D.Y);
+                double C1 = ABHorizontal ? Math.Max(C.X, D.X) : Math.Max(C.Y, D.Y);
+                if (Math.Max(A0, C0) < Math.Min(A1, C1) - Epsilon) return (Crossings.Count, true);
+                continue;
+            }
+            BendPoint Crossing = ABHorizontal ? new BendPoint(C.X, A.Y) : new BendPoint(A.X, C.Y);
+            if (Between(Crossing.X, A.X, B.X) && Between(Crossing.Y, A.Y, B.Y)
+                && Between(Crossing.X, C.X, D.X) && Between(Crossing.Y, C.Y, D.Y)
+                && !Same(Crossing, Points[0]) && !Same(Crossing, Points[^1]))
+                Crossings.Add(((long)Math.Round(Crossing.X * 1000), (long)Math.Round(Crossing.Y * 1000), Other.LineId));
         }
-        BendPoint Crossing = ABHorizontal ? new BendPoint(C.X, A.Y) : new BendPoint(A.X, C.Y);
-        bool OnAB = Between(Crossing.X, A.X, B.X) && Between(Crossing.Y, A.Y, B.Y);
-        bool OnCD = Between(Crossing.X, C.X, D.X) && Between(Crossing.Y, C.Y, D.Y);
-        return OnAB && OnCD && !Same(Crossing, RouteStart) && !Same(Crossing, RouteEnd);
+        return (Crossings.Count, false);
     }
 
     private static bool Between(double Value, double A, double B) =>
