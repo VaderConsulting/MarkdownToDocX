@@ -87,7 +87,8 @@ public sealed class UnnecessaryBendCheckerTests
         BendBox Target = new(-120, 0, 120, 60);
         BendRoute Good = Route("left", "top", (-60, 120), (-120, 120), (-120, 30)) with
         {
-            SourceBox = Diamond, TargetBox = Target, SourceIsDiamond = true, OutgoingCount = 2
+            SourceBox = Diamond, TargetBox = Target, SourceIsDiamond = true, OutgoingCount = 2,
+            FanToNextRank = true
         };
         BendRoute Bad = Route("bottom", "top", (0, 60), (-120, 60), (-120, 30)) with
         {

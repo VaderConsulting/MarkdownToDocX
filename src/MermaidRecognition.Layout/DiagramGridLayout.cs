@@ -198,6 +198,8 @@ public static class DiagramGridLayout
             FlowchartPortSideRouteRepair.Apply(Copy, Contract);
         FlowchartRoutingHints.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction);
         if (!Open)
+            FlowchartDecisionBranchRouteRepair.Apply(Copy, Contract);
+        if (!Open)
             FlowchartConvergenceRouteRepair.Apply(Copy, Contract);
         if (!Open)
             ApplyScoreGuardedTwoCornerRepair(Copy, Contract, BuildPlacedBounds(Placed, Frames));

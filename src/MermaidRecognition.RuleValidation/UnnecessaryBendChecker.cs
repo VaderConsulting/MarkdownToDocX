@@ -177,7 +177,10 @@ public static class UnnecessaryBendChecker
             && ConvergenceViolation(Route, Obstacles, OtherLines, out List<BendPoint>? ConvergingRoute))
             return ('h', ConvergingRoute);
 
-        if (!Route.HintOverridesRoutingFault && (Route.FanBetweenColumns || Route.FanToNextRank)
+        // Diamond branches use the vertices and one-corner routes of rules 3.8
+        // and 3.9. They are not ordinary-box fans governed by rule 5.8.
+        if (!Route.HintOverridesRoutingFault && !Route.SourceIsDiamond
+            && (Route.FanBetweenColumns || Route.FanToNextRank)
             && Route.SourceBox.HasValue && Route.TargetBox.HasValue
             && FanViolation(Route, OtherLines, out List<BendPoint>? FanRoute))
             return ('i', FanRoute);
