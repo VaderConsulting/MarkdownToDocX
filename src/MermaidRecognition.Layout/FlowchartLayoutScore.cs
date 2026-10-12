@@ -12,7 +12,8 @@ namespace MermaidRecognition.Layout;
 internal static class FlowchartLayoutScore
 {
     internal sealed record Result(double Width, double Height, int Overlaps, int Crossings, int ForcedMinimum,
-        double EmptyShare, double? Score, IReadOnlyList<FlowchartLayoutQualityFailure> Violations);
+        int Bends, int HintsHonoured, int HintsTotal, double EmptyShare, double? Score,
+        IReadOnlyList<FlowchartLayoutQualityFailure> Violations);
 
     internal static Result Measure(DiagramContract Contract, FlowchartLayoutResult Layout)
     {
@@ -22,21 +23,30 @@ internal static class FlowchartLayoutScore
         int Overlaps = Violations.Count(Failure => Failure.Kind == "NodeOverlap");
         int Crossings = CountCrossings(Layout);
         int ForcedMinimum = ForcedCrossingMinimum(Contract, Layout);
+        int Bends = CountBends(Layout);
+        (int HintsHonoured, int HintsTotal, double HintScore) = MeasureHints(Contract, Layout);
         double EmptyShare = EmptyAreaShare(Layout, Width, Height);
         var Back = FlowchartBackEdgeHelper.FindBackEdges(Contract)
             .Select(Edge => (Edge.SourceId, Edge.TargetId)).ToHashSet();
-        bool Rejected = Overlaps > 0 || Violations.Any(Failure => Rejects(Failure, Layout, Back));
-        double? Score = Rejected ? null : Calculate(Width, Height, Crossings, ForcedMinimum, EmptyShare);
-        return new(Width, Height, Overlaps, Crossings, ForcedMinimum, EmptyShare, Score, Violations);
+        bool Rejected = Overlaps > 0 || Violations.Any(Failure => Rejects(Failure, Contract, Layout, Back));
+        double? Score = Rejected ? null
+            : Calculate(Width, Height, Crossings, ForcedMinimum, EmptyShare) + Bends * 2.0 + HintScore;
+        return new(Width, Height, Overlaps, Crossings, ForcedMinimum, Bends,
+            HintsHonoured, HintsTotal, EmptyShare, Score, Violations);
     }
 
-    private static bool Rejects(FlowchartLayoutQualityFailure Failure, FlowchartLayoutResult Layout,
+    private static bool Rejects(FlowchartLayoutQualityFailure Failure, DiagramContract Contract,
+        FlowchartLayoutResult Layout,
         IReadOnlySet<(string SourceId, string TargetId)> Back)
     {
         if (Failure.Kind is "NodeOverlap" or "ArrangementKept") return false;
         if (Failure.Kind != "LineShape" || !Failure.Description.Contains("more than two corners", StringComparison.Ordinal)
-            || Failure.InvolvedIds.Count < 2
-            || !Back.Contains((Failure.InvolvedIds[0], Failure.InvolvedIds[1]))) return true;
+            || Failure.InvolvedIds.Count < 2) return true;
+        if (Contract.Edges.Any(Edge => Edge.SourceId == Failure.InvolvedIds[0]
+            && Edge.TargetId == Failure.InvolvedIds[1] && Edge.RoutingHint?.IsActive == true)) return false;
+        if (Contract.Groups.Any(Group => Group.Id == Failure.InvolvedIds[0]
+            || Group.Id == Failure.InvolvedIds[1])) return false;
+        if (!Back.Contains((Failure.InvolvedIds[0], Failure.InvolvedIds[1]))) return true;
         FlowchartLayoutEdgeRoute? Route = Layout.EdgeRoutes.FirstOrDefault(Edge =>
             Edge.SourceId == Failure.InvolvedIds[0] && Edge.TargetId == Failure.InvolvedIds[1]);
         if (Route == null) return true;
@@ -140,6 +150,60 @@ internal static class FlowchartLayoutScore
                 B.Points.Select(Point => (Point.X, Point.Y)).ToList()).Crossings;
         }
         return Result;
+    }
+
+    private static int CountBends(FlowchartLayoutResult Layout) =>
+        Layout.EdgeRoutes.Sum(Route => CountCorners(Route.Points));
+
+    private static int CountCorners(IReadOnlyList<FlowchartLayoutPoint> Points)
+    {
+        int Result = 0;
+        for (int Index = 1; Index < Points.Count - 1; Index++)
+        {
+            bool BeforeHorizontal = Math.Abs(Points[Index].Y - Points[Index - 1].Y) < 0.5;
+            bool AfterHorizontal = Math.Abs(Points[Index + 1].Y - Points[Index].Y) < 0.5;
+            if (BeforeHorizontal != AfterHorizontal) Result++;
+        }
+        return Result;
+    }
+
+    private static (int Honoured, int Total, double Score) MeasureHints(
+        DiagramContract Contract,
+        FlowchartLayoutResult Layout)
+    {
+        int Honoured = 0;
+        int Total = 0;
+        foreach (PlacementHintContract Hint in Contract.Nodes.Select(Node => Node.PlacementHint)
+            .Concat(Contract.Groups.Select(Group => Group.PlacementHint)).OfType<PlacementHintContract>())
+        {
+            Total++;
+            if (Hint.IsActive && Hint.UnhonouredReason == null) Honoured++;
+        }
+
+        foreach (EdgeContract Edge in Contract.Edges.Where(Edge => Edge.RoutingHint != null))
+        {
+            Total++;
+            RoutingHintContract Hint = Edge.RoutingHint!;
+            FlowchartLayoutEdgeRoute? Route = Layout.EdgeRoutes.FirstOrDefault(Item =>
+                !string.IsNullOrEmpty(Edge.Id) && Item.EdgeId == Edge.Id
+                || string.IsNullOrEmpty(Edge.Id) && Item.SourceId == Edge.SourceId && Item.TargetId == Edge.TargetId);
+            bool Matches = Hint.IsActive && Hint.UnhonouredReason == null && Route != null;
+            if (Matches && Hint.Leave.HasValue)
+                Matches = Route!.ExitSide == DiagramGridLayout.HintSide(Hint.Leave.Value);
+            if (Matches && Hint.Enter.HasValue)
+                Matches = Route!.EntrySide == DiagramGridLayout.HintSide(Hint.Enter.Value);
+            if (Matches && Hint.Travel.HasValue)
+                Matches = DiagramGridRouteBuilder.HasTravelDirection(
+                    Route!.Points.Select(Point => (Point.X, Point.Y)).ToList(), Hint.Travel.Value);
+            if (Matches) Honoured++;
+        }
+
+        int PlacementHonoured = Contract.Nodes.Count(Node => Node.PlacementHint?.IsActive == true
+                && Node.PlacementHint.UnhonouredReason == null)
+            + Contract.Groups.Count(Group => Group.PlacementHint?.IsActive == true
+                && Group.PlacementHint.UnhonouredReason == null);
+        int LineHonoured = Honoured - PlacementHonoured;
+        return (Honoured, Total, PlacementHonoured * -30.0 + LineHonoured * -15.0);
     }
 
     private static double EmptyAreaShare(FlowchartLayoutResult Layout, double Width, double Height)

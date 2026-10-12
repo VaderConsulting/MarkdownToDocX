@@ -74,6 +74,30 @@ public sealed class RoutingHintLayoutTests
         });
     }
 
+    [Test]
+    public void Score_SubtractsHonouredHintsAndCountsHintedBends()
+    {
+        const string Source = """
+            enterprise
+              application-component target "Target"
+              application-component source "Source" right-of target
+              source -flow-> target [leave N, enter S, travel W]
+            """;
+
+        (DiagramContract Contract, FlowchartLayoutResult Layout) = LayoutOf(Source);
+        FlowchartLayoutScore.Result Metrics = FlowchartLayoutScore.Measure(Contract, Layout);
+        double WithoutHints = FlowchartLayoutScore.Calculate(
+            Metrics.Width, Metrics.Height, Metrics.Crossings, Metrics.ForcedMinimum, Metrics.EmptyShare)
+            + Metrics.Bends * 2.0;
+        Assert.Multiple(() =>
+        {
+            Assert.That(Metrics.HintsHonoured, Is.EqualTo(2));
+            Assert.That(Metrics.HintsTotal, Is.EqualTo(2));
+            Assert.That(Metrics.Bends, Is.GreaterThan(2));
+            Assert.That(Metrics.Score, Is.EqualTo(WithoutHints - 45.0).Within(0.01));
+        });
+    }
+
     private static (DiagramContract Contract, FlowchartLayoutResult Layout) LayoutOf(string Source)
     {
         EnterpriseDocument Document = EnterpriseValidator.Analyze(Source).Document;

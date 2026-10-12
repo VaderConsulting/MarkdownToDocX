@@ -146,7 +146,10 @@ public static class DiagramGridLayout
             FitFrames(Contract, Placed, Frames, Horizontal);
         if (!Open) FlowchartIntergroupNodePlacement.Apply(Contract, Placed, Frames, Horizontal);
         if (!Open && FlowchartPlacementHints.Apply(Contract, Placed))
-            FitFrames(Contract, Placed, Frames, Horizontal);
+        {
+            Frames.Clear();
+            BuildFrames(Contract, Placed, Frames);
+        }
         FlipToYUp(Placed, Frames, Copy);
         EnsureBackEdgeRoutes(Contract, Copy, Placed);
         AssignPortSides(Contract, Copy, Placed, Frames, Nodes, Direction, SharedFanSources);

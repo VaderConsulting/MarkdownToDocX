@@ -1006,7 +1006,7 @@ public static class DiagramGridRouteBuilder
         return CorridorX;
     }
 
-    private static bool PathIsValid(
+    internal static bool PathIsValid(
         List<(double X, double Y)> Path,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         string SourceId,
@@ -1197,7 +1197,7 @@ public static class DiagramGridRouteBuilder
         return (VectorX / Length, VectorY / Length);
     }
 
-    private static List<(double X, double Y)> SimplifyCollinear(List<(double X, double Y)> Path)
+    internal static List<(double X, double Y)> SimplifyCollinear(List<(double X, double Y)> Path)
     {
         if (Path.Count < 3)
         {

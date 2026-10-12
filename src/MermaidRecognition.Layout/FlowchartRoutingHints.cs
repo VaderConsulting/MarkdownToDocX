@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 using MermaidRecognition.Contract;
 using MermaidRecognition.Kinds.Flowchart;
@@ -53,6 +54,173 @@ internal static class FlowchartRoutingHints
             foreach ((double X, double Y) in Path)
                 Route.Points.Add(new FlowchartLayoutPoint { X = Math.Round(X), Y = Math.Round(Y) });
         }
+
+        if (Contract.Nodes.Any(Node => Node.PlacementHint?.IsActive == true)
+            || Contract.Groups.Any(Group => Group.PlacementHint?.IsActive == true))
+            RepairAutomaticRoutes(Layout, Contract, Bounds, Nodes, Direction, Horizontal);
+    }
+
+    private static void RepairAutomaticRoutes(
+        FlowchartLayoutResult Layout,
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds,
+        IReadOnlyDictionary<string, NodeContract> Nodes,
+        FlowchartDirection Direction,
+        bool Horizontal)
+    {
+        string[] Sides = ["top", "bottom", "left", "right"];
+        foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
+        {
+            EdgeContract? Edge = DiagramGridLayout.FindContractEdge(Contract, Route);
+            if (Edge?.RoutingHint?.IsActive == true || CountCorners(Route.Points) <= 2
+                || !Bounds.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds? Source)
+                || !Bounds.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds? Target))
+                continue;
+
+            Nodes.TryGetValue(Route.SourceId, out NodeContract? SourceNode);
+            Nodes.TryGetValue(Route.TargetId, out NodeContract? TargetNode);
+            List<(string Exit, string Entry, List<(double X, double Y)> Path, int Corners, double Length)> Candidates = [];
+            foreach (string Exit in Sides)
+            foreach (string Entry in Sides)
+            foreach ((double StartX, double StartY) in Ports(Source, Exit,
+                Exit == Route.ExitSide ? Route.Points[0] : null))
+            foreach ((double EndX, double EndY) in Ports(Target, Entry,
+                Entry == Route.EntrySide ? Route.Points[^1] : null))
+            {
+                if (EndpointTaken(Layout, Route, Route.SourceId, StartX, StartY)
+                    || EndpointTaken(Layout, Route, Route.TargetId, EndX, EndY)) continue;
+                foreach (List<(double X, double Y)> RawPath in CandidatePaths(
+                    StartX, StartY, Source, SourceNode, Exit,
+                    EndX, EndY, Target, TargetNode, Entry,
+                    Bounds, Route, Contract, Direction, Horizontal))
+                {
+                    List<(double X, double Y)> Path = DiagramGridRouteBuilder.SimplifyCollinear(RawPath);
+                    int Corners = CountCorners(Path);
+                    if (Path.Count < 2 || Corners > 2
+                        || !LeavesBy(Path, Exit) || !EntersBy(Path, Entry)
+                        || !DiagramGridRouteBuilder.PathIsValid(
+                            Path, Bounds, Route.SourceId, Route.TargetId, Contract)) continue;
+                    double Length = Path.Zip(Path.Skip(1)).Sum(Pair =>
+                        Math.Abs(Pair.First.X - Pair.Second.X) + Math.Abs(Pair.First.Y - Pair.Second.Y));
+                    Candidates.Add((Exit, Entry, Path, Corners, Length));
+                }
+            }
+
+            var Best = Candidates.OrderBy(Candidate => Candidate.Corners)
+                .ThenBy(Candidate => Candidate.Length).FirstOrDefault();
+            if (Best.Path == null) continue;
+            Route.ExitSide = Best.Exit;
+            Route.EntrySide = Best.Entry;
+            Route.Points.Clear();
+            foreach ((double X, double Y) in Best.Path)
+                Route.Points.Add(new FlowchartLayoutPoint { X = Math.Round(X), Y = Math.Round(Y) });
+        }
+    }
+
+    private static (double X, double Y) CentrePort(FlowchartLayoutNodeBounds Bounds, string Side) => Side switch
+    {
+        "left" => (Bounds.CenterX - Bounds.Width / 2.0, Bounds.CenterY),
+        "right" => (Bounds.CenterX + Bounds.Width / 2.0, Bounds.CenterY),
+        "top" => (Bounds.CenterX, Bounds.CenterY + Bounds.Height / 2.0),
+        _ => (Bounds.CenterX, Bounds.CenterY - Bounds.Height / 2.0)
+    };
+
+    private static IEnumerable<(double X, double Y)> Ports(
+        FlowchartLayoutNodeBounds Bounds,
+        string Side,
+        FlowchartLayoutPoint? Existing)
+    {
+        if (Existing != null) yield return (Existing.X, Existing.Y);
+        (double CentreX, double CentreY) = CentrePort(Bounds, Side);
+        double Span = Side is "top" or "bottom" ? Bounds.Width : Bounds.Height;
+        foreach (double Offset in new[] { 0.0, -0.2, 0.2, -0.35, 0.35 })
+        {
+            (double X, double Y) Port = Side is "top" or "bottom"
+                ? (CentreX + Span * Offset, CentreY)
+                : (CentreX, CentreY + Span * Offset);
+            if (Existing == null || Math.Abs(Existing.X - Port.X) >= 1.0 || Math.Abs(Existing.Y - Port.Y) >= 1.0)
+                yield return Port;
+        }
+    }
+
+    private static IEnumerable<List<(double X, double Y)>> CandidatePaths(
+        double StartX,
+        double StartY,
+        FlowchartLayoutNodeBounds Source,
+        NodeContract? SourceNode,
+        string Exit,
+        double EndX,
+        double EndY,
+        FlowchartLayoutNodeBounds Target,
+        NodeContract? TargetNode,
+        string Entry,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds,
+        FlowchartLayoutEdgeRoute Route,
+        DiagramContract Contract,
+        FlowchartDirection Direction,
+        bool Horizontal)
+    {
+        yield return [(StartX, StartY), (EndX, StartY), (EndX, EndY)];
+        yield return [(StartX, StartY), (StartX, EndY), (EndX, EndY)];
+        yield return DiagramGridRouteBuilder.BuildRoute(
+            StartX, StartY, Source, SourceNode?.Shape, Exit,
+            EndX, EndY, Target, TargetNode?.Shape, Entry,
+            Bounds, Route.SourceId, Route.TargetId, Contract, Direction, Horizontal);
+    }
+
+    private static bool LeavesBy(IReadOnlyList<(double X, double Y)> Path, string Side)
+    {
+        if (Path.Count < 2) return false;
+        double Dx = Path[1].X - Path[0].X;
+        double Dy = Path[1].Y - Path[0].Y;
+        return Side switch
+        {
+            "left" => Dx < -0.5 && Math.Abs(Dy) < 0.5,
+            "right" => Dx > 0.5 && Math.Abs(Dy) < 0.5,
+            "top" => Dy > 0.5 && Math.Abs(Dx) < 0.5,
+            _ => Dy < -0.5 && Math.Abs(Dx) < 0.5
+        };
+    }
+
+    private static bool EntersBy(IReadOnlyList<(double X, double Y)> Path, string Side)
+    {
+        if (Path.Count < 2) return false;
+        double Dx = Path[^1].X - Path[^2].X;
+        double Dy = Path[^1].Y - Path[^2].Y;
+        return Side switch
+        {
+            "left" => Dx > 0.5 && Math.Abs(Dy) < 0.5,
+            "right" => Dx < -0.5 && Math.Abs(Dy) < 0.5,
+            "top" => Dy < -0.5 && Math.Abs(Dx) < 0.5,
+            _ => Dy > 0.5 && Math.Abs(Dx) < 0.5
+        };
+    }
+
+    private static bool EndpointTaken(
+        FlowchartLayoutResult Layout,
+        FlowchartLayoutEdgeRoute Route,
+        string NodeId,
+        double X,
+        double Y) => Layout.EdgeRoutes.Any(Other => !ReferenceEquals(Other, Route) && Other.Points.Count > 0
+            && (Other.SourceId == NodeId && Near(Other.Points[0], X, Y)
+                || Other.TargetId == NodeId && Near(Other.Points[^1], X, Y)));
+
+    private static bool Near(FlowchartLayoutPoint Point, double X, double Y) =>
+        Math.Abs(Point.X - X) < 1.0 && Math.Abs(Point.Y - Y) < 1.0;
+
+    private static int CountCorners(IReadOnlyList<FlowchartLayoutPoint> Points) =>
+        CountCorners(Points.Select(Point => (Point.X, Point.Y)).ToList());
+
+    private static int CountCorners(IReadOnlyList<(double X, double Y)> Points)
+    {
+        int Result = 0;
+        for (int Index = 1; Index < Points.Count - 1; Index++)
+        {
+            bool BeforeHorizontal = Math.Abs(Points[Index].Y - Points[Index - 1].Y) < 0.5;
+            bool AfterHorizontal = Math.Abs(Points[Index + 1].Y - Points[Index].Y) < 0.5;
+            if (BeforeHorizontal != AfterHorizontal) Result++;
+        }
+        return Result;
     }
 
     private static (double X, double Y) ResolveEndpoint(

@@ -29,11 +29,30 @@ public sealed class CompactLayoutMetricTests
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartLayoutScore.Result Metrics = FlowchartLayoutScore.Measure(Contract, Layout);
+        if (Number >= 154)
+            Assert.That(Metrics.Score, Is.Not.Null, $"A{Number} must remain a scoreable hinted layout");
         TestContext.Out.WriteLine(
             $"{Catalogue}{Number}: width={Metrics.Width:0} height={Metrics.Height:0} "
             + $"ratio={Metrics.Width / Metrics.Height:0.000} overlaps={Metrics.Overlaps} "
             + $"crossings={Metrics.Crossings} forcedMin={Metrics.ForcedMinimum} empty={Metrics.EmptyShare:P1} "
             + $"score={(Metrics.Score.HasValue ? Metrics.Score.Value.ToString("0.0") : "rejected")}");
+    }
+
+    private static readonly int[] PlacementHintReportScenarios =
+        [150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164];
+
+    [TestCaseSource(nameof(PlacementHintReportScenarios))]
+    public void PlacementHintScenario_ReportsBriefTableRow(int Number)
+    {
+        string Source = ReadScenario("A", Number);
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Source).Document);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        FlowchartLayoutScore.Result Metrics = FlowchartLayoutScore.Measure(Contract, Layout);
+        TestContext.Out.WriteLine(
+            $"| A{Number} | {Metrics.Width:0} x {Metrics.Height:0} | {Metrics.Width / Metrics.Height:0.000} "
+            + $"| {Metrics.Overlaps} | {Metrics.Crossings} | {Metrics.Bends} "
+            + $"| {Metrics.HintsHonoured}/{Metrics.HintsTotal} | {Metrics.EmptyShare:P1} "
+            + $"| {(Metrics.Score.HasValue ? Metrics.Score.Value.ToString("0.0") : "rejected")} |");
     }
 
     [Test]

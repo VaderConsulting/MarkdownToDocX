@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 using MermaidRecognition.Contract;
 using MermaidRecognition.Kinds.Flowchart;
@@ -128,6 +129,12 @@ public static class DiagramGridQuality
             bool Aligned = Math.Abs(Start.X - End.X) <= 0.5 || Math.Abs(Start.Y - End.Y) <= 0.5;
             if (Aligned && Route.Points.Count != 2)
             {
+                bool DirectBlocked = Layout.NodeBounds.Any(Bounds =>
+                    Bounds.NodeId != Route.SourceId && Bounds.NodeId != Route.TargetId
+                    && SegmentTouchesBox(Start, End, Bounds));
+                if (DirectBlocked && IsOrthogonalPolyline(Route.Points)
+                    && CountOrthogonalCorners(Route.Points) <= 2)
+                    continue;
                 Violations.Add(Failure(
                     "LineShape",
                     Route.SourceId + "->" + Route.TargetId + " lines up but is not a single straight segment",
@@ -187,6 +194,24 @@ public static class DiagramGridQuality
                 }
             }
         }
+    }
+
+    private static bool SegmentTouchesBox(
+        FlowchartLayoutPoint Start,
+        FlowchartLayoutPoint End,
+        FlowchartLayoutNodeBounds Bounds)
+    {
+        double Left = Bounds.CenterX - Bounds.Width / 2.0;
+        double Right = Bounds.CenterX + Bounds.Width / 2.0;
+        double Bottom = Bounds.CenterY - Bounds.Height / 2.0;
+        double Top = Bounds.CenterY + Bounds.Height / 2.0;
+        if (Math.Abs(Start.Y - End.Y) <= 0.5)
+            return Start.Y >= Bottom - 0.5 && Start.Y <= Top + 0.5
+                && Math.Max(Math.Min(Start.X, End.X), Left) <= Math.Min(Math.Max(Start.X, End.X), Right) + 0.5;
+        if (Math.Abs(Start.X - End.X) <= 0.5)
+            return Start.X >= Left - 0.5 && Start.X <= Right + 0.5
+                && Math.Max(Math.Min(Start.Y, End.Y), Bottom) <= Math.Min(Math.Max(Start.Y, End.Y), Top) + 0.5;
+        return false;
     }
 
     private static void CheckOverlaps(FlowchartLayoutResult Layout, List<FlowchartLayoutQualityFailure> Violations)
@@ -285,7 +310,8 @@ public static class DiagramGridQuality
             }
 
             string Title = string.IsNullOrWhiteSpace(Group.Title) ? Group.Id : Group.Title;
-            double TitleWidth = FlowchartRichLabelSvgWriter.EstimateLineWidthPx(Title, Options.FontSizePx);
+            double TitleWidth = Title.Split('\n').Max(Line =>
+                FlowchartRichLabelSvgWriter.EstimateLineWidthPx(Line, Options.FontSizePx));
             if (TopPad + 0.5 < BottomPad + DiagramGridMetrics.GRID_UNIT_PX)
             {
                 Violations.Add(Failure(
