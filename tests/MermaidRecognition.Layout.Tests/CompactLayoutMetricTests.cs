@@ -56,7 +56,7 @@ public sealed class CompactLayoutMetricTests
             $"A{Number} has {Metrics.Disconnections} line endpoints detached from their source or target.");
         TestContext.Out.WriteLine(
             $"| A{Number} | {Metrics.Width:0} x {Metrics.Height:0} | {Metrics.Width / Metrics.Height:0.000} "
-            + $"| {Metrics.Overlaps} | {Metrics.Crossings} | {Metrics.Bends} "
+            + $"| {Metrics.Overlaps} | {Metrics.Crossings} ({Metrics.ForcedMinimum} forced) | {Metrics.Bends} "
             + $"| {Metrics.HintsHonoured}/{Metrics.HintsTotal} | {Metrics.EmptyShare:P1} "
             + $"| {(Metrics.Score.HasValue ? Metrics.Score.Value.ToString("0.0") : "rejected")} |");
     }
