@@ -205,10 +205,13 @@ public static class DiagramGridLayout
     private static void ApplyScoreGuardedTwoCornerRepair(FlowchartLayoutResult Layout, DiagramContract Contract,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds)
     {
+        // Sloping outlines need their terminal normals rebuilt with the route.
+        // This pass deliberately preserves those specialised attachments.
+        if (Contract.Nodes.Any(Node => FlowchartDiamondAttachHelper.IsDiamondShape(Node.Shape))) return;
         FlowchartLayoutScore.Result Before = FlowchartLayoutScore.Measure(Contract, Layout);
         var Snapshot = Layout.EdgeRoutes.Select(Route => (Route, Route.ExitSide, Route.EntrySide,
             Points: Route.Points.Select(Point => new FlowchartLayoutPoint { X = Point.X, Y = Point.Y }).ToList())).ToList();
-        FlowchartTwoCornerRouteRepair.Apply(Layout, Contract, Bounds, IncludeTwoCornerRoutes: true);
+        FlowchartTwoCornerRouteShortener.Apply(Layout, Contract, Bounds, IncludeTwoCornerRoutes: true);
         FlowchartLayoutScore.Result After = FlowchartLayoutScore.Measure(Contract, Layout);
         bool Keep = Before.Score.HasValue
             ? After.Score.HasValue && After.Score.Value < Before.Score.Value - 0.001
