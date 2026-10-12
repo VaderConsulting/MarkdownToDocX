@@ -45,6 +45,8 @@ Failed attempt: A142 stopped with the valid best at 51 crossings. A reproduced p
 
 Failed attempt: packing paired fans removed F113's 40 fan-side faults, but changed two passing `WideFanPortTests` from their required top/bottom exits to the facing-side exits required by rule 5.8. The candidate was discarded because the test baseline may not grow; the test and rule require opposite sides for the same structure.
 
+Failed attempt: extending the final two-corner repair to every diagram and to tracks beside other routed lines left the catalogue total at 251 and converted one fan fault into a new avoidable-crossing fault (i 134 to 133; j 4 to 5). The ratchet rejected the candidate, so it was discarded.
+
 ## Stretch goals
 
 These must be done, but not yet. Start them only when Dave says so.
