@@ -19,7 +19,7 @@ public static class EnterpriseParser
 
     private static readonly HashSet<string> ReservedIds = new(StringComparer.OrdinalIgnoreCase)
     {
-        "title", "version", "direction", "group", "in", "classDef", "class", "style", "linkStyle", "accTitle", "accDescr"
+        "title", "version", "direction", "group", "note", "in", "classDef", "class", "style", "linkStyle", "accTitle", "accDescr"
     };
 
     private static readonly Regex HeaderRegex = new Regex(
@@ -46,6 +46,14 @@ public static class EnterpriseParser
 
     private static readonly Regex RelationshipRegex = new Regex(
         @"^(?<source>" + ID_PATTERN + @")\s+-(?<kind>[A-Za-z]+)(?:\((?<qualifier>[^)]*)\))?->\s+(?<target>" + ID_PATTERN + @")(?:\s+(?<label>" + STRING_PATTERN + @"))?(?:\s+\[(?<routing>[^\]]+)\])?$",
+        RegexOptions.Compiled | RegexOptions.Singleline);
+
+    private static readonly Regex PlainConnectionRegex = new Regex(
+        @"^(?<source>" + ID_PATTERN + @")\s+---\s+(?<target>" + ID_PATTERN + @")(?:\s+\[(?<routing>[^\]]+)\])?$",
+        RegexOptions.Compiled | RegexOptions.Singleline);
+
+    private static readonly Regex NoteRegex = new Regex(
+        @"^note\s+(?<id>" + ID_PATTERN + @")\s+(?<label>" + STRING_PATTERN + @")(?:\s+in\s+(?<parent>" + ID_PATTERN + @"))?(?:\s+(?<placement>" + PLACEMENT_HINT_PATTERN + @"))?$",
         RegexOptions.Compiled | RegexOptions.Singleline);
 
     private static readonly Regex ElementRegex = new Regex(
@@ -225,6 +233,24 @@ public static class EnterpriseParser
                 continue;
             }
 
+            Match PlainConnectionMatch = PlainConnectionRegex.Match(Line);
+            if (PlainConnectionMatch.Success)
+            {
+                AddPlainConnection(Document, Diagnostics, PlainConnectionMatch, LineNumber);
+                continue;
+            }
+
+            Match NoteMatch = NoteRegex.Match(Line);
+            if (NoteMatch.Success)
+            {
+                AddNote(Document, Diagnostics, NoteMatch, LineNumber);
+                if (TrailingClass != null) Document.Styles.AddInlineClass(NoteMatch.Groups["id"].Value, TrailingClass);
+                if (GroupScope.TryPeek(out string? ParentId)
+                    && Document.Notes.TryGetValue(NoteMatch.Groups["id"].Value, out EnterpriseNote? Note) && Note.ParentId == null)
+                    Note.ParentId = ParentId;
+                continue;
+            }
+
             Match ElementMatch = ElementRegex.Match(Line);
             if (ElementMatch.Success)
             {
@@ -267,7 +293,7 @@ public static class EnterpriseParser
             Diagnostics.Add(CreateError(LineNumber, "reserved word cannot be an id: \"" + Id + "\""));
             return;
         }
-        if (Document.HasContainer(Id))
+        if (Document.HasDrawingItem(Id))
         {
             Diagnostics.Add(CreateError(LineNumber, "duplicate id \"" + Id + "\""));
             return;
@@ -319,7 +345,7 @@ public static class EnterpriseParser
             Diagnostics.Add(CreateError(LineNumber, "reserved word cannot be an id: \"" + Id + "\""));
             return;
         }
-        if (Document.HasContainer(Id))
+        if (Document.HasDrawingItem(Id))
         {
             if (Document.Elements.TryGetValue(Id, out var Existing) && Existing.ElementType == ElementType)
             {
@@ -373,6 +399,50 @@ public static class EnterpriseParser
                 PlacementHint = PlacementHint
             };
         }
+    }
+
+    private static void AddNote(
+        EnterpriseDocument Document,
+        List<EnterpriseDiagnostic> Diagnostics,
+        Match NoteMatch,
+        int LineNumber)
+    {
+        string Id = NoteMatch.Groups["id"].Value;
+        if (ReservedIds.Contains(Id))
+        {
+            Diagnostics.Add(CreateError(LineNumber, "reserved word cannot be an id: \"" + Id + "\""));
+            return;
+        }
+        if (Document.HasDrawingItem(Id))
+        {
+            Diagnostics.Add(CreateError(LineNumber, "duplicate id \"" + Id + "\""));
+            return;
+        }
+
+        Document.Notes[Id] = new EnterpriseNote
+        {
+            Id = Id,
+            Label = Unquote(NoteMatch.Groups["label"].Value),
+            IsMarkdownLabel = IsMarkdown(NoteMatch.Groups["label"].Value),
+            ParentId = NoteMatch.Groups["parent"].Success ? NoteMatch.Groups["parent"].Value : null,
+            LineNumber = LineNumber,
+            PlacementHint = ParsePlacementHint(NoteMatch, LineNumber)
+        };
+    }
+
+    private static void AddPlainConnection(
+        EnterpriseDocument Document,
+        List<EnterpriseDiagnostic> Diagnostics,
+        Match ConnectionMatch,
+        int LineNumber)
+    {
+        Document.PlainConnections.Add(new EnterprisePlainConnection
+        {
+            SourceId = ConnectionMatch.Groups["source"].Value,
+            TargetId = ConnectionMatch.Groups["target"].Value,
+            LineNumber = LineNumber,
+            RoutingHint = ParseRoutingHint(ConnectionMatch, LineNumber, Diagnostics)
+        });
     }
 
     private static EnterpriseJunctionKind ResolveJunctionKind(string TypeToken)
@@ -581,6 +651,11 @@ public static class EnterpriseParser
             if (Group.PlacementHint != null)
                 Hints.Add((Group.Id, Group.ParentId, Group.PlacementHint));
         }
+        foreach (EnterpriseNote Note in Document.Notes.Values)
+        {
+            if (Note.PlacementHint != null)
+                Hints.Add((Note.Id, Note.ParentId, Note.PlacementHint));
+        }
 
         Dictionary<string, string> AcceptedPeers = new(StringComparer.Ordinal);
         foreach ((string Id, string? ParentId, PlacementHintContract Hint) in Hints.OrderBy(Item => Item.Hint.SourceLine))
@@ -589,7 +664,7 @@ public static class EnterpriseParser
                 continue;
 
             string PeerId = Hint.PeerId ?? string.Empty;
-            if (!Document.HasContainer(PeerId))
+            if (!Document.HasDrawingItem(PeerId))
             {
                 RejectPlacementHint(Hint, Diagnostics, "placement hint peer \"" + PeerId + "\" does not exist");
                 continue;
@@ -619,7 +694,8 @@ public static class EnterpriseParser
     private static string? ParentOf(EnterpriseDocument Document, string Id)
     {
         if (Document.Groups.TryGetValue(Id, out EnterpriseGroup? Group)) return Group.ParentId;
-        return Document.Elements.TryGetValue(Id, out EnterpriseElement? Element) ? Element.ParentId : null;
+        if (Document.Elements.TryGetValue(Id, out EnterpriseElement? Element)) return Element.ParentId;
+        return Document.Notes.TryGetValue(Id, out EnterpriseNote? Note) ? Note.ParentId : null;
     }
 
     private static void RejectPlacementHint(
@@ -657,6 +733,20 @@ public static class EnterpriseParser
             }
         }
 
+        foreach (EnterprisePlainConnection Connection in Document.PlainConnections)
+        {
+            bool SourceExists = Document.HasDrawingItem(Connection.SourceId);
+            bool TargetExists = Document.HasDrawingItem(Connection.TargetId);
+            if (!SourceExists)
+                Diagnostics.Add(CreateError(Connection.LineNumber, "plain connection source \"" + Connection.SourceId + "\" is not declared"));
+            if (!TargetExists)
+                Diagnostics.Add(CreateError(Connection.LineNumber, "plain connection target \"" + Connection.TargetId + "\" is not declared"));
+            if (SourceExists && TargetExists
+                && !Document.Notes.ContainsKey(Connection.SourceId)
+                && !Document.Notes.ContainsKey(Connection.TargetId))
+                Diagnostics.Add(CreateError(Connection.LineNumber, "a plain connection must have a note at one or both ends"));
+        }
+
         foreach (EnterpriseElement Element in Document.Elements.Values)
         {
             ValidateParent(Document, Diagnostics, Element.ParentId, Element.LineNumber);
@@ -665,6 +755,11 @@ public static class EnterpriseParser
         foreach (EnterpriseGroup Group in Document.Groups.Values)
         {
             ValidateParent(Document, Diagnostics, Group.ParentId, Group.LineNumber);
+        }
+
+        foreach (EnterpriseNote Note in Document.Notes.Values)
+        {
+            ValidateParent(Document, Diagnostics, Note.ParentId, Note.LineNumber);
         }
     }
 

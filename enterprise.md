@@ -5453,3 +5453,322 @@ enterprise BT
   consume -realization-> catalogueSvc
   consume -realization-> geoVisSvc
 ```
+
+### A165 - Hints: recreation of a business context diagram with motivation elements
+
+A placement-hints recreation test of a real programme business context diagram, redrawn from a picture: motivation groups (requirements, values, drivers, goals) at the top, a programme group holding four use-case groups (roles in a row, processes beneath, then drivers, goals and outcomes), a group of outcomes, and a group of business services. Only our own line and node formatting is used; the picture's colours are not copied. Source labels are kept as written, including "decisons", "Informatinn" and "identifcation". Elements are declared first, relationships later. Requires hint syntax support: the converter does not parse hints yet, so conversion may report errors.
+
+- **Recognition:** `Business.Role`, `Business.Process`, `Business.Service`, `Motivation.Driver`, `Motivation.Goal`, `Motivation.Outcome`, `Motivation.Value`, `Motivation.Requirement`, `Group`, `Relationship.Triggering`, `Relationship.Serving`, `Relationship.Influence`, `Relationship.Realization`
+- **Rendering:** `Layout.Hints`, `Layout.Nesting`, `Layout.GroupEndpoints`
+- **Expected:** valid once hint syntax is supported. No failure: every hint is honoured, or dropped and reported, or ignored and reported, as rule 2.21 says. Every hint is honoured except where legality prevents it, there are no overlaps, and lines are straight or rounded orthogonal. Notes: the picture's dashed lines between groups are read as influence and the dotted line with a hollow head as realization. Open-headed solid lines are serving and filled-headed solid lines triggering. The services group serves the IP&A group in the picture (a line to a group frame, rule 4.9).
+
+```mermaid
+enterprise TB
+  group reqs "Common Requirements"
+  group values "Common Values" right-of reqs
+  group drivers "Common Drivers/Motivations" right-of values
+  group goals "Common Goals" right-of drivers
+  group prog "Spatial WA Programme Business Context" below reqs
+  group outcomes "Common Outcomes" below prog
+  group platform "SDT Platform Business Context - Common Business Services" right-of outcomes
+  group daw "DAW Use Case Business Context" in prog
+  group ulpi "ULPI Use Case Business Context" in prog right-of daw
+  group ipa "IP&A Use Case Business Context" in prog right-of ulpi
+  group emem "EMEM Use Case Business Context" in prog right-of ipa
+  requirement control "Control and track access to sensitive shared information" in reqs
+  value dataDriven "Data driven decisons" in values
+  value infoSec "Informatinn Security" in values right-of dataDriven
+  driver ineffData "Inefficiencies due to siloed data" in drivers
+  driver ineffProc "Inefficiencies and limitations of siloed government processes" in drivers right-of ineffData
+  driver needData "Need to find and use data sources of varying source, type and quality" in drivers right-of ineffProc
+  goal betterData "Better and more consistent data" in goals
+  goal consult "Facilitate community consultation" in goals right-of betterData
+  goal sharing "Better data sharing" in goals right-of consult
+  goal interParty "Better inter-party collaboration using 2/3/4D spatial information" in goals right-of sharing
+  business-role proponent "Proponent" in daw
+  business-role planner "Planner" in daw right-of proponent
+  business-role referral "Referral Agency" in daw right-of planner
+  business-process subdivision "Subdivision" in daw below proponent
+  business-process sigDev "Significant Development Proposal" in daw right-of subdivision
+  business-process referralProc "Referral Process" in daw below subdivision
+  business-role keyStake "Key Stakeholders" in ulpi
+  business-role workGroup "Working Group Members" in ulpi right-of keyStake
+  business-role otherProj "Other Project Stakeholders" in ulpi right-of workGroup
+  business-process idInv "Identification - Investigation" in ulpi below keyStake
+  business-process idDecl "Identification - Declaration" in ulpi right-of idInv
+  business-process establish "Establishment" in ulpi right-of idDecl
+  business-process implement "Implementation" in ulpi right-of establish
+  driver lack "Lack of Understanding of Supporting Infrastructure and Constraints" in ulpi below idInv
+  goal growth "Support Economic Growth" in ulpi right-of lack
+  goal diversify "Diversify WA Economy" in ulpi right-of growth
+  business-role projDel "Project Delivery Authorities" in ipa
+  business-role transport "Transport Asset Operators & Maintainers" in ipa right-of projDel
+  business-role otherProj2 "Other Project Stakeholders" in ipa right-of transport
+  business-process strategic "Strategic Planning" in ipa below projDel
+  business-process design "Design and Approval" in ipa right-of strategic
+  business-process deliveryInc "Delivery Incremental Data Supply" in ipa right-of design
+  business-process sieC "Stakeholder Identification, Engagement and Collaboration" in ipa below design
+  goal easier "Easier identifcation of stakeholders, other initiatives (nearby)" in ipa below strategic
+  outcome costCert "Greater cost certainty" in ipa right-of easier
+  outcome safer "Safer outcomes on-site" in ipa right-of costCert
+  business-role emergency "Emergency Management Community" in emem
+  business-role planners "Planners and Asset Managers" in emem right-of emergency
+  business-role utilities "Public utilities" in emem right-of planners
+  business-role community "Community groups" in emem right-of utilities
+  business-role industry "Primary industry stakeholders" in emem right-of community
+  business-process risk "Risk management and preparedness planning" in emem below emergency
+  business-process asset "Asset Management" in emem right-of risk
+  business-process coordinate "Coordinate / support recovery planning and operations" in emem right-of asset
+  business-process simulation "Simulation and Training" in emem below risk
+  business-process hazard "Hazard modelling and scenario analysis" in emem right-of simulation
+  business-process stakeEng "Stakeholder engagement and collaboration" in emem right-of hazard
+  goal informed "Informed interested stakeholders" in emem below simulation
+  outcome prepared "Improved preparedness" in emem right-of informed
+  outcome costing "More accurate costing of recovery support" in emem right-of prepared
+  outcome integrate "Integrate local and expert knowledge" in emem right-of costing
+  outcome informedPlan "Better informed planning outcomes" in outcomes
+  outcome reduced "Reduced duplication of effort" in outcomes right-of informedPlan
+  outcome speed "Improved speed and efficiency" in outcomes right-of reduced
+  outcome landUse "Better land use planning" in outcomes right-of speed
+  outcome engagement "Better stakeholder engagement" in outcomes right-of landUse
+  business-service userReg "User Registration Service" in platform
+  business-service bwm "Business Workflow Management" in platform right-of userReg
+  business-service dsm "Data Source Management" in platform right-of bwm
+  business-service collabMgmt "Collaboration Management Service" in platform right-of dsm
+  business-service collabSvc "Collaboration Service" in platform right-of collabMgmt
+  business-service catalogue "Data Catalogue Service" in platform right-of collabSvc
+  business-service geoVis "Geospatial Visualisation and Query Service" in platform right-of catalogue
+  business-service geoEdit "Geospatial Data Editing and Analysis Service" in platform right-of geoVis
+  business-service editSvc "Data Editing and Analysis Service" in platform right-of geoEdit
+  drivers -influence-> reqs
+  drivers -influence-> goals
+  values -influence-> reqs
+  values -influence-> goals
+  reqs -influence-> prog
+  goals -influence-> prog
+  prog -realization-> outcomes
+  platform -serving-> ipa
+  referralProc -serving-> subdivision
+  referralProc -serving-> sigDev
+  idInv -triggering-> idDecl
+  idDecl -triggering-> establish
+  establish -triggering-> implement
+  strategic -triggering-> design
+  design -triggering-> deliveryInc
+  strategic -triggering-> sieC
+  design -triggering-> sieC
+  sieC -triggering-> deliveryInc
+  risk -triggering-> asset
+  asset -triggering-> coordinate
+  simulation -serving-> risk
+  hazard -serving-> risk
+  stakeEng -serving-> risk
+  stakeEng -serving-> coordinate
+```
+
+### A166 - Hints: recreation of a systems scope diagram with a key
+
+A placement-hints recreation test of a real systems scope picture: a key, a group of systems with a nested sub-group, a second group of other systems, and two callout notes pointing at one system each. The picture's green, red and yellow fills are not copied (no per-node colours); their meaning is written into each label instead. The key boxes and the two callouts are notes, and each callout is joined to its system by a plain connection. Elements are declared first, relationships later. Requires hint syntax support: the converter does not parse hints yet, so conversion may report errors.
+
+- **Recognition:** `Application.Component`, `Business.Process`, `Note`, `Group`, `Connection.Plain`
+- **Rendering:** `Layout.Hints`, `Layout.Nesting`, `Layout.LineHints`, `Layout.Notes`
+- **Expected:** valid once hint syntax is supported. No failure: every hint is honoured, or dropped and reported, or ignored and reported, as rule 2.21 says. Every hint is honoured except where legality prevents it, there are no overlaps, and lines are straight or rounded orthogonal. Notes: the picture is not drawn in ArchiMate, so the element types are the closest reading (systems as application components, creation processes as business processes). Label line breaks in the picture are not copied where they fall after a slash. The key colour meaning is added to each label as a suffix. The key boxes and callouts are notes; the plain connections are not relationships.
+
+```mermaid
+enterprise TB
+  group keyGrp "KEY"
+  group slip "SLIP" below keyGrp
+  group other "Other Systems that aren't part of SLIP" right-of slip
+  group landgate "Landgate Specific" in slip
+  note keyBox "KEY" in keyGrp
+  note keyIn "In Scope SDT to replace" in keyGrp right-of keyBox
+  note keyOut "Not in Scope of SDT" in keyGrp right-of keyIn
+  note keyImpact "May have impact from SDT" in keyGrp right-of keyOut
+  application-component download "SLIP Data Download<br>[in scope of SDT]" in slip
+  application-component publishing "SLIP Publishing Tools<br>[in scope of SDT]" in slip right-of download
+  application-component dut "Data Upload Tool (DUT)<br>[in scope of SDT]" in slip right-of publishing
+  application-component gis "GIS Services (Esri / OGC Services, Imagery / Basemap)<br>[in scope of SDT]" in slip right-of dut
+  application-component ping "Ping/Sailpoint Authentication/Authorisation<br>[in scope of SDT]" in slip right-of gis
+  application-component webApps "SLIP Web Apps (Locate/Landinfo/Bushfire Prone/Marine Map)<br>[not in scope of SDT]" in slip below download
+  application-component lswa "LSWA Integration to SLIP<br>[not in scope of SDT]" in landgate
+  business-process imagery "Imagery Mosaic Creation Process (in SLIP)<br>[in scope of SDT]" in landgate right-of lswa
+  business-process basemap "Basemap Creation Process (in SLIP)<br>[in scope of SDT]" in slip right-of landgate
+  application-component payment "Landgate Payment Portal<br>[not in scope of SDT]" in other
+  application-component serviceNow "Service Now<br>[not in scope of SDT]" in other right-of payment
+  application-component dataWa "Data.wa.gov.au<br>[may have impact from SDT]" in other below payment
+  application-component customers "Customer Systems that use SLIP<br>[not in scope of SDT]" in other right-of dataWa
+  note locateNote "Locate not directly replaced, however expect that there will be public viewer use cases in the future for SDT<br><br>Could fail in future SDT use case (generic viewer)" below slip
+  note dataWaNote "Changes may be required within Data WA to integrate with SDT, including the retrieval and ingestion of data catalogues from SDT" below other
+  locateNote --- webApps [leave N, enter S]
+  dataWaNote --- dataWa [leave N, enter S]
+```
+
+### A167 - Hints: recreation of a locations, stakeholders and roles diagram
+
+A placement-hints recreation test of a real diagram of locations, stakeholder groups, registered roles, platform management roles, processes, an application component and the hosting nodes. Locations aggregate the stakeholder groups, the groups are assigned to roles, and the nodes are composed from locations as drawn. The stakeholder groups are empty groups in the picture and stay empty here. Only our own line and node formatting is used. Elements are declared first, relationships later. Requires hint syntax support: the converter does not parse hints yet, so conversion may report errors.
+
+- **Recognition:** `Business.Actor`, `Business.Role`, `Business.Process`, `Application.Component`, `Technology.Node`, `Location`, `Group`, `Relationship.Aggregation`, `Relationship.Assignment`, `Relationship.Specialization`, `Relationship.Serving`, `Relationship.Composition`
+- **Rendering:** `Layout.Hints`, `Layout.GroupEndpoints`, `Layout.LineHints`
+- **Expected:** valid once hint syntax is supported. No failure: every hint is honoured, or dropped and reported, or ignored and reported, as rule 2.21 says. Every hint is honoured except where legality prevents it, there are no overlaps, and lines are straight or rounded orthogonal. Notes: the aggregation lines from Australia to the group frames, and the assignment lines from the groups to roles, need group endpoints (rule 4.9). The two location-to-node composition lines are drawn with the diamond on the location end, so the location is the source.
+
+```mermaid
+enterprise TB
+  location australia "Australia"
+  location india "India"
+  location nz "New Zealand"
+  business-actor publicUser "Public Unauthenticated User"
+  group trusted "Trusted Stakeholders" right-of publicUser
+  group landgateOp "Landgate Spatial WA Operation and Governance" right-of trusted
+  group vendorOp "SDT Vendor Operation" right-of landgateOp
+  business-role explorer "SDT Explorer" below publicUser
+  group regRoles "SDT Registered Roles" right-of explorer
+  group mgmtRoles "SDT Platform Management and Support Roles" right-of regRoles
+  business-role visualiser "SDT Visualiser" in regRoles
+  business-role analyst "SDT Analyst" in regRoles right-of visualiser
+  business-role collaborator "SDT Collaborator" in regRoles right-of analyst
+  business-role dataMgr "SDT Data Manager" in regRoles right-of collaborator
+  business-role admin "SDT Administrator" in regRoles right-of dataMgr
+  business-role owner "SDT Platform Owner" in mgmtRoles
+  business-role secCustodian "SDT Security Custodian" in mgmtRoles right-of owner
+  business-role platCustodian "SDT Platform Custodian" in mgmtRoles right-of secCustodian
+  business-role devCustodian "SDT Platform Development and Support Custodian" in mgmtRoles right-of platCustodian
+  application-component sdt "SDT" below regRoles
+  business-process cyber "Cybersecurity Process" right-of sdt
+  business-process support "Support and Maintain Platform" right-of cyber
+  node azure "Azure Platform" below sdt
+  node primary "Azure Platform (Primary) Australia East" below azure
+  node secondary "Azure Platform (Secondary) Australia Southeast" right-of primary
+  location locNsw "Azure (Primary) New South Wales Australia" below primary
+  location locVic "Azure (Secondary) Victoria Australia" below secondary
+  australia -aggregation-> publicUser
+  australia -aggregation-> trusted
+  australia -aggregation-> landgateOp
+  australia -aggregation-> vendorOp
+  india -aggregation-> vendorOp
+  nz -aggregation-> vendorOp
+  publicUser -assignment-> explorer [leave S, enter N]
+  trusted -assignment-> regRoles [leave S, enter N]
+  landgateOp -assignment-> regRoles [leave S, enter N]
+  landgateOp -assignment-> owner
+  landgateOp -assignment-> secCustodian
+  landgateOp -assignment-> platCustodian
+  vendorOp -assignment-> devCustodian [leave S, enter N]
+  owner -specialization-> admin [leave W, enter E]
+  secCustodian -specialization-> admin
+  secCustodian -assignment-> cyber [leave S, enter N]
+  platCustodian -assignment-> support [leave S, enter N]
+  devCustodian -assignment-> support [leave S, enter N]
+  cyber -serving-> sdt [leave W, enter E]
+  support -serving-> sdt
+  sdt -serving-> explorer
+  sdt -serving-> regRoles [leave N, enter S]
+  azure -serving-> sdt [leave N, enter S]
+  azure -composition-> primary
+  azure -composition-> secondary
+  locNsw -composition-> primary
+  locVic -composition-> secondary
+```
+
+### A168 - Hints: recreation of a custodians, consumers and role assignment diagram
+
+A placement-hints recreation test of a real diagram of data custodians and consumers, stakeholder groups, registered roles and two operation groups, with assignments from the actors and groups to roles, three specializations, and two labelled lines. The picture's notes are declared as notes and joined by plain connections; the note that sits on a line in the picture is the label of that line, not a note. Only our own line and node formatting is used. Elements are declared first, relationships later. Requires hint syntax support: the converter does not parse hints yet, so conversion may report errors.
+
+- **Recognition:** `Business.Actor`, `Business.Role`, `Note`, `Group`, `Relationship.Assignment`, `Relationship.Specialization`, `Relationship.Serving`, `Connection.Plain`
+- **Rendering:** `Layout.Hints`, `Layout.GroupEndpoints`, `Layout.LineHints`, `Layout.RelationshipLabels`, `Layout.Notes`
+- **Expected:** valid once hint syntax is supported. No failure: every hint is honoured, or dropped and reported, or ignored and reported, as rule 2.21 says. Every hint is honoured except where legality prevents it, there are no overlaps, and lines are straight or rounded orthogonal. Notes: the red border of the first note is not copied. The "Subject to privilege" note of the picture sits on a line, so it is the label of the Analyst to Collaborator line and is not declared as a note. Both "And others. ..." notes are members of their groups. The labelled "Reports to" and "Subject to privilege" lines are read as serving with open heads. The "Reports to" line runs from the platform support manager to the Landgate manager as drawn. The platform support manager has two assignment lines, one to the security custodian and one to the administrator.
+
+```mermaid
+enterprise TB
+  group custodians "Existing SLIP Data Custodians"
+  group consumers "Existing SLIP Data Consumers" right-of custodians
+  group trusted "Trusted Stakeholders" below custodians
+  group newCust "New Data Custodians" right-of trusted
+  group regRoles "SDT Registered Roles" below trusted
+  group landgateOp "Landgate Spatial WA Operation and Governance" below regRoles
+  group vendorOp "SDT Vendor Operation" right-of landgateOp
+  note redNote "Some SDT Capabilities, in terms of the defined platform roles, are subject to granular permissions assignment based on the domain of access (organisation, collaboration workspace, workflow management, etc).<br>Refer to full Function Requirements." left-of trusted
+  business-actor landgateCust "Landgate Data Custodian" in custodians
+  business-actor dmpe "DMPE Data Custodian" in custodians right-of landgateCust
+  business-actor dwer "DWER Data Custodian" in custodians right-of dmpe
+  business-actor mrwa "MRWA Data Custodian" in custodians right-of dwer
+  note othersCust "And others.<br>..." in custodians right-of mrwa
+  business-actor govCons "Government Agency Consumer" in consumers
+  business-actor privOrg "Private Organisation Consumer" in consumers right-of govCons
+  business-actor privInd "Private Individual Consumer" in consumers right-of privOrg
+  note othersCons "And others.<br>..." in consumers right-of privInd
+  business-actor trustedAdmin "Trusted Stakeholder Administrator" in trusted
+  business-role owner "SDT Platform Owner" in regRoles
+  business-role admin "SDT Administrator" in regRoles right-of owner
+  business-role secCustodian "SDT Security Custodian" in regRoles right-of admin
+  business-role dataMgr "SDT Data Manager" in regRoles right-of secCustodian
+  business-role collabAdmin "Collaboration Workspace Administrator" in regRoles right-of dataMgr
+  business-role collaborator "SDT Collaborator" in regRoles right-of collabAdmin
+  business-role visualiser "SDT Visualiser" in regRoles right-of collaborator
+  business-role analyst "SDT Analyst" in regRoles right-of visualiser
+  business-actor landgateOwner "Landgate SDT Owner" in landgateOp
+  business-actor landgateMgr "Landgate SDT Manager" in landgateOp right-of landgateOwner
+  business-actor cyberRep "Landgate Cybersecurity Representative" in landgateOp right-of landgateMgr
+  business-actor platMgr "SDT Platform Support Manager" in vendorOp
+  business-actor l2 "SDT Platform L2 Support Officer" in vendorOp right-of platMgr
+  redNote --- regRoles [leave S, enter N]
+  trustedAdmin -assignment-> admin [leave S, enter N]
+  custodians -assignment-> dataMgr [leave S, enter N]
+  newCust -assignment-> dataMgr [leave S, enter N]
+  consumers -assignment-> visualiser [leave S, enter N]
+  consumers -assignment-> analyst [leave S, enter N]
+  owner -specialization-> admin [leave E, enter W]
+  secCustodian -specialization-> admin [leave W, enter E]
+  collabAdmin -specialization-> collaborator [leave E, enter W]
+  landgateOwner -assignment-> owner [leave N, enter S]
+  landgateMgr -assignment-> admin [leave N, enter S]
+  cyberRep -assignment-> secCustodian [leave N, enter S]
+  platMgr -assignment-> secCustodian [leave N, enter S]
+  platMgr -assignment-> admin
+  l2 -assignment-> dataMgr [leave N, enter S]
+  l2 -assignment-> collabAdmin [leave N, enter S]
+  platMgr -serving-> landgateMgr "Reports to"
+  analyst -serving-> collaborator "Subject to privilege"
+```
+
+### A169 - Hints: recreation of a referral agency actors and roles diagram
+
+A placement-hints recreation test of a real diagram of use-case roles in one group, referral agency officers who are assigned to those roles and to registered roles in another group, and a note. One officer's line ends on the group frame itself. Only our own line and node formatting is used. Elements are declared first, relationships later. Requires hint syntax support: the converter does not parse hints yet, so conversion may report errors.
+
+- **Recognition:** `Business.Actor`, `Business.Role`, `Note`, `Group`, `Relationship.Assignment`, `Relationship.Specialization`, `Relationship.Serving`, `Connection.Plain`
+- **Rendering:** `Layout.Hints`, `Layout.GroupEndpoints`, `Layout.LineHints`, `Layout.Notes`
+- **Expected:** valid once hint syntax is supported. No failure: every hint is honoured, or dropped and reported, or ignored and reported, as rule 2.21 says. Every hint is honoured except where legality prevents it, there are no overlaps, and lines are straight or rounded orthogonal. Notes: the DPLH Admin Officer line ends on the DAW group frame (rule 4.9). The line from the Western Power Representative to the Referral Agency role has an arrowhead at the role only. The note is joined to SDT Collaborator by a plain connection, which is not a relationship. "Subject to privilege" is the label of a serving line, not a note. The group title "DAW Use Case Business Context" is cut off in the picture and is written in full.
+
+```mermaid
+enterprise TB
+  group daw "DAW Use Case Business Context"
+  business-actor dplhAdmin "DPLH Admin Officer" below daw
+  business-actor dplhPlan "DPLH Planning Officer" right-of dplhAdmin
+  business-actor water "Water Corporation Representative" right-of dplhPlan
+  business-actor westernPower "Western Power Representative" right-of water
+  business-actor localGov "Local Government Officer" right-of westernPower
+  group regRoles "SDT Registered Roles" below dplhAdmin
+  note otherAgencies "And Other Referral Agencies" below localGov
+  business-role proponent "Proponent" in daw
+  business-role planner "Planner" in daw right-of proponent
+  business-role referral "Referral Agency" in daw right-of planner
+  business-role admin "SDT Administrator" in regRoles
+  business-role secCustodian "SDT Security Custodian" in regRoles right-of admin
+  business-role dataMgr "SDT Data Manager" in regRoles right-of secCustodian
+  business-role collabAdmin "Collaboration Workspace Administrator" in regRoles right-of dataMgr
+  business-role collaborator "SDT Collaborator" in regRoles right-of collabAdmin
+  business-role visualiser "SDT Visualiser" in regRoles right-of collaborator
+  business-role analyst "SDT Analyst" in regRoles right-of visualiser
+  dplhAdmin -assignment-> daw [leave N, enter S]
+  dplhPlan -assignment-> planner [leave N, enter S]
+  water -assignment-> referral [leave N, enter S]
+  westernPower -assignment-> referral [leave N, enter S]
+  localGov -assignment-> referral [leave N, enter S]
+  dplhAdmin -assignment-> collaborator
+  dplhPlan -assignment-> collabAdmin [leave S, enter N]
+  water -assignment-> collaborator [leave S, enter N]
+  westernPower -assignment-> collaborator [leave S, enter N]
+  localGov -assignment-> collaborator
+  collabAdmin -specialization-> collaborator [leave E, enter W]
+  otherAgencies --- collaborator
+  analyst -serving-> collaborator "Subject to privilege"
+```

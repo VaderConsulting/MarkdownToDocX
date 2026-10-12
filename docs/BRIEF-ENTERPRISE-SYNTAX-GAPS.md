@@ -16,6 +16,14 @@ A100, A101, A118, A119, A121, A122, A123, A124, A125, A126, A127, A128, A129, A1
 7. **Labels (A125, A126).** Accept single-quoted labels and markdown-string labels.
 8. **Redeclared ids (A127).** Allow declaring an id again with the same type and merge the declarations. Keep the error for a conflicting type.
 
+9. **Notes and plain connections (A166, A168, A169).** A note is a free-text box that is not an ArchiMate element. A plain connection is an undirected line with no relationship type. The syntax follows the existing element and relationship statements:
+   - Note declaration: `note id "text"`, then the same optional parts as an element: `in group` and one placement hint, for example `note n1 "Some text<br>more" in box right-of a`. The element statement already parses this shape; `note` is a type word that is not in the element catalogue and is never a relationship end for `-kind->` statements.
+   - Plain connection: `a --- b`, with an optional line hint, for example `n1 --- a [leave S, enter N]`. One end must be a note; the other end is a node, a group or a note. There is no kind, no qualifier and no label. A `---` between two non-note ends is an error.
+   - Model: a note and a plain connection create no relationship and no element. They are kept as drawing items only.
+   - Rendering: draw the note as a box with a dog-ear corner and the text wrapped inside; draw the connection as a plain line without arrowheads or end markers. Layout follows rules 2.22 and 4.10 of the rulebook.
+   - A text on a line is not a note; it stays a line label.
+   - Check: A166, A168 and A169.
+
 ## Also check
 A90 expects 4 errors but shows 3 placeholder lines. Find out whether two errors are being merged.
 

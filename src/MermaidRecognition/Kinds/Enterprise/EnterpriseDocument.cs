@@ -32,6 +32,10 @@ public sealed class EnterpriseDocument
 
     private readonly List<EnterpriseRelationship> _Relationships = new List<EnterpriseRelationship>();
 
+    private readonly Dictionary<string, EnterpriseNote> _Notes = new Dictionary<string, EnterpriseNote>(StringComparer.Ordinal);
+
+    private readonly List<EnterprisePlainConnection> _PlainConnections = new List<EnterprisePlainConnection>();
+
     /// <summary>Gets or sets the rule-table version (<c>3.1</c> or <c>3.2</c>).</summary>
     public string Version
     {
@@ -98,6 +102,12 @@ public sealed class EnterpriseDocument
         }
     }
 
+    /// <summary>Gets free-text drawing notes keyed by id.</summary>
+    public Dictionary<string, EnterpriseNote> Notes => _Notes;
+
+    /// <summary>Gets undirected drawing connections in source order.</summary>
+    public List<EnterprisePlainConnection> PlainConnections => _PlainConnections;
+
     /// <summary>
     /// Returns true when <paramref name="Id"/> is a declared element or group.
     /// </summary>
@@ -111,5 +121,11 @@ public sealed class EnterpriseDocument
         }
 
         return _Elements.ContainsKey(Id) || _Groups.ContainsKey(Id);
+    }
+
+    /// <summary>Returns true when an id is a drawable element, group or note.</summary>
+    public bool HasDrawingItem(string Id)
+    {
+        return HasContainer(Id) || (!string.IsNullOrEmpty(Id) && _Notes.ContainsKey(Id));
     }
 }

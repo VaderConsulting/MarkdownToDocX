@@ -6,6 +6,42 @@ namespace MermaidRecognition.Tests.Enterprise;
 public sealed class EnterpriseParserTests
 {
     [Test]
+    public void NotesAndPlainConnections_AreDrawingItemsWithHints()
+    {
+        EnterpriseParseResult Result = EnterpriseParser.Parse("""
+            enterprise
+            group area
+            application-component shop in area
+            note explanation "Read this" in area right-of shop
+            explanation --- shop [leave W, enter E]
+            """);
+
+        Assert.That(Result.HasErrors, Is.False,
+            string.Join("; ", Result.Diagnostics.Select(Item => Item.Message)));
+        Assert.That(Result.Document.Elements.ContainsKey("explanation"), Is.False);
+        Assert.That(Result.Document.Relationships, Is.Empty);
+        Assert.That(Result.Document.Notes["explanation"].ParentId, Is.EqualTo("area"));
+        Assert.That(Result.Document.Notes["explanation"].PlacementHint!.Kind, Is.EqualTo(PlacementHintKind.RightOf));
+        Assert.That(Result.Document.PlainConnections, Has.Count.EqualTo(1));
+        Assert.That(Result.Document.PlainConnections[0].RoutingHint!.Leave, Is.EqualTo(LayoutHintDirection.West));
+        Assert.That(Result.Document.PlainConnections[0].RoutingHint!.Enter, Is.EqualTo(LayoutHintDirection.East));
+    }
+
+    [Test]
+    public void PlainConnection_RequiresANoteEnd()
+    {
+        EnterpriseParseResult Result = EnterpriseParser.Parse("""
+            enterprise
+            application-component a
+            application-component b
+            a --- b
+            """);
+
+        Assert.That(Result.HasErrors, Is.True);
+        Assert.That(Result.Diagnostics.Any(Item => Item.Message.Contains("must have a note", StringComparison.Ordinal)), Is.True);
+    }
+
+    [Test]
     public void Parse_PlacementAndRoutingHints_RecordsTypedValues()
     {
         EnterpriseParseResult Result = EnterpriseParser.Parse(

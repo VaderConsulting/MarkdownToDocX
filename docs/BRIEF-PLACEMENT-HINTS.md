@@ -10,6 +10,7 @@ Hints are enterprise-diagram syntax first. Flowchart hint syntax is out of scope
 - A line hint is in square brackets after the relationship: `leave`, `enter` and `travel`, each with N, S, E or W, separated by commas.
 - N, S, E and W are screen directions. Never rotate them by rule 1.1.
 - Group ids are valid relationship endpoints in the parser (rule 4.9 of the rulebook); scenario A164 needs it.
+- A note (`note id "text"`) takes placement hints like a node, and a plain connection (`a --- b`) takes line hints like a relationship; see rules 2.22 and 4.10 of the rulebook and item 9 of `BRIEF-ENTERPRISE-SYNTAX-GAPS.md`.
 
 Examples:
 ```
