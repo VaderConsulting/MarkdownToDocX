@@ -13,10 +13,6 @@ namespace MermaidRecognition.Layout;
 /// </summary>
 public static class FlowchartEdgeRouteResolver
 {
-    private static DiagramContract? _CachedRouteContract;
-
-    private static List<FlowchartResolvedGuide>? _CachedRouteGuides;
-
     /// <summary>
     /// Resolves guide points in MSAGL layout coordinates for an edge.
     /// Uses the same shared search as the rest of the diagram so a single-edge
@@ -63,10 +59,10 @@ public static class FlowchartEdgeRouteResolver
         FlowchartDirection Direction)
     {
         if (Layout == null
-            && _CachedRouteGuides != null
-            && ReferenceEquals(_CachedRouteContract, Contract))
+            && FlowchartRenderContext.Current.CachedRouteGuides != null
+            && ReferenceEquals(FlowchartRenderContext.Current.CachedRouteContract, Contract))
         {
-            return _CachedRouteGuides;
+            return FlowchartRenderContext.Current.CachedRouteGuides;
         }
 
         List<FlowchartResolvedGuide> Guides = ResolveAllVisibleGuidePoints(
@@ -77,8 +73,8 @@ public static class FlowchartEdgeRouteResolver
             Direction);
         if (Layout == null)
         {
-            _CachedRouteContract = Contract;
-            _CachedRouteGuides = Guides;
+            FlowchartRenderContext.Current.CachedRouteContract = Contract;
+            FlowchartRenderContext.Current.CachedRouteGuides = Guides;
         }
 
         return Guides;
@@ -179,8 +175,8 @@ public static class FlowchartEdgeRouteResolver
             FlowchartSharedEdgeRouter.RouteAll(Contract, MutableBounds, NodeById, Direction, Guides);
         }
 
-        _CachedRouteContract = Contract;
-        _CachedRouteGuides = Guides;
+        FlowchartRenderContext.Current.CachedRouteContract = Contract;
+        FlowchartRenderContext.Current.CachedRouteGuides = Guides;
         return Guides;
     }
 

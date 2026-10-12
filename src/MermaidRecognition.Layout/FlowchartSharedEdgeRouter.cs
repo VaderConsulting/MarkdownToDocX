@@ -49,11 +49,9 @@ public static class FlowchartSharedEdgeRouter
     {
         get
         {
-            return _LastJustifications;
+            return FlowchartRenderContext.Current.Justifications;
         }
     }
-
-    private static List<FlowchartLayoutQualityFailure> _LastJustifications = [];
 
     /// <summary>
     /// Records a single right-angle crossing chosen because every clear separation still shared a run or hit a box.
@@ -70,7 +68,7 @@ public static class FlowchartSharedEdgeRouter
         string OtherTargetId,
         string Reason)
     {
-        _LastJustifications.Add(new FlowchartLayoutQualityFailure(
+        FlowchartRenderContext.Current.Justifications.Add(new FlowchartLayoutQualityFailure(
             "EdgeCrossing",
             SourceId + "->" + TargetId + " crosses " + OtherSourceId + "->" + OtherTargetId,
             [SourceId, TargetId, OtherSourceId, OtherTargetId],
@@ -92,7 +90,7 @@ public static class FlowchartSharedEdgeRouter
         FlowchartDirection Direction,
         List<FlowchartResolvedGuide> Guides)
     {
-        _LastJustifications = [];
+        FlowchartRenderContext.Current.Justifications.Clear();
         AssignFacingPorts(Contract, BoundsById, NodeById, Guides);
         ApplyPortSpread(Contract, BoundsById, NodeById, Direction, Guides, SkipDesigned: false);
 
@@ -2997,7 +2995,7 @@ public static class FlowchartSharedEdgeRouter
                 && !string.IsNullOrEmpty(HitNodeId)
                 && IsNodeFullyEnclosingCorridor(BoundsById, Left.Edge, HitNodeId))
             {
-                _LastJustifications.Add(new FlowchartLayoutQualityFailure(
+                FlowchartRenderContext.Current.Justifications.Add(new FlowchartLayoutQualityFailure(
                     "NodeIntersection",
                     Left.Edge.SourceId + "->" + Left.Edge.TargetId + " intersects " + HitNodeId,
                     [Left.Edge.SourceId, Left.Edge.TargetId, HitNodeId],
@@ -3043,7 +3041,7 @@ public static class FlowchartSharedEdgeRouter
                     continue;
                 }
 
-                _LastJustifications.Add(new FlowchartLayoutQualityFailure(
+                FlowchartRenderContext.Current.Justifications.Add(new FlowchartLayoutQualityFailure(
                     "EdgeCrossing",
                     Left.Edge.SourceId + "->" + Left.Edge.TargetId
                     + " crosses "
@@ -3098,14 +3096,14 @@ public static class FlowchartSharedEdgeRouter
                         + " share the only clear channel beside "
                         + Shared
                         + "; other exit ports, channel spacing, and same-rank order were tried and every separated run crosses the sibling or hits a neighbouring box";
-                _LastJustifications.Add(new FlowchartLayoutQualityFailure(
+                FlowchartRenderContext.Current.Justifications.Add(new FlowchartLayoutQualityFailure(
                     "OverlayingEdges",
                     Left.Edge.SourceId + "->" + Left.Edge.TargetId
                     + " runs on top of "
                     + Right.Edge.SourceId + "->" + Right.Edge.TargetId,
                     [Left.Edge.SourceId, Left.Edge.TargetId, Right.Edge.SourceId, Right.Edge.TargetId],
                     Reason));
-                _LastJustifications.Add(new FlowchartLayoutQualityFailure(
+                FlowchartRenderContext.Current.Justifications.Add(new FlowchartLayoutQualityFailure(
                     "SharedStretch",
                     Left.Edge.SourceId + "->" + Left.Edge.TargetId
                     + " shares the occupied corridor with "
@@ -3159,7 +3157,7 @@ public static class FlowchartSharedEdgeRouter
                     + "->"
                     + Guide.Edge.TargetId
                     + " leaves and re-enters the group";
-                _LastJustifications.Add(new FlowchartLayoutQualityFailure(
+                FlowchartRenderContext.Current.Justifications.Add(new FlowchartLayoutQualityFailure(
                     "GroupBorderReentry",
                     Guide.Edge.SourceId + "->" + Guide.Edge.TargetId + " leaves and re-enters its group",
                     [Guide.Edge.SourceId, Guide.Edge.TargetId],
@@ -3176,12 +3174,12 @@ public static class FlowchartSharedEdgeRouter
             string Reason = string.IsNullOrEmpty(Blocker)
                 ? "occupied corridor: no failure-free exterior channel remains for the labelled edge"
                 : "occupied corridor: " + Blocker + " uses the only clear exterior channel";
-            _LastJustifications.Add(new FlowchartLayoutQualityFailure(
+            FlowchartRenderContext.Current.Justifications.Add(new FlowchartLayoutQualityFailure(
                 "LabelOnBox",
                 Guide.Edge.SourceId + "->" + Guide.Edge.TargetId + " keeps its label inside its group",
                 [Guide.Edge.SourceId, Guide.Edge.TargetId],
                 Reason));
-            _LastJustifications.Add(new FlowchartLayoutQualityFailure(
+            FlowchartRenderContext.Current.Justifications.Add(new FlowchartLayoutQualityFailure(
                 "LabelOwnEdge",
                 Guide.Edge.SourceId + "->" + Guide.Edge.TargetId + " keeps its label inside its group",
                 [Guide.Edge.SourceId, Guide.Edge.TargetId],

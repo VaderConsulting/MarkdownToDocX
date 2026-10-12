@@ -34,8 +34,11 @@ public static class FlowchartSugiyamaSvgRenderer
 
     private const double CROSS_MARKER_INSET_PX = 10.2;
 
-    [ThreadStatic]
-    private static FlowchartSvgRenderSession? _ActiveRenderSession;
+    private static FlowchartSvgRenderSession? ActiveRenderSession
+    {
+        get => FlowchartRenderContext.Current.ActiveRenderSession as FlowchartSvgRenderSession;
+        set => FlowchartRenderContext.Current.ActiveRenderSession = value;
+    }
 
     /// <summary>
     /// Renders SVG using Sugiyama node placement; returns empty when layout fails.
@@ -69,6 +72,7 @@ public static class FlowchartSugiyamaSvgRenderer
             return string.Empty;
         }
 
+        FlowchartRenderContext.Current.BeginRender();
         FlowchartRenderOptions RenderOptions = FlowchartRenderOptions.FromContract(Contract);
         double DiagramPaddingPx = RenderOptions.DiagramPaddingPx;
 
@@ -218,7 +222,7 @@ public static class FlowchartSugiyamaSvgRenderer
         Builder.Append("\">");
 
         FlowchartSvgRenderSession RenderSession = new FlowchartSvgRenderSession();
-        _ActiveRenderSession = RenderSession;
+        ActiveRenderSession = RenderSession;
 
         try
         {
@@ -803,7 +807,7 @@ public static class FlowchartSugiyamaSvgRenderer
         }
         finally
         {
-            _ActiveRenderSession = null;
+            ActiveRenderSession = null;
         }
     }
 
@@ -815,8 +819,8 @@ public static class FlowchartSugiyamaSvgRenderer
 
         public void FlushDeferredMarkers(StringBuilder Builder)
         {
-            FlowchartSvgRenderSession? PreviousSession = _ActiveRenderSession;
-            _ActiveRenderSession = null;
+            FlowchartSvgRenderSession? PreviousSession = ActiveRenderSession;
+            ActiveRenderSession = null;
             try
             {
                 foreach (Action<StringBuilder> DrawMarker in _DeferredMarkerDraws)
@@ -826,7 +830,7 @@ public static class FlowchartSugiyamaSvgRenderer
             }
             finally
             {
-                _ActiveRenderSession = PreviousSession;
+                ActiveRenderSession = PreviousSession;
             }
         }
     }
@@ -2368,14 +2372,14 @@ public static class FlowchartSugiyamaSvgRenderer
         double FromY,
         string Fill)
     {
-        if (_ActiveRenderSession is not null)
+        if (ActiveRenderSession is not null)
         {
             double CapturedTipX = TipX;
             double CapturedTipY = TipY;
             double CapturedFromX = FromX;
             double CapturedFromY = FromY;
             string CapturedFill = Fill;
-            _ActiveRenderSession.DeferMarkerDraw(
+            ActiveRenderSession.DeferMarkerDraw(
                 DeferredBuilder => AppendArrowheadCore(
                     DeferredBuilder,
                     CapturedTipX,

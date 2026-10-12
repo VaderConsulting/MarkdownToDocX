@@ -23,8 +23,6 @@ public static class FlowchartSvgLineJump
         "([a-zA-Z_:][\\w:.-]*)=\"([^\"]*)\"",
         RegexOptions.CultureInvariant);
 
-    private static List<DrawnJump> _LastJumps = [];
-
     /// <summary>
     /// Hops drawn by the most recent <see cref="Apply"/> call.
     /// </summary>
@@ -32,7 +30,7 @@ public static class FlowchartSvgLineJump
     {
         get
         {
-            return _LastJumps;
+            return FlowchartRenderContext.Current.Jumps;
         }
     }
 
@@ -44,7 +42,7 @@ public static class FlowchartSvgLineJump
     /// <returns>SVG with hop arcs inserted.</returns>
     public static string Apply(string Svg, bool InsertHops = true)
     {
-        _LastJumps = [];
+        FlowchartRenderContext.Current.Jumps.Clear();
         if (!InsertHops || string.IsNullOrWhiteSpace(Svg))
         {
             return Svg;
@@ -148,7 +146,7 @@ public static class FlowchartSvgLineJump
                         int HopSegment = Hopper == RightIndex ? RightSegment : LeftSegment;
                         string Reason = FindReason(Left, Right);
                         Crossings.Add(new Crossing(Hopper, HopSegment, CrossX, CrossY));
-                        _LastJumps.Add(new DrawnJump(
+                        FlowchartRenderContext.Current.Jumps.Add(new DrawnJump(
                             Strokes[Hopper].SourceId,
                             Strokes[Hopper].TargetId,
                             Strokes[Hopper == RightIndex ? LeftIndex : RightIndex].SourceId,
