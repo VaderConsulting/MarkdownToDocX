@@ -3653,7 +3653,7 @@ public static class FlowchartSharedEdgeRouter
                 }
             }
 
-            if (Interior >= 160.0)
+            if (Interior >= FlowchartGeometryPolicy.GroupInteriorLongPathMinPx)
             {
                 return true;
             }

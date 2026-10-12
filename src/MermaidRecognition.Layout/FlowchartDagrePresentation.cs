@@ -422,7 +422,7 @@ public static class FlowchartDagrePresentation
                     FlowchartLayoutPoint Other = Pair.Value[Earlier].Points[Pair.Value[Earlier].Points.Count - 1];
                     double Dx = Current.X - Other.X;
                     double Dy = Current.Y - Other.Y;
-                    if ((Dx * Dx) + (Dy * Dy) < 100.0)
+                    if ((Dx * Dx) + (Dy * Dy) < FlowchartGeometryPolicy.StackedEndpointDistanceSquaredPx)
                     {
                         Stacked = true;
                         break;
@@ -471,7 +471,7 @@ public static class FlowchartDagrePresentation
                     FlowchartLayoutPoint Other = Pair.Value[Earlier].Points[0];
                     double Dx = Current.X - Other.X;
                     double Dy = Current.Y - Other.Y;
-                    if ((Dx * Dx) + (Dy * Dy) < 100.0)
+                    if ((Dx * Dx) + (Dy * Dy) < FlowchartGeometryPolicy.StackedEndpointDistanceSquaredPx)
                     {
                         Stacked = true;
                         break;

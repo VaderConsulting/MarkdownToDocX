@@ -720,7 +720,7 @@ public static class FlowchartRenderedSvgQualityGate
                     continue;
                 }
 
-                if (InteriorPathLength(Stroke.Samples, GroupRect) < 160.0)
+                if (InteriorPathLength(Stroke.Samples, GroupRect) < FlowchartGeometryPolicy.GroupInteriorLongPathMinPx)
                 {
                     continue;
                 }
@@ -1144,7 +1144,9 @@ public static class FlowchartRenderedSvgQualityGate
             double Dy = Math.Abs(EndY - StartY);
             double Length = PathLength(Stroke.Samples);
             bool AxisAligned = Dx <= 8.0 || Dy <= 8.0;
-            if (AxisAligned || Length < 180.0 || Math.Min(Dx, Dy) < 40.0)
+            if (AxisAligned
+                || Length < FlowchartGeometryPolicy.LongDiagonalPathMinPx
+                || Math.Min(Dx, Dy) < FlowchartGeometryPolicy.LongDiagonalCrossAxisMinPx)
             {
                 continue;
             }
@@ -3669,7 +3671,9 @@ public static class FlowchartRenderedSvgQualityGate
 
                 double SpurLength = Distance(PreviousX, PreviousY, SpurX, SpurY);
                 double Continuation = Distance(SpurX, SpurY, NextX, NextY);
-                if (SpurLength < 2.0 || SpurLength > 12.0 || Continuation < 2.0)
+                if (SpurLength < FlowchartGeometryPolicy.ReversalSpurMinPx
+                    || SpurLength > FlowchartGeometryPolicy.ReversalSpurMaxPx
+                    || Continuation < FlowchartGeometryPolicy.ReversalSpurMinPx)
                 {
                     continue;
                 }

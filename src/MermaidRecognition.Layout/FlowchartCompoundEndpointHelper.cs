@@ -44,24 +44,39 @@ public static class FlowchartCompoundEndpointHelper
             {
                 Side = Other.X < Left ? "left" : "right";
                 Port = (Other.X < Left ? Left : Right,
-                    Math.Clamp(Port.Y, Bottom + Math.Min(15, Box.Height / 4), Top - Math.Min(40, Box.Height / 2)));
+                    Math.Clamp(
+                        Port.Y,
+                        Bottom + Math.Min(FlowchartGeometryPolicy.CompoundPortInsetPx, Box.Height / 4),
+                        Top - Math.Min(FlowchartGeometryPolicy.CompoundTitleInsetPx, Box.Height / 2)));
             }
             else
             {
                 Side = Other.Y > Top ? "top" : "bottom";
-                Port = (Math.Clamp(Port.X, Left + Math.Min(15, Box.Width / 4), Right - Math.Min(15, Box.Width / 4)),
+                Port = (Math.Clamp(
+                        Port.X,
+                        Left + Math.Min(FlowchartGeometryPolicy.CompoundPortInsetPx, Box.Width / 4),
+                        Right - Math.Min(FlowchartGeometryPolicy.CompoundPortInsetPx, Box.Width / 4)),
                     Other.Y > Top ? Top : Bottom);
             }
             var Preferred = Port;
             bool Vertical = Side is "left" or "right";
-            double Low = Vertical ? Bottom + Math.Min(15, Box.Height / 4) : Left + Math.Min(15, Box.Width / 4);
-            double High = Vertical ? Top - Math.Min(40, Box.Height / 2) : Right - Math.Min(15, Box.Width / 4);
-            for (int Step = 0; Step <= (int)((High - Low) / 15) * 2 + 2; Step++)
+            double Low = Vertical
+                ? Bottom + Math.Min(FlowchartGeometryPolicy.CompoundPortInsetPx, Box.Height / 4)
+                : Left + Math.Min(FlowchartGeometryPolicy.CompoundPortInsetPx, Box.Width / 4);
+            double High = Vertical
+                ? Top - Math.Min(FlowchartGeometryPolicy.CompoundTitleInsetPx, Box.Height / 2)
+                : Right - Math.Min(FlowchartGeometryPolicy.CompoundPortInsetPx, Box.Width / 4);
+            for (int Step = 0; Step <= (int)((High - Low) / FlowchartGeometryPolicy.CompoundPortSpacingPx) * 2 + 2; Step++)
             {
-                double Offset = Step == 0 ? 0 : ((Step + 1) / 2) * 15 * (Step % 2 == 1 ? -1 : 1);
+                double Offset = Step == 0
+                    ? 0
+                    : ((Step + 1) / 2) * FlowchartGeometryPolicy.CompoundPortSpacingPx * (Step % 2 == 1 ? -1 : 1);
                 var Candidate = Vertical ? (X: Preferred.X, Y: Preferred.Y + Offset) : (X: Preferred.X + Offset, Y: Preferred.Y);
                 double Along = Vertical ? Candidate.Y : Candidate.X;
-                if (Along < Low || Along > High || Ports.Any(Used => Math.Abs(Used.X - Candidate.X) + Math.Abs(Used.Y - Candidate.Y) < 15)) continue;
+                if (Along < Low
+                    || Along > High
+                    || Ports.Any(Used => Math.Abs(Used.X - Candidate.X) + Math.Abs(Used.Y - Candidate.Y)
+                        < FlowchartGeometryPolicy.CompoundPortSpacingPx)) continue;
                 Port = Candidate;
                 break;
             }

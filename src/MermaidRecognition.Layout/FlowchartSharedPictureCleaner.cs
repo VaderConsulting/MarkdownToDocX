@@ -1251,7 +1251,7 @@ internal static class FlowchartSharedPictureCleaner
         (double StartX, double StartY) = Guide.Points[0];
         (double EndX, double EndY) = Guide.Points[Guide.Points.Count - 1];
         double Manhattan = Math.Abs(EndX - StartX) + Math.Abs(EndY - StartY);
-        if (Length - Manhattan < 200.0)
+        if (Length - Manhattan < FlowchartGeometryPolicy.ExcessDetourMinPx)
         {
             return;
         }
@@ -1955,7 +1955,8 @@ internal static class FlowchartSharedPictureCleaner
         (double X0, double Y0) = Guide.Points[0];
         (double X1, double Y1) = Guide.Points[1];
         double Length = Math.Sqrt(Math.Pow(X1 - X0, 2.0) + Math.Pow(Y1 - Y0, 2.0));
-        if (Length > 16.0 || Length < 1.0)
+        if (Length > FlowchartGeometryPolicy.ShortInitialStubMaxPx
+            || Length < FlowchartGeometryPolicy.ShortInitialStubMinPx)
         {
             return;
         }
@@ -3109,7 +3110,9 @@ internal static class FlowchartSharedPictureCleaner
         }
 
         double FaceLength = Vertical ? Right - Left : Top - Bottom;
-        double Clear = FaceLength >= 100.0 ? 28.0 : ARRIVAL_CLEAR_PX;
+        double Clear = FaceLength >= FlowchartGeometryPolicy.WideArrivalFaceMinPx
+            ? FlowchartGeometryPolicy.WideArrivalCornerClearancePx
+            : ARRIVAL_CLEAR_PX;
         if (DistanceToCorner(TipX, TipY, Left, Right, Bottom, Top) >= Clear)
         {
             return;

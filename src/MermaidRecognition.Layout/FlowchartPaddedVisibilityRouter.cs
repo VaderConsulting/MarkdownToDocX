@@ -762,7 +762,9 @@ public static class FlowchartPaddedVisibilityRouter
 
         double Spur = Math.Sqrt(Math.Pow(SpurX - PreviousX, 2.0) + Math.Pow(SpurY - PreviousY, 2.0));
         double Continuation = Math.Sqrt(Math.Pow(NextX - SpurX, 2.0) + Math.Pow(NextY - SpurY, 2.0));
-        if (Spur < 2.0 || Spur > 12.0 || Continuation < 2.0)
+        if (Spur < FlowchartGeometryPolicy.ReversalSpurMinPx
+            || Spur > FlowchartGeometryPolicy.ReversalSpurMaxPx
+            || Continuation < FlowchartGeometryPolicy.ReversalSpurMinPx)
         {
             return false;
         }
