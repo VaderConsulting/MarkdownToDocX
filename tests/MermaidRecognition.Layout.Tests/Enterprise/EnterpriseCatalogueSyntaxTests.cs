@@ -19,7 +19,7 @@ public sealed class EnterpriseCatalogueSyntaxTests
     ];
 
     private static readonly int[] PlacementHintScenarios =
-        [154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164];
+        [154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169];
 
     [TestCaseSource(nameof(PlacementHintScenarios))]
     public void PlacementHintScenario_ParsesWithoutErrors(int Number)
