@@ -116,7 +116,7 @@ public static class DiagramGridLayout
             FlowchartPartnerRankLayout.Prepare(PartnerRanks, Horizontal, Align: false);
         }
 
-        GrowCrowdedSides(Placed, Copy, BoxWidth, BoxHeight);
+        GrowCrowdedSides(Contract, Placed, Copy, BoxWidth, BoxHeight);
         GrowParallelRelationshipSides(Contract, Placed, Horizontal);
         SeparateOverlaps(Placed, Horizontal);
         if (!Open)
@@ -189,9 +189,11 @@ public static class DiagramGridLayout
             FlowchartTwoCornerRouteRepair.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
         if (!Open)
             FlowchartManyToManyRoutes.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
+        FlowchartRoutingHints.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction);
         WriteBack(Copy, Placed, Frames);
         if (!Open)
             FlowchartPortSideRouteRepair.Apply(Copy, Contract);
+        FlowchartRoutingHints.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction);
         return Copy;
     }
 
@@ -1667,7 +1669,8 @@ public static class DiagramGridLayout
         }
     }
 
-    private static void GrowCrowdedSides(List<GridNode> Placed, FlowchartLayoutResult Copy, int BoxWidth, int BoxHeight)
+    private static void GrowCrowdedSides(DiagramContract Contract, List<GridNode> Placed,
+        FlowchartLayoutResult Copy, int BoxWidth, int BoxHeight)
     {
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
         Dictionary<string, int> Counts = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -1678,8 +1681,13 @@ public static class DiagramGridLayout
                 continue;
             }
 
-            AddSideCount(Counts, Route.SourceId, Route.ExitSide);
-            AddSideCount(Counts, Route.TargetId, Route.EntrySide);
+            EdgeContract? Edge = FindContractEdge(Contract, Route);
+            AddSideCount(Counts, Route.SourceId,
+                Edge?.RoutingHint?.IsActive == true && Edge.RoutingHint.Leave.HasValue
+                    ? HintSide(Edge.RoutingHint.Leave.Value) : Route.ExitSide);
+            AddSideCount(Counts, Route.TargetId,
+                Edge?.RoutingHint?.IsActive == true && Edge.RoutingHint.Enter.HasValue
+                    ? HintSide(Edge.RoutingHint.Enter.Value) : Route.EntrySide);
         }
 
         foreach (KeyValuePair<string, int> Pair in Counts)
@@ -2478,10 +2486,13 @@ public static class DiagramGridLayout
                 continue;
             }
 
+            EdgeContract? ContractEdge = FindContractEdge(Contract, Route);
+            RoutingHintContract? RoutingHint = ContractEdge?.RoutingHint?.IsActive == true
+                ? ContractEdge.RoutingHint : null;
             bool CircularReturn = BackEdges.Any(Edge => Edge.SourceId == Route.SourceId && Edge.TargetId == Route.TargetId)
                 && (Nodes.TryGetValue(Route.SourceId, out var CircularSource) && CircularSource.Shape == "circle"
                     || Nodes.TryGetValue(Route.TargetId, out var CircularTarget) && CircularTarget.Shape == "circle");
-            if (!CircularReturn && TryAssignStraightPortSides(Source, Target, Direction, out string StraightExit, out string StraightEntry)
+            if (RoutingHint == null && !CircularReturn && TryAssignStraightPortSides(Source, Target, Direction, out string StraightExit, out string StraightEntry)
                 && StraightChordIsClear(
                     Contract,
                     Source,
@@ -2525,7 +2536,24 @@ public static class DiagramGridLayout
         {
             string Exit;
             string Entry;
-            if (FlowchartOrdinaryFanOutRouteBuilder.TryGetFlowSides(Direction, out string FanOutExit, out string FanOutEntry)
+            EdgeContract? ContractEdge = FindContractEdge(Contract, Item.Route);
+            RoutingHintContract? RoutingHint = ContractEdge?.RoutingHint?.IsActive == true
+                ? ContractEdge.RoutingHint : null;
+            if (RoutingHint != null)
+            {
+                Exit = RoutingHint.Leave.HasValue
+                    ? HintSide(RoutingHint.Leave.Value)
+                    : string.IsNullOrEmpty(Item.Route.ExitSide)
+                        ? ChooseElbowExitSide(Contract, Item.Source, Item.Target, Direction,
+                            ReservedCenterPorts, ObstacleBounds, Item.Route.SourceId, Item.Route.TargetId)
+                        : Item.Route.ExitSide;
+                Entry = RoutingHint.Enter.HasValue
+                    ? HintSide(RoutingHint.Enter.Value)
+                    : string.IsNullOrEmpty(Item.Route.EntrySide)
+                        ? ChooseElbowEntrySide(Item.Target, Item.Source, Direction, Exit)
+                        : Item.Route.EntrySide;
+            }
+            else if (FlowchartOrdinaryFanOutRouteBuilder.TryGetFlowSides(Direction, out string FanOutExit, out string FanOutEntry)
                 && Nodes.TryGetValue(Item.Source.Id, out NodeContract? SourceNode)
                 && (SharedFanSources.Contains(Item.Source.Id) || FlowchartOrdinaryFanOutRouteBuilder.TryIsOrdinaryFanOutHub(
                     Contract,
@@ -2686,6 +2714,23 @@ public static class DiagramGridLayout
             }
         }
     }
+
+    internal static EdgeContract? FindContractEdge(DiagramContract Contract, FlowchartLayoutEdgeRoute Route)
+    {
+        EdgeContract? ById = Contract.Edges.FirstOrDefault(Edge =>
+            !string.IsNullOrEmpty(Edge.Id) && string.Equals(Edge.Id, Route.EdgeId, StringComparison.Ordinal));
+        if (ById != null) return ById;
+        return Contract.Edges.Where(Edge => Edge.SourceId == Route.SourceId && Edge.TargetId == Route.TargetId)
+            .OrderBy(Edge => Edge.CreationIndex).FirstOrDefault();
+    }
+
+    internal static string HintSide(LayoutHintDirection Direction) => Direction switch
+    {
+        LayoutHintDirection.North => "top",
+        LayoutHintDirection.South => "bottom",
+        LayoutHintDirection.East => "right",
+        _ => "left"
+    };
 
     private static void AlignFacingFramePorts(DiagramContract Contract, List<PortEnd> Ends,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Obstacles)
@@ -3952,20 +3997,6 @@ public static class DiagramGridLayout
                 });
             }
         }
-    }
-
-    private static EdgeContract? FindContractEdge(DiagramContract Contract, FlowchartLayoutEdgeRoute Route)
-    {
-        foreach (EdgeContract Candidate in Contract.Edges)
-        {
-            if (string.Equals(Candidate.SourceId, Route.SourceId, StringComparison.Ordinal)
-                && string.Equals(Candidate.TargetId, Route.TargetId, StringComparison.Ordinal))
-            {
-                return Candidate;
-            }
-        }
-
-        return null;
     }
 
     private static void SetRouteEndpointSides(

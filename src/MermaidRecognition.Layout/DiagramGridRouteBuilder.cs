@@ -327,7 +327,8 @@ public static class DiagramGridRouteBuilder
         string TargetId,
         DiagramContract Contract,
         FlowchartDirection Direction,
-        bool Horizontal)
+        bool Horizontal,
+        LayoutHintDirection? Travel = null)
     {
         // The rounded corner consumes one radius of the terminal segment.
         // Keep another radius at the source and an arrow length at the target.
@@ -339,6 +340,14 @@ public static class DiagramGridRouteBuilder
             StartX, StartY, SourceBounds, SourceShape, ExitSide, SourceStubLength);
         (double TargetStubX, double TargetStubY) = ResolvePortStub(
             EndX, EndY, TargetBounds, TargetShape, EntrySide, TargetStubLength);
+
+        if (Travel.HasValue)
+        {
+            return BuildHintedTravelRoute(
+                StartX, StartY, SourceStubX, SourceStubY,
+                TargetStubX, TargetStubY, EndX, EndY,
+                BoundsById, SourceId, TargetId, Contract, Travel.Value);
+        }
 
         if (FlowchartEdgeConnectionGeometry.ShouldRenderStraightConnector(StartX, StartY, EndX, EndY)
             && HasNormalTerminals([(StartX, StartY), (EndX, EndY)],
@@ -429,6 +438,117 @@ public static class DiagramGridRouteBuilder
             TargetId,
             Contract,
             Horizontal);
+    }
+
+    private static List<(double X, double Y)> BuildHintedTravelRoute(
+        double StartX,
+        double StartY,
+        double SourceStubX,
+        double SourceStubY,
+        double TargetStubX,
+        double TargetStubY,
+        double EndX,
+        double EndY,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        string SourceId,
+        string TargetId,
+        DiagramContract Contract,
+        LayoutHintDirection Travel)
+    {
+        bool HorizontalTravel = Travel is LayoutHintDirection.East or LayoutHintDirection.West;
+        double Step = DiagramGridMetrics.GRID_UNIT_PX;
+        List<double> Lanes = HorizontalTravel
+            ? BoundsById.Values.SelectMany(Bounds => new[]
+                {
+                    Bounds.CenterY - Bounds.Height / 2.0 - Step,
+                    Bounds.CenterY + Bounds.Height / 2.0 + Step
+                }).Append(SourceStubY).Append(TargetStubY)
+                    .Append(SourceStubY - Step).Append(SourceStubY + Step)
+                    .Append(TargetStubY - Step).Append(TargetStubY + Step).Distinct().ToList()
+            : BoundsById.Values.SelectMany(Bounds => new[]
+                {
+                    Bounds.CenterX - Bounds.Width / 2.0 - Step,
+                    Bounds.CenterX + Bounds.Width / 2.0 + Step
+                }).Append(SourceStubX).Append(TargetStubX)
+                    .Append(SourceStubX - Step).Append(SourceStubX + Step)
+                    .Append(TargetStubX - Step).Append(TargetStubX + Step).Distinct().ToList();
+        List<(double X, double Y)> Best = [];
+        int BestScore = int.MaxValue;
+        double OuterMinX = BoundsById.Values.Min(Bounds => Bounds.CenterX - Bounds.Width / 2.0) - Step;
+        double OuterMaxX = BoundsById.Values.Max(Bounds => Bounds.CenterX + Bounds.Width / 2.0) + Step;
+        double OuterMinY = BoundsById.Values.Min(Bounds => Bounds.CenterY - Bounds.Height / 2.0) - Step;
+        double OuterMaxY = BoundsById.Values.Max(Bounds => Bounds.CenterY + Bounds.Height / 2.0) + Step;
+        foreach (double Lane in Lanes)
+        {
+            (double X, double Y) A = Travel switch
+            {
+                LayoutHintDirection.West => (OuterMaxX, Lane),
+                LayoutHintDirection.East => (OuterMinX, Lane),
+                LayoutHintDirection.North => (Lane, OuterMinY),
+                _ => (Lane, OuterMaxY)
+            };
+            (double X, double Y) B = Travel switch
+            {
+                LayoutHintDirection.West => (OuterMinX, Lane),
+                LayoutHintDirection.East => (OuterMaxX, Lane),
+                LayoutHintDirection.North => (Lane, OuterMaxY),
+                _ => (Lane, OuterMinY)
+            };
+            var Candidate = new List<(double X, double Y)> { (StartX, StartY), (SourceStubX, SourceStubY) };
+            AppendOrthogonal(Candidate, A, HorizontalTravel);
+            Candidate.Add(B);
+            AppendOrthogonal(Candidate, (TargetStubX, TargetStubY), HorizontalTravel);
+            Candidate.Add((EndX, EndY));
+            Candidate = SimplifyCollinear(Candidate);
+            if (!HasNormalTerminals(Candidate, SourceStubX, SourceStubY, TargetStubX, TargetStubY)
+                || !HasTravelDirection(Candidate, Travel)
+                || !PathIsValid(Candidate, BoundsById, SourceId, TargetId, Contract))
+                continue;
+            int Score = ScorePath(Candidate);
+            if (Score < BestScore)
+            {
+                Best = Candidate;
+                BestScore = Score;
+            }
+        }
+        return Best;
+    }
+
+    private static void AppendOrthogonal(
+        List<(double X, double Y)> Path,
+        (double X, double Y) Target,
+        bool HorizontalTravel)
+    {
+        (double X, double Y) Current = Path[^1];
+        if (Math.Abs(Current.X - Target.X) < COLLINEAR_EPSILON_PX
+            || Math.Abs(Current.Y - Target.Y) < COLLINEAR_EPSILON_PX)
+        {
+            Path.Add(Target);
+            return;
+        }
+        Path.Add(HorizontalTravel ? (Target.X, Current.Y) : (Current.X, Target.Y));
+        Path.Add(Target);
+    }
+
+    internal static bool HasTravelDirection(
+        IReadOnlyList<(double X, double Y)> Path,
+        LayoutHintDirection Direction)
+    {
+        if (Path.Count < 4) return false;
+        for (int Segment = 1; Segment < Path.Count - 2; Segment++)
+        {
+            double Dx = Path[Segment + 1].X - Path[Segment].X;
+            double Dy = Path[Segment + 1].Y - Path[Segment].Y;
+            bool Matches = Direction switch
+            {
+                LayoutHintDirection.North => Dy > COLLINEAR_EPSILON_PX && Math.Abs(Dx) < COLLINEAR_EPSILON_PX,
+                LayoutHintDirection.South => Dy < -COLLINEAR_EPSILON_PX && Math.Abs(Dx) < COLLINEAR_EPSILON_PX,
+                LayoutHintDirection.East => Dx > COLLINEAR_EPSILON_PX && Math.Abs(Dy) < COLLINEAR_EPSILON_PX,
+                _ => Dx < -COLLINEAR_EPSILON_PX && Math.Abs(Dy) < COLLINEAR_EPSILON_PX
+            };
+            if (Matches) return true;
+        }
+        return false;
     }
 
     private static double ResolveFrameExitLength(
