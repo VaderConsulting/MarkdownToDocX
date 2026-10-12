@@ -2672,7 +2672,13 @@ public static class DiagramGridLayout
         Dictionary<string, List<PortEnd>> Groups = new Dictionary<string, List<PortEnd>>(StringComparer.Ordinal);
         foreach (PortEnd End in Ends)
         {
-            string Key = End.Box.Id + "|" + End.Side;
+            bool Diamond = !End.Box.IsFrame
+                && Nodes.TryGetValue(End.Box.Id, out NodeContract? PortNode)
+                && FlowchartDagrePresentation.IsDiamondShape(PortNode.Shape);
+            // A diamond's four vertices and sloping-edge ports form one shared
+            // inventory. Allocating each nominal rectangle side separately can
+            // give two lines the same vertex.
+            string Key = End.Box.Id + (Diamond ? "|diamond" : "|" + End.Side);
             if (!Groups.TryGetValue(Key, out List<PortEnd>? Group))
             {
                 Group = new List<PortEnd>();
@@ -2685,7 +2691,8 @@ public static class DiagramGridLayout
         foreach (KeyValuePair<string, List<PortEnd>> Pair in Groups)
         {
             List<PortEnd> Group = Pair.Value;
-            Group.Sort(delegate(PortEnd Left, PortEnd Right)
+            bool Diamond = Pair.Key.EndsWith("|diamond", StringComparison.Ordinal);
+            if (!Diamond) Group.Sort(delegate(PortEnd Left, PortEnd Right)
             {
                 bool VerticalSide = Left.Side == "left" || Left.Side == "right";
                 if (VerticalSide)
@@ -2702,46 +2709,6 @@ public static class DiagramGridLayout
         KeepFramePortsClearOfTitles(Contract, Ends);
         AlignFacingFramePorts(Contract, Ends, ObstacleBounds);
 
-        // A co-ranked three-way fan-in uses the upstream vertex for its
-        // middle input and the two side vertices for the outer inputs.
-        // Allocating each side separately can otherwise claim the same vertex.
-        foreach (var Inbound in Ends.Where(End => !End.IsSource)
-            .GroupBy(End => End.Box.Id))
-        {
-            List<PortEnd> Inputs = Inbound.ToList();
-            BoxRef Box = Inputs[0].Box;
-            if (Inputs.Count != 3 || Box.IsFrame
-                || !Nodes.TryGetValue(Box.Id, out NodeContract? DiamondNode)
-                || !FlowchartDagrePresentation.IsDiamondShape(DiamondNode.Shape))
-            {
-                continue;
-            }
-            double Main(BoxRef Bounds) => Horizontal ? Bounds.CenterX : Bounds.CenterY;
-            double Cross(BoxRef Bounds) => Horizontal ? Bounds.CenterY : Bounds.CenterX;
-            double ParentMain = Main(Inputs[0].Other);
-            bool PositiveFlow = Direction == FlowchartDirection.LeftToRight || Direction == FlowchartDirection.BottomToTop;
-            if (Inputs.Any(End => Math.Abs(Main(End.Other) - ParentMain) > 0.5)
-                || (Main(Box) - ParentMain) * (PositiveFlow ? 1 : -1) <= 0)
-            {
-                continue;
-            }
-            Inputs.Sort((Left, Right) => Cross(Left.Other).CompareTo(Cross(Right.Other)));
-            for (int Index = 0; Index < Inputs.Count; Index++)
-            {
-                int OutX = 0;
-                int OutY = 0;
-                if (Index == 1)
-                {
-                    if (Horizontal) OutX = PositiveFlow ? -1 : 1;
-                    else OutY = PositiveFlow ? -1 : 1;
-                }
-                else if (Horizontal) OutY = Index == 0 ? -1 : 1;
-                else OutX = Index == 0 ? -1 : 1;
-                Inputs[Index].Route.EntrySide = OutX < 0 ? "left" : OutX > 0 ? "right" : OutY < 0 ? "bottom" : "top";
-                SetEnd(Inputs[Index], (int)Math.Round(Box.CenterX + OutX * Box.Width / 2),
-                    (int)Math.Round(Box.CenterY + OutY * Box.Height / 2), OutX, OutY);
-            }
-        }
     }
 
     internal static EdgeContract? FindContractEdge(DiagramContract Contract, FlowchartLayoutEdgeRoute Route)

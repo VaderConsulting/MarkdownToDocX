@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace MermaidRecognition.Layout;
 
@@ -145,12 +146,12 @@ public sealed class FlowchartDiamondPort
 }
 
 /// <summary>
-/// Ports on a decision diamond. Vertices are used first. Each slanted edge then
-/// receives only as many evenly spaced ports as the lines on that edge need.
+/// Ports on a decision diamond. Vertices are used first. Each slanted edge has
+/// three permanent quarter-point candidates and redistributes larger active sets evenly.
 /// </summary>
 public static class FlowchartDiamondPorts
 {
-    private const int MAXIMUM_EDGE_PORTS = 4;
+    private const int MINIMUM_EDGE_PORTS = 3;
 
     /// <summary>
     /// The four vertices of the standard cell, rounded to whole pixels about the centre.
@@ -175,14 +176,14 @@ public static class FlowchartDiamondPorts
     /// <summary>
     /// Evenly spaced ports along one slanted edge, excluding the vertices.
     /// One port is the midpoint. Two ports are the one-third points. Three are the
-    /// quarter points. Four are the one-fifth points.
+    /// quarter points. Larger counts remain supported without a fixed maximum.
     /// </summary>
     /// <param name="WidthPx">Diamond cell width.</param>
     /// <param name="HeightPx">Diamond cell height.</param>
     /// <param name="Edge">Which slanted edge.</param>
-    /// <param name="PortCount">How many ports that edge needs, from 1 to 4.</param>
+    /// <param name="PortCount">How many evenly spaced ports to return.</param>
     /// <param name="Ports">Ports ordered from the edge start toward the edge end.</param>
-    /// <returns>False when the count is outside 1 to 4 or the edge is a vertex.</returns>
+    /// <returns>False when the count is below 1 or the edge is a vertex.</returns>
     public static bool TryGetEdgePorts(
         int WidthPx,
         int HeightPx,
@@ -191,7 +192,7 @@ public static class FlowchartDiamondPorts
         out IReadOnlyList<(int X, int Y)> Ports)
     {
         Ports = [];
-        if (PortCount < 1 || PortCount > MAXIMUM_EDGE_PORTS || Edge == FlowchartDiamondEdge.None)
+        if (PortCount < 1 || Edge == FlowchartDiamondEdge.None)
         {
             return false;
         }
@@ -215,14 +216,17 @@ public static class FlowchartDiamondPorts
     }
 
     /// <summary>
-    /// Assigns a port to each destination. Vertices are filled first. An edge gains
-    /// ports only for the lines that could not take a vertex, and only on that edge.
+    /// Assigns a port to each destination. Vertices are filled first. Every edge has
+    /// three quarter-point candidates; when more are needed, the active ports are
+    /// redistributed evenly at fifths, sixths, sevenths, and so on.
+    /// Lines retain their destination order and take the distinct slots with the
+    /// least total displacement, which is the crossing-free local assignment.
     /// </summary>
     /// <param name="WidthPx">Diamond cell width.</param>
     /// <param name="HeightPx">Diamond cell height.</param>
     /// <param name="Destinations">Other-node positions relative to the diamond centre.</param>
     /// <param name="Ports">One port per destination, in the same order.</param>
-    /// <returns>False when one edge would need more than four ports.</returns>
+    /// <returns>True when the destinations can be assigned.</returns>
     public static bool TryAssign(
         int WidthPx,
         int HeightPx,
@@ -254,24 +258,57 @@ public static class FlowchartDiamondPorts
         }
 
         FlowchartDiamondPort[] Assigned = new FlowchartDiamondPort[Destinations.Count];
+        bool[] AssignedLine = new bool[Destinations.Count];
         IReadOnlyList<(int X, int Y)> VertexPorts = Vertices(WidthPx, HeightPx);
+        void AssignVertex(int LineIndex, int VertexIndex)
+        {
+            (int X, int Y) = VertexPorts[VertexIndex];
+            (int DepartureX, int DepartureY) = VertexDeparture((VertexKind)VertexIndex);
+            Assigned[LineIndex] = new FlowchartDiamondPort(
+                X,
+                Y,
+                true,
+                FlowchartDiamondEdge.None,
+                DepartureX,
+                DepartureY);
+            AssignedLine[LineIndex] = true;
+        }
+
         for (int Index = 0; Index < Destinations.Count; Index++)
         {
             int Vertex = Claim[Index];
             if (Winner[Vertex] == Index)
             {
-                (int X, int Y) = VertexPorts[Vertex];
-                (int DepartureX, int DepartureY) = VertexDeparture((VertexKind)Vertex);
-                Assigned[Index] = new FlowchartDiamondPort(
-                    X,
-                    Y,
-                    true,
-                    FlowchartDiamondEdge.None,
-                    DepartureX,
-                    DepartureY);
-                continue;
+                AssignVertex(Index, Vertex);
             }
+        }
 
+        // A line whose preferred vertex is occupied may use an adjacent free
+        // vertex before it consumes an edge slot. Choose the closest ray to
+        // each free vertex, with declared order breaking an exact tie.
+        for (int Vertex = 0; Vertex < Winner.Length; Vertex++)
+        {
+            if (Winner[Vertex] >= 0) continue;
+            int Candidate = -1;
+            for (int Index = 0; Index < Destinations.Count; Index++)
+            {
+                if (AssignedLine[Index]) continue;
+                FlowchartDiamondEdge Edge = EdgeForRejectedVertex(
+                    (VertexKind)Claim[Index], Destinations[Index].X, Destinations[Index].Y);
+                if (!EdgeTouchesVertex(Edge, (VertexKind)Vertex)) continue;
+                if (Candidate < 0 || IsCloserToAxis(
+                    Destinations[Index], Destinations[Candidate], (VertexKind)Vertex))
+                {
+                    Candidate = Index;
+                }
+            }
+            if (Candidate >= 0) AssignVertex(Candidate, Vertex);
+        }
+
+        for (int Index = 0; Index < Destinations.Count; Index++)
+        {
+            if (AssignedLine[Index]) continue;
+            int Vertex = Claim[Index];
             FlowchartDiamondEdge Edge = EdgeForRejectedVertex(
                 (VertexKind)Vertex,
                 Destinations[Index].X,
@@ -287,32 +324,28 @@ public static class FlowchartDiamondPorts
                 continue;
             }
 
-            if (Lines.Count > MAXIMUM_EDGE_PORTS)
-            {
-                return false;
-            }
-
             FlowchartDiamondEdge Edge = (FlowchartDiamondEdge)(EdgeIndex + 1);
-            if (!TryGetEdgePorts(WidthPx, HeightPx, Edge, Lines.Count, out IReadOnlyList<(int X, int Y)> EdgePorts))
-            {
-                return false;
-            }
-
-            if (!TryGetEdgeEnds(WidthPx, HeightPx, Edge, out double StartX, out double StartY, out double EndX, out double EndY))
+            int AvailableCount = EdgePortCount(Lines.Count);
+            if (!TryGetEdgePorts(WidthPx, HeightPx, Edge, AvailableCount, out IReadOnlyList<(int X, int Y)> EdgePorts))
             {
                 return false;
             }
 
             Lines.Sort(delegate(int Left, int Right)
             {
-                double LeftT = ParameterAlongEdge(Destinations[Left], StartX, StartY, EndX, EndY);
-                double RightT = ParameterAlongEdge(Destinations[Right], StartX, StartY, EndX, EndY);
-                return LeftT.CompareTo(RightT);
+                double LeftT = ParameterAlongDiamondEdge(Destinations[Left], WidthPx, HeightPx, Edge);
+                double RightT = ParameterAlongDiamondEdge(Destinations[Right], WidthPx, HeightPx, Edge);
+                int Position = LeftT.CompareTo(RightT);
+                return Position != 0 ? Position : Left.CompareTo(Right);
             });
 
-            for (int PortIndex = 0; PortIndex < Lines.Count; PortIndex++)
+            double[] Parameters = Lines.Select(Line =>
+                ParameterAlongDiamondEdge(Destinations[Line], WidthPx, HeightPx, Edge)).ToArray();
+            int[] SelectedPorts = SelectOrderedPorts(Parameters, AvailableCount);
+            for (int LinePosition = 0; LinePosition < Lines.Count; LinePosition++)
             {
-                int LineIndex = Lines[PortIndex];
+                int LineIndex = Lines[LinePosition];
+                int PortIndex = SelectedPorts[LinePosition];
                 (int X, int Y) = EdgePorts[PortIndex];
                 (int DepartureX, int DepartureY) = EdgeDeparture(
                     Edge,
@@ -330,6 +363,59 @@ public static class FlowchartDiamondPorts
 
         Ports = Assigned;
         return true;
+    }
+
+    private static int EdgePortCount(int Required)
+    {
+        return Math.Max(MINIMUM_EDGE_PORTS, Required);
+    }
+
+    private static int[] SelectOrderedPorts(IReadOnlyList<double> Parameters, int PortCount)
+    {
+        int LineCount = Parameters.Count;
+        double[,] Cost = new double[LineCount + 1, PortCount + 1];
+        bool[,] Took = new bool[LineCount + 1, PortCount + 1];
+        for (int Line = 1; Line <= LineCount; Line++)
+        {
+            for (int Port = 0; Port <= PortCount; Port++) Cost[Line, Port] = double.PositiveInfinity;
+        }
+
+        for (int Port = 1; Port <= PortCount; Port++)
+        {
+            Cost[0, Port] = 0.0;
+            for (int Line = 1; Line <= Math.Min(LineCount, Port); Line++)
+            {
+                double Skip = Cost[Line, Port - 1];
+                double Fraction = Port / (double)(PortCount + 1);
+                double Take = Cost[Line - 1, Port - 1] + Math.Abs(Parameters[Line - 1] - Fraction);
+                // Prefer the earlier slot on an exact tie. It makes the result
+                // stable while preserving the declared order of coincident rays.
+                if (Take < Skip - 0.0000001)
+                {
+                    Cost[Line, Port] = Take;
+                    Took[Line, Port] = true;
+                }
+                else
+                {
+                    Cost[Line, Port] = Skip;
+                }
+            }
+        }
+
+        int[] Selected = new int[LineCount];
+        int RemainingLines = LineCount;
+        int RemainingPorts = PortCount;
+        while (RemainingLines > 0)
+        {
+            if (Took[RemainingLines, RemainingPorts])
+            {
+                Selected[RemainingLines - 1] = RemainingPorts - 1;
+                RemainingLines--;
+            }
+            RemainingPorts--;
+        }
+
+        return Selected;
     }
 
     /// <summary>
@@ -478,6 +564,17 @@ public static class FlowchartDiamondPorts
         }
     }
 
+    private static bool EdgeTouchesVertex(FlowchartDiamondEdge Edge, VertexKind Vertex)
+    {
+        return Vertex switch
+        {
+            VertexKind.Top => Edge == FlowchartDiamondEdge.TopLeft || Edge == FlowchartDiamondEdge.TopRight,
+            VertexKind.Right => Edge == FlowchartDiamondEdge.TopRight || Edge == FlowchartDiamondEdge.BottomRight,
+            VertexKind.Bottom => Edge == FlowchartDiamondEdge.BottomRight || Edge == FlowchartDiamondEdge.BottomLeft,
+            _ => Edge == FlowchartDiamondEdge.BottomLeft || Edge == FlowchartDiamondEdge.TopLeft
+        };
+    }
+
     private static (int X, int Y) EdgeDeparture(FlowchartDiamondEdge Edge, double DestinationX, double DestinationY)
     {
         int HorizontalX = Edge == FlowchartDiamondEdge.TopRight || Edge == FlowchartDiamondEdge.BottomRight
@@ -506,22 +603,23 @@ public static class FlowchartDiamondPorts
         return (HorizontalX, 0);
     }
 
-    private static double ParameterAlongEdge(
+    private static double ParameterAlongDiamondEdge(
         (double X, double Y) Point,
-        double StartX,
-        double StartY,
-        double EndX,
-        double EndY)
+        int WidthPx,
+        int HeightPx,
+        FlowchartDiamondEdge Edge)
     {
-        double SpanX = EndX - StartX;
-        double SpanY = EndY - StartY;
-        double LengthSquared = (SpanX * SpanX) + (SpanY * SpanY);
-        if (LengthSquared <= 0.0)
-        {
-            return 0.0;
-        }
-
-        return (((Point.X - StartX) * SpanX) + ((Point.Y - StartY) * SpanY)) / LengthSquared;
+        double NormalX = Point.X / Math.Max(1.0, WidthPx / 2.0);
+        double NormalY = Point.Y / Math.Max(1.0, HeightPx / 2.0);
+        double Horizontal = Math.Abs(NormalX);
+        double Vertical = Math.Abs(NormalY);
+        double Total = Horizontal + Vertical;
+        if (Total <= 0.0) return 0.5;
+        double Parameter = Edge == FlowchartDiamondEdge.TopRight
+            || Edge == FlowchartDiamondEdge.BottomLeft
+            ? Horizontal / Total
+            : Vertical / Total;
+        return Math.Max(0.0, Math.Min(1.0, Parameter));
     }
 
     private enum VertexKind

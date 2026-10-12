@@ -3,7 +3,7 @@ using MermaidRecognition.Layout;
 namespace MermaidRecognition.Layout.Tests;
 
 /// <summary>
-/// Diamond ports: vertices first, then only the edge ports a side needs.
+/// Diamond ports: vertices first, then a minimum three-port lattice on each edge.
 /// </summary>
 [TestFixture]
 public sealed class FlowchartDiamondPortTests
@@ -149,7 +149,7 @@ public sealed class FlowchartDiamondPortTests
     }
 
     [Test]
-    public void TryAssign_SecondLineOnTheSameSide_AddsOnlyThatEdgeMidpoint()
+    public void TryAssign_SecondLineOnTheSameSide_UsesTheAdjacentFreeVertexFirst()
     {
         List<(double X, double Y)> Destinations =
         [
@@ -166,12 +166,11 @@ public sealed class FlowchartDiamondPortTests
         Assert.That(Assigned, Is.True);
         Assert.That(Ports[0].IsVertex, Is.True);
         Assert.That(Ports[0].OffsetY, Is.EqualTo(30));
-        Assert.That(Ports[1].IsVertex, Is.False);
-        Assert.That(Ports[1].Edge, Is.EqualTo(FlowchartDiamondEdge.TopRight));
-        Assert.That(Ports[1].OffsetX, Is.EqualTo(38));
-        Assert.That(Ports[1].OffsetY, Is.EqualTo(15));
-        Assert.That(Ports[1].DepartureX, Is.EqualTo(0));
-        Assert.That(Ports[1].DepartureY, Is.EqualTo(1));
+        Assert.That(Ports[1].IsVertex, Is.True);
+        Assert.That(Ports[1].OffsetX, Is.EqualTo(75));
+        Assert.That(Ports[1].OffsetY, Is.EqualTo(0));
+        Assert.That(Ports[1].DepartureX, Is.EqualTo(1));
+        Assert.That(Ports[1].DepartureY, Is.EqualTo(0));
     }
 
     [Test]
@@ -204,5 +203,61 @@ public sealed class FlowchartDiamondPortTests
         Assert.That(Ports[3].OffsetY, Is.EqualTo(8));
         Assert.That(Ports[3].DepartureX, Is.EqualTo(1));
         Assert.That(Ports[3].DepartureY, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void TryAssign_MoreThanFourLinesOnOneEdge_RedistributesTheActivePortsEvenly()
+    {
+        List<(double X, double Y)> Destinations =
+        [
+            (0.0, 300.0),
+            (300.0, 0.0),
+            (15.0, 120.0),
+            (35.0, 100.0),
+            (55.0, 80.0),
+            (80.0, 55.0),
+            (100.0, 35.0),
+            (120.0, 15.0)
+        ];
+
+        bool Assigned = FlowchartDiamondPorts.TryAssign(
+            WIDTH_PX,
+            HEIGHT_PX,
+            Destinations,
+            out IReadOnlyList<FlowchartDiamondPort> Ports);
+
+        Assert.That(Assigned, Is.True);
+        Assert.That(Ports.Skip(2).Select(Port => (Port.OffsetX, Port.OffsetY)).Distinct().Count(), Is.EqualTo(6));
+        Assert.That(Ports.Skip(2).All(Port => Port.Edge == FlowchartDiamondEdge.TopRight), Is.True);
+        Assert.That(Ports.Skip(2).Select(Port => Port.OffsetX), Is.Ordered.Ascending,
+            "adding ports must not reverse two destinations and create a local crossing");
+        Assert.That(FlowchartDiamondPorts.TryGetEdgePorts(WIDTH_PX, HEIGHT_PX,
+            FlowchartDiamondEdge.TopRight, 6, out IReadOnlyList<(int X, int Y)> Available), Is.True);
+        Assert.That(Available, Is.EqualTo(new[]
+        {
+            (11, 26), (21, 21), (32, 17), (43, 13), (54, 9), (64, 4)
+        }));
+    }
+
+    [Test]
+    public void TryAssign_EdgePorts_MinimiseDistanceFromRayIntersectionWithoutChangingOrder()
+    {
+        List<(double X, double Y)> Destinations =
+        [
+            (0.0, 300.0),
+            (300.0, 0.0),
+            (40.0, 60.0),
+            (150.0, 20.0)
+        ];
+
+        bool Assigned = FlowchartDiamondPorts.TryAssign(
+            WIDTH_PX,
+            HEIGHT_PX,
+            Destinations,
+            out IReadOnlyList<FlowchartDiamondPort> Ports);
+
+        Assert.That(Assigned, Is.True);
+        Assert.That((Ports[2].OffsetX, Ports[2].OffsetY), Is.EqualTo((19, 23)));
+        Assert.That((Ports[3].OffsetX, Ports[3].OffsetY), Is.EqualTo((56, 8)));
     }
 }
