@@ -12,7 +12,7 @@ namespace MermaidRecognition.Layout;
 internal static class FlowchartLayoutScore
 {
     internal sealed record Result(double Width, double Height, int Overlaps, int Crossings, int ForcedMinimum,
-        int Bends, int HintsHonoured, int HintsTotal, double EmptyShare, double? Score,
+        int Bends, int Disconnections, int HintsHonoured, int HintsTotal, double EmptyShare, double? Score,
         IReadOnlyList<FlowchartLayoutQualityFailure> Violations);
 
     internal static Result Measure(DiagramContract Contract, FlowchartLayoutResult Layout)
@@ -24,14 +24,16 @@ internal static class FlowchartLayoutScore
         int Crossings = CountCrossings(Layout);
         int ForcedMinimum = ForcedCrossingMinimum(Contract, Layout);
         int Bends = CountBends(Layout);
+        int Disconnections = CountDisconnections(Contract, Layout);
         (int HintsHonoured, int HintsTotal, double HintScore) = MeasureHints(Contract, Layout);
         double EmptyShare = EmptyAreaShare(Layout, Width, Height);
         var Back = FlowchartBackEdgeHelper.FindBackEdges(Contract)
             .Select(Edge => (Edge.SourceId, Edge.TargetId)).ToHashSet();
         bool Rejected = Overlaps > 0 || Violations.Any(Failure => Rejects(Failure, Contract, Layout, Back));
         double? Score = Rejected ? null
-            : Calculate(Width, Height, Crossings, ForcedMinimum, EmptyShare) + Bends * 2.0 + HintScore;
-        return new(Width, Height, Overlaps, Crossings, ForcedMinimum, Bends,
+            : Calculate(Width, Height, Crossings, ForcedMinimum, EmptyShare)
+                + Bends * 2.0 + Disconnections * 20.0 + HintScore;
+        return new(Width, Height, Overlaps, Crossings, ForcedMinimum, Bends, Disconnections,
             HintsHonoured, HintsTotal, EmptyShare, Score, Violations);
     }
 
@@ -155,6 +157,61 @@ internal static class FlowchartLayoutScore
 
     private static int CountBends(FlowchartLayoutResult Layout) =>
         Layout.EdgeRoutes.Sum(Route => CountCorners(Route.Points));
+
+    private static int CountDisconnections(DiagramContract Contract, FlowchartLayoutResult Layout)
+    {
+        Dictionary<string, FlowchartLayoutNodeBounds> Bounds = Layout.NodeBounds
+            .Concat(Layout.ClusterBounds)
+            .GroupBy(Box => Box.NodeId, StringComparer.Ordinal)
+            .ToDictionary(Group => Group.Key, Group => Group.First(), StringComparer.Ordinal);
+        Dictionary<string, string?> Shapes = Contract.Nodes
+            .GroupBy(Node => Node.Id, StringComparer.Ordinal)
+            .ToDictionary(Group => Group.Key, Group => Group.First().Shape, StringComparer.Ordinal);
+        Dictionary<string, EdgeContract> Edges = Contract.Edges
+            .Where(Edge => !string.IsNullOrEmpty(Edge.Id))
+            .GroupBy(Edge => Edge.Id!, StringComparer.Ordinal)
+            .ToDictionary(Group => Group.Key, Group => Group.First(), StringComparer.Ordinal);
+
+        int Result = 0;
+        foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
+        {
+            if (Route.Points.Count < 2 || !Edges.TryGetValue(Route.EdgeId, out EdgeContract? Edge)
+                || string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (Bounds.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds? Source))
+            {
+                Shapes.TryGetValue(Route.SourceId, out string? Shape);
+                if (!EndpointAttached(Route.Points[0], Route.Points[1], Source, Shape, Edge.MarkerStart))
+                {
+                    Result++;
+                }
+            }
+
+            if (Bounds.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds? Target))
+            {
+                Shapes.TryGetValue(Route.TargetId, out string? Shape);
+                if (!EndpointAttached(Route.Points[^1], Route.Points[^2], Target, Shape, Edge.MarkerEnd))
+                {
+                    Result++;
+                }
+            }
+        }
+
+        return Result;
+    }
+
+    private static bool EndpointAttached(FlowchartLayoutPoint Endpoint, FlowchartLayoutPoint Neighbour,
+        FlowchartLayoutNodeBounds Bounds, string? Shape, EdgeEndpointMarker Marker)
+    {
+        (double ExpectedX, double ExpectedY) = FlowchartShapeBoundaryAttachHelper.ClipToShapeOutline(
+            Bounds, Shape, Neighbour.X, Neighbour.Y, Marker);
+        const double Tolerance = 1.0;
+        return Math.Abs(Endpoint.X - ExpectedX) <= Tolerance
+            && Math.Abs(Endpoint.Y - ExpectedY) <= Tolerance;
+    }
 
     private static int CountCorners(IReadOnlyList<FlowchartLayoutPoint> Points)
     {
