@@ -4,12 +4,16 @@ using System.Linq;
 
 using MermaidRecognition.Contract;
 using MermaidRecognition.Layout;
+using MermaidRecognition.Kinds.Flowchart;
+using MermaidRecognition.Render;
 
 namespace MermaidRecognition.RuleValidation;
 
 public readonly record struct BendPoint(double X, double Y);
 
 public readonly record struct BendObstacle(string Id, double Left, double Bottom, double Right, double Top);
+
+public readonly record struct BendBox(double CenterX, double CenterY, double Width, double Height);
 
 public readonly record struct BendSegment(string LineId, BendPoint Start, BendPoint End);
 
@@ -22,7 +26,17 @@ public sealed record BendRoute(
     IReadOnlyList<BendPoint> Points,
     bool HintNeedsExtraCorners = false,
     int RoutedCrossings = 0,
-    int AllowedCrossings = 0);
+    int AllowedCrossings = 0,
+    BendBox? SourceBox = null,
+    BendBox? TargetBox = null,
+    FlowchartDirection Direction = FlowchartDirection.TopToBottom,
+    bool SourceIsDiamond = false,
+    int OutgoingCount = 0,
+    int IncomingCount = 0,
+    bool FanBetweenColumns = false,
+    string? Label = null,
+    double LabelFontSizePx = 16.0,
+    double LabelRequiredLengthPx = 0.0);
 
 public sealed record UnnecessaryBendViolation(
     string DiagramId,
@@ -50,6 +64,9 @@ public static class UnnecessaryBendChecker
             .GroupBy(Edge => Edge.Id!, StringComparer.Ordinal)
             .ToDictionary(Group => Group.Key, Group => Group.First(), StringComparer.Ordinal);
         List<UnnecessaryBendViolation> Result = [];
+        Dictionary<string, NodeContract> Nodes = Contract.Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
+        FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
+        FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
         (int TotalCrossings, int ForcedMinimum) = FlowchartCrossingBudget.Measure(Contract, Layout);
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
         {
@@ -70,8 +87,29 @@ public static class UnnecessaryBendChecker
             List<BendPoint> RoutedPoints = Route.Points.Select(Point => new BendPoint(Point.X, Point.Y)).ToList();
             int RoutedCrossings = LineInteraction(RoutedPoints, OtherLines).Crossings;
             int AllowedCrossings = RoutedCrossings + Math.Max(0, ForcedMinimum - TotalCrossings);
+            Bounds.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds? SourceBounds);
+            Bounds.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds? TargetBounds);
+            int OutgoingCount = Contract.Edges.Count(Candidate => IsVisible(Candidate)
+                && Candidate.SourceId == Route.SourceId);
+            int IncomingCount = Contract.Edges.Count(Candidate => IsVisible(Candidate)
+                && Candidate.TargetId == Route.TargetId);
+            bool SourceIsDiamond = Nodes.TryGetValue(Route.SourceId, out NodeContract? SourceNode)
+                && FlowchartDagrePresentation.IsDiamondShape(SourceNode.Shape);
+            bool FanBetweenColumns = IsFanBetweenColumns(Contract, Bounds, Route, Direction);
+            double LabelRequiredLength = 0.0;
+            if (!string.IsNullOrWhiteSpace(Edge?.Label))
+            {
+                FlowchartLabelDimensions Dimensions = FlowchartNodeSizeEstimator.MeasureWrappedLabel(
+                    Edge.Label, Options, Options.EdgeLabelFontSizePx);
+                LabelRequiredLength = Math.Max(
+                    FlowchartEdgeLabelGapHelper.ComputeRequiredSegmentLengthPx(Dimensions, Options.EdgeLabelFontSizePx, true),
+                    FlowchartEdgeLabelGapHelper.ComputeRequiredSegmentLengthPx(Dimensions, Options.EdgeLabelFontSizePx, false));
+            }
             BendRoute Input = new(Route.EdgeId, Route.SourceId, Route.TargetId,
-                Route.ExitSide, Route.EntrySide, RoutedPoints, HintNeeded, RoutedCrossings, AllowedCrossings);
+                Route.ExitSide, Route.EntrySide, RoutedPoints, HintNeeded, RoutedCrossings, AllowedCrossings,
+                ToBox(SourceBounds), ToBox(TargetBounds), Direction, SourceIsDiamond,
+                OutgoingCount, IncomingCount, FanBetweenColumns, Edge?.Label, Options.EdgeLabelFontSizePx,
+                LabelRequiredLength);
             UnnecessaryBendViolation? Finding = CheckRoute(DiagramId, Input, Obstacles, OtherLines);
             if (Finding != null) Result.Add(Finding);
         }
@@ -88,6 +126,10 @@ public static class UnnecessaryBendChecker
         if (Routed.Count < 2 || !IsOrthogonal(Routed)) return null;
         int RoutedCorners = Routed.Count - 2;
         double RoutedLength = Length(Routed);
+        (char Check, List<BendPoint>? Better)? Structural = FindStructuralViolation(Route with { Points = Routed }, Obstacles, OtherLines ?? []);
+        if (Structural.HasValue)
+            return new UnnecessaryBendViolation(DiagramId, Route.LineId, Structural.Value.Check,
+                RoutedCorners, RoutedLength, Structural.Value.Better ?? Routed);
         List<BendPoint>? Best = FindBest(Route with { Points = Routed }, Obstacles, OtherLines ?? []);
         if (Best == null) return null;
         int BetterCorners = Best.Count - 2;
@@ -102,6 +144,192 @@ public static class UnnecessaryBendChecker
             : 'd';
         return new UnnecessaryBendViolation(DiagramId, Route.LineId, Check,
             RoutedCorners, RoutedLength, Best);
+    }
+
+    private static (char Check, List<BendPoint>? Better)? FindStructuralViolation(
+        BendRoute Route, IReadOnlyList<BendObstacle> Obstacles, IReadOnlyList<BendSegment> OtherLines)
+    {
+        if (Route.SourceIsDiamond && Route.SourceBox.HasValue && Route.TargetBox.HasValue
+            && DiamondBranchViolation(Route, out List<BendPoint>? DiamondRoute))
+            return ('f', DiamondRoute);
+
+        if (!string.IsNullOrWhiteSpace(Route.Label) && LabelHasNoLegalRun(Route))
+        {
+            List<BendPoint>? Better = FindBest(Route, Obstacles, OtherLines);
+            return ('g', Better);
+        }
+
+        if (Route.IncomingCount > 1 && Route.SourceBox.HasValue && Route.TargetBox.HasValue
+            && ConvergenceViolation(Route, out List<BendPoint>? ConvergingRoute))
+            return ('h', ConvergingRoute);
+
+        if (Route.FanBetweenColumns && Route.SourceBox.HasValue && Route.TargetBox.HasValue
+            && FanViolation(Route, OtherLines, out List<BendPoint>? FanRoute))
+            return ('i', FanRoute);
+
+        if (Route.RoutedCrossings > 0)
+        {
+            List<BendPoint>? Better = FindCrossingReduction(Route, Obstacles, OtherLines);
+            if (Better != null) return ('j', Better);
+        }
+        return null;
+    }
+
+    private static bool DiamondBranchViolation(BendRoute Route, out List<BendPoint>? Better)
+    {
+        Better = null;
+        BendBox Source = Route.SourceBox!.Value;
+        BendBox Target = Route.TargetBox!.Value;
+        BendPoint Start = Route.Points[0];
+        (double StartCross, double StartFlow) = Axes(Start, Route.Direction);
+        (double SourceCross, double SourceFlow, double SourceHalfCross, double SourceHalfFlow) = Axes(Source, Route.Direction);
+        (double TargetCross, _, _, double TargetHalfFlow) = Axes(Target, Route.Direction);
+        bool AtLeftVertex = Near(StartCross, SourceCross - SourceHalfCross) && Near(StartFlow, SourceFlow);
+        bool AtRightVertex = Near(StartCross, SourceCross + SourceHalfCross) && Near(StartFlow, SourceFlow);
+        bool AtDownstreamVertex = Near(StartCross, SourceCross) && Near(StartFlow, SourceFlow + SourceHalfFlow);
+        bool AtUpstreamVertex = Near(StartCross, SourceCross) && Near(StartFlow, SourceFlow - SourceHalfFlow);
+        bool AtVertex = AtLeftVertex || AtRightVertex || AtDownstreamVertex || AtUpstreamVertex;
+        bool TurnsSidewaysFromBottom = AtDownstreamVertex && Route.Points.Count > 2
+            && Math.Abs(Axes(Route.Points[1], Route.Direction).Cross - StartCross) > Epsilon;
+        bool OffsetDownstream = TargetFlow(Target, Route.Direction) > SourceFlow + Epsilon
+            && Math.Abs(TargetCross - SourceCross) > Epsilon;
+        if (!AtVertex || TurnsSidewaysFromBottom)
+        {
+            Better = OffsetDownstream ? BuildDiamondElbow(Route, Source, Target) : null;
+            return true;
+        }
+        if (Route.OutgoingCount is 2 or 3 && OffsetDownstream)
+        {
+            bool FacingVertex = TargetCross < SourceCross ? AtLeftVertex : AtRightVertex;
+            BendPoint End = Route.Points[^1];
+            (double EndCross, double EndFlow) = Axes(End, Route.Direction);
+            double TargetFlow = Axes(Target, Route.Direction).Flow;
+            bool TopCentre = Near(EndCross, TargetCross) && Near(EndFlow, TargetFlow - TargetHalfFlow);
+            if (!FacingVertex || Route.Points.Count - 2 != 1 || !TopCentre)
+            {
+                Better = BuildDiamondElbow(Route, Source, Target);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static List<BendPoint> BuildDiamondElbow(BendRoute Route, BendBox Source, BendBox Target)
+    {
+        (double SourceCross, double SourceFlow, double SourceHalfCross, _) = Axes(Source, Route.Direction);
+        (double TargetCross, double TargetFlow, _, double TargetHalfFlow) = Axes(Target, Route.Direction);
+        double VertexCross = TargetCross < SourceCross ? SourceCross - SourceHalfCross : SourceCross + SourceHalfCross;
+        BendPoint Start = PointFromAxes(VertexCross, SourceFlow, Route.Direction);
+        BendPoint Corner = PointFromAxes(TargetCross, SourceFlow, Route.Direction);
+        BendPoint End = PointFromAxes(TargetCross, TargetFlow - TargetHalfFlow, Route.Direction);
+        return Normalize([Start, Corner, End]);
+    }
+
+    private static bool LabelHasNoLegalRun(BendRoute Route)
+    {
+        double Required = Route.LabelRequiredLengthPx > 0
+            ? Route.LabelRequiredLengthPx
+            : Math.Max(Route.Label!.Length * Route.LabelFontSizePx * FlowchartEdgeLabelGapHelper.LABEL_CHAR_WIDTH_EM,
+                DiagramGridMetrics.GRID_UNIT_PX);
+        for (int Index = 1; Index < Route.Points.Count; Index++)
+        {
+            double Length = Distance(Route.Points[Index - 1], Route.Points[Index]);
+            double CornerRoom = Index > 1 || Index < Route.Points.Count - 1
+                ? 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX : DiagramGridRouteBuilder.CORNER_RADIUS_PX;
+            if (Length + Epsilon >= Required + CornerRoom) return false;
+        }
+        return true;
+    }
+
+    private static bool ConvergenceViolation(BendRoute Route, out List<BendPoint>? Better)
+    {
+        Better = null;
+        BendBox Source = Route.SourceBox!.Value;
+        BendBox Target = Route.TargetBox!.Value;
+        (double SourceCross, double SourceFlow, _, double SourceHalfFlow) = Axes(Source, Route.Direction);
+        (double TargetCross, double TargetFlow, double TargetHalfCross, double TargetHalfFlow) = Axes(Target, Route.Direction);
+        bool Aligned = Near(SourceCross, TargetCross);
+        if (Aligned) return Route.Points.Count != 2 || Route.EntrySide != UpstreamSide(Route.Direction);
+        if (Route.EntrySide != CrossSide(SourceCross < TargetCross, Route.Direction)
+            || Route.Points.Count - 2 != 1)
+        {
+            double SourceEndFlow = SourceFlow + SourceHalfFlow;
+            double TargetSideCross = TargetCross + (SourceCross < TargetCross ? -TargetHalfCross : TargetHalfCross);
+            BendPoint Start = PointFromAxes(SourceCross, SourceEndFlow, Route.Direction);
+            BendPoint Corner = PointFromAxes(SourceCross, TargetFlow, Route.Direction);
+            BendPoint End = PointFromAxes(TargetSideCross, TargetFlow, Route.Direction);
+            Better = Normalize([Start, Corner, End]);
+            return true;
+        }
+        return false;
+    }
+
+    private static bool FanViolation(BendRoute Route, IReadOnlyList<BendSegment> OtherLines,
+        out List<BendPoint>? Better)
+    {
+        Better = null;
+        BendBox Source = Route.SourceBox!.Value;
+        BendBox Target = Route.TargetBox!.Value;
+        string ExpectedExit = FacingSide(Source, Target);
+        string ExpectedEntry = FacingSide(Target, Source);
+        bool SharedRail = LineInteraction(Route.Points, OtherLines).Overlap;
+        if (Route.ExitSide == ExpectedExit && Route.EntrySide == ExpectedEntry && !SharedRail) return false;
+        Better = BuildFacingElbow(Route.Points[0], Route.Points[^1], ExpectedExit, ExpectedEntry);
+        return true;
+    }
+
+    private static List<BendPoint>? FindCrossingReduction(BendRoute Route,
+        IReadOnlyList<BendObstacle> Obstacles, IReadOnlyList<BendSegment> OtherLines)
+    {
+        BendPoint Start = Route.Points[0];
+        BendPoint End = Route.Points[^1];
+        List<List<BendPoint>> Candidates = [];
+        AddCandidate(Candidates, [Start, End]);
+        AddCandidate(Candidates, [Start, new BendPoint(End.X, Start.Y), End]);
+        AddCandidate(Candidates, [Start, new BendPoint(Start.X, End.Y), End]);
+        foreach (BendSegment Segment in OtherLines)
+        {
+            if (Near(Segment.Start.X, Segment.End.X))
+                AddCandidate(Candidates, [Start, new BendPoint(Segment.Start.X - DiagramGridMetrics.GRID_UNIT_PX, Start.Y),
+                    new BendPoint(Segment.Start.X - DiagramGridMetrics.GRID_UNIT_PX, End.Y), End]);
+            if (Near(Segment.Start.Y, Segment.End.Y))
+            {
+                AddCandidate(Candidates, [Start, new BendPoint(Start.X, Segment.Start.Y - DiagramGridMetrics.GRID_UNIT_PX),
+                    new BendPoint(End.X, Segment.Start.Y - DiagramGridMetrics.GRID_UNIT_PX), End]);
+                foreach (double X in new[] { Segment.Start.X, Segment.End.X })
+                {
+                    AddCandidate(Candidates, [Start, new BendPoint(X - DiagramGridMetrics.GRID_UNIT_PX, Start.Y),
+                        new BendPoint(X - DiagramGridMetrics.GRID_UNIT_PX, End.Y), End]);
+                    AddCandidate(Candidates, [Start, new BendPoint(X + DiagramGridMetrics.GRID_UNIT_PX, Start.Y),
+                        new BendPoint(X + DiagramGridMetrics.GRID_UNIT_PX, End.Y), End]);
+                }
+            }
+            if (Near(Segment.Start.X, Segment.End.X))
+            foreach (double Y in new[] { Segment.Start.Y, Segment.End.Y })
+            {
+                AddCandidate(Candidates, [Start, new BendPoint(Start.X, Y - DiagramGridMetrics.GRID_UNIT_PX),
+                    new BendPoint(End.X, Y - DiagramGridMetrics.GRID_UNIT_PX), End]);
+                AddCandidate(Candidates, [Start, new BendPoint(Start.X, Y + DiagramGridMetrics.GRID_UNIT_PX),
+                    new BendPoint(End.X, Y + DiagramGridMetrics.GRID_UNIT_PX), End]);
+            }
+        }
+        int RoutedCorners = Route.Points.Count - 2;
+        return Candidates.Select(Normalize).Where(Candidate => Candidate.Count >= 2
+                && Candidate.Count - 2 <= RoutedCorners && IsOrthogonal(Candidate)
+                && MatchesEndpointSides(Candidate, Route.ExitSide, Route.EntrySide)
+                && HasMinimumRuns(Candidate) && IsClear(Candidate, Obstacles)
+                && !LineInteraction(Candidate, OtherLines).Overlap
+                && LineInteraction(Candidate, OtherLines).Crossings < Route.RoutedCrossings)
+            .OrderBy(Candidate => LineInteraction(Candidate, OtherLines).Crossings)
+            .ThenBy(Candidate => Candidate.Count).ThenBy(Length).FirstOrDefault();
+    }
+
+    private static List<BendPoint>? BuildFacingElbow(BendPoint Start, BendPoint End, string Exit, string Entry)
+    {
+        List<BendPoint> A = Normalize([Start, new BendPoint(End.X, Start.Y), End]);
+        if (MatchesEndpointSides(A, Exit, Entry)) return A;
+        List<BendPoint> B = Normalize([Start, new BendPoint(Start.X, End.Y), End]);
+        return MatchesEndpointSides(B, Exit, Entry) ? B : null;
     }
 
     private static List<BendPoint>? FindBest(BendRoute Route, IReadOnlyList<BendObstacle> Obstacles,
@@ -274,6 +502,90 @@ public static class UnnecessaryBendChecker
                 return true;
         return false;
     }
+
+    private static bool IsFanBetweenColumns(
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds,
+        FlowchartLayoutEdgeRoute Route,
+        FlowchartDirection Direction)
+    {
+        if (!Bounds.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds? Source)
+            || !Bounds.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds? Target)) return false;
+        List<FlowchartLayoutNodeBounds> OutTargets = Contract.Edges.Where(Edge => IsVisible(Edge)
+                && Edge.SourceId == Route.SourceId && Bounds.ContainsKey(Edge.TargetId))
+            .Select(Edge => Bounds[Edge.TargetId]).ToList();
+        if (OutTargets.Count >= 2 && SameFacingSide(Source, OutTargets)) return true;
+        List<FlowchartLayoutNodeBounds> InSources = Contract.Edges.Where(Edge => IsVisible(Edge)
+                && Edge.TargetId == Route.TargetId && Bounds.ContainsKey(Edge.SourceId))
+            .Select(Edge => Bounds[Edge.SourceId]).ToList();
+        return InSources.Count >= 2 && SameFacingSide(Target, InSources);
+    }
+
+    private static bool SameFacingSide(FlowchartLayoutNodeBounds Hub, IReadOnlyList<FlowchartLayoutNodeBounds> Peers)
+    {
+        string Side = FacingSide(ToBox(Hub)!.Value, ToBox(Peers[0])!.Value);
+        return Peers.All(Peer => FacingSide(ToBox(Hub)!.Value, ToBox(Peer)!.Value) == Side);
+    }
+
+    private static bool IsVisible(EdgeContract Edge) =>
+        !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase);
+
+    private static BendBox? ToBox(FlowchartLayoutNodeBounds? Bounds) => Bounds == null ? null
+        : new BendBox(Bounds.CenterX, Bounds.CenterY, Bounds.Width, Bounds.Height);
+
+    private static (double Cross, double Flow) Axes(BendPoint Point, FlowchartDirection Direction) => Direction switch
+    {
+        FlowchartDirection.TopToBottom => (Point.X, -Point.Y),
+        FlowchartDirection.BottomToTop => (Point.X, Point.Y),
+        FlowchartDirection.LeftToRight => (Point.Y, Point.X),
+        FlowchartDirection.RightToLeft => (Point.Y, -Point.X),
+        _ => (Point.X, -Point.Y)
+    };
+
+    private static (double Cross, double Flow, double HalfCross, double HalfFlow) Axes(
+        BendBox Box, FlowchartDirection Direction)
+    {
+        bool Horizontal = Direction is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft;
+        (double Cross, double Flow) = Axes(new BendPoint(Box.CenterX, Box.CenterY), Direction);
+        return (Cross, Flow, Horizontal ? Box.Height / 2.0 : Box.Width / 2.0,
+            Horizontal ? Box.Width / 2.0 : Box.Height / 2.0);
+    }
+
+    private static BendPoint PointFromAxes(double Cross, double Flow, FlowchartDirection Direction) => Direction switch
+    {
+        FlowchartDirection.TopToBottom => new BendPoint(Cross, -Flow),
+        FlowchartDirection.BottomToTop => new BendPoint(Cross, Flow),
+        FlowchartDirection.LeftToRight => new BendPoint(Flow, Cross),
+        FlowchartDirection.RightToLeft => new BendPoint(-Flow, Cross),
+        _ => new BendPoint(Cross, -Flow)
+    };
+
+    private static double TargetFlow(BendBox Box, FlowchartDirection Direction) => Axes(Box, Direction).Flow;
+
+    private static string UpstreamSide(FlowchartDirection Direction) => Direction switch
+    {
+        FlowchartDirection.TopToBottom => "top",
+        FlowchartDirection.BottomToTop => "bottom",
+        FlowchartDirection.LeftToRight => "left",
+        FlowchartDirection.RightToLeft => "right",
+        _ => "top"
+    };
+
+    private static string CrossSide(bool Negative, FlowchartDirection Direction) => Direction switch
+    {
+        FlowchartDirection.TopToBottom or FlowchartDirection.BottomToTop => Negative ? "left" : "right",
+        FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft => Negative ? "bottom" : "top",
+        _ => Negative ? "left" : "right"
+    };
+
+    private static string FacingSide(BendBox From, BendBox To)
+    {
+        double Dx = To.CenterX - From.CenterX;
+        double Dy = To.CenterY - From.CenterY;
+        return Math.Abs(Dx) >= Math.Abs(Dy) ? Dx >= 0 ? "right" : "left" : Dy >= 0 ? "top" : "bottom";
+    }
+
+    private static bool Near(double A, double B) => Math.Abs(A - B) <= Epsilon;
 
     private static bool IsOrthogonal(IReadOnlyList<BendPoint> Points)
     {

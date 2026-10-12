@@ -1,4 +1,5 @@
 using MermaidRecognition.RuleValidation;
+using MermaidRecognition.Kinds.Flowchart;
 using NUnit.Framework;
 
 namespace MermaidRecognition.RuleValidation.Tests;
@@ -74,6 +75,84 @@ public sealed class UnnecessaryBendCheckerTests
             with { AllowedCrossings = 1 };
         BendSegment CrossingLine = new("other", new BendPoint(75, -30), new BendPoint(75, 30));
         Assert.That(UnnecessaryBendChecker.CheckRoute("unit", Detour, [], [CrossingLine])?.Check, Is.EqualTo('e'));
+    }
+
+    [Test]
+    public void DecisionOuterBranch_RequiresSideVertexOneCornerAndTopCentre()
+    {
+        BendBox Diamond = new(0, 120, 120, 120);
+        BendBox Target = new(-120, 0, 120, 60);
+        BendRoute Good = Route("left", "top", (-60, 120), (-120, 120), (-120, 30)) with
+        {
+            SourceBox = Diamond, TargetBox = Target, SourceIsDiamond = true, OutgoingCount = 2
+        };
+        BendRoute Bad = Route("bottom", "top", (0, 60), (-120, 60), (-120, 30)) with
+        {
+            SourceBox = Diamond, TargetBox = Target, SourceIsDiamond = true, OutgoingCount = 2
+        };
+        Assert.That(Check(Good), Is.Null);
+        Assert.That(Check(Bad)?.Check, Is.EqualTo('f'));
+    }
+
+    [Test]
+    public void LabelWithoutOneLongStraightRun_IsRejectedAsLabelJog()
+    {
+        BendRoute LabelJog = Route("right", "top", (0, 90), (30, 90), (30, 60)) with
+        {
+            Label = "decision label", LabelRequiredLengthPx = 90
+        };
+        Assert.That(Check(LabelJog)?.Check, Is.EqualTo('g'));
+    }
+
+    [Test]
+    public void Convergence_UsesStraightAlignedFeedAndFacingSideForOffsetFeed()
+    {
+        BendBox Target = new(0, 0, 120, 60);
+        BendRoute Straight = Route("bottom", "top", (0, 90), (0, 30)) with
+        {
+            SourceBox = new BendBox(0, 120, 120, 60), TargetBox = Target, IncomingCount = 2
+        };
+        BendRoute Side = Route("bottom", "left", (-120, 90), (-120, 0), (-60, 0)) with
+        {
+            SourceBox = new BendBox(-120, 120, 120, 60), TargetBox = Target, IncomingCount = 2
+        };
+        BendRoute GapTop = Route("bottom", "top", (-120, 90), (-120, 60), (0, 60), (0, 30)) with
+        {
+            SourceBox = new BendBox(-120, 120, 120, 60), TargetBox = Target, IncomingCount = 2
+        };
+        Assert.That(Check(Straight), Is.Null);
+        Assert.That(Check(Side), Is.Null);
+        Assert.That(Check(GapTop)?.Check, Is.EqualTo('h'));
+    }
+
+    [Test]
+    public void FanBetweenColumns_RejectsFarSideAndSharedRail()
+    {
+        BendBox Source = new(0, 60, 120, 60);
+        BendBox Target = new(240, 120, 120, 60);
+        BendRoute Good = Route("right", "left", (60, 60), (180, 60), (180, 120)) with
+        {
+            SourceBox = Source, TargetBox = Target, FanBetweenColumns = true
+        };
+        BendRoute FarSide = Route("left", "left", (-60, 60), (-120, 60), (-120, 120), (180, 120)) with
+        {
+            SourceBox = Source, TargetBox = Target, FanBetweenColumns = true
+        };
+        Assert.That(Check(Good), Is.Null);
+        Assert.That(Check(FarSide)?.Check, Is.EqualTo('i'));
+        BendSegment Shared = new("fan-2", new BendPoint(60, 60), new BendPoint(180, 60));
+        Assert.That(UnnecessaryBendChecker.CheckRoute("unit", Good, [], [Shared])?.Check, Is.EqualTo('i'));
+    }
+
+    [Test]
+    public void CrossingWithClearSamePortAlternative_IsRejectedAsAvoidable()
+    {
+        BendRoute Crossing = Route("right", "left", (0, 0), (30, 0), (30, 120), (120, 120)) with
+        {
+            RoutedCrossings = 1
+        };
+        BendSegment Other = new("other", new BendPoint(-30, 60), new BendPoint(60, 60));
+        Assert.That(UnnecessaryBendChecker.CheckRoute("unit", Crossing, [], [Other])?.Check, Is.EqualTo('j'));
     }
 
     private static UnnecessaryBendViolation? Check(BendRoute Route, IReadOnlyList<BendObstacle>? Obstacles = null) =>
