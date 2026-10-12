@@ -96,7 +96,6 @@ public static class DiagramGridLayout
             AlignSingleTerminalChildren(Contract, Placed, Horizontal, CoordinatesPlaced: false);
             CascadeColumns(Placed);
             PlaceOnGrid(Placed, Horizontal, BoxWidth, BoxHeight, MainPitch, CrossPitch, Copy, Contract);
-            FlowchartPlacementHints.Apply(Contract, Placed);
             if (!Horizontal)
             {
                 ApplySpineColumnAdjustments(Contract, Placed, Direction);
@@ -138,7 +137,6 @@ public static class DiagramGridLayout
             RepairExteriorCrossings = FlowchartComponentWrapping.Apply(Contract, Placed, Horizontal);
             FlowchartDisconnectedPacking.Apply(Contract, Placed);
             FlowchartGroupMemberPacking.Apply(Contract, Placed);
-            FlowchartPlacementHints.Apply(Contract, Placed);
         }
         List<GridFrame> Frames = new List<GridFrame>();
         if (!Open) CenterLoneNestedGroups(Contract, Placed, Horizontal);
@@ -151,10 +149,15 @@ public static class DiagramGridLayout
         if (!Open && FlowchartExternalLeafPlacement.Apply(Contract, Placed, Frames, Horizontal))
             FitFrames(Contract, Placed, Frames, Horizontal);
         if (!Open) FlowchartIntergroupNodePlacement.Apply(Contract, Placed, Frames, Horizontal);
-        if (!Open && FlowchartPlacementHints.Apply(Contract, Placed))
+        if (!Open)
         {
             Frames.Clear();
             BuildFrames(Contract, Placed, Frames);
+            if (FlowchartPlacementHints.Apply(Contract, Placed, Frames))
+            {
+                Frames.Clear();
+                BuildFrames(Contract, Placed, Frames);
+            }
         }
         if (GrowTerminalSameRankLabelGaps(Contract, Placed, Horizontal))
             FitFrames(Contract, Placed, Frames, Horizontal);
@@ -208,8 +211,6 @@ public static class DiagramGridLayout
         FlowchartRoutingHints.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction);
         WriteBack(Copy, Placed, Frames);
         if (!Open)
-            FlowchartPortSideRouteRepair.Apply(Copy, Contract);
-        if (!Open)
             FlowchartDecisionBranchRouteRepair.Apply(Copy, Contract);
         if (!Open)
             FlowchartConvergenceRouteRepair.Apply(Copy, Contract);
@@ -228,6 +229,8 @@ public static class DiagramGridLayout
         }
         FlowchartCircularJunctionLayout.RebuildFans(
             Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction);
+        if (!Open)
+            FlowchartPortSideRouteRepair.Apply(Copy, Contract);
         // Placement and every automatic route repair must finish before line
         // hints are applied: later repair passes must not undo the requested
         // sides or travel direction.
@@ -2361,11 +2364,10 @@ public static class DiagramGridLayout
     {
         FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
-        List<GroupContract> Ordered = new List<GroupContract>(Contract.Groups);
-        Ordered.Sort(delegate(GroupContract Left, GroupContract Right)
-        {
-            return DepthOf(Contract, Right.Id).CompareTo(DepthOf(Contract, Left.Id));
-        });
+        List<GroupContract> Ordered = Contract.Groups.Select((Group, Index) => (Group, Index))
+            .OrderByDescending(Item => DepthOf(Contract, Item.Group.Id))
+            .ThenBy(Item => Item.Index)
+            .Select(Item => Item.Group).ToList();
 
         Dictionary<string, GridFrame> FrameById = new Dictionary<string, GridFrame>(StringComparer.Ordinal);
         foreach (GroupContract Group in Ordered)
@@ -2402,6 +2404,9 @@ public static class DiagramGridLayout
 
             if (!Any)
             {
+                GridFrame EmptyFrame = BuildEmptyGroupFrame(Group, Contract, ById, FrameById, Options);
+                Frames.Add(EmptyFrame);
+                FrameById[Group.Id] = EmptyFrame;
                 continue;
             }
 
@@ -2449,6 +2454,83 @@ public static class DiagramGridLayout
             Frames.Add(Frame);
             FrameById[Group.Id] = Frame;
         }
+    }
+
+    private static GridFrame BuildEmptyGroupFrame(
+        GroupContract Group,
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, GridNode> Nodes,
+        IReadOnlyDictionary<string, GridFrame> Frames,
+        FlowchartRenderOptions Options)
+    {
+        string Title = string.IsNullOrWhiteSpace(Group.Title) ? Group.Id : Group.Title;
+        string[] Lines = Title.Split('\n');
+        double TitleWidth = Lines.Max(Line => FlowchartRichLabelSvgWriter.EstimateLineWidthPx(Line, Options.FontSizePx));
+        int Strip = Math.Max(DiagramGridMetrics.GRID_UNIT_PX,
+            DiagramGridMetrics.CeilToGrid(Options.FontSizePx * DiagramGridMetrics.TEXT_LINE_HEIGHT_EM * Lines.Length));
+        int Padding = DiagramGridMetrics.NODE_GAP_PX;
+        int Width = DiagramGridMetrics.CeilToGrid(TitleWidth + 2.0 * Padding);
+        int Height = DiagramGridMetrics.CeilToGrid(Strip + 2.0 * Padding);
+        double Left = 0.0;
+        double Top = 0.0;
+
+        PlacementHintContract? Hint = Group.PlacementHint?.IsActive == true ? Group.PlacementHint : null;
+        if (Hint != null && !string.IsNullOrEmpty(Hint.PeerId))
+        {
+            double PeerLeft, PeerTop, PeerRight, PeerBottom;
+            if (Frames.TryGetValue(Hint.PeerId, out GridFrame? PeerFrame))
+            {
+                PeerLeft = PeerFrame.Left; PeerTop = PeerFrame.Top;
+                PeerRight = PeerFrame.Right; PeerBottom = PeerFrame.Bottom;
+            }
+            else if (Nodes.TryGetValue(Hint.PeerId, out GridNode? PeerNode))
+            {
+                PeerLeft = PeerNode.X - PeerNode.Width / 2.0;
+                PeerTop = PeerNode.Y - PeerNode.Height / 2.0;
+                PeerRight = PeerNode.X + PeerNode.Width / 2.0;
+                PeerBottom = PeerNode.Y + PeerNode.Height / 2.0;
+            }
+            else
+            {
+                PeerLeft = PeerTop = PeerRight = PeerBottom = 0.0;
+            }
+
+            int Gap = DiagramGridMetrics.NODE_GAP_PX + Hint.Offset * DiagramGridMetrics.GRID_UNIT_PX;
+            switch (Hint.Kind)
+            {
+                case PlacementHintKind.Above:
+                    Left = (PeerLeft + PeerRight - Width) / 2.0;
+                    Top = PeerTop - Gap - Height;
+                    break;
+                case PlacementHintKind.Below:
+                    Left = (PeerLeft + PeerRight - Width) / 2.0;
+                    Top = PeerBottom + Gap;
+                    break;
+                case PlacementHintKind.LeftOf:
+                    Left = PeerLeft - Gap - Width;
+                    Top = (PeerTop + PeerBottom - Height) / 2.0;
+                    break;
+                case PlacementHintKind.RightOf:
+                    Left = PeerRight + Gap;
+                    Top = (PeerTop + PeerBottom - Height) / 2.0;
+                    break;
+                default:
+                    Left = PeerLeft + (PeerRight - PeerLeft - Width) / 2.0;
+                    Top = PeerTop + (PeerBottom - PeerTop - Height) / 2.0;
+                    break;
+            }
+        }
+
+        return new GridFrame
+        {
+            Id = Group.Id,
+            Left = DiagramGridMetrics.RoundToGrid(Left),
+            Top = DiagramGridMetrics.RoundToGrid(Top),
+            Right = DiagramGridMetrics.RoundToGrid(Left) + Width,
+            Bottom = DiagramGridMetrics.RoundToGrid(Top) + Height,
+            TitleStrip = Strip,
+            Padding = Padding
+        };
     }
 
     private static void IncludeNode(

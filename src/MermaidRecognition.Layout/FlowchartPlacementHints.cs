@@ -11,12 +11,15 @@ internal static class FlowchartPlacementHints
 {
     private sealed record HintItem(string Id, string? ParentId, PlacementHintContract Hint, bool IsGroup);
 
-    internal static bool Apply(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes)
+    internal static bool Apply(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes,
+        IReadOnlyList<DiagramGridLayout.GridFrame>? CurrentFrames = null)
     {
         if (Nodes.Count == 0) return false;
 
         Dictionary<string, DiagramGridLayout.GridNode> ById = Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
         Dictionary<string, GroupContract> Groups = Contract.Groups.ToDictionary(Group => Group.Id, StringComparer.Ordinal);
+        Dictionary<string, DiagramGridLayout.GridFrame> FrameById = CurrentFrames?.ToDictionary(Frame => Frame.Id, StringComparer.Ordinal)
+            ?? new Dictionary<string, DiagramGridLayout.GridFrame>(StringComparer.Ordinal);
         List<HintItem> Hints = Contract.Nodes
             .Where(Node => Node.PlacementHint?.IsActive == true && ById.ContainsKey(Node.Id))
             .Select(Node => new HintItem(Node.Id, Node.ParentGroupId, Node.PlacementHint!, false))
@@ -34,6 +37,14 @@ internal static class FlowchartPlacementHints
             List<DiagramGridLayout.GridNode> Owner = UnitNodes(Item.Id, Item.IsGroup, Nodes, ById, Groups);
             if (Owner.Count == 0)
             {
+                if (Item.IsGroup && Groups.TryGetValue(Item.Id, out GroupContract? EmptyGroup)
+                    && EmptyGroup.ChildNodeIds.Count == 0 && EmptyGroup.ChildGroupIds.Count == 0)
+                {
+                    // Empty groups still have a visible frame and can be a
+                    // placement peer or relationship endpoint. BuildFrames
+                    // applies their relative position after node placement.
+                    continue;
+                }
                 Reject(Item.Hint, "hinted group has no placeable members");
                 continue;
             }
@@ -48,7 +59,7 @@ internal static class FlowchartPlacementHints
             string PeerId = Item.Hint.PeerId ?? string.Empty;
             bool PeerIsGroup = Groups.ContainsKey(PeerId);
             List<DiagramGridLayout.GridNode> Peer = UnitNodes(PeerId, PeerIsGroup, Nodes, ById, Groups);
-            if (Peer.Count == 0)
+            if (Peer.Count == 0 && !FrameById.ContainsKey(PeerId))
             {
                 Reject(Item.Hint, "placement hint peer has no placeable members");
                 continue;
@@ -60,7 +71,9 @@ internal static class FlowchartPlacementHints
                 Attached[PeerId] = Dependents;
             }
             Dependents.Add(Item.Id);
-            Changed |= PlaceRelative(Item.Hint, Moving, Peer, Nodes);
+            Bounds? PeerBounds = FrameById.TryGetValue(PeerId, out DiagramGridLayout.GridFrame? PeerFrame)
+                ? FromFrame(PeerFrame) : Peer.Count > 0 ? Measure(Peer) : null;
+            Changed |= PlaceRelative(Item.Hint, Moving, PeerBounds, Nodes);
         }
         return Changed;
     }
@@ -68,11 +81,11 @@ internal static class FlowchartPlacementHints
     private static bool PlaceRelative(
         PlacementHintContract Hint,
         List<DiagramGridLayout.GridNode> Moving,
-        List<DiagramGridLayout.GridNode> Peer,
+        Bounds? PeerBounds,
         List<DiagramGridLayout.GridNode> All)
     {
         Bounds Owner = Measure(Moving);
-        Bounds Anchor = Measure(Peer);
+        Bounds Anchor = PeerBounds ?? throw new InvalidOperationException("Placement peer has no measured bounds.");
         double TargetX = Owner.CenterX;
         double TargetY = Owner.CenterY;
         int Gap = DiagramGridMetrics.NODE_GAP_PX;
@@ -255,4 +268,7 @@ internal static class FlowchartPlacementHints
             Items.Max(Node => Node.X + Node.Width / 2.0),
             Items.Max(Node => Node.Y + Node.Height / 2.0));
     }
+
+    private static Bounds FromFrame(DiagramGridLayout.GridFrame Frame) =>
+        new Bounds(Frame.Left, Frame.Top, Frame.Right, Frame.Bottom);
 }

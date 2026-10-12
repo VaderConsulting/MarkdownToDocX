@@ -127,7 +127,9 @@ internal static class FlowchartRoutingHints
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
         {
             EdgeContract? Edge = DiagramGridLayout.FindContractEdge(Contract, Route);
-            if (Edge?.RoutingHint?.IsActive == true || CountCorners(Route.Points) <= 2
+            List<(double X, double Y)> CurrentPath = Route.Points.Select(Point => (Point.X, Point.Y)).ToList();
+            bool BadTerminal = !LeavesBy(CurrentPath, Route.ExitSide) || !EntersBy(CurrentPath, Route.EntrySide);
+            if (Edge?.RoutingHint?.IsActive == true || (!BadTerminal && CountCorners(Route.Points) <= 2)
                 || !Bounds.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds? Source)
                 || !Bounds.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds? Target))
                 continue;
@@ -188,11 +190,20 @@ internal static class FlowchartRoutingHints
         if (Existing != null) yield return (Existing.X, Existing.Y);
         (double CentreX, double CentreY) = CentrePort(Bounds, Side);
         double Span = Side is "top" or "bottom" ? Bounds.Width : Bounds.Height;
-        foreach (double Offset in new[] { 0.0, -0.2, 0.2, -0.35, 0.35 })
+        double Margin = Math.Min(DiagramGridRouteBuilder.CORNER_RADIUS_PX + 3.0, Span / 4.0);
+        double UsableHalf = Math.Max(0.0, Span / 2.0 - Margin);
+        double Pitch = DiagramGridMetrics.GRID_UNIT_PX;
+        IEnumerable<double> Offsets = Enumerable.Range(0,
+                (int)Math.Floor(UsableHalf / Pitch) + 1)
+            .SelectMany(Step => Step == 0
+                ? new[] { 0.0 }
+                : new[] { -Step * Pitch, Step * Pitch })
+            .Where(Offset => Math.Abs(Offset) <= UsableHalf + 0.5);
+        foreach (double Offset in Offsets)
         {
             (double X, double Y) Port = Side is "top" or "bottom"
-                ? (CentreX + Span * Offset, CentreY)
-                : (CentreX, CentreY + Span * Offset);
+                ? (CentreX + Offset, CentreY)
+                : (CentreX, CentreY + Offset);
             if (Existing == null || Math.Abs(Existing.X - Port.X) >= 1.0 || Math.Abs(Existing.Y - Port.Y) >= 1.0)
                 yield return Port;
         }

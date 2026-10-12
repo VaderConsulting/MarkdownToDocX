@@ -152,6 +152,33 @@ public sealed class CompactLayoutMetricTests
         });
     }
 
+    [TestCase(167, "australia", "trusted")]
+    [TestCase(169, "dplhAdmin", "daw")]
+    public void HintedGroupEndpoints_HaveFramesAndScoreableRoutes(int Number, string Source, string GroupId)
+    {
+        FlowchartLayoutResult Layout = LayoutScenario(Number, out DiagramContract Contract);
+        FlowchartLayoutScore.Result Metrics = FlowchartLayoutScore.Measure(Contract, Layout);
+        FlowchartLayoutNodeBounds Frame = Layout.ClusterBounds.Single(Box => Box.NodeId == GroupId);
+        FlowchartLayoutPoint End = Route(Layout, Source, GroupId).Points[^1];
+        double Left = Frame.CenterX - Frame.Width / 2.0;
+        double Right = Frame.CenterX + Frame.Width / 2.0;
+        double Bottom = Frame.CenterY - Frame.Height / 2.0;
+        double Top = Frame.CenterY + Frame.Height / 2.0;
+        bool OnOutline = (Math.Abs(End.X - Left) < 1.0 || Math.Abs(End.X - Right) < 1.0)
+                && End.Y >= Bottom - 1.0 && End.Y <= Top + 1.0
+            || (Math.Abs(End.Y - Bottom) < 1.0 || Math.Abs(End.Y - Top) < 1.0)
+                && End.X >= Left - 1.0 && End.X <= Right + 1.0;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(Metrics.Score, Is.Not.Null,
+                string.Join("; ", Metrics.Violations.Select(Failure => Failure.Description)));
+            Assert.That(Metrics.Overlaps, Is.Zero);
+            Assert.That(Metrics.Disconnections, Is.Zero);
+            Assert.That(OnOutline, Is.True, $"{Source} must end on the {GroupId} frame outline.");
+        });
+    }
+
     private static FlowchartLayoutResult LayoutScenario(int Number, out DiagramContract Contract)
     {
         Contract = EnterpriseFlowchartContractMapper.Build(
