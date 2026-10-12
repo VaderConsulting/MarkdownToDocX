@@ -23,6 +23,8 @@ internal static class FlowchartManyToManyRoutes
         {
             List<FlowchartLayoutEdgeRoute> Edges = Rank.ToList();
             if (Edges.Count < 2) continue;
+            bool AllUnlabelled = Edges.All(Route => ContractEdge(Contract, Route) is not EdgeContract Edge
+                || string.IsNullOrWhiteSpace(Edge.Label));
             var SourceOrder = Edges.GroupBy(Route => Route.SourceId).ToDictionary(Group => Group.Key,
                 Group => Group.OrderBy(Route => Bounds[Route.TargetId].CenterX).ThenBy(Route => Route.TargetId).ToList());
             var TargetOrder = Edges.GroupBy(Route => Route.TargetId).ToDictionary(Group => Group.Key,
@@ -66,8 +68,9 @@ internal static class FlowchartManyToManyRoutes
                 for (int A = 0; A < Edges.Count; A++)
                 for (int B = A + 1; B < Edges.Count; B++)
                 {
-                    if (SharesEndpoint(Edges[A], Edges[B])) continue;
-                    Count += FlowchartBranchRouteOrder.Intersections(Paths[Edges[A]], Paths[Edges[B]]).Crossings;
+                    if (!AllUnlabelled && SharesEndpoint(Edges[A], Edges[B])) continue;
+                    var Interaction = FlowchartBranchRouteOrder.Intersections(Paths[Edges[A]], Paths[Edges[B]]);
+                    Count += Interaction.Crossings + (Interaction.Overlap > 0.5 ? Edges.Count * Edges.Count : 0);
                 }
                 return Count;
             }
@@ -115,6 +118,10 @@ internal static class FlowchartManyToManyRoutes
 
     private static double Slot(FlowchartLayoutNodeBounds Box, int Index, int Count) => Math.Round(
         Box.CenterX - Box.Width / 2.0 + Box.Width * (Index + 1.0) / (Count + 1.0));
+
+    private static EdgeContract? ContractEdge(DiagramContract Contract, FlowchartLayoutEdgeRoute Route) =>
+        Contract.Edges.FirstOrDefault(Edge => Edge.Id == Route.EdgeId)
+        ?? Contract.Edges.FirstOrDefault(Edge => Edge.SourceId == Route.SourceId && Edge.TargetId == Route.TargetId);
 
     private static bool SharesEndpoint(FlowchartLayoutEdgeRoute A, FlowchartLayoutEdgeRoute B) =>
         A.SourceId == B.SourceId || A.SourceId == B.TargetId || A.TargetId == B.SourceId || A.TargetId == B.TargetId;
