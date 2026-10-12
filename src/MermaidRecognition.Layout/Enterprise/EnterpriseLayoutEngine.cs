@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 using MermaidRecognition.Kinds.Enterprise;
 using MermaidRecognition.Layout.Sugiyama.Core.Geometry;
@@ -312,10 +313,25 @@ internal static class EnterpriseLayoutEngine
                 Child.RelativeY = (MaxY - (Top + Child.Height)) + OriginY;
             }
         }
-        catch (Exception)
+        catch (InvalidOperationException Exception)
         {
+            TraceSugiyamaFallback(ParentId, Exception);
             PlaceInGrid(ParentId, Children, Nodes);
         }
+        catch (ArgumentException Exception)
+        {
+            TraceSugiyamaFallback(ParentId, Exception);
+            PlaceInGrid(ParentId, Children, Nodes);
+        }
+    }
+
+    private static void TraceSugiyamaFallback(string? ParentId, Exception Exception)
+    {
+        Trace.TraceWarning(
+            "Enterprise sibling layout for {0} fell back to the grid after {1}: {2}",
+            ParentId ?? "<root>",
+            Exception.GetType().Name,
+            Exception.Message);
     }
 
     private static void PlaceInGrid(string? ParentId, List<EnterpriseLayoutNode> Children, Dictionary<string, EnterpriseLayoutNode> Nodes)

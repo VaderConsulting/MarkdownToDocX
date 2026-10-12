@@ -21,7 +21,7 @@
 5. Work in small steps. After each working step, commit and push, update this file in the same commit, and start the next step from that pushed commit.
 6. Never change an existing test to make it pass, except where a task below says to rewrite it. List clashes for Dave to decide.
 7. After three failed attempts at a task, stop work on that task. Record what failed and why in this file, and move on to the next task. Do not stop the whole list.
-8. After each completed task, regenerate `flow.docx`, `enterprise.docx` and `EIP.docx` in the main folder with the built converter. Dave reviews only these three files, periodically and at the end of each task list. Do not ask him to review anything else, and do not ask for review while work is in progress.
+8. Regenerate `flow.docx`, `enterprise.docx` and `EIP.docx` in the main folder with the built converter only after the current task list is complete. Dave reviews only these three files. Do not ask him to review anything else, and do not ask for review while work is in progress.
 
 ## Tasks, in order
 
@@ -40,7 +40,7 @@ Failed attempt: A142 stopped with the valid best at 51 crossings. A reproduced p
 7. **Remaining test failures — reviewed.** Recognition is 1074/0, NaiadAdapter 47/0 and MDConverter 60/0. RuleValidation remains at its 49/10 baseline. Layout is 805/57; its failures include old curved/default route expectations, old shoulder coordinates, quality-gate failures and the recorded perpendicular-attachment faults. Rule 6 does not permit rewriting those tests, and the recorded investigations did not produce a safe shared fix.
 8. **Housekeeping — complete.** The vendored Mermaid tree has no tracked differences, package version 11.14.0 matches the pin, and `flowchart-elk` remains deferred.
 9. **Final check — complete.** All five suites ran on Windows. The release converter regenerated `flow.docx`, `enterprise.docx` and `EIP.docx`; all three packages open as valid ZIP containers with document XML and 148, 151 and 342 embedded images respectively.
-10. **Code slop cleanup — steps 1 and 3 complete; step 2 unsafe.** Step 1 removed the 220-line Sample03 oracle and its 22-line gate; none of its 18 tests depended on it. Step 2 was reverted because A142 and A164 still improved or moved after their fixed caps. Step 3 moved render diagnostics, line jumps, route caches and deferred marker state into an async-local render context. Each completed step kept all 321 catalogue metrics and the five suite counts identical at 1074/0, 805/57, 49/10, 47/0 and 60/0.
+10. **Code slop cleanup — steps 1, 3 and 4 complete; step 2 unsafe.** Step 1 removed the 220-line Sample03 oracle and its 22-line gate; none of its 18 tests depended on it. Step 2 was reverted because A142 and A164 still improved or moved after their fixed caps. Step 3 moved render diagnostics, line jumps, route caches and deferred marker state into an async-local render context. Step 4 replaced the catch-all enterprise fallback with traced handling for known argument and state failures. Each completed step kept all 321 catalogue metrics and the five suite counts identical at 1074/0, 805/57, 49/10, 47/0 and 60/0.
 11. **Bend tests.** Build the unnecessary-bend checker and tests set out in docs/BRIEF-BEND-TESTS.md, record the baseline per scenario, then remove the causes generically. Report the count per scenario before and after.
 
 ## Stretch goals
