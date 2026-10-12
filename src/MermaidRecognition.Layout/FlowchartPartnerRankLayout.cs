@@ -224,6 +224,10 @@ internal static class FlowchartPartnerRankLayout
             .Where(Pair => !Aligned.Contains(Pair)).ToList();
         double ProjectedChild(int Parent) => Block.Parents.Length == 1 ? 0
             : Parent * (Block.Children.Length - 1.0) / (Block.Parents.Length - 1.0);
+        double ParentCrossSign = Block.Parents.Length < 2 ? 1
+            : Math.Sign(Cross(Block.Parents[^1], Horizontal) - Cross(Block.Parents[0], Horizontal));
+        double ChildCrossSign = Block.Children.Length < 2 ? 1
+            : Math.Sign(Cross(Block.Children[^1], Horizontal) - Cross(Block.Children[0], Horizontal));
         var Bent = BentPairs.Where(Pair => Pair.Child > ProjectedChild(Pair.Parent))
             .OrderByDescending(Pair => Pair.Parent).ThenByDescending(Pair => Pair.Child)
             .Concat(BentPairs.Where(Pair => Pair.Child < ProjectedChild(Pair.Parent))
@@ -243,12 +247,13 @@ internal static class FlowchartPartnerRankLayout
             double StartMain = Main(Source, Horizontal) + Flow * MainSize(Source, Horizontal) / 2;
             double EndMain = Main(Target, Horizontal) - Flow * MainSize(Target, Horizontal) / 2;
             double StartCross = Straight ? Cross(Source, Horizontal)
-                : Cross(Source, Horizontal) + SlotOffset(ChildIndex, Block.Children.Length, Block.PortPitch,
+                : Cross(Source, Horizontal) + ChildCrossSign * SlotOffset(ChildIndex, Block.Children.Length, Block.PortPitch,
                     Block.AlignedChildren.GetValueOrDefault(ParentIndex, -1));
             int AlignedParent = Block.AlignedChildren.FirstOrDefault(Pair => Pair.Value == ChildIndex,
                 new KeyValuePair<int, int>(-1, -1)).Key;
             double EndCross = Straight ? Cross(Target, Horizontal)
-                : Cross(Target, Horizontal) + SlotOffset(ParentIndex, Block.Parents.Length, Block.PortPitch, AlignedParent);
+                : Cross(Target, Horizontal) + ParentCrossSign
+                    * SlotOffset(ParentIndex, Block.Parents.Length, Block.PortPitch, AlignedParent);
             (double X, double Y) Map(double MainValue, double CrossValue) =>
                 Horizontal ? (MainValue, CrossValue) : (CrossValue, MainValue);
             var Path = new List<(double X, double Y)> { Map(StartMain, StartCross) };

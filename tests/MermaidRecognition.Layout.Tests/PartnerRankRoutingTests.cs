@@ -116,6 +116,16 @@ public sealed class PartnerRankRoutingTests
                 Is.EqualTo(ParentCount));
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
             Assert.That(Route.Points, Has.Count.EqualTo(Route.Points.Count == 2 ? 2 : 4));
+        for (int First = 0; First < Layout.EdgeRoutes.Count; First++)
+        for (int Second = First + 1; Second < Layout.EdgeRoutes.Count; Second++)
+        {
+            FlowchartLayoutEdgeRoute A = Layout.EdgeRoutes[First];
+            FlowchartLayoutEdgeRoute B = Layout.EdgeRoutes[Second];
+            if (A.SourceId != B.SourceId && A.TargetId != B.TargetId) continue;
+            var Intersections = FlowchartBranchRouteOrder.Intersections(Path(A), Path(B));
+            Assert.That(Intersections.Overlap, Is.Zero, $"{A.SourceId}->{A.TargetId} and {B.SourceId}->{B.TargetId}");
+            Assert.That(Intersections.Crossings, Is.Zero, $"{A.SourceId}->{A.TargetId} and {B.SourceId}->{B.TargetId}");
+        }
     }
 
     [TestCase("TB", 3)]
