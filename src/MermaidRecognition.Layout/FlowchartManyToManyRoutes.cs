@@ -12,17 +12,26 @@ internal static class FlowchartManyToManyRoutes
     internal static void Apply(FlowchartLayoutResult Layout, DiagramContract Contract,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds)
     {
+        bool HasPlacementHints = Contract.Nodes.Any(Node => Node.PlacementHint?.IsActive == true)
+            || Contract.Groups.Any(Group => Group.PlacementHint?.IsActive == true);
+        HashSet<(string SourceId, string TargetId)> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract)
+            .Select(Edge => (Edge.SourceId, Edge.TargetId)).ToHashSet();
         HashSet<(string SourceId, string TargetId)> CompletePairs = CompleteBlockPairs(Contract);
         var Routes = Layout.EdgeRoutes.Where(Route => Bounds.ContainsKey(Route.SourceId)
             && Bounds.ContainsKey(Route.TargetId)
             && !CompletePairs.Contains((Route.SourceId, Route.TargetId))
-            && Bounds[Route.SourceId].CenterY > Bounds[Route.TargetId].CenterY + 1).ToList();
+            && Math.Abs(Bounds[Route.SourceId].CenterY - Bounds[Route.TargetId].CenterY) > 1
+            && (Bounds[Route.SourceId].CenterY > Bounds[Route.TargetId].CenterY + 1
+                || HasPlacementHints && Bounds[Route.SourceId].CenterY < Bounds[Route.TargetId].CenterY - 1)
+            && !BackEdges.Contains((Route.SourceId, Route.TargetId))
+            && ContractEdge(Contract, Route)?.RoutingHint?.IsActive != true).ToList();
         foreach (var Rank in Routes.GroupBy(Route => (
             Source: Math.Round(Bounds[Route.SourceId].CenterY),
             Target: Math.Round(Bounds[Route.TargetId].CenterY))))
         {
             List<FlowchartLayoutEdgeRoute> Edges = Rank.ToList();
             if (Edges.Count < 2) continue;
+            bool SourceAboveTarget = Rank.Key.Source > Rank.Key.Target;
             bool AllUnlabelled = Edges.All(Route => ContractEdge(Contract, Route) is not EdgeContract Edge
                 || string.IsNullOrWhiteSpace(Edge.Label));
             var SourceOrder = Edges.GroupBy(Route => Route.SourceId).ToDictionary(Group => Group.Key,
@@ -35,14 +44,20 @@ internal static class FlowchartManyToManyRoutes
                 List<FlowchartLayoutEdgeRoute> From = SourceOrder[Route.SourceId], Into = TargetOrder[Route.TargetId];
                 double StartX = Slot(Source, From.IndexOf(Route), From.Count);
                 double EndX = Slot(Target, Into.IndexOf(Route), Into.Count);
-                return (StartX, StartY: Source.CenterY - Source.Height / 2.0,
-                    EndX, EndY: Target.CenterY + Target.Height / 2.0);
+                return (StartX,
+                    StartY: Source.CenterY + (SourceAboveTarget ? -Source.Height / 2.0 : Source.Height / 2.0),
+                    EndX,
+                    EndY: Target.CenterY + (SourceAboveTarget ? Target.Height / 2.0 : -Target.Height / 2.0));
             });
-            double NearSource = Edges.Min(Route => Terminals[Route].StartY);
-            double NearTarget = Edges.Max(Route => Terminals[Route].EndY);
+            double NearSource = SourceAboveTarget
+                ? Edges.Min(Route => Terminals[Route].StartY)
+                : Edges.Max(Route => Terminals[Route].StartY);
+            double NearTarget = SourceAboveTarget
+                ? Edges.Max(Route => Terminals[Route].EndY)
+                : Edges.Min(Route => Terminals[Route].EndY);
             List<FlowchartLayoutEdgeRoute> Bent = Edges.Where(Route =>
                 Math.Abs(Terminals[Route].StartX - Terminals[Route].EndX) > 0.5).ToList();
-            if (Bent.Count == 0 || NearSource <= NearTarget) continue;
+            if (Bent.Count == 0 || (SourceAboveTarget ? NearSource <= NearTarget : NearSource >= NearTarget)) continue;
 
             List<FlowchartLayoutEdgeRoute> Order = Bent.OrderBy(Route => Bounds[Route.SourceId].CenterX)
                 .ThenBy(Route => Bounds[Route.TargetId].CenterX).ToList();
@@ -50,7 +65,7 @@ internal static class FlowchartManyToManyRoutes
                 IReadOnlyList<FlowchartLayoutEdgeRoute> TrackOrder)
             {
                 var Tracks = TrackOrder.Select((Route, Index) => (Route,
-                    Y: Math.Round(NearSource - (Index + 1) * (NearSource - NearTarget) / (TrackOrder.Count + 1))))
+                    Y: Math.Round(NearSource + (Index + 1) * (NearTarget - NearSource) / (TrackOrder.Count + 1))))
                     .ToDictionary(Item => Item.Route, Item => Item.Y);
                 return Edges.ToDictionary(Route => Route, Route =>
                 {
@@ -121,8 +136,8 @@ internal static class FlowchartManyToManyRoutes
                 Route.Points.Clear();
                 foreach ((double X, double Y) Point in Paths[Route])
                     Route.Points.Add(new() { X = Point.X, Y = Point.Y });
-                Route.ExitSide = "bottom";
-                Route.EntrySide = "top";
+                Route.ExitSide = SourceAboveTarget ? "bottom" : "top";
+                Route.EntrySide = SourceAboveTarget ? "top" : "bottom";
             }
         }
     }

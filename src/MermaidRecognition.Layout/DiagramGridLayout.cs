@@ -234,7 +234,8 @@ public static class DiagramGridLayout
         // Placement and every automatic route repair must finish before line
         // hints are applied: later repair passes must not undo the requested
         // sides or travel direction.
-        FlowchartRoutingHints.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction);
+        FlowchartRoutingHints.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction,
+            RepairAutomaticRoutesEnabled: false);
         return Copy;
     }
 

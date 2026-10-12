@@ -15,7 +15,8 @@ internal static class FlowchartRoutingHints
         DiagramContract Contract,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds,
         IReadOnlyDictionary<string, NodeContract> Nodes,
-        FlowchartDirection Direction)
+        FlowchartDirection Direction,
+        bool RepairAutomaticRoutesEnabled = true)
     {
         bool Horizontal = Direction is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft;
         Dictionary<(FlowchartLayoutEdgeRoute Route, bool Source), (double X, double Y)> HintedPorts =
@@ -59,8 +60,9 @@ internal static class FlowchartRoutingHints
                 Route.Points.Add(new FlowchartLayoutPoint { X = Math.Round(X), Y = Math.Round(Y) });
         }
 
-        if (Contract.Nodes.Any(Node => Node.PlacementHint?.IsActive == true)
-            || Contract.Groups.Any(Group => Group.PlacementHint?.IsActive == true))
+        if (RepairAutomaticRoutesEnabled
+            && (Contract.Nodes.Any(Node => Node.PlacementHint?.IsActive == true)
+                || Contract.Groups.Any(Group => Group.PlacementHint?.IsActive == true)))
             RepairAutomaticRoutes(Layout, Contract, Bounds, Nodes, Direction, Horizontal);
     }
 
