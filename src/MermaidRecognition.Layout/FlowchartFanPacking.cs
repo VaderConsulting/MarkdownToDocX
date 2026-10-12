@@ -12,7 +12,8 @@ namespace MermaidRecognition.Layout;
 internal static class FlowchartFanPacking
 {
     private const int MinimumFan = DiagramGridMetrics.TRACKS_PER_GAP + 1;
-    private sealed record Plan(int Columns, int Rows, double Width, double Height, double Score);
+    private sealed record Plan(int Columns, int Rows, int ColumnPitch, int RowPitch,
+        double Width, double Height, double Score);
 
     internal static bool Apply(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes)
     {
@@ -41,17 +42,39 @@ internal static class FlowchartFanPacking
 
             int NodeWidth = Leaves.Max(Node => Node.Width);
             int NodeHeight = Leaves.Max(Node => Node.Height);
-            int PortPitch = Math.Max(1, (Horizontal ? NodeHeight : NodeWidth) / DiagramGridMetrics.TRACKS_PER_GAP);
-            int NeededSide = DiagramGridMetrics.CeilToGrid(Leaves.Count * PortPitch);
+            FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
+            List<EdgeContract> FanEdges = Visible.Where(Edge => Edge.SourceId == Hub.Id && ById.ContainsKey(Edge.TargetId)
+                    && Leaves.Contains(ById[Edge.TargetId])
+                || Edge.TargetId == Hub.Id && ById.ContainsKey(Edge.SourceId) && Leaves.Contains(ById[Edge.SourceId]))
+                .ToList();
+            double PortPitch = Math.Max(1, (Horizontal ? NodeHeight : NodeWidth) / DiagramGridMetrics.TRACKS_PER_GAP);
+            double LabelHeight = 0;
+            double LabelTrackPitch = 6;
+            foreach (EdgeContract Edge in FanEdges)
+            {
+                if (string.IsNullOrWhiteSpace(Edge.Label)) continue;
+                FlowchartLabelDimensions Label = FlowchartNodeSizeEstimator.MeasureWrappedLabel(
+                    Edge.Label, Options, Options.EdgeLabelFontSizePx);
+                double LabelWidthPitch = FlowchartEdgeLabelGapHelper.ComputeRequiredSegmentLengthPx(
+                    Label, Options.EdgeLabelFontSizePx, Horizontal: !Horizontal);
+                PortPitch = Math.Max(PortPitch, LabelWidthPitch);
+                LabelTrackPitch = Math.Max(LabelTrackPitch, LabelWidthPitch);
+                LabelHeight = Math.Max(LabelHeight,
+                    FlowchartEdgeLabelPlacementHelper.ComputeRenderedEdgeLabelHeight(Label, Options.EdgeLabelFontSizePx));
+            }
+            int NeededSide = DiagramGridMetrics.CeilToGrid(
+                (int)Math.Ceiling(Leaves.Count * PortPitch + 2 * DiagramGridMetrics.NODE_GAP_PX));
             if (Horizontal) Hub.Height = Math.Max(Hub.Height, NeededSide);
             else Hub.Width = Math.Max(Hub.Width, NeededSide);
-            int ColumnPitch = NodeWidth + DiagramGridMetrics.NODE_GAP_PX;
-            int RowPitch = NodeHeight + DiagramGridMetrics.NODE_GAP_PX;
             int TrackGap = Math.Max(DiagramGridMetrics.NODE_GAP_PX,
                 ((Leaves.Count + DiagramGridMetrics.TRACKS_PER_GAP - 1) / DiagramGridMetrics.TRACKS_PER_GAP)
                     * DiagramGridMetrics.GRID_UNIT_PX);
+            if (LabelHeight > 0)
+                TrackGap = Math.Max(TrackGap, DiagramGridMetrics.CeilToGrid(
+                    (int)Math.Ceiling(LabelHeight + 2 * FlowchartEdgeLabelGapHelper.ComputeCharacterGapPx(
+                        Options.EdgeLabelFontSizePx))));
             Plan Best = Enumerable.Range(1, Leaves.Count).Select(Columns =>
-                Measure(Hub, Leaves.Count, Columns, NodeWidth, NodeHeight, ColumnPitch, RowPitch, TrackGap, Horizontal))
+                Measure(Hub, Leaves.Count, Columns, NodeWidth, NodeHeight, TrackGap, LabelTrackPitch, Horizontal))
                 .OrderBy(Plan => Plan.Score).ThenBy(Plan => Plan.Columns).First();
 
             double OldLeft = Leaves.Append(Hub).Min(Node => Node.X - Node.Width / 2.0);
@@ -65,21 +88,21 @@ internal static class FlowchartFanPacking
             double OldScore = FlowchartLayoutScore.Calculate(OldRight - OldLeft, OldBottom - OldTop, 0, OldEmpty);
             if (Best.Score >= OldScore - 0.0001) continue;
 
-            double BlockWidth = Best.Columns * NodeWidth + Math.Max(0, Best.Columns - 1) * DiagramGridMetrics.NODE_GAP_PX;
-            double BlockHeight = Best.Rows * NodeHeight + Math.Max(0, Best.Rows - 1) * DiagramGridMetrics.NODE_GAP_PX;
+            double BlockWidth = Best.Columns * NodeWidth + Math.Max(0, Best.Columns - 1) * (Best.ColumnPitch - NodeWidth);
+            double BlockHeight = Best.Rows * NodeHeight + Math.Max(0, Best.Rows - 1) * (Best.RowPitch - NodeHeight);
             if (!Horizontal)
             {
                 double BlockTop = Reverse == FanOut ? OldTop : OldTop + Hub.Height + TrackGap;
                 Hub.X = OldLeft + BlockWidth / 2.0;
                 Hub.Y = Reverse == FanOut ? BlockTop + BlockHeight + TrackGap + Hub.Height / 2.0 : OldTop + Hub.Height / 2.0;
-                Place(Leaves, OldLeft, BlockTop, Best.Columns, ColumnPitch, RowPitch, NodeWidth, NodeHeight);
+                Place(Leaves, OldLeft, BlockTop, Best.Columns, Best.ColumnPitch, Best.RowPitch, NodeWidth, NodeHeight);
             }
             else
             {
                 double BlockLeft = Reverse == FanOut ? OldLeft : OldLeft + Hub.Width + TrackGap;
                 Hub.X = Reverse == FanOut ? BlockLeft + BlockWidth + TrackGap + Hub.Width / 2.0 : OldLeft + Hub.Width / 2.0;
                 Hub.Y = OldTop + BlockHeight / 2.0;
-                Place(Leaves, BlockLeft, OldTop, Best.Columns, ColumnPitch, RowPitch, NodeWidth, NodeHeight);
+                Place(Leaves, BlockLeft, OldTop, Best.Columns, Best.ColumnPitch, Best.RowPitch, NodeWidth, NodeHeight);
             }
             return true;
         }
@@ -95,11 +118,19 @@ internal static class FlowchartFanPacking
     }
 
     private static Plan Measure(DiagramGridLayout.GridNode Hub, int Count, int Columns,
-        int NodeWidth, int NodeHeight, int ColumnPitch, int RowPitch, int TrackGap, bool Horizontal)
+        int NodeWidth, int NodeHeight, int TrackGap, double LabelTrackPitch, bool Horizontal)
     {
         int Rows = (Count + Columns - 1) / Columns;
-        double BlockWidth = Columns * NodeWidth + Math.Max(0, Columns - 1) * (ColumnPitch - NodeWidth);
-        double BlockHeight = Rows * NodeHeight + Math.Max(0, Rows - 1) * (RowPitch - NodeHeight);
+        int ColumnGap = Horizontal ? DiagramGridMetrics.NODE_GAP_PX
+            : DiagramGridMetrics.CeilToGrid((int)Math.Ceiling(Math.Max(DiagramGridMetrics.NODE_GAP_PX,
+                (Rows - 1) * LabelTrackPitch)));
+        int RowGap = Horizontal
+            ? DiagramGridMetrics.CeilToGrid((int)Math.Ceiling(Math.Max(DiagramGridMetrics.NODE_GAP_PX,
+                (Columns - 1) * LabelTrackPitch))) : DiagramGridMetrics.NODE_GAP_PX;
+        int ColumnPitch = NodeWidth + ColumnGap;
+        int RowPitch = NodeHeight + RowGap;
+        double BlockWidth = Columns * NodeWidth + Math.Max(0, Columns - 1) * ColumnGap;
+        double BlockHeight = Rows * NodeHeight + Math.Max(0, Rows - 1) * RowGap;
         double Width = Horizontal ? Hub.Width + TrackGap + BlockWidth : Math.Max(Hub.Width, BlockWidth);
         double Height = Horizontal ? Math.Max(Hub.Height, BlockHeight) : Hub.Height + TrackGap + BlockHeight;
         double Used = Count * (NodeWidth + DiagramGridMetrics.NODE_GAP_PX)
@@ -107,7 +138,8 @@ internal static class FlowchartFanPacking
             + (Hub.Width + DiagramGridMetrics.NODE_GAP_PX) * (Hub.Height + DiagramGridMetrics.NODE_GAP_PX);
         Used += Count * (Horizontal ? Width : Height) * DiagramGridMetrics.GRID_UNIT_PX;
         double Empty = Math.Max(0.0, 1.0 - Used / Math.Max(1.0, Width * Height));
-        return new(Columns, Rows, Width, Height, FlowchartLayoutScore.Calculate(Width, Height, 0, Empty));
+        return new(Columns, Rows, ColumnPitch, RowPitch, Width, Height,
+            FlowchartLayoutScore.Calculate(Width, Height, 0, Empty));
     }
 
     private static void Place(IReadOnlyList<DiagramGridLayout.GridNode> Leaves, double Left, double Top,

@@ -185,6 +185,34 @@ public sealed class CompactLayoutMetricTests
         });
     }
 
+    [Test]
+    public void EnterpriseHighFanLabels_DoNotOverlap()
+    {
+        EnterpriseDocument Document = EnterpriseValidator.Analyze(ReadScenario("A", 105)).Document;
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(Document);
+        if (FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult GridLayout))
+        {
+            var GridLedger = GridLayout.NodeBounds.Single(Bounds => Bounds.NodeId == "ledger");
+            Assert.That(GridLedger.Width, Is.GreaterThan(0));
+        }
+        EnterpriseLayoutResult Layout = EnterpriseLayoutEngine.Layout(Document);
+        List<EnterpriseRoutedEdge> Routes = EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes);
+        int Overlaps = 0;
+        for (int First = 0; First < Routes.Count; First++)
+        for (int Second = First + 1; Second < Routes.Count; Second++)
+        {
+            EnterpriseRoutedEdge A = Routes[First], B = Routes[Second];
+            if (string.IsNullOrWhiteSpace(A.Label) || string.IsNullOrWhiteSpace(B.Label)) continue;
+            if (Math.Abs(A.LabelX - B.LabelX) < (A.LabelWidth + B.LabelWidth) / 2 + 6
+                && Math.Abs(A.LabelY - B.LabelY) < (A.LabelHeight + B.LabelHeight) / 2 + 6)
+            {
+                Overlaps++;
+                TestContext.Out.WriteLine($"LABEL OVERLAP: {A.LabelX:0},{A.LabelY:0} / {B.LabelX:0},{B.LabelY:0}");
+            }
+        }
+        Assert.That(Overlaps, Is.Zero);
+    }
+
     private static FlowchartLayoutResult LayoutScenario(int Number, out DiagramContract Contract)
     {
         Contract = EnterpriseFlowchartContractMapper.Build(
