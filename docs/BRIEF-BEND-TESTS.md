@@ -23,6 +23,11 @@ A line has an unnecessary bend when the routed polyline is worse than a legal al
 - (c) Jog. A sideways step shorter than one grid step on a line whose two end boxes could be aligned by moving one of them by whole grid steps (rule 1.4) without an overlap. Report it as a placement cause as well as a routing one.
 - (d) Detour. The line is longer than the shortest legal orthogonal path between the same ports by more than one grid step, and the shorter path is free of boxes, frames and other lines.
 - (e) Crossing-avoidance bend. A bend that exists only to avoid a crossing that is within the forced minimum (rule 2.13). Crossings within the forced minimum are free, so they never justify a bend.
+- (f) Diamond branch from a non-point. A branch leaves a diamond from a point on an edge between vertices, or leaves the bottom vertex and turns sideways, or (with two or three branches) an outer branch does not leave its side vertex, or a branch to a lower offset target has more than one corner or does not enter the target's top centre port (rule 3.8).
+- (g) Label-induced jog. A line has a corner or sideways step within the label's length plus both label gaps, or its label sits on a corner, where moving the label to a straight run (or inserting space, rules 1.7 and 6.2) would remove it (rule 6.1).
+- (h) Convergence across the gap or S-jog into the top. A line into a target that has other incoming lines runs along the gap above the target to reach its top, or enters the top with two corners, when entering the facing side with one corner is legal (rule 4.11).
+- (i) Fan line on the far side or top. A line in a fan between columns leaves the source's far side, top or bottom to go round the source, enters at a box corner, shares a rail with another fan line, or its tracks are not nested so lines cross (rules 5.2 and 5.8).
+- (j) Avoidable hop. A hop is drawn, or a crossing exists that a different track, port or side assignment would remove (rule 5.9). Test it by swapping tracks and ports of each crossing pair and re-checking legality.
 Not unnecessary: the corners of a back edge up to the limit of rule 4.3 when no shorter legal route exists; corners a hint needs; corners forced by a box or frame in the way; the corner of a group end that must meet the frame square-on (rule 4.9).
 
 ## Checker algorithm
@@ -31,7 +36,7 @@ Place the checker in the rule validation project (a new class), with no scenario
 2. Count corners. Compute the fewest corners for these sides and ports as in (a).
 3. Search for a better legal route with the same end sides and ports: (i) try removing each corner pair; (ii) try a straight route when the ports line up; (iii) try a one-corner and a two-corner route through free space, using the corner positions given by the port coordinates and the track positions of the gaps it passes; (iv) run a shortest orthogonal path search on the grid of box edges, frame edges and ports, with boxes and frames as obstacles. A candidate is legal when it keeps rules 4.1 to 4.4, meets its ports at a right angle, crosses no box and frame, adds no crossing above the forced minimum and shares no port.
 4. Fail the line when a candidate has strictly fewer corners, or the same corners and a shorter length by more than one grid step, or removes a jog or zig-zag. Never use a tolerance that makes a real defect pass.
-5. Report for each violation: diagram id, line id (source, target, label), which check (a) to (e) failed, the routed corners and length, and the better route as a list of points.
+5. Report for each violation: diagram id, line id (source, target, label), which check (a) to (j) failed, the routed corners and length, and the better route as a list of points.
 6. Scale with size. No cap on lines, nodes or search steps, and no time-out that returns "pass". Build one obstacle index per diagram (sorted edges or a grid index) so large diagrams stay fast; the search stops when the shortest path is proved, not after a fixed number of tries.
 
 ## Test files
@@ -42,6 +47,9 @@ Place the checker in the rule validation project (a new class), with no scenario
    - a zig-zag and a jog are each rejected, and a route with a box in the way is accepted;
    - a hinted line with the corners its hint needs is accepted, and the same line without the hint is rejected;
    - the checker's better route is returned and is itself accepted by the checker.
+   - decision Valid? with branches Yes to Accept (lower left) and No to Reject (lower right): side-vertex exits with one corner into each top centre are accepted; a route from the bottom edge with a jog round its label is rejected under (f) and (g); a three-branch version with the middle branch straight down is accepted (see `Instructions/pictures/markup-decision-branches.png`, `markup-three-way-decision.png`);
+   - Success and Error into End, End directly under Error: Error straight into the top and Success straight down then one corner into End's facing side are accepted; Success running along the gap into End's top, or Error entering the top with an S-jog, is rejected under (h) (see `markup-merge-into-end.png`, `markup-merge-into-end-detail.png`, `markup-merge-finish.png`);
+   - two feeds in one column to three targets in the next column: facing-side exits and entries at spread ports with nested own tracks are accepted; a line leaving the far side or top, a shared rail, a corner entry, or a hop removable by swapping tracks is rejected under (i) and (j) (see `markup-fan-out-bad.png`).
 2. `tests/MermaidRecognition.RuleValidation.Tests/UnnecessaryBendCatalogueTests.cs` (new). Runs the checker over every diagram in `flow.md`, `enterprise.md` and `EIP.md`, using the same layout and routing as the converter. Written as a generic test over the whole catalogue, with no scenario ids in code.
 3. `tests/MermaidRecognition.RuleValidation.Tests/UnnecessaryBendBaseline.txt` (new text file, one line per scenario: id and number of violations, then the line ids). Treat it as data, not code.
 
@@ -50,7 +58,7 @@ Place the checker in the rule validation project (a new class), with no scenario
 - After that the test fails when any scenario has more violations than its baseline, or a violation that is not in its baseline list.
 - A scenario with a baseline of zero is on the clean list: any violation in it fails the test.
 - The baseline may only shrink. Never add a line to the baseline or raise a number to make the test pass; a change that raises a count is a regression to fix.
-- The test prints the count per scenario (table: scenario, lines, violations by check (a) to (e), baseline).
+- The test prints the count per scenario (table: scenario, lines, violations by check (a) to (j), baseline).
 - The target is zero for every scenario. Done means the baseline file is empty, or each remaining item is listed with the reason a generic fix could not remove it.
 
 ## Ground rules
@@ -61,7 +69,7 @@ Place the checker in the rule validation project (a new class), with no scenario
 
 ## Steps, in order
 1. Build the checker and the unit tests. Commit and push.
-2. Run the checker over `flow.md`, `enterprise.md` and `EIP.md`. Record the baseline file. Report the count per scenario and per check (a) to (e), and the 10 scenarios with most violations. Commit and push.
+2. Run the checker over `flow.md`, `enterprise.md` and `EIP.md`. Record the baseline file. Report the count per scenario and per check (a) to (j), and the 10 scenarios with most violations. Commit and push.
 3. Fix the routing causes generically, in order of count, never per scenario. Typical causes to look for: corner pairs left by repair passes, ports chosen before the sides were known, a side taken when a facing side was free, group-end lines that leave a frame by a corner, and placement that leaves boxes one step out of line. One commit per step. After each step re-run the whole scenario table, and confirm that overlaps, crossings and scores have not got worse (compare before and after, as in `BRIEF-COMPACT-LAYOUT.md`). Shrink the baseline file in the same commit.
 4. Report the count per scenario before and after, and any remaining item with its reason. Do not ask Dave to review diagrams.
 
