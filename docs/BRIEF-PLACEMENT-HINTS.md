@@ -24,7 +24,7 @@ d1 -flow-> d2 [leave N]
 ## Work in this order
 1. Parse hints. Record the peer id, the offset and the directions. Report unknown peers, peers in another group and conflicts as diagnostics. Never fail.
 2. Apply node and group hints in placement, before compaction. Take hints in source order. Use the same-cell rule and `push D` as rule 2.21 sets. Keep every honoured hint through compaction, wrapping, unconnected pieces and clusters.
-3. Apply line hints in routing: `leave`, `enter` and `travel`. A hinted line is exempt from the corner limit of rule 4.3. It never breaks a legality rule; insert space as rule 1.7 sets.
+3. Apply line hints in routing: `leave`, `enter` and `travel`. A hinted line is exempt from the corner limit of rule 4.3. It never breaks a legality rule (overlaps, section 10, room for lines); insert space as rule 1.7 sets. It does override the routing faults list (rules 4.11, 5.8, 5.9 and 6.1).
 4. Score hints as rule 2.21(g) says: -30 for each honoured node or group hint and -15 for each honoured line hint. Report the honoured and unhonoured counts for each scenario, with a reason for each unhonoured hint.
 5. Check scenarios A154 to A164, then A150 to A153, in `enterprise.md`.
 
