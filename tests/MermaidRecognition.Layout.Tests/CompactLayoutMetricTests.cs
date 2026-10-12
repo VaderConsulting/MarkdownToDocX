@@ -186,15 +186,13 @@ public sealed class CompactLayoutMetricTests
     }
 
     [Test]
-    public void EnterpriseHighFanLabels_DoNotOverlap()
+    [TestCase(105)]
+    [TestCase(167)]
+    [TestCase(168)]
+    [TestCase(169)]
+    public void EnterpriseCrowdedLabels_KeepOtherRoutesClear(int Scenario)
     {
-        EnterpriseDocument Document = EnterpriseValidator.Analyze(ReadScenario("A", 105)).Document;
-        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(Document);
-        if (FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult GridLayout))
-        {
-            var GridLedger = GridLayout.NodeBounds.Single(Bounds => Bounds.NodeId == "ledger");
-            Assert.That(GridLedger.Width, Is.GreaterThan(0));
-        }
+        EnterpriseDocument Document = EnterpriseValidator.Analyze(ReadScenario("A", Scenario)).Document;
         EnterpriseLayoutResult Layout = EnterpriseLayoutEngine.Layout(Document);
         List<EnterpriseRoutedEdge> Routes = EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes);
         int Overlaps = 0;
@@ -207,10 +205,22 @@ public sealed class CompactLayoutMetricTests
                 && Math.Abs(A.LabelY - B.LabelY) < (A.LabelHeight + B.LabelHeight) / 2 + 6)
             {
                 Overlaps++;
-                TestContext.Out.WriteLine($"LABEL OVERLAP: {A.LabelX:0},{A.LabelY:0} / {B.LabelX:0},{B.LabelY:0}");
+                TestContext.Out.WriteLine($"A{Scenario} LABEL OVERLAP: {A.LabelX:0},{A.LabelY:0} / {B.LabelX:0},{B.LabelY:0}");
             }
         }
         Assert.That(Overlaps, Is.Zero);
+        foreach (EnterpriseRoutedEdge Labelled in Routes.Where(Edge => !string.IsNullOrWhiteSpace(Edge.Label)))
+        foreach (EnterpriseRoutedEdge Other in Routes.Where(Edge => Edge != Labelled))
+        for (int Segment = 0; Segment + 1 < Other.SvgPoints.Count; Segment++)
+        {
+            var A = Other.SvgPoints[Segment];
+            var B = Other.SvgPoints[Segment + 1];
+            bool Hits = Math.Max(A.X, B.X) > Labelled.LabelX - Labelled.LabelWidth / 2 - 6
+                && Math.Min(A.X, B.X) < Labelled.LabelX + Labelled.LabelWidth / 2 + 6
+                && Math.Max(A.Y, B.Y) > Labelled.LabelY - Labelled.LabelHeight / 2 - 6
+                && Math.Min(A.Y, B.Y) < Labelled.LabelY + Labelled.LabelHeight / 2 + 6;
+            Assert.That(Hits, Is.False, $"A{Scenario} label '{Labelled.Label}' at {Labelled.LabelX:0},{Labelled.LabelY:0} size {Labelled.LabelWidth:0}x{Labelled.LabelHeight:0} path={string.Join(';', Labelled.SvgPoints.Select(Point => $"{Point.X:0},{Point.Y:0}"))} is crossed by {Other.Relationship.SourceId} to {Other.Relationship.TargetId} bounds={Layout.Nodes[Other.Relationship.TargetId].AbsoluteX:0},{Layout.Nodes[Other.Relationship.TargetId].AbsoluteY:0} {Layout.Nodes[Other.Relationship.TargetId].Width:0}x{Layout.Nodes[Other.Relationship.TargetId].Height:0}: {string.Join(';', Other.SvgPoints.Select(Point => $"{Point.X:0},{Point.Y:0}"))}.");
+        }
     }
 
     private static FlowchartLayoutResult LayoutScenario(int Number, out DiagramContract Contract)

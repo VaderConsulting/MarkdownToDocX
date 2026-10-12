@@ -91,6 +91,164 @@ internal static class EnterpriseRelationshipLabelLayout
             }
             Placed.Add(Edge);
         }
+        ResolveRouteLabelConflicts(Edges, Nodes);
+    }
+
+    private static void ResolveRouteLabelConflicts(List<EnterpriseRoutedEdge> Edges,
+        Dictionary<string, EnterpriseLayoutNode> Nodes)
+    {
+        List<EnterpriseRoutedEdge> Labels = Edges.Where(Edge => !string.IsNullOrWhiteSpace(Edge.Label)).ToList();
+        foreach (EnterpriseRoutedEdge Label in Labels)
+        foreach (EnterpriseRoutedEdge Route in Edges.Where(Edge => Edge != Label && string.IsNullOrWhiteSpace(Edge.Label)))
+        {
+            if (!IntersectsLabel(Route.SvgPoints, Label)) continue;
+            if (!TryShiftEndpoint(Route, AtSource: false, Labels, Edges, Nodes))
+                TryShiftEndpoint(Route, AtSource: true, Labels, Edges, Nodes);
+        }
+    }
+
+    private static bool TryShiftEndpoint(EnterpriseRoutedEdge Route, bool AtSource,
+        List<EnterpriseRoutedEdge> Labels,
+        List<EnterpriseRoutedEdge> Edges, Dictionary<string, EnterpriseLayoutNode> Nodes)
+    {
+        if (Route.SvgPoints.Count < 2) return false;
+        string Id = AtSource ? Route.Relationship.SourceId : Route.Relationship.TargetId;
+        if (!Nodes.TryGetValue(Id, out EnterpriseLayoutNode? Node)) return false;
+        int End = AtSource ? 0 : Route.SvgPoints.Count - 1;
+        int Previous = AtSource ? 1 : End - 1;
+        var Port = Route.SvgPoints[End];
+        var Inner = Route.SvgPoints[Previous];
+        bool VerticalRun = Math.Abs(Port.X - Inner.X) < 0.5;
+        bool HorizontalRun = Math.Abs(Port.Y - Inner.Y) < 0.5;
+        if (VerticalRun == HorizontalRun) return false;
+        double Left = Node.AbsoluteX, Right = Left + Node.Width;
+        double Top = Node.AbsoluteY, Bottom = Top + Node.Height;
+        double Radius = Node.IsGroup || Node.IsCompound ? 0 : DiagramGridRouteBuilder.CORNER_RADIUS_PX;
+        double Low = VerticalRun ? Left + Radius : Top + Radius;
+        double High = VerticalRun ? Right - Radius : Bottom - Radius;
+        double Current = VerticalRun ? Port.X : Port.Y;
+        if (Current < Low - 0.5 || Current > High + 0.5) return false;
+        double PortSpacing = FlowchartGeometryPolicy.CompoundPortSpacingPx;
+        int SlotCount = Math.Max(1, (int)Math.Floor((High - Low) / PortSpacing));
+        int[] Slots = DiagramGridMetrics.EqualCentres(Math.Max(1, (int)Math.Floor(High - Low)), SlotCount);
+        List<double> Candidates = Slots.Select(Slot => Low + Slot)
+            .Where(Value => Math.Abs(Value - Current) >= 0.5)
+            .OrderBy(Value => Math.Abs(Value - Current)).ThenBy(Value => Value).ToList();
+        List<(double X, double Y)> Original = Route.SvgPoints.ToList();
+        int BaselineCrossings = Edges.Where(Edge => Edge != Route).Sum(Edge =>
+            FlowchartBranchRouteOrder.Intersections(Original, Edge.SvgPoints).Crossings);
+        double BaselineOverlap = Edges.Where(Edge => Edge != Route).Sum(Edge =>
+            FlowchartBranchRouteOrder.Intersections(Original, Edge.SvgPoints).Overlap);
+
+        foreach (double Candidate in Candidates)
+        {
+            List<(double X, double Y)> Moved = Original.ToList();
+            int Index = End;
+            while (Index >= 0 && Index < Moved.Count
+                && Math.Abs((VerticalRun ? Moved[Index].X : Moved[Index].Y) - Current) < 0.5)
+            {
+                Moved[Index] = VerticalRun ? (Candidate, Moved[Index].Y) : (Moved[Index].X, Candidate);
+                Index += AtSource ? 1 : -1;
+            }
+            if (!DistinctFromSiblingPorts(Route, AtSource, Candidate, VerticalRun, Edges)) continue;
+            if (!ClearOfNodes(Moved, Route, Nodes) || Labels.Any(Label => IntersectsLabel(Moved, Label))) continue;
+            int Crossings = 0;
+            double Overlap = 0;
+            foreach (EnterpriseRoutedEdge Other in Edges.Where(Edge => Edge != Route))
+            {
+                var Intersections = FlowchartBranchRouteOrder.Intersections(Moved, Other.SvgPoints);
+                Crossings += Intersections.Crossings;
+                Overlap += Intersections.Overlap;
+            }
+            if (Crossings > BaselineCrossings || Overlap > BaselineOverlap + 0.01) continue;
+            Route.SvgPoints.Clear();
+            Route.SvgPoints.AddRange(Moved);
+            Route.PathData = FlowchartCurvePathBuilder.BuildRoundedCornerPathData(
+                Route.SvgPoints, DiagramGridRouteBuilder.CORNER_RADIUS_PX);
+            return true;
+        }
+        return false;
+    }
+
+    private static bool DistinctFromSiblingPorts(EnterpriseRoutedEdge Route, bool AtSource,
+        double Candidate, bool VerticalRun, List<EnterpriseRoutedEdge> Edges)
+    {
+        string Id = AtSource ? Route.Relationship.SourceId : Route.Relationship.TargetId;
+        int End = AtSource ? 0 : Route.SvgPoints.Count - 1;
+        foreach (EnterpriseRoutedEdge Other in Edges.Where(Edge => Edge != Route))
+        {
+            string OtherId = AtSource ? Other.Relationship.SourceId : Other.Relationship.TargetId;
+            int OtherEnd = AtSource ? 0 : Other.SvgPoints.Count - 1;
+            if (OtherId != Id || Other.SvgPoints.Count == 0) continue;
+            var Port = Other.SvgPoints[OtherEnd];
+            double OtherSlot = VerticalRun ? Port.X : Port.Y;
+            double SameFace = VerticalRun
+                ? Math.Abs(Port.Y - Route.SvgPoints[End].Y)
+                : Math.Abs(Port.X - Route.SvgPoints[End].X);
+            if (SameFace < 0.5 && Math.Abs(Candidate - OtherSlot) < FlowchartGeometryPolicy.CompoundPortSpacingPx)
+                return false;
+        }
+        return true;
+    }
+
+    private static bool ClearOfNodes(List<(double X, double Y)> Points, EnterpriseRoutedEdge Route,
+        Dictionary<string, EnterpriseLayoutNode> Nodes)
+    {
+        foreach (EnterpriseLayoutNode Node in Nodes.Values.Where(Node =>
+            Node.Id != Route.Relationship.SourceId && Node.Id != Route.Relationship.TargetId))
+        {
+            if (Node.IsGroup && (Contains(Node.Id, Route.Relationship.SourceId, Nodes)
+                || Contains(Node.Id, Route.Relationship.TargetId, Nodes)
+                || Encloses(Node, Route.Relationship.SourceId, Nodes)
+                || Encloses(Node, Route.Relationship.TargetId, Nodes))) continue;
+            double Height = Node.IsGroup ? 18 + 15 * (Node.LabelLines.Count - 1)
+                : Node.IsCompound ? 36 + 15 * (Node.LabelLines.Count - 1) : Node.Height;
+            double Left = Node.AbsoluteX, Right = Left + Node.Width;
+            double Top = Node.AbsoluteY, Bottom = Top + Height;
+            for (int Index = 1; Index < Points.Count; Index++)
+            {
+                var A = Points[Index - 1]; var B = Points[Index];
+                bool HitVertical = Math.Abs(A.X - B.X) < 0.5 && A.X > Left && A.X < Right
+                    && Math.Max(Math.Min(A.Y, B.Y), Top) < Math.Min(Math.Max(A.Y, B.Y), Bottom);
+                bool HitHorizontal = Math.Abs(A.Y - B.Y) < 0.5 && A.Y > Top && A.Y < Bottom
+                    && Math.Max(Math.Min(A.X, B.X), Left) < Math.Min(Math.Max(A.X, B.X), Right);
+                if (HitVertical || HitHorizontal) return false;
+            }
+        }
+        return true;
+    }
+
+    private static bool Contains(string ContainerId, string ElementId,
+        Dictionary<string, EnterpriseLayoutNode> Nodes)
+    {
+        string? ParentId = Nodes.TryGetValue(ElementId, out EnterpriseLayoutNode? Element)
+            ? Element.ParentId : null;
+        while (!string.IsNullOrEmpty(ParentId) && Nodes.TryGetValue(ParentId, out EnterpriseLayoutNode? Parent))
+        {
+            if (Parent.Id == ContainerId) return true;
+            ParentId = Parent.ParentId;
+        }
+        return false;
+    }
+
+    private static bool Encloses(EnterpriseLayoutNode Container, string ElementId,
+        Dictionary<string, EnterpriseLayoutNode> Nodes) => Nodes.TryGetValue(ElementId, out EnterpriseLayoutNode? Element)
+        && Element.AbsoluteX >= Container.AbsoluteX
+        && Element.AbsoluteY >= Container.AbsoluteY
+        && Element.AbsoluteX + Element.Width <= Container.AbsoluteX + Container.Width
+        && Element.AbsoluteY + Element.Height <= Container.AbsoluteY + Container.Height;
+
+    private static bool IntersectsLabel(IReadOnlyList<(double X, double Y)> Points, EnterpriseRoutedEdge Label)
+    {
+        for (int Index = 1; Index < Points.Count; Index++)
+        {
+            var A = Points[Index - 1]; var B = Points[Index];
+            if (Math.Max(A.X, B.X) > Label.LabelX - Label.LabelWidth / 2 - Clearance
+                && Math.Min(A.X, B.X) < Label.LabelX + Label.LabelWidth / 2 + Clearance
+                && Math.Max(A.Y, B.Y) > Label.LabelY - Label.LabelHeight / 2 - Clearance
+                && Math.Min(A.Y, B.Y) < Label.LabelY + Label.LabelHeight / 2 + Clearance) return true;
+        }
+        return false;
     }
 
     private static bool IsClear(double X, double Y, double Width, double Height,
