@@ -15,7 +15,8 @@ internal static class FlowchartPartnerRankLayout
     private const int TERMINAL_RESERVE = 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX;
 
     internal sealed record Partners(DiagramGridLayout.GridNode[] Parents,
-        DiagramGridLayout.GridNode[] Children, int PortPitch);
+        DiagramGridLayout.GridNode[] Children, int PortPitch,
+        IReadOnlyDictionary<int, int> AlignedChildren);
 
     internal static List<Partners> Find(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, bool Horizontal)
     {
@@ -33,15 +34,17 @@ internal static class FlowchartPartnerRankLayout
             if (Count < 2 || Targets.Distinct().Count() != Count || Targets.Any(Id => !ById.ContainsKey(Id))) continue;
             var Children = Targets.Select(Id => ById[Id]).OrderBy(Node => Cross(Node, Horizontal)).ToArray();
             var Sources = Incoming[Children[0].Id].Select(Edge => Edge.SourceId).ToArray();
-            if (Sources.Length != Count || Sources.Distinct().Count() != Count || Sources.Any(Id => !ById.ContainsKey(Id))) continue;
+            if (Sources.Length < 2 || Sources.Distinct().Count() != Sources.Length || Sources.Any(Id => !ById.ContainsKey(Id))) continue;
             var Parents = Sources.Select(Id => ById[Id]).OrderBy(Node => Cross(Node, Horizontal)).ToArray();
             if (Parents.Any(Node => !IsBox(Node) || Node.Rank != Parent.Rank || Node.GroupId != Parent.GroupId)
                 || Children.Any(Node => !IsBox(Node) || Node.Rank != Children[0].Rank || Node.GroupId != Children[0].GroupId)
                 || Parent.Rank == Children[0].Rank
                 || Parents.Any(Node => !Outgoing[Node.Id].Select(Edge => Edge.TargetId).Order().SequenceEqual(Targets.Order()))
                 || Children.Any(Node => !Incoming[Node.Id].Select(Edge => Edge.SourceId).Order().SequenceEqual(Sources.Order()))) continue;
-            int Pitch = Math.Max(CORNER_TRACK_PITCH, Parents.Concat(Children).Min(Node => CrossSize(Node, Horizontal)) / 6);
-            Result.Add(new(Parents, Children, Pitch));
+            int LargestSideCount = Math.Max(Parents.Length, Children.Length);
+            int Pitch = Math.Max(CORNER_TRACK_PITCH,
+                Parents.Concat(Children).Min(Node => CrossSize(Node, Horizontal)) / (LargestSideCount + 1));
+            Result.Add(new(Parents, Children, Pitch, Alignments(Parents.Length, Children.Length)));
             foreach (var Node in Parents) Used.Add(Node.Id);
         }
         return Result;
@@ -59,24 +62,30 @@ internal static class FlowchartPartnerRankLayout
                 int Pitch = (int)Math.Ceiling((Block.PortPitch + Displacement) / TRACK_PITCH) * TRACK_PITCH;
                 Blocks[BlockIndex] = Block = Block with { PortPitch = Pitch };
             }
-            int Needed = DiagramGridMetrics.CeilToGrid(4 * (Block.Parents.Length - 1) * Block.PortPitch + DiagramGridMetrics.GRID_UNIT_PX);
+            int Needed = Block.Parents.Length == Block.Children.Length
+                ? DiagramGridMetrics.CeilToGrid(
+                    4 * (Block.Parents.Length - 1) * Block.PortPitch + DiagramGridMetrics.GRID_UNIT_PX)
+                : DiagramGridMetrics.CeilToGrid(
+                    2 * (Math.Max(Block.Parents.Length, Block.Children.Length) - 1) * Block.PortPitch
+                    + DiagramGridMetrics.GRID_UNIT_PX);
             foreach (var Node in Block.Parents.Concat(Block.Children))
             {
                 if (Horizontal) Node.Height = Math.Max(Node.Height, Needed);
                 else Node.Width = Math.Max(Node.Width, Needed);
             }
-            for (int Index = 0; Align && Index < Block.Children.Length; Index++)
+            foreach ((int Parent, int Child) in Block.AlignedChildren)
             {
-                if (Horizontal) Block.Children[Index].Y = Block.Parents[Index].Y;
-                else Block.Children[Index].X = Block.Parents[Index].X;
+                if (!Align) break;
+                if (Horizontal) Block.Children[Child].Y = Block.Parents[Parent].Y;
+                else Block.Children[Child].X = Block.Parents[Parent].X;
             }
         }
     }
 
     internal static HashSet<FlowchartLayoutEdgeRoute> StraightRoutes(FlowchartLayoutResult Layout, List<Partners> Blocks)
     {
-        var Pairs = Blocks.SelectMany(Block => Block.Parents.Select((Parent, Index) =>
-            (Parent.Id, Block.Children[Index].Id))).ToHashSet();
+        var Pairs = Blocks.SelectMany(Block => Block.AlignedChildren.Select(Pair =>
+            (Block.Parents[Pair.Key].Id, Block.Children[Pair.Value].Id))).ToHashSet();
         return Layout.EdgeRoutes.Where(Route => Pairs.Contains((Route.SourceId, Route.TargetId))).ToHashSet();
     }
 
@@ -87,7 +96,7 @@ internal static class FlowchartPartnerRankLayout
         foreach (var Block in Blocks)
         {
             var (Start, End, Flow) = Limits(Contract, Frames, Block, Horizontal);
-            int Tracks = Block.Parents.Length * (Block.Children.Length - 1);
+            int Tracks = Block.Parents.Length * Block.Children.Length - Block.AlignedChildren.Count;
             int Extra = DiagramGridMetrics.CeilToGrid(2 * TERMINAL_RESERVE + (Tracks - 1) * CORNER_TRACK_PITCH - (End - Start));
             if (Extra == 0) continue;
             int LaterRank = Math.Max(Block.Parents[0].Rank, Block.Children[0].Rank);
@@ -122,6 +131,11 @@ internal static class FlowchartPartnerRankLayout
         var Routes = Layout.EdgeRoutes.ToLookup(Route => (Route.SourceId, Route.TargetId));
         foreach (var Block in Blocks)
         {
+            if (Block.Parents.Length != Block.Children.Length)
+            {
+                RouteRectangular(Layout, Nodes, Frames, Block, Horizontal, Contract);
+                continue;
+            }
             var (Start, End, Flow) = Limits(Contract, Frames, Block, Horizontal);
             double CrossSign = Math.Sign(Cross(Block.Parents[^1], Horizontal) - Cross(Block.Parents[0], Horizontal));
             var Pairs = Enumerable.Range(0, Block.Parents.Length).SelectMany(Parent =>
@@ -168,6 +182,85 @@ internal static class FlowchartPartnerRankLayout
                 foreach (var Point in Path) Route.Points.Add(new() { X = Point.X, Y = Point.Y });
             }
         }
+    }
+
+    private static void RouteRectangular(FlowchartLayoutResult Layout,
+        List<DiagramGridLayout.GridNode> Nodes, List<DiagramGridLayout.GridFrame> Frames,
+        Partners Block, bool Horizontal, DiagramContract Contract)
+    {
+        var Bounds = Nodes.ToDictionary(Node => Node.Id, Node => new FlowchartLayoutNodeBounds
+        {
+            NodeId = Node.Id, CenterX = Node.X, CenterY = Node.Y, Width = Node.Width, Height = Node.Height
+        });
+        var Routes = Layout.EdgeRoutes.ToLookup(Route => (Route.SourceId, Route.TargetId));
+        var (Start, _, Flow) = Limits(Contract, Frames, Block, Horizontal);
+        var Aligned = Block.AlignedChildren.Select(Pair => (Parent: Pair.Key, Child: Pair.Value)).ToHashSet();
+        var Bent = Enumerable.Range(0, Block.Parents.Length).SelectMany(Parent =>
+            Enumerable.Range(0, Block.Children.Length).Select(Child => (Parent, Child)))
+            .Where(Pair => !Aligned.Contains(Pair))
+            .OrderBy(Pair => Pair.Parent).ThenBy(Pair => Pair.Child).ToList();
+        var Lanes = Bent.Select((Pair, Index) => (Pair,
+            Lane: Flow * (Start + TERMINAL_RESERVE + Index * CORNER_TRACK_PITCH)))
+            .ToDictionary(Item => Item.Pair, Item => Item.Lane);
+
+        foreach (int ParentIndex in Enumerable.Range(0, Block.Parents.Length))
+        foreach (int ChildIndex in Enumerable.Range(0, Block.Children.Length))
+        {
+            DiagramGridLayout.GridNode Source = Block.Parents[ParentIndex];
+            DiagramGridLayout.GridNode Target = Block.Children[ChildIndex];
+            FlowchartLayoutEdgeRoute? Route = Routes[(Source.Id, Target.Id)].SingleOrDefault();
+            if (Route == null) continue;
+            bool Straight = Aligned.Contains((ParentIndex, ChildIndex));
+            double StartMain = Main(Source, Horizontal) + Flow * MainSize(Source, Horizontal) / 2;
+            double EndMain = Main(Target, Horizontal) - Flow * MainSize(Target, Horizontal) / 2;
+            double StartCross = Straight ? Cross(Source, Horizontal)
+                : Cross(Source, Horizontal) + SlotOffset(ChildIndex, Block.Children.Length, Block.PortPitch,
+                    Block.AlignedChildren.GetValueOrDefault(ParentIndex, -1));
+            int AlignedParent = Block.AlignedChildren.FirstOrDefault(Pair => Pair.Value == ChildIndex,
+                new KeyValuePair<int, int>(-1, -1)).Key;
+            double EndCross = Straight ? Cross(Target, Horizontal)
+                : Cross(Target, Horizontal) + SlotOffset(ParentIndex, Block.Parents.Length, Block.PortPitch, AlignedParent);
+            (double X, double Y) Map(double MainValue, double CrossValue) =>
+                Horizontal ? (MainValue, CrossValue) : (CrossValue, MainValue);
+            var Path = new List<(double X, double Y)> { Map(StartMain, StartCross) };
+            if (!Straight)
+            {
+                Path.Add(Map(Lanes[(ParentIndex, ChildIndex)], StartCross));
+                Path.Add(Map(Lanes[(ParentIndex, ChildIndex)], EndCross));
+            }
+            Path.Add(Map(EndMain, EndCross));
+            if (Path.Zip(Path.Skip(1)).Any(Segment => FlowchartRouteObstacleHelper.SegmentIntersectsUnrelatedNodeBodies(
+                Segment.First.X, Segment.First.Y, Segment.Second.X, Segment.Second.Y, Bounds, Source.Id, Target.Id))) continue;
+            Route.ExitSide = Horizontal ? (Flow > 0 ? "right" : "left") : (Flow > 0 ? "top" : "bottom");
+            Route.EntrySide = Horizontal ? (Flow > 0 ? "left" : "right") : (Flow > 0 ? "bottom" : "top");
+            Route.Points.Clear();
+            foreach ((double X, double Y) Point in Path) Route.Points.Add(new() { X = Point.X, Y = Point.Y });
+        }
+    }
+
+    private static double SlotOffset(int Index, int Count, int Pitch, int CentreIndex)
+    {
+        if (Index == CentreIndex) return 0;
+        if (CentreIndex >= 0) return (Index - CentreIndex) * 2 * Pitch;
+        return (Index - (Count - 1) / 2.0) * 2 * Pitch;
+    }
+
+    private static IReadOnlyDictionary<int, int> Alignments(int ParentCount, int ChildCount)
+    {
+        var Result = new Dictionary<int, int>();
+        int PairCount = Math.Min(ParentCount, ChildCount);
+        if (PairCount == 1)
+        {
+            Result[0] = 0;
+            return Result;
+        }
+        for (int Index = 0; Index < PairCount; Index++)
+        {
+            int Parent = (int)Math.Round(Index * (ParentCount - 1.0) / (PairCount - 1.0));
+            int Child = (int)Math.Round(Index * (ChildCount - 1.0) / (PairCount - 1.0));
+            Result[Parent] = Child;
+        }
+        return Result;
     }
 
     private static (double Start, double End, double Flow) Limits(DiagramContract Contract,

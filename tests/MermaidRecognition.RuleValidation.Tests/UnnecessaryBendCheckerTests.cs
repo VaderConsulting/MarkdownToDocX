@@ -141,14 +141,14 @@ public sealed class UnnecessaryBendCheckerTests
     }
 
     [Test]
-    public void Convergence_CrossedPairLineIsExempt()
+    public void Convergence_AdjacentRankBlockLineUsesBlockRules()
     {
         BendRoute CrossedPair = Route("bottom", "top", (-120, 90), (-120, 60), (0, 60), (0, 30)) with
         {
             SourceBox = new BendBox(-120, 120, 120, 60),
             TargetBox = new BendBox(0, 0, 120, 60),
             IncomingCount = 2,
-            CrossedPairLine = true
+            AdjacentRankBlockLine = true
         };
 
         Assert.That(Check(CrossedPair), Is.Null);

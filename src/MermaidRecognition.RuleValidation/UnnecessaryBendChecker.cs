@@ -44,7 +44,7 @@ public sealed record BendRoute(
     double LabelRequiredHorizontalPx = 0.0,
     double LabelRequiredVerticalPx = 0.0,
     bool FanToNextRank = false,
-    bool CrossedPairLine = false,
+    bool AdjacentRankBlockLine = false,
     bool HintOverridesRoutingFault = false);
 
 public sealed record UnnecessaryBendViolation(
@@ -106,7 +106,7 @@ public static class UnnecessaryBendChecker
             bool SourceIsDiamond = Nodes.TryGetValue(Route.SourceId, out NodeContract? SourceNode)
                 && FlowchartDagrePresentation.IsDiamondShape(SourceNode.Shape);
             (bool FanBetweenColumns, bool FanToNextRank) = ClassifyFan(Contract, Bounds, Route, Direction);
-            bool CrossedPairLine = IsCrossedPairLine(Contract, Bounds, Route, Direction);
+            bool AdjacentRankBlockLine = IsAdjacentRankBlockLine(Contract, Bounds, Route, Direction);
             double LabelRequiredHorizontal = 0.0;
             double LabelRequiredVertical = 0.0;
             if (!string.IsNullOrWhiteSpace(Edge?.Label))
@@ -122,7 +122,7 @@ public static class UnnecessaryBendChecker
                 Route.ExitSide, Route.EntrySide, RoutedPoints, HintNeeded, RoutedCrossings, AllowedCrossings,
                 ToBox(SourceBounds), ToBox(TargetBounds), Direction, SourceIsDiamond,
                 OutgoingCount, IncomingCount, FanBetweenColumns, Edge?.Label, Options.EdgeLabelFontSizePx,
-                LabelRequiredHorizontal, LabelRequiredVertical, FanToNextRank, CrossedPairLine, HintNeeded);
+                LabelRequiredHorizontal, LabelRequiredVertical, FanToNextRank, AdjacentRankBlockLine, HintNeeded);
             UnnecessaryBendViolation? Finding = CheckRoute(DiagramId, Input, Obstacles, OtherLines);
             if (Finding != null) Result.Add(Finding);
         }
@@ -172,7 +172,7 @@ public static class UnnecessaryBendChecker
             return ('g', Better);
         }
 
-        if (!Route.HintOverridesRoutingFault && !Route.CrossedPairLine
+        if (!Route.HintOverridesRoutingFault && !Route.AdjacentRankBlockLine
             && Route.IncomingCount > 1 && Route.SourceBox.HasValue && Route.TargetBox.HasValue
             && ConvergenceViolation(Route, Obstacles, OtherLines, out List<BendPoint>? ConvergingRoute))
             return ('h', ConvergingRoute);
@@ -578,16 +578,16 @@ public static class UnnecessaryBendChecker
             .Select(Edge => Bounds[Edge.TargetId]).ToList();
         if (OutTargets.Count >= 2 && SameRank(OutTargets, Direction))
         {
-            if (AllWhollyBeyondSide(Source, OutTargets)) return (true, false);
             if (AllInNextRank(Source, OutTargets, Direction)) return (false, true);
+            if (AllWhollyBeyondSide(Source, OutTargets)) return (true, false);
         }
         List<FlowchartLayoutNodeBounds> InSources = Contract.Edges.Where(Edge => IsVisible(Edge)
                 && Edge.TargetId == Route.TargetId && Bounds.ContainsKey(Edge.SourceId))
             .Select(Edge => Bounds[Edge.SourceId]).ToList();
         if (InSources.Count >= 2 && SameRank(InSources, Direction))
         {
-            if (AllWhollyBeyondSide(Target, InSources)) return (true, false);
             if (AllInPreviousRank(Target, InSources, Direction)) return (false, true);
+            if (AllWhollyBeyondSide(Target, InSources)) return (true, false);
         }
         return (false, false);
     }
@@ -611,34 +611,35 @@ public static class UnnecessaryBendChecker
         Peers.All(Peer => Axes(new BendPoint(Peer.CenterX, Peer.CenterY), Direction).Flow
             < Axes(new BendPoint(Hub.CenterX, Hub.CenterY), Direction).Flow - Epsilon);
 
-    private static bool IsCrossedPairLine(DiagramContract Contract,
+    private static bool IsAdjacentRankBlockLine(DiagramContract Contract,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds,
         FlowchartLayoutEdgeRoute Route,
         FlowchartDirection Direction)
     {
         if (!Bounds.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds? Source)
             || !Bounds.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds? Target)) return false;
-        List<EdgeContract> Visible = Contract.Edges.Where(IsVisible).ToList();
-        foreach (FlowchartLayoutNodeBounds OtherSource in Bounds.Values.Where(Box => Box.NodeId != Source.NodeId))
+        double SourceFlow = Axes(new BendPoint(Source.CenterX, Source.CenterY), Direction).Flow;
+        double TargetFlow = Axes(new BendPoint(Target.CenterX, Target.CenterY), Direction).Flow;
+        List<(string SourceId, string TargetId)> RankEdges = Contract.Edges.Where(IsVisible)
+            .Where(Edge => Bounds.TryGetValue(Edge.SourceId, out FlowchartLayoutNodeBounds? CandidateSource)
+                && Bounds.TryGetValue(Edge.TargetId, out FlowchartLayoutNodeBounds? CandidateTarget)
+                && Near(Axes(new BendPoint(CandidateSource.CenterX, CandidateSource.CenterY), Direction).Flow, SourceFlow)
+                && Near(Axes(new BendPoint(CandidateTarget.CenterX, CandidateTarget.CenterY), Direction).Flow, TargetFlow))
+            .Select(Edge => (Edge.SourceId, Edge.TargetId)).Distinct().ToList();
+        if (!RankEdges.Contains((Route.SourceId, Route.TargetId))) return false;
+        var Sources = new HashSet<string>(StringComparer.Ordinal) { Route.SourceId };
+        var Targets = new HashSet<string>(StringComparer.Ordinal) { Route.TargetId };
+        bool Changed;
+        do
         {
-            if (!Near(Axes(new BendPoint(Source.CenterX, Source.CenterY), Direction).Flow,
-                    Axes(new BendPoint(OtherSource.CenterX, OtherSource.CenterY), Direction).Flow)) continue;
-            foreach (FlowchartLayoutNodeBounds OtherTarget in Bounds.Values.Where(Box => Box.NodeId != Target.NodeId))
+            Changed = false;
+            foreach ((string SourceId, string TargetId) in RankEdges)
             {
-                if (!Near(Axes(new BendPoint(Target.CenterX, Target.CenterY), Direction).Flow,
-                        Axes(new BendPoint(OtherTarget.CenterX, OtherTarget.CenterY), Direction).Flow)) continue;
-                bool Complete = Visible.Any(Edge => Edge.SourceId == Source.NodeId && Edge.TargetId == OtherTarget.NodeId)
-                    && Visible.Any(Edge => Edge.SourceId == OtherSource.NodeId && Edge.TargetId == Target.NodeId)
-                    && Visible.Any(Edge => Edge.SourceId == OtherSource.NodeId && Edge.TargetId == OtherTarget.NodeId);
-                if (!Complete) continue;
-                double SourceDelta = Axes(new BendPoint(Source.CenterX, Source.CenterY), Direction).Cross
-                    - Axes(new BendPoint(OtherSource.CenterX, OtherSource.CenterY), Direction).Cross;
-                double TargetDelta = Axes(new BendPoint(Target.CenterX, Target.CenterY), Direction).Cross
-                    - Axes(new BendPoint(OtherTarget.CenterX, OtherTarget.CenterY), Direction).Cross;
-                if (SourceDelta * TargetDelta < -Epsilon) return true;
+                if (Sources.Contains(SourceId) && Targets.Add(TargetId)) Changed = true;
+                if (Targets.Contains(TargetId) && Sources.Add(SourceId)) Changed = true;
             }
-        }
-        return false;
+        } while (Changed);
+        return Sources.Count >= 2 && Targets.Count >= 2;
     }
 
     private static bool PortOccupied(BendPoint Port, string TargetId, IReadOnlyList<BendSegment> OtherLines) =>

@@ -95,6 +95,29 @@ public sealed class PartnerRankRoutingTests
         }
     }
 
+    [TestCase("TB", 2, 3)]
+    [TestCase("TB", 4, 2)]
+    [TestCase("LR", 2, 3)]
+    [TestCase("RL", 4, 2)]
+    public void CompleteRectangularRanks_UseFlowSidesDistinctPortsAndOwnTracks(
+        string Direction, int ParentCount, int ChildCount)
+    {
+        var Contract = MermaidRecognizer.Parse(Source(Direction, ParentCount, ChildCount, false));
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        string Exit = Direction switch { "TB" => "bottom", "BT" => "top", "LR" => "right", _ => "left" };
+        string Entry = Direction switch { "TB" => "top", "BT" => "bottom", "LR" => "left", _ => "right" };
+        Assert.That(Layout.EdgeRoutes, Has.Count.EqualTo(ParentCount * ChildCount));
+        Assert.That(Layout.EdgeRoutes.All(Route => Route.ExitSide == Exit && Route.EntrySide == Entry), Is.True);
+        foreach (IGrouping<string, FlowchartLayoutEdgeRoute> Source in Layout.EdgeRoutes.GroupBy(Route => Route.SourceId))
+            Assert.That(Source.Select(Route => (Route.Points[0].X, Route.Points[0].Y)).Distinct().Count(),
+                Is.EqualTo(ChildCount));
+        foreach (IGrouping<string, FlowchartLayoutEdgeRoute> Target in Layout.EdgeRoutes.GroupBy(Route => Route.TargetId))
+            Assert.That(Target.Select(Route => (Route.Points[^1].X, Route.Points[^1].Y)).Distinct().Count(),
+                Is.EqualTo(ParentCount));
+        foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
+            Assert.That(Route.Points, Has.Count.EqualTo(Route.Points.Count == 2 ? 2 : 4));
+    }
+
     [TestCase("TB", 3)]
     [TestCase("BT", 3)]
     [TestCase("LR", 3)]
@@ -156,16 +179,19 @@ public sealed class PartnerRankRoutingTests
     }
 
     internal static string Source(string Direction, int Count, bool Grouped)
+        => Source(Direction, Count, Count, Grouped);
+
+    internal static string Source(string Direction, int ParentCount, int ChildCount, bool Grouped)
     {
         var Text = new StringBuilder($"flowchart {Direction}\n");
-        foreach (string Prefix in new[] { "p", "c" })
+        foreach ((string Prefix, int Count) in new[] { ("p", ParentCount), ("c", ChildCount) })
         {
             if (Grouped) Text.AppendLine($"subgraph {Prefix}group[\"Partners\"]");
             for (int Index = 0; Index < Count; Index++) Text.AppendLine($"{Prefix}{Index}[\"Partner {Index}\"]");
             if (Grouped) Text.AppendLine("end");
         }
-        for (int Parent = 0; Parent < Count; Parent++)
-        for (int Child = 0; Child < Count; Child++) Text.AppendLine($"p{Parent} --> c{Child}");
+        for (int Parent = 0; Parent < ParentCount; Parent++)
+        for (int Child = 0; Child < ChildCount; Child++) Text.AppendLine($"p{Parent} --> c{Child}");
         return Text.ToString();
     }
 
