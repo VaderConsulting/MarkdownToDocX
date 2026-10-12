@@ -2,6 +2,7 @@ using System.Text;
 
 using MermaidRecognition.Core;
 using MermaidRecognition.Layout;
+using MermaidRecognition.Render;
 
 namespace MermaidRecognition.Layout.Tests;
 
@@ -36,6 +37,33 @@ public sealed class FlowchartChainWrappingTests
             Assert.That(Height, Is.EqualTo(Expected.Height).Within(DiagramGridMetrics.GRID_UNIT_PX));
             Assert.That(HasOverlap(Layout), Is.False);
         });
+    }
+
+    [TestCase("LR")]
+    [TestCase("TD")]
+    public void Grid_LabelledLongChainReservesMeasuredRoomInEitherWrapDirection(string Direction)
+    {
+        const int NodeCount = 40;
+        var Source = new StringBuilder($"flowchart {Direction}\n");
+        for (int Index = 1; Index < NodeCount; Index++)
+            Source.AppendLine($"  n{Index}[Node {Index}] -->|measured label| n{Index + 1}[Node {Index + 1}]");
+        var Contract = MermaidRecognizer.Parse(Source.ToString());
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+
+        FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
+        FlowchartLabelDimensions Size = FlowchartNodeSizeEstimator.MeasureWrappedLabel(
+            "measured label", Options, Options.EdgeLabelFontSizePx);
+        foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
+        {
+            double LongestRun = Route.Points.Zip(Route.Points.Skip(1))
+                .Max(Pair => Math.Abs(Pair.First.X - Pair.Second.X) + Math.Abs(Pair.First.Y - Pair.Second.Y));
+            bool Horizontal = Route.Points.Zip(Route.Points.Skip(1))
+                .OrderByDescending(Pair => Math.Abs(Pair.First.X - Pair.Second.X) + Math.Abs(Pair.First.Y - Pair.Second.Y))
+                .Select(Pair => Math.Abs(Pair.First.Y - Pair.Second.Y) < 0.01).First();
+            double Required = FlowchartEdgeLabelGapHelper.ComputeRequiredSegmentLengthPx(
+                Size, Options.EdgeLabelFontSizePx, Horizontal) + DiagramGridRouteBuilder.CORNER_RADIUS_PX;
+            Assert.That(LongestRun, Is.GreaterThanOrEqualTo(Required - 0.01), Route.EdgeId);
+        }
     }
 
     private static bool HasOverlap(FlowchartLayoutResult Layout)

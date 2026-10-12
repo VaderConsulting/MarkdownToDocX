@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 using MermaidRecognition.Contract;
+using MermaidRecognition.Render;
 
 namespace MermaidRecognition.Layout;
 
@@ -56,6 +57,16 @@ internal static class FlowchartChainWrapping
                 ? Math.Max(DiagramGridMetrics.NODE_GAP_PX, DiagramGridMetrics.MIN_LR_RANK_GAP_PX)
                 : DiagramGridMetrics.NODE_GAP_PX;
             int RowGap = DiagramGridMetrics.NODE_GAP_PX;
+            FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
+            foreach (EdgeContract Edge in Edges.Where(Edge => !string.IsNullOrWhiteSpace(Edge.Label)))
+            {
+                FlowchartLabelDimensions Size = FlowchartNodeSizeEstimator.MeasureWrappedLabel(
+                    Edge.Label, Options, Options.EdgeLabelFontSizePx);
+                ColumnGap = Math.Max(ColumnGap, RoundGap(FlowchartEdgeLabelGapHelper.ComputeRequiredSegmentLengthPx(
+                    Size, Options.EdgeLabelFontSizePx, Horizontal: true) + DiagramGridRouteBuilder.CORNER_RADIUS_PX));
+                RowGap = Math.Max(RowGap, RoundGap(FlowchartEdgeLabelGapHelper.ComputeRequiredSegmentLengthPx(
+                    Size, Options.EdgeLabelFontSizePx, Horizontal: false) + DiagramGridRouteBuilder.CORNER_RADIUS_PX));
+            }
             FlowchartWrapPlan.Plan Plan = FlowchartWrapPlan.Choose(
                 Path.Count, NodeWidth, NodeHeight, ColumnGap, RowGap, Horizontal);
             if (Plan.Columns >= Path.Count || Plan.Rows >= Path.Count) continue;
@@ -155,4 +166,7 @@ internal static class FlowchartChainWrapping
 
     private static double RatioDistance(double Width, double Height) =>
         Math.Abs(Math.Log((Width / Height) / (4.0 / 3.0)));
+
+    private static int RoundGap(double Value) => (int)(Math.Ceiling(Value / DiagramGridMetrics.GRID_UNIT_PX)
+        * DiagramGridMetrics.GRID_UNIT_PX);
 }
