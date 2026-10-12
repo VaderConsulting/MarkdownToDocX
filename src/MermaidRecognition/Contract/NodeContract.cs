@@ -53,6 +53,9 @@ public sealed class NodeContract
     /// <summary>Explicit measured height supplied by a native diagram adapter.</summary>
     public double LayoutHeight { get; set; }
 
+    /// <summary>Optional explicit placement requested by the source diagram.</summary>
+    public PlacementHintContract? PlacementHint { get; set; }
+
     private readonly List<MermaidDeclaration> _Declarations = [];
 
     public IReadOnlyList<MermaidDeclaration> Declarations => _Declarations;

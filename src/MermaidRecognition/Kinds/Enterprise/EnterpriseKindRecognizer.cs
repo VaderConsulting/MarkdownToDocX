@@ -28,7 +28,8 @@ public sealed class EnterpriseKindRecognizer : IKindRecognizer
                 Id = Group.Id,
                 Title = Group.Label,
                 ParentGroupId = Group.ParentId,
-                Direction = Group.Direction?.ToString().ToUpperInvariant()
+                Direction = Group.Direction?.ToString().ToUpperInvariant(),
+                PlacementHint = Group.PlacementHint
             };
             Contract.GroupsMutable.Add(GroupContract);
         }
@@ -45,7 +46,8 @@ public sealed class EnterpriseKindRecognizer : IKindRecognizer
             {
                 Id = Element.Id,
                 Label = Element.Label,
-                Shape = EnterpriseElementCatalog.GetKebabName(Element.ElementType)
+                Shape = EnterpriseElementCatalog.GetKebabName(Element.ElementType),
+                PlacementHint = Element.PlacementHint
             };
             Contract.NodesMutable.Add(Node);
             if (!string.IsNullOrEmpty(Element.ParentId))
@@ -67,7 +69,8 @@ public sealed class EnterpriseKindRecognizer : IKindRecognizer
             {
                 SourceId = Relationship.SourceId,
                 TargetId = Relationship.TargetId,
-                Label = Relationship.Label
+                Label = Relationship.Label,
+                RoutingHint = Relationship.RoutingHint
             };
             Contract.EdgesMutable.Add(Edge);
         }

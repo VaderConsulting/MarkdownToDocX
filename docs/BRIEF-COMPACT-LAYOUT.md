@@ -15,21 +15,21 @@ Compaction is part of `grid` and is on by default. `open` does not use it. There
 Do not ask Dave to review diagrams. Check the results yourself, with tests and measurements:
 - No box or frame overlaps and no new crossing in any diagram of `flow.md`, `enterprise.md` and `EIP.md`.
 - Measure the width, height and layout score of every diagram before and after, and keep a layout only if its score is lower.
-- Report only a summary: the number of diagrams checked, the total change in area, and every diagram that did not shrink, with the reason. Fix any diagram that got bigger.
+- Report only a summary: the number of diagrams checked, the total change in area, and every diagram that did not shrink, with the reason. Fix any diagram whose score got higher.
 
 ## Rules
-The rules are section 2.11 of `Instructions/LAYOUT-RULEBOOK.md`. Read it first. Do not change the other rules.
+The rules are rules 2.11 to 2.19 of `Instructions/LAYOUT-RULEBOOK.md`. Read it first.
 
 ## What to change
 1. Keep the layout setting as it is: `grid` (with compaction) and `open`.
 2. After placement (rules 2.2 to 2.10), run the compaction step in rule 2.11.
-3. Place the parts of a diagram that have no line between them side by side, one column gap apart, and not far away.
+3. Arrange the parts of a diagram that have no line between them as set by rule 2.15.
 4. Add tests in both modes for the example above, for unconnected parts, for a diagram where compaction would add a crossing (it must not move that node), and for a diagram with a group frame.
 5. Update the spec in short, unambiguous sentences to match section 2.11 of the rulebook.
-6. Add wrapping (rule 2.12 of the rulebook): wrap long rows and columns, with one joining line, using a wrap length chosen from the diagram so that it ends up as close to a 4:3 landscape shape (width 4 parts to height 3 parts) as possible, without adding a crossing (a ratio of the diagram's own size; no fixed limit, and no failure for size), so that very wide or deep diagrams such as the large ones in `flow.md` stay compact. After wrapping, run compaction again. Repeat in passes and stop when a full pass moves no node; accept only moves that add no crossing and do not enlarge the diagram; follow rules 2.13 and 2.14; never fail because of size or pass count. Add tests for a long row, a long column, a long row inside a group, a diagram that needs both wide and deep wrapping, and a very large diagram (several hundred nodes) that must still lay out. Judge every attempt by the layout score in rules 2.13 to 2.16 and report size, ratio, overlaps, crossings, empty share and score.
+6. Add wrapping (rule 2.12 of the rulebook): wrap long rows and columns, with one joining line, using a wrap length chosen from the diagram so that it ends up as close to a 4:3 landscape shape (width 4 parts to height 3 parts) as possible, without adding a crossing (a ratio of the diagram's own size; no fixed limit, and no failure for size), so that very wide or deep diagrams such as the large ones in `flow.md` stay compact. After wrapping, run compaction again. Repeat in passes; accept a move only if the score is strictly lower (rules 2.13 and 2.14); stop when a full pass finds no lower score or repeats a layout; never fail because of size or pass count. Add tests for a long row, a long column, a long row inside a group, a diagram that needs both wide and deep wrapping, and a very large diagram (several hundred nodes) that must still lay out. Judge every attempt by the layout score (rules 2.13 and 2.14) and report size, ratio, overlaps, crossings, empty share and score.
 
 ## Rule order
-Rule 2.11 wins over rule 2.2, so the longest path no longer has to stay in one column when compaction packs nodes closer. Update any existing test that asserts the old wide placement, and list each one in the report.
+Rule 9.6 of the rulebook orders the placement rules: the main path (rule 2.18) is placed first and compaction (rule 2.11) never moves it off its centre line. Update any existing test that asserts the old wide placement, and list each one in the report.
 
 ## Rules for the work
 - Follow `Instructions/CLOUD-AGENT-WORKING-PRACTICES.md`.
@@ -39,6 +39,6 @@ Rule 2.11 wins over rule 2.2, so the longest path no longer has to stay in one c
 
 ## Done when
 - The example renders as required in `grid`.
-- `flow.md`, `enterprise.md` and `EIP.md` render with no overlaps and no new crossings, and no diagram is bigger than before.
+- `flow.md`, `enterprise.md` and `EIP.md` render with no overlaps and no new crossings, and every kept change has a strictly lower score (rules 2.13 and 2.14).
 - The five test suites show no new failures against the baseline.
 - The report is a short summary of the size change, as in "Checking".

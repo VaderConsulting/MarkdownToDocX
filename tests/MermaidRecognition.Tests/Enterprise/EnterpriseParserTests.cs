@@ -6,6 +6,76 @@ namespace MermaidRecognition.Tests.Enterprise;
 public sealed class EnterpriseParserTests
 {
     [Test]
+    public void Parse_PlacementAndRoutingHints_RecordsTypedValues()
+    {
+        EnterpriseParseResult Result = EnterpriseParser.Parse(
+            """
+            enterprise
+              application-component anchor "Anchor"
+              group box "Box" right-of anchor +2
+              application-component first "First" in box push E
+              application-component second "Second" in box below first +1
+              anchor -flow-> box [leave S, enter W, travel E]
+            """);
+
+        Assert.That(Result.HasErrors, Is.False, string.Join("; ", Result.Diagnostics.Select(Item => Item.Message)));
+        Assert.Multiple(() =>
+        {
+            Assert.That(Result.Document.Groups["box"].PlacementHint!.Kind, Is.EqualTo(PlacementHintKind.RightOf));
+            Assert.That(Result.Document.Groups["box"].PlacementHint!.PeerId, Is.EqualTo("anchor"));
+            Assert.That(Result.Document.Groups["box"].PlacementHint!.Offset, Is.EqualTo(2));
+            Assert.That(Result.Document.Elements["first"].PlacementHint!.Kind, Is.EqualTo(PlacementHintKind.Push));
+            Assert.That(Result.Document.Elements["first"].PlacementHint!.Direction, Is.EqualTo(LayoutHintDirection.East));
+            Assert.That(Result.Document.Elements["second"].PlacementHint!.Kind, Is.EqualTo(PlacementHintKind.Below));
+            Assert.That(Result.Document.Relationships[0].RoutingHint!.Leave, Is.EqualTo(LayoutHintDirection.South));
+            Assert.That(Result.Document.Relationships[0].RoutingHint!.Enter, Is.EqualTo(LayoutHintDirection.West));
+            Assert.That(Result.Document.Relationships[0].RoutingHint!.Travel, Is.EqualTo(LayoutHintDirection.East));
+        });
+    }
+
+    [Test]
+    public void Parse_InvalidPlacementPeersAndCycle_ReportWarningsWithoutFailing()
+    {
+        EnterpriseParseResult Result = EnterpriseParser.Parse(
+            """
+            enterprise
+              group one "One"
+              group two "Two"
+              application-component a "A" in one right-of missing
+              application-component b "B" in one left-of c
+              application-component c "C" in two
+              application-component x "X" below y
+              application-component y "Y" below x
+            """);
+
+        Assert.That(Result.HasErrors, Is.False, string.Join("; ", Result.Diagnostics.Select(Item => Item.Message)));
+        Assert.Multiple(() =>
+        {
+            Assert.That(Result.Document.Elements["a"].PlacementHint!.IsActive, Is.False);
+            Assert.That(Result.Document.Elements["b"].PlacementHint!.IsActive, Is.False);
+            Assert.That(Result.Document.Elements["x"].PlacementHint!.IsActive, Is.True);
+            Assert.That(Result.Document.Elements["y"].PlacementHint!.IsActive, Is.False);
+            Assert.That(Result.Diagnostics.Count(Item => Item.Severity == MermaidDiagnosticSeverity.Warning), Is.EqualTo(3));
+        });
+    }
+
+    [Test]
+    public void Parse_GroupIds_AreValidRelationshipEndpoints()
+    {
+        EnterpriseParseResult Result = EnterpriseParser.Parse(
+            """
+            enterprise
+              application-component outside "Outside"
+              group box "Box"
+              outside -flow-> box
+              box -serving-> outside
+            """);
+
+        Assert.That(Result.HasErrors, Is.False, string.Join("; ", Result.Diagnostics.Select(Item => Item.Message)));
+        Assert.That(Result.Document.Relationships, Has.Count.EqualTo(2));
+    }
+
+    [Test]
     public void Parse_AllStatementForms_ReadsTitleVersionDirectionGroupElementAndRelationship()
     {
         EnterpriseParseResult Result = EnterpriseParser.Parse(

@@ -74,7 +74,8 @@ public static class EnterpriseFlowchartContractMapper
                 Label = EdgeLabel(Relationship),
                 MarkerStart = EdgeEndpointMarker.None,
                 MarkerEnd = EdgeEndpointMarker.None,
-                CreationIndex = CreationIndex
+                CreationIndex = CreationIndex,
+                RoutingHint = Relationship.RoutingHint
             };
             Contract.EdgesMutable.Add(Edge);
             CreationIndex++;
@@ -102,7 +103,8 @@ public static class EnterpriseFlowchartContractMapper
             Title = string.Join("\n", EnterpriseNodeSizer.Wrap(ContainerTitle(Document, ContainerId))),
             ParentGroupId = ParentContainerId(Document, ContainerId, Containers),
             Direction = Document.Groups.TryGetValue(ContainerId, out var DeclaredGroup)
-                ? DeclaredGroup.Direction?.ToString().ToUpperInvariant() : null
+                ? DeclaredGroup.Direction?.ToString().ToUpperInvariant() : null,
+            PlacementHint = DeclaredGroup?.PlacementHint
         };
         Contract.GroupsMutable.Add(Group);
         foreach (string ChildId in ChildIds(Document, ContainerId))
@@ -141,7 +143,8 @@ public static class EnterpriseFlowchartContractMapper
             Shape = RoutingShape(Element),
             ParentGroupId = ParentContainerId(Document, Element.Id, Containers),
             LayoutWidth = Size.Width,
-            LayoutHeight = Size.Height
+            LayoutHeight = Size.Height,
+            PlacementHint = Element.PlacementHint
         };
         NodeContract.MetadataMutable["enterpriseElementType"] = new RawMetadata(
             "enterpriseElementType", Element.ElementType.ToString());

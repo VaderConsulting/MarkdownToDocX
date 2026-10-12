@@ -1,5 +1,7 @@
 namespace MermaidRecognition.Kinds.Enterprise;
 
+using MermaidRecognition.Contract;
+
 /// <summary>
 /// A declared Application or Technology element.
 /// </summary>
@@ -7,6 +9,9 @@ public sealed class EnterpriseElement
 {
     /// <summary>Gets or sets whether the label uses Mermaid markdown-string formatting.</summary>
     public bool IsMarkdownLabel { get; set; }
+
+    /// <summary>Gets or sets the optional placement hint.</summary>
+    public PlacementHintContract? PlacementHint { get; set; }
 
     private string _Id = string.Empty;
 

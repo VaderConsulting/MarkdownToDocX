@@ -1,5 +1,7 @@
 namespace MermaidRecognition.Kinds.Enterprise;
 
+using MermaidRecognition.Contract;
+
 /// <summary>
 /// A visual grouping container (specification Grouping notation).
 /// </summary>
@@ -10,6 +12,9 @@ public sealed class EnterpriseGroup
 
     /// <summary>Gets or sets the optional local layout direction.</summary>
     public EnterpriseDiagramDirection? Direction { get; set; }
+
+    /// <summary>Gets or sets the optional placement hint.</summary>
+    public PlacementHintContract? PlacementHint { get; set; }
 
     private string _Id = string.Empty;
 

@@ -1,5 +1,7 @@
 namespace MermaidRecognition.Kinds.Enterprise;
 
+using MermaidRecognition.Contract;
+
 /// <summary>
 /// A directed relationship between two declared elements.
 /// </summary>
@@ -7,6 +9,9 @@ public sealed class EnterpriseRelationship
 {
     /// <summary>Gets or sets whether the label uses Mermaid markdown-string formatting.</summary>
     public bool IsMarkdownLabel { get; set; }
+
+    /// <summary>Gets or sets the optional routing hint.</summary>
+    public RoutingHintContract? RoutingHint { get; set; }
 
     private string _SourceId = string.Empty;
 

@@ -4525,6 +4525,701 @@ enterprise
   erp -flow-> ledger "journal"
 ```
 
+### A150 - Port placement: aggregation to centred and side targets
+
+For the port placement and under-the-parent rules. One collaboration aggregates two components, and one of them is composed of an interface. Elements are declared first.
+
+- **Recognition:** `Application.Collaboration`, `Application.Component`, `Application.Interface`, `Relationship.Aggregation`, `Relationship.Composition`
+- **Rendering:** `Layout.PortPlacement`, `Layout.UnderParent`
+- **Expected:** valid. Web Shop sits directly under Order Suite and its line is straight from the centre ports. Order Manager is beside Web Shop; its line leaves a side port, runs across once and drops straight into the top of Order Manager. Shop API sits directly under Web Shop (rules 4.7 and 2.17).
+
+```mermaid
+enterprise
+  application-collaboration orderSuite "Order Suite"
+  application-component webShop "Web Shop"
+  application-component orderMgr "Order Manager"
+  application-interface shopApi "Shop API"
+  orderSuite -aggregation-> webShop
+  orderSuite -aggregation-> orderMgr
+  webShop -composition-> shopApi
+```
+
+### A151 - Main path and converging flows
+
+For the main path, under-the-parent and port placement rules. Three inputs converge on one process, and the process realizes a service. Stock Check has two lines into Place Order, one triggering and one flow. Elements are declared first.
+
+- **Recognition:** `Business.Event`, `Business.Function`, `Business.Interaction`, `Business.Process`, `Business.Service`, `Relationship.Flow`, `Relationship.Triggering`, `Relationship.Realization`
+- **Rendering:** `Layout.MainPath`, `Layout.UnderParent`, `Layout.PortPlacement`
+- **Expected:** valid. Place Order is centred under its three inputs, with Pricing directly above it on the centre line. The lines enter its top on separate ports, in target order. Order Service sits directly under Place Order with a straight line (rules 2.17, 2.18 and 4.7).
+
+```mermaid
+enterprise
+  business-event basketSubmitted "Basket Submitted"
+  business-function pricing "Pricing"
+  business-interaction stockCheck "Stock Check"
+  business-process placeOrder "Place Order"
+  business-service orderSvc "Order Service"
+  basketSubmitted -flow-> placeOrder
+  pricing -flow-> placeOrder
+  stockCheck -triggering-> placeOrder
+  stockCheck -flow-> placeOrder
+  placeOrder -realization-> orderSvc
+```
+
+### A152 - Fewest corners: Order handling application layer
+
+For the fewest-corners, port placement and under-the-parent rules. An application collaboration aggregates a web shop and an order manager; the web shop and the checkout feed an order service and an interaction. Elements are declared first, relationships later.
+
+- **Recognition:** `Application.Collaboration`, `Application.Component`, `Application.Interface`, `Application.Function`, `Application.Service`, `Application.Process`, `Application.Event`, `Application.Interaction`, `Application.DataObject`, `Relationship.Aggregation`, `Relationship.Composition`, `Relationship.Serving`, `Relationship.Realization`, `Relationship.Triggering`, `Relationship.Flow`, `Relationship.Access`
+- **Rendering:** `Layout.FewestCorners`, `Layout.PortPlacement`
+- **Expected:** valid. Order Suite to Web Shop and Checkout to Order Service are straight centre drops (rule 4.7). Web Shop to Checkout and Shop API to Order Service take one corner each, leaving the side that faces the target (rule 4.8). No line crosses a box.
+
+```mermaid
+enterprise
+  application-collaboration orderSuite "Order Suite"
+  application-component webShop "Web Shop"
+  application-component orderMgr "Order Manager"
+  application-interface shopApi "Shop API"
+  application-function checkout "Checkout"
+  application-service orderSvc "Order Service"
+  application-process placeOrder "Place Order"
+  application-event orderPlaced "Order Placed"
+  application-interaction orderSync "Order Synchronisation"
+  data-object order "Order"
+  orderSuite -aggregation-> webShop
+  orderSuite -aggregation-> orderMgr
+  webShop -composition-> shopApi
+  webShop -serving-> checkout
+  shopApi -serving-> orderSvc
+  checkout -realization-> orderSvc
+  orderSvc -triggering-> placeOrder
+  placeOrder -triggering-> orderPlaced
+  orderPlaced -triggering-> orderSync
+  orderSuite -flow-> orderSync
+  checkout -flow-> orderSync "order details"
+  placeOrder -access(write)-> order
+  orderSync -access(read)-> order
+```
+
+### A153 - Clusters: two linked 5-node clusters
+
+For the cluster rule. Two groups of five application components: every component is linked to every other in its own group by an association, and every component of the first group is linked to every component of the second by a flow. There are no group frames. Elements are declared first, relationships later.
+
+- **Recognition:** `Application.Component`, `Relationship.Association`, `Relationship.Flow`
+- **Rendering:** `Layout.Clusters`, `Layout.ManyToMany`
+- **Expected:** valid. Each cluster is placed whole, and the two clusters face each other, rank against rank. The lines between them follow the many-to-many rule, each with its own port and track. The diagram is near 4:3 because the clusters move, not individual nodes (rules 2.20 and 2.13).
+
+```mermaid
+enterprise
+  application-component a1 "Cluster A1"
+  application-component a2 "Cluster A2"
+  application-component a3 "Cluster A3"
+  application-component a4 "Cluster A4"
+  application-component a5 "Cluster A5"
+  application-component b1 "Cluster B1"
+  application-component b2 "Cluster B2"
+  application-component b3 "Cluster B3"
+  application-component b4 "Cluster B4"
+  application-component b5 "Cluster B5"
+  a1 -association-> a2
+  a1 -association-> a3
+  a1 -association-> a4
+  a1 -association-> a5
+  a2 -association-> a3
+  a2 -association-> a4
+  a2 -association-> a5
+  a3 -association-> a4
+  a3 -association-> a5
+  a4 -association-> a5
+  b1 -association-> b2
+  b1 -association-> b3
+  b1 -association-> b4
+  b1 -association-> b5
+  b2 -association-> b3
+  b2 -association-> b4
+  b2 -association-> b5
+  b3 -association-> b4
+  b3 -association-> b5
+  b4 -association-> b5
+  a1 -flow-> b1
+  a1 -flow-> b2
+  a1 -flow-> b3
+  a1 -flow-> b4
+  a1 -flow-> b5
+  a2 -flow-> b1
+  a2 -flow-> b2
+  a2 -flow-> b3
+  a2 -flow-> b4
+  a2 -flow-> b5
+  a3 -flow-> b1
+  a3 -flow-> b2
+  a3 -flow-> b3
+  a3 -flow-> b4
+  a3 -flow-> b5
+  a4 -flow-> b1
+  a4 -flow-> b2
+  a4 -flow-> b3
+  a4 -flow-> b4
+  a4 -flow-> b5
+  a5 -flow-> b1
+  a5 -flow-> b2
+  a5 -flow-> b3
+  a5 -flow-> b4
+  a5 -flow-> b5
+```
+
+### A154 - Hints: a row of five
+
+Five components, each hinted right-of the previous one. Stress test of rule 2.21. Requires hint syntax support: the converter does not parse hints yet, so conversion may report errors. Elements are declared first, relationships later.
+
+- **Recognition:** `Application.Component`, `Relationship.Flow`
+- **Rendering:** `Layout.Hints`, `Layout.PortPlacement`
+- **Expected:** valid once hint syntax is supported. No failure: every hint is honoured, or dropped and reported, or ignored and reported, as rule 2.21 says. All four hints are honoured (each scores -30). The five components form one row in order, with straight lines between them.
+
+```mermaid
+enterprise
+  application-component a1 "Part 1"
+  application-component a2 "Part 2" right-of a1
+  application-component a3 "Part 3" right-of a2
+  application-component a4 "Part 4" right-of a3
+  application-component a5 "Part 5" right-of a4
+  a1 -flow-> a2
+  a2 -flow-> a3
+  a3 -flow-> a4
+  a4 -flow-> a5
+```
+
+### A155 - Hints: conflict
+
+Two components hinted right-of each other. Stress test of rule 2.21. Requires hint syntax support: the converter does not parse hints yet, so conversion may report errors. Elements are declared first, relationships later.
+
+- **Recognition:** `Application.Component`, `Relationship.Flow`
+- **Rendering:** `Layout.Hints`, `Layout.PortPlacement`
+- **Expected:** valid once hint syntax is supported. No failure: every hint is honoured, or dropped and reported, or ignored and reported, as rule 2.21 says. The first hint (A right-of B) is honoured. The later hint (B right-of A) would make the set impossible, so it is dropped and reported; B is laid out as if unhinted.
+
+```mermaid
+enterprise
+  application-component a "A" right-of b
+  application-component b "B" right-of a
+  a -flow-> b
+```
+
+### A156 - Hints: circular chain
+
+Three components hinted below each other in a circle. Stress test of rule 2.21. Requires hint syntax support: the converter does not parse hints yet, so conversion may report errors. Elements are declared first, relationships later.
+
+- **Recognition:** `Application.Component`, `Relationship.Flow`
+- **Rendering:** `Layout.Hints`, `Layout.PortPlacement`
+- **Expected:** valid once hint syntax is supported. No failure: every hint is honoured, or dropped and reported, or ignored and reported, as rule 2.21 says. The first two hints (A below B, B below C) are honoured. The third hint (C below A) closes the circle, so it is dropped and reported.
+
+```mermaid
+enterprise
+  application-component a "A" below b
+  application-component b "B" below c
+  application-component c "C" below a
+  a -flow-> b
+  b -flow-> c
+```
+
+### A157 - Hints: against the flow
+
+A top-to-bottom chain of six, where every node is hinted above its parent. Stress test of rule 2.21. Requires hint syntax support: the converter does not parse hints yet, so conversion may report errors. Elements are declared first, relationships later.
+
+- **Recognition:** `Application.Component`, `Relationship.Flow`
+- **Rendering:** `Layout.Hints`, `Layout.PortPlacement`
+- **Expected:** valid once hint syntax is supported. No failure: every hint is honoured, or dropped and reported, or ignored and reported, as rule 2.21 says. All five node hints are honoured: each node is above its parent, so the chain runs upward against the declared direction, which is kept. Lines are routed legally by rules 4.7 and 4.8 with the fewest corners, and space is inserted where needed (rule 1.7).
+
+```mermaid
+enterprise
+  application-component c1 "Step 1"
+  application-component c2 "Step 2" above c1
+  application-component c3 "Step 3" above c2
+  application-component c4 "Step 4" above c3
+  application-component c5 "Step 5" above c4
+  application-component c6 "Step 6" above c5
+  c1 -flow-> c2
+  c2 -flow-> c3
+  c3 -flow-> c4
+  c4 -flow-> c5
+  c5 -flow-> c6
+```
+
+### A158 - Hints: missing and cross-group peers
+
+One hint names a peer that does not exist, and one names a node in another group frame. Stress test of rule 2.21. Requires hint syntax support: the converter does not parse hints yet, so conversion may report errors. Elements are declared first, relationships later.
+
+- **Recognition:** `Application.Component`, `Relationship.Flow`, `Group`
+- **Rendering:** `Layout.Hints`, `Layout.PortPlacement`
+- **Expected:** valid once hint syntax is supported. No failure: every hint is honoured, or dropped and reported, or ignored and reported, as rule 2.21 says. Both hints are ignored and reported (P right-of ghost: the peer is missing; Q left-of R: the peer is in another group). The nodes are laid out as if unhinted.
+
+```mermaid
+enterprise
+  group g1 "Group 1"
+  group g2 "Group 2"
+  application-component p "P" in g1 right-of ghost
+  application-component q "Q" in g1 left-of r
+  application-component r "R" in g2
+  application-component s "S" in g1
+  p -flow-> q
+  q -flow-> r
+  s -flow-> p
+```
+
+### A159 - Hints: same cell
+
+Two components both hinted right-of the same peer. Stress test of rule 2.21. Requires hint syntax support: the converter does not parse hints yet, so conversion may report errors. Elements are declared first, relationships later.
+
+- **Recognition:** `Application.Component`, `Relationship.Flow`
+- **Rendering:** `Layout.Hints`, `Layout.PortPlacement`
+- **Expected:** valid once hint syntax is supported. No failure: every hint is honoured, or dropped and reported, or ignored and reported, as rule 2.21 says. X is placed in the cell right of Hub. Y wants the same cell, so it takes the next free cell on that side, and both hints are honoured.
+
+```mermaid
+enterprise
+  application-component hub "Hub"
+  application-component x "X" right-of hub
+  application-component y "Y" right-of hub
+  hub -flow-> x
+  hub -flow-> y
+```
+
+### A160 - Hints: line hints on a fan
+
+One hub with 16 targets, and every line hinted leave S, enter N. There are more lines than port slots. Stress test of rule 2.21. Requires hint syntax support: the converter does not parse hints yet, so conversion may report errors. Elements are declared first, relationships later.
+
+- **Recognition:** `Application.Component`, `Relationship.Flow`
+- **Rendering:** `Layout.Hints`, `Layout.PortPlacement`
+- **Expected:** valid once hint syntax is supported. No failure: every hint is honoured, or dropped and reported, or ignored and reported, as rule 2.21 says. All 16 line hints are honoured (each scores -15). The 16 lines on one side exceed the 5 slots, so the node grows along that side by whole grid steps (rule 3.2), and every line has its own port and track.
+
+```mermaid
+enterprise
+  application-component hub "Hub"
+  application-component t1 "Target 1"
+  application-component t2 "Target 2"
+  application-component t3 "Target 3"
+  application-component t4 "Target 4"
+  application-component t5 "Target 5"
+  application-component t6 "Target 6"
+  application-component t7 "Target 7"
+  application-component t8 "Target 8"
+  application-component t9 "Target 9"
+  application-component t10 "Target 10"
+  application-component t11 "Target 11"
+  application-component t12 "Target 12"
+  application-component t13 "Target 13"
+  application-component t14 "Target 14"
+  application-component t15 "Target 15"
+  application-component t16 "Target 16"
+  hub -flow-> t1 [leave S, enter N]
+  hub -flow-> t2 [leave S, enter N]
+  hub -flow-> t3 [leave S, enter N]
+  hub -flow-> t4 [leave S, enter N]
+  hub -flow-> t5 [leave S, enter N]
+  hub -flow-> t6 [leave S, enter N]
+  hub -flow-> t7 [leave S, enter N]
+  hub -flow-> t8 [leave S, enter N]
+  hub -flow-> t9 [leave S, enter N]
+  hub -flow-> t10 [leave S, enter N]
+  hub -flow-> t11 [leave S, enter N]
+  hub -flow-> t12 [leave S, enter N]
+  hub -flow-> t13 [leave S, enter N]
+  hub -flow-> t14 [leave S, enter N]
+  hub -flow-> t15 [leave S, enter N]
+  hub -flow-> t16 [leave S, enter N]
+```
+
+### A161 - Hints: all lines against the flow
+
+A top-to-bottom chain of eight, where every line is hinted leave N. Stress test of rule 2.21. Requires hint syntax support: the converter does not parse hints yet, so conversion may report errors. Elements are declared first, relationships later.
+
+- **Recognition:** `Application.Component`, `Relationship.Flow`
+- **Rendering:** `Layout.Hints`, `Layout.PortPlacement`
+- **Expected:** valid once hint syntax is supported. No failure: every hint is honoured, or dropped and reported, or ignored and reported, as rule 2.21 says. All seven line hints are honoured: each line leaves the top of its source and uses the corners its hint needs, without the corner limit of rule 4.3. Those corners are scored (rule 2.13) and space is inserted where needed (rule 1.7).
+
+```mermaid
+enterprise
+  application-component d1 "Node 1"
+  application-component d2 "Node 2"
+  application-component d3 "Node 3"
+  application-component d4 "Node 4"
+  application-component d5 "Node 5"
+  application-component d6 "Node 6"
+  application-component d7 "Node 7"
+  application-component d8 "Node 8"
+  d1 -flow-> d2 [leave N]
+  d2 -flow-> d3 [leave N]
+  d3 -flow-> d4 [leave N]
+  d4 -flow-> d5 [leave N]
+  d5 -flow-> d6 [leave N]
+  d6 -flow-> d7 [leave N]
+  d7 -flow-> d8 [leave N]
+```
+
+### A162 - Hints: group and children
+
+A group hinted right-of an outside node, with children hinted inside it. Stress test of rule 2.21. Requires hint syntax support: the converter does not parse hints yet, so conversion may report errors. Elements are declared first, relationships later.
+
+- **Recognition:** `Application.Component`, `Relationship.Flow`, `Group`
+- **Rendering:** `Layout.Hints`, `Layout.PortPlacement`
+- **Expected:** valid once hint syntax is supported. No failure: every hint is honoured, or dropped and reported, or ignored and reported, as rule 2.21 says. All hints are honoured: the group frame is right of Outside, Kid 2 is below Kid 1 and Kid 3 is right of Kid 1, all inside the frame.
+
+```mermaid
+enterprise
+  application-component out "Outside"
+  group box "Box" right-of out
+  application-component k1 "Kid 1" in box
+  application-component k2 "Kid 2" in box below k1
+  application-component k3 "Kid 3" in box right-of k1
+  out -flow-> k1
+  k1 -flow-> k2
+  k1 -flow-> k3
+```
+
+### A163 - Hints: scale
+
+160 components labelled 1 to 160 in a chain with branches, where every fourth is hinted (the first push E, the others right-of the previous hinted node), 40 hints in all. Stress test of rule 2.21. Requires hint syntax support: the converter does not parse hints yet, so conversion may report errors. Elements are declared first, relationships later.
+
+- **Recognition:** `Application.Component`, `Relationship.Flow`
+- **Rendering:** `Layout.Hints`, `Layout.PortPlacement`
+- **Expected:** valid once hint syntax is supported. No failure: every hint is honoured, or dropped and reported, or ignored and reported, as rule 2.21 says. All 40 hints are honoured. The first, push E, puts node 4 in the extreme east cell of the diagram, and each later hinted node is right of the previous hinted node. The hinted nodes keep their relation to their peers; the other 120 are laid out around them; no failure at any size.
+
+```mermaid
+enterprise
+  application-component m1 "1"
+  application-component m2 "2"
+  application-component m3 "3"
+  application-component m4 "4" push E
+  application-component m5 "5"
+  application-component m6 "6"
+  application-component m7 "7"
+  application-component m8 "8" right-of m4
+  application-component m9 "9"
+  application-component m10 "10"
+  application-component m11 "11"
+  application-component m12 "12" right-of m8
+  application-component m13 "13"
+  application-component m14 "14"
+  application-component m15 "15"
+  application-component m16 "16" right-of m12
+  application-component m17 "17"
+  application-component m18 "18"
+  application-component m19 "19"
+  application-component m20 "20" right-of m16
+  application-component m21 "21"
+  application-component m22 "22"
+  application-component m23 "23"
+  application-component m24 "24" right-of m20
+  application-component m25 "25"
+  application-component m26 "26"
+  application-component m27 "27"
+  application-component m28 "28" right-of m24
+  application-component m29 "29"
+  application-component m30 "30"
+  application-component m31 "31"
+  application-component m32 "32" right-of m28
+  application-component m33 "33"
+  application-component m34 "34"
+  application-component m35 "35"
+  application-component m36 "36" right-of m32
+  application-component m37 "37"
+  application-component m38 "38"
+  application-component m39 "39"
+  application-component m40 "40" right-of m36
+  application-component m41 "41"
+  application-component m42 "42"
+  application-component m43 "43"
+  application-component m44 "44" right-of m40
+  application-component m45 "45"
+  application-component m46 "46"
+  application-component m47 "47"
+  application-component m48 "48" right-of m44
+  application-component m49 "49"
+  application-component m50 "50"
+  application-component m51 "51"
+  application-component m52 "52" right-of m48
+  application-component m53 "53"
+  application-component m54 "54"
+  application-component m55 "55"
+  application-component m56 "56" right-of m52
+  application-component m57 "57"
+  application-component m58 "58"
+  application-component m59 "59"
+  application-component m60 "60" right-of m56
+  application-component m61 "61"
+  application-component m62 "62"
+  application-component m63 "63"
+  application-component m64 "64" right-of m60
+  application-component m65 "65"
+  application-component m66 "66"
+  application-component m67 "67"
+  application-component m68 "68" right-of m64
+  application-component m69 "69"
+  application-component m70 "70"
+  application-component m71 "71"
+  application-component m72 "72" right-of m68
+  application-component m73 "73"
+  application-component m74 "74"
+  application-component m75 "75"
+  application-component m76 "76" right-of m72
+  application-component m77 "77"
+  application-component m78 "78"
+  application-component m79 "79"
+  application-component m80 "80" right-of m76
+  application-component m81 "81"
+  application-component m82 "82"
+  application-component m83 "83"
+  application-component m84 "84" right-of m80
+  application-component m85 "85"
+  application-component m86 "86"
+  application-component m87 "87"
+  application-component m88 "88" right-of m84
+  application-component m89 "89"
+  application-component m90 "90"
+  application-component m91 "91"
+  application-component m92 "92" right-of m88
+  application-component m93 "93"
+  application-component m94 "94"
+  application-component m95 "95"
+  application-component m96 "96" right-of m92
+  application-component m97 "97"
+  application-component m98 "98"
+  application-component m99 "99"
+  application-component m100 "100" right-of m96
+  application-component m101 "101"
+  application-component m102 "102"
+  application-component m103 "103"
+  application-component m104 "104" right-of m100
+  application-component m105 "105"
+  application-component m106 "106"
+  application-component m107 "107"
+  application-component m108 "108" right-of m104
+  application-component m109 "109"
+  application-component m110 "110"
+  application-component m111 "111"
+  application-component m112 "112" right-of m108
+  application-component m113 "113"
+  application-component m114 "114"
+  application-component m115 "115"
+  application-component m116 "116" right-of m112
+  application-component m117 "117"
+  application-component m118 "118"
+  application-component m119 "119"
+  application-component m120 "120" right-of m116
+  application-component m121 "121"
+  application-component m122 "122"
+  application-component m123 "123"
+  application-component m124 "124" right-of m120
+  application-component m125 "125"
+  application-component m126 "126"
+  application-component m127 "127"
+  application-component m128 "128" right-of m124
+  application-component m129 "129"
+  application-component m130 "130"
+  application-component m131 "131"
+  application-component m132 "132" right-of m128
+  application-component m133 "133"
+  application-component m134 "134"
+  application-component m135 "135"
+  application-component m136 "136" right-of m132
+  application-component m137 "137"
+  application-component m138 "138"
+  application-component m139 "139"
+  application-component m140 "140" right-of m136
+  application-component m141 "141"
+  application-component m142 "142"
+  application-component m143 "143"
+  application-component m144 "144" right-of m140
+  application-component m145 "145"
+  application-component m146 "146"
+  application-component m147 "147"
+  application-component m148 "148" right-of m144
+  application-component m149 "149"
+  application-component m150 "150"
+  application-component m151 "151"
+  application-component m152 "152" right-of m148
+  application-component m153 "153"
+  application-component m154 "154"
+  application-component m155 "155"
+  application-component m156 "156" right-of m152
+  application-component m157 "157"
+  application-component m158 "158"
+  application-component m159 "159"
+  application-component m160 "160" right-of m156
+  m1 -flow-> m2
+  m2 -flow-> m3
+  m3 -flow-> m4
+  m4 -flow-> m5
+  m5 -flow-> m6
+  m6 -flow-> m7
+  m7 -flow-> m8
+  m8 -flow-> m9
+  m9 -flow-> m10
+  m10 -flow-> m11
+  m11 -flow-> m12
+  m12 -flow-> m13
+  m13 -flow-> m14
+  m14 -flow-> m15
+  m15 -flow-> m16
+  m16 -flow-> m17
+  m17 -flow-> m18
+  m18 -flow-> m19
+  m19 -flow-> m20
+  m20 -flow-> m21
+  m21 -flow-> m22
+  m22 -flow-> m23
+  m23 -flow-> m24
+  m24 -flow-> m25
+  m25 -flow-> m26
+  m26 -flow-> m27
+  m27 -flow-> m28
+  m28 -flow-> m29
+  m29 -flow-> m30
+  m30 -flow-> m31
+  m31 -flow-> m32
+  m32 -flow-> m33
+  m33 -flow-> m34
+  m34 -flow-> m35
+  m35 -flow-> m36
+  m36 -flow-> m37
+  m37 -flow-> m38
+  m38 -flow-> m39
+  m39 -flow-> m40
+  m40 -flow-> m41
+  m41 -flow-> m42
+  m42 -flow-> m43
+  m43 -flow-> m44
+  m44 -flow-> m45
+  m45 -flow-> m46
+  m46 -flow-> m47
+  m47 -flow-> m48
+  m48 -flow-> m49
+  m49 -flow-> m50
+  m50 -flow-> m51
+  m51 -flow-> m52
+  m52 -flow-> m53
+  m53 -flow-> m54
+  m54 -flow-> m55
+  m55 -flow-> m56
+  m56 -flow-> m57
+  m57 -flow-> m58
+  m58 -flow-> m59
+  m59 -flow-> m60
+  m60 -flow-> m61
+  m61 -flow-> m62
+  m62 -flow-> m63
+  m63 -flow-> m64
+  m64 -flow-> m65
+  m65 -flow-> m66
+  m66 -flow-> m67
+  m67 -flow-> m68
+  m68 -flow-> m69
+  m69 -flow-> m70
+  m70 -flow-> m71
+  m71 -flow-> m72
+  m72 -flow-> m73
+  m73 -flow-> m74
+  m74 -flow-> m75
+  m75 -flow-> m76
+  m76 -flow-> m77
+  m77 -flow-> m78
+  m78 -flow-> m79
+  m79 -flow-> m80
+  m80 -flow-> m81
+  m81 -flow-> m82
+  m82 -flow-> m83
+  m83 -flow-> m84
+  m84 -flow-> m85
+  m85 -flow-> m86
+  m86 -flow-> m87
+  m87 -flow-> m88
+  m88 -flow-> m89
+  m89 -flow-> m90
+  m90 -flow-> m91
+  m91 -flow-> m92
+  m92 -flow-> m93
+  m93 -flow-> m94
+  m94 -flow-> m95
+  m95 -flow-> m96
+  m96 -flow-> m97
+  m97 -flow-> m98
+  m98 -flow-> m99
+  m99 -flow-> m100
+  m100 -flow-> m101
+  m101 -flow-> m102
+  m102 -flow-> m103
+  m103 -flow-> m104
+  m104 -flow-> m105
+  m105 -flow-> m106
+  m106 -flow-> m107
+  m107 -flow-> m108
+  m108 -flow-> m109
+  m109 -flow-> m110
+  m110 -flow-> m111
+  m111 -flow-> m112
+  m112 -flow-> m113
+  m113 -flow-> m114
+  m114 -flow-> m115
+  m115 -flow-> m116
+  m116 -flow-> m117
+  m117 -flow-> m118
+  m118 -flow-> m119
+  m119 -flow-> m120
+  m120 -flow-> m121
+  m121 -flow-> m122
+  m122 -flow-> m123
+  m123 -flow-> m124
+  m124 -flow-> m125
+  m125 -flow-> m126
+  m126 -flow-> m127
+  m127 -flow-> m128
+  m128 -flow-> m129
+  m129 -flow-> m130
+  m130 -flow-> m131
+  m131 -flow-> m132
+  m132 -flow-> m133
+  m133 -flow-> m134
+  m134 -flow-> m135
+  m135 -flow-> m136
+  m136 -flow-> m137
+  m137 -flow-> m138
+  m138 -flow-> m139
+  m139 -flow-> m140
+  m140 -flow-> m141
+  m141 -flow-> m142
+  m142 -flow-> m143
+  m143 -flow-> m144
+  m144 -flow-> m145
+  m145 -flow-> m146
+  m146 -flow-> m147
+  m147 -flow-> m148
+  m148 -flow-> m149
+  m149 -flow-> m150
+  m150 -flow-> m151
+  m151 -flow-> m152
+  m152 -flow-> m153
+  m153 -flow-> m154
+  m154 -flow-> m155
+  m155 -flow-> m156
+  m156 -flow-> m157
+  m157 -flow-> m158
+  m158 -flow-> m159
+  m159 -flow-> m160
+  m1 -flow-> m3
+  m11 -flow-> m13
+  m21 -flow-> m23
+  m31 -flow-> m33
+  m41 -flow-> m43
+  m51 -flow-> m53
+  m61 -flow-> m63
+  m71 -flow-> m73
+  m81 -flow-> m83
+  m91 -flow-> m93
+  m101 -flow-> m103
+  m111 -flow-> m113
+  m121 -flow-> m123
+  m131 -flow-> m133
+  m141 -flow-> m143
+  m151 -flow-> m153
+```
 ---
 
 ## Scenario index
@@ -4638,3 +5333,123 @@ These are the places where the enterprise kind still does not accept something t
 - Statement keywords are reserved and cannot be ids (row 13).
 - The undocumented flowchart direction symbols `>`, `<`, `^` and `v` are not accepted; only the five documented direction values are.
 - Block-relative line numbers count frontmatter and directive lines, whereas Mermaid's own error messages count from after the frontmatter. This changes only how errors are reported.
+
+### A164 - Hints: recreation of a real diagram
+
+A placement-hints recreation test of a real business capability diagram (roles, services and processes), redrawn from a picture with the original arrangement kept by hints: roles in a row along the top, services in a row beneath them, processes under their services, and dashed groups wrapped around their member processes. Only our own line and node formatting is used; the picture's colours are not copied. Source labels are kept as written, including "Annoucements". Elements are declared first, relationships later. Requires hint syntax support: the converter does not parse hints yet, so conversion may report errors.
+
+- **Recognition:** `Business.Role`, `Business.Service`, `Business.Process`, `Group`, `Relationship.Serving`, `Relationship.Realization`, `Relationship.Specialization`
+- **Rendering:** `Layout.Hints`, `Layout.PortPlacement`, `Layout.Direction`
+- **Expected:** valid once hint syntax is supported. No failure: every hint is honoured, or dropped and reported, or ignored and reported, as rule 2.21 says. Every hint is honoured except where legality prevents it, there are no overlaps, and lines are straight or rounded orthogonal. Notes: SDT Explorer is hinted right of the Registered Roles group, because its peer must be in the same group (rule 2.21(c)). Three serving lines and two realization lines end on a group frame, as in the picture; the group endpoints may need converter support. The picture shows the lines from View Annoucements and View Knowledge Material meeting at one point on Content Consumption and Feedback, so only the first carries a line hint (one port per line, rule 2.21(d)). The two lines from Track Task Progress and Update Task Details run to different services. All labels were readable; the title of the dashed group "Collaboration Management Service" wraps onto two lines in the picture.
+
+```mermaid
+enterprise BT
+  group allRoles "All Roles"
+  group regRoles "Registered Roles" in allRoles
+  business-role admin "SDT Administrator" in regRoles
+  business-role custodian "SDT Security Custodian" in regRoles right-of admin
+  business-role dataMgr "SDT Data Manager" in regRoles right-of custodian
+  business-role collabAdmin "Collaboration Workspace Administrator" in regRoles right-of dataMgr
+  business-role collaborator "SDT Collaborator" in regRoles right-of collabAdmin
+  business-role visualiser "SDT Visualiser" in regRoles right-of collaborator
+  business-role analyst "SDT Analyst" in regRoles right-of visualiser
+  business-role explorer "SDT Explorer" in allRoles right-of regRoles
+  business-service pubSvc "Content Publishing Service"
+  business-service consumeSvc "Content Consumption and Feedback" right-of pubSvc
+  business-service feedbackSvc "Feedback Management" right-of consumeSvc
+  business-service userRegSvc "User Registration Service" right-of feedbackSvc
+  business-service platformSvc "Platform Administration Service" right-of userRegSvc
+  business-service bwmSvc "Business Workflow Management" right-of platformSvc
+  business-service dsApprSvc "Data Science Tool Approval and Configuration Service" right-of bwmSvc
+  business-service dsmSvc "Data Source Management" right-of dsApprSvc
+  business-service collabMgmtSvc "Collaboration Management Service" right-of dsmSvc
+  business-service collabSvc "Collaboration Service" right-of collabMgmtSvc
+  business-service editSvc "Data Editing and Analysis Service" right-of collabSvc
+  business-service dsSubmitSvc "Data Science Tool Submission Service" right-of editSvc
+  business-service geoEditSvc "Geospatial Data Editing and Analysis Service" right-of dsSubmitSvc
+  business-service catalogueSvc "Data Catalogue Service" right-of geoEditSvc
+  business-service geoVisSvc "Geospatial Visualisation and Query Service" right-of catalogueSvc
+  group bwmGrp "Business Workflow Management" below bwmSvc
+  group dsmGrp "Data Source Management" below dsmSvc
+  group collabGrp "Collaboration Management Service" below collabMgmtSvc
+  business-process maintain "Maintain Knowledge Material" below pubSvc
+  business-process publish "Publish Annoucements" below maintain
+  business-process viewKnow "View Knowledge Material" below consumeSvc
+  business-process viewAnn "View Annoucements" below viewKnow
+  business-process participate "Participate in Forum Discussion" right-of viewAnn
+  business-process submitFb "Submit Feedback" right-of viewKnow
+  business-process review "Review and Address Feedback" right-of participate
+  business-process accept "Accept Terms and Conditions" below userRegSvc
+  business-process register "Register as SDT Platform User" below accept
+  business-process establish "Establish Federation" right-of register
+  business-process manageTerms "Manage Terms and Conditions" below platformSvc
+  business-process manageRes "Manage System Resource Usage" right-of manageTerms
+  business-process onboard "Onboard Partner Agencies" right-of establish
+  business-process define "Define Business Process" in bwmGrp
+  business-process retire "Retire Business Process" in bwmGrp right-of define
+  business-process configure "Configure and Update Business Process" in bwmGrp below define
+  business-process configDs "Configure Data Science Tool" below dsApprSvc
+  business-process defMeta "Define Dataset Metadata" in dsmGrp
+  business-process manageMeta "Manage Dataset Metadata" in dsmGrp below defMeta
+  business-process manageDs "Manage Dataset" in dsmGrp below manageMeta
+  business-process advertise "Advertise Dataset" in dsmGrp below manageDs
+  business-process privileges "Manage Dataset Privileges" in dsmGrp right-of defMeta
+  business-process provide "Provide Dataset (Content)" in dsmGrp below privileges
+  business-process retireDs "Retire Dataset" in dsmGrp below provide
+  business-process sendNotif "Send Notification about Dataset" right-of dsmGrp
+  business-process createWs "Create Collaboration Workspace" in collabGrp
+  business-process manageWs "Manage Collaboration Workspace" in collabGrp below createWs
+  business-process closeWs "Close and Archive Collaboration Workspace" in collabGrp below manageWs
+  business-process sendCollab "Send Collaboration Notification" right-of collabGrp
+  business-process collaborate "Collaborate" right-of sendCollab
+  business-process track "Track Task Progress and Update Task Details" below collaborate
+  business-process submitDs "Submit Data Science Tool" below dsSubmitSvc
+  business-process consume "Consume and Use Data" right-of submitDs
+  pubSvc -serving-> admin [leave N, enter W]
+  consumeSvc -serving-> allRoles
+  feedbackSvc -serving-> admin
+  userRegSvc -serving-> admin
+  platformSvc -serving-> admin
+  bwmSvc -serving-> admin
+  dsApprSvc -serving-> custodian [leave N, enter S]
+  dsmSvc -serving-> dataMgr [leave N, enter S]
+  collabMgmtSvc -serving-> collabAdmin [leave N, enter S]
+  collabSvc -serving-> collaborator [leave N, enter S]
+  editSvc -serving-> collaborator
+  editSvc -serving-> analyst
+  dsSubmitSvc -serving-> analyst
+  geoEditSvc -serving-> analyst [leave N, enter S]
+  catalogueSvc -serving-> allRoles
+  geoVisSvc -serving-> allRoles
+  collabAdmin -specialization-> collaborator [leave E, enter W]
+  publish -realization-> pubSvc
+  maintain -realization-> pubSvc
+  viewAnn -realization-> consumeSvc [leave N, enter W]
+  viewKnow -realization-> consumeSvc
+  participate -realization-> consumeSvc
+  submitFb -realization-> consumeSvc
+  review -realization-> feedbackSvc
+  accept -realization-> userRegSvc
+  register -realization-> userRegSvc
+  establish -realization-> userRegSvc
+  establish -realization-> platformSvc [leave N, enter W]
+  manageTerms -realization-> platformSvc
+  onboard -realization-> platformSvc
+  manageRes -realization-> platformSvc
+  define -realization-> bwmSvc
+  configure -realization-> bwmSvc
+  retire -realization-> bwmSvc
+  configDs -realization-> dsApprSvc
+  track -realization-> dsApprSvc [leave N, enter S, travel W]
+  dsmGrp -realization-> dsmSvc
+  sendNotif -realization-> dsmSvc
+  collabGrp -realization-> collabMgmtSvc
+  sendCollab -realization-> collabSvc
+  track -realization-> collabSvc
+  collaborate -realization-> collabSvc
+  consume -realization-> editSvc
+  submitDs -realization-> dsSubmitSvc
+  consume -realization-> geoEditSvc
+  consume -realization-> catalogueSvc
+  consume -realization-> geoVisSvc
+```

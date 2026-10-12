@@ -27,7 +27,7 @@
 
 1. **Enterprise syntax gaps — complete.** Catalogue checks confirm that A100, A101 and A118 to A130 render or diagnose exactly as declared, and the 17 deliberately invalid scenarios keep their error counts. DOCX fallbacks show each A90 diagnostic on its own line.
 2. **Layout mode — complete.** F144 to F150 and A143 to A149 render with their declared modes and orthogonal routing. Explicit grid matches the default, unknown values warn once and fall back to grid, and diagram frontmatter overrides the run-wide setting.
-3. **Compact placement — complete with recorded limits.** Disconnected pieces and fans pack into measured blocks. Fan rows and wrapped chains use guarded real routes. Multi-edge forward ranks use distinct bottom ports, top ports and gap tracks while supported square partner blocks keep their nested routes. Scores subtract the forced crossing minimum derived from complete adjacent-rank blocks. A64 now packs its ten measured artifacts into a 570 x 420 block at score 0.7. A110 is valid at score 381.2 with 255 crossings, a forced minimum of 243 and an accepted 33.3% empty share. A117 is valid at score 1229.8 after deterministic port-side repair. F153, A114 and A142 retain the recorded line-rule limits below.
+3. **Compact placement — complete with recorded limits.** Disconnected pieces and fans pack into measured blocks. Fan rows and wrapped chains use guarded real routes. Multi-edge forward ranks use distinct bottom ports, top ports and gap tracks while supported complete partner blocks keep their nested routes. Scores subtract the forced crossing minimum derived from complete adjacent-rank blocks. A64 now packs its ten measured artifacts into a 570 x 420 block at score 0.7. A110 is valid at score 381.2 with 255 crossings, a forced minimum of 243 and an accepted 33.3% empty share. A117 is valid at score 1229.8 after deterministic port-side repair. F153, A114 and A142 retain the recorded line-rule limits below. Rule 2.13 now also scores bends (2 points per corner) and rule 2.19 tries each flow direction when none is declared. Rule 4.8 (fewest corners) is new; the Order handling application layer scenario in enterprise.md checks it. Rule 2.20 (clusters) is new; the cluster scenario in enterprise.md checks it. Rule 2.21 (hints) is new; the hint scenarios in enterprise.md check it once the converter parses hints.
 
 Failed attempt: A114 stopped after three route repairs: excluding group frames changed nothing; extending rank repair reduced crossings but left the layout rejected and worsened A117; flexible perimeter repair enlarged other layouts and failed on empty local routes.
 
@@ -39,6 +39,7 @@ Failed attempt: A142 stopped with the valid best at 51 crossings. A reproduced p
 6. **Remaining test failures — reviewed.** Recognition is 1069/0, NaiadAdapter 47/0 and MDConverter 60/0. RuleValidation remains at its 49/10 baseline. Layout is 766/57; its failures include old curved/default route expectations, old shoulder coordinates, quality-gate failures and the recorded perpendicular-attachment faults. Rule 6 does not permit rewriting those tests, and the recorded investigations did not produce a safe shared fix.
 7. **Housekeeping — complete.** The vendored Mermaid tree has no tracked differences, package version 11.14.0 matches the pin, and `flowchart-elk` remains deferred.
 8. **Final check — complete.** All five suites ran sequentially on Windows. The release converter regenerated `flow.docx`, `enterprise.docx` and `EIP.docx`; all three packages open as valid ZIP containers with document XML and 148, 131 and 342 embedded images respectively.
+9. **Placement hints - parsing complete.** Node, group and line hints are parsed into typed contract data. Missing peers, cross-group peers and circular constraints produce nonfatal diagnostics; group ids are valid relationship endpoints. Next apply hints to placement, then routing and scoring. Check scenarios A154 to A164 and report only the table described in the brief.
 
 ## Stretch goals
 
@@ -77,8 +78,10 @@ If the vendored Mermaid changes, update this pin, the recognition fixtures and `
 - `Instructions/CLOUD-AGENT-WORKING-PRACTICES.md` holds the working rules for agents.
 - `Instructions/LAYOUT-RULEBOOK.md` is the layout rulebook.
 - `BRIEF-ENTERPRISE-SYNTAX-GAPS.md` and `BRIEF-LAYOUT-MODE.md` are the briefs for the two next build tasks.
+- `BRIEF-PLACEMENT-HINTS.md` is the brief for hint parsing, placement, routing and scoring (rule 2.21).
 - `flow.md`, `enterprise.md` and `EIP.md` (repository root) and `enterprise/samples/` in this folder are the stress-test inputs. `sequence.md`, `class.md`, `state.md` and `entityrelationship.md` in this folder are the other catalogues.
 
 ## Maintenance rule
 
 Update this file at the end of every completed task. Keep it short, and delete anything that is no longer true instead of adding history.
+ New scenarios to check with rules 2.17, 2.18, 2.19, 4.7 and 4.8: Order Suite with Web Shop and Order Manager (aggregation), and Place Order with Basket Submitted, Pricing, Stock Check and Order Service.

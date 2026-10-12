@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 
 namespace MermaidRecognition.Kinds.Enterprise;
@@ -37,16 +38,18 @@ public static class EnterpriseParser
         @"^direction\s+(TB|TD|BT|LR|RL)$",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+    private const string PLACEMENT_HINT_PATTERN = @"(?:(?<relative>above|below|left-of|right-of)\s+(?<peer>" + ID_PATTERN + @")(?:\s+\+(?<offset>\d+))?|push\s+(?<push>[NSEW]))";
+
     private static readonly Regex GroupRegex = new Regex(
-        @"^group\s+(" + ID_PATTERN + @")(?:\s+" + STRING_PATTERN + @")?(?:\s+in\s+(" + ID_PATTERN + @"))?$",
+        @"^group\s+(?<id>" + ID_PATTERN + @")(?:\s+(?<label>" + STRING_PATTERN + @"))?(?:\s+in\s+(?<parent>" + ID_PATTERN + @"))?(?:\s+(?<placement>" + PLACEMENT_HINT_PATTERN + @"))?$",
         RegexOptions.Compiled | RegexOptions.Singleline);
 
     private static readonly Regex RelationshipRegex = new Regex(
-        @"^(" + ID_PATTERN + @")\s+-([A-Za-z]+)(?:\(([^)]*)\))?->\s+(" + ID_PATTERN + @")(?:\s+" + STRING_PATTERN + @")?$",
+        @"^(?<source>" + ID_PATTERN + @")\s+-(?<kind>[A-Za-z]+)(?:\((?<qualifier>[^)]*)\))?->\s+(?<target>" + ID_PATTERN + @")(?:\s+(?<label>" + STRING_PATTERN + @"))?(?:\s+\[(?<routing>[^\]]+)\])?$",
         RegexOptions.Compiled | RegexOptions.Singleline);
 
     private static readonly Regex ElementRegex = new Regex(
-        @"^([A-Za-z-]+)\s+(" + ID_PATTERN + @")(?:\s+" + STRING_PATTERN + @")?(?:\s+in\s+(" + ID_PATTERN + @"))?$",
+        @"^(?<type>[A-Za-z-]+)\s+(?<id>" + ID_PATTERN + @")(?:\s+(?<label>" + STRING_PATTERN + @"))?(?:\s+in\s+(?<parent>" + ID_PATTERN + @"))?(?:\s+(?<placement>" + PLACEMENT_HINT_PATTERN + @"))?$",
         RegexOptions.Compiled | RegexOptions.Singleline);
 
     private static readonly Regex InfluenceQualifierRegex = new Regex(
@@ -204,7 +207,7 @@ public static class EnterpriseParser
             if (GroupMatch.Success)
             {
                 AddGroup(Document, Diagnostics, GroupMatch, LineNumber);
-                string GroupId = GroupMatch.Groups[1].Value;
+                string GroupId = GroupMatch.Groups["id"].Value;
                 if (GroupScope.TryPeek(out string? ParentId) && Document.Groups.TryGetValue(GroupId, out var Group)
                     && Group.ParentId == null)
                 {
@@ -226,9 +229,9 @@ public static class EnterpriseParser
             if (ElementMatch.Success)
             {
                 AddElement(Document, Diagnostics, ElementMatch, LineNumber);
-                if (TrailingClass != null) Document.Styles.AddInlineClass(ElementMatch.Groups[2].Value, TrailingClass);
+                if (TrailingClass != null) Document.Styles.AddInlineClass(ElementMatch.Groups["id"].Value, TrailingClass);
                 if (GroupScope.TryPeek(out string? ParentId)
-                    && Document.Elements.TryGetValue(ElementMatch.Groups[2].Value, out var Element) && Element.ParentId == null)
+                    && Document.Elements.TryGetValue(ElementMatch.Groups["id"].Value, out var Element) && Element.ParentId == null)
                     Element.ParentId = ParentId;
                 continue;
             }
@@ -247,6 +250,7 @@ public static class EnterpriseParser
             Diagnostics.Add(CreateError(Lines.Length, "unterminated accessibility description"));
         }
         ValidateReferences(Document, Diagnostics);
+        ValidatePlacementHints(Document, Diagnostics);
         Document.Styles.Resolve(Document, Diagnostics);
         return new EnterpriseParseResult(Document, Diagnostics);
     }
@@ -257,7 +261,7 @@ public static class EnterpriseParser
         Match GroupMatch,
         int LineNumber)
     {
-        string Id = GroupMatch.Groups[1].Value;
+        string Id = GroupMatch.Groups["id"].Value;
         if (ReservedIds.Contains(Id))
         {
             Diagnostics.Add(CreateError(LineNumber, "reserved word cannot be an id: \"" + Id + "\""));
@@ -269,15 +273,17 @@ public static class EnterpriseParser
             return;
         }
 
-        string? QuotedLabel = GroupMatch.Groups[2].Success ? Unquote(GroupMatch.Groups[2].Value) : null;
-        string? ParentId = GroupMatch.Groups[3].Success ? GroupMatch.Groups[3].Value : null;
+        string? QuotedLabel = GroupMatch.Groups["label"].Success ? Unquote(GroupMatch.Groups["label"].Value) : null;
+        string? ParentId = GroupMatch.Groups["parent"].Success ? GroupMatch.Groups["parent"].Value : null;
+        PlacementHintContract? PlacementHint = ParsePlacementHint(GroupMatch, LineNumber);
         EnterpriseGroup Group = new EnterpriseGroup
         {
             Id = Id,
             Label = QuotedLabel ?? Id,
-            IsMarkdownLabel = IsMarkdown(GroupMatch.Groups[2].Value),
+            IsMarkdownLabel = IsMarkdown(GroupMatch.Groups["label"].Value),
             ParentId = ParentId,
-            LineNumber = LineNumber
+            LineNumber = LineNumber,
+            PlacementHint = PlacementHint
         };
         Document.Groups[Id] = Group;
         Document.Elements[Id] = new EnterpriseElement
@@ -287,7 +293,8 @@ public static class EnterpriseParser
             Label = QuotedLabel ?? Id,
             IsMarkdownLabel = Group.IsMarkdownLabel,
             ParentId = ParentId,
-            LineNumber = LineNumber
+            LineNumber = LineNumber,
+            PlacementHint = PlacementHint
         };
     }
 
@@ -297,7 +304,7 @@ public static class EnterpriseParser
         Match ElementMatch,
         int LineNumber)
     {
-        string TypeToken = ElementMatch.Groups[1].Value;
+        string TypeToken = ElementMatch.Groups["type"].Value;
         if (!EnterpriseElementCatalog.TryResolveElementType(TypeToken, out EnterpriseElementType ElementType))
         {
             Diagnostics.Add(CreateError(
@@ -306,7 +313,7 @@ public static class EnterpriseParser
             return;
         }
 
-        string Id = ElementMatch.Groups[2].Value;
+        string Id = ElementMatch.Groups["id"].Value;
         if (ReservedIds.Contains(Id))
         {
             Diagnostics.Add(CreateError(LineNumber, "reserved word cannot be an id: \"" + Id + "\""));
@@ -316,17 +323,19 @@ public static class EnterpriseParser
         {
             if (Document.Elements.TryGetValue(Id, out var Existing) && Existing.ElementType == ElementType)
             {
-                if (ElementMatch.Groups[3].Success)
+                if (ElementMatch.Groups["label"].Success)
                 {
-                    Existing.Label = Unquote(ElementMatch.Groups[3].Value);
-                    Existing.IsMarkdownLabel = IsMarkdown(ElementMatch.Groups[3].Value);
+                    Existing.Label = Unquote(ElementMatch.Groups["label"].Value);
+                    Existing.IsMarkdownLabel = IsMarkdown(ElementMatch.Groups["label"].Value);
                 }
-                if (ElementMatch.Groups[4].Success) Existing.ParentId = ElementMatch.Groups[4].Value;
+                if (ElementMatch.Groups["parent"].Success) Existing.ParentId = ElementMatch.Groups["parent"].Value;
+                if (ElementMatch.Groups["placement"].Success) Existing.PlacementHint = ParsePlacementHint(ElementMatch, LineNumber);
                 if (Document.Groups.TryGetValue(Id, out var Group))
                 {
                     Group.Label = Existing.Label;
                     Group.IsMarkdownLabel = Existing.IsMarkdownLabel;
                     Group.ParentId = Existing.ParentId;
+                    Group.PlacementHint = Existing.PlacementHint;
                 }
                 return;
             }
@@ -334,16 +343,18 @@ public static class EnterpriseParser
             return;
         }
 
-        string? QuotedLabel = ElementMatch.Groups[3].Success ? Unquote(ElementMatch.Groups[3].Value) : null;
-        string? ParentId = ElementMatch.Groups[4].Success ? ElementMatch.Groups[4].Value : null;
+        string? QuotedLabel = ElementMatch.Groups["label"].Success ? Unquote(ElementMatch.Groups["label"].Value) : null;
+        string? ParentId = ElementMatch.Groups["parent"].Success ? ElementMatch.Groups["parent"].Value : null;
+        PlacementHintContract? PlacementHint = ParsePlacementHint(ElementMatch, LineNumber);
         EnterpriseElement Element = new EnterpriseElement
         {
             Id = Id,
             ElementType = ElementType,
             Label = QuotedLabel ?? Id,
-            IsMarkdownLabel = IsMarkdown(ElementMatch.Groups[3].Value),
+            IsMarkdownLabel = IsMarkdown(ElementMatch.Groups["label"].Value),
             ParentId = ParentId,
-            LineNumber = LineNumber
+            LineNumber = LineNumber,
+            PlacementHint = PlacementHint
         };
         if (ElementType == EnterpriseElementType.Junction)
         {
@@ -358,7 +369,8 @@ public static class EnterpriseParser
                 Id = Id,
                 Label = Element.Label,
                 ParentId = ParentId,
-                LineNumber = LineNumber
+                LineNumber = LineNumber,
+                PlacementHint = PlacementHint
             };
         }
     }
@@ -380,29 +392,30 @@ public static class EnterpriseParser
         Match RelationshipMatch,
         int LineNumber)
     {
-        string SourceId = RelationshipMatch.Groups[1].Value;
-        string KindToken = RelationshipMatch.Groups[2].Value;
+        string SourceId = RelationshipMatch.Groups["source"].Value;
+        string KindToken = RelationshipMatch.Groups["kind"].Value;
         if (!EnterpriseElementCatalog.TryResolveRelationship(KindToken, out EnterpriseRelationshipKind Kind))
         {
             Diagnostics.Add(CreateError(LineNumber, "unknown relationship type \"" + KindToken + "\""));
             return;
         }
 
-        string TargetId = RelationshipMatch.Groups[4].Value;
-        string? QuotedLabel = RelationshipMatch.Groups[5].Success ? Unquote(RelationshipMatch.Groups[5].Value) : null;
+        string TargetId = RelationshipMatch.Groups["target"].Value;
+        string? QuotedLabel = RelationshipMatch.Groups["label"].Success ? Unquote(RelationshipMatch.Groups["label"].Value) : null;
         EnterpriseRelationship Relationship = new EnterpriseRelationship
         {
             SourceId = SourceId,
             TargetId = TargetId,
             Kind = Kind,
             Label = QuotedLabel ?? string.Empty,
-            IsMarkdownLabel = IsMarkdown(RelationshipMatch.Groups[5].Value),
-            LineNumber = LineNumber
+            IsMarkdownLabel = IsMarkdown(RelationshipMatch.Groups["label"].Value),
+            LineNumber = LineNumber,
+            RoutingHint = ParseRoutingHint(RelationshipMatch, LineNumber, Diagnostics)
         };
 
-        if (RelationshipMatch.Groups[3].Success)
+        if (RelationshipMatch.Groups["qualifier"].Success)
         {
-            string Qualifier = RelationshipMatch.Groups[3].Value.Trim();
+            string Qualifier = RelationshipMatch.Groups["qualifier"].Value.Trim();
             if (!TryApplyQualifier(Relationship, Kind, Qualifier, LineNumber, Diagnostics))
             {
                 return;
@@ -472,6 +485,157 @@ public static class EnterpriseParser
             LineNumber,
             "qualifier \"(" + Qualifier + ")\" is not valid for " + EnterpriseElementCatalog.GetRelationshipName(Kind)));
         return false;
+    }
+
+    private static PlacementHintContract? ParsePlacementHint(Match Match, int LineNumber)
+    {
+        if (!Match.Groups["placement"].Success)
+        {
+            return null;
+        }
+
+        PlacementHintContract Hint = new PlacementHintContract { SourceLine = LineNumber };
+        if (Match.Groups["push"].Success)
+        {
+            Hint.Kind = PlacementHintKind.Push;
+            Hint.Direction = ParseHintDirection(Match.Groups["push"].Value);
+            return Hint;
+        }
+
+        Hint.Kind = Match.Groups["relative"].Value.ToLowerInvariant() switch
+        {
+            "above" => PlacementHintKind.Above,
+            "below" => PlacementHintKind.Below,
+            "left-of" => PlacementHintKind.LeftOf,
+            _ => PlacementHintKind.RightOf
+        };
+        Hint.PeerId = Match.Groups["peer"].Value;
+        if (Match.Groups["offset"].Success)
+        {
+            Hint.Offset = int.Parse(Match.Groups["offset"].Value, System.Globalization.CultureInfo.InvariantCulture);
+        }
+        return Hint;
+    }
+
+    private static RoutingHintContract? ParseRoutingHint(
+        Match Match,
+        int LineNumber,
+        List<EnterpriseDiagnostic> Diagnostics)
+    {
+        if (!Match.Groups["routing"].Success)
+        {
+            return null;
+        }
+
+        RoutingHintContract Hint = new RoutingHintContract { SourceLine = LineNumber };
+        HashSet<string> Seen = new(StringComparer.OrdinalIgnoreCase);
+        foreach (string RawPart in Match.Groups["routing"].Value.Split(','))
+        {
+            Match Part = Regex.Match(RawPart.Trim(), @"^(leave|enter|travel)\s+([NSEW])$", RegexOptions.IgnoreCase);
+            if (!Part.Success)
+            {
+                DeactivateHint(Hint, "invalid line hint \"" + RawPart.Trim() + "\"");
+                continue;
+            }
+
+            string Name = Part.Groups[1].Value.ToLowerInvariant();
+            if (!Seen.Add(Name))
+            {
+                DeactivateHint(Hint, "conflicting duplicate " + Name + " hint");
+                continue;
+            }
+
+            LayoutHintDirection Direction = ParseHintDirection(Part.Groups[2].Value);
+            if (Name == "leave") Hint.Leave = Direction;
+            else if (Name == "enter") Hint.Enter = Direction;
+            else Hint.Travel = Direction;
+        }
+
+        if (!Hint.IsActive)
+        {
+            Diagnostics.Add(CreateWarning(LineNumber, Hint.UnhonouredReason!));
+        }
+        return Hint;
+    }
+
+    private static LayoutHintDirection ParseHintDirection(string Value) => Value.ToUpperInvariant() switch
+    {
+        "N" => LayoutHintDirection.North,
+        "S" => LayoutHintDirection.South,
+        "E" => LayoutHintDirection.East,
+        _ => LayoutHintDirection.West
+    };
+
+    private static void ValidatePlacementHints(
+        EnterpriseDocument Document,
+        List<EnterpriseDiagnostic> Diagnostics)
+    {
+        List<(string Id, string? ParentId, PlacementHintContract Hint)> Hints = new();
+        foreach (EnterpriseElement Element in Document.Elements.Values)
+        {
+            if (Element.PlacementHint != null && !Document.Groups.ContainsKey(Element.Id))
+                Hints.Add((Element.Id, Element.ParentId, Element.PlacementHint));
+        }
+        foreach (EnterpriseGroup Group in Document.Groups.Values)
+        {
+            if (Group.PlacementHint != null)
+                Hints.Add((Group.Id, Group.ParentId, Group.PlacementHint));
+        }
+
+        Dictionary<string, string> AcceptedPeers = new(StringComparer.Ordinal);
+        foreach ((string Id, string? ParentId, PlacementHintContract Hint) in Hints.OrderBy(Item => Item.Hint.SourceLine))
+        {
+            if (!Hint.IsActive || Hint.Kind == PlacementHintKind.Push)
+                continue;
+
+            string PeerId = Hint.PeerId ?? string.Empty;
+            if (!Document.HasContainer(PeerId))
+            {
+                RejectPlacementHint(Hint, Diagnostics, "placement hint peer \"" + PeerId + "\" does not exist");
+                continue;
+            }
+
+            string? PeerParentId = ParentOf(Document, PeerId);
+            if (!string.Equals(ParentId, PeerParentId, StringComparison.Ordinal))
+            {
+                RejectPlacementHint(Hint, Diagnostics, "placement hint peer \"" + PeerId + "\" is in another group");
+                continue;
+            }
+
+            string Cursor = PeerId;
+            HashSet<string> Visited = new(StringComparer.Ordinal);
+            while (AcceptedPeers.TryGetValue(Cursor, out string? Next) && Visited.Add(Cursor))
+                Cursor = Next;
+            if (string.Equals(Cursor, Id, StringComparison.Ordinal))
+            {
+                RejectPlacementHint(Hint, Diagnostics, "placement hint conflicts with earlier hints by closing a peer circle");
+                continue;
+            }
+
+            AcceptedPeers[Id] = PeerId;
+        }
+    }
+
+    private static string? ParentOf(EnterpriseDocument Document, string Id)
+    {
+        if (Document.Groups.TryGetValue(Id, out EnterpriseGroup? Group)) return Group.ParentId;
+        return Document.Elements.TryGetValue(Id, out EnterpriseElement? Element) ? Element.ParentId : null;
+    }
+
+    private static void RejectPlacementHint(
+        PlacementHintContract Hint,
+        List<EnterpriseDiagnostic> Diagnostics,
+        string Reason)
+    {
+        Hint.IsActive = false;
+        Hint.UnhonouredReason = Reason;
+        Diagnostics.Add(CreateWarning(Hint.SourceLine, Reason));
+    }
+
+    private static void DeactivateHint(RoutingHintContract Hint, string Reason)
+    {
+        Hint.IsActive = false;
+        Hint.UnhonouredReason = Reason;
     }
 
     private static void ValidateReferences(EnterpriseDocument Document, List<EnterpriseDiagnostic> Diagnostics)
@@ -565,6 +729,14 @@ public static class EnterpriseParser
     {
         return new EnterpriseDiagnostic(
             MermaidDiagnosticSeverity.Error,
+            LineNumber,
+            "line " + LineNumber.ToString(System.Globalization.CultureInfo.InvariantCulture) + ": " + Message);
+    }
+
+    private static EnterpriseDiagnostic CreateWarning(int LineNumber, string Message)
+    {
+        return new EnterpriseDiagnostic(
+            MermaidDiagnosticSeverity.Warning,
             LineNumber,
             "line " + LineNumber.ToString(System.Globalization.CultureInfo.InvariantCulture) + ": " + Message);
     }

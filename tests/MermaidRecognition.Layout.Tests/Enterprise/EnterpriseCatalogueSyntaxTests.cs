@@ -18,6 +18,17 @@ public sealed class EnterpriseCatalogueSyntaxTests
         (93, 1), (94, 3), (102, 3)
     ];
 
+    private static readonly int[] PlacementHintScenarios =
+        [154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164];
+
+    [TestCaseSource(nameof(PlacementHintScenarios))]
+    public void PlacementHintScenario_ParsesWithoutErrors(int Number)
+    {
+        EnterpriseAnalysisResult Analysis = EnterpriseValidator.Analyze(ReadScenario(Number));
+        Assert.That(Analysis.Errors, Is.Empty,
+            $"A{Number}: {string.Join("; ", Analysis.Errors.Select(Item => Item.Message))}");
+    }
+
     [TestCaseSource(nameof(ValidSyntaxScenarios))]
     public void SyntaxGapScenario_RendersFromItsCatalogueSource(int Number)
     {

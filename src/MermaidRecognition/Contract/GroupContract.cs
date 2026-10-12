@@ -51,4 +51,7 @@ public sealed class GroupContract
     {
         get => _Direction; set => _Direction = value;
     }
+
+    /// <summary>Optional explicit placement requested by the source diagram.</summary>
+    public PlacementHintContract? PlacementHint { get; set; }
 }

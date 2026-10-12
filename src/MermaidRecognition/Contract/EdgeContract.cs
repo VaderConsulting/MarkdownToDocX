@@ -96,6 +96,9 @@ public sealed class EdgeContract
         get => _SourceSpan; set => _SourceSpan = value;
     }
 
+    /// <summary>Optional explicit endpoint and track directions requested by the source diagram.</summary>
+    public RoutingHintContract? RoutingHint { get; set; }
+
     private readonly List<string> _Classes = [];
 
     public IReadOnlyList<string> Classes => _Classes;
