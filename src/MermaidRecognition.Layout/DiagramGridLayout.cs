@@ -202,6 +202,8 @@ public static class DiagramGridLayout
         if (!Open)
             FlowchartConvergenceRouteRepair.Apply(Copy, Contract);
         if (!Open)
+            FlowchartSelfLoopLabelRouteRepair.Apply(Copy, Contract);
+        if (!Open)
             ApplyScoreGuardedTwoCornerRepair(Copy, Contract, BuildPlacedBounds(Placed, Frames));
         return Copy;
     }

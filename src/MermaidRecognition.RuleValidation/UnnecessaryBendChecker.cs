@@ -436,6 +436,8 @@ public static class UnnecessaryBendChecker
             .Where(Candidate => Candidate.Count >= 2 && IsOrthogonal(Candidate)
                 && MatchesEndpointSides(Candidate, Route.ExitSide, Route.EntrySide)
                 && HasMinimumRuns(Candidate) && IsClear(Candidate, Obstacles)
+                && (string.IsNullOrWhiteSpace(Route.Label)
+                    || !LabelHasNoLegalRun(Route with { Points = Candidate }))
                 && LegalLineInteraction(Candidate, OtherLines, Route.RoutedCrossings, Route.AllowedCrossings))
             .OrderBy(Candidate => Candidate.Count - 2)
             .ThenBy(Length)

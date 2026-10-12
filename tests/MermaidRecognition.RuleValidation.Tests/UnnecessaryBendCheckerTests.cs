@@ -124,6 +124,17 @@ public sealed class UnnecessaryBendCheckerTests
     }
 
     [Test]
+    public void LabelledRoute_IsNotShortenedToALineWithoutLabelRoom()
+    {
+        BendRoute LabelledLoop = Route("right", "right", (0, 15), (120, 15), (120, -15), (0, -15)) with
+        {
+            Label = "retry", LabelRequiredHorizontalPx = 60, LabelRequiredVerticalPx = 40
+        };
+
+        Assert.That(Check(LabelledLoop), Is.Null);
+    }
+
+    [Test]
     public void InvisibleLabelledEdge_IsNotCheckedAsRenderedLine()
     {
         var Contract = MermaidRecognizer.Parse("flowchart LR\nA[A] ~~~|skip| B[B]");
