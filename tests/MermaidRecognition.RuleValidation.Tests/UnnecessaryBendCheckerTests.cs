@@ -124,6 +124,15 @@ public sealed class UnnecessaryBendCheckerTests
     }
 
     [Test]
+    public void InvisibleLabelledEdge_IsNotCheckedAsRenderedLine()
+    {
+        var Contract = MermaidRecognizer.Parse("flowchart LR\nA[A] ~~~|skip| B[B]");
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+
+        Assert.That(UnnecessaryBendChecker.Check("invisible", Contract, Layout), Is.Empty);
+    }
+
+    [Test]
     public void Convergence_UsesStraightAlignedFeedAndFacingSideForOffsetFeed()
     {
         BendBox Target = new(0, 0, 120, 60);

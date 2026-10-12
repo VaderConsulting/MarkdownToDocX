@@ -80,13 +80,14 @@ public static class UnnecessaryBendChecker
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
         {
             if (Route.Points.Count < 2) continue;
+            Edges.TryGetValue(Route.EdgeId, out EdgeContract? Edge);
+            if (string.Equals(Edge?.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)) continue;
             List<BendObstacle> Obstacles = Bounds.Values
                 .Where(Box => Box.NodeId != Route.SourceId && Box.NodeId != Route.TargetId)
                 .Select(Box => new BendObstacle(Box.NodeId, Box.CenterX - Box.Width / 2.0,
                     Box.CenterY - Box.Height / 2.0, Box.CenterX + Box.Width / 2.0, Box.CenterY + Box.Height / 2.0))
                 .ToList();
-            bool HintNeeded = Edges.TryGetValue(Route.EdgeId, out EdgeContract? Edge)
-                && Edge.RoutingHint?.IsActive == true;
+            bool HintNeeded = Edge?.RoutingHint?.IsActive == true;
             List<BendSegment> OtherLines = Layout.EdgeRoutes.Where(Other => Other.EdgeId != Route.EdgeId)
                 .SelectMany(Other => Enumerable.Range(1, Other.Points.Count - 1).Select(Index =>
                     new BendSegment(Other.EdgeId,
