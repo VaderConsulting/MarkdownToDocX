@@ -52,6 +52,8 @@ public sealed class CompactLayoutMetricTests
         DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Source).Document);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
         FlowchartLayoutScore.Result Metrics = FlowchartLayoutScore.Measure(Contract, Layout);
+        Assert.That(Metrics.Disconnections, Is.Zero,
+            $"A{Number} has {Metrics.Disconnections} line endpoints detached from their source or target.");
         TestContext.Out.WriteLine(
             $"| A{Number} | {Metrics.Width:0} x {Metrics.Height:0} | {Metrics.Width / Metrics.Height:0.000} "
             + $"| {Metrics.Overlaps} | {Metrics.Crossings} | {Metrics.Bends} "
