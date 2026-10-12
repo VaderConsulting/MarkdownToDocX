@@ -55,23 +55,12 @@ internal static class FlowchartDecisionBranchRouteRepair
             List<FlowchartLayoutPoint> Candidate = Normalize([New(Start), New(Corner), New(End)]);
             if (Candidate.Count != 3 || !Legal(Candidate, Route, Layout, Contract, Bounds)) continue;
 
-            List<FlowchartLayoutPoint> Original = Route.Points.Select(Copy).ToList();
-            string OriginalExit = Route.ExitSide, OriginalEntry = Route.EntrySide;
-            FlowchartLayoutScore.Result Before = FlowchartLayoutScore.Measure(Contract, Layout);
+            // Rules 3.8 and 3.9 are routing requirements, so a legal one-corner
+            // branch replaces the rejected two-corner route even when its line
+            // bounds make the diagram's shape component slightly worse.
             Route.Points.Clear(); Route.Points.AddRange(Candidate.Select(Copy));
             Route.ExitSide = CrossSide(!TargetIsRight, Direction);
             Route.EntrySide = TopFree ? UpstreamSide(Direction) : CrossSide(TargetIsRight, Direction);
-            FlowchartLayoutScore.Result After = FlowchartLayoutScore.Measure(Contract, Layout);
-            bool Keep = After.Overlaps == 0 && After.Crossings <= Before.Crossings
-                && (Before.Score.HasValue
-                    ? After.Score.HasValue && After.Score.Value < Before.Score.Value - 0.001
-                    : RejectingFaults(After) < RejectingFaults(Before)
-                        || RejectingFaults(After) == RejectingFaults(Before) && After.Bends < Before.Bends);
-            if (!Keep)
-            {
-                Route.Points.Clear(); Route.Points.AddRange(Original);
-                Route.ExitSide = OriginalExit; Route.EntrySide = OriginalEntry;
-            }
         }
     }
 
@@ -102,8 +91,6 @@ internal static class FlowchartDecisionBranchRouteRepair
         return true;
     }
 
-    private static int RejectingFaults(FlowchartLayoutScore.Result Result) =>
-        Result.Violations.Count(Failure => Failure.Kind is not "ArrangementKept" and not "NodeOverlap");
     private static bool IsHinted(DiagramContract Contract, FlowchartLayoutEdgeRoute Route) => Contract.Edges.Any(Edge =>
         Edge.SourceId == Route.SourceId && Edge.TargetId == Route.TargetId && Edge.RoutingHint?.IsActive == true);
     private static bool Visible(EdgeContract Edge) =>

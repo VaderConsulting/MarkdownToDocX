@@ -27,4 +27,20 @@ public sealed class FlowchartDecisionBranchRouteRepairTests
             Assert.That(Route.Points[^1].Y, Is.EqualTo(Target.CenterY + Target.Height / 2).Within(0.5));
         }
     }
+
+    [Test]
+    public void Layout_DecisionBesideReturnLoop_StillUsesFacingVertexAndOneCorner()
+    {
+        var Contract = MermaidRecognizer.Parse("""
+            flowchart TB
+            Poll --> Handle{Handled?}
+            Handle -->|Yes| Ack
+            Handle -->|No| backoff
+            backoff --> Poll
+            """);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+
+        foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes.Where(Route => Route.SourceId == "Handle"))
+            Assert.That(Route.Points, Has.Count.EqualTo(3), Route.TargetId + " must use one corner");
+    }
 }
