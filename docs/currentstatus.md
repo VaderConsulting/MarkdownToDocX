@@ -41,7 +41,7 @@ Failed attempt: A142 stopped with the valid best at 51 crossings. A reproduced p
 8. **Housekeeping — complete.** The vendored Mermaid tree has no tracked differences, package version 11.14.0 matches the pin, and `flowchart-elk` remains deferred.
 9. **Final check — complete.** All five suites ran on Windows. The release converter regenerated `flow.docx`, `enterprise.docx` and `EIP.docx`; all three packages open as valid ZIP containers with document XML and 148, 151 and 342 embedded images respectively.
 10. **Code slop cleanup — complete with unsafe steps recorded.** Steps 1, 3 to 6, 8 and 10 are complete. They removed the Sample03 oracle and 251 duplicated allocator lines, isolated render state, narrowed fallback behavior, named geometry policy, documented the 21 route passes, and found no IDE0051, IDE0052, IDE0060 or CA1822 findings. Steps 2, 7 and 9 were not forced because they still changed behavior or required wider state and call-contract rewrites. All 321 metrics and suite counts stayed at 1074/0, 805/57, 49/10, 47/0 and 60/0.
-11. **Bend tests — routing step complete.** The checker and eight unit tests cover endpoint sides, obstacles, other routed lines, hints and better-route rechecking. The catalogue ratchet checks all 321 scenarios. A final two-corner repair searches measured obstacle-edge tracks and keeps only a lower real layout score; 63 diagrams improve, none gains an overlap or crossing, and rejected A113, A115 and A153 lose crossings. One detour remains in F136: shortening it raises that diagram's score from 202.3 to 217.9, so rule 2.14 rejects the change. Three approaches were tried: the first exposed a later A152 detour, the second raised five diagram scores, and the retained score guard safely rejects those regressions. Checks a, b, c and e are zero; check d is one. Next: final suites and document regeneration.
+11. **Bend tests — complete with one recorded limit.** The checker and eight unit tests cover endpoint sides, obstacles, other routed lines, hints and better-route rechecking. The catalogue ratchet checks all 321 scenarios. A final two-corner repair searches measured obstacle-edge tracks, preserves specialised terminals and keeps only a lower real layout score; 63 diagrams improve, none gains an overlap or crossing, and rejected A113, A115 and A153 lose crossings. One detour remains in F136: shortening it raises that diagram's score from 202.3 to 217.9, so rule 2.14 rejects the change. Three approaches exposed a later A152 detour, raised five diagram scores, then safely rejected those regressions. Checks a, b, c and e are zero; check d is one. All five suites completed and the release converter regenerated the three review documents with 148, 151 and 342 images.
 
 ## Stretch goals
 
@@ -57,7 +57,7 @@ Windows baseline measured on 11 October 2026 with `dotnet test`, before task 1 i
 | --- | ---: | ---: | ---: | ---: |
 | `MermaidRecognition.Tests` | 1069 | 0 | 1074 | 0 |
 | `MermaidRecognition.Layout.Tests` | 724 | 31 | 805 | 57 |
-| `MermaidRecognition.RuleValidation.Tests` | 49 | 10 | 49 | 10 |
+| `MermaidRecognition.RuleValidation.Tests` | 49 | 10 | 58 | 10 |
 | `MermaidRecognition.NaiadAdapter.Tests` | 47 | 0 | 47 | 0 |
 | `MDConverter.Tests` | 59 | 0 | 60 | 0 |
 
