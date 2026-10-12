@@ -99,7 +99,7 @@ public sealed class UnnecessaryBendCheckerTests
     {
         BendRoute LabelJog = Route("right", "top", (0, 90), (30, 90), (30, 60)) with
         {
-            Label = "decision label", LabelRequiredLengthPx = 90
+            Label = "decision label", LabelRequiredHorizontalPx = 90, LabelRequiredVerticalPx = 90
         };
         Assert.That(Check(LabelJog)?.Check, Is.EqualTo('g'));
     }
@@ -126,6 +126,20 @@ public sealed class UnnecessaryBendCheckerTests
     }
 
     [Test]
+    public void Convergence_DoesNotClaimFacingSideRouteWhenAnotherBoxBlocksIt()
+    {
+        BendRoute GapTop = Route("bottom", "top", (-120, 90), (-120, 60), (0, 60), (0, 30)) with
+        {
+            SourceBox = new BendBox(-120, 120, 120, 60),
+            TargetBox = new BendBox(0, 0, 120, 60),
+            IncomingCount = 2
+        };
+        BendObstacle BlockingBox = new("middle", -110, -20, -70, 20);
+
+        Assert.That(UnnecessaryBendChecker.CheckRoute("unit", GapTop, [BlockingBox]), Is.Null);
+    }
+
+    [Test]
     public void FanBetweenColumns_RejectsFarSideAndSharedRail()
     {
         BendBox Source = new(0, 60, 120, 60);
@@ -140,7 +154,7 @@ public sealed class UnnecessaryBendCheckerTests
         };
         Assert.That(Check(Good), Is.Null);
         Assert.That(Check(FarSide)?.Check, Is.EqualTo('i'));
-        BendSegment Shared = new("fan-2", new BendPoint(60, 60), new BendPoint(180, 60));
+        BendSegment Shared = new("fan-2", new BendPoint(60, 60), new BendPoint(180, 60), "source", "other");
         Assert.That(UnnecessaryBendChecker.CheckRoute("unit", Good, [], [Shared])?.Check, Is.EqualTo('i'));
     }
 
