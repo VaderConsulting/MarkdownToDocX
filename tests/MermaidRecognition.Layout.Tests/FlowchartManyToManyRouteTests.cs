@@ -24,7 +24,10 @@ public sealed class FlowchartManyToManyRouteTests
 
         AssertNoInteraction(Layout, "Hub", "W1", "Hub", "W2");
         AssertNoInteraction(Layout, "Hub", "W1", "Hub", "W3");
+        AssertNoInteraction(Layout, "Hub", "W2", "Hub", "W3");
         AssertNoInteraction(Layout, "W1", "Out2", "W1", "Out1");
+        AssertNoInteraction(Layout, "W2", "Out2", "W2", "Out3");
+        AssertNoInteraction(Layout, "W3", "Out1", "W3", "Out3");
     }
 
     private static void AssertNoInteraction(FlowchartLayoutResult Layout,

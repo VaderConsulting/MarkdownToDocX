@@ -88,6 +88,32 @@ internal static class FlowchartManyToManyRoutes
                 }
                 if (!Improved) break;
             }
+            // A track can be trapped in a swap-local minimum: moving it past
+            // several neighbours may improve the fan although no single swap
+            // does. Try every stable insertion and keep only strict decreases.
+            while (AllUnlabelled)
+            {
+                List<FlowchartLayoutEdgeRoute>? BetterOrder = null;
+                int Better = Best;
+                for (int From = 0; From < Order.Count; From++)
+                for (int To = 0; To < Order.Count; To++)
+                {
+                    if (From == To) continue;
+                    List<FlowchartLayoutEdgeRoute> Candidate = Order.ToList();
+                    FlowchartLayoutEdgeRoute Moving = Candidate[From];
+                    Candidate.RemoveAt(From);
+                    Candidate.Insert(To, Moving);
+                    int CandidateCrossings = Crossings(Candidate);
+                    if (CandidateCrossings < Better)
+                    {
+                        Better = CandidateCrossings;
+                        BetterOrder = Candidate;
+                    }
+                }
+                if (BetterOrder == null) break;
+                Order = BetterOrder;
+                Best = Better;
+            }
             var Paths = PathsFor(Order);
             if (Paths.Any(Item => HitsNode(Item.Value, Item.Key, Bounds))) continue;
             foreach (FlowchartLayoutEdgeRoute Route in Edges)
