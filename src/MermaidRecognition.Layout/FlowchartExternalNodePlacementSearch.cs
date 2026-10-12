@@ -57,28 +57,6 @@ public static class FlowchartExternalNodePlacementSearch
             BestScore = FacingScore;
         }
 
-        if (FlowchartSample03OracleLayout.MatchesSample03(Contract))
-        {
-            FlowchartLayoutResult Oracle = FlowchartSample03OracleLayout.Build(Contract, Bounds);
-            List<FlowchartLayoutNodeBounds> OracleResult = [];
-            foreach (FlowchartLayoutNodeBounds Original in Bounds)
-            {
-                FlowchartLayoutNodeBounds Chosen = Original;
-                foreach (FlowchartLayoutNodeBounds OracleBounds in Oracle.NodeBounds)
-                {
-                    if (string.Equals(OracleBounds.NodeId, Original.NodeId, StringComparison.Ordinal))
-                    {
-                        Chosen = OracleBounds;
-                        break;
-                    }
-                }
-
-                OracleResult.Add(Chosen);
-            }
-
-            return OracleResult;
-        }
-
         for (int Pass = 0; Pass < 3; Pass++)
         {
             bool Improved = false;

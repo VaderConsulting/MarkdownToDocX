@@ -40,7 +40,8 @@ Failed attempt: A142 stopped with the valid best at 51 crossings. A reproduced p
 7. **Remaining test failures — reviewed.** Recognition is 1074/0, NaiadAdapter 47/0 and MDConverter 60/0. RuleValidation remains at its 49/10 baseline. Layout is 805/57; its failures include old curved/default route expectations, old shoulder coordinates, quality-gate failures and the recorded perpendicular-attachment faults. Rule 6 does not permit rewriting those tests, and the recorded investigations did not produce a safe shared fix.
 8. **Housekeeping — complete.** The vendored Mermaid tree has no tracked differences, package version 11.14.0 matches the pin, and `flowchart-elk` remains deferred.
 9. **Final check — complete.** All five suites ran on Windows. The release converter regenerated `flow.docx`, `enterprise.docx` and `EIP.docx`; all three packages open as valid ZIP containers with document XML and 148, 151 and 342 embedded images respectively.
-10. **Code slop cleanup.** Refactor without changing output, as set out in docs/BRIEF-CODE-SLOP-CLEANUP.md. Start with the scenario-specific layout and the fixed caps. Report test counts before and after each step.
+10. **Code slop cleanup — step 1 complete.** Removed the 220-line Sample03 oracle and its 22-line gate. All 321 catalogue metrics are identical before and after; the five suites remain 1074/0, 805/57, 49/10, 47/0 and 60/0. The 18 Sample03 tests remain 17 pass and one recorded failure, so none depended on the oracle. Step 2, fixed caps, is next.
+11. **Bend tests.** Build the unnecessary-bend checker and tests set out in docs/BRIEF-BEND-TESTS.md, record the baseline per scenario, then remove the causes generically. Report the count per scenario before and after.
 
 ## Stretch goals
 
@@ -81,6 +82,7 @@ If the vendored Mermaid changes, update this pin, the recognition fixtures and `
 - `BRIEF-ENTERPRISE-SYNTAX-GAPS.md` and `BRIEF-LAYOUT-MODE.md` are the briefs for the two next build tasks.
 - `BRIEF-PLACEMENT-HINTS.md` is the brief for hint parsing, placement, routing and scoring (rule 2.21).
 - `BRIEF-CODE-SLOP-CLEANUP.md` is the brief for removing code clutter without changing output.
+- `BRIEF-BEND-TESTS.md` is the brief for the unnecessary-bend checker, its baseline and the routing fixes.
 - `flow.md`, `enterprise.md` and `EIP.md` (repository root) and `enterprise/samples/` in this folder are the stress-test inputs. `sequence.md`, `class.md`, `state.md` and `entityrelationship.md` in this folder are the other catalogues.
 
 ## Maintenance rule
