@@ -18,6 +18,8 @@ internal static class FlowchartRoutingHints
         FlowchartDirection Direction)
     {
         bool Horizontal = Direction is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft;
+        Dictionary<(FlowchartLayoutEdgeRoute Route, bool Source), (double X, double Y)> HintedPorts =
+            SelectHintedPorts(Layout, Contract, Bounds);
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
         {
             EdgeContract? Edge = DiagramGridLayout.FindContractEdge(Contract, Route);
@@ -31,8 +33,10 @@ internal static class FlowchartRoutingHints
                 ? DiagramGridLayout.HintSide(Hint.Leave.Value) : Route.ExitSide;
             string Entry = Hint.Enter.HasValue
                 ? DiagramGridLayout.HintSide(Hint.Enter.Value) : Route.EntrySide;
-            (double StartX, double StartY) = ResolveEndpoint(Route, Source, Exit, true);
-            (double EndX, double EndY) = ResolveEndpoint(Route, Target, Entry, false);
+            (double StartX, double StartY) = HintedPorts.TryGetValue((Route, true), out var StartPort)
+                ? StartPort : ResolveEndpoint(Route, Source, Exit, true);
+            (double EndX, double EndY) = HintedPorts.TryGetValue((Route, false), out var EndPort)
+                ? EndPort : ResolveEndpoint(Route, Target, Entry, false);
             Nodes.TryGetValue(Route.SourceId, out NodeContract? SourceNode);
             Nodes.TryGetValue(Route.TargetId, out NodeContract? TargetNode);
             List<(double X, double Y)> Path = DiagramGridRouteBuilder.BuildRoute(
@@ -58,6 +62,57 @@ internal static class FlowchartRoutingHints
         if (Contract.Nodes.Any(Node => Node.PlacementHint?.IsActive == true)
             || Contract.Groups.Any(Group => Group.PlacementHint?.IsActive == true))
             RepairAutomaticRoutes(Layout, Contract, Bounds, Nodes, Direction, Horizontal);
+    }
+
+    private static Dictionary<(FlowchartLayoutEdgeRoute Route, bool Source), (double X, double Y)> SelectHintedPorts(
+        FlowchartLayoutResult Layout,
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds)
+    {
+        var Ends = new List<(FlowchartLayoutEdgeRoute Route, bool Source,
+            FlowchartLayoutNodeBounds Box, FlowchartLayoutNodeBounds Other, string Side)>();
+        Dictionary<string, NodeContract> Nodes = Contract.Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
+        foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
+        {
+            EdgeContract? Edge = DiagramGridLayout.FindContractEdge(Contract, Route);
+            if (Edge?.RoutingHint?.IsActive != true
+                || !Bounds.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds? Source)
+                || !Bounds.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds? Target)) continue;
+            if (!IsDiamond(Route.SourceId))
+                Ends.Add((Route, true, Source, Target, Edge.RoutingHint.Leave.HasValue
+                    ? DiagramGridLayout.HintSide(Edge.RoutingHint.Leave.Value) : Route.ExitSide));
+            if (!IsDiamond(Route.TargetId))
+                Ends.Add((Route, false, Target, Source, Edge.RoutingHint.Enter.HasValue
+                    ? DiagramGridLayout.HintSide(Edge.RoutingHint.Enter.Value) : Route.EntrySide));
+        }
+
+        var Result = new Dictionary<(FlowchartLayoutEdgeRoute Route, bool Source), (double X, double Y)>();
+        foreach (var Group in Ends.GroupBy(End => (End.Box.NodeId, End.Side)))
+        {
+            var Ordered = Group.Key.Side is "left" or "right"
+                ? Group.OrderByDescending(End => End.Other.CenterY).ThenBy(End => End.Route.EdgeId, StringComparer.Ordinal).ToArray()
+                : Group.OrderBy(End => End.Other.CenterX).ThenBy(End => End.Route.EdgeId, StringComparer.Ordinal).ToArray();
+            double Length = Group.Key.Side is "left" or "right" ? Ordered[0].Box.Height : Ordered[0].Box.Width;
+            int[] Slots = DiagramGridMetrics.EqualCentres(Math.Max(1, (int)Math.Floor(Length)), Ordered.Length);
+            for (int Index = 0; Index < Ordered.Length; Index++)
+            {
+                var End = Ordered[Index];
+                double Offset = Slots[Index] - Length / 2.0;
+                (double X, double Y) Port = End.Side switch
+                {
+                    "left" => (End.Box.CenterX - End.Box.Width / 2.0, End.Box.CenterY + Offset),
+                    "right" => (End.Box.CenterX + End.Box.Width / 2.0, End.Box.CenterY + Offset),
+                    "top" => (End.Box.CenterX + Offset, End.Box.CenterY + End.Box.Height / 2.0),
+                    _ => (End.Box.CenterX + Offset, End.Box.CenterY - End.Box.Height / 2.0)
+                };
+                Result[(End.Route, End.Source)] = Port;
+            }
+        }
+
+        return Result;
+
+        bool IsDiamond(string Id) => Nodes.TryGetValue(Id, out NodeContract? Node)
+            && FlowchartDagrePresentation.IsDiamondShape(Node.Shape);
     }
 
     private static void RepairAutomaticRoutes(

@@ -80,6 +80,10 @@ public static class DiagramGridLayout
             }
 
             AlignFanInMergeColumn(Contract, Placed, Horizontal);
+            if (!ShouldUseSpineColumnLayout(Contract, Placed, Direction))
+            {
+                AlignForwardMainChainColumn(Contract, Placed, Horizontal);
+            }
             if (ShouldUseSpineColumnLayout(Contract, Placed, Direction))
             {
                 AlignTwoWayDecisionSideTargets(Contract, Placed);
@@ -199,11 +203,12 @@ public static class DiagramGridLayout
             FlowchartTwoCornerRouteRepair.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
         if (!Open)
             FlowchartManyToManyRoutes.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
+        // Seed the explicit ports before generic port-side repair; the final
+        // pass below preserves these selected ports after all route repairs.
         FlowchartRoutingHints.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction);
         WriteBack(Copy, Placed, Frames);
         if (!Open)
             FlowchartPortSideRouteRepair.Apply(Copy, Contract);
-        FlowchartRoutingHints.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction);
         if (!Open)
             FlowchartDecisionBranchRouteRepair.Apply(Copy, Contract);
         if (!Open)
@@ -223,6 +228,10 @@ public static class DiagramGridLayout
         }
         FlowchartCircularJunctionLayout.RebuildFans(
             Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction);
+        // Placement and every automatic route repair must finish before line
+        // hints are applied: later repair passes must not undo the requested
+        // sides or travel direction.
+        FlowchartRoutingHints.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction);
         return Copy;
     }
 
@@ -2733,8 +2742,16 @@ public static class DiagramGridLayout
             }
             else
             {
-                Exit = string.IsNullOrEmpty(Item.Route.ExitSide)
-                    ? ChooseElbowExitSide(
+                bool IsJunctionRoute = IsEnterpriseJunction(Item.Source.Id, Nodes)
+                    || IsEnterpriseJunction(Item.Target.Id, Nodes);
+                if (IsJunctionRoute || string.IsNullOrEmpty(Item.Route.ExitSide)
+                    || string.IsNullOrEmpty(Item.Route.EntrySide))
+                {
+                    // A junction branch must enter on the side that faces its
+                    // source. Dagre's sides belong to its old route and can
+                    // leave a needless second corner or attach to the far
+                    // side. Explicit line hints were handled above.
+                    Exit = ChooseElbowExitSide(
                         Contract,
                         Item.Source,
                         Item.Target,
@@ -2742,11 +2759,14 @@ public static class DiagramGridLayout
                         ReservedCenterPorts,
                         ObstacleBounds,
                         Item.Route.SourceId,
-                        Item.Route.TargetId)
-                    : Item.Route.ExitSide;
-                Entry = string.IsNullOrEmpty(Item.Route.EntrySide)
-                    ? ChooseElbowEntrySide(Item.Target, Item.Source, Direction, Exit)
-                    : Item.Route.EntrySide;
+                        Item.Route.TargetId);
+                    Entry = ChooseElbowEntrySide(Item.Target, Item.Source, Direction, Exit);
+                }
+                else
+                {
+                    Exit = Item.Route.ExitSide;
+                    Entry = Item.Route.EntrySide;
+                }
             }
             double SourceCross = Horizontal ? Item.Source.CenterY : Item.Source.CenterX;
             double TargetCross = Horizontal ? Item.Target.CenterY : Item.Target.CenterX;
@@ -2855,6 +2875,14 @@ public static class DiagramGridLayout
         if (ById != null) return ById;
         return Contract.Edges.Where(Edge => Edge.SourceId == Route.SourceId && Edge.TargetId == Route.TargetId)
             .OrderBy(Edge => Edge.CreationIndex).FirstOrDefault();
+    }
+
+    private static bool IsEnterpriseJunction(string NodeId, IReadOnlyDictionary<string, NodeContract> Nodes)
+    {
+        return Nodes.TryGetValue(NodeId, out NodeContract? Node)
+            && Node.Metadata.TryGetValue("enterpriseElementType", out MermaidMetadataValue? Metadata)
+            && Metadata is RawMetadata Raw
+            && string.Equals(Raw.RawValue, "Junction", StringComparison.Ordinal);
     }
 
     internal static string HintSide(LayoutHintDirection Direction) => Direction switch
@@ -3838,13 +3866,19 @@ public static class DiagramGridLayout
             HasForwardIncoming.Add(Edge.TargetId);
         }
 
+        Dictionary<string, int> DeclaredOrder = Contract.Nodes
+            .Select((Node, Index) => (Node.Id, Index))
+            .ToDictionary(Item => Item.Id, Item => Item.Index, StringComparer.Ordinal);
         string? StartId = null;
-        foreach (GridNode Node in Placed)
+        int LongestRun = -1;
+        foreach (GridNode Node in Placed.Where(Node => !HasForwardIncoming.Contains(Node.Id))
+            .OrderBy(Node => DeclaredOrder.TryGetValue(Node.Id, out int Order) ? Order : int.MaxValue))
         {
-            if (!HasForwardIncoming.Contains(Node.Id))
+            int RunLength = MainRunLength(Node.Id);
+            if (RunLength > LongestRun)
             {
                 StartId = Node.Id;
-                break;
+                LongestRun = RunLength;
             }
         }
 
@@ -3897,6 +3931,31 @@ public static class DiagramGridLayout
             {
                 SpineNode.Column = SpineColumn;
             }
+        }
+
+        int MainRunLength(string RootId)
+        {
+            HashSet<string> Visited = new HashSet<string>(StringComparer.Ordinal);
+            string? Current = RootId;
+            while (Current is not null && ById.ContainsKey(Current) && Visited.Add(Current))
+            {
+                EdgeContract? Next = Contract.Edges
+                    .Where(Edge => string.Equals(Edge.SourceId, Current, StringComparison.Ordinal)
+                        && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
+                        && !BackEdges.Contains(Edge)
+                        && ById.ContainsKey(Edge.TargetId))
+                    .OrderBy(Edge => Edge.CreationIndex)
+                    .FirstOrDefault();
+                if (Next is null || !ById.TryGetValue(Next.TargetId, out GridNode? NextNode)
+                    || NextNode.Rank <= ById[Current].Rank)
+                {
+                    break;
+                }
+
+                Current = Next.TargetId;
+            }
+
+            return Visited.Count;
         }
     }
 

@@ -63,6 +63,8 @@ Failed attempt: requiring each track change to lower its own normalized crossing
 
 The pictured route repairs are committed and their focused checks pass for A54, A72, A100, A112, A150 and A151. They add a 10-point bend cost, 20 points per detached end, deterministic alternative-port search, same-side return corridors, aligned simplification and circular-junction port normalization. Two follow-up candidates were rejected: exhaustive all-side port search did not recover the wider fan/rank tests, and guarding all terminal simplification restored some older routes but regressed A72 and A100.
 
+Placement-hint follow-up: line hints are now reapplied after node placement and automatic route repair, with multiple hinted endpoints on one side evenly distributed. A157 against-flow placement and the A167–A169 render checks pass, as do 11 focused placement, routing and junction tests. The existing `Score_SubtractsHonouredHintsAndCountsHintedBends` assertion still assumes a 2-point bend cost; the current rule charges 10, so that stale assertion remains failing and was not changed.
+
 ## Stretch goals
 
 These must be done, but not yet. Start them only when Dave says so.

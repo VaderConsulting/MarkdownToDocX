@@ -6,6 +6,60 @@ namespace MermaidRecognition.Layout.Tests.Enterprise;
 [TestFixture]
 public sealed class JunctionContinuationTests
 {
+    [Test]
+    public void LongestForwardMainRun_OwnsTheSharedColumn()
+    {
+        var Document = EnterpriseValidator.Analyze("""
+            enterprise TB
+            technology-event releaseReady "Release Ready"
+            technology-process deploy "Deploy Release"
+            technology-function hosting "Application Hosting"
+            technology-interaction replicate "Session Replication"
+            technology-service hostingSvc "Hosting Service"
+            releaseReady -triggering-> deploy
+            deploy -flow-> hosting "release"
+            hosting -realization-> hostingSvc
+            replicate -flow-> hosting
+            """).Document;
+        var Layout = EnterpriseLayoutEngine.Layout(Document);
+        double[] MainRun = new[] { "releaseReady", "deploy", "hosting", "hostingSvc" }
+            .Select(Id => Layout.Nodes[Id].AbsoluteX + Layout.Nodes[Id].Width / 2).ToArray();
+        Assert.That(MainRun.Max() - MainRun.Min(), Is.LessThanOrEqualTo(1.0));
+    }
+
+    [Test]
+    public void SplitBranch_EntersLowerOffsetTargetFromTheFacingRightSide()
+    {
+        var Document = EnterpriseValidator.Analyze("""
+            enterprise TB
+            business-process assess "Assess Return"
+            or-junction choice "Refund or replace?"
+            business-process refund "Issue Refund"
+            business-process replace "Send Replacement"
+            junction-or choice2
+            junction plainJoin
+            junction-and andJoin
+            business-process close "Close Case"
+            assess -flow-> choice
+            choice -flow-> refund
+            choice -flow-> replace
+            refund -flow-> choice2
+            replace -flow-> choice2
+            choice2 -flow-> plainJoin
+            plainJoin -flow-> andJoin
+            andJoin -flow-> close
+            """).Document;
+        var Layout = EnterpriseLayoutEngine.Layout(Document);
+        var Routes = EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes);
+        var Branch = Routes.Single(Route => Route.Relationship.SourceId == "choice"
+            && Route.Relationship.TargetId == "refund");
+        var Target = Layout.Nodes["refund"];
+
+        Assert.That(Branch.SvgPoints.Count, Is.LessThanOrEqualTo(4));
+        Assert.That(Branch.SvgPoints[^1].X, Is.EqualTo(Target.AbsoluteX + Target.Width).Within(0.01));
+        Assert.That(Branch.SvgPoints[^1].Y, Is.EqualTo(Target.AbsoluteY + Target.Height / 2).Within(0.01));
+    }
+
     [TestCase("TB")]
     [TestCase("BT")]
     public void CompactedCollector_KeepsItsTailAlignedAndItsSplitUsesOneBend(string Direction)

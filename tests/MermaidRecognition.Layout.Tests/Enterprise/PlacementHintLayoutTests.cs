@@ -1,3 +1,4 @@
+using MermaidRecognition.Contract;
 using MermaidRecognition.Kinds.Enterprise;
 using MermaidRecognition.Layout.Enterprise;
 
@@ -6,6 +7,39 @@ namespace MermaidRecognition.Layout.Tests.Enterprise;
 [TestFixture]
 public sealed class PlacementHintLayoutTests
 {
+    [Test]
+    public void AgainstFlowChain_HonoursAllRelativeHintsBeforeRouting()
+    {
+        const string Source = """
+            enterprise
+              application-component c1 "Step 1"
+              application-component c2 "Step 2" above c1
+              application-component c3 "Step 3" above c2
+              application-component c4 "Step 4" above c3
+              application-component c5 "Step 5" above c4
+              application-component c6 "Step 6" above c5
+              c1 -flow-> c2
+              c2 -flow-> c3
+              c3 -flow-> c4
+              c4 -flow-> c5
+              c5 -flow-> c6
+            """;
+        EnterpriseDocument Document = EnterpriseValidator.Analyze(Source).Document;
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(Document);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        FlowchartLayoutNodeBounds[] Chain = Enumerable.Range(1, 6)
+            .Select(Index => Layout.NodeBounds.Single(Node => Node.NodeId == $"c{Index}"))
+            .ToArray();
+        Assert.Multiple(() =>
+        {
+            Assert.That(Chain.Select(Node => Node.CenterX).Distinct().Count(), Is.EqualTo(1));
+            for (int Index = 1; Index < Chain.Length; Index++)
+                Assert.That(Chain[Index].CenterY, Is.GreaterThan(Chain[Index - 1].CenterY));
+            Assert.That(Layout.EdgeRoutes, Has.Count.EqualTo(5));
+            Assert.That(Layout.EdgeRoutes.All(Route => Route.Points.Count == 2), Is.True);
+        });
+    }
+
     [Test]
     public void RelativeHints_KeepSourceOrderedRow()
     {

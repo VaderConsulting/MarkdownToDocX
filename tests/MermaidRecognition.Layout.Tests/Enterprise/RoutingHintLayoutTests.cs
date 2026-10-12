@@ -22,12 +22,17 @@ public sealed class RoutingHintLayoutTests
             """;
 
         (DiagramContract Contract, FlowchartLayoutResult Layout) = LayoutOf(Source);
+        double[] SourcePorts = Layout.EdgeRoutes.Select(Route => Route.Points[0].X).Order().ToArray();
+        double HubCentre = Layout.NodeBounds.Single(Node => Node.NodeId == "hub").CenterX;
         Assert.Multiple(() =>
         {
             Assert.That(Layout.EdgeRoutes.All(Route => Route.ExitSide == "bottom"), Is.True);
             Assert.That(Layout.EdgeRoutes.All(Route => Route.EntrySide == "top"), Is.True);
             Assert.That(Layout.EdgeRoutes.Select(Route => (Route.Points[0].X, Route.Points[0].Y)).Distinct().Count(),
                 Is.EqualTo(3));
+            Assert.That(SourcePorts[1], Is.EqualTo(HubCentre).Within(0.01));
+            Assert.That(SourcePorts[1] - SourcePorts[0], Is.EqualTo(SourcePorts[2] - SourcePorts[1]).Within(0.01));
+            Assert.That(SourcePorts[0] + SourcePorts[2], Is.EqualTo(2 * HubCentre).Within(0.01));
             Assert.That(Contract.Edges.All(Edge => Edge.RoutingHint!.UnhonouredReason == null), Is.True);
         });
     }
@@ -68,6 +73,7 @@ public sealed class RoutingHintLayoutTests
         Assert.Multiple(() =>
         {
             Assert.That(Route.ExitSide, Is.EqualTo("top"));
+            Assert.That(Route.Points[0].X, Is.EqualTo(Layout.NodeBounds.Single(Node => Node.NodeId == "source").CenterX).Within(0.01));
             Assert.That(Route.EntrySide, Is.EqualTo("bottom"));
             Assert.That(DiagramGridRouteBuilder.HasTravelDirection(Path, LayoutHintDirection.West), Is.True);
             Assert.That(Contract.Edges[0].RoutingHint!.UnhonouredReason, Is.Null);
