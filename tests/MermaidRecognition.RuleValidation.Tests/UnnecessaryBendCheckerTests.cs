@@ -95,6 +95,21 @@ public sealed class UnnecessaryBendCheckerTests
     }
 
     [Test]
+    public void DecisionOuterBranch_UsesFacingSideWhenTopCentreIsOccupied()
+    {
+        BendBox Diamond = new(0, 120, 120, 120);
+        BendBox Target = new(-180, 0, 120, 60);
+        BendRoute SideEntry = Route("left", "right", (-60, 120), (-60, 0), (-120, 0)) with
+        {
+            SourceBox = Diamond, TargetBox = Target, SourceIsDiamond = true, OutgoingCount = 2
+        };
+        BendSegment TopOccupant = new("other", new BendPoint(-180, 90), new BendPoint(-180, 30),
+            "other-source", "target");
+
+        Assert.That(UnnecessaryBendChecker.CheckRoute("unit", SideEntry, [], [TopOccupant]), Is.Null);
+    }
+
+    [Test]
     public void LabelWithoutOneLongStraightRun_IsRejectedAsLabelJog()
     {
         BendRoute LabelJog = Route("right", "top", (0, 90), (30, 90), (30, 60)) with
@@ -126,17 +141,17 @@ public sealed class UnnecessaryBendCheckerTests
     }
 
     [Test]
-    public void Convergence_DoesNotClaimFacingSideRouteWhenAnotherBoxBlocksIt()
+    public void Convergence_CrossedPairLineIsExempt()
     {
-        BendRoute GapTop = Route("bottom", "top", (-120, 90), (-120, 60), (0, 60), (0, 30)) with
+        BendRoute CrossedPair = Route("bottom", "top", (-120, 90), (-120, 60), (0, 60), (0, 30)) with
         {
             SourceBox = new BendBox(-120, 120, 120, 60),
             TargetBox = new BendBox(0, 0, 120, 60),
-            IncomingCount = 2
+            IncomingCount = 2,
+            CrossedPairLine = true
         };
-        BendObstacle BlockingBox = new("middle", -110, -20, -70, 20);
 
-        Assert.That(UnnecessaryBendChecker.CheckRoute("unit", GapTop, [BlockingBox]), Is.Null);
+        Assert.That(Check(CrossedPair), Is.Null);
     }
 
     [Test]
@@ -156,6 +171,25 @@ public sealed class UnnecessaryBendCheckerTests
         Assert.That(Check(FarSide)?.Check, Is.EqualTo('i'));
         BendSegment Shared = new("fan-2", new BendPoint(60, 60), new BendPoint(180, 60), "source", "other");
         Assert.That(UnnecessaryBendChecker.CheckRoute("unit", Good, [], [Shared])?.Check, Is.EqualTo('i'));
+    }
+
+    [Test]
+    public void FanToNextRank_UsesBottomAndTopUnlessHinted()
+    {
+        BendBox Source = new(0, 120, 120, 60);
+        BendBox Target = new(-120, 0, 120, 60);
+        BendRoute Good = Route("bottom", "top", (0, 90), (0, 60), (-120, 60), (-120, 30)) with
+        {
+            SourceBox = Source, TargetBox = Target, FanToNextRank = true
+        };
+        BendRoute HintedSide = Route("left", "right", (-60, 120), (-60, 0), (-60, 0)) with
+        {
+            SourceBox = Source, TargetBox = Target, FanToNextRank = true,
+            HintNeedsExtraCorners = true, HintOverridesRoutingFault = true
+        };
+
+        Assert.That(Check(Good), Is.Null);
+        Assert.That(Check(HintedSide), Is.Null);
     }
 
     [Test]
