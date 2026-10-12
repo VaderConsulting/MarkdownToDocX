@@ -20,6 +20,7 @@ public sealed class CompactLayoutMetricTests
     [TestCase("A", 114)]
     [TestCase("A", 117)]
     [TestCase("A", 142)]
+    [TestCase("A", 168)]
     public void CatalogueDiagram_ReportsCompactLayoutMetrics(string Catalogue, int Number)
     {
         string Source = ReadScenario(Catalogue, Number);
@@ -30,7 +31,9 @@ public sealed class CompactLayoutMetricTests
 
         FlowchartLayoutScore.Result Metrics = FlowchartLayoutScore.Measure(Contract, Layout);
         if (Number >= 154)
-            Assert.That(Metrics.Score, Is.Not.Null, $"A{Number} must remain a scoreable hinted layout");
+            Assert.That(Metrics.Score, Is.Not.Null,
+                $"A{Number} must remain a scoreable hinted layout: "
+                    + string.Join("; ", Metrics.Violations.Select(Failure => Failure.Description)));
         TestContext.Out.WriteLine(
             $"{Catalogue}{Number}: width={Metrics.Width:0} height={Metrics.Height:0} "
             + $"ratio={Metrics.Width / Metrics.Height:0.000} overlaps={Metrics.Overlaps} "

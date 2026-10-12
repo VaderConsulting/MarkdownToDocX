@@ -2098,22 +2098,36 @@ public static class DiagramGridLayout
             var Local = new DiagramContract { Kind = Contract.Kind, Header = Contract.Header,
                 Direction = Contract.Direction, LayoutMode = Contract.LayoutMode };
             var Ids = Members.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
-            Local.NodesMutable.AddRange(Contract.Nodes.Where(Node => Ids.Contains(Node.Id)));
-            Local.GroupsMutable.AddRange(Contract.Groups.Where(Group => Group.Id == Root.Id
+            List<NodeContract> LocalNodes = Contract.Nodes.Where(Node => Ids.Contains(Node.Id)).ToList();
+            Local.NodesMutable.AddRange(LocalNodes);
+            List<GroupContract> LocalGroups = Contract.Groups.Where(Group => Group.Id == Root.Id
                 || Members.Any(Node => IsInsideGroup(Contract, Node.Id, Group.Id))
-                    && IsInsideGroup(Contract, Group.Id, Root.Id)));
-            var Endpoints = Ids.Concat(Local.Groups.Select(Group => Group.Id)).ToHashSet(StringComparer.Ordinal);
+                    && IsInsideGroup(Contract, Group.Id, Root.Id)).ToList();
+            var Endpoints = Ids.Concat(LocalGroups.Select(Group => Group.Id)).ToHashSet(StringComparer.Ordinal);
+            foreach (GroupContract Group in LocalGroups)
+                Local.GroupsMutable.Add(CloneGroupForLocalLayout(Group, Endpoints));
             Local.EdgesMutable.AddRange(Contract.Edges.Where(Edge => Endpoints.Contains(Edge.SourceId)
                 && Endpoints.Contains(Edge.TargetId)));
-            if (FlowchartDagrePlacement.TryPlace(Local, out var LocalRaw))
+            PlacementHintContract?[] OriginalHints = LocalNodes.Select(Node => Node.PlacementHint).ToArray();
+            for (int Index = 0; Index < LocalNodes.Count; Index++)
+                LocalNodes[Index].PlacementHint = CloneHint(OriginalHints[Index]);
+            try
             {
-                var LocalLayout = Apply(Local, LocalRaw);
-                foreach (var Bounds in LocalLayout.NodeBounds)
+                if (FlowchartDagrePlacement.TryPlace(Local, out var LocalRaw))
                 {
-                    var Member = Members.Find(Node => Node.Id == Bounds.NodeId)!;
-                    Member.X = Bounds.CenterX;
-                    Member.Y = -Bounds.CenterY;
+                    var LocalLayout = Apply(Local, LocalRaw);
+                    foreach (var Bounds in LocalLayout.NodeBounds)
+                    {
+                        var Member = Members.Find(Node => Node.Id == Bounds.NodeId)!;
+                        Member.X = Bounds.CenterX;
+                        Member.Y = -Bounds.CenterY;
+                    }
                 }
+            }
+            finally
+            {
+                for (int Index = 0; Index < LocalNodes.Count; Index++)
+                    LocalNodes[Index].PlacementHint = OriginalHints[Index];
             }
             FlowchartGridCompaction.Apply(Members, Horizontal, 2 * DiagramGridMetrics.GRID_UNIT_PX);
             FlowchartGridCompaction.Apply(Members, !Horizontal, 2 * DiagramGridMetrics.GRID_UNIT_PX);
@@ -2224,6 +2238,40 @@ public static class DiagramGridLayout
             }
         }
     }
+
+    private static GroupContract CloneGroupForLocalLayout(
+        GroupContract Group,
+        IReadOnlySet<string> LocalEndpoints)
+    {
+        PlacementHintContract? Hint = CloneHint(Group.PlacementHint);
+        if (Hint != null && Hint.Kind != PlacementHintKind.Push
+            && (Hint.PeerId == null || !LocalEndpoints.Contains(Hint.PeerId)))
+            Hint = null;
+
+        GroupContract Copy = new GroupContract
+        {
+            Id = Group.Id,
+            Title = Group.Title,
+            LabelType = Group.LabelType,
+            ParentGroupId = Group.ParentGroupId,
+            Direction = Group.Direction,
+            PlacementHint = Hint
+        };
+        Copy.ChildNodeIdsMutable.AddRange(Group.ChildNodeIds);
+        Copy.ChildGroupIdsMutable.AddRange(Group.ChildGroupIds);
+        return Copy;
+    }
+
+    private static PlacementHintContract? CloneHint(PlacementHintContract? Hint) => Hint == null ? null : new PlacementHintContract
+    {
+        Kind = Hint.Kind,
+        PeerId = Hint.PeerId,
+        Offset = Hint.Offset,
+        Direction = Hint.Direction,
+        SourceLine = Hint.SourceLine,
+        IsActive = Hint.IsActive,
+        UnhonouredReason = Hint.UnhonouredReason
+    };
 
     private static bool SeparateSiblingFrames(
         DiagramContract Contract, List<GridNode> Placed, List<GridFrame> Frames, bool Horizontal)

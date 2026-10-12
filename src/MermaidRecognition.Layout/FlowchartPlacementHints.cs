@@ -212,7 +212,23 @@ internal static class FlowchartPlacementHints
         if (!IsGroup)
             return ById.TryGetValue(Id, out DiagramGridLayout.GridNode? Node)
                 ? new List<DiagramGridLayout.GridNode> { Node } : new List<DiagramGridLayout.GridNode>();
-        return All.Where(Node => IsInGroup(Node, Id, Groups)).ToList();
+
+        HashSet<string> DeclaredMembers = new(StringComparer.Ordinal);
+        HashSet<string> VisitedGroups = new(StringComparer.Ordinal);
+        Stack<string> PendingGroups = new();
+        PendingGroups.Push(Id);
+        while (PendingGroups.Count > 0)
+        {
+            string Current = PendingGroups.Pop();
+            if (!VisitedGroups.Add(Current) || !Groups.TryGetValue(Current, out GroupContract? Group)) continue;
+            foreach (string ChildId in Group.ChildNodeIds) DeclaredMembers.Add(ChildId);
+            foreach (GroupContract Child in Groups.Values.Where(Child =>
+                string.Equals(Child.ParentGroupId, Current, StringComparison.Ordinal)))
+                PendingGroups.Push(Child.Id);
+            foreach (string ChildGroupId in Group.ChildGroupIds) PendingGroups.Push(ChildGroupId);
+        }
+
+        return All.Where(Node => DeclaredMembers.Contains(Node.Id) || IsInGroup(Node, Id, Groups)).ToList();
     }
 
     private static bool IsInGroup(
