@@ -43,6 +43,8 @@ Failed attempt: A142 stopped with the valid best at 51 crossings. A reproduced p
 10. **Code slop cleanup — complete with unsafe steps recorded.** Steps 1, 3 to 6, 8 and 10 are complete. They removed the Sample03 oracle and 251 duplicated allocator lines, isolated render state, narrowed fallback behavior, named geometry policy, documented the 21 route passes, and found no IDE0051, IDE0052, IDE0060 or CA1822 findings. Steps 2, 7 and 9 were not forced because they still changed behavior or required wider state and call-contract rewrites. All 321 metrics and suite counts stayed at 1074/0, 805/57, 49/10, 47/0 and 60/0.
 11. **Bend tests — reopened.** The checker has 20 focused unit tests and evaluates checks (a) to (j). It applies the current convergence order, rule 2.10 adjacent-rank blocks, occupied top-centre handling, side-column and next-rank fan rules, and line-hint precedence. Complete rectangular blocks use measured cells, declared order and nested tracks; real 2x3, 3x3 and 4x2 layouts pass the checker. The catalogue currently reports 251 faults: f 16, g 20, h 77, i 134 and j 4. The ratchet baseline has not grown; generic route repairs are in progress.
 
+Failed attempt: packing paired fans removed F113's 40 fan-side faults, but changed two passing `WideFanPortTests` from their required top/bottom exits to the facing-side exits required by rule 5.8. The candidate was discarded because the test baseline may not grow; the test and rule require opposite sides for the same structure.
+
 ## Stretch goals
 
 These must be done, but not yet. Start them only when Dave says so.
