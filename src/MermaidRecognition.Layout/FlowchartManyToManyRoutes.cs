@@ -106,7 +106,7 @@ internal static class FlowchartManyToManyRoutes
         var Result = new HashSet<(string SourceId, string TargetId)>();
         foreach (var Block in Sources.Where(Item => Item.Targets.Length >= 2)
             .GroupBy(Item => string.Join("\u001f", Item.Targets))
-            .Where(Group => Group.Count() == Group.First().Targets.Length))
+            .Where(Group => Group.Count() >= 2))
         foreach (var Source in Block)
         foreach (string TargetId in Source.Targets)
             Result.Add((Source.SourceId, TargetId));

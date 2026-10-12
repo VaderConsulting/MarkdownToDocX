@@ -24,6 +24,8 @@ internal static class FlowchartPartnerRankLayout
         var Outgoing = Visible.ToLookup(Edge => Edge.SourceId);
         var Incoming = Visible.ToLookup(Edge => Edge.TargetId);
         var ById = Nodes.ToDictionary(Node => Node.Id);
+        var DeclaredOrder = Contract.Nodes.Select((Node, Index) => (Node.Id, Index))
+            .ToDictionary(Item => Item.Id, Item => Item.Index, StringComparer.Ordinal);
         var Used = new HashSet<string>();
         var Result = new List<Partners>();
         foreach (var Parent in Nodes.Where(IsBox))
@@ -32,10 +34,19 @@ internal static class FlowchartPartnerRankLayout
             var Targets = Outgoing[Parent.Id].Select(Edge => Edge.TargetId).ToArray();
             int Count = Targets.Length;
             if (Count < 2 || Targets.Distinct().Count() != Count || Targets.Any(Id => !ById.ContainsKey(Id))) continue;
-            var Children = Targets.Select(Id => ById[Id]).OrderBy(Node => Cross(Node, Horizontal)).ToArray();
-            var Sources = Incoming[Children[0].Id].Select(Edge => Edge.SourceId).ToArray();
+            var ChildrenUnordered = Targets.Select(Id => ById[Id]);
+            var Sources = Incoming[Targets[0]].Select(Edge => Edge.SourceId).ToArray();
             if (Sources.Length < 2 || Sources.Distinct().Count() != Sources.Length || Sources.Any(Id => !ById.ContainsKey(Id))) continue;
-            var Parents = Sources.Select(Id => ById[Id]).OrderBy(Node => Cross(Node, Horizontal)).ToArray();
+            bool Square = Sources.Length == Targets.Length;
+            var Children = (Square
+                    ? ChildrenUnordered.OrderBy(Node => Cross(Node, Horizontal))
+                    : ChildrenUnordered.OrderBy(Node => DeclaredOrder.GetValueOrDefault(Node.Id, int.MaxValue)))
+                .ToArray();
+            var ParentsUnordered = Sources.Select(Id => ById[Id]);
+            var Parents = (Square
+                    ? ParentsUnordered.OrderBy(Node => Cross(Node, Horizontal))
+                    : ParentsUnordered.OrderBy(Node => DeclaredOrder.GetValueOrDefault(Node.Id, int.MaxValue)))
+                .ToArray();
             if (Parents.Any(Node => !IsBox(Node) || Node.Rank != Parent.Rank || Node.GroupId != Parent.GroupId)
                 || Children.Any(Node => !IsBox(Node) || Node.Rank != Children[0].Rank || Node.GroupId != Children[0].GroupId)
                 || Parent.Rank == Children[0].Rank
@@ -61,6 +72,19 @@ internal static class FlowchartPartnerRankLayout
                     .Max(Index => Math.Abs(Cross(Block.Parents[Index], Horizontal) - Cross(Block.Children[Index], Horizontal)));
                 int Pitch = (int)Math.Ceiling((Block.PortPitch + Displacement) / TRACK_PITCH) * TRACK_PITCH;
                 Blocks[BlockIndex] = Block = Block with { PortPitch = Pitch };
+            }
+            if (Align && Block.Children.Length > Block.Parents.Length)
+            {
+                double Anchor = Cross(Block.Parents[0], Horizontal);
+                double Sign = Math.Sign(Cross(Block.Parents[^1], Horizontal) - Anchor);
+                if (Sign == 0) Sign = 1;
+                int CellPitch = DiagramGridMetrics.CeilToGrid(
+                    Block.Parents.Concat(Block.Children).Max(Node => CrossSize(Node, Horizontal))
+                    + DiagramGridMetrics.NODE_GAP_PX);
+                for (int Child = 0; Child < Block.Children.Length; Child++)
+                    SetCross(Block.Children[Child], Horizontal, Anchor + Sign * Child * CellPitch);
+                foreach ((int Parent, int Child) in Block.AlignedChildren)
+                    SetCross(Block.Parents[Parent], Horizontal, Cross(Block.Children[Child], Horizontal));
             }
             int Needed = Block.Parents.Length == Block.Children.Length
                 ? DiagramGridMetrics.CeilToGrid(
@@ -195,10 +219,15 @@ internal static class FlowchartPartnerRankLayout
         var Routes = Layout.EdgeRoutes.ToLookup(Route => (Route.SourceId, Route.TargetId));
         var (Start, _, Flow) = Limits(Contract, Frames, Block, Horizontal);
         var Aligned = Block.AlignedChildren.Select(Pair => (Parent: Pair.Key, Child: Pair.Value)).ToHashSet();
-        var Bent = Enumerable.Range(0, Block.Parents.Length).SelectMany(Parent =>
+        var BentPairs = Enumerable.Range(0, Block.Parents.Length).SelectMany(Parent =>
             Enumerable.Range(0, Block.Children.Length).Select(Child => (Parent, Child)))
-            .Where(Pair => !Aligned.Contains(Pair))
-            .OrderBy(Pair => Pair.Parent).ThenBy(Pair => Pair.Child).ToList();
+            .Where(Pair => !Aligned.Contains(Pair)).ToList();
+        double ProjectedChild(int Parent) => Block.Parents.Length == 1 ? 0
+            : Parent * (Block.Children.Length - 1.0) / (Block.Parents.Length - 1.0);
+        var Bent = BentPairs.Where(Pair => Pair.Child > ProjectedChild(Pair.Parent))
+            .OrderByDescending(Pair => Pair.Parent).ThenByDescending(Pair => Pair.Child)
+            .Concat(BentPairs.Where(Pair => Pair.Child < ProjectedChild(Pair.Parent))
+                .OrderBy(Pair => Pair.Parent).ThenBy(Pair => Pair.Child)).ToList();
         var Lanes = Bent.Select((Pair, Index) => (Pair,
             Lane: Flow * (Start + TERMINAL_RESERVE + Index * CORNER_TRACK_PITCH)))
             .ToDictionary(Item => Item.Pair, Item => Item.Lane);
@@ -285,6 +314,11 @@ internal static class FlowchartPartnerRankLayout
         && (string.IsNullOrEmpty(Node.Shape) || Node.Shape == "rect" || Node.Shape == "rounded" || Node.Shape == "round");
     private static double Main(DiagramGridLayout.GridNode Node, bool Horizontal) => Horizontal ? Node.X : Node.Y;
     private static double Cross(DiagramGridLayout.GridNode Node, bool Horizontal) => Horizontal ? Node.Y : Node.X;
+    private static void SetCross(DiagramGridLayout.GridNode Node, bool Horizontal, double Value)
+    {
+        if (Horizontal) Node.Y = (int)Math.Round(Value);
+        else Node.X = (int)Math.Round(Value);
+    }
     private static int MainSize(DiagramGridLayout.GridNode Node, bool Horizontal) => Horizontal ? Node.Width : Node.Height;
     private static int CrossSize(DiagramGridLayout.GridNode Node, bool Horizontal) => Horizontal ? Node.Height : Node.Width;
 }

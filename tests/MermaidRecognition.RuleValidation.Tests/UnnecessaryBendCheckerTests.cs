@@ -1,6 +1,9 @@
 using MermaidRecognition.RuleValidation;
 using MermaidRecognition.Kinds.Flowchart;
+using MermaidRecognition.Core;
+using MermaidRecognition.Layout;
 using NUnit.Framework;
+using System.Text;
 
 namespace MermaidRecognition.RuleValidation.Tests;
 
@@ -152,6 +155,29 @@ public sealed class UnnecessaryBendCheckerTests
         };
 
         Assert.That(Check(CrossedPair), Is.Null);
+    }
+
+    [TestCase(2, 3)]
+    [TestCase(3, 3)]
+    [TestCase(4, 2)]
+    public void AdjacentRankBlocks_AreCheckedByBlockRules(int SourceCount, int TargetCount)
+    {
+        var Text = new StringBuilder("flowchart TB\n");
+        for (int Source = 0; Source < SourceCount; Source++) Text.AppendLine($"s{Source}[\"Source {Source}\"]");
+        for (int Target = 0; Target < TargetCount; Target++) Text.AppendLine($"t{Target}[\"Target {Target}\"]");
+        for (int Source = 0; Source < SourceCount; Source++)
+        for (int Target = 0; Target < TargetCount; Target++) Text.AppendLine($"s{Source} --> t{Target}");
+        var Contract = MermaidRecognizer.Parse(Text.ToString());
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+
+        IReadOnlyList<UnnecessaryBendViolation> Findings = UnnecessaryBendChecker.Check("block", Contract, Layout);
+        Assert.That(Findings.Where(Finding => Finding.Check is 'h' or 'i' or 'j'), Is.Empty,
+            string.Join(Environment.NewLine, Findings.Select(Finding =>
+            {
+                FlowchartLayoutEdgeRoute Route = Layout.EdgeRoutes.Single(Item => Item.EdgeId == Finding.LineId);
+                return $"{Finding.LineId}: {Finding.Check} {Route.ExitSide}->{Route.EntrySide} "
+                    + string.Join(" ", Route.Points.Select(Point => $"({Point.X},{Point.Y})"));
+            })));
     }
 
     [Test]
