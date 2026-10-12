@@ -36,6 +36,64 @@ internal static class FlowchartAlignedRouteStraightener
         }
     }
 
+    internal static void ApplyNearlyAlignedFacing(FlowchartLayoutResult Layout,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds)
+    {
+        foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes.Where(Route => Route.Points.Count > 2))
+        {
+            FlowchartLayoutPoint Start = Route.Points[0], End = Route.Points[^1];
+            double DeltaX = Math.Abs(Start.X - End.X), DeltaY = Math.Abs(Start.Y - End.Y);
+            bool Vertical = DeltaX <= DiagramGridMetrics.GRID_UNIT_PX && DeltaY > DeltaX
+                && IsVerticalFacingPair(Route);
+            bool Horizontal = DeltaY <= DiagramGridMetrics.GRID_UNIT_PX && DeltaX > DeltaY
+                && IsHorizontalFacingPair(Route);
+            if (!Vertical && !Horizontal) continue;
+            double SharedX = (Start.X + End.X) / 2.0;
+            double SharedY = (Start.Y + End.Y) / 2.0;
+            var CandidateStart = new FlowchartLayoutPoint
+            {
+                X = Vertical ? SharedX : Start.X,
+                Y = Horizontal ? SharedY : Start.Y
+            };
+            var CandidateEnd = new FlowchartLayoutPoint
+            {
+                X = Vertical ? SharedX : End.X,
+                Y = Horizontal ? SharedY : End.Y
+            };
+            if (HitsBox(Route, CandidateStart, CandidateEnd, Bounds)) continue;
+            var Candidate = new List<(double X, double Y)>
+            {
+                (CandidateStart.X, CandidateStart.Y), (CandidateEnd.X, CandidateEnd.Y)
+            };
+            int BeforeCrossings = 0, AfterCrossings = 0;
+            double BeforeOverlap = 0.0, AfterOverlap = 0.0;
+            foreach (FlowchartLayoutEdgeRoute Other in Layout.EdgeRoutes.Where(Other => Other != Route))
+            {
+                var Before = FlowchartBranchRouteOrder.Intersections(
+                    Route.Points.Select(Point => (Point.X, Point.Y)).ToList(),
+                    Other.Points.Select(Point => (Point.X, Point.Y)).ToList());
+                var After = FlowchartBranchRouteOrder.Intersections(Candidate,
+                    Other.Points.Select(Point => (Point.X, Point.Y)).ToList());
+                BeforeCrossings += Before.Crossings; AfterCrossings += After.Crossings;
+                BeforeOverlap += Before.Overlap; AfterOverlap += After.Overlap;
+            }
+            if (AfterCrossings > BeforeCrossings || AfterOverlap > BeforeOverlap + 0.01) continue;
+            Route.Points.Clear();
+            Route.Points.Add(CandidateStart);
+            Route.Points.Add(CandidateEnd);
+        }
+    }
+
+    private static bool IsVerticalFacingPair(FlowchartLayoutEdgeRoute Route) =>
+        Route.ExitSide is "top" or "bottom"
+        && Route.EntrySide is "top" or "bottom"
+        && !string.Equals(Route.ExitSide, Route.EntrySide, StringComparison.Ordinal);
+
+    private static bool IsHorizontalFacingPair(FlowchartLayoutEdgeRoute Route) =>
+        Route.ExitSide is "left" or "right"
+        && Route.EntrySide is "left" or "right"
+        && !string.Equals(Route.ExitSide, Route.EntrySide, StringComparison.Ordinal);
+
     private static bool HitsBox(FlowchartLayoutEdgeRoute Route, FlowchartLayoutPoint A, FlowchartLayoutPoint B,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds)
     {

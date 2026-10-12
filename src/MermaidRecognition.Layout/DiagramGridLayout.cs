@@ -188,6 +188,8 @@ public static class DiagramGridLayout
             FlowchartWrappedFanRoutes.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
         if (!Open)
             FlowchartAlignedRouteStraightener.Apply(Copy, BuildPlacedBounds(Placed, Frames));
+        else
+            FlowchartAlignedRouteStraightener.ApplyNearlyAlignedFacing(Copy, BuildPlacedBounds(Placed, Frames));
         if (!Open)
             FlowchartTwoCornerRouteRepair.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
         if (!Open)
