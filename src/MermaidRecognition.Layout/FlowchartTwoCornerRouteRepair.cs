@@ -10,16 +10,19 @@ namespace MermaidRecognition.Layout;
 internal static class FlowchartTwoCornerRouteRepair
 {
     internal static void Apply(FlowchartLayoutResult Layout, DiagramContract Contract,
-        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds)
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds, bool IncludeTwoCornerRoutes = false)
     {
         var Back = FlowchartBackEdgeHelper.FindBackEdges(Contract)
             .Select(Edge => (Edge.SourceId, Edge.TargetId)).ToHashSet();
+        HashSet<string> Hinted = Contract.Edges.Where(Edge => Edge.RoutingHint?.IsActive == true)
+            .Select(Edge => Edge.Id).OfType<string>().ToHashSet(StringComparer.Ordinal);
         double Left = Bounds.Values.Min(Box => Box.CenterX - Box.Width / 2.0) - 2 * DiagramGridMetrics.NODE_GAP_PX;
         double Right = Bounds.Values.Max(Box => Box.CenterX + Box.Width / 2.0) + 2 * DiagramGridMetrics.NODE_GAP_PX;
         double Bottom = Bounds.Values.Min(Box => Box.CenterY - Box.Height / 2.0) - 2 * DiagramGridMetrics.NODE_GAP_PX;
         double Top = Bounds.Values.Max(Box => Box.CenterY + Box.Height / 2.0) + 2 * DiagramGridMetrics.NODE_GAP_PX;
-        foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes.Where(Route => Route.Points.Count > 4
-            && !Back.Contains((Route.SourceId, Route.TargetId))))
+        foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes.Where(Route =>
+            Route.Points.Count > (IncludeTwoCornerRoutes ? 3 : 4)
+            && !Hinted.Contains(Route.EdgeId) && !Back.Contains((Route.SourceId, Route.TargetId))))
         {
             FlowchartLayoutPoint Start = Route.Points[0], End = Route.Points[^1];
             var Candidates = new List<List<FlowchartLayoutPoint>>();
@@ -32,14 +35,26 @@ internal static class FlowchartTwoCornerRouteRepair
             }
             else if (ExitHorizontal)
             {
-                foreach (double X in Route.Points.Skip(1).Take(Route.Points.Count - 2).Select(Point => Point.X)
-                    .Append((Start.X + End.X) / 2.0).Append(Left).Append(Right).Distinct())
+                IEnumerable<double> Tracks = Route.Points.Skip(1).Take(Route.Points.Count - 2).Select(Point => Point.X)
+                    .Append((Start.X + End.X) / 2.0).Append(Left).Append(Right)
+                    .Concat(Bounds.Values.SelectMany(Box => new[]
+                    {
+                        Box.CenterX - Box.Width / 2.0 - DiagramGridMetrics.GRID_UNIT_PX,
+                        Box.CenterX + Box.Width / 2.0 + DiagramGridMetrics.GRID_UNIT_PX
+                    })).Distinct();
+                foreach (double X in Tracks)
                     Candidates.Add([Copy(Start), New(X, Start.Y), New(X, End.Y), Copy(End)]);
             }
             else
             {
-                foreach (double Y in Route.Points.Skip(1).Take(Route.Points.Count - 2).Select(Point => Point.Y)
-                    .Append((Start.Y + End.Y) / 2.0).Append(Bottom).Append(Top).Distinct())
+                IEnumerable<double> Tracks = Route.Points.Skip(1).Take(Route.Points.Count - 2).Select(Point => Point.Y)
+                    .Append((Start.Y + End.Y) / 2.0).Append(Bottom).Append(Top)
+                    .Concat(Bounds.Values.SelectMany(Box => new[]
+                    {
+                        Box.CenterY - Box.Height / 2.0 - DiagramGridMetrics.GRID_UNIT_PX,
+                        Box.CenterY + Box.Height / 2.0 + DiagramGridMetrics.GRID_UNIT_PX
+                    })).Distinct();
+                foreach (double Y in Tracks)
                     Candidates.Add([Copy(Start), New(Start.X, Y), New(End.X, Y), Copy(End)]);
             }
             List<FlowchartLayoutPoint>? Best = Candidates.Select(Collapse).Where(Candidate =>

@@ -197,7 +197,30 @@ public static class DiagramGridLayout
         if (!Open)
             FlowchartPortSideRouteRepair.Apply(Copy, Contract);
         FlowchartRoutingHints.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction);
+        if (!Open)
+            ApplyScoreGuardedTwoCornerRepair(Copy, Contract, BuildPlacedBounds(Placed, Frames));
         return Copy;
+    }
+
+    private static void ApplyScoreGuardedTwoCornerRepair(FlowchartLayoutResult Layout, DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds)
+    {
+        FlowchartLayoutScore.Result Before = FlowchartLayoutScore.Measure(Contract, Layout);
+        var Snapshot = Layout.EdgeRoutes.Select(Route => (Route, Route.ExitSide, Route.EntrySide,
+            Points: Route.Points.Select(Point => new FlowchartLayoutPoint { X = Point.X, Y = Point.Y }).ToList())).ToList();
+        FlowchartTwoCornerRouteRepair.Apply(Layout, Contract, Bounds, IncludeTwoCornerRoutes: true);
+        FlowchartLayoutScore.Result After = FlowchartLayoutScore.Measure(Contract, Layout);
+        bool Keep = Before.Score.HasValue
+            ? After.Score.HasValue && After.Score.Value < Before.Score.Value - 0.001
+            : After.Overlaps <= Before.Overlaps && After.Crossings <= Before.Crossings;
+        if (Keep) return;
+        foreach (var Saved in Snapshot)
+        {
+            Saved.Route.ExitSide = Saved.ExitSide;
+            Saved.Route.EntrySide = Saved.EntrySide;
+            Saved.Route.Points.Clear();
+            Saved.Route.Points.AddRange(Saved.Points);
+        }
     }
 
     internal static void GrowFacingDoglegGaps(FlowchartLayoutResult Layout, DiagramContract Contract,
