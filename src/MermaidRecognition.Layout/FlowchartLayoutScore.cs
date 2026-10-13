@@ -17,11 +17,12 @@ internal static class FlowchartLayoutScore
         int Bends, int Disconnections, int HintsHonoured, int HintsTotal, double EmptyShare, double? Score,
         IReadOnlyList<FlowchartLayoutQualityFailure> Violations);
 
-    internal static Result Measure(DiagramContract Contract, FlowchartLayoutResult Layout)
+    internal static Result Measure(DiagramContract Contract, FlowchartLayoutResult Layout,
+        bool IncludeArrangementCheck = true)
     {
         (double Width, double Height) = Bounds(Layout);
         var Violations = new List<FlowchartLayoutQualityFailure>();
-        DiagramGridQuality.Collect(Contract, Layout, Violations);
+        DiagramGridQuality.Collect(Contract, Layout, Violations, IncludeArrangementCheck);
         int Overlaps = Violations.Count(Failure => Failure.Kind == "NodeOverlap");
         int Crossings = CountCrossings(Layout);
         int ForcedMinimum = ForcedCrossingMinimum(Contract, Layout);

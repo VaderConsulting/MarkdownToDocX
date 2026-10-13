@@ -19,10 +19,12 @@ public static class DiagramGridQuality
     /// <param name="Contract">The diagram contract.</param>
     /// <param name="Layout">The gridded layout.</param>
     /// <param name="Violations">Failures are appended here.</param>
+    /// <param name="IncludeArrangementCheck">Whether to recompute node placement comparison.</param>
     public static void Collect(
         DiagramContract Contract,
         FlowchartLayoutResult Layout,
-        List<FlowchartLayoutQualityFailure> Violations)
+        List<FlowchartLayoutQualityFailure> Violations,
+        bool IncludeArrangementCheck = true)
     {
         if (Contract == null || Layout == null || Layout.NodeBounds.Count == 0)
         {
@@ -34,7 +36,10 @@ public static class DiagramGridQuality
         CheckLineShape(Layout, Violations);
         CheckOverlaps(Layout, Violations);
         CheckGroupFrames(Contract, Layout, Violations);
-        CheckArrangement(Contract, Layout, Violations);
+        if (IncludeArrangementCheck)
+        {
+            CheckArrangement(Contract, Layout, Violations);
+        }
     }
 
     private static void CheckWholePixels(FlowchartLayoutResult Layout, List<FlowchartLayoutQualityFailure> Violations)

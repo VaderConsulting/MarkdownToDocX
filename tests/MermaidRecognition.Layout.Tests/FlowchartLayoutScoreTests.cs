@@ -12,6 +12,23 @@ public sealed class FlowchartLayoutScoreTests
     }
 
     [Test]
+    public void RouteCandidateScore_SkipsOnlyTheRouteIndependentArrangementCheck()
+    {
+        (DiagramContract Contract, FlowchartLayoutResult Layout) = BuildLayout(90, 30);
+
+        FlowchartLayoutScore.Result Full = FlowchartLayoutScore.Measure(Contract, Layout);
+        FlowchartLayoutScore.Result Candidate = FlowchartLayoutScore.Measure(
+            Contract, Layout, IncludeArrangementCheck: false);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(Candidate.Score, Is.EqualTo(Full.Score));
+            Assert.That(Candidate.Crossings, Is.EqualTo(Full.Crossings));
+            Assert.That(Candidate.Overlaps, Is.EqualTo(Full.Overlaps));
+        });
+    }
+
+    [Test]
     public void DisconnectedRelationshipEnds_AddTwentyPointsEach()
     {
         (DiagramContract Contract, FlowchartLayoutResult Connected) = BuildLayout(90, 30);
