@@ -122,7 +122,7 @@ public sealed class RoutingHintLayoutTests
         FlowchartLayoutScore.Result Metrics = FlowchartLayoutScore.Measure(Contract, Layout);
         double WithoutHints = FlowchartLayoutScore.Calculate(
             Metrics.Width, Metrics.Height, Metrics.Crossings, Metrics.ForcedMinimum, Metrics.EmptyShare)
-            + Metrics.Bends * 2.0;
+            + Metrics.Bends * FlowchartLayoutScore.BEND_PENALTY;
         Assert.Multiple(() =>
         {
             Assert.That(Metrics.HintsHonoured, Is.EqualTo(2));
