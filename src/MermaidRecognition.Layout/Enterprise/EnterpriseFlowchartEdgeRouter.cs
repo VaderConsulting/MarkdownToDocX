@@ -157,8 +157,32 @@ internal static class EnterpriseFlowchartEdgeRouter
         }
 
         SeparateVisibleTracks(Routed, RoutedContracts, Nodes, Context.Contract);
+        RestoreHintedRoutesAfterTrackRepair(Routed, RoutedContracts, Context);
         EnterpriseRelationshipLabelLayout.Place(Routed, Nodes);
         return Routed;
+    }
+
+    private static void RestoreHintedRoutesAfterTrackRepair(List<EnterpriseRoutedEdge> Edges,
+        List<EdgeContract> Contracts, EnterpriseFlowchartRoutingContext Context)
+    {
+        FlowchartRoutingHints.Apply(Context.Layout, Context.Contract, Context.BoundsById,
+            Context.NodeById, Context.Direction, RepairAutomaticRoutesEnabled: false);
+        Dictionary<string, FlowchartLayoutEdgeRoute> RoutesById = Context.Layout.EdgeRoutes
+            .Where(Route => !string.IsNullOrEmpty(Route.EdgeId))
+            .GroupBy(Route => Route.EdgeId, StringComparer.Ordinal)
+            .ToDictionary(Group => Group.Key, Group => Group.First(), StringComparer.Ordinal);
+        for (int Index = 0; Index < Edges.Count; Index++)
+        {
+            if (Contracts[Index].RoutingHint?.IsActive != true
+                || !RoutesById.TryGetValue(Contracts[Index].Id ?? string.Empty, out FlowchartLayoutEdgeRoute? Route))
+                continue;
+
+            Edges[Index].SvgPoints.Clear();
+            foreach (FlowchartLayoutPoint Point in Route.Points)
+                Edges[Index].SvgPoints.Add(Context.Frame.LayoutToSvg(Point.X, Point.Y));
+            Edges[Index].PathData = FlowchartCurvePathBuilder.BuildRoundedCornerPathData(
+                Edges[Index].SvgPoints, DiagramGridRouteBuilder.CORNER_RADIUS_PX);
+        }
     }
 
     private static void SeparateVisibleTracks(List<EnterpriseRoutedEdge> Edges, List<EdgeContract> Contracts,

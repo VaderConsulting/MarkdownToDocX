@@ -38,6 +38,34 @@ public sealed class RoutingHintLayoutTests
     }
 
     [Test]
+    public void RenderedEnterpriseRoutes_PreserveHintedSidesAndPortsAfterTrackRepair()
+    {
+        var Lines = new List<string> { "enterprise", "  application-component hub \"Hub\"" };
+        for (int Index = 1; Index <= 8; Index++)
+            Lines.Add($"  application-component target{Index} \"Target {Index}\"");
+        for (int Index = 1; Index <= 8; Index++)
+            Lines.Add($"  hub -flow-> target{Index} [leave S, enter N]");
+
+        EnterpriseDocument Document = EnterpriseValidator.Analyze(string.Join("\n", Lines)).Document;
+        EnterpriseLayoutResult Layout = EnterpriseLayoutEngine.Layout(Document);
+        List<EnterpriseRoutedEdge> Routes = EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes);
+        EnterpriseLayoutNode Hub = Layout.Nodes["hub"];
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(Routes, Has.Count.EqualTo(8));
+            Assert.That(Routes.Select(Route => Route.SvgPoints[0]).Distinct().Count(), Is.EqualTo(8),
+                "Each hinted line must keep its own source port after enterprise track repair.");
+            Assert.That(Routes.All(Route => Math.Abs(Route.SvgPoints[0].Y - (Hub.AbsoluteY + Hub.Height)) < 0.5),
+                Is.True, "Each hinted line must leave the south side after enterprise track repair.");
+            Assert.That(Routes.All(Route => Math.Abs(Route.SvgPoints[^1].Y
+                - Layout.Nodes[Route.Relationship.TargetId].AbsoluteY) < 0.5), Is.True,
+                "Each hinted line must keep its north entry after enterprise track repair.");
+            Assert.That(Routes.All(Route => Route.Relationship.RoutingHint?.UnhonouredReason == null), Is.True);
+        });
+    }
+
+    [Test]
     public void AgainstFlowHint_LeavesNorthAndMayUseExtraCorners()
     {
         const string Source = """

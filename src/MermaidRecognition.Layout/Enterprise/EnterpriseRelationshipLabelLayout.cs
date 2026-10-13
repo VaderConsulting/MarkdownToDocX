@@ -99,7 +99,8 @@ internal static class EnterpriseRelationshipLabelLayout
     {
         List<EnterpriseRoutedEdge> Labels = Edges.Where(Edge => !string.IsNullOrWhiteSpace(Edge.Label)).ToList();
         foreach (EnterpriseRoutedEdge Label in Labels)
-        foreach (EnterpriseRoutedEdge Route in Edges.Where(Edge => Edge != Label && string.IsNullOrWhiteSpace(Edge.Label)))
+        foreach (EnterpriseRoutedEdge Route in Edges.Where(Edge => Edge != Label
+            && string.IsNullOrWhiteSpace(Edge.Label) && Edge.Relationship.RoutingHint?.IsActive != true))
         {
             if (!IntersectsLabel(Route.SvgPoints, Label)) continue;
             if (!TryShiftEndpoint(Route, AtSource: false, Labels, Edges, Nodes))
