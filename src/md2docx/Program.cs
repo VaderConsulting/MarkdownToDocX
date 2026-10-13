@@ -132,7 +132,8 @@ internal static class Program
 
         try
         {
-            MarkdownToDocxConverter Converter = new MarkdownToDocxConverter(Options);
+            using ConsoleConversionProgressReporter ProgressReporter = new();
+            MarkdownToDocxConverter Converter = new MarkdownToDocxConverter(Options, ProgressReporter);
             byte[] DocxBytes = Converter.ConvertMarkdownFile(InputPath);
             DocxOutputFileWriter.WriteAllBytes(OutputPath, DocxBytes, LockPromptTimeoutSeconds);
             Console.WriteLine("Converted: " + InputPath + " -> " + OutputPath);

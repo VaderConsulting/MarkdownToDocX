@@ -99,13 +99,19 @@ public sealed class DocxWriter(EffectiveOptions Options, IConversionProgressRepo
             PrepareHeadingBookmarks(Model.Blocks);
 
             int BlockCount = Model.Blocks.Count;
+            string CurrentHeading = string.Empty;
             for (int BlockIndex = 0; BlockIndex < BlockCount; BlockIndex++)
             {
                 BlockNode Block = Model.Blocks[BlockIndex];
+                if (Block is HeadingBlock Heading)
+                {
+                    CurrentHeading = GetInlineText(Heading.Inlines).Trim();
+                }
                 if (BlockCount > 0 && _ProgressReporter != null)
                 {
                     int WritePercent = 15 + (int)Math.Round(80.0 * (BlockIndex + 1) / BlockCount);
-                    _ProgressReporter.Report(WritePercent, DescribeBlockProgress(Block, BlockIndex + 1, BlockCount));
+                    _ProgressReporter.Report(WritePercent,
+                        DescribeBlockProgress(Block, BlockIndex + 1, BlockCount, CurrentHeading));
                 }
 
                 AppendBlock(Body, Block, Styles, 0);
@@ -398,7 +404,8 @@ public sealed class DocxWriter(EffectiveOptions Options, IConversionProgressRepo
         return AbstractNum;
     }
 
-    private static string DescribeBlockProgress(BlockNode Block, int BlockIndex, int BlockCount)
+    private static string DescribeBlockProgress(BlockNode Block, int BlockIndex, int BlockCount,
+        string CurrentHeading)
     {
         string Kind = Block switch
         {
@@ -412,9 +419,12 @@ public sealed class DocxWriter(EffectiveOptions Options, IConversionProgressRepo
             _ => "Block"
         };
 
+        string HeadingContext = Block is MermaidBlock && !string.IsNullOrWhiteSpace(CurrentHeading)
+            ? " after \"" + (CurrentHeading.Length <= 100 ? CurrentHeading : CurrentHeading[..97] + "...") + "\""
+            : string.Empty;
         return string.Create(
             System.Globalization.CultureInfo.InvariantCulture,
-            $"Writing {Kind} ({BlockIndex}/{BlockCount})");
+            $"Writing {Kind}{HeadingContext} ({BlockIndex}/{BlockCount})");
     }
 
     private void AppendBlock(OpenXmlElement Parent, BlockNode Block, StyleMapping Styles, int ListLevel)
