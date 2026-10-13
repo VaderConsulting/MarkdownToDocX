@@ -328,7 +328,8 @@ public static class DiagramGridRouteBuilder
         DiagramContract Contract,
         FlowchartDirection Direction,
         bool Horizontal,
-        LayoutHintDirection? Travel = null)
+        LayoutHintDirection? Travel = null,
+        bool RequireLegal = false)
     {
         // The rounded corner consumes one radius of the terminal segment.
         // Keep another radius at the source and an arrow length at the target.
@@ -380,7 +381,8 @@ public static class DiagramGridRouteBuilder
                      TargetId,
                      Contract,
                      Direction,
-                     Horizontal))
+                     Horizontal,
+                     RequireLegal))
         {
             List<(double X, double Y)> Simplified = SimplifyCollinear(Candidate);
             if (!HasNormalTerminals(Simplified, SourceStubX, SourceStubY, TargetStubX, TargetStubY)
@@ -437,7 +439,8 @@ public static class DiagramGridRouteBuilder
             SourceId,
             TargetId,
             Contract,
-            Horizontal);
+            Horizontal,
+            RequireLegal);
     }
 
     private static List<(double X, double Y)> BuildHintedTravelRoute(
@@ -673,7 +676,8 @@ public static class DiagramGridRouteBuilder
         string SourceId,
         string TargetId,
         DiagramContract Contract,
-        bool Horizontal)
+        bool Horizontal,
+        bool RequireLegal)
     {
         if (!Horizontal)
         {
@@ -762,7 +766,7 @@ public static class DiagramGridRouteBuilder
             return SimplifiedLastResort;
         }
 
-        return LastResort;
+        return RequireLegal ? [] : LastResort;
     }
 
     private static IEnumerable<List<(double X, double Y)>> EnumerateCandidates(
@@ -779,7 +783,8 @@ public static class DiagramGridRouteBuilder
         string TargetId,
         DiagramContract Contract,
         FlowchartDirection Direction,
-        bool Horizontal)
+        bool Horizontal,
+        bool IncludeExteriorCorridors)
     {
         List<List<(double X, double Y)>> Results = BuildStubBridgeCandidates(
             StartX,
@@ -835,6 +840,25 @@ public static class DiagramGridRouteBuilder
                     (EndX, EndY)
                 ]);
             }
+
+            if (IncludeExteriorCorridors)
+            {
+                double Clearance = FlowchartPerpendicularRouteBuilder.OBSTACLE_AVOIDANCE_CLEARANCE_PX;
+                double ExteriorLeft = BoundsById.Values.Min(Box => Box.CenterX - Box.Width / 2.0) - Clearance;
+                double ExteriorRight = BoundsById.Values.Max(Box => Box.CenterX + Box.Width / 2.0) + Clearance;
+                foreach (double ExteriorX in new[] { ExteriorLeft, ExteriorRight })
+                {
+                    Results.Add(
+                    [
+                        (StartX, StartY),
+                        (SourceStubX, SourceStubY),
+                        (ExteriorX, SourceStubY),
+                        (ExteriorX, TargetStubY),
+                        (TargetStubX, TargetStubY),
+                        (EndX, EndY)
+                    ]);
+                }
+            }
         }
         else
         {
@@ -879,6 +903,25 @@ public static class DiagramGridRouteBuilder
                     (TargetStubX, TargetStubY),
                     (EndX, EndY)
                 ]);
+            }
+
+            if (IncludeExteriorCorridors)
+            {
+                double Clearance = FlowchartPerpendicularRouteBuilder.OBSTACLE_AVOIDANCE_CLEARANCE_PX;
+                double ExteriorTop = BoundsById.Values.Max(Box => Box.CenterY + Box.Height / 2.0) + Clearance;
+                double ExteriorBottom = BoundsById.Values.Min(Box => Box.CenterY - Box.Height / 2.0) - Clearance;
+                foreach (double ExteriorY in new[] { ExteriorTop, ExteriorBottom })
+                {
+                    Results.Add(
+                    [
+                        (StartX, StartY),
+                        (SourceStubX, SourceStubY),
+                        (SourceStubX, ExteriorY),
+                        (TargetStubX, ExteriorY),
+                        (TargetStubX, TargetStubY),
+                        (EndX, EndY)
+                    ]);
+                }
             }
         }
 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 using MermaidRecognition.Contract;
+using MermaidRecognition.Kinds.Flowchart;
 
 namespace MermaidRecognition.Layout;
 
@@ -10,8 +11,14 @@ namespace MermaidRecognition.Layout;
 internal static class FlowchartManyToManyRoutes
 {
     internal static void Apply(FlowchartLayoutResult Layout, DiagramContract Contract,
-        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds)
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds,
+        FlowchartDirection Direction = FlowchartDirection.TopToBottom)
     {
+        if (Direction is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft)
+        {
+            ApplyHorizontal(Layout, Contract, Bounds, Direction);
+            return;
+        }
         bool HasPlacementHints = Contract.Nodes.Any(Node => Node.PlacementHint?.IsActive == true)
             || Contract.Groups.Any(Group => Group.PlacementHint?.IsActive == true);
         HashSet<(string SourceId, string TargetId)> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract)
@@ -142,19 +149,125 @@ internal static class FlowchartManyToManyRoutes
         }
     }
 
+    private static void ApplyHorizontal(FlowchartLayoutResult Layout, DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds, FlowchartDirection Direction)
+    {
+        HashSet<(string SourceId, string TargetId)> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract)
+            .Select(Edge => (Edge.SourceId, Edge.TargetId)).ToHashSet();
+        HashSet<(string SourceId, string TargetId)> CompletePairs = CompleteBlockPairs(Contract);
+        List<FlowchartLayoutEdgeRoute> Routes = Layout.EdgeRoutes.Where(Route =>
+            Bounds.ContainsKey(Route.SourceId) && Bounds.ContainsKey(Route.TargetId)
+            && CompletePairs.Contains((Route.SourceId, Route.TargetId))
+            && Math.Abs(Bounds[Route.SourceId].CenterX - Bounds[Route.TargetId].CenterX) > 1
+            && (Direction == FlowchartDirection.LeftToRight
+                ? Bounds[Route.SourceId].CenterX < Bounds[Route.TargetId].CenterX
+                : Bounds[Route.SourceId].CenterX > Bounds[Route.TargetId].CenterX)
+            && !BackEdges.Contains((Route.SourceId, Route.TargetId))
+            && ContractEdge(Contract, Route)?.RoutingHint?.IsActive != true).ToList();
+        foreach (var Rank in Routes.GroupBy(Route => (Source: Math.Round(Bounds[Route.SourceId].CenterX),
+                     Target: Math.Round(Bounds[Route.TargetId].CenterX)))
+                     .Where(Group => Group.Count() > 1))
+        {
+            List<FlowchartLayoutEdgeRoute> Edges = Rank.ToList();
+            bool IncreasingX = Direction == FlowchartDirection.LeftToRight;
+            var SourceOrder = Edges.GroupBy(Route => Route.SourceId).ToDictionary(Group => Group.Key,
+                Group => Group.OrderBy(Route => Bounds[Route.TargetId].CenterY).ThenBy(Route => Route.TargetId).ToList());
+            var TargetOrder = Edges.GroupBy(Route => Route.TargetId).ToDictionary(Group => Group.Key,
+                Group => Group.OrderBy(Route => Bounds[Route.SourceId].CenterY).ThenBy(Route => Route.SourceId).ToList());
+            var Terminals = Edges.ToDictionary(Route => Route, Route =>
+            {
+                FlowchartLayoutNodeBounds Source = Bounds[Route.SourceId], Target = Bounds[Route.TargetId];
+                List<FlowchartLayoutEdgeRoute> From = SourceOrder[Route.SourceId], Into = TargetOrder[Route.TargetId];
+                double StartY = SlotCross(Source, From.IndexOf(Route), From.Count);
+                double EndY = SlotCross(Target, Into.IndexOf(Route), Into.Count);
+                return (StartX: Source.CenterX + (IncreasingX ? Source.Width / 2 : -Source.Width / 2), StartY,
+                    EndX: Target.CenterX + (IncreasingX ? -Target.Width / 2 : Target.Width / 2), EndY);
+            });
+            double NearSource = IncreasingX ? Edges.Max(Route => Terminals[Route].StartX)
+                : Edges.Min(Route => Terminals[Route].StartX);
+            double NearTarget = IncreasingX ? Edges.Min(Route => Terminals[Route].EndX)
+                : Edges.Max(Route => Terminals[Route].EndX);
+            List<FlowchartLayoutEdgeRoute> Bent = Edges.Where(Route =>
+                Math.Abs(Terminals[Route].StartY - Terminals[Route].EndY) > 0.5).ToList();
+            if (Bent.Count == 0 || (IncreasingX ? NearSource >= NearTarget : NearSource <= NearTarget)) continue;
+            List<FlowchartLayoutEdgeRoute> Order = Bent.OrderBy(Route => Bounds[Route.SourceId].CenterY)
+                .ThenBy(Route => Bounds[Route.TargetId].CenterY).ThenBy(Route => Route.EdgeId, StringComparer.Ordinal).ToList();
+            Dictionary<FlowchartLayoutEdgeRoute, List<(double X, double Y)>> PathsFor(
+                IReadOnlyList<FlowchartLayoutEdgeRoute> TrackOrder)
+            {
+                var Tracks = TrackOrder.Select((Route, Index) => (Route,
+                    X: Math.Round(NearSource + (Index + 1.0) * (NearTarget - NearSource) / (TrackOrder.Count + 1.0))))
+                    .ToDictionary(Item => Item.Route, Item => Item.X);
+                return Edges.ToDictionary(Route => Route, Route =>
+                {
+                    var T = Terminals[Route];
+                    if (Math.Abs(T.StartY - T.EndY) <= 0.5)
+                        return new List<(double X, double Y)> { (T.StartX, T.StartY), (T.EndX, T.EndY) };
+                    double Track = Tracks[Route];
+                    return new List<(double X, double Y)> { (T.StartX, T.StartY), (Track, T.StartY),
+                        (Track, T.EndY), (T.EndX, T.EndY) };
+                });
+            }
+            int Crossings(IReadOnlyList<FlowchartLayoutEdgeRoute> TrackOrder)
+            {
+                var Paths = PathsFor(TrackOrder);
+                int Count = 0;
+                for (int A = 0; A < Edges.Count; A++)
+                for (int B = A + 1; B < Edges.Count; B++)
+                {
+                    var Interaction = FlowchartBranchRouteOrder.Intersections(Paths[Edges[A]], Paths[Edges[B]]);
+                    Count += Interaction.Crossings + (Interaction.Overlap > 0.5 ? Edges.Count * Edges.Count : 0);
+                }
+                return Count;
+            }
+            int Best = Crossings(Order);
+            while (true)
+            {
+                List<FlowchartLayoutEdgeRoute>? BetterOrder = null;
+                int Better = Best;
+                for (int From = 0; From < Order.Count; From++)
+                for (int To = 0; To < Order.Count; To++)
+                {
+                    if (From == To) continue;
+                    List<FlowchartLayoutEdgeRoute> Candidate = Order.ToList();
+                    FlowchartLayoutEdgeRoute Moving = Candidate[From];
+                    Candidate.RemoveAt(From);
+                    Candidate.Insert(To, Moving);
+                    int CandidateCrossings = Crossings(Candidate);
+                    if (CandidateCrossings < Better) { Better = CandidateCrossings; BetterOrder = Candidate; }
+                }
+                if (BetterOrder == null) break;
+                Order = BetterOrder;
+                Best = Better;
+            }
+            var Paths = PathsFor(Order);
+            if (Paths.Any(Item => HitsNode(Item.Value, Item.Key, Bounds))) continue;
+            foreach (FlowchartLayoutEdgeRoute Route in Edges)
+            {
+                Route.Points.Clear();
+                foreach ((double X, double Y) Point in Paths[Route])
+                    Route.Points.Add(new() { X = Point.X, Y = Point.Y });
+                Route.ExitSide = IncreasingX ? "right" : "left";
+                Route.EntrySide = IncreasingX ? "left" : "right";
+            }
+        }
+    }
+
+    private static double SlotCross(FlowchartLayoutNodeBounds Box, int Index, int Count) => Math.Round(
+        Box.CenterY - Box.Height / 2.0 + Box.Height * (Index + 1.0) / (Count + 1.0));
+
     private static HashSet<(string SourceId, string TargetId)> CompleteBlockPairs(DiagramContract Contract)
     {
-        var Visible = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
-        var Sources = Visible.GroupBy(Edge => Edge.SourceId).Select(Group => (SourceId: Group.Key,
-            Targets: Group.Select(Edge => Edge.TargetId).Distinct().Order().ToArray())).ToList();
-        var Result = new HashSet<(string SourceId, string TargetId)>();
-        foreach (var Block in Sources.Where(Item => Item.Targets.Length >= 2)
-            .GroupBy(Item => string.Join("\u001f", Item.Targets))
-            .Where(Group => Group.Count() >= 2))
-        foreach (var Source in Block)
-        foreach (string TargetId in Source.Targets)
-            Result.Add((Source.SourceId, TargetId));
-        return Result;
+        List<(string SourceId, string[] Targets)> Sources = Contract.Edges
+            .Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+            .GroupBy(Edge => Edge.SourceId)
+            .Select(Group => (Group.Key, Group.Select(Edge => Edge.TargetId).Distinct()
+                .OrderBy(Id => Id, StringComparer.Ordinal).ToArray())).ToList();
+        return Sources.Where(Item => Item.Targets.Length >= 2)
+            .GroupBy(Item => string.Join("\u001f", Item.Targets), StringComparer.Ordinal)
+            .Where(Group => Group.Count() >= 2)
+            .SelectMany(Group => Group.SelectMany(Item => Item.Targets.Select(Target => (Item.SourceId, Target))))
+            .ToHashSet();
     }
 
     private static double Slot(FlowchartLayoutNodeBounds Box, int Index, int Count) => Math.Round(

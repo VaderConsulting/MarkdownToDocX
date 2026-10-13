@@ -23,6 +23,7 @@ internal static class FlowchartRoutingHints
             SelectHintedPorts(Layout, Contract, Bounds);
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
         {
+            if (Route.Points.Count < 2) continue;
             EdgeContract? Edge = DiagramGridLayout.FindContractEdge(Contract, Route);
             RoutingHintContract? Hint = Edge?.RoutingHint;
             if (Hint?.IsActive != true
@@ -43,7 +44,8 @@ internal static class FlowchartRoutingHints
             List<(double X, double Y)> Path = DiagramGridRouteBuilder.BuildRoute(
                 StartX, StartY, Source, SourceNode?.Shape, Exit,
                 EndX, EndY, Target, TargetNode?.Shape, Entry,
-                Bounds, Route.SourceId, Route.TargetId, Contract, Direction, Horizontal, Hint.Travel);
+                Bounds, Route.SourceId, Route.TargetId, Contract, Direction, Horizontal, Hint.Travel,
+                RequireLegal: true);
             if (Path.Count < 2)
             {
                 Hint.UnhonouredReason = Hint.Travel.HasValue
@@ -128,6 +130,7 @@ internal static class FlowchartRoutingHints
         string[] Sides = ["top", "bottom", "left", "right"];
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
         {
+            if (Route.Points.Count < 2) continue;
             EdgeContract? Edge = DiagramGridLayout.FindContractEdge(Contract, Route);
             List<(double X, double Y)> CurrentPath = Route.Points.Select(Point => (Point.X, Point.Y)).ToList();
             bool BadTerminal = !LeavesBy(CurrentPath, Route.ExitSide) || !EntersBy(CurrentPath, Route.EntrySide);

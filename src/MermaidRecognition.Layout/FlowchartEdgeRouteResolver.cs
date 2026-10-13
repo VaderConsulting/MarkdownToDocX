@@ -167,12 +167,28 @@ public static class FlowchartEdgeRouteResolver
                 continue;
             }
 
+            if (NodeById.TryGetValue(Edge.TargetId, out NodeContract? TargetNode)
+                && FlowchartDagrePresentation.IsDiamondShape(TargetNode.Shape)
+                && Contract.Edges.Count(Candidate => Candidate.TargetId == Edge.TargetId
+                    && !string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)) > 1)
+            {
+                RouteKind = FlowchartEdgeRouteKind.Decision;
+            }
+
             Guides.Add(new FlowchartResolvedGuide(Edge, Points, RouteKind));
         }
 
         if (!UsedGridLayoutRoutes(Layout, Guides))
         {
             FlowchartSharedEdgeRouter.RouteAll(Contract, MutableBounds, NodeById, Direction, Guides);
+            foreach (FlowchartResolvedGuide Guide in Guides)
+            {
+                if (NodeById.TryGetValue(Guide.Edge.TargetId, out NodeContract? TargetNode)
+                    && FlowchartDagrePresentation.IsDiamondShape(TargetNode.Shape)
+                    && Contract.Edges.Count(Candidate => Candidate.TargetId == Guide.Edge.TargetId
+                        && !string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)) > 1)
+                    Guide.RouteKind = FlowchartEdgeRouteKind.Decision;
+            }
         }
 
         FlowchartRenderContext.Current.CachedRouteContract = Contract;

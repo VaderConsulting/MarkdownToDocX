@@ -1547,6 +1547,51 @@ public sealed class FlowchartCatalogueRenderTests
     }
 
     [Test]
+    public void TryLayout_F35_DecisionPathsStayConnectedAndClearOfOtherNodes()
+    {
+        DiagramContract Contract = MermaidRecognizer.Parse("""
+            flowchart TB
+            A[Path A] --> D{Merge?}
+            B[Path B] --> D
+            C[Path C] --> D
+            D -->|yes| E[Continue]
+            D -->|no| F[Stop]
+            """);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+
+        foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
+        {
+            Assert.That(Route.Points.Count, Is.GreaterThanOrEqualTo(2), Route.EdgeId + " has both endpoints");
+            FlowchartLayoutNodeBounds Source = Layout.NodeBounds.Single(Box => Box.NodeId == Route.SourceId);
+            FlowchartLayoutNodeBounds Target = Layout.NodeBounds.Single(Box => Box.NodeId == Route.TargetId);
+            Assert.That(FlowchartPerpendicularAttachValidator.ResolveAttachFace(
+                Source, Route.Points[0].X, Route.Points[0].Y), Is.Not.EqualTo(FlowchartEdgeAttachFace.Unknown),
+                Route.EdgeId + " starts on its source outline");
+            Assert.That(FlowchartPerpendicularAttachValidator.ResolveAttachFace(
+                Target, Route.Points[^1].X, Route.Points[^1].Y), Is.Not.EqualTo(FlowchartEdgeAttachFace.Unknown),
+                Route.EdgeId + " ends on its target outline");
+            foreach (FlowchartLayoutNodeBounds Obstacle in Layout.NodeBounds.Where(Box =>
+                         Box.NodeId != Route.SourceId && Box.NodeId != Route.TargetId))
+            foreach (var Segment in Route.Points.Zip(Route.Points.Skip(1)))
+                Assert.That(FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(
+                    Segment.First.X, Segment.First.Y, Segment.Second.X, Segment.Second.Y, Obstacle), Is.False,
+                    Route.EdgeId + " passes through " + Obstacle.NodeId);
+        }
+
+        for (int First = 0; First < Layout.EdgeRoutes.Count; First++)
+        for (int Second = First + 1; Second < Layout.EdgeRoutes.Count; Second++)
+        {
+            FlowchartLayoutEdgeRoute A = Layout.EdgeRoutes[First];
+            FlowchartLayoutEdgeRoute B = Layout.EdgeRoutes[Second];
+            var Interaction = FlowchartBranchRouteOrder.Intersections(
+                A.Points.Select(Point => (Point.X, Point.Y)).ToList(),
+                B.Points.Select(Point => (Point.X, Point.Y)).ToList());
+            Assert.That(Interaction.Crossings, Is.Zero, $"{A.EdgeId} crosses {B.EdgeId}");
+            Assert.That(Interaction.Overlap, Is.LessThanOrEqualTo(0.5), $"{A.EdgeId} overlaps {B.EdgeId}");
+        }
+    }
+
+    [Test]
     public void TryResolveLayoutGuidePoints_F35_MultiIncoming_UsesBottomCentreSourcesAndDistinctDiamondPorts()
     {
         DiagramContract Contract = MermaidRecognizer.Parse("""
@@ -1618,12 +1663,13 @@ public sealed class FlowchartCatalogueRenderTests
             Is.GreaterThan(BoundsById["D"].CenterX),
             "Path C should enter the diamond upper-right perimeter");
 
-        (double PathAGuideX, _) = PathAPoints[2];
-        (double PathCGuideX, _) = PathCPoints[2];
+        (double PathAGuideX, _) = PathAPoints[1];
+        (double PathCGuideX, _) = PathCPoints[1];
         Assert.That(
             PathAGuideX,
             Is.EqualTo(PathAPoints[0].X).Within(1.0),
-            "Path A guide mirrors yes/no via swapped decision-branch attach (source-column corridor)");
+            "Path A guide mirrors yes/no via swapped decision-branch attach (source-column corridor): "
+            + string.Join(" ", PathAPoints.Select(Point => $"({Point.X},{Point.Y})")));
         Assert.That(
             PathCGuideX,
             Is.EqualTo(PathCPoints[0].X).Within(1.0),

@@ -186,6 +186,8 @@ public static class DiagramGridLayout
         DiagramGridRouteBuilder.RemoveClearForwardDoglegs(Copy, Contract, BuildPlacedBounds(Placed, Frames));
         FlowchartBranchRouteOrder.RemoveAvoidableCrossings(Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction,
             FlowchartPartnerRankLayout.StraightRoutes(Copy, PartnerRanks));
+        if (!Open && Direction is FlowchartDirection.TopToBottom or FlowchartDirection.BottomToTop)
+            FlowchartManyToManyRoutes.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames), Direction);
         FlowchartObstacleRouteRepair.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
         FlowchartReturnRouteOrder.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
         FlowchartNestedCounterflowTracks.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
@@ -205,7 +207,6 @@ public static class DiagramGridLayout
         if (!Open)
             FlowchartTwoCornerRouteRepair.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
         if (!Open)
-            FlowchartManyToManyRoutes.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
         // Seed the explicit ports before generic port-side repair; the final
         // pass below preserves these selected ports after all route repairs.
         FlowchartRoutingHints.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction);
@@ -231,6 +232,8 @@ public static class DiagramGridLayout
             Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction);
         if (!Open)
             FlowchartPortSideRouteRepair.Apply(Copy, Contract);
+        if (!Open && Direction is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft)
+            FlowchartManyToManyRoutes.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames), Direction);
         // Placement and every automatic route repair must finish before line
         // hints are applied: later repair passes must not undo the requested
         // sides or travel direction.
