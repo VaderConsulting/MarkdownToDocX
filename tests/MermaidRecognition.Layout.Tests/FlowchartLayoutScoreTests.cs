@@ -29,6 +29,34 @@ public sealed class FlowchartLayoutScoreTests
     }
 
     [Test]
+    public void CrossingCount_UsesIndependentRoutesAndIgnoresSharedGraphEndpoints()
+    {
+        var Layout = new FlowchartLayoutResult();
+        Layout.EdgeRoutesMutable.Add(Route("vertical", "a", "b", (5, 0), (5, 10)));
+        Layout.EdgeRoutesMutable.Add(Route("horizontal", "c", "d", (0, 5), (10, 5)));
+        Layout.EdgeRoutesMutable.Add(Route("shared", "a", "e", (5, 0), (15, 0)));
+
+        Assert.That(FlowchartLayoutScore.CountCrossings(Layout), Is.EqualTo(1));
+    }
+
+    [Test]
+    public void CrossingCount_HandlesManyRoutePairs()
+    {
+        var Layout = new FlowchartLayoutResult();
+        const int TrackCount = 32;
+        for (int Index = 0; Index < TrackCount; Index++)
+        {
+            double Track = Index * 10;
+            Layout.EdgeRoutesMutable.Add(Route("v" + Index, "vs" + Index, "vt" + Index,
+                (Track, -10), (Track, 320)));
+            Layout.EdgeRoutesMutable.Add(Route("h" + Index, "hs" + Index, "ht" + Index,
+                (-10, Track), (320, Track)));
+        }
+
+        Assert.That(FlowchartLayoutScore.CountCrossings(Layout), Is.EqualTo(TrackCount * TrackCount));
+    }
+
+    [Test]
     public void DisconnectedRelationshipEnds_AddTwentyPointsEach()
     {
         (DiagramContract Contract, FlowchartLayoutResult Connected) = BuildLayout(90, 30);
@@ -74,5 +102,14 @@ public sealed class FlowchartLayoutScoreTests
         Route.Points.Add(new FlowchartLayoutPoint { X = 0, Y = TargetEndpointY });
         Layout.EdgeRoutesMutable.Add(Route);
         return (Contract, Layout);
+    }
+
+    private static FlowchartLayoutEdgeRoute Route(string EdgeId, string SourceId, string TargetId,
+        (double X, double Y) Start, (double X, double Y) End)
+    {
+        var Route = new FlowchartLayoutEdgeRoute { EdgeId = EdgeId, SourceId = SourceId, TargetId = TargetId };
+        Route.Points.Add(new FlowchartLayoutPoint { X = Start.X, Y = Start.Y });
+        Route.Points.Add(new FlowchartLayoutPoint { X = End.X, Y = End.Y });
+        return Route;
     }
 }

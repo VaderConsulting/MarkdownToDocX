@@ -48,12 +48,16 @@ internal static class FlowchartPortSideRouteRepair
             Candidate? Best = null;
             int BestFaults = BeforeFaults;
             double? BestScore = Before.Score;
+            List<(FlowchartLayoutEdgeRoute Route, List<(double X, double Y)> Points)> OtherPaths =
+                Layout.EdgeRoutes.Where(Other => Other != Route)
+                    .Select(Other => (Other, Tuples(Other.Points))).ToList();
+            List<(double X, double Y)> OriginalPath = Tuples(Route.Points);
             foreach (Candidate Candidate in Candidates(Source, Target, Bounds.Values, Direction)
                          .Where(Candidate => Clear(Candidate.Points, Route, Bounds.Values)
                              && PortsAreFree(Candidate, Route, Layout)
                              && HasMinimumTerminalRuns(Candidate.Points)
                              && HasLabelRoom(Candidate.Points, Edge, Contract)
-                             && NoWorseInteractions(Candidate.Points, Route, Layout))
+                             && NoWorseInteractions(Candidate.Points, OriginalPath, OtherPaths))
                          .OrderBy(Candidate => Candidate.Points.Count)
                          .ThenBy(Candidate => Candidate.FlowPriority)
                          .ThenBy(Candidate => Candidate.Length))
@@ -267,14 +271,16 @@ internal static class FlowchartPortSideRouteRepair
             && !(Other.TargetId == Route.TargetId && Same(Other.Points[^1], Candidate.Points[^1])));
 
     private static bool NoWorseInteractions(IReadOnlyList<FlowchartLayoutPoint> Candidate,
-        FlowchartLayoutEdgeRoute Route, FlowchartLayoutResult Layout)
+        IReadOnlyList<(double X, double Y)> Original,
+        IReadOnlyList<(FlowchartLayoutEdgeRoute Route, List<(double X, double Y)> Points)> Others)
     {
         int BeforeCrossings = 0, AfterCrossings = 0;
         double BeforeOverlap = 0.0, AfterOverlap = 0.0;
-        foreach (FlowchartLayoutEdgeRoute Other in Layout.EdgeRoutes.Where(Other => Other != Route))
+        List<(double X, double Y)> CandidatePath = Tuples(Candidate);
+        foreach (var Other in Others)
         {
-            var Before = FlowchartBranchRouteOrder.Intersections(Tuples(Route.Points), Tuples(Other.Points));
-            var After = FlowchartBranchRouteOrder.Intersections(Tuples(Candidate), Tuples(Other.Points));
+            var Before = FlowchartBranchRouteOrder.Intersections(Original, Other.Points);
+            var After = FlowchartBranchRouteOrder.Intersections(CandidatePath, Other.Points);
             BeforeCrossings += Before.Crossings;
             AfterCrossings += After.Crossings;
             BeforeOverlap += Before.Overlap;

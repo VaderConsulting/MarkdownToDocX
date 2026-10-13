@@ -143,17 +143,21 @@ internal static class FlowchartLayoutScore
 
     internal static int CountCrossings(FlowchartLayoutResult Layout)
     {
+        // A candidate score compares every route pair. Convert each route once
+        // here instead of allocating two point lists for every pair.
+        var Routes = Layout.EdgeRoutes
+            .Select(Route => (Route.SourceId, Route.TargetId,
+                Points: Route.Points.Select(Point => (Point.X, Point.Y)).ToArray()))
+            .ToArray();
         int Result = 0;
-        for (int Left = 0; Left < Layout.EdgeRoutes.Count; Left++)
-        for (int Right = Left + 1; Right < Layout.EdgeRoutes.Count; Right++)
+        for (int Left = 0; Left < Routes.Length; Left++)
+        for (int Right = Left + 1; Right < Routes.Length; Right++)
         {
-            FlowchartLayoutEdgeRoute A = Layout.EdgeRoutes[Left];
-            FlowchartLayoutEdgeRoute B = Layout.EdgeRoutes[Right];
+            var A = Routes[Left];
+            var B = Routes[Right];
             if (A.SourceId == B.SourceId || A.SourceId == B.TargetId
                 || A.TargetId == B.SourceId || A.TargetId == B.TargetId) continue;
-            Result += FlowchartBranchRouteOrder.Intersections(
-                A.Points.Select(Point => (Point.X, Point.Y)).ToList(),
-                B.Points.Select(Point => (Point.X, Point.Y)).ToList()).Crossings;
+            Result += FlowchartBranchRouteOrder.Intersections(A.Points, B.Points).Crossings;
         }
         return Result;
     }
