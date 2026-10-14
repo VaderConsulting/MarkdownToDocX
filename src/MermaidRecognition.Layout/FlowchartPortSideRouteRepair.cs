@@ -29,7 +29,9 @@ internal static class FlowchartPortSideRouteRepair
             .Select(Edge => Edge.Id).OfType<string>().ToHashSet(StringComparer.Ordinal);
         var Nodes = Contract.Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
-        RepairRejectedRoutes(Layout, Contract, Bounds, Back, Direction);
+        var ScoreContext = new FlowchartLayoutScore.IncrementalContext(
+            Contract, Layout, IncludeArrangementCheck: false);
+        RepairRejectedRoutes(Layout, Contract, Bounds, Back, Direction, ScoreContext);
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes.Where(Route =>
                      Corners(Route.Points) is > 0 and <= 2
                      && !Hinted.Contains(Route.EdgeId)
@@ -40,8 +42,7 @@ internal static class FlowchartPortSideRouteRepair
                 || IsGeometricBackEdge(Source, Target, Direction)
                 || !CanReassign(Route.SourceId, Nodes) || !CanReassign(Route.TargetId, Nodes)) continue;
             EdgeContract? Edge = DiagramGridLayout.FindContractEdge(Contract, Route);
-            FlowchartLayoutScore.Result Before = FlowchartLayoutScore.Measure(
-                Contract, Layout, IncludeArrangementCheck: false);
+            FlowchartLayoutScore.Result Before = ScoreContext.MeasureCandidate(Route);
             int BeforeFaults = RejectingFaults(Before);
             List<FlowchartLayoutPoint> Original = Route.Points.Select(Copy).ToList();
             string OriginalExit = Route.ExitSide, OriginalEntry = Route.EntrySide;
@@ -63,8 +64,7 @@ internal static class FlowchartPortSideRouteRepair
                          .ThenBy(Candidate => Candidate.Length))
             {
                 Set(Route, Candidate);
-                FlowchartLayoutScore.Result Measured = FlowchartLayoutScore.Measure(
-                    Contract, Layout, IncludeArrangementCheck: false);
+                FlowchartLayoutScore.Result Measured = ScoreContext.MeasureCandidate(Route);
                 int Faults = RejectingFaults(Measured);
                 bool Improves = BestScore.HasValue
                     ? Measured.Score.HasValue && Measured.Score.Value < BestScore.Value - 0.001
@@ -79,7 +79,11 @@ internal static class FlowchartPortSideRouteRepair
                 }
                 Restore(Route, Original, OriginalExit, OriginalEntry);
             }
-            if (Best != null) Set(Route, Best);
+            if (Best != null)
+            {
+                Set(Route, Best);
+                ScoreContext.CommitCurrent(Route);
+            }
             else Restore(Route, Original, OriginalExit, OriginalEntry);
         }
         FlowchartLayoutScore.Result Final = FlowchartLayoutScore.Measure(Contract, Layout);
@@ -93,15 +97,15 @@ internal static class FlowchartPortSideRouteRepair
 
     private static void RepairRejectedRoutes(FlowchartLayoutResult Layout, DiagramContract Contract,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds,
-        HashSet<(string SourceId, string TargetId)> Back, FlowchartDirection Direction)
+        HashSet<(string SourceId, string TargetId)> Back, FlowchartDirection Direction,
+        FlowchartLayoutScore.IncrementalContext ScoreContext)
     {
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes.Where(Route =>
                      Corners(Route.Points) > 2 && !Back.Contains((Route.SourceId, Route.TargetId))).ToList())
         {
             if (!Bounds.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds? Source)
                 || !Bounds.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds? Target)) continue;
-            FlowchartLayoutScore.Result Before = FlowchartLayoutScore.Measure(
-                Contract, Layout, IncludeArrangementCheck: false);
+            FlowchartLayoutScore.Result Before = ScoreContext.MeasureCandidate(Route);
             int BestFaults = RejectingFaults(Before), BeforeCrossings = Before.Crossings;
             List<FlowchartLayoutPoint> Original = Route.Points.Select(Copy).ToList();
             string OriginalExit = Route.ExitSide, OriginalEntry = Route.EntrySide;
@@ -113,8 +117,7 @@ internal static class FlowchartPortSideRouteRepair
                          .ThenBy(Candidate => Candidate.Length))
             {
                 Set(Route, Candidate);
-                FlowchartLayoutScore.Result Measured = FlowchartLayoutScore.Measure(
-                    Contract, Layout, IncludeArrangementCheck: false);
+                FlowchartLayoutScore.Result Measured = ScoreContext.MeasureCandidate(Route);
                 int Faults = RejectingFaults(Measured);
                 if (Measured.Overlaps == 0 && Measured.Crossings <= BeforeCrossings && Faults < BestFaults)
                 {
@@ -125,7 +128,11 @@ internal static class FlowchartPortSideRouteRepair
                 }
                 Restore(Route, Original, OriginalExit, OriginalEntry);
             }
-            if (Best != null) Set(Route, Best);
+            if (Best != null)
+            {
+                Set(Route, Best);
+                ScoreContext.CommitCurrent(Route);
+            }
         }
     }
 
