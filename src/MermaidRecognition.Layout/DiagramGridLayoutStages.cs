@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Text;
 
 using MermaidRecognition.Contract;
 using MermaidRecognition.Kinds.Flowchart;
@@ -227,58 +229,184 @@ public static partial class DiagramGridLayout
     private static class RouteRepairStage
     {
         // Rule ids: 3, 4 and 5 (route legality repairs and score improvements).
+        private sealed record RepairPass(string RuleIds, Action<GridLayoutState> Apply);
+
+        private static readonly RepairPass[] Passes =
+        [
+            new("4.4", State => SeparateTracks(State.Copy, State.Placed)),
+            new("4.4,5.3", State => SeparateParallelReturnTracks(State.Contract, State.Copy,
+                BuildPlacedBounds(State.Placed, State.Frames))),
+            new("4.4", State => PushPointsOutOfNodes(State.Copy, State.Placed)),
+            new("5.3,5.4", State => DiagramGridRouteBuilder.RebuildContainedBackRoutes(
+                State.Copy, State.Placed, State.Nodes, State.Contract, State.Frames, State.Direction)),
+            new("4.4", State => FlowchartGridTerminalNormalizer.Apply(
+                State.Copy, BuildPlacedBounds(State.Placed, State.Frames), State.Nodes)),
+            new("4.2,4.3", State => GrowFacingDoglegGaps(State.Copy, State.Contract, State.Placed, State.Frames)),
+            new("4.2", State => DiagramGridRouteBuilder.RemoveClearForwardDoglegs(
+                State.Copy, State.Contract, BuildPlacedBounds(State.Placed, State.Frames))),
+            new("2.13,5.9", State => FlowchartBranchRouteOrder.RemoveAvoidableCrossings(
+                State.Copy, State.Contract, BuildPlacedBounds(State.Placed, State.Frames), State.Nodes, State.Direction,
+                FlowchartPartnerRankLayout.StraightRoutes(State.Copy, State.PartnerRanks))),
+            new("5.8,5.9", State =>
+            {
+                if (!State.Open && State.Direction is FlowchartDirection.TopToBottom or FlowchartDirection.BottomToTop)
+                    FlowchartManyToManyRoutes.Apply(State.Copy, State.Contract,
+                        BuildPlacedBounds(State.Placed, State.Frames), State.Direction);
+            }),
+            new("4.4", State => FlowchartObstacleRouteRepair.Apply(
+                State.Copy, State.Contract, BuildPlacedBounds(State.Placed, State.Frames))),
+            new("5.3,5.4", State => FlowchartReturnRouteOrder.Apply(
+                State.Copy, State.Contract, BuildPlacedBounds(State.Placed, State.Frames))),
+            new("5.8", State => FlowchartNestedCounterflowTracks.Apply(
+                State.Copy, State.Contract, BuildPlacedBounds(State.Placed, State.Frames))),
+            new("4.4,5.8", State => FlowchartCrossGroupRouteSimplifier.Apply(
+                State.Copy, State.Contract, BuildPlacedBounds(State.Placed, State.Frames))),
+            new("5.8", State => FlowchartAlignedCounterflowRoutes.Apply(
+                State.Copy, State.Contract, BuildPlacedBounds(State.Placed, State.Frames))),
+            new("5.8", State => FlowchartTerminalFanBypass.Apply(
+                State.Copy, State.Contract, BuildPlacedBounds(State.Placed, State.Frames))),
+            new("5.9", State =>
+            {
+                if (State.RepairExteriorCrossings)
+                    FlowchartExteriorCrossingRepair.Apply(State.Copy, BuildPlacedBounds(State.Placed, State.Frames));
+            }),
+            new("5.8", State =>
+            {
+                if (!State.Open)
+                    FlowchartWrappedChainRoutes.Apply(State.Copy, State.Contract, BuildPlacedBounds(State.Placed, State.Frames));
+            }),
+            new("5.8", State =>
+            {
+                if (!State.Open)
+                    FlowchartWrappedFanRoutes.Apply(State.Copy, State.Contract, BuildPlacedBounds(State.Placed, State.Frames));
+            }),
+            new("4.2", State =>
+            {
+                if (!State.Open) FlowchartAlignedRouteStraightener.Apply(State.Copy, BuildPlacedBounds(State.Placed, State.Frames));
+                else FlowchartAlignedRouteStraightener.ApplyNearlyAlignedFacing(State.Copy, BuildPlacedBounds(State.Placed, State.Frames));
+            }),
+            new("4.2,4.3", State =>
+            {
+                if (!State.Open)
+                    FlowchartTwoCornerRouteRepair.Apply(State.Copy, State.Contract, BuildPlacedBounds(State.Placed, State.Frames));
+            }),
+            new("3.1–3.7", State => FlowchartRoutingHints.Apply(State.Copy, State.Contract,
+                BuildPlacedBounds(State.Placed, State.Frames), State.Nodes, State.Direction)),
+            new("1.1–1.7", State => WriteBack(State.Copy, State.Placed, State.Frames)),
+            new("3.8,4.11", State =>
+            {
+                if (!State.Open) FlowchartDecisionBranchRouteRepair.Apply(State.Copy, State.Contract);
+            }),
+            new("4.11", State =>
+            {
+                if (!State.Open) FlowchartConvergenceRouteRepair.Apply(State.Copy, State.Contract);
+            }),
+            new("4.2,6.1,6.2", State =>
+            {
+                if (!State.Open) FlowchartSelfLoopLabelRouteRepair.Apply(State.Copy, State.Contract);
+            }),
+            new("2.13,4.2", State =>
+            {
+                if (!State.Open)
+                    ApplyScoreGuardedTwoCornerRepair(State.Copy, State.Contract,
+                        BuildPlacedBounds(State.Placed, State.Frames));
+            }),
+            new("4.2", State =>
+            {
+                if (!State.Open)
+                {
+                    FlowchartAlignedRouteStraightener.RepairSameSideDirectRoutes(
+                        State.Copy, BuildPlacedBounds(State.Placed, State.Frames));
+                    FlowchartAlignedRouteStraightener.ApplyOneCornerCandidates(
+                        State.Copy, BuildPlacedBounds(State.Placed, State.Frames));
+                    FlowchartAlignedRouteStraightener.ApplyCenteredFacing(
+                        State.Copy, BuildPlacedBounds(State.Placed, State.Frames));
+                }
+            }),
+            new("5.8", State => FlowchartCircularJunctionLayout.RebuildFans(
+                State.Copy, State.Contract, BuildPlacedBounds(State.Placed, State.Frames), State.Nodes, State.Direction)),
+            new("4.7", State =>
+            {
+                if (!State.Open) FlowchartPortSideRouteRepair.Apply(State.Copy, State.Contract);
+            }),
+            new("5.8,5.9", State =>
+            {
+                if (!State.Open && State.Direction is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft)
+                    FlowchartManyToManyRoutes.Apply(State.Copy, State.Contract,
+                        BuildPlacedBounds(State.Placed, State.Frames), State.Direction);
+            }),
+            new("5.8", State => RebuildAlignedSimpleFanRoutes(State.Contract, State.Copy,
+                State.Placed, State.Frames, State.Nodes, State.Direction))
+        ];
+
         public static void Apply(GridLayoutState State)
         {
-            DiagramContract Contract = State.Contract;
-            FlowchartLayoutResult Copy = State.Copy;
-            List<GridNode> Placed = State.Placed;
-            List<GridFrame> Frames = State.Frames;
-            Dictionary<string, NodeContract> Nodes = State.Nodes;
-            FlowchartDirection Direction = State.Direction;
-            bool Horizontal = State.Horizontal;
-            bool Open = State.Open;
-            bool RepairExteriorCrossings = State.RepairExteriorCrossings;
-            Copy.UsesGridRoutes = true;
-            SeparateTracks(Copy, Placed);
-            SeparateParallelReturnTracks(Contract, Copy, BuildPlacedBounds(Placed, Frames));
-            PushPointsOutOfNodes(Copy, Placed);
-            DiagramGridRouteBuilder.RebuildContainedBackRoutes(Copy, Placed, Nodes, Contract, Frames, Direction);
-            FlowchartGridTerminalNormalizer.Apply(Copy, BuildPlacedBounds(Placed, Frames), Nodes);
-            GrowFacingDoglegGaps(Copy, Contract, Placed, Frames);
-            DiagramGridRouteBuilder.RemoveClearForwardDoglegs(Copy, Contract, BuildPlacedBounds(Placed, Frames));
-            FlowchartBranchRouteOrder.RemoveAvoidableCrossings(Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction,
-                FlowchartPartnerRankLayout.StraightRoutes(Copy, State.PartnerRanks));
-            if (!Open && Direction is FlowchartDirection.TopToBottom or FlowchartDirection.BottomToTop)
-                FlowchartManyToManyRoutes.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames), Direction);
-            FlowchartObstacleRouteRepair.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
-            FlowchartReturnRouteOrder.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
-            FlowchartNestedCounterflowTracks.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
-            FlowchartCrossGroupRouteSimplifier.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
-            FlowchartAlignedCounterflowRoutes.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
-            FlowchartTerminalFanBypass.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
-            if (RepairExteriorCrossings) FlowchartExteriorCrossingRepair.Apply(Copy, BuildPlacedBounds(Placed, Frames));
-            if (!Open) FlowchartWrappedChainRoutes.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
-            if (!Open) FlowchartWrappedFanRoutes.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
-            if (!Open) FlowchartAlignedRouteStraightener.Apply(Copy, BuildPlacedBounds(Placed, Frames));
-            else FlowchartAlignedRouteStraightener.ApplyNearlyAlignedFacing(Copy, BuildPlacedBounds(Placed, Frames));
-            if (!Open) FlowchartTwoCornerRouteRepair.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
-            FlowchartRoutingHints.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction);
-            WriteBack(Copy, Placed, Frames);
-            if (!Open) FlowchartDecisionBranchRouteRepair.Apply(Copy, Contract);
-            if (!Open) FlowchartConvergenceRouteRepair.Apply(Copy, Contract);
-            if (!Open) FlowchartSelfLoopLabelRouteRepair.Apply(Copy, Contract);
-            if (!Open) ApplyScoreGuardedTwoCornerRepair(Copy, Contract, BuildPlacedBounds(Placed, Frames));
-            if (!Open)
+            State.Copy.UsesGridRoutes = true;
+            HashSet<string> SeenStates = new(StringComparer.Ordinal) { RouteState(State.Copy) };
+            List<(double X, double Y)[]> BestRoutes = CaptureRoutes(State.Copy);
+            FlowchartLayoutScore.Result Before = FlowchartLayoutScore.Measure(State.Contract, State.Copy,
+                IncludeArrangementCheck: false);
+            while (true)
             {
-                FlowchartAlignedRouteStraightener.RepairSameSideDirectRoutes(Copy, BuildPlacedBounds(Placed, Frames));
-                FlowchartAlignedRouteStraightener.ApplyOneCornerCandidates(Copy, BuildPlacedBounds(Placed, Frames));
-                FlowchartAlignedRouteStraightener.ApplyCenteredFacing(Copy, BuildPlacedBounds(Placed, Frames));
+                foreach (RepairPass Pass in Passes)
+                    Pass.Apply(State);
+
+                FlowchartLayoutScore.Result After = FlowchartLayoutScore.Measure(State.Contract, State.Copy,
+                    IncludeArrangementCheck: false);
+                string Signature = RouteState(State.Copy);
+                if (!SeenStates.Add(Signature)
+                    || After.OptimizationScore >= Before.OptimizationScore)
+                {
+                    RestoreRoutes(State.Copy, BestRoutes);
+                    break;
+                }
+
+                Before = After;
+                BestRoutes = CaptureRoutes(State.Copy);
             }
-            FlowchartCircularJunctionLayout.RebuildFans(Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction);
-            if (!Open) FlowchartPortSideRouteRepair.Apply(Copy, Contract);
-            if (!Open && Direction is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft)
-                FlowchartManyToManyRoutes.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames), Direction);
-            RebuildAlignedSimpleFanRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
+        }
+
+        private static List<(double X, double Y)[]> CaptureRoutes(FlowchartLayoutResult Layout)
+        {
+            List<(double X, double Y)[]> Routes = new(Layout.EdgeRoutes.Count);
+            foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
+            {
+                (double X, double Y)[] Points = new (double X, double Y)[Route.Points.Count];
+                for (int PointIndex = 0; PointIndex < Route.Points.Count; PointIndex++)
+                    Points[PointIndex] = (Route.Points[PointIndex].X, Route.Points[PointIndex].Y);
+                Routes.Add(Points);
+            }
+            return Routes;
+        }
+
+        private static void RestoreRoutes(FlowchartLayoutResult Layout, IReadOnlyList<(double X, double Y)[]> Routes)
+        {
+            for (int RouteIndex = 0; RouteIndex < Layout.EdgeRoutes.Count; RouteIndex++)
+            {
+                List<FlowchartLayoutPoint> Points = Layout.EdgeRoutes[RouteIndex].Points;
+                Points.Clear();
+                foreach ((double X, double Y) in Routes[RouteIndex])
+                    Points.Add(new FlowchartLayoutPoint { X = X, Y = Y });
+            }
+        }
+
+        private static string RouteState(FlowchartLayoutResult Layout)
+        {
+            StringBuilder Signature = new();
+            foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
+            {
+                Signature.Append(Route.EdgeId).Append('|').Append(Route.SourceId).Append('>')
+                    .Append(Route.TargetId).Append(':');
+                foreach (FlowchartLayoutPoint Point in Route.Points)
+                {
+                    Signature.Append(BitConverter.DoubleToInt64Bits(Point.X).ToString("X16", CultureInfo.InvariantCulture))
+                        .Append(',')
+                        .Append(BitConverter.DoubleToInt64Bits(Point.Y).ToString("X16", CultureInfo.InvariantCulture))
+                        .Append(';');
+                }
+                Signature.Append('|');
+            }
+            return Signature.ToString();
         }
     }
 

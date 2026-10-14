@@ -60,6 +60,10 @@
 
   <ItemGroup>
 
+    <EmbeddedResource Include="..\..\docs\Instructions\rules.yaml"
+                      Link="rules.yaml"
+                      LogicalName="MermaidRecognition.Layout.rules.yaml" />
+
     <EmbeddedResource Update="Sugiyama\Strings.resx">
 
       <Generator>ResXFileCodeGenerator</Generator>

@@ -57,17 +57,30 @@ public static class DiagramGridQuality
 
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
         {
-            foreach (FlowchartLayoutPoint Point in Route.Points)
+            CheckRouteWholePixels(Route, Violations);
+        }
+    }
+
+    internal static void CollectRouteFailures(FlowchartLayoutResult Layout,
+        FlowchartLayoutEdgeRoute Route, List<FlowchartLayoutQualityFailure> Violations)
+    {
+        CheckRouteWholePixels(Route, Violations);
+        CheckLineShapeRoute(Layout, Route, Violations);
+    }
+
+    private static void CheckRouteWholePixels(FlowchartLayoutEdgeRoute Route,
+        List<FlowchartLayoutQualityFailure> Violations)
+    {
+        foreach (FlowchartLayoutPoint Point in Route.Points)
+        {
+            if (!IsWhole(Point.X) || !IsWhole(Point.Y))
             {
-                if (!IsWhole(Point.X) || !IsWhole(Point.Y))
-                {
-                    Violations.Add(Failure(
-                        "WholePixel",
-                        Route.SourceId + "->" + Route.TargetId + " has a fractional point",
-                        Route.SourceId,
-                        Route.TargetId));
-                    break;
-                }
+                Violations.Add(Failure(
+                    "WholePixel",
+                    Route.SourceId + "->" + Route.TargetId + " has a fractional point",
+                    Route.SourceId,
+                    Route.TargetId));
+                break;
             }
         }
     }
@@ -124,92 +137,95 @@ public static class DiagramGridQuality
     {
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
         {
-            if (Route.Points.Count < 2)
-            {
-                continue;
-            }
+            CheckLineShapeRoute(Layout, Route, Violations);
+        }
+    }
 
-            FlowchartLayoutPoint Start = Route.Points[0];
-            FlowchartLayoutPoint End = Route.Points[Route.Points.Count - 1];
-            if (!TerminalDirectionMatches(Route.Points[0], Route.Points[1], Route.ExitSide)
-                || !TerminalDirectionMatches(Route.Points[^1], Route.Points[^2], Route.EntrySide))
+    private static void CheckLineShapeRoute(FlowchartLayoutResult Layout,
+        FlowchartLayoutEdgeRoute Route, List<FlowchartLayoutQualityFailure> Violations)
+    {
+        if (Route.Points.Count < 2) return;
+
+        FlowchartLayoutPoint Start = Route.Points[0];
+        FlowchartLayoutPoint End = Route.Points[^1];
+        if (!TerminalDirectionMatches(Route.Points[0], Route.Points[1], Route.ExitSide)
+            || !TerminalDirectionMatches(Route.Points[^1], Route.Points[^2], Route.EntrySide))
+        {
+            Violations.Add(Failure(
+                "LineShape",
+                Route.SourceId + "->" + Route.TargetId + " does not leave and enter perpendicular to its selected sides",
+                Route.SourceId,
+                Route.TargetId));
+            return;
+        }
+        bool Aligned = Math.Abs(Start.X - End.X) <= 0.5 || Math.Abs(Start.Y - End.Y) <= 0.5;
+        if (Aligned && Route.Points.Count != 2)
+        {
+            if (Route.ExitSide == Route.EntrySide && IsOrthogonalPolyline(Route.Points)
+                && CountOrthogonalCorners(Route.Points) <= 2)
+                return;
+            bool DirectBlocked = Layout.NodeBounds.Any(Bounds =>
+                Bounds.NodeId != Route.SourceId && Bounds.NodeId != Route.TargetId
+                && SegmentTouchesBox(Start, End, Bounds));
+            if (DirectBlocked && IsOrthogonalPolyline(Route.Points)
+                && CountOrthogonalCorners(Route.Points) <= 2)
+                return;
+            Violations.Add(Failure(
+                "LineShape",
+                Route.SourceId + "->" + Route.TargetId + " lines up but is not a single straight segment",
+                Route.SourceId,
+                Route.TargetId));
+            return;
+        }
+
+        if (!Aligned && Route.Points.Count == 2)
+        {
+            bool Diagonal = Math.Abs(Start.X - End.X) > 0.5 && Math.Abs(Start.Y - End.Y) > 0.5;
+            if (Diagonal)
             {
                 Violations.Add(Failure(
                     "LineShape",
-                    Route.SourceId + "->" + Route.TargetId + " does not leave and enter perpendicular to its selected sides",
+                    Route.SourceId + "->" + Route.TargetId + " is a diagonal instead of an orthogonal route",
                     Route.SourceId,
                     Route.TargetId));
-                continue;
             }
-            bool Aligned = Math.Abs(Start.X - End.X) <= 0.5 || Math.Abs(Start.Y - End.Y) <= 0.5;
-            if (Aligned && Route.Points.Count != 2)
+
+            return;
+        }
+
+        if (!Aligned)
+        {
+            if (!IsOrthogonalPolyline(Route.Points))
             {
-                if (Route.ExitSide == Route.EntrySide && IsOrthogonalPolyline(Route.Points)
-                    && CountOrthogonalCorners(Route.Points) <= 2)
-                    continue;
-                bool DirectBlocked = Layout.NodeBounds.Any(Bounds =>
-                    Bounds.NodeId != Route.SourceId && Bounds.NodeId != Route.TargetId
-                    && SegmentTouchesBox(Start, End, Bounds));
-                if (DirectBlocked && IsOrthogonalPolyline(Route.Points)
-                    && CountOrthogonalCorners(Route.Points) <= 2)
-                    continue;
                 Violations.Add(Failure(
                     "LineShape",
-                    Route.SourceId + "->" + Route.TargetId + " lines up but is not a single straight segment",
+                    Route.SourceId + "->" + Route.TargetId + " is not an orthogonal polyline",
                     Route.SourceId,
                     Route.TargetId));
-                continue;
+                return;
             }
 
-            if (!Aligned && Route.Points.Count == 2)
+            int Corners = CountOrthogonalCorners(Route.Points);
+            if (Corners > 2)
             {
-                bool Diagonal = Math.Abs(Start.X - End.X) > 0.5 && Math.Abs(Start.Y - End.Y) > 0.5;
-                if (Diagonal)
-                {
-                    Violations.Add(Failure(
-                        "LineShape",
-                        Route.SourceId + "->" + Route.TargetId + " is a diagonal instead of an orthogonal route",
-                        Route.SourceId,
-                        Route.TargetId));
-                }
-
-                continue;
+                Violations.Add(Failure(
+                    "LineShape",
+                    Route.SourceId + "->" + Route.TargetId + " has more than two corners",
+                    Route.SourceId,
+                    Route.TargetId));
             }
 
-            if (!Aligned)
+            FlowchartLayoutPoint Second = Route.Points[1];
+            FlowchartLayoutPoint Penultimate = Route.Points[^2];
+            bool LeavesStraight = Math.Abs(Second.X - Start.X) <= 0.5 || Math.Abs(Second.Y - Start.Y) <= 0.5;
+            bool EntersStraight = Math.Abs(Penultimate.X - End.X) <= 0.5 || Math.Abs(Penultimate.Y - End.Y) <= 0.5;
+            if (!LeavesStraight || !EntersStraight)
             {
-                if (!IsOrthogonalPolyline(Route.Points))
-                {
-                    Violations.Add(Failure(
-                        "LineShape",
-                        Route.SourceId + "->" + Route.TargetId + " is not an orthogonal polyline",
-                        Route.SourceId,
-                        Route.TargetId));
-                    continue;
-                }
-
-                int Corners = CountOrthogonalCorners(Route.Points);
-                if (Corners > 2)
-                {
-                    Violations.Add(Failure(
-                        "LineShape",
-                        Route.SourceId + "->" + Route.TargetId + " has more than two corners",
-                        Route.SourceId,
-                        Route.TargetId));
-                }
-
-                FlowchartLayoutPoint Second = Route.Points[1];
-                FlowchartLayoutPoint Penultimate = Route.Points[Route.Points.Count - 2];
-                bool LeavesStraight = Math.Abs(Second.X - Start.X) <= 0.5 || Math.Abs(Second.Y - Start.Y) <= 0.5;
-                bool EntersStraight = Math.Abs(Penultimate.X - End.X) <= 0.5 || Math.Abs(Penultimate.Y - End.Y) <= 0.5;
-                if (!LeavesStraight || !EntersStraight)
-                {
-                    Violations.Add(Failure(
-                        "LineShape",
-                        Route.SourceId + "->" + Route.TargetId + " does not leave and enter perpendicular to the node side",
-                        Route.SourceId,
-                        Route.TargetId));
-                }
+                Violations.Add(Failure(
+                    "LineShape",
+                    Route.SourceId + "->" + Route.TargetId + " does not leave and enter perpendicular to the node side",
+                    Route.SourceId,
+                    Route.TargetId));
             }
         }
     }

@@ -12,6 +12,28 @@ public sealed class FlowchartLayoutScoreTests
     }
 
     [Test]
+    public void ScoreWeightsAndShapeParametersComeFromCanonicalRulesYaml()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(FlowchartLayoutRules.BendScore, Is.EqualTo(10.0));
+            Assert.That(FlowchartLayoutRules.CrossingScore, Is.EqualTo(20.0));
+            Assert.That(FlowchartLayoutRules.DisconnectedEndScore, Is.EqualTo(20.0));
+            Assert.That(FlowchartLayoutRules.TargetAspectWidth, Is.EqualTo(4.0));
+            Assert.That(FlowchartLayoutRules.TargetAspectHeight, Is.EqualTo(3.0));
+            Assert.That(FlowchartLayoutRules.ShapePoints, Is.EqualTo(2.0));
+            Assert.That(FlowchartLayoutRules.ShapeStep, Is.EqualTo(5.0));
+            Assert.That(FlowchartLayoutRules.EmptyPointsLow, Is.EqualTo(10.0));
+            Assert.That(FlowchartLayoutRules.EmptyThreshold, Is.EqualTo(30.0));
+            Assert.That(FlowchartLayoutRules.EmptyPointsHigh, Is.EqualTo(40.0));
+            Assert.That(FlowchartLayoutRules.NodeGroupHintScore, Is.EqualTo(-30.0));
+            Assert.That(FlowchartLayoutRules.LineHintScore, Is.EqualTo(-15.0));
+            Assert.That(FlowchartLayoutRules.CrossEndpointStandoff, Is.EqualTo(2.0));
+            Assert.That(FlowchartLayoutRules.GroupMemberMinimumInset, Is.EqualTo(30.0));
+        });
+    }
+
+    [Test]
     public void RouteCandidateScore_SkipsOnlyTheRouteIndependentArrangementCheck()
     {
         (DiagramContract Contract, FlowchartLayoutResult Layout) = BuildLayout(90, 30);
@@ -23,8 +45,51 @@ public sealed class FlowchartLayoutScoreTests
         Assert.Multiple(() =>
         {
             Assert.That(Candidate.Score, Is.EqualTo(Full.Score));
+            Assert.That(Candidate.OptimizationScore, Is.EqualTo(Full.OptimizationScore));
             Assert.That(Candidate.Crossings, Is.EqualTo(Full.Crossings));
             Assert.That(Candidate.Overlaps, Is.EqualTo(Full.Overlaps));
+        });
+    }
+
+    [Test]
+    public void IncrementalScore_RechecksChangedRouteFaultsAgainstTheFullScorer()
+    {
+        (DiagramContract Contract, FlowchartLayoutResult Layout) = BuildLayout(90, 30);
+        var Context = new FlowchartLayoutScore.IncrementalContext(
+            Contract, Layout, IncludeArrangementCheck: false);
+        FlowchartLayoutEdgeRoute Route = Layout.EdgeRoutes.Single();
+        Route.Points[^1].X = 15;
+
+        FlowchartLayoutScore.Result Incremental = Context.MeasureCandidate(Route);
+        FlowchartLayoutScore.Result Full = FlowchartLayoutScore.Measure(
+            Contract, Layout, IncludeArrangementCheck: false);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(Incremental.Score, Is.EqualTo(Full.Score));
+            Assert.That(Incremental.OptimizationScore, Is.EqualTo(Full.OptimizationScore));
+            Assert.That(Incremental.Crossings, Is.EqualTo(Full.Crossings));
+            Assert.That(Incremental.Bends, Is.EqualTo(Full.Bends));
+            Assert.That(Incremental.Disconnections, Is.EqualTo(Full.Disconnections));
+            Assert.That(Incremental.Violations.Select(FailureKey).OrderBy(Key => Key, StringComparer.Ordinal),
+                Is.EqualTo(Full.Violations.Select(FailureKey).OrderBy(Key => Key, StringComparer.Ordinal)));
+            Assert.That(Incremental.Violations.Any(Failure => Failure.Kind == "LineShape"), Is.True);
+        });
+
+        Context.CommitCurrent(Route);
+        Route.Points[^1].X = 0;
+        Incremental = Context.MeasureCandidate(Route);
+        Full = FlowchartLayoutScore.Measure(Contract, Layout, IncludeArrangementCheck: false);
+        Assert.Multiple(() =>
+        {
+            Assert.That(Incremental.Score, Is.EqualTo(Full.Score));
+            Assert.That(Incremental.OptimizationScore, Is.EqualTo(Full.OptimizationScore));
+            Assert.That(Incremental.Crossings, Is.EqualTo(Full.Crossings));
+            Assert.That(Incremental.Bends, Is.EqualTo(Full.Bends));
+            Assert.That(Incremental.Disconnections, Is.EqualTo(Full.Disconnections));
+            Assert.That(Incremental.Violations.Select(FailureKey).OrderBy(Key => Key, StringComparer.Ordinal),
+                Is.EqualTo(Full.Violations.Select(FailureKey).OrderBy(Key => Key, StringComparer.Ordinal)));
+            Assert.That(Incremental.Violations.Any(Failure => Failure.Kind == "LineShape"), Is.False);
         });
     }
 
@@ -112,4 +177,8 @@ public sealed class FlowchartLayoutScoreTests
         Route.Points.Add(new FlowchartLayoutPoint { X = End.X, Y = End.Y });
         return Route;
     }
+
+    private static string FailureKey(FlowchartLayoutQualityFailure Failure) =>
+        Failure.Kind + "|" + Failure.Description + "|" + string.Join(",", Failure.InvolvedIds)
+        + "|" + Failure.Justification;
 }
