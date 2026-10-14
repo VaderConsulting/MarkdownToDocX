@@ -48,6 +48,32 @@ public sealed class RouteIndexFastBenchmarks
         var Incremental = new FlowchartLayoutScore.IncrementalContext(
             Contract, Layout, IncludeArrangementCheck: false);
         FlowchartLayoutEdgeRoute[] Routes = Layout.EdgeRoutes.ToArray();
+        FlowchartRouteSpatialIndex Spatial = new(Layout);
+        foreach (FlowchartLayoutEdgeRoute Route in Routes)
+        {
+            IReadOnlyCollection<FlowchartLayoutEdgeRoute> OriginalInteractions =
+                Spatial.QueryRoutes(Route.Points, Route);
+            FlowchartLayoutPoint Start = Route.Points[0];
+            double OriginalX = Start.X;
+            Start.X += 1.0;
+            HashSet<FlowchartLayoutEdgeRoute> CandidateInteractions =
+                Spatial.QueryRoutes(Route.Points, Route).ToHashSet();
+            CandidateInteractions.UnionWith(OriginalInteractions);
+            FlowchartLayoutScore.CandidateMeasurement Summary = Incremental.MeasureCandidateSummary(
+                Route, CandidateInteractions);
+            FlowchartLayoutScore.Result Full = FlowchartLayoutScore.Measure(
+                Contract, Layout, IncludeArrangementCheck: false);
+            Start.X = OriginalX;
+            Assert.Multiple(() =>
+            {
+                Assert.That(Summary.Score, Is.EqualTo(Full.Score), $"{Size}x{Size} {Route.EdgeId} score");
+                Assert.That(Summary.OptimizationScore, Is.EqualTo(Full.OptimizationScore), $"{Size}x{Size} {Route.EdgeId} optimization score");
+                Assert.That(Summary.Crossings, Is.EqualTo(Full.Crossings), $"{Size}x{Size} {Route.EdgeId} crossings");
+                Assert.That(Summary.Overlaps, Is.EqualTo(Full.Overlaps), $"{Size}x{Size} {Route.EdgeId} overlaps");
+                Assert.That(Summary.RejectingFaults, Is.EqualTo(Full.Violations.Count(Failure => Failure.Kind != "ArrangementKept")),
+                    $"{Size}x{Size} {Route.EdgeId} rejecting faults");
+            });
+        }
         const int TrialsPerRoute = 8;
         var Candidates = new FlowchartLayoutScore.Result[Routes.Length, TrialsPerRoute];
         var FullCandidates = new FlowchartLayoutScore.Result[Routes.Length, TrialsPerRoute];
