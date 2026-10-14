@@ -216,17 +216,17 @@ public sealed class UnnecessaryBendCatalogueTests
 
     private static void PrintTable(IReadOnlyList<ScenarioResult> Results, IReadOnlyDictionary<string, HashSet<string>> Baseline)
     {
-        TestContext.Out.WriteLine("| scenario | lines | a | b | c | d | e | f | g | h | i | j | baseline |");
-        TestContext.Out.WriteLine("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+        TestContext.Out.WriteLine("| scenario | lines | a | b | c | d | e | f | g | h | i | j | k | baseline |");
+        TestContext.Out.WriteLine("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
         foreach (ScenarioResult Result in Results)
         {
             Baseline.TryGetValue(Result.Id, out HashSet<string>? Allowed);
             int Count(char Check) => Result.Violations.Count(Violation => Violation.Check == Check);
-            TestContext.Out.WriteLine($"| {Result.Id} | {Result.Lines} | {Count('a')} | {Count('b')} | {Count('c')} | {Count('d')} | {Count('e')} | {Count('f')} | {Count('g')} | {Count('h')} | {Count('i')} | {Count('j')} | {Allowed?.Count ?? 0} |");
+            TestContext.Out.WriteLine($"| {Result.Id} | {Result.Lines} | {Count('a')} | {Count('b')} | {Count('c')} | {Count('d')} | {Count('e')} | {Count('f')} | {Count('g')} | {Count('h')} | {Count('i')} | {Count('j')} | {Count('k')} | {Allowed?.Count ?? 0} |");
         }
         int Total(char Check) => Results.Sum(Result => Result.Violations.Count(Violation => Violation.Check == Check));
         TestContext.Out.WriteLine($"Totals: a={Total('a')}, b={Total('b')}, c={Total('c')}, d={Total('d')}, e={Total('e')}, "
-            + $"f={Total('f')}, g={Total('g')}, h={Total('h')}, i={Total('i')}, j={Total('j')}");
+            + $"f={Total('f')}, g={Total('g')}, h={Total('h')}, i={Total('i')}, j={Total('j')}, k={Total('k')}");
         foreach (ScenarioResult Result in Results.Where(Result => Result.Violations.Count > 0))
         foreach (UnnecessaryBendViolation Violation in Result.Violations)
             TestContext.Out.WriteLine($"{Result.Id} {Violation.LineId} check {Violation.Check}: "

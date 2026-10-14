@@ -83,7 +83,10 @@ public static class UnnecessaryBendChecker
             Edges.TryGetValue(Route.EdgeId, out EdgeContract? Edge);
             if (string.Equals(Edge?.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)) continue;
             List<BendObstacle> Obstacles = Bounds.Values
-                .Where(Box => Box.NodeId != Route.SourceId && Box.NodeId != Route.TargetId)
+                .Where(Box => Box.NodeId != Route.SourceId && Box.NodeId != Route.TargetId
+                    && !Contract.Groups.Any(Group => Group.Id == Box.NodeId
+                        && (IsWithinGroup(Contract, Group.Id, Route.SourceId)
+                            || IsWithinGroup(Contract, Group.Id, Route.TargetId))))
                 .Select(Box => new BendObstacle(Box.NodeId, Box.CenterX - Box.Width / 2.0,
                     Box.CenterY - Box.Height / 2.0, Box.CenterX + Box.Width / 2.0, Box.CenterY + Box.Height / 2.0))
                 .ToList();
@@ -130,6 +133,19 @@ public static class UnnecessaryBendChecker
         return Result;
     }
 
+    private static bool IsWithinGroup(DiagramContract Contract, string GroupId, string ChildId)
+    {
+        string? Parent = Contract.Nodes.FirstOrDefault(Node => Node.Id == ChildId)?.ParentGroupId
+            ?? Contract.Groups.FirstOrDefault(Group => Group.Id == ChildId)?.ParentGroupId;
+        HashSet<string> Seen = new(StringComparer.Ordinal);
+        while (!string.IsNullOrEmpty(Parent) && Seen.Add(Parent))
+        {
+            if (Parent == GroupId) return true;
+            Parent = Contract.Groups.FirstOrDefault(Group => Group.Id == Parent)?.ParentGroupId;
+        }
+        return false;
+    }
+
     public static UnnecessaryBendViolation? CheckRoute(
         string DiagramId,
         BendRoute Route,
@@ -146,6 +162,9 @@ public static class UnnecessaryBendChecker
                 RoutedCorners, RoutedLength, Structural.Value.Better ?? Routed);
         List<BendPoint>? Best = FindBest(Route with { Points = Routed }, Obstacles, OtherLines ?? []);
         if (Best == null) return null;
+        if (LineInteraction(Best, OtherLines ?? []).Crossings < Route.RoutedCrossings)
+            return new UnnecessaryBendViolation(DiagramId, Route.LineId, 'j',
+                RoutedCorners, RoutedLength, Best);
         int BetterCorners = Best.Count - 2;
         double BetterLength = Length(Best);
         bool FewerCorners = BetterCorners < RoutedCorners;
@@ -163,6 +182,9 @@ public static class UnnecessaryBendChecker
     private static (char Check, List<BendPoint>? Better)? FindStructuralViolation(
         BendRoute Route, IReadOnlyList<BendObstacle> Obstacles, IReadOnlyList<BendSegment> OtherLines)
     {
+        if (!MatchesEndpointSides(Route.Points, Route.ExitSide, Route.EntrySide))
+            return ('k', FindBest(Route, Obstacles, OtherLines) ?? Route.Points.ToList());
+
         if (Route.SourceIsDiamond && Route.SourceBox.HasValue && Route.TargetBox.HasValue
             && DiamondBranchViolation(Route, OtherLines, out List<BendPoint>? DiamondRoute))
             return ('f', DiamondRoute);
@@ -350,6 +372,39 @@ public static class UnnecessaryBendChecker
         BendPoint Start = Route.Points[0];
         BendPoint End = Route.Points[^1];
         List<List<BendPoint>> Candidates = [];
+        HashSet<double> XTracks = [Start.X, End.X];
+        HashSet<double> YTracks = [Start.Y, End.Y];
+        foreach (BendSegment Segment in OtherLines)
+        foreach (BendPoint Point in new[] { Segment.Start, Segment.End })
+        {
+            XTracks.Add(Point.X - DiagramGridMetrics.GRID_UNIT_PX);
+            XTracks.Add(Point.X + DiagramGridMetrics.GRID_UNIT_PX);
+            YTracks.Add(Point.Y - DiagramGridMetrics.GRID_UNIT_PX);
+            YTracks.Add(Point.Y + DiagramGridMetrics.GRID_UNIT_PX);
+        }
+        foreach (BendObstacle Obstacle in Obstacles)
+        {
+            XTracks.Add(Obstacle.Left - DiagramGridMetrics.GRID_UNIT_PX);
+            XTracks.Add(Obstacle.Right + DiagramGridMetrics.GRID_UNIT_PX);
+            YTracks.Add(Obstacle.Bottom - DiagramGridMetrics.GRID_UNIT_PX);
+            YTracks.Add(Obstacle.Top + DiagramGridMetrics.GRID_UNIT_PX);
+        }
+        foreach (BendPoint StartPort in CandidatePorts(Route.SourceBox, Route.ExitSide, Start))
+        foreach (BendPoint EndPort in CandidatePorts(Route.TargetBox, Route.EntrySide, End))
+        {
+            foreach (double Y in YTracks)
+                AddCandidate(Candidates, [StartPort, new BendPoint(StartPort.X, Y),
+                    new BendPoint(EndPort.X, Y), EndPort]);
+            foreach (double X in XTracks)
+                AddCandidate(Candidates, [StartPort, new BendPoint(X, StartPort.Y),
+                    new BendPoint(X, EndPort.Y), EndPort]);
+            AddCandidate(Candidates, [StartPort, new BendPoint(EndPort.X, StartPort.Y), EndPort]);
+            AddCandidate(Candidates, [StartPort, new BendPoint(StartPort.X, EndPort.Y), EndPort]);
+        }
+        foreach (double X in XTracks)
+            AddCandidate(Candidates, [Start, new BendPoint(X, Start.Y), new BendPoint(X, End.Y), End]);
+        foreach (double Y in YTracks)
+            AddCandidate(Candidates, [Start, new BendPoint(Start.X, Y), new BendPoint(End.X, Y), End]);
         AddCandidate(Candidates, [Start, End]);
         AddCandidate(Candidates, [Start, new BendPoint(End.X, Start.Y), End]);
         AddCandidate(Candidates, [Start, new BendPoint(Start.X, End.Y), End]);
@@ -383,12 +438,43 @@ public static class UnnecessaryBendChecker
         return Candidates.Select(Normalize).Where(Candidate => Candidate.Count >= 2
                 && Candidate.Count - 2 <= RoutedCorners && IsOrthogonal(Candidate)
                 && MatchesEndpointSides(Candidate, Route.ExitSide, Route.EntrySide)
+                && HasDistinctEndpointPorts(Candidate[0], Candidate[^1], Route, OtherLines)
                 && HasMinimumRuns(Candidate) && IsClear(Candidate, Obstacles)
                 && !LineInteraction(Candidate, OtherLines).Overlap
                 && LineInteraction(Candidate, OtherLines).Crossings < Route.RoutedCrossings)
             .OrderBy(Candidate => LineInteraction(Candidate, OtherLines).Crossings)
             .ThenBy(Candidate => Candidate.Count).ThenBy(Length).FirstOrDefault();
     }
+
+    private static IEnumerable<BendPoint> CandidatePorts(BendBox? Box, string Side, BendPoint Current)
+    {
+        if (!Box.HasValue) return [Current];
+        BendBox Value = Box.Value;
+        bool HorizontalSide = Side is "top" or "bottom";
+        double HalfSpan = (HorizontalSide ? Value.Width : Value.Height) / 2.0;
+        double Center = HorizontalSide ? Value.CenterX : Value.CenterY;
+        double Min = Center - HalfSpan + DiagramGridMetrics.GRID_UNIT_PX;
+        double Max = Center + HalfSpan - DiagramGridMetrics.GRID_UNIT_PX;
+        HashSet<BendPoint> Ports = [Current];
+        double Fixed = Side switch
+        {
+            "left" => Value.CenterX - Value.Width / 2.0,
+            "right" => Value.CenterX + Value.Width / 2.0,
+            "bottom" => Value.CenterY - Value.Height / 2.0,
+            "top" => Value.CenterY + Value.Height / 2.0,
+            _ => HorizontalSide ? Current.Y : Current.X
+        };
+        for (double Position = Min; Position <= Max + Epsilon; Position += DiagramGridMetrics.GRID_UNIT_PX)
+            Ports.Add(HorizontalSide ? new BendPoint(Position, Fixed) : new BendPoint(Fixed, Position));
+        return Ports;
+    }
+
+    private static bool HasDistinctEndpointPorts(BendPoint Start, BendPoint End, BendRoute Route,
+        IReadOnlyList<BendSegment> OtherLines) => OtherLines.All(Line =>
+        !(Line.SourceId == Route.SourceId && Same(Line.Start, Start))
+        && !(Line.TargetId == Route.SourceId && Same(Line.End, Start))
+        && !(Line.SourceId == Route.TargetId && Same(Line.Start, End))
+        && !(Line.TargetId == Route.TargetId && Same(Line.End, End)));
 
     private static List<BendPoint>? BuildFacingElbow(BendPoint Start, BendPoint End, string Exit, string Entry)
     {
@@ -427,6 +513,22 @@ public static class UnnecessaryBendChecker
             YTracks.Add(Box.Bottom - DiagramGridMetrics.GRID_UNIT_PX);
             YTracks.Add(Box.Top + DiagramGridMetrics.GRID_UNIT_PX);
         }
+        foreach (BendSegment Segment in OtherLines)
+        foreach (BendPoint Point in new[] { Segment.Start, Segment.End })
+        {
+            XTracks.Add(Point.X - DiagramGridMetrics.GRID_UNIT_PX);
+            XTracks.Add(Point.X + DiagramGridMetrics.GRID_UNIT_PX);
+            YTracks.Add(Point.Y - DiagramGridMetrics.GRID_UNIT_PX);
+            YTracks.Add(Point.Y + DiagramGridMetrics.GRID_UNIT_PX);
+        }
+        XTracks.Add(Start.X - DiagramGridMetrics.GRID_UNIT_PX);
+        XTracks.Add(Start.X + DiagramGridMetrics.GRID_UNIT_PX);
+        XTracks.Add(End.X - DiagramGridMetrics.GRID_UNIT_PX);
+        XTracks.Add(End.X + DiagramGridMetrics.GRID_UNIT_PX);
+        YTracks.Add(Start.Y - DiagramGridMetrics.GRID_UNIT_PX);
+        YTracks.Add(Start.Y + DiagramGridMetrics.GRID_UNIT_PX);
+        YTracks.Add(End.Y - DiagramGridMetrics.GRID_UNIT_PX);
+        YTracks.Add(End.Y + DiagramGridMetrics.GRID_UNIT_PX);
         foreach (double X in XTracks)
             AddCandidate(Candidates, [Start, new BendPoint(X, Start.Y), new BendPoint(X, End.Y), End]);
         foreach (double Y in YTracks)
