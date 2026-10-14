@@ -30,6 +30,29 @@ public sealed class RouteIndexFastBenchmarks
             Source.AppendLine($"s{From} --> t{To}");
 
         var Contract = MermaidRecognizer.Parse(Source.ToString());
+        if (Size == 4)
+        {
+            List<string> CrossingTrace = [];
+            DiagramGridLayout.CrossingCountObserver = (Stage, Crossings) =>
+                CrossingTrace.Add($"CROSSING_TRACE stage={Stage} crossings={Crossings}");
+            try
+            {
+                Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out _), Is.True,
+                    "Crossing trace layout must complete successfully.");
+            }
+            finally
+            {
+                DiagramGridLayout.CrossingCountObserver = null;
+            }
+            foreach (string Entry in CrossingTrace) TestContext.WriteLine(Entry);
+            int HorizontalSearchIndex = CrossingTrace.FindIndex(Entry =>
+                Entry.StartsWith("CROSSING_TRACE stage=horizontal track search ", StringComparison.Ordinal));
+            Assert.That(HorizontalSearchIndex, Is.GreaterThanOrEqualTo(0),
+                "The 4x4 trace must include the horizontal track search stage.");
+            Assert.That(CrossingTrace.Skip(HorizontalSearchIndex + 1).All(Entry =>
+                    int.Parse(Entry[(Entry.LastIndexOf('=') + 1)..], System.Globalization.CultureInfo.InvariantCulture) <= 36),
+                Is.True, "No stage after horizontal track search may raise the 4x4 crossing count above 36.");
+        }
         if (Size == 8)
             Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out _), Is.True,
                 "Warm-up layout must complete successfully.");
@@ -40,9 +63,11 @@ public sealed class RouteIndexFastBenchmarks
         FlowchartLayoutScore.Result Metrics = FlowchartLayoutScore.Measure(Contract, Layout);
         string Failures = Metrics.Violations.Count == 0 ? "none"
             : string.Join(" || ", Metrics.Violations.Select(Failure => Failure.Kind + ": " + Failure.Description));
-        int BaselineCrossings = Size switch { 4 => 42, 6 => 240, 8 => 812, _ => throw new ArgumentOutOfRangeException(nameof(Size)) };
+        int BaselineCrossings = Size switch { 4 => 36, 6 => 225, 8 => 784, _ => throw new ArgumentOutOfRangeException(nameof(Size)) };
         Assert.That(Metrics.Crossings, Is.LessThanOrEqualTo(BaselineCrossings),
             $"Crossings regressed from baseline {BaselineCrossings}. {Failures}");
+        if (Size == 4) Assert.That(Metrics.Crossings, Is.EqualTo(36), "The 4x4 target is 36 crossings.");
+        if (Size == 6) Assert.That(Metrics.Crossings, Is.EqualTo(225), "The 6x6 target is 225 crossings.");
         Assert.That(Metrics.Overlaps, Is.Zero, Failures);
         FlowchartLayoutEdgeRoute DeltaRoute = Layout.EdgeRoutes.First(Route => Route.Points.Count > 2);
         FlowchartLayoutPoint DeltaPoint = DeltaRoute.Points[1];
@@ -58,6 +83,8 @@ public sealed class RouteIndexFastBenchmarks
         Assert.That(IncrementalCrossingDelta, Is.EqualTo(FullCrossingDelta),
             $"{Size}x{Size} affected-route crossing delta must equal the full crossing count delta.");
         Assert.That(Timer.Elapsed, Is.LessThan(TimeSpan.FromSeconds(60)), "The benchmark hard ceiling is 60 seconds.");
+        if (Size == 8)
+            Assert.That(Timer.Elapsed, Is.LessThan(TimeSpan.FromSeconds(1)), "The 8x8 layout target is under one second.");
         if (Timer.Elapsed > TimeSpan.FromSeconds(10))
             TestContext.WriteLine($"SPEED_FAULT layout {Size}x{Size}: {Timer.Elapsed.TotalSeconds:0.00}s (over 10s target)");
         TestContext.WriteLine($"SIZE={Size} ELAPSED_MS={Timer.ElapsedMilliseconds} CROSSINGS={Metrics.Crossings} "

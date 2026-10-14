@@ -15,6 +15,15 @@ namespace MermaidRecognition.Layout;
 public static partial class DiagramGridLayout
 {
     private const int STUB_PX = 15;
+    internal static Action<string, int>? CrossingCountObserver { get; set; }
+
+    private static void ObserveCrossings(GridLayoutState State, string Stage)
+    {
+        Action<string, int>? Observer = CrossingCountObserver;
+        if (Observer == null) return;
+        Observer(Stage, FlowchartLayoutScore.Measure(State.Contract, State.Copy,
+            IncludeArrangementCheck: false).Crossings);
+    }
 
     /// <summary>
     /// Returns a Y-up copy of <paramref name="LaidOut"/> with shared box sizes, grid positions,
@@ -60,6 +69,7 @@ public static partial class DiagramGridLayout
         {
             Context.LayoutStageTrace.Add(Name);
             Stage(State);
+            ObserveCrossings(State, Name);
         }
     }
     private static void RestoreContractRouteEndpoints(DiagramContract Contract, FlowchartLayoutResult Layout)

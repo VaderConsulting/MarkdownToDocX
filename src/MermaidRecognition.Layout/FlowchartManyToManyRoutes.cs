@@ -236,6 +236,12 @@ internal static class FlowchartManyToManyRoutes
             var Paths = PathsFor(Order);
             bool CandidateHit = Paths.Any(Item => HitsNode(Item.Value, Item.Key, Bounds));
             if (CandidateHit) continue;
+            int AffectedCrossingDelta = MeasureCrossingDelta(Layout, Edges,
+                Paths.ToDictionary(Item => Item.Key,
+                    Item => (IReadOnlyList<(double X, double Y)>)Item.Value));
+            bool RepairsAttachment = !EndpointsOnOutlines(Edges, Bounds, CandidatePaths: null)
+                && EndpointsOnOutlines(Edges, Bounds, Paths);
+            if (AffectedCrossingDelta >= 0 && !RepairsAttachment) continue;
             foreach (FlowchartLayoutEdgeRoute Route in Edges)
             {
                 Route.Points.Clear();
@@ -471,6 +477,33 @@ internal static class FlowchartManyToManyRoutes
                 && Math.Max(Math.Min(A.Y, B.Y), Top) <= Math.Min(Math.Max(A.Y, B.Y), Bottom)) return true;
         }
         return false;
+    }
+
+    private static bool EndpointsOnOutlines(IReadOnlyCollection<FlowchartLayoutEdgeRoute> Routes,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds,
+        IReadOnlyDictionary<FlowchartLayoutEdgeRoute, List<(double X, double Y)>>? CandidatePaths)
+    {
+        foreach (FlowchartLayoutEdgeRoute Route in Routes)
+        {
+            if (!Bounds.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds? Source)
+                || !Bounds.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds? Target)) return false;
+            IReadOnlyList<(double X, double Y)> Points = CandidatePaths != null
+                && CandidatePaths.TryGetValue(Route, out var Candidate) ? Candidate
+                : Route.Points.Select(Point => (Point.X, Point.Y)).ToArray();
+            if (Points.Count < 2 || !OnOutline(Points[0], Source) || !OnOutline(Points[^1], Target)) return false;
+        }
+        return true;
+    }
+
+    private static bool OnOutline((double X, double Y) Point, FlowchartLayoutNodeBounds Box)
+    {
+        double Left = Box.CenterX - Box.Width / 2.0, Right = Box.CenterX + Box.Width / 2.0;
+        double Top = Box.CenterY - Box.Height / 2.0, Bottom = Box.CenterY + Box.Height / 2.0;
+        bool OnVertical = (Math.Abs(Point.X - Left) < 0.01 || Math.Abs(Point.X - Right) < 0.01)
+            && Point.Y >= Top - 0.01 && Point.Y <= Bottom + 0.01;
+        bool OnHorizontal = (Math.Abs(Point.Y - Top) < 0.01 || Math.Abs(Point.Y - Bottom) < 0.01)
+            && Point.X >= Left - 0.01 && Point.X <= Right + 0.01;
+        return OnVertical || OnHorizontal;
     }
 
     private static (int Crossings, double Overlap) RoutePairIntersections(

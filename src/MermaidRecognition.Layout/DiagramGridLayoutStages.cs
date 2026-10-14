@@ -390,8 +390,11 @@ public static partial class DiagramGridLayout
             new("5.8,5.9", State =>
             {
                 if (!State.Open && State.Direction is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft)
+                {
                     FlowchartManyToManyRoutes.Apply(State.Copy, State.Contract,
                         BuildPlacedBounds(State.Placed, State.Frames), State.Direction);
+                    ObserveCrossings(State, "horizontal track search");
+                }
             })
         ];
 
@@ -420,9 +423,11 @@ public static partial class DiagramGridLayout
                 IncludeArrangementCheck: false);
             while (true)
             {
-                foreach (RepairPass Pass in Passes)
+                for (int PassIndex = 0; PassIndex < Passes.Length; PassIndex++)
                 {
+                    RepairPass Pass = Passes[PassIndex];
                     PreserveHintedRoutes(State, () => Pass.Apply(State));
+                    ObserveCrossings(State, $"repair[{PassIndex}] {Pass.RuleIds}");
                 }
 
                 string Signature = RouteState(State.Copy);
