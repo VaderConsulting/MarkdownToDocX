@@ -54,6 +54,58 @@ public sealed class FlowchartGroupBoundaryCrossingHelperTests
     }
 
     [Test]
+    public void LockedOutsideNode_MovesUnhintedFrameMembersAway()
+    {
+        DiagramContract Contract = new();
+        GroupContract Group = new() { Id = "frame" };
+        Group.ChildNodeIdsMutable.Add("member");
+        Contract.GroupsMutable.Add(Group);
+        Contract.NodesMutable.Add(new NodeContract { Id = "member", ParentGroupId = "frame" });
+        Contract.NodesMutable.Add(new NodeContract { Id = "locked" });
+        DiagramGridLayout.GridNode Member = new()
+        {
+            Id = "member", GroupId = "frame", X = 0, Y = 0, Width = 20, Height = 20
+        };
+        DiagramGridLayout.GridNode Locked = new()
+        {
+            Id = "locked", X = 0, Y = 0, Width = 20, Height = 20, PlacementHintLocked = true
+        };
+        DiagramGridLayout.GridFrame Frame = new()
+        {
+            Id = "frame", Left = -30, Right = 30, Top = -30, Bottom = 30
+        };
+
+        bool Moved = DiagramGridLayout.MoveFrameAwayFromLockedNode(
+            Contract, [Member, Locked], Locked, Frame, Horizontal: true, DiagramGridMetrics.GRID_UNIT_PX);
+
+        Assert.That(Moved, Is.True);
+        Assert.That(Member.X, Is.LessThan(0));
+        Assert.That(Locked.X, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void LockedOutsideNode_WithNoMovableFrameMembers_ReportsTheConflict()
+    {
+        DiagramContract Contract = new();
+        GroupContract Group = new() { Id = "frame" };
+        Group.ChildNodeIdsMutable.Add("member");
+        Contract.GroupsMutable.Add(Group);
+        Contract.NodesMutable.Add(new NodeContract { Id = "member", ParentGroupId = "frame" });
+        Contract.NodesMutable.Add(new NodeContract { Id = "locked" });
+        List<DiagramGridLayout.GridNode> Placed =
+        [
+            new() { Id = "member", GroupId = "frame", X = 0, Y = 0, Width = 20, Height = 20, PlacementHintLocked = true },
+            new() { Id = "locked", X = 0, Y = 0, Width = 20, Height = 20, PlacementHintLocked = true }
+        ];
+
+        InvalidOperationException Error = Assert.Throws<InvalidOperationException>(() =>
+            DiagramGridLayout.FitFrames(Contract, Placed, [], Horizontal: true, Trigger: "test"))!;
+
+        Assert.That(Error.Message, Does.Contain("unresolved group-frame conflict"));
+        Assert.That(Error.Message, Does.Contain("node locked"));
+    }
+
+    [Test]
     public void InsertPerpendicularCrossings_LeavesTheGroupOnceAtARightAngle()
     {
         DiagramContract Contract = new DiagramContract();

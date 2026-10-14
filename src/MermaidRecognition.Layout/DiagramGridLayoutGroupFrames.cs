@@ -171,7 +171,7 @@ public static partial class DiagramGridLayout
         Frames.Clear();
     }
 
-    private static void FitFrames(DiagramContract Contract, List<GridNode> Placed, List<GridFrame> Frames,
+    internal static void FitFrames(DiagramContract Contract, List<GridNode> Placed, List<GridFrame> Frames,
         bool Horizontal, string Trigger)
     {
         HashSet<string> SeenStates = new(StringComparer.Ordinal) { PositionSignature(Placed) };
@@ -237,7 +237,9 @@ public static partial class DiagramGridLayout
                     }
 
                     int Push = DiagramGridMetrics.GRID_UNIT_PX;
-                    if (Main(Node, Horizontal, Old: false) >= Frame.CenterMain(Horizontal))
+                    bool MovedConflictSide = Node.PlacementHintLocked
+                        && MoveFrameAwayFromLockedNode(Contract, TrialPlaced, Node, Frame, Horizontal, Push);
+                    if (!MovedConflictSide && Main(Node, Horizontal, Old: false) >= Frame.CenterMain(Horizontal))
                     {
                         foreach (GridNode Later in TrialPlaced)
                         {
@@ -247,7 +249,7 @@ public static partial class DiagramGridLayout
                             }
                         }
                     }
-                    else
+                    else if (!MovedConflictSide)
                     {
                         foreach (GridNode Member in TrialPlaced)
                         {
@@ -258,7 +260,16 @@ public static partial class DiagramGridLayout
                         }
                     }
                     if (PositionsDiffer(TrialPlaced, BeforeNodeMove))
-                        FrameAdjustments.Add($"push rank around frame {Frame.Id} for node {Node.Id}");
+                        FrameAdjustments.Add(MovedConflictSide
+                            ? $"move unhinted members of frame {Frame.Id} away from locked node {Node.Id}"
+                            : $"push rank around frame {Frame.Id} for node {Node.Id}");
+                    else if (Overlaps(Node, Frame, Clearance))
+                    {
+                        string Conflict = $"unresolved group-frame conflict: node {Node.Id} remains inside frame {Frame.Id}; "
+                            + $"placement hint locked={Node.PlacementHintLocked}";
+                        DiagramGridLayout.GroupFrameFitPassObserver?.Invoke(Conflict);
+                        throw new InvalidOperationException(Conflict);
+                    }
                 }
 
                 if (PositionsDiffer(TrialPlaced, Placed))
@@ -479,6 +490,25 @@ public static partial class DiagramGridLayout
             if ((ChosenX < 0 && Other.X <= CutX) || (ChosenX > 0 && Other.X >= CutX)) Other.X += (int)ChosenX;
             if ((ChosenY < 0 && Other.Y <= CutY) || (ChosenY > 0 && Other.Y >= CutY)) Other.Y += (int)ChosenY;
         }
+        return true;
+    }
+
+    internal static bool MoveFrameAwayFromLockedNode(
+        DiagramContract Contract,
+        List<GridNode> Placed,
+        GridNode LockedNode,
+        GridFrame Frame,
+        bool Horizontal,
+        int Distance)
+    {
+        if (!LockedNode.PlacementHintLocked) return false;
+        List<GridNode> MovableMembers = Placed.Where(Member => IsInsideGroup(Contract, Member.Id, Frame.Id)
+            && !Member.PlacementHintLocked).ToList();
+        if (MovableMembers.Count == 0) return false;
+
+        int Direction = Main(LockedNode, Horizontal, Old: false) >= Frame.CenterMain(Horizontal) ? -1 : 1;
+        foreach (GridNode Member in MovableMembers)
+            SetMain(Member, (int)Math.Round(Main(Member, Horizontal, Old: false)) + (Direction * Distance), Horizontal);
         return true;
     }
 
