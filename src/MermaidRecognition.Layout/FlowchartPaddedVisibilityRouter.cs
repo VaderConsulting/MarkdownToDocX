@@ -14,6 +14,10 @@ namespace MermaidRecognition.Layout;
 /// </summary>
 public static class FlowchartPaddedVisibilityRouter
 {
+    private const int SPATIAL_INDEX_OBSTACLE_THRESHOLD = 64;
+    internal static long GridPathCallCount { get; private set; }
+
+    internal static void ResetDiagnostics() => GridPathCallCount = 0;
     private const double OBSTACLE_PADDING_PX = 10.0;
 
     private const double BEND_PENALTY_FRACTION = 0.04;
@@ -218,7 +222,10 @@ public static class FlowchartPaddedVisibilityRouter
         IReadOnlyList<PaddedBox> Boxes,
         out List<(double X, double Y)> Points)
     {
+        GridPathCallCount++;
         Points = [];
+        PaddedBoxSpatialIndex? Spatial = Boxes.Count >= SPATIAL_INDEX_OBSTACLE_THRESHOLD
+            ? new PaddedBoxSpatialIndex(Boxes) : null;
         List<double> Xs = [StartX, EndX];
         List<double> Ys = [StartY, EndY];
         foreach (PaddedBox Box in Boxes)
@@ -239,7 +246,7 @@ public static class FlowchartPaddedVisibilityRouter
         {
             foreach (double Y in Ys)
             {
-                if (PointInsideAny(X, Y, Boxes))
+                if (Spatial?.PointInsideAny(X, Y) ?? PointInsideAny(X, Y, Boxes))
                 {
                     continue;
                 }
@@ -274,7 +281,10 @@ public static class FlowchartPaddedVisibilityRouter
                     continue;
                 }
 
-                if (!SegmentClears(Vertices[Left].X, Vertices[Left].Y, Vertices[Right].X, Vertices[Right].Y, Boxes))
+                if (!(Spatial?.SegmentClears(Vertices[Left].X, Vertices[Left].Y,
+                    Vertices[Right].X, Vertices[Right].Y)
+                    ?? SegmentClears(Vertices[Left].X, Vertices[Left].Y,
+                        Vertices[Right].X, Vertices[Right].Y, Boxes)))
                 {
                     continue;
                 }
@@ -840,5 +850,62 @@ public static class FlowchartPaddedVisibilityRouter
         public double Top { get; }
 
         public double Bottom { get; }
+    }
+
+    /// <summary>Cell index used by the grid visibility search for local point and segment checks.</summary>
+    private sealed class PaddedBoxSpatialIndex
+    {
+        private const double CELL_SIZE = 120;
+        private readonly record struct Cell(int X, int Y);
+        private readonly Dictionary<Cell, List<PaddedBox>> _cells = [];
+
+        public PaddedBoxSpatialIndex(IReadOnlyList<PaddedBox> Boxes)
+        {
+            foreach (PaddedBox Box in Boxes)
+            {
+                (int MinX, int MinY, int MaxX, int MaxY) = CellRange(
+                    Box.Left, Box.Bottom, Box.Right, Box.Top);
+                for (int X = MinX; X <= MaxX; X++)
+                for (int Y = MinY; Y <= MaxY; Y++)
+                {
+                    if (!_cells.TryGetValue(new Cell(X, Y), out List<PaddedBox>? Items))
+                        _cells[new Cell(X, Y)] = Items = [];
+                    Items.Add(Box);
+                }
+            }
+        }
+
+        public bool PointInsideAny(double X, double Y)
+        {
+            (int MinX, int MinY, int MaxX, int MaxY) = CellRange(X, Y, X, Y);
+            for (int CellX = MinX; CellX <= MaxX; CellX++)
+            for (int CellY = MinY; CellY <= MaxY; CellY++)
+            {
+                if (!_cells.TryGetValue(new Cell(CellX, CellY), out List<PaddedBox>? Items)) continue;
+                foreach (PaddedBox Box in Items)
+                    if (X > Box.Left + 0.6 && X < Box.Right - 0.6
+                        && Y > Box.Bottom + 0.6 && Y < Box.Top - 0.6) return true;
+            }
+            return false;
+        }
+
+        public bool SegmentClears(double X1, double Y1, double X2, double Y2)
+        {
+            (int MinX, int MinY, int MaxX, int MaxY) = CellRange(Math.Min(X1, X2), Math.Min(Y1, Y2),
+                Math.Max(X1, X2), Math.Max(Y1, Y2));
+            for (int CellX = MinX; CellX <= MaxX; CellX++)
+            for (int CellY = MinY; CellY <= MaxY; CellY++)
+            {
+                if (!_cells.TryGetValue(new Cell(CellX, CellY), out List<PaddedBox>? Items)) continue;
+                foreach (PaddedBox Box in Items)
+                    if (SegmentHitsInterior(X1, Y1, X2, Y2, Box)) return false;
+            }
+            return true;
+        }
+
+        private static (int MinX, int MinY, int MaxX, int MaxY) CellRange(
+            double Left, double Top, double Right, double Bottom) =>
+            ((int)Math.Floor(Left / CELL_SIZE) - 1, (int)Math.Floor(Top / CELL_SIZE) - 1,
+             (int)Math.Floor(Right / CELL_SIZE) + 1, (int)Math.Floor(Bottom / CELL_SIZE) + 1);
     }
 }
