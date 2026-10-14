@@ -12,7 +12,7 @@ namespace MermaidRecognition.Layout;
 /// Tidies a Mermaid dagre placement onto the shared grid.
 /// Group membership is preserved; placement and ports follow the grid routing rules.
 /// </summary>
-public static class DiagramGridLayout
+public static partial class DiagramGridLayout
 {
     private const int STUB_PX = 15;
 
@@ -31,223 +31,17 @@ public static class DiagramGridLayout
         FlowchartLayoutResult LaidOut,
         FlowchartRenderContext? RenderContext = null)
     {
-        FlowchartLayoutResult Copy = CopyResult(LaidOut);
-        Copy.RenderContext = RenderContext ?? LaidOut.RenderContext;
-        if (Contract == null || Copy.NodeBounds.Count == 0)
-        {
-            return Copy;
-        }
+        GridLayoutState State = new(Contract, LaidOut, RenderContext);
+        if (!State.IsReady) return State.Copy;
 
-        FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
-        bool Horizontal = Direction == FlowchartDirection.LeftToRight
-            || Direction == FlowchartDirection.RightToLeft;
-        bool Open = Contract.LayoutMode == MermaidRecognition.Config.DiagramLayoutMode.Open;
-        (int BoxWidth, int BoxHeight) = ResolveStandardBox(Contract);
-        int DiamondHeight = BoxHeight * FlowchartDagrePresentation.DIAMOND_HEIGHT_FACTOR;
-        int MainPitch = Horizontal
-            ? BoxWidth + Math.Max(DiagramGridMetrics.NODE_GAP_PX, DiagramGridMetrics.MIN_LR_RANK_GAP_PX)
-            : DiagramGridMetrics.PitchY(BoxHeight);
-        int CrossPitch = Horizontal ? DiagramGridMetrics.PitchY(BoxHeight) : DiagramGridMetrics.PitchX(BoxWidth);
-
-        Dictionary<string, NodeContract> Nodes = IndexNodes(Contract);
-        List<GridNode> Placed = new List<GridNode>();
-        foreach (FlowchartLayoutNodeBounds Bounds in Copy.NodeBounds)
-        {
-            bool Diamond = Nodes.TryGetValue(Bounds.NodeId, out NodeContract? Node)
-                && FlowchartDagrePresentation.IsDiamondShape(Node.Shape);
-            GridNode Item = new GridNode
-            {
-                Id = Bounds.NodeId,
-                Shape = Nodes.TryGetValue(Bounds.NodeId, out NodeContract? ShapeNode) ? ShapeNode.Shape : null,
-                GroupId = GroupOf(Contract, Bounds.NodeId),
-                OldX = Bounds.CenterX,
-                OldY = Bounds.CenterY,
-                X = Bounds.CenterX,
-                Y = Bounds.CenterY,
-                Width = Open ? (int)Math.Ceiling(Bounds.Width) : BoxWidth,
-                Height = Open ? (int)Math.Ceiling(Bounds.Height) : Diamond ? DiamondHeight : BoxHeight,
-                IsDiamond = Diamond
-            };
-            Placed.Add(Item);
-        }
-
-        AssignRanks(Placed, Horizontal);
-        AssignColumns(Placed, Horizontal, CrossPitch);
-        var PartnerRanks = new List<FlowchartPartnerRankLayout.Partners>();
-        var SharedFanSources = new HashSet<string>(StringComparer.Ordinal);
-        bool RepairExteriorCrossings = false;
-        if (!Open)
-        {
-            ResolveVerticalChordBlockers(Contract, Placed);
-            if (!ShouldUseSpineColumnLayout(Contract, Placed, Direction))
-            {
-                AlignForwardMainChainColumn(Contract, Placed, Horizontal);
-            }
-
-            AlignFanInMergeColumn(Contract, Placed, Horizontal);
-            if (!ShouldUseSpineColumnLayout(Contract, Placed, Direction))
-            {
-                AlignForwardMainChainColumn(Contract, Placed, Horizontal);
-            }
-            if (ShouldUseSpineColumnLayout(Contract, Placed, Direction))
-            {
-                AlignTwoWayDecisionSideTargets(Contract, Placed);
-            }
-
-            AlignBypassDetourColumns(Contract, Placed, Horizontal);
-            AlignDecisionCentreChildColumn(Contract, Placed, Horizontal);
-            AlignTerminalDecisionTargets(Contract, Placed, Horizontal, CrossPitch, CoordinatesPlaced: false);
-            CentreTerminalFans(Contract, Placed, Horizontal, CoordinatesPlaced: false);
-            AlignSingleTerminalChildren(Contract, Placed, Horizontal, CoordinatesPlaced: false);
-            CascadeColumns(Placed);
-            PlaceOnGrid(Placed, Horizontal, BoxWidth, BoxHeight, MainPitch, CrossPitch, Copy, Contract);
-            if (!Horizontal)
-            {
-                ApplySpineColumnAdjustments(Contract, Placed, Direction);
-            }
-
-            AlignTerminalDecisionTargets(Contract, Placed, Horizontal, CrossPitch, CoordinatesPlaced: true);
-            CentreTerminalFans(Contract, Placed, Horizontal, CoordinatesPlaced: true);
-            AlignSingleTerminalChildren(Contract, Placed, Horizontal, CoordinatesPlaced: true);
-            AlignUnbranchedDecisionInputs(Contract, Placed, Horizontal);
-            AlignHorizontalRetryOutcomes(Contract, Placed, Horizontal);
-            AlignSimpleDecisionMerges(Contract, Placed, Horizontal, CrossPitch);
-            AlignDecisionDetours(Contract, Placed, Horizontal, CrossPitch);
-            AlignVerticalLoopBranches(Contract, Placed, Horizontal, CrossPitch);
-            PartnerRanks = FlowchartPartnerRankLayout.Find(Contract, Placed, Horizontal);
-            FlowchartPartnerRankLayout.Prepare(PartnerRanks, Horizontal);
-            CompactIndependentFanIn(Contract, Placed, Horizontal, CrossPitch);
-            SharedFanSources = AlignSharedFanSourcesAndTails(Contract, Placed, Horizontal);
-            FlowchartCircularJunctionLayout.AlignFans(Contract, Placed, Horizontal);
-        }
-        else
-        {
-            PartnerRanks = FlowchartPartnerRankLayout.Find(Contract, Placed, Horizontal);
-            FlowchartPartnerRankLayout.Prepare(PartnerRanks, Horizontal, Align: false);
-        }
-
-        GrowCrowdedSides(Contract, Placed, Copy, BoxWidth, BoxHeight);
-        GrowParallelRelationshipSides(Contract, Placed, Horizontal);
-        SeparateOverlaps(Placed, Horizontal);
-        if (!Open)
-        {
-            FlowchartTerminalBranchPlacement.Apply(Contract, Placed, Horizontal, CrossPitch);
-            FlowchartTerminalInputPlacement.Apply(Contract, Placed, Horizontal, CrossPitch);
-            FlowchartGridCompaction.Apply(Placed, Horizontal, Math.Max(CrossPitch, Contract.Groups.Count > 0 ? 60 : DiagramGridMetrics.NODE_GAP_PX));
-            FlowchartSparseRankCompaction.Apply(Contract, Placed, Horizontal);
-            FlowchartJunctionBranchCompaction.Apply(Contract, Placed, Horizontal);
-            FlowchartTerminalRowPlacement.Apply(Contract, Placed, Horizontal);
-            FlowchartChainWrapping.Apply(Contract, Placed, Horizontal);
-            FlowchartFanPacking.Apply(Contract, Placed);
-            RepairExteriorCrossings = FlowchartComponentWrapping.Apply(Contract, Placed, Horizontal);
-            FlowchartDisconnectedPacking.Apply(Contract, Placed);
-            FlowchartGroupMemberPacking.Apply(Contract, Placed);
-        }
-        List<GridFrame> Frames = new List<GridFrame>();
-        if (!Open) CenterLoneNestedGroups(Contract, Placed, Horizontal);
-        if (!Open) CompactOverlappingRootGroups(Contract, Placed, Frames, Horizontal);
-        FitFrames(Contract, Placed, Frames, Horizontal);
-        if (FlowchartPartnerRankLayout.GrowGaps(Contract, Placed, Frames, PartnerRanks, Horizontal))
-            FitFrames(Contract, Placed, Frames, Horizontal);
-        if (!Open && FlowchartGroupedLeafPlacement.Apply(Contract, Placed, Frames, Horizontal))
-            FitFrames(Contract, Placed, Frames, Horizontal);
-        if (!Open && FlowchartExternalLeafPlacement.Apply(Contract, Placed, Frames, Horizontal))
-            FitFrames(Contract, Placed, Frames, Horizontal);
-        if (!Open) FlowchartIntergroupNodePlacement.Apply(Contract, Placed, Frames, Horizontal);
-        if (!Open)
-        {
-            Frames.Clear();
-            BuildFrames(Contract, Placed, Frames);
-            if (FlowchartPlacementHints.Apply(Contract, Placed, Frames))
-            {
-                Frames.Clear();
-                BuildFrames(Contract, Placed, Frames);
-            }
-        }
-        if (GrowTerminalSameRankLabelGaps(Contract, Placed, Horizontal))
-            FitFrames(Contract, Placed, Frames, Horizontal);
-        FlipToYUp(Placed, Frames, Copy);
-        RestoreContractRouteEndpoints(Contract, Copy);
-        EnsureBackEdgeRoutes(Contract, Copy, Placed);
-        AssignPortSides(Contract, Copy, Placed, Frames, Nodes, Direction, SharedFanSources);
-        DiagramGridRouteBuilder.RebuildAllRoutes(Copy, Placed, Nodes, Contract, Frames, Direction);
-        RebuildDecisionFanOutRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
-        RebuildSoleForwardDecisionBranchRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
-        RebuildOrdinaryFanOutRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
-        FlowchartForwardRouteSimplifier.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction);
-        FlowchartPartnerRankLayout.Route(Contract, Copy, Placed, Frames, PartnerRanks, Horizontal);
-        RebuildSimpleDecisionMergeRoutes(Contract, Copy, Placed, Frames, Horizontal);
-        RebuildDecisionDetourRoutes(Contract, Copy, Placed, Frames, Horizontal);
-        RebuildLoopBackRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
-        DiagramGridRouteBuilder.RebuildDiagonalBackRoutes(Copy, Placed, Nodes, Contract, Frames, Direction);
-        FlowchartCircularJunctionLayout.RebuildFans(Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction);
-        Copy.UsesGridRoutes = true;
-        SeparateTracks(Copy, Placed);
-        SeparateParallelReturnTracks(Contract, Copy, BuildPlacedBounds(Placed, Frames));
-        PushPointsOutOfNodes(Copy, Placed);
-        DiagramGridRouteBuilder.RebuildContainedBackRoutes(Copy, Placed, Nodes, Contract, Frames, Direction);
-        FlowchartGridTerminalNormalizer.Apply(Copy, BuildPlacedBounds(Placed, Frames), Nodes);
-        GrowFacingDoglegGaps(Copy, Contract, Placed, Frames);
-        DiagramGridRouteBuilder.RemoveClearForwardDoglegs(Copy, Contract, BuildPlacedBounds(Placed, Frames));
-        FlowchartBranchRouteOrder.RemoveAvoidableCrossings(Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction,
-            FlowchartPartnerRankLayout.StraightRoutes(Copy, PartnerRanks));
-        if (!Open && Direction is FlowchartDirection.TopToBottom or FlowchartDirection.BottomToTop)
-            FlowchartManyToManyRoutes.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames), Direction);
-        FlowchartObstacleRouteRepair.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
-        FlowchartReturnRouteOrder.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
-        FlowchartNestedCounterflowTracks.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
-        FlowchartCrossGroupRouteSimplifier.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
-        FlowchartAlignedCounterflowRoutes.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
-        FlowchartTerminalFanBypass.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
-        if (RepairExteriorCrossings)
-            FlowchartExteriorCrossingRepair.Apply(Copy, BuildPlacedBounds(Placed, Frames));
-        if (!Open)
-            FlowchartWrappedChainRoutes.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
-        if (!Open)
-            FlowchartWrappedFanRoutes.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
-        if (!Open)
-            FlowchartAlignedRouteStraightener.Apply(Copy, BuildPlacedBounds(Placed, Frames));
-        else
-            FlowchartAlignedRouteStraightener.ApplyNearlyAlignedFacing(Copy, BuildPlacedBounds(Placed, Frames));
-        if (!Open)
-            FlowchartTwoCornerRouteRepair.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames));
-        if (!Open)
-        // Seed the explicit ports before generic port-side repair; the final
-        // pass below preserves these selected ports after all route repairs.
-        FlowchartRoutingHints.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction);
-        WriteBack(Copy, Placed, Frames);
-        if (!Open)
-            FlowchartDecisionBranchRouteRepair.Apply(Copy, Contract);
-        if (!Open)
-            FlowchartConvergenceRouteRepair.Apply(Copy, Contract);
-        if (!Open)
-            FlowchartSelfLoopLabelRouteRepair.Apply(Copy, Contract);
-        if (!Open)
-            ApplyScoreGuardedTwoCornerRepair(Copy, Contract, BuildPlacedBounds(Placed, Frames));
-        if (!Open)
-        {
-            FlowchartAlignedRouteStraightener.RepairSameSideDirectRoutes(
-                Copy, BuildPlacedBounds(Placed, Frames));
-            FlowchartAlignedRouteStraightener.ApplyOneCornerCandidates(
-                Copy, BuildPlacedBounds(Placed, Frames));
-            FlowchartAlignedRouteStraightener.ApplyCenteredFacing(
-                Copy, BuildPlacedBounds(Placed, Frames));
-        }
-        FlowchartCircularJunctionLayout.RebuildFans(
-            Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction);
-        if (!Open)
-            FlowchartPortSideRouteRepair.Apply(Copy, Contract);
-        if (!Open && Direction is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft)
-            FlowchartManyToManyRoutes.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames), Direction);
-        RebuildAlignedSimpleFanRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
-        // Placement and every automatic route repair must finish before line
-        // hints are applied: later repair passes must not undo the requested
-        // sides or travel direction.
-        FlowchartRoutingHints.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction,
-            RepairAutomaticRoutesEnabled: false);
-        return Copy;
+        GridPreparationStage.Apply(State);
+        NodePlacementStage.Apply(State);
+        GroupFrameStage.Apply(State);
+        RouteConstructionStage.Apply(State);
+        RouteRepairStage.Apply(State);
+        FinalHintStage.Apply(State);
+        return State.Copy;
     }
-
     private static void RestoreContractRouteEndpoints(DiagramContract Contract, FlowchartLayoutResult Layout)
     {
         Dictionary<string, EdgeContract> ById = Contract.Edges
