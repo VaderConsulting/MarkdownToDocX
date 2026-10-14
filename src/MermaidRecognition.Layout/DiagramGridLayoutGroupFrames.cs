@@ -232,8 +232,14 @@ public static partial class DiagramGridLayout
                     bool Evicted = TryEvictNodeFromFrame(Contract, TrialPlaced, Node, Frame, Clearance);
                     if (Evicted && PositionsDiffer(TrialPlaced, BeforeNodeMove))
                     {
-                        FrameAdjustments.Add($"evict {Node.Id} from frame {Frame.Id}");
-                        continue;
+                        List<GridFrame> UpdatedFrames = [];
+                        BuildFrames(Contract, TrialPlaced, UpdatedFrames);
+                        GridFrame? UpdatedFrame = UpdatedFrames.Find(Item => Item.Id == Frame.Id);
+                        if (UpdatedFrame == null || !Overlaps(Node, UpdatedFrame, Clearance))
+                        {
+                            FrameAdjustments.Add($"evict {Node.Id} from frame {Frame.Id}");
+                            continue;
+                        }
                     }
 
                     int Push = DiagramGridMetrics.GRID_UNIT_PX;
@@ -502,14 +508,26 @@ public static partial class DiagramGridLayout
         int Distance)
     {
         if (!LockedNode.PlacementHintLocked) return false;
-        List<GridNode> MovableMembers = Placed.Where(Member => IsInsideGroup(Contract, Member.Id, Frame.Id)
-            && !Member.PlacementHintLocked).ToList();
-        if (MovableMembers.Count == 0) return false;
+        List<GridNode> Members = Placed.Where(Member => IsInsideGroup(Contract, Member.Id, Frame.Id)).ToList();
+        if (Members.Count == 0 || Members.Any(Member => Member.PlacementHintLocked
+            && !HasRelativeHintWithinFrame(Contract, Member, Frame.Id))) return false;
 
         int Direction = Main(LockedNode, Horizontal, Old: false) >= Frame.CenterMain(Horizontal) ? -1 : 1;
-        foreach (GridNode Member in MovableMembers)
-            SetMain(Member, (int)Math.Round(Main(Member, Horizontal, Old: false)) + (Direction * Distance), Horizontal);
+        foreach (GridNode Member in Members)
+        {
+            int Delta = Direction * Distance;
+            Member.SetPositionFromFrameFit(Horizontal ? Member.X + Delta : Member.X,
+                Horizontal ? Member.Y : Member.Y + Delta);
+        }
         return true;
+    }
+
+    private static bool HasRelativeHintWithinFrame(DiagramContract Contract, GridNode Member, string FrameId)
+    {
+        NodeContract? Source = Contract.Nodes.FirstOrDefault(Node => Node.Id == Member.Id);
+        PlacementHintContract? Hint = Source?.PlacementHint;
+        return Hint?.IsActive != true || Hint.Kind != PlacementHintKind.Push && Hint.PeerId != null
+            && IsInsideGroup(Contract, Hint.PeerId, FrameId);
     }
 
     private static void ConsiderEviction(

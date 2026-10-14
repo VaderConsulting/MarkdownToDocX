@@ -90,7 +90,11 @@ public sealed class FlowchartGroupBoundaryCrossingHelperTests
         GroupContract Group = new() { Id = "frame" };
         Group.ChildNodeIdsMutable.Add("member");
         Contract.GroupsMutable.Add(Group);
-        Contract.NodesMutable.Add(new NodeContract { Id = "member", ParentGroupId = "frame" });
+        Contract.NodesMutable.Add(new NodeContract
+        {
+            Id = "member", ParentGroupId = "frame",
+            PlacementHint = new PlacementHintContract { Kind = PlacementHintKind.Push }
+        });
         Contract.NodesMutable.Add(new NodeContract { Id = "locked" });
         List<DiagramGridLayout.GridNode> Placed =
         [
@@ -103,6 +107,48 @@ public sealed class FlowchartGroupBoundaryCrossingHelperTests
 
         Assert.That(Error.Message, Does.Contain("unresolved group-frame conflict"));
         Assert.That(Error.Message, Does.Contain("node locked"));
+    }
+
+    [Test]
+    public void LockedOutsideNode_TranslatesInternallyHintedFrameMembersTogether()
+    {
+        DiagramContract Contract = new();
+        GroupContract Group = new() { Id = "frame" };
+        Group.ChildNodeIdsMutable.Add("anchor");
+        Group.ChildNodeIdsMutable.Add("member");
+        Contract.GroupsMutable.Add(Group);
+        Contract.NodesMutable.Add(new NodeContract { Id = "anchor", ParentGroupId = "frame" });
+        Contract.NodesMutable.Add(new NodeContract
+        {
+            Id = "member", ParentGroupId = "frame",
+            PlacementHint = new PlacementHintContract { Kind = PlacementHintKind.RightOf, PeerId = "anchor" }
+        });
+        DiagramGridLayout.GridNode Anchor = new()
+        {
+            Id = "anchor", GroupId = "frame", X = 0, Y = 0, Width = 20, Height = 20,
+            PlacementHintLocked = true
+        };
+        DiagramGridLayout.GridNode Member = new()
+        {
+            Id = "member", GroupId = "frame", X = 50, Y = 0, Width = 20, Height = 20,
+            PlacementHintLocked = true
+        };
+        DiagramGridLayout.GridNode Locked = new()
+        {
+            Id = "locked", X = 0, Y = 0, Width = 20, Height = 20, PlacementHintLocked = true
+        };
+        DiagramGridLayout.GridFrame Frame = new()
+        {
+            Id = "frame", Left = -30, Right = 80, Top = -30, Bottom = 30
+        };
+
+        bool Moved = DiagramGridLayout.MoveFrameAwayFromLockedNode(
+            Contract, [Anchor, Member, Locked], Locked, Frame, Horizontal: true, DiagramGridMetrics.GRID_UNIT_PX);
+
+        Assert.That(Moved, Is.True);
+        Assert.That(Anchor.X, Is.GreaterThan(0));
+        Assert.That(Member.X - Anchor.X, Is.EqualTo(50));
+        Assert.That(Locked.X, Is.EqualTo(0));
     }
 
     [Test]

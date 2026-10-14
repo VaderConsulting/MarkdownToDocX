@@ -45,7 +45,7 @@ internal static class FlowchartContainerPacking
 
         Position[] Place(int[] Order)
         {
-            var Candidates = new List<(Position[] Positions, double Distance, double Area, int Crossings)>();
+            var Candidates = new List<(Position[] Positions, double Distance, double Area)>();
             var CandidateWidths = new HashSet<int>();
             int OriginalRowWidth = DiagramGridMetrics.CeilToGrid(Math.Sqrt(Units.Sum(Unit =>
                 (double)(Unit.Frame.Right - Unit.Frame.Left + Gap) * (Unit.Frame.Bottom - Unit.Frame.Top + Gap))));
@@ -85,10 +85,12 @@ internal static class FlowchartContainerPacking
                 int UsedHeight = Y + RowHeight;
                 double Distance = Math.Abs(Math.Log((UsedWidth / (double)Math.Max(1, UsedHeight)) / (4.0 / 3.0)));
                 double Area = UsedWidth * (double)UsedHeight;
-                Candidates.Add((Positions, Distance, Area, EstimatedCrossings(Positions)));
+                Candidates.Add((Positions, Distance, Area));
             }
             double Closest = Candidates.Min(Candidate => Candidate.Distance);
             return Candidates.Where(Candidate => Candidate.Distance <= Closest + 0.10)
+                .Select(Candidate => (Candidate.Positions, Candidate.Distance, Candidate.Area,
+                    Crossings: EstimatedCrossings(Candidate.Positions)))
                 .OrderBy(Candidate => Candidate.Crossings)
                 .ThenBy(Candidate => Candidate.Distance)
                 .ThenBy(Candidate => Candidate.Area)
