@@ -19,6 +19,8 @@ public static partial class DiagramGridLayout
     internal static Action<string, int>? CrossingCountObserver { get; set; }
     internal static Action<string, FlowchartLayoutResult>? LayoutStageObserver { get; set; }
     internal static Action<string, double>? LayoutStageTimingObserver { get; set; }
+    internal static Action<string>? GroupFrameRefitObserver { get; set; }
+    internal static Action<string>? GroupFrameFitPassObserver { get; set; }
 
     private static void ObserveCrossings(GridLayoutState State, string Stage)
     {
@@ -659,6 +661,7 @@ public static partial class DiagramGridLayout
         public double X { get => _x; set { if (!PlacementHintLocked) _x = value; } }
         public double Y { get => _y; set { if (!PlacementHintLocked) _y = value; } }
         public void SetYAfterCoordinateTransform(double Value) => _y = Value;
+        public void SetPositionFromFrameFit(double X, double Y) { _x = X; _y = Y; }
 
         public int Width;
 

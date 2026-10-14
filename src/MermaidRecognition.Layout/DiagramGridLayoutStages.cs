@@ -200,23 +200,30 @@ public static partial class DiagramGridLayout
             bool Horizontal = State.Horizontal;
             bool Open = State.Open;
             List<GridFrame> Frames = State.Frames;
+            List<string> RefitTriggers = [];
+            string PreviousMembers = GroupMemberPositionSignature(Contract, Placed);
             if (!Open) CenterLoneNestedGroups(Contract, Placed, Horizontal);
+            RecordMemberChange("center nested members");
             if (!Open && !State.SkipRootGroupRepacking)
                 CompactOverlappingRootGroups(Contract, Placed, Frames, Horizontal);
+            RecordMemberChange("compact overlapping root groups");
             Frames.Clear();
             BuildFrames(Contract, Placed, Frames);
-            FitFrames(Contract, Placed, Frames, Horizontal);
             if (FlowchartPartnerRankLayout.GrowGaps(Contract, Placed, Frames, State.PartnerRanks, Horizontal))
             {
-                FitFrames(Contract, Placed, Frames, Horizontal);
+                RecordMemberChange("partner-rank gap growth");
             }
             if (!Open && FlowchartGroupedLeafPlacement.Apply(Contract, Placed, Frames, Horizontal))
             {
-                FitFrames(Contract, Placed, Frames, Horizontal);
+                RecordMemberChange("grouped leaf placement");
+                Frames.Clear();
+                BuildFrames(Contract, Placed, Frames);
             }
             if (!Open && FlowchartExternalLeafPlacement.Apply(Contract, Placed, Frames, Horizontal))
             {
-                FitFrames(Contract, Placed, Frames, Horizontal);
+                RecordMemberChange("external leaf placement");
+                Frames.Clear();
+                BuildFrames(Contract, Placed, Frames);
             }
             if (!Open)
             {
@@ -229,11 +236,33 @@ public static partial class DiagramGridLayout
             }
             if (GrowTerminalSameRankLabelGaps(Contract, Placed, Horizontal))
             {
-                FitFrames(Contract, Placed, Frames, Horizontal);
+                RecordMemberChange("same-rank label gap growth");
             }
             ResolveHintedTerminalClearance(State);
             Frames.Clear();
             BuildFrames(Contract, Placed, Frames);
+            // Placement hints are relative constraints. Earlier packing and
+            // frame fitting can change the referenced frame after the first
+            // hint pass, so refresh the relationships against the final frame
+            // geometry before locking the hinted positions for route repair.
+            foreach (GridNode Node in Placed) Node.PlacementHintLocked = false;
+            if (FlowchartPlacementHints.Apply(Contract, Placed, Frames))
+            {
+                RecordMemberChange("refresh relative placement hints");
+                Frames.Clear();
+                BuildFrames(Contract, Placed, Frames);
+            }
+            CaptureHintedNodePositions(State);
+            FitFrames(Contract, Placed, Frames, Horizontal,
+                RefitTriggers.Count == 0 ? "stage settlement" : string.Join(" + ", RefitTriggers.Distinct(StringComparer.Ordinal)));
+
+            void RecordMemberChange(string Trigger)
+            {
+                string CurrentMembers = GroupMemberPositionSignature(Contract, Placed);
+                if (CurrentMembers == PreviousMembers) return;
+                RefitTriggers.Add(Trigger);
+                PreviousMembers = CurrentMembers;
+            }
         }
     }
 

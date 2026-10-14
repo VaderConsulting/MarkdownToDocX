@@ -94,17 +94,49 @@ internal static class FlowchartPlacementHints
         return Changed;
     }
 
+    /// <summary>
+    /// Reapplies a node's relative hint when its peer is a fitted group frame.
+    /// Group compaction can change that frame after the initial hint placement;
+    /// the node's saved coordinate must not prevent the relationship from being
+    /// restored against the new frame.
+    /// </summary>
+    internal static bool ReapplyLockedNodeHintAgainstFrame(
+        DiagramContract Contract,
+        DiagramGridLayout.GridNode Node,
+        DiagramGridLayout.GridFrame Frame,
+        List<DiagramGridLayout.GridNode> All,
+        int MinimumGap)
+    {
+        NodeContract? ContractNode = Contract.Nodes.FirstOrDefault(Item => Item.Id == Node.Id);
+        PlacementHintContract? Hint = ContractNode?.PlacementHint;
+        if (Hint?.IsActive != true || !string.Equals(Hint.PeerId, Frame.Id, StringComparison.Ordinal)
+            || Hint.Kind == PlacementHintKind.Push || DiagramGridLayout.IsInsideGroup(Contract, Node.Id, Frame.Id))
+            return false;
+
+        bool WasLocked = Node.PlacementHintLocked;
+        Node.PlacementHintLocked = false;
+        try
+        {
+            return PlaceRelative(Hint, [Node], Measure([Node]), FromFrame(Frame), All, MinimumGap);
+        }
+        finally
+        {
+            Node.PlacementHintLocked = WasLocked;
+        }
+    }
+
     private static bool PlaceRelative(
         PlacementHintContract Hint,
         List<DiagramGridLayout.GridNode> Moving,
         Bounds Owner,
         Bounds? PeerBounds,
-        List<DiagramGridLayout.GridNode> All)
+        List<DiagramGridLayout.GridNode> All,
+        int MinimumGap = 0)
     {
         Bounds Anchor = PeerBounds ?? throw new InvalidOperationException("Placement peer has no measured bounds.");
         double TargetX = Owner.CenterX;
         double TargetY = Owner.CenterY;
-        int Gap = DiagramGridMetrics.NODE_GAP_PX;
+        int Gap = Math.Max(DiagramGridMetrics.NODE_GAP_PX, MinimumGap);
         int Extra = Hint.Offset * DiagramGridMetrics.GRID_UNIT_PX;
         int XSign = 0, YSign = 0;
         switch (Hint.Kind)

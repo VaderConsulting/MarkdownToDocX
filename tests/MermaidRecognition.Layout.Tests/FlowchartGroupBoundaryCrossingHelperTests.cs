@@ -10,6 +10,50 @@ namespace MermaidRecognition.Layout.Tests;
 public sealed class FlowchartGroupBoundaryCrossingHelperTests
 {
     [Test]
+    public void RelativeGroupHint_IsRefreshedAgainstExpandedFrameWithoutUnlockingTheNode()
+    {
+        DiagramContract Contract = new();
+        Contract.GroupsMutable.Add(new GroupContract { Id = "allRoles" });
+        Contract.GroupsMutable.Add(new GroupContract { Id = "regRoles", ParentGroupId = "allRoles" });
+        NodeContract Explorer = new()
+        {
+            Id = "explorer",
+            ParentGroupId = "allRoles",
+            PlacementHint = new PlacementHintContract
+            {
+                Kind = PlacementHintKind.RightOf,
+                PeerId = "regRoles"
+            }
+        };
+        Contract.NodesMutable.Add(Explorer);
+        DiagramGridLayout.GridNode PlacedExplorer = new()
+        {
+            Id = Explorer.Id,
+            X = 90,
+            Y = 0,
+            Width = 40,
+            Height = 40,
+            PlacementHintLocked = true
+        };
+        DiagramGridLayout.GridFrame ExpandedFrame = new()
+        {
+            Id = "regRoles",
+            Left = -100,
+            Right = 100,
+            Top = -50,
+            Bottom = 50
+        };
+
+        bool Refreshed = FlowchartPlacementHints.ReapplyLockedNodeHintAgainstFrame(
+            Contract, PlacedExplorer, ExpandedFrame, [PlacedExplorer], DiagramGridMetrics.GRID_UNIT_PX);
+
+        Assert.That(Refreshed, Is.True);
+        Assert.That(PlacedExplorer.X - (PlacedExplorer.Width / 2.0),
+            Is.GreaterThanOrEqualTo(ExpandedFrame.Right + DiagramGridMetrics.NODE_GAP_PX));
+        Assert.That(PlacedExplorer.PlacementHintLocked, Is.True);
+    }
+
+    [Test]
     public void InsertPerpendicularCrossings_LeavesTheGroupOnceAtARightAngle()
     {
         DiagramContract Contract = new DiagramContract();

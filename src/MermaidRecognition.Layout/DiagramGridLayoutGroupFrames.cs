@@ -87,18 +87,21 @@ public static partial class DiagramGridLayout
     private static void CompactOverlappingRootGroups(DiagramContract Contract, List<GridNode> Placed,
         List<GridFrame> Frames, bool Horizontal)
     {
+        Frames.Clear();
         BuildFrames(Contract, Placed, Frames);
         var Roots = Frames.Where(Frame => ParentGroup(Contract, Frame.Id) == null).ToList();
         bool Overlapping = Roots.Any(First => Roots.Any(Second => First != Second
             && First.Left < Second.Right && First.Right > Second.Left
             && First.Top < Second.Bottom && First.Bottom > Second.Top));
         if (!Overlapping) return;
+        DiagramGridLayout.GroupFrameFitPassObserver?.Invoke($"compact root groups: {Roots.Count} overlapping root frames");
 
         // Global ranks can scatter a container's members between other containers.
         // Close those empty strips locally, then move each container as one unit.
         foreach (var Root in Roots)
         {
             var Members = Placed.Where(Node => IsInsideGroup(Contract, Node.Id, Root.Id)).ToList();
+            DiagramGridLayout.GroupFrameFitPassObserver?.Invoke($"compact root {Root.Id}: begin reflow ({Members.Count} members)");
             var Local = new DiagramContract { Kind = Contract.Kind, Header = Contract.Header,
                 Direction = Contract.Direction, LayoutMode = Contract.LayoutMode };
             var Ids = Members.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
@@ -126,6 +129,7 @@ public static partial class DiagramGridLayout
                         Member.X = Bounds.CenterX;
                         Member.Y = -Bounds.CenterY;
                     }
+                    DiagramGridLayout.GroupFrameFitPassObserver?.Invoke($"compact root {Root.Id}: reflow complete");
                 }
             }
             finally
@@ -138,7 +142,7 @@ public static partial class DiagramGridLayout
             foreach (var Member in Members) { Member.OldX = Member.X; Member.OldY = Member.Y; }
             AssignRanks(Members, Horizontal);
             SeparateOverlaps(Members, Horizontal);
-            FitFrames(Contract, Members, new List<GridFrame>(), Horizontal);
+            DiagramGridLayout.GroupFrameFitPassObserver?.Invoke($"compact root {Root.Id}: local packing complete");
         }
         Frames.Clear();
         BuildFrames(Contract, Placed, Frames);
@@ -161,30 +165,44 @@ public static partial class DiagramGridLayout
         }
         FlowchartContainerPacking.Apply(Contract, Roots.Select(Root => new FlowchartContainerPacking.Unit(Root,
             Placed.Where(Node => Node.Id == Root.Id || IsInsideGroup(Contract, Node.Id, Root.Id)).ToList())).ToList());
+        DiagramGridLayout.GroupFrameFitPassObserver?.Invoke("compact root groups: container packing complete");
         foreach (var Node in Placed) { Node.OldX = Node.X; Node.OldY = Node.Y; }
         AssignRanks(Placed, Horizontal);
         Frames.Clear();
     }
 
-    private static void FitFrames(DiagramContract Contract, List<GridNode> Placed, List<GridFrame> Frames, bool Horizontal)
+    private static void FitFrames(DiagramContract Contract, List<GridNode> Placed, List<GridFrame> Frames,
+        bool Horizontal, string Trigger)
     {
         HashSet<string> SeenStates = new(StringComparer.Ordinal) { PositionSignature(Placed) };
+        string RefitCause = Trigger;
+        List<string> Adjustments = [];
+        int Refit = 0;
+        string StopReason = "stable frame fit";
         while (true)
         {
+            Refit++;
+            DiagramGridLayout.GroupFrameFitPassObserver?.Invoke(RefitCause);
             Frames.Clear();
             BuildFrames(Contract, Placed, Frames);
             // Keep sibling containers intact before clearing individual outsiders.
             // Evicting their members first can stretch both frames repeatedly.
             if (SeparateSiblingFrames(Contract, Placed, Frames, Horizontal))
             {
+                RefitCause = "separate overlapping sibling frames";
+                Adjustments.Add(RefitCause);
                 if (SeenStates.Add(PositionSignature(Placed))) continue;
+                StopReason = "repeated placement state after sibling separation";
                 break;
             }
             bool Moved = false;
             foreach (GridFrame Frame in Frames)
             {
-                foreach (GridNode Node in Placed)
+                List<GridNode> TrialPlaced = Placed.Select(CloneForFrameFit).ToList();
+                List<string> FrameAdjustments = [];
+                for (int NodeIndex = 0; NodeIndex < TrialPlaced.Count; NodeIndex++)
                 {
+                    GridNode Node = TrialPlaced[NodeIndex];
                     if (IsInsideGroup(Contract, Node.Id, Frame.Id))
                     {
                         continue;
@@ -203,16 +221,25 @@ public static partial class DiagramGridLayout
                         continue;
                     }
 
-                    if (TryEvictNodeFromFrame(Contract, Placed, Node, Frame, Clearance))
+                    (double X, double Y)[] BeforeNodeMove = TrialPlaced.Select(Node => (Node.X, Node.Y)).ToArray();
+                    if (FlowchartPlacementHints.ReapplyLockedNodeHintAgainstFrame(
+                            Contract, Node, Frame, TrialPlaced, Clearance))
                     {
-                        Moved = true;
-                        break;
+                        FrameAdjustments.Add($"refresh {Node.Id} hint against frame {Frame.Id}");
+                        continue;
+                    }
+
+                    bool Evicted = TryEvictNodeFromFrame(Contract, TrialPlaced, Node, Frame, Clearance);
+                    if (Evicted && PositionsDiffer(TrialPlaced, BeforeNodeMove))
+                    {
+                        FrameAdjustments.Add($"evict {Node.Id} from frame {Frame.Id}");
+                        continue;
                     }
 
                     int Push = DiagramGridMetrics.GRID_UNIT_PX;
                     if (Main(Node, Horizontal, Old: false) >= Frame.CenterMain(Horizontal))
                     {
-                        foreach (GridNode Later in Placed)
+                        foreach (GridNode Later in TrialPlaced)
                         {
                             if (Later.Rank >= Node.Rank)
                             {
@@ -222,7 +249,7 @@ public static partial class DiagramGridLayout
                     }
                     else
                     {
-                        foreach (GridNode Member in Placed)
+                        foreach (GridNode Member in TrialPlaced)
                         {
                             if (IsInsideGroup(Contract, Member.Id, Frame.Id) || Member.Rank > Node.Rank)
                             {
@@ -230,20 +257,81 @@ public static partial class DiagramGridLayout
                             }
                         }
                     }
-
-                    Moved = true;
-                    break;
+                    if (PositionsDiffer(TrialPlaced, BeforeNodeMove))
+                        FrameAdjustments.Add($"push rank around frame {Frame.Id} for node {Node.Id}");
                 }
 
-                if (Moved)
+                if (PositionsDiffer(TrialPlaced, Placed))
                 {
+                    for (int Index = 0; Index < Placed.Count; Index++)
+                        Placed[Index].SetPositionFromFrameFit(TrialPlaced[Index].X, TrialPlaced[Index].Y);
+                    Moved = true;
+                    RefitCause = $"batch {FrameAdjustments.Count} outside-node adjustments for frame {Frame.Id}";
+                    Adjustments.AddRange(FrameAdjustments);
                     break;
                 }
             }
 
             bool SeparatedSiblingFrames = !Moved && SeparateSiblingFrames(Contract, Placed, Frames, Horizontal);
-            if ((!Moved && !SeparatedSiblingFrames) || !SeenStates.Add(PositionSignature(Placed))) break;
+            if (SeparatedSiblingFrames)
+            {
+                RefitCause = "separate overlapping sibling frames";
+                Adjustments.Add(RefitCause);
+            }
+            if (!Moved && !SeparatedSiblingFrames)
+            {
+                StopReason = "stable frame fit";
+                break;
+            }
+            if (!SeenStates.Add(PositionSignature(Placed)))
+            {
+                StopReason = "repeated placement state";
+                break;
+            }
         }
+        DiagramGridLayout.GroupFrameRefitObserver?.Invoke(
+            $"refit for {Trigger}; {Refit} fitting passes; stop={StopReason}; adjustments: {string.Join(" -> ", Adjustments)}");
+    }
+
+    private static GridNode CloneForFrameFit(GridNode Node) => new()
+    {
+        Id = Node.Id,
+        Shape = Node.Shape,
+        GroupId = Node.GroupId,
+        OldX = Node.OldX,
+        OldY = Node.OldY,
+        X = Node.X,
+        Y = Node.Y,
+        Width = Node.Width,
+        Height = Node.Height,
+        Rank = Node.Rank,
+        Column = Node.Column,
+        IsDiamond = Node.IsDiamond,
+        PlacementHintLocked = Node.PlacementHintLocked
+    };
+
+    private static bool PositionsDiffer(IReadOnlyList<GridNode> First, IReadOnlyList<GridNode> Second)
+    {
+        if (First.Count != Second.Count) return true;
+        for (int Index = 0; Index < First.Count; Index++)
+            if (First[Index].X != Second[Index].X || First[Index].Y != Second[Index].Y) return true;
+        return false;
+    }
+
+    private static bool PositionsDiffer(IReadOnlyList<GridNode> Nodes, IReadOnlyList<(double X, double Y)> Positions)
+    {
+        if (Nodes.Count != Positions.Count) return true;
+        for (int Index = 0; Index < Nodes.Count; Index++)
+            if (Nodes[Index].X != Positions[Index].X || Nodes[Index].Y != Positions[Index].Y) return true;
+        return false;
+    }
+
+    private static string GroupMemberPositionSignature(DiagramContract Contract, IEnumerable<GridNode> Placed)
+    {
+        HashSet<string> Grouped = Placed.Where(Node => Node.GroupId != null
+                || Contract.Groups.Any(Group => IsInsideGroup(Contract, Node.Id, Group.Id)))
+            .Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
+        return PositionSignature(Placed.Where(Node => Grouped.Contains(Node.Id)));
     }
 
     private static GroupContract CloneGroupForLocalLayout(

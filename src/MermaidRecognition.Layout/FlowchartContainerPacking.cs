@@ -17,6 +17,7 @@ internal static class FlowchartContainerPacking
 
     internal static void Apply(DiagramContract Contract, List<Unit> Units)
     {
+        DiagramGridLayout.GroupFrameFitPassObserver?.Invoke($"container packing: start {Units.Count} units");
         int Gap = 3 * DiagramGridMetrics.GRID_UNIT_PX;
         var Owner = new Dictionary<string, int>(StringComparer.Ordinal);
         var Offsets = new Dictionary<string, Position>(StringComparer.Ordinal);
@@ -37,6 +38,7 @@ internal static class FlowchartContainerPacking
             && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
             .Select(Edge => new Link(Owner[Edge.SourceId], Owner[Edge.TargetId], Edge.SourceId, Edge.TargetId,
                 Offsets[Edge.SourceId], Offsets[Edge.TargetId])).ToList();
+        DiagramGridLayout.GroupFrameFitPassObserver?.Invoke($"container packing: indexed {Links.Count} links");
         var Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         bool Horizontal = Direction is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft;
         int Sign = Direction is FlowchartDirection.BottomToTop or FlowchartDirection.RightToLeft ? -1 : 1;
@@ -96,8 +98,10 @@ internal static class FlowchartContainerPacking
         Position[] ImproveShape(Position[] Initial)
         {
             Position[] Current = Initial;
+            int Iterations = 0;
             while (true)
             {
+                Iterations++;
                 (double Width, double Height) Size = Extents(Current);
                 double CurrentDistance = ShapeDistance(Size.Width, Size.Height);
                 int CurrentCrossings = EstimatedCrossings(Current);
@@ -148,8 +152,13 @@ internal static class FlowchartContainerPacking
                         }
                     }
                 }
-                if (BestCandidate == null) return Current;
+                if (BestCandidate == null)
+                {
+                    DiagramGridLayout.GroupFrameFitPassObserver?.Invoke($"container packing: shape search stable after {Iterations} passes");
+                    return Current;
+                }
                 Current = BestCandidate;
+                DiagramGridLayout.GroupFrameFitPassObserver?.Invoke($"container packing: shape search accepted improvement {Iterations}");
             }
         }
 
@@ -270,21 +279,29 @@ internal static class FlowchartContainerPacking
         }
 
         int[] Order = Enumerable.Range(0, Units.Count).ToArray();
+        int TransposeCandidates = 0;
         double Best = Cost(Place(Order));
+        DiagramGridLayout.GroupFrameFitPassObserver?.Invoke("container packing: initial placement scored");
         for (int Pass = 0; Pass < Units.Count; Pass++)
         {
+            DiagramGridLayout.GroupFrameFitPassObserver?.Invoke($"container packing: transpose pass {Pass + 1} start");
             bool Changed = false;
             for (int First = 0; First < Order.Length; First++)
             for (int Second = First + 1; Second < Order.Length; Second++)
             {
                 (Order[First], Order[Second]) = (Order[Second], Order[First]);
                 double Candidate = Cost(Place(Order));
+                TransposeCandidates++;
+                if (TransposeCandidates % 25 == 0)
+                    DiagramGridLayout.GroupFrameFitPassObserver?.Invoke($"container packing: scored {TransposeCandidates} transpose candidates");
                 if (Candidate < Best - 0.01) { Best = Candidate; Changed = true; }
                 else (Order[First], Order[Second]) = (Order[Second], Order[First]);
             }
             if (!Changed) break;
         }
+        DiagramGridLayout.GroupFrameFitPassObserver?.Invoke("container packing: transpose search complete");
         var Final = ImproveShape(Place(Order));
+        DiagramGridLayout.GroupFrameFitPassObserver?.Invoke("container packing: shape search complete");
         for (int Index = 0; Index < Units.Count; Index++)
         {
             var Unit = Units[Index];
@@ -292,5 +309,6 @@ internal static class FlowchartContainerPacking
             double Dx = Snap(Final[Index].X - Unit.Frame.Left), Dy = Snap(Final[Index].Y - Unit.Frame.Top);
             foreach (var Member in Unit.Members) { Member.X += Dx; Member.Y += Dy; }
         }
+        DiagramGridLayout.GroupFrameFitPassObserver?.Invoke("container packing: positions applied");
     }
 }
