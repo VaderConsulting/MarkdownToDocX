@@ -36,7 +36,8 @@ internal static class FlowchartSharedPictureCleaner
         DiagramContract Contract,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         IReadOnlyDictionary<string, NodeContract> NodeById,
-        List<FlowchartResolvedGuide> Guides)
+        List<FlowchartResolvedGuide> Guides,
+        FlowchartRenderContext RenderContext)
     {
         foreach (FlowchartResolvedGuide Guide in Guides)
         {
@@ -78,7 +79,7 @@ internal static class FlowchartSharedPictureCleaner
         }
 
         SpreadBunchedFacePorts(BoundsById, NodeById, Guides);
-        PreferRightAngleToSharedRun(Contract, BoundsById, Guides);
+        PreferRightAngleToSharedRun(Contract, BoundsById, Guides, RenderContext);
     }
 
     private static void PushOffBorders(
@@ -4140,7 +4141,8 @@ internal static class FlowchartSharedPictureCleaner
     private static void PreferRightAngleToSharedRun(
         DiagramContract Contract,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
-        List<FlowchartResolvedGuide> Guides)
+        List<FlowchartResolvedGuide> Guides,
+        FlowchartRenderContext RenderContext)
     {
         for (int LeftIndex = 0; LeftIndex < Guides.Count; LeftIndex++)
         {
@@ -4162,8 +4164,8 @@ internal static class FlowchartSharedPictureCleaner
                     continue;
                 }
 
-                if (TryShiftOntoOneCrossing(Contract, BoundsById, Guides, Left, Right)
-                    || TryShiftOntoOneCrossing(Contract, BoundsById, Guides, Right, Left))
+                if (TryShiftOntoOneCrossing(Contract, BoundsById, Guides, Left, Right, RenderContext)
+                    || TryShiftOntoOneCrossing(Contract, BoundsById, Guides, Right, Left, RenderContext))
                 {
                     continue;
                 }
@@ -4176,7 +4178,8 @@ internal static class FlowchartSharedPictureCleaner
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         IReadOnlyList<FlowchartResolvedGuide> Guides,
         FlowchartResolvedGuide Guide,
-        FlowchartResolvedGuide Other)
+        FlowchartResolvedGuide Other,
+        FlowchartRenderContext RenderContext)
     {
         if (Guide.Points.Count < 3)
         {
@@ -4262,6 +4265,7 @@ internal static class FlowchartSharedPictureCleaner
                 + Crossed.Edge.TargetId
                 + " once at a right angle";
             FlowchartSharedEdgeRouter.RecordRightAngleFallback(
+                RenderContext,
                 Guide.Edge.SourceId,
                 Guide.Edge.TargetId,
                 Crossed.Edge.SourceId,

@@ -24,10 +24,15 @@ public static class DiagramGridLayout
     /// </summary>
     /// <param name="Contract">The diagram contract.</param>
     /// <param name="LaidOut">Mermaid dagre placement in Y-down coordinates.</param>
+    /// <param name="RenderContext">Mutable state owned by this layout and render.</param>
     /// <returns>The gridded layout.</returns>
-    public static FlowchartLayoutResult Apply(DiagramContract Contract, FlowchartLayoutResult LaidOut)
+    public static FlowchartLayoutResult Apply(
+        DiagramContract Contract,
+        FlowchartLayoutResult LaidOut,
+        FlowchartRenderContext? RenderContext = null)
     {
         FlowchartLayoutResult Copy = CopyResult(LaidOut);
+        Copy.RenderContext = RenderContext ?? LaidOut.RenderContext;
         if (Contract == null || Copy.NodeBounds.Count == 0)
         {
             return Copy;
@@ -234,6 +239,7 @@ public static class DiagramGridLayout
             FlowchartPortSideRouteRepair.Apply(Copy, Contract);
         if (!Open && Direction is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft)
             FlowchartManyToManyRoutes.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames), Direction);
+        RebuildAlignedSimpleFanRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
         // Placement and every automatic route repair must finish before line
         // hints are applied: later repair passes must not undo the requested
         // sides or travel direction.
@@ -3937,8 +3943,9 @@ public static class DiagramGridLayout
                 Route.EntrySide = EntrySide;
             }
 
-            // Preserve the ports allocated for the entire diagram, especially
-            // a centre slot reserved by a straight continuation of the spine.
+            // Keep the preallocated endpoints, including a centre port already
+            // reserved by a straight continuation. The route builder supplies
+            // the rank-gap track between those jointly selected ports.
             if (Route.Points.Count >= 2)
             {
                 FlowchartLayoutPoint Start = Route.Points[0];
@@ -3973,6 +3980,89 @@ public static class DiagramGridLayout
             }
         }
     }
+
+    private static void RebuildAlignedSimpleFanRoutes(
+        DiagramContract Contract,
+        FlowchartLayoutResult Copy,
+        List<GridNode> Placed,
+        List<GridFrame> Frames,
+        Dictionary<string, NodeContract> Nodes,
+        FlowchartDirection Direction)
+    {
+        if (Direction is not (FlowchartDirection.TopToBottom or FlowchartDirection.BottomToTop)) return;
+        Dictionary<string, FlowchartLayoutNodeBounds> Bounds = BuildPlacedBounds(Placed, Frames);
+        bool Eligible(EdgeContract Edge) => string.IsNullOrWhiteSpace(Edge.Label)
+            && Edge.RoutingHint?.IsActive != true
+            && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
+            && FlowchartSubgraphMembershipHelper.FindInnermostGroupId(Edge.SourceId, Contract) == null
+            && FlowchartSubgraphMembershipHelper.FindInnermostGroupId(Edge.TargetId, Contract) == null;
+        bool AlignedAndSymmetric(IReadOnlyList<EdgeContract> Edges, bool Outgoing)
+        {
+            if (Edges.Count != 3) return false;
+            string HubId = Outgoing ? Edges[0].SourceId : Edges[0].TargetId;
+            if (!Bounds.TryGetValue(HubId, out FlowchartLayoutNodeBounds Hub)) return false;
+            List<FlowchartLayoutNodeBounds> Leaves = [];
+            foreach (EdgeContract Edge in Edges)
+            {
+                string Id = Outgoing ? Edge.TargetId : Edge.SourceId;
+                if (!Bounds.TryGetValue(Id, out FlowchartLayoutNodeBounds Leaf)) return false;
+                Leaves.Add(Leaf);
+            }
+            return Leaves.All(Leaf => Math.Abs(Leaf.CenterY - Leaves[0].CenterY) < 0.5)
+                && Math.Abs(Leaves.Min(Leaf => Leaf.CenterX) + Leaves.Max(Leaf => Leaf.CenterX)
+                    - (2 * Hub.CenterX)) < 0.5
+                && Math.Abs(Leaves.OrderBy(Leaf => Math.Abs(Leaf.CenterX - Hub.CenterX)).First().CenterX
+                    - Hub.CenterX) < 0.5;
+        }
+
+        foreach (IGrouping<string, EdgeContract> Group in Contract.Edges.Where(Eligible).GroupBy(Edge => Edge.SourceId))
+        {
+            List<EdgeContract> Edges = Group.OrderBy(Edge => Edge.CreationIndex).ToList();
+            if (!AlignedAndSymmetric(Edges, Outgoing: true)
+                || !Nodes.TryGetValue(Group.Key, out NodeContract? Hub)
+                || IsEnterpriseJunction(Hub)
+                || !FlowchartOrdinaryFanOutRouteBuilder.TryIsOrdinaryFanOutHub(
+                    Contract, Group.Key, Hub.Shape, Direction, Bounds)) continue;
+            foreach (EdgeContract Edge in Edges)
+            {
+                FlowchartLayoutEdgeRoute? Route = Copy.EdgeRoutes.FirstOrDefault(Route => Route.SourceId == Edge.SourceId
+                    && Route.TargetId == Edge.TargetId);
+                if (Route == null || !FlowchartOrdinaryFanOutRouteBuilder.TryBuildEdgeRoute(
+                        Edge, Contract, Bounds, Hub.Shape,
+                        Nodes.TryGetValue(Edge.TargetId, out NodeContract? Target) ? Target.Shape : null,
+                        Direction, out List<(double X, double Y)> Points)) continue;
+                Route.Points.Clear();
+                foreach ((double X, double Y) in Points)
+                    Route.Points.Add(new FlowchartLayoutPoint { X = Math.Round(X), Y = Math.Round(Y) });
+            }
+        }
+
+        foreach (IGrouping<string, EdgeContract> Group in Contract.Edges.Where(Eligible).GroupBy(Edge => Edge.TargetId))
+        {
+            List<EdgeContract> Edges = Group.OrderBy(Edge => Edge.CreationIndex).ToList();
+            if (!AlignedAndSymmetric(Edges, Outgoing: false)
+                || !Nodes.TryGetValue(Group.Key, out NodeContract? Hub)
+                || IsEnterpriseJunction(Hub)
+                || FlowchartSharedPortAllocator.IsDecisionShape(Hub.Shape)) continue;
+            foreach (EdgeContract Edge in Edges)
+            {
+                FlowchartLayoutEdgeRoute? Route = Copy.EdgeRoutes.FirstOrDefault(Route => Route.SourceId == Edge.SourceId
+                    && Route.TargetId == Edge.TargetId);
+                if (Route == null || !FlowchartFanInPortAllocator.TryResolveEdgeRoute(
+                        Edge, Contract, Bounds,
+                        Nodes.TryGetValue(Edge.SourceId, out NodeContract? Source) ? Source.Shape : null,
+                        Hub.Shape, Direction, out List<(double X, double Y)> Points)) continue;
+                Route.Points.Clear();
+                foreach ((double X, double Y) in Points)
+                    Route.Points.Add(new FlowchartLayoutPoint { X = Math.Round(X), Y = Math.Round(Y) });
+            }
+        }
+    }
+
+    private static bool IsEnterpriseJunction(NodeContract Node) =>
+        Node.Metadata.TryGetValue("enterpriseElementType", out MermaidMetadataValue? Metadata)
+        && Metadata is RawMetadata Raw
+        && string.Equals(Raw.RawValue, "Junction", StringComparison.Ordinal);
 
     /// <summary>
     /// B15: keeps the forward main chain in one column; back edges never pull nodes sideways.
@@ -4756,7 +4846,8 @@ public static class DiagramGridLayout
         FlowchartLayoutResult Copy = new FlowchartLayoutResult
         {
             GraphWidth = Source.GraphWidth,
-            GraphHeight = Source.GraphHeight
+            GraphHeight = Source.GraphHeight,
+            RenderContext = Source.RenderContext
         };
         foreach (FlowchartLayoutNodeBounds Bounds in Source.NodeBounds)
         {

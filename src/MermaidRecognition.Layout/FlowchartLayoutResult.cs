@@ -10,6 +10,9 @@ namespace MermaidRecognition.Layout;
 /// </summary>
 public sealed class FlowchartLayoutResult
 {
+    /// <summary>Mutable routing and rendering state owned by this layout.</summary>
+    public FlowchartRenderContext RenderContext { get; internal set; } = new();
+
     private readonly List<FlowchartLayoutNodeBounds> _NodeBounds = [];
 
     public IReadOnlyList<FlowchartLayoutNodeBounds> NodeBounds => _NodeBounds;

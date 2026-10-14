@@ -56,19 +56,21 @@ public static class FlowchartSharedEdgeRouter
     /// <summary>
     /// Records a single right-angle crossing chosen because every clear separation still shared a run or hit a box.
     /// </summary>
+    /// <param name="RenderContext">State receiving the justification.</param>
     /// <param name="SourceId">Source of the edge that crosses.</param>
     /// <param name="TargetId">Target of the edge that crosses.</param>
     /// <param name="OtherSourceId">Source of the crossed edge.</param>
     /// <param name="OtherTargetId">Target of the crossed edge.</param>
     /// <param name="Reason">Why no failure-free route remained.</param>
     public static void RecordRightAngleFallback(
+        FlowchartRenderContext RenderContext,
         string SourceId,
         string TargetId,
         string OtherSourceId,
         string OtherTargetId,
         string Reason)
     {
-        FlowchartRenderContext.Current.Justifications.Add(new FlowchartLayoutQualityFailure(
+        RenderContext.Justifications.Add(new FlowchartLayoutQualityFailure(
             "EdgeCrossing",
             SourceId + "->" + TargetId + " crosses " + OtherSourceId + "->" + OtherTargetId,
             [SourceId, TargetId, OtherSourceId, OtherTargetId],
@@ -83,16 +85,30 @@ public static class FlowchartSharedEdgeRouter
     /// <param name="NodeById">Nodes by id.</param>
     /// <param name="Direction">Diagram direction.</param>
     /// <param name="Guides">Resolved guides; non-designed routes are replaced.</param>
+    /// <param name="RenderContext">State receiving routing diagnostics.</param>
     public static void RouteAll(
         DiagramContract Contract,
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         IReadOnlyDictionary<string, NodeContract> NodeById,
         FlowchartDirection Direction,
-        List<FlowchartResolvedGuide> Guides)
+        List<FlowchartResolvedGuide> Guides,
+        FlowchartRenderContext RenderContext)
     {
-        FlowchartRenderContext.Current.Justifications.Clear();
+        RenderContext.Justifications.Clear();
+        List<(FlowchartResolvedGuide Guide, List<(double X, double Y)> Points)> FixedRoutes = [];
+        List<(FlowchartResolvedGuide Guide, (double X, double Y) Start, (double X, double Y) End)> FixedFanPorts = [];
+        foreach (FlowchartResolvedGuide Guide in Guides)
+        {
+            if (Guide.Points.Count < 2 || Guide.Edge.RoutingHint?.IsActive == true)
+                continue;
+            if (IsDesignedRoute(Guide.RouteKind))
+                FixedRoutes.Add((Guide, new List<(double X, double Y)>(Guide.Points)));
+            else if (HasSharedPortSet(Guide.Edge, Contract))
+                FixedFanPorts.Add((Guide, Guide.Points[0], Guide.Points[^1]));
+        }
+
         AssignFacingPorts(Contract, BoundsById, NodeById, Guides);
-        ApplyPortSpread(Contract, BoundsById, NodeById, Direction, Guides, SkipDesigned: false);
+        ApplyPortSpread(Contract, BoundsById, NodeById, Direction, Guides);
 
         List<FlowchartResolvedGuide> Searchable = [];
         foreach (FlowchartResolvedGuide Guide in Guides)
@@ -109,7 +125,7 @@ public static class FlowchartSharedEdgeRouter
                 RouteOneEdge(Contract, BoundsById, NodeById, Direction, Guides, Guide, PenaliseCrossings: true);
             }
 
-            ApplyPortSpread(Contract, BoundsById, NodeById, Direction, Guides, SkipDesigned: false);
+            ApplyPortSpread(Contract, BoundsById, NodeById, Direction, Guides);
         }
 
         SeparateParallelRenderedSegments(Contract, BoundsById, Direction, Guides);
@@ -124,13 +140,13 @@ public static class FlowchartSharedEdgeRouter
 
         UnifyFlowchartStyle(Guides);
         SnapAllEndpointsToBoxes(Contract, BoundsById, NodeById, Guides);
-        ApplyPortSpread(Contract, BoundsById, NodeById, Direction, Guides, SkipDesigned: false);
+        ApplyPortSpread(Contract, BoundsById, NodeById, Direction, Guides);
         foreach (FlowchartResolvedGuide Guide in Searchable)
         {
             RepairGroupAndHitRoute(Contract, BoundsById, NodeById, Direction, Guides, Guide);
         }
 
-        ApplyPortSpread(Contract, BoundsById, NodeById, Direction, Guides, SkipDesigned: false);
+        ApplyPortSpread(Contract, BoundsById, NodeById, Direction, Guides);
         SeparateParallelRenderedSegments(Contract, BoundsById, Direction, Guides);
         UnifyFlowchartStyle(Guides);
         SnapAllEndpointsToBoxes(Contract, BoundsById, NodeById, Guides);
@@ -154,10 +170,21 @@ public static class FlowchartSharedEdgeRouter
         ForceMinimumChannelGap(Contract, BoundsById, Direction, Guides);
         SnapAllEndpointsToBoxes(Contract, BoundsById, NodeById, Guides);
         TrySeparateOverlayByRankOrder(Contract, BoundsById, NodeById, Direction, Guides);
-        FlowchartSharedPictureCleaner.Clean(Contract, BoundsById, NodeById, Guides);
+        FlowchartSharedPictureCleaner.Clean(Contract, BoundsById, NodeById, Guides, RenderContext);
         RepairDiamondTerminalStubs(Contract, BoundsById, NodeById, Guides);
+        foreach ((FlowchartResolvedGuide Guide, List<(double X, double Y)> Points) in FixedRoutes)
+        {
+            Guide.Points.Clear();
+            Guide.Points.AddRange(Points);
+        }
+        foreach ((FlowchartResolvedGuide Guide, (double X, double Y) Start, (double X, double Y) End) in FixedFanPorts)
+        {
+            if (Guide.Points.Count < 2) continue;
+            Guide.Points[0] = Start;
+            Guide.Points[^1] = End;
+        }
 
-        RecordRemainingJustifications(Contract, BoundsById, Direction, Guides);
+        RecordRemainingJustifications(Contract, BoundsById, Direction, Guides, RenderContext);
     }
 
     private static void RepairDiamondTerminalStubs(
@@ -209,6 +236,20 @@ public static class FlowchartSharedEdgeRouter
             || RouteKind == FlowchartEdgeRouteKind.RetryLoop
             || RouteKind == FlowchartEdgeRouteKind.GroupedTwoByTwo
             || RouteKind == FlowchartEdgeRouteKind.Grid;
+    }
+
+    private static bool HasSharedPortSet(EdgeContract Edge, DiagramContract Contract)
+    {
+        int Outgoing = 0;
+        int Incoming = 0;
+        foreach (EdgeContract Candidate in Contract.Edges)
+        {
+            if (Candidate.SourceId == Edge.SourceId
+                && !string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)) Outgoing++;
+            if (Candidate.TargetId == Edge.TargetId
+                && !string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)) Incoming++;
+        }
+        return Outgoing > 1 || Incoming > 1;
     }
 
     /// <summary>
@@ -660,14 +701,23 @@ public static class FlowchartSharedEdgeRouter
         BoundsById.TryGetValue(Guide.Edge.TargetId, out FlowchartLayoutNodeBounds? TargetBounds);
         string? SourceShape = ResolveShape(Contract, NodeById, Guide.Edge.SourceId);
         string? TargetShape = ResolveShape(Contract, NodeById, Guide.Edge.TargetId);
-        List<(double StartX, double StartY, double EndX, double EndY)> PortPairs = BuildPortPairs(
-            SourceBounds ?? new FlowchartLayoutNodeBounds(),
-            TargetBounds ?? new FlowchartLayoutNodeBounds(),
-            SourceShape,
-            TargetShape,
-            Guide.Edge.MarkerStart,
-            Guide.Edge.MarkerEnd,
-            Guide.Points);
+        List<(double StartX, double StartY, double EndX, double EndY)> PortPairs = [];
+        if (HasSharedPortSet(Guide.Edge, Contract))
+        {
+            PortPairs.Add((Guide.Points[0].X, Guide.Points[0].Y,
+                Guide.Points[^1].X, Guide.Points[^1].Y));
+        }
+        else
+        {
+            PortPairs = BuildPortPairs(
+                SourceBounds ?? new FlowchartLayoutNodeBounds(),
+                TargetBounds ?? new FlowchartLayoutNodeBounds(),
+                SourceShape,
+                TargetShape,
+                Guide.Edge.MarkerStart,
+                Guide.Edge.MarkerEnd,
+                Guide.Points);
+        }
         if (PortPairs.Count == 0 && Guide.Points.Count >= 2)
         {
             PortPairs.Add((
@@ -1090,7 +1140,8 @@ public static class FlowchartSharedEdgeRouter
             new Dictionary<string, List<FlowchartResolvedGuide>>(StringComparer.Ordinal);
         foreach (FlowchartResolvedGuide Guide in Guides)
         {
-            if (Guide.Points.Count < 2 || Guide.RouteKind == FlowchartEdgeRouteKind.Grid)
+            if (Guide.Points.Count < 2 || IsDesignedRoute(Guide.RouteKind)
+                || HasSharedPortSet(Guide.Edge, Contract))
             {
                 continue;
             }
@@ -1106,7 +1157,8 @@ public static class FlowchartSharedEdgeRouter
 
         foreach (FlowchartResolvedGuide Guide in Guides)
         {
-            if (Guide.RouteKind == FlowchartEdgeRouteKind.Grid
+            if (IsDesignedRoute(Guide.RouteKind)
+                || HasSharedPortSet(Guide.Edge, Contract)
                 || Guide.Points.Count < 2
                 || !BoundsById.TryGetValue(Guide.Edge.SourceId, out FlowchartLayoutNodeBounds SourceBounds)
                 || !BoundsById.TryGetValue(Guide.Edge.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
@@ -1238,16 +1290,14 @@ public static class FlowchartSharedEdgeRouter
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         IReadOnlyDictionary<string, NodeContract> NodeById,
         FlowchartDirection Direction,
-        List<FlowchartResolvedGuide> Guides,
-        bool SkipDesigned)
+        List<FlowchartResolvedGuide> Guides)
     {
         Dictionary<string, List<PortUse>> UsesByNode =
             new Dictionary<string, List<PortUse>>(StringComparer.Ordinal);
         foreach (FlowchartResolvedGuide Guide in Guides)
         {
-            if (Guide.Points.Count < 2
-                || Guide.RouteKind == FlowchartEdgeRouteKind.Grid
-                || (SkipDesigned && IsDesignedRoute(Guide.RouteKind)))
+            if (Guide.Points.Count < 2 || IsDesignedRoute(Guide.RouteKind)
+                || HasSharedPortSet(Guide.Edge, Contract))
             {
                 continue;
             }
@@ -2985,7 +3035,8 @@ public static class FlowchartSharedEdgeRouter
         DiagramContract Contract,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         FlowchartDirection Direction,
-        List<FlowchartResolvedGuide> Guides)
+        List<FlowchartResolvedGuide> Guides,
+        FlowchartRenderContext RenderContext)
     {
         for (int LeftIndex = 0; LeftIndex < Guides.Count; LeftIndex++)
         {
@@ -2995,7 +3046,7 @@ public static class FlowchartSharedEdgeRouter
                 && !string.IsNullOrEmpty(HitNodeId)
                 && IsNodeFullyEnclosingCorridor(BoundsById, Left.Edge, HitNodeId))
             {
-                FlowchartRenderContext.Current.Justifications.Add(new FlowchartLayoutQualityFailure(
+                RenderContext.Justifications.Add(new FlowchartLayoutQualityFailure(
                     "NodeIntersection",
                     Left.Edge.SourceId + "->" + Left.Edge.TargetId + " intersects " + HitNodeId,
                     [Left.Edge.SourceId, Left.Edge.TargetId, HitNodeId],
@@ -3041,7 +3092,7 @@ public static class FlowchartSharedEdgeRouter
                     continue;
                 }
 
-                FlowchartRenderContext.Current.Justifications.Add(new FlowchartLayoutQualityFailure(
+                RenderContext.Justifications.Add(new FlowchartLayoutQualityFailure(
                     "EdgeCrossing",
                     Left.Edge.SourceId + "->" + Left.Edge.TargetId
                     + " crosses "
@@ -3051,15 +3102,16 @@ public static class FlowchartSharedEdgeRouter
             }
         }
 
-        RecordOccupiedCorridorJustifications(Contract, BoundsById, Direction, Guides);
-        RecordOverlayCorridorJustifications(Contract, BoundsById, Direction, Guides);
+        RecordOccupiedCorridorJustifications(Contract, BoundsById, Direction, Guides, RenderContext);
+        RecordOverlayCorridorJustifications(Contract, BoundsById, Direction, Guides, RenderContext);
     }
 
     private static void RecordOverlayCorridorJustifications(
         DiagramContract Contract,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         FlowchartDirection Direction,
-        IReadOnlyList<FlowchartResolvedGuide> Guides)
+        IReadOnlyList<FlowchartResolvedGuide> Guides,
+        FlowchartRenderContext RenderContext)
     {
         for (int LeftIndex = 0; LeftIndex < Guides.Count; LeftIndex++)
         {
@@ -3096,14 +3148,14 @@ public static class FlowchartSharedEdgeRouter
                         + " share the only clear channel beside "
                         + Shared
                         + "; other exit ports, channel spacing, and same-rank order were tried and every separated run crosses the sibling or hits a neighbouring box";
-                FlowchartRenderContext.Current.Justifications.Add(new FlowchartLayoutQualityFailure(
+                RenderContext.Justifications.Add(new FlowchartLayoutQualityFailure(
                     "OverlayingEdges",
                     Left.Edge.SourceId + "->" + Left.Edge.TargetId
                     + " runs on top of "
                     + Right.Edge.SourceId + "->" + Right.Edge.TargetId,
                     [Left.Edge.SourceId, Left.Edge.TargetId, Right.Edge.SourceId, Right.Edge.TargetId],
                     Reason));
-                FlowchartRenderContext.Current.Justifications.Add(new FlowchartLayoutQualityFailure(
+                RenderContext.Justifications.Add(new FlowchartLayoutQualityFailure(
                     "SharedStretch",
                     Left.Edge.SourceId + "->" + Left.Edge.TargetId
                     + " shares the occupied corridor with "
@@ -3138,7 +3190,8 @@ public static class FlowchartSharedEdgeRouter
         DiagramContract Contract,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         FlowchartDirection Direction,
-        IReadOnlyList<FlowchartResolvedGuide> Guides)
+        IReadOnlyList<FlowchartResolvedGuide> Guides,
+        FlowchartRenderContext RenderContext)
     {
         foreach (FlowchartResolvedGuide Guide in Guides)
         {
@@ -3157,7 +3210,7 @@ public static class FlowchartSharedEdgeRouter
                     + "->"
                     + Guide.Edge.TargetId
                     + " leaves and re-enters the group";
-                FlowchartRenderContext.Current.Justifications.Add(new FlowchartLayoutQualityFailure(
+                RenderContext.Justifications.Add(new FlowchartLayoutQualityFailure(
                     "GroupBorderReentry",
                     Guide.Edge.SourceId + "->" + Guide.Edge.TargetId + " leaves and re-enters its group",
                     [Guide.Edge.SourceId, Guide.Edge.TargetId],
@@ -3174,12 +3227,12 @@ public static class FlowchartSharedEdgeRouter
             string Reason = string.IsNullOrEmpty(Blocker)
                 ? "occupied corridor: no failure-free exterior channel remains for the labelled edge"
                 : "occupied corridor: " + Blocker + " uses the only clear exterior channel";
-            FlowchartRenderContext.Current.Justifications.Add(new FlowchartLayoutQualityFailure(
+            RenderContext.Justifications.Add(new FlowchartLayoutQualityFailure(
                 "LabelOnBox",
                 Guide.Edge.SourceId + "->" + Guide.Edge.TargetId + " keeps its label inside its group",
                 [Guide.Edge.SourceId, Guide.Edge.TargetId],
                 Reason));
-            FlowchartRenderContext.Current.Justifications.Add(new FlowchartLayoutQualityFailure(
+            RenderContext.Justifications.Add(new FlowchartLayoutQualityFailure(
                 "LabelOwnEdge",
                 Guide.Edge.SourceId + "->" + Guide.Edge.TargetId + " keeps its label inside its group",
                 [Guide.Edge.SourceId, Guide.Edge.TargetId],
