@@ -17,9 +17,15 @@ internal static class FlowchartPortSideRouteRepair
     private sealed record Snapshot(FlowchartLayoutEdgeRoute Route, List<FlowchartLayoutPoint> Points,
         string Exit, string Entry);
 
-    internal static void Apply(FlowchartLayoutResult Layout, DiagramContract Contract)
+    internal static void Apply(FlowchartLayoutResult Layout, DiagramContract Contract,
+        HashSet<string>? AttemptedRouteStates = null)
     {
         if (Layout.NodeBounds.Count == 0 || Layout.EdgeRoutes.Count == 0) return;
+        AttemptedRouteStates ??= new(StringComparer.Ordinal);
+        FlowchartRouteSpatialIndex Spatial = new(Layout);
+        if (!Layout.EdgeRoutes.Any(Route => Corners(Route.Points) > 0
+                && !AttemptedRouteStates.Contains(RouteStateKey(Route) + "|"
+                    + Spatial.DependencySignature(Route.Points)))) return;
         FlowchartLayoutScore.Result Initial = FlowchartLayoutScore.Measure(Contract, Layout);
         List<Snapshot> InitialRoutes = Layout.EdgeRoutes.Select(Route => new Snapshot(Route,
             Route.Points.Select(Copy).ToList(), Route.ExitSide, Route.EntrySide)).ToList();
@@ -38,7 +44,6 @@ internal static class FlowchartPortSideRouteRepair
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         var ScoreContext = new FlowchartLayoutScore.IncrementalContext(
             Contract, Layout, IncludeArrangementCheck: false);
-        FlowchartRouteSpatialIndex Spatial = new(Layout);
         Queue<FlowchartLayoutEdgeRoute> Pending = new();
         HashSet<FlowchartLayoutEdgeRoute> Queued = new();
         bool Eligible(FlowchartLayoutEdgeRoute Route) => Corners(Route.Points) > 0
@@ -48,15 +53,19 @@ internal static class FlowchartPortSideRouteRepair
             && Bounds.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds? Target)
             && !IsGeometricBackEdge(Source, Target, Direction)
             && CanReassign(Route.SourceId, Nodes) && CanReassign(Route.TargetId, Nodes);
+        string CacheKey(FlowchartLayoutEdgeRoute Route) => RouteStateKey(Route) + "|"
+            + Spatial.DependencySignature(Route.Points);
         void Enqueue(FlowchartLayoutEdgeRoute Route)
         {
-            if (Eligible(Route) && Queued.Add(Route)) Pending.Enqueue(Route);
+            if (Eligible(Route) && !AttemptedRouteStates.Contains(CacheKey(Route))
+                && Queued.Add(Route)) Pending.Enqueue(Route);
         }
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes) Enqueue(Route);
         while (Pending.Count > 0)
         {
             FlowchartLayoutEdgeRoute Route = Pending.Dequeue();
             Queued.Remove(Route);
+            if (!AttemptedRouteStates.Add(CacheKey(Route))) continue;
             if (!Bounds.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds? Source)
                 || !Bounds.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds? Target)
                 || !Eligible(Route)) continue;
@@ -66,6 +75,10 @@ internal static class FlowchartPortSideRouteRepair
             FlowchartLayoutScore.CandidateMeasurement Before =
                 ScoreContext.MeasureCandidateSummary(Route, BeforeInteractions);
             int BeforeFaults = Before.RejectingFaults, BeforeCrossings = Before.Crossings;
+            List<FlowchartLayoutQualityFailure> RouteFaults = [];
+            DiagramGridQuality.CollectRouteFailures(Layout, Route, RouteFaults);
+            int RouteRejectingFaults = RouteFaults.Count(Failure => Failure.Kind != "ArrangementKept");
+            if (!Before.Score.HasValue && RouteRejectingFaults == 0) continue;
             List<FlowchartLayoutPoint> Original = Route.Points.Select(Copy).ToList();
             string OriginalExit = Route.ExitSide, OriginalEntry = Route.EntrySide;
             Candidate? Best = null;
@@ -73,15 +86,18 @@ internal static class FlowchartPortSideRouteRepair
             double? BestScore = Before.Score;
             List<(double X, double Y)> OriginalPath = Tuples(Route.Points);
             int OriginalCorners = Corners(Route.Points);
-            bool OnlyBendCanImprove = Before.Crossings == 0 && Before.Overlaps == 0 && BeforeFaults == 0;
+            int LocalCrossings = BeforeInteractions.Sum(Other =>
+                FlowchartBranchRouteOrder.Intersections(OriginalPath, RoutePointCache[Other]).Crossings);
+            bool OnlyBendCanImprove = LocalCrossings == 0 && RouteFaults.Count == 0;
             bool NeedsDetours = !OnlyBendCanImprove || OriginalCorners > 2;
-            foreach (Candidate Candidate in Candidates(Source, Target, Bounds.Values, Direction,
-                         IncludeDetours: NeedsDetours)
-                         .Where(Candidate => Clear(Candidate.Points, Route, Spatial)
-                             && PortsAreFree(Candidate, Route, RoutesByEndpoint)
-                             && (IsRejected || HasMinimumTerminalRuns(Candidate.Points)
-                                 && HasLabelRoom(Candidate.Points, Edge, Contract))))
+            IReadOnlyCollection<FlowchartLayoutNodeBounds> NearbyTrackBoxes = Spatial.QueryBoxes(Route.Points);
+            foreach (Candidate Candidate in Candidates(Source, Target, NearbyTrackBoxes, Direction,
+                         IncludeDetours: NeedsDetours, SearchRegion: Route.Points))
             {
+                if (!Clear(Candidate.Points, Route, Spatial)) continue;
+                if (!PortsAreFree(Candidate, Route, RoutesByEndpoint)) continue;
+                if (!(IsRejected || HasMinimumTerminalRuns(Candidate.Points)
+                    && HasLabelRoom(Candidate.Points, Edge, Contract))) continue;
                 if (OnlyBendCanImprove && Corners(Candidate.Points) >= OriginalCorners) continue;
                 Set(Route, Candidate);
                 HashSet<FlowchartLayoutEdgeRoute> CandidateInteractions =
@@ -142,16 +158,39 @@ internal static class FlowchartPortSideRouteRepair
         + string.Join(";", Candidate.Points.Select(Point => Point.X.ToString("R", CultureInfo.InvariantCulture)
             + "," + Point.Y.ToString("R", CultureInfo.InvariantCulture)));
 
+    private static string RouteStateKey(FlowchartLayoutEdgeRoute Route) => Route.EdgeId + "|"
+        + Route.ExitSide + "|" + Route.EntrySide + "|"
+        + string.Join(";", Route.Points.Select(Point =>
+            BitConverter.DoubleToInt64Bits(Point.X).ToString("X16") + ","
+            + BitConverter.DoubleToInt64Bits(Point.Y).ToString("X16")));
+
     private static IEnumerable<Candidate> Candidates(FlowchartLayoutNodeBounds Source,
         FlowchartLayoutNodeBounds Target, IEnumerable<FlowchartLayoutNodeBounds> Boxes,
-        FlowchartDirection Direction, bool RequireFacing = true, bool IncludeDetours = true)
+        FlowchartDirection Direction, bool RequireFacing = true, bool IncludeDetours = true,
+        IReadOnlyList<FlowchartLayoutPoint>? SearchRegion = null)
     {
         string[] Sides = ["top", "right", "bottom", "left"];
         double Gap = DiagramGridMetrics.NODE_GAP_PX;
-        List<double> XTracks = Boxes.SelectMany(Box => new[]
-            { Box.CenterX - Box.Width / 2.0 - Gap / 2.0, Box.CenterX + Box.Width / 2.0 + Gap / 2.0 }).Distinct().ToList();
-        List<double> YTracks = Boxes.SelectMany(Box => new[]
-            { Box.CenterY - Box.Height / 2.0 - Gap / 2.0, Box.CenterY + Box.Height / 2.0 + Gap / 2.0 }).Distinct().ToList();
+        double MinX = SearchRegion == null ? Math.Min(Source.CenterX, Target.CenterX)
+            : SearchRegion.Min(Point => Point.X);
+        double MaxX = SearchRegion == null ? Math.Max(Source.CenterX, Target.CenterX)
+            : SearchRegion.Max(Point => Point.X);
+        double MinY = SearchRegion == null ? Math.Min(Source.CenterY, Target.CenterY)
+            : SearchRegion.Min(Point => Point.Y);
+        double MaxY = SearchRegion == null ? Math.Max(Source.CenterY, Target.CenterY)
+            : SearchRegion.Max(Point => Point.Y);
+        double Margin = Math.Max(Gap, DiagramGridMetrics.GRID_UNIT_PX);
+        IEnumerable<FlowchartLayoutNodeBounds> NearbyBoxes = Boxes.Where(Box =>
+            Box.CenterX + Box.Width / 2.0 >= MinX - Margin
+            && Box.CenterX - Box.Width / 2.0 <= MaxX + Margin
+            && Box.CenterY + Box.Height / 2.0 >= MinY - Margin
+            && Box.CenterY - Box.Height / 2.0 <= MaxY + Margin);
+        List<double> XTracks = NearbyBoxes.SelectMany(Box => new[]
+            { Box.CenterX - Box.Width / 2.0 - Gap / 2.0, Box.CenterX + Box.Width / 2.0 + Gap / 2.0 })
+            .Distinct().Where(X => IsFreeVerticalTrack(X, MinY, MaxY, NearbyBoxes, Source, Target)).ToList();
+        List<double> YTracks = NearbyBoxes.SelectMany(Box => new[]
+            { Box.CenterY - Box.Height / 2.0 - Gap / 2.0, Box.CenterY + Box.Height / 2.0 + Gap / 2.0 })
+            .Distinct().Where(Y => IsFreeHorizontalTrack(Y, MinX, MaxX, NearbyBoxes, Source, Target)).ToList();
         foreach (string Exit in Sides)
         foreach (string Entry in Sides)
         {
@@ -180,7 +219,7 @@ internal static class FlowchartPortSideRouteRepair
             }
             else if (StartHorizontal)
             {
-                foreach (double X in XTracks.Append((Start.X + End.X) / 2.0).Distinct())
+                foreach (double X in XTracks)
                 {
                     List<FlowchartLayoutPoint> Points = Collapse([Start, Point(X, Start.Y), Point(X, End.Y), End]);
                     if (Directions(Points, Exit, Entry)) yield return New(Points, Exit, Entry, Direction);
@@ -188,7 +227,7 @@ internal static class FlowchartPortSideRouteRepair
             }
             else
             {
-                foreach (double Y in YTracks.Append((Start.Y + End.Y) / 2.0).Distinct())
+                foreach (double Y in YTracks)
                 {
                     List<FlowchartLayoutPoint> Points = Collapse([Start, Point(Start.X, Y), Point(End.X, Y), End]);
                     if (Directions(Points, Exit, Entry)) yield return New(Points, Exit, Entry, Direction);
@@ -197,6 +236,22 @@ internal static class FlowchartPortSideRouteRepair
             }
         }
     }
+
+    private static bool IsFreeVerticalTrack(double X, double MinY, double MaxY,
+        IEnumerable<FlowchartLayoutNodeBounds> Boxes, FlowchartLayoutNodeBounds Source,
+        FlowchartLayoutNodeBounds Target) => !Boxes.Any(Box => Box != Source && Box != Target
+            && X > Box.CenterX - Box.Width / 2.0 - 6
+            && X < Box.CenterX + Box.Width / 2.0 + 6
+            && Math.Max(MinY, Box.CenterY - Box.Height / 2.0 - 6)
+                < Math.Min(MaxY, Box.CenterY + Box.Height / 2.0 + 6));
+
+    private static bool IsFreeHorizontalTrack(double Y, double MinX, double MaxX,
+        IEnumerable<FlowchartLayoutNodeBounds> Boxes, FlowchartLayoutNodeBounds Source,
+        FlowchartLayoutNodeBounds Target) => !Boxes.Any(Box => Box != Source && Box != Target
+            && Y > Box.CenterY - Box.Height / 2.0 - 6
+            && Y < Box.CenterY + Box.Height / 2.0 + 6
+            && Math.Max(MinX, Box.CenterX - Box.Width / 2.0 - 6)
+                < Math.Min(MaxX, Box.CenterX + Box.Width / 2.0 + 6));
 
     private static Candidate New(List<FlowchartLayoutPoint> Points, string Exit, string Entry,
         FlowchartDirection Direction) => new(Points, Exit, Entry,

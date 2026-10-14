@@ -30,6 +30,9 @@ public sealed class RouteIndexFastBenchmarks
             Source.AppendLine($"s{From} --> t{To}");
 
         var Contract = MermaidRecognizer.Parse(Source.ToString());
+        if (Size == 8)
+            Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out _), Is.True,
+                "Warm-up layout must complete successfully.");
         Stopwatch Timer = Stopwatch.StartNew();
         bool Success = FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout);
         Timer.Stop();
@@ -41,6 +44,19 @@ public sealed class RouteIndexFastBenchmarks
         Assert.That(Metrics.Crossings, Is.LessThanOrEqualTo(BaselineCrossings),
             $"Crossings regressed from baseline {BaselineCrossings}. {Failures}");
         Assert.That(Metrics.Overlaps, Is.Zero, Failures);
+        FlowchartLayoutEdgeRoute DeltaRoute = Layout.EdgeRoutes.First(Route => Route.Points.Count > 2);
+        FlowchartLayoutPoint DeltaPoint = DeltaRoute.Points[1];
+        double DeltaOriginalX = DeltaPoint.X;
+        DeltaPoint.X += 1.0;
+        var CandidatePath = DeltaRoute.Points.Select(Point => (Point.X, Point.Y)).ToArray();
+        int FullCrossingDelta = FlowchartLayoutScore.Measure(Contract, Layout,
+            IncludeArrangementCheck: false).Crossings - Metrics.Crossings;
+        DeltaPoint.X = DeltaOriginalX;
+        int IncrementalCrossingDelta = FlowchartManyToManyRoutes.MeasureCrossingDelta(Layout,
+            [DeltaRoute], new Dictionary<FlowchartLayoutEdgeRoute, IReadOnlyList<(double X, double Y)>>
+            { [DeltaRoute] = CandidatePath });
+        Assert.That(IncrementalCrossingDelta, Is.EqualTo(FullCrossingDelta),
+            $"{Size}x{Size} affected-route crossing delta must equal the full crossing count delta.");
         Assert.That(Timer.Elapsed, Is.LessThan(TimeSpan.FromSeconds(60)), "The benchmark hard ceiling is 60 seconds.");
         if (Timer.Elapsed > TimeSpan.FromSeconds(10))
             TestContext.WriteLine($"SPEED_FAULT layout {Size}x{Size}: {Timer.Elapsed.TotalSeconds:0.00}s (over 10s target)");

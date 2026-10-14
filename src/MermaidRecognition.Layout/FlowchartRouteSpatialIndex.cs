@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 
 namespace MermaidRecognition.Layout;
 
@@ -11,8 +13,10 @@ internal sealed class FlowchartRouteSpatialIndex
     private readonly record struct Cell(int X, int Y);
 
     private readonly Dictionary<Cell, HashSet<FlowchartLayoutNodeBounds>> _boxes = [];
+    private readonly Dictionary<FlowchartLayoutNodeBounds, HashSet<Cell>> _boxCells = [];
     private readonly Dictionary<Cell, HashSet<FlowchartLayoutEdgeRoute>> _routes = [];
     private readonly Dictionary<FlowchartLayoutEdgeRoute, HashSet<Cell>> _routeCells = [];
+    private readonly Dictionary<Cell, string> _cellSignatures = [];
 
     internal FlowchartRouteSpatialIndex(FlowchartLayoutResult Layout)
     {
@@ -28,6 +32,18 @@ internal sealed class FlowchartRouteSpatialIndex
         HashSet<FlowchartLayoutNodeBounds> Found = [];
         foreach (Cell Cell in CellsForPath(Path))
             if (_boxes.TryGetValue(Cell, out HashSet<FlowchartLayoutNodeBounds>? Items))
+                Found.UnionWith(Items);
+        return Found;
+    }
+
+    internal IReadOnlyCollection<FlowchartLayoutNodeBounds> QueryBoxes(
+        double Left, double Top, double Right, double Bottom)
+    {
+        HashSet<FlowchartLayoutNodeBounds> Found = [];
+        (int MinX, int MinY, int MaxX, int MaxY) = CellRange(Left, Top, Right, Bottom);
+        for (int X = MinX; X <= MaxX; X++)
+        for (int Y = MinY; Y <= MaxY; Y++)
+            if (_boxes.TryGetValue(new Cell(X, Y), out HashSet<FlowchartLayoutNodeBounds>? Items))
                 Found.UnionWith(Items);
         return Found;
     }
@@ -49,26 +65,84 @@ internal sealed class FlowchartRouteSpatialIndex
         AddRoute(Route);
     }
 
+    internal void ReplaceBox(FlowchartLayoutNodeBounds Box)
+    {
+        RemoveBox(Box);
+        AddBox(Box);
+    }
+
+    internal string DependencySignature(IReadOnlyList<FlowchartLayoutPoint> Path)
+    {
+        List<Cell> Cells = CellsForPath(Path).OrderBy(Cell => Cell.X).ThenBy(Cell => Cell.Y).ToList();
+        StringBuilder Signature = new();
+        foreach (Cell Cell in Cells)
+            Signature.Append(Cell.X).Append(',').Append(Cell.Y).Append(':')
+                .Append(GetCellSignature(Cell)).Append('|');
+        return Signature.ToString();
+    }
+
+    private string GetCellSignature(Cell Cell)
+    {
+        if (_cellSignatures.TryGetValue(Cell, out string? Cached)) return Cached;
+        StringBuilder Signature = new();
+        if (_boxes.TryGetValue(Cell, out HashSet<FlowchartLayoutNodeBounds>? Boxes))
+            foreach (string Box in Boxes.Select(BoxKey).OrderBy(Key => Key, StringComparer.Ordinal))
+                Signature.Append('B').Append(Box).Append(';');
+        if (_routes.TryGetValue(Cell, out HashSet<FlowchartLayoutEdgeRoute>? Routes))
+            foreach (string Route in Routes.Select(RouteKey).OrderBy(Key => Key, StringComparer.Ordinal))
+                Signature.Append('R').Append(Route).Append(';');
+        Cached = Signature.ToString();
+        _cellSignatures[Cell] = Cached;
+        return Cached;
+    }
+
+    private static string BoxKey(FlowchartLayoutNodeBounds Box) => Box.NodeId + ":"
+        + Bits(Box.CenterX) + "," + Bits(Box.CenterY) + "," + Bits(Box.Width) + "," + Bits(Box.Height);
+
+    private static string RouteKey(FlowchartLayoutEdgeRoute Route) => Route.EdgeId + ":" + Route.ExitSide
+        + ":" + Route.EntrySide + ":" + string.Join(";", Route.Points.Select(Point =>
+            Bits(Point.X) + "," + Bits(Point.Y)));
+
+    private static string Bits(double Value) => BitConverter.DoubleToInt64Bits(Value).ToString("X16");
+
     private void AddBox(FlowchartLayoutNodeBounds Box)
     {
         double Padding = DiagramGridMetrics.GRID_UNIT_PX / 5.0;
-        AddBoxCells(Box, Box.CenterX - Box.Width / 2.0 - Padding,
+        HashSet<Cell> Occupied = BoxCells(Box, Box.CenterX - Box.Width / 2.0 - Padding,
             Box.CenterY - Box.Height / 2.0 - Padding,
             Box.CenterX + Box.Width / 2.0 + Padding,
             Box.CenterY + Box.Height / 2.0 + Padding);
-    }
-
-    private void AddBoxCells(FlowchartLayoutNodeBounds Box, double Left, double Top, double Right, double Bottom)
-    {
-        (int MinX, int MinY, int MaxX, int MaxY) = CellRange(Left, Top, Right, Bottom);
-        for (int X = MinX; X <= MaxX; X++)
-        for (int Y = MinY; Y <= MaxY; Y++)
+        _boxCells[Box] = Occupied;
+        foreach (Cell Key in Occupied)
         {
-            Cell Key = new(X, Y);
             if (!_boxes.TryGetValue(Key, out HashSet<FlowchartLayoutNodeBounds>? Items))
                 _boxes[Key] = Items = [];
             Items.Add(Box);
+            _cellSignatures.Remove(Key);
         }
+    }
+
+    private void RemoveBox(FlowchartLayoutNodeBounds Box)
+    {
+        if (!_boxCells.Remove(Box, out HashSet<Cell>? Occupied)) return;
+        foreach (Cell Key in Occupied)
+        {
+            if (!_boxes.TryGetValue(Key, out HashSet<FlowchartLayoutNodeBounds>? Items)) continue;
+            Items.Remove(Box);
+            if (Items.Count == 0) _boxes.Remove(Key);
+            _cellSignatures.Remove(Key);
+        }
+    }
+
+    private static HashSet<Cell> BoxCells(FlowchartLayoutNodeBounds Box, double Left, double Top,
+        double Right, double Bottom)
+    {
+        var Cells = new HashSet<Cell>();
+        (int MinX, int MinY, int MaxX, int MaxY) = CellRange(Left, Top, Right, Bottom);
+        for (int X = MinX; X <= MaxX; X++)
+        for (int Y = MinY; Y <= MaxY; Y++)
+            Cells.Add(new Cell(X, Y));
+        return Cells;
     }
 
     private void AddRoute(FlowchartLayoutEdgeRoute Route)
@@ -80,6 +154,7 @@ internal sealed class FlowchartRouteSpatialIndex
             if (!_routes.TryGetValue(Cell, out HashSet<FlowchartLayoutEdgeRoute>? Items))
                 _routes[Cell] = Items = [];
             Items.Add(Route);
+            _cellSignatures.Remove(Cell);
         }
     }
 
@@ -91,6 +166,7 @@ internal sealed class FlowchartRouteSpatialIndex
             if (!_routes.TryGetValue(Cell, out HashSet<FlowchartLayoutEdgeRoute>? Items)) continue;
             Items.Remove(Route);
             if (Items.Count == 0) _routes.Remove(Cell);
+            _cellSignatures.Remove(Cell);
         }
     }
 

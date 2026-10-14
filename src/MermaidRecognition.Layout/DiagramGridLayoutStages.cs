@@ -43,6 +43,8 @@ public static partial class DiagramGridLayout
         public List<GridNode> Placed { get; } = [];
         public List<FlowchartPartnerRankLayout.Partners> PartnerRanks { get; set; } = [];
         public HashSet<string> SharedFanSources { get; set; } = new(StringComparer.Ordinal);
+        public HashSet<string> ObstacleRouteStates { get; } = new(StringComparer.Ordinal);
+        public HashSet<string> PortSideRouteStates { get; } = new(StringComparer.Ordinal);
         public bool RepairExteriorCrossings { get; set; }
         public List<GridFrame> Frames { get; } = [];
         public Dictionary<FlowchartLayoutEdgeRoute, HintedRoute> HintedRoutes { get; } = [];
@@ -310,7 +312,7 @@ public static partial class DiagramGridLayout
                         BuildPlacedBounds(State.Placed, State.Frames), State.Direction);
             }),
             new("4.4", State => FlowchartObstacleRouteRepair.Apply(
-                State.Copy, State.Contract, BuildPlacedBounds(State.Placed, State.Frames))),
+                State.Copy, State.Contract, BuildPlacedBounds(State.Placed, State.Frames), State.ObstacleRouteStates)),
             new("5.3,5.4", State => FlowchartReturnRouteOrder.Apply(
                 State.Copy, State.Contract, BuildPlacedBounds(State.Placed, State.Frames))),
             new("5.8", State => FlowchartNestedCounterflowTracks.Apply(
@@ -381,16 +383,16 @@ public static partial class DiagramGridLayout
                 State.Copy, State.Contract, BuildPlacedBounds(State.Placed, State.Frames), State.Nodes, State.Direction)),
             new("4.7", State =>
             {
-                if (!State.Open) FlowchartPortSideRouteRepair.Apply(State.Copy, State.Contract);
+                if (!State.Open) FlowchartPortSideRouteRepair.Apply(State.Copy, State.Contract, State.PortSideRouteStates);
             }),
+            new("5.8", State => RebuildAlignedSimpleFanRoutes(State.Contract, State.Copy,
+                State.Placed, State.Frames, State.Nodes, State.Direction)),
             new("5.8,5.9", State =>
             {
                 if (!State.Open && State.Direction is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft)
                     FlowchartManyToManyRoutes.Apply(State.Copy, State.Contract,
                         BuildPlacedBounds(State.Placed, State.Frames), State.Direction);
-            }),
-            new("5.8", State => RebuildAlignedSimpleFanRoutes(State.Contract, State.Copy,
-                State.Placed, State.Frames, State.Nodes, State.Direction))
+            })
         ];
 
         private static void ApplyHintAwareGapGrowth(GridLayoutState State)
@@ -413,7 +415,6 @@ public static partial class DiagramGridLayout
         {
             State.Copy.UsesGridRoutes = true;
             HashSet<string> SeenStates = new(StringComparer.Ordinal) { RouteState(State.Copy) };
-            HashSet<string> PortSideStates = new(StringComparer.Ordinal);
             List<(double X, double Y)[]> BestRoutes = CaptureRoutes(State.Copy);
             FlowchartLayoutScore.Result Before = FlowchartLayoutScore.Measure(State.Contract, State.Copy,
                 IncludeArrangementCheck: false);
@@ -421,7 +422,6 @@ public static partial class DiagramGridLayout
             {
                 foreach (RepairPass Pass in Passes)
                 {
-                    if (Pass.RuleIds == "4.7" && !PortSideStates.Add(RouteState(State.Copy))) continue;
                     PreserveHintedRoutes(State, () => Pass.Apply(State));
                 }
 
