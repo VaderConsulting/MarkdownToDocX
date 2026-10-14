@@ -9,6 +9,8 @@ namespace MermaidRecognition.Layout;
 /// <summary>Finds a clear route with at most two corners using the assigned ports.</summary>
 internal static class FlowchartTwoCornerRouteRepair
 {
+    internal static Action<string, int, int, int, bool>? RouteCandidateObserver { get; set; }
+
     internal static void Apply(FlowchartLayoutResult Layout, DiagramContract Contract,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds)
     {
@@ -21,6 +23,7 @@ internal static class FlowchartTwoCornerRouteRepair
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes.Where(Route => Route.Points.Count > 4
             && !Back.Contains((Route.SourceId, Route.TargetId))))
         {
+            int CandidateCount = 0, ValidCount = 0, NonWorseCount = 0;
             FlowchartLayoutPoint Start = Route.Points[0], End = Route.Points[^1];
             var Candidates = new List<List<FlowchartLayoutPoint>>();
             bool ExitHorizontal = Route.ExitSide is "left" or "right";
@@ -43,12 +46,24 @@ internal static class FlowchartTwoCornerRouteRepair
                     Candidates.Add([Copy(Start), New(Start.X, Y), New(End.X, Y), Copy(End)]);
             }
             List<FlowchartLayoutPoint>? Best = Candidates.Select(Collapse).Where(Candidate =>
-                    Valid(Candidate, Route, Bounds) && NoWorse(Candidate, Route, Layout))
+                {
+                    CandidateCount++;
+                    if (!Valid(Candidate, Route, Bounds)) return false;
+                    ValidCount++;
+                    if (!NoWorse(Candidate, Route, Layout)) return false;
+                    NonWorseCount++;
+                    return true;
+                })
                 .OrderBy(Candidate => Crossings(Candidate, Route, Layout))
                 .ThenBy(Candidate => Length(Candidate)).FirstOrDefault();
-            if (Best == null) continue;
+            if (Best == null)
+            {
+                RouteCandidateObserver?.Invoke(Route.EdgeId, CandidateCount, ValidCount, NonWorseCount, false);
+                continue;
+            }
             Route.Points.Clear();
             Route.Points.AddRange(Best);
+            RouteCandidateObserver?.Invoke(Route.EdgeId, CandidateCount, ValidCount, NonWorseCount, true);
         }
     }
 

@@ -416,6 +416,14 @@ public static partial class DiagramGridLayout
             {
                 if (!State.Open) FlowchartPortSideRouteRepair.Apply(State.Copy, State.Contract, State.PortSideRouteStates);
             }),
+            new("4.2,4.3", State =>
+            {
+                // Port-side repair may find a cleaner legal exit/entry pair. Collapse
+                // any remaining unhinted doglegs against those final assigned ports.
+                if (!State.Open)
+                    FlowchartTwoCornerRouteRepair.Apply(State.Copy, State.Contract,
+                        BuildPlacedBounds(State.Placed, State.Frames));
+            }),
             new("5.8", State => RebuildAlignedSimpleFanRoutes(State.Contract, State.Copy,
                 State.Placed, State.Frames, State.Nodes, State.Direction)),
             new("5.8,5.9", State =>
