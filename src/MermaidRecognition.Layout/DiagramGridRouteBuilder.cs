@@ -231,6 +231,11 @@ public static class DiagramGridRouteBuilder
                 continue;
             }
 
+            if (DiagramGridLayout.FindContractEdge(Contract, Route)?.RoutingHint?.IsActive == true)
+            {
+                continue;
+            }
+
             Nodes.TryGetValue(Route.SourceId, out NodeContract? SourceNode);
 
             if (SourceNode != null

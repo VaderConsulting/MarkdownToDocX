@@ -33,14 +33,25 @@ public static partial class DiagramGridLayout
     {
         GridLayoutState State = new(Contract, LaidOut, RenderContext);
         if (!State.IsReady) return State.Copy;
-
-        GridPreparationStage.Apply(State);
-        NodePlacementStage.Apply(State);
-        GroupFrameStage.Apply(State);
-        RouteConstructionStage.Apply(State);
-        RouteRepairStage.Apply(State);
-        FinalHintStage.Apply(State);
+        FlowchartRenderContext Context = State.Copy.RenderContext;
+        Context.LayoutStageTrace.Clear();
+        Context.LayoutStageViolations.Clear();
+        Run("grid-and-measured-geometry", GridPreparationStage.Apply);
+        Run("automatic-node-placement", NodePlacementStage.Apply);
+        Run("group-frames-and-placement-hints", GroupFrameStage.Apply);
+        Run("route-coordinate-preparation", RouteCoordinateStage.Apply);
+        Run("joint-port-allocation-4.7", JointPortAllocationStage.Apply);
+        Run("line-routing-hints-3.1-3.7", RoutingHintStage.Apply);
+        Run("rule-specific-route-construction", RouteConstructionStage.Apply);
+        Run("coupled-route-repair", RouteRepairStage.Apply);
+        Run("final-legality-validation-section-10", LegalityValidationStage.Apply);
         return State.Copy;
+
+        void Run(string Name, Action<GridLayoutState> Stage)
+        {
+            Context.LayoutStageTrace.Add(Name);
+            Stage(State);
+        }
     }
     private static void RestoreContractRouteEndpoints(DiagramContract Contract, FlowchartLayoutResult Layout)
     {
@@ -155,18 +166,19 @@ public static partial class DiagramGridLayout
         }
     }
 
-    internal static void GrowFacingDoglegGaps(FlowchartLayoutResult Layout, DiagramContract Contract,
+    internal static bool GrowFacingDoglegGaps(FlowchartLayoutResult Layout, DiagramContract Contract,
         List<GridNode> Placed, List<GridFrame> Frames)
     {
-        // Placement hints outrank automatic gap growth. Repositioning only later ranks
-        // would split a source-ordered hinted chain after placement has been finalised.
-        if (Contract.Nodes.Any(Node => Node.PlacementHint?.IsActive == true)
-            || Contract.Groups.Any(Group => Group.PlacementHint?.IsActive == true))
-            return;
+        HashSet<string> PinnedEndpoints = Contract.Edges.Where(Edge => Edge.RoutingHint?.IsActive == true)
+            .SelectMany(Edge => new[] { Edge.SourceId, Edge.TargetId }).ToHashSet(StringComparer.Ordinal);
+        HashSet<string> HintedEdgeIds = Contract.Edges.Where(Edge => Edge.RoutingHint?.IsActive == true)
+            .Select(Edge => Edge.Id).OfType<string>().ToHashSet(StringComparer.Ordinal);
         var BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        bool Changed = false;
         foreach (var Route in Layout.EdgeRoutes)
         {
-            if (Route.Points.Count < 6 || BackEdges.Any(Edge => Edge.SourceId == Route.SourceId && Edge.TargetId == Route.TargetId)) continue;
+            if (Route.Points.Count < 6 || HintedEdgeIds.Contains(Route.EdgeId)
+                || BackEdges.Any(Edge => Edge.SourceId == Route.SourceId && Edge.TargetId == Route.TargetId)) continue;
             var Source = Placed.Find(Node => Node.Id == Route.SourceId);
             var Target = Placed.Find(Node => Node.Id == Route.TargetId);
             if (Source == null || Target == null || Source.IsDiamond || Target.IsDiamond) continue;
@@ -190,19 +202,22 @@ public static partial class DiagramGridLayout
             double Move(double Value) => (Value - Cut) * Sign >= 0 ? Value + Shift : Value;
             foreach (var Node in Placed)
             {
+                if (PinnedEndpoints.Contains(Node.Id)) continue;
                 if (Horizontal) Node.X = (int)Move(Node.X); else Node.Y = (int)Move(Node.Y);
             }
-            foreach (var Frame in Frames)
-            {
-                if (Horizontal) { Frame.Left = (int)Move(Frame.Left); Frame.Right = (int)Move(Frame.Right); }
-                else { Frame.Top = (int)Move(Frame.Top); Frame.Bottom = (int)Move(Frame.Bottom); }
-            }
             foreach (var Other in Layout.EdgeRoutes)
+            {
+                if (HintedEdgeIds.Contains(Other.EdgeId)) continue;
             foreach (var Point in Other.Points)
             {
                 if (Horizontal) Point.X = Move(Point.X); else Point.Y = Move(Point.Y);
             }
+            }
+            Frames.Clear();
+            BuildFrames(Contract, Placed, Frames);
+            Changed = true;
         }
+        return Changed;
     }
 
     /// <summary>

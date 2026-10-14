@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 
 using MermaidRecognition.Contract;
@@ -66,16 +67,20 @@ internal static class FlowchartPortSideRouteRepair
                 Set(Route, Candidate);
                 FlowchartLayoutScore.Result Measured = ScoreContext.MeasureCandidate(Route);
                 int Faults = RejectingFaults(Measured);
-                bool Improves = BestScore.HasValue
-                    ? Measured.Score.HasValue && Measured.Score.Value < BestScore.Value - 0.001
-                    : Measured.Score.HasValue || Faults < BestFaults;
-                if (Improves)
+                bool ImprovesBaseline = Before.Score.HasValue
+                    ? Measured.Score.HasValue && Measured.Score.Value < Before.Score.Value - 0.001
+                    : Measured.Score.HasValue || Faults < BeforeFaults;
+                bool BetterThanBest = Best == null
+                    || Measured.Score.HasValue && (!BestScore.HasValue || IsStrictlyLower(Measured.Score, BestScore))
+                    || ScoresTie(Measured.Score, BestScore)
+                        && string.CompareOrdinal(CandidateKey(Candidate), CandidateKey(Best)) < 0
+                    || !Measured.Score.HasValue && !BestScore.HasValue && Faults < BestFaults;
+                bool IsBetter = ImprovesBaseline && BetterThanBest;
+                if (IsBetter)
                 {
                     Best = Candidate;
                     BestFaults = Faults;
                     BestScore = Measured.Score;
-                    Restore(Route, Original, OriginalExit, OriginalEntry);
-                    break;
                 }
                 Restore(Route, Original, OriginalExit, OriginalEntry);
             }
@@ -110,8 +115,10 @@ internal static class FlowchartPortSideRouteRepair
             List<FlowchartLayoutPoint> Original = Route.Points.Select(Copy).ToList();
             string OriginalExit = Route.ExitSide, OriginalEntry = Route.EntrySide;
             Candidate? Best = null;
+            double? BestScore = Before.Score;
             foreach (Candidate Candidate in Candidates(Source, Target, Bounds.Values, Direction)
-                         .Where(Candidate => Clear(Candidate.Points, Route, Bounds.Values))
+                         .Where(Candidate => Clear(Candidate.Points, Route, Bounds.Values)
+                             && NoWorseInteractions(Candidate.Points, Tuples(Original), OtherPaths(Layout, Route)))
                          .OrderBy(Candidate => Candidate.Points.Count)
                          .ThenBy(Candidate => Candidate.FlowPriority)
                          .ThenBy(Candidate => Candidate.Length))
@@ -119,12 +126,19 @@ internal static class FlowchartPortSideRouteRepair
                 Set(Route, Candidate);
                 FlowchartLayoutScore.Result Measured = ScoreContext.MeasureCandidate(Route);
                 int Faults = RejectingFaults(Measured);
-                if (Measured.Overlaps == 0 && Measured.Crossings <= BeforeCrossings && Faults < BestFaults)
+                bool ImprovesBaseline = Measured.Overlaps == 0 && Measured.Crossings <= BeforeCrossings
+                    && Faults < RejectingFaults(Before);
+                bool BetterThanBest = Best == null
+                    || Measured.Score.HasValue && (!BestScore.HasValue || IsStrictlyLower(Measured.Score, BestScore))
+                    || ScoresTie(Measured.Score, BestScore)
+                        && string.CompareOrdinal(CandidateKey(Candidate), CandidateKey(Best)) < 0
+                    || !Measured.Score.HasValue && !BestScore.HasValue && Faults < BestFaults;
+                bool IsBetter = ImprovesBaseline && BetterThanBest;
+                if (IsBetter)
                 {
                     Best = Candidate;
                     BestFaults = Faults;
-                    Restore(Route, Original, OriginalExit, OriginalEntry);
-                    break;
+                    BestScore = Measured.Score;
                 }
                 Restore(Route, Original, OriginalExit, OriginalEntry);
             }
@@ -135,6 +149,22 @@ internal static class FlowchartPortSideRouteRepair
             }
         }
     }
+
+    private static bool IsStrictlyLower(double? Candidate, double? Current) => Candidate.HasValue
+        ? !Current.HasValue || Candidate.Value < Current.Value - 0.001
+        : false;
+
+    private static bool ScoresTie(double? Candidate, double? Current) => Candidate.HasValue && Current.HasValue
+        && Math.Abs(Candidate.Value - Current.Value) <= 0.001;
+
+    private static string CandidateKey(Candidate Candidate) => Candidate.Exit + "|" + Candidate.Entry + "|"
+        + string.Join(";", Candidate.Points.Select(Point => Point.X.ToString("R", CultureInfo.InvariantCulture)
+            + "," + Point.Y.ToString("R", CultureInfo.InvariantCulture)));
+
+    private static List<(FlowchartLayoutEdgeRoute Route, List<(double X, double Y)> Points)> OtherPaths(
+        FlowchartLayoutResult Layout, FlowchartLayoutEdgeRoute Route) => Layout.EdgeRoutes
+            .Where(Other => Other != Route)
+            .Select(Other => (Other, Tuples(Other.Points))).ToList();
 
     private static IEnumerable<Candidate> Candidates(FlowchartLayoutNodeBounds Source,
         FlowchartLayoutNodeBounds Target, IEnumerable<FlowchartLayoutNodeBounds> Boxes,

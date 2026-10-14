@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 
 using MermaidRecognition.Contract;
@@ -42,6 +43,9 @@ public static partial class DiagramGridLayout
         public HashSet<string> SharedFanSources { get; set; } = new(StringComparer.Ordinal);
         public bool RepairExteriorCrossings { get; set; }
         public List<GridFrame> Frames { get; } = [];
+        public Dictionary<FlowchartLayoutEdgeRoute, HintedRoute> HintedRoutes { get; } = [];
+
+        public sealed record HintedRoute(string ExitSide, string EntrySide, (double X, double Y)[] Points);
     }
 
     private static class GridPreparationStage
@@ -196,9 +200,26 @@ public static partial class DiagramGridLayout
         }
     }
 
+    private static class RouteCoordinateStage
+    {
+        public static void Apply(GridLayoutState State)
+        {
+            FlipToYUp(State.Placed, State.Frames, State.Copy);
+            RestoreContractRouteEndpoints(State.Contract, State.Copy);
+            EnsureBackEdgeRoutes(State.Contract, State.Copy, State.Placed);
+        }
+    }
+
+    private static class JointPortAllocationStage
+    {
+        // Rule id: 4.7 (jointly choose all endpoint ports before building routes).
+        public static void Apply(GridLayoutState State) => AssignPortSides(State.Contract, State.Copy,
+            State.Placed, State.Frames, State.Nodes, State.Direction, State.SharedFanSources);
+    }
+
     private static class RouteConstructionStage
     {
-        // Rule ids: 3.8, 4.7, 4.11, 5.3–5.9 (ports and initial route construction).
+        // Rule ids: 3.8, 4.11 and 5.3–5.9 (build rule-specific orthogonal paths).
         public static void Apply(GridLayoutState State)
         {
             DiagramContract Contract = State.Contract;
@@ -208,21 +229,21 @@ public static partial class DiagramGridLayout
             Dictionary<string, NodeContract> Nodes = State.Nodes;
             FlowchartDirection Direction = State.Direction;
             bool Horizontal = State.Horizontal;
-            FlipToYUp(Placed, Frames, Copy);
-            RestoreContractRouteEndpoints(Contract, Copy);
-            EnsureBackEdgeRoutes(Contract, Copy, Placed);
-            AssignPortSides(Contract, Copy, Placed, Frames, Nodes, Direction, State.SharedFanSources);
-            DiagramGridRouteBuilder.RebuildAllRoutes(Copy, Placed, Nodes, Contract, Frames, Direction);
-            RebuildDecisionFanOutRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
-            RebuildSoleForwardDecisionBranchRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
-            RebuildOrdinaryFanOutRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
-            FlowchartForwardRouteSimplifier.Apply(Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction);
-            FlowchartPartnerRankLayout.Route(Contract, Copy, Placed, Frames, State.PartnerRanks, Horizontal);
-            RebuildSimpleDecisionMergeRoutes(Contract, Copy, Placed, Frames, Horizontal);
-            RebuildDecisionDetourRoutes(Contract, Copy, Placed, Frames, Horizontal);
-            RebuildLoopBackRoutes(Contract, Copy, Placed, Frames, Nodes, Direction);
-            DiagramGridRouteBuilder.RebuildDiagonalBackRoutes(Copy, Placed, Nodes, Contract, Frames, Direction);
-            FlowchartCircularJunctionLayout.RebuildFans(Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction);
+            PreserveHintedRoutes(State, () => DiagramGridRouteBuilder.RebuildAllRoutes(Copy, Placed, Nodes, Contract, Frames, Direction));
+            PreserveHintedRoutes(State, () => RebuildDecisionFanOutRoutes(Contract, Copy, Placed, Frames, Nodes, Direction));
+            PreserveHintedRoutes(State, () => RebuildSoleForwardDecisionBranchRoutes(Contract, Copy, Placed, Frames, Nodes, Direction));
+            PreserveHintedRoutes(State, () => RebuildOrdinaryFanOutRoutes(Contract, Copy, Placed, Frames, Nodes, Direction));
+            PreserveHintedRoutes(State, () => FlowchartForwardRouteSimplifier.Apply(Copy, Contract,
+                BuildPlacedBounds(Placed, Frames), Nodes, Direction));
+            PreserveHintedRoutes(State, () => FlowchartPartnerRankLayout.Route(Contract, Copy, Placed, Frames,
+                State.PartnerRanks, Horizontal));
+            PreserveHintedRoutes(State, () => RebuildSimpleDecisionMergeRoutes(Contract, Copy, Placed, Frames, Horizontal));
+            PreserveHintedRoutes(State, () => RebuildDecisionDetourRoutes(Contract, Copy, Placed, Frames, Horizontal));
+            PreserveHintedRoutes(State, () => RebuildLoopBackRoutes(Contract, Copy, Placed, Frames, Nodes, Direction));
+            PreserveHintedRoutes(State, () => DiagramGridRouteBuilder.RebuildDiagonalBackRoutes(
+                Copy, Placed, Nodes, Contract, Frames, Direction));
+            PreserveHintedRoutes(State, () => FlowchartCircularJunctionLayout.RebuildFans(
+                Copy, Contract, BuildPlacedBounds(Placed, Frames), Nodes, Direction));
         }
     }
 
@@ -241,7 +262,7 @@ public static partial class DiagramGridLayout
                 State.Copy, State.Placed, State.Nodes, State.Contract, State.Frames, State.Direction)),
             new("4.4", State => FlowchartGridTerminalNormalizer.Apply(
                 State.Copy, BuildPlacedBounds(State.Placed, State.Frames), State.Nodes)),
-            new("4.2,4.3", State => GrowFacingDoglegGaps(State.Copy, State.Contract, State.Placed, State.Frames)),
+            new("1.7,4.2,4.3", ApplyHintAwareGapGrowth),
             new("4.2", State => DiagramGridRouteBuilder.RemoveClearForwardDoglegs(
                 State.Copy, State.Contract, BuildPlacedBounds(State.Placed, State.Frames))),
             new("2.13,5.9", State => FlowchartBranchRouteOrder.RemoveAvoidableCrossings(
@@ -290,8 +311,6 @@ public static partial class DiagramGridLayout
                 if (!State.Open)
                     FlowchartTwoCornerRouteRepair.Apply(State.Copy, State.Contract, BuildPlacedBounds(State.Placed, State.Frames));
             }),
-            new("3.1–3.7", State => FlowchartRoutingHints.Apply(State.Copy, State.Contract,
-                BuildPlacedBounds(State.Placed, State.Frames), State.Nodes, State.Direction)),
             new("1.1–1.7", State => WriteBack(State.Copy, State.Placed, State.Frames)),
             new("3.8,4.11", State =>
             {
@@ -339,6 +358,30 @@ public static partial class DiagramGridLayout
                 State.Placed, State.Frames, State.Nodes, State.Direction))
         ];
 
+        private static void ApplyHintAwareGapGrowth(GridLayoutState State)
+        {
+            if (!GrowFacingDoglegGaps(State.Copy, State.Contract, State.Placed, State.Frames)) return;
+
+            // Gap growth may move automatic nodes to preserve a legal route. Rebuild
+            // automatic paths from the new geometry, then reapply explicit line hints
+            // so hinted paths continue to follow their requested sides and ports.
+            WriteBack(State.Copy, State.Placed, State.Frames);
+            AssignPortSides(State.Contract, State.Copy, State.Placed, State.Frames,
+                State.Nodes, State.Direction, State.SharedFanSources);
+            DiagramGridRouteBuilder.RebuildAllRoutes(State.Copy, State.Placed, State.Nodes,
+                State.Contract, State.Frames, State.Direction);
+            FlowchartRoutingHints.Apply(State.Copy, State.Contract,
+                BuildPlacedBounds(State.Placed, State.Frames), State.Nodes, State.Direction,
+                RepairAutomaticRoutesEnabled: false);
+            State.HintedRoutes.Clear();
+            foreach (FlowchartLayoutEdgeRoute Route in State.Copy.EdgeRoutes)
+            {
+                if (FindContractEdge(State.Contract, Route)?.RoutingHint?.IsActive != true) continue;
+                State.HintedRoutes[Route] = new GridLayoutState.HintedRoute(Route.ExitSide, Route.EntrySide,
+                    Route.Points.Select(Point => (Point.X, Point.Y)).ToArray());
+            }
+        }
+
         public static void Apply(GridLayoutState State)
         {
             State.Copy.UsesGridRoutes = true;
@@ -349,18 +392,26 @@ public static partial class DiagramGridLayout
             while (true)
             {
                 foreach (RepairPass Pass in Passes)
-                    Pass.Apply(State);
+                {
+                    PreserveHintedRoutes(State, () => Pass.Apply(State));
+                }
 
-                FlowchartLayoutScore.Result After = FlowchartLayoutScore.Measure(State.Contract, State.Copy,
-                    IncludeArrangementCheck: false);
                 string Signature = RouteState(State.Copy);
-                if (!SeenStates.Add(Signature)
-                    || After.OptimizationScore >= Before.OptimizationScore)
+                if (SeenStates.Contains(Signature))
                 {
                     RestoreRoutes(State.Copy, BestRoutes);
                     break;
                 }
 
+                FlowchartLayoutScore.Result After = FlowchartLayoutScore.Measure(State.Contract, State.Copy,
+                    IncludeArrangementCheck: false);
+                if (After.OptimizationScore >= Before.OptimizationScore)
+                {
+                    RestoreRoutes(State.Copy, BestRoutes);
+                    break;
+                }
+
+                SeenStates.Add(Signature);
                 Before = After;
                 BestRoutes = CaptureRoutes(State.Copy);
             }
@@ -410,15 +461,43 @@ public static partial class DiagramGridLayout
         }
     }
 
-    private static class FinalHintStage
+    private static class RoutingHintStage
     {
-        // Rule ids: 2.21 and 3.1–3.7 (preserve line-hint endpoints after repairs).
-        public static void Apply(GridLayoutState State) => FlowchartRoutingHints.Apply(
-            State.Copy,
-            State.Contract,
-            BuildPlacedBounds(State.Placed, State.Frames),
-            State.Nodes,
-            State.Direction,
-            RepairAutomaticRoutesEnabled: false);
+        // Rule ids: 3.1–3.7 (explicit line endpoints and travel directions).
+        public static void Apply(GridLayoutState State)
+        {
+            FlowchartRoutingHints.Apply(State.Copy, State.Contract,
+                BuildPlacedBounds(State.Placed, State.Frames), State.Nodes, State.Direction,
+                RepairAutomaticRoutesEnabled: false);
+            foreach (FlowchartLayoutEdgeRoute Route in State.Copy.EdgeRoutes)
+            {
+                if (FindContractEdge(State.Contract, Route)?.RoutingHint?.IsActive != true) continue;
+                State.HintedRoutes[Route] = new GridLayoutState.HintedRoute(Route.ExitSide, Route.EntrySide,
+                    Route.Points.Select(Point => (Point.X, Point.Y)).ToArray());
+            }
+        }
+    }
+
+    private static void PreserveHintedRoutes(GridLayoutState State, Action Operation)
+    {
+        Operation();
+        foreach (var Pair in State.HintedRoutes)
+        {
+            Pair.Key.ExitSide = Pair.Value.ExitSide;
+            Pair.Key.EntrySide = Pair.Value.EntrySide;
+            Pair.Key.Points.Clear();
+            foreach ((double X, double Y) in Pair.Value.Points)
+                Pair.Key.Points.Add(new FlowchartLayoutPoint { X = X, Y = Y });
+        }
+    }
+
+    private static class LegalityValidationStage
+    {
+        // Rule ids: section 10 (final legality checks after all route decisions).
+        public static void Apply(GridLayoutState State)
+        {
+            DiagramGridQuality.Collect(State.Contract, State.Copy,
+                State.Copy.RenderContext.LayoutStageViolations, IncludeArrangementCheck: false);
+        }
     }
 }

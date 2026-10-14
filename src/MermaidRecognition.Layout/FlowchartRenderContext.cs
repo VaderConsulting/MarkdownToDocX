@@ -28,6 +28,10 @@ public sealed class FlowchartRenderContext
 
     internal List<FlowchartLayoutQualityFailure> Justifications { get; } = [];
 
+    internal List<string> LayoutStageTrace { get; } = [];
+
+    internal List<FlowchartLayoutQualityFailure> LayoutStageViolations { get; } = [];
+
     internal List<FlowchartSvgLineJump.DrawnJump> Jumps { get; } = [];
 
     internal DiagramContract? CachedRouteContract { get; set; }
