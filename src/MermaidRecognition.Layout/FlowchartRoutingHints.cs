@@ -27,43 +27,55 @@ internal static class FlowchartRoutingHints
             if (Route.Points.Count < 2) continue;
             EdgeContract? Edge = DiagramGridLayout.FindContractEdge(Contract, Route);
             RoutingHintContract? Hint = Edge?.RoutingHint;
-            if (Hint?.IsActive != true
+            bool HasHint = Hint?.IsActive == true;
+            bool HasSelectedStart = HintedPorts.TryGetValue((Route, true), out var StartPort);
+            bool HasSelectedEnd = HintedPorts.TryGetValue((Route, false), out var EndPort);
+            if ((!HasHint && !HasSelectedStart && !HasSelectedEnd)
                 || !Bounds.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds? Source)
                 || !Bounds.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds? Target))
                 continue;
 
-            string Exit = Hint.Leave.HasValue
+            string Exit = HasHint && Hint!.Leave.HasValue
                 ? DiagramGridLayout.HintSide(Hint.Leave.Value) : Route.ExitSide;
-            string Entry = Hint.Enter.HasValue
+            string Entry = HasHint && Hint!.Enter.HasValue
                 ? DiagramGridLayout.HintSide(Hint.Enter.Value) : Route.EntrySide;
-            if (PreserveValidSideHintRoutes && Hint.Travel == null
+            (double X, double Y) ExistingStart = (Route.Points[0].X, Route.Points[0].Y);
+            (double X, double Y) ExistingEnd = (Route.Points[^1].X, Route.Points[^1].Y);
+            (double X, double Y) DesiredStart = HasSelectedStart ? StartPort : ExistingStart;
+            (double X, double Y) DesiredEnd = HasSelectedEnd ? EndPort : ExistingEnd;
+            if (!HasHint && ExistingStart == DesiredStart && ExistingEnd == DesiredEnd)
+                continue;
+            if (PreserveValidSideHintRoutes && HasHint && Hint!.Travel == null
                 && (Hint.Leave == null || Route.ExitSide == Exit)
                 && (Hint.Enter == null || Route.EntrySide == Entry)
-                && OnOutline(Route.Points[0], Source) && OnOutline(Route.Points[^1], Target))
+                && OnOutline(Route.Points[0], Source) && OnOutline(Route.Points[^1], Target)
+                && ExistingStart == DesiredStart && ExistingEnd == DesiredEnd)
             {
                 Hint.UnhonouredReason = null;
                 continue;
             }
-            (double StartX, double StartY) = HintedPorts.TryGetValue((Route, true), out var StartPort)
-                ? StartPort : ResolveEndpoint(Route, Source, Exit, true);
-            (double EndX, double EndY) = HintedPorts.TryGetValue((Route, false), out var EndPort)
-                ? EndPort : ResolveEndpoint(Route, Target, Entry, false);
+            (double StartX, double StartY) = HasSelectedStart ? StartPort
+                : HasHint && Hint!.Leave.HasValue ? ResolveEndpoint(Route, Source, Exit, true) : ExistingStart;
+            (double EndX, double EndY) = HasSelectedEnd ? EndPort
+                : HasHint && Hint!.Enter.HasValue ? ResolveEndpoint(Route, Target, Entry, false) : ExistingEnd;
             Nodes.TryGetValue(Route.SourceId, out NodeContract? SourceNode);
             Nodes.TryGetValue(Route.TargetId, out NodeContract? TargetNode);
             List<(double X, double Y)> Path = DiagramGridRouteBuilder.BuildRoute(
                 StartX, StartY, Source, SourceNode?.Shape, Exit,
                 EndX, EndY, Target, TargetNode?.Shape, Entry,
-                Bounds, Route.SourceId, Route.TargetId, Contract, Direction, Horizontal, Hint.Travel,
+                Bounds, Route.SourceId, Route.TargetId, Contract, Direction, Horizontal,
+                HasHint ? Hint!.Travel : null,
                 RequireLegal: true);
             if (Path.Count < 2)
             {
-                Hint.UnhonouredReason = Hint.Travel.HasValue
+                if (!HasHint) continue;
+                Hint!.UnhonouredReason = Hint.Travel.HasValue
                     ? "no legal route has the requested travel direction"
                     : "no legal route has the requested endpoint directions";
                 continue;
             }
 
-            Hint.UnhonouredReason = null;
+            if (HasHint) Hint!.UnhonouredReason = null;
             Route.ExitSide = Exit;
             Route.EntrySide = Entry;
             Route.Points.Clear();
@@ -83,25 +95,29 @@ internal static class FlowchartRoutingHints
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds)
     {
         var Ends = new List<(FlowchartLayoutEdgeRoute Route, bool Source,
-            FlowchartLayoutNodeBounds Box, FlowchartLayoutNodeBounds Other, string Side)>();
+            FlowchartLayoutNodeBounds Box, FlowchartLayoutNodeBounds Other, string Side, bool IsHinted)>();
         Dictionary<string, NodeContract> Nodes = Contract.Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
         {
             EdgeContract? Edge = DiagramGridLayout.FindContractEdge(Contract, Route);
-            if (Edge?.RoutingHint?.IsActive != true
-                || !Bounds.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds? Source)
+            bool IsHinted = Edge?.RoutingHint?.IsActive == true;
+            if (!Bounds.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds? Source)
                 || !Bounds.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds? Target)) continue;
             if (!IsDiamond(Route.SourceId))
-                Ends.Add((Route, true, Source, Target, Edge.RoutingHint.Leave.HasValue
-                    ? DiagramGridLayout.HintSide(Edge.RoutingHint.Leave.Value) : Route.ExitSide));
+                Ends.Add((Route, true, Source, Target, IsHinted && Edge!.RoutingHint!.Leave.HasValue
+                    ? DiagramGridLayout.HintSide(Edge.RoutingHint.Leave.Value) : Route.ExitSide, IsHinted));
             if (!IsDiamond(Route.TargetId))
-                Ends.Add((Route, false, Target, Source, Edge.RoutingHint.Enter.HasValue
-                    ? DiagramGridLayout.HintSide(Edge.RoutingHint.Enter.Value) : Route.EntrySide));
+                Ends.Add((Route, false, Target, Source, IsHinted && Edge!.RoutingHint!.Enter.HasValue
+                    ? DiagramGridLayout.HintSide(Edge.RoutingHint.Enter.Value) : Route.EntrySide, IsHinted));
         }
 
         var Result = new Dictionary<(FlowchartLayoutEdgeRoute Route, bool Source), (double X, double Y)>();
         foreach (var Group in Ends.GroupBy(End => (End.Box.NodeId, End.Side)))
         {
+            // Allocate hinted and automatic edges together. If automatic siblings
+            // are omitted, the hinted subset can be centred on top of the full set,
+            // leaving the visible ports asymmetric or coincident.
+            if (!Group.Any(End => End.IsHinted)) continue;
             var Ordered = Group.Key.Side is "left" or "right"
                 ? Group.OrderByDescending(End => End.Other.CenterY).ThenBy(End => End.Route.EdgeId, StringComparer.Ordinal).ToArray()
                 : Group.OrderBy(End => End.Other.CenterX).ThenBy(End => End.Route.EdgeId, StringComparer.Ordinal).ToArray();

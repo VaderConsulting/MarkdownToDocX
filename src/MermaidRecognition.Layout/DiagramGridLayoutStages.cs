@@ -519,6 +519,12 @@ public static partial class DiagramGridLayout
                     State.Frames, State.Nodes, State.Direction,
                     ReallocatedRoutes.Select(Route => Route.SourceId).ToHashSet(StringComparer.Ordinal));
             }
+            if (State.Contract.Edges.Any(Edge => Edge.RoutingHint?.IsActive == true))
+            {
+                FlowchartRoutingHints.Apply(State.Copy, State.Contract,
+                    BuildPlacedBounds(State.Placed, State.Frames), State.Nodes, State.Direction,
+                    RepairAutomaticRoutesEnabled: false);
+            }
         }
 
         private static Dictionary<string, string> RouteGeometry(FlowchartLayoutResult Layout) =>
