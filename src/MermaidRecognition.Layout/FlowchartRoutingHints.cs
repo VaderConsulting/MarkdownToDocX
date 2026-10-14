@@ -16,7 +16,8 @@ internal static class FlowchartRoutingHints
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds,
         IReadOnlyDictionary<string, NodeContract> Nodes,
         FlowchartDirection Direction,
-        bool RepairAutomaticRoutesEnabled = true)
+        bool RepairAutomaticRoutesEnabled = true,
+        bool PreserveValidSideHintRoutes = false)
     {
         bool Horizontal = Direction is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft;
         Dictionary<(FlowchartLayoutEdgeRoute Route, bool Source), (double X, double Y)> HintedPorts =
@@ -35,6 +36,14 @@ internal static class FlowchartRoutingHints
                 ? DiagramGridLayout.HintSide(Hint.Leave.Value) : Route.ExitSide;
             string Entry = Hint.Enter.HasValue
                 ? DiagramGridLayout.HintSide(Hint.Enter.Value) : Route.EntrySide;
+            if (PreserveValidSideHintRoutes && Hint.Travel == null
+                && (Hint.Leave == null || Route.ExitSide == Exit)
+                && (Hint.Enter == null || Route.EntrySide == Entry)
+                && OnOutline(Route.Points[0], Source) && OnOutline(Route.Points[^1], Target))
+            {
+                Hint.UnhonouredReason = null;
+                continue;
+            }
             (double StartX, double StartY) = HintedPorts.TryGetValue((Route, true), out var StartPort)
                 ? StartPort : ResolveEndpoint(Route, Source, Exit, true);
             (double EndX, double EndY) = HintedPorts.TryGetValue((Route, false), out var EndPort)
@@ -117,6 +126,17 @@ internal static class FlowchartRoutingHints
 
         bool IsDiamond(string Id) => Nodes.TryGetValue(Id, out NodeContract? Node)
             && FlowchartDagrePresentation.IsDiamondShape(Node.Shape);
+    }
+
+    private static bool OnOutline(FlowchartLayoutPoint Point, FlowchartLayoutNodeBounds Box)
+    {
+        double Left = Box.CenterX - Box.Width / 2.0, Right = Box.CenterX + Box.Width / 2.0;
+        double Top = Box.CenterY - Box.Height / 2.0, Bottom = Box.CenterY + Box.Height / 2.0;
+        bool OnVertical = (Math.Abs(Point.X - Left) < 0.01 || Math.Abs(Point.X - Right) < 0.01)
+            && Point.Y >= Top - 0.01 && Point.Y <= Bottom + 0.01;
+        bool OnHorizontal = (Math.Abs(Point.Y - Top) < 0.01 || Math.Abs(Point.Y - Bottom) < 0.01)
+            && Point.X >= Left - 0.01 && Point.X <= Right + 0.01;
+        return OnVertical || OnHorizontal;
     }
 
     private static void RepairAutomaticRoutes(

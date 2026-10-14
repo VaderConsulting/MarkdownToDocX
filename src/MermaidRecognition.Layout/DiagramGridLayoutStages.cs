@@ -394,6 +394,7 @@ public static partial class DiagramGridLayout
                     FlowchartManyToManyRoutes.Apply(State.Copy, State.Contract,
                         BuildPlacedBounds(State.Placed, State.Frames), State.Direction);
                     ObserveCrossings(State, "horizontal track search");
+                    ObserveLayoutStage(State, "horizontal track search");
                 }
             })
         ];
@@ -428,6 +429,7 @@ public static partial class DiagramGridLayout
                     RepairPass Pass = Passes[PassIndex];
                     PreserveHintedRoutes(State, () => Pass.Apply(State));
                     ObserveCrossings(State, $"repair[{PassIndex}] {Pass.RuleIds}");
+                    ObserveLayoutStage(State, $"repair[{PassIndex}] {Pass.RuleIds}");
                 }
 
                 string Signature = RouteState(State.Copy);
@@ -524,7 +526,7 @@ public static partial class DiagramGridLayout
         if (!State.Contract.Edges.Any(Edge => Edge.RoutingHint?.IsActive == true)) return;
         FlowchartRoutingHints.Apply(State.Copy, State.Contract,
             BuildPlacedBounds(State.Placed, State.Frames), State.Nodes, State.Direction,
-            RepairAutomaticRoutesEnabled: false);
+            RepairAutomaticRoutesEnabled: false, PreserveValidSideHintRoutes: true);
         foreach (FlowchartLayoutEdgeRoute Route in State.Copy.EdgeRoutes)
         {
             EdgeContract? Edge = FindContractEdge(State.Contract, Route);

@@ -37,7 +37,7 @@ internal static class FlowchartCrossGroupRouteSimplifier
                 || FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(Pair.First.X, Pair.First.Y, Pair.Second.X, Pair.Second.Y, Target));
             if (AOwner == BOwner && Parent(Route.SourceId) == Parent(Route.TargetId) && !SelfCut) continue;
             if (Contract.Nodes.Any(Node => (Node.Id == Route.SourceId || Node.Id == Route.TargetId)
-                && Node.Shape is not (null or "" or "rect" or "rounded" or "round"))) continue;
+                && Node.Shape is not (null or "" or "rect" or "rounded" or "round" or "note"))) continue;
             var Obstacles = FlowchartPaddedVisibilityRouter.CollectObstacles(Contract, Bounds, Edge)
                 .Where(Box => !Contract.Groups.Any(Group => Group.Id == Box.NodeId
                     && (FlowchartCompoundEndpointHelper.Contains(Contract, Group.Id, Route.SourceId)
@@ -110,14 +110,11 @@ internal static class FlowchartCrossGroupRouteSimplifier
                         World(Outer, Approach), World(Tu, Approach), World(Tu, Tv)]);
                 }
             }
-            if (double.IsPositiveInfinity(BestCost))
-            {
-                var RoutingObstacles = Obstacles.Append(Source).Append(Target).ToList();
-                foreach (var Start in Ports(Source))
-                foreach (var End in Ports(Target))
-                    if (FlowchartPaddedVisibilityRouter.TryRoute(Start.X, Start.Y, End.X, End.Y,
-                        RoutingObstacles, Source, Target, out var Detour, 30, 20)) Consider(Detour);
-            }
+            var RoutingObstacles = Obstacles.Append(Source).Append(Target).ToList();
+            foreach (var Start in Ports(Source))
+            foreach (var End in Ports(Target))
+                if (FlowchartPaddedVisibilityRouter.TryRoute(Start.X, Start.Y, End.X, End.Y,
+                    RoutingObstacles, Source, Target, out var Detour, 30, 20)) Consider(Detour);
             Route.Points.Clear();
             foreach (var Point in Best) Route.Points.Add(new() { X = Point.X, Y = Point.Y });
 

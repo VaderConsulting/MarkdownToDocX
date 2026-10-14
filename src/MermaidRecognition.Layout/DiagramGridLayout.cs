@@ -16,6 +16,7 @@ public static partial class DiagramGridLayout
 {
     private const int STUB_PX = 15;
     internal static Action<string, int>? CrossingCountObserver { get; set; }
+    internal static Action<string, FlowchartLayoutResult>? LayoutStageObserver { get; set; }
 
     private static void ObserveCrossings(GridLayoutState State, string Stage)
     {
@@ -23,6 +24,11 @@ public static partial class DiagramGridLayout
         if (Observer == null) return;
         Observer(Stage, FlowchartLayoutScore.Measure(State.Contract, State.Copy,
             IncludeArrangementCheck: false).Crossings);
+    }
+
+    private static void ObserveLayoutStage(GridLayoutState State, string Stage)
+    {
+        LayoutStageObserver?.Invoke(Stage, State.Copy);
     }
 
     /// <summary>
@@ -70,6 +76,7 @@ public static partial class DiagramGridLayout
             Context.LayoutStageTrace.Add(Name);
             Stage(State);
             ObserveCrossings(State, Name);
+            ObserveLayoutStage(State, Name);
         }
     }
     private static void RestoreContractRouteEndpoints(DiagramContract Contract, FlowchartLayoutResult Layout)

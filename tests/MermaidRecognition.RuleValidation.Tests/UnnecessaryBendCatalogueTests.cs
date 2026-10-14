@@ -45,6 +45,24 @@ public sealed class UnnecessaryBendCatalogueTests
         Assert.That(LayoutSucceeded, Is.True, $"Scenario {Scenario.Id} did not lay out; it cannot count as a zero-bend scenario.");
 
         IReadOnlyList<UnnecessaryBendViolation> Violations = UnnecessaryBendChecker.Check(Scenario.Id, Contract, Layout);
+        if (Scenario.Id == "A169")
+        {
+            FlowchartLayoutEdgeRoute Shortened = Layout.EdgeRoutes.Single(Route => Route.EdgeId == "dplhAdmin->collaborator:5");
+            FlowchartLayoutNodeBounds ShortenedSource = Layout.NodeBounds.Single(Box => Box.NodeId == Shortened.SourceId);
+            FlowchartLayoutNodeBounds ShortenedTarget = Layout.NodeBounds.Single(Box => Box.NodeId == Shortened.TargetId);
+            double DirectDistance = Math.Abs(ShortenedSource.CenterX - ShortenedTarget.CenterX)
+                + Math.Abs(ShortenedSource.CenterY - ShortenedTarget.CenterY);
+            double RouteLength = ManhattanLength(Shortened.Points);
+            Assert.That(RouteLength, Is.LessThanOrEqualTo(DirectDistance * 1.3),
+                $"The route should stay close to the direct distance after obstacle routing ({RouteLength:0} vs {DirectDistance:0}).");
+
+            FlowchartLayoutEdgeRoute HintedAssignment = Layout.EdgeRoutes.Single(Route => Route.EdgeId == "westernPower->collaborator:8");
+            FlowchartLayoutEdgeRoute PlainConnection = Layout.EdgeRoutes.Single(Route => Route.EdgeId == "otherAgencies---collaborator:12");
+            Assert.That(HintedAssignment.ExitSide, Is.EqualTo("bottom"), "The explicit south exit hint must be kept.");
+            Assert.That(HintedAssignment.EntrySide, Is.EqualTo("top"), "The explicit north entry hint must be kept.");
+            Assert.That(CountOrthogonalCrossings(HintedAssignment, PlainConnection), Is.Zero,
+                "The hinted assignment must not cross the avoidable note connection.");
+        }
         CheckTimer.Stop();
         if (CheckTimer.Elapsed > TimeSpan.FromSeconds(10))
             TestContext.WriteLine($"SPEED_FAULT {Scenario.Id}: {CheckTimer.Elapsed.TotalSeconds:0.00}s (over 10s target)");
@@ -87,6 +105,31 @@ public sealed class UnnecessaryBendCatalogueTests
         Dictionary<string, HashSet<string>> Baseline = new(StringComparer.Ordinal);
 
         Assert.Throws<AssertionException>(() => AssertBaselineCoversExactlyTheScoredScenarios(Results, Baseline));
+    }
+
+    private static double ManhattanLength(IReadOnlyList<FlowchartLayoutPoint> Points) =>
+        Points.Zip(Points.Skip(1)).Sum(Segment =>
+            Math.Abs(Segment.First.X - Segment.Second.X) + Math.Abs(Segment.First.Y - Segment.Second.Y));
+
+    private static int CountOrthogonalCrossings(FlowchartLayoutEdgeRoute First, FlowchartLayoutEdgeRoute Second)
+    {
+        HashSet<(long X, long Y)> Crossings = [];
+        foreach (var A in First.Points.Zip(First.Points.Skip(1)))
+        foreach (var B in Second.Points.Zip(Second.Points.Skip(1)))
+        {
+            bool AVertical = Math.Abs(A.First.X - A.Second.X) < 0.01;
+            bool BVertical = Math.Abs(B.First.X - B.Second.X) < 0.01;
+            if (AVertical == BVertical) continue;
+            var Vertical = AVertical ? A : B;
+            var Horizontal = AVertical ? B : A;
+            double X = Vertical.First.X, Y = Horizontal.First.Y;
+            if (X <= Math.Min(Horizontal.First.X, Horizontal.Second.X) + 0.01
+                || X >= Math.Max(Horizontal.First.X, Horizontal.Second.X) - 0.01
+                || Y <= Math.Min(Vertical.First.Y, Vertical.Second.Y) + 0.01
+                || Y >= Math.Max(Vertical.First.Y, Vertical.Second.Y) - 0.01) continue;
+            Crossings.Add(((long)Math.Round(X * 1000), (long)Math.Round(Y * 1000)));
+        }
+        return Crossings.Count;
     }
 
     private static void AssertAtLeastOneScenarioWasScored(IReadOnlyList<ScenarioResult> Results)
