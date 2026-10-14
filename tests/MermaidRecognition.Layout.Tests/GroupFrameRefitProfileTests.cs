@@ -31,6 +31,7 @@ public sealed class GroupFrameRefitProfileTests
         List<string> StageEvents = [];
         List<string> RepairEvents = [];
         Dictionary<string, (double Ms, int Attempts, int Changes)> SimplifierRouteTimes = new(StringComparer.Ordinal);
+        Dictionary<string, (int Candidates, double CandidateMs, int Searches, double SearchMs, int Rescores, double RescoreMs, int Evaluations)> SimplifierBreakdown = new(StringComparer.Ordinal);
         string TracePath = Path.Combine(Path.GetTempPath(), $"{ScenarioId}-group-frame-refits.log");
         string StagePath = Path.Combine(Path.GetTempPath(), $"{ScenarioId}-group-frame-stages.log");
         File.Delete(TracePath);
@@ -62,6 +63,27 @@ public sealed class GroupFrameRefitProfileTests
             SimplifierRouteTimes[RouteId] = (Prior.Ms + Milliseconds, Prior.Attempts + 1,
                 Prior.Changes + (Changed ? 1 : 0));
         };
+        FlowchartCrossGroupRouteSimplifier.RouteEvaluationObserver = (RouteId, Candidates, CandidateMs,
+            Searches, SearchMs, Rescores, RescoreMs) =>
+        {
+            var Prior = SimplifierBreakdown.GetValueOrDefault(RouteId);
+            SimplifierBreakdown[RouteId] = (Prior.Candidates + Candidates, Prior.CandidateMs + CandidateMs,
+                Prior.Searches + Searches, Prior.SearchMs + SearchMs, Prior.Rescores + Rescores,
+                Prior.RescoreMs + RescoreMs, Prior.Evaluations + 1);
+        };
+        FlowchartTwoCornerRouteRepair.RouteCandidateObserver = (RouteId, Candidates, Valid, NonWorse, Changed) =>
+            File.AppendAllText(StagePath, $"two-corner {RouteId}: {Candidates} candidates, {Valid} clear, "
+                + $"{NonWorse} non-worse, changed={Changed}{Environment.NewLine}");
+        FlowchartPortSideRouteRepair.RouteCandidateObserver = (RouteId, Candidates, Hinted, Clear, Free, Improving) =>
+            File.AppendAllText(StagePath, $"port-side {RouteId}: {Candidates} candidates, {Hinted} hint-compatible, "
+                + $"{Clear} clear, {Free} free-port, {Improving} improving{Environment.NewLine}");
+        string[] WatchRouteIds = ["register->userRegSvc:25", "define->bwmSvc:31", "retire->bwmSvc:33"];
+        DiagramGridLayout.LayoutStageObserver = (Stage, Layout) =>
+        {
+            foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes.Where(Route => WatchRouteIds.Contains(Route.EdgeId)))
+                File.AppendAllText(StagePath, $"stage-route {Stage} {Route.EdgeId} {Route.ExitSide}/{Route.EntrySide}: "
+                    + string.Join(" ", Route.Points.Select(Point => $"({Point.X:0},{Point.Y:0})")) + Environment.NewLine);
+        };
         try
         {
             Assert.That(FlowchartDagrePlacement.TryPlace(Contract, out FlowchartLayoutResult Placed), Is.True);
@@ -84,6 +106,12 @@ public sealed class GroupFrameRefitProfileTests
             foreach (var (RouteId, Timing) in SimplifierRouteTimes.OrderByDescending(Item => Item.Value.Ms))
                 File.AppendAllText(StagePath, $"cross-group route {RouteId}: {Timing.Ms:0.0} ms total; "
                     + $"{Timing.Attempts} attempts; {Timing.Changes} geometry changes{Environment.NewLine}");
+            foreach (var (RouteId, Timing) in SimplifierBreakdown.OrderByDescending(Item =>
+                         Item.Value.CandidateMs + Item.Value.SearchMs + Item.Value.RescoreMs).Take(10))
+                File.AppendAllText(StagePath, $"cross-group breakdown {RouteId}: {Timing.Evaluations} evaluations; "
+                    + $"{Timing.Candidates} candidates; candidate-generation {Timing.CandidateMs:0.0} ms; "
+                    + $"TryGridPath {Timing.Searches} calls / {Timing.SearchMs:0.0} ms; "
+                    + $"rescoring {Timing.Rescores} calls / {Timing.RescoreMs:0.0} ms{Environment.NewLine}");
             File.AppendAllLines(StagePath, [$"TryGridPath total: {FlowchartPaddedVisibilityRouter.GridPathCallCount}; "
                 + $"{FlowchartPaddedVisibilityRouter.GridPathElapsedMilliseconds:0.0} ms total; "
                 + $"average {(FlowchartPaddedVisibilityRouter.GridPathCallCount == 0 ? 0 : FlowchartPaddedVisibilityRouter.GridPathElapsedMilliseconds / FlowchartPaddedVisibilityRouter.GridPathCallCount):0.000} ms/call; "
@@ -100,9 +128,17 @@ public sealed class GroupFrameRefitProfileTests
                         + string.Join(" ", FaultRoute.Points.Select(Point => $"({Point.X:0},{Point.Y:0})"))
                         + (SourceBox == null || TargetBox == null ? "" : $"; sourceBox=({SourceBox.CenterX:0},{SourceBox.CenterY:0},{SourceBox.Width:0},{SourceBox.Height:0})"
                             + $"; targetBox=({TargetBox.CenterX:0},{TargetBox.CenterY:0},{TargetBox.Width:0},{TargetBox.Height:0})");
+                string Nearby = FaultRoute == null || SourceBox == null || TargetBox == null ? ""
+                    : "; nearby=" + string.Join(" | ", Layout.NodeBounds.Where(Box =>
+                        Box.NodeId != SourceBox.NodeId && Box.NodeId != TargetBox.NodeId
+                        && Box.CenterX >= Math.Min(SourceBox.CenterX, TargetBox.CenterX) - 300
+                        && Box.CenterX <= Math.Max(SourceBox.CenterX, TargetBox.CenterX) + 300
+                        && Box.CenterY >= Math.Min(SourceBox.CenterY, TargetBox.CenterY) - 100
+                        && Box.CenterY <= Math.Max(SourceBox.CenterY, TargetBox.CenterY) + 100)
+                        .Select(Box => $"{Box.NodeId}=({Box.CenterX:0},{Box.CenterY:0},{Box.Width:0},{Box.Height:0})"));
                 TestContext.Out.WriteLine($"{ScenarioId} route-shape fault: {string.Join(",", Failure.InvolvedIds)}; {Failure.Description}; {Geometry}");
                 File.AppendAllText(StagePath, $"{ScenarioId} route-shape fault: {string.Join(",", Failure.InvolvedIds)}; "
-                    + $"{Failure.Description}; {Geometry}{Environment.NewLine}");
+                    + $"{Failure.Description}; {Geometry}{Nearby}{Environment.NewLine}");
             }
             TestContext.Out.WriteLine($"{ScenarioId}: dagre {PlacementMs / 1000:0.00}s, grid layout {GridLayoutMs / 1000:0.00}s, {RefitsByCause.Values.Sum()} frame refits, "
                 + $"{FitPasses} fitting passes, {Score.Crossings} crossings, {Score.Overlaps} overlaps, "
@@ -119,6 +155,10 @@ public sealed class GroupFrameRefitProfileTests
             DiagramGridLayout.LayoutStageTimingObserver = null;
             DiagramGridLayout.RouteRepairPassObserver = null;
             FlowchartCrossGroupRouteSimplifier.RouteTimingObserver = null;
+            FlowchartCrossGroupRouteSimplifier.RouteEvaluationObserver = null;
+            FlowchartTwoCornerRouteRepair.RouteCandidateObserver = null;
+            FlowchartPortSideRouteRepair.RouteCandidateObserver = null;
+            DiagramGridLayout.LayoutStageObserver = null;
         }
         foreach (string Event in RefitEvents) TestContext.Out.WriteLine(Event);
     }
