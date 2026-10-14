@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using MermaidRecognition.Contract;
 
@@ -8,9 +9,14 @@ namespace MermaidRecognition.Layout;
 /// <summary>Uses free facing ports to shorten routes between nested groups and outside connectors.</summary>
 internal static class FlowchartCrossGroupRouteSimplifier
 {
+    internal static Action<string, double, bool>? RouteTimingObserver { get; set; }
+
     internal static void Apply(FlowchartLayoutResult Layout, DiagramContract Contract,
-        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds)
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds,
+        HashSet<string>? AttemptedRouteStates = null)
     {
+        AttemptedRouteStates ??= new(StringComparer.Ordinal);
+        FlowchartRouteSpatialIndex Spatial = new(Layout);
         var Roots = Contract.Groups.Where(Group => !Contract.Groups.Any(Other => Other.Id != Group.Id
             && FlowchartCompoundEndpointHelper.Contains(Contract, Other.Id, Group.Id))).ToList();
         if (Roots.Count == 0) return;
@@ -18,11 +24,20 @@ internal static class FlowchartCrossGroupRouteSimplifier
             || FlowchartCompoundEndpointHelper.Contains(Contract, Group.Id, Id))?.Id;
         string? Parent(string Id) => Contract.Groups.FirstOrDefault(Group => Group.ChildNodeIds.Contains(Id)
             || Group.ChildGroupIds.Contains(Id))?.Id;
-        for (int Pass = 0; Pass < 3; Pass++)
-        foreach (var Route in Layout.EdgeRoutes)
+        Queue<FlowchartLayoutEdgeRoute> Pending = new(Layout.EdgeRoutes);
+        HashSet<FlowchartLayoutEdgeRoute> Queued = new(Pending);
+        while (Pending.Count > 0)
         {
+            var Route = Pending.Dequeue();
+            Queued.Remove(Route);
+            Stopwatch? RouteTimer = RouteTimingObserver == null ? null : Stopwatch.StartNew();
+            bool RouteChanged = false;
+            try
+            {
             if (Route.Points.Count < 2 || !Bounds.TryGetValue(Route.SourceId, out var Source)
                 || !Bounds.TryGetValue(Route.TargetId, out var Target)) continue;
+            string AttemptKey = RouteKey(Route) + "|" + Spatial.DependencySignature(Route.Points);
+            if (!AttemptedRouteStates.Add(AttemptKey)) continue;
             var Edge = Contract.Edges.FirstOrDefault(Edge => Edge.Id == Route.EdgeId);
             if (Edge == null || string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)) continue;
             string? AOwner = Owner(Route.SourceId), BOwner = Owner(Route.TargetId);
@@ -35,7 +50,6 @@ internal static class FlowchartCrossGroupRouteSimplifier
             bool SelfCut = Route.Points.Zip(Route.Points.Skip(1)).Any(Pair =>
                 FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(Pair.First.X, Pair.First.Y, Pair.Second.X, Pair.Second.Y, Source)
                 || FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(Pair.First.X, Pair.First.Y, Pair.Second.X, Pair.Second.Y, Target));
-            if (AOwner == BOwner && Parent(Route.SourceId) == Parent(Route.TargetId) && !SelfCut) continue;
             if (Contract.Nodes.Any(Node => (Node.Id == Route.SourceId || Node.Id == Route.TargetId)
                 && Node.Shape is not (null or "" or "rect" or "rounded" or "round" or "note"))) continue;
             var Obstacles = FlowchartPaddedVisibilityRouter.CollectObstacles(Contract, Bounds, Edge)
@@ -48,7 +62,10 @@ internal static class FlowchartCrossGroupRouteSimplifier
             bool Blocked = Best.Zip(Best.Skip(1)).Any(Pair => Obstacles.Any(Box =>
                 FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(Pair.First.X, Pair.First.Y,
                     Pair.Second.X, Pair.Second.Y, Box)));
-            double BestCost = SelfCut || Diagonal || Blocked ? double.PositiveInfinity : Cost(Best);
+            bool WrongSelectedSides = !SelectedSidesMatch(Best, Source, Target, Route.ExitSide, Route.EntrySide);
+            if (AOwner == BOwner && Parent(Route.SourceId) == Parent(Route.TargetId) && !SelfCut) continue;
+            double BestCost = SelfCut || Diagonal || Blocked || WrongSelectedSides || CountCorners(Best) > 2
+                ? double.PositiveInfinity : Cost(Best);
             foreach (bool Transpose in new[] { false, true })
             {
                 double U(FlowchartLayoutNodeBounds Box) => Transpose ? Box.CenterY : Box.CenterX;
@@ -115,8 +132,22 @@ internal static class FlowchartCrossGroupRouteSimplifier
             foreach (var End in Ports(Target))
                 if (FlowchartPaddedVisibilityRouter.TryRoute(Start.X, Start.Y, End.X, End.Y,
                     RoutingObstacles, Source, Target, out var Detour, 30, 20)) Consider(Detour);
+            string BeforeGeometry = RouteKey(Route);
+            FlowchartLayoutPoint[] OldPoints = Route.Points
+                .Select(Point => new FlowchartLayoutPoint { X = Point.X, Y = Point.Y }).ToArray();
             Route.Points.Clear();
             foreach (var Point in Best) Route.Points.Add(new() { X = Point.X, Y = Point.Y });
+            if (BeforeGeometry != RouteKey(Route))
+            {
+                RouteChanged = true;
+                // Only routes whose spatial dependencies intersect the changed route's
+                // old or new cells can have a different candidate score.
+                List<FlowchartLayoutEdgeRoute> Affected = Spatial.QueryRoutes(OldPoints, Route).ToList();
+                Spatial.ReplaceRoute(Route);
+                Affected.AddRange(Spatial.QueryRoutes(Route.Points, Route));
+                foreach (FlowchartLayoutEdgeRoute Other in Affected.Distinct())
+                    if (Queued.Add(Other)) Pending.Enqueue(Other);
+            }
 
             double Cost(List<(double X, double Y)> Path)
             {
@@ -131,7 +162,9 @@ internal static class FlowchartCrossGroupRouteSimplifier
             }
             void Consider(List<(double X, double Y)> Path)
             {
-                if (!PortClear(Path[0], Path[1], Source) || !PortClear(Path[^1], Path[^2], Target)) return;
+                if (!PortClear(Path[0], Path[1], Source) || !PortClear(Path[^1], Path[^2], Target)
+                    || !SelectedSidesMatch(Path, Source, Target, Route.ExitSide, Route.EntrySide)
+                    || CountCorners(Path) > 2) return;
                 foreach (var Pair in Path.Zip(Path.Skip(1)))
                 {
                     if (Math.Abs(Pair.First.X - Pair.Second.X) + Math.Abs(Pair.First.Y - Pair.Second.Y) < 20) return;
@@ -170,7 +203,54 @@ internal static class FlowchartCrossGroupRouteSimplifier
                 if (CandidateCost >= BestCost - 0.01) return;
                 Best = Path; BestCost = CandidateCost;
             }
+            }
+            finally
+            {
+                if (RouteTimer != null)
+                {
+                    RouteTimer.Stop();
+                    RouteTimingObserver?.Invoke(Route.EdgeId, RouteTimer.Elapsed.TotalMilliseconds, RouteChanged);
+                }
+            }
         }
+
+        static string RouteKey(FlowchartLayoutEdgeRoute Route) => Route.EdgeId + ":" + Route.ExitSide + ":"
+            + Route.EntrySide + ":" + string.Join(";", Route.Points.Select(Point =>
+                BitConverter.DoubleToInt64Bits(Point.X).ToString("X16") + ","
+                + BitConverter.DoubleToInt64Bits(Point.Y).ToString("X16")));
+    }
+
+    private static int CountCorners(IReadOnlyList<(double X, double Y)> Path)
+    {
+        int Corners = 0;
+        for (int Index = 1; Index < Path.Count - 1; Index++)
+            if ((Math.Abs(Path[Index].Y - Path[Index - 1].Y) <= 0.5)
+                != (Math.Abs(Path[Index + 1].Y - Path[Index].Y) <= 0.5)) Corners++;
+        return Corners;
+    }
+
+    private static bool SelectedSidesMatch(IReadOnlyList<(double X, double Y)> Path,
+        FlowchartLayoutNodeBounds Source, FlowchartLayoutNodeBounds Target, string ExitSide, string EntrySide)
+    {
+        if (Path.Count < 2) return false;
+        if (string.IsNullOrWhiteSpace(ExitSide) || string.IsNullOrWhiteSpace(EntrySide)) return true;
+        bool Leaves = ExitSide.ToLowerInvariant() switch
+        {
+            "left" => Math.Abs(Path[0].X - (Source.CenterX - Source.Width / 2)) <= 0.6 && Path[1].X < Path[0].X - 0.5,
+            "right" => Math.Abs(Path[0].X - (Source.CenterX + Source.Width / 2)) <= 0.6 && Path[1].X > Path[0].X + 0.5,
+            "top" => Math.Abs(Path[0].Y - (Source.CenterY + Source.Height / 2)) <= 0.6 && Path[1].Y > Path[0].Y + 0.5,
+            "bottom" => Math.Abs(Path[0].Y - (Source.CenterY - Source.Height / 2)) <= 0.6 && Path[1].Y < Path[0].Y - 0.5,
+            _ => false
+        };
+        bool Enters = EntrySide.ToLowerInvariant() switch
+        {
+            "left" => Math.Abs(Path[^1].X - (Target.CenterX - Target.Width / 2)) <= 0.6 && Path[^2].X < Path[^1].X - 0.5,
+            "right" => Math.Abs(Path[^1].X - (Target.CenterX + Target.Width / 2)) <= 0.6 && Path[^2].X > Path[^1].X + 0.5,
+            "top" => Math.Abs(Path[^1].Y - (Target.CenterY + Target.Height / 2)) <= 0.6 && Path[^2].Y > Path[^1].Y + 0.5,
+            "bottom" => Math.Abs(Path[^1].Y - (Target.CenterY - Target.Height / 2)) <= 0.6 && Path[^2].Y < Path[^1].Y - 0.5,
+            _ => false
+        };
+        return Leaves && Enters;
     }
 
     private static IEnumerable<(double X, double Y)> Ports(FlowchartLayoutNodeBounds Box)

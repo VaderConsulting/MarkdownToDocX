@@ -175,38 +175,57 @@ public static partial class DiagramGridLayout
         bool Horizontal, string Trigger)
     {
         HashSet<string> SeenStates = new(StringComparer.Ordinal) { PositionSignature(Placed) };
-        string RefitCause = Trigger;
+        Dictionary<string, string> FittedMembers = new(StringComparer.Ordinal);
+        Dictionary<string, string> PendingCauses = Contract.Groups.ToDictionary(Group => Group.Id,
+            _ => Trigger, StringComparer.Ordinal);
         List<string> Adjustments = [];
         int Refit = 0;
         string StopReason = "stable frame fit";
         while (true)
         {
-            Refit++;
-            DiagramGridLayout.GroupFrameFitPassObserver?.Invoke(RefitCause);
             Frames.Clear();
-            BuildFrames(Contract, Placed, Frames);
+            BuildFrames(Contract, Placed, Frames); // BuildFrames is bottom-up.
             // Keep sibling containers intact before clearing individual outsiders.
-            // Evicting their members first can stretch both frames repeatedly.
-            if (SeparateSiblingFrames(Contract, Placed, Frames, Horizontal))
+            // Run the global sibling pass once per dirty batch, then refit only changed descendants.
+            (double X, double Y)[] BeforeSiblingSeparation = Placed.Select(Node => (Node.X, Node.Y)).ToArray();
+            if (SeparateSiblingFrames(Contract, Placed, Frames, Horizontal) && PositionsDiffer(Placed, BeforeSiblingSeparation))
             {
-                RefitCause = "separate overlapping sibling frames";
-                Adjustments.Add(RefitCause);
-                if (SeenStates.Add(PositionSignature(Placed))) continue;
-                StopReason = "repeated placement state after sibling separation";
-                break;
+                EnqueueChangedMemberFrames(Contract, ChangedNodeIds(Placed, BeforeSiblingSeparation),
+                    PendingCauses, "sibling-frame separation");
+                Adjustments.Add("separate overlapping sibling frames");
+                if (!SeenStates.Add(PositionSignature(Placed)))
+                {
+                    StopReason = "repeated placement state after sibling separation";
+                    break;
+                }
+                continue;
             }
-            bool Moved = false;
-            foreach (GridFrame Frame in Frames)
+
+            Dictionary<string, string> CausesThisBatch = new(PendingCauses, StringComparer.Ordinal);
+            HashSet<string> DirtyThisBatch = CausesThisBatch.Keys.ToHashSet(StringComparer.Ordinal);
+            PendingCauses.Clear();
+            HashSet<string> ProcessedThisBatch = new(StringComparer.Ordinal);
+            foreach (string FrameId in Frames.Select(Frame => Frame.Id).Where(DirtyThisBatch.Contains).ToArray())
             {
+                // Earlier frame fits may have moved members, so refresh descendant bounds before
+                // each parent is considered. The id order remains the bottom-up BuildFrames order.
+                Frames.Clear();
+                BuildFrames(Contract, Placed, Frames);
+                GridFrame? FrameToFit = Frames.FirstOrDefault(Frame => Frame.Id == FrameId);
+                if (FrameToFit == null) continue;
+                string Signature = FrameMemberSignature(Contract, Placed, FrameId);
+                if (FittedMembers.TryGetValue(FrameId, out string? Fitted) && Fitted == Signature) continue;
+                string FrameCause = CausesThisBatch.GetValueOrDefault(FrameId, "changed nested members");
+                Refit++;
+                DiagramGridLayout.GroupFrameFitPassObserver?.Invoke($"refit frame {FrameId}: {FrameCause}");
+                FittedMembers[FrameId] = Signature;
                 List<GridNode> TrialPlaced = Placed.Select(CloneForFrameFit).ToList();
                 List<string> FrameAdjustments = [];
+                GridFrame Frame = FrameToFit;
                 for (int NodeIndex = 0; NodeIndex < TrialPlaced.Count; NodeIndex++)
                 {
                     GridNode Node = TrialPlaced[NodeIndex];
-                    if (IsInsideGroup(Contract, Node.Id, Frame.Id))
-                    {
-                        continue;
-                    }
+                    if (IsInsideGroup(Contract, Node.Id, Frame.Id)) continue;
 
                     int Clearance = Contract.Edges.Any(Edge =>
                         (Edge.SourceId == Node.Id && (Edge.TargetId == Frame.Id || IsInsideGroup(Contract, Edge.TargetId, Frame.Id)))
@@ -280,34 +299,61 @@ public static partial class DiagramGridLayout
 
                 if (PositionsDiffer(TrialPlaced, Placed))
                 {
+                    (double X, double Y)[] BeforeMove = Placed.Select(Node => (Node.X, Node.Y)).ToArray();
                     for (int Index = 0; Index < Placed.Count; Index++)
                         Placed[Index].SetPositionFromFrameFit(TrialPlaced[Index].X, TrialPlaced[Index].Y);
-                    Moved = true;
-                    RefitCause = $"batch {FrameAdjustments.Count} outside-node adjustments for frame {Frame.Id}";
+                    HashSet<string> ChangedNodes = ChangedNodeIds(Placed, BeforeMove);
+                    Dictionary<string, string> Affected = new(StringComparer.Ordinal);
+                    EnqueueChangedMemberFrames(Contract, ChangedNodes, Affected,
+                        $"members changed by frame {Frame.Id}");
+                    foreach ((string Id, string Cause) in Affected)
+                    {
+                        // A later frame in this bottom-up batch will see the new geometry on its turn.
+                        // Only already-fitted frames need to be scheduled for another batch.
+                        if (ProcessedThisBatch.Contains(Id)) PendingCauses[Id] = Cause;
+                    }
                     Adjustments.AddRange(FrameAdjustments);
-                    break;
+                    if (!SeenStates.Add(PositionSignature(Placed)))
+                    {
+                        StopReason = "repeated placement state";
+                        break;
+                    }
                 }
+                else
+                {
+                    FittedMembers[FrameId] = Signature;
+                }
+                ProcessedThisBatch.Add(FrameId);
             }
 
-            bool SeparatedSiblingFrames = !Moved && SeparateSiblingFrames(Contract, Placed, Frames, Horizontal);
-            if (SeparatedSiblingFrames)
-            {
-                RefitCause = "separate overlapping sibling frames";
-                Adjustments.Add(RefitCause);
-            }
-            if (!Moved && !SeparatedSiblingFrames)
-            {
-                StopReason = "stable frame fit";
-                break;
-            }
-            if (!SeenStates.Add(PositionSignature(Placed)))
-            {
-                StopReason = "repeated placement state";
-                break;
-            }
+            if (StopReason == "repeated placement state") break;
+            if (PendingCauses.Count == 0) break;
         }
         DiagramGridLayout.GroupFrameRefitObserver?.Invoke(
             $"refit for {Trigger}; {Refit} fitting passes; stop={StopReason}; adjustments: {string.Join(" -> ", Adjustments)}");
+    }
+
+    private static string FrameMemberSignature(DiagramContract Contract, IReadOnlyList<GridNode> Placed, string FrameId) =>
+        string.Join("|", Placed.Where(Node => IsInsideGroup(Contract, Node.Id, FrameId))
+            .OrderBy(Node => Node.Id, StringComparer.Ordinal).Select(Node =>
+                $"{Node.Id}:{BitConverter.DoubleToInt64Bits(Node.X):X16},{BitConverter.DoubleToInt64Bits(Node.Y):X16},{Node.Width},{Node.Height}"));
+
+    private static HashSet<string> ChangedNodeIds(IReadOnlyList<GridNode> Nodes,
+        IReadOnlyList<(double X, double Y)> Before)
+    {
+        HashSet<string> Changed = new(StringComparer.Ordinal);
+        for (int Index = 0; Index < Nodes.Count; Index++)
+            if (Nodes[Index].X != Before[Index].X || Nodes[Index].Y != Before[Index].Y)
+                Changed.Add(Nodes[Index].Id);
+        return Changed;
+    }
+
+    private static void EnqueueChangedMemberFrames(DiagramContract Contract, IEnumerable<string> ChangedNodes,
+        Dictionary<string, string> Pending, string Cause)
+    {
+        foreach (string NodeId in ChangedNodes)
+        foreach (GroupContract Group in Contract.Groups)
+            if (IsInsideGroup(Contract, NodeId, Group.Id)) Pending[Group.Id] = Cause;
     }
 
     private static GridNode CloneForFrameFit(GridNode Node) => new()

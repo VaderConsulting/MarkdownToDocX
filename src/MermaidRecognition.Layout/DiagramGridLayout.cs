@@ -21,6 +21,7 @@ public static partial class DiagramGridLayout
     internal static Action<string, double>? LayoutStageTimingObserver { get; set; }
     internal static Action<string>? GroupFrameRefitObserver { get; set; }
     internal static Action<string>? GroupFrameFitPassObserver { get; set; }
+    internal static Action<string, IReadOnlyList<string>, long, double>? RouteRepairPassObserver { get; set; }
 
     private static void ObserveCrossings(GridLayoutState State, string Stage)
     {

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -45,6 +46,7 @@ public static partial class DiagramGridLayout
         public HashSet<string> SharedFanSources { get; set; } = new(StringComparer.Ordinal);
         public HashSet<string> ObstacleRouteStates { get; } = new(StringComparer.Ordinal);
         public HashSet<string> PortSideRouteStates { get; } = new(StringComparer.Ordinal);
+        public HashSet<string> CrossGroupRouteStates { get; } = new(StringComparer.Ordinal);
         public bool RepairExteriorCrossings { get; set; }
         public List<GridFrame> Frames { get; } = [];
         public Dictionary<FlowchartLayoutEdgeRoute, HintedRoute> HintedRoutes { get; } = [];
@@ -347,7 +349,7 @@ public static partial class DiagramGridLayout
             new("5.8", State => FlowchartNestedCounterflowTracks.Apply(
                 State.Copy, State.Contract, BuildPlacedBounds(State.Placed, State.Frames))),
             new("4.4,5.8", State => FlowchartCrossGroupRouteSimplifier.Apply(
-                State.Copy, State.Contract, BuildPlacedBounds(State.Placed, State.Frames))),
+                State.Copy, State.Contract, BuildPlacedBounds(State.Placed, State.Frames), State.CrossGroupRouteStates)),
             new("5.8", State => FlowchartAlignedCounterflowRoutes.Apply(
                 State.Copy, State.Contract, BuildPlacedBounds(State.Placed, State.Frames))),
             new("5.8", State => FlowchartTerminalFanBypass.Apply(
@@ -456,8 +458,24 @@ public static partial class DiagramGridLayout
                 for (int PassIndex = 0; PassIndex < Passes.Length; PassIndex++)
                 {
                     RepairPass Pass = Passes[PassIndex];
-                    MeasureLayoutStage($"repair[{PassIndex}] {Pass.RuleIds}",
-                        () => PreserveHintedRoutes(State, () => Pass.Apply(State)));
+                    string Name = $"repair[{PassIndex}] {Pass.RuleIds}";
+                    Action<string, IReadOnlyList<string>, long, double>? Profile = RouteRepairPassObserver;
+                    Dictionary<string, string>? BeforeRoutes = Profile == null ? null : RouteGeometry(State.Copy);
+                    long BeforeCalls = FlowchartPaddedVisibilityRouter.GridPathCallCount;
+                    double BeforeGridMs = FlowchartPaddedVisibilityRouter.GridPathElapsedMilliseconds;
+                    Stopwatch? Timer = Profile == null ? null : Stopwatch.StartNew();
+                    MeasureLayoutStage(Name, () => PreserveHintedRoutes(State, () => Pass.Apply(State)));
+                    if (Profile != null)
+                    {
+                        Timer!.Stop();
+                        Dictionary<string, string> AfterRoutes = RouteGeometry(State.Copy);
+                        string[] ChangedRoutes = AfterRoutes.Where(Pair =>
+                                !BeforeRoutes!.TryGetValue(Pair.Key, out string? Prior) || Prior != Pair.Value)
+                            .Select(Pair => Pair.Key).OrderBy(Id => Id, StringComparer.Ordinal).ToArray();
+                        Profile(Name, ChangedRoutes,
+                            FlowchartPaddedVisibilityRouter.GridPathCallCount - BeforeCalls,
+                            FlowchartPaddedVisibilityRouter.GridPathElapsedMilliseconds - BeforeGridMs);
+                    }
                     ObserveCrossings(State, $"repair[{PassIndex}] {Pass.RuleIds}");
                     ObserveLayoutStage(State, $"repair[{PassIndex}] {Pass.RuleIds}");
                 }
@@ -482,6 +500,10 @@ public static partial class DiagramGridLayout
                 BestRoutes = CaptureRoutes(State.Copy);
             }
         }
+
+        private static Dictionary<string, string> RouteGeometry(FlowchartLayoutResult Layout) =>
+            Layout.EdgeRoutes.ToDictionary(Route => Route.EdgeId, Route => string.Join(";", Route.Points.Select(Point =>
+                $"{BitConverter.DoubleToInt64Bits(Point.X):X16},{BitConverter.DoubleToInt64Bits(Point.Y):X16}")), StringComparer.Ordinal);
 
         private static List<(double X, double Y)[]> CaptureRoutes(FlowchartLayoutResult Layout)
         {
