@@ -2,6 +2,8 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Security.Cryptography;
+using System.Text;
 using MDConverter;
 using MDConverter.Options;
 using MDConverter.Pipeline;
@@ -12,12 +14,21 @@ if (args.Length == 2 && args[0] == "--worker")
 {
     var d = JsonSerializer.Deserialize<Diagram>(File.ReadAllText(args[1]))!;
     var stages = new Dictionary<string, double>(StringComparer.Ordinal);
+    var counts = new Dictionary<string, long>(StringComparer.Ordinal);
     string stagePath = args[1] + ".stages.json";
+    string countPath = args[1] + ".counts.json";
     void Record(string name, double ms)
     {
         stages[name] = ms < 0 ? -1 : stages.GetValueOrDefault(name) < 0
             ? ms : stages.GetValueOrDefault(name) + ms;
         File.WriteAllText(stagePath, JsonSerializer.Serialize(stages));
+    }
+    int countWrites = 0;
+    void RecordCount(string name, long count)
+    {
+        counts[name] = counts.GetValueOrDefault(name) + count;
+        if (++countWrites % 128 == 0)
+            File.WriteAllText(countPath, JsonSerializer.Serialize(counts));
     }
     foreach (var (type, propertyName) in new (Type, string)[]
     {
@@ -27,12 +38,21 @@ if (args.Length == 2 && args[0] == "--worker")
         (typeof(EnterpriseRenderBridge), "StageTimingObserver"),
         (typeof(EnterpriseSvgRenderer), "StageTimingObserver"),
         (typeof(FlowchartSvgCoordinateFrameResolver), "StageTimingObserver"),
+        (typeof(FlowchartSugiyamaSvgRenderer), "StageTimingObserver"),
         (typeof(EnterpriseSvgRenderer).Assembly.GetType(
             "MermaidRecognition.Layout.Enterprise.EnterpriseFlowchartEdgeRouter", throwOnError: true)!,
             "StageTimingObserver")
     })
         type.GetProperty(propertyName, BindingFlags.Static | BindingFlags.NonPublic)!
             .SetValue(null, new Action<string, double>(Record));
+    typeof(FlowchartRenderContext).GetProperty("OperationCountObserver", BindingFlags.Static | BindingFlags.NonPublic)!
+        .SetValue(null, new Action<string, long>(RecordCount));
+    string? svgSha256 = null;
+    Action<string> captureSvg = svg => svgSha256 = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(svg)));
+    typeof(FlowchartSugiyamaSvgRenderer).GetProperty("RenderedSvgObserver", BindingFlags.Static | BindingFlags.NonPublic)!
+        .SetValue(null, captureSvg);
+    typeof(EnterpriseSvgRenderer).GetProperty("RenderedSvgObserver", BindingFlags.Static | BindingFlags.NonPublic)!
+        .SetValue(null, captureSvg);
     bool success = false;
     string error = "";
     var timer = Stopwatch.StartNew();
@@ -44,8 +64,9 @@ if (args.Length == 2 && args[0] == "--worker")
     }
     catch (Exception ex) { error = ex.GetType().Name + ": " + ex.Message.Replace('\n', ' '); }
     timer.Stop();
+    File.WriteAllText(countPath, JsonSerializer.Serialize(counts));
     Console.WriteLine(JsonSerializer.Serialize(new Result(d.File, d.Index, d.Name, timer.Elapsed.TotalMilliseconds,
-        success, error, stages)));
+        success, error, stages, counts, svgSha256)));
     return;
 }
 
@@ -74,6 +95,17 @@ foreach (var file in files)
         string name = heading?.Groups[1].Value.Trim() ?? $"Diagram {i + 1}";
         diagrams.Add(new Diagram(file, i + 1, name, matches[i].Groups["body"].Value.Trim()));
     }
+}
+
+string? only = Environment.GetEnvironmentVariable("MD2DOCX_PROFILE_ONLY");
+if (!string.IsNullOrWhiteSpace(only))
+{
+    string[] key = only.Split(':', 2);
+    if (key.Length != 2 || !key[1].Split(',').All(value => int.TryParse(value, out _)))
+        throw new ArgumentException("MD2DOCX_PROFILE_ONLY must be <file>:<one-based-index>[,<index>...].");
+    var selected = key[1].Split(',').Select(int.Parse).ToHashSet();
+    diagrams = diagrams.Where(d => string.Equals(d.File, key[0], StringComparison.OrdinalIgnoreCase)
+        && selected.Contains(d.Index)).ToList();
 }
 
 string outDir = Path.Combine(Path.GetTempPath(), "md2docx-diagram-profile-" + Guid.NewGuid().ToString("N"));
@@ -108,9 +140,11 @@ try
             string stagePath = input + ".stages.json";
             Dictionary<string, double> partialStages = File.Exists(stagePath)
                 ? JsonSerializer.Deserialize<Dictionary<string, double>>(File.ReadAllText(stagePath)) ?? [] : [];
+            Dictionary<string, long> partialCounts = File.Exists(input + ".counts.json")
+                ? JsonSerializer.Deserialize<Dictionary<string, long>>(File.ReadAllText(input + ".counts.json")) ?? [] : [];
             string active = string.Join(",", partialStages.Where(p => p.Value < 0).Select(p => p.Key));
             results.Add(new Result(diagram.File, diagram.Index, diagram.Name, 60_000, false,
-                "TIMEOUT after 60 seconds" + (active.Length == 0 ? "" : " during " + active), partialStages));
+                "TIMEOUT after 60 seconds" + (active.Length == 0 ? "" : " during " + active), partialStages, partialCounts, null));
         }
         else
         {
@@ -120,7 +154,7 @@ try
                 results.Add(JsonSerializer.Deserialize<Result>(output.Trim().Split('\n').Last())!);
             else
                 results.Add(new Result(diagram.File, diagram.Index, diagram.Name, 0, false,
-                    (stderr + output).Trim(), []));
+                    (stderr + output).Trim(), [], [], null));
         }
         File.AppendAllText(resultsPath, JsonSerializer.Serialize(results[^1]) + Environment.NewLine);
         if (results.Count % 10 == 0 || !results[^1].Success)
@@ -142,4 +176,4 @@ Console.WriteLine("SUMMARY " + JsonSerializer.Serialize(new
 
 record Diagram(string File, int Index, string Name, string Source);
 record Result(string File, int Index, string Name, double Milliseconds, bool Success,
-    string Error, Dictionary<string, double> Stages);
+    string Error, Dictionary<string, double> Stages, Dictionary<string, long> Counts, string? SvgSha256);

@@ -15,6 +15,13 @@ public sealed class FlowchartRenderContext
 {
     private static readonly AsyncLocal<FlowchartRenderContext?> Ambient = new();
 
+    internal static Action<string, long>? OperationCountObserver { get; set; }
+
+    internal static void ReportOperationCount(string Name, long Count)
+    {
+        if (Count > 0) OperationCountObserver?.Invoke(Name, Count);
+    }
+
     /// <summary>Context associated with the current render or direct layout call.</summary>
     public static FlowchartRenderContext Current => Ambient.Value ??= new FlowchartRenderContext();
 
@@ -34,9 +41,15 @@ public sealed class FlowchartRenderContext
 
     internal List<FlowchartSvgLineJump.DrawnJump> Jumps { get; } = [];
 
+    internal bool IsSvgEdgePainting { get; set; }
+
     internal DiagramContract? CachedRouteContract { get; set; }
 
     internal List<FlowchartResolvedGuide>? CachedRouteGuides { get; set; }
+
+    internal List<(EdgeContract Edge, IReadOnlyList<(double X, double Y)> Points)>? CachedSvgRenderGuides { get; set; }
+
+    internal FlowchartSvgSpatialIndex? CachedLabelSpatialIndex { get; set; }
 
     internal List<Action<StringBuilder>> DeferredMarkerDraws { get; } = [];
 
@@ -47,8 +60,11 @@ public sealed class FlowchartRenderContext
     internal void BeginRender()
     {
         Jumps.Clear();
+        IsSvgEdgePainting = false;
         CachedRouteContract = null;
         CachedRouteGuides = null;
+        CachedSvgRenderGuides = null;
+        CachedLabelSpatialIndex = null;
         DeferredMarkerDraws.Clear();
         FlushingDeferredMarkers = false;
         ActiveRenderSession = null;

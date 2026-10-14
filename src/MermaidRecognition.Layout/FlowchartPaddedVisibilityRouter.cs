@@ -236,6 +236,8 @@ public static class FlowchartPaddedVisibilityRouter
         out List<(double X, double Y)> Points)
     {
         GridPathCallCount++;
+        if (FlowchartRenderContext.Current.IsSvgEdgePainting)
+            FlowchartRenderContext.ReportOperationCount("paint-grid-path-searches", 1);
         Stopwatch Timer = Stopwatch.StartNew();
         Points = [];
         PaddedBoxSpatialIndex Spatial = new(Boxes);

@@ -35,16 +35,29 @@ public static class FlowchartEdgeRouteResolver
             NodeById,
             Direction,
             Layout?.RenderContext ?? new FlowchartRenderContext());
+        long Scanned = 0;
         foreach (FlowchartResolvedGuide Guide in Guides)
         {
+            Scanned++;
             if (!IsSameEdge(Guide.Edge, Edge))
             {
                 continue;
             }
 
+            if (FlowchartRenderContext.Current.IsSvgEdgePainting)
+            {
+                FlowchartRenderContext.ReportOperationCount("paint-guide-resolver-calls", 1);
+                FlowchartRenderContext.ReportOperationCount("paint-guide-list-entries-scanned", Scanned);
+            }
             LayoutPoints = new List<(double X, double Y)>(Guide.Points);
             RouteKind = Guide.RouteKind;
             return LayoutPoints.Count >= 2;
+        }
+
+        if (FlowchartRenderContext.Current.IsSvgEdgePainting)
+        {
+            FlowchartRenderContext.ReportOperationCount("paint-guide-resolver-calls", 1);
+            FlowchartRenderContext.ReportOperationCount("paint-guide-list-entries-scanned", Scanned);
         }
 
         LayoutPoints = [];

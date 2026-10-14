@@ -14,6 +14,7 @@ namespace MermaidRecognition.Layout.Enterprise;
 public static class EnterpriseSvgRenderer
 {
     internal static Action<string, double>? StageTimingObserver { get; set; }
+    internal static Action<string>? RenderedSvgObserver { get; set; }
     private const double FONT_SIZE = 12;
 
     private const double LINE_HEIGHT = 15;
@@ -125,8 +126,10 @@ public static class EnterpriseSvgRenderer
         Builder.Append("</g></svg>");
         SvgBuildTimer.Stop();
         StageTimingObserver?.Invoke("enterprise-svg-build", SvgBuildTimer.Elapsed.TotalMilliseconds);
-        return Measure("enterprise-svg-postprocess", () => EnterpriseSvgConfiguration.Apply(EnterpriseMarkdownSvg.Apply(
+        string FinalSvg = Measure("enterprise-svg-postprocess", () => EnterpriseSvgConfiguration.Apply(EnterpriseMarkdownSvg.Apply(
             EnterpriseStyleSvg.Apply(FlowchartSvgLineJump.Apply(Builder.ToString()), Document), Document), Document));
+        RenderedSvgObserver?.Invoke(FinalSvg);
+        return FinalSvg;
     }
 
     private static T Measure<T>(string Name, Func<T> Operation)
