@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 using MermaidRecognition.Contract;
@@ -17,6 +18,7 @@ public static partial class DiagramGridLayout
     private const int STUB_PX = 15;
     internal static Action<string, int>? CrossingCountObserver { get; set; }
     internal static Action<string, FlowchartLayoutResult>? LayoutStageObserver { get; set; }
+    internal static Action<string, double>? LayoutStageTimingObserver { get; set; }
 
     private static void ObserveCrossings(GridLayoutState State, string Stage)
     {
@@ -29,6 +31,25 @@ public static partial class DiagramGridLayout
     private static void ObserveLayoutStage(GridLayoutState State, string Stage)
     {
         LayoutStageObserver?.Invoke(Stage, State.Copy);
+    }
+
+    internal static void MeasureLayoutStage(string Stage, Action Operation)
+    {
+        Action<string, double>? Observer = LayoutStageTimingObserver;
+        if (Observer == null)
+        {
+            Operation();
+            return;
+        }
+
+        Observer(Stage, -1);
+        Stopwatch Timer = Stopwatch.StartNew();
+        try { Operation(); }
+        finally
+        {
+            Timer.Stop();
+            Observer(Stage, Timer.Elapsed.TotalMilliseconds);
+        }
     }
 
     /// <summary>
@@ -74,7 +95,7 @@ public static partial class DiagramGridLayout
         void Run(string Name, Action<GridLayoutState> Stage)
         {
             Context.LayoutStageTrace.Add(Name);
-            Stage(State);
+            MeasureLayoutStage(Name, () => Stage(State));
             ObserveCrossings(State, Name);
             ObserveLayoutStage(State, Name);
         }

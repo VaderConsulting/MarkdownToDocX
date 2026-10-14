@@ -427,7 +427,8 @@ public static partial class DiagramGridLayout
                 for (int PassIndex = 0; PassIndex < Passes.Length; PassIndex++)
                 {
                     RepairPass Pass = Passes[PassIndex];
-                    PreserveHintedRoutes(State, () => Pass.Apply(State));
+                    MeasureLayoutStage($"repair[{PassIndex}] {Pass.RuleIds}",
+                        () => PreserveHintedRoutes(State, () => Pass.Apply(State)));
                     ObserveCrossings(State, $"repair[{PassIndex}] {Pass.RuleIds}");
                     ObserveLayoutStage(State, $"repair[{PassIndex}] {Pass.RuleIds}");
                 }
