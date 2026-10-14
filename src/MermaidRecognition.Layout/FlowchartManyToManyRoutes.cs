@@ -66,76 +66,26 @@ internal static class FlowchartManyToManyRoutes
                 Math.Abs(Terminals[Route].StartX - Terminals[Route].EndX) > 0.5).ToList();
             if (Bent.Count == 0 || (SourceAboveTarget ? NearSource <= NearTarget : NearSource >= NearTarget)) continue;
 
-            List<FlowchartLayoutEdgeRoute> Order = Bent.OrderBy(Route => Bounds[Route.SourceId].CenterX)
-                .ThenBy(Route => Bounds[Route.TargetId].CenterX).ToList();
+            List<FlowchartLayoutEdgeRoute> Order = Bent.OrderBy(Route =>
+                    (SourceOrder[Route.SourceId].IndexOf(Route) + TargetOrder[Route.TargetId].IndexOf(Route)) / 2.0)
+                .ThenBy(Route => Route.EdgeId, StringComparer.Ordinal).ToList();
+            List<(double X, double Y)> PathAt(FlowchartLayoutEdgeRoute Route, int SlotIndex)
+            {
+                var T = Terminals[Route];
+                if (Math.Abs(T.StartX - T.EndX) <= 0.5)
+                    return [(T.StartX, T.StartY), (T.EndX, T.EndY)];
+                double Track = Math.Round(NearSource + (SlotIndex + 1) * (NearTarget - NearSource) / (Bent.Count + 1));
+                return [(T.StartX, T.StartY), (T.StartX, Track), (T.EndX, Track), (T.EndX, T.EndY)];
+            }
             Dictionary<FlowchartLayoutEdgeRoute, List<(double X, double Y)>> PathsFor(
                 IReadOnlyList<FlowchartLayoutEdgeRoute> TrackOrder)
             {
-                var Tracks = TrackOrder.Select((Route, Index) => (Route,
-                    Y: Math.Round(NearSource + (Index + 1) * (NearTarget - NearSource) / (TrackOrder.Count + 1))))
-                    .ToDictionary(Item => Item.Route, Item => Item.Y);
-                return Edges.ToDictionary(Route => Route, Route =>
-                {
-                    var T = Terminals[Route];
-                    return Math.Abs(T.StartX - T.EndX) <= 0.5
-                        ? new List<(double X, double Y)> { (T.StartX, T.StartY), (T.EndX, T.EndY) }
-                        : [(T.StartX, T.StartY), (T.StartX, Tracks[Route]),
-                            (T.EndX, Tracks[Route]), (T.EndX, T.EndY)];
-                });
+                Dictionary<FlowchartLayoutEdgeRoute, int> Slots = TrackOrder.Select((Route, Index) => (Route, Index))
+                    .ToDictionary(Item => Item.Route, Item => Item.Index);
+                return Edges.ToDictionary(Route => Route, Route => PathAt(Route,
+                    Slots.TryGetValue(Route, out int Index) ? Index : -1));
             }
-            int Crossings(IReadOnlyList<FlowchartLayoutEdgeRoute> TrackOrder)
-            {
-                var Paths = PathsFor(TrackOrder);
-                int Count = 0;
-                for (int A = 0; A < Edges.Count; A++)
-                for (int B = A + 1; B < Edges.Count; B++)
-                {
-                    if (!AllUnlabelled && SharesEndpoint(Edges[A], Edges[B])) continue;
-                    var Interaction = FlowchartBranchRouteOrder.Intersections(Paths[Edges[A]], Paths[Edges[B]]);
-                    Count += Interaction.Crossings + (Interaction.Overlap > 0.5 ? Edges.Count * Edges.Count : 0);
-                }
-                return Count;
-            }
-            int Best = Crossings(Order);
-            while (true)
-            {
-                bool Improved = false;
-                for (int First = 0; First < Order.Count && !Improved; First++)
-                for (int Second = First + 1; Second < Order.Count; Second++)
-                {
-                    (Order[First], Order[Second]) = (Order[Second], Order[First]);
-                    int Candidate = Crossings(Order);
-                    if (Candidate < Best) { Best = Candidate; Improved = true; break; }
-                    (Order[First], Order[Second]) = (Order[Second], Order[First]);
-                }
-                if (!Improved) break;
-            }
-            // A track can be trapped in a swap-local minimum: moving it past
-            // several neighbours may improve the fan although no single swap
-            // does. Try every stable insertion and keep only strict decreases.
-            while (AllUnlabelled)
-            {
-                List<FlowchartLayoutEdgeRoute>? BetterOrder = null;
-                int Better = Best;
-                for (int From = 0; From < Order.Count; From++)
-                for (int To = 0; To < Order.Count; To++)
-                {
-                    if (From == To) continue;
-                    List<FlowchartLayoutEdgeRoute> Candidate = Order.ToList();
-                    FlowchartLayoutEdgeRoute Moving = Candidate[From];
-                    Candidate.RemoveAt(From);
-                    Candidate.Insert(To, Moving);
-                    int CandidateCrossings = Crossings(Candidate);
-                    if (CandidateCrossings < Better)
-                    {
-                        Better = CandidateCrossings;
-                        BetterOrder = Candidate;
-                    }
-                }
-                if (BetterOrder == null) break;
-                Order = BetterOrder;
-                Best = Better;
-            }
+            Order = ImproveTrackOrder(Edges, Order, PathAt);
             var Paths = PathsFor(Order);
             if (Paths.Any(Item => HitsNode(Item.Value, Item.Key, Bounds))) continue;
             foreach (FlowchartLayoutEdgeRoute Route in Edges)
@@ -215,12 +165,14 @@ internal static class FlowchartManyToManyRoutes
                 for (int A = 0; A < Edges.Count; A++)
                 for (int B = A + 1; B < Edges.Count; B++)
                 {
+                    if (SharesEndpoint(Edges[A], Edges[B])) continue;
                     var Interaction = FlowchartBranchRouteOrder.Intersections(Paths[Edges[A]], Paths[Edges[B]]);
                     Count += Interaction.Crossings + (Interaction.Overlap > 0.5 ? Edges.Count * Edges.Count : 0);
                 }
                 return Count;
             }
             int Best = Crossings(Order);
+            if (Best == 0) continue;
             while (true)
             {
                 List<FlowchartLayoutEdgeRoute>? BetterOrder = null;
@@ -255,6 +207,146 @@ internal static class FlowchartManyToManyRoutes
 
     private static double SlotCross(FlowchartLayoutNodeBounds Box, int Index, int Count) => Math.Round(
         Box.CenterY - Box.Height / 2.0 + Box.Height * (Index + 1.0) / (Count + 1.0));
+
+    private static List<FlowchartLayoutEdgeRoute> ImproveTrackOrder(
+        IReadOnlyList<FlowchartLayoutEdgeRoute> Edges,
+        List<FlowchartLayoutEdgeRoute> Seed,
+        Func<FlowchartLayoutEdgeRoute, int, List<(double X, double Y)>> PathAt)
+    {
+        Dictionary<FlowchartLayoutEdgeRoute, int> EdgeIndex = Edges
+            .Select((Route, Index) => (Route, Index)).ToDictionary(Item => Item.Route, Item => Item.Index);
+        Dictionary<(FlowchartLayoutEdgeRoute Route, int Slot), (double X, double Y)[]> PathCache = [];
+        Dictionary<(int A, int SlotA, int B, int SlotB), int> PairCache = [];
+        int OverlapPenalty = Edges.Count * Edges.Count;
+
+        (double X, double Y)[] Path(FlowchartLayoutEdgeRoute Route, int Slot)
+        {
+            var Key = (Route, Slot);
+            if (!PathCache.TryGetValue(Key, out (double X, double Y)[]? Value))
+                PathCache[Key] = Value = PathAt(Route, Slot).ToArray();
+            return Value;
+        }
+
+        int PairScore(FlowchartLayoutEdgeRoute A, int SlotA, FlowchartLayoutEdgeRoute B, int SlotB)
+        {
+            if (SharesEndpoint(A, B)) return 0;
+            int AIndex = EdgeIndex[A], BIndex = EdgeIndex[B];
+            if (AIndex > BIndex)
+            {
+                (AIndex, BIndex) = (BIndex, AIndex);
+                (A, B) = (B, A);
+                (SlotA, SlotB) = (SlotB, SlotA);
+            }
+            var Key = (AIndex, SlotA, BIndex, SlotB);
+            if (PairCache.TryGetValue(Key, out int Cached)) return Cached;
+            var Interaction = FlowchartBranchRouteOrder.Intersections(Path(A, SlotA), Path(B, SlotB));
+            int Score = Interaction.Crossings + (Interaction.Overlap > 0.5 ? OverlapPenalty : 0);
+            PairCache[Key] = Score;
+            return Score;
+        }
+
+        Dictionary<FlowchartLayoutEdgeRoute, int> BuildSlots(IReadOnlyList<FlowchartLayoutEdgeRoute> Order) =>
+            Order.Select((Route, Index) => (Route, Index)).ToDictionary(Item => Item.Route, Item => Item.Index);
+
+        int ScoreOrder(IReadOnlyList<FlowchartLayoutEdgeRoute> Order,
+            IReadOnlyDictionary<FlowchartLayoutEdgeRoute, int> Slots)
+        {
+            int Score = 0;
+            for (int A = 0; A < Edges.Count; A++)
+            for (int B = A + 1; B < Edges.Count; B++)
+                Score += PairScore(Edges[A], Slots.GetValueOrDefault(Edges[A], -1),
+                    Edges[B], Slots.GetValueOrDefault(Edges[B], -1));
+            return Score;
+        }
+
+        int SwapDelta(IReadOnlyList<FlowchartLayoutEdgeRoute> Order,
+            IReadOnlyDictionary<FlowchartLayoutEdgeRoute, int> Slots, int Position)
+        {
+            FlowchartLayoutEdgeRoute A = Order[Position], B = Order[Position + 1];
+            int Delta = PairScore(A, Position + 1, B, Position) - PairScore(A, Position, B, Position + 1);
+            foreach (FlowchartLayoutEdgeRoute Other in Edges)
+            {
+                if (Other == A || Other == B) continue;
+                int OtherSlot = Slots.GetValueOrDefault(Other, -1);
+                Delta += PairScore(A, Position + 1, Other, OtherSlot)
+                    + PairScore(B, Position, Other, OtherSlot)
+                    - PairScore(A, Position, Other, OtherSlot)
+                    - PairScore(B, Position + 1, Other, OtherSlot);
+            }
+            return Delta;
+        }
+
+        static string Signature(IEnumerable<FlowchartLayoutEdgeRoute> Order) =>
+            string.Join("\u001f", Order.Select(Route => Route.EdgeId));
+
+        List<FlowchartLayoutEdgeRoute> Order = Seed.ToList();
+        Dictionary<FlowchartLayoutEdgeRoute, int> Slots = BuildSlots(Order);
+        int Current = ScoreOrder(Order, Slots);
+        HashSet<string> Seen = new(StringComparer.Ordinal) { Signature(Order) };
+        while (true)
+        {
+            bool Improved = false;
+            bool Transposed;
+            do
+            {
+                Transposed = false;
+                for (int Position = 0; Position + 1 < Order.Count; Position++)
+                {
+                    int Delta = SwapDelta(Order, Slots, Position);
+                    if (Delta >= 0) continue;
+                    (Order[Position], Order[Position + 1]) = (Order[Position + 1], Order[Position]);
+                    Slots[Order[Position]] = Position;
+                    Slots[Order[Position + 1]] = Position + 1;
+                    Current += Delta;
+                    Transposed = Improved = true;
+                }
+            } while (Transposed && Seen.Add(Signature(Order)));
+
+            foreach (FlowchartLayoutEdgeRoute Moving in Order.ToArray())
+            {
+                int Origin = Slots[Moving];
+                List<FlowchartLayoutEdgeRoute> BaseOrder = Order.ToList();
+                int BestScore = Current;
+                List<FlowchartLayoutEdgeRoute>? BestOrder = null;
+
+                List<FlowchartLayoutEdgeRoute> Trial = BaseOrder.ToList();
+                Dictionary<FlowchartLayoutEdgeRoute, int> TrialSlots = BuildSlots(Trial);
+                int TrialScore = Current;
+                for (int Position = Origin; Position > 0; Position--)
+                {
+                    int Delta = SwapDelta(Trial, TrialSlots, Position - 1);
+                    (Trial[Position - 1], Trial[Position]) = (Trial[Position], Trial[Position - 1]);
+                    TrialSlots[Trial[Position - 1]] = Position - 1;
+                    TrialSlots[Trial[Position]] = Position;
+                    TrialScore += Delta;
+                    if (TrialScore < BestScore) { BestScore = TrialScore; BestOrder = Trial.ToList(); }
+                }
+
+                Trial = BaseOrder.ToList();
+                TrialSlots = BuildSlots(Trial);
+                TrialScore = Current;
+                for (int Position = Origin; Position + 1 < Trial.Count; Position++)
+                {
+                    int Delta = SwapDelta(Trial, TrialSlots, Position);
+                    (Trial[Position], Trial[Position + 1]) = (Trial[Position + 1], Trial[Position]);
+                    TrialSlots[Trial[Position]] = Position;
+                    TrialSlots[Trial[Position + 1]] = Position + 1;
+                    TrialScore += Delta;
+                    if (TrialScore < BestScore) { BestScore = TrialScore; BestOrder = Trial.ToList(); }
+                }
+
+                if (BestOrder == null) continue;
+                Order = BestOrder;
+                Slots = BuildSlots(Order);
+                Current = BestScore;
+                Improved = true;
+                if (!Seen.Add(Signature(Order))) return Order;
+            }
+
+            if (!Improved) break;
+        }
+        return Order;
+    }
 
     private static HashSet<(string SourceId, string TargetId)> CompleteBlockPairs(DiagramContract Contract)
     {

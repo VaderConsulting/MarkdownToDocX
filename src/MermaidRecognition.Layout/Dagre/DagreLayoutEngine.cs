@@ -27,33 +27,39 @@ internal static partial class DagreLayoutEngine
 
     private static void RunLayout(DagreGraph Graph, DagreContext Context)
     {
-        MakeSpaceForEdgeLabels(Graph);
-        RemoveSelfEdges(Graph);
-        AcyclicRun(Graph, Context);
-        NestingRun(Graph, Context);
-        Rank(AsNonCompoundGraph(Graph));
-        InjectEdgeLabelProxies(Graph, Context);
-        RemoveEmptyRanks(Graph);
-        NestingCleanup(Graph);
-        NormalizeRanks(Graph);
-        AssignRankMinMax(Graph);
-        RemoveEdgeLabelProxies(Graph);
-        NormalizeRun(Graph, Context);
-        ParentDummyChains(Graph);
-        AddBorderSegments(Graph, Context);
-        Order(Graph, Context);
-        InsertSelfEdges(Graph, Context);
-        AdjustCoordinateSystem(Graph);
-        Position(Graph);
-        PositionSelfEdges(Graph);
-        RemoveBorderNodes(Graph);
-        NormalizeUndo(Graph);
-        FixupEdgeLabelCoords(Graph);
-        UndoCoordinateSystem(Graph);
-        TranslateGraph(Graph);
-        AssignNodeIntersects(Graph);
-        ReversePointsForReversedEdges(Graph);
-        AcyclicUndo(Graph);
+        Timed("MakeSpaceForEdgeLabels", () => MakeSpaceForEdgeLabels(Graph));
+        Timed("RemoveSelfEdges", () => RemoveSelfEdges(Graph));
+        Timed("AcyclicRun", () => AcyclicRun(Graph, Context));
+        Timed("NestingRun", () => NestingRun(Graph, Context));
+        Timed("Rank", () => Rank(AsNonCompoundGraph(Graph)));
+        Timed("InjectEdgeLabelProxies", () => InjectEdgeLabelProxies(Graph, Context));
+        Timed("RemoveEmptyRanks", () => RemoveEmptyRanks(Graph));
+        Timed("NestingCleanup", () => NestingCleanup(Graph));
+        Timed("NormalizeRanks", () => NormalizeRanks(Graph));
+        Timed("AssignRankMinMax", () => AssignRankMinMax(Graph));
+        Timed("RemoveEdgeLabelProxies", () => RemoveEdgeLabelProxies(Graph));
+        Timed("NormalizeRun", () => NormalizeRun(Graph, Context));
+        Timed("ParentDummyChains", () => ParentDummyChains(Graph));
+        Timed("AddBorderSegments", () => AddBorderSegments(Graph, Context));
+        Timed("Order", () => Order(Graph, Context));
+        Timed("InsertSelfEdges", () => InsertSelfEdges(Graph, Context));
+        Timed("AdjustCoordinateSystem", () => AdjustCoordinateSystem(Graph));
+        Timed("Position", () => Position(Graph));
+        Timed("PositionSelfEdges", () => PositionSelfEdges(Graph));
+        Timed("RemoveBorderNodes", () => RemoveBorderNodes(Graph));
+        Timed("NormalizeUndo", () => NormalizeUndo(Graph));
+        Timed("FixupEdgeLabelCoords", () => FixupEdgeLabelCoords(Graph));
+        Timed("UndoCoordinateSystem", () => UndoCoordinateSystem(Graph));
+        Timed("TranslateGraph", () => TranslateGraph(Graph));
+        Timed("AssignNodeIntersects", () => AssignNodeIntersects(Graph));
+        Timed("ReversePointsForReversedEdges", () => ReversePointsForReversedEdges(Graph));
+        Timed("AcyclicUndo", () => AcyclicUndo(Graph));
+
+        static void Timed(string Name, Action Action)
+        {
+            _ = Name;
+            Action();
+        }
     }
 
     private static DagreGraph BuildLayoutGraph(DagreGraph Input)

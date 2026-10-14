@@ -1464,9 +1464,11 @@ public static partial class DiagramGridLayout
 
     private static void SeparateOverlaps(List<GridNode> Placed, bool Horizontal)
     {
-        for (int Pass = 0; Pass < MAX_SEPARATION_PASSES; Pass++)
+        HashSet<string> SeenStates = new(StringComparer.Ordinal) { PositionSignature(Placed) };
+        bool Moved;
+        do
         {
-            bool Moved = false;
+            Moved = false;
             int RankCount = 0;
             foreach (GridNode Node in Placed)
             {
@@ -1495,8 +1497,19 @@ public static partial class DiagramGridLayout
                             Push = DiagramGridMetrics.GRID_UNIT_PX;
                         }
 
-                        ShiftCrossFrom(Placed, Cross(Current, Horizontal, Old: false) - 0.5, Push, Horizontal);
-                        Moved = true;
+                        if (Current.PlacementHintLocked)
+                        {
+                            if (!Previous.PlacementHintLocked)
+                            {
+                                SetCross(Previous, (int)Math.Round(Cross(Previous, Horizontal, Old: false)) - Push, Horizontal);
+                                Moved = true;
+                            }
+                        }
+                        else
+                        {
+                            SetCross(Current, (int)Math.Round(Cross(Current, Horizontal, Old: false)) + Push, Horizontal);
+                            Moved = true;
+                        }
                     }
                 }
             }
@@ -1506,6 +1519,8 @@ public static partial class DiagramGridLayout
                 List<GridNode> Earlier = NodesInRank(Placed, Rank - 1);
                 List<GridNode> Later = NodesInRank(Placed, Rank);
                 int Deficit = 0;
+                GridNode? DeficientBefore = null;
+                GridNode? DeficientAfter = null;
                 foreach (GridNode Before in Earlier)
                 {
                     foreach (GridNode After in Later)
@@ -1514,7 +1529,13 @@ public static partial class DiagramGridLayout
                         int Have = (int)Math.Round(Main(After, Horizontal, Old: false) - Main(Before, Horizontal, Old: false));
                         if (Have < Needed)
                         {
-                            Deficit = Math.Max(Deficit, Needed - Have);
+                            int CandidateDeficit = Needed - Have;
+                            if (CandidateDeficit > Deficit)
+                            {
+                                Deficit = CandidateDeficit;
+                                DeficientBefore = Before;
+                                DeficientAfter = After;
+                            }
                         }
                     }
                 }
@@ -1527,15 +1548,19 @@ public static partial class DiagramGridLayout
                         Push = DiagramGridMetrics.GRID_UNIT_PX;
                     }
 
-                    foreach (GridNode Node in Placed)
+                    bool MoveEarlier = DeficientAfter?.PlacementHintLocked == true
+                        && DeficientBefore?.PlacementHintLocked != true;
+                    bool MoveLater = !MoveEarlier && DeficientAfter?.PlacementHintLocked != true;
+                    if (MoveEarlier)
                     {
-                        if (Node.Rank >= Rank)
-                        {
-                            SetMain(Node, (int)Math.Round(Main(Node, Horizontal, Old: false)) + Push, Horizontal);
-                        }
+                        SetMain(DeficientBefore!, (int)Math.Round(Main(DeficientBefore!, Horizontal, Old: false)) - Push, Horizontal);
+                        Moved = true;
                     }
-
-                    Moved = true;
+                    else if (MoveLater)
+                    {
+                        SetMain(DeficientAfter!, (int)Math.Round(Main(DeficientAfter!, Horizontal, Old: false)) + Push, Horizontal);
+                        Moved = true;
+                    }
                 }
             }
 
@@ -1544,17 +1569,7 @@ public static partial class DiagramGridLayout
                 break;
             }
         }
-    }
-
-    private static void ShiftCrossFrom(List<GridNode> Placed, double FromCross, int Push, bool Horizontal)
-    {
-        foreach (GridNode Node in Placed)
-        {
-            if (Cross(Node, Horizontal, Old: false) >= FromCross)
-            {
-                SetCross(Node, (int)Math.Round(Cross(Node, Horizontal, Old: false)) + Push, Horizontal);
-            }
-        }
+        while (SeenStates.Add(PositionSignature(Placed)));
     }
 
 }

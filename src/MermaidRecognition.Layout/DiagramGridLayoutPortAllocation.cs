@@ -191,6 +191,7 @@ public static partial class DiagramGridLayout
             {
                 Route = Item.Route,
                 IsSource = true,
+                IsHinted = RoutingHint != null,
                 Side = Exit,
                 Box = Item.Source,
                 Other = Item.Target
@@ -199,6 +200,7 @@ public static partial class DiagramGridLayout
             {
                 Route = Item.Route,
                 IsSource = false,
+                IsHinted = RoutingHint != null,
                 Side = Entry,
                 Box = Item.Target,
                 Other = Item.Source
@@ -230,6 +232,8 @@ public static partial class DiagramGridLayout
             bool Diamond = Pair.Key.EndsWith("|diamond", StringComparison.Ordinal);
             if (!Diamond) Group.Sort(delegate(PortEnd Left, PortEnd Right)
             {
+                int HintOrder = Right.IsHinted.CompareTo(Left.IsHinted);
+                if (HintOrder != 0) return HintOrder;
                 bool VerticalSide = Left.Side == "left" || Left.Side == "right";
                 if (VerticalSide)
                 {

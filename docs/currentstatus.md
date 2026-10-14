@@ -23,6 +23,7 @@ This is the only status file. It describes what is true now and what is still to
 2. Work in the main `MarkdownToDocX` folder only. Do not create other local folders.
 3. Use one branch from master and one pull request. Do not merge; Dave approves the merge.
 4. Run the baseline test suites first, so that no new failure goes unnoticed.
+4a. Any single check has a hard ceiling of 60 seconds. Treat every check over 10 seconds as a speed fault to record and fix; aim for a few seconds. Converting one document must stay within 2 minutes, with under 30 seconds as the target.
 5. Work in small steps. After each working step, commit and push, update this file in the same commit, and start the next step from that pushed commit.
 6. Never change an existing test to make it pass, except where a task below says to rewrite it. List clashes for Dave to decide.
 7. After three failed attempts at a task, stop work on that task. Record the lesson under "Do not repeat" and move on to the next task. Do not stop the whole list.

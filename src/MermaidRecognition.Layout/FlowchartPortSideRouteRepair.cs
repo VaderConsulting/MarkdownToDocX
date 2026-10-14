@@ -72,12 +72,17 @@ internal static class FlowchartPortSideRouteRepair
             int BestFaults = BeforeFaults;
             double? BestScore = Before.Score;
             List<(double X, double Y)> OriginalPath = Tuples(Route.Points);
-            foreach (Candidate Candidate in Candidates(Source, Target, Bounds.Values, Direction)
+            int OriginalCorners = Corners(Route.Points);
+            bool OnlyBendCanImprove = Before.Crossings == 0 && Before.Overlaps == 0 && BeforeFaults == 0;
+            bool NeedsDetours = !OnlyBendCanImprove || OriginalCorners > 2;
+            foreach (Candidate Candidate in Candidates(Source, Target, Bounds.Values, Direction,
+                         IncludeDetours: NeedsDetours)
                          .Where(Candidate => Clear(Candidate.Points, Route, Spatial)
                              && PortsAreFree(Candidate, Route, RoutesByEndpoint)
                              && (IsRejected || HasMinimumTerminalRuns(Candidate.Points)
                                  && HasLabelRoom(Candidate.Points, Edge, Contract))))
             {
+                if (OnlyBendCanImprove && Corners(Candidate.Points) >= OriginalCorners) continue;
                 Set(Route, Candidate);
                 HashSet<FlowchartLayoutEdgeRoute> CandidateInteractions =
                     Spatial.QueryRoutes(Candidate.Points, Route).ToHashSet();
@@ -139,7 +144,7 @@ internal static class FlowchartPortSideRouteRepair
 
     private static IEnumerable<Candidate> Candidates(FlowchartLayoutNodeBounds Source,
         FlowchartLayoutNodeBounds Target, IEnumerable<FlowchartLayoutNodeBounds> Boxes,
-        FlowchartDirection Direction, bool RequireFacing = true)
+        FlowchartDirection Direction, bool RequireFacing = true, bool IncludeDetours = true)
     {
         string[] Sides = ["top", "right", "bottom", "left"];
         double Gap = DiagramGridMetrics.NODE_GAP_PX;
@@ -168,6 +173,10 @@ internal static class FlowchartPortSideRouteRepair
                 FlowchartLayoutPoint Bend = StartHorizontal ? Point(End.X, Start.Y) : Point(Start.X, End.Y);
                 List<FlowchartLayoutPoint> Points = Collapse([Start, Bend, End]);
                 if (Directions(Points, Exit, Entry)) yield return New(Points, Exit, Entry, Direction);
+            }
+            else if (!IncludeDetours)
+            {
+                continue;
             }
             else if (StartHorizontal)
             {

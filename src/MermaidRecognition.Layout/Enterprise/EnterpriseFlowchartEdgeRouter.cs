@@ -42,7 +42,14 @@ internal static class EnterpriseFlowchartEdgeRouter
         {
             return new List<EnterpriseRoutedEdge>();
         }
+        return Route(Document, Nodes, Context);
+    }
 
+    internal static List<EnterpriseRoutedEdge> Route(
+        EnterpriseDocument Document,
+        Dictionary<string, EnterpriseLayoutNode> Nodes,
+        EnterpriseFlowchartRoutingContext Context)
+    {
         HashSet<string> UsedEdgeIds = new HashSet<string>(StringComparer.Ordinal);
         var CompoundPorts = new Dictionary<string, List<(double X, double Y)>>(StringComparer.Ordinal);
         List<EnterpriseRoutedEdge> Routed = new List<EnterpriseRoutedEdge>();

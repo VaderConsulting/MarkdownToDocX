@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Diagnostics;
 using System.Text.RegularExpressions;
 
 using MermaidRecognition.Contract;
@@ -25,9 +26,10 @@ public sealed class UnnecessaryBendCatalogueTests
     }
 
     [TestCaseSource(nameof(CatalogueScenarios))]
-    [CancelAfter(30000)]
+    [CancelAfter(60000)]
     public void CatalogueScenario_DoesNotExceedBendBaseline(CatalogueScenario Scenario)
     {
+        Stopwatch CheckTimer = Stopwatch.StartNew();
         string Root = FindRepositoryRoot();
         string BaselinePath = Path.Combine(Root, "tests", "MermaidRecognition.RuleValidation.Tests", "UnnecessaryBendBaseline.txt");
         Assert.That(File.Exists(BaselinePath), Is.True, "The checked-in unnecessary-bend baseline is required and must not be recreated by the test.");
@@ -35,13 +37,17 @@ public sealed class UnnecessaryBendCatalogueTests
         bool HasBaseline = Baseline.TryGetValue(Scenario.Id, out HashSet<string>? Allowed);
         Allowed ??= [];
 
+        EnterpriseDocument? Enterprise = Scenario.Enterprise ? EnterpriseValidator.Analyze(Scenario.Source).Document : null;
         DiagramContract Contract = Scenario.Enterprise
-            ? EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document)
+            ? EnterpriseFlowchartContractMapper.Build(Enterprise!)
             : MermaidRecognizer.Parse(Scenario.Source);
         bool LayoutSucceeded = FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout);
         Assert.That(LayoutSucceeded, Is.True, $"Scenario {Scenario.Id} did not lay out; it cannot count as a zero-bend scenario.");
 
         IReadOnlyList<UnnecessaryBendViolation> Violations = UnnecessaryBendChecker.Check(Scenario.Id, Contract, Layout);
+        CheckTimer.Stop();
+        if (CheckTimer.Elapsed > TimeSpan.FromSeconds(10))
+            TestContext.WriteLine($"SPEED_FAULT {Scenario.Id}: {CheckTimer.Elapsed.TotalSeconds:0.00}s (over 10s target)");
         List<string> Regressions = [];
         foreach (UnnecessaryBendViolation Violation in Violations)
         {

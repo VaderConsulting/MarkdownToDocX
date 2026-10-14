@@ -29,6 +29,7 @@ public static partial class DiagramGridLayout
         public DiagramContract Contract { get; }
         public FlowchartLayoutResult Copy { get; }
         public bool IsReady { get; }
+        public bool SkipRootGroupRepacking { get; set; }
         public FlowchartDirection Direction { get; set; }
         public bool Horizontal { get; set; }
         public bool Open { get; set; }
@@ -88,6 +89,24 @@ public static partial class DiagramGridLayout
 
             AssignRanks(State.Placed, State.Horizontal);
             AssignColumns(State.Placed, State.Horizontal, State.CrossPitch);
+            foreach (GridNode Node in State.Placed)
+            {
+                Node.X = Math.Round((Node.X - Node.Width / 2.0) / DiagramGridMetrics.GRID_UNIT_PX)
+                    * DiagramGridMetrics.GRID_UNIT_PX + Node.Width / 2.0;
+                Node.Y = Math.Round((Node.Y - Node.Height / 2.0) / DiagramGridMetrics.GRID_UNIT_PX)
+                    * DiagramGridMetrics.GRID_UNIT_PX + Node.Height / 2.0;
+            }
+        }
+    }
+
+    private static class PlacementHintStage
+    {
+        public static void Apply(GridLayoutState State)
+        {
+            State.Frames.Clear();
+            BuildFrames(State.Contract, State.Placed, State.Frames);
+            FlowchartPlacementHints.Apply(State.Contract, State.Placed, State.Frames);
+            CaptureHintedNodePositions(State);
         }
     }
 
@@ -106,38 +125,42 @@ public static partial class DiagramGridLayout
             int MainPitch = State.MainPitch;
             FlowchartDirection Direction = State.Direction;
             FlowchartLayoutResult Copy = State.Copy;
+            void Step(string Name, Action Action)
+            {
+                Action();
+            }
 
             if (!Open)
             {
-                ResolveVerticalChordBlockers(Contract, Placed);
+                Step("ResolveVerticalChordBlockers", () => ResolveVerticalChordBlockers(Contract, Placed));
                 if (!ShouldUseSpineColumnLayout(Contract, Placed, Direction))
-                    AlignForwardMainChainColumn(Contract, Placed, Horizontal);
-                AlignFanInMergeColumn(Contract, Placed, Horizontal);
+                    Step("AlignForwardMainChainColumn", () => AlignForwardMainChainColumn(Contract, Placed, Horizontal));
+                Step("AlignFanInMergeColumn", () => AlignFanInMergeColumn(Contract, Placed, Horizontal));
                 if (!ShouldUseSpineColumnLayout(Contract, Placed, Direction))
-                    AlignForwardMainChainColumn(Contract, Placed, Horizontal);
+                    Step("AlignForwardMainChainColumn2", () => AlignForwardMainChainColumn(Contract, Placed, Horizontal));
                 if (ShouldUseSpineColumnLayout(Contract, Placed, Direction))
-                    AlignTwoWayDecisionSideTargets(Contract, Placed);
-                AlignBypassDetourColumns(Contract, Placed, Horizontal);
-                AlignDecisionCentreChildColumn(Contract, Placed, Horizontal);
-                AlignTerminalDecisionTargets(Contract, Placed, Horizontal, CrossPitch, CoordinatesPlaced: false);
-                CentreTerminalFans(Contract, Placed, Horizontal, CoordinatesPlaced: false);
-                AlignSingleTerminalChildren(Contract, Placed, Horizontal, CoordinatesPlaced: false);
-                CascadeColumns(Placed);
-                PlaceOnGrid(Placed, Horizontal, BoxWidth, BoxHeight, MainPitch, CrossPitch, Copy, Contract);
-                if (!Horizontal) ApplySpineColumnAdjustments(Contract, Placed, Direction);
-                AlignTerminalDecisionTargets(Contract, Placed, Horizontal, CrossPitch, CoordinatesPlaced: true);
-                CentreTerminalFans(Contract, Placed, Horizontal, CoordinatesPlaced: true);
-                AlignSingleTerminalChildren(Contract, Placed, Horizontal, CoordinatesPlaced: true);
-                AlignUnbranchedDecisionInputs(Contract, Placed, Horizontal);
-                AlignHorizontalRetryOutcomes(Contract, Placed, Horizontal);
-                AlignSimpleDecisionMerges(Contract, Placed, Horizontal, CrossPitch);
-                AlignDecisionDetours(Contract, Placed, Horizontal, CrossPitch);
-                AlignVerticalLoopBranches(Contract, Placed, Horizontal, CrossPitch);
+                    Step("AlignTwoWayDecisionSideTargets", () => AlignTwoWayDecisionSideTargets(Contract, Placed));
+                Step("AlignBypassDetourColumns", () => AlignBypassDetourColumns(Contract, Placed, Horizontal));
+                Step("AlignDecisionCentreChildColumn", () => AlignDecisionCentreChildColumn(Contract, Placed, Horizontal));
+                Step("AlignTerminalDecisionTargets0", () => AlignTerminalDecisionTargets(Contract, Placed, Horizontal, CrossPitch, CoordinatesPlaced: false));
+                Step("CentreTerminalFans0", () => CentreTerminalFans(Contract, Placed, Horizontal, CoordinatesPlaced: false));
+                Step("AlignSingleTerminalChildren0", () => AlignSingleTerminalChildren(Contract, Placed, Horizontal, CoordinatesPlaced: false));
+                Step("CascadeColumns", () => CascadeColumns(Placed));
+                Step("PlaceOnGrid", () => PlaceOnGrid(Placed, Horizontal, BoxWidth, BoxHeight, MainPitch, CrossPitch, Copy, Contract));
+                if (!Horizontal) Step("ApplySpineColumnAdjustments", () => ApplySpineColumnAdjustments(Contract, Placed, Direction));
+                Step("AlignTerminalDecisionTargets1", () => AlignTerminalDecisionTargets(Contract, Placed, Horizontal, CrossPitch, CoordinatesPlaced: true));
+                Step("CentreTerminalFans1", () => CentreTerminalFans(Contract, Placed, Horizontal, CoordinatesPlaced: true));
+                Step("AlignSingleTerminalChildren1", () => AlignSingleTerminalChildren(Contract, Placed, Horizontal, CoordinatesPlaced: true));
+                Step("AlignUnbranchedDecisionInputs", () => AlignUnbranchedDecisionInputs(Contract, Placed, Horizontal));
+                Step("AlignHorizontalRetryOutcomes", () => AlignHorizontalRetryOutcomes(Contract, Placed, Horizontal));
+                Step("AlignSimpleDecisionMerges", () => AlignSimpleDecisionMerges(Contract, Placed, Horizontal, CrossPitch));
+                Step("AlignDecisionDetours", () => AlignDecisionDetours(Contract, Placed, Horizontal, CrossPitch));
+                Step("AlignVerticalLoopBranches", () => AlignVerticalLoopBranches(Contract, Placed, Horizontal, CrossPitch));
                 State.PartnerRanks = FlowchartPartnerRankLayout.Find(Contract, Placed, Horizontal);
                 FlowchartPartnerRankLayout.Prepare(State.PartnerRanks, Horizontal);
-                CompactIndependentFanIn(Contract, Placed, Horizontal, CrossPitch);
-                State.SharedFanSources = AlignSharedFanSourcesAndTails(Contract, Placed, Horizontal);
-                FlowchartCircularJunctionLayout.AlignFans(Contract, Placed, Horizontal);
+                Step("CompactIndependentFanIn", () => CompactIndependentFanIn(Contract, Placed, Horizontal, CrossPitch));
+                Step("AlignSharedFanSourcesAndTails", () => State.SharedFanSources = AlignSharedFanSourcesAndTails(Contract, Placed, Horizontal));
+                Step("AlignFans", () => FlowchartCircularJunctionLayout.AlignFans(Contract, Placed, Horizontal));
             }
             else
             {
@@ -145,24 +168,23 @@ public static partial class DiagramGridLayout
                 FlowchartPartnerRankLayout.Prepare(State.PartnerRanks, Horizontal, Align: false);
             }
 
-            GrowCrowdedSides(Contract, Placed, Copy, BoxWidth, BoxHeight);
-            GrowParallelRelationshipSides(Contract, Placed, Horizontal);
-            SeparateOverlaps(Placed, Horizontal);
+            Step("GrowCrowdedSides", () => GrowCrowdedSides(Contract, Placed, Copy, BoxWidth, BoxHeight));
+            Step("GrowParallelRelationshipSides", () => GrowParallelRelationshipSides(Contract, Placed, Horizontal));
+            Step("SeparateOverlaps", () => SeparateOverlaps(Placed, Horizontal));
             if (!Open)
             {
-                FlowchartTerminalBranchPlacement.Apply(Contract, Placed, Horizontal, CrossPitch);
-                FlowchartTerminalInputPlacement.Apply(Contract, Placed, Horizontal, CrossPitch);
-                FlowchartGridCompaction.Apply(Placed, Horizontal, Math.Max(CrossPitch, Contract.Groups.Count > 0 ? 60 : DiagramGridMetrics.NODE_GAP_PX));
-                FlowchartSparseRankCompaction.Apply(Contract, Placed, Horizontal);
-                FlowchartJunctionBranchCompaction.Apply(Contract, Placed, Horizontal);
-                FlowchartTerminalRowPlacement.Apply(Contract, Placed, Horizontal);
-                FlowchartChainWrapping.Apply(Contract, Placed, Horizontal);
-                FlowchartFanPacking.Apply(Contract, Placed);
-                State.RepairExteriorCrossings = FlowchartComponentWrapping.Apply(Contract, Placed, Horizontal);
-                FlowchartDisconnectedPacking.Apply(Contract, Placed);
-                FlowchartGroupMemberPacking.Apply(Contract, Placed);
+                Step("TerminalBranchPlacement", () => FlowchartTerminalBranchPlacement.Apply(Contract, Placed, Horizontal, CrossPitch));
+                Step("TerminalInputPlacement", () => FlowchartTerminalInputPlacement.Apply(Contract, Placed, Horizontal, CrossPitch));
+                Step("GridCompaction", () => FlowchartGridCompaction.Apply(Placed, Horizontal, Math.Max(CrossPitch, Contract.Groups.Count > 0 ? 60 : DiagramGridMetrics.NODE_GAP_PX)));
+                Step("SparseRankCompaction", () => FlowchartSparseRankCompaction.Apply(Contract, Placed, Horizontal));
+                Step("JunctionBranchCompaction", () => FlowchartJunctionBranchCompaction.Apply(Contract, Placed, Horizontal));
+                Step("TerminalRowPlacement", () => FlowchartTerminalRowPlacement.Apply(Contract, Placed, Horizontal));
+                Step("ChainWrapping", () => FlowchartChainWrapping.Apply(Contract, Placed, Horizontal));
+                Step("FanPacking", () => FlowchartFanPacking.Apply(Contract, Placed));
+                Step("ComponentWrapping", () => State.RepairExteriorCrossings = FlowchartComponentWrapping.Apply(Contract, Placed, Horizontal));
+                Step("DisconnectedPacking", () => FlowchartDisconnectedPacking.Apply(Contract, Placed));
+                Step("GroupMemberPacking", () => FlowchartGroupMemberPacking.Apply(Contract, Placed));
             }
-            RestoreHintedNodePositions(State);
         }
     }
 
@@ -177,47 +199,34 @@ public static partial class DiagramGridLayout
             bool Open = State.Open;
             List<GridFrame> Frames = State.Frames;
             if (!Open) CenterLoneNestedGroups(Contract, Placed, Horizontal);
-            if (!Open)
+            if (!Open && !State.SkipRootGroupRepacking)
                 CompactOverlappingRootGroups(Contract, Placed, Frames, Horizontal);
             Frames.Clear();
             BuildFrames(Contract, Placed, Frames);
-            FlowchartPlacementHints.Apply(Contract, Placed, Frames);
-            CaptureHintedNodePositions(State);
-            Frames.Clear();
-            BuildFrames(Contract, Placed, Frames);
-            RestoreHintedNodePositions(State);
             FitFrames(Contract, Placed, Frames, Horizontal);
             if (FlowchartPartnerRankLayout.GrowGaps(Contract, Placed, Frames, State.PartnerRanks, Horizontal))
             {
-                RestoreHintedNodePositions(State);
                 FitFrames(Contract, Placed, Frames, Horizontal);
             }
             if (!Open && FlowchartGroupedLeafPlacement.Apply(Contract, Placed, Frames, Horizontal))
             {
-                RestoreHintedNodePositions(State);
                 FitFrames(Contract, Placed, Frames, Horizontal);
             }
             if (!Open && FlowchartExternalLeafPlacement.Apply(Contract, Placed, Frames, Horizontal))
             {
-                RestoreHintedNodePositions(State);
                 FitFrames(Contract, Placed, Frames, Horizontal);
             }
             if (!Open)
             {
                 FlowchartIntergroupNodePlacement.Apply(Contract, Placed, Frames, Horizontal);
-                RestoreHintedNodePositions(State);
             }
             if (!Open)
             {
                 Frames.Clear();
                 BuildFrames(Contract, Placed, Frames);
-                RestoreHintedNodePositions(State);
-                Frames.Clear();
-                BuildFrames(Contract, Placed, Frames);
             }
             if (GrowTerminalSameRankLabelGaps(Contract, Placed, Horizontal))
             {
-                RestoreHintedNodePositions(State);
                 FitFrames(Contract, Placed, Frames, Horizontal);
             }
             ResolveHintedTerminalClearance(State);
@@ -547,18 +556,32 @@ public static partial class DiagramGridLayout
             Hinted.UnionWith(Group.ChildNodeIds);
             foreach (string ChildGroupId in Group.ChildGroupIds) Pending.Push(ChildGroupId);
         }
-        foreach (GridNode Node in State.Placed.Where(Node => Hinted.Contains(Node.Id)))
-            State.HintedNodePositions[Node.Id] = (Node.X, Node.Y);
-    }
-
-    private static void RestoreHintedNodePositions(GridLayoutState State)
-    {
-        foreach (GridNode Node in State.Placed)
-            if (State.HintedNodePositions.TryGetValue(Node.Id, out var Position))
+        foreach (PlacementHintContract Hint in State.Contract.Nodes.Select(Node => Node.PlacementHint)
+                     .Concat(State.Contract.Groups.Select(Group => Group.PlacementHint))
+                     .Where(Hint => Hint?.IsActive == true).Cast<PlacementHintContract>())
+        {
+            if (Hint.PeerId == null) continue;
+            if (Groups.ContainsKey(Hint.PeerId))
             {
-                Node.X = Position.X;
-                Node.Y = Position.Y;
+                Pending.Push(Hint.PeerId);
+                while (Pending.Count > 0)
+                {
+                    string GroupId = Pending.Pop();
+                    if (!Groups.TryGetValue(GroupId, out GroupContract? Group)) continue;
+                    Hinted.UnionWith(Group.ChildNodeIds);
+                    foreach (string ChildGroupId in Group.ChildGroupIds) Pending.Push(ChildGroupId);
+                }
             }
+            else if (State.Placed.Any(Node => Node.Id == Hint.PeerId))
+            {
+                Hinted.Add(Hint.PeerId);
+            }
+        }
+        foreach (GridNode Node in State.Placed.Where(Node => Hinted.Contains(Node.Id)))
+        {
+            State.HintedNodePositions[Node.Id] = (Node.X, Node.Y);
+            Node.PlacementHintLocked = true;
+        }
     }
 
     private static class LegalityValidationStage

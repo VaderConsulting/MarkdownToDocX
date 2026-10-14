@@ -16,8 +16,6 @@ public static partial class DiagramGridLayout
 {
     private const int STUB_PX = 15;
 
-    private const int MAX_SEPARATION_PASSES = 32;
-
     /// <summary>
     /// Returns a Y-up copy of <paramref name="LaidOut"/> with shared box sizes, grid positions,
     /// group frames that include a title strip, and orthogonal routes from the new ports.
@@ -29,16 +27,27 @@ public static partial class DiagramGridLayout
     public static FlowchartLayoutResult Apply(
         DiagramContract Contract,
         FlowchartLayoutResult LaidOut,
-        FlowchartRenderContext? RenderContext = null)
+        FlowchartRenderContext? RenderContext = null) =>
+        ApplyCore(Contract, LaidOut, RenderContext, SkipRootGroupRepacking: false);
+
+    internal static FlowchartLayoutResult ApplyForGroupReflow(DiagramContract Contract, FlowchartLayoutResult LaidOut) =>
+        ApplyCore(Contract, LaidOut, LaidOut.RenderContext, SkipRootGroupRepacking: true);
+
+    private static FlowchartLayoutResult ApplyCore(
+        DiagramContract Contract,
+        FlowchartLayoutResult LaidOut,
+        FlowchartRenderContext? RenderContext,
+        bool SkipRootGroupRepacking)
     {
-        GridLayoutState State = new(Contract, LaidOut, RenderContext);
+        GridLayoutState State = new(Contract, LaidOut, RenderContext) { SkipRootGroupRepacking = SkipRootGroupRepacking };
         if (!State.IsReady) return State.Copy;
         FlowchartRenderContext Context = State.Copy.RenderContext;
         Context.LayoutStageTrace.Clear();
         Context.LayoutStageViolations.Clear();
         Run("grid-and-measured-geometry", GridPreparationStage.Apply);
-        Run("automatic-node-placement", NodePlacementStage.Apply);
-        Run("group-frames-and-placement-hints", GroupFrameStage.Apply);
+        Run("placement-hints-2.21", PlacementHintStage.Apply);
+        Run("automatic-node-placement-2.x", NodePlacementStage.Apply);
+        Run("group-frame-fitting", GroupFrameStage.Apply);
         Run("route-coordinate-preparation", RouteCoordinateStage.Apply);
         Run("joint-port-allocation-4.7", JointPortAllocationStage.Apply);
         Run("line-routing-hints-3.1-3.7", RoutingHintStage.Apply);
@@ -70,6 +79,10 @@ public static partial class DiagramGridLayout
             Route.TargetId = Edge.TargetId;
         }
     }
+
+    private static string PositionSignature(IEnumerable<GridNode> Nodes) => string.Join("|",
+        Nodes.OrderBy(Node => Node.Id, StringComparer.Ordinal).Select(Node =>
+            $"{Node.Id}:{BitConverter.DoubleToInt64Bits(Node.X):X16},{BitConverter.DoubleToInt64Bits(Node.Y):X16},{Node.Width},{Node.Height}"));
 
     /// <summary>
     /// Gives a labelled straight cross-axis connection enough measured room without
@@ -167,10 +180,11 @@ public static partial class DiagramGridLayout
     }
 
     internal static bool GrowFacingDoglegGaps(FlowchartLayoutResult Layout, DiagramContract Contract,
-        List<GridNode> Placed, List<GridFrame> Frames)
+        List<GridNode> Placed, List<GridFrame> Frames, IEnumerable<string>? ExcludedNodeIds = null)
     {
         HashSet<string> PinnedEndpoints = Contract.Edges.Where(Edge => Edge.RoutingHint?.IsActive == true)
             .SelectMany(Edge => new[] { Edge.SourceId, Edge.TargetId }).ToHashSet(StringComparer.Ordinal);
+        if (ExcludedNodeIds != null) PinnedEndpoints.UnionWith(ExcludedNodeIds);
         HashSet<string> HintedEdgeIds = Contract.Edges.Where(Edge => Edge.RoutingHint?.IsActive == true)
             .Select(Edge => Edge.Id).OfType<string>().ToHashSet(StringComparer.Ordinal);
         var BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
@@ -208,10 +222,10 @@ public static partial class DiagramGridLayout
             foreach (var Other in Layout.EdgeRoutes)
             {
                 if (HintedEdgeIds.Contains(Other.EdgeId)) continue;
-            foreach (var Point in Other.Points)
-            {
-                if (Horizontal) Point.X = Move(Point.X); else Point.Y = Move(Point.Y);
-            }
+                foreach (var Point in Other.Points)
+                {
+                    if (Horizontal) Point.X = Move(Point.X); else Point.Y = Move(Point.Y);
+                }
             }
             Frames.Clear();
             BuildFrames(Contract, Placed, Frames);
@@ -601,9 +615,12 @@ public static partial class DiagramGridLayout
 
         public double OldY;
 
-        public double X;
-
-        public double Y;
+        private double _x;
+        private double _y;
+        public bool PlacementHintLocked;
+        public double X { get => _x; set { if (!PlacementHintLocked) _x = value; } }
+        public double Y { get => _y; set { if (!PlacementHintLocked) _y = value; } }
+        public void SetYAfterCoordinateTransform(double Value) => _y = Value;
 
         public int Width;
 
@@ -856,6 +873,8 @@ public static partial class DiagramGridLayout
         public bool IsSource;
 
         public bool KeepsCentre;
+
+        public bool IsHinted;
 
         public string Side = string.Empty;
 

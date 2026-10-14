@@ -119,7 +119,7 @@ public static partial class DiagramGridLayout
             {
                 if (FlowchartDagrePlacement.TryPlace(Local, out var LocalRaw))
                 {
-                    var LocalLayout = Apply(Local, LocalRaw);
+                    var LocalLayout = ApplyForGroupReflow(Local, LocalRaw);
                     foreach (var Bounds in LocalLayout.NodeBounds)
                     {
                         var Member = Members.Find(Node => Node.Id == Bounds.NodeId)!;
@@ -168,13 +168,18 @@ public static partial class DiagramGridLayout
 
     private static void FitFrames(DiagramContract Contract, List<GridNode> Placed, List<GridFrame> Frames, bool Horizontal)
     {
-        for (int Pass = 0; Pass < MAX_SEPARATION_PASSES; Pass++)
+        HashSet<string> SeenStates = new(StringComparer.Ordinal) { PositionSignature(Placed) };
+        while (true)
         {
             Frames.Clear();
             BuildFrames(Contract, Placed, Frames);
             // Keep sibling containers intact before clearing individual outsiders.
             // Evicting their members first can stretch both frames repeatedly.
-            if (SeparateSiblingFrames(Contract, Placed, Frames, Horizontal)) continue;
+            if (SeparateSiblingFrames(Contract, Placed, Frames, Horizontal))
+            {
+                if (SeenStates.Add(PositionSignature(Placed))) continue;
+                break;
+            }
             bool Moved = false;
             foreach (GridFrame Frame in Frames)
             {
@@ -236,10 +241,8 @@ public static partial class DiagramGridLayout
                 }
             }
 
-            if (!Moved && !SeparateSiblingFrames(Contract, Placed, Frames, Horizontal))
-            {
-                break;
-            }
+            bool SeparatedSiblingFrames = !Moved && SeparateSiblingFrames(Contract, Placed, Frames, Horizontal);
+            if ((!Moved && !SeparatedSiblingFrames) || !SeenStates.Add(PositionSignature(Placed))) break;
         }
     }
 
@@ -744,7 +747,7 @@ public static partial class DiagramGridLayout
 
         foreach (GridNode Node in Placed)
         {
-            Node.Y = Flip - Node.Y;
+            Node.SetYAfterCoordinateTransform(Flip - Node.Y);
             Node.OldY = Flip - Node.OldY;
         }
 
