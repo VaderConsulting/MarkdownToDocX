@@ -47,6 +47,7 @@ public static partial class DiagramGridLayout
         public HashSet<string> ObstacleRouteStates { get; } = new(StringComparer.Ordinal);
         public HashSet<string> PortSideRouteStates { get; } = new(StringComparer.Ordinal);
         public HashSet<string> CrossGroupRouteStates { get; } = new(StringComparer.Ordinal);
+        public HashSet<string> ConvergenceRouteStates { get; } = new(StringComparer.Ordinal);
         public bool RepairExteriorCrossings { get; set; }
         public List<GridFrame> Frames { get; } = [];
         public Dictionary<FlowchartLayoutEdgeRoute, HintedRoute> HintedRoutes { get; } = [];
@@ -386,7 +387,8 @@ public static partial class DiagramGridLayout
             }),
             new("4.11", State =>
             {
-                if (!State.Open) FlowchartConvergenceRouteRepair.Apply(State.Copy, State.Contract);
+                if (!State.Open) FlowchartConvergenceRouteRepair.Apply(
+                    State.Copy, State.Contract, State.ConvergenceRouteStates);
             }),
             new("4.2,6.1,6.2", State =>
             {

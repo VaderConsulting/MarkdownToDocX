@@ -99,6 +99,17 @@ public sealed class GroupFrameRefitProfileTests
             var Score = FlowchartLayoutScore.Measure(Contract, Layout, IncludeArrangementCheck: false);
             Timer.Stop();
             double ScoreMs = Timer.Elapsed.TotalMilliseconds;
+            if (ScenarioId == "A142" && Layout.EdgeRoutes.Count > 0)
+            {
+                var Incremental = new FlowchartLayoutScore.IncrementalContext(
+                    Contract, Layout, IncludeArrangementCheck: false)
+                    .MeasureCandidateSummary(Layout.EdgeRoutes[0], null);
+                Assert.That(Incremental.Score, Is.EqualTo(Score.Score), "A142 incremental score");
+                Assert.That(Incremental.OptimizationScore, Is.EqualTo(Score.OptimizationScore),
+                    "A142 incremental optimization score");
+                Assert.That(Incremental.Crossings, Is.EqualTo(Score.Crossings), "A142 incremental crossings");
+                Assert.That(Incremental.Overlaps, Is.EqualTo(Score.Overlaps), "A142 incremental overlaps");
+            }
             File.AppendAllText(StagePath, $"score elapsed: {ScoreMs:0.0} ms{Environment.NewLine}");
             File.AppendAllLines(TracePath, FitPassEvents);
             File.AppendAllLines(StagePath, StageEvents);

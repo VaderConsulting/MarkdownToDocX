@@ -19,9 +19,11 @@ internal static class FlowchartConvergenceRouteRepair
     private static readonly double MinimumRun = DiagramGridRouteBuilder.CORNER_RADIUS_PX
         + DiagramGridMetrics.GRID_UNIT_PX;
 
-    internal static void Apply(FlowchartLayoutResult Layout, DiagramContract Contract)
+    internal static void Apply(FlowchartLayoutResult Layout, DiagramContract Contract,
+        HashSet<string>? AttemptedRouteStates = null)
     {
         if (Layout.EdgeRoutes.Count == 0) return;
+        AttemptedRouteStates ??= new(StringComparer.Ordinal);
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         var Bounds = Layout.NodeBounds.Concat(Layout.ClusterBounds)
             .ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
@@ -32,6 +34,8 @@ internal static class FlowchartConvergenceRouteRepair
 
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes.ToList())
         {
+            string StateKey = RouteStateKey(Route, Spatial);
+            if (!AttemptedRouteStates.Add(StateKey)) continue;
             if (Route.Points.Count < 3 || !Bounds.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds? Source)
                 || !Bounds.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds? Target)
                 || IncomingCount(Contract, Route.TargetId) < 2
@@ -106,6 +110,13 @@ internal static class FlowchartConvergenceRouteRepair
                 != (Math.Abs(Points[Index + 1].Y - Points[Index].Y) < EPSILON)) Count++;
         return Count;
     }
+
+    private static string RouteStateKey(FlowchartLayoutEdgeRoute Route, FlowchartRouteSpatialIndex Spatial) =>
+        Route.EdgeId + "|" + Route.ExitSide + "|" + Route.EntrySide + "|"
+        + string.Join(";", Route.Points.Select(Point =>
+            BitConverter.DoubleToInt64Bits(Point.X).ToString("X16") + ","
+            + BitConverter.DoubleToInt64Bits(Point.Y).ToString("X16")))
+        + "|" + Spatial.DependencySignature(Route.Points);
 
     private static bool Legal(IReadOnlyList<FlowchartLayoutPoint> Points, FlowchartLayoutEdgeRoute Route,
         FlowchartLayoutResult Layout, DiagramContract Contract,
