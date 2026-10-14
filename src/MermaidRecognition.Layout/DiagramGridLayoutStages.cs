@@ -509,6 +509,16 @@ public static partial class DiagramGridLayout
                 Before = After;
                 BestRoutes = CaptureRoutes(State.Copy);
             }
+            HashSet<FlowchartLayoutEdgeRoute> ReallocatedRoutes = RedistributeAllocatedPorts(
+                State.Contract, State.Copy, State.Placed, State.Frames, State.Nodes);
+            if (ReallocatedRoutes.Count > 0)
+            {
+                DiagramGridRouteBuilder.RebuildAllRoutes(State.Copy, State.Placed, State.Nodes,
+                    State.Contract, State.Frames, State.Direction, ReallocatedRoutes);
+                RebuildOrdinaryFanOutRoutes(State.Contract, State.Copy, State.Placed,
+                    State.Frames, State.Nodes, State.Direction,
+                    ReallocatedRoutes.Select(Route => Route.SourceId).ToHashSet(StringComparer.Ordinal));
+            }
         }
 
         private static Dictionary<string, string> RouteGeometry(FlowchartLayoutResult Layout) =>

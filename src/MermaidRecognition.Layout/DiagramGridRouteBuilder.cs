@@ -218,7 +218,8 @@ public static class DiagramGridRouteBuilder
         Dictionary<string, NodeContract> Nodes,
         DiagramContract Contract,
         IReadOnlyList<DiagramGridLayout.GridFrame> Frames,
-        FlowchartDirection Direction)
+        FlowchartDirection Direction,
+        IReadOnlySet<FlowchartLayoutEdgeRoute>? OnlyRoutes = null)
     {
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = BuildBounds(Placed, Frames);
         bool Horizontal = Direction == FlowchartDirection.LeftToRight
@@ -226,6 +227,11 @@ public static class DiagramGridRouteBuilder
 
         foreach (FlowchartLayoutEdgeRoute Route in Copy.EdgeRoutes)
         {
+            if (OnlyRoutes != null && !OnlyRoutes.Contains(Route))
+            {
+                continue;
+            }
+
             if (Route.Points.Count < 2)
             {
                 continue;

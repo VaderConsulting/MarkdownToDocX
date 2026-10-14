@@ -945,7 +945,7 @@ public sealed class FlowchartCatalogueRenderTests
             "W1",
             "Agg",
             FlowchartEdgeAttachFace.Top,
-            FlowchartEdgeRouteKind.Curved);
+            FlowchartEdgeRouteKind.Corridor);
 
         AssertEdgeSourceFace(
             Contract,
@@ -965,7 +965,7 @@ public sealed class FlowchartCatalogueRenderTests
             "W3",
             "Agg",
             FlowchartEdgeAttachFace.Top,
-            FlowchartEdgeRouteKind.Curved);
+            FlowchartEdgeRouteKind.Corridor);
 
         foreach (string WorkerId in new[] { "W1", "W2", "W3" })
         {
@@ -1000,6 +1000,14 @@ public sealed class FlowchartCatalogueRenderTests
 
             Assert.That(TargetFace, Is.EqualTo(ExpectedFace), $"{WorkerId} should enter Aggregate on the face that faces it (spec §15.0C.1)");
         }
+
+        double[] TargetPorts = Layout.EdgeRoutes.Where(Route => Route.TargetId == "Agg")
+            .Select(Route => Route.Points[^1].X).OrderBy(X => X).ToArray();
+        Assert.That(TargetPorts, Has.Length.EqualTo(3));
+        Assert.That((TargetPorts[0] + TargetPorts[^1]) / 2.0,
+            Is.EqualTo(BoundsById["Agg"].CenterX).Within(1.0));
+        Assert.That(TargetPorts[1] - TargetPorts[0],
+            Is.EqualTo(TargetPorts[2] - TargetPorts[1]).Within(1.0));
     }
 
     [Test]

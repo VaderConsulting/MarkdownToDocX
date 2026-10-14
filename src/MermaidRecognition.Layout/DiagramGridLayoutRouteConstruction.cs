@@ -16,12 +16,18 @@ public static partial class DiagramGridLayout
         List<GridNode> Placed,
         List<GridFrame> Frames,
         Dictionary<string, NodeContract> Nodes,
-        FlowchartDirection Direction)
+        FlowchartDirection Direction,
+        IReadOnlySet<string>? SourceIds = null)
     {
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = BuildPlacedBounds(Placed, Frames);
 
         foreach (FlowchartLayoutEdgeRoute Route in Copy.EdgeRoutes)
         {
+            if (SourceIds != null && !SourceIds.Contains(Route.SourceId))
+            {
+                continue;
+            }
+
             if (!Nodes.TryGetValue(Route.SourceId, out NodeContract? SourceNode)
                 || FlowchartDagrePresentation.IsDiamondShape(SourceNode.Shape))
             {

@@ -260,6 +260,110 @@ public static partial class DiagramGridLayout
             .OrderBy(Edge => Edge.CreationIndex).FirstOrDefault();
     }
 
+    private static HashSet<FlowchartLayoutEdgeRoute> RedistributeAllocatedPorts(
+        DiagramContract Contract,
+        FlowchartLayoutResult Layout,
+        List<GridNode> Placed,
+        List<GridFrame> Frames,
+        Dictionary<string, NodeContract> Nodes)
+    {
+        Dictionary<string, GridNode> ById = IndexPlaced(Placed);
+        Dictionary<string, GridFrame> FrameById = Frames.ToDictionary(Frame => Frame.Id, StringComparer.Ordinal);
+        Dictionary<string, List<PortEnd>> Groups = new(StringComparer.Ordinal);
+        Dictionary<FlowchartLayoutEdgeRoute, ((double X, double Y) Start, (double X, double Y) End)> OriginalEndpoints = [];
+        Dictionary<string, HashSet<string>> TargetsBySource = Contract.Edges
+            .GroupBy(Edge => Edge.SourceId, StringComparer.Ordinal)
+            .ToDictionary(Group => Group.Key, Group => Group.Select(Edge => Edge.TargetId).ToHashSet(StringComparer.Ordinal), StringComparer.Ordinal);
+        Dictionary<string, HashSet<string>> SourcesByTarget = Contract.Edges
+            .GroupBy(Edge => Edge.TargetId, StringComparer.Ordinal)
+            .ToDictionary(Group => Group.Key, Group => Group.Select(Edge => Edge.SourceId).ToHashSet(StringComparer.Ordinal), StringComparer.Ordinal);
+        HashSet<string> DenseSourceNodes = TargetsBySource
+            .Where(Pair => TargetsBySource.Any(Other => Other.Key != Pair.Key
+                && Pair.Value.Intersect(Other.Value, StringComparer.Ordinal).Count() >= 2))
+            .Select(Pair => Pair.Key).ToHashSet(StringComparer.Ordinal);
+        HashSet<string> DenseTargetNodes = SourcesByTarget
+            .Where(Pair => SourcesByTarget.Any(Other => Other.Key != Pair.Key
+                && Pair.Value.Intersect(Other.Value, StringComparer.Ordinal).Count() >= 2))
+            .Select(Pair => Pair.Key).ToHashSet(StringComparer.Ordinal);
+        // A complete many-to-many block has a jointly optimised track order. Repacking
+        // its endpoints independently would undo that crossing reduction.
+        foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
+        {
+            if (Route.Points.Count < 2
+                || string.IsNullOrEmpty(Route.ExitSide)
+                || string.IsNullOrEmpty(Route.EntrySide)
+                || !TryBox(Route.SourceId, ById, FrameById, out BoxRef Source)
+                || !TryBox(Route.TargetId, ById, FrameById, out BoxRef Target))
+            {
+                continue;
+            }
+
+            bool IsHinted = FindContractEdge(Contract, Route)?.RoutingHint?.IsActive == true;
+            if (IsHinted) continue;
+            OriginalEndpoints[Route] = ((Route.Points[0].X, Route.Points[0].Y),
+                (Route.Points[^1].X, Route.Points[^1].Y));
+            if (!DenseSourceNodes.Contains(Route.SourceId))
+            {
+                Add(Source, Target, Route, true, Route.ExitSide);
+            }
+            if (!DenseTargetNodes.Contains(Route.TargetId))
+            {
+                Add(Target, Source, Route, false, Route.EntrySide);
+            }
+        }
+
+        foreach (KeyValuePair<string, List<PortEnd>> Pair in Groups)
+        {
+            List<PortEnd> Ends = Pair.Value;
+            bool Diamond = Pair.Key.EndsWith("|diamond", StringComparison.Ordinal);
+            if (!Diamond)
+            {
+                Ends.Sort((Left, Right) =>
+                {
+                    int HintOrder = Right.IsHinted.CompareTo(Left.IsHinted);
+                    if (HintOrder != 0) return HintOrder;
+                    bool VerticalSide = Left.Side is "left" or "right";
+                    return VerticalSide
+                        ? Right.Other.CenterY.CompareTo(Left.Other.CenterY)
+                        : Left.Other.CenterX.CompareTo(Right.Other.CenterX);
+                });
+            }
+            if (!Diamond)
+                ApplySlots(Ends, Nodes);
+        }
+
+        HashSet<FlowchartLayoutEdgeRoute> Changed = [];
+        foreach (KeyValuePair<FlowchartLayoutEdgeRoute, ((double X, double Y) Start, (double X, double Y) End)> Pair in OriginalEndpoints)
+        {
+            FlowchartLayoutEdgeRoute Route = Pair.Key;
+            if (Pair.Value.Start != (Route.Points[0].X, Route.Points[0].Y)
+                || Pair.Value.End != (Route.Points[^1].X, Route.Points[^1].Y))
+            {
+                Changed.Add(Route);
+            }
+        }
+        return Changed;
+
+        void Add(BoxRef Box, BoxRef Other, FlowchartLayoutEdgeRoute Route,
+            bool IsSource, string Side)
+        {
+            bool Diamond = !Box.IsFrame && Nodes.TryGetValue(Box.Id, out NodeContract? Node)
+                && FlowchartDagrePresentation.IsDiamondShape(Node.Shape);
+            string Key = Box.Id + (Diamond ? "|diamond" : "|" + Side);
+            if (!Groups.TryGetValue(Key, out List<PortEnd>? Ends))
+                Groups[Key] = Ends = [];
+            Ends.Add(new PortEnd
+            {
+                Route = Route,
+                IsSource = IsSource,
+                IsHinted = false,
+                Side = Side,
+                Box = Box,
+                Other = Other
+            });
+        }
+    }
+
     private static bool IsEnterpriseJunction(string NodeId, IReadOnlyDictionary<string, NodeContract> Nodes)
     {
         return Nodes.TryGetValue(NodeId, out NodeContract? Node)
@@ -400,14 +504,15 @@ public static partial class DiagramGridLayout
         if (CentreEnd >= 0)
         {
             SlotCount = Math.Max(SlotCount, 2 * Math.Max(CentreEnd, Group.Count - CentreEnd - 1) + 1);
-            if (SlotCount % 2 == 0) { SlotCount++; }
+            if (SlotCount % 2 == 0) SlotCount++;
         }
         int[] Centres = DiagramGridMetrics.EqualCentres(Math.Max(1, Length - 2 * CornerInset), SlotCount);
         int[] Indexes = DiagramGridMetrics.SelectSlotIndexes(Group.Count, SlotCount);
         for (int Index = 0; Index < Group.Count; Index++)
         {
             int Slot = CentreEnd >= 0
-                ? SlotCount / 2 + Index - CentreEnd : Indexes[Math.Min(Index, Indexes.Length - 1)];
+                ? SlotCount / 2 + Index - CentreEnd
+                : Indexes[Math.Min(Index, Indexes.Length - 1)];
             int Along = CornerInset + Centres[Slot];
             int X;
             int Y;
