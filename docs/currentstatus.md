@@ -78,6 +78,7 @@ This is the only status file. It describes what is true now and what is still to
     - **Done when** the baseline is empty or each remaining item is listed with its reason.
 
 6. **Recorded layout faults - open. Do it after task 5; most may clear on their own after tasks 3 and 5.** Re-measure each after task 5 and fix the rest generically, with no scenario-specific code.
+    - **Document conversion speed fault (2026-10-14):** `enterprise.md` currently takes about 20 minutes to convert, exceeding the 2-minute hard limit by 10x. Highest priority is to time every Mermaid diagram in `enterprise.md`, `flow.md` and `EIP.md` independently with a 60-second watchdog, sum the times, and identify the slowest twenty and the stage with the greatest aggregate cost. Do not use a full-document conversion as a per-diagram timing substitute. Fix the dominant shared stage while retaining the crossing/overlap benchmark gate and same-or-better diagram scores; record timings, results and the new document total after every fix. Any diagram/check over 10 seconds is a speed fault; no individual check may exceed 60 seconds.
     - F153, A114 and A117 fail line rules. A117 has four routes with more than two corners plus placement-side violations.
     - A142 is sparse (7750 x 5870, 51 crossings, 45.8% empty) and its Web Shop, Order Manager and Payment Hub regions are loose.
     - A164 honours 63 of 64 hints and A167 honours 31 of 32.
