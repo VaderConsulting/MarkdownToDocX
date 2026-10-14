@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 
 using MermaidRecognition.Kinds.Enterprise;
@@ -12,6 +13,7 @@ namespace MermaidRecognition.Layout.Enterprise;
 /// </summary>
 public static class EnterpriseSvgRenderer
 {
+    internal static Action<string, double>? StageTimingObserver { get; set; }
     private const double FONT_SIZE = 12;
 
     private const double LINE_HEIGHT = 15;
@@ -28,11 +30,11 @@ public static class EnterpriseSvgRenderer
             throw new ArgumentNullException(nameof(Document));
         }
 
-        EnterpriseLayoutResult Layout = EnterpriseLayoutEngine.Layout(Document);
+        EnterpriseLayoutResult Layout = Measure("enterprise-layout", () => EnterpriseLayoutEngine.Layout(Document));
         EnterpriseFlowchartRoutingContext? RoutingContext = Layout.RoutingContext;
-        List<EnterpriseRoutedEdge> RoutedEdges = RoutingContext == null
+        List<EnterpriseRoutedEdge> RoutedEdges = Measure("enterprise-edge-routing", () => RoutingContext == null
             ? EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes)
-            : EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes, RoutingContext);
+            : EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes, RoutingContext));
         var Captions = EnterpriseJunctionCaptionLayout.Place(Layout.Nodes, RoutedEdges);
         double TitleHeight = string.IsNullOrEmpty(Document.Title) ? 0 : 30;
         double Width = Math.Ceiling(Math.Max(Layout.Width, 40));
@@ -58,6 +60,8 @@ public static class EnterpriseSvgRenderer
             }
             Width = Math.Ceiling(Math.Max(Width, TitleWidth + 40));
         }
+        Stopwatch SvgBuildTimer = Stopwatch.StartNew();
+        StageTimingObserver?.Invoke("enterprise-svg-build", -1);
         StringBuilder Builder = new StringBuilder();
         Builder.Append("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"")
             .Append(EnterpriseSvgFormat.Number(Width))
@@ -119,8 +123,24 @@ public static class EnterpriseSvgRenderer
         }
 
         Builder.Append("</g></svg>");
-        return EnterpriseSvgConfiguration.Apply(EnterpriseMarkdownSvg.Apply(
-            EnterpriseStyleSvg.Apply(FlowchartSvgLineJump.Apply(Builder.ToString()), Document), Document), Document);
+        SvgBuildTimer.Stop();
+        StageTimingObserver?.Invoke("enterprise-svg-build", SvgBuildTimer.Elapsed.TotalMilliseconds);
+        return Measure("enterprise-svg-postprocess", () => EnterpriseSvgConfiguration.Apply(EnterpriseMarkdownSvg.Apply(
+            EnterpriseStyleSvg.Apply(FlowchartSvgLineJump.Apply(Builder.ToString()), Document), Document), Document));
+    }
+
+    private static T Measure<T>(string Name, Func<T> Operation)
+    {
+        Action<string, double>? Observer = StageTimingObserver;
+        if (Observer == null) return Operation();
+        Observer(Name, -1);
+        Stopwatch Timer = Stopwatch.StartNew();
+        try { return Operation(); }
+        finally
+        {
+            Timer.Stop();
+            Observer(Name, Timer.Elapsed.TotalMilliseconds);
+        }
     }
 
     private static void AppendNote(StringBuilder Builder, EnterpriseLayoutNode Node)

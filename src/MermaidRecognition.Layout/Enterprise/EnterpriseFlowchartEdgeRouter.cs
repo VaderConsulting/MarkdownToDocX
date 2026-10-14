@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
@@ -18,6 +19,7 @@ namespace MermaidRecognition.Layout.Enterprise;
 /// </summary>
 internal static class EnterpriseFlowchartEdgeRouter
 {
+    internal static Action<string, double>? StageTimingObserver { get; set; }
     private const double RELATIONSHIP_LABEL_FONT_SIZE_PX = 12;
 
     // Plain SVG text has no HTML label box or minimum browser box width.
@@ -363,18 +365,20 @@ internal static class EnterpriseFlowchartEdgeRouter
         out EnterpriseFlowchartRoutingContext Context)
     {
         Context = new EnterpriseFlowchartRoutingContext();
-        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(Document);
+        DiagramContract Contract = Measure("enterprise-contract-map", () => EnterpriseFlowchartContractMapper.Build(Document));
         if (Contract.Nodes.Count == 0)
         {
             return false;
         }
 
-        if (!FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout))
+        FlowchartLayoutResult Layout = new();
+        if (!Measure("enterprise-shared-flowchart-layout", () => FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out Layout)))
         {
             return false;
         }
 
-        if (!FlowchartSvgCoordinateFrameResolver.TryResolve(Contract, Layout, out FlowchartSvgCoordinateFrame Frame))
+        FlowchartSvgCoordinateFrame Frame = new();
+        if (!Measure("enterprise-coordinate-frame", () => FlowchartSvgCoordinateFrameResolver.TryResolve(Contract, Layout, out Frame)))
         {
             return false;
         }
@@ -395,12 +399,9 @@ internal static class EnterpriseFlowchartEdgeRouter
         FlowchartRenderOptions RenderOptions = FlowchartRenderOptions.FromContract(Contract);
         FlowchartSubgraphBoundsRequest BoundsRequest =
             FlowchartSubgraphBoundsRequest.FromContract(Contract, RenderOptions);
-        List<FlowchartSubgraphLayoutRect> SubgraphRects = Layout.ClusterBounds.Count > 0
+        List<FlowchartSubgraphLayoutRect> SubgraphRects = Measure("enterprise-subgraph-rectangles", () => Layout.ClusterBounds.Count > 0
             ? FlowchartSugiyamaSvgRenderer.BuildDagreClusterRects(Contract, Layout)
-            : FlowchartSubgraphBoundsBuilder.BuildOrderedRects(
-            Contract,
-            BoundsById,
-            BoundsRequest);
+            : FlowchartSubgraphBoundsBuilder.BuildOrderedRects(Contract, BoundsById, BoundsRequest));
         foreach (FlowchartSubgraphLayoutRect Rect in SubgraphRects)
         {
             BoundsById[Rect.GroupId] = new FlowchartLayoutNodeBounds
@@ -442,15 +443,26 @@ internal static class EnterpriseFlowchartEdgeRouter
             NodeById = NodeById,
             Direction = Direction,
             RenderOptions = RenderOptions,
-            RouteClassByEdgeKey = FlowchartEdgeRoutingIntentAnalyzer.BuildRouteClassNamesByEdgeKey(
-                Contract,
-                Layout,
-                Direction),
+            RouteClassByEdgeKey = Frame.RouteClassByEdgeKey,
             SvgRects = SvgRects,
             SvgWidth = SvgWidth,
             SvgHeight = SvgHeight
         };
         return true;
+    }
+
+    private static T Measure<T>(string Name, Func<T> Operation)
+    {
+        Action<string, double>? Observer = StageTimingObserver;
+        if (Observer == null) return Operation();
+        Observer(Name, -1);
+        Stopwatch Timer = Stopwatch.StartNew();
+        try { return Operation(); }
+        finally
+        {
+            Timer.Stop();
+            Observer(Name, Timer.Elapsed.TotalMilliseconds);
+        }
     }
 
     private static EdgeContract? FindUnusedEdge(

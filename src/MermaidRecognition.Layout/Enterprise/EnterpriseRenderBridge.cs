@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 
 using MermaidRecognition.Kinds.Enterprise;
@@ -11,6 +12,7 @@ namespace MermaidRecognition.Layout.Enterprise;
 /// </summary>
 public static class EnterpriseRenderBridge
 {
+    internal static Action<string, double>? StageTimingObserver { get; set; }
     /// <summary>
     /// Returns true when the source is an enterprise diagram.
     /// </summary>
@@ -43,7 +45,11 @@ public static class EnterpriseRenderBridge
             return false;
         }
 
+        StageTimingObserver?.Invoke("enterprise-analysis", -1);
+        Stopwatch AnalysisTimer = Stopwatch.StartNew();
         EnterpriseAnalysisResult Analysis = EnterpriseValidator.Analyze(Source ?? string.Empty);
+        AnalysisTimer.Stop();
+        StageTimingObserver?.Invoke("enterprise-analysis", AnalysisTimer.Elapsed.TotalMilliseconds);
         if (DefaultLayout.HasValue && !Analysis.Document.Configuration.ContainsKey("layout"))
             Analysis.Document.LayoutMode = DefaultLayout.Value;
         if (!string.IsNullOrWhiteSpace(DefaultLegend) && !Analysis.Document.Configuration.ContainsKey("legend"))

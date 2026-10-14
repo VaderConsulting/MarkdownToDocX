@@ -782,20 +782,40 @@ public static class FlowchartEdgeRoutingIntentAnalyzer
         FlowchartLayoutResult Layout,
         FlowchartDirection Direction)
     {
-        FlowchartRoutingIntentDiagramResult Intent = Analyze(Contract, Layout, Direction, "render");
         Dictionary<string, string> RouteClassByEdgeKey =
             new Dictionary<string, string>(StringComparer.Ordinal);
+        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds
+            .ToDictionary(Bounds => Bounds.NodeId, Bounds => Bounds);
+        Dictionary<string, NodeContract> NodeById = Contract.Nodes
+            .ToDictionary(Node => Node.Id, Node => Node);
+        FlowchartRenderOptions RenderOptions = FlowchartRenderOptions.FromContract(Contract);
+        FlowchartSpineGraphHelper.TryBuildContext(
+            Contract,
+            BoundsById,
+            Direction,
+            RenderOptions,
+            out FlowchartSpineLayoutContext? SpineContext);
 
-        foreach (FlowchartEdgeRoutingIntentRecord Record in Intent.Edges)
+        int EdgeSequence = 0;
+        foreach (EdgeContract Edge in Contract.Edges)
         {
-            string RouteClassName = MapRouteClassName(Record.RouteClass);
-            if (!string.IsNullOrWhiteSpace(Record.EdgeId))
+            if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
+                || !BoundsById.TryGetValue(Edge.SourceId, out FlowchartLayoutNodeBounds SourceBounds)
+                || !BoundsById.TryGetValue(Edge.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
             {
-                RouteClassByEdgeKey[Record.EdgeId] = RouteClassName;
+                continue;
             }
 
-            string SourceTargetKey = Record.SourceNodeId + "->" + Record.TargetNodeId;
-            RouteClassByEdgeKey[SourceTargetKey] = RouteClassName;
+            EdgeSequence++;
+            FlowchartEdgeRoute StructuralRoute = FlowchartRouter.ClassifyEdge(Edge, Contract);
+            FlowchartEdgeSemanticRouteClass SemanticRouteClass = FlowchartEdgeRouteClassifier.Classify(
+                Edge, Contract, BoundsById, NodeById, Direction, SpineContext);
+            FlowchartRoutingIntentRouteClass RouteClass = InferRouteClass(
+                Edge, Contract, BoundsById, NodeById, Direction, SpineContext,
+                StructuralRoute, SemanticRouteClass, SourceBounds, TargetBounds);
+            string RouteClassName = MapRouteClassName(RouteClass);
+            RouteClassByEdgeKey["E" + EdgeSequence.ToString("D3", System.Globalization.CultureInfo.InvariantCulture)] = RouteClassName;
+            RouteClassByEdgeKey[Edge.SourceId + "->" + Edge.TargetId] = RouteClassName;
         }
 
         return RouteClassByEdgeKey;
